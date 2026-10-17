@@ -1,5 +1,7 @@
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
 //#region src/suites/documentation/validate_markdown_syntax.ts
 /**
 * scripts/auditors/documentation/validate_markdown_syntax.ts
@@ -39,12 +41,13 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_SYNTAX_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
+				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}),
+			}, ["markdown-table-preceding-blank-line"]),
+			fixableRuleIds: ["markdown-table-preceding-blank-line"],
 			id: "validate_markdown_syntax",
 			name: "Markdown Syntax & NPM Script SSoT Validator",
 			description: "Comandos no autorizados o tablas mal formateadas en docs",
@@ -87,21 +90,27 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 		});
 	}
 	checkTablePrecedingBlankLine(lines, index, trimmed, relPath) {
-		if (index === 0) return;
+		if (index === 0) return false;
 		const nextLine = lines[index + 1]?.trim() || "";
-		if (!TABLE_ROW_REGEX.test(trimmed) || index + 1 >= lines.length || !TABLE_SEPARATOR_REGEX.test(nextLine)) return;
-		if (!isTablePrecededProperly(lines[index - 1]?.trim() || "")) this.addViolation({
-			ruleId: "markdown-table-preceding-blank-line",
-			severity: "warning",
-			file: relPath,
-			line: index + 1,
-			message: "Markdown table header must be preceded by a blank empty line for standard GFM compliance.",
-			context: trimmed
-		});
+		if (!TABLE_ROW_REGEX.test(trimmed) || index + 1 >= lines.length || !TABLE_SEPARATOR_REGEX.test(nextLine)) return false;
+		if (!isTablePrecededProperly(lines[index - 1]?.trim() || "")) {
+			if (this.isFixActive()) return true;
+			this.addViolation({
+				ruleId: "markdown-table-preceding-blank-line",
+				severity: "warning",
+				file: relPath,
+				line: index + 1,
+				message: "Markdown table header must be preceded by a blank empty line for standard GFM compliance.",
+				context: trimmed,
+				fixable: true
+			});
+		}
+		return false;
 	}
 	scanFile(relPath, content) {
 		const lines = content.split("\n");
 		let inFencedCodeBlock = false;
+		const insertBlankBeforeIndices = [];
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
 			if (!line) continue;
@@ -120,8 +129,14 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 				this.checkNpmScriptViolation(line, trimmed, i + 1, relPath);
 			});
 			else this.runSubAuditorSync("markdown-table-preceding-blank-line", () => {
-				this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath);
+				if (this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath)) insertBlankBeforeIndices.push(i);
 			});
+		}
+		if (insertBlankBeforeIndices.length > 0 && this.isFixActive()) {
+			const eol = content.includes("\r\n") ? "\r" : "";
+			for (const lineIdx of [...insertBlankBeforeIndices].reverse()) lines.splice(lineIdx, 0, eol);
+			const targetMarkdownPath = path.join(this.projectRoot, relPath);
+			if (fs.existsSync(targetMarkdownPath)) fs.writeFileSync(targetMarkdownPath, lines.join("\n"), "utf-8");
 		}
 	}
 };

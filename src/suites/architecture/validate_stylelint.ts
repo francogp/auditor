@@ -525,7 +525,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       this.runSubAuditorSync(ruleId, () => {
         for (const v of violations) {
           if (v.ruleId === ruleId) {
-            this.addViolation(v);
+            this.addViolation(isFixMode ? { ...v, fixable: false } : v);
           }
         }
       });

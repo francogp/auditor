@@ -1,5 +1,5 @@
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { getPackageJson } from "../../core/packageJson.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions } from "../../core/auditorMinimums.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -30,12 +30,13 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
+				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}),
+			}, ["dependency-below-minimum-range", "dependency-exceeds-maximum-range"]),
+			fixableRuleIds: ["dependency-below-minimum-range", "dependency-exceeds-maximum-range"],
 			id: "validate_dependency_minimums",
 			name: "Dependency Minimum Versions Validator",
 			description: "Versión mínima y máxima de librerías instaladas",
@@ -81,16 +82,18 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		if (semver.lt(declaredMin, requiredMin)) this.addViolation({
 			ruleId: "dependency-below-minimum-range",
 			file: "package.json",
-			message: `"${name}" declara "${declared.range}" (piso ${declaredMin.version}) por debajo del mínimo del auditor "${floor}". Ejecuta: ${this.installCommand(name, floor, declared)}`,
-			severity: "error"
+			message: `"${name}" declara "${declared.range}" (piso ${declaredMin.version}) por debajo del mínimo del auditor "${floor}". Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+			severity: "error",
+			fixable: true
 		});
 	}
 	auditDeclaredRangeMaximum(name, floor, declared, maxSpec) {
 		if (semver.intersects(declared.range, maxSpec.prohibitedRange)) this.addViolation({
 			ruleId: "dependency-exceeds-maximum-range",
 			file: "package.json",
-			message: `"${name}" declara "${declared.range}" que permite versiones superiores al máximo "${maxSpec.ceiling}". ${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
-			severity: "error"
+			message: `"${name}" declara "${declared.range}" que permite versiones superiores al máximo "${maxSpec.ceiling}". ${maxSpec.reason} Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+			severity: "error",
+			fixable: true
 		});
 	}
 	auditInstalledVersion(name, floor, declared, lock) {
@@ -101,7 +104,8 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 			ruleId: "dependency-below-minimum-installed",
 			file: "package-lock.json",
 			message: `"${name}" instalada en ${installed} (package-lock.json) por debajo del mínimo del auditor "${floor}". Ejecuta: ${this.installCommand(name, floor, declared)}`,
-			severity: "error"
+			severity: "error",
+			fixable: false
 		});
 	}
 	auditInstalledVersionMaximum(name, floor, declared, lock, maxSpec) {
@@ -111,22 +115,61 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 			ruleId: "dependency-exceeds-maximum-installed",
 			file: "package-lock.json",
 			message: `"${name}" instalada en ${installed} (package-lock.json) excede el máximo permitido "${maxSpec.ceiling}". ${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
-			severity: "error"
+			severity: "error",
+			fixable: false
 		});
+	}
+	repairDeclaredRangesInPackageJson(pkg, minimums, maximums) {
+		let modified = false;
+		const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : void 0;
+		const nextDevDeps = pkg.devDependencies ? { ...pkg.devDependencies } : void 0;
+		const nextOptDeps = pkg.optionalDependencies ? { ...pkg.optionalDependencies } : void 0;
+		const sectionMap = {
+			dependencies: nextDeps,
+			devDependencies: nextDevDeps,
+			optionalDependencies: nextOptDeps
+		};
+		for (const [name, floor] of Object.entries(minimums)) {
+			const declared = findDeclaredDependency(pkg, name);
+			if (!declared) continue;
+			const declaredMin = semver.validRange(declared.range) ? semver.minVersion(declared.range) : null;
+			const requiredMin = semver.minVersion(floor);
+			const belowMin = Boolean(declaredMin && requiredMin && semver.lt(declaredMin, requiredMin));
+			const maxSpec = maximums[name];
+			const exceedsMax = Boolean(maxSpec && semver.validRange(declared.range) && semver.intersects(declared.range, maxSpec.prohibitedRange));
+			if (belowMin || exceedsMax) {
+				const targetSection = sectionMap[declared.section];
+				if (targetSection) {
+					targetSection[name] = floor;
+					modified = true;
+				}
+			}
+		}
+		if (!modified) return pkg;
+		const updatedPkg = {
+			...pkg,
+			...nextDeps ? { dependencies: nextDeps } : {},
+			...nextDevDeps ? { devDependencies: nextDevDeps } : {},
+			...nextOptDeps ? { optionalDependencies: nextOptDeps } : {}
+		};
+		writePackageJson(this.projectRoot, updatedPkg);
+		return updatedPkg;
 	}
 	async runAudit() {
 		this.recordScanned("package.json");
 		const minimums = getAuditorMinimumVersions();
 		const maximums = getAuditorMaximumVersions();
-		const pkg = getPackageJson(this.projectRoot, true);
+		let pkg = getPackageJson(this.projectRoot, true);
 		if (!pkg) {
 			for (const ruleId of DEPENDENCY_MINIMUMS_RULES) this.runSubAuditorSync(ruleId, () => {
 				this.markRuleNotApplicable(ruleId, "package.json ausente o inválido");
 			});
 			return;
 		}
+		if (this.isFixActive()) pkg = this.repairDeclaredRangesInPackageJson(pkg, minimums, maximums);
+		const currentPkg = pkg;
 		const declaredEntries = Object.entries(minimums).flatMap(([name, floor]) => {
-			const declared = findDeclaredDependency(pkg, name);
+			const declared = findDeclaredDependency(currentPkg, name);
 			return declared ? [{
 				name,
 				floor,

@@ -115,7 +115,7 @@ function auditVueStyleBlocks(params) {
 function auditStyleFile(params) {
 	let { content } = params;
 	let modified = false;
-	const newBlock = runRules(params.filePath, content, params.styleRules, params.violations, params.violations.length > 0 ? false : params.fix, 0);
+	const newBlock = runRules(params.filePath, content, params.styleRules, params.violations, params.fix, 0);
 	if (params.fix && newBlock !== content) {
 		content = newBlock;
 		modified = true;
@@ -296,13 +296,13 @@ function applyRuleFix(rule, content, filePath) {
 const activeProjectRuleTimings = /* @__PURE__ */ new Map();
 function runRules(filePath, content, rules, violations, fix, offset) {
 	let result = content;
-	const getLineNo = createLineLocator(content, offset);
 	for (const rule of rules) {
 		if (rule.appliesTo && !rule.appliesTo(filePath)) continue;
 		const ruleKey = rule.id;
 		const start = performance.now();
-		collectRuleViolations(rule, content, filePath, getLineNo, violations);
 		if (fix && rule.fix) result = applyRuleFix(rule, result, filePath);
+		const getLineNo = createLineLocator(result, offset);
+		collectRuleViolations(rule, result, filePath, getLineNo, violations);
 		if (ruleKey) {
 			const elapsed = performance.now() - start;
 			const current = activeProjectRuleTimings.get(ruleKey) ?? 0;
@@ -767,7 +767,7 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			this.markRuleEvaluated(r);
 			if (!activeProjectRuleTimings.has(r)) activeProjectRuleTimings.set(r, 0);
 		}
-		const violations = await main();
+		const violations = await main(this.isFixActive() ? [...process.argv.slice(2), "--fix"] : void 0);
 		for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) this.reportRuleDuration(ruleId, durationMs);
 		for (const v of violations) {
 			const relFile = v.file ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file) : "";

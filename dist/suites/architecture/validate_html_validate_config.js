@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, collectRepositoryFiles, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
@@ -109,17 +109,25 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 	constructor(rootsOrOptions, maybeProjectRoot) {
 		const optionsObj = Boolean(rootsOrOptions && !Array.isArray(rootsOrOptions)) ? rootsOrOptions : void 0;
 		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+		const fixableRules = [
+			"html-validate-config-missing",
+			"html-validate-config-missing-strict-rule",
+			"html-validate-config-missing-plugin",
+			"html-validate-config-missing-transform",
+			"html-validate-config-missing-doctype-style"
+		];
 		super({
 			usesThirdPartyTool: false,
-			ruleCapabilities: createUniformRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
+			ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
+				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: true
-			}),
+			}, fixableRules),
+			fixableRuleIds: fixableRules,
 			id: "validate_html_validate_config",
 			name: "HTML-Validate Configuration Integrity Validator",
 			description: "Valida baseline e integridad de .htmlvalidate.json",

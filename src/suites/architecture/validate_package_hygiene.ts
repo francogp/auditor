@@ -194,7 +194,10 @@ export function parseKnipIssues(
 /**
  * Validates package-lock.json integrity, version standards, and absence of insecure HTTP registries.
  */
-export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
+export function verifyLockfileIntegrity(
+  projectRoot: string,
+  isFixMode = false
+): AuditFinding[] {
   const findings: AuditFinding[] = [];
   const lockfilePath = path.resolve(projectRoot, 'package-lock.json');
   const pkgJsonPath = path.resolve(projectRoot, 'package.json');
@@ -311,16 +314,80 @@ export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
     // catch-ok: Ignore parse errors
   }
 
+  const packages = (lockfileJson.packages as Record<string, unknown>) || {};
+  const rootPackage = (packages[''] as Record<string, unknown>) || {};
+
+  auditFloatingGitDependencies(
+    pkgJson,
+    rootPackage,
+    lockfileJson,
+    pkgJsonPath,
+    lockfilePath,
+    isFixMode,
+    findings
+  );
+
   const allDeclaredDeps: Record<string, string> = {
     ...(pkgJson.dependencies as Record<string, string>),
     ...(pkgJson.devDependencies as Record<string, string>)
   };
 
-  for (const [depName, spec] of Object.entries(allDeclaredDeps)) {
-    if (
-      typeof spec === 'string' &&
-      (spec.includes('#semver:') || /#(?:main|master|dev|develop)$/.test(spec))
-    ) {
+  verifyLockfileRootDepsSync(rootPackage, allDeclaredDeps, findings);
+
+  return findings;
+}
+
+function resolveAuditorSemverTag(): string {
+  try {
+    const selfPkgPath = path.resolve(import.meta.dirname, '../../../package.json');
+    if (fs.existsSync(selfPkgPath)) {
+      const selfPkg = JSON.parse(fs.readFileSync(selfPkgPath, 'utf-8')) as {
+        version?: string;
+      };
+      if (selfPkg.version) {
+        return selfPkg.version.split('-')[0]!;
+      }
+    }
+  } catch {
+    // catch-ok: fallback
+  }
+  return '0.0.0';
+}
+
+function auditFloatingGitDependencies(
+  pkgJson: Record<string, unknown>,
+  rootPackage: Record<string, unknown>,
+  lockfileJson: Record<string, unknown>,
+  pkgJsonPath: string,
+  lockfilePath: string,
+  isFixMode: boolean,
+  findings: AuditFinding[]
+): void {
+  let pkgModified = false;
+  let lockModified = false;
+  const semverTag = isFixMode ? resolveAuditorSemverTag() : '';
+
+  for (const section of ['dependencies', 'devDependencies'] as const) {
+    const deps = pkgJson[section] as Record<string, string> | undefined;
+    if (!deps) continue;
+    for (const [depName, spec] of Object.entries(deps)) {
+      if (
+        typeof spec !== 'string' ||
+        (!spec.includes('#semver:') && !/#(?:main|master|dev|develop)$/.test(spec))
+      ) {
+        continue;
+      }
+      if (isFixMode && depName === '@francogp/auditor') {
+        const pinnedSpec = spec.replace(/#.*$/, `#v${semverTag}`);
+        deps[depName] = pinnedSpec;
+        pkgModified = true;
+        const rootSection = rootPackage[section] as Record<string, string> | undefined;
+        if (rootSection && rootSection[depName]) {
+          rootSection[depName] = pinnedSpec;
+          lockModified = true;
+        }
+        continue;
+      }
       findings.push({
         suiteId: 'validate_package_hygiene',
         suiteName: 'Package & Dependency Hygiene Auditor',
@@ -335,46 +402,53 @@ export function verifyLockfileIntegrity(projectRoot: string): AuditFinding[] {
     }
   }
 
-  // 5. Package.json vs package-lock.json root packages synchronization (v3)
-  const packages = (lockfileJson.packages as Record<string, unknown>) || {};
-  const rootPackage = (packages[''] as Record<string, unknown>) || {};
-  if (rootPackage && typeof rootPackage === 'object') {
-    const rootDeps: Record<string, string> = {
-      ...(rootPackage.dependencies as Record<string, string>),
-      ...(rootPackage.devDependencies as Record<string, string>)
-    };
+  if (pkgModified) {
+    fs.writeFileSync(pkgJsonPath, JSON.stringify(pkgJson, null, 2) + '\n', 'utf-8');
+  }
+  if (lockModified) {
+    fs.writeFileSync(lockfilePath, JSON.stringify(lockfileJson, null, 2) + '\n', 'utf-8');
+  }
+}
 
-    for (const [depName, expectedSpec] of Object.entries(allDeclaredDeps)) {
-      const lockedSpec = rootDeps[depName];
-      if (!lockedSpec) {
-        findings.push({
-          suiteId: 'validate_package_hygiene',
-          suiteName: 'Package & Dependency Hygiene Auditor',
-          ruleId: 'package-lockfile-integrity',
-          ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
-          severity: 'error',
-          file: 'package-lock.json',
-          line: 1,
-          context: `${depName}: missing`,
-          message: `La dependencia "${depName}" declarada en package.json no está registrada en package-lock.json. Ejecuta "npm install" para sincronizar el lockfile.`
-        });
-      } else if (lockedSpec !== expectedSpec) {
-        findings.push({
-          suiteId: 'validate_package_hygiene',
-          suiteName: 'Package & Dependency Hygiene Auditor',
-          ruleId: 'package-lockfile-integrity',
-          ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
-          severity: 'error',
-          file: 'package-lock.json',
-          line: 1,
-          context: `${depName}: ${expectedSpec} vs ${lockedSpec}`,
-          message: `La dependencia "${depName}" en package.json ("${expectedSpec}") difiere de package-lock.json ("${lockedSpec}"). Ejecuta "npm install" para sincronizar el lockfile.`
-        });
-      }
+function verifyLockfileRootDepsSync(
+  rootPackage: Record<string, unknown>,
+  allDeclaredDeps: Record<string, string>,
+  findings: AuditFinding[]
+): void {
+  if (!rootPackage || typeof rootPackage !== 'object') return;
+  const rootDeps: Record<string, string> = {
+    ...(rootPackage.dependencies as Record<string, string>),
+    ...(rootPackage.devDependencies as Record<string, string>)
+  };
+
+  for (const [depName, expectedSpec] of Object.entries(allDeclaredDeps)) {
+    const lockedSpec = rootDeps[depName];
+    if (!lockedSpec) {
+      findings.push({
+        suiteId: 'validate_package_hygiene',
+        suiteName: 'Package & Dependency Hygiene Auditor',
+        ruleId: 'package-lockfile-integrity',
+        ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+        severity: 'error',
+        file: 'package-lock.json',
+        line: 1,
+        context: `${depName}: missing`,
+        message: `La dependencia "${depName}" declarada en package.json no está registrada en package-lock.json. Ejecuta "npm install" para sincronizar el lockfile.`
+      });
+    } else if (lockedSpec !== expectedSpec) {
+      findings.push({
+        suiteId: 'validate_package_hygiene',
+        suiteName: 'Package & Dependency Hygiene Auditor',
+        ruleId: 'package-lockfile-integrity',
+        ruleDescription: 'Dependencias: Lockfile corrupto o inseguro',
+        severity: 'error',
+        file: 'package-lock.json',
+        line: 1,
+        context: `${depName}: ${expectedSpec} vs ${lockedSpec}`,
+        message: `La dependencia "${depName}" en package.json ("${expectedSpec}") difiere de package-lock.json ("${lockedSpec}"). Ejecuta "npm install" para sincronizar el lockfile.`
+      });
     }
   }
-
-  return findings;
 }
 
 export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
@@ -446,7 +520,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     }
 
     this.runSubAuditorSync('package-lockfile-integrity', () => {
-      const lockFindings = verifyLockfileIntegrity(this.projectRoot);
+      const lockFindings = verifyLockfileIntegrity(this.projectRoot, this.isFixActive());
       for (const lf of lockFindings) {
         this.addViolation({
           ruleId: lf.ruleId as PackageHygieneRuleId,

@@ -378,7 +378,10 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		for (const fileResult of linterResult.results) if (fileResult.source) this.recordScanned(fileResult.source);
 		const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
 		for (const ruleId of STYLELINT_RULES) this.runSubAuditorSync(ruleId, () => {
-			for (const v of violations) if (v.ruleId === ruleId) this.addViolation(v);
+			for (const v of violations) if (v.ruleId === ruleId) this.addViolation(isFixMode ? {
+				...v,
+				fixable: false
+			} : v);
 		});
 		persistStylelintReport(this.projectRoot, this.id, this.filesScannedCount, {
 			totalErrors,

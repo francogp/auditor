@@ -3,7 +3,7 @@ import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
-import { getPackageJson } from "../../core/packageJson.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { describeBaselineDefect, resolveGitCommit } from "../../cli/auditRatchet.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -139,10 +139,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		await this.runSubAuditor("package-scripts-missing-recommended", async () => {
 			if (await this.verifyRecommendedScripts(pkg, config)) modified = true;
 		});
-		if (modified) {
-			const pkgPath = path.resolve(this.projectRoot, "package.json");
-			fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
-		}
+		if (modified) writePackageJson(this.projectRoot, pkg);
 		this.runSubAuditorSync("package-scripts-invalid-production-ref", () => {
 			this.verifyProductionRef(config);
 		});
@@ -162,9 +159,8 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 			});
 			return null;
 		}
-		try {
-			return getPackageJson(this.projectRoot);
-		} catch {
+		const parsed = getPackageJson(this.projectRoot, true);
+		if (!parsed) {
 			this.addViolation({
 				ruleId: "package-scripts-missing-file",
 				severity: "error",
@@ -175,6 +171,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 			});
 			return null;
 		}
+		return parsed;
 	}
 	checkBuildScriptChainsPreAudit(buildScript) {
 		if (REMOVED_COMMIT_GATE_PATTERN.test(buildScript)) return true;

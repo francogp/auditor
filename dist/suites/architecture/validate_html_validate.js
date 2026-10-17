@@ -183,9 +183,13 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		}), this.projectRoot);
 		const scannedReportFiles = extractJsonReportFilePaths(rawJson, findings);
 		this.recordScannedMany(scannedReportFiles);
+		const normalizedFindings = isFixMode ? findings.map((f) => ({
+			...f,
+			fixable: false
+		})) : findings;
 		this.markRuleEvaluated("html-validate-issue");
-		this.importAuditFindings(findings, "html-validate-issue", "html-validate");
-		this.context.setMetric("html_violations", findings.length);
+		this.importAuditFindings(normalizedFindings, "html-validate-issue", "html-validate");
+		this.context.setMetric("html_violations", normalizedFindings.length);
 		this.context.setMetric("mode", isFixMode ? "fix" : "check");
 	}
 };

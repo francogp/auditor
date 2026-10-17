@@ -180,5 +180,18 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('auto-registers missing agent plugin and skills when executed with fix: true', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir, fix: true });
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });

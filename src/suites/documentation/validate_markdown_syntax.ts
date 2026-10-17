@@ -20,6 +20,8 @@
  *   npm run validate:markdown-syntax
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 
@@ -49,15 +51,20 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
   constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(MARKDOWN_SYNTAX_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: true,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        MARKDOWN_SYNTAX_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'normal',
+          md: true,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['markdown-table-preceding-blank-line']
+      ),
+      fixableRuleIds: ['markdown-table-preceding-blank-line'],
       id: 'validate_markdown_syntax',
       name: 'Markdown Syntax & NPM Script SSoT Validator',
       description: 'Comandos no autorizados o tablas mal formateadas en docs',
@@ -109,19 +116,22 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
     index: number,
     trimmed: string,
     relPath: string
-  ): void {
-    if (index === 0) return;
+  ): boolean {
+    if (index === 0) return false;
     const nextLine = lines[index + 1]?.trim() || '';
     if (
       !TABLE_ROW_REGEX.test(trimmed) ||
       index + 1 >= lines.length ||
       !TABLE_SEPARATOR_REGEX.test(nextLine)
     ) {
-      return;
+      return false;
     }
 
     const prevLine = lines[index - 1]?.trim() || '';
     if (!isTablePrecededProperly(prevLine)) {
+      if (this.isFixActive()) {
+        return true;
+      }
       this.addViolation({
         ruleId: 'markdown-table-preceding-blank-line',
         severity: 'warning',
@@ -129,14 +139,17 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
         line: index + 1,
         message:
           'Markdown table header must be preceded by a blank empty line for standard GFM compliance.',
-        context: trimmed
+        context: trimmed,
+        fixable: true
       });
     }
+    return false;
   }
 
   protected override scanFile(relPath: string, content: string): void {
     const lines = content.split('\n');
     let inFencedCodeBlock = false;
+    const insertBlankBeforeIndices: number[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
@@ -156,8 +169,21 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
         });
       } else {
         this.runSubAuditorSync('markdown-table-preceding-blank-line', () => {
-          this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath);
+          if (this.checkTablePrecedingBlankLine(lines, i, trimmed, relPath)) {
+            insertBlankBeforeIndices.push(i);
+          }
         });
+      }
+    }
+
+    if (insertBlankBeforeIndices.length > 0 && this.isFixActive()) {
+      const eol = content.includes('\r\n') ? '\r' : '';
+      for (const lineIdx of [...insertBlankBeforeIndices].reverse()) {
+        lines.splice(lineIdx, 0, eol);
+      }
+      const targetMarkdownPath = path.join(this.projectRoot, relPath);
+      if (fs.existsSync(targetMarkdownPath)) {
+        fs.writeFileSync(targetMarkdownPath, lines.join('\n'), 'utf-8');
       }
     }
   }

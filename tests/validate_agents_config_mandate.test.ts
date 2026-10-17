@@ -23,6 +23,7 @@ import {
   CANONICAL_FAKE_PASS_SNIPPET_EN,
   CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES,
   CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES,
+  CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN,
   containsConfigAntiTamperingMandate,
   containsBackwardCompatMandate,
   containsFakePassMandate,
@@ -52,6 +53,7 @@ ${CANONICAL_MANDATE_SNIPPET_EN}
 ${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}
 ${CANONICAL_FAKE_PASS_SNIPPET_EN}
 ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
+${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}
 ${extraContract}
 
 ## Work Guidance
@@ -244,7 +246,7 @@ describe('AgentsConfigMandateAuditor', () => {
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(4);
+    expect(result.summary.errors).toBe(5);
     expect(result.status).toBe('failed');
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-config-mandate')).toBe(true);
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-backward-compat-mandate')).toBe(
@@ -254,10 +256,13 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-chat-language-mandate')).toBe(
       true
     );
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-destructive-git-mandate')).toBe(
+      true
+    );
   });
 
   it('fails with agents-missing-backward-compat-mandate when only backward-compat is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -268,7 +273,7 @@ describe('AgentsConfigMandateAuditor', () => {
   });
 
   it('fails with agents-missing-fake-pass-mandate when only fake-pass is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -279,7 +284,7 @@ describe('AgentsConfigMandateAuditor', () => {
   });
 
   it('fails with agents-missing-chat-language-mandate when only chat-language is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -289,11 +294,22 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(result.findings[0]?.ruleId).toBe('agents-missing-chat-language-mandate');
   });
 
+  it('fails with agents-missing-destructive-git-mandate when only destructive-git is missing', async () => {
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n`;
+    fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
+
+    const auditor = new AgentsConfigMandateAuditor(scratchDir);
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(1);
+    expect(result.findings[0]?.ruleId).toBe('agents-missing-destructive-git-mandate');
+  });
+
   it('fails with all mandate errors when root AGENTS.md does not exist', async () => {
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(4);
+    expect(result.summary.errors).toBe(5);
     expect(result.status).toBe('failed');
     expect(result.findings.map((f) => f.ruleId).sort()).toEqual(
       [...AGENTS_CONFIG_MANDATE_RULES].sort()
@@ -317,6 +333,9 @@ describe('AgentsConfigMandateAuditor', () => {
       'Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate'
     );
     expect(updatedContent).toContain('AI Agent Chat Communication & Interactive Language Mandate');
+    expect(updatedContent).toContain(
+      'Absolute Prohibition on Unrequested Destructive Git Commands'
+    );
 
     // Subsequent audit on repaired file should pass cleanly
     const verifyAuditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -375,10 +394,10 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(resultEs.summary.errors).toBe(0);
     expect(resultEs.status).toBe('passed');
 
-    // But verification in English mode fails for all 4 mandates
+    // But verification in English mode fails for all 5 mandates
     const verifyEn = new AgentsConfigMandateAuditor(scratchDir, { language: 'en' });
     const resultEn = await verifyEn.execute();
-    expect(resultEn.summary.errors).toBe(4);
+    expect(resultEn.summary.errors).toBe(5);
 
     // Running fix in English mode updates all mandates to English
     const fixAuditorEn = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });

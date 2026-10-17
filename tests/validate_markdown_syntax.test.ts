@@ -191,5 +191,19 @@ describe('MarkdownSyntaxAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('auto-inserts a blank line before markdown tables when fix: true is active', async () => {
+      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      (auditor as unknown as { fixMode: boolean }).fixMode = true;
+      const content = [
+        'Paragraph immediately before table.',
+        '| Header 1 | Header 2 |',
+        '| -------- | -------- |',
+        '| Cell 1   | Cell 2   |'
+      ].join('\n');
+
+      auditor.testScanFile('docs/nonexistent_table.md', content);
+      expect(auditor.collectedViolations).toHaveLength(0);
+    });
   });
 });

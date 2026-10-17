@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.0.0`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.0.1`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.0.0 --allow-git=all
+npm install -D github:francogp/auditor#v9.0.1 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.0.0"
+    "@francogp/auditor": "github:francogp/auditor#v9.0.1"
   }
 }
 ```
@@ -172,7 +172,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.0.0-build.20261017-002942',
+  auditorVersion: '9.0.1-build.20261017-033248',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.0.0"`), or install via `npm install -D github:francogp/auditor#v9.0.0 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.0.1"`), or install via `npm install -D github:francogp/auditor#v9.0.1 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -245,14 +245,12 @@ npm run auditor:fix
 auditor fix
 ```
 
-In fix mode, `@francogp/auditor` deterministically executes **Environment & Configuration suites FIRST** (`fix: 'priority'`):
+In fix mode, `@francogp/auditor` executes **100% serially (`concurrency = 1`)** with `sharedAstContext` disabled across 4 deterministic sequential phases (`FIX_MODE_EXPLICIT_ORDER`) so that zero file write race conditions occur between fixers:
 
-1. `validate_audit_config`: Scaffolds `.auditor/audit.config.ts` if missing (including `auditorVersion` matching current engine and build), injects required subsystem sections (`oxlint`, `htmlValidate`, `valibot`, etc.), synchronizes diverged engine versions, preserves existing custom user configurations while enforcing critical mandatory minimums, and populates all canonical `package.json` scripts (`auditor:*`, `lint`, `lint:fix`, `typecheck`, `build:deploy`) while chaining `npm run auditor:full` and `npm run auditor:post-build` into `build`.
-2. `validate_git_config`: Enforces and auto-repairs local Git repository configuration (`core.filemode false`, `core.autocrlf input`, `core.eol lf`).
-3. `validate_vite_plus_config`: Enforces and repairs `vite.config.ts` with strict type safety, migrating legacy vitest/eslint settings and removing obsolete config files.
-4. `validate_fallow_config`: Synchronizes `.fallowrc.json` configuration.
-5. `validate_agent_plugin`: Registers `.agents/plugins.json` and `.agents/skills.json` for immediate Antigravity agent discovery.
-6. **Code & Content Fixers** (`fix: 'normal'`): Only after the environment, git, and configurations are established do code fixers (`validate_oxlint`, `validate_oxfmt`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene`) execute.
+1. **Phase 1 — Configuration & Project Bootstrap (`fix: 'priority'`)**: `validate_audit_config`, `validate_git_config`, `validate_environment_engines`, `validate_dependency_minimums`, `validate_package_hygiene`, `validate_package_scripts`, `validate_tsconfig`, `validate_vite_plus_config` (via TypeScript Compiler AST in `viteConfigAst.ts`), `validate_playwright_config`, `validate_fallow_config`, `validate_stylelint_config`, `validate_html_validate_config`, `validate_markdown_lint_config`, and `validate_agent_plugin`.
+2. **Phase 2 — Structural & AST Code Repair (`fix: 'normal'`)**: `audit_project`, `audit_rules`, `validate_script_extensions`, `validate_accessibility`, `validate_component_styles`, `validate_z_index`, `validate_sql_anti_patterns`, `validate_agents_config_mandate`, `validate_markdown_code_references`, `validate_markdown_syntax`, and `validate_mermaid_syntax`.
+3. **Phase 3 — Third-Party Linter Repair (`fix: 'normal'`)**: `validate_oxlint`, `validate_stylelint`, `validate_html_validate`, and `validate_markdown_lint`.
+4. **Phase 4 — Final Formatting Pass (`fix: 'normal'`)**: `validate_oxfmt` runs as the absolute final step so all repaired files and configurations end in 100% canonical formatting.
 
 #### Step 4: Verify Clean Baseline
 

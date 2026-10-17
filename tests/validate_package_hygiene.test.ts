@@ -261,6 +261,37 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       const findings = verifyLockfileIntegrity(tempDir);
       expect(findings.some((f) => f.message.includes('difiere de package-lock.json'))).toBe(true);
     });
+
+    it('auto-replaces floating #semver:* with #v<auditorVersion> when isFixMode is true (fix: true)', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({
+          name: 'pkg',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#semver:*'
+          }
+        })
+      );
+      fs.writeFileSync(
+        path.join(tempDir, 'package-lock.json'),
+        JSON.stringify({
+          name: 'pkg',
+          lockfileVersion: 3,
+          packages: {
+            '': {
+              devDependencies: {
+                '@francogp/auditor': 'github:francogp/auditor#semver:*'
+              }
+            }
+          }
+        })
+      );
+      verifyLockfileIntegrity(tempDir, true);
+      const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updatedPkg.devDependencies['@francogp/auditor']).toMatch(
+        /^github:francogp\/auditor#v\d+/
+      );
+    });
   });
 
   describe('Clean Path Verification (StandardAuditResult)', () => {

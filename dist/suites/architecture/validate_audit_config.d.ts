@@ -1,7 +1,9 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
+import ts from "typescript";
 //#region src/suites/architecture/validate_audit_config.d.ts
+export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
 export declare function formatSectionObjectLiteral(value: unknown): string;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;

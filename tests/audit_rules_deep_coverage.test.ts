@@ -52,8 +52,8 @@ describe('Audit Rules Deep Coverage', () => {
         typeof viewport.message === 'function' ? viewport.message('100vh') : viewport.message;
       expect(msg).toContain('dvh');
 
-      expect(viewport.fix?.('100vh')).toBe('dvh');
-      expect(viewport.fix?.('50vw')).toBe('dvw');
+      expect(viewport.fix?.('100vh')).toBe('100dvh');
+      expect(viewport.fix?.('50vw')).toBe('50dvw');
     });
   });
 

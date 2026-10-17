@@ -386,16 +386,71 @@ function isExemptCssFile(relPath: string, exemptList: readonly string[]): boolea
   });
 }
 
+function rewriteCssReferencesInProject(
+  projectRoot: string,
+  roots: readonly string[],
+  renamedPairs: readonly { oldBase: string; newBase: string }[],
+  auditor: ComponentStylesAuditor
+): void {
+  if (renamedPairs.length === 0) return;
+  const codeFiles = auditor.collectProjectFiles(
+    roots,
+    new Set(['.vue', '.ts', '.tsx', '.js', '.jsx', '.scss', '.css', '.html'])
+  );
+  const indexHtml = path.resolve(projectRoot, 'index.html');
+  if (fs.existsSync(indexHtml) && !codeFiles.includes(indexHtml)) {
+    codeFiles.push(indexHtml);
+  }
+  for (const filePath of codeFiles) {
+    try {
+      if (!fs.existsSync(filePath)) continue;
+      let content = fs.readFileSync(filePath, 'utf-8');
+      let modified = false;
+      for (const { oldBase, newBase } of renamedPairs) {
+        const escapedOld = oldBase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const refPattern = new RegExp(`(['"\`/(])${escapedOld}(['"\`)\\s;])`, 'g');
+        if (refPattern.test(content)) {
+          content = content.replace(refPattern, `$1${newBase}$2`);
+          modified = true;
+        }
+      }
+      if (modified) {
+        fs.writeFileSync(filePath, content, 'utf-8');
+      }
+    } catch {
+      // catch-ok: Ignore unreadable files during CSS -> SCSS reference rewrite
+    }
+  }
+}
+
 function auditRawCssFiles(
   cssFiles: readonly string[],
   projectRoot: string,
   exemptCssFiles: readonly string[],
   auditor: ComponentStylesAuditor
 ): void {
+  const renamedPairs: { oldBase: string; newBase: string }[] = [];
   for (const file of cssFiles) {
     const relPath = toPosixRelative(projectRoot, file);
     if (isExemptCssFile(relPath, exemptCssFiles)) {
       continue;
+    }
+    if (auditor.isFixActive()) {
+      const targetScss = file.slice(0, -4) + '.scss';
+      try {
+        if (!fs.existsSync(targetScss)) {
+          fs.renameSync(file, targetScss);
+        } else {
+          fs.rmSync(file, { force: true });
+        }
+        renamedPairs.push({
+          oldBase: path.basename(file),
+          newBase: path.basename(targetScss)
+        });
+        continue;
+      } catch {
+        // catch-ok: Fall through to record violation if rename fails
+      }
     }
     auditor.recordViolation(
       {
@@ -406,8 +461,11 @@ function auditRawCssFiles(
       'banned-raw-css-file',
       relPath,
       1,
-      false
+      true
     );
+  }
+  if (auditor.isFixActive() && renamedPairs.length > 0) {
+    rewriteCssReferencesInProject(projectRoot, auditor.roots, renamedPairs, auditor);
   }
 }
 
@@ -551,9 +609,9 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
           changedOnly: false,
           critical: false
         },
-        ['banned-plain-css-style']
+        ['banned-plain-css-style', 'banned-raw-css-file']
       ),
-      fixableRuleIds: ['banned-plain-css-style'],
+      fixableRuleIds: ['banned-plain-css-style', 'banned-raw-css-file'],
       fix: options.fix,
       id: 'validate_component_styles',
       name: 'Vue Component Style Linkage & SCSS Auditor',
@@ -637,6 +695,13 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     return this.cssCount;
   }
 
+  public collectProjectFiles(
+    roots: readonly string[],
+    extensions: ReadonlySet<string>
+  ): string[] {
+    return this.context.collectFiles(roots, extensions);
+  }
+
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
     this.redeclareCoverage({
@@ -648,18 +713,18 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     });
     const srcRoots = config.paths.srcRoots ?? [];
     const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? 'src');
-    const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
-    const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
-    const cssFiles = this.context.collectFiles(this.roots, new Set(['.css']));
-
-    this.vueCount = vueFiles.length;
-    this.scssCount = scssFiles.length;
-    this.cssCount = cssFiles.length;
-
     const enforceScss = config.styles?.enforceScss !== false;
     const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
 
-    if (!enforceScss) {
+    const initialCssFiles = this.context.collectFiles(this.roots, new Set(['.css']));
+    if (enforceScss) {
+      this.runSubAuditorSync('banned-raw-css-file', () => {
+        for (const file of initialCssFiles) {
+          this.recordScanned(file);
+        }
+        auditRawCssFiles(initialCssFiles, this.projectRoot, exemptCssFiles, this);
+      });
+    } else {
       this.markRuleNotApplicable(
         'banned-plain-css-style',
         'SCSS no está forzado en configuración (styles.enforceScss: false)'
@@ -669,6 +734,14 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
         'SCSS no está forzado en configuración (styles.enforceScss: false)'
       );
     }
+
+    const vueFiles = this.context.collectFiles(this.roots, new Set(['.vue']));
+    const scssFiles = this.context.collectFiles(this.roots, new Set(['.scss']));
+    const cssFiles = this.context.collectFiles(this.roots, new Set(['.css']));
+
+    this.vueCount = vueFiles.length;
+    this.scssCount = scssFiles.length;
+    this.cssCount = cssFiles.length;
 
     if (vueFiles.length === 0) {
       this.markRuleNotApplicable('broken-style-link', 'No se encontraron componentes .vue');
@@ -682,15 +755,6 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
 
     if (scssFiles.length === 0) {
       this.markRuleNotApplicable('orphaned-scss', 'No se encontraron archivos .scss');
-    }
-
-    if (enforceScss) {
-      this.runSubAuditorSync('banned-raw-css-file', () => {
-        for (const file of cssFiles) {
-          this.recordScanned(file);
-        }
-        auditRawCssFiles(cssFiles, this.projectRoot, exemptCssFiles, this);
-      });
     }
 
     const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);

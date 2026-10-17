@@ -295,6 +295,13 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       const violations = await main(['--path', tempDir, '--json']);
       expect(Array.isArray(violations)).toBe(true);
     });
+
+    it('runs main with --fix on isolated directory and repairs nodePrefix imports', async () => {
+      const auditor = new ProjectArchitectureAuditor();
+      expect(auditor.capabilities.fix).toBe('normal');
+      const violations = await main(['--path', tempDir, '--fix', '--summary']);
+      expect(Array.isArray(violations)).toBe(true);
+    });
   });
 
   describe('Clean execution', () => {

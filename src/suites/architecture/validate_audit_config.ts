@@ -38,15 +38,68 @@ import ts from 'typescript';
 
 enableCompileCache();
 
-export function formatSectionObjectLiteral(value: unknown): string {
-  const jsonStr = JSON.stringify(value, null, 2);
-  return jsonStr
+export function dtoValueToTsExpression(value: unknown): ts.Expression {
+  if (typeof value === 'string') {
+    return ts.factory.createStringLiteral(value, true);
+  }
+  if (typeof value === 'number') {
+    if (value < 0) {
+      return ts.factory.createPrefixUnaryExpression(
+        ts.SyntaxKind.MinusToken,
+        ts.factory.createNumericLiteral(Math.abs(value))
+      );
+    }
+    return ts.factory.createNumericLiteral(value);
+  }
+  if (typeof value === 'boolean') {
+    return value ? ts.factory.createTrue() : ts.factory.createFalse();
+  }
+  if (value === null || value === undefined) {
+    return ts.factory.createNull();
+  }
+  if (Array.isArray(value)) {
+    const elements = value.map((item) => dtoValueToTsExpression(item));
+    const multiLine =
+      value.length > 3 || value.some((item) => typeof item === 'object' && item !== null);
+    return ts.factory.createArrayLiteralExpression(elements, multiLine);
+  }
+  if (typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).filter(
+      ([, v]) => v !== undefined
+    );
+    const props = entries.map(([k, v]) => {
+      const propName = /^[a-z_$][\w$]*$/i.test(k)
+        ? ts.factory.createIdentifier(k)
+        : ts.factory.createStringLiteral(k, true);
+      return ts.factory.createPropertyAssignment(propName, dtoValueToTsExpression(v));
+    });
+    return ts.factory.createObjectLiteralExpression(props, entries.length > 0);
+  }
+  return ts.factory.createNull();
+}
+
+function printTsExpression(expr: ts.Expression): string {
+  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+  // homebrew-ok: synthetic AST source file for ts.createPrinter
+  const dummySource = ts.createSourceFile(
+    'config.ts',
+    '',
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TS
+  );
+  const raw = printer.printNode(ts.EmitHint.Expression, expr, dummySource);
+  return raw
     .split('\n')
-    .map((line, idx) => {
-      if (idx === 0) return line;
-      const unquoted = line.replace(/^(\s*)"([a-z_$][\w$]*)":/i, '$1$2:');
-      return `  ${unquoted}`;
-    })
+    .map((line) => line.replace(/^( {4})+/, (m) => ' '.repeat(m.length / 2)))
+    .join('\n');
+}
+
+export function formatSectionObjectLiteral(value: unknown): string {
+  const printed = printTsExpression(dtoValueToTsExpression(value));
+  return printed
+    .split('\n')
+    .map((line, idx) => (idx === 0 ? line : `  ${line}`))
     .join('\n');
 }
 
@@ -83,9 +136,7 @@ function appendMissingSectionsToJsonFile(
     const json = JSON.parse(code);
     if (!json || typeof json !== 'object') return;
     for (const [key, value] of Object.entries(sectionsToInsert)) {
-      if (Reflect.get(json, key) === undefined) {
-        Reflect.set(json, key, value);
-      }
+      Reflect.set(json, key, value);
     }
     fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
   } catch {
@@ -168,49 +219,85 @@ function appendMissingSectionsToTsFile(
 ): void {
   const parsed = parseAuditConfigFileAst(configFilePath);
   if (!parsed) return;
-  const { code, configObj } = parsed;
+  const { code, source, configObj } = parsed;
 
   if (!configObj) {
     appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
     return;
   }
 
-  const properties = configObj.properties;
+  const existingProps = new Map<string, ts.PropertyAssignment>();
+  for (const prop of configObj.properties) {
+    if (ts.isPropertyAssignment(prop)) {
+      const propName = prop.name.getText(source).replace(/^['"]|['"]$/g, '');
+      existingProps.set(propName, prop);
+    }
+  }
+
+  const inPlaceUpdates: Array<{ prop: ts.PropertyAssignment; val: Record<string, unknown> }> = [];
+  const newAdditions: Array<[string, Record<string, unknown>]> = [];
+
+  for (const [key, val] of Object.entries(sectionsToInsert)) {
+    const existingProp = existingProps.get(key);
+    if (existingProp) {
+      inPlaceUpdates.push({ prop: existingProp, val });
+    } else {
+      newAdditions.push([key, val]);
+    }
+  }
+
+  let updatedCode = code;
+
+  if (inPlaceUpdates.length > 0) {
+    inPlaceUpdates.sort((a, b) => b.prop.initializer.getStart(source) - a.prop.initializer.getStart(source));
+    for (const { prop, val } of inPlaceUpdates) {
+      const start = prop.initializer.getStart(source);
+      const end = prop.initializer.getEnd();
+      updatedCode =
+        updatedCode.slice(0, start) + formatSectionObjectLiteral(val) + updatedCode.slice(end);
+    }
+    fs.writeFileSync(configFilePath, updatedCode, 'utf8');
+  }
+
+  if (newAdditions.length === 0) return;
+
+  const reparsed = inPlaceUpdates.length > 0 ? parseAuditConfigFileAst(configFilePath) : parsed;
+  if (!reparsed || !reparsed.configObj) return;
+
+  const targetCode = reparsed.code;
+  const targetObj = reparsed.configObj;
+  const properties = targetObj.properties;
   let hasTrailingComma = false;
 
   if (properties.length > 0) {
     const lastProp = properties[properties.length - 1]!;
     const endOfLastProp = lastProp.getEnd();
-    const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
-    const between = code.slice(endOfLastProp, closeBracePos);
+    const closeBracePos = targetCode.lastIndexOf('}', targetObj.getEnd() - 1);
+    const between = targetCode.slice(endOfLastProp, closeBracePos);
     hasTrailingComma = between.includes(',');
   }
 
-  const closeBracePos = code.lastIndexOf('}', configObj.getEnd() - 1);
+  const closeBracePos = targetCode.lastIndexOf('}', targetObj.getEnd() - 1);
   if (closeBracePos === -1) return;
 
-  let baseCode = code;
+  let baseCode = targetCode;
   let effectiveCloseBracePos = closeBracePos;
 
   if (!hasTrailingComma && properties.length > 0) {
     const lastProp = properties[properties.length - 1]!;
     const endOfLastProp = lastProp.getEnd();
-    baseCode = code.slice(0, endOfLastProp) + ',' + code.slice(endOfLastProp);
+    baseCode = targetCode.slice(0, endOfLastProp) + ',' + targetCode.slice(endOfLastProp);
     effectiveCloseBracePos += 1;
   }
 
-  const sectionLines: string[] = [];
-  for (const [key, val] of Object.entries(sectionsToInsert)) {
-    const keyPattern = new RegExp(`(^|\\s)${key}\\s*:`);
-    if (keyPattern.test(baseCode)) continue;
-    sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-  }
-  if (sectionLines.length === 0) return;
+  const sectionLines = newAdditions.map(
+    ([key, val]) => `  ${key}: ${formatSectionObjectLiteral(val)},`
+  );
   const snippet = '\n' + sectionLines.join('\n') + '\n';
 
-  const updated =
+  const finalCode =
     baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
-  fs.writeFileSync(configFilePath, updated, 'utf8');
+  fs.writeFileSync(configFilePath, finalCode, 'utf8');
 }
 
 export function appendMissingSectionsToConfigFile(
@@ -254,16 +341,6 @@ export function collectConfigSectionsFromTasks(
   return sections;
 }
 
-function renderConfigSectionsCode(sections: Record<string, Record<string, unknown>>): string {
-  const entries = Object.entries(sections);
-  if (entries.length === 0) return '';
-  const lines: string[] = [];
-  for (const [key, value] of entries) {
-    lines.push(`  ${key}: ${formatSectionObjectLiteral(value)},`);
-  }
-  return ',\n' + lines.join('\n');
-}
-
 export function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean {
   if (!fs.existsSync(configFilePath)) return false;
 
@@ -287,11 +364,11 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
   try {
     const versionProp = configObj.properties.find((p) => {
       if (!ts.isPropertyAssignment(p)) return false;
-      const name = p.name.getText(source);
-      return (
-        name === 'auditorVersion' || name === "'auditorVersion'" || name === '"auditorVersion"'
-      );
+      const name = p.name.getText(source).replace(/^['"]|['"]$/g, '');
+      return name === 'auditorVersion';
     }) as ts.PropertyAssignment | undefined;
+
+    const versionLiteral = printTsExpression(dtoValueToTsExpression(version));
 
     if (versionProp) {
       const currentVal = versionProp.initializer.getText(source);
@@ -300,7 +377,7 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
       }
       const updated =
         code.slice(0, versionProp.initializer.getStart(source)) +
-        `'${version}'` +
+        versionLiteral +
         code.slice(versionProp.initializer.getEnd());
       fs.writeFileSync(configFilePath, updated, 'utf8');
       return true;
@@ -308,8 +385,8 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
 
     const nameProp = configObj.properties.find((p) => {
       if (!ts.isPropertyAssignment(p)) return false;
-      const name = p.name.getText(source);
-      return name === 'name' || name === "'name'" || name === '"name"';
+      const name = p.name.getText(source).replace(/^['"]|['"]$/g, '');
+      return name === 'name';
     });
 
     if (nameProp) {
@@ -318,7 +395,7 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
       const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
       const actualPos = hasComma ? commaOffset + 1 : insertPos;
       const commaPrefix = hasComma ? '' : ',';
-      const snippet = `${commaPrefix}\n  auditorVersion: '${version}',`;
+      const snippet = `${commaPrefix}\n  auditorVersion: ${versionLiteral},`;
       const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
       fs.writeFileSync(configFilePath, updated, 'utf8');
       return true;
@@ -328,7 +405,7 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
     if (openBracePos === -1) return false;
     const updated =
       code.slice(0, openBracePos + 1) +
-      `\n  auditorVersion: '${version}',` +
+      `\n  auditorVersion: ${versionLiteral},` +
       code.slice(openBracePos + 1);
     fs.writeFileSync(configFilePath, updated, 'utf8');
     return true;
@@ -341,24 +418,63 @@ export function createDefaultAuditConfigContent(
   packageName = 'Project',
   tasks: readonly AuditTaskDefinition[] = []
 ): string {
-  const sections = collectConfigSectionsFromTasks(tasks);
-  const customSectionsCode = renderConfigSectionsCode(sections);
+  const defaultDto: Record<string, unknown> = {
+    name: packageName,
+    auditorVersion: AUDITOR_VERSION,
+    paths: {
+      srcRoots: ['src'],
+      testRoots: ['tests'],
+      scriptsRoots: ['scripts']
+    },
+    documentation: {
+      language: 'en'
+    },
+    ...collectConfigSectionsFromTasks(tasks)
+  };
 
-  return `import { defineAuditConfig } from '@francogp/auditor';
+  const importDecl = ts.factory.createImportDeclaration(
+    undefined,
+    ts.factory.createImportClause(
+      false,
+      undefined,
+      ts.factory.createNamedImports([
+        ts.factory.createImportSpecifier(
+          false,
+          undefined,
+          ts.factory.createIdentifier('defineAuditConfig')
+        )
+      ])
+    ),
+    ts.factory.createStringLiteral('@francogp/auditor', true)
+  );
 
-export default defineAuditConfig({
-  name: '${packageName}',
-  auditorVersion: '${AUDITOR_VERSION}',
-  paths: {
-    srcRoots: ['src'],
-    testRoots: ['tests'],
-    scriptsRoots: ['scripts']
-  },
-  documentation: {
-    language: 'en'
-  }${customSectionsCode}
-});
-`;
+  const exportDecl = ts.factory.createExportAssignment(
+    undefined,
+    false,
+    ts.factory.createCallExpression(
+      ts.factory.createIdentifier('defineAuditConfig'),
+      undefined,
+      [dtoValueToTsExpression(defaultDto)]
+    )
+  );
+
+  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+  // homebrew-ok: synthetic AST source file for ts.createPrinter
+  const dummySource = ts.createSourceFile(
+    'audit.config.ts',
+    '',
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TS
+  );
+  const importCode = printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource);
+  const exportCode = printer
+    .printNode(ts.EmitHint.Unspecified, exportDecl, dummySource)
+    .split('\n')
+    .map((line) => line.replace(/^( {4})+/, (m) => ' '.repeat(m.length / 2)))
+    .join('\n');
+
+  return `${importCode}\n\n${exportCode}\n`;
 }
 
 export interface MissingSectionEntry {

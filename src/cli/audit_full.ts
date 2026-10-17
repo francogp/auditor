@@ -1444,6 +1444,13 @@ async function runTaskExecution(
     }
   }
 
+  const taskJsonPath = path.join(ctx.scratchAuditsDir, task.family, `${task.id}.json`);
+  try {
+    await fs.rm(taskJsonPath, { force: true });
+  } catch {
+    // catch-ok: ignore if stale task json does not exist
+  }
+
   const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
   const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
   const suiteDuration =
@@ -1618,13 +1625,61 @@ function displayMasterBanner(
   console.log(renderBanner(bannerTitle, formattedSubtitle));
 }
 
+const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
+  // Phase 1: Configurations & package.json (priority)
+  validate_audit_config: 10,
+  validate_environment_engines: 20,
+  validate_dependency_minimums: 30,
+  validate_vite_plus_config: 40,
+  validate_tsconfig: 50,
+  validate_package_scripts: 60,
+  validate_stylelint_config: 70,
+  validate_html_validate_config: 80,
+  validate_fallow_config: 90,
+  validate_markdown_lint_config: 100,
+  validate_npmrc_config: 110,
+  validate_editorconfig: 120,
+  validate_docker_config: 130,
+  validate_playwright_config: 140,
+  validate_git_config: 150,
+  validate_agent_plugin: 160,
+  validate_agents_config_mandate: 170,
+  validate_documentation_language: 180,
+  // Phase 2: File renames & AST/Code/Markdown mutations
+  validate_script_extensions: 210,
+  validate_component_styles: 220,
+  audit_project: 230,
+  validate_z_index: 240,
+  validate_package_hygiene: 250,
+  validate_markdown_code_references: 260,
+  validate_markdown_syntax: 270,
+  validate_mermaid_syntax: 280,
+  // Phase 3: Third-party linters with --fix
+  validate_oxlint: 310,
+  validate_stylelint: 320,
+  validate_html_validate: 330,
+  validate_markdown_lint: 340,
+  // Phase 4: Final formatter
+  validate_oxfmt: 400
+};
+
+const FIX_ORDER_PRIORITY_FALLBACK = 190;
+const FIX_ORDER_NORMAL_FALLBACK = 290;
+
+function resolveFixOrderWeight(task: AuditTaskDefinition): number {
+  const explicit = FIX_MODE_EXPLICIT_ORDER[task.id];
+  if (explicit !== undefined) return explicit;
+  if (task.capabilities?.fix === 'priority') return FIX_ORDER_PRIORITY_FALLBACK;
+  return FIX_ORDER_NORMAL_FALLBACK;
+}
+
 function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {
   tasks.sort((a, b) => {
     if (isFixMode) {
-      const aPriority = a.capabilities?.fix === 'priority';
-      const bPriority = b.capabilities?.fix === 'priority';
-      if (aPriority && !bPriority) return -1;
-      if (!aPriority && bPriority) return 1;
+      const weightA = resolveFixOrderWeight(a);
+      const weightB = resolveFixOrderWeight(b);
+      if (weightA !== weightB) return weightA - weightB;
+      return a.id.localeCompare(b.id);
     }
 
     const aSpeeds = normalizeSpeeds(a.capabilities?.speed ?? 'light');
@@ -1647,17 +1702,27 @@ async function executeAllAuditTasks(
   taskCtx: TaskExecutionContext,
   concurrencyLimit: number
 ): Promise<StandardAuditResult[]> {
+  const isFixMode = Boolean(taskCtx.cliOptions.values.fix);
+  const effectiveConcurrency = isFixMode ? 1 : concurrencyLimit;
+
   console.log(
     styleText(
       'bold',
-      `⏳ Progreso de ejecución de suites (Concurrencia: ${concurrencyLimit} workers):\n`
+      isFixMode
+        ? '⏳ Progreso de ejecución de suites (Concurrencia: 1 worker — Modo Reparación Serial):\n'
+        : `⏳ Progreso de ejecución de suites (Concurrencia: ${effectiveConcurrency} workers):\n`
     )
   );
   const executeSingleTask = (task: AuditTaskDefinition, index: number) => {
     return executeSingleAuditTask(task, taskCtx, index);
   };
 
-  const workerResults = await runAuditWorkers(workerTasks, concurrencyLimit, executeSingleTask);
+  const workerResults = await runAuditWorkers(
+    workerTasks,
+    effectiveConcurrency,
+    executeSingleTask
+  );
+
   const postRunResults: StandardAuditResult[] = [];
   for (let pIdx = 0; pIdx < postRunTasks.length; pIdx++) {
     const postTask = postRunTasks[pIdx]!;
@@ -1765,7 +1830,7 @@ export async function runMasterAudit(): Promise<void> {
 
   const astTasks = tasksToRun.filter((t) => t.requiresAst);
   let sharedAstContext: SharedAstContext | undefined;
-  if (astTasks.length > 0) {
+  if (astTasks.length > 0 && !isFixMode) {
     console.log(
       styleText(
         'cyan',

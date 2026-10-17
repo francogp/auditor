@@ -82,6 +82,7 @@ export interface RawMarkdownLintIssue {
   ruleDescription?: string;
   errorDetail?: string | null;
   errorContext?: string | null;
+  fixInfo?: Record<string, unknown> | null;
 }
 
 export const MARKDOWNLINT_FIXABLE_RULE_LIST = [
@@ -99,7 +100,6 @@ export const MARKDOWNLINT_FIXABLE_RULE_LIST = [
   'MD021',
   'MD022',
   'MD023',
-  'MD024',
   'MD026',
   'MD027',
   'MD030',
@@ -113,7 +113,6 @@ export const MARKDOWNLINT_FIXABLE_RULE_LIST = [
   'MD047',
   'MD049',
   'MD050',
-  'MD051',
   'MD053'
 ] as const;
 
@@ -149,7 +148,10 @@ export function parseMarkdownLintIssues(
     const ruleCode = Array.isArray(issue.ruleNames) ? issue.ruleNames.join('/') : 'MD';
     const detail = issue.errorDetail ? ` (${issue.errorDetail})` : '';
     const desc = issue.ruleDescription || 'Markdown formatting issue';
-    const isFixable = isMarkdownLintRuleFixable(issue.ruleNames);
+    const isFixable =
+      issue.fixInfo !== undefined
+        ? Boolean(issue.fixInfo)
+        : isMarkdownLintRuleFixable(issue.ruleNames);
 
     findings.push({
       suiteId: 'validate_markdown_lint',
@@ -274,7 +276,10 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       maxBuffer: MAX_BUFFER_BYTES,
       timeout: EXECUTION_TIMEOUT_MS
     });
-    const findings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
+    const rawFindings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
+    const findings = isFixMode
+      ? rawFindings.map((f) => ({ ...f, fixable: false }))
+      : rawFindings;
 
     this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
 

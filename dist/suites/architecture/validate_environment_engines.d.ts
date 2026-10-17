@@ -23,6 +23,7 @@ export declare class ValidateEnvironmentEnginesAuditor extends BaseAuditor<Envir
   private auditMissingEngines;
   private auditEnginesBelowFloor;
   private auditRuntimeMismatch;
+  private repairEnginesInPackageJson;
   runAudit(): Promise<void>;
 }
 //#endregion

@@ -68,7 +68,7 @@ describe('validate_dependency_minimums', () => {
     const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_dependency_minimums');
     expect(auditor.family).toBe('architecture');
-    expect(auditor.capabilities.fix).toBe('none');
+    expect(auditor.capabilities.fix).toBe('priority');
     expect(auditor.description.length).toBeLessThanOrEqual(60);
   });
 
@@ -102,7 +102,22 @@ describe('validate_dependency_minimums', () => {
     expect(result.status).toBe('failed');
     const finding = result.findings.find((f) => f.ruleId === 'dependency-below-minimum-range');
     expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(true);
     expect(finding?.message).toContain(`npm install -D html-validate@${htmlValidateFloor}`);
+  });
+
+  it('auto-fixes declared range below minimum or above maximum when fix: true', async () => {
+    await writeProject({ 'html-validate': '^1.0.0', typescript: '^7.0.0' });
+    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir, fix: true });
+    const result = await auditor.execute();
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+
+    const pkg = JSON.parse(await fs.readFile(path.join(tempDir, 'package.json'), 'utf8')) as {
+      devDependencies: Record<string, string>;
+    };
+    expect(pkg.devDependencies['html-validate']).toBe(htmlValidateFloor);
+    expect(pkg.devDependencies.typescript).toBe('^6.0.3');
   });
 
   it('fails when the lockfile version is below the floor', async () => {
@@ -123,6 +138,7 @@ describe('validate_dependency_minimums', () => {
     const finding = result.findings.find((f) => f.ruleId === 'dependency-exceeds-maximum-range');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(true);
     expect(finding?.message).toContain('TypeScript 7+ no está permitido');
   });
 

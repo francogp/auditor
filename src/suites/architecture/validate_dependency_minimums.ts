@@ -26,7 +26,7 @@ import {
   type DeclaredDependency
 } from '../../core/auditorMinimums.ts';
 export { findDeclaredDependency, type DeclaredDependency } from '../../core/auditorMinimums.ts';
-import { getPackageJson } from '../../core/packageJson.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -47,15 +47,20 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
   constructor(options: Partial<AuditorOptions<DependencyMinimumsRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        DEPENDENCY_MINIMUMS_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        ['dependency-below-minimum-range', 'dependency-exceeds-maximum-range']
+      ),
+      fixableRuleIds: ['dependency-below-minimum-range', 'dependency-exceeds-maximum-range'],
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',
       description: 'Versión mínima y máxima de librerías instaladas',
@@ -114,8 +119,9 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         file: 'package.json',
         message:
           `"${name}" declara "${declared.range}" (piso ${declaredMin.version}) por debajo del mínimo del auditor "${floor}". ` +
-          `Ejecuta: ${this.installCommand(name, floor, declared)}`,
-        severity: 'error'
+          `Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+        severity: 'error',
+        fixable: true
       });
     }
   }
@@ -132,8 +138,9 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         file: 'package.json',
         message:
           `"${name}" declara "${declared.range}" que permite versiones superiores al máximo "${maxSpec.ceiling}". ` +
-          `${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
-        severity: 'error'
+          `${maxSpec.reason} Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+        severity: 'error',
+        fixable: true
       });
     }
   }
@@ -154,7 +161,8 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         message:
           `"${name}" instalada en ${installed} (package-lock.json) por debajo del mínimo del auditor "${floor}". ` +
           `Ejecuta: ${this.installCommand(name, floor, declared)}`,
-        severity: 'error'
+        severity: 'error',
+        fixable: false
       });
     }
   }
@@ -175,16 +183,69 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         message:
           `"${name}" instalada en ${installed} (package-lock.json) excede el máximo permitido "${maxSpec.ceiling}". ` +
           `${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
-        severity: 'error'
+        severity: 'error',
+        fixable: false
       });
     }
+  }
+
+  private repairDeclaredRangesInPackageJson(
+    pkg: PackageJsonDTO,
+    minimums: Readonly<Record<string, string>>,
+    maximums: Readonly<Record<string, DependencyMaximumSpec>>
+  ): PackageJsonDTO {
+    let modified = false;
+    const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : undefined;
+    const nextDevDeps = pkg.devDependencies ? { ...pkg.devDependencies } : undefined;
+    const nextOptDeps = pkg.optionalDependencies ? { ...pkg.optionalDependencies } : undefined;
+
+    const sectionMap: Record<string, Record<string, string> | undefined> = {
+      dependencies: nextDeps,
+      devDependencies: nextDevDeps,
+      optionalDependencies: nextOptDeps
+    };
+
+    for (const [name, floor] of Object.entries(minimums)) {
+      const declared = findDeclaredDependency(pkg, name);
+      if (!declared) continue;
+      const declaredMin = semver.validRange(declared.range)
+        ? semver.minVersion(declared.range)
+        : null;
+      const requiredMin = semver.minVersion(floor);
+      const belowMin = Boolean(declaredMin && requiredMin && semver.lt(declaredMin, requiredMin));
+      const maxSpec = maximums[name];
+      const exceedsMax = Boolean(
+        maxSpec &&
+          semver.validRange(declared.range) &&
+          semver.intersects(declared.range, maxSpec.prohibitedRange)
+      );
+
+      if (belowMin || exceedsMax) {
+        const targetSection = sectionMap[declared.section];
+        if (targetSection) {
+          targetSection[name] = floor;
+          modified = true;
+        }
+      }
+    }
+
+    if (!modified) return pkg;
+
+    const updatedPkg: PackageJsonDTO = {
+      ...pkg,
+      ...(nextDeps ? { dependencies: nextDeps } : {}),
+      ...(nextDevDeps ? { devDependencies: nextDevDeps } : {}),
+      ...(nextOptDeps ? { optionalDependencies: nextOptDeps } : {})
+    };
+    writePackageJson(this.projectRoot, updatedPkg);
+    return updatedPkg;
   }
 
   public override async runAudit(): Promise<void> {
     this.recordScanned('package.json');
     const minimums = getAuditorMinimumVersions();
     const maximums = getAuditorMaximumVersions();
-    const pkg = getPackageJson(this.projectRoot, true);
+    let pkg = getPackageJson(this.projectRoot, true);
 
     if (!pkg) {
       for (const ruleId of DEPENDENCY_MINIMUMS_RULES) {
@@ -195,8 +256,13 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       return;
     }
 
+    if (this.isFixActive()) {
+      pkg = this.repairDeclaredRangesInPackageJson(pkg, minimums, maximums);
+    }
+
+    const currentPkg = pkg;
     const declaredEntries = Object.entries(minimums).flatMap(([name, floor]) => {
-      const declared = findDeclaredDependency(pkg, name);
+      const declared = findDeclaredDependency(currentPkg, name);
       return declared ? [{ name, floor, declared }] : [];
     });
 

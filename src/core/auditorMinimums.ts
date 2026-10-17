@@ -35,24 +35,47 @@ export function getAuditorMaximumVersions(): AuditorMaximumVersions {
   return AUDITOR_MAXIMUM_VERSIONS;
 }
 
-export function getAuditorMinimumVersions(): AuditorMinimumVersions {
+export function normalizeToCaretRange(range: string): string {
+  const trimmed = range.trim();
+  if (trimmed.startsWith('>=')) {
+    const versionPart = trimmed.slice(2).trim();
+    if (semver.valid(versionPart)) {
+      return `^${versionPart}`;
+    }
+  }
+  return trimmed;
+}
+
+function readAuditorPackageJsonSection(
+  sectionKey: 'peerDependencies' | 'overrides'
+): Readonly<Record<string, string>> | null {
   const auditorPackageJsonPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '../../package.json'
   );
-
-  if (fs.existsSync(auditorPackageJsonPath)) {
-    const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as {
-      peerDependencies?: Record<string, string>; // open-record: parsed package.json peerDependencies
-    };
-    if (data.peerDependencies && Object.keys(data.peerDependencies).length > 0) {
-      return data.peerDependencies;
-    }
+  if (!fs.existsSync(auditorPackageJsonPath)) {
+    return null;
   }
+  const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as Record<
+    string,
+    Record<string, string> | undefined
+  >;
+  const section = data[sectionKey];
+  return section && Object.keys(section).length > 0 ? section : null;
+}
 
+export function getAuditorMinimumVersions(): AuditorMinimumVersions {
+  const peers = readAuditorPackageJsonSection('peerDependencies');
+  if (peers) {
+    return peers;
+  }
   throw new Error(
-    `[getAuditorMinimumVersions] Could not read peerDependencies from @francogp/auditor package.json (${auditorPackageJsonPath}). Hardcoded fallbacks are strictly prohibited.`
+    '[getAuditorMinimumVersions] Could not read peerDependencies from @francogp/auditor package.json. Hardcoded fallbacks are strictly prohibited.'
   );
+}
+
+export function getAuditorCanonicalOverrides(): Readonly<Record<string, string>> {
+  return readAuditorPackageJsonSection('overrides') ?? {};
 }
 
 export type DependencyDeclarationSection = DependencyLocation;
@@ -141,6 +164,38 @@ export interface ProjectDependenciesReport {
   readonly devInstallCommand?: string;
 }
 
+function classifyDependencyStatus(
+  declaredRange: string,
+  declaredMin: semver.SemVer | null,
+  requiredMin: semver.SemVer | null,
+  installedVersion: string | null,
+  maxSpec?: DependencyMaximumSpec
+): DependencyEvaluationStatus {
+  if (maxSpec && semver.intersects(declaredRange, maxSpec.prohibitedRange)) {
+    return 'exceeds_max_range';
+  }
+  if (
+    maxSpec &&
+    installedVersion &&
+    semver.valid(installedVersion) &&
+    semver.satisfies(installedVersion, maxSpec.prohibitedRange)
+  ) {
+    return 'exceeds_max_installed';
+  }
+  if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) {
+    return 'outdated_range';
+  }
+  if (
+    installedVersion &&
+    semver.valid(installedVersion) &&
+    requiredMin &&
+    semver.lt(installedVersion, requiredMin)
+  ) {
+    return 'outdated_installed';
+  }
+  return 'satisfied';
+}
+
 export function evaluateProjectDependencies(
   projectRoot: string = process.cwd()
 ): ProjectDependenciesReport {
@@ -177,39 +232,19 @@ export function evaluateProjectDependencies(
       : null;
     const declaredFloor = declaredMin ? declaredMin.version : null;
     const isProd = declared.isProduction;
-
-    let status: DependencyEvaluationStatus = 'satisfied';
-
-    const maxSpec = maximums[name];
-    if (maxSpec && semver.intersects(declared.range, maxSpec.prohibitedRange)) {
-      status = 'exceeds_max_range';
-    } else if (
-      maxSpec &&
-      installedVersion &&
-      semver.valid(installedVersion) &&
-      semver.satisfies(installedVersion, maxSpec.prohibitedRange)
-    ) {
-      status = 'exceeds_max_installed';
-    } else if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) {
-      status = 'outdated_range';
-    } else if (
-      installedVersion &&
-      semver.valid(installedVersion) &&
-      requiredMin &&
-      semver.lt(installedVersion, requiredMin)
-    ) {
-      status = 'outdated_installed';
-    }
+    const status = classifyDependencyStatus(
+      declared.range,
+      declaredMin,
+      requiredMin,
+      installedVersion,
+      maximums[name]
+    );
 
     const installCommand =
       status !== 'satisfied' ? `npm install ${isProd ? '' : '-D '}${name}@${floor}` : undefined;
 
     if (status !== 'satisfied') {
-      if (isProd) {
-        prodUpdates.push(`${name}@${floor}`);
-      } else {
-        devUpdates.push(`${name}@${floor}`);
-      }
+      (isProd ? prodUpdates : devUpdates).push(`${name}@${floor}`);
     }
 
     evaluated.push({
@@ -230,12 +265,6 @@ export function evaluateProjectDependencies(
   const outdatedCount = declaredItems.filter((e) => e.status !== 'satisfied').length;
   const undeclaredCount = evaluated.filter((e) => e.status === 'undeclared').length;
 
-  const prodInstallCommand =
-    prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined;
-
-  const devInstallCommand =
-    devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined;
-
   return {
     projectRoot: root,
     evaluated,
@@ -244,7 +273,9 @@ export function evaluateProjectDependencies(
     satisfiedCount,
     outdatedCount,
     undeclaredCount,
-    prodInstallCommand,
-    devInstallCommand
+    prodInstallCommand:
+      prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined,
+    devInstallCommand:
+      devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined
   };
 }

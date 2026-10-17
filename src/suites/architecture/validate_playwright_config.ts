@@ -15,6 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
 import {
   BaseAuditor,
   type AuditorOptions,
@@ -23,6 +24,14 @@ import {
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 import { getPackageJson } from '../../core/packageJson.ts';
+import {
+  findConfigRootObject,
+  findPropertyAssignment,
+  getPropertyKeyName,
+  parseTsSourceFile,
+  printTransformedSourceFile,
+  valueToAstExpression
+} from '../../core/viteConfigAst.ts';
 
 enableCompileCache();
 
@@ -211,16 +220,24 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       return;
     }
 
+    const sf = parseTsSourceFile(rawContent, relPath);
+    const rootObj = findConfigRootObject(sf);
     let modified = false;
-    let updatedContent = rawContent;
+    let rootProps: ts.ObjectLiteralElementLike[] = rootObj ? [...rootObj.properties] : [];
+    let replaceNpxVite = false;
+
+    const DEFAULT_PLAYWRIGHT_TIMEOUT_MS = 30000;
+    const currentRoot = () => ts.factory.createObjectLiteralExpression(rootProps, true);
 
     this.runSubAuditorSync('playwright-config-missing-setting', () => {
-      // Check timeout
-      if (!/\btimeout\s*:/i.test(updatedContent)) {
-        if (isFix) {
-          updatedContent = updatedContent.replace(
-            /(defineConfig\s*\(\s*\{)/i,
-            '$1\n  timeout: 30000,'
+      // 1. Check timeout
+      const hasTimeout = rootObj
+        ? Boolean(findPropertyAssignment(currentRoot(), 'timeout', sf))
+        : false;
+      if (!hasTimeout) {
+        if (isFix && rootObj) {
+          rootProps.push(
+            ts.factory.createPropertyAssignment('timeout', valueToAstExpression(DEFAULT_PLAYWRIGHT_TIMEOUT_MS))
           );
           modified = true;
         } else {
@@ -234,12 +251,17 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
         }
       }
 
-      // Check reporter
-      if (!/\breporter\s*:/i.test(updatedContent)) {
-        if (isFix) {
-          updatedContent = updatedContent.replace(
-            /(defineConfig\s*\(\s*\{)/i,
-            "$1\n  reporter: [['html', { open: 'never' }], ['list']],"
+      // 2. Check reporter
+      const hasReporter = rootObj
+        ? Boolean(findPropertyAssignment(currentRoot(), 'reporter', sf))
+        : false;
+      if (!hasReporter) {
+        if (isFix && rootObj) {
+          rootProps.push(
+            ts.factory.createPropertyAssignment(
+              'reporter',
+              valueToAstExpression([['html', { open: 'never' }], ['list']])
+            )
           );
           modified = true;
         } else {
@@ -253,18 +275,33 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
         }
       }
 
-      // Check trace in use
-      if (!/\btrace\s*:/i.test(updatedContent)) {
-        if (isFix) {
-          if (/\buse\s*:\s*\{/i.test(updatedContent)) {
-            updatedContent = updatedContent.replace(
-              /(use\s*:\s*\{)/i,
-              "$1\n    trace: 'on-first-retry',"
+      // 3. Check trace in use
+      const useProp = rootObj ? findPropertyAssignment(currentRoot(), 'use', sf) : null;
+      const hasTrace =
+        useProp && ts.isObjectLiteralExpression(useProp.initializer)
+          ? Boolean(findPropertyAssignment(useProp.initializer, 'trace', sf))
+          : false;
+      if (!hasTrace) {
+        if (isFix && rootObj) {
+          if (useProp && ts.isObjectLiteralExpression(useProp.initializer)) {
+            const nextUseProps = [
+              ...useProp.initializer.properties,
+              ts.factory.createPropertyAssignment('trace', valueToAstExpression('on-first-retry'))
+            ];
+            rootProps = rootProps.map((p) =>
+              ts.isPropertyAssignment(p) && getPropertyKeyName(p.name, sf) === 'use'
+                ? ts.factory.createPropertyAssignment(
+                    'use',
+                    ts.factory.createObjectLiteralExpression(nextUseProps, true)
+                  )
+                : p
             );
           } else {
-            updatedContent = updatedContent.replace(
-              /(defineConfig\s*\(\s*\{)/i,
-              "$1\n  use: { trace: 'on-first-retry' },"
+            rootProps.push(
+              ts.factory.createPropertyAssignment(
+                'use',
+                valueToAstExpression({ trace: 'on-first-retry' })
+              )
             );
           }
           modified = true;
@@ -279,10 +316,21 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
         }
       }
 
-      // Check legacy npx vite in webServer.command
-      if (/\bnpx\s+vite\b/.test(updatedContent)) {
+      // 4. Check legacy npx vite in string literals (e.g. webServer.command)
+      let foundNpxVite = false;
+      function scanStrings(node: ts.Node): void {
+        if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+          if (/\bnpx\s+vite\b/.test(node.text)) {
+            foundNpxVite = true;
+          }
+        }
+        ts.forEachChild(node, scanStrings);
+      }
+      scanStrings(sf);
+
+      if (foundNpxVite) {
         if (isFix) {
-          updatedContent = updatedContent.replace(/\bnpx\s+vite\b/g, 'vp dev');
+          replaceNpxVite = true;
           modified = true;
         } else {
           this.addViolation({
@@ -297,7 +345,30 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
     });
 
     if (isFix && modified) {
-      fs.writeFileSync(resolvedPath, updatedContent, 'utf8');
+      if (!rootObj) {
+        fs.writeFileSync(resolvedPath, CANONICAL_PLAYWRIGHT_CONFIG_CONTENT, 'utf8');
+        return;
+      }
+      const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
+      const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+        const visit: ts.Visitor = (node): ts.Node => {
+          if (node === rootObj) {
+            const replacedRoot = ts.visitEachChild(updatedRootObj, visit, context);
+            return replacedRoot;
+          }
+          if (
+            replaceNpxVite &&
+            (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
+            /\bnpx\s+vite\b/.test(node.text)
+          ) {
+            return ts.factory.createStringLiteral(node.text.replace(/\bnpx\s+vite\b/g, 'vp dev'), true);
+          }
+          return ts.visitEachChild(node, visit, context);
+        };
+        return (source) => ts.visitNode(source, visit) as ts.SourceFile;
+      };
+      const printed = printTransformedSourceFile(sf, transformer);
+      fs.writeFileSync(resolvedPath, printed, 'utf8');
     }
   }
 }

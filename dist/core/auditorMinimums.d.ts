@@ -9,7 +9,9 @@ export interface DependencyMaximumSpec {
 export type AuditorMaximumVersions = Readonly<Record<string, DependencyMaximumSpec>>;
 export declare const AUDITOR_MAXIMUM_VERSIONS: AuditorMaximumVersions;
 export declare function getAuditorMaximumVersions(): AuditorMaximumVersions;
+export declare function normalizeToCaretRange(range: string): string;
 export declare function getAuditorMinimumVersions(): AuditorMinimumVersions;
+export declare function getAuditorCanonicalOverrides(): Readonly<Record<string, string>>;
 export type DependencyDeclarationSection = DependencyLocation;
 export interface DeclaredDependency {
   readonly range: string;

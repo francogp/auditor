@@ -423,5 +423,23 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       expect(violations.length).toBeGreaterThan(0);
       expect(violations[0]?.message).toContain('subgraph');
     });
+
+    it('auto-quotes special characters in Mermaid labels when fix: true is active', async () => {
+      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      (auditor as unknown as { fixMode: boolean }).fixMode = true;
+      const content = [
+        '# Document',
+        '```mermaid',
+        'graph TD',
+        '    A -->|100% Pass| B[Step (1)]',
+        '```'
+      ].join('\n');
+
+      await auditor.testScanFile('docs/nonexistent_spec.md', content);
+      const unquotedViolations = auditor.collectedViolations.filter(
+        (v) => v.ruleId === 'mermaid-unquoted-special-chars'
+      );
+      expect(unquotedViolations).toHaveLength(0);
+    });
   });
 });

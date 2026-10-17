@@ -30,6 +30,7 @@ export interface PackageJsonDTO {
   readonly devDependencies?: Record<string, string>;
   readonly peerDependencies?: Record<string, string>;
   readonly optionalDependencies?: Record<string, string>;
+  readonly overrides?: Record<string, string>;
   readonly engines?: Record<string, string>;
   readonly files?: readonly string[];
   readonly exports?: Record<string, unknown>;

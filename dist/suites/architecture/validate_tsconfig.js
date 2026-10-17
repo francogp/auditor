@@ -1,8 +1,8 @@
 import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
-import { stripComments } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import ts from "typescript";
 //#region src/suites/architecture/validate_tsconfig.ts
 /**
 * src/suites/architecture/validate_tsconfig.ts
@@ -168,30 +168,28 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 		let parsed;
 		const extraParsed = /* @__PURE__ */ new Map();
 		this.runSubAuditorSync("tsconfig-syntax", () => {
-			try {
-				parsed = JSON.parse(rawContent);
-			} catch {
-				try {
-					parsed = JSON.parse(stripComments(rawContent));
-				} catch {
-					this.addViolation({
-						ruleId: "tsconfig-syntax",
-						severity: "error",
-						file: relPath,
-						line: 1,
-						message: `Error de sintaxis JSON en ${relPath}.`
-					});
-				}
-			}
+			const parseRes = ts.parseConfigFileTextToJson(relPath, rawContent);
+			if (parseRes.error || !parseRes.config || typeof parseRes.config !== "object") this.addViolation({
+				ruleId: "tsconfig-syntax",
+				severity: "error",
+				file: relPath,
+				line: 1,
+				message: `Error de sintaxis JSON en ${relPath}.`
+			});
+			else parsed = parseRes.config;
 			for (const extraFile of extraTsconfigs) {
 				const extraFullPath = path.resolve(this.projectRoot, extraFile);
 				try {
 					const extraRaw = fs.readFileSync(extraFullPath, "utf8");
-					try {
-						extraParsed.set(extraFile, JSON.parse(extraRaw));
-					} catch {
-						extraParsed.set(extraFile, JSON.parse(stripComments(extraRaw)));
-					}
+					const extraRes = ts.parseConfigFileTextToJson(extraFile, extraRaw);
+					if (extraRes.error || !extraRes.config || typeof extraRes.config !== "object") this.addViolation({
+						ruleId: "tsconfig-syntax",
+						severity: "error",
+						file: extraFile,
+						line: 1,
+						message: `Error de sintaxis JSON en ${extraFile}.`
+					});
+					else extraParsed.set(extraFile, extraRes.config);
 				} catch {
 					this.addViolation({
 						ruleId: "tsconfig-syntax",
@@ -207,18 +205,6 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Sintaxis JSON inválida");
 			this.markRuleNotApplicable("tsconfig-banned-option", "Sintaxis JSON inválida");
 			this.markRuleNotApplicable("tsconfig-missing-source-include", "Sintaxis JSON inválida");
-			return;
-		}
-		if (!parsed || typeof parsed !== "object") {
-			this.runSubAuditorSync("tsconfig-syntax", () => {
-				this.addViolation({
-					ruleId: "tsconfig-syntax",
-					severity: "error",
-					file: relPath,
-					line: 1,
-					message: `El contenido de ${relPath} no es un objeto JSON válido.`
-				});
-			});
 			return;
 		}
 		let modified = false;
@@ -291,13 +277,23 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			}
 			for (const [extraFile, extraCfg] of extraParsed.entries()) {
 				const extraOpts = extraCfg.compilerOptions ?? {};
-				for (const banned of BANNED_COMPILER_OPTIONS) if (extraOpts[banned] !== void 0) this.addViolation({
-					ruleId: "tsconfig-banned-option",
-					severity: "error",
-					file: extraFile,
-					line: 1,
-					message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
-				});
+				let extraModified = false;
+				for (const banned of BANNED_COMPILER_OPTIONS) if (extraOpts[banned] !== void 0) {
+					if (isFix) {
+						delete extraOpts[banned];
+						extraModified = true;
+					} else this.addViolation({
+						ruleId: "tsconfig-banned-option",
+						severity: "error",
+						file: extraFile,
+						line: 1,
+						message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+					});
+				}
+				if (isFix && extraModified) {
+					extraCfg.compilerOptions = extraOpts;
+					fs.writeFileSync(path.resolve(this.projectRoot, extraFile), JSON.stringify(extraCfg, null, 2) + "\n", "utf8");
+				}
 			}
 		});
 		this.runSubAuditorSync("tsconfig-missing-source-include", () => {

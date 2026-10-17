@@ -23,11 +23,36 @@ import ts from "typescript";
 * Emits severity: 'error' if any referenced path is missing.
 */
 enableCompileCache();
+function dtoValueToTsExpression(value) {
+	if (typeof value === "string") return ts.factory.createStringLiteral(value, true);
+	if (typeof value === "number") {
+		if (value < 0) return ts.factory.createPrefixUnaryExpression(ts.SyntaxKind.MinusToken, ts.factory.createNumericLiteral(Math.abs(value)));
+		return ts.factory.createNumericLiteral(value);
+	}
+	if (typeof value === "boolean") return value ? ts.factory.createTrue() : ts.factory.createFalse();
+	if (value === null || value === void 0) return ts.factory.createNull();
+	if (Array.isArray(value)) {
+		const elements = value.map((item) => dtoValueToTsExpression(item));
+		const multiLine = value.length > 3 || value.some((item) => typeof item === "object" && item !== null);
+		return ts.factory.createArrayLiteralExpression(elements, multiLine);
+	}
+	if (typeof value === "object") {
+		const entries = Object.entries(value).filter(([, v]) => v !== void 0);
+		const props = entries.map(([k, v]) => {
+			const propName = /^[a-z_$][\w$]*$/i.test(k) ? ts.factory.createIdentifier(k) : ts.factory.createStringLiteral(k, true);
+			return ts.factory.createPropertyAssignment(propName, dtoValueToTsExpression(v));
+		});
+		return ts.factory.createObjectLiteralExpression(props, entries.length > 0);
+	}
+	return ts.factory.createNull();
+}
+function printTsExpression(expr) {
+	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+	const dummySource = ts.createSourceFile("config.ts", "", ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+	return printer.printNode(ts.EmitHint.Expression, expr, dummySource).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n");
+}
 function formatSectionObjectLiteral(value) {
-	return JSON.stringify(value, null, 2).split("\n").map((line, idx) => {
-		if (idx === 0) return line;
-		return `  ${line.replace(/^(\s*)"([a-z_$][\w$]*)":/i, "$1$2:")}`;
-	}).join("\n");
+	return printTsExpression(dtoValueToTsExpression(value)).split("\n").map((line, idx) => idx === 0 ? line : `  ${line}`).join("\n");
 }
 function resolveConfigPath(obj, pathStr) {
 	if (typeof obj !== "object" || obj === null) return void 0;
@@ -54,7 +79,7 @@ function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
 		const code = fs.readFileSync(configFilePath, "utf8");
 		const json = JSON.parse(code);
 		if (!json || typeof json !== "object") return;
-		for (const [key, value] of Object.entries(sectionsToInsert)) if (Reflect.get(json, key) === void 0) Reflect.set(json, key, value);
+		for (const [key, value] of Object.entries(sectionsToInsert)) Reflect.set(json, key, value);
 		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
 	} catch {}
 }
@@ -102,36 +127,60 @@ function parseAuditConfigFileAst(configFilePath) {
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
 	const parsed = parseAuditConfigFileAst(configFilePath);
 	if (!parsed) return;
-	const { code, configObj } = parsed;
+	const { code, source, configObj } = parsed;
 	if (!configObj) {
 		appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
 		return;
 	}
-	const properties = configObj.properties;
+	const existingProps = /* @__PURE__ */ new Map();
+	for (const prop of configObj.properties) if (ts.isPropertyAssignment(prop)) {
+		const propName = prop.name.getText(source).replace(/^['"]|['"]$/g, "");
+		existingProps.set(propName, prop);
+	}
+	const inPlaceUpdates = [];
+	const newAdditions = [];
+	for (const [key, val] of Object.entries(sectionsToInsert)) {
+		const existingProp = existingProps.get(key);
+		if (existingProp) inPlaceUpdates.push({
+			prop: existingProp,
+			val
+		});
+		else newAdditions.push([key, val]);
+	}
+	let updatedCode = code;
+	if (inPlaceUpdates.length > 0) {
+		inPlaceUpdates.sort((a, b) => b.prop.initializer.getStart(source) - a.prop.initializer.getStart(source));
+		for (const { prop, val } of inPlaceUpdates) {
+			const start = prop.initializer.getStart(source);
+			const end = prop.initializer.getEnd();
+			updatedCode = updatedCode.slice(0, start) + formatSectionObjectLiteral(val) + updatedCode.slice(end);
+		}
+		fs.writeFileSync(configFilePath, updatedCode, "utf8");
+	}
+	if (newAdditions.length === 0) return;
+	const reparsed = inPlaceUpdates.length > 0 ? parseAuditConfigFileAst(configFilePath) : parsed;
+	if (!reparsed || !reparsed.configObj) return;
+	const targetCode = reparsed.code;
+	const targetObj = reparsed.configObj;
+	const properties = targetObj.properties;
 	let hasTrailingComma = false;
 	if (properties.length > 0) {
 		const endOfLastProp = properties[properties.length - 1].getEnd();
-		const closeBracePos = code.lastIndexOf("}", configObj.getEnd() - 1);
-		hasTrailingComma = code.slice(endOfLastProp, closeBracePos).includes(",");
+		const closeBracePos = targetCode.lastIndexOf("}", targetObj.getEnd() - 1);
+		hasTrailingComma = targetCode.slice(endOfLastProp, closeBracePos).includes(",");
 	}
-	const closeBracePos = code.lastIndexOf("}", configObj.getEnd() - 1);
+	const closeBracePos = targetCode.lastIndexOf("}", targetObj.getEnd() - 1);
 	if (closeBracePos === -1) return;
-	let baseCode = code;
+	let baseCode = targetCode;
 	let effectiveCloseBracePos = closeBracePos;
 	if (!hasTrailingComma && properties.length > 0) {
 		const endOfLastProp = properties[properties.length - 1].getEnd();
-		baseCode = code.slice(0, endOfLastProp) + "," + code.slice(endOfLastProp);
+		baseCode = targetCode.slice(0, endOfLastProp) + "," + targetCode.slice(endOfLastProp);
 		effectiveCloseBracePos += 1;
 	}
-	const sectionLines = [];
-	for (const [key, val] of Object.entries(sectionsToInsert)) {
-		if (new RegExp(`(^|\\s)${key}\\s*:`).test(baseCode)) continue;
-		sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-	}
-	if (sectionLines.length === 0) return;
-	const snippet = "\n" + sectionLines.join("\n") + "\n";
-	const updated = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
-	fs.writeFileSync(configFilePath, updated, "utf8");
+	const snippet = "\n" + newAdditions.map(([key, val]) => `  ${key}: ${formatSectionObjectLiteral(val)},`).join("\n") + "\n";
+	const finalCode = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
+	fs.writeFileSync(configFilePath, finalCode, "utf8");
 }
 function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	if (configFilePath.endsWith(".json")) {
@@ -155,13 +204,6 @@ function collectConfigSectionsFromTasks(tasks) {
 	for (const task of tasks) appendTaskDefaultConfig(sections, task);
 	return sections;
 }
-function renderConfigSectionsCode(sections) {
-	const entries = Object.entries(sections);
-	if (entries.length === 0) return "";
-	const lines = [];
-	for (const [key, value] of entries) lines.push(`  ${key}: ${formatSectionObjectLiteral(value)},`);
-	return ",\n" + lines.join("\n");
-}
 function syncAuditorVersionInConfigFile(configFilePath, version) {
 	if (!fs.existsSync(configFilePath)) return false;
 	if (configFilePath.endsWith(".json")) try {
@@ -180,34 +222,33 @@ function syncAuditorVersionInConfigFile(configFilePath, version) {
 	try {
 		const versionProp = configObj.properties.find((p) => {
 			if (!ts.isPropertyAssignment(p)) return false;
-			const name = p.name.getText(source);
-			return name === "auditorVersion" || name === "'auditorVersion'" || name === "\"auditorVersion\"";
+			return p.name.getText(source).replace(/^['"]|['"]$/g, "") === "auditorVersion";
 		});
+		const versionLiteral = printTsExpression(dtoValueToTsExpression(version));
 		if (versionProp) {
 			const currentVal = versionProp.initializer.getText(source);
 			if (currentVal === `'${version}'` || currentVal === `"${version}"`) return false;
-			const updated = code.slice(0, versionProp.initializer.getStart(source)) + `'${version}'` + code.slice(versionProp.initializer.getEnd());
+			const updated = code.slice(0, versionProp.initializer.getStart(source)) + versionLiteral + code.slice(versionProp.initializer.getEnd());
 			fs.writeFileSync(configFilePath, updated, "utf8");
 			return true;
 		}
 		const nameProp = configObj.properties.find((p) => {
 			if (!ts.isPropertyAssignment(p)) return false;
-			const name = p.name.getText(source);
-			return name === "name" || name === "'name'" || name === "\"name\"";
+			return p.name.getText(source).replace(/^['"]|['"]$/g, "") === "name";
 		});
 		if (nameProp) {
 			const insertPos = nameProp.getEnd();
 			const commaOffset = code.indexOf(",", insertPos);
 			const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
 			const actualPos = hasComma ? commaOffset + 1 : insertPos;
-			const snippet = `${hasComma ? "" : ","}\n  auditorVersion: '${version}',`;
+			const snippet = `${hasComma ? "" : ","}\n  auditorVersion: ${versionLiteral},`;
 			const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
 			fs.writeFileSync(configFilePath, updated, "utf8");
 			return true;
 		}
 		const openBracePos = code.indexOf("{", configObj.getStart(source));
 		if (openBracePos === -1) return false;
-		const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: '${version}',` + code.slice(openBracePos + 1);
+		const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: ${versionLiteral},` + code.slice(openBracePos + 1);
 		fs.writeFileSync(configFilePath, updated, "utf8");
 		return true;
 	} catch {
@@ -215,22 +256,22 @@ function syncAuditorVersionInConfigFile(configFilePath, version) {
 	}
 }
 function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
-	const customSectionsCode = renderConfigSectionsCode(collectConfigSectionsFromTasks(tasks));
-	return `import { defineAuditConfig } from '@francogp/auditor';
-
-export default defineAuditConfig({
-  name: '${packageName}',
-  auditorVersion: '${AUDITOR_VERSION}',
-  paths: {
-    srcRoots: ['src'],
-    testRoots: ['tests'],
-    scriptsRoots: ['scripts']
-  },
-  documentation: {
-    language: 'en'
-  }${customSectionsCode}
-});
-`;
+	const defaultDto = {
+		name: packageName,
+		auditorVersion: AUDITOR_VERSION,
+		paths: {
+			srcRoots: ["src"],
+			testRoots: ["tests"],
+			scriptsRoots: ["scripts"]
+		},
+		documentation: { language: "en" },
+		...collectConfigSectionsFromTasks(tasks)
+	};
+	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineAuditConfig"))])), ts.factory.createStringLiteral("@francogp/auditor", true));
+	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
+	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
+	const dummySource = ts.createSourceFile("audit.config.ts", "", ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+	return `${printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource)}\n\n${printer.printNode(ts.EmitHint.Unspecified, exportDecl, dummySource).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n")}\n`;
 }
 function isSectionConfigured(rootKey, rawConfig) {
 	if (typeof rawConfig !== "object" || rawConfig === null) return false;
@@ -766,4 +807,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
 //#endregion
-export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsToConfigFile, collectConfigSectionsFromTasks, collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, formatSectionObjectLiteral, syncAuditorVersionInConfigFile };
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsToConfigFile, collectConfigSectionsFromTasks, collectMissingSections, createDefaultAuditConfigContent, dtoValueToTsExpression, enforceCriticalConfigurations, formatSectionObjectLiteral, syncAuditorVersionInConfigFile };

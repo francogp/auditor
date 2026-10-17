@@ -19,13 +19,27 @@ const AUDITOR_MAXIMUM_VERSIONS = Object.freeze({ typescript: {
 function getAuditorMaximumVersions() {
 	return AUDITOR_MAXIMUM_VERSIONS;
 }
-function getAuditorMinimumVersions() {
-	const auditorPackageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../package.json");
-	if (fs.existsSync(auditorPackageJsonPath)) {
-		const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, "utf8"));
-		if (data.peerDependencies && Object.keys(data.peerDependencies).length > 0) return data.peerDependencies;
+function normalizeToCaretRange(range) {
+	const trimmed = range.trim();
+	if (trimmed.startsWith(">=")) {
+		const versionPart = trimmed.slice(2).trim();
+		if (semver.valid(versionPart)) return `^${versionPart}`;
 	}
-	throw new Error(`[getAuditorMinimumVersions] Could not read peerDependencies from @francogp/auditor package.json (${auditorPackageJsonPath}). Hardcoded fallbacks are strictly prohibited.`);
+	return trimmed;
+}
+function readAuditorPackageJsonSection(sectionKey) {
+	const auditorPackageJsonPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../package.json");
+	if (!fs.existsSync(auditorPackageJsonPath)) return null;
+	const section = JSON.parse(fs.readFileSync(auditorPackageJsonPath, "utf8"))[sectionKey];
+	return section && Object.keys(section).length > 0 ? section : null;
+}
+function getAuditorMinimumVersions() {
+	const peers = readAuditorPackageJsonSection("peerDependencies");
+	if (peers) return peers;
+	throw new Error("[getAuditorMinimumVersions] Could not read peerDependencies from @francogp/auditor package.json. Hardcoded fallbacks are strictly prohibited.");
+}
+function getAuditorCanonicalOverrides() {
+	return readAuditorPackageJsonSection("overrides") ?? {};
 }
 const DECLARATION_SECTIONS = {
 	dependencies: { isProduction: true },
@@ -57,6 +71,13 @@ function readLockfileInstalledVersion(projectRoot, name) {
 		return null;
 	}
 }
+function classifyDependencyStatus(declaredRange, declaredMin, requiredMin, installedVersion, maxSpec) {
+	if (maxSpec && semver.intersects(declaredRange, maxSpec.prohibitedRange)) return "exceeds_max_range";
+	if (maxSpec && installedVersion && semver.valid(installedVersion) && semver.satisfies(installedVersion, maxSpec.prohibitedRange)) return "exceeds_max_installed";
+	if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) return "outdated_range";
+	if (installedVersion && semver.valid(installedVersion) && requiredMin && semver.lt(installedVersion, requiredMin)) return "outdated_installed";
+	return "satisfied";
+}
 function evaluateProjectDependencies(projectRoot = process.cwd()) {
 	const root = path.resolve(projectRoot);
 	const minimums = getAuditorMinimumVersions();
@@ -85,17 +106,9 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 		const declaredMin = semver.validRange(declared.range) ? semver.minVersion(declared.range) : null;
 		const declaredFloor = declaredMin ? declaredMin.version : null;
 		const isProd = declared.isProduction;
-		let status = "satisfied";
-		const maxSpec = maximums[name];
-		if (maxSpec && semver.intersects(declared.range, maxSpec.prohibitedRange)) status = "exceeds_max_range";
-		else if (maxSpec && installedVersion && semver.valid(installedVersion) && semver.satisfies(installedVersion, maxSpec.prohibitedRange)) status = "exceeds_max_installed";
-		else if (declaredMin && requiredMin && semver.lt(declaredMin, requiredMin)) status = "outdated_range";
-		else if (installedVersion && semver.valid(installedVersion) && requiredMin && semver.lt(installedVersion, requiredMin)) status = "outdated_installed";
+		const status = classifyDependencyStatus(declared.range, declaredMin, requiredMin, installedVersion, maximums[name]);
 		const installCommand = status !== "satisfied" ? `npm install ${isProd ? "" : "-D "}${name}@${floor}` : void 0;
-		if (status !== "satisfied") {
-			if (isProd) prodUpdates.push(`${name}@${floor}`);
-			else devUpdates.push(`${name}@${floor}`);
-		}
+		if (status !== "satisfied") (isProd ? prodUpdates : devUpdates).push(`${name}@${floor}`);
 		evaluated.push({
 			name,
 			requiredFloor: floor,
@@ -112,8 +125,6 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 	const satisfiedCount = declaredItems.filter((e) => e.status === "satisfied").length;
 	const outdatedCount = declaredItems.filter((e) => e.status !== "satisfied").length;
 	const undeclaredCount = evaluated.filter((e) => e.status === "undeclared").length;
-	const prodInstallCommand = prodUpdates.length > 0 ? `npm install ${prodUpdates.join(" ")}` : void 0;
-	const devInstallCommand = devUpdates.length > 0 ? `npm install -D ${devUpdates.join(" ")}` : void 0;
 	return {
 		projectRoot: root,
 		evaluated,
@@ -122,9 +133,9 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 		satisfiedCount,
 		outdatedCount,
 		undeclaredCount,
-		prodInstallCommand,
-		devInstallCommand
+		prodInstallCommand: prodUpdates.length > 0 ? `npm install ${prodUpdates.join(" ")}` : void 0,
+		devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(" ")}` : void 0
 	};
 }
 //#endregion
-export { AUDITOR_MAXIMUM_VERSIONS, evaluateProjectDependencies, findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions };
+export { AUDITOR_MAXIMUM_VERSIONS, evaluateProjectDependencies, findDeclaredDependency, getAuditorCanonicalOverrides, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange };

@@ -613,8 +613,22 @@ export function checkViolationVerification(testSource: string): boolean {
   );
 }
 
+export function checkFixVerification(testSource: string): boolean {
+  return (
+    testSource.includes('fix: true') ||
+    testSource.includes('fix = true') ||
+    testSource.includes("'--fix'") ||
+    testSource.includes('"--fix"') ||
+    testSource.includes('isFixMode') ||
+    testSource.includes('auditZIndexParity(') ||
+    testSource.includes('fixZIndexLiteral') ||
+    testSource.includes('autoFix') ||
+    testSource.includes('applyAutoFix')
+  );
+}
+
 /**
- * Validates that an auditor's dedicated test file adheres to the strict 5-point contract.
+ * Validates that an auditor's dedicated test file adheres to the strict 6-point contract.
  */
 export function validateAuditorTestFileContent(
   testSource: string,
@@ -638,6 +652,12 @@ export function validateAuditorTestFileContent(
   if (!checkViolationVerification(testSource)) {
     errors.push(
       `El archivo de prueba '${testFileRel}' no verifica la detección de errores o fallos (status failed / severity error) de '${auditor.id}'.`
+    );
+  }
+
+  if (auditor.capabilities.fix !== 'none' && !checkFixVerification(testSource)) {
+    errors.push(
+      `El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('fix: true') de '${auditor.id}'.`
     );
   }
 

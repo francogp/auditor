@@ -30,7 +30,7 @@ export declare function parseKnipIssues(report: KnipReport | readonly KnipFileIs
 /**
  * Validates package-lock.json integrity, version standards, and absence of insecure HTTP registries.
  */
-export declare function verifyLockfileIntegrity(projectRoot: string): AuditFinding[];
+export declare function verifyLockfileIntegrity(projectRoot: string, isFixMode?: boolean): AuditFinding[];
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
   constructor(options?: {
     projectRoot?: string;

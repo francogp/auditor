@@ -11,9 +11,13 @@ import {
   LEGACY_CONFIG_FILES,
   cleanLegacyConfigFiles,
   syncViteConfigWithAuditConfig,
-  resolveAuditConfigIgnoreGlobs,
-  extractObjectPropertyBlock
+  resolveAuditConfigIgnoreGlobs
 } from '../../core/vitePlusConfigSync.ts';
+import {
+  extractParsedConfigSummary,
+  isRuleValueCompliant,
+  type ParsedVitePlusConfigSummary
+} from '../../core/viteConfigAst.ts';
 
 enableCompileCache();
 
@@ -31,17 +35,6 @@ export interface VitePlusConfigAuditOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
   readonly fix?: boolean;
-}
-
-function checkRuleLevel(content: string, ruleName: string): boolean {
-  const escaped = ruleName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const hasError =
-    new RegExp(`['"]${escaped}['"]\\s*:\\s*['"]error['"]`, 'i').test(content) ||
-    new RegExp(`['"]${escaped}['"]\\s*:\\s*\\[\\s*['"]error['"]`, 'i').test(content);
-  const hasOffOrWarn =
-    new RegExp(`['"]${escaped}['"]\\s*:\\s*['"](?:off|warn|0|1)['"]`, 'i').test(content) ||
-    new RegExp(`['"]${escaped}['"]\\s*:\\s*\\[\\s*['"](?:off|warn|0|1)['"]`, 'i').test(content);
-  return hasError && !hasOffOrWarn;
 }
 
 interface AntiCastrationRuleSpec {
@@ -827,19 +820,18 @@ const ANTI_CASTRATION_SPECS: readonly AntiCastrationRuleSpec[] = [
   }
 ];
 
-function validateSpecialAntiCastrationRules(content: string, fileName: string): AuditFinding[] {
+function validateSpecialAntiCastrationRules(
+  summary: ParsedVitePlusConfigSummary,
+  fileName: string
+): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
-  const hasTypeAssertions =
-    new RegExp(
-      `['"]@typescript-eslint/consistent-type-assertions['"]\\s*:\\s*\\[\\s*['"]error['"]`,
-      'i'
-    ).test(content) &&
-    !new RegExp(
-      `['"]@typescript-eslint/consistent-type-assertions['"]\\s*:\\s*['"](?:off|warn|0|1)['"]`,
-      'i'
-    ).test(content);
-  if (!hasTypeAssertions) {
+  if (
+    !isRuleValueCompliant(
+      '@typescript-eslint/consistent-type-assertions',
+      summary.lintRules.get('@typescript-eslint/consistent-type-assertions')
+    )
+  ) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -854,11 +846,7 @@ function validateSpecialAntiCastrationRules(content: string, fileName: string): 
     });
   }
 
-  const hasNoEmpty =
-    new RegExp(`['"]no-empty['"]\\s*:\\s*\\[\\s*['"]error['"]`, 'i').test(content) &&
-    /allowEmptyCatch\s*:\s*false/.test(content) &&
-    !new RegExp(`['"]no-empty['"]\\s*:\\s*['"](?:off|warn|0|1)['"]`, 'i').test(content);
-  if (!hasNoEmpty) {
+  if (!isRuleValueCompliant('no-empty', summary.lintRules.get('no-empty'))) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -873,11 +861,7 @@ function validateSpecialAntiCastrationRules(content: string, fileName: string): 
     });
   }
 
-  const hasEqeqeq =
-    new RegExp(`['"]eqeqeq['"]\\s*:\\s*\\[\\s*['"]error['"]`, 'i').test(content) &&
-    /['"]always['"]/.test(content) &&
-    !new RegExp(`['"]eqeqeq['"]\\s*:\\s*['"](?:off|warn|0|1)['"]`, 'i').test(content);
-  if (!hasEqeqeq) {
+  if (!isRuleValueCompliant('eqeqeq', summary.lintRules.get('eqeqeq'))) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -895,11 +879,14 @@ function validateSpecialAntiCastrationRules(content: string, fileName: string): 
   return findings;
 }
 
-function validateAntiCastrationRules(content: string, fileName: string): AuditFinding[] {
-  const findings = validateSpecialAntiCastrationRules(content, fileName);
+function validateAntiCastrationRules(
+  summary: ParsedVitePlusConfigSummary,
+  fileName: string
+): AuditFinding[] {
+  const findings = validateSpecialAntiCastrationRules(summary, fileName);
 
   for (const spec of ANTI_CASTRATION_SPECS) {
-    if (!checkRuleLevel(content, spec.oxlintRule)) {
+    if (!isRuleValueCompliant(spec.oxlintRule, summary.lintRules.get(spec.oxlintRule))) {
       findings.push({
         suiteId: 'validate_vite_plus_config',
         suiteName: 'Vite+ Unified Configuration Validator',
@@ -919,13 +906,13 @@ function validateAntiCastrationRules(content: string, fileName: string): AuditFi
 }
 
 function validateRequiredSections(
-  content: string,
+  summary: ParsedVitePlusConfigSummary,
   fileName: string,
   auditConfig?: AuditConfig
 ): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
-  if (!/(^|\s)fmt\s*:\s*\{/m.test(content)) {
+  if (!summary.hasSection('fmt')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -938,28 +925,25 @@ function validateRequiredSections(
       context: 'fmt',
       message: `Falta la sección 'fmt' en vite.config.ts para gobernar el formateo nativo con Oxfmt.`
     });
-  } else {
-    const fmtBlock = extractObjectPropertyBlock(content, 'fmt');
-    if (
-      fmtBlock &&
-      (!/sortImports\s*:\s*true/.test(fmtBlock) || !/sortPackageJson\s*:\s*true/.test(fmtBlock))
-    ) {
-      findings.push({
-        suiteId: 'validate_vite_plus_config',
-        suiteName: 'Vite+ Unified Configuration Validator',
-        ruleId: 'vite-plus-config-fmt',
-        ruleDescription: 'Vite+: Estándares de formato con Oxfmt',
-        severity: 'error',
-        file: fileName,
-        line: 1,
-        col: 1,
-        context: 'fmt',
-        message: `La sección 'fmt' en vite.config.ts debe incluir sortImports: true y sortPackageJson: true para formateo canónico.`
-      });
-    }
+  } else if (
+    summary.fmtConfig.sortImports !== true ||
+    summary.fmtConfig.sortPackageJson !== true
+  ) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-fmt',
+      ruleDescription: 'Vite+: Estándares de formato con Oxfmt',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'fmt',
+      message: `La sección 'fmt' en vite.config.ts debe incluir sortImports: true y sortPackageJson: true para formateo canónico.`
+    });
   }
 
-  if (!/(^|\s)staged\s*:\s*\{/m.test(content)) {
+  if (!summary.hasSection('staged')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -974,7 +958,7 @@ function validateRequiredSections(
     });
   }
 
-  if (!/(^|\s)test\s*:\s*\{/m.test(content)) {
+  if (!summary.hasSection('test')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -991,7 +975,7 @@ function validateRequiredSections(
 
   const isLibrary = auditConfig?.packageDistribution?.enabled === true;
   if (isLibrary) {
-    if (!/(^|\s)pack\s*:\s*\{/m.test(content)) {
+    if (!summary.hasSection('pack')) {
       findings.push({
         suiteId: 'validate_vite_plus_config',
         suiteName: 'Vite+ Unified Configuration Validator',
@@ -1004,35 +988,32 @@ function validateRequiredSections(
         context: 'pack',
         message: `Falta la sección 'pack' en vite.config.ts para gobernar el empaquetado y validaciones nativas de Vite+.`
       });
-    } else {
-      const packBlock = extractObjectPropertyBlock(content, 'pack');
-      if (
-        packBlock &&
-        (!/publint\s*:\s*true/.test(packBlock) || !/attw\s*:\s*\{/.test(packBlock))
-      ) {
-        findings.push({
-          suiteId: 'validate_vite_plus_config',
-          suiteName: 'Vite+ Unified Configuration Validator',
-          ruleId: 'vite-plus-config-pack',
-          ruleDescription: 'Vite+: Estándares de empaquetado y distribución',
-          severity: 'error',
-          file: fileName,
-          line: 1,
-          col: 1,
-          context: 'pack',
-          message: `La sección 'pack' en vite.config.ts debe incluir publint: true y attw: { profile: 'esm-only' } para validación oficial de distribución y tipos.`
-        });
-      }
+    } else if (summary.packConfig.publint !== true || !summary.hasPackAttw) {
+      findings.push({
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-config-pack',
+        ruleDescription: 'Vite+: Estándares de empaquetado y distribución',
+        severity: 'error',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: 'pack',
+        message: `La sección 'pack' en vite.config.ts debe incluir publint: true y attw: { profile: 'esm-only' } para validación oficial de distribución y tipos.`
+      });
     }
   }
 
   return findings;
 }
 
-function validateLintOptionsAndPlugins(content: string, fileName: string): AuditFinding[] {
+function validateLintOptionsAndPlugins(
+  summary: ParsedVitePlusConfigSummary,
+  fileName: string
+): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
-  if (!content.includes('@francogp/auditor/domain-type-plugin')) {
+  if (!summary.lintJsPlugins.includes('@francogp/auditor/domain-type-plugin')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -1047,8 +1028,7 @@ function validateLintOptionsAndPlugins(content: string, fileName: string): Audit
     });
   }
 
-  const lintBlock = extractObjectPropertyBlock(content, 'lint');
-  if (lintBlock && (!lintBlock.includes('options:') || !lintBlock.includes('typeAware:'))) {
+  if (summary.hasSection('lint') && summary.lintOptions.typeAware === undefined) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -1067,24 +1047,21 @@ function validateLintOptionsAndPlugins(content: string, fileName: string): Audit
 }
 
 function validateSynchronizedConfig(
-  content: string,
+  summary: ParsedVitePlusConfigSummary,
   fileName: string,
   auditConfig: AuditConfig,
   projectRoot?: string
 ): AuditFinding[] {
   const findings: AuditFinding[] = [];
-  const lintBlock = extractObjectPropertyBlock(content, 'lint');
 
-  // ignorePatterns synchronization
   const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'lint', projectRoot);
-  const missingLint = lintBlock
-    ? lintIgnores.filter((g) => !lintBlock.includes(`'${g}'`) && !lintBlock.includes(`"${g}"`))
+  const missingLint = summary.hasSection('lint')
+    ? lintIgnores.filter((g) => !summary.lintIgnorePatterns.includes(g))
     : lintIgnores;
 
-  const fmtBlock = extractObjectPropertyBlock(content, 'fmt');
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'fmt', projectRoot);
-  const missingFmt = fmtBlock
-    ? fmtIgnores.filter((g) => !fmtBlock.includes(`'${g}'`) && !fmtBlock.includes(`"${g}"`))
+  const missingFmt = summary.hasSection('fmt')
+    ? fmtIgnores.filter((g) => !summary.fmtIgnorePatterns.includes(g))
     : fmtIgnores;
 
   if (missingFmt.length > 0) {
@@ -1117,28 +1094,24 @@ function validateSynchronizedConfig(
     });
   }
 
-  // testRoots synchronization
   const testRoots = auditConfig.paths?.testRoots;
-  if (testRoots && testRoots.length > 0) {
-    const testBlock = extractObjectPropertyBlock(content, 'test');
-    if (testBlock) {
-      const missingRoots = testRoots.filter(
-        (r) => !testBlock.includes(`'${r}/`) && !testBlock.includes(`"${r}/`)
-      );
-      if (missingRoots.length > 0) {
-        findings.push({
-          suiteId: 'validate_vite_plus_config',
-          suiteName: 'Vite+ Unified Configuration Validator',
-          ruleId: 'vite-plus-config-ts',
-          ruleDescription: 'Vite+: Sincronización de TypeScript y pruebas',
-          severity: 'error',
-          file: fileName,
-          line: 1,
-          col: 1,
-          context: 'test.include',
-          message: `Las raíces de pruebas declaradas en audit.config.ts (${missingRoots.join(', ')}) no están sincronizadas en 'test.include' de vite.config.ts. Ejecuta 'auditor fix' para sincronizarlas automáticamente.`
-        });
-      }
+  if (testRoots && testRoots.length > 0 && summary.hasSection('test')) {
+    const missingRoots = testRoots.filter(
+      (r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`))
+    );
+    if (missingRoots.length > 0) {
+      findings.push({
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-config-ts',
+        ruleDescription: 'Vite+: Sincronización de TypeScript y pruebas',
+        severity: 'error',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: 'test.include',
+        message: `Las raíces de pruebas declaradas en audit.config.ts (${missingRoots.join(', ')}) no están sincronizadas en 'test.include' de vite.config.ts. Ejecuta 'auditor fix' para sincronizarlas automáticamente.`
+      });
     }
   }
 
@@ -1146,7 +1119,8 @@ function validateSynchronizedConfig(
 }
 
 /**
- * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections.
+ * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections
+ * using the TypeScript Compiler AST.
  */
 export function auditVitePlusConfigContent(
   content: string,
@@ -1154,14 +1128,15 @@ export function auditVitePlusConfigContent(
   auditConfig?: AuditConfig,
   projectRoot?: string
 ): AuditFinding[] {
+  const summary = extractParsedConfigSummary(content);
   const findings: AuditFinding[] = [
-    ...validateAntiCastrationRules(content, fileName),
-    ...validateRequiredSections(content, fileName, auditConfig),
-    ...validateLintOptionsAndPlugins(content, fileName)
+    ...validateAntiCastrationRules(summary, fileName),
+    ...validateRequiredSections(summary, fileName, auditConfig),
+    ...validateLintOptionsAndPlugins(summary, fileName)
   ];
 
   if (auditConfig) {
-    findings.push(...validateSynchronizedConfig(content, fileName, auditConfig, projectRoot));
+    findings.push(...validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot));
   }
 
   return findings;

@@ -188,7 +188,7 @@ function auditStyleFile(params: {
     content,
     params.styleRules as AuditRule[],
     params.violations,
-    params.violations.length > 0 ? false : params.fix,
+    params.fix,
     0
   );
   if (params.fix && newBlock !== content) {
@@ -439,7 +439,6 @@ export function runRules(
   offset: number
 ): string {
   let result = content;
-  const getLineNo = createLineLocator(content, offset);
 
   for (const rule of rules) {
     if (rule.appliesTo && !rule.appliesTo(filePath)) {
@@ -447,10 +446,11 @@ export function runRules(
     }
     const ruleKey = rule.id;
     const start = performance.now(); // timing-ok: CLI internal rule runner telemetry
-    collectRuleViolations(rule, content, filePath, getLineNo, violations);
     if (fix && rule.fix) {
       result = applyRuleFix(rule, result, filePath);
     }
+    const getLineNo = createLineLocator(result, offset);
+    collectRuleViolations(rule, result, filePath, getLineNo, violations);
     if (ruleKey) {
       const elapsed = performance.now() - start; // timing-ok: CLI internal rule runner telemetry
       const current = activeProjectRuleTimings.get(ruleKey) ?? 0;
@@ -1146,7 +1146,10 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         activeProjectRuleTimings.set(r, 0);
       }
     }
-    const violations = await main();
+    const cliArgs = this.isFixActive()
+      ? [...process.argv.slice(2), '--fix']
+      : undefined;
+    const violations = await main(cliArgs);
     for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) {
       this.reportRuleDuration(ruleId, durationMs);
     }

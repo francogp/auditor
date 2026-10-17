@@ -49,8 +49,6 @@ const OXLINT_FIXABLE_RULES_LIST = [
 	"@typescript-eslint/no-unnecessary-type-assertion",
 	"consistent-indexed-object-style",
 	"@typescript-eslint/consistent-indexed-object-style",
-	"consistent-type-assertions",
-	"@typescript-eslint/consistent-type-assertions",
 	"no-unnecessary-template-expression",
 	"@typescript-eslint/no-unnecessary-template-expression",
 	"no-unnecessary-type-arguments",
@@ -61,10 +59,6 @@ const OXLINT_FIXABLE_RULES_LIST = [
 	"@typescript-eslint/prefer-return-this-type",
 	"ban-tslint-comment",
 	"@typescript-eslint/ban-tslint-comment",
-	"ban-ts-comment",
-	"@typescript-eslint/ban-ts-comment",
-	"no-explicit-any",
-	"@typescript-eslint/no-explicit-any",
 	"unicorn/prefer-node-protocol",
 	"unicorn/prefer-string-starts-ends-with",
 	"unicorn/throw-new-error",
@@ -88,7 +82,6 @@ const OXLINT_FIXABLE_RULES_LIST = [
 	"vitest/prefer-to-have-length",
 	"vitest/prefer-to-be-object",
 	"vitest/prefer-todo",
-	"vitest/valid-title",
 	"vue/no-import-compiler-macros",
 	"vue/valid-next-tick",
 	"vue/no-deprecated-destroyed-lifecycle",
@@ -96,8 +89,7 @@ const OXLINT_FIXABLE_RULES_LIST = [
 	"vue/next-tick-style",
 	"vue/prefer-import-from-vue",
 	"node/no-exports-assign",
-	"promise/no-new-statics",
-	"no-useless-assignment"
+	"promise/no-new-statics"
 ];
 const OXLINT_FIXABLE_RULES = new Set(OXLINT_FIXABLE_RULES_LIST);
 /**
@@ -235,7 +227,7 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			col: finding.col,
 			context: finding.context,
 			message: finding.message,
-			fixable: finding.fixable
+			fixable: isFixMode ? false : Boolean(finding.fixable)
 		});
 		this.context.setMetric("oxlint_violations", findings.length);
 		this.context.setMetric("mode", isFixMode ? "fix" : "check");

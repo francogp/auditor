@@ -22,7 +22,7 @@ import {
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
-import { stripComments } from '../../core/scannerUtils.ts';
+import ts from 'typescript';
 
 enableCompileCache();
 
@@ -260,30 +260,34 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     let parsed: TsConfigShape | undefined;
     const extraParsed = new Map<string, TsConfigShape>();
     this.runSubAuditorSync('tsconfig-syntax', () => {
-      try {
-        parsed = JSON.parse(rawContent) as TsConfigShape;
-      } catch {
-        try {
-          parsed = JSON.parse(stripComments(rawContent)) as TsConfigShape;
-        } catch {
-          this.addViolation({
-            ruleId: 'tsconfig-syntax',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: `Error de sintaxis JSON en ${relPath}.`
-          });
-        }
+      const parseRes = ts.parseConfigFileTextToJson(relPath, rawContent);
+      if (parseRes.error || !parseRes.config || typeof parseRes.config !== 'object') {
+        this.addViolation({
+          ruleId: 'tsconfig-syntax',
+          severity: 'error',
+          file: relPath,
+          line: 1,
+          message: `Error de sintaxis JSON en ${relPath}.`
+        });
+      } else {
+        parsed = parseRes.config as TsConfigShape;
       }
 
       for (const extraFile of extraTsconfigs) {
         const extraFullPath = path.resolve(this.projectRoot, extraFile);
         try {
           const extraRaw = fs.readFileSync(extraFullPath, 'utf8');
-          try {
-            extraParsed.set(extraFile, JSON.parse(extraRaw) as TsConfigShape);
-          } catch {
-            extraParsed.set(extraFile, JSON.parse(stripComments(extraRaw)) as TsConfigShape);
+          const extraRes = ts.parseConfigFileTextToJson(extraFile, extraRaw);
+          if (extraRes.error || !extraRes.config || typeof extraRes.config !== 'object') {
+            this.addViolation({
+              ruleId: 'tsconfig-syntax',
+              severity: 'error',
+              file: extraFile,
+              line: 1,
+              message: `Error de sintaxis JSON en ${extraFile}.`
+            });
+          } else {
+            extraParsed.set(extraFile, extraRes.config as TsConfigShape);
           }
         } catch {
           this.addViolation({
@@ -301,19 +305,6 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       this.markRuleNotApplicable('tsconfig-missing-strict-compiler-option', 'Sintaxis JSON inválida');
       this.markRuleNotApplicable('tsconfig-banned-option', 'Sintaxis JSON inválida');
       this.markRuleNotApplicable('tsconfig-missing-source-include', 'Sintaxis JSON inválida');
-      return;
-    }
-
-    if (!parsed || typeof parsed !== 'object') {
-      this.runSubAuditorSync('tsconfig-syntax', () => {
-        this.addViolation({
-          ruleId: 'tsconfig-syntax',
-          severity: 'error',
-          file: relPath,
-          line: 1,
-          message: `El contenido de ${relPath} no es un objeto JSON válido.`
-        });
-      });
       return;
     }
 
@@ -416,16 +407,30 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
 
       for (const [extraFile, extraCfg] of extraParsed.entries()) {
         const extraOpts = extraCfg.compilerOptions ?? {};
+        let extraModified = false;
         for (const banned of BANNED_COMPILER_OPTIONS) {
           if (extraOpts[banned] !== undefined) {
-            this.addViolation({
-              ruleId: 'tsconfig-banned-option',
-              severity: 'error',
-              file: extraFile,
-              line: 1,
-              message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
-            });
+            if (isFix) {
+              delete extraOpts[banned];
+              extraModified = true;
+            } else {
+              this.addViolation({
+                ruleId: 'tsconfig-banned-option',
+                severity: 'error',
+                file: extraFile,
+                line: 1,
+                message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+              });
+            }
           }
+        }
+        if (isFix && extraModified) {
+          extraCfg.compilerOptions = extraOpts;
+          fs.writeFileSync(
+            path.resolve(this.projectRoot, extraFile),
+            JSON.stringify(extraCfg, null, 2) + '\n',
+            'utf8'
+          );
         }
       }
     });

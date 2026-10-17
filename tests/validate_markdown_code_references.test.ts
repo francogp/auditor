@@ -186,7 +186,7 @@ fallow src/index.ts
 \`\`\`
 And in code:
 \`\`\`typescript
-import './src/nonexistent/sample.css';
+import './src/nonexistent/sample.scss';
 \`\`\`
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');

@@ -122,13 +122,12 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
+				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...ACCESSIBILITY_RULES]),
-			fixableRuleIds: [...ACCESSIBILITY_RULES],
+			}),
 			fix: options.fix,
 			id: "validate_accessibility",
 			name: "Vue & Web Accessibility Standards Auditor",
@@ -231,7 +230,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 					line: lineNum,
 					context: match[0],
 					message: "Elemento <img> no posee atributo alt accesible. Viola WCAG 1.1.1 Non-text Content.",
-					fixable: true
+					fixable: false
 				});
 			}
 		}

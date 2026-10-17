@@ -18,3 +18,4 @@ scratch/
 Thumbs.db
 .vscode/
 
+.vitest/

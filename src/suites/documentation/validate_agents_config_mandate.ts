@@ -25,20 +25,22 @@ export type AgentsConfigMandateRuleId =
   | 'agents-missing-config-mandate'
   | 'agents-missing-backward-compat-mandate'
   | 'agents-missing-fake-pass-mandate'
-  | 'agents-missing-chat-language-mandate';
+  | 'agents-missing-chat-language-mandate'
+  | 'agents-missing-destructive-git-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
   'agents-missing-backward-compat-mandate',
   'agents-missing-fake-pass-mandate',
-  'agents-missing-chat-language-mandate'
+  'agents-missing-chat-language-mandate',
+  'agents-missing-destructive-git-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
-  '- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.';
+  '- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.';
 
 export const CANONICAL_MANDATE_SNIPPET_ES =
-  '- **Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `eslint.config.js`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorización previa explícita del programador humano. Al solicitar autorización, el agente debe proporcionar una explicación técnica exhaustiva detallando por qué la modificación es necesaria, justificando explícitamente los pros, los contras y el balance de compensaciones.';
+  '- **Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorización previa explícita del programador humano. Al solicitar autorización, el agente debe proporcionar una explicación técnica exhaustiva detallando por qué la modificación es necesaria, justificando explícitamente los pros, los contras y el balance de compensaciones.';
 
 export const CANONICAL_BACKWARD_COMPAT_SNIPPET_EN =
   '- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED. The architecture prioritizes clean, uncompromised modern standards over legacy tolerance. Outdated consumers, legacy configurations, and unmigrated calls MUST fail loudly with immediate, explicit, and blocking errors (`throw new Error(...)` or exit code 1) forcing immediate upgrades to canonical standards. Maintaining duplicate suites or runtime compatibility bridges that introduce bloat, duplicate findings, or maintenance hazards is completely eradicated.';
@@ -64,13 +66,23 @@ export const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES =
 export const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN =
   "- **Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA**: El asistente / agente de IA DEBE consultar `.auditor/audit.config.ts` y comunicarse, conversar, responder e interactuar en el chat con el usuario estricta y exclusivamente en inglés (`'en'`). Este idioma conversacional del chat está explícitamente diferenciado del idioma de escritura de archivos y documentación del repositorio (`config.documentation.language`), el cual rige estrictamente el código, comentarios, mensajes de commit, documentación y archivos markdown. El agente de IA debe consultar dinámicamente estas configuraciones y jamás confundir el idioma del chat con el idioma de escritura en archivos.";
 
+export const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN =
+  '- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization from the human programmer.';
+
+export const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES =
+  '- **Prohibición Absoluta de Comandos Git Destructivos No Solicitados**: Los agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO ejecutar comandos Git destructivos (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) que descarten o sobrescriban cambios del árbol de trabajo o del historial de commits sin autorización previa explícita del programador humano.';
+
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
   backwardCompat: {
     en: CANONICAL_BACKWARD_COMPAT_SNIPPET_EN,
     es: CANONICAL_BACKWARD_COMPAT_SNIPPET_ES
   },
-  fakePass: { en: CANONICAL_FAKE_PASS_SNIPPET_EN, es: CANONICAL_FAKE_PASS_SNIPPET_ES }
+  fakePass: { en: CANONICAL_FAKE_PASS_SNIPPET_EN, es: CANONICAL_FAKE_PASS_SNIPPET_ES },
+  destructiveGit: {
+    en: CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN,
+    es: CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES
+  }
 } as const;
 
 export function getCanonicalMandateSnippet(language: DocumentationLanguage = 'en'): string {
@@ -86,6 +98,13 @@ export function getCanonicalBackwardCompatSnippet(language: DocumentationLanguag
 
 export function getCanonicalFakePassSnippet(language: DocumentationLanguage = 'en'): string {
   return CANONICAL_SNIPPET_REGISTRY.fakePass[language] ?? CANONICAL_SNIPPET_REGISTRY.fakePass.en;
+}
+
+export function getCanonicalDestructiveGitSnippet(language: DocumentationLanguage = 'en'): string {
+  return (
+    CANONICAL_SNIPPET_REGISTRY.destructiveGit[language] ??
+    CANONICAL_SNIPPET_REGISTRY.destructiveGit.en
+  );
 }
 
 export function getCanonicalChatLanguageSnippet(
@@ -232,6 +251,33 @@ export function containsChatLanguageMandate(
   return matchesMandateLanguage(text, docLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the destructive Git commands prohibition mandate.
+ */
+export function containsDestructiveGitMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasGitCmd =
+    /git\s+reset\s+--hard|git\s+checkout\s+--|git\s+clean|git\s+restore|destructive\s+git|git\s+destructiv/i.test(
+      text
+    );
+  if (!hasGitCmd) return false;
+
+  const hasProhibition =
+    /prohibit|prohibid|categorically|categóricamente|strictly|estrictamente|forbidden/i.test(text);
+  if (!hasProhibition) return false;
+
+  const hasAuth =
+    /authoriz|autorizaci[oó]n|consult|permiso|permission|programmer|programador|human/i.test(text);
+  if (!hasAuth) return false;
+
+  const enMarkers = /(?:Destructive Git Commands|prohibited from executing|working tree changes)/i;
+  const esMarkers =
+    /(?:Comandos Git Destructivos|prohibido ejecutar|árbol de trabajo|historial de commits)/i;
+  return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
   check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
@@ -305,6 +351,20 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause defining the AI agent chat communication language distinct from file writing language.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma de comunicación en el chat de la IA diferenciado de la escritura de archivos.'
+  },
+  {
+    ruleId: 'agents-missing-destructive-git-mandate',
+    check: (text, docLang) => containsDestructiveGitMandate(text, docLang),
+    getSnippet: (docLang) => getCanonicalDestructiveGitSnippet(docLang),
+    isExistingLine: (l) =>
+      l.includes('Unrequested Destructive Git Commands') ||
+      l.includes('Comandos Git Destructivos No Solicitados') ||
+      l.includes('Destructive Git Commands') ||
+      l.includes('Comandos Git Destructivos'),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause prohibiting AI agents from executing destructive Git commands without prior programmer authorization.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente la prohibición absoluta de ejecutar comandos Git destructivos sin autorización previa del programador.'
   }
 ];
 
@@ -352,7 +412,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-config-mandate': 'Falta mandato de no alterar config',
         'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',
         'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
-        'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat'
+        'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat',
+        'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -362,7 +423,9 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-fake-pass-mandate':
           'Guía de diagnóstico y remediación para agents-missing-fake-pass-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
         'agents-missing-chat-language-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+        'agents-missing-destructive-git-mandate':
+          'Guía de diagnóstico y remediación para agents-missing-destructive-git-mandate. Ejecuta `auditor fix` para inyectar la prohibición de comandos Git destructivos en AGENTS.md.'
       },
       coverage: {
         include: ['AGENTS.md']
@@ -449,15 +512,14 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       return fsSync.readFileSync(agentsMdPath, 'utf8');
     }
 
-    if (matchingSections.length === 0) {
-      this.addViolation({
-        ruleId: mandate.ruleId,
-        severity: 'error',
-        file: 'AGENTS.md',
-        line: findLocalContractsHeaderLine(currentContent),
-        message: targetLanguage === 'es' ? mandate.errorMessageEs : mandate.errorMessageEn
-      });
-    }
+    this.addViolation({
+      ruleId: mandate.ruleId,
+      severity: 'error',
+      file: 'AGENTS.md',
+      line: findLocalContractsHeaderLine(currentContent),
+      message: targetLanguage === 'es' ? mandate.errorMessageEs : mandate.errorMessageEn,
+      fixable: true
+    });
     return currentContent;
   }
 }

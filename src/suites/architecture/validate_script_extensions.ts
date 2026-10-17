@@ -20,7 +20,7 @@ import {
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
-import { getPackageJson } from '../../core/packageJson.ts';
+import { getPackageJson, writePackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -87,9 +87,10 @@ export function isExemptScriptFile(relPath: string, exemptList?: readonly string
 }
 
 export function resolveScriptAndCliDirs(config: AuditEngineConfig): string[] {
+  const srcRoots = (config.paths?.srcRoots ?? []).map((r) => normalizePosixPath(r));
   const scriptsRoots = (config.paths?.scriptsRoots ?? []).map((r) => normalizePosixPath(r));
   const cliRoots = (config.paths?.cliRoots ?? []).map((r) => normalizePosixPath(r));
-  return Array.from(new Set([...scriptsRoots, ...cliRoots])); // no-domain: Non-domain utility collection or data structure
+  return Array.from(new Set([...srcRoots, ...scriptsRoots, ...cliRoots])); // no-domain: Non-domain utility collection or data structure
 }
 
 export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtensionsRuleId> {
@@ -97,7 +98,10 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     const effectiveProjectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveProjectRoot);
     const scriptAndCliDirs = resolveScriptAndCliDirs(config);
-    const coverageInclude = ['**/*.{mjs,cjs}', ...scriptAndCliDirs.map((d) => `${d}/**/*.js`)]; // no-domain: Non-domain utility collection or data structure
+    const coverageInclude = [
+      '**/*.{mjs,cjs}',
+      ...scriptAndCliDirs.map((d) => `${d}/**/*.{js,jsx}`)
+    ]; // no-domain: Non-domain utility collection or data structure
 
     super({
       usesThirdPartyTool: false,
@@ -213,19 +217,20 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       if (allowJsScripts) return;
       for (const fullPath of candidateFiles) {
         const ext = path.extname(fullPath).toLowerCase();
-        if (ext === '.js') {
+        if (ext === '.js' || ext === '.jsx') {
           const relPath = toPosixRelative(this.projectRoot, fullPath);
           if (isExemptScriptFile(relPath, exemptFiles)) continue;
           const isScriptDir = scriptAndCliDirs.some(
             (dir) => relPath === dir || relPath.startsWith(dir + '/')
           );
           if (isScriptDir) {
+            const targetExt = ext === '.jsx' ? '.tsx' : '.ts';
             violations.push({
               file: relPath,
               fullPath,
               ruleId: 'banned-raw-js-script',
-              message: `Script JavaScript sin tipar "${relPath}" detectado en directorio de scripts. Debe migrarse a TypeScript (.ts).`,
-              targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
+              message: `Archivo JavaScript sin tipar "${relPath}" detectado. Debe migrarse a TypeScript (${targetExt}).`,
+              targetTsPath: fullPath.slice(0, -ext.length) + targetExt
             });
           }
         }
@@ -267,12 +272,12 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       collected.add(f);
     }
 
-    // 2. Collect raw .js strictly within scripts and cli roots
+    // 2. Collect raw .js and .jsx strictly within src, scripts, and cli roots
     const existingScriptDirs = scriptAndCliDirs
       .map((d) => path.resolve(this.projectRoot, d))
       .filter((d) => fs.existsSync(d));
     if (existingScriptDirs.length > 0) {
-      const jsFiles = this.context.collectFiles(scriptAndCliDirs, new Set(['.js']));
+      const jsFiles = this.context.collectFiles(scriptAndCliDirs, new Set(['.js', '.jsx']));
       for (const f of jsFiles) {
         collected.add(f);
       }
@@ -362,7 +367,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     const scannableRoots = getEffectiveScannableRoots(getAuditConfig(this.projectRoot));
     const allCodeFiles = this.context.collectFiles(
       scannableRoots,
-      new Set(['.ts', '.vue', '.js', '.mjs', '.cjs'])
+      new Set(['.ts', '.tsx', '.vue', '.js', '.jsx', '.mjs', '.cjs'])
     );
 
     for (const filePath of allCodeFiles) {
@@ -395,11 +400,12 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
   private rewritePackageJsonScripts(
     plans: readonly { readonly oldBaseName: string; readonly newBaseName: string }[]
   ): void {
-    const pkg = getPackageJson(this.projectRoot);
+    const pkg = getPackageJson(this.projectRoot, true);
     if (!pkg?.scripts || typeof pkg.scripts !== 'object') return;
 
+    const updatedScripts: Record<string, string> = { ...pkg.scripts };
     let modified = false;
-    for (const [scriptName, scriptCmd] of Object.entries(pkg.scripts)) {
+    for (const [scriptName, scriptCmd] of Object.entries(updatedScripts)) {
       let updatedCmd = scriptCmd;
       for (const plan of plans) {
         if (updatedCmd.includes(plan.oldBaseName)) {
@@ -410,13 +416,15 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         }
       }
       if (updatedCmd !== scriptCmd) {
-        pkg.scripts[scriptName] = updatedCmd;
+        updatedScripts[scriptName] = updatedCmd;
       }
     }
 
     if (modified) {
-      const pkgPath = path.resolve(this.projectRoot, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
+      writePackageJson(this.projectRoot, {
+        ...pkg,
+        scripts: updatedScripts
+      });
     }
   }
 }

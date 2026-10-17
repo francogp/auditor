@@ -14,6 +14,7 @@
  */
 
 import fs from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
@@ -27,7 +28,7 @@ import {
   isExemptFile,
   isTestPath
 } from '../../core/auditConfig.ts';
-import { resolveZLayer } from '../../analyzers/zIndexRules.ts';
+import { resolveZLayer, fixZIndexLiteral } from '../../analyzers/zIndexRules.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -226,6 +227,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
 
       HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
       let m: RegExpExecArray | null;
+      const replacements: Array<{ start: number; end: number; replacement: string }> = [];
       while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
         if (doc.isInsideComment(m.index)) continue;
         const pos = doc.getLineAndColumn(m.index);
@@ -234,6 +236,19 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
         const numMatch = m[0].match(/-?\d+/);
         const val = numMatch ? parseInt(numMatch[0], 10) : 0;
         const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
+        const canFix = Boolean(cssVarExpr);
+
+        if (this.isFixActive() && canFix) {
+          const replaced = fixZIndexLiteral(m[0]);
+          if (replaced !== m[0]) {
+            replacements.push({
+              start: m.index,
+              end: m.index + m[0].length,
+              replacement: replaced
+            });
+            continue;
+          }
+        }
 
         let msg: string;
         if (exactKey && cssVarExpr) {
@@ -252,8 +267,17 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           column: pos.column,
           message: msg,
           context: m[0],
-          fixable: false
+          fixable: canFix
         });
+      }
+
+      if (replacements.length > 0) {
+        let updated = doc.rawContent;
+        for (let i = replacements.length - 1; i >= 0; i--) {
+          const r = replacements[i]!;
+          updated = updated.slice(0, r.start) + r.replacement + updated.slice(r.end);
+        }
+        writeFileSync(doc.filePath, updated, 'utf-8');
       }
     });
 

@@ -1,8 +1,10 @@
 import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
+import { findConfigRootObject, findPropertyAssignment, getPropertyKeyName, parseTsSourceFile, printTransformedSourceFile, valueToAstExpression } from "../../core/viteConfigAst.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import ts from "typescript";
 //#region src/suites/architecture/validate_playwright_config.ts
 /**
 * src/suites/architecture/validate_playwright_config.ts
@@ -145,12 +147,17 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			});
 			return;
 		}
+		const sf = parseTsSourceFile(rawContent, relPath);
+		const rootObj = findConfigRootObject(sf);
 		let modified = false;
-		let updatedContent = rawContent;
+		let rootProps = rootObj ? [...rootObj.properties] : [];
+		let replaceNpxVite = false;
+		const DEFAULT_PLAYWRIGHT_TIMEOUT_MS = 3e4;
+		const currentRoot = () => ts.factory.createObjectLiteralExpression(rootProps, true);
 		this.runSubAuditorSync("playwright-config-missing-setting", () => {
-			if (!/\btimeout\s*:/i.test(updatedContent)) {
-				if (isFix) {
-					updatedContent = updatedContent.replace(/(defineConfig\s*\(\s*\{)/i, "$1\n  timeout: 30000,");
+			if (!(rootObj ? Boolean(findPropertyAssignment(currentRoot(), "timeout", sf)) : false)) {
+				if (isFix && rootObj) {
+					rootProps.push(ts.factory.createPropertyAssignment("timeout", valueToAstExpression(DEFAULT_PLAYWRIGHT_TIMEOUT_MS)));
 					modified = true;
 				} else this.addViolation({
 					ruleId: "playwright-config-missing-setting",
@@ -160,9 +167,9 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					message: "Se requiere configurar \"timeout\" para evitar bloqueos indefinidos en tests E2E."
 				});
 			}
-			if (!/\breporter\s*:/i.test(updatedContent)) {
-				if (isFix) {
-					updatedContent = updatedContent.replace(/(defineConfig\s*\(\s*\{)/i, "$1\n  reporter: [['html', { open: 'never' }], ['list']],");
+			if (!(rootObj ? Boolean(findPropertyAssignment(currentRoot(), "reporter", sf)) : false)) {
+				if (isFix && rootObj) {
+					rootProps.push(ts.factory.createPropertyAssignment("reporter", valueToAstExpression([["html", { open: "never" }], ["list"]])));
 					modified = true;
 				} else this.addViolation({
 					ruleId: "playwright-config-missing-setting",
@@ -172,10 +179,13 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					message: "Se requiere configurar \"reporter\" en playwright.config.ts."
 				});
 			}
-			if (!/\btrace\s*:/i.test(updatedContent)) {
-				if (isFix) {
-					if (/\buse\s*:\s*\{/i.test(updatedContent)) updatedContent = updatedContent.replace(/(use\s*:\s*\{)/i, "$1\n    trace: 'on-first-retry',");
-					else updatedContent = updatedContent.replace(/(defineConfig\s*\(\s*\{)/i, "$1\n  use: { trace: 'on-first-retry' },");
+			const useProp = rootObj ? findPropertyAssignment(currentRoot(), "use", sf) : null;
+			if (!(useProp && ts.isObjectLiteralExpression(useProp.initializer) ? Boolean(findPropertyAssignment(useProp.initializer, "trace", sf)) : false)) {
+				if (isFix && rootObj) {
+					if (useProp && ts.isObjectLiteralExpression(useProp.initializer)) {
+						const nextUseProps = [...useProp.initializer.properties, ts.factory.createPropertyAssignment("trace", valueToAstExpression("on-first-retry"))];
+						rootProps = rootProps.map((p) => ts.isPropertyAssignment(p) && getPropertyKeyName(p.name, sf) === "use" ? ts.factory.createPropertyAssignment("use", ts.factory.createObjectLiteralExpression(nextUseProps, true)) : p);
+					} else rootProps.push(ts.factory.createPropertyAssignment("use", valueToAstExpression({ trace: "on-first-retry" })));
 					modified = true;
 				} else this.addViolation({
 					ruleId: "playwright-config-missing-setting",
@@ -185,9 +195,17 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					message: "Se requiere configurar \"use.trace\" para diagnósticos de fallos en E2E."
 				});
 			}
-			if (/\bnpx\s+vite\b/.test(updatedContent)) {
+			let foundNpxVite = false;
+			function scanStrings(node) {
+				if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+					if (/\bnpx\s+vite\b/.test(node.text)) foundNpxVite = true;
+				}
+				ts.forEachChild(node, scanStrings);
+			}
+			scanStrings(sf);
+			if (foundNpxVite) {
 				if (isFix) {
-					updatedContent = updatedContent.replace(/\bnpx\s+vite\b/g, "vp dev");
+					replaceNpxVite = true;
 					modified = true;
 				} else this.addViolation({
 					ruleId: "playwright-config-missing-setting",
@@ -198,7 +216,23 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 				});
 			}
 		});
-		if (isFix && modified) fs.writeFileSync(resolvedPath, updatedContent, "utf8");
+		if (isFix && modified) {
+			if (!rootObj) {
+				fs.writeFileSync(resolvedPath, CANONICAL_PLAYWRIGHT_CONFIG_CONTENT, "utf8");
+				return;
+			}
+			const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
+			const transformer = (context) => {
+				const visit = (node) => {
+					if (node === rootObj) return ts.visitEachChild(updatedRootObj, visit, context);
+					if (replaceNpxVite && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) && /\bnpx\s+vite\b/.test(node.text)) return ts.factory.createStringLiteral(node.text.replace(/\bnpx\s+vite\b/g, "vp dev"), true);
+					return ts.visitEachChild(node, visit, context);
+				};
+				return (source) => ts.visitNode(source, visit);
+			};
+			const printed = printTransformedSourceFile(sf, transformer);
+			fs.writeFileSync(resolvedPath, printed, "utf8");
+		}
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePlaywrightConfigAuditor());

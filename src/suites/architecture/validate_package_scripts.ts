@@ -21,7 +21,7 @@ import {
 } from '../../core/auditConfig.ts';
 import { collectAllPackageScriptRequirements } from '../../cli/auditScanner.ts';
 import { resolveGitCommit, describeBaselineDefect } from '../../cli/auditRatchet.ts';
-import { getPackageJson } from '../../core/packageJson.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
 enableCompileCache();
 
@@ -183,8 +183,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     });
 
     if (modified) {
-      const pkgPath = path.resolve(this.projectRoot, 'package.json');
-      fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+      writePackageJson(this.projectRoot, pkg as PackageJsonDTO);
     }
 
     this.runSubAuditorSync('package-scripts-invalid-production-ref', () => {
@@ -211,9 +210,8 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       return null;
     }
 
-    try {
-      return getPackageJson(this.projectRoot) as Record<string, unknown>;
-    } catch {
+    const parsed = getPackageJson(this.projectRoot, true);
+    if (!parsed) {
       this.addViolation({
         ruleId: 'package-scripts-missing-file',
         severity: 'error',
@@ -224,6 +222,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       });
       return null;
     }
+    return parsed as Record<string, unknown>;
   }
 
   private checkBuildScriptChainsPreAudit(buildScript: string): boolean {

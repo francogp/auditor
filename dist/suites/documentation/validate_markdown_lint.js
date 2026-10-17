@@ -65,7 +65,6 @@ const MARKDOWNLINT_FIXABLE_RULE_LIST = [
 	"MD021",
 	"MD022",
 	"MD023",
-	"MD024",
 	"MD026",
 	"MD027",
 	"MD030",
@@ -79,7 +78,6 @@ const MARKDOWNLINT_FIXABLE_RULE_LIST = [
 	"MD047",
 	"MD049",
 	"MD050",
-	"MD051",
 	"MD053"
 ];
 const MARKDOWNLINT_FIXABLE_RULES = new Set(MARKDOWNLINT_FIXABLE_RULE_LIST);
@@ -102,7 +100,7 @@ function parseMarkdownLintIssues(input, cwd = process.cwd()) {
 		const ruleCode = Array.isArray(issue.ruleNames) ? issue.ruleNames.join("/") : "MD";
 		const detail = issue.errorDetail ? ` (${issue.errorDetail})` : "";
 		const desc = issue.ruleDescription || "Markdown formatting issue";
-		const isFixable = isMarkdownLintRuleFixable(issue.ruleNames);
+		const isFixable = issue.fixInfo !== void 0 ? Boolean(issue.fixInfo) : isMarkdownLintRuleFixable(issue.ruleNames);
 		findings.push({
 			suiteId: "validate_markdown_lint",
 			suiteName: "Markdownlint Style & Hygiene Validator",
@@ -187,11 +185,15 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 		for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) args.push("--ignore", pattern);
 		args.push("--json");
 		if (isFixMode) args.push("--fix");
-		const findings = parseMarkdownLintIssues(executeNodeCli(binPath, args, {
+		const rawFindings = parseMarkdownLintIssues(executeNodeCli(binPath, args, {
 			cwd: this.projectRoot,
 			maxBuffer: MAX_BUFFER_BYTES,
 			timeout: EXECUTION_TIMEOUT_MS
 		}), this.projectRoot);
+		const findings = isFixMode ? rawFindings.map((f) => ({
+			...f,
+			fixable: false
+		})) : rawFindings;
 		this.importAuditFindings(findings, "markdownlint-issue", "markdownlint");
 		this.context.setMetric("markdown_violations", findings.length);
 		this.context.setMetric("mode", isFixMode ? "fix" : "check");

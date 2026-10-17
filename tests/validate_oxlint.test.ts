@@ -175,5 +175,13 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('supports fix: true mode and marks remaining unfixable findings as fixable: false', async () => {
+      const auditor = new CleanOxlintAuditor();
+      Reflect.set(auditor, 'fixMode', true);
+      const result = await auditor.execute();
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });

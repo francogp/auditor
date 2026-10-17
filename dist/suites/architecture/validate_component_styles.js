@@ -222,16 +222,59 @@ function isExemptCssFile(relPath, exemptList) {
 		return normRel === normItem || normRel.endsWith(`/${normItem}`) || baseName === normItem;
 	});
 }
+function rewriteCssReferencesInProject(projectRoot, roots, renamedPairs, auditor) {
+	if (renamedPairs.length === 0) return;
+	const codeFiles = auditor.collectProjectFiles(roots, /* @__PURE__ */ new Set([
+		".vue",
+		".ts",
+		".tsx",
+		".js",
+		".jsx",
+		".scss",
+		".css",
+		".html"
+	]));
+	const indexHtml = path.resolve(projectRoot, "index.html");
+	if (fs.existsSync(indexHtml) && !codeFiles.includes(indexHtml)) codeFiles.push(indexHtml);
+	for (const filePath of codeFiles) try {
+		if (!fs.existsSync(filePath)) continue;
+		let content = fs.readFileSync(filePath, "utf-8");
+		let modified = false;
+		for (const { oldBase, newBase } of renamedPairs) {
+			const escapedOld = oldBase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+			const refPattern = new RegExp(`(['"\`/(])${escapedOld}(['"\`)\\s;])`, "g");
+			if (refPattern.test(content)) {
+				content = content.replace(refPattern, `$1${newBase}$2`);
+				modified = true;
+			}
+		}
+		if (modified) fs.writeFileSync(filePath, content, "utf-8");
+	} catch {}
+}
 function auditRawCssFiles(cssFiles, projectRoot, exemptCssFiles, auditor) {
+	const renamedPairs = [];
 	for (const file of cssFiles) {
 		const relPath = toPosixRelative(projectRoot, file);
 		if (isExemptCssFile(relPath, exemptCssFiles)) continue;
+		if (auditor.isFixActive()) {
+			const targetScss = file.slice(0, -4) + ".scss";
+			try {
+				if (!fs.existsSync(targetScss)) fs.renameSync(file, targetScss);
+				else fs.rmSync(file, { force: true });
+				renamedPairs.push({
+					oldBase: path.basename(file),
+					newBase: path.basename(targetScss)
+				});
+				continue;
+			} catch {}
+		}
 		auditor.recordViolation({
 			file: relPath,
 			type: "banned_raw_css_file",
 			message: `Archivo CSS plano "${relPath}" detectado. Todo archivo de estilos debe utilizar preprocesador SCSS (.scss).`
-		}, "banned-raw-css-file", relPath, 1, false);
+		}, "banned-raw-css-file", relPath, 1, true);
 	}
+	if (auditor.isFixActive() && renamedPairs.length > 0) rewriteCssReferencesInProject(projectRoot, auditor.roots, renamedPairs, auditor);
 }
 function auditVueComponent(file, projectRoot, srcDir, trackScssFile, config, auditor, enforceScss = false) {
 	const content = fs.readFileSync(file, "utf-8");
@@ -317,8 +360,8 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["banned-plain-css-style"]),
-			fixableRuleIds: ["banned-plain-css-style"],
+			}, ["banned-plain-css-style", "banned-raw-css-file"]),
+			fixableRuleIds: ["banned-plain-css-style", "banned-raw-css-file"],
 			fix: options.fix,
 			id: "validate_component_styles",
 			name: "Vue Component Style Linkage & SCSS Auditor",
@@ -384,6 +427,9 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 	getCssCount() {
 		return this.cssCount;
 	}
+	collectProjectFiles(roots, extensions) {
+		return this.context.collectFiles(roots, extensions);
+	}
 	runAudit() {
 		const config = getAuditConfig(this.projectRoot);
 		this.redeclareCoverage({ include: deriveCoverageFromRoots(this.roots, /* @__PURE__ */ new Set([
@@ -393,18 +439,23 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 		]), this.projectRoot).include });
 		const srcRoots = config.paths.srcRoots ?? [];
 		const srcDir = path.resolve(this.projectRoot, srcRoots[0] ?? "src");
+		const enforceScss = config.styles?.enforceScss !== false;
+		const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
+		const initialCssFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".css"]));
+		if (enforceScss) this.runSubAuditorSync("banned-raw-css-file", () => {
+			for (const file of initialCssFiles) this.recordScanned(file);
+			auditRawCssFiles(initialCssFiles, this.projectRoot, exemptCssFiles, this);
+		});
+		else {
+			this.markRuleNotApplicable("banned-plain-css-style", "SCSS no está forzado en configuración (styles.enforceScss: false)");
+			this.markRuleNotApplicable("banned-raw-css-file", "SCSS no está forzado en configuración (styles.enforceScss: false)");
+		}
 		const vueFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".vue"]));
 		const scssFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".scss"]));
 		const cssFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".css"]));
 		this.vueCount = vueFiles.length;
 		this.scssCount = scssFiles.length;
 		this.cssCount = cssFiles.length;
-		const enforceScss = config.styles?.enforceScss !== false;
-		const exemptCssFiles = config.styles?.exemptCssFiles ?? [];
-		if (!enforceScss) {
-			this.markRuleNotApplicable("banned-plain-css-style", "SCSS no está forzado en configuración (styles.enforceScss: false)");
-			this.markRuleNotApplicable("banned-raw-css-file", "SCSS no está forzado en configuración (styles.enforceScss: false)");
-		}
 		if (vueFiles.length === 0) {
 			this.markRuleNotApplicable("broken-style-link", "No se encontraron componentes .vue");
 			this.markRuleNotApplicable("missing-style-tag", "No se encontraron componentes .vue");
@@ -413,10 +464,6 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			if (enforceScss) this.markRuleNotApplicable("banned-plain-css-style", "No se encontraron componentes .vue");
 		}
 		if (scssFiles.length === 0) this.markRuleNotApplicable("orphaned-scss", "No se encontraron archivos .scss");
-		if (enforceScss) this.runSubAuditorSync("banned-raw-css-file", () => {
-			for (const file of cssFiles) this.recordScanned(file);
-			auditRawCssFiles(cssFiles, this.projectRoot, exemptCssFiles, this);
-		});
 		const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
 		const stylesRoots = config.paths.stylesRoots ?? [];
 		seedRootScssGraph(stylesRoots, this.projectRoot, trackScssFile);

@@ -1,4 +1,4 @@
-import { AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE } from "./auditConfigTypes.js";
+import { AUDIT_CONFIG_JSON_FILE } from "./auditConfigTypes.js";
 import { assertNoLegacyRootConfig } from "./auditConfigValidators.js";
 import { DEFAULT_AUDIT_CONFIG, defineAuditConfig } from "./auditConfigDefaults.js";
 import path from "node:path";
@@ -82,7 +82,7 @@ async function loadAuditConfig(projectRoot = process.cwd()) {
 	}
 	assertNoLegacyRootConfig(projectRoot);
 	const customConfig = process.env.AUDIT_CONFIG;
-	const configPath = path.resolve(projectRoot, customConfig ?? AUDIT_CONFIG_FILE);
+	const configPath = path.resolve(projectRoot, customConfig ?? ".auditor/audit.config.ts");
 	const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
 	if (fs.existsSync(configPath)) {
 		const fileUrl = pathToFileURL(configPath);

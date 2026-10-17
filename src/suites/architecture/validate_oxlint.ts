@@ -88,8 +88,6 @@ export const OXLINT_FIXABLE_RULES_LIST = [
   '@typescript-eslint/no-unnecessary-type-assertion',
   'consistent-indexed-object-style',
   '@typescript-eslint/consistent-indexed-object-style',
-  'consistent-type-assertions',
-  '@typescript-eslint/consistent-type-assertions',
   'no-unnecessary-template-expression',
   '@typescript-eslint/no-unnecessary-template-expression',
   'no-unnecessary-type-arguments',
@@ -100,10 +98,6 @@ export const OXLINT_FIXABLE_RULES_LIST = [
   '@typescript-eslint/prefer-return-this-type',
   'ban-tslint-comment',
   '@typescript-eslint/ban-tslint-comment',
-  'ban-ts-comment',
-  '@typescript-eslint/ban-ts-comment',
-  'no-explicit-any',
-  '@typescript-eslint/no-explicit-any',
   // Unicorn
   'unicorn/prefer-node-protocol',
   'unicorn/prefer-string-starts-ends-with',
@@ -129,7 +123,6 @@ export const OXLINT_FIXABLE_RULES_LIST = [
   'vitest/prefer-to-have-length',
   'vitest/prefer-to-be-object',
   'vitest/prefer-todo',
-  'vitest/valid-title',
   // Vue
   'vue/no-import-compiler-macros',
   'vue/valid-next-tick',
@@ -139,8 +132,7 @@ export const OXLINT_FIXABLE_RULES_LIST = [
   'vue/prefer-import-from-vue',
   // Node & Promise
   'node/no-exports-assign',
-  'promise/no-new-statics',
-  'no-useless-assignment'
+  'promise/no-new-statics'
 ] as const;
 
 export type OxlintFixableRule = (typeof OXLINT_FIXABLE_RULES_LIST)[number];
@@ -313,7 +305,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         col: finding.col,
         context: finding.context,
         message: finding.message,
-        fixable: finding.fixable
+        fixable: isFixMode ? false : Boolean(finding.fixable)
       });
     }
 

@@ -80,8 +80,8 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...MERMAID_SYNTAX_RULES]),
-			fixableRuleIds: [...MERMAID_SYNTAX_RULES],
+			}, ["mermaid-unquoted-special-chars"]),
+			fixableRuleIds: ["mermaid-unquoted-special-chars"],
 			id: "validate_mermaid_syntax",
 			name: "Mermaid Diagram Syntax Auditor",
 			description: "Sintaxis y caracteres válidos en diagramas Mermaid",
@@ -215,7 +215,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 		let mermaidStartLine = 0;
 		const mermaidLines = [];
 		let fileModified = false;
-		const isFix = this.isFixModeRequested();
+		const isFix = this.isFixActive();
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i] ?? "";
 			const trimmed = line.trim();
@@ -246,7 +246,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 		}
 		if (isFix && fileModified) {
 			const absPath = path.resolve(this.projectRoot, relPath);
-			fs.writeFileSync(absPath, lines.join("\n"), "utf-8");
+			if (fs.existsSync(absPath)) fs.writeFileSync(absPath, lines.join("\n"), "utf-8");
 		}
 	}
 };

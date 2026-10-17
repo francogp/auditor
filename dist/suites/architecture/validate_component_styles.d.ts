@@ -31,6 +31,7 @@ export declare class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRu
   getVueCount(): number;
   getScssCount(): number;
   getCssCount(): number;
+  collectProjectFiles(roots: readonly string[], extensions: ReadonlySet<string>): string[];
   runAudit(): void;
 }
 export declare function auditComponentStyles(rootDir?: string): ComponentStyleAuditResult;

@@ -10,7 +10,8 @@ export interface VitePlusConfigAuditOptions {
   readonly fix?: boolean;
 }
 /**
- * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections.
+ * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections
+ * using the TypeScript Compiler AST.
  */
 export declare function auditVitePlusConfigContent(content: string, fileName: string, auditConfig?: AuditConfig, projectRoot?: string): AuditFinding[];
 export declare const VITE_PLUS_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<VitePlusConfigRuleId>;

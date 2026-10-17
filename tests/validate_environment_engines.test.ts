@@ -54,8 +54,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Entorno');
       expect(auditor.icon).toBe('⚡');
-      expect(auditor.capabilities.fix).not.toBe('priority');
-      expect(auditor.capabilities.fix).toBe('none');
+      expect(auditor.capabilities.fix).toBe('priority');
       expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
 
@@ -121,6 +120,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const finding = result.findings.find((f) => f.ruleId === 'environment-engines-missing');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
+      expect(finding?.fixable).toBe(true);
     });
 
     it('detects engines below auditor floor', async () => {
@@ -148,6 +148,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const finding = result.findings.find((f) => f.ruleId === 'environment-engines-below-floor');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
+      expect(finding?.fixable).toBe(true);
     });
 
     it('detects runtime mismatch when package requires higher node than running', async () => {
@@ -199,24 +200,36 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
     });
   });
 
-  describe('Pure Lint Execution & Zero Fake Fix Guarantee', () => {
-    it('does not mutate package.json or inject fake numbers when engines are missing', async () => {
+  describe('SSoT Auto-Fix & Non-Mutation in Check Mode', () => {
+    it('auto-injects canonical SSoT engines when fix: true and does not mutate when fix: false', async () => {
       const pkgPath = path.join(tempDir, 'package.json');
       const originalPkg = { name: 'fixable-pkg', version: '1.0.0' };
       await fs.writeFile(pkgPath, JSON.stringify(originalPkg, null, 2), 'utf8');
 
-      const auditor = new ValidateEnvironmentEnginesAuditor({
+      const checkAuditor = new ValidateEnvironmentEnginesAuditor({
+        projectRoot: tempDir,
+        fix: false
+      });
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.status).toBe('failed');
+      const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      expect(unmutated.engines).toBeUndefined();
+
+      const fixAuditor = new ValidateEnvironmentEnginesAuditor({
         projectRoot: tempDir,
         fix: true
       });
-      const result = await auditor.execute();
-
-      expect(result.status).toBe('failed');
-      const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
-      expect(unmutated.engines).toBeUndefined();
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.status).toBe('passed');
+      const mutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      const auditorEngines = getAuditorEngines();
+      expect(mutated.engines).toEqual({
+        node: auditorEngines.node,
+        npm: auditorEngines.npm
+      });
     });
 
-    it('does not mutate package.json when engines are below floor', async () => {
+    it('auto-upgrades engines below floor to canonical SSoT floor when fix: true', async () => {
       const pkgPath = path.join(tempDir, 'package.json');
       const originalPkg = {
         name: 'fixable-below-floor',
@@ -234,9 +247,11 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       });
       const result = await auditor.execute();
 
-      expect(result.status).toBe('failed');
-      const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
-      expect(unmutated.engines.node).toBe('>=20.0.0');
+      expect(result.status).toBe('passed');
+      const mutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+      const auditorEngines = getAuditorEngines();
+      expect(mutated.engines.node).toBe(auditorEngines.node);
+      expect(mutated.engines.npm).toBe(auditorEngines.npm);
     });
 
     it('reports actionable terminal remediation instructions pointing to setup and update scripts without spawning shell', async () => {

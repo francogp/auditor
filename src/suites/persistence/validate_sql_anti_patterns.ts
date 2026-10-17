@@ -32,6 +32,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -251,22 +252,27 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private resolveMigrationScanDirs(
     migrationsDir: string,
     config: ReturnType<typeof getAuditConfig>
-  ): Set<string> {
-    const dirsToScan = new Set<string>();
+  ): string[] {
+    const candidateRoots = new Set<string>([
+      this.configuredMigrationsDir,
+      'database',
+      'migrations'
+    ]);
     if (fs.existsSync(migrationsDir)) {
-      dirsToScan.add(migrationsDir);
+      candidateRoots.add(
+        path.relative(this.projectRoot, migrationsDir).split(path.sep).join(path.posix.sep) ||
+          this.configuredMigrationsDir
+      );
     }
-    const databaseDir = path.resolve(this.projectRoot, 'database');
-    if (fs.existsSync(databaseDir)) {
-      const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
-      for (const sub of allowedDbDirs) {
-        const subPath = path.join(databaseDir, sub);
-        if (fs.existsSync(subPath)) {
-          dirsToScan.add(subPath);
-        }
+    const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
+    for (const sub of allowedDbDirs) {
+      const cleanSub = normalizePosixPath(sub).replace(/^\.\//, '');
+      candidateRoots.add(cleanSub);
+      if (!cleanSub.startsWith('database/')) {
+        candidateRoots.add(`database/${cleanSub}`);
       }
     }
-    return dirsToScan;
+    return Array.from(candidateRoots);
   }
 
   private collectSqlMigrations(
@@ -274,34 +280,21 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     config: ReturnType<typeof getAuditConfig>
   ): { relPath: string; content: string }[] {
     const sqlMigrations: { relPath: string; content: string }[] = [];
-    const dirsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
+    const rootsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
+    const sqlFiles = this.context.collectFiles(rootsToScan, new Set(['.sql']));
 
-    if (dirsToScan.size === 0) {
-      return sqlMigrations;
-    }
-
-    for (const dir of dirsToScan) {
-      let entries: string[];
+    for (const fullPath of sqlFiles) {
+      const relPath = path
+        .relative(this.projectRoot, fullPath)
+        .split(path.sep)
+        .join(path.posix.sep);
+      if (this.context.isPathIgnored(relPath)) continue;
       try {
-        entries = fs.readdirSync(dir);
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        this.recordScanned(relPath);
+        sqlMigrations.push({ relPath, content });
       } catch {
-        continue;
-      }
-      for (const entry of entries) {
-        if (!entry.endsWith('.sql')) continue;
-        const fullPath = path.join(dir, entry);
-        const relPath = path
-          .relative(this.projectRoot, fullPath)
-          .split(path.sep)
-          .join(path.posix.sep);
-        if (this.context.isPathIgnored(relPath)) continue;
-        try {
-          const content = fs.readFileSync(fullPath, 'utf-8');
-          this.recordScanned(relPath);
-          sqlMigrations.push({ relPath, content });
-        } catch {
-          // catch-ok
-        }
+        // catch-ok
       }
     }
 

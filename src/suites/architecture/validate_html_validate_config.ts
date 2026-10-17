@@ -22,7 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
-  createUniformRuleCapabilities,
+  createRuleCapabilities,
   collectRepositoryFiles,
   type AuditorOptions
 } from '../../core/auditorBase.ts';
@@ -160,17 +160,30 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
       : undefined;
     const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
 
+    const fixableRules: readonly HtmlValidateConfigRuleId[] = [
+      'html-validate-config-missing',
+      'html-validate-config-missing-strict-rule',
+      'html-validate-config-missing-plugin',
+      'html-validate-config-missing-transform',
+      'html-validate-config-missing-doctype-style'
+    ];
+
     super({
       usesThirdPartyTool: false,
-      ruleCapabilities: createUniformRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'normal',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: true
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        HTML_VALIDATE_CONFIG_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'priority',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: true
+        },
+        fixableRules
+      ),
+      fixableRuleIds: fixableRules,
       id: 'validate_html_validate_config',
       name: 'HTML-Validate Configuration Integrity Validator',
       description: 'Valida baseline e integridad de .htmlvalidate.json',

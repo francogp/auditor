@@ -1,7 +1,9 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -191,43 +193,35 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 		for (const { relPath, content } of sqlMigrations) this.scanPlpgsqlUndeclaredVariables(relPath, content);
 	}
 	resolveMigrationScanDirs(migrationsDir, config) {
-		const dirsToScan = /* @__PURE__ */ new Set();
-		if (fs.existsSync(migrationsDir)) dirsToScan.add(migrationsDir);
-		const databaseDir = path.resolve(this.projectRoot, "database");
-		if (fs.existsSync(databaseDir)) {
-			const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
-			for (const sub of allowedDbDirs) {
-				const subPath = path.join(databaseDir, sub);
-				if (fs.existsSync(subPath)) dirsToScan.add(subPath);
-			}
+		const candidateRoots = /* @__PURE__ */ new Set([
+			this.configuredMigrationsDir,
+			"database",
+			"migrations"
+		]);
+		if (fs.existsSync(migrationsDir)) candidateRoots.add(path.relative(this.projectRoot, migrationsDir).split(path.sep).join(path.posix.sep) || this.configuredMigrationsDir);
+		const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
+		for (const sub of allowedDbDirs) {
+			const cleanSub = normalizePosixPath(sub).replace(/^\.\//, "");
+			candidateRoots.add(cleanSub);
+			if (!cleanSub.startsWith("database/")) candidateRoots.add(`database/${cleanSub}`);
 		}
-		return dirsToScan;
+		return Array.from(candidateRoots);
 	}
 	collectSqlMigrations(migrationsDir, config) {
 		const sqlMigrations = [];
-		const dirsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
-		if (dirsToScan.size === 0) return sqlMigrations;
-		for (const dir of dirsToScan) {
-			let entries;
+		const rootsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
+		const sqlFiles = this.context.collectFiles(rootsToScan, /* @__PURE__ */ new Set([".sql"]));
+		for (const fullPath of sqlFiles) {
+			const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+			if (this.context.isPathIgnored(relPath)) continue;
 			try {
-				entries = fs.readdirSync(dir);
-			} catch {
-				continue;
-			}
-			for (const entry of entries) {
-				if (!entry.endsWith(".sql")) continue;
-				const fullPath = path.join(dir, entry);
-				const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
-				if (this.context.isPathIgnored(relPath)) continue;
-				try {
-					const content = fs.readFileSync(fullPath, "utf-8");
-					this.recordScanned(relPath);
-					sqlMigrations.push({
-						relPath,
-						content
-					});
-				} catch {}
-			}
+				const content = fs.readFileSync(fullPath, "utf-8");
+				this.recordScanned(relPath);
+				sqlMigrations.push({
+					relPath,
+					content
+				});
+			} catch {}
 		}
 		return sqlMigrations;
 	}

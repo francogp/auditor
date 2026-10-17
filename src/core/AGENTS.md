@@ -131,6 +131,7 @@ Architecture & Tooling Engineers.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.
 - [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, CandidateVersions contract, and SemVer bump calculation engine (supporting major, minor, patch, and build).
+- [`viteConfigAst.ts`](./viteConfigAst.ts): Pure TypeScript Compiler AST parser, inspector, builder, and transformer for `vite.config.ts` and legacy configuration files.
 - [`vitePlusConfigSync.ts`](./vitePlusConfigSync.ts): Canonical Vite+ configuration builder, synchronization engine, and non-destructive legacy config migrator.
 - [`vueSfcParser.ts`](./vueSfcParser.ts): Canonical Vue Single File Component (SFC) block extractor for template, script, and style blocks.
 

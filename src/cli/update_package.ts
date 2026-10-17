@@ -230,6 +230,9 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
       ];
     }
 
+    const pkgPath = path.join(projectRoot, 'package.json');
+    const pkgBefore = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, 'utf-8') : '';
+
     const isWindows = process.platform === 'win32';
     const proc = childProcess.spawnSync(cmd, args, {
       cwd: projectRoot,
@@ -237,6 +240,17 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
       encoding: 'utf-8',
       shell: cmd === 'npm.cmd' && isWindows
     });
+
+    const pkgAfter = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, 'utf-8') : '';
+    if (pkgBefore && pkgAfter && pkgBefore !== pkgAfter) {
+      const npmCmd = isWindows ? 'npm.cmd' : 'npm';
+      childProcess.spawnSync(npmCmd, ['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
+        cwd: projectRoot,
+        stdio: silent ? 'pipe' : 'inherit',
+        encoding: 'utf-8',
+        shell: isWindows
+      });
+    }
 
     return proc.status === 0;
   } catch {

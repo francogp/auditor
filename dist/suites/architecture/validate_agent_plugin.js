@@ -80,7 +80,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		return false;
 	}
 	tryAutoFixPlugin() {
-		if (!(process.argv.includes("--fix") || process.argv.includes("fix"))) return false;
+		if (!this.isFixActive()) return false;
 		this.context.logProgress("Auto-fixing missing agent plugin registration...");
 		const result = initAgentSkill({ targetDir: this.projectRoot });
 		if (result.success) {
@@ -103,7 +103,8 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			file: targetFile,
 			line: 1,
 			message: "El plugin y/o skills de auditoría para agentes no están registrados en .agents/plugins.json y .agents/skills.json. Ejecuta: npm run auditor:init-agent",
-			context: "auditor:init-agent"
+			context: "auditor:init-agent",
+			fixable: true
 		});
 		this.context.setMetric("Agent Plugin Status", "Missing");
 	}

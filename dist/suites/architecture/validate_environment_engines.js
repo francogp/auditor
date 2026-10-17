@@ -1,6 +1,6 @@
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
-import { getPackageJson } from "../../core/packageJson.js";
+import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -59,12 +59,13 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
+				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}),
+			}, ["environment-engines-missing", "environment-engines-below-floor"]),
+			fixableRuleIds: ["environment-engines-missing", "environment-engines-below-floor"],
 			id: "validate_environment_engines",
 			name: "Environment Engines & Runtime Validator",
 			description: "Valida versiones de Node.js y npm en package.json",
@@ -95,7 +96,8 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 				ruleId: "environment-engines-missing",
 				file: "package.json",
 				message: `package.json no encontrado en ${this.projectRoot}.`,
-				severity: "error"
+				severity: "error",
+				fixable: false
 			});
 			return null;
 		}
@@ -105,7 +107,8 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 				ruleId: "environment-engines-missing",
 				file: "package.json",
 				message: "package.json no contiene un JSON válido.",
-				severity: "error"
+				severity: "error",
+				fixable: false
 			});
 			return null;
 		}
@@ -117,8 +120,9 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "environment-engines-missing",
 				file: "package.json",
-				message: `package.json debe declarar explícitamente "engines.node" y "engines.npm". Ejecuta ${setupScript} para sincronizar el entorno.`,
-				severity: "error"
+				message: `package.json debe declarar explícitamente "engines.node" y "engines.npm". Ejecuta "auditor fix" o ${setupScript} para sincronizar el entorno.`,
+				severity: "error",
+				fixable: true
 			});
 		}
 	}
@@ -143,8 +147,9 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 				this.addViolation({
 					ruleId: "environment-engines-below-floor",
 					file: "package.json",
-					message: `Versiones de motores en package.json inferiores al piso del auditor (Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}). Ejecuta ${updateScript} para actualizar el entorno a la última versión.`,
-					severity: "error"
+					message: `Versiones de motores en package.json inferiores al piso del auditor (Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}). Ejecuta "auditor fix" o ${updateScript} para actualizar el entorno a la última versión.`,
+					severity: "error",
+					fixable: true
 				});
 			}
 		}
@@ -169,9 +174,32 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 				ruleId: "environment-runtime-mismatch",
 				file: "package.json",
 				message: `Entorno de ejecución desalineado. Detectado Node v${process.versions.node} / npm ${rawNpmVer}, requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. Ejecuta ${setupScript} (o vp env use) para alinear tu terminal, o ${updateScript} para actualizar a la última versión.`,
-				severity: "error"
+				severity: "error",
+				fixable: false
 			});
 		}
+	}
+	repairEnginesInPackageJson(pkg, auditorEngines, minNodeReq, minNpmReq) {
+		const currentNode = pkg.engines?.node?.trim() ?? "";
+		const currentNpm = pkg.engines?.npm?.trim() ?? "";
+		const isNodeOk = currentNode.length > 0 && compareVersions(parseSemver(currentNode), minNodeReq);
+		const isNpmOk = currentNpm.length > 0 && compareVersions(parseSemver(currentNpm), minNpmReq);
+		if (isNodeOk && isNpmOk) {
+			syncNodeVersion(this.projectRoot, currentNode);
+			return pkg;
+		}
+		const updatedEngines = {
+			...pkg.engines ?? {},
+			node: isNodeOk ? currentNode : auditorEngines.node,
+			npm: isNpmOk ? currentNpm : auditorEngines.npm
+		};
+		const updatedPkg = {
+			...pkg,
+			engines: updatedEngines
+		};
+		writePackageJson(this.projectRoot, updatedPkg);
+		syncNodeVersion(this.projectRoot, updatedEngines.node);
+		return updatedPkg;
 	}
 	async runAudit() {
 		const pkgPath = path.resolve(this.projectRoot, "package.json");
@@ -179,7 +207,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 		const auditorEngines = getAuditorEngines();
 		const minNodeReq = parseSemver(auditorEngines.node);
 		const minNpmReq = parseSemver(auditorEngines.npm);
-		const pkg = this.validatePackageJson(pkgPath);
+		let pkg = this.validatePackageJson(pkgPath);
 		if (!pkg) {
 			this.runSubAuditorSync("environment-engines-missing", () => {});
 			this.runSubAuditorSync("environment-engines-below-floor", () => {
@@ -190,6 +218,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			});
 			return;
 		}
+		if (this.isFixActive()) pkg = this.repairEnginesInPackageJson(pkg, auditorEngines, minNodeReq, minNpmReq);
 		const hasNodeEngine = typeof pkg.engines?.node === "string" && pkg.engines.node.trim().length > 0;
 		const hasNpmEngine = typeof pkg.engines?.npm === "string" && pkg.engines.npm.trim().length > 0;
 		this.runSubAuditorSync("environment-engines-missing", () => {

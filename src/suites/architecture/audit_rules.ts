@@ -13,6 +13,7 @@ import {
   isTestPath
 } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
 export {
   AUDIT_SEVERITIES,
@@ -135,8 +136,8 @@ export const viewport: AuditRule = {
   aliases: ['viewport', 'dvh', 'dvw', 'vh', 'vw'],
   regex: /\b\d+(?:\.\d+)?(vw|vh)\b/gi,
   message: (match: string) =>
-    `Unidad legacy detectada: '${match}'. Usa 'd${match.slice(-2)}' para soporte mobile dinámico.`,
-  fix: (match: string) => `d${match.toLowerCase().slice(-2)}` // string-ok: Internal string formatting or DOM token identifier
+    `Unidad legacy detectada: '${match}'. Usa '${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}' para soporte mobile dinámico.`,
+  fix: (match: string) => `${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}` // string-ok: Internal string formatting or DOM token identifier
 };
 
 export const legacyDates: AuditRule = {
@@ -272,17 +273,66 @@ export const nodePrefix: AuditRule = {
 
 const RULES_TARGET_NODE_VERSION_LABEL = '26';
 
+import fs from 'node:fs';
+import path from 'node:path';
+
+function resolveRelativeTargetExtension(importSpec: string, importerFile?: string): string | null {
+  if (/\.jsx$/i.test(importSpec)) return importSpec.replace(/\.jsx$/i, '.tsx');
+  if (/\.(?:js|mjs|cjs)$/i.test(importSpec)) return importSpec.replace(/\.(?:js|mjs|cjs)$/i, '.ts');
+  if (/\.css$/i.test(importSpec)) {
+    if (importerFile && fs.existsSync(importerFile)) {
+      const scssTarget = path.resolve(path.dirname(importerFile), importSpec.replace(/\.css$/i, '.scss'));
+      if (!fs.existsSync(scssTarget)) return null;
+    }
+    return importSpec.replace(/\.css$/i, '.scss');
+  }
+  if (importerFile && fs.existsSync(importerFile)) {
+    const baseDir = path.dirname(importerFile);
+    for (const ext of ['.ts', '.tsx', '.vue', '.json']) {
+      if (fs.existsSync(path.resolve(baseDir, `${importSpec}${ext}`))) {
+        return `${importSpec}${ext}`;
+      }
+    }
+    for (const idx of ['/index.ts', '/index.tsx']) {
+      if (fs.existsSync(path.resolve(baseDir, `${importSpec}${idx}`))) {
+        return `${importSpec}${idx}`;
+      }
+    }
+    return null;
+  }
+  return `${importSpec}.ts`;
+}
+
 export const esmExtensions: AuditRule = {
-  regex: /import\s[\s\S]*?\sfrom\s+['"](\.[^'"]+)['"]/g,
-  message: (match: string) =>
-    `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`,
+  regex: /(?:import|export)\s+(?:type\s+)?(?:[^;'"]+?\s+from\s+)?['"](\.\.?\/[^'"]+)['"]/g,
+  message: (match: string) => {
+    if (/\.(?:js|jsx|mjs|cjs)['"]/.test(match)) {
+      return `Import relativo con extensión JS legada: '${match}'. Migra a extensión TypeScript explícita (.ts / .tsx).`;
+    }
+    if (/\.css['"]/.test(match)) {
+      return `Import relativo a archivo CSS plano: '${match}'. Migra a SCSS (.scss).`;
+    }
+    return `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`;
+  },
   severity: 'error',
-  fix: (match: string) =>
-    match.replace(/(['"])(\.\.?\/[^'"]+)(?<!\.[jt]s)(?<!\.vue)(?<!\.json)(['"])/g, '$1$2.ts$3'),
+  fix: (match: string, _p1?: string, filePath?: string) =>
+    match.replace(/(['"])(\.\.?\/[^'"]+)(['"])/, (fullQuote, q1: string, p: string, q2: string) => {
+      const resolved = resolveRelativeTargetExtension(p, filePath);
+      if (!resolved) return fullQuote;
+      return `${q1}${resolved}${q2}`;
+    }),
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
-    if (!filePath || filePath.endsWith('.vue') || filePath.includes('audit_rules.ts')) return false;
+    if (!filePath || filePath.includes('audit_rules.ts') || filePath.endsWith('.vue')) return false;
     const importPath = match[1] || '';
-    if (/\.(?:ts|js|vue|json|scss|css|svg|png|jpg|jpeg|webp|ogg|mp3|wasm)$/i.test(importPath))
+    if (/\.(?:js|jsx|mjs|cjs)$/i.test(importPath)) return true;
+    if (/\.css$/i.test(importPath)) {
+      return getAuditConfig().styles?.enforceScss !== false;
+    }
+    if (
+      /\.(?:ts|tsx|vue|json|scss|sass|less|svg|png|jpg|jpeg|gif|webp|avif|ico|ogg|mp3|wav|mp4|webm|woff|woff2|ttf|otf|eot|wasm|sql|glsl|vert|frag|txt|md|ya?ml)$/i.test(
+        importPath
+      )
+    )
       return false;
     return true;
   }
@@ -725,19 +775,31 @@ export const noSassAtImport: AuditRule = {
   id: 'noSassAtImport',
   name: 'No SASS @import Deprecated Directive',
   category: 'SASS Migrator',
-  regex: /@import\s+['"][^'"]+['"]/g,
+  regex: /@import\s+(?:url\(\s*['"]?([^'")\s]+)['"]?\s*\)|['"]([^'"]+)['"])\s*;?/g,
   message: (match: string) =>
     `Regla obsoleta '@import' detectada en Sass: '${match}'. Dart Sass requiere migrar a '@use' o '@forward'.`,
   severity: 'error',
-  fixable: false,
-  check: (content: string, _match: RegExpExecArray, filePath?: string) => {
+  fixable: true,
+  fix: (match: string) => {
+    const urlMatch = /@import\s+(?:url\(\s*['"]?([^'")\s]+)['"]?\s*\)|['"]([^'"]+)['"])\s*;?/.exec(
+      match
+    );
+    const rawTarget = (urlMatch?.[1] ?? urlMatch?.[2] ?? '').trim();
+    if (!rawTarget) return match;
+    const normalizedTarget = rawTarget.replace(/\.css$/i, '.scss');
+    return `@use '${normalizedTarget}' as *;`;
+  },
+  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+    const target = (match[1] ?? match[2] ?? '').trim();
+    if (/^(?:https?:|\/\/|data:)/i.test(target)) return false;
     if (!filePath) return true;
     const norm = normalizeFilePath(filePath);
-    return (
-      norm.endsWith('.scss') ||
-      norm.endsWith('.css') ||
-      (norm.endsWith('.vue') && content.includes('lang="scss"'))
-    );
+    if (norm.endsWith('.scss') || norm.endsWith('.css')) return true;
+    if (norm.endsWith('.vue')) {
+      const sfc = parseVueSfc(content);
+      return sfc.styles.some((st) => st.lang === 'scss' || st.lang === 'sass');
+    }
+    return false;
   }
 };
 

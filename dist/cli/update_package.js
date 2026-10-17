@@ -149,13 +149,31 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 				"fix"
 			];
 		}
+		const pkgPath = path.join(projectRoot, "package.json");
+		const pkgBefore = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, "utf-8") : "";
 		const isWindows = process.platform === "win32";
-		return childProcess.spawnSync(cmd, args, {
+		const proc = childProcess.spawnSync(cmd, args, {
 			cwd: projectRoot,
 			stdio: silent ? "pipe" : "inherit",
 			encoding: "utf-8",
 			shell: cmd === "npm.cmd" && isWindows
-		}).status === 0;
+		});
+		const pkgAfter = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, "utf-8") : "";
+		if (pkgBefore && pkgAfter && pkgBefore !== pkgAfter) {
+			const npmCmd = isWindows ? "npm.cmd" : "npm";
+			childProcess.spawnSync(npmCmd, [
+				"install",
+				"--ignore-scripts",
+				"--no-audit",
+				"--no-fund"
+			], {
+				cwd: projectRoot,
+				stdio: silent ? "pipe" : "inherit",
+				encoding: "utf-8",
+				shell: isWindows
+			});
+		}
+		return proc.status === 0;
 	} catch {
 		return false;
 	}

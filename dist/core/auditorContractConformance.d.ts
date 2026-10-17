@@ -40,8 +40,9 @@ export declare function findDedicatedTestFile(projectRoot: string, taskId: strin
 export declare function checkConstructionVerification(testSource: string): boolean;
 export declare function checkCleanVerification(testSource: string): boolean;
 export declare function checkViolationVerification(testSource: string): boolean;
+export declare function checkFixVerification(testSource: string): boolean;
 /**
- * Validates that an auditor's dedicated test file adheres to the strict 5-point contract.
+ * Validates that an auditor's dedicated test file adheres to the strict 6-point contract.
  */
 export declare function validateAuditorTestFileContent(testSource: string, testFileRel: string, auditor: BaseAuditor<string>): string[];
 export interface ConformanceVitestHooks {

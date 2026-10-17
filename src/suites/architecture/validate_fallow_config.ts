@@ -157,66 +157,104 @@ function loadFallowConfig(
 }
 
 function validateFallowEntries(
-  entries: readonly string[] | undefined,
+  config: FallowConfigSchema,
   bannedGlobs: readonly string[],
   auditor: ValidateFallowConfigAuditor
-): void {
-  if (!Array.isArray(entries)) return;
-  for (let i = 0; i < entries.length; i++) {
-    const pattern = entries[i]!;
+): boolean {
+  if (!Array.isArray(config.entry)) return false;
+  let modified = false;
+  const keptEntries: string[] = [];
+  for (let i = 0; i < config.entry.length; i++) {
+    const pattern = config.entry[i]!;
+    let isBanned = false;
     for (const banned of bannedGlobs) {
       if (pattern === banned || pattern.startsWith(banned.replace(/\*.*$/, ''))) {
-        auditor.addViolation({
-          ruleId: 'fallow-banned-entry-glob',
-          severity: 'error',
-          file: '.fallowrc.json',
-          line: i + 1,
-          message: `Patrón entry prohibido '${pattern}' detectado. Oculta componentes o vistas muertas.`,
-          context: pattern
-        });
+        isBanned = true;
+        if (auditor.isFixActive()) {
+          modified = true;
+        } else {
+          auditor.addViolation({
+            ruleId: 'fallow-banned-entry-glob',
+            severity: 'error',
+            file: '.fallowrc.json',
+            line: i + 1,
+            message: `Patrón entry prohibido '${pattern}' detectado. Oculta componentes o vistas muertas.`,
+            context: pattern,
+            fixable: true
+          });
+        }
       }
     }
+    if (!isBanned) {
+      keptEntries.push(pattern);
+    }
   }
+  if (modified) {
+    config.entry = keptEntries.length > 0 ? keptEntries : ['src/index.ts'];
+  }
+  return modified;
 }
 
 function validateExportSymbols(params: {
-  exports: readonly string[];
+  entry: FallowIgnoreExportEntry;
   content: string;
   relFile: string;
   isVue: boolean;
   lineNum: number;
   auditor: ValidateFallowConfigAuditor;
-}): number {
+}): { exportCount: number; modified: boolean } {
   const seenExportsInFile = new Set<string>();
+  const keptExports: string[] = []; // no-domain: Dynamic AST exported identifier list
   let exportCount = 0;
+  let modified = false;
 
-  for (const exp of params.exports) {
+  for (const exp of params.entry.exports) {
     exportCount++;
-    if (seenExportsInFile.has(exp)) {
-      params.auditor.addViolation({
-        ruleId: 'fallow-duplicate-entry',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: params.lineNum,
-        message: `Export duplicado '${exp}' en '${params.relFile}'.`,
-        context: `${params.relFile} -> ${exp}`
-      });
+    const isDup = seenExportsInFile.has(exp);
+    if (isDup) {
+      if (params.auditor.isFixActive()) {
+        modified = true;
+      } else {
+        params.auditor.addViolation({
+          ruleId: 'fallow-duplicate-entry',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: params.lineNum,
+          message: `Export duplicado '${exp}' en '${params.relFile}'.`,
+          context: `${params.relFile} -> ${exp}`,
+          fixable: true
+        });
+      }
     }
     seenExportsInFile.add(exp);
 
-    if (!isSymbolExportedInContent(params.content, exp, params.isVue)) {
-      params.auditor.addViolation({
-        ruleId: 'fallow-stale-export',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: params.lineNum,
-        message: `El símbolo '${exp}' no se encuentra exportado en el archivo real '${params.relFile}'.`,
-        context: `${params.relFile} -> ${exp}`
-      });
+    const isStale = !isSymbolExportedInContent(params.content, exp, params.isVue);
+    if (isStale) {
+      if (params.auditor.isFixActive()) {
+        modified = true;
+      } else {
+        params.auditor.addViolation({
+          ruleId: 'fallow-stale-export',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: params.lineNum,
+          message: `El símbolo '${exp}' no se encuentra exportado en el archivo real '${params.relFile}'.`,
+          context: `${params.relFile} -> ${exp}`,
+          fixable: true
+        });
+      }
+    }
+
+    if (!isDup && !isStale) {
+      keptExports.push(exp);
     }
   }
 
-  return exportCount;
+  if (modified) {
+    params.entry.exports = keptExports;
+  }
+
+  return { exportCount: modified ? keptExports.length : exportCount, modified };
 }
 
 function validateSingleIgnoreEntry(params: {
@@ -225,40 +263,56 @@ function validateSingleIgnoreEntry(params: {
   projectRoot: string;
   seenFiles: Set<string>;
   auditor: ValidateFallowConfigAuditor;
-}): number {
+}): { symbolCount: number; keepEntry: boolean; modified: boolean } {
   const { entry, lineNum, projectRoot, seenFiles, auditor } = params;
   const relFile = entry.file;
+  let isDuplicateFile = false;
+  let modified = false;
 
   auditor.runSubAuditorSync('fallow-duplicate-entry', () => {
     if (seenFiles.has(relFile)) {
-      auditor.addViolation({
-        ruleId: 'fallow-duplicate-entry',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: lineNum,
-        message: `Archivo duplicado en ignoreExports: '${relFile}'.`,
-        context: relFile
-      });
+      isDuplicateFile = true;
+      if (auditor.isFixActive()) {
+        modified = true;
+      } else {
+        auditor.addViolation({
+          ruleId: 'fallow-duplicate-entry',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: lineNum,
+          message: `Archivo duplicado en ignoreExports: '${relFile}'.`,
+          context: relFile,
+          fixable: true
+        });
+      }
     }
   });
   seenFiles.add(relFile);
+  if (isDuplicateFile && auditor.isFixActive()) {
+    return { symbolCount: 0, keepEntry: false, modified: true };
+  }
 
   let hasEmptyList = false;
   auditor.runSubAuditorSync('fallow-empty-export-list', () => {
     if (!Array.isArray(entry.exports) || entry.exports.length === 0) {
       hasEmptyList = true;
-      auditor.addViolation({
-        ruleId: 'fallow-empty-export-list',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: lineNum,
-        message: `Entrada para '${relFile}' no declara ningún export en su array de exports.`,
-        context: relFile
-      });
+      if (auditor.isFixActive()) {
+        modified = true;
+      } else {
+        auditor.addViolation({
+          ruleId: 'fallow-empty-export-list',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: lineNum,
+          message: `Entrada para '${relFile}' no declara ningún export en su array de exports.`,
+          context: relFile,
+          fixable: true
+        });
+      }
     }
   });
   if (hasEmptyList) {
-    return 0;
+    return { symbolCount: 0, keepEntry: !auditor.isFixActive(), modified };
   }
 
   const fullFilePath = path.resolve(projectRoot, relFile);
@@ -266,74 +320,112 @@ function validateSingleIgnoreEntry(params: {
   auditor.runSubAuditorSync('fallow-stale-file', () => {
     if (!fs.existsSync(fullFilePath)) {
       isStale = true;
-      auditor.addViolation({
-        ruleId: 'fallow-stale-file',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: lineNum,
-        message: `Archivo '${relFile}' declarado en ignoreExports no existe en el disco.`,
-        context: relFile
-      });
+      if (auditor.isFixActive()) {
+        modified = true;
+      } else {
+        auditor.addViolation({
+          ruleId: 'fallow-stale-file',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: lineNum,
+          message: `Archivo '${relFile}' declarado en ignoreExports no existe en el disco.`,
+          context: relFile,
+          fixable: true
+        });
+      }
     }
   });
   if (isStale) {
-    return 0;
+    return { symbolCount: 0, keepEntry: !auditor.isFixActive(), modified };
   }
 
   let symbolCount = 0;
+  let keepEntry = true;
   auditor.runSubAuditorSync('fallow-stale-export', () => {
     let content: string;
     try {
       content = fs.readFileSync(fullFilePath, 'utf-8');
     } catch (err) {
-      auditor.addViolation({
-        ruleId: 'fallow-stale-file',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: lineNum,
-        message: `No se pudo leer el archivo '${relFile}': ${(err as Error).message}`,
-        context: relFile
-      });
+      if (auditor.isFixActive()) {
+        modified = true;
+        keepEntry = false;
+      } else {
+        auditor.addViolation({
+          ruleId: 'fallow-stale-file',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: lineNum,
+          message: `No se pudo leer el archivo '${relFile}': ${(err as Error).message}`,
+          context: relFile,
+          fixable: true
+        });
+      }
       return;
     }
 
-    symbolCount = validateExportSymbols({
-      exports: entry.exports,
+    const res = validateExportSymbols({
+      entry,
       content,
       relFile,
       isVue: relFile.endsWith('.vue'),
       lineNum,
       auditor
     });
+    symbolCount = res.exportCount;
+    if (res.modified) {
+      modified = true;
+      if (entry.exports.length === 0) {
+        keepEntry = false;
+      }
+    }
   });
 
-  return symbolCount;
+  return { symbolCount, keepEntry, modified };
 }
 
 function validateFallowIgnoreExports(
-  ignoreExports: readonly FallowIgnoreExportEntry[] | undefined,
+  config: FallowConfigSchema,
   projectRoot: string,
   auditor: ValidateFallowConfigAuditor
-): { fileCount: number; exportCount: number } {
-  if (!Array.isArray(ignoreExports)) {
-    return { fileCount: 0, exportCount: 0 };
+): { fileCount: number; exportCount: number; modified: boolean } {
+  if (!Array.isArray(config.ignoreExports)) {
+    return { fileCount: 0, exportCount: 0, modified: false };
   }
 
   const seenFiles = new Set<string>();
+  const keptEntries: FallowIgnoreExportEntry[] = [];
   let totalExports = 0;
+  let modified = false;
 
-  for (let entryIdx = 0; entryIdx < ignoreExports.length; entryIdx++) {
-    const entry = ignoreExports[entryIdx]!;
-    totalExports += validateSingleIgnoreEntry({
+  for (let entryIdx = 0; entryIdx < config.ignoreExports.length; entryIdx++) {
+    const entry = config.ignoreExports[entryIdx]!;
+    const res = validateSingleIgnoreEntry({
       entry,
       lineNum: entryIdx + 1,
       projectRoot,
       seenFiles,
       auditor
     });
+    totalExports += res.symbolCount;
+    if (res.modified) modified = true;
+    if (res.keepEntry) {
+      keptEntries.push(entry);
+    }
   }
 
-  return { fileCount: seenFiles.size, exportCount: totalExports };
+  if (modified) {
+    if (keptEntries.length > 0) {
+      config.ignoreExports = keptEntries;
+    } else {
+      delete config.ignoreExports;
+    }
+  }
+
+  return {
+    fileCount: modified ? keptEntries.length : seenFiles.size,
+    exportCount: totalExports,
+    modified
+  };
 }
 
 export interface FallowWorkspaceDiagnosticItem {
@@ -422,9 +514,23 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           changedOnly: false,
           critical: false
         },
-        ['fallow-config-missing']
+        [
+          'fallow-config-missing',
+          'fallow-banned-entry-glob',
+          'fallow-stale-file',
+          'fallow-stale-export',
+          'fallow-empty-export-list',
+          'fallow-duplicate-entry'
+        ]
       ),
-      fixableRuleIds: ['fallow-config-missing'],
+      fixableRuleIds: [
+        'fallow-config-missing',
+        'fallow-banned-entry-glob',
+        'fallow-stale-file',
+        'fallow-stale-export',
+        'fallow-empty-export-list',
+        'fallow-duplicate-entry'
+      ],
       configFiles: [configRequirement],
       fix,
       id: 'validate_fallow_config',
@@ -487,10 +593,13 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
 
     const validConfig: FallowConfigSchema = config;
     this.recordScanned('.fallowrc.json');
+    let modified = false;
 
     this.runSubAuditorSync('fallow-banned-entry-glob', () => {
       const bannedGlobs = getBannedEntryGlobs(this.projectRoot);
-      validateFallowEntries(validConfig.entry, bannedGlobs, this);
+      if (validateFallowEntries(validConfig, bannedGlobs, this)) {
+        modified = true;
+      }
     });
 
     if (!Array.isArray(validConfig.ignoreExports) || validConfig.ignoreExports.length === 0) {
@@ -499,14 +608,19 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       this.markRuleNotApplicable('fallow-stale-file', 'Sin ignoreExports en .fallowrc.json');
       this.markRuleNotApplicable('fallow-stale-export', 'Sin ignoreExports en .fallowrc.json');
     } else {
-      const { fileCount, exportCount } = validateFallowIgnoreExports(
-        validConfig.ignoreExports,
+      const { fileCount, exportCount, modified: ignoreModified } = validateFallowIgnoreExports(
+        validConfig,
         this.projectRoot,
         this
       );
+      if (ignoreModified) modified = true;
 
       this.context.setMetric('Archivos en ignoreExports', fileCount);
       this.context.setMetric('Exports Validados', exportCount);
+    }
+
+    if (modified && this.isFixActive()) {
+      fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + '\n', 'utf-8');
     }
 
     this.runSubAuditorSync('fallow-config-workspace-diagnostic', () => {

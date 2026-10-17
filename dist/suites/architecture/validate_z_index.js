@@ -11,7 +11,8 @@ import "../../core/safePath.js";
 import { fixZIndexLiteral, resolveZLayer } from "../../analyzers/zIndexRules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-import fs from "node:fs/promises";
+import { writeFileSync } from "node:fs";
+import fs$1 from "node:fs/promises";
 //#region src/suites/architecture/validate_z_index.ts
 /**
 * scripts/auditors/architecture/validate_z_index.ts
@@ -177,6 +178,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			if (isTest || isExempt) return;
 			HARDCODED_Z_INDEX_REGEX.lastIndex = 0;
 			let m;
+			const replacements = [];
 			while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
 				if (doc.isInsideComment(m.index)) continue;
 				const pos = doc.getLineAndColumn(m.index);
@@ -184,6 +186,18 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				const numMatch = m[0].match(/-?\d+/);
 				const val = numMatch ? parseInt(numMatch[0], 10) : 0;
 				const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
+				const canFix = Boolean(cssVarExpr);
+				if (this.isFixActive() && canFix) {
+					const replaced = fixZIndexLiteral(m[0]);
+					if (replaced !== m[0]) {
+						replacements.push({
+							start: m.index,
+							end: m.index + m[0].length,
+							replacement: replaced
+						});
+						continue;
+					}
+				}
 				let msg;
 				if (exactKey && cssVarExpr) msg = `Z-Index hardcodeado detectado: '${m[0]}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
 				else if (nearestKey && cssVarExpr) msg = `Z-Index relativo detectado: '${m[0]}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
@@ -196,8 +210,16 @@ var ZIndexAuditor = class extends FileScanAuditor {
 					column: pos.column,
 					message: msg,
 					context: m[0],
-					fixable: false
+					fixable: canFix
 				});
+			}
+			if (replacements.length > 0) {
+				let updated = doc.rawContent;
+				for (let i = replacements.length - 1; i >= 0; i--) {
+					const r = replacements[i];
+					updated = updated.slice(0, r.start) + r.replacement + updated.slice(r.end);
+				}
+				writeFileSync(doc.filePath, updated, "utf-8");
 			}
 		});
 		this.declareFileSubAuditor("z-index-isolated-constant", (doc) => {
@@ -263,7 +285,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 		let scssContent = null;
 		let readErr = null;
 		try {
-			scssContent = await fs.readFile(this.scssPath, "utf-8");
+			scssContent = await fs$1.readFile(this.scssPath, "utf-8");
 			this.recordScanned(this.scssPath);
 		} catch (err) {
 			readErr = err;
@@ -305,7 +327,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 					fixable: true
 				});
 			});
-			if (isFixMode && result.modified) await fs.writeFile(this.scssPath, result.scssContent, "utf-8");
+			if (isFixMode && result.modified) await fs$1.writeFile(this.scssPath, result.scssContent, "utf-8");
 			this.context.setMetric("Total Layers Checked", Object.keys(Z_LAYERS).length);
 			this.context.setMetric("Status", result.modified ? "Auto-fixed" : "Synced");
 		} else {

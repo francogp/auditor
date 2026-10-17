@@ -124,7 +124,7 @@ var OxfmtAuditor = class extends BaseAuditor {
 					col: 1,
 					context: "oxfmt",
 					message: `El archivo ${cleanFile} no cumple con el formato canónico de Oxfmt. Ejecuta 'npm run fmt' o 'auditor fix'.`,
-					fixable: true
+					fixable: !isFixMode
 				});
 			}
 		});

@@ -249,13 +249,14 @@ Governed by `validate_documented_commands.ts`:
 
 Governed by `auditorContractConformance.ts` and `validate_auditor_tests.ts`:
 
-Every sub-auditor and host extension must be covered by a dedicated Vitest unit test fulfilling the strict 5-point contract:
+Every sub-auditor and host extension must be covered by a dedicated Vitest unit test fulfilling the strict 6-point contract:
 
 1. **Instantiation & Metadata**: Validated via `validateAuditorConstruction(auditor)`.
 2. **Clean Path Testing**: Asserts `errors === 0`, `status === 'passed'`, and `findings.length === 0`.
 3. **Violation Detection**: Asserts `errors > 0`, `status === 'failed'`, and `severity === 'error'`.
 4. **Warning Path Verification**: Where applicable, asserts `warnings > 0`, `status === 'warned'`, and `severity === 'warning'`.
 5. **100% Rule Coverage**: Asserts that 100% of declared rule IDs are explicitly tested.
+6. **Fixer Verification (`checkFixVerification`)**: Every sub-auditor declaring `fix: 'normal' | 'priority'` must include a dedicated unit test invoking its fixer (`fix: true` or `fixMode: true`) and asserting `errors === 0` or `status === 'passed'` after remediation.
 
 To prevent startup failures in consumer projects where Vitest is absent, `auditorContractConformance.ts` strictly avoids top-level static runtime imports of optional peer dependencies (`vitest`), using type-only imports and resolving runner hooks dynamically.
 
@@ -284,3 +285,12 @@ Governed by `src/suites/architecture/validate_tsconfig.ts`:
 - **Violation Detection (`tsconfig-missing-strict-compiler-option`)**: Omitting `target` or specifying an outdated target (e.g. `'ES2022'`, `'ES2020'`, `'ES6'`) triggers a blocking violation (`severity: 'error'`).
 - **Anti-Castration Mandate**: Enforces `strict: true`, `noImplicitAny: true`, `noUncheckedIndexedAccess: true`, and `moduleResolution: "bundler" | "node16" | "nodenext"`.
 - **Automated Repair (`auditor fix`)**: Automatically upgrades outdated `target` values to `'ES2025'` and re-injects missing strict compiler options without degrading existing configurations.
+
+---
+
+## 18. Serial Fix Execution (`concurrency = 1`) & Pure TypeScript Compiler AST Configuration Sync
+
+Governed by `src/cli/audit_full.ts`, `src/core/viteConfigAst.ts`, and `src/core/vitePlusConfigSync.ts`:
+
+- **100% Serial Execution in Auto-Fix Mode (`concurrency = 1`)**: When running `auditor fix` (`--fix`), `audit_full.ts` enforces `effectiveConcurrency = 1`, disables `sharedAstContext` to ensure fresh disk reads between fixers, clears stale subprocess JSON files prior to each execution, and runs fix-enabled suites in deterministic 4-phase order (`FIX_MODE_EXPLICIT_ORDER`).
+- **Pure AST & Native JSON Configuration Governance**: Configuration files (`vite.config.ts`, `playwright.config.ts`, `tsconfig.json`, `package.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`) and Vite+ import specifier migrations (`rewriteModuleSpecifiersToVitePlusAst`) are parsed, inspected, and mutated exclusively via the TypeScript Compiler AST (`ts.createSourceFile`, `ts.factory`, `ts.transform`, `ts.createPrinter()`) or native JSON parsing (`JSON.parse` / `ts.readConfigFile` + `JSON.stringify`), eradicating manual string manipulation and regex brace-counting.

@@ -11,6 +11,7 @@ export declare class ValidateDependencyMinimumsAuditor extends BaseAuditor<Depen
   private auditDeclaredRangeMaximum;
   private auditInstalledVersion;
   private auditInstalledVersionMaximum;
+  private repairDeclaredRangesInPackageJson;
   runAudit(): Promise<void>;
 }
 //#endregion
