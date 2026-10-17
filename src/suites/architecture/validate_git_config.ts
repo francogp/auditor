@@ -80,7 +80,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
         GIT_CONFIG_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

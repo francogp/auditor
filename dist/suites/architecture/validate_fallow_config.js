@@ -344,7 +344,7 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 			},
 			ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: false,
 				ast: false,

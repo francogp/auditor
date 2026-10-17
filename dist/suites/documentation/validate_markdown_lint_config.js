@@ -55,7 +55,7 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 			usesThirdPartyTool: false,
 			ruleCapabilities: createUniformRuleCapabilities(MARKDOWNLINT_CONFIG_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: true,
 				ast: false,

@@ -961,7 +961,9 @@ export function deriveSuiteCapabilities(
     ? 'post-build'
     : entries.some((c) => c.phase === 'post-run')
       ? 'post-run'
-      : 'normal';
+      : entries.some((c) => c.phase === 'setup')
+        ? 'setup'
+        : 'normal';
 
   const effectiveFix: AuditFixCapability = entries.some((c) => c.fix === 'priority')
     ? 'priority'

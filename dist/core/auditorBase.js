@@ -515,7 +515,7 @@ function deriveSuiteCapabilities(ruleCapabilities) {
 	for (const s of AUDIT_EXECUTION_SPEEDS) if (entries.some((c) => normalizeSpeeds(c.speed).includes(s))) distinctSpeeds.push(s);
 	return {
 		speed: distinctSpeeds.length === 0 ? "light" : distinctSpeeds.length === 1 ? distinctSpeeds[0] : distinctSpeeds,
-		phase: entries.some((c) => c.phase === "post-build") ? "post-build" : entries.some((c) => c.phase === "post-run") ? "post-run" : "normal",
+		phase: entries.some((c) => c.phase === "post-build") ? "post-build" : entries.some((c) => c.phase === "post-run") ? "post-run" : entries.some((c) => c.phase === "setup") ? "setup" : "normal",
 		fix: entries.some((c) => c.fix === "priority") ? "priority" : entries.some((c) => c.fix === "normal") ? "normal" : "none",
 		md: entries.some((c) => c.md),
 		ast: entries.some((c) => c.ast),

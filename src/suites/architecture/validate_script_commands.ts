@@ -144,7 +144,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
       usesThirdPartyTool: false,
       ruleCapabilities: createRuleCapabilities(SCRIPT_COMMANDS_RULES, {
         speed: 'light',
-        phase: 'normal',
+        phase: 'setup',
         fix: 'none',
         md: false,
         ast: false,

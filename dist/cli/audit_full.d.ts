@@ -59,5 +59,7 @@ export declare function computeFixableViolations(results: readonly StandardAudit
 export declare function createAuditBannerDetails(cliOptions: AuditFullCliOptions, isFixMode: boolean, isBuildMode: boolean, tasksCount: number, allAvailableCount: number, omittedCount: number): string[];
 export declare const MAX_BANNER_SUBTITLE_WIDTH = 72;
 export declare function formatSubtitleDetails(details: readonly string[], maxLineWidth?: number): string;
+export declare function resolveFixOrderWeight(task: AuditTaskDefinition): number;
+export declare function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void;
 export declare function runMasterAudit(): Promise<void>;
 //#endregion

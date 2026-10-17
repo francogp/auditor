@@ -150,7 +150,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       usesThirdPartyTool: false,
       ruleCapabilities: createUniformRuleCapabilities(TSCONFIG_RULES, {
         speed: 'light',
-        phase: 'normal',
+        phase: 'setup',
         fix: 'priority',
         md: false,
         ast: false,

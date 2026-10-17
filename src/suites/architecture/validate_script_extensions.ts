@@ -109,7 +109,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         SCRIPT_EXTENSIONS_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

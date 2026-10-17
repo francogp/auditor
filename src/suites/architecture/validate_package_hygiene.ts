@@ -465,7 +465,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         PACKAGE_HYGIENE_RULES,
         {
           speed: ['heavy', 'full'],
-          phase: 'normal',
+          phase: 'setup',
           fix: 'normal',
           md: false,
           ast: false,

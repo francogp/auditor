@@ -84,7 +84,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			usesThirdPartyTool: false,
 			ruleCapabilities: createUniformRuleCapabilities(TSCONFIG_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: false,
 				ast: false,

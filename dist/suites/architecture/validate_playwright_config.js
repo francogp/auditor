@@ -78,7 +78,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			usesThirdPartyTool: false,
 			ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: false,
 				ast: false,

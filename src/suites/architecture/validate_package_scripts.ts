@@ -72,7 +72,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
         PACKAGE_SCRIPTS_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

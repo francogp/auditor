@@ -63,6 +63,7 @@ import {
   renderSampleFindings,
   renderSimilarCodeWarningBanner,
   renderAutoFixNoticeBanner,
+  renderSetupBlockingBanner,
   renderAuditorsRegistryTable,
   renderAuditorDetailCard,
   renderCliHelp,
@@ -234,7 +235,7 @@ function parseSpeedValue(raw: unknown): AuditExecutionSpeed | undefined {
 }
 
 function parsePhaseValue(raw: unknown): AuditExecutionPhase | undefined {
-  if (raw === 'normal' || raw === 'post-run' || raw === 'post-build') return raw;
+  if (raw === 'setup' || raw === 'normal' || raw === 'post-run' || raw === 'post-build') return raw;
   return undefined;
 }
 
@@ -601,9 +602,16 @@ export function computeAuditCategoryCounts(
   });
 }
 
+interface FindingsSummaryBlockingContext {
+  isSetupBlocking: boolean;
+  setupErrors: number;
+  postponedAppErrors: number;
+}
+
 function printFindingsSummary(
   results: readonly StandardAuditResult[],
-  sortedCategories: Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]>
+  sortedCategories: Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]>,
+  blockingContext?: FindingsSummaryBlockingContext
 ): void {
   if (sortedCategories.length === 0) {
     console.log(
@@ -612,6 +620,45 @@ function printFindingsSummary(
           ['bold', 'green'],
           `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`
         )
+    );
+    return;
+  }
+
+  if (blockingContext?.isSetupBlocking) {
+    console.log(
+      '\n' +
+        renderSetupBlockingBanner(
+          blockingContext.setupErrors,
+          blockingContext.postponedAppErrors
+        ) +
+        '\n'
+    );
+    console.log(
+      styleText(
+        'bold',
+        '📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE SETUP):\n'
+      )
+    );
+    console.log(
+      renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA DE SETUP')
+    );
+    const setupErrors = sortedCategories.flatMap(([, data]) =>
+      data.findings.filter((f) => f.severity === 'error')
+    );
+    if (setupErrors.length > 0) {
+      console.log(renderSampleFindings(setupErrors, 5));
+    }
+    console.log(
+      styleText(
+        ['yellow', 'bold'],
+        `\n⚠️  ATENCIÓN: Se postergó el reporte de ${formatNumber(blockingContext.postponedAppErrors)} error(es) de aplicación para evitar falsos positivos inducidos.`
+      )
+    );
+    console.log(
+      styleText(
+        'dim',
+        `   Resuelve primero los ${blockingContext.setupErrors} error(es) de configuración (ej. 'npm run auditor:fix') para desbloquear el análisis del resto del proyecto.\n`
+      )
     );
   } else {
     console.log('\n' + styleText('bold', '📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA:\n'));
@@ -637,6 +684,9 @@ function buildConsolidatedReport(params: {
   fixableErrors?: number;
   fixableWarnings?: number;
   autoFixRecommended?: boolean;
+  setupBlocking?: boolean;
+  setupErrors?: number;
+  postponedAppErrors?: number;
 }): {
   meta: AuditRunMetadata;
   consolidatedReport: ConsolidatedAuditReport;
@@ -650,7 +700,10 @@ function buildConsolidatedReport(params: {
     anyFailed,
     isFullAudit,
     byFamily,
-    ratchet
+    ratchet,
+    setupBlocking,
+    setupErrors,
+    postponedAppErrors
   } = params;
   const meta: AuditRunMetadata = {
     version: AUDITOR_VERSION,
@@ -664,6 +717,9 @@ function buildConsolidatedReport(params: {
     executedSuites: ctx.tasksToRun.map((t) => t.id),
     omittedSuites: ctx.omittedSuiteIds,
     skipSimilar: ctx.cliOptions.skipSimilar || undefined,
+    setupBlocking: setupBlocking || undefined,
+    setupErrors: setupBlocking ? setupErrors : undefined,
+    postponedAppErrors: setupBlocking ? postponedAppErrors : undefined,
     ratchet,
     environment: { nodeVersion: process.version, platform: process.platform, cwd: process.cwd() }
   };
@@ -952,9 +1008,26 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
     omittedSuiteIds.length === 0;
 
   const byFamily = groupResultsByFamily(results, activeFamilies);
-  const sortedCategories = computeAuditCategoryCounts(results);
 
-  printFindingsSummary(results, sortedCategories);
+  const setupTaskIds = new Set(
+    allAvailableTasks.filter((t) => t.capabilities?.phase === 'setup').map((t) => t.id)
+  );
+
+  const setupResults = results.filter((r) => setupTaskIds.has(r.id));
+  const setupErrors = setupResults.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
+  const isSetupBlocking = setupErrors > 0;
+
+  const nonSetupResults = results.filter((r) => !setupTaskIds.has(r.id));
+  const postponedAppErrors = nonSetupResults.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
+
+  const displayResults = isSetupBlocking ? setupResults : results;
+  const sortedCategories = computeAuditCategoryCounts(displayResults);
+
+  printFindingsSummary(results, sortedCategories, {
+    isSetupBlocking,
+    setupErrors,
+    postponedAppErrors
+  });
   console.log(
     renderConsolidatedFooter(
       results.length,
@@ -1005,7 +1078,10 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
     ratchet,
     fixableErrors,
     fixableWarnings,
-    autoFixRecommended
+    autoFixRecommended,
+    setupBlocking: isSetupBlocking,
+    setupErrors: isSetupBlocking ? setupErrors : undefined,
+    postponedAppErrors: isSetupBlocking ? postponedAppErrors : undefined
   });
 
   const latestAuditPath = isFixMode
@@ -1626,14 +1702,16 @@ function displayMasterBanner(
 }
 
 const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
-  // Phase 1: Configurations & package.json (priority)
+  // Phase 1: Setup — Configurations, runtime, packages, dependencies, scripts (priority)
   validate_audit_config: 10,
   validate_environment_engines: 20,
   validate_dependency_minimums: 30,
   validate_vite_plus_config: 40,
   validate_tsconfig: 50,
   validate_package_scripts: 60,
+  validate_package_hygiene: 65,
   validate_stylelint_config: 70,
+  validate_script_extensions: 75,
   validate_html_validate_config: 80,
   validate_fallow_config: 90,
   validate_markdown_lint_config: 100,
@@ -1646,11 +1724,9 @@ const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
   validate_agents_config_mandate: 170,
   validate_documentation_language: 180,
   // Phase 2: File renames & AST/Code/Markdown mutations
-  validate_script_extensions: 210,
   validate_component_styles: 220,
   audit_project: 230,
   validate_z_index: 240,
-  validate_package_hygiene: 250,
   validate_markdown_code_references: 260,
   validate_markdown_syntax: 270,
   validate_mermaid_syntax: 280,
@@ -1663,17 +1739,19 @@ const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
   validate_oxfmt: 400
 };
 
-const FIX_ORDER_PRIORITY_FALLBACK = 190;
+const FIX_ORDER_SETUP_FALLBACK = 190;
+const FIX_ORDER_PRIORITY_FALLBACK = 205;
 const FIX_ORDER_NORMAL_FALLBACK = 290;
 
-function resolveFixOrderWeight(task: AuditTaskDefinition): number {
+export function resolveFixOrderWeight(task: AuditTaskDefinition): number {
   const explicit = FIX_MODE_EXPLICIT_ORDER[task.id];
   if (explicit !== undefined) return explicit;
+  if (task.capabilities?.phase === 'setup') return FIX_ORDER_SETUP_FALLBACK;
   if (task.capabilities?.fix === 'priority') return FIX_ORDER_PRIORITY_FALLBACK;
   return FIX_ORDER_NORMAL_FALLBACK;
 }
 
-function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {
+export function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void {
   tasks.sort((a, b) => {
     if (isFixMode) {
       const weightA = resolveFixOrderWeight(a);

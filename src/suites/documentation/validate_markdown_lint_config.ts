@@ -104,7 +104,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       usesThirdPartyTool: false,
       ruleCapabilities: createUniformRuleCapabilities(MARKDOWNLINT_CONFIG_RULES, {
         speed: 'light',
-        phase: 'normal',
+        phase: 'setup',
         fix: 'priority',
         md: true,
         ast: false,

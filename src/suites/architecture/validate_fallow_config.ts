@@ -507,7 +507,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         FALLOW_CONFIG_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

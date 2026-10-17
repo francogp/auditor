@@ -171,7 +171,7 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 			usesThirdPartyTool: false,
 			ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: true,
 				ast: false,

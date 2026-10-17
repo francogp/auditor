@@ -166,7 +166,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
         speed: ['heavy', 'full'],
-        phase: 'normal',
+        phase: 'setup',
         fix: 'none',
         md: false,
         ast: false,

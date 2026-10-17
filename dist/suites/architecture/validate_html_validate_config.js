@@ -120,7 +120,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 			usesThirdPartyTool: false,
 			ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: false,
 				ast: false,

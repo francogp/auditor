@@ -636,7 +636,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         AUDIT_CONFIG_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

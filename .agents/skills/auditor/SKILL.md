@@ -92,9 +92,10 @@ graph TD
 - **Completion Order**: Suites appear in console strictly in the order they **FINISH** ($T_{\text{finish}} = T_{\text{start}} + \text{durationMs}$). The printed duration reflects active child runtime (`performance.now() - taskStart`), not global wall-clock time. Short suites queued later display after earlier heavy suites.
 - **`printLock` Mutex**: Guarantees each suite's output block renders as an unbroken atomic unit.
 
-### 9. Execution Lifecycle Phases (`phase: 'normal' | 'post-run' | 'post-build'`)
+### 9. Execution Lifecycle Phases (`phase: 'setup' | 'normal' | 'post-run' | 'post-build'`)
 
-- **`phase: 'normal'`**: Standard source code and architecture suites dispatched across concurrent worker pools.
+- **`phase: 'setup'` (ABSOLUTE PRIORITY & IMPERATIVE BLOCKING)**: Project infrastructure, configuration, runtime environment, dependency, and package script suites (`validate_audit_config`, `validate_tsconfig`, `validate_vite_plus_config`, `validate_stylelint_config`, etc.). When errors exist in setup suites, the auditor activates **Imperative Setup Blocking**: downstream application and stylesheet findings are postponed in console to eradicate induced false positives, mandating setup remediation first (e.g. `npm run auditor:fix`). In auto-fix mode (`auditor fix`), setup suites execute strictly before any code mutations or third-party linters (`resolveFixOrderWeight < 200`). Developers and AI agents are PROHIBITED from refactoring application code or styling while setup errors remain.
+- **`phase: 'normal'`**: Standard source code and architecture suites dispatched across concurrent worker pools once setup is clean.
 - **`phase: 'post-run'` (`validate_audit_coverage`)**: Completely excluded from concurrent worker pools; executes sequentially ONLY AFTER 100% of preceding suites finish and flush coverage ledgers to `scratch/audits/coverage/<suiteId>.json`, eliminating false `coverage-missing-ledger` alarms.
 - **`phase: 'post-build'` (`npm run auditor:post-build` / `auditor phase=post-build`)**: Verifies compiled distribution artifacts in `dist/` after compilation completes.
 

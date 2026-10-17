@@ -387,7 +387,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         AGENTS_CONFIG_MANDATE_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: true,
           ast: false,

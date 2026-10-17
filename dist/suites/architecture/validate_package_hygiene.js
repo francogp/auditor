@@ -309,7 +309,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			},
 			ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
 				speed: ["heavy", "full"],
-				phase: "normal",
+				phase: "setup",
 				fix: "normal",
 				md: false,
 				ast: false,

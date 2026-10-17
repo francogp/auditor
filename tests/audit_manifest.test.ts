@@ -20,7 +20,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
 
     expect(manifest.capabilities.fix).toBe('priority');
     expect(manifest.capabilities.speed).toBe('light');
-    expect(manifest.capabilities.phase).toBe('normal');
+    expect(manifest.capabilities.phase).toBe('setup');
 
     expect(manifest.configKey).toBe('paths');
 

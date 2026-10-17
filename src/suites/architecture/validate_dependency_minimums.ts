@@ -51,7 +51,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
         DEPENDENCY_MINIMUMS_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

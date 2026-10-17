@@ -105,7 +105,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
         ENVIRONMENT_ENGINES_RULES,
         {
           speed: 'light',
-          phase: 'normal',
+          phase: 'setup',
           fix: 'priority',
           md: false,
           ast: false,

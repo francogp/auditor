@@ -52,7 +52,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       expect(task.capabilities, `Task '${task.id}' missing capabilities`).toBeDefined();
       const speed = task.capabilities?.speed;
       expect(typeof speed === 'string' || Array.isArray(speed)).toBe(true);
-      expect(['normal', 'post-run', 'post-build']).toContain(task.capabilities?.phase);
+      expect(['setup', 'normal', 'post-run', 'post-build']).toContain(task.capabilities?.phase);
       expect(['none', 'normal', 'priority']).toContain(task.capabilities?.fix);
       expect(typeof task.capabilities?.md).toBe('boolean');
       expect(typeof task.capabilities?.ast).toBe('boolean');

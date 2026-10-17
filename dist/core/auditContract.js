@@ -107,6 +107,7 @@ const SPEED_RANK = Object.freeze({
 	full: 3
 });
 const AUDIT_EXECUTION_PHASES = [
+	"setup",
 	"normal",
 	"post-run",
 	"post-build"

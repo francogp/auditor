@@ -359,6 +359,41 @@ export function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings
 }
 
 /**
+ * Renders a prominent Box-Drawing critical blocking banner when setup-phase errors exist,
+ * mandating that project infrastructure, configurations, dependencies, and scripts
+ * must be resolved first before application code or stylesheets.
+ */
+export function renderSetupBlockingBanner(
+  setupErrors: number,
+  postponedAppErrors: number
+): string {
+  const setupErrorStr = formatNumber(setupErrors);
+  const postponedStr = formatNumber(postponedAppErrors);
+
+  return buildNoticeBox({
+    borderColor: 'red',
+    title: '🚨  BLOQUEO CRÍTICO: CONFIGURACIÓN Y PROYECTO (FASE SETUP)',
+    lines: [
+      styleText(
+        ['bold', 'white'],
+        `Se detectaron ${styleText('red', setupErrorStr)} error(es) en suites de Configuración, Dependencias y Scripts.`
+      ),
+      styleText(
+        ['bold', 'yellow'],
+        'ESTOS ERRORES DEBEN REPARARSE PRIMERO ANTES DE TOCAR CÓDIGO O ESTILOS.'
+      ),
+      styleText(
+        'dim',
+        `Para evitar falsos positivos inducidos, se postergó el reporte de ${postponedStr} error(es) de aplicación.`
+      ),
+      '',
+      styleText(['bold', 'white'], 'Paso 1 imperativo — Ejecuta la auto-reparación de setup:'),
+      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (o auditor fix)')
+    ]
+  });
+}
+
+/**
  * Renders the full dynamic registry of auditors in an 80-column Box-Drawing table,
  * grouped by family, with capability flags and concise descriptions.
  */

@@ -10,7 +10,7 @@ import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV,
 import { getVisualWidth } from "../core/terminalVisuals.js";
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
-import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
+import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { BaseAuditor } from "../core/auditorBase.js";
@@ -93,7 +93,7 @@ function parseSpeedValue(raw) {
 	if (raw === "light" || raw === "heavy" || raw === "full") return raw;
 }
 function parsePhaseValue(raw) {
-	if (raw === "normal" || raw === "post-run" || raw === "post-build") return raw;
+	if (raw === "setup" || raw === "normal" || raw === "post-run" || raw === "post-build") return raw;
 }
 function parseAuditFullCliArgs(activeFamilies, rawArgs = process.argv.slice(2)) {
 	const args = [...rawArgs];
@@ -341,9 +341,20 @@ function computeAuditCategoryCounts(results) {
 		return b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
 	});
 }
-function printFindingsSummary(results, sortedCategories) {
-	if (sortedCategories.length === 0) console.log("\n" + styleText(["bold", "green"], `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`));
-	else {
+function printFindingsSummary(results, sortedCategories, blockingContext) {
+	if (sortedCategories.length === 0) {
+		console.log("\n" + styleText(["bold", "green"], `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`));
+		return;
+	}
+	if (blockingContext?.isSetupBlocking) {
+		console.log("\n" + renderSetupBlockingBanner(blockingContext.setupErrors, blockingContext.postponedAppErrors) + "\n");
+		console.log(styleText("bold", "📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE SETUP):\n"));
+		console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
+		const setupErrors = sortedCategories.flatMap(([, data]) => data.findings.filter((f) => f.severity === "error"));
+		if (setupErrors.length > 0) console.log(renderSampleFindings(setupErrors, 5));
+		console.log(styleText(["yellow", "bold"], `\n⚠️  ATENCIÓN: Se postergó el reporte de ${formatNumber(blockingContext.postponedAppErrors)} error(es) de aplicación para evitar falsos positivos inducidos.`));
+		console.log(styleText("dim", `   Resuelve primero los ${blockingContext.setupErrors} error(es) de configuración (ej. 'npm run auditor:fix') para desbloquear el análisis del resto del proyecto.\n`));
+	} else {
 		console.log("\n" + styleText("bold", "📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA:\n"));
 		console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA"));
 		const allErrors = results.flatMap((suite) => (suite.findings || []).filter((f) => f.severity === "error"));
@@ -351,7 +362,7 @@ function printFindingsSummary(results, sortedCategories) {
 	}
 }
 function buildConsolidatedReport(params) {
-	const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily, ratchet } = params;
+	const { ctx, totalErrors, totalWarnings, suitesPassed, anyFailed, isFullAudit, byFamily, ratchet, setupBlocking, setupErrors, postponedAppErrors } = params;
 	const meta = {
 		version: AUDITOR_VERSION,
 		timestamp: Temporal.Now.instant().toString(),
@@ -364,6 +375,9 @@ function buildConsolidatedReport(params) {
 		executedSuites: ctx.tasksToRun.map((t) => t.id),
 		omittedSuites: ctx.omittedSuiteIds,
 		skipSimilar: ctx.cliOptions.skipSimilar || void 0,
+		setupBlocking: setupBlocking || void 0,
+		setupErrors: setupBlocking ? setupErrors : void 0,
+		postponedAppErrors: setupBlocking ? postponedAppErrors : void 0,
 		ratchet,
 		environment: {
 			nodeVersion: process.version,
@@ -519,7 +533,16 @@ async function renderAndPersistMasterReport(ctx) {
 	const isBuildMode = cliOptions.phase === "post-build" || cliOptions.targetPreset === "post-build" || Boolean(cliOptions.values["post-build"]);
 	const isFullAudit = !isBuildMode && !isFixMode && !cliOptions.onlySpeed && (cliOptions.speed === void 0 || cliOptions.speed === "heavy" || cliOptions.speed === "full") && tasksToRun.length === allAvailableTasks.length && omittedSuiteIds.length === 0;
 	const byFamily = groupResultsByFamily(results, activeFamilies);
-	printFindingsSummary(results, computeAuditCategoryCounts(results));
+	const setupTaskIds = new Set(allAvailableTasks.filter((t) => t.capabilities?.phase === "setup").map((t) => t.id));
+	const setupResults = results.filter((r) => setupTaskIds.has(r.id));
+	const setupErrors = setupResults.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
+	const isSetupBlocking = setupErrors > 0;
+	const postponedAppErrors = results.filter((r) => !setupTaskIds.has(r.id)).reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
+	printFindingsSummary(results, computeAuditCategoryCounts(isSetupBlocking ? setupResults : results), {
+		isSetupBlocking,
+		setupErrors,
+		postponedAppErrors
+	});
 	console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration, void 0, suitesSkipped));
 	if (results.some((r) => r.findings?.some((f) => f.ruleId === "fallow-similar-code-failed" && (f.context === "manual-setup-required" || f.context === "model-not-ready")))) console.log("\n" + renderSimilarCodeWarningBanner() + "\n");
 	const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
@@ -537,7 +560,10 @@ async function renderAndPersistMasterReport(ctx) {
 		ratchet,
 		fixableErrors,
 		fixableWarnings,
-		autoFixRecommended
+		autoFixRecommended,
+		setupBlocking: isSetupBlocking,
+		setupErrors: isSetupBlocking ? setupErrors : void 0,
+		postponedAppErrors: isSetupBlocking ? postponedAppErrors : void 0
 	});
 	const latestAuditPath = isFixMode ? path.join(scratchAuditsDir, "latest_fix_audit.json") : path.join(scratchAuditsDir, "latest_audit.json");
 	const latestSummaryPath = isFixMode ? path.join(scratchAuditsDir, "latest_fix_summary.json") : path.join(scratchAuditsDir, "latest_summary.json");
@@ -875,7 +901,9 @@ const FIX_MODE_EXPLICIT_ORDER = {
 	validate_vite_plus_config: 40,
 	validate_tsconfig: 50,
 	validate_package_scripts: 60,
+	validate_package_hygiene: 65,
 	validate_stylelint_config: 70,
+	validate_script_extensions: 75,
 	validate_html_validate_config: 80,
 	validate_fallow_config: 90,
 	validate_markdown_lint_config: 100,
@@ -887,11 +915,9 @@ const FIX_MODE_EXPLICIT_ORDER = {
 	validate_agent_plugin: 160,
 	validate_agents_config_mandate: 170,
 	validate_documentation_language: 180,
-	validate_script_extensions: 210,
 	validate_component_styles: 220,
 	audit_project: 230,
 	validate_z_index: 240,
-	validate_package_hygiene: 250,
 	validate_markdown_code_references: 260,
 	validate_markdown_syntax: 270,
 	validate_mermaid_syntax: 280,
@@ -901,11 +927,13 @@ const FIX_MODE_EXPLICIT_ORDER = {
 	validate_markdown_lint: 340,
 	validate_oxfmt: 400
 };
-const FIX_ORDER_PRIORITY_FALLBACK = 190;
+const FIX_ORDER_SETUP_FALLBACK = 190;
+const FIX_ORDER_PRIORITY_FALLBACK = 205;
 const FIX_ORDER_NORMAL_FALLBACK = 290;
 function resolveFixOrderWeight(task) {
 	const explicit = FIX_MODE_EXPLICIT_ORDER[task.id];
 	if (explicit !== void 0) return explicit;
+	if (task.capabilities?.phase === "setup") return FIX_ORDER_SETUP_FALLBACK;
 	if (task.capabilities?.fix === "priority") return FIX_ORDER_PRIORITY_FALLBACK;
 	return FIX_ORDER_NORMAL_FALLBACK;
 }
@@ -1029,4 +1057,4 @@ if (isMainModule(import.meta.url)) runMasterAudit().catch((err) => {
 	process.exit(1);
 });
 //#endregion
-export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, resolveConcurrencyLimit, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit };
+export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, resolveConcurrencyLimit, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };

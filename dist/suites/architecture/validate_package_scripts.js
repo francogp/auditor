@@ -46,7 +46,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 			projectRoot: resolvedRoot,
 			ruleCapabilities: createRuleCapabilities(PACKAGE_SCRIPTS_RULES, {
 				speed: "light",
-				phase: "normal",
+				phase: "setup",
 				fix: "priority",
 				md: false,
 				ast: false,

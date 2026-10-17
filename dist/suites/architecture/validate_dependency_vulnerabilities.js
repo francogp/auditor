@@ -125,7 +125,7 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			projectRoot: options.projectRoot,
 			ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
 				speed: ["heavy", "full"],
-				phase: "normal",
+				phase: "setup",
 				fix: "none",
 				md: false,
 				ast: false,

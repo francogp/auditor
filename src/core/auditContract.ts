@@ -151,9 +151,10 @@ export const SPEED_RANK: Readonly<Record<AuditExecutionSpeed, number>> = Object.
   full: 3
 });
 
-export const AUDIT_EXECUTION_PHASES = ['normal', 'post-run', 'post-build'] as const;
+export const AUDIT_EXECUTION_PHASES = ['setup', 'normal', 'post-run', 'post-build'] as const;
 /**
  * Mutually exclusive execution phase:
+ * - 'setup': Project configuration, dependencies, package.json scripts, and runtime environment. Must be resolved first before application code.
  * - 'normal': Standard concurrent execution on source code.
  * - 'post-run': Sequential execution after all other suites finish (e.g., validate_audit_coverage).
  * - 'post-build': Exclusive execution on compiled artifacts in dist/ (auditor:post-build).
@@ -602,6 +603,12 @@ export interface AuditRunMetadata {
   executedSuites: string[];
   omittedSuites: string[];
   skipSimilar?: boolean;
+  /** Whether the run is currently blocked by setup-phase errors, postponing application findings. */
+  setupBlocking?: boolean;
+  /** Total errors detected in setup suites. */
+  setupErrors?: number;
+  /** Total application errors postponed due to setup blocking. */
+  postponedAppErrors?: number;
   /** Warning ratchet verdict (only on full default runs with `ratchet.enabled`). */
   ratchet?: {
     status: RatchetStatus;
