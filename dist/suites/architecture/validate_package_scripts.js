@@ -129,6 +129,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		this.runSubAuditorSync("package-scripts-obsolete", () => {
 			if (pkg.scripts) {
 				if (this.verifyLintScript(pkg.scripts)) modified = true;
+				if (this.verifyVitePlusScripts(pkg.scripts, pkg)) modified = true;
 				if (this.pruneObsoleteAuditorScripts(pkg.scripts)) modified = true;
 			}
 			this.verifyCiWorkflows();
@@ -236,6 +237,33 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 			if (this.isFixActive()) {
 				scripts.lint = scripts.lint.replaceAll(/\b((?:npm|pnpm|bun)\s+run\s+)audit:lint\b/g, "$1auditor:lint");
 				modified = true;
+			}
+		}
+		return modified;
+	}
+	verifyVitePlusScripts(scripts, pkg) {
+		if (!(fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts")) || Boolean(pkg.dependencies?.["vite-plus"] || pkg.devDependencies?.["vite-plus"]))) return false;
+		let modified = false;
+		for (const [name, command] of Object.entries(scripts)) {
+			let migrated = command;
+			if (/\bvitest\s+run\b/.test(migrated)) migrated = migrated.replaceAll(/\bvitest\s+run\b/g, "vp test");
+			else if (/\bvitest\b/.test(migrated) && !/\bvp\s+test\b/.test(migrated)) migrated = migrated.replaceAll(/\bvitest\b/g, "vp test");
+			if (/\bvite\s+build\b/.test(migrated)) migrated = migrated.replaceAll(/\bvite\s+build\b/g, "vp build");
+			if (/\bvite\s+preview\b/.test(migrated)) migrated = migrated.replaceAll(/\bvite\s+preview\b/g, "vp preview");
+			if (/\bvite\s+dev\b/.test(migrated)) migrated = migrated.replaceAll(/\bvite\s+dev\b/g, "vp dev");
+			else if (/\bvite\b/.test(migrated) && !/\b(?:vp|vite-plus|@vitejs)\b/.test(migrated)) migrated = migrated.replaceAll(/\bvite\b/g, "vp dev");
+			if (migrated !== command) {
+				if (this.isFixActive()) {
+					scripts[name] = migrated;
+					modified = true;
+				} else this.addViolation({
+					ruleId: "package-scripts-obsolete",
+					severity: "warning",
+					filePath: "package.json",
+					line: 1,
+					message: `Script "${name}" en package.json utiliza binarios legados de Vite/Vitest ("${command}"). En proyectos gobernados por Vite+, debe utilizar el binario unificado "vp" (ej. "${migrated}"). Ejecuta "auditor fix" para migrarlo automáticamente.`,
+					context: `${name}: "${command}" -> "${migrated}"`
+				});
 			}
 		}
 		return modified;

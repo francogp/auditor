@@ -433,5 +433,59 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('detects legacy vitest/vite commands and auto-repairs to vp test / vp build in Vite+ projects', async () => {
+      await writeConfig({
+        name: 'test-app',
+        paths: { srcRoots: ['src'] },
+        packageScripts: { recommendedScripts: false },
+        ratchet: { enabled: false }
+      });
+
+      await fs.writeFile(path.join(tempDir, 'vite.config.ts'), 'export default {};', 'utf-8');
+
+      const pkgPath = path.join(tempDir, 'package.json');
+      await fs.writeFile(
+        pkgPath,
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              test: 'vitest run',
+              dev: 'vite dev',
+              build: 'npm run auditor:full && vite build && npm run auditor:post-build'
+            },
+            devDependencies: {
+              'vite-plus': '^1.3.0'
+            }
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      );
+
+      // Check mode
+      const checkAuditor = new ValidatePackageScriptsAuditor(tempDir);
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.summary.warnings).toBeGreaterThan(0);
+      const obsoleteFindings = checkResult.findings.filter(
+        (f) => f.ruleId === 'package-scripts-obsolete' && f.file === 'package.json'
+      );
+      expect(obsoleteFindings.length).toBe(3);
+
+      // Fix mode
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.summary.errors).toBe(0);
+      expect(fixResult.summary.warnings).toBe(0);
+
+      const repaired = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
+      expect(repaired.scripts.test).toBe('vp test');
+      expect(repaired.scripts.dev).toBe('vp dev');
+      expect(repaired.scripts.build).toBe(
+        'npm run auditor:full && vp build && npm run auditor:post-build'
+      );
+    });
   });
 });

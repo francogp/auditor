@@ -14,6 +14,7 @@ export declare class ValidatePackageScriptsAuditor extends BaseAuditor<PackageSc
   private checkBuildScriptChainsPostAudit;
   private verifyBuildScript;
   private verifyLintScript;
+  private verifyVitePlusScripts;
   private isObsoleteAuditorScript;
   private pruneObsoleteAuditorScripts;
   private verifyCiWorkflows;
