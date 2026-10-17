@@ -1,11 +1,8 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-import ts from "typescript";
+import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression } from "../../core/auditConfigAst.js";
 //#region src/suites/architecture/validate_audit_config.d.ts
-export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
-export declare function formatSectionObjectLiteral(value: unknown): string;
-export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
 export declare function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
@@ -14,7 +11,7 @@ export interface MissingSectionEntry {
   defaultConfig: Record<string, unknown>;
 }
 export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown): Map<string, MissingSectionEntry>;
-export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation';
+export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
 export interface ValidateAuditConfigOptions {
@@ -45,6 +42,7 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
   private handleMissingGitIgnoreFile;
   private appendMissingGitIgnoreEntries;
   private verifyGitIgnore;
+  private verifyUnacknowledgedDegradations;
   private checkPathExists;
   private verifyPathRoots;
   private verifyPersistencePaths;
@@ -55,3 +53,4 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
 }
 export declare function enforceCriticalConfigurations(projectRoot: string, tasks: readonly AuditTaskDefinition[]): Promise<boolean>;
 //#endregion
+export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression };

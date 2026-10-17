@@ -1,0 +1,16 @@
+import ts from "typescript";
+//#region src/core/auditConfigAst.d.ts
+export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
+export declare function printTsExpression(expr: ts.Expression): string;
+export declare function formatSectionObjectLiteral(value: unknown): string;
+export declare function findConfigObjectLiteral(source: ts.SourceFile): ts.ObjectLiteralExpression | null;
+export declare function appendMissingSectionsFallback(configFilePath: string, code: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
+export declare function parseAuditConfigFileAst(configFilePath: string): {
+  code: string;
+  source: ts.SourceFile;
+  configObj: ts.ObjectLiteralExpression | null;
+} | null;
+export declare function appendMissingSectionsToJsonFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
+export declare function appendMissingSectionsToTsFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
+export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
+//#endregion

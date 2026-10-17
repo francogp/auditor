@@ -87,12 +87,12 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
-- [`npmrcAllowGit.ts`](./npmrcAllowGit.ts): Idempotent `.npmrc` `allow-git=all` writer (npm 12+ blocks git dependencies by default); used by `auditBootstrap.ts` and `auditor-update`.
 - [`auditBootstrap.ts`](./auditBootstrap.ts): Pre-flight zero-setup auto-bootstrap engine initializing configurations, skills, and hygiene defaults.
-- [`auditorMinimums.ts`](./auditorMinimums.ts): SSoT reader of mandatory minimum library versions (`peerDependencies`) and project dependency evaluation engine (`evaluateProjectDependencies`).
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
+- [`auditConfigAst.ts`](./auditConfigAst.ts): AST parsing, section insertion, and programmatic configuration modification utilities for `audit.config.ts`.
 - [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and `defineAuditConfig` builder.
+- [`auditConfigDegradations.ts`](./auditConfigDegradations.ts): Detector and AST auto-fixer for unacknowledged coverage degradations across configured exemption roots.
 - [`auditConfigLoader.ts`](./auditConfigLoader.ts): Configuration file discovery, loading, and child process environment serialization.
 - [`auditConfigTypes.ts`](./auditConfigTypes.ts): Domain types, interfaces, and sub-configuration contracts for the audit engine.
 - [`auditConfigValidators.ts`](./auditConfigValidators.ts): Configuration validation rules, legacy config blockers, and anti-abuse policies.
@@ -101,6 +101,7 @@ Architecture & Tooling Engineers.
 - [`auditorBase.ts`](./auditorBase.ts): Abstract base classes (`BaseAuditor`, `FileScanAuditor`) and canonical ignore directories.
 - [`auditorContractConformance.ts`](./auditorContractConformance.ts): Dynamic auditor discovery, constructor contract, metadata validation, and test conformance engine.
 - [`auditorEnvironment.ts`](./auditorEnvironment.ts): Environment detection helper checking strictly for `AUDITOR_ENV=production`.
+- [`auditorMinimums.ts`](./auditorMinimums.ts): SSoT reader of mandatory minimum library versions (`peerDependencies`) and project dependency evaluation engine (`evaluateProjectDependencies`).
 - [`auditPathPredicates.ts`](./auditPathPredicates.ts): Project root matching and path category predicates.
 - [`auditProjectIdentity.ts`](./auditProjectIdentity.ts): Project identity predicates and framework self-provider detection.
 - [`auditRootMatcher.ts`](./auditRootMatcher.ts): Path root matching primitives.
@@ -117,6 +118,7 @@ Architecture & Tooling Engineers.
 - [`markdownReport.ts`](./markdownReport.ts): Comprehensive Markdown audit report generator.
 - [`markdownVersionValidator.ts`](./markdownVersionValidator.ts): Project SemVer and `@francogp/auditor` release version validator and auto-fixer across Markdown documentation.
 - [`npmCommandUtils.ts`](./npmCommandUtils.ts): Centralized utilities for loading package scripts, detecting built-ins, extracting npm/npx command invocations, and validating commands across documentation and executable scripts.
+- [`npmrcAllowGit.ts`](./npmrcAllowGit.ts): Idempotent `.npmrc` `allow-git=all` writer (npm 12+ blocks git dependencies by default); used by `auditBootstrap.ts` and `auditor-update`.
 - [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, and DTO provider.
 - [`packageScriptRegistry.ts`](./packageScriptRegistry.ts): Centralized registry for recommended package scripts, collision detection, and command requirements declared across sub-auditors and extensions.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.

@@ -8,7 +8,8 @@ import { collectAllGitIgnoreRequirements, discoverAuditors } from "../cli/auditS
 import { initAgentSkill } from "../cli/init_agent.js";
 import { migrateLegacyAuditConfig } from "../cli/migrateAuditConfig.js";
 import { getPackageJson } from "./packageJson.js";
-import { appendMissingSectionsToConfigFile, collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, syncAuditorVersionInConfigFile } from "../suites/architecture/validate_audit_config.js";
+import { appendMissingSectionsToConfigFile } from "./auditConfigAst.js";
+import { collectMissingSections, createDefaultAuditConfigContent, enforceCriticalConfigurations, syncAuditorVersionInConfigFile } from "../suites/architecture/validate_audit_config.js";
 import { ensureNpmrcAllowGit } from "./npmrcAllowGit.js";
 import { repairVitePlusProject } from "./vitePlusConfigSync.js";
 import path from "node:path";
@@ -142,7 +143,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "9.0.5-build.20261017-121154")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "9.0.6-build.20261017-135920")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

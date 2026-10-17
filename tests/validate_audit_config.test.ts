@@ -125,7 +125,8 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-missing-gitignore-entry',
       'audit-config-missing-section',
       'audit-config-unknown-field',
-      'audit-config-critical-violation'
+      'audit-config-critical-violation',
+      'audit-config-unacknowledged-degradation'
     ]);
   });
 
@@ -795,6 +796,79 @@ export default defineAuditConfig({
     );
     expect(finding).toBeDefined();
     expect(finding?.message).toContain('Unknown field "bundle.budgets[0].pattern"');
+  });
+
+  it('detects unacknowledged coverage degradations when scripts contain code files', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  ${BASE_TEST_CONFIG_SECTIONS.replace('coverage: { enabled: false },', 'coverage: { enabled: true },')}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, 'scripts', 'build.ts'), 'export const a = 1;', 'utf-8');
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-unacknowledged-degradation'
+    );
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain("Path 'scripts' contains 1 code file(s)");
+  });
+
+  it('automatically repairs unacknowledged coverage degradations in fix mode', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests'],
+    scriptsRoots: ['scripts']
+  },
+  ${BASE_TEST_CONFIG_SECTIONS.replace('coverage: { enabled: false },', 'coverage: { enabled: true },')}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, 'scripts', 'build.ts'), 'export const a = 1;', 'utf-8');
+
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    const fixResult = await fixAuditor.execute();
+    const fixErrors = fixResult.findings.filter((f) => f.severity === 'error');
+    expect(fixErrors).toHaveLength(0);
+
+    const updatedConfig = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
+    expect(updatedConfig).toContain('acknowledgedDegradations');
+    expect(updatedConfig).toContain('scripts/**');
+
+    // Second pass should pass cleanly with zero errors
+    resetAuditConfig();
+    const verifyAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const verifyResult = await verifyAuditor.execute();
+    const degradationFindings = verifyResult.findings.filter(
+      (f) => f.ruleId === 'audit-config-unacknowledged-degradation'
+    );
+    expect(degradationFindings).toHaveLength(0);
   });
 });
 

@@ -34,74 +34,37 @@ import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/aud
 import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import { AUDITOR_VERSION } from '../../core/version.ts';
+import {
+  detectUnacknowledgedDegradations,
+  applyAcknowledgedDegradationsFix
+} from '../../core/auditConfigDegradations.ts';
 import ts from 'typescript';
 
 enableCompileCache();
 
-export function dtoValueToTsExpression(value: unknown): ts.Expression {
-  if (typeof value === 'string') {
-    return ts.factory.createStringLiteral(value, true);
-  }
-  if (typeof value === 'number') {
-    if (value < 0) {
-      return ts.factory.createPrefixUnaryExpression(
-        ts.SyntaxKind.MinusToken,
-        ts.factory.createNumericLiteral(Math.abs(value))
-      );
-    }
-    return ts.factory.createNumericLiteral(value);
-  }
-  if (typeof value === 'boolean') {
-    return value ? ts.factory.createTrue() : ts.factory.createFalse();
-  }
-  if (value === null || value === undefined) {
-    return ts.factory.createNull();
-  }
-  if (Array.isArray(value)) {
-    const elements = value.map((item) => dtoValueToTsExpression(item));
-    const multiLine =
-      value.length > 3 || value.some((item) => typeof item === 'object' && item !== null);
-    return ts.factory.createArrayLiteralExpression(elements, multiLine);
-  }
-  if (typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).filter(
-      ([, v]) => v !== undefined
-    );
-    const props = entries.map(([k, v]) => {
-      const propName = /^[a-z_$][\w$]*$/i.test(k)
-        ? ts.factory.createIdentifier(k)
-        : ts.factory.createStringLiteral(k, true);
-      return ts.factory.createPropertyAssignment(propName, dtoValueToTsExpression(v));
-    });
-    return ts.factory.createObjectLiteralExpression(props, entries.length > 0);
-  }
-  return ts.factory.createNull();
-}
+import {
+  dtoValueToTsExpression,
+  printTsExpression,
+  formatSectionObjectLiteral,
+  findConfigObjectLiteral,
+  appendMissingSectionsFallback,
+  parseAuditConfigFileAst,
+  appendMissingSectionsToJsonFile,
+  appendMissingSectionsToTsFile,
+  appendMissingSectionsToConfigFile
+} from '../../core/auditConfigAst.ts';
 
-function printTsExpression(expr: ts.Expression): string {
-  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  // homebrew-ok: synthetic AST source file for ts.createPrinter
-  const dummySource = ts.createSourceFile(
-    'config.ts',
-    '',
-    ts.ScriptTarget.Latest,
-    false,
-    ts.ScriptKind.TS
-  );
-  const raw = printer.printNode(ts.EmitHint.Expression, expr, dummySource);
-  return raw
-    .split('\n')
-    .map((line) => line.replace(/^( {4})+/, (m) => ' '.repeat(m.length / 2)))
-    .join('\n');
-}
-
-export function formatSectionObjectLiteral(value: unknown): string {
-  const printed = printTsExpression(dtoValueToTsExpression(value));
-  return printed
-    .split('\n')
-    .map((line, idx) => (idx === 0 ? line : `  ${line}`))
-    .join('\n');
-}
+export {
+  dtoValueToTsExpression,
+  printTsExpression,
+  formatSectionObjectLiteral,
+  findConfigObjectLiteral,
+  appendMissingSectionsFallback,
+  parseAuditConfigFileAst,
+  appendMissingSectionsToJsonFile,
+  appendMissingSectionsToTsFile,
+  appendMissingSectionsToConfigFile
+};
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
   if (typeof obj !== 'object' || obj === null) return undefined;
@@ -125,190 +88,6 @@ function setDeepProperty(obj: Record<string, unknown>, pathStr: string, value: u
     curr = curr[p] as Record<string, unknown>;
   }
   curr[parts[parts.length - 1]!] = value;
-}
-
-function appendMissingSectionsToJsonFile(
-  configFilePath: string,
-  sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
-): void {
-  try {
-    const code = fs.readFileSync(configFilePath, 'utf8');
-    const json = JSON.parse(code);
-    if (!json || typeof json !== 'object') return;
-    for (const [key, value] of Object.entries(sectionsToInsert)) {
-      Reflect.set(json, key, value);
-    }
-    fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-  } catch {
-    // catch-ok: ignore unparseable json config files
-  }
-}
-
-function findConfigObjectLiteral(source: ts.SourceFile): ts.ObjectLiteralExpression | null {
-  let configObj: ts.ObjectLiteralExpression | null = null;
-  const visit = (node: ts.Node): void => {
-    if (configObj) return;
-    if (
-      ts.isCallExpression(node) &&
-      ts.isIdentifier(node.expression) &&
-      node.expression.text === 'defineAuditConfig' &&
-      node.arguments.length > 0 &&
-      ts.isObjectLiteralExpression(node.arguments[0]!)
-    ) {
-      configObj = node.arguments[0];
-      return;
-    }
-    if (ts.isExportAssignment(node) && ts.isObjectLiteralExpression(node.expression)) {
-      configObj = node.expression;
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(source);
-  return configObj;
-}
-
-function appendMissingSectionsFallback(
-  configFilePath: string,
-  code: string,
-  sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
-): void {
-  const lastBrace = code.lastIndexOf('}');
-  if (lastBrace === -1) return;
-  const beforeClose = code.slice(0, lastBrace).trimEnd();
-  const needsComma = !beforeClose.endsWith(',');
-  const commaPos = beforeClose.length;
-
-  const sectionLines: string[] = [];
-  for (const [key, val] of Object.entries(sectionsToInsert)) {
-    sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-  }
-
-  const base = needsComma
-    ? code.slice(0, commaPos) + ',' + code.slice(commaPos, lastBrace)
-    : code.slice(0, lastBrace);
-
-  const snippet = '\n' + sectionLines.join('\n') + '\n';
-  const updated = base + snippet + code.slice(lastBrace);
-  fs.writeFileSync(configFilePath, updated, 'utf8');
-}
-
-function parseAuditConfigFileAst(
-  configFilePath: string
-): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
-  try {
-    const code = fs.readFileSync(configFilePath, 'utf8');
-    // homebrew-ok: in-place AST configuration rewrite
-    const source = ts.createSourceFile(
-      configFilePath,
-      code,
-      ts.ScriptTarget.Latest,
-      true,
-      ts.ScriptKind.TS
-    );
-    const configObj = findConfigObjectLiteral(source);
-    return { code, source, configObj };
-  } catch {
-    return null;
-  }
-}
-
-function appendMissingSectionsToTsFile(
-  configFilePath: string,
-  sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
-): void {
-  const parsed = parseAuditConfigFileAst(configFilePath);
-  if (!parsed) return;
-  const { code, source, configObj } = parsed;
-
-  if (!configObj) {
-    appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
-    return;
-  }
-
-  const existingProps = new Map<string, ts.PropertyAssignment>();
-  for (const prop of configObj.properties) {
-    if (ts.isPropertyAssignment(prop)) {
-      const propName = prop.name.getText(source).replace(/^['"]|['"]$/g, '');
-      existingProps.set(propName, prop);
-    }
-  }
-
-  const inPlaceUpdates: Array<{ prop: ts.PropertyAssignment; val: Record<string, unknown> }> = [];
-  const newAdditions: Array<[string, Record<string, unknown>]> = [];
-
-  for (const [key, val] of Object.entries(sectionsToInsert)) {
-    const existingProp = existingProps.get(key);
-    if (existingProp) {
-      inPlaceUpdates.push({ prop: existingProp, val });
-    } else {
-      newAdditions.push([key, val]);
-    }
-  }
-
-  let updatedCode = code;
-
-  if (inPlaceUpdates.length > 0) {
-    inPlaceUpdates.sort((a, b) => b.prop.initializer.getStart(source) - a.prop.initializer.getStart(source));
-    for (const { prop, val } of inPlaceUpdates) {
-      const start = prop.initializer.getStart(source);
-      const end = prop.initializer.getEnd();
-      updatedCode =
-        updatedCode.slice(0, start) + formatSectionObjectLiteral(val) + updatedCode.slice(end);
-    }
-    fs.writeFileSync(configFilePath, updatedCode, 'utf8');
-  }
-
-  if (newAdditions.length === 0) return;
-
-  const reparsed = inPlaceUpdates.length > 0 ? parseAuditConfigFileAst(configFilePath) : parsed;
-  if (!reparsed || !reparsed.configObj) return;
-
-  const targetCode = reparsed.code;
-  const targetObj = reparsed.configObj;
-  const properties = targetObj.properties;
-  let hasTrailingComma = false;
-
-  if (properties.length > 0) {
-    const lastProp = properties[properties.length - 1]!;
-    const endOfLastProp = lastProp.getEnd();
-    const closeBracePos = targetCode.lastIndexOf('}', targetObj.getEnd() - 1);
-    const between = targetCode.slice(endOfLastProp, closeBracePos);
-    hasTrailingComma = between.includes(',');
-  }
-
-  const closeBracePos = targetCode.lastIndexOf('}', targetObj.getEnd() - 1);
-  if (closeBracePos === -1) return;
-
-  let baseCode = targetCode;
-  let effectiveCloseBracePos = closeBracePos;
-
-  if (!hasTrailingComma && properties.length > 0) {
-    const lastProp = properties[properties.length - 1]!;
-    const endOfLastProp = lastProp.getEnd();
-    baseCode = targetCode.slice(0, endOfLastProp) + ',' + targetCode.slice(endOfLastProp);
-    effectiveCloseBracePos += 1;
-  }
-
-  const sectionLines = newAdditions.map(
-    ([key, val]) => `  ${key}: ${formatSectionObjectLiteral(val)},`
-  );
-  const snippet = '\n' + sectionLines.join('\n') + '\n';
-
-  const finalCode =
-    baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
-  fs.writeFileSync(configFilePath, finalCode, 'utf8');
-}
-
-export function appendMissingSectionsToConfigFile(
-  configFilePath: string,
-  sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
-): void {
-  if (configFilePath.endsWith('.json')) {
-    appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
-    return;
-  }
-  appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
 
 function appendTaskDefaultConfig(
@@ -537,7 +316,8 @@ export type AuditConfigRuleId =
   | 'audit-config-missing-gitignore-entry'
   | 'audit-config-missing-section'
   | 'audit-config-unknown-field'
-  | 'audit-config-critical-violation';
+  | 'audit-config-critical-violation'
+  | 'audit-config-unacknowledged-degradation';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -546,7 +326,8 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-gitignore-entry',
   'audit-config-missing-section',
   'audit-config-unknown-field',
-  'audit-config-critical-violation'
+  'audit-config-critical-violation',
+  'audit-config-unacknowledged-degradation'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -647,14 +428,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           'audit-config-missing-section',
           'audit-config-missing-file',
           'audit-config-missing-gitignore-entry',
-          'audit-config-critical-violation'
+          'audit-config-critical-violation',
+          'audit-config-unacknowledged-degradation'
         ]
       ),
       fixableRuleIds: [
         'audit-config-missing-section',
         'audit-config-missing-file',
         'audit-config-missing-gitignore-entry',
-        'audit-config-critical-violation'
+        'audit-config-critical-violation',
+        'audit-config-unacknowledged-degradation'
       ],
       configFiles: [AUDIT_CONFIG_REQUIREMENT],
       fix: options.fix,
@@ -675,7 +458,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
         'audit-config-missing-section': 'Falta sección en audit.config',
         'audit-config-unknown-field': 'Campo no reconocido en config',
-        'audit-config-critical-violation': 'Violación a configuración crítica'
+        'audit-config-critical-violation': 'Violación a configuración crítica',
+        'audit-config-unacknowledged-degradation': 'Degradación de cobertura no documentada'
       },
       ruleRemediations: {
         'audit-config-missing-path':
@@ -712,7 +496,12 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           'La configuración viola una política crítica e inmutable del framework (ej. omisión de reglas estrictas obligatorias o valores prohibidos).\n' +
           'Posibles causas y soluciones:\n' +
           '1. Revisa la justificación técnica mostrada en el mensaje del error.\n' +
-          '2. Ejecuta "auditor fix" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor.'
+          '2. Ejecuta "auditor fix" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor.',
+        'audit-config-unacknowledged-degradation':
+          'Se declararon rutas en config.paths (scriptsRoots, dataRoots, cliRoots, demoRoots o exemptFiles) que contienen archivos en disco pero cuyas reglas silenciadas no están documentadas en coverage.acknowledgedDegradations.\n' +
+          'Posibles causas y soluciones:\n' +
+          '1. Ejecuta "auditor fix" o "npm run auditor:fix" para registrar automáticamente en coverage.acknowledgedDegradations las políticas correspondientes con su motivo y glob canónico.\n' +
+          '2. O declara manualmente en coverage.acknowledgedDegradations en .auditor/audit.config.ts el objeto { policy, glob, reason } justificando la exención.'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
@@ -755,6 +544,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
     await this.runSubAuditor('audit-config-critical-violation', async () => {
       await this.verifyCriticalConfigurations(config, tasks);
+    });
+
+    this.runSubAuditorSync('audit-config-unacknowledged-degradation', () => {
+      this.verifyUnacknowledgedDegradations(config);
     });
 
     this.runSubAuditorSync('audit-config-unknown-field', () => {
@@ -1254,6 +1047,28 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         line: 1,
         message: `Missing required .gitignore entry for ${req.id} (${req.reason}). Expected "${req.pattern}" in .gitignore.`,
         context: req.pattern
+      });
+    }
+  }
+
+  private verifyUnacknowledgedDegradations(config: AuditEngineConfig): void {
+    const missing = detectUnacknowledgedDegradations(config, this.projectRoot);
+    if (missing.length === 0) return;
+
+    if (this.isFixActive()) {
+      applyAcknowledgedDegradationsFix(this.projectRoot, missing);
+      return;
+    }
+
+    for (const item of missing) {
+      this.addViolation({
+        ruleId: 'audit-config-unacknowledged-degradation',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Path '${item.rootOrFile}' contains ${item.filesCount} code file(s) with silenced rules under policy '${item.policy}', but no matching entry exists in coverage.acknowledgedDegradations. Run "auditor fix" to document automatically.`,
+        context: `coverage.acknowledgedDegradations.${item.policy}`,
+        fixable: true
       });
     }
   }

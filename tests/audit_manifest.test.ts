@@ -37,7 +37,10 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-critical-violation']).toBe(
       'Violación a configuración crítica'
     );
-    expect(Object.keys(manifest.rules).length).toBe(7);
+    expect(manifest.rules['audit-config-unacknowledged-degradation']).toBe(
+      'Degradación de cobertura no documentada'
+    );
+    expect(Object.keys(manifest.rules).length).toBe(8);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {
