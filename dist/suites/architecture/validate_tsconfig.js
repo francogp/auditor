@@ -224,7 +224,20 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				});
 			}
 			const modRes = compilerOptions.moduleResolution ? String(compilerOptions.moduleResolution).toLowerCase() : "";
-			if (!VALID_MODULE_RESOLUTIONS.some((v) => v === modRes)) {
+			if ((fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts")) || fs.existsSync(path.resolve(this.projectRoot, ".auditor/audit.config.ts"))) && modRes !== "bundler") {
+				if (isFix) {
+					compilerOptions.moduleResolution = "bundler";
+					compilerOptions.allowImportingTsExtensions = true;
+					compilerOptions.noEmit = true;
+					modified = true;
+				} else this.addViolation({
+					ruleId: "tsconfig-missing-strict-compiler-option",
+					severity: "error",
+					file: relPath,
+					line: 1,
+					message: `compilerOptions.moduleResolution debe ser "bundler" en proyectos con Vite+ para permitir imports TypeScript directos (.ts).`
+				});
+			} else if (!VALID_MODULE_RESOLUTIONS.some((v) => v === modRes)) {
 				if (isFix) {
 					compilerOptions.moduleResolution = "bundler";
 					modified = true;

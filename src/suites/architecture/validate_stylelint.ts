@@ -24,6 +24,7 @@ import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import {
   BaseAuditor,
   CANONICAL_IGNORE_DIRS,
+  collectRepositoryFiles,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
@@ -164,10 +165,55 @@ interface StylelintViolationPayload {
   fixable?: boolean;
 }
 
+export function repairDeprecatedWordBreak(content: string): { modified: boolean; content: string } {
+  const pattern = /\bword-break\s*:\s*break-word(\s*!important)?\s*;/g;
+  if (!pattern.test(content)) return { modified: false, content };
+  const updated = content.replace(pattern, (_match, imp) => {
+    return `overflow-wrap: break-word${imp ?? ''};`;
+  });
+  return { modified: true, content: updated };
+}
+
+const DEPRECATED_CSS_SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set<string>([
+  '.css',
+  '.scss',
+  '.sass',
+  '.vue'
+]);
+
+export function repairDeprecatedCssPropertiesInRoots(
+  projectRoot: string,
+  roots: readonly string[]
+): number {
+  let repairedCount = 0;
+  for (const root of roots) {
+    const fullRoot = path.resolve(projectRoot, root);
+    if (!fs.existsSync(fullRoot)) continue;
+    const files = collectRepositoryFiles(
+      fullRoot,
+      projectRoot,
+      [],
+      DEPRECATED_CSS_SCANNABLE_EXTENSIONS
+    );
+    for (const filePath of files) {
+      try {
+        const raw = fs.readFileSync(filePath, 'utf8');
+        const { modified, content } = repairDeprecatedWordBreak(raw);
+        if (modified) {
+          fs.writeFileSync(filePath, content, 'utf8');
+          repairedCount++;
+        }
+      } catch {
+        // catch-ok: Ignore unreadable files during repair pass
+      }
+    }
+  }
+  return repairedCount;
+}
+
 export const STYLELINT_BUILTIN_FIXABLE_RULES = [
   'alpha-value-notation',
   'at-rule-empty-line-before',
-  'at-rule-no-deprecated',
   'at-rule-no-vendor-prefix',
   'color-function-alias-notation',
   'color-function-notation',
@@ -193,12 +239,10 @@ export const STYLELINT_BUILTIN_FIXABLE_RULES = [
   'media-feature-name-no-vendor-prefix',
   'media-feature-range-notation',
   'property-layout-mappings',
-  'property-no-deprecated',
   'property-no-vendor-prefix',
   'relative-selector-nesting-notation',
   'rule-empty-line-before',
   'selector-attribute-quotes',
-  'selector-no-deprecated',
   'selector-no-vendor-prefix',
   'selector-not-notation',
   'selector-pseudo-element-colon-notation',
@@ -239,7 +283,8 @@ export function isStylelintRuleFixable(ruleName: string | undefined): boolean {
 
 export function processStylelintResults(
   results: readonly LintResult[],
-  projectRoot: string
+  projectRoot: string,
+  isFixMode = false
 ): { violations: StylelintViolationPayload[]; totalErrors: number; totalWarnings: number } {
   let totalWarnings = 0;
   let totalErrors = 0;
@@ -258,6 +303,10 @@ export function processStylelintResults(
         totalWarnings++;
       }
 
+      const isFixable = isFixMode
+        ? false
+        : Boolean(warning.fix) || isStylelintRuleFixable(warning.rule);
+
       violations.push({
         ruleId,
         severity,
@@ -265,7 +314,7 @@ export function processStylelintResults(
         line: warning.line || 1,
         message: warning.text,
         context: warning.rule || 'stylelint',
-        fixable: Boolean(warning.fix) || isStylelintRuleFixable(warning.rule)
+        fixable: isFixable
       });
     }
   }
@@ -477,6 +526,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     );
     const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 
+    if (isFixMode) {
+      repairDeprecatedCssPropertiesInRoots(this.projectRoot, roots);
+    }
+
     let linterResult: LinterResult | undefined;
     try {
       linterResult = await stylelint.lint({
@@ -519,7 +572,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
 
     const { violations, totalErrors, totalWarnings } = processStylelintResults(
       linterResult.results,
-      this.projectRoot
+      this.projectRoot,
+      isFixMode
     );
     for (const ruleId of STYLELINT_RULES) {
       this.runSubAuditorSync(ruleId, () => {

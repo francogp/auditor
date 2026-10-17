@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, collectRepositoryFiles, createRuleCapabilities } from "../../core/auditorBase.js";
 import { SASS_TRAPS_RULE_NAME, sassTrapsPlugin } from "./stylelintSassTrapsPlugin.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -111,10 +111,44 @@ function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlobs) {
 		...stylelintIgnoreGlobs ?? []
 	];
 }
+function repairDeprecatedWordBreak(content) {
+	const pattern = /\bword-break\s*:\s*break-word(\s*!important)?\s*;/g;
+	if (!pattern.test(content)) return {
+		modified: false,
+		content
+	};
+	return {
+		modified: true,
+		content: content.replace(pattern, (_match, imp) => {
+			return `overflow-wrap: break-word${imp ?? ""};`;
+		})
+	};
+}
+const DEPRECATED_CSS_SCANNABLE_EXTENSIONS = /* @__PURE__ */ new Set([
+	".css",
+	".scss",
+	".sass",
+	".vue"
+]);
+function repairDeprecatedCssPropertiesInRoots(projectRoot, roots) {
+	let repairedCount = 0;
+	for (const root of roots) {
+		const fullRoot = path.resolve(projectRoot, root);
+		if (!fs.existsSync(fullRoot)) continue;
+		const files = collectRepositoryFiles(fullRoot, projectRoot, [], DEPRECATED_CSS_SCANNABLE_EXTENSIONS);
+		for (const filePath of files) try {
+			const { modified, content } = repairDeprecatedWordBreak(fs.readFileSync(filePath, "utf8"));
+			if (modified) {
+				fs.writeFileSync(filePath, content, "utf8");
+				repairedCount++;
+			}
+		} catch {}
+	}
+	return repairedCount;
+}
 const STYLELINT_BUILTIN_FIXABLE_RULES = [
 	"alpha-value-notation",
 	"at-rule-empty-line-before",
-	"at-rule-no-deprecated",
 	"at-rule-no-vendor-prefix",
 	"color-function-alias-notation",
 	"color-function-notation",
@@ -140,12 +174,10 @@ const STYLELINT_BUILTIN_FIXABLE_RULES = [
 	"media-feature-name-no-vendor-prefix",
 	"media-feature-range-notation",
 	"property-layout-mappings",
-	"property-no-deprecated",
 	"property-no-vendor-prefix",
 	"relative-selector-nesting-notation",
 	"rule-empty-line-before",
 	"selector-attribute-quotes",
-	"selector-no-deprecated",
 	"selector-no-vendor-prefix",
 	"selector-not-notation",
 	"selector-pseudo-element-colon-notation",
@@ -171,7 +203,7 @@ function isStylelintRuleFixable(ruleName) {
 	if (STYLELINT_BUILTIN_FIXABLE_SET.has(ruleName)) return true;
 	return false;
 }
-function processStylelintResults(results, projectRoot) {
+function processStylelintResults(results, projectRoot, isFixMode = false) {
 	let totalWarnings = 0;
 	let totalErrors = 0;
 	const violations = [];
@@ -182,6 +214,7 @@ function processStylelintResults(results, projectRoot) {
 			const severity = warning.severity === "error" ? "error" : "warning";
 			if (severity === "error") totalErrors++;
 			else totalWarnings++;
+			const isFixable = isFixMode ? false : Boolean(warning.fix) || isStylelintRuleFixable(warning.rule);
 			violations.push({
 				ruleId,
 				severity,
@@ -189,7 +222,7 @@ function processStylelintResults(results, projectRoot) {
 				line: warning.line || 1,
 				message: warning.text,
 				context: warning.rule || "stylelint",
-				fixable: Boolean(warning.fix) || isStylelintRuleFixable(warning.rule)
+				fixable: isFixable
 			});
 		}
 	}
@@ -345,6 +378,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		const filesGlobs = roots.map((r) => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
 		const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
 		const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+		if (isFixMode) repairDeprecatedCssPropertiesInRoots(this.projectRoot, roots);
 		let linterResult;
 		try {
 			linterResult = await stylelint.lint({
@@ -376,7 +410,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		if (!linterResult) return;
 		this.lastLinterResult = linterResult;
 		for (const fileResult of linterResult.results) if (fileResult.source) this.recordScanned(fileResult.source);
-		const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot);
+		const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot, isFixMode);
 		for (const ruleId of STYLELINT_RULES) this.runSubAuditorSync(ruleId, () => {
 			for (const v of violations) if (v.ruleId === ruleId) this.addViolation(isFixMode ? {
 				...v,
@@ -395,4 +429,4 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new StylelintAuditor());
 //#endregion
-export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, resolveStylelintConfigFile };
+export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };

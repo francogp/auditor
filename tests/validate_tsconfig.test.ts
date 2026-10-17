@@ -275,5 +275,42 @@ describe('ValidateTsconfigAuditor', () => {
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
       expect(repaired.compilerOptions?.target).toBe('ES2025');
     });
+
+    it('Canary 9 (Vite+ TS Extensions Interop): auto-repairs NodeNext to bundler and enables allowImportingTsExtensions when Vite+ is present', async () => {
+      const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
+      const viteConfigPath = path.join(tmpDir, 'vite.config.ts');
+      fs.writeFileSync(viteConfigPath, 'export default {};', 'utf8');
+
+      const outdatedViteTsconfig: TsConfigShape = {
+        compilerOptions: {
+          target: 'ES2025',
+          strict: true,
+          noImplicitAny: true,
+          noUncheckedIndexedAccess: true,
+          verbatimModuleSyntax: true,
+          useUnknownInCatchVariables: true,
+          moduleResolution: 'NodeNext'
+        },
+        include: ['src/**/*']
+      };
+      fs.writeFileSync(tsconfigPath, JSON.stringify(outdatedViteTsconfig, null, 2), 'utf8');
+
+      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkResult = await checkAuditor.execute();
+      expect(checkResult.status).toBe('failed');
+      expect(
+        checkResult.findings.some((f) => f.ruleId === 'tsconfig-missing-strict-compiler-option')
+      ).toBe(true);
+
+      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.status).toBe('passed');
+      expect(fixResult.summary.errors).toBe(0);
+
+      const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
+      expect(repaired.compilerOptions?.moduleResolution).toBe('bundler');
+      expect(repaired.compilerOptions?.allowImportingTsExtensions).toBe(true);
+      expect(repaired.compilerOptions?.noEmit).toBe(true);
+    });
   });
 });

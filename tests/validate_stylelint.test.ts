@@ -24,7 +24,10 @@ import {
   StylelintAuditor,
   STYLELINT_RULES,
   resolveStylelintConfigFile,
-  categorizeStylelintRule
+  categorizeStylelintRule,
+  repairDeprecatedWordBreak,
+  repairDeprecatedCssPropertiesInRoots,
+  processStylelintResults
 } from '../src/suites/architecture/validate_stylelint.ts';
 
 describe('StylelintAuditor Suite', () => {
@@ -531,6 +534,76 @@ describe('StylelintAuditor Suite', () => {
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('Deprecated CSS Property Repair (word-break)', () => {
+    it('replaces deprecated word-break: break-word with overflow-wrap: break-word', () => {
+      const input = `.dialog-body { word-break: break-word; color: #fff; }`;
+      const { modified, content } = repairDeprecatedWordBreak(input);
+      expect(modified).toBe(true);
+      expect(content).toBe(`.dialog-body { overflow-wrap: break-word; color: #fff; }`);
+    });
+
+    it('replaces word-break: break-word !important preserving the !important directive', () => {
+      const input = `p { word-break: break-word !important; }`;
+      const { modified, content } = repairDeprecatedWordBreak(input);
+      expect(modified).toBe(true);
+      expect(content).toBe(`p { overflow-wrap: break-word !important; }`);
+    });
+
+    it('leaves standard word-break values (normal, break-all, keep-all) untouched', () => {
+      const input = `.code { word-break: break-all; } .text { word-break: normal; }`;
+      const { modified, content } = repairDeprecatedWordBreak(input);
+      expect(modified).toBe(false);
+      expect(content).toBe(input);
+    });
+
+    it('repairs files across directory roots via repairDeprecatedCssPropertiesInRoots', async () => {
+      const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'auditor-repair-wb-'));
+      try {
+        const srcDir = path.join(tempDir, 'src');
+        await fs.mkdir(srcDir, { recursive: true });
+        const filePath = path.join(srcDir, 'styles.scss');
+        await fs.writeFile(filePath, '.box { word-break: break-word; }', 'utf-8');
+
+        const repairedCount = repairDeprecatedCssPropertiesInRoots(tempDir, ['src']);
+        expect(repairedCount).toBe(1);
+
+        const updated = await fs.readFile(filePath, 'utf-8');
+        expect(updated).toBe('.box { overflow-wrap: break-word; }');
+      } finally {
+        await fs.rm(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('marks remaining unfixed violations as fixable: false when isFixMode is true', () => {
+      const mockResult = [
+        {
+          source: path.join(process.cwd(), 'src/test.scss'),
+          deprecations: [],
+          invalidOptionWarnings: [],
+          parseErrors: [],
+          errored: false,
+          warnings: [
+            {
+              line: 10,
+              column: 5,
+              rule: 'declaration-property-value-keyword-no-deprecated',
+              severity: 'warning' as const,
+              text: 'Unexpected deprecated keyword'
+            }
+          ]
+        }
+      ];
+
+      // In inspection mode (isFixMode = false), it is marked fixable: true for initial pass
+      const inspectionResult = processStylelintResults(mockResult, process.cwd(), false);
+      expect(inspectionResult.violations[0]?.fixable).toBe(true);
+
+      // In fix mode (isFixMode = true), after fix pass has run, any remaining violation must be fixable: false
+      const postFixResult = processStylelintResults(mockResult, process.cwd(), true);
+      expect(postFixResult.violations[0]?.fixable).toBe(false);
     });
   });
 });
