@@ -410,7 +410,9 @@ const REQUIRED_VITE_PLUS_SCRIPTS: Record<string, string> = {
   check: 'vp check',
   'check:fix': 'vp check --fix',
   fmt: 'vp fmt',
-  'fmt:check': 'vp fmt --check'
+  'fmt:check': 'vp fmt --check',
+  test: 'vp test',
+  'test:coverage': 'vp test --coverage'
 };
 
 export function migrateViteCommandsToVp(cmd: string): string {
@@ -490,10 +492,19 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
     }
   }
 
-  // 4. Per official Vite+ rules ("When Vitest Is Directly Required"), if @vitest/coverage-v8,
-  // @vue/test-utils, or vitest is present, keep vitest pinned to the bundled version in devDependencies.
+  // 4. Update npm scripts if they reference obsolete eslint and ensure canonical Vite+ scripts
+  if (updateVitePlusScripts(nextScripts)) {
+    modified = true;
+  }
+
+  // 5. Per official Vite+ rules ("When Vitest Is Directly Required"), if @vitest/coverage-v8,
+  // @vue/test-utils, vitest, or test:coverage is present, keep vitest and @vitest/coverage-v8 pinned.
   const pinnedVitestVersion = canonicalOverrides.vitest;
   if (pinnedVitestVersion) {
+    if (nextScripts['test:coverage'] && !nextDevDeps['@vitest/coverage-v8']) {
+      nextDevDeps['@vitest/coverage-v8'] = pinnedVitestVersion;
+      modified = true;
+    }
     const hasVitestPeerConsumer =
       'vitest' in nextDevDeps ||
       '@vitest/coverage-v8' in nextDevDeps ||
@@ -509,11 +520,6 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
       nextDevDeps['@vitest/coverage-v8'] = pinnedVitestVersion;
       modified = true;
     }
-  }
-
-  // 5. Update npm scripts if they reference obsolete eslint and ensure canonical Vite+ scripts
-  if (updateVitePlusScripts(nextScripts)) {
-    modified = true;
   }
 
   if (modified) {

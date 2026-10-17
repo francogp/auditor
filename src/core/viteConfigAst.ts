@@ -1170,6 +1170,75 @@ function syncTestSectionAst(
     modified = true;
   }
 
+  // Ensure coverage configuration outputs to scratch/coverage and uses v8 provider
+  const coverageProp = findPropertyAssignment(
+    ts.factory.createObjectLiteralExpression(props, true),
+    'coverage',
+    sf
+  );
+
+  if (!coverageProp) {
+    const defaultCoverageObj = ts.factory.createObjectLiteralExpression(
+      [
+        ts.factory.createPropertyAssignment('provider', ts.factory.createStringLiteral('v8', true)),
+        ts.factory.createPropertyAssignment(
+          'reportsDirectory',
+          ts.factory.createStringLiteral('scratch/coverage', true)
+        )
+      ],
+      true
+    );
+    props = updateObjectProperty(props, 'coverage', defaultCoverageObj, sf);
+    modified = true;
+  } else if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
+    const covObj = coverageProp.initializer;
+    let covProps = [...covObj.properties];
+    let covModified = false;
+
+    const repDirProp = findPropertyAssignment(covObj, 'reportsDirectory', sf);
+    if (!repDirProp) {
+      covProps = updateObjectProperty(
+        covProps,
+        'reportsDirectory',
+        ts.factory.createStringLiteral('scratch/coverage', true),
+        sf
+      );
+      covModified = true;
+    } else {
+      const repVal = astExpressionToValue(repDirProp.initializer, sf);
+      if (typeof repVal === 'string' && repVal !== 'scratch/coverage') {
+        covProps = updateObjectProperty(
+          covProps,
+          'reportsDirectory',
+          ts.factory.createStringLiteral('scratch/coverage', true),
+          sf
+        );
+        covModified = true;
+      }
+    }
+
+    const providerProp = findPropertyAssignment(covObj, 'provider', sf);
+    if (!providerProp) {
+      covProps = updateObjectProperty(
+        covProps,
+        'provider',
+        ts.factory.createStringLiteral('v8', true),
+        sf
+      );
+      covModified = true;
+    }
+
+    if (covModified) {
+      props = updateObjectProperty(
+        props,
+        'coverage',
+        ts.factory.createObjectLiteralExpression(covProps, true),
+        sf
+      );
+      modified = true;
+    }
+  }
+
   return {
     obj: modified ? ts.factory.createObjectLiteralExpression(props, true) : testObj,
     modified

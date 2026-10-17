@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.0.4`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.0.5`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.0.4 --allow-git=all
+npm install -D github:francogp/auditor#v9.0.5 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.0.4"
+    "@francogp/auditor": "github:francogp/auditor#v9.0.5"
   }
 }
 ```
@@ -172,7 +172,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.0.4-build.20261017-110256',
+  auditorVersion: '9.0.5-build.20261017-121154',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.0.4"`), or install via `npm install -D github:francogp/auditor#v9.0.4 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.0.5"`), or install via `npm install -D github:francogp/auditor#v9.0.5 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 

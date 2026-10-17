@@ -61,6 +61,12 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "core"
 	},
 	{
+		name: "test:coverage",
+		command: "vp test --coverage",
+		description: "Ejecución de pruebas unitarias con generación de cobertura en scratch/coverage/",
+		category: "core"
+	},
+	{
 		name: "auditor:update",
 		command: "auditor-update",
 		description: "Actualización y sincronización automática del paquete @francogp/auditor",

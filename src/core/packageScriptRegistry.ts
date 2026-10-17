@@ -74,6 +74,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     description: 'Auditoría incremental acotada a diferencias respecto a la rama principal',
     category: 'core'
   },
+  {
+    name: 'test:coverage',
+    command: 'vp test --coverage',
+    description: 'Ejecución de pruebas unitarias con generación de cobertura en scratch/coverage/',
+    category: 'core'
+  },
 
   // Versioning and Lifecycle Maintenance
   {

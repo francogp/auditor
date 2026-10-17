@@ -287,7 +287,9 @@ const REQUIRED_VITE_PLUS_SCRIPTS = {
 	check: "vp check",
 	"check:fix": "vp check --fix",
 	fmt: "vp fmt",
-	"fmt:check": "vp fmt --check"
+	"fmt:check": "vp fmt --check",
+	test: "vp test",
+	"test:coverage": "vp test --coverage"
 };
 function migrateViteCommandsToVp(cmd) {
 	let updated = cmd;
@@ -344,8 +346,13 @@ function syncPackageJsonForVitePlus(projectRoot) {
 		nextOverrides[ovKey] = ovVal;
 		modified = true;
 	}
+	if (updateVitePlusScripts(nextScripts)) modified = true;
 	const pinnedVitestVersion = canonicalOverrides.vitest;
 	if (pinnedVitestVersion) {
+		if (nextScripts["test:coverage"] && !nextDevDeps["@vitest/coverage-v8"]) {
+			nextDevDeps["@vitest/coverage-v8"] = pinnedVitestVersion;
+			modified = true;
+		}
 		if (("vitest" in nextDevDeps || "@vitest/coverage-v8" in nextDevDeps || "@vue/test-utils" in nextDevDeps) && nextDevDeps.vitest !== pinnedVitestVersion) {
 			nextDevDeps.vitest = pinnedVitestVersion;
 			modified = true;
@@ -355,7 +362,6 @@ function syncPackageJsonForVitePlus(projectRoot) {
 			modified = true;
 		}
 	}
-	if (updateVitePlusScripts(nextScripts)) modified = true;
 	if (modified) writePackageJson(projectRoot, {
 		...pkg,
 		...nextDeps ? { dependencies: nextDeps } : {},

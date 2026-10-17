@@ -310,8 +310,8 @@ const DEFAULT_AUDIT_CONFIG = {
 	testCoverage: {
 		enabled: true,
 		threshold: 80,
-		path: "coverage/coverage-final.json",
-		runCommand: "npm test -- --coverage",
+		path: "scratch/coverage/coverage-final.json",
+		runCommand: "vp test --coverage",
 		roots: ["src"],
 		extensions: [
 			".ts",
@@ -704,8 +704,8 @@ function buildTestCoverageConfig(raw) {
 	return {
 		enabled: t.enabled ?? def?.enabled ?? true,
 		threshold: t.threshold ?? def?.threshold ?? 80,
-		path: t.path ?? def?.path ?? "coverage/coverage-final.json",
-		runCommand: t.runCommand ?? def?.runCommand ?? "npm test -- --coverage",
+		path: t.path ?? def?.path ?? "scratch/coverage/coverage-final.json",
+		runCommand: t.runCommand ?? def?.runCommand ?? "vp test --coverage",
 		enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? true,
 		...collections
 	};

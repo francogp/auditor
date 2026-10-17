@@ -378,8 +378,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   testCoverage: {
     enabled: true,
     threshold: 80,
-    path: 'coverage/coverage-final.json',
-    runCommand: 'npm test -- --coverage',
+    path: 'scratch/coverage/coverage-final.json',
+    runCommand: 'vp test --coverage',
     roots: ['src'],
     extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs'],
     exemptGlobs: [],
@@ -941,8 +941,8 @@ export function buildTestCoverageConfig(
   return {
     enabled: t.enabled ?? def?.enabled ?? true,
     threshold: t.threshold ?? def?.threshold ?? DEFAULT_TEST_COVERAGE_PERCENTAGE,
-    path: t.path ?? def?.path ?? 'coverage/coverage-final.json',
-    runCommand: t.runCommand ?? def?.runCommand ?? 'npm test -- --coverage',
+    path: t.path ?? def?.path ?? 'scratch/coverage/coverage-final.json',
+    runCommand: t.runCommand ?? def?.runCommand ?? 'vp test --coverage',
     enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? true,
     ...collections
   };

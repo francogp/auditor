@@ -44,7 +44,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      reportsDirectory: 'coverage',
+      reportsDirectory: 'scratch/coverage',
       include: ['src/**/*.ts', 'src/**/*.vue']
     }
   }
@@ -61,8 +61,8 @@ export default defineAuditConfig({
   testCoverage: {
     enabled: true,
     threshold: 80,
-    path: 'coverage/coverage-final.json',
-    runCommand: 'vp test --coverage', // or 'npm test -- --coverage'
+    path: 'scratch/coverage/coverage-final.json',
+    runCommand: 'vp test --coverage',
     roots: ['src'],
     extensions: ['.ts', '.vue', '.js'],
     exemptGlobs: [

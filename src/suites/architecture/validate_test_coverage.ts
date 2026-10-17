@@ -38,7 +38,12 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       family: 'architecture',
       packageName: 'Cobertura',
       configKey: 'testCoverage.enforceInAudit',
-      defaultConfig: { enabled: true, enforceInAudit: true, threshold: DEFAULT_COVERAGE_THRESHOLD },
+      defaultConfig: {
+        enabled: true,
+        enforceInAudit: true,
+        threshold: DEFAULT_COVERAGE_THRESHOLD,
+        path: 'scratch/coverage/coverage-final.json'
+      },
       criticalConfig: {},
       icon: '🧪',
       ruleIds: TEST_COVERAGE_RULES,
@@ -49,11 +54,11 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       },
       ruleRemediations: {
         'test-coverage-below-threshold':
-          'Guía de diagnóstico y remediación para test-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'La cobertura de código de tests unitarios está por debajo del umbral mínimo exigido. Diagnóstico: El porcentaje de sentencias cubiertas en el proyecto no alcanza el umbral establecido (por defecto 80%). Remediación: 1) Revisa los archivos con cobertura insuficiente usando "npm run auditor task=validate_test_coverage" o inspeccionando scratch/coverage/index.html. 2) Añade pruebas unitarias en tests/ para cubrir las ramas y funciones no testeadas. 3) Si ciertos archivos o módulos utilitarios están exentos, configúralos en testCoverage.exemptGlobs en .auditor/audit.config.ts.',
         'test-coverage-missing-report':
-          'Guía de diagnóstico y remediación para test-coverage-missing-report. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'No se encontró el reporte de cobertura en la ruta configurada (por defecto scratch/coverage/coverage-final.json). Diagnóstico: Vitest o el ejecutor de pruebas aún no ha corrido con cobertura o los reportes se emitieron en otra carpeta. Remediación: 1) Ejecuta "npm run test:coverage" o "vp test --coverage". 2) Verifica que vite.config.ts tenga configurado test.coverage.reportsDirectory = "scratch/coverage" y provider = "v8". 3) Asegúrate de tener instalado @vitest/coverage-v8 en devDependencies.',
         'test-coverage-untracked-files':
-          'Guía de diagnóstico y remediación para test-coverage-untracked-files. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Se detectaron archivos fuente en src/ que nunca fueron ejecutados ni importados durante las pruebas unitarias. Diagnóstico: Existen módulos enteros huérfanos de pruebas. Remediación: 1) Crea archivos de test en tests/ para cada archivo fuente no cubierto. 2) Si el archivo corresponde a un barrel re-export o archivo de tipos puros sin lógica ejecutable, agrégalo a testCoverage.exemptGlobs en .auditor/audit.config.ts.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -95,7 +100,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
           file: resolvedCovConfig.path,
           line: 1,
           context: 'coverage missing',
-          message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura antes de auditar.`
+          message: `No se encontró el archivo de cobertura de tests en '${resolvedCovConfig.path}'. Ejecuta las pruebas con cobertura ('vp test --coverage' o 'npm run test:coverage') antes de auditar.`
         });
       }
     });
