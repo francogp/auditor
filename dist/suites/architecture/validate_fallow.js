@@ -150,8 +150,8 @@ const FALLOW_RULE_DESCRIPTIONS = {
 };
 const FALLOW_RULE_REMEDIATIONS = {
 	"fallow-refactoring-targets": "Refactoriza el módulo modularizando responsabilidades y reduciendo acoplamiento o complejidad ciclomática.",
-	"fallow-duplicate-code": "Extrae la lógica duplicada a funciones puras o composables compartidos.",
-	"fallow-triplicate-code": "Extrae la lógica triplicada urgentemente a utilidades comunes para evitar divergencia de comportamiento.",
+	"fallow-duplicate-code": "Usa `npm run auditor:dupes inspect <fingerprint>` o `auditor-dupes inspect` para extraer micro-contexto y refactorizar mediante el arnés híbrido a funciones puras o composables compartidos.",
+	"fallow-triplicate-code": "Usa `npm run auditor:dupes inspect <fingerprint>` o `auditor-dupes inspect` para inspeccionar la triplicación crítica y refactorizar a utilidades comunes mediante `npm run auditor:dupes apply <plan.json> --worktree`.",
 	"fallow-unused-exports": "Remueve exports no utilizados o elimina el código muerto si no tiene otros consumidores.",
 	"fallow-unused-files": "Elimina el archivo muerto del repositorio o conéctalo si faltó su importación legítima.",
 	"fallow-unused-dependencies": "Remueve la dependencia no utilizada de package.json ejecutando npm rm <pkg>.",

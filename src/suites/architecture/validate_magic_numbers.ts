@@ -180,6 +180,25 @@ function isExplicitBaseLiteral(node: ts.Node, sourceFile: ts.SourceFile): boolea
   );
 }
 
+export function resolveSignedNumericLiteral(node: ts.NumericLiteral): { val: number; reportedNode: ts.Node } {
+  let val = parseFloat(node.text);
+  let reportedNode: ts.Node = node;
+
+  if (
+    node.parent &&
+    ts.isPrefixUnaryExpression(node.parent) &&
+    (node.parent.operator === ts.SyntaxKind.MinusToken ||
+      node.parent.operator === ts.SyntaxKind.PlusToken)
+  ) {
+    if (node.parent.operator === ts.SyntaxKind.MinusToken) {
+      val = -val;
+    }
+    reportedNode = node.parent;
+  }
+
+  return { val, reportedNode };
+}
+
 const ANIMATION_PROPERTIES = new Set([
   'duration',
   'delay',
@@ -257,7 +276,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       },
       ruleRemediations: {
         'magic-number-naked':
-          'Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Usa `npm run auditor:magic inspect <archivo>` o `auditor-magic inspect <archivo>` para generar el paquete Super-Dirac compactado y aplicar la refactorización determinista con `npm run auditor:magic apply <plan.json> --worktree`.'
       },
       projectRoot
     });
@@ -273,20 +292,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
 
     const visit = (node: ts.Node): void => {
       if (ts.isNumericLiteral(node)) {
-        let val = parseFloat(node.text);
-        let reportedNode: ts.Node = node;
-
-        if (
-          node.parent &&
-          ts.isPrefixUnaryExpression(node.parent) &&
-          (node.parent.operator === ts.SyntaxKind.MinusToken ||
-            node.parent.operator === ts.SyntaxKind.PlusToken)
-        ) {
-          if (node.parent.operator === ts.SyntaxKind.MinusToken) {
-            val = -val;
-          }
-          reportedNode = node.parent;
-        }
+        const { val, reportedNode } = resolveSignedNumericLiteral(node);
 
         const isTimerDelay = isTimerDelayArg(reportedNode);
         const isAllowedSentinel = UNIVERSAL_SENTINELS.has(val) && !(isTimerDelay && val !== 0);

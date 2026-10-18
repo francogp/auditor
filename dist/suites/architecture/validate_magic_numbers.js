@@ -144,6 +144,18 @@ function isExplicitBaseLiteral(node, sourceFile) {
 	const rawText = node.getText(sourceFile);
 	return rawText.startsWith("0o") || rawText.startsWith("0O") || rawText.startsWith("0x") || rawText.startsWith("0X") || rawText.startsWith("0b") || rawText.startsWith("0B");
 }
+function resolveSignedNumericLiteral(node) {
+	let val = parseFloat(node.text);
+	let reportedNode = node;
+	if (node.parent && ts.isPrefixUnaryExpression(node.parent) && (node.parent.operator === ts.SyntaxKind.MinusToken || node.parent.operator === ts.SyntaxKind.PlusToken)) {
+		if (node.parent.operator === ts.SyntaxKind.MinusToken) val = -val;
+		reportedNode = node.parent;
+	}
+	return {
+		val,
+		reportedNode
+	};
+}
 const ANIMATION_PROPERTIES = /* @__PURE__ */ new Set([
 	"duration",
 	"delay",
@@ -209,7 +221,7 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			ruleIds: MAGIC_NUMBERS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(MAGIC_NUMBERS_RULES, "hygiene"),
 			ruleDescriptions: { "magic-number-naked": "Número mágico no en constante" },
-			ruleRemediations: { "magic-number-naked": "Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente." },
+			ruleRemediations: { "magic-number-naked": "Usa `npm run auditor:magic inspect <archivo>` o `auditor-magic inspect <archivo>` para generar el paquete Super-Dirac compactado y aplicar la refactorización determinista con `npm run auditor:magic apply <plan.json> --worktree`." },
 			projectRoot
 		});
 	}
@@ -217,12 +229,7 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 		const lines = rawFileContent.split("\n");
 		const visit = (node) => {
 			if (ts.isNumericLiteral(node)) {
-				let val = parseFloat(node.text);
-				let reportedNode = node;
-				if (node.parent && ts.isPrefixUnaryExpression(node.parent) && (node.parent.operator === ts.SyntaxKind.MinusToken || node.parent.operator === ts.SyntaxKind.PlusToken)) {
-					if (node.parent.operator === ts.SyntaxKind.MinusToken) val = -val;
-					reportedNode = node.parent;
-				}
+				const { val, reportedNode } = resolveSignedNumericLiteral(node);
 				const isTimerDelay = isTimerDelayArg(reportedNode);
 				if (!(UNIVERSAL_SENTINELS.has(val) && !(isTimerDelay && val !== 0)) && !customExempt.has(val) && !isExplicitBaseLiteral(node, sourceFile) && !(STANDARD_RADIX.has(val) && isRadixArg(reportedNode)) && !((val === 2 || val === 4) && isJsonIndentation(reportedNode)) && !isArrayIndex(reportedNode) && !isDefaultParameterValue(reportedNode) && !isPrecisionOrSliceArg(reportedNode) && !isObjectPropertyKey(reportedNode) && !isAnimationPropertyArg(reportedNode) && !isDeclaredConstant(reportedNode)) {
 					const { line, character } = sourceFile.getLineAndCharacterOfPosition(reportedNode.getStart(sourceFile));
@@ -259,4 +266,4 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ValidateMagicNumbersAuditor());
 //#endregion
-export { MAGIC_NUMBERS_RULES, ValidateMagicNumbersAuditor as MagicNumbersAuditor, ValidateMagicNumbersAuditor };
+export { MAGIC_NUMBERS_RULES, ValidateMagicNumbersAuditor as MagicNumbersAuditor, ValidateMagicNumbersAuditor, resolveSignedNumericLiteral };

@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "version": 1,
+  "planId": "refactor-clone-sample-001",
+  "fingerprint": "sample-fingerprint-fallow-clone",
+  "action": "extract-shared-function",
+  "sharedModulePath": "src/utils/mathUtils.ts",
+  "functionName": "clampValue",
+  "parameters": [
+    { "name": "val", "type": "number" },
+    { "name": "min", "type": "number" },
+    { "name": "max", "type": "number" }
+  ],
+  "returnType": "number",
+  "sharedFunctionCode": "function clampValue(val: number, min: number, max: number): number {\n  return Math.min(Math.max(val, min), max);\n}",
+  "targetFiles": [
+    "src/features/player/playerMovement.ts",
+    "src/features/camera/cameraFollow.ts"
+  ],
+  "astPattern": "Math.min(Math.max($VAL, $MIN), $MAX)",
+  "astRewrite": "clampValue($VAL, $MIN, $MAX)"
+}

@@ -143,7 +143,8 @@ export default defineAuditConfig({
   documentation: {
     language: 'en',
     chatLanguage: 'es',
-    allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright']
+    allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright'],
+    languageExemptions: ['docs/**']
   },
   fallow: {
     enabled: true,

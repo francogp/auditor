@@ -87,6 +87,9 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         'typescript(return-await)',
         'no-eval',
         'eslint(no-eval)',
+        'no-explicit-any',
+        'eslint(no-explicit-any)',
+        'typescript(no-explicit-any)',
         'prefer-rest-params'
       ];
 

@@ -1,0 +1,155 @@
+/**
+ * src/core/refactor/refactorFileScanner.ts
+ *
+ * Shared filesystem scanner and text replacement utilities for refactoring engines.
+ * Strictly uses Node.js native standard library (node:path, node:fs) for 100% cross-platform safety.
+ */
+
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { collectRepositoryFiles } from '../safePath.ts';
+import { parseVueSfcBlocks } from '../vueSfcParser.ts';
+
+const DEFAULT_REFACTOR_EXTENSIONS = new Set<string>(['.ts', '.vue', '.js']);
+
+/**
+ * Checks if two path references resolve to the same underlying file in a cross-platform manner.
+ */
+export function isSameFilePath(fileA: string, fileB: string, baseDir: string = process.cwd()): boolean {
+  const absA = path.isAbsolute(fileA) ? path.normalize(fileA) : path.resolve(baseDir, fileA);
+  const absB = path.isAbsolute(fileB) ? path.normalize(fileB) : path.resolve(baseDir, fileB);
+  return path.relative(absA, absB) === '' || absA.toLowerCase() === absB.toLowerCase();
+}
+
+/**
+ * Recursively scans a directory for source files matching target extensions
+ * using the canonical framework file collector.
+ */
+export function scanProjectSourceFiles(
+  dir: string,
+  allowedExtensions: ReadonlySet<string> = DEFAULT_REFACTOR_EXTENSIONS
+): readonly string[] {
+  const normalizedDir = path.resolve(dir);
+  if (!fs.existsSync(normalizedDir)) return [];
+  return collectRepositoryFiles(normalizedDir, normalizedDir, [], allowedExtensions);
+}
+
+/**
+ * Extracts script content and line offset from TypeScript, JavaScript, or Vue SFC files.
+ */
+export function extractFileScriptContent(
+  filePath: string
+): { readonly scriptContent: string; readonly lineOffset: number } | null {
+  if (!fs.existsSync(filePath)) return null;
+  const content = fs.readFileSync(filePath, 'utf8');
+
+  if (filePath.endsWith('.vue')) {
+    const parsed = parseVueSfcBlocks(content);
+    const activeScript = parsed.scripts.find((s) => s.isSetup) || parsed.scripts[0];
+    if (!activeScript) return null;
+    return { scriptContent: activeScript.content, lineOffset: activeScript.startLine - 1 };
+  }
+
+  return { scriptContent: content, lineOffset: 0 };
+}
+
+/**
+ * Iterates through non-empty lines of a source script (TS/JS/Vue SFC) providing the line and actual line number.
+ */
+export function forEachSourceScriptLine(
+  filePath: string,
+  onLine: (line: string, actualLineNumber: number, lineIndex: number, allLines: readonly string[]) => void
+): boolean {
+  const extracted = extractFileScriptContent(filePath);
+  if (!extracted) return false;
+  const { scriptContent, lineOffset } = extracted;
+  const lines = scriptContent.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+    onLine(line, i + lineOffset + 1, i, lines);
+  }
+  return true;
+}
+
+export interface RefactorTextReplacement {
+  readonly file: string;
+  readonly original: string;
+  readonly replacement: string;
+}
+
+/**
+ * Applies a list of exact text replacements to content if the target file matches.
+ */
+export function applyFileTextReplacements(
+  initialContent: string,
+  relFile: string,
+  fullPath: string,
+  baseDir: string,
+  replacements?: readonly RefactorTextReplacement[]
+): { readonly content: string; readonly count: number } {
+  if (!replacements || replacements.length === 0) {
+    return { content: initialContent, count: 0 };
+  }
+  let content = initialContent;
+  let count = 0;
+  for (const rep of replacements) {
+    if (!isSameFilePath(rep.file, relFile, baseDir) && !isSameFilePath(rep.file, fullPath, baseDir)) {
+      continue;
+    }
+    if (!content.includes(rep.original)) continue;
+    content = content.replace(rep.original, rep.replacement);
+    count++;
+  }
+  return { content, count };
+}
+
+export type FileContentTransformer = (
+  content: string,
+  relFile: string,
+  fullPath: string,
+  baseDir: string
+) => { readonly content: string; readonly count: number };
+
+/**
+ * Deterministically applies grouped text replacements to all targeted files across a project.
+ */
+export function executePlanFileReplacements(
+  baseDir: string,
+  targetFiles: readonly string[],
+  replacementGroups: readonly (readonly RefactorTextReplacement[] | undefined)[],
+  customTransformers: readonly FileContentTransformer[] = []
+): { readonly filesChanged: number; readonly changesApplied: number } {
+  let filesChanged = 0;
+  let changesApplied = 0;
+
+  for (const relFile of targetFiles) {
+    const fullPath = path.isAbsolute(relFile) ? path.normalize(relFile) : path.resolve(baseDir, relFile);
+    if (!fs.existsSync(fullPath)) continue;
+
+    let content = fs.readFileSync(fullPath, 'utf8');
+    const originalContent = content;
+
+    for (const group of replacementGroups) {
+      if (!group) continue;
+      const res = applyFileTextReplacements(content, relFile, fullPath, baseDir, group);
+      content = res.content;
+      changesApplied += res.count;
+    }
+
+    for (const transform of customTransformers) {
+      const res = transform(content, relFile, fullPath, baseDir);
+      content = res.content;
+      changesApplied += res.count;
+    }
+
+    if (content !== originalContent) {
+      fs.writeFileSync(fullPath, content, 'utf8');
+      filesChanged++;
+    }
+  }
+
+  return { filesChanged, changesApplied };
+}
+

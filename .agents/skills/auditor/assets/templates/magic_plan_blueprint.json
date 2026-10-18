@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "planId": "magic-refactor-sample-001",
+  "targetFiles": [
+    "src/features/combat/combatEngine.ts",
+    "src/ui/components/CombatHud.vue"
+  ],
+  "declarations": [
+    {
+      "name": "DEFAULT_ATTACK_TIMEOUT_MS",
+      "value": 5000,
+      "targetLocation": "local-file-header"
+    },
+    {
+      "name": "CRIT_DAMAGE_MULTIPLIER",
+      "value": 1.5,
+      "targetLocation": "local-file-header"
+    }
+  ],
+  "fileReplacements": {
+    "src/features/combat/combatEngine.ts": [
+      {
+        "startOffset": 1420,
+        "endOffset": 1424,
+        "replacement": "DEFAULT_ATTACK_TIMEOUT_MS"
+      },
+      {
+        "startOffset": 2150,
+        "endOffset": 2153,
+        "replacement": "CRIT_DAMAGE_MULTIPLIER"
+      }
+    ]
+  }
+}

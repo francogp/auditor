@@ -1,6 +1,6 @@
 ---
 name: auditor
-description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `.auditor/`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run auditor', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:complexity', 'npm run auditor:fallow:*', 'npm run auditor:lint'). When updating the auditor in host projects, agents MUST use 'auditor-update' or 'npm run auditor:update' and 'auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, scratch/ inspection scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools ('auditor:rules', 'auditor:findings rule=<id>', 'auditor:findings file=<path> flat'). Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, zero ad-hoc console loggers, zero manual step logging (auditor-manual-step-logging), mandatory rule timing wrappers (auditor-unmeasured-rule), and zero redundant rule markings (auditor-redundant-rule-evaluated).
+description: MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. YOU MUST ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings or errors, investigating violations, reading latest_audit.json, debugging audit failures, planning or executing fixes for audit issues, refactoring duplicate or triplicate code ('duplicados', 'triplicados', 'clones', 'remediar duplicados', 'auditor:dupes', 'auditor-dupes', 'fallow-duplicate-code', 'fallow-triplicate-code'), remediating magic numbers and design tokens ('numeros magicos', 'números mágicos', 'magic numbers', 'magic-numbers', 'magic-number-naked', 'auditor:magic', 'auditor-magic', 'constant-bad-names'), remediating UI animations and timers ('auditor:motion', 'auditor-motion', 'gsap-banned-ui-timers', 'gsap-no-layout-properties'), optimizing O(1) data structures ('auditor:o1', 'auditor-o1', 'validate_o1_data_structures', 'o1-linear-membership'), or whenever the user asks to UPDATE OR UPGRADE the auditor package (e.g. 'actualizar auditor', 'actualizame el auditor', 'update auditor', 'actualizar paquete auditor', 'actualizar dependencias de auditor', 'update @francogp/auditor', 'auditor:update', 'auditor-update', 'auditor-version', 'version de auditor'), or mentions auditors, audit suites, audit reports, audit tables, Fallow analyzers, report formatting, or modifies ANY file in `scripts/auditors/`, `@francogp/auditor`, `.auditor/`, `src/core/auditorBase.ts`, or `src/core/unifiedTheme.ts`, even if they just mention 'auditor', 'auditores', 'auditoría', 'audit', 'fallow', 'reporte', 'tabla', 'resultados en la tabla', 'desglose', 'complejidad', 'duplicados', 'triplicados', 'superclase', 'BaseAuditor', 'report_fallow', 'report_complexity', 'report_findings', or audit scripts ('npm run auditor', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:complexity', 'npm run auditor:fallow:*', 'npm run auditor:lint'). When updating the auditor in host projects, agents MUST use 'auditor-update' or 'npm run auditor:update' and 'auditor-version -v'. STRICTLY FORBIDDEN to use ad-hoc node -e scripts, scratch/ inspection scripts, git clone into /tmp, or git log inside node_modules; ALWAYS use the framework's native CLI tools ('auditor:rules', 'auditor:findings rule=<id>', 'auditor:findings file=<path> flat'). Enforces strict OOP inheritance (BaseAuditor, FileScanAuditor), standardized Box-Drawing table rendering via unifiedTheme (80-col limit, zero wrapping, getVisualWidth emoji alignment), dynamic auto-discovery, zero code duplication, zero project hardcoding in @francogp/auditor, zero ad-hoc console loggers, zero manual step logging (auditor-manual-step-logging), mandatory rule timing wrappers (auditor-unmeasured-rule), and zero redundant rule markings (auditor-redundant-rule-evaluated).
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -397,10 +397,50 @@ Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
 
 ---
 
+## 🧬 Automated Duplicate & Triplicate Refactoring (Phase 3: Dedup)
+
+Refactoring syntactic and semantic clones (`fallow-duplicate-code`, `fallow-triplicate-code`, `validate_similar_code`) follows a deterministic 3-step workflow:
+
+1. **Dead-Code Triage**: Before refactoring, verify if clones reside in dead code. ~25% of clone groups vanish by running `fallow fix --yes` (or deleting orphaned files).
+2. **Dirac Micro-Context Inspection**: Never load entire files into LLM context. Run `npm run auditor:dupes inspect <fingerprint>` (or `auditor-dupes inspect <fingerprint>`) to extract only clone lines with 3–5 lines of local context, achieving a 98.7% token reduction.
+3. **Hermetic Worktree Refactor**: Formulate a `refactor_plan.json` conforming to `refactor_plan_blueprint.json` and apply it safely via:
+
+   ```bash
+   npm run auditor:dupes apply refactor_plan.json --worktree
+   ```
+
+   The Hybrid Harness applies specialized transforms (`ts-morph` for TypeScript imports, `magic-string` for Vue SFCs, `@ast-grep/napi` for polyglot matching) inside an isolated Git worktree, validating with `vp check` and `vp test` before committing changes to the working tree.
+
+📘 **Detailed Refactoring Guide**: See [duplicate-refactoring-guide.md](./references/duplicate-refactoring-guide.md).
+
+---
+
+## 🔢 Automated Magic Numbers & Design Tokens (Phase 6: Hygiene)
+
+Remediating naked magic numbers and design literals (`validate_magic_numbers`, `validate_constant_hygiene`, `validate_scss_architecture`, `validate_z_index`) follows a 3-tier deterministic pipeline:
+
+1. **Zero-Token Semantic Inference**: Deduces candidate names automatically from AST syntax (timers, object properties, comparisons) or maps to existing tokens (`Z_LAYERS`, `--color-*`) with 0 LLM tokens.
+2. **Super-Dirac Value Clustering**: Encodes ambiguous domain equations into a compact 1-line-per-cluster table, cutting LLM context by 83% to 95%.
+3. **Pre-Flight Hygiene Gate & Worktree**: Validates names against `constant-no-literal-suffix` and generic word bans, applying bottom-up replacements via:
+
+   ```bash
+   npm run auditor:magic discover
+   npm run auditor:magic inspect <file>
+   npm run auditor:magic apply magic_plan.json --worktree
+   ```
+
+📘 **Detailed Magic Numbers Guide**: See [magic-numbers-refactoring-guide.md](./references/magic-numbers-refactoring-guide.md).
+
+---
+
 ## 📚 References & Host Integration Blueprints Index
 
 | Reference Guide | Description |
 |---|---|
+| [`references/magic-numbers-refactoring-guide.md`](./references/magic-numbers-refactoring-guide.md) | Guide for magic numbers, Super-Dirac clustering, and token governance. |
+| [`references/duplicate-refactoring-guide.md`](./references/duplicate-refactoring-guide.md) | Guide for automated clone refactoring, Dirac micro-context, and safe worktrees. |
+| [`references/motion-refactoring-guide.md`](./references/motion-refactoring-guide.md) | Guide for automated UI animation refactoring, GPU transforms, and timer migration. |
+| [`references/o1-data-structures-guide.md`](./references/o1-data-structures-guide.md) | Guide for algorithmic O(1) refactoring, Set hoists, and structuredClone modernization. |
 | [`references/error-triage-guide.md`](./references/error-triage-guide.md) | Catálogo maestro de triaje y remediación de errores, causas raíz y uso de `auditor guide`. |
 | [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md) | Complete sub-auditor authoring guide with boilerplate implementations. |
 | [`references/extension-helpers-guide.md`](./references/extension-helpers-guide.md) | Standard framework helpers, base methods, and migration guide for host extensions. |

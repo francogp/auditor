@@ -72,4 +72,4 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
-- _This directory contains flat unit test suites with no subdirectories._
+- [`core/refactor/AGENTS.md`](./core/refactor/AGENTS.md): Test suites and verification contracts for the deterministic code refactoring engine.

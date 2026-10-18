@@ -182,8 +182,6 @@ const OXLINT_FIXABLE_RULES_LIST = [
 	"dot-notation",
 	"typescript/no-duplicate-type-constituents",
 	"no-duplicate-type-constituents",
-	"typescript/no-explicit-any",
-	"no-explicit-any",
 	"typescript/no-extra-non-null-assertion",
 	"no-extra-non-null-assertion",
 	"typescript/no-import-type-side-effects",

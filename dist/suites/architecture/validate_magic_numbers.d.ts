@@ -4,6 +4,10 @@ import ts from "typescript";
 //#region src/suites/architecture/validate_magic_numbers.d.ts
 export declare const MAGIC_NUMBERS_RULES: readonly ["magic-number-naked"];
 export type MagicNumbersRuleId = (typeof MAGIC_NUMBERS_RULES)[number];
+export declare function resolveSignedNumericLiteral(node: ts.NumericLiteral): {
+  val: number;
+  reportedNode: ts.Node;
+};
 export interface ValidateMagicNumbersOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];

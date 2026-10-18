@@ -188,6 +188,32 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'reporting'
   },
 
+  // Refactoring & Remediation Tools
+  {
+    name: 'auditor:dupes',
+    command: 'auditor-dupes',
+    description: 'Refactorización y deduplicación determinista de código sintáctico y clones',
+    category: 'reporting'
+  },
+  {
+    name: 'auditor:magic',
+    command: 'auditor-magic',
+    description: 'Remediación de números mágicos y extracción Super-Dirac a design tokens',
+    category: 'reporting'
+  },
+  {
+    name: 'auditor:motion',
+    command: 'auditor-motion',
+    description: 'Gobernanza de animaciones UI, migración de timers y transforms GPU',
+    category: 'reporting'
+  },
+  {
+    name: 'auditor:o1',
+    command: 'auditor-o1',
+    description: 'Optimización algorítmica de búsquedas lineales y modernización O(1)',
+    category: 'reporting'
+  },
+
   // Fallow Categories
   {
     name: 'auditor:fallow:dupes',

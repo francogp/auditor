@@ -46,6 +46,10 @@ All inspection routines MUST use the official NPM scripts declared in `package.j
 - `npm run auditor:guard`: Architectural boundary and dependency graph gating.
 - `npm run auditor:similar`: Semantic and structural clone detection using local Fallow vector embeddings (Box-Drawing table, threshold filter `--threshold <N>`).
 - `npm run auditor:review`: Graph-grounded architectural review brief for changed files against base branch via Fallow code-review graphs.
+- `npm run auditor:dupes` / `auditor-dupes`: Dedicated clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`inspect <fingerprint>`, `apply <plan.json> --worktree`).
+- `npm run auditor:magic` / `auditor-magic`: Polyglot magic numbers and design tokens discovery, Value-Clustering Super-Dirac compression, and AST refactoring CLI (`inspect --file=<path>`, `apply --plan=<plan.json>`).
+- `npm run auditor:motion` / `auditor-motion`: UI animation governance and GSAP refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
+- `npm run auditor:o1` / `auditor-o1`: O(1) data structure optimizer and linear search refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
 
 ---
 

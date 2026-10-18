@@ -95,15 +95,15 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
       },
       ruleRemediations: {
         'duplicate-constant-identical':
-          'Guía de diagnóstico y remediación para duplicate-constant-identical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Centraliza la constante en un módulo común de constantes del dominio (ej. src/constants/) y reusa la exportación mediante ts-morph o npm run auditor:magic.',
         'duplicate-constant-divergent':
-          'Guía de diagnóstico y remediación para duplicate-constant-divergent. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Resuelve la disparidad de valores asignando nombres semánticos específicos o unificando el valor canónico en un módulo SSoT.',
         'constant-bad-names':
-          'Guía de diagnóstico y remediación para constant-bad-names. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Elimina el valor numérico del nombre de la constante (ej. usa MAX_RETRY_COUNT en lugar de MAX_RETRY_COUNT_5).',
         'constant-no-alias':
-          'Guía de diagnóstico y remediación para constant-no-alias. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Elimina el alias redundante de constante e importa o utiliza directamente la constante canónica de origen.',
         'constant-no-literal-suffix':
-          'Guía de diagnóstico y remediación para constant-no-literal-suffix. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Remueve el sufijo numérico crudo del nombre de la constante (ej. _100, _600); usa nombres semánticos de dominio.'
       },
       projectRoot: effectiveProjectRoot
     });

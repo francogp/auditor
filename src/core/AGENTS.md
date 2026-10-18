@@ -152,4 +152,4 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
-- _This directory contains pure core foundation modules with no subdirectories._
+- [`refactor/`](./refactor/AGENTS.md): Automated duplicate/triplicate refactoring engine, micro-context extractor, and git worktree sandbox.

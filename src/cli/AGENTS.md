@@ -57,6 +57,10 @@ Architecture & Tooling Engineers.
 - [`report_test_coverage.ts`](./report_test_coverage.ts): Test execution coverage reporter (`auditor-coverage`) with Box-Drawing tables and uncovered files detection.
 - [`setup_env.ts`](./setup_env.ts): Environment configuration setup runner.
 - [`stamp_version.ts`](./stamp_version.ts): Standalone CLI for generating and stamping `src/core/version.ts`.
+- [`refactor_dupes.ts`](./refactor_dupes.ts): Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).
+- [`refactor_magic.ts`](./refactor_magic.ts): Interactive magic numbers and design tokens discovery, Value-Clustering Super-Dirac compression, and AST refactoring CLI (`auditor-magic`, `npm run auditor:magic`).
+- [`refactor_motion.ts`](./refactor_motion.ts): Interactive UI animation and GSAP governance refactoring CLI (`auditor-motion`, `npm run auditor:motion`).
+- [`refactor_o1.ts`](./refactor_o1.ts): Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
 - [`update_package.ts`](./update_package.ts): Native CLI updater (`auditor-update`) for updating `@francogp/auditor` across host repositories.
 
