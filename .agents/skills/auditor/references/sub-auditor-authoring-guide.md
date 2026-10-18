@@ -825,6 +825,10 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
 }
 ```
 
+> [!IMPORTANT]
+> **Grounded Fixability Contract for `fixableRuleIds`**:
+> A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all. Rules included in `fixableRuleIds` or emitting `fixable: true` MUST be backed by a verified, mechanical, automated code mutation engine on disk that resolves violations with zero human intervention. Speculative fixability, linters emitting suggestions (`💡`), hints, dangerous fixes (`⚠️`), or rules requiring human architectural decisions MUST NEVER be included in `fixableRuleIds`. Every fix-enabled suite must maintain positive and negative canary tests in `tests/fixable_integrity_canary.test.ts`.
+
 ### Dynamic Auto-Coordination in the Runner (Zero Hardcoding)
 
 - **`auditor fix` / `npm run auditor:fix`**: Automatically discovers all suites with rules declaring `fix: 'normal' | 'priority'`. Suites with `fix: 'priority'` (environment, tooling, and configuration generators) execute **FIRST**, ensuring `.auditor/audit.config.ts`, `.gitignore`, `package.json` scripts, and linter configs are established before dependent code/style fixers run.

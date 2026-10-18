@@ -123,8 +123,11 @@ Governed by `validate_git_config` declaring `fix: 'priority'`:
 
 ## 8. Zero False-Fix Mandate & Grounded Fixability Contract
 
-- **Capability vs Finding**: A sub-auditor declaring `capabilities.fix === true` signals that the suite possesses auto-repair logic for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
-- **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists for that exact violation (e.g. `Boolean(msg.fix)` from Oxlint/Stylelint or concrete AST replacements). Findings without automated remediation MUST report `fixable: false`.
+- **Capability vs Finding**: A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all. A sub-auditor declaring `capabilities.fix === true` signals that the suite possesses auto-repair logic for specific rules, NOT that every finding emitted by the suite is mechanically fixable.
+- **Explicit Finding Fixability**: Each finding MUST report `fixable: true` ONLY when a dedicated, automated programmatic fixer exists that mechanically resolves that exact violation on disk with zero human intervention. Rules emitting suggestions (`💡`), dangerous fixes (`⚠️`), or help-only diagnostics MUST be mapped to `fixable: false`. In third-party linters (e.g. Oxlint, Stylelint), only verified mechanical fixes (such as Oxlint rules designated with `🛠️`) are included in fixable sets.
+- **Mandatory Automated Integrity Canaries (`fixable_integrity_canary.test.ts`)**: Every suite declaring `fix: 'normal' | 'priority'` must be covered by automated end-to-end canary tests verifying:
+  1. Positive canary: A seeded violation is physically repaired on disk, producing a clean post-fix audit pass (`fixableErrors === 0`).
+  2. Negative canary: Unfixable syntax defects and suggestion-only rules remain unmutated and report `fixable: false`.
 - **Instance Getters in `BaseAuditor`**:
   - `getFixableErrors()`, `getFixableWarnings()`, `getFixableFindings()`, `getFixableErrorsByRule()`, `getFixableWarningsByRule()`.
   - Centralized static helpers: `BaseAuditor.countFixableFindings(findings)` and `BaseAuditor.computeFixableViolations(results, isFixMode)`.
