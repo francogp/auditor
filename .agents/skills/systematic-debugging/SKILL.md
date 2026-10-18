@@ -44,6 +44,9 @@ metadata:
 6. **⛔ GATE 6: ABSOLUTE PROHIBITION ON MODIFYING HISTORICAL / PUSHED MIGRATIONS**:
    - When debugging database, migration, or schema failures, agents MUST NEVER modify historical migration files in the migrations directory that were committed in prior commits or pushed to `main`.
    - Any database bug, schema addition, missing column, constraint fix, or data repair MUST ALWAYS be resolved by creating a NEW forward-only timestamped migration (`YYYYMMDDHHmmss_<name>.sql`), NEVER by editing past migrations.
+7. **⛔ GATE 7: MANDATORY OFFICIAL TOOLS PRIORITY & ZERO PREMATURE SCRATCH SCRIPTS**:
+   - For all static analysis, linting, code duplication, dead code, complexity, dependency versions, or auditor rule failures, agents MUST ALWAYS query and utilize the official framework CLI tools (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`).
+   - Writing ad-hoc scratch inspection scripts or running inline `node -e` scripts to diagnose issues already covered by official tools is STRICTLY FORBIDDEN. Temporary scripts in `scratch/` are reserved strictly as an exceptional last resort when no official tool exists.
 
 ---
 

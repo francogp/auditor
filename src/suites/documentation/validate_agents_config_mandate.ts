@@ -27,14 +27,16 @@ export type AgentsConfigMandateRuleId =
   | 'agents-missing-backward-compat-mandate'
   | 'agents-missing-fake-pass-mandate'
   | 'agents-missing-chat-language-mandate'
-  | 'agents-missing-destructive-git-mandate';
+  | 'agents-missing-destructive-git-mandate'
+  | 'agents-missing-official-tools-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
   'agents-missing-backward-compat-mandate',
   'agents-missing-fake-pass-mandate',
   'agents-missing-chat-language-mandate',
-  'agents-missing-destructive-git-mandate'
+  'agents-missing-destructive-git-mandate',
+  'agents-missing-official-tools-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
@@ -42,6 +44,12 @@ export const CANONICAL_MANDATE_SNIPPET_EN =
 
 export const CANONICAL_MANDATE_SNIPPET_ES =
   '- **Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorización previa explícita del programador humano. Al solicitar autorización, el agente debe proporcionar una explicación técnica exhaustiva detallando por qué la modificación es necesaria, justificando explícitamente los pros, los contras y el balance de compensaciones.';
+
+export const CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN =
+  '- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code. Reinventing the wheel by creating scratch scripts or ad-hoc `node -e` one-liners for tasks already covered by official tools is STRICTLY PROHIBITED. Creating temporary scripts in `scratch/` is permitted ONLY as an exceptional last resort when no official tool exists for the specific diagnostic or verification task. When invoking npm scripts with flags or subcommands, always use `--` (e.g. `npm run auditor:motion -- --help`, `npm run auditor -- guide <ruleId>`) or invoke the installed binary directly, NEVER invoke `npx`.';
+
+export const CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES =
+  '- **Prioridad Obligatoria de Herramientas Oficiales y Prohibición de Scripts Ad-Hoc Prematuros**: Los desarrolladores y agentes de IA DEBEN priorizar y utilizar SIEMPRE las herramientas CLI oficiales provistas por el framework y los scripts de paquete (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) antes de intentar inspecciones manuales o escribir código. Reinventar la rueda creando scripts en `scratch/` o comandos inline `node -e` para tareas ya cubiertas por herramientas oficiales está ESTRICTAMENTE PROHIBIDO. Crear scripts temporales en `scratch/` se permite ÚNICAMENTE como último recurso excepcional cuando no exista ninguna herramienta oficial para la tarea específica de diagnóstico o verificación. Al invocar scripts de npm con flags o subcomandos, usa siempre `--` (ej. `npm run auditor:motion -- --help`, `npm run auditor -- guide <ruleId>`) o invoca directamente el binario instalado, JAMÁS invoques `npx`.';
 
 export const CANONICAL_BACKWARD_COMPAT_SNIPPET_EN =
   '- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED. The architecture prioritizes clean, uncompromised modern standards over legacy tolerance. Outdated consumers, legacy configurations, and unmigrated calls MUST fail loudly with immediate, explicit, and blocking errors (`throw new Error(...)` or exit code 1) forcing immediate upgrades to canonical standards. Maintaining duplicate suites or runtime compatibility bridges that introduce bloat, duplicate findings, or maintenance hazards is completely eradicated.';
@@ -83,6 +91,10 @@ const CANONICAL_SNIPPET_REGISTRY = {
   destructiveGit: {
     en: CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN,
     es: CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES
+  },
+  officialTools: {
+    en: CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN,
+    es: CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES
   }
 } as const;
 
@@ -105,6 +117,13 @@ export function getCanonicalDestructiveGitSnippet(language: DocumentationLanguag
   return (
     CANONICAL_SNIPPET_REGISTRY.destructiveGit[language] ??
     CANONICAL_SNIPPET_REGISTRY.destructiveGit.en
+  );
+}
+
+export function getCanonicalOfficialToolsSnippet(language: DocumentationLanguage = 'en'): string {
+  return (
+    CANONICAL_SNIPPET_REGISTRY.officialTools[language] ??
+    CANONICAL_SNIPPET_REGISTRY.officialTools.en
   );
 }
 
@@ -279,6 +298,32 @@ export function containsDestructiveGitMandate(
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the official tools priority mandate.
+ */
+export function containsOfficialToolsMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /official\s+tools|herramientas\s+oficiales|scratch\s+scripts|ad-hoc\s+scripts|scripts\s+en\s+scratch/i.test(
+      text
+    );
+  if (!hasSubject) return false;
+
+  const hasPriorityOrProhibition =
+    /priorit|priorizar|prohibit|prohibid|strictly|estrictamente|last resort|último recurso/i.test(
+      text
+    );
+  if (!hasPriorityOrProhibition) return false;
+
+  const enMarkers =
+    /(?:Mandatory Official Tools Priority|official CLI tools|Reinventing the wheel|Creating temporary scripts in `scratch\/`)/i;
+  const esMarkers =
+    /(?:Prioridad Obligatoria de Herramientas Oficiales|herramientas CLI oficiales|Reinventar la rueda|scripts temporales en `scratch\/`)/i;
+  return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
   check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
@@ -366,6 +411,21 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause prohibiting AI agents from executing destructive Git commands without prior programmer authorization.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente la prohibición absoluta de ejecutar comandos Git destructivos sin autorización previa del programador.'
+  },
+  {
+    ruleId: 'agents-missing-official-tools-mandate',
+    check: (text, docLang) => containsOfficialToolsMandate(text, docLang),
+    getSnippet: (docLang) => getCanonicalOfficialToolsSnippet(docLang),
+    isExistingLine: (l) =>
+      l.includes('Official Tools Priority') ||
+      l.includes('Herramientas Oficiales') ||
+      l.includes('Premature Ad-Hoc Scripts') ||
+      l.includes('Scripts Ad-Hoc Prematuros') ||
+      /(?:official\s+tools|herramientas\s+oficiales)\s+priority/i.test(l),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause prioritizing official framework CLI tools and prohibiting premature ad-hoc scripts.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente el mandato de prioridad de herramientas oficiales del framework y prohibición de scripts ad-hoc prematuros.'
   }
 ];
 
@@ -415,7 +475,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',
         'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
         'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat',
-        'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo'
+        'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo',
+        'agents-missing-official-tools-mandate': 'Falta mandato de herramientas oficiales'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -462,7 +523,16 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
           '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente el texto oficial.\n' +
           '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
           '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization..."'
+          '   - Cláusula obligatoria: "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization..."',
+        'agents-missing-official-tools-mandate':
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-official-tools-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que exige a desarrolladores y agentes de IA priorizar las herramientas CLI oficiales provistas por el framework (`auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:dependencies`, etc.) y prohíbe crear scripts ad-hoc prematuros en `scratch/` o con `node -e`.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de prioridad de herramientas oficiales.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
+          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code..."'
       },
       coverage: {
         include: ['AGENTS.md']

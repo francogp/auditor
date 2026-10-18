@@ -24,10 +24,12 @@ import {
   CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES,
   CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES,
   CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN,
+  CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN,
   containsConfigAntiTamperingMandate,
   containsBackwardCompatMandate,
   containsFakePassMandate,
-  containsChatLanguageMandate
+  containsChatLanguageMandate,
+  containsOfficialToolsMandate
 } from '../src/suites/documentation/validate_agents_config_mandate.ts';
 import { DocumentationLanguageAuditor } from '../src/suites/documentation/validate_documentation_language.ts';
 
@@ -54,6 +56,7 @@ ${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}
 ${CANONICAL_FAKE_PASS_SNIPPET_EN}
 ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
 ${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}
+${CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN}
 ${extraContract}
 
 ## Work Guidance
@@ -143,6 +146,8 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(manifest.rules['agents-missing-backward-compat-mandate']).toBeDefined();
     expect(manifest.rules['agents-missing-fake-pass-mandate']).toBeDefined();
     expect(manifest.rules['agents-missing-chat-language-mandate']).toBeDefined();
+    expect(manifest.rules['agents-missing-destructive-git-mandate']).toBeDefined();
+    expect(manifest.rules['agents-missing-official-tools-mandate']).toBeDefined();
   });
 
   it('detects anti-tampering mandate across Spanish and English variations', () => {
@@ -229,6 +234,26 @@ describe('AgentsConfigMandateAuditor', () => {
     ).toBe(false);
   });
 
+  it('detects official tools priority mandate across Spanish and English variations', () => {
+    expect(
+      containsOfficialToolsMandate(
+        'Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework before writing code. Scratch scripts are last resort.'
+      )
+    ).toBe(true);
+
+    expect(
+      containsOfficialToolsMandate(
+        'Los desarrolladores y agentes de IA DEBEN priorizar y utilizar SIEMPRE las herramientas CLI oficiales provistas por el framework. Scripts en scratch son último recurso.'
+      )
+    ).toBe(true);
+
+    expect(
+      containsOfficialToolsMandate(
+        'Regular contracts without any mention of framework tooling or workflow execution.'
+      )
+    ).toBe(false);
+  });
+
   it('passes clean verification with 0 errors when all mandates are present', async () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createValidAgentsMd(), 'utf8');
 
@@ -246,7 +271,7 @@ describe('AgentsConfigMandateAuditor', () => {
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(5);
+    expect(result.summary.errors).toBe(6);
     expect(result.status).toBe('failed');
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-config-mandate')).toBe(true);
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-backward-compat-mandate')).toBe(
@@ -259,10 +284,13 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(result.findings.some((v) => v.ruleId === 'agents-missing-destructive-git-mandate')).toBe(
       true
     );
+    expect(result.findings.some((v) => v.ruleId === 'agents-missing-official-tools-mandate')).toBe(
+      true
+    );
   });
 
   it('fails with agents-missing-backward-compat-mandate when only backward-compat is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n${CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -273,7 +301,7 @@ describe('AgentsConfigMandateAuditor', () => {
   });
 
   it('fails with agents-missing-fake-pass-mandate when only fake-pass is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n${CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -284,7 +312,7 @@ describe('AgentsConfigMandateAuditor', () => {
   });
 
   it('fails with agents-missing-chat-language-mandate when only chat-language is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n${CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -295,7 +323,7 @@ describe('AgentsConfigMandateAuditor', () => {
   });
 
   it('fails with agents-missing-destructive-git-mandate when only destructive-git is missing', async () => {
-    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n`;
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN}\n`;
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -305,11 +333,22 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(result.findings[0]?.ruleId).toBe('agents-missing-destructive-git-mandate');
   });
 
+  it('fails with agents-missing-official-tools-mandate when only official-tools is missing', async () => {
+    const content = `# Purpose\n\n## Local Contracts\n\n${CANONICAL_MANDATE_SNIPPET_EN}\n${CANONICAL_BACKWARD_COMPAT_SNIPPET_EN}\n${CANONICAL_FAKE_PASS_SNIPPET_EN}\n${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}\n${CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN}\n`;
+    fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
+
+    const auditor = new AgentsConfigMandateAuditor(scratchDir);
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBe(1);
+    expect(result.findings[0]?.ruleId).toBe('agents-missing-official-tools-mandate');
+  });
+
   it('fails with all mandate errors when root AGENTS.md does not exist', async () => {
     const auditor = new AgentsConfigMandateAuditor(scratchDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(5);
+    expect(result.summary.errors).toBe(6);
     expect(result.status).toBe('failed');
     expect(result.findings.map((f) => f.ruleId).sort()).toEqual(
       [...AGENTS_CONFIG_MANDATE_RULES].sort()
@@ -336,6 +375,9 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(updatedContent).toContain(
       'Absolute Prohibition on Unrequested Destructive Git Commands'
     );
+    expect(updatedContent).toContain(
+      'Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts'
+    );
 
     // Subsequent audit on repaired file should pass cleanly
     const verifyAuditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -359,6 +401,9 @@ describe('AgentsConfigMandateAuditor', () => {
       'Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate'
     );
     expect(updatedContent).toContain('AI Agent Chat Communication & Interactive Language Mandate');
+    expect(updatedContent).toContain(
+      'Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts'
+    );
 
     // Subsequent audit on repaired file should pass cleanly
     const verifyAuditor = new AgentsConfigMandateAuditor(scratchDir);
@@ -387,6 +432,9 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(updatedContent).toContain(
       'Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA'
     );
+    expect(updatedContent).toContain(
+      'Prioridad Obligatoria de Herramientas Oficiales y Prohibición de Scripts Ad-Hoc Prematuros'
+    );
 
     // Verification in Spanish mode passes cleanly
     const verifyEs = new AgentsConfigMandateAuditor(scratchDir, { language: 'es' });
@@ -394,10 +442,10 @@ describe('AgentsConfigMandateAuditor', () => {
     expect(resultEs.summary.errors).toBe(0);
     expect(resultEs.status).toBe('passed');
 
-    // But verification in English mode fails for all 5 mandates
+    // But verification in English mode fails for all 6 mandates
     const verifyEn = new AgentsConfigMandateAuditor(scratchDir, { language: 'en' });
     const resultEn = await verifyEn.execute();
-    expect(resultEn.summary.errors).toBe(5);
+    expect(resultEn.summary.errors).toBe(6);
 
     // Running fix in English mode updates all mandates to English
     const fixAuditorEn = new AgentsConfigMandateAuditor(scratchDir, { fix: true, language: 'en' });
