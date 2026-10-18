@@ -22,12 +22,16 @@ import {
   type AuditFamily,
   type AuditTaskDefinition,
   FAMILY_METADATA,
-  normalizeSpeeds
+  normalizeSpeeds,
+  type RemediationPhaseId,
+  getRemediationPhaseMetadata
 } from './auditContract.ts';
 
 const TERMINAL_WIDTH = 80;
 const REGISTRY_DESC_COL_WIDTH = 24;
 const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
+const BREAKDOWN_LABEL_COL_WIDTH = 52;
+const BREAKDOWN_COUNT_COL_WIDTH = 9;
 
 import type { TextAlignment } from './terminalVisuals.ts';
 
@@ -149,45 +153,102 @@ export interface FindingCountData {
   warnings: number;
 }
 
+interface BreakdownRow {
+  label: string;
+  errors: string;
+  warnings: string;
+}
+
+function createBreakdownColumns(labelHeader: string): readonly TableColumn<BreakdownRow>[] {
+  return [
+    { header: labelHeader, width: BREAKDOWN_LABEL_COL_WIDTH, align: 'left', key: 'label' },
+    { header: 'ERRORES', width: BREAKDOWN_COUNT_COL_WIDTH, align: 'right', key: 'errors' },
+    { header: 'WARNINGS', width: BREAKDOWN_COUNT_COL_WIDTH, align: 'right', key: 'warnings' }
+  ];
+}
+
+function formatCountCell(count: number, color: 'red' | 'yellow', bold: boolean = false): string {
+  if (count <= 0) return styleText('dim', '0');
+  const formatted = formatNumber(count);
+  return bold ? styleText(['bold', color], formatted) : styleText(color, formatted);
+}
+
+function createConsolidatedFooterRow(totalErrors: number, totalWarnings: number): BreakdownRow {
+  return {
+    label: styleText('bold', 'TOTAL CONSOLIDADO'),
+    errors: formatCountCell(totalErrors, 'red', true),
+    warnings: formatCountCell(totalWarnings, 'yellow', true)
+  };
+}
+
 export function renderFindingsBreakdownTable(
   items: readonly [string, FindingCountData][],
   labelHeader: string = 'TIPO DE INCIDENCIA / REGLA'
 ): string {
-  interface BreakdownRow {
-    label: string;
-    errors: string;
-    warnings: string;
-  }
-
-  const cols: readonly TableColumn<BreakdownRow>[] = [
-    { header: labelHeader, width: 52, align: 'left', key: 'label' },
-    { header: 'ERRORES', width: 9, align: 'right', key: 'errors' },
-    { header: 'WARNINGS', width: 9, align: 'right', key: 'warnings' }
-  ];
-
+  const cols = createBreakdownColumns(labelHeader);
   const rows: BreakdownRow[] = items.map(([name, data]) => ({
     label: name,
-    errors: data.errors > 0 ? styleText('red', formatNumber(data.errors)) : styleText('dim', '0'),
-    warnings:
-      data.warnings > 0 ? styleText('yellow', formatNumber(data.warnings)) : styleText('dim', '0')
+    errors: formatCountCell(data.errors, 'red'),
+    warnings: formatCountCell(data.warnings, 'yellow')
   }));
 
   const totalErrors = items.reduce((acc, [, data]) => acc + data.errors, 0);
   const totalWarnings = items.reduce((acc, [, data]) => acc + data.warnings, 0);
 
-  const footerRow: BreakdownRow = {
-    label: styleText('bold', 'TOTAL CONSOLIDADO'),
-    errors:
-      totalErrors > 0
-        ? styleText(['bold', 'red'], formatNumber(totalErrors))
-        : styleText('dim', '0'),
-    warnings:
-      totalWarnings > 0
-        ? styleText(['bold', 'yellow'], formatNumber(totalWarnings))
-        : styleText('dim', '0')
-  };
+  return renderBoxTable(cols, rows, {
+    footerRows: [createConsolidatedFooterRow(totalErrors, totalWarnings)]
+  });
+}
 
-  return renderBoxTable(cols, rows, { footerRows: [footerRow] });
+export interface TieredFindingsPhaseGroup {
+  readonly phaseId: RemediationPhaseId;
+  readonly items: readonly [string, FindingCountData][];
+  readonly errors: number;
+  readonly warnings: number;
+}
+
+export function renderTieredFindingsBreakdownTable(
+  groups: readonly TieredFindingsPhaseGroup[],
+  labelHeader: string = 'TIPO DE INCIDENCIA / REGLA'
+): string {
+  const cols = createBreakdownColumns(labelHeader);
+  const rows: BreakdownRow[] = [];
+  let totalErrors = 0;
+  let totalWarnings = 0;
+
+  for (const group of groups) {
+    if (group.items.length === 0 && group.errors === 0 && group.warnings === 0) continue;
+    const meta = getRemediationPhaseMetadata(group.phaseId);
+    totalErrors += group.errors;
+    totalWarnings += group.warnings;
+
+    // Phase Header (compact, avoids cell wrapping)
+    rows.push({
+      label: styleText(['bold', 'cyan'], `${meta.icon} ${meta.title}`),
+      errors: '',
+      warnings: ''
+    });
+
+    // Rule rows belonging to this strategic phase
+    for (const [name, data] of group.items) {
+      rows.push({
+        label: `  ${name}`,
+        errors: formatCountCell(data.errors, 'red'),
+        warnings: formatCountCell(data.warnings, 'yellow')
+      });
+    }
+
+    // Phase Subtotal (compact label strictly fits within 52 cols)
+    rows.push({
+      label: styleText('bold', `  ↳ Subtotal Fase ${meta.order}`),
+      errors: formatCountCell(group.errors, 'red', true),
+      warnings: formatCountCell(group.warnings, 'yellow', true)
+    });
+  }
+
+  return renderBoxTable(cols, rows, {
+    footerRows: [createConsolidatedFooterRow(totalErrors, totalWarnings)]
+  });
 }
 
 export function renderSampleFindings(

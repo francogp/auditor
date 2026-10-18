@@ -13,7 +13,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   loadAuditConfig,
   buildRatchetConfig,
@@ -98,6 +99,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       description: 'Valida scripts en package.json y encadenamiento del build',
       family: 'architecture',
       ruleIds: PACKAGE_SCRIPTS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_SCRIPTS_RULES, 'setup'),
       packageName: 'Scripts',
       icon: '📦',
       configKey: 'packageScripts',

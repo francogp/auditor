@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -268,6 +268,7 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 			description: "Búsqueda lineal O(N) o clonado con JSON.parse",
 			family: "domain_data",
 			ruleIds: O1_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(O1_RULES, "contracts"),
 			packageName: "O(1)",
 			configKey: "constants.enabled",
 			defaultConfig: { enabled: true },

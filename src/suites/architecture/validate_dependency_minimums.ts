@@ -15,6 +15,7 @@ import { enableCompileCache } from 'node:module';
 import semver from 'semver';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   type AuditorOptions,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -66,6 +67,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       description: 'Versión mínima y máxima de librerías instaladas',
       family: 'architecture',
       ruleIds: DEPENDENCY_MINIMUMS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_MINIMUMS_RULES, 'setup'),
       packageName: 'Dependencias',
       configKey: 'environment.enabled',
       defaultConfig: { enabled: true },

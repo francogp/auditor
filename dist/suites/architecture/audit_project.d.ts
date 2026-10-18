@@ -1,4 +1,5 @@
 import { AuditRule, Violation } from "../../analyzers/auditRuleTypes.js";
+import { RemediationPhaseId } from "../../core/remediationPhases.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "./audit_rules.js";
 //#region src/suites/architecture/audit_project.d.ts
@@ -37,6 +38,7 @@ export declare function buildProjectTopFiles(fileGroups: Record<string, Violatio
 export declare function main(cliArgs?: string[]): Promise<Violation[]>;
 export declare function getProjectArchitectureRuleDescriptions(): Record<string, string>;
 export declare function getProjectArchitectureRuleRemediations(): Record<string, string>;
+export declare function getProjectArchitectureRuleRemediationPhases(): Record<string, RemediationPhaseId>;
 export declare class ProjectArchitectureAuditor extends BaseAuditor<string> {
   constructor();
   runAudit(): Promise<void>;

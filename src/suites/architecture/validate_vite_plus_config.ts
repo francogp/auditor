@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -1212,6 +1213,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       criticalConfig: {},
       icon: '⚡',
       ruleIds: VITE_PLUS_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(VITE_PLUS_CONFIG_RULES, 'setup'),
       ruleDescriptions: RULE_DESCRIPTIONS,
       ruleRemediations: RULE_REMEDIATIONS,
       coverage: {

@@ -1,3 +1,4 @@
+import { getRemediationPhaseMetadata } from "./remediationPhases.js";
 import { FAMILY_METADATA, normalizeSpeeds } from "./auditContract.js";
 import { TEXT_ALIGNMENTS, getVisualWidth, padVisual, truncateVisual } from "./terminalVisuals.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
@@ -18,6 +19,8 @@ import Table from "cli-table3";
 if (!process.env.NO_COLOR && process.env.FORCE_COLOR === void 0) process.env.FORCE_COLOR = "1";
 const REGISTRY_DESC_COL_WIDTH = 24;
 const REGISTRY_DESC_TRUNCATE_LIMIT = 23;
+const BREAKDOWN_LABEL_COL_WIDTH = 52;
+const BREAKDOWN_COUNT_COL_WIDTH = 9;
 function extractRowCellValues(columns, row) {
 	return columns.map((c) => {
 		if (c.render) return c.render(row);
@@ -108,39 +111,74 @@ function renderBoxTable(columns, rows, options) {
 	}
 	return table.toString();
 }
-function renderFindingsBreakdownTable(items, labelHeader = "TIPO DE INCIDENCIA / REGLA") {
-	const cols = [
+function createBreakdownColumns(labelHeader) {
+	return [
 		{
 			header: labelHeader,
-			width: 52,
+			width: BREAKDOWN_LABEL_COL_WIDTH,
 			align: "left",
 			key: "label"
 		},
 		{
 			header: "ERRORES",
-			width: 9,
+			width: BREAKDOWN_COUNT_COL_WIDTH,
 			align: "right",
 			key: "errors"
 		},
 		{
 			header: "WARNINGS",
-			width: 9,
+			width: BREAKDOWN_COUNT_COL_WIDTH,
 			align: "right",
 			key: "warnings"
 		}
 	];
-	const rows = items.map(([name, data]) => ({
-		label: name,
-		errors: data.errors > 0 ? styleText("red", formatNumber(data.errors)) : styleText("dim", "0"),
-		warnings: data.warnings > 0 ? styleText("yellow", formatNumber(data.warnings)) : styleText("dim", "0")
-	}));
-	const totalErrors = items.reduce((acc, [, data]) => acc + data.errors, 0);
-	const totalWarnings = items.reduce((acc, [, data]) => acc + data.warnings, 0);
-	return renderBoxTable(cols, rows, { footerRows: [{
+}
+function formatCountCell(count, color, bold = false) {
+	if (count <= 0) return styleText("dim", "0");
+	const formatted = formatNumber(count);
+	return bold ? styleText(["bold", color], formatted) : styleText(color, formatted);
+}
+function createConsolidatedFooterRow(totalErrors, totalWarnings) {
+	return {
 		label: styleText("bold", "TOTAL CONSOLIDADO"),
-		errors: totalErrors > 0 ? styleText(["bold", "red"], formatNumber(totalErrors)) : styleText("dim", "0"),
-		warnings: totalWarnings > 0 ? styleText(["bold", "yellow"], formatNumber(totalWarnings)) : styleText("dim", "0")
-	}] });
+		errors: formatCountCell(totalErrors, "red", true),
+		warnings: formatCountCell(totalWarnings, "yellow", true)
+	};
+}
+function renderFindingsBreakdownTable(items, labelHeader = "TIPO DE INCIDENCIA / REGLA") {
+	return renderBoxTable(createBreakdownColumns(labelHeader), items.map(([name, data]) => ({
+		label: name,
+		errors: formatCountCell(data.errors, "red"),
+		warnings: formatCountCell(data.warnings, "yellow")
+	})), { footerRows: [createConsolidatedFooterRow(items.reduce((acc, [, data]) => acc + data.errors, 0), items.reduce((acc, [, data]) => acc + data.warnings, 0))] });
+}
+function renderTieredFindingsBreakdownTable(groups, labelHeader = "TIPO DE INCIDENCIA / REGLA") {
+	const cols = createBreakdownColumns(labelHeader);
+	const rows = [];
+	let totalErrors = 0;
+	let totalWarnings = 0;
+	for (const group of groups) {
+		if (group.items.length === 0 && group.errors === 0 && group.warnings === 0) continue;
+		const meta = getRemediationPhaseMetadata(group.phaseId);
+		totalErrors += group.errors;
+		totalWarnings += group.warnings;
+		rows.push({
+			label: styleText(["bold", "cyan"], `${meta.icon} ${meta.title}`),
+			errors: "",
+			warnings: ""
+		});
+		for (const [name, data] of group.items) rows.push({
+			label: `  ${name}`,
+			errors: formatCountCell(data.errors, "red"),
+			warnings: formatCountCell(data.warnings, "yellow")
+		});
+		rows.push({
+			label: styleText("bold", `  ↳ Subtotal Fase ${meta.order}`),
+			errors: formatCountCell(group.errors, "red", true),
+			warnings: formatCountCell(group.warnings, "yellow", true)
+		});
+	}
+	return renderBoxTable(cols, rows, { footerRows: [createConsolidatedFooterRow(totalErrors, totalWarnings)] });
 }
 function renderSampleFindings(findings, limitOrAll = 5, options) {
 	if (findings.length === 0) return "";
@@ -550,4 +588,4 @@ function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalW
 	})}\n`;
 }
 //#endregion
-export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, themeStyles, truncateVisual };
+export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };

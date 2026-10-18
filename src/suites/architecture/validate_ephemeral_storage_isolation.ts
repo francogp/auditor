@@ -28,6 +28,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -147,6 +148,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
       description: 'Aislamiento estricto de archivos temporales en scratch/',
       family: 'architecture',
       ruleIds: EPHEMERAL_STORAGE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(EPHEMERAL_STORAGE_RULES, 'behavior'),
       packageName: 'Aislamiento',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },

@@ -1,7 +1,7 @@
 import { buildRatchetConfig } from "../../core/auditConfigDefaults.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { collectAllPackageScriptRequirements } from "../../cli/auditScanner.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { describeBaselineDefect, resolveGitCommit } from "../../cli/auditRatchet.js";
@@ -70,6 +70,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 			description: "Valida scripts en package.json y encadenamiento del build",
 			family: "architecture",
 			ruleIds: PACKAGE_SCRIPTS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_SCRIPTS_RULES, "setup"),
 			packageName: "Scripts",
 			icon: "📦",
 			configKey: "packageScripts",

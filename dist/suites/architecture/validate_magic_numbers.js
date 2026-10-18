@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isDataPath, isInCodeRoots } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -207,6 +207,7 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			]),
 			requiresAst: true,
 			ruleIds: MAGIC_NUMBERS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MAGIC_NUMBERS_RULES, "hygiene"),
 			ruleDescriptions: { "magic-number-naked": "Número mágico no en constante" },
 			ruleRemediations: { "magic-number-naked": "Guía de diagnóstico y remediación para magic-number-naked. Revisa la incidencia detectada y ajusta el código correspondiente." },
 			projectRoot

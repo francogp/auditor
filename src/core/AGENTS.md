@@ -122,6 +122,7 @@ Architecture & Tooling Engineers.
 - [`packageJson.ts`](./packageJson.ts): Canonical package.json caching, reading, and DTO provider.
 - [`packageScriptRegistry.ts`](./packageScriptRegistry.ts): Centralized registry for recommended package scripts, collision detection, and command requirements declared across sub-auditors and extensions.
 - [`permissionGuard.ts`](./permissionGuard.ts): Node.js `--permission` flag validation and capability probing.
+- [`remediationPhases.ts`](./remediationPhases.ts): Canonical definition and metadata for the 7 strategic error remediation phases and resolution sequence.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
 - [`scannerUtils.ts`](./scannerUtils.ts): Lexical scanning utilities for advancing past string literals, comments, and multiline Vue SFC suppressions.

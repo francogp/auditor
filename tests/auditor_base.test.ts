@@ -167,6 +167,9 @@ describe('auditorBase infrastructure', () => {
             ruleRemediations: {
               'test-rule': 'Guía de remediación para test-rule'
             },
+            ruleRemediationPhases: {
+              'test-rule': 'behavior'
+            },
             coverage: { include: ['src/**/*.ts'] },
             roots: ['src'],
             allowedExtensions: new Set(['.ts']),
@@ -215,6 +218,7 @@ describe('auditorBase infrastructure', () => {
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
       ruleRemediations: { dummy: 'Guía de remediación para dummy' },
+      ruleRemediationPhases: { dummy: 'hygiene' as const },
       usesThirdPartyTool: false,
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
@@ -420,6 +424,10 @@ describe('auditorBase infrastructure', () => {
             'rule-a': 'Remediacion de asercion A',
             'rule-b': 'Remediacion de asercion B'
           },
+          ruleRemediationPhases: {
+            'rule-a': 'hygiene',
+            'rule-b': 'hygiene'
+          },
           coverage: { include: ['src/**/*.ts'] },
           projectRoot
         });
@@ -520,6 +528,9 @@ describe('auditorBase infrastructure', () => {
             ruleRemediations: {
               'only-rule': 'Remediacion regla única'
             },
+            ruleRemediationPhases: {
+              'only-rule': 'hygiene'
+            },
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: {
               'only-rule': {
@@ -573,6 +584,7 @@ describe('auditorBase infrastructure', () => {
           ruleIds: ['test-rule'],
           ruleDescriptions: { 'test-rule': 'Regla test' },
           ruleRemediations: { 'test-rule': 'Remediacion' },
+          ruleRemediationPhases: { 'test-rule': 'behavior' },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
             'test-rule': {
@@ -665,6 +677,7 @@ describe('auditorBase infrastructure', () => {
           ruleIds: ['canary-forbidden'],
           ruleDescriptions: { 'canary-forbidden': 'Canary forbidden token' },
           ruleRemediations: { 'canary-forbidden': 'Remove canary token' },
+          ruleRemediationPhases: { 'canary-forbidden': 'behavior' },
           usesThirdPartyTool: false,
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {

@@ -21,7 +21,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -345,6 +346,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),
       ruleIds: GSAP_ANIMATION_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(GSAP_ANIMATION_RULES, 'behavior'),
       ruleDescriptions: {
         'gsap-banned-css-animations': 'Animación manual CSS prohibida',
         'gsap-banned-ui-timers': 'Timer nativo en componente UI',

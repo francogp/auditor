@@ -99,6 +99,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleRemediations: {
               'rule-a': 'Guía para solucionar rule-a.',
               'rule-b': 'Guía para solucionar rule-b.'
+            },
+            ruleRemediationPhases: {
+              'rule-a': 'setup',
+              'rule-b': 'hygiene'
             }
           });
         }
@@ -159,6 +163,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleRemediations: {
               'scan-rule-1': 'Guía para solucionar scan-rule-1.',
               'scan-rule-2': 'Guía para solucionar scan-rule-2.'
+            },
+            ruleRemediationPhases: {
+              'scan-rule-1': 'setup',
+              'scan-rule-2': 'hygiene'
             }
           });
 
@@ -247,6 +255,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             ruleRemediations: {
               'batch-1': 'Guía para solucionar batch-1.',
               'batch-2': 'Guía para solucionar batch-2.'
+            },
+            ruleRemediationPhases: {
+              'batch-1': 'setup',
+              'batch-2': 'hygiene'
             }
           });
         }

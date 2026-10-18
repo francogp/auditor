@@ -3,7 +3,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { getMatchingExemptionPolicies } from "../../core/exemptionPolicies.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -203,6 +203,7 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🗺️",
 			ruleIds: AUDIT_COVERAGE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(AUDIT_COVERAGE_RULES, "polish"),
 			ruleDescriptions: {
 				"coverage-uncovered-file": "Archivo versionado sin ninguna suite",
 				"coverage-degraded-file": "Reglas silenciadas por configuración",

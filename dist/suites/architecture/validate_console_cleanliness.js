@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isCliPath, isExemptFile, isScriptPath } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_console_cleanliness.ts
@@ -58,6 +58,7 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 			description: "Prohíbe console.log directo y debugger en src/",
 			family: "architecture",
 			ruleIds: CONSOLE_CLEANLINESS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(CONSOLE_CLEANLINESS_RULES, "hygiene"),
 			packageName: "Consola",
 			configKey: "paths",
 			defaultConfig: {},

@@ -1,4 +1,4 @@
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { findDeclaredDependency, getAuditorMaximumVersions, getAuditorMinimumVersions } from "../../core/auditorMinimums.js";
 import { enableCompileCache } from "node:module";
@@ -42,6 +42,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 			description: "Versión mínima y máxima de librerías instaladas",
 			family: "architecture",
 			ruleIds: DEPENDENCY_MINIMUMS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_MINIMUMS_RULES, "setup"),
 			packageName: "Dependencias",
 			configKey: "environment.enabled",
 			defaultConfig: { enabled: true },

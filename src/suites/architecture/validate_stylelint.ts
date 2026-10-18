@@ -23,6 +23,7 @@ import { enableCompileCache } from 'node:module';
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   CANONICAL_IGNORE_DIRS,
   collectRepositoryFiles,
   createRuleCapabilities
@@ -419,6 +420,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       criticalConfig: {},
       icon: '🎨',
       ruleIds: STYLELINT_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(STYLELINT_RULES, 'hygiene'),
       ruleDescriptions: {
         'stylelint-issue': 'Violación de estándar CSS o SCSS',
         'css-duplicate-selectors': 'Selectores duplicados en el bloque',

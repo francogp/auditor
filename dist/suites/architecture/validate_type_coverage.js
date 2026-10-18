@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -84,6 +84,7 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "📊",
 			ruleIds: TYPE_COVERAGE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TYPE_COVERAGE_RULES, "contracts"),
 			ruleDescriptions: {
 				"type-coverage-below-threshold": "Cobertura de tipos bajo el umbral",
 				"type-coverage-untyped-identifier": "Identificador untyped any detectado"

@@ -13,6 +13,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   type AuditorOptions,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -80,6 +81,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       description: 'Verifica registro del plugin de auditoría para agentes',
       family: 'architecture',
       ruleIds: AGENT_PLUGIN_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(AGENT_PLUGIN_RULES, 'behavior'),
       packageName: 'Agente',
       configKey: 'agentPlugin.enabled',
       defaultConfig: { enabled: true },

@@ -21,7 +21,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -92,6 +93,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       description: 'Verifica reactividad y pureza de Vue 3 Composition API',
       family: 'architecture',
       ruleIds: VUE_REACTIVITY_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(VUE_REACTIVITY_RULES, 'behavior'),
       packageName: 'Vue',
       configKey: 'paths',
       defaultConfig: {},

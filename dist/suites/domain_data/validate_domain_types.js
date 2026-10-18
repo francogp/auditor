@@ -3,7 +3,7 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isPositionInsideFunctionParams, stripComments } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
@@ -322,6 +322,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 			description: "Uso de strings crudos en vez de tipos de dominio",
 			family: "domain_data",
 			ruleIds: DOMAIN_TYPES_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DOMAIN_TYPES_RULES, "contracts"),
 			packageName: "Dominio",
 			configKey: "domain.enabled",
 			defaultConfig: { enabled: true },

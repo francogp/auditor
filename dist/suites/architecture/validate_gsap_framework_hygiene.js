@@ -3,7 +3,7 @@ import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isExemptFile, isInCodeRoots } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { scanBalancedParens } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
@@ -83,6 +83,7 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 				".jsx"
 			]),
 			ruleIds: GSAP_FRAMEWORK_HYGIENE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(GSAP_FRAMEWORK_HYGIENE_RULES, "behavior"),
 			ruleDescriptions: {
 				"gsap-unscoped-component-selectors": "Selector global sin acotar en UI",
 				"gsap-missing-context-revert": "Falta revert o cleanup en unmount",

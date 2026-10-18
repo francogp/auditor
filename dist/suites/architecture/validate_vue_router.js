@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_vue_router.ts
@@ -63,6 +63,7 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 				critical: false
 			}),
 			ruleIds: VUE_ROUTER_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(VUE_ROUTER_RULES, "behavior"),
 			ruleDescriptions: {
 				"no-deprecated-router-next": "Uso de next() obsoleto en navigation guard",
 				"no-define-async-component-in-router": "defineAsyncComponent en ruta de router",

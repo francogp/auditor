@@ -1,4 +1,4 @@
-import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -70,6 +70,7 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 			icon: "📝",
 			family: "documentation",
 			ruleIds: MARKDOWNLINT_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWNLINT_CONFIG_RULES, "setup"),
 			packageName: "Markdown",
 			configKey: "paths",
 			defaultConfig: {},

@@ -1,5 +1,5 @@
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -98,6 +98,7 @@ var ValidateGitConfigAuditor = class extends BaseAuditor {
 			description: "Valida y sincroniza configuración local de Git",
 			family: "architecture",
 			ruleIds: GIT_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(GIT_CONFIG_RULES, "setup"),
 			packageName: "Git",
 			configKey: "paths",
 			defaultConfig: {},

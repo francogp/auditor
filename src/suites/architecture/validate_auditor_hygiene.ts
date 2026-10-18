@@ -12,7 +12,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createRuleCapabilities,
+  createUniformRemediationPhases
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
@@ -41,6 +45,10 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       icon: '🧹',
       ruleDescriptions: HomebrewDetectorRegistry.getRuleDescriptions(),
       ruleRemediations: HomebrewDetectorRegistry.getRuleRemediations(),
+      ruleRemediationPhases: createUniformRemediationPhases(
+        HomebrewDetectorRegistry.getRuleIds(),
+        'hygiene'
+      ),
       configKey: 'auditorHygiene',
       defaultConfig: {
         enabled: true

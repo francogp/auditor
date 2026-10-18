@@ -118,13 +118,20 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(findings).toHaveLength(0);
     });
 
-    it('CANARY: accurately propagates fixable: true for fixable oxlint rules', () => {
+    it('CANARY: accurately propagates fixable: true only for safe fixable oxlint rules and false for dangerous/unfixable rules', () => {
       expect(isOxlintRuleFixable('prefer-const')).toBe(true);
       expect(isOxlintRuleFixable('no-var')).toBe(true);
       expect(isOxlintRuleFixable('unicorn(prefer-node-protocol)')).toBe(true);
       expect(isOxlintRuleFixable('typescript(no-unnecessary-type-assertion)')).toBe(true);
       expect(isOxlintRuleFixable('vitest(no-test-prefixes)')).toBe(true);
-      expect(isOxlintRuleFixable('vue(no-import-compiler-macros)')).toBe(true);
+      expect(isOxlintRuleFixable('vue(component-definition-name-casing)')).toBe(true);
+      expect(isOxlintRuleFixable('vue(next-tick-style)')).toBe(true);
+      // Non-safe / dangerous / unfixable rules must strictly return false
+      expect(isOxlintRuleFixable('eqeqeq')).toBe(false);
+      expect(isOxlintRuleFixable('eslint(eqeqeq)')).toBe(false);
+      expect(isOxlintRuleFixable('no-unneeded-ternary')).toBe(false);
+      expect(isOxlintRuleFixable('eslint(no-unneeded-ternary)')).toBe(false);
+      expect(isOxlintRuleFixable('vue(no-import-compiler-macros)')).toBe(false);
       expect(isOxlintRuleFixable('no-eval')).toBe(false);
 
       const oxlintOutput = JSON.stringify({

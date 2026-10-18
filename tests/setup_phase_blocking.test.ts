@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'vite-plus/test';
 
 import { sortTasksByOrder, resolveFixOrderWeight } from '../src/cli/audit_full.ts';
 import { AUDIT_EXECUTION_PHASES } from '../src/core/auditContract.ts';

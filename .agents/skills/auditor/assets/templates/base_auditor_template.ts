@@ -11,6 +11,7 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   createRuleCapabilities,
+  createUniformRemediationPhases,
   type AuditorConfigFileRequirement,
   type AuditorPackageScriptRequirement,
   type GitIgnoreRequirement
@@ -118,6 +119,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
           '1. Ejecuta "npm run auditor:fix" o "auditor fix" para crearlo automáticamente si es auto-reparable.\n' +
           '2. O créalo manualmente con la estructura canónica declarada en configFiles.'
       },
+      // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
+      ruleRemediationPhases: createUniformRemediationPhases(MY_COMPOSITE_RULES, 'contracts'),
       coverage: {
         include: ['src/data/**/*.{ts,json}'],
         source: 'runtime'

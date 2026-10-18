@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { HomebrewDetectorRegistry } from "../../analyzers/homebrew/homebrewRegistry.js";
 import { AUDITOR_HOMEBREW_RULES } from "../../analyzers/homebrew/homebrewTypes.js";
@@ -36,6 +36,7 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 			icon: "🧹",
 			ruleDescriptions: HomebrewDetectorRegistry.getRuleDescriptions(),
 			ruleRemediations: HomebrewDetectorRegistry.getRuleRemediations(),
+			ruleRemediationPhases: createUniformRemediationPhases(HomebrewDetectorRegistry.getRuleIds(), "hygiene"),
 			configKey: "auditorHygiene",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},

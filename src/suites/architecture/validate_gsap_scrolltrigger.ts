@@ -18,7 +18,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -66,6 +67,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.js']),
       ruleIds: GSAP_SCROLLTRIGGER_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(GSAP_SCROLLTRIGGER_RULES, 'behavior'),
       ruleDescriptions: {
         'gsap-scrolltrigger-in-timeline-child': 'scrollTrigger en tween de timeline',
         'gsap-scrolltrigger-scrub-and-toggle': 'Conflicto scrub y toggleActions',

@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -202,6 +202,7 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 			icon: "🛡️",
 			family: "persistence",
 			ruleIds: VALIBOT_PARITY_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(VALIBOT_PARITY_RULES, "contracts"),
 			packageName: "Valibot",
 			configKey: "valibot.enabled",
 			defaultConfig: {

@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
@@ -47,6 +47,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: WEB_PERFORMANCE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(WEB_PERFORMANCE_RULES, "behavior"),
 			ruleDescriptions: {
 				"unoptimized-images": "Imagen sin compresión moderna WebP",
 				"font-display-missing": "@font-face sin font-display swap",

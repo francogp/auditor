@@ -29,7 +29,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
@@ -118,6 +119,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       description: 'Antipatrones SQL, variables sin declarar o camelCase en BD',
       family: 'persistence',
       ruleIds: SQL_ANTI_PATTERN_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SQL_ANTI_PATTERN_RULES, 'behavior'),
       packageName: 'SQL',
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },

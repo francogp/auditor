@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_typography_line_height.ts
 /**
@@ -99,6 +99,7 @@ var TypographyLineHeightAuditor = class extends FileScanAuditor {
 			description: "Detecta colisiones de line-height en tipografías multilínea",
 			family: "architecture",
 			ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TYPOGRAPHY_LINE_HEIGHT_RULES, "behavior"),
 			packageName: "Tipografía",
 			configKey: "styles.enabled",
 			defaultConfig: { enabled: true },

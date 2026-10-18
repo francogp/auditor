@@ -6,7 +6,7 @@ import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "../../cor
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { fixZIndexLiteral, resolveZLayer } from "../../analyzers/zIndexRules.js";
 import { enableCompileCache } from "node:module";
@@ -149,6 +149,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				".tsx"
 			]),
 			ruleIds: Z_INDEX_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(Z_INDEX_RULES, "hygiene"),
 			ruleDescriptions: {
 				"z-index-missing-var": "Falta variable en _base.scss",
 				"z-index-mismatch": "Desincronización TS vs SCSS",

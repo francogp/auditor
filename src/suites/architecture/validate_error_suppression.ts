@@ -24,7 +24,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
 
@@ -78,6 +79,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
       description: 'Prohíbe supresión de errores, catch vacíos y fallbacks',
       family: 'architecture',
       ruleIds: ERROR_SUPPRESSION_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(ERROR_SUPPRESSION_RULES, 'hygiene'),
       packageName: 'Error',
       configKey: 'paths',
       defaultConfig: {},

@@ -19,7 +19,8 @@ import os from 'node:os';
 import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases } from '../../core/auditorBase.ts';
 import type { AuditorCapabilities } from '../../core/auditContract.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import {
@@ -310,6 +311,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       description: 'Detecta duplicados semánticos de funciones',
       family: 'architecture',
       ruleIds: SIMILAR_CODE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SIMILAR_CODE_RULES, 'dedup'),
       packageName: 'Fallow',
       configKey: 'fallow.similarCode.enabled',
       defaultConfig: {

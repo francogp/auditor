@@ -22,6 +22,7 @@ import { enableCompileCache } from 'node:module';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   FileScanAuditor,
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
@@ -246,6 +247,7 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
       description: 'Prohíbe supresiones a nivel de archivo e ignores globales',
       family: 'architecture',
       ruleIds: HEADER_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(HEADER_RULES, 'polish'),
       packageName: 'Header',
       configKey: 'paths',
       defaultConfig: {},

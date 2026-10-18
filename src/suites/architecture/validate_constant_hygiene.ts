@@ -16,7 +16,8 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import {
@@ -84,6 +85,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
       allowedExtensions: new Set(['.ts', '.vue']),
       requiresAst: true,
       ruleIds: CONSTANT_HYGIENE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(CONSTANT_HYGIENE_RULES, 'dedup'),
       ruleDescriptions: {
         'duplicate-constant-identical': 'Constante idéntica duplicada',
         'duplicate-constant-divergent': 'Constante dispar entre módulos',

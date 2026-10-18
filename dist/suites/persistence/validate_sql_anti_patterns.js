@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -92,6 +92,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			description: "Antipatrones SQL, variables sin declarar o camelCase en BD",
 			family: "persistence",
 			ruleIds: SQL_ANTI_PATTERN_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SQL_ANTI_PATTERN_RULES, "behavior"),
 			packageName: "SQL",
 			configKey: "persistence.enabled",
 			defaultConfig: { enabled: true },

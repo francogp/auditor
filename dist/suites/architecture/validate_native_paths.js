@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -313,6 +313,7 @@ var NativePathsAuditor = class extends FileScanAuditor {
 			description: "Garantiza uso de path.posix y evita CWE-22 traversal",
 			family: "architecture",
 			ruleIds: NATIVE_PATH_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(NATIVE_PATH_RULES, "setup"),
 			packageName: "Path",
 			configKey: "paths",
 			defaultConfig: {},

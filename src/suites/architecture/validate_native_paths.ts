@@ -36,6 +36,7 @@ import {
   getEffectiveScannableRoots,
   FileScanAuditor,
   BaseAuditor,
+  createUniformRemediationPhases,
   AuditedDocument,
   assertSafePathComponent,
   createRuleCapabilities
@@ -606,6 +607,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       description: 'Garantiza uso de path.posix y evita CWE-22 traversal',
       family: 'architecture',
       ruleIds: NATIVE_PATH_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(NATIVE_PATH_RULES, 'setup'),
       packageName: 'Path',
       configKey: 'paths',
       defaultConfig: {},

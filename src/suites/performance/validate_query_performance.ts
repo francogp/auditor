@@ -3,6 +3,7 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES
 } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -50,6 +51,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
       roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: QUERY_PERFORMANCE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(QUERY_PERFORMANCE_RULES, 'behavior'),
       ruleDescriptions: {
         'unindexed-foreign-keys': 'Clave foránea sin índice secundario',
         'select-star-in-queries': 'SELECT * en repositorio o servicio',

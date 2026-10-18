@@ -1,4 +1,4 @@
-import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -78,6 +78,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 			icon: "📐",
 			family: "architecture",
 			ruleIds: EDITORCONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(EDITORCONFIG_RULES, "setup"),
 			packageName: "EditorConfig",
 			configKey: "paths",
 			defaultConfig: {},

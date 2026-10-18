@@ -1,4 +1,5 @@
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
+import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
 //#region src/cli/audit_full.d.ts
 export interface AuditFullCliOptions {
@@ -42,6 +43,7 @@ export declare function computeAuditCategoryCounts(results: readonly StandardAud
   warnings: number;
   findings: AuditFinding[];
 }]>;
+export declare function computeTieredAuditCategoryCounts(results: readonly StandardAuditResult[]): TieredFindingsPhaseGroup[];
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
 export declare function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boolean): boolean;
 export interface FixableCountsResult {

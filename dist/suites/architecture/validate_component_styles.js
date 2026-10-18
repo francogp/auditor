@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -376,6 +376,7 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🎨",
 			ruleIds: COMPONENT_STYLE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(COMPONENT_STYLE_RULES, "hygiene"),
 			ruleDescriptions: {
 				"broken-style-link": "Enlace de estilo roto o inexistente",
 				"missing-style-tag": "Componente sin bloque de estilos",

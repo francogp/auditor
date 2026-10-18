@@ -17,7 +17,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
 
@@ -80,6 +81,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       criticalConfig: {},
       icon: '✨',
       ruleIds: OXFMT_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(OXFMT_RULES, 'polish'),
       ruleDescriptions: {
         'oxfmt-violation': 'Desviación de formato de código'
       },

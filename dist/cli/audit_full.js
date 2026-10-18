@@ -4,13 +4,14 @@ import { AUDITOR_VERSION } from "../core/version.js";
 import { buildRatchetConfig } from "../core/auditConfigDefaults.js";
 import { loadAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
+import { REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata } from "../core/remediationPhases.js";
 import { getActiveFamilies, groupFindingsByFileMap, groupResultsByFamily, normalizeSpeeds, resolveFamilyMetadata, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import "../core/permissionGuard.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV } from "../core/auditCoverage.js";
 import { getVisualWidth } from "../core/terminalVisuals.js";
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
-import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
+import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { BaseAuditor } from "../core/auditorBase.js";
@@ -323,6 +324,11 @@ async function runAuditWorkers(tasks, concurrency, taskExecutor) {
 	return results;
 }
 const ERROR_WEIGHT_FACTOR = 1e3;
+function sortCategoryEntries(entries) {
+	return entries.sort((a, b) => {
+		return b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
+	});
+}
 function computeAuditCategoryCounts(results) {
 	const categoryCounts = /* @__PURE__ */ new Map();
 	for (const suite of results) for (const finding of suite.findings || []) {
@@ -337,26 +343,59 @@ function computeAuditCategoryCounts(results) {
 		else entry.warnings++;
 		entry.findings.push(finding);
 	}
-	return Array.from(categoryCounts.entries()).sort((a, b) => {
-		return b[1].errors * ERROR_WEIGHT_FACTOR + b[1].warnings - (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings);
-	});
+	return sortCategoryEntries(Array.from(categoryCounts.entries()));
 }
-function printFindingsSummary(results, sortedCategories, blockingContext) {
+function computeTieredAuditCategoryCounts(results) {
+	const phaseMaps = /* @__PURE__ */ new Map();
+	for (const phaseId of REMEDIATION_PHASE_IDS) phaseMaps.set(phaseId, /* @__PURE__ */ new Map());
+	for (const suite of results) for (const finding of suite.findings || []) {
+		const phase = finding.remediationPhase ?? "hygiene";
+		const catMap = phaseMaps.get(phase) ?? phaseMaps.get("hygiene");
+		const catKey = finding.ruleDescription ?? finding.ruleId ?? suite.name;
+		if (!catMap.has(catKey)) catMap.set(catKey, {
+			errors: 0,
+			warnings: 0,
+			findings: []
+		});
+		const entry = catMap.get(catKey);
+		if (finding.severity === "error") entry.errors++;
+		else entry.warnings++;
+		entry.findings.push(finding);
+	}
+	const groups = [];
+	for (const phaseId of REMEDIATION_PHASE_IDS) {
+		const catMap = phaseMaps.get(phaseId);
+		if (catMap.size === 0) continue;
+		const items = sortCategoryEntries(Array.from(catMap.entries()));
+		const errors = items.reduce((sum, [, d]) => sum + d.errors, 0);
+		const warnings = items.reduce((sum, [, d]) => sum + d.warnings, 0);
+		groups.push({
+			phaseId,
+			items,
+			errors,
+			warnings
+		});
+	}
+	return groups;
+}
+function printFindingsSummary(results, sortedCategories, blockingContext, tieredGroups) {
 	if (sortedCategories.length === 0) {
 		console.log("\n" + styleText(["bold", "green"], `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`));
 		return;
 	}
 	if (blockingContext?.isSetupBlocking) {
 		console.log("\n" + renderSetupBlockingBanner(blockingContext.setupErrors, blockingContext.postponedAppErrors) + "\n");
-		console.log(styleText("bold", "📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE SETUP):\n"));
-		console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
+		console.log(styleText("bold", "📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE 1: SETUP):\n"));
+		if (tieredGroups && tieredGroups.length > 0) console.log(renderTieredFindingsBreakdownTable(tieredGroups, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
+		else console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
 		const setupErrors = sortedCategories.flatMap(([, data]) => data.findings.filter((f) => f.severity === "error"));
 		if (setupErrors.length > 0) console.log(renderSampleFindings(setupErrors, 5));
 		console.log(styleText(["yellow", "bold"], `\n⚠️  ATENCIÓN: Se postergó el reporte de ${formatNumber(blockingContext.postponedAppErrors)} error(es) de aplicación para evitar falsos positivos inducidos.`));
 		console.log(styleText("dim", `   Resuelve primero los ${blockingContext.setupErrors} error(es) de configuración (ej. 'npm run auditor:fix') para desbloquear el análisis del resto del proyecto.\n`));
 	} else {
-		console.log("\n" + styleText("bold", "📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA:\n"));
-		console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA"));
+		console.log("\n" + styleText("bold", "📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA (ORDEN ESTRATÉGICO DE RESOLUCIÓN):\n"));
+		if (tieredGroups && tieredGroups.length > 0) console.log(renderTieredFindingsBreakdownTable(tieredGroups, "TIPO DE INCIDENCIA / REGLA"));
+		else console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA"));
 		const allErrors = results.flatMap((suite) => (suite.findings || []).filter((f) => f.severity === "error"));
 		if (allErrors.length > 0) console.log(renderSampleFindings(allErrors, 5));
 	}
@@ -413,7 +452,27 @@ function buildConsolidatedReport(params) {
 				suites: byFamily.get(f) ?? []
 			}])),
 			allFindings: sortedFindings,
-			findingsByFile
+			findingsByFile,
+			remediationPhases: (() => {
+				const summary = {};
+				for (const phaseId of REMEDIATION_PHASE_IDS) {
+					const pMeta = getRemediationPhaseMetadata(phaseId);
+					summary[phaseId] = {
+						title: pMeta.title,
+						order: pMeta.order,
+						errors: 0,
+						warnings: 0,
+						violations: 0
+					};
+				}
+				for (const f of rawFindings) {
+					const entry = summary[f.remediationPhase ?? "hygiene"] ?? summary["hygiene"];
+					if (f.severity === "error") entry.errors++;
+					else entry.warnings++;
+					entry.violations++;
+				}
+				return summary;
+			})()
 		},
 		fileSummaryMap
 	};
@@ -538,11 +597,14 @@ async function renderAndPersistMasterReport(ctx) {
 	const setupErrors = setupResults.reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
 	const isSetupBlocking = setupErrors > 0;
 	const postponedAppErrors = results.filter((r) => !setupTaskIds.has(r.id)).reduce((acc, r) => acc + (r.summary?.errors ?? 0), 0);
-	printFindingsSummary(results, computeAuditCategoryCounts(isSetupBlocking ? setupResults : results), {
+	const displayResults = isSetupBlocking ? setupResults : results;
+	const sortedCategories = computeAuditCategoryCounts(displayResults);
+	const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
+	printFindingsSummary(results, sortedCategories, {
 		isSetupBlocking,
 		setupErrors,
 		postponedAppErrors
-	});
+	}, tieredGroups);
 	console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration, void 0, suitesSkipped));
 	if (results.some((r) => r.findings?.some((f) => f.ruleId === "fallow-similar-code-failed" && (f.context === "manual-setup-required" || f.context === "model-not-ready")))) console.log("\n" + renderSimilarCodeWarningBanner() + "\n");
 	const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
@@ -1057,4 +1119,4 @@ if (isMainModule(import.meta.url)) runMasterAudit().catch((err) => {
 	process.exit(1);
 });
 //#endregion
-export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, resolveConcurrencyLimit, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };
+export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, computeTieredAuditCategoryCounts, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, resolveConcurrencyLimit, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };

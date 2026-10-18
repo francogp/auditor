@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { checkCleanVerification, checkConstructionVerification, checkViolationVerification, findDedicatedTestFile, scanAllAuditorTasks } from "../../core/auditorContractConformance.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -100,6 +100,7 @@ var AuditorTestsAuditor = class extends BaseAuditor {
 				critical: false
 			}),
 			ruleIds: AUDITOR_TEST_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(AUDITOR_TEST_RULES, "polish"),
 			packageName: "Auditor",
 			configKey: "paths",
 			defaultConfig: {},

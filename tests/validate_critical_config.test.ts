@@ -56,6 +56,9 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
       ruleRemediations: {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la configuración crítica.'
       },
+      ruleRemediationPhases: {
+        'sample-rule': 'contracts'
+      },
       ruleCapabilities: {
         'sample-rule': {
           speed: 'light',
@@ -99,6 +102,9 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       },
       ruleRemediations: {
         'sample-rule': 'Soluciona la regla sample-rule ajustando la sonda.'
+      },
+      ruleRemediationPhases: {
+        'sample-rule': 'contracts'
       },
       ruleCapabilities: {
         'sample-rule': {

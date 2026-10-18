@@ -23,7 +23,8 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
@@ -90,6 +91,7 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       description: 'Previene micro-tests (<60 líns) y JSDOM innecesario',
       family: 'architecture',
       ruleIds: TEST_FRAGMENTATION_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TEST_FRAGMENTATION_RULES, 'hygiene'),
       packageName: 'Tests',
       configKey: 'paths',
       defaultConfig: {},

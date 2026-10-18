@@ -3,7 +3,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities, getEffectiveScannableRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
@@ -328,6 +328,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "📦",
 			ruleIds: PACKAGE_HYGIENE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_HYGIENE_RULES, "hygiene"),
 			ruleDescriptions: {
 				"package-unused-dependency": "Dependencia no utilizada en package",
 				"package-unlisted-dependency": "Dependencia fantasma no declarada",

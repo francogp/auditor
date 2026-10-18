@@ -126,6 +126,10 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           'custom-config-missing': 'Crea el archivo custom.config.json.',
           'custom-content-valid': 'Asegura contenido válido en custom.config.json.'
         },
+        ruleRemediationPhases: {
+          'custom-config-missing': 'setup',
+          'custom-content-valid': 'setup'
+        },
         configFiles: [requirement],
         fix: isFix,
         coverage: {
@@ -242,6 +246,9 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           },
           ruleRemediations: {
             'optional-config-missing': 'Guía para optional-config-missing.'
+          },
+          ruleRemediationPhases: {
+            'optional-config-missing': 'setup'
           },
           configFiles: [optionalReq],
           coverage: {

@@ -9,12 +9,14 @@ import type {
   ConsolidatedAuditReport,
   AuditFinding,
   AuditFileSummary,
-  AuditByFileReport
+  AuditByFileReport,
+  RemediationPhaseId
 } from '../core/auditContract.ts';
 import {
   ONE_MINUTE_MS,
   sortFindingsByFileAndLine,
-  groupFindingsByFileMap
+  groupFindingsByFileMap,
+  isRemediationPhaseId
 } from '../core/auditContract.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
 import {
@@ -42,6 +44,7 @@ export type ReportScope = (typeof REPORT_SCOPES)[number];
 
 interface ReportOptions {
   category: string;
+  phase: RemediationPhaseId | 'all';
   severity: SeverityFilter;
   search: string;
   filePattern: string;
@@ -196,6 +199,13 @@ function parseFilterAndValue(arg: string, opts: ReportOptions): boolean {
     opts.dirPattern = arg.slice(7).toLowerCase();
     return true;
   }
+  if (arg.startsWith('phase=') || arg.startsWith('fase=')) {
+    const val = arg.slice(arg.indexOf('=') + 1).toLowerCase();
+    if (isRemediationPhaseId(val)) {
+      opts.phase = val;
+    }
+    return true;
+  }
   if (arg.startsWith('category=')) {
     opts.category = arg.slice(9).toLowerCase();
     return true;
@@ -229,6 +239,7 @@ function parseReportOptions(): ReportOptions {
   const argv = process.argv.slice(2);
   const opts: ReportOptions = {
     category: 'all',
+    phase: 'all',
     severity: 'all',
     search: '',
     filePattern: '',
@@ -513,6 +524,7 @@ function matchesSearchFilter(f: Finding, catKey: string, search: string): boolea
 }
 
 function checkFindingMatchesFilter(f: Finding, catKey: string, args: ReportOptions): boolean {
+  if (args.phase !== 'all' && f.remediationPhase !== args.phase) return false;
   if (args.category !== 'all') {
     const cleanArg = args.category.replace(/[-_]/g, ' ').toLowerCase();
     const cleanCat = catKey.replace(/[-_]/g, ' ').toLowerCase();
@@ -790,6 +802,7 @@ function renderByFileView(
   }
 
   const filterLabels: string[] = [];
+  if (args.phase !== 'all') filterLabels.push(`fase: "${args.phase}"`);
   if (args.filePattern) filterLabels.push(`archivo: "${args.filePattern}"`);
   if (args.category !== 'all') filterLabels.push(`categoría: "${args.category}"`);
   if (args.severity !== 'all') filterLabels.push(`severidad: ${args.severity}`);
@@ -884,6 +897,7 @@ export function runReport(): void {
   );
 
   const categoriesToRender =
+    args.phase !== 'all' ||
     args.category !== 'all' ||
     args.severity !== 'all' ||
     args.search ||

@@ -15,7 +15,8 @@ import { execFileSync } from 'node:child_process';
 import nodeFs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, isPathIgnored, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, isPathIgnored, createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   getAuditConfig,
   type AuditEngineConfig,
@@ -363,6 +364,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
       criticalConfig: {},
       icon: '🗺️',
       ruleIds: AUDIT_COVERAGE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(AUDIT_COVERAGE_RULES, 'polish'),
       ruleDescriptions: {
         'coverage-uncovered-file': 'Archivo versionado sin ninguna suite',
         'coverage-degraded-file': 'Reglas silenciadas por configuración',

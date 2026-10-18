@@ -19,6 +19,7 @@ import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   createRuleCapabilities,
   collectRepositoryFiles
 } from '../../core/auditorBase.ts';
@@ -174,6 +175,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       criticalConfig: {},
       icon: '🌐',
       ruleIds: HTML_VALIDATE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_RULES, 'behavior'),
       ruleDescriptions: {
         'html-validate-issue': 'Violación de estándar HTML5'
       },

@@ -3,7 +3,7 @@ import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isExemptFile, isInCodeRoots } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { advancePastStringOrComment, scanBalancedBraces, scanBalancedParens } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -249,6 +249,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				".css"
 			]),
 			ruleIds: GSAP_ANIMATION_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(GSAP_ANIMATION_RULES, "behavior"),
 			ruleDescriptions: {
 				"gsap-banned-css-animations": "Animación manual CSS prohibida",
 				"gsap-banned-ui-timers": "Timer nativo en componente UI",

@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "./auditConfigTypes.js";
+import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
 import { AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { CoverageRecorder } from "./auditCoverage.js";
 import { SharedAstContext } from "./astContext.js";
@@ -104,6 +105,11 @@ export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: 
  */
 export declare function createUniformRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], capabilities: AuditorRuleCapabilities): Record<TRuleId, AuditorRuleCapabilities>;
 /**
+ * Creates uniform strategic remediation phases for suites where every declared rule
+ * shares the same remediation phase.
+ */
+export declare function createUniformRemediationPhases<TRuleId extends string>(ruleIds: readonly TRuleId[], phase: RemediationPhaseId): Record<TRuleId, RemediationPhaseId>;
+/**
  * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
  */
 export declare const LIGHT_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
@@ -143,6 +149,17 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * Explains root causes, what code patterns trigger the violation, and step-by-step resolution.
    */
   readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
+  /**
+   * Strategic remediation phase for the entire suite. When specified, rules without an explicit
+   * entry in ruleRemediationPhases inherit this phase automatically.
+   */
+  readonly remediationPhase?: RemediationPhaseId;
+  /**
+   * Mandatory strategic remediation phase for declared rules.
+   * Classifies each rule into the canonical 7-tier resolution workflow:
+   * 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish'.
+   */
+  readonly ruleRemediationPhases?: Readonly<Record<TRuleId, RemediationPhaseId>>;
   readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
@@ -191,6 +208,7 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly context?: string;
   readonly fixable?: boolean;
   readonly remediation?: string;
+  readonly remediationPhase?: RemediationPhaseId;
 }
 export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "fix", "md", "ast", "changedOnly", "critical"];
 export declare const MANDATORY_BOOLEAN_CAPABILITY_KEYS: readonly ["md", "ast", "changedOnly", "critical"];
@@ -209,6 +227,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly ruleIds: readonly TRuleId[];
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
+  readonly ruleRemediationPhases: Readonly<Record<TRuleId, RemediationPhaseId>>;
   readonly explicitSubAuditors?: readonly SubAuditorStep[];
   readonly roots: readonly string[];
   readonly allowedExtensions: ReadonlySet<string>;
@@ -508,4 +527,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
 //#endregion
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, deriveCanonicalAuditorScript, isPathExempt, normalizeSpeeds, resolveEffectiveSpeed };
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, deriveCanonicalAuditorScript, isPathExempt, normalizeSpeeds, resolveEffectiveSpeed };

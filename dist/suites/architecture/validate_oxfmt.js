@@ -1,6 +1,6 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -61,6 +61,7 @@ var OxfmtAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "✨",
 			ruleIds: OXFMT_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(OXFMT_RULES, "polish"),
 			ruleDescriptions: { "oxfmt-violation": "Desviación de formato de código" },
 			ruleRemediations: { "oxfmt-violation": "Guía de diagnóstico y remediación para oxfmt-violation. El archivo presenta diferencias respecto a las reglas de formateo de Oxfmt. Ejecuta \"npm run fmt\" o \"vp fmt\" (o \"npm run auditor:fix\") para reformatear automáticamente el código con las reglas canónicas de vite.config.ts / audit.config.ts." },
 			coverage: {

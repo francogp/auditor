@@ -8,7 +8,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
-import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -122,6 +123,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
       criticalConfig: {},
       icon: '📊',
       ruleIds: MERMAID_SYNTAX_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MERMAID_SYNTAX_RULES, 'polish'),
       ruleDescriptions: {
         'mermaid-syntax-error': 'Error sintáctico en diagrama Mermaid',
         'mermaid-unquoted-special-chars': 'Caracter especial sin comillas en Mermaid'

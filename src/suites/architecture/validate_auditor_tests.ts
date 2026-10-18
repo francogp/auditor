@@ -14,7 +14,8 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
@@ -142,6 +143,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
         critical: false
       }),
       ruleIds: AUDITOR_TEST_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(AUDITOR_TEST_RULES, 'polish'),
       packageName: 'Auditor',
       configKey: 'paths',
       defaultConfig: {},

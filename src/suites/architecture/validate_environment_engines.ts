@@ -14,6 +14,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   type AuditorOptions,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -120,6 +121,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
       description: 'Valida versiones de Node.js y npm en package.json',
       family: 'architecture',
       ruleIds: ENVIRONMENT_ENGINES_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(ENVIRONMENT_ENGINES_RULES, 'setup'),
       packageName: 'Entorno',
       configKey: 'environment.enabled',
       defaultConfig: { enabled: true },

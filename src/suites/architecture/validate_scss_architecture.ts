@@ -3,6 +3,7 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
@@ -42,6 +43,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SCSS_ARCHITECTURE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SCSS_ARCHITECTURE_RULES, 'hygiene'),
       ruleDescriptions: {
         'raw-css-in-sfc': '<style> sin atributo lang="scss"',
         'scss-deep-selector-abuse': 'Abuso o anidamiento de :deep()',

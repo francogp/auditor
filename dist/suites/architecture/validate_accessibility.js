@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
@@ -139,6 +139,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "♿",
 			ruleIds: ACCESSIBILITY_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(ACCESSIBILITY_RULES, "behavior"),
 			ruleDescriptions: {
 				"a11y-img-alt": "Imagen sin atributo alt accesible",
 				"a11y-form-control-has-label": "Control de formulario sin label",

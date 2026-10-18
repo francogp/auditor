@@ -43,6 +43,9 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       ruleRemediations: {
         'dummy-rule': 'Soluciona la regla dummy.'
       },
+      ruleRemediationPhases: {
+        'dummy-rule': 'hygiene'
+      },
       projectRoot
     });
   }
@@ -83,6 +86,9 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       },
       ruleRemediations: {
         'custom-rule': 'Soluciona la regla custom.'
+      },
+      ruleRemediationPhases: {
+        'custom-rule': 'hygiene'
       },
       scripts: [
         {
@@ -223,6 +229,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             ruleIds: ['rule-1'],
             ruleDescriptions: { 'rule-1': 'Desc' },
             ruleRemediations: { 'rule-1': 'Guía para rule-1.' },
+            ruleRemediationPhases: { 'rule-1': 'hygiene' },
             scripts: [
               {
                 name: 'auditor:fix',

@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
@@ -182,6 +182,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 			description: "Detecta clases CSS scoped huérfanas en componentes Vue",
 			family: "architecture",
 			ruleIds: DEAD_CSS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DEAD_CSS_RULES, "hygiene"),
 			packageName: "CSS",
 			configKey: "styles.enabled",
 			defaultConfig: { enabled: true },

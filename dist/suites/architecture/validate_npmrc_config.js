@@ -1,4 +1,4 @@
-import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -78,6 +78,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 			icon: "📦",
 			family: "architecture",
 			ruleIds: NPMRC_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(NPMRC_CONFIG_RULES, "setup"),
 			packageName: "NPMRC",
 			configKey: "paths",
 			defaultConfig: {},

@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { buildRepositoryFileIndex } from "../../core/safePath.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
@@ -314,6 +314,7 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 			description: "Enlaces relativos y rutas válidas en markdown",
 			family: "documentation",
 			ruleIds: MARKDOWN_LINK_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_LINK_RULES, "polish"),
 			packageName: "Doc",
 			configKey: "documentation.enabled",
 			defaultConfig: { enabled: true },

@@ -22,7 +22,8 @@
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
@@ -212,6 +213,7 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
       description: 'Verifica IDs estáticos e inputs en templates Vue',
       family: 'architecture',
       ruleIds: TEMPLATE_ID_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TEMPLATE_ID_RULES, 'hygiene'),
       packageName: 'Template',
       configKey: 'templates.requireInputIds',
       defaultConfig: { enabled: true, requireInputIds: true },

@@ -26,7 +26,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import type {
@@ -304,6 +305,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       icon: '🛡️',
       family: 'persistence',
       ruleIds: VALIBOT_PARITY_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(VALIBOT_PARITY_RULES, 'contracts'),
       packageName: 'Valibot',
       configKey: 'valibot.enabled',
       defaultConfig: {

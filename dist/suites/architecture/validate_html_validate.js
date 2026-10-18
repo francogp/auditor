@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { extractJsonReportFilePaths, parseLintResultsToFindings } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -118,6 +118,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🌐",
 			ruleIds: HTML_VALIDATE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_RULES, "behavior"),
 			ruleDescriptions: { "html-validate-issue": "Violación de estándar HTML5" },
 			ruleRemediations: { "html-validate-issue": "Guía de diagnóstico y remediación para html-validate-issue. Revisa la incidencia detectada y ajusta el código correspondiente." },
 			coverage: {

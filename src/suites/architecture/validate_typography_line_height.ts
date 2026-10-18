@@ -16,7 +16,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -155,6 +156,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
       description: 'Detecta colisiones de line-height en tipografías multilínea',
       family: 'architecture',
       ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TYPOGRAPHY_LINE_HEIGHT_RULES, 'behavior'),
       packageName: 'Tipografía',
       configKey: 'styles.enabled',
       defaultConfig: { enabled: true },

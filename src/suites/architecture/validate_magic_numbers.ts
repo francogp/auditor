@@ -32,6 +32,7 @@ import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import {
   FileScanAuditor,
+  createUniformRemediationPhases,
   type AuditedDocument,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -250,6 +251,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       allowedExtensions: new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue']),
       requiresAst: true,
       ruleIds: MAGIC_NUMBERS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MAGIC_NUMBERS_RULES, 'hygiene'),
       ruleDescriptions: {
         'magic-number-naked': 'Número mágico no en constante'
       },

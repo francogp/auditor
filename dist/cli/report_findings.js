@@ -2,6 +2,7 @@
 import "../core/auditConfigTypes.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
+import { isRemediationPhaseId } from "../core/remediationPhases.js";
 import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
 import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
@@ -188,6 +189,11 @@ function parseFilterAndValue(arg, opts) {
 		opts.dirPattern = arg.slice(7).toLowerCase();
 		return true;
 	}
+	if (arg.startsWith("phase=") || arg.startsWith("fase=")) {
+		const val = arg.slice(arg.indexOf("=") + 1).toLowerCase();
+		if (isRemediationPhaseId(val)) opts.phase = val;
+		return true;
+	}
 	if (arg.startsWith("category=")) {
 		opts.category = arg.slice(9).toLowerCase();
 		return true;
@@ -217,6 +223,7 @@ function parseReportOptions() {
 	const argv = process.argv.slice(2);
 	const opts = {
 		category: "all",
+		phase: "all",
 		severity: "all",
 		search: "",
 		filePattern: "",
@@ -384,6 +391,7 @@ function matchesSearchFilter(f, catKey, search) {
 	return inMsg || inFile || Boolean(inRule);
 }
 function checkFindingMatchesFilter(f, catKey, args) {
+	if (args.phase !== "all" && f.remediationPhase !== args.phase) return false;
 	if (args.category !== "all") {
 		const cleanArg = args.category.replace(/[-_]/g, " ").toLowerCase();
 		if (!catKey.replace(/[-_]/g, " ").toLowerCase().includes(cleanArg)) return false;
@@ -553,6 +561,7 @@ function renderByFileView(matchingFindings, report, args) {
 		return;
 	}
 	const filterLabels = [];
+	if (args.phase !== "all") filterLabels.push(`fase: "${args.phase}"`);
 	if (args.filePattern) filterLabels.push(`archivo: "${args.filePattern}"`);
 	if (args.category !== "all") filterLabels.push(`categoría: "${args.category}"`);
 	if (args.severity !== "all") filterLabels.push(`severidad: ${args.severity}`);
@@ -606,7 +615,7 @@ function runReport() {
 		return;
 	}
 	console.log("\n" + renderBanner("REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES", `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`));
-	const categoriesToRender = args.category !== "all" || args.severity !== "all" || args.search || args.filePattern || args.dirPattern || args.scope !== "all" ? filteredCategories : categoryCounts;
+	const categoriesToRender = args.phase !== "all" || args.category !== "all" || args.severity !== "all" || args.search || args.filePattern || args.dirPattern || args.scope !== "all" ? filteredCategories : categoryCounts;
 	const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
 	console.log("\n" + renderFindingsBreakdownTable(sortedCategories, "CATEGORÍA / REGLA DE AUDITORÍA") + "\n");
 	if (args.summaryOnly) return;

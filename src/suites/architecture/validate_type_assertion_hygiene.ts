@@ -12,7 +12,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -233,6 +234,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       description: 'Prohíbe as any, doble casteo y promesas flotantes',
       family: 'architecture',
       ruleIds: TYPE_ASSERTION_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TYPE_ASSERTION_RULES, 'contracts'),
       packageName: 'Tipos',
       icon: '🛡️',
       configKey: 'paths',

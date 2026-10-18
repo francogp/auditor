@@ -15,7 +15,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import 'stylelint-declaration-strict-value';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -342,6 +343,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       },
       icon: '🎨',
       ruleIds: STYLELINT_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(STYLELINT_CONFIG_RULES, 'setup'),
       ruleDescriptions: {
         'stylelint-config-missing': 'Falta .stylelintrc.json',
         'stylelint-config-missing-plugin': 'Falta plugin stylelint',

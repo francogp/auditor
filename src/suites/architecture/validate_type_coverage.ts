@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -114,6 +115,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       criticalConfig: {},
       icon: '📊',
       ruleIds: TYPE_COVERAGE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TYPE_COVERAGE_RULES, 'contracts'),
       ruleDescriptions: {
         'type-coverage-below-threshold': 'Cobertura de tipos bajo el umbral',
         'type-coverage-untyped-identifier': 'Identificador untyped any detectado'

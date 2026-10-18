@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
@@ -151,6 +152,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       criticalConfig: {},
       icon: '♿',
       ruleIds: ACCESSIBILITY_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(ACCESSIBILITY_RULES, 'behavior'),
       ruleDescriptions: {
         'a11y-img-alt': 'Imagen sin atributo alt accesible',
         'a11y-form-control-has-label': 'Control de formulario sin label',

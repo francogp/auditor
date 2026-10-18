@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/performance/validate_query_performance.ts
@@ -45,6 +45,7 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: QUERY_PERFORMANCE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(QUERY_PERFORMANCE_RULES, "behavior"),
 			ruleDescriptions: {
 				"unindexed-foreign-keys": "Clave foránea sin índice secundario",
 				"select-star-in-queries": "SELECT * en repositorio o servicio",

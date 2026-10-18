@@ -17,7 +17,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -96,6 +97,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),
       ruleIds: GSAP_FRAMEWORK_HYGIENE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(GSAP_FRAMEWORK_HYGIENE_RULES, 'behavior'),
       ruleDescriptions: {
         'gsap-unscoped-component-selectors': 'Selector global sin acotar en UI',
         'gsap-missing-context-revert': 'Falta revert o cleanup en unmount',

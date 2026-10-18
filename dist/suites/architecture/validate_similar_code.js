@@ -4,7 +4,7 @@ import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -183,6 +183,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			description: "Detecta duplicados semánticos de funciones",
 			family: "architecture",
 			ruleIds: SIMILAR_CODE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SIMILAR_CODE_RULES, "dedup"),
 			packageName: "Fallow",
 			configKey: "fallow.similarCode.enabled",
 			defaultConfig: {

@@ -21,7 +21,8 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   type AuditorOptions,
-  createUniformRuleCapabilities
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
@@ -131,6 +132,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
       icon: '🐳',
       family: 'architecture',
       ruleIds: DOCKER_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DOCKER_CONFIG_RULES, 'setup'),
       packageName: 'Docker',
       configKey: 'paths',
       defaultConfig: {},

@@ -19,7 +19,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -72,6 +73,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       description: 'Prohíbe console.log directo y debugger en src/',
       family: 'architecture',
       ruleIds: CONSOLE_CLEANLINESS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(CONSOLE_CLEANLINESS_RULES, 'hygiene'),
       packageName: 'Consola',
       configKey: 'paths',
       defaultConfig: {},

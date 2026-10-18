@@ -3,7 +3,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
 import { enableCompileCache } from "node:module";
@@ -41,6 +41,7 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🧪",
 			ruleIds: TEST_COVERAGE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TEST_COVERAGE_RULES, "polish"),
 			ruleDescriptions: {
 				"test-coverage-below-threshold": "Cobertura de tests bajo umbral",
 				"test-coverage-missing-report": "Falta archivo de cobertura",

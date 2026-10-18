@@ -13,6 +13,7 @@ import {
   BaseAuditor,
   SharedAstContext,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
   getAuditConfig
@@ -90,6 +91,8 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
           '1. Implementa la interfaz o añade la exportación exigida por la arquitectura.\n' +
           '2. Revisa las directrices del módulo para conocer el contrato exacto.'
       },
+      // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
+      ruleRemediationPhases: createUniformRemediationPhases(MY_AST_RULES, 'hygiene'),
       requiresAst: true,
       roots: targetRoots,
       allowedExtensions,

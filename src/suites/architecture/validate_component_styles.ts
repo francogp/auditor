@@ -20,7 +20,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
@@ -623,6 +624,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
       criticalConfig: {},
       icon: '🎨',
       ruleIds: COMPONENT_STYLE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(COMPONENT_STYLE_RULES, 'hygiene'),
       ruleDescriptions: {
         'broken-style-link': 'Enlace de estilo roto o inexistente',
         'missing-style-tag': 'Componente sin bloque de estilos',

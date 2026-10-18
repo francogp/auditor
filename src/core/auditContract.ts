@@ -13,6 +13,23 @@ import {
   type CustomAuditFamilyConfig,
   type AuditEngineConfig
 } from './auditConfig.ts';
+import {
+  type RemediationPhaseId,
+  REMEDIATION_PHASE_IDS,
+  REMEDIATION_PHASES,
+  getRemediationPhaseMetadata,
+  isRemediationPhaseId,
+  type RemediationPhaseMetadata
+} from './remediationPhases.ts';
+
+export {
+  type RemediationPhaseId,
+  REMEDIATION_PHASE_IDS,
+  REMEDIATION_PHASES,
+  getRemediationPhaseMetadata,
+  isRemediationPhaseId,
+  type RemediationPhaseMetadata
+};
 
 export const BUILTIN_AUDIT_FAMILIES = [
   'architecture',
@@ -132,6 +149,7 @@ export interface AuditFinding {
   context?: string;
   fixable?: boolean;
   remediation?: string;
+  remediationPhase?: RemediationPhaseId;
 }
 
 export const AUDIT_STATUSES = ['passed', 'failed', 'skipped'] as const;
@@ -431,6 +449,8 @@ export interface AuditorManifestDTO {
   readonly rules: Readonly<Record<string, string>>;
   /** Catalog of on-demand diagnostic and remediation guides for each rule */
   readonly remediations?: Readonly<Record<string, string>>;
+  /** Catalog of strategic remediation phases for each rule */
+  readonly remediationPhases?: Readonly<Record<string, RemediationPhaseId>>;
   /** Individual capabilities declared by each sub-auditor / rule */
   readonly ruleCapabilities?: Readonly<Record<string, AuditorRuleCapabilities>>;
   /** List of ruleIds that this suite can mechanically repair automatically */
@@ -667,6 +687,18 @@ export interface ConsolidatedAuditReport {
   >;
   allFindings: AuditFinding[];
   findingsByFile?: Record<string, AuditFinding[]>;
+  remediationPhases?: Partial<
+    Record<
+      RemediationPhaseId,
+      {
+        title: string;
+        order: number;
+        errors: number;
+        warnings: number;
+        violations: number;
+      }
+    >
+  >;
 }
 
 /**

@@ -36,6 +36,10 @@ class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
         'parity-rule-a': 'Remediación regla A',
         'parity-rule-b': 'Remediación regla B'
       },
+      ruleRemediationPhases: {
+        'parity-rule-a': 'hygiene',
+        'parity-rule-b': 'hygiene'
+      },
       configKey: 'parity.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},

@@ -17,7 +17,8 @@ import fs from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   getAuditConfig,
@@ -189,6 +190,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css', '.ts', '.tsx']),
       ruleIds: Z_INDEX_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(Z_INDEX_RULES, 'hygiene'),
       ruleDescriptions: {
         'z-index-missing-var': 'Falta variable en _base.scss',
         'z-index-mismatch': 'Desincronización TS vs SCSS',

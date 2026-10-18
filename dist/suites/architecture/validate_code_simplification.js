@@ -3,7 +3,7 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import ts from "typescript";
@@ -49,6 +49,7 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: CODE_SIMPLIFICATION_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, "hygiene"),
 			ruleDescriptions: {
 				"dead-code-accumulation": "Bloques de código muerto comentados",
 				"boolean-trap-parameters": "Parámetros booleanos posicionales",

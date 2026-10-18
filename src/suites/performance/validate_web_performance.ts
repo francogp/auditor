@@ -4,6 +4,7 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
@@ -49,6 +50,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: WEB_PERFORMANCE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(WEB_PERFORMANCE_RULES, 'behavior'),
       ruleDescriptions: {
         'unoptimized-images': 'Imagen sin compresión moderna WebP',
         'font-display-missing': '@font-face sin font-display swap',

@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -373,6 +373,7 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 			description: "Valida integridad de .fallowrc.json y sus ignoreExports",
 			family: "architecture",
 			ruleIds: FALLOW_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(FALLOW_CONFIG_RULES, "setup"),
 			packageName: "Fallow",
 			configKey: "fallow.enabled",
 			defaultConfig: { enabled: true },

@@ -19,6 +19,7 @@ import {
   isPathIgnored,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
+import type { RemediationPhaseId } from '../../core/auditContract.ts';
 import {
   type AuditRule,
   type Violation,
@@ -1087,10 +1088,29 @@ export function getProjectArchitectureRuleRemediations(): Record<string, string>
   return remediations;
 }
 
+export function getProjectArchitectureRuleRemediationPhases(): Record<string, RemediationPhaseId> {
+  const phases: Record<string, RemediationPhaseId> = {};
+  for (const [key, rule] of Object.entries(config)) {
+    const r = rule as AuditRule;
+    const id = r.id ? r.id : key;
+    if (['constantDuplicates', 'constantDisparities', 'constantAliases'].includes(id) || id.startsWith('constant')) {
+      phases[id] = 'dedup';
+    } else if (['noAny', 'noDoubleCast', 'noStringCast', 'noDomainIdFallbacks', 'noDomainRawStrings', 'nodePrefix', 'noInlineTypeImports'].includes(id)) {
+      phases[id] = 'contracts';
+    } else if (['esmExtensions'].includes(id)) {
+      phases[id] = 'polish';
+    } else {
+      phases[id] = 'behavior';
+    }
+  }
+  return phases;
+}
+
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
   constructor() {
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
     const ruleRemediations = getProjectArchitectureRuleRemediations();
+    const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
     const ruleIds = Object.keys(ruleDescriptions);
     const fixableRuleIds = Object.entries(config)
       .filter(
@@ -1118,6 +1138,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       ruleIds,
       ruleDescriptions,
       ruleRemediations,
+      ruleRemediationPhases,
       id: 'audit_project',
       name: 'Project Architecture & Style Rules',
       description: 'Audita reglas de arquitectura, TypeScript y estilo',
@@ -1167,7 +1188,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         line: v.line,
         message: v.message,
         context: v.context,
-        fixable: v.fixable
+        fixable: this.isFixActive() ? false : v.fixable
       });
     }
   }

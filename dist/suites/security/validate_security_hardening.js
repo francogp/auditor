@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/security/validate_security_hardening.ts
 enableCompileCache();
@@ -40,6 +40,7 @@ var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: SECURITY_HARDENING_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SECURITY_HARDENING_RULES, "behavior"),
 			ruleDescriptions: {
 				"hardcoded-secrets": "Secret o token hardcodeado en código",
 				"insecure-random": "Math.random() para valores sensibles",

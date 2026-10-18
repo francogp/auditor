@@ -19,6 +19,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   getEffectiveIgnoreDirs,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -70,6 +71,7 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       criticalConfig: {},
       icon: '📚',
       ruleIds: DOX_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DOX_RULES, 'polish'),
       ruleDescriptions: {
         'dox-missing-agents-md': 'Falta AGENTS.md en directorio',
         'dox-unregistered-child': 'AGENTS.md hijo no registrado',

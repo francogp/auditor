@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -76,6 +76,7 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 			description: "Verifica reactividad y pureza de Vue 3 Composition API",
 			family: "architecture",
 			ruleIds: VUE_REACTIVITY_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(VUE_REACTIVITY_RULES, "behavior"),
 			packageName: "Vue",
 			configKey: "paths",
 			defaultConfig: {},

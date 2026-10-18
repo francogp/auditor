@@ -1,6 +1,7 @@
 import "./auditConfigTypes.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
+import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata, isRemediationPhaseId } from "./remediationPhases.js";
 import path from "node:path";
 //#region src/core/auditContract.ts
 /**
@@ -310,4 +311,4 @@ function computeResultsFixableViolations(results, isFixMode = false) {
 	};
 }
 //#endregion
-export { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, AUDIT_STATUSES, BUILTIN_AUDIT_FAMILIES, COVERAGE_SOURCES, DEFAULT_CUSTOM_FAMILY_ORDER, FALLBACK_FAMILY_ORDER, FAMILY_METADATA, FINDING_SEVERITIES, MAX_AUDIT_STALENESS_MS, ONE_MINUTE_MS, RATCHET_STATUSES, SPEED_RANK, SUB_AUDITOR_STATUSES, assertAuditorExecuted, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, getActiveFamilies, groupFindingsByFileMap, groupResultsByFamily, normalizeFindingPath, normalizeSpeeds, resolveEffectiveSpeed, resolveFamilyMetadata, sortFindingsByFileAndLine };
+export { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, AUDIT_STATUSES, BUILTIN_AUDIT_FAMILIES, COVERAGE_SOURCES, DEFAULT_CUSTOM_FAMILY_ORDER, FALLBACK_FAMILY_ORDER, FAMILY_METADATA, FINDING_SEVERITIES, MAX_AUDIT_STALENESS_MS, ONE_MINUTE_MS, RATCHET_STATUSES, REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, SPEED_RANK, SUB_AUDITOR_STATUSES, assertAuditorExecuted, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, getActiveFamilies, getRemediationPhaseMetadata, groupFindingsByFileMap, groupResultsByFamily, isRemediationPhaseId, normalizeFindingPath, normalizeSpeeds, resolveEffectiveSpeed, resolveFamilyMetadata, sortFindingsByFileAndLine };

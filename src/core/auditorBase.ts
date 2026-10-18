@@ -51,11 +51,22 @@ import {
   countFixableFindings,
   computeResultsFixableViolations
 } from './auditContract.ts';
+import {
+  type RemediationPhaseId,
+  REMEDIATION_PHASE_IDS,
+  isRemediationPhaseId
+} from './remediationPhases.ts';
 import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
 import { ConfigFileRegistry } from './configFileRegistry.ts';
 import { PackageScriptRegistry } from './packageScriptRegistry.ts';
 
-export { deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed };
+export {
+  deriveCanonicalAuditorScript,
+  normalizeSpeeds,
+  resolveEffectiveSpeed,
+  type RemediationPhaseId,
+  REMEDIATION_PHASE_IDS
+};
 import {
   CoverageRecorder,
   deriveCoverageFromRoots,
@@ -1016,6 +1027,21 @@ export function createUniformRuleCapabilities<TRuleId extends string>(
 }
 
 /**
+ * Creates uniform strategic remediation phases for suites where every declared rule
+ * shares the same remediation phase.
+ */
+export function createUniformRemediationPhases<TRuleId extends string>(
+  ruleIds: readonly TRuleId[],
+  phase: RemediationPhaseId
+): Record<TRuleId, RemediationPhaseId> {
+  const result: Partial<Record<TRuleId, RemediationPhaseId>> = {};
+  for (const id of ruleIds) {
+    result[id] = phase;
+  }
+  return result as Record<TRuleId, RemediationPhaseId>;
+}
+
+/**
  * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
  */
 export const LIGHT_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities> = Object.freeze({
@@ -1075,6 +1101,17 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * Explains root causes, what code patterns trigger the violation, and step-by-step resolution.
    */
   readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
+  /**
+   * Strategic remediation phase for the entire suite. When specified, rules without an explicit
+   * entry in ruleRemediationPhases inherit this phase automatically.
+   */
+  readonly remediationPhase?: RemediationPhaseId;
+  /**
+   * Mandatory strategic remediation phase for declared rules.
+   * Classifies each rule into the canonical 7-tier resolution workflow:
+   * 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish'.
+   */
+  readonly ruleRemediationPhases?: Readonly<Record<TRuleId, RemediationPhaseId>>;
   readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
@@ -1124,6 +1161,7 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly context?: string;
   readonly fixable?: boolean;
   readonly remediation?: string;
+  readonly remediationPhase?: RemediationPhaseId;
 }
 
 /**
@@ -1452,6 +1490,52 @@ function validateAuditorRuleRemediations<TRuleId extends string>(
   }
 }
 
+function validateAuditorRuleRemediationPhases<TRuleId extends string>(
+  options: AuditorOptions<TRuleId>
+): void {
+  const hasSuitePhase = Boolean(options.remediationPhase && isRemediationPhaseId(options.remediationPhase));
+  const hasRulePhases = Boolean(
+    options.ruleRemediationPhases &&
+      typeof options.ruleRemediationPhases === 'object' &&
+      Object.keys(options.ruleRemediationPhases).length > 0
+  );
+
+  if (!hasSuitePhase && !hasRulePhases) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. ` +
+        `Every sub-auditor and host extension is strictly required to declare how it is classified in the strategic remediation order.`
+    );
+  }
+
+  if (options.remediationPhase && !isRemediationPhaseId(options.remediationPhase)) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] defines invalid 'remediationPhase': '${String(options.remediationPhase)}'. ` +
+        `Must be one of: ${REMEDIATION_PHASE_IDS.join(', ')}.`
+    );
+  }
+
+  const phases = (options.ruleRemediationPhases ?? {}) as Record<string, RemediationPhaseId | undefined>;
+  for (const ruleId of options.ruleIds) {
+    const phase = phases[ruleId] ?? options.remediationPhase;
+    if (!phase || !isRemediationPhaseId(phase)) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] is missing a valid remediation phase for declared rule '${ruleId}'. ` +
+          `Declare 'remediationPhase' or 'ruleRemediationPhases' with one of: ${REMEDIATION_PHASE_IDS.join(', ')}.`
+      );
+    }
+  }
+
+  if (options.ruleRemediationPhases) {
+    for (const ruleId of Object.keys(options.ruleRemediationPhases)) {
+      if (!options.ruleIds.includes(ruleId as TRuleId)) {
+        throw new Error(
+          `[Auditor Contract Violation] Auditor [${options.id}] defines remediation phase for rule '${ruleId}' in 'ruleRemediationPhases' that is not declared in 'ruleIds'.`
+        );
+      }
+    }
+  }
+}
+
 function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   if (!Array.isArray(options.scripts) || options.scripts.length === 0) {
     throw new Error(
@@ -1545,6 +1629,7 @@ function validateAuditorOptions<TRuleId extends string>(
   validateAuditorRuleCapabilities(options);
   validateAuditorFixContract(options, effectiveCapabilities);
   validateAuditorRuleRemediations(options);
+  validateAuditorRuleRemediationPhases(options);
   validateAuditorScripts(options);
   if (options.gitIgnoreEntries !== undefined && !Array.isArray(options.gitIgnoreEntries)) {
     throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
@@ -1594,6 +1679,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly ruleIds: readonly TRuleId[];
   public readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   public readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
+  public readonly ruleRemediationPhases: Readonly<Record<TRuleId, RemediationPhaseId>>;
   public readonly explicitSubAuditors?: readonly SubAuditorStep[];
   public readonly roots: readonly string[];
   public readonly allowedExtensions: ReadonlySet<string>;
@@ -1992,6 +2078,14 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.ruleIds = options.ruleIds;
     this.ruleDescriptions = options.ruleDescriptions;
     this.ruleRemediations = options.ruleRemediations;
+    const resolvedPhases: Record<TRuleId, RemediationPhaseId> = {} as Record<
+      TRuleId,
+      RemediationPhaseId
+    >;
+    for (const ruleId of options.ruleIds) {
+      resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase!;
+    }
+    this.ruleRemediationPhases = Object.freeze(resolvedPhases);
     this.explicitSubAuditors = options.subAuditors;
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
@@ -2356,6 +2450,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const targetCol = v.col ?? v.column;
 
     const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
+    const effectiveRemediationPhase = v.remediationPhase ?? this.ruleRemediationPhases?.[v.ruleId];
 
     if (v.severity === 'error') {
       this.context.addFinding({
@@ -2370,7 +2465,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         suiteId: this.id,
         suiteName: this.name,
         fixable: isFixable,
-        remediation: effectiveRemediation
+        remediation: effectiveRemediation,
+        remediationPhase: effectiveRemediationPhase
       });
     } else {
       if (!this.context.values['errors-only']) {
@@ -2386,7 +2482,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
           suiteId: this.id,
           suiteName: this.name,
           fixable: isFixable,
-          remediation: effectiveRemediation
+          remediation: effectiveRemediation,
+          remediationPhase: effectiveRemediationPhase
         });
       }
     }
@@ -2789,6 +2886,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       },
       rules: rulesRecord,
       remediations: this.ruleRemediations ? { ...this.ruleRemediations } : undefined,
+      remediationPhases: this.ruleRemediationPhases ? { ...this.ruleRemediationPhases } : undefined,
       fixableRules: this.getFixableRuleIds().map((r) => String(r)),
       configKey: this.configKey,
       defaultConfig: { ...this.defaultConfig },

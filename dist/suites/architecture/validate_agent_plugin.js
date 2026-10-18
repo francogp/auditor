@@ -1,7 +1,7 @@
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { initAgentSkill } from "../../cli/init_agent.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -55,6 +55,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			description: "Verifica registro del plugin de auditoría para agentes",
 			family: "architecture",
 			ruleIds: AGENT_PLUGIN_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(AGENT_PLUGIN_RULES, "behavior"),
 			packageName: "Agente",
 			configKey: "agentPlugin.enabled",
 			defaultConfig: { enabled: true },

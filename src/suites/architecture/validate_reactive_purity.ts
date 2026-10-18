@@ -17,7 +17,8 @@
 
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -83,6 +84,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
       description: 'Verifica pureza reactiva y ausencia de efectos en computeds',
       family: 'architecture',
       ruleIds: REACTIVE_PURITY_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_PURITY_RULES, 'behavior'),
       packageName: 'Computed',
       configKey: 'paths',
       defaultConfig: {},

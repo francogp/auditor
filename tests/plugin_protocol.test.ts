@@ -63,6 +63,9 @@ describe('Auditor Plugin Protocol', () => {
           },
           ruleRemediations: {
             'dummy-rule': 'Remediacion para dummy-rule'
+          },
+          ruleRemediationPhases: {
+            'dummy-rule': 'behavior'
           }
         });
       }
@@ -120,6 +123,9 @@ describe('Auditor Plugin Protocol', () => {
           },
           ruleRemediations: {
             'registered-rule': 'Guía para solucionar registered-rule.'
+          },
+          ruleRemediationPhases: {
+            'registered-rule': 'behavior'
           }
         });
       }
@@ -182,6 +188,10 @@ describe('Auditor Plugin Protocol', () => {
           ruleRemediations: {
             'step-one': 'Guía para solucionar step-one.',
             'step-two': 'Guía para solucionar step-two.'
+          },
+          ruleRemediationPhases: {
+            'step-one': 'behavior',
+            'step-two': 'behavior'
           }
         });
       }

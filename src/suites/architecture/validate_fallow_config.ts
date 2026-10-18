@@ -14,7 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
@@ -538,6 +539,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       description: 'Valida integridad de .fallowrc.json y sus ignoreExports',
       family: 'architecture',
       ruleIds: FALLOW_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(FALLOW_CONFIG_RULES, 'setup'),
       packageName: 'Fallow',
       configKey: 'fallow.enabled',
       defaultConfig: { enabled: true },

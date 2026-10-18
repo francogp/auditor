@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
@@ -92,6 +92,7 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 			description: "Valida extensiones TypeScript (.ts) y prohíbe .mjs/.cjs",
 			family: "architecture",
 			ruleIds: SCRIPT_EXTENSIONS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SCRIPT_EXTENSIONS_RULES, "setup"),
 			packageName: "Extensiones",
 			icon: "📜",
 			configKey: "scriptExtensions",

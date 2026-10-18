@@ -14,6 +14,7 @@ import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   type AuditorOptions,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -95,6 +96,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
       description: 'Valida y sincroniza configuración local de Git',
       family: 'architecture',
       ruleIds: GIT_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(GIT_CONFIG_RULES, 'setup'),
       packageName: 'Git',
       configKey: 'paths',
       defaultConfig: {},

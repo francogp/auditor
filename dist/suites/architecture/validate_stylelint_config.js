@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -263,6 +263,7 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 			},
 			icon: "🎨",
 			ruleIds: STYLELINT_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(STYLELINT_CONFIG_RULES, "setup"),
 			ruleDescriptions: {
 				"stylelint-config-missing": "Falta .stylelintrc.json",
 				"stylelint-config-missing-plugin": "Falta plugin stylelint",

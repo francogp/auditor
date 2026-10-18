@@ -16,7 +16,8 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -774,6 +775,7 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
       description: 'Uso de strings crudos en vez de tipos de dominio',
       family: 'domain_data',
       ruleIds: DOMAIN_TYPES_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DOMAIN_TYPES_RULES, 'contracts'),
       packageName: 'Dominio',
       configKey: 'domain.enabled',
       defaultConfig: { enabled: true },

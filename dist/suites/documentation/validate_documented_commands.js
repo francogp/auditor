@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { COMMAND_INVOCATION_TYPES, VALID_NPM_BUILTINS, evaluateGenericCommandViolation, extractCommandsFromLine, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
 import path from "node:path";
@@ -116,6 +116,7 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "⌨️",
 			ruleIds: DOCUMENTED_COMMANDS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DOCUMENTED_COMMANDS_RULES, "polish"),
 			ruleDescriptions: {
 				"documented-cmd-unregistered-npm": "Script npm run no registrado",
 				"documented-cmd-invalid-npm-syntax": "Comando npm directo no válido",

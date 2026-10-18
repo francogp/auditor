@@ -723,10 +723,35 @@ function getProjectArchitectureRuleRemediations() {
 		noSassAtImport: "Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass."
 	};
 }
+function getProjectArchitectureRuleRemediationPhases() {
+	const phases = {};
+	for (const [key, rule] of Object.entries(auditRulesConfig)) {
+		const r = rule;
+		const id = r.id ? r.id : key;
+		if ([
+			"constantDuplicates",
+			"constantDisparities",
+			"constantAliases"
+		].includes(id) || id.startsWith("constant")) phases[id] = "dedup";
+		else if ([
+			"noAny",
+			"noDoubleCast",
+			"noStringCast",
+			"noDomainIdFallbacks",
+			"noDomainRawStrings",
+			"nodePrefix",
+			"noInlineTypeImports"
+		].includes(id)) phases[id] = "contracts";
+		else if (["esmExtensions"].includes(id)) phases[id] = "polish";
+		else phases[id] = "behavior";
+	}
+	return phases;
+}
 var ProjectArchitectureAuditor = class extends BaseAuditor {
 	constructor() {
 		const ruleDescriptions = getProjectArchitectureRuleDescriptions();
 		const ruleRemediations = getProjectArchitectureRuleRemediations();
+		const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
 		const ruleIds = Object.keys(ruleDescriptions);
 		const fixableRuleIds = Object.entries(auditRulesConfig).filter(([, rule]) => typeof rule.fix === "function" || rule.fixable === true).map(([key, rule]) => rule.id || key);
 		super({
@@ -744,6 +769,7 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			ruleIds,
 			ruleDescriptions,
 			ruleRemediations,
+			ruleRemediationPhases,
 			id: "audit_project",
 			name: "Project Architecture & Style Rules",
 			description: "Audita reglas de arquitectura, TypeScript y estilo",
@@ -779,11 +805,11 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 				line: v.line,
 				message: v.message,
 				context: v.context,
-				fixable: v.fixable
+				fixable: this.isFixActive() ? false : v.fixable
 			});
 		}
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ProjectArchitectureAuditor());
 //#endregion
-export { ProjectArchitectureAuditor, activeProjectRuleTimings, applyRuleFix, buildProjectTopFiles, createLineLocator, extractAllBlocks, extractSelectedRules, filterActiveConfigRules, filterAndGroupViolations, getProjectArchitectureRuleDescriptions, getProjectArchitectureRuleRemediations, getViolationCategory, isInsideComment, main, runRules };
+export { ProjectArchitectureAuditor, activeProjectRuleTimings, applyRuleFix, buildProjectTopFiles, createLineLocator, extractAllBlocks, extractSelectedRules, filterActiveConfigRules, filterAndGroupViolations, getProjectArchitectureRuleDescriptions, getProjectArchitectureRuleRemediationPhases, getProjectArchitectureRuleRemediations, getViolationCategory, isInsideComment, main, runRules };

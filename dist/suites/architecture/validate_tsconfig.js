@@ -1,4 +1,4 @@
-import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -104,6 +104,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			icon: "📘",
 			family: "architecture",
 			ruleIds: TSCONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TSCONFIG_RULES, "setup"),
 			packageName: "TSConfig",
 			configKey: "paths",
 			defaultConfig: {},

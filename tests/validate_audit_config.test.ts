@@ -280,9 +280,29 @@ export class CustomExtAuditor extends BaseAuditor {
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
+      usesThirdPartyTool: false,
+      ruleIds: ['custom-tool-rule'],
       ruleDescriptions: {
         'custom-tool-rule': 'Regla de herramienta custom'
       },
+      ruleRemediations: {
+        'custom-tool-rule': 'Soluciona custom-tool-rule.'
+      },
+      ruleRemediationPhases: {
+        'custom-tool-rule': 'setup'
+      },
+      ruleCapabilities: {
+        'custom-tool-rule': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        }
+      },
+      coverage: { include: ['src/**'] },
       gitIgnoreEntries: CustomExtAuditor.gitIgnoreEntries
     });
   }
@@ -482,9 +502,14 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
-      capabilities: { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false },
+      usesThirdPartyTool: false,
+      ruleCapabilities: {
+        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+      },
       ruleIds: ['custom-rule'],
       ruleDescriptions: { 'custom-rule': 'Desc' },
+      ruleRemediations: { 'custom-rule': 'Remediacion' },
+      ruleRemediationPhases: { 'custom-rule': 'setup' },
       coverage: { include: ['src/**'] },
       projectRoot
     });
@@ -641,6 +666,7 @@ export class CustomExtAuditor extends BaseAuditor {
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       ruleRemediations: { 'custom-rule': 'Soluciona la regla custom-rule ajustando la configuración.' },
+      ruleRemediationPhases: { 'custom-rule': 'setup' },
       usesThirdPartyTool: false,
       projectRoot: opts?.projectRoot
     });

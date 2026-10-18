@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_vue_sfc_hygiene.ts
@@ -98,6 +98,7 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 			description: "Verifica estándares de Vue SFC y <script setup lang=\"ts\">",
 			family: "architecture",
 			ruleIds: VUE_SFC_HYGIENE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(VUE_SFC_HYGIENE_RULES, "behavior"),
 			packageName: "Vue",
 			configKey: "paths",
 			defaultConfig: {},

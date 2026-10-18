@@ -18,7 +18,8 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   type AuditorOptions,
-  createUniformRuleCapabilities
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
@@ -109,6 +110,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
       icon: '📦',
       family: 'architecture',
       ruleIds: NPMRC_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(NPMRC_CONFIG_RULES, 'setup'),
       packageName: 'NPMRC',
       configKey: 'paths',
       defaultConfig: {},

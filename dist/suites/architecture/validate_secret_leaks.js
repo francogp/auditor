@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, matchesSinglePattern } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, matchesSinglePattern } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import { lintSource } from "@secretlint/core";
@@ -75,6 +75,7 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 			packageName: "Secretos",
 			icon: "🔑",
 			ruleIds: SECRET_LEAKS_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SECRET_LEAKS_RULES, "behavior"),
 			ruleDescriptions: {
 				"secret-leak-detected": "Token, secreto o credencial expuesta",
 				"secret-leak-private-key": "Clave criptográfica privada expuesta"

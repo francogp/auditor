@@ -13,7 +13,8 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -627,6 +628,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
       description: 'Colisiones de catálogos y uniones de dominio repetidas',
       family: 'domain_data',
       ruleIds: CANONICAL_DOMAIN_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(CANONICAL_DOMAIN_RULES, 'contracts'),
       packageName: 'Catálogos',
       icon: '📚',
       configKey: 'domain.enabled',

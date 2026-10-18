@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { scanBalancedBraces } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
@@ -59,6 +59,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 			description: "Gobernanza de localStorage, cuotas y tipado de claves",
 			family: "persistence",
 			ruleIds: PERSISTENCE_CLIENT_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(PERSISTENCE_CLIENT_RULES, "behavior"),
 			packageName: "Storage",
 			icon: "🗄️",
 			configKey: "persistence.enabled",

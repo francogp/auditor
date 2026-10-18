@@ -266,6 +266,7 @@ describe('Official Locked Skills Isolation', () => {
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
         ruleRemediations: { 'test-rule': 'Soluciona la regla de prueba.' },
+        ruleRemediationPhases: { 'test-rule': 'hygiene' },
         projectRoot: tempDir
       });
 
@@ -326,6 +327,7 @@ describe('Official Locked Skills Isolation', () => {
         ruleIds: ['test-rule'],
         ruleDescriptions: { 'test-rule': 'Regla de prueba' },
         ruleRemediations: { 'test-rule': 'Soluciona la regla de prueba.' },
+        ruleRemediationPhases: { 'test-rule': 'hygiene' },
         projectRoot: tempDir
       });
 

@@ -23,7 +23,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor, BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -70,6 +71,7 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
       description: 'Comandos no autorizados o tablas mal formateadas en docs',
       family: 'documentation',
       ruleIds: MARKDOWN_SYNTAX_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_SYNTAX_RULES, 'polish'),
       packageName: 'Doc',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },

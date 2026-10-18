@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -139,6 +139,7 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			packageName: "Dependencias",
 			icon: "🛡️",
 			ruleIds: DEPENDENCY_VULNERABILITIES_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_VULNERABILITIES_RULES, "hygiene"),
 			ruleDescriptions: {
 				"dependency-cve-critical": "Vulnerabilidad crítica en paquete",
 				"dependency-cve-high": "Vulnerabilidad de severidad alta",

@@ -2,8 +2,10 @@ import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../
 import { AUDITOR_VERSION } from "../../core/version.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import "../../core/safePath.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
@@ -13,6 +15,7 @@ import { applyAcknowledgedDegradationsFix, detectUnacknowledgedDegradations } fr
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import { pathToFileURL } from "node:url";
 import ts from "typescript";
 //#region src/suites/architecture/validate_audit_config.ts
 /**
@@ -252,6 +255,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			description: "Valida configuración del auditor en .auditor/",
 			family: "architecture",
 			ruleIds: AUDIT_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(AUDIT_CONFIG_RULES, "setup"),
 			packageName: "Config",
 			icon: "⚙️",
 			configKey: "paths",
@@ -314,8 +318,8 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			this.verifyPersistencePaths(config);
 			this.verifyDomainAndStylePaths(config);
 		});
-		this.runSubAuditorSync("audit-config-invalid-extension", () => {
-			this.verifyExtensionPaths(config);
+		await this.runSubAuditor("audit-config-invalid-extension", async () => {
+			await this.verifyExtensionPaths(config);
 		});
 		await this.runSubAuditor("audit-config-missing-gitignore-entry", async () => {
 			await this.verifyGitIgnore(config);
@@ -667,10 +671,97 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		this.verifyDomainPaths(config);
 		this.verifyStylesPaths(config);
 	}
-	verifyExtensionPaths(config) {
+	resolveExtensionFiles(resolved) {
+		const stat = fs.statSync(resolved);
+		if (stat.isDirectory()) return fs.readdirSync(resolved).filter((f) => (f.endsWith(".ts") || f.endsWith(".js")) && !f.endsWith(".d.ts")).map((f) => path.join(resolved, f));
+		if (stat.isFile() && (resolved.endsWith(".ts") || resolved.endsWith(".js"))) return [resolved];
+		return [];
+	}
+	checkExtensionStaticContract(targetFile, relTarget, normalized) {
+		try {
+			const fileContent = fs.readFileSync(targetFile, "utf-8");
+			if (!(fileContent.includes("ruleRemediationPhases") || fileContent.includes("remediationPhase"))) {
+				this.addViolation({
+					ruleId: "audit-config-invalid-extension",
+					severity: "error",
+					file: AUDIT_CONFIG_FILE,
+					line: 1,
+					message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification.`,
+					context: normalized
+				});
+				return false;
+			}
+		} catch {}
+		return true;
+	}
+	instantiateAuditorClass(AuditorClass) {
+		let firstErr;
+		try {
+			new AuditorClass(this.projectRoot);
+			return;
+		} catch (err) {
+			firstErr = err;
+		}
+		try {
+			new AuditorClass({ projectRoot: this.projectRoot });
+		} catch {
+			throw firstErr;
+		}
+	}
+	isAuditorConstructor(val) {
+		if (typeof val !== "function" || !val.prototype) return false;
+		return val.prototype instanceof BaseAuditor || typeof val.prototype.runAudit === "function" || val.name.endsWith("Auditor");
+	}
+	async verifyExtensionRuntime(targetFile, relTarget, normalized) {
+		try {
+			const mod = await import(pathToFileURL(targetFile).href);
+			for (const val of Object.values(mod)) {
+				if (!this.isAuditorConstructor(val)) continue;
+				const AuditorClass = val;
+				this.instantiateAuditorClass(AuditorClass);
+			}
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : String(err);
+			this.addViolation({
+				ruleId: "audit-config-invalid-extension",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' failed compilation or runtime instantiation: ${errorMsg}. Fix the extension before continuing.`,
+				context: normalized
+			});
+		}
+	}
+	async verifySingleExtensionFile(targetFile, normalized) {
+		const relTarget = normalizePosixPath(path.relative(this.projectRoot, targetFile));
+		if (!this.checkExtensionStaticContract(targetFile, relTarget, normalized)) return;
+		await this.verifyExtensionRuntime(targetFile, relTarget, normalized);
+	}
+	async verifyExtensionPaths(config) {
 		const rawExtensions = config._rawConfig?.extensions ?? config.extensions;
 		if (!Array.isArray(rawExtensions)) return;
-		for (const ext of rawExtensions) if (typeof ext === "string") this.checkPathExists(ext, "audit-config-invalid-extension", "extension file or directory");
+		for (const ext of rawExtensions) {
+			if (typeof ext !== "string") continue;
+			const normalized = ext.trim();
+			if (!normalized) continue;
+			if (!this.checkPathExists(normalized, "audit-config-invalid-extension", "extension file or directory")) continue;
+			const resolved = path.resolve(this.projectRoot, normalized);
+			let targetFiles = [];
+			try {
+				targetFiles = this.resolveExtensionFiles(resolved);
+			} catch (err) {
+				this.addViolation({
+					ruleId: "audit-config-invalid-extension",
+					severity: "error",
+					file: AUDIT_CONFIG_FILE,
+					line: 1,
+					message: `Configuration error in ${AUDIT_CONFIG_FILE}: Failed to inspect extension '${normalized}': ${err instanceof Error ? err.message : String(err)}.`,
+					context: normalized
+				});
+				continue;
+			}
+			for (const targetFile of targetFiles) await this.verifySingleExtensionFile(targetFile, normalized);
+		}
 	}
 };
 async function enforceCriticalConfigurations(projectRoot, tasks) {

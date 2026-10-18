@@ -14,7 +14,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
 import type { SharedAstContext } from '../../core/astContext.ts';
@@ -428,6 +429,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
       description: 'Búsqueda lineal O(N) o clonado con JSON.parse',
       family: 'domain_data',
       ruleIds: O1_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(O1_RULES, 'contracts'),
       packageName: 'O(1)',
       configKey: 'constants.enabled',
       defaultConfig: { enabled: true },

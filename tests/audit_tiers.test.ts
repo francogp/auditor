@@ -169,6 +169,11 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
             'r-heavy': 'Remediacion heavy',
             'r-multi': 'Remediacion multi'
           },
+          ruleRemediationPhases: {
+            'r-light': 'hygiene',
+            'r-heavy': 'hygiene',
+            'r-multi': 'hygiene'
+          },
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
             'r-light': {

@@ -16,6 +16,7 @@ import { lintSource, type SecretLintSourceOptions } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   FileScanAuditor,
   matchesSinglePattern,
   createRuleCapabilities
@@ -106,6 +107,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       packageName: 'Secretos',
       icon: '🔑',
       ruleIds: SECRET_LEAKS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SECRET_LEAKS_RULES, 'behavior'),
       ruleDescriptions: {
         'secret-leak-detected': 'Token, secreto o credencial expuesta',
         'secret-leak-private-key': 'Clave criptográfica privada expuesta'

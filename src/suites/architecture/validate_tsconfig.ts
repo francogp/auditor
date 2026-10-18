@@ -18,7 +18,8 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   type AuditorOptions,
-  createUniformRuleCapabilities
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
@@ -170,6 +171,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       icon: '📘',
       family: 'architecture',
       ruleIds: TSCONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TSCONFIG_RULES, 'setup'),
       packageName: 'TSConfig',
       configKey: 'paths',
       defaultConfig: {},

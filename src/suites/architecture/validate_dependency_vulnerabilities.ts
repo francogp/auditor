@@ -15,7 +15,8 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import type { NpmAuditSeverityLevel } from '../../core/auditConfigTypes.ts';
@@ -180,6 +181,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       packageName: 'Dependencias',
       icon: '🛡️',
       ruleIds: DEPENDENCY_VULNERABILITIES_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_VULNERABILITIES_RULES, 'hygiene'),
       ruleDescriptions: {
         'dependency-cve-critical': 'Vulnerabilidad crítica en paquete',
         'dependency-cve-high': 'Vulnerabilidad de severidad alta',

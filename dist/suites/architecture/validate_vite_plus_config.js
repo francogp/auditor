@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { extractParsedConfigSummary, isRuleValueCompliant } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
@@ -1064,6 +1064,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "⚡",
 			ruleIds: VITE_PLUS_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(VITE_PLUS_CONFIG_RULES, "setup"),
 			ruleDescriptions: RULE_DESCRIPTIONS,
 			ruleRemediations: RULE_REMEDIATIONS,
 			coverage: { include: ["vite.config.ts"] },

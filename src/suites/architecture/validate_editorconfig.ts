@@ -21,7 +21,8 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   type AuditorOptions,
-  createUniformRuleCapabilities
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
@@ -117,6 +118,7 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
       icon: '📐',
       family: 'architecture',
       ruleIds: EDITORCONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(EDITORCONFIG_RULES, 'setup'),
       packageName: 'EditorConfig',
       configKey: 'paths',
       defaultConfig: {},

@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, getEffectiveScannableRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -113,6 +113,7 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			description: "Aislamiento estricto de archivos temporales en scratch/",
 			family: "architecture",
 			ruleIds: EPHEMERAL_STORAGE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(EPHEMERAL_STORAGE_RULES, "behavior"),
 			packageName: "Aislamiento",
 			configKey: "persistence.enabled",
 			defaultConfig: { enabled: true },

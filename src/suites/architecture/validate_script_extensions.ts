@@ -14,6 +14,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   type AuditorOptions,
   getEffectiveScannableRoots,
   isPathIgnored,
@@ -124,6 +125,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       description: 'Valida extensiones TypeScript (.ts) y prohíbe .mjs/.cjs',
       family: 'architecture',
       ruleIds: SCRIPT_EXTENSIONS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SCRIPT_EXTENSIONS_RULES, 'setup'),
       packageName: 'Extensiones',
       icon: '📜',
       configKey: 'scriptExtensions',

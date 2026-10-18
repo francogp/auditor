@@ -21,7 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
@@ -292,6 +293,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       description: 'Audita límites de tamaño de bundles y fugas de imports',
       family: 'architecture',
       ruleIds: BUNDLE_BUDGET_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(BUNDLE_BUDGET_RULES, 'polish'),
       packageName: 'Bundle',
       configKey: 'bundle.enabled',
       defaultConfig: { enabled: true },

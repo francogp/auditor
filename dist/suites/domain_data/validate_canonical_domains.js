@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
@@ -394,6 +394,7 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 			description: "Colisiones de catálogos y uniones de dominio repetidas",
 			family: "domain_data",
 			ruleIds: CANONICAL_DOMAIN_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(CANONICAL_DOMAIN_RULES, "contracts"),
 			packageName: "Catálogos",
 			icon: "📚",
 			configKey: "domain.enabled",

@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_gsap_scrolltrigger.ts
 /**
@@ -62,6 +62,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 				".js"
 			]),
 			ruleIds: GSAP_SCROLLTRIGGER_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(GSAP_SCROLLTRIGGER_RULES, "behavior"),
 			ruleDescriptions: {
 				"gsap-scrolltrigger-in-timeline-child": "scrollTrigger en tween de timeline",
 				"gsap-scrolltrigger-scrub-and-toggle": "Conflicto scrub y toggleActions",

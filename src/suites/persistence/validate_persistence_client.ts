@@ -16,7 +16,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { FileScanAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -89,6 +90,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       description: 'Gobernanza de localStorage, cuotas y tipado de claves',
       family: 'persistence',
       ruleIds: PERSISTENCE_CLIENT_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(PERSISTENCE_CLIENT_RULES, 'behavior'),
       packageName: 'Storage',
       icon: '🗄️',
       configKey: 'persistence.enabled',

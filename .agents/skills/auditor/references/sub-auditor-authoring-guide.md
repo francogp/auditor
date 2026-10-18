@@ -43,7 +43,13 @@ flowchart LR
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, hasLineSuppression, createUniformRuleCapabilities } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  hasLineSuppression,
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
+} from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -101,6 +107,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
           '1. Agrega el atributo requerido en el archivo señalado.\n' +
           '2. Consulta la documentación del componente.'
       },
+      // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
+      ruleRemediationPhases: createUniformRemediationPhases(MY_FEATURE_RULES, 'behavior'),
       roots: options.roots ?? ['src'],
       allowedExtensions: new Set(['.vue', '.ts']),
       // Dynamic Exemption Architecture: automatically skips documents matching strings or RegExps.

@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_reactive_leaks.ts
@@ -59,6 +59,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			description: "Detecta posibles fugas de memoria y listeners sin limpiar",
 			family: "architecture",
 			ruleIds: REACTIVE_LEAK_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_LEAK_RULES, "behavior"),
 			packageName: "Fuga",
 			configKey: "paths",
 			defaultConfig: {},

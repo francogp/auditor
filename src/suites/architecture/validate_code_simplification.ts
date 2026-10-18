@@ -5,6 +5,7 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
@@ -55,6 +56,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: CODE_SIMPLIFICATION_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, 'hygiene'),
       ruleDescriptions: {
         'dead-code-accumulation': 'Bloques de código muerto comentados',
         'boolean-trap-parameters': 'Parámetros booleanos posicionales',

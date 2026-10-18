@@ -1,4 +1,5 @@
 import { AuditListFilter } from "./auditConfigTypes.js";
+import { RemediationPhaseId } from "./remediationPhases.js";
 import { AuditFinding, AuditTaskDefinition, FamilyMetadata, StandardAuditResult } from "./auditContract.js";
 import { TEXT_ALIGNMENTS, TextAlignment, getVisualWidth, padVisual, truncateVisual } from "./terminalVisuals.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
@@ -21,6 +22,13 @@ export interface FindingCountData {
   warnings: number;
 }
 export declare function renderFindingsBreakdownTable(items: readonly [string, FindingCountData][], labelHeader?: string): string;
+export interface TieredFindingsPhaseGroup {
+  readonly phaseId: RemediationPhaseId;
+  readonly items: readonly [string, FindingCountData][];
+  readonly errors: number;
+  readonly warnings: number;
+}
+export declare function renderTieredFindingsBreakdownTable(groups: readonly TieredFindingsPhaseGroup[], labelHeader?: string): string;
 export declare function renderSampleFindings(findings: readonly AuditFinding[], limitOrAll?: number | 'all', options?: {
   readonly title?: string;
 }): string;

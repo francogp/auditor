@@ -1,6 +1,7 @@
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { isPathExempt } from "./reportUtils.js";
 import "./auditConfig.js";
+import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import "./permissionGuard.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
@@ -546,6 +547,15 @@ function createUniformRuleCapabilities(ruleIds, capabilities) {
 	return createRuleCapabilities(ruleIds, capabilities);
 }
 /**
+* Creates uniform strategic remediation phases for suites where every declared rule
+* shares the same remediation phase.
+*/
+function createUniformRemediationPhases(ruleIds, phase) {
+	const result = {};
+	for (const id of ruleIds) result[id] = phase;
+	return result;
+}
+/**
 * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
 */
 const LIGHT_RULE_CAPABILITIES = Object.freeze({
@@ -679,6 +689,20 @@ function validateAuditorRuleRemediations(options) {
 	}
 	for (const ruleId of Object.keys(options.ruleRemediations)) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] defines remediation guide for rule '${ruleId}' in 'ruleRemediations' that is not declared in 'ruleIds'.`);
 }
+function validateAuditorRuleRemediationPhases(options) {
+	const hasSuitePhase = Boolean(options.remediationPhase && isRemediationPhaseId(options.remediationPhase));
+	const hasRulePhases = Boolean(options.ruleRemediationPhases && typeof options.ruleRemediationPhases === "object" && Object.keys(options.ruleRemediationPhases).length > 0);
+	if (!hasSuitePhase && !hasRulePhases) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every sub-auditor and host extension is strictly required to declare how it is classified in the strategic remediation order.`);
+	if (options.remediationPhase && !isRemediationPhaseId(options.remediationPhase)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] defines invalid 'remediationPhase': '${String(options.remediationPhase)}'. Must be one of: ${REMEDIATION_PHASE_IDS.join(", ")}.`);
+	const phases = options.ruleRemediationPhases ?? {};
+	for (const ruleId of options.ruleIds) {
+		const phase = phases[ruleId] ?? options.remediationPhase;
+		if (!phase || !isRemediationPhaseId(phase)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] is missing a valid remediation phase for declared rule '${ruleId}'. Declare 'remediationPhase' or 'ruleRemediationPhases' with one of: ${REMEDIATION_PHASE_IDS.join(", ")}.`);
+	}
+	if (options.ruleRemediationPhases) {
+		for (const ruleId of Object.keys(options.ruleRemediationPhases)) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] defines remediation phase for rule '${ruleId}' in 'ruleRemediationPhases' that is not declared in 'ruleIds'.`);
+	}
+}
 function validateAuditorScripts(options) {
 	if (!Array.isArray(options.scripts) || options.scripts.length === 0) throw new Error(`Auditor [${options.id}] must define a mandatory 'scripts' contract (array of AuditorPackageScriptRequirement). Every sub-auditor and host extension must explicitly declare the canonical package.json script and CLI command used to execute it.`);
 	for (const script of options.scripts) {
@@ -710,6 +734,7 @@ function validateAuditorOptions(options, effectiveCapabilities) {
 	validateAuditorRuleCapabilities(options);
 	validateAuditorFixContract(options, effectiveCapabilities);
 	validateAuditorRuleRemediations(options);
+	validateAuditorRuleRemediationPhases(options);
 	validateAuditorScripts(options);
 	if (options.gitIgnoreEntries !== void 0 && !Array.isArray(options.gitIgnoreEntries)) throw new Error(`Auditor [${options.id}] 'gitIgnoreEntries' must be an array if defined.`);
 	validateCoverageDeclaration(options.id, options.coverage);
@@ -740,6 +765,7 @@ var BaseAuditor = class BaseAuditor {
 	ruleIds;
 	ruleDescriptions;
 	ruleRemediations;
+	ruleRemediationPhases;
 	explicitSubAuditors;
 	roots;
 	allowedExtensions;
@@ -1020,6 +1046,9 @@ var BaseAuditor = class BaseAuditor {
 		this.ruleIds = options.ruleIds;
 		this.ruleDescriptions = options.ruleDescriptions;
 		this.ruleRemediations = options.ruleRemediations;
+		const resolvedPhases = {};
+		for (const ruleId of options.ruleIds) resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase;
+		this.ruleRemediationPhases = Object.freeze(resolvedPhases);
 		this.explicitSubAuditors = options.subAuditors;
 		this.roots = options.roots ?? getEffectiveScannableRoots();
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
@@ -1263,6 +1292,7 @@ var BaseAuditor = class BaseAuditor {
 		const normalizedFile = targetFile ? path.isAbsolute(targetFile) ? path.relative(this.projectRoot, targetFile).replace(/\\/g, "/") : targetFile.replace(/\\/g, "/") : targetFile;
 		const targetCol = v.col ?? v.column;
 		const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
+		const effectiveRemediationPhase = v.remediationPhase ?? this.ruleRemediationPhases?.[v.ruleId];
 		if (v.severity === "error") this.context.addFinding({
 			severity: "error",
 			message: v.message,
@@ -1275,7 +1305,8 @@ var BaseAuditor = class BaseAuditor {
 			suiteId: this.id,
 			suiteName: this.name,
 			fixable: isFixable,
-			remediation: effectiveRemediation
+			remediation: effectiveRemediation,
+			remediationPhase: effectiveRemediationPhase
 		});
 		else if (!this.context.values["errors-only"]) this.context.addFinding({
 			severity: "warning",
@@ -1289,7 +1320,8 @@ var BaseAuditor = class BaseAuditor {
 			suiteId: this.id,
 			suiteName: this.name,
 			fixable: isFixable,
-			remediation: effectiveRemediation
+			remediation: effectiveRemediation,
+			remediationPhase: effectiveRemediationPhase
 		});
 	}
 	isLineIgnored(line, customTokens = []) {
@@ -1544,6 +1576,7 @@ var BaseAuditor = class BaseAuditor {
 			},
 			rules: rulesRecord,
 			remediations: this.ruleRemediations ? { ...this.ruleRemediations } : void 0,
+			remediationPhases: this.ruleRemediationPhases ? { ...this.ruleRemediationPhases } : void 0,
 			fixableRules: this.getFixableRuleIds().map((r) => String(r)),
 			configKey: this.configKey,
 			defaultConfig: { ...this.defaultConfig },
@@ -1831,4 +1864,4 @@ var FileScanAuditor = class extends BaseAuditor {
 	}
 };
 //#endregion
-export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, setupAuditor };
+export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, setupAuditor };

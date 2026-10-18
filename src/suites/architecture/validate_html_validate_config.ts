@@ -22,6 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   createRuleCapabilities,
   collectRepositoryFiles,
   type AuditorOptions
@@ -195,6 +196,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
       configFiles: [HTML_VALIDATE_CONFIG_REQUIREMENT],
       icon: '🌐',
       ruleIds: HTML_VALIDATE_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_CONFIG_RULES, 'setup'),
       ruleDescriptions: {
         'html-validate-config-missing': 'Archivo .htmlvalidate.json ausente',
         'html-validate-config-syntax': 'Error de sintaxis en configuración',

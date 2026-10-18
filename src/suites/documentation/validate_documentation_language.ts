@@ -17,7 +17,8 @@ import {
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
@@ -460,6 +461,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       criticalConfig: {},
       icon: '🌐',
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DOCUMENTATION_LANGUAGE_RULES, 'polish'),
       ruleDescriptions: {
         'docs-unauthorized-language': 'Texto en idioma no autorizado',
         'docs-missing-language-mandate': 'Falta mandato de idioma en AGENTS.md',

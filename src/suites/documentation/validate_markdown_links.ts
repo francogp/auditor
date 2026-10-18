@@ -22,6 +22,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   collectRepositoryFiles,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -553,6 +554,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
       description: 'Enlaces relativos y rutas válidas en markdown',
       family: 'documentation',
       ruleIds: MARKDOWN_LINK_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_LINK_RULES, 'polish'),
       packageName: 'Doc',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },

@@ -100,7 +100,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
             coverage: { include: ['src/**'] },
             ruleIds: ['rule-1'],
             ruleDescriptions: { 'rule-1': 'Desc' },
-            ruleRemediations: { 'rule-1': 'Remediacion' }
+            ruleRemediations: { 'rule-1': 'Remediacion' },
+            ruleRemediationPhases: { 'rule-1': 'setup' }
           });
         }
         public override async runAudit() {}
@@ -223,6 +224,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleRemediationPhases: { 'rule-1': 'setup' } as never,
               scripts: [
                 {
                   name: 'auditor:mock',
@@ -258,6 +260,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'] as never,
               ruleDescriptions: { 'rule-1': 'Desc' } as never,
               ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleRemediationPhases: { 'rule-1': 'setup' } as never,
               scripts: [
                 {
                   name: 'auditor:mock',
@@ -300,6 +303,10 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           ruleRemediations: {
             'test-rule-alpha': 'Remediacion alpha',
             'test-rule-beta': 'Remediacion beta'
+          },
+          ruleRemediationPhases: {
+            'test-rule-alpha': 'setup',
+            'test-rule-beta': 'hygiene'
           },
           scripts: [
             {

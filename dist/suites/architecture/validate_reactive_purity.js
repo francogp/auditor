@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_reactive_purity.ts
@@ -62,6 +62,7 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 			description: "Verifica pureza reactiva y ausencia de efectos en computeds",
 			family: "architecture",
 			ruleIds: REACTIVE_PURITY_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_PURITY_RULES, "behavior"),
 			packageName: "Computed",
 			configKey: "paths",
 			defaultConfig: {},

@@ -28,6 +28,7 @@ import type { HomebrewInspectionContext } from '../src/analyzers/homebrew/homebr
 import {
   BaseAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   type AuditorOptions
 } from '../src/core/auditorBase.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
@@ -55,6 +56,10 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
       'probe-external': 'Remediación de prueba externa.',
       'probe-internal': 'Remediación de prueba interna.'
     },
+    ruleRemediationPhases: createUniformRemediationPhases(
+      ['probe-external', 'probe-internal'],
+      'hygiene'
+    ),
     ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], {
       speed: 'light',
       phase: 'normal',

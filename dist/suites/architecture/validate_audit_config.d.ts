@@ -49,6 +49,12 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
   private verifyDomainPaths;
   private verifyStylesPaths;
   private verifyDomainAndStylePaths;
+  private resolveExtensionFiles;
+  private checkExtensionStaticContract;
+  private instantiateAuditorClass;
+  private isAuditorConstructor;
+  private verifyExtensionRuntime;
+  private verifySingleExtensionFile;
   private verifyExtensionPaths;
 }
 export declare function enforceCriticalConfigurations(projectRoot: string, tasks: readonly AuditTaskDefinition[]): Promise<boolean>;

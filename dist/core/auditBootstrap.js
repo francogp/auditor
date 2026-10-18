@@ -143,7 +143,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "9.0.6-build.20261017-135920")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "9.1.0-build.20261017-210408")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

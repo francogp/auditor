@@ -1,4 +1,4 @@
-import { BaseAuditor, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { findConfigRootObject, findPropertyAssignment, getPropertyKeyName, parseTsSourceFile, printTransformedSourceFile, valueToAstExpression } from "../../core/viteConfigAst.js";
 import { enableCompileCache } from "node:module";
@@ -93,6 +93,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			icon: "🎭",
 			family: "architecture",
 			ruleIds: PLAYWRIGHT_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(PLAYWRIGHT_CONFIG_RULES, "setup"),
 			packageName: "Playwright",
 			configKey: "paths",
 			defaultConfig: {},

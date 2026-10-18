@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { stripCommentsAndStrings } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_scss_architecture.ts
@@ -36,6 +36,7 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: SCSS_ARCHITECTURE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(SCSS_ARCHITECTURE_RULES, "hygiene"),
 			ruleDescriptions: {
 				"raw-css-in-sfc": "<style> sin atributo lang=\"scss\"",
 				"scss-deep-selector-abuse": "Abuso o anidamiento de :deep()",

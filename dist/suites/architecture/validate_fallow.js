@@ -161,6 +161,19 @@ const FALLOW_RULE_REMEDIATIONS = {
 	"fallow-workspace-diagnostic": "Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.",
 	"fallow-security-cwe": "Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada."
 };
+const FALLOW_RULE_REMEDIATION_PHASES = {
+	"fallow-unused-files": "prune",
+	"fallow-unused-exports": "prune",
+	"fallow-unused-dependencies": "prune",
+	"fallow-duplicate-code": "dedup",
+	"fallow-triplicate-code": "dedup",
+	"fallow-boundary-violations": "contracts",
+	"fallow-security-cwe": "behavior",
+	"fallow-refactoring-targets": "hygiene",
+	"fallow-circular-dependencies": "hygiene",
+	"fallow-stale-suppressions": "hygiene",
+	"fallow-workspace-diagnostic": "setup"
+};
 const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
 const FALLOW_HIGH_PRIORITY_THRESHOLD = 20;
 const FALLOW_MEDIUM_PRIORITY_THRESHOLD = 10;
@@ -393,6 +406,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			ruleIds: FALLOW_RULES,
 			ruleDescriptions: FALLOW_RULE_DESCRIPTIONS,
 			ruleRemediations: FALLOW_RULE_REMEDIATIONS,
+			ruleRemediationPhases: FALLOW_RULE_REMEDIATION_PHASES,
 			coverage: {
 				include: ["src/**/*.{ts,js,vue}"],
 				source: "declared-only"
@@ -531,4 +545,4 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new FallowArchitectureAuditor());
 //#endregion
-export { FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };
+export { FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };

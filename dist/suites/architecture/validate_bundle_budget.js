@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
@@ -200,6 +200,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 			description: "Audita límites de tamaño de bundles y fugas de imports",
 			family: "architecture",
 			ruleIds: BUNDLE_BUDGET_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(BUNDLE_BUDGET_RULES, "polish"),
 			packageName: "Bundle",
 			configKey: "bundle.enabled",
 			defaultConfig: { enabled: true },

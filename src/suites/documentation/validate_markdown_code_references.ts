@@ -26,7 +26,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
@@ -641,6 +642,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       description: 'Valida rutas, scripts, casing y skills en markdown',
       family: 'documentation',
       ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_CODE_REFERENCE_RULES, 'polish'),
       packageName: 'Doc',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },

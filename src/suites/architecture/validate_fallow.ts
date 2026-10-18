@@ -19,7 +19,8 @@ import { toPosixRelative } from '../../core/safePath.ts';
 import type {
   FindingSeverity,
   AuditorCapabilities,
-  TieredCommandProfile
+  TieredCommandProfile,
+  RemediationPhaseId
 } from '../../core/auditContract.ts';
 import type {
   FallowTargetPriority,
@@ -183,6 +184,20 @@ export const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string> = {
     'Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.',
   'fallow-security-cwe':
     'Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada.'
+};
+
+export const FALLOW_RULE_REMEDIATION_PHASES: Record<FallowRuleId, RemediationPhaseId> = {
+  'fallow-unused-files': 'prune',
+  'fallow-unused-exports': 'prune',
+  'fallow-unused-dependencies': 'prune',
+  'fallow-duplicate-code': 'dedup',
+  'fallow-triplicate-code': 'dedup',
+  'fallow-boundary-violations': 'contracts',
+  'fallow-security-cwe': 'behavior',
+  'fallow-refactoring-targets': 'hygiene',
+  'fallow-circular-dependencies': 'hygiene',
+  'fallow-stale-suppressions': 'hygiene',
+  'fallow-workspace-diagnostic': 'setup'
 };
 
 export const FALLOW_CRITICAL_PRIORITY_THRESHOLD = 30;
@@ -579,6 +594,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       ruleIds: FALLOW_RULES,
       ruleDescriptions: FALLOW_RULE_DESCRIPTIONS,
       ruleRemediations: FALLOW_RULE_REMEDIATIONS,
+      ruleRemediationPhases: FALLOW_RULE_REMEDIATION_PHASES,
       coverage: {
         include: ['src/**/*.{ts,js,vue}'],
         source: 'declared-only'

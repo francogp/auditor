@@ -6,7 +6,8 @@
 
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
 import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
@@ -47,6 +48,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       criticalConfig: {},
       icon: '🧪',
       ruleIds: TEST_COVERAGE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TEST_COVERAGE_RULES, 'polish'),
       ruleDescriptions: {
         'test-coverage-below-threshold': 'Cobertura de tests bajo umbral',
         'test-coverage-missing-report': 'Falta archivo de cobertura',

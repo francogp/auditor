@@ -19,6 +19,7 @@ import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   loadLockedSkills,
   getEffectiveUnignoreDirs,
   createRuleCapabilities
@@ -203,6 +204,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       criticalConfig: {},
       icon: '📘',
       ruleIds: MARKDOWN_LINT_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_LINT_RULES, 'polish'),
       ruleDescriptions: {
         'markdownlint-issue': 'Formato o estilo inválido'
       },

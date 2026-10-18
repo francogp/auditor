@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
@@ -305,6 +305,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🌐",
 			ruleIds: DOCUMENTATION_LANGUAGE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DOCUMENTATION_LANGUAGE_RULES, "polish"),
 			ruleDescriptions: {
 				"docs-unauthorized-language": "Texto en idioma no autorizado",
 				"docs-missing-language-mandate": "Falta mandato de idioma en AGENTS.md",

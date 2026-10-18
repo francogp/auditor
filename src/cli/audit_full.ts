@@ -60,6 +60,8 @@ import {
   renderConsolidatedFooter,
   renderMarkdownReport,
   renderFindingsBreakdownTable,
+  renderTieredFindingsBreakdownTable,
+  type TieredFindingsPhaseGroup,
   renderSampleFindings,
   renderSimilarCodeWarningBanner,
   renderAutoFixNoticeBanner,
@@ -70,6 +72,11 @@ import {
   formatDurationMs,
   formatNumber
 } from '../core/unifiedTheme.ts';
+import {
+  REMEDIATION_PHASE_IDS,
+  getRemediationPhaseMetadata,
+  type RemediationPhaseId
+} from '../core/remediationPhases.ts';
 import {
   renderRuleGuideCard,
   renderSuiteGuideCards,
@@ -573,6 +580,18 @@ interface MasterReportContext {
 
 const ERROR_WEIGHT_FACTOR = 1000;
 
+function sortCategoryEntries<T extends { errors: number; warnings: number }>(
+  entries: [string, T][]
+): [string, T][] {
+  return entries.sort((a, b) => {
+    return (
+      b[1].errors * ERROR_WEIGHT_FACTOR +
+      b[1].warnings -
+      (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings)
+    );
+  });
+}
+
 export function computeAuditCategoryCounts(
   results: readonly StandardAuditResult[]
 ): Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]> {
@@ -593,13 +612,57 @@ export function computeAuditCategoryCounts(
     }
   }
 
-  return Array.from(categoryCounts.entries()).sort((a, b) => {
-    return (
-      b[1].errors * ERROR_WEIGHT_FACTOR +
-      b[1].warnings -
-      (a[1].errors * ERROR_WEIGHT_FACTOR + a[1].warnings)
-    );
-  });
+  return sortCategoryEntries(Array.from(categoryCounts.entries()));
+}
+
+export function computeTieredAuditCategoryCounts(
+  results: readonly StandardAuditResult[]
+): TieredFindingsPhaseGroup[] {
+  const phaseMaps = new Map<
+    RemediationPhaseId,
+    Map<string, { errors: number; warnings: number; findings: AuditFinding[] }>
+  >();
+
+  for (const phaseId of REMEDIATION_PHASE_IDS) {
+    phaseMaps.set(phaseId, new Map());
+  }
+
+  for (const suite of results) {
+    for (const finding of suite.findings || []) {
+      const phase: RemediationPhaseId = finding.remediationPhase ?? 'hygiene';
+      const catMap = phaseMaps.get(phase) ?? phaseMaps.get('hygiene')!;
+      const catKey = finding.ruleDescription ?? finding.ruleId ?? suite.name;
+
+      if (!catMap.has(catKey)) {
+        catMap.set(catKey, { errors: 0, warnings: 0, findings: [] });
+      }
+      const entry = catMap.get(catKey)!;
+      if (finding.severity === 'error') entry.errors++;
+      else entry.warnings++;
+      entry.findings.push(finding);
+    }
+  }
+
+  const groups: TieredFindingsPhaseGroup[] = [];
+
+  for (const phaseId of REMEDIATION_PHASE_IDS) {
+    const catMap = phaseMaps.get(phaseId)!;
+    if (catMap.size === 0) continue;
+
+    const items = sortCategoryEntries(Array.from(catMap.entries()));
+
+    const errors = items.reduce((sum, [, d]) => sum + d.errors, 0);
+    const warnings = items.reduce((sum, [, d]) => sum + d.warnings, 0);
+
+    groups.push({
+      phaseId,
+      items,
+      errors,
+      warnings
+    });
+  }
+
+  return groups;
 }
 
 interface FindingsSummaryBlockingContext {
@@ -611,7 +674,8 @@ interface FindingsSummaryBlockingContext {
 function printFindingsSummary(
   results: readonly StandardAuditResult[],
   sortedCategories: Array<[string, { errors: number; warnings: number; findings: AuditFinding[] }]>,
-  blockingContext?: FindingsSummaryBlockingContext
+  blockingContext?: FindingsSummaryBlockingContext,
+  tieredGroups?: readonly TieredFindingsPhaseGroup[]
 ): void {
   if (sortedCategories.length === 0) {
     console.log(
@@ -636,12 +700,21 @@ function printFindingsSummary(
     console.log(
       styleText(
         'bold',
-        '📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE SETUP):\n'
+        '📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE 1: SETUP):\n'
       )
     );
-    console.log(
-      renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA DE SETUP')
-    );
+    if (tieredGroups && tieredGroups.length > 0) {
+      console.log(
+        renderTieredFindingsBreakdownTable(
+          tieredGroups,
+          'TIPO DE INCIDENCIA / REGLA DE SETUP'
+        )
+      );
+    } else {
+      console.log(
+        renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA DE SETUP')
+      );
+    }
     const setupErrors = sortedCategories.flatMap(([, data]) =>
       data.findings.filter((f) => f.severity === 'error')
     );
@@ -661,8 +734,18 @@ function printFindingsSummary(
       )
     );
   } else {
-    console.log('\n' + styleText('bold', '📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA:\n'));
-    console.log(renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA'));
+    console.log(
+      '\n' +
+        styleText(
+          'bold',
+          '📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA (ORDEN ESTRATÉGICO DE RESOLUCIÓN):\n'
+        )
+    );
+    if (tieredGroups && tieredGroups.length > 0) {
+      console.log(renderTieredFindingsBreakdownTable(tieredGroups, 'TIPO DE INCIDENCIA / REGLA'));
+    } else {
+      console.log(renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA'));
+    }
     const allErrors = results.flatMap((suite) =>
       (suite.findings || []).filter((f) => f.severity === 'error')
     );
@@ -760,7 +843,28 @@ function buildConsolidatedReport(params: {
       ])
     ) as Record<AuditFamily, { title: string; suites: StandardAuditResult[] }>,
     allFindings: sortedFindings,
-    findingsByFile
+    findingsByFile,
+    remediationPhases: (() => {
+      const summary: ConsolidatedAuditReport['remediationPhases'] = {};
+      for (const phaseId of REMEDIATION_PHASE_IDS) {
+        const pMeta = getRemediationPhaseMetadata(phaseId);
+        summary[phaseId] = {
+          title: pMeta.title,
+          order: pMeta.order,
+          errors: 0,
+          warnings: 0,
+          violations: 0
+        };
+      }
+      for (const f of rawFindings) {
+        const phaseId = f.remediationPhase ?? 'hygiene';
+        const entry = summary[phaseId] ?? summary['hygiene']!;
+        if (f.severity === 'error') entry.errors++;
+        else entry.warnings++;
+        entry.violations++;
+      }
+      return summary;
+    })()
   };
 
   return { meta, consolidatedReport, fileSummaryMap };
@@ -1022,12 +1126,18 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
 
   const displayResults = isSetupBlocking ? setupResults : results;
   const sortedCategories = computeAuditCategoryCounts(displayResults);
+  const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
 
-  printFindingsSummary(results, sortedCategories, {
-    isSetupBlocking,
-    setupErrors,
-    postponedAppErrors
-  });
+  printFindingsSummary(
+    results,
+    sortedCategories,
+    {
+      isSetupBlocking,
+      setupErrors,
+      postponedAppErrors
+    },
+    tieredGroups
+  );
   console.log(
     renderConsolidatedFooter(
       results.length,

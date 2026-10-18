@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -190,6 +190,7 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🛡️",
 			ruleIds: AGENTS_CONFIG_MANDATE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(AGENTS_CONFIG_MANDATE_RULES, "setup"),
 			ruleDescriptions: {
 				"agents-missing-config-mandate": "Falta mandato de no alterar config",
 				"agents-missing-backward-compat-mandate": "Falta mandato no retrocompatible",

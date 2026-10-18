@@ -3,6 +3,7 @@ import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
@@ -45,6 +46,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       roots: targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SECURITY_HARDENING_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(SECURITY_HARDENING_RULES, 'behavior'),
       ruleDescriptions: {
         'hardcoded-secrets': 'Secret o token hardcodeado en código',
         'insecure-random': 'Math.random() para valores sensibles',

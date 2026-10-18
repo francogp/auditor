@@ -40,6 +40,7 @@ const BASE_OPTIONS = {
   usesThirdPartyTool: false,
   ruleDescriptions: { 'probe-rule': 'Regla sonda' },
   ruleRemediations: { 'probe-rule': 'Soluciona probe-rule ajustando la sonda.' },
+  ruleRemediationPhases: { 'probe-rule': 'hygiene' },
   ruleCapabilities: {
     'probe-rule': {
       speed: 'light',

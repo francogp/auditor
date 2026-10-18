@@ -3,6 +3,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
+  createUniformRemediationPhases,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -486,6 +487,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       criticalConfig: {},
       icon: '📦',
       ruleIds: PACKAGE_HYGIENE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_HYGIENE_RULES, 'hygiene'),
       ruleDescriptions: {
         'package-unused-dependency': 'Dependencia no utilizada en package',
         'package-unlisted-dependency': 'Dependencia fantasma no declarada',

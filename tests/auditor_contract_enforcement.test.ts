@@ -55,6 +55,10 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
     'sample-rule-a': 'Guía para solucionar sample-rule-a.',
     'sample-rule-b': 'Guía para solucionar sample-rule-b.'
   },
+  ruleRemediationPhases: {
+    'sample-rule-a': 'hygiene',
+    'sample-rule-b': 'hygiene'
+  },
   coverage: {
     include: ['src/**/*.ts']
   },
@@ -258,6 +262,24 @@ describe('Auditor Mandatory Constructor Contract & Zero-Bypass Enforcer', () => 
           } as unknown as Record<SampleRuleId, string>
         });
       }).toThrow(/missing a rule description.*'sample-rule-b'/);
+    });
+
+    it('THROWS if ruleRemediationPhases is missing or does not cover declared rules', () => {
+      expect(() => {
+        new TestSubAuditor({
+          ...CANONICAL_VALID_OPTIONS,
+          ruleRemediationPhases: undefined as unknown as Record<SampleRuleId, any>
+        });
+      }).toThrow(/must define mandatory 'remediationPhase' or 'ruleRemediationPhases'/);
+
+      expect(() => {
+        new TestSubAuditor({
+          ...CANONICAL_VALID_OPTIONS,
+          ruleRemediationPhases: {
+            'sample-rule-a': 'hygiene'
+          } as unknown as Record<SampleRuleId, any>
+        });
+      }).toThrow(/is missing a valid remediation phase for declared rule 'sample-rule-b'/);
     });
   });
 

@@ -1,4 +1,4 @@
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -114,6 +114,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🏷️",
 			ruleIds: TYPE_CHECK_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TYPE_CHECK_RULES, "contracts"),
 			ruleDescriptions: { "ts-compiler-error": "Error de compilación o tipo" },
 			ruleRemediations: { "ts-compiler-error": "Guía de diagnóstico y remediación para ts-compiler-error. Revisa la incidencia detectada y ajusta el código correspondiente." },
 			coverage: {

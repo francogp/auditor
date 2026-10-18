@@ -3,7 +3,7 @@ import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -156,6 +156,7 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 			description: "Prohíbe as any, doble casteo y promesas flotantes",
 			family: "architecture",
 			ruleIds: TYPE_ASSERTION_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TYPE_ASSERTION_RULES, "contracts"),
 			packageName: "Tipos",
 			icon: "🛡️",
 			configKey: "paths",

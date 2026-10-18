@@ -1,4 +1,4 @@
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -92,6 +92,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "📊",
 			ruleIds: MERMAID_SYNTAX_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MERMAID_SYNTAX_RULES, "polish"),
 			ruleDescriptions: {
 				"mermaid-syntax-error": "Error sintáctico en diagrama Mermaid",
 				"mermaid-unquoted-special-chars": "Caracter especial sin comillas en Mermaid"

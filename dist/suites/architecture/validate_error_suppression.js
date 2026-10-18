@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_error_suppression.ts
@@ -58,6 +58,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 			description: "Prohíbe supresión de errores, catch vacíos y fallbacks",
 			family: "architecture",
 			ruleIds: ERROR_SUPPRESSION_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(ERROR_SUPPRESSION_RULES, "hygiene"),
 			packageName: "Error",
 			configKey: "paths",
 			defaultConfig: {},

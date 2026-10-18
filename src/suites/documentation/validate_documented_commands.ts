@@ -11,7 +11,8 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
@@ -182,6 +183,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
       criticalConfig: {},
       icon: '⌨️',
       ruleIds: DOCUMENTED_COMMANDS_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(DOCUMENTED_COMMANDS_RULES, 'polish'),
       ruleDescriptions: {
         'documented-cmd-unregistered-npm': 'Script npm run no registrado',
         'documented-cmd-invalid-npm-syntax': 'Comando npm directo no válido',

@@ -19,7 +19,8 @@ import ts from 'typescript';
 import {
   BaseAuditor,
   type AuditorOptions,
-  createUniformRuleCapabilities
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
@@ -151,6 +152,7 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       icon: '🎭',
       family: 'architecture',
       ruleIds: PLAYWRIGHT_CONFIG_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(PLAYWRIGHT_CONFIG_RULES, 'setup'),
       packageName: 'Playwright',
       configKey: 'paths',
       defaultConfig: {},

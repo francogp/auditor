@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -75,6 +75,7 @@ var PiniaReactivityAuditor = class extends FileScanAuditor {
 			description: "Protege reactividad e integridad de stores de Pinia",
 			family: "architecture",
 			ruleIds: PINIA_REACTIVITY_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(PINIA_REACTIVITY_RULES, "behavior"),
 			packageName: "Pinia",
 			configKey: "pinia.enabled",
 			defaultConfig: { enabled: true },

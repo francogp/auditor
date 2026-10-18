@@ -3,7 +3,7 @@ import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils
 import "../../core/auditConfig.js";
 import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities, getEffectiveUnignoreDirs, loadLockedSkills } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveUnignoreDirs, loadLockedSkills } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -145,6 +145,7 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "📘",
 			ruleIds: MARKDOWN_LINT_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_LINT_RULES, "polish"),
 			ruleDescriptions: { "markdownlint-issue": "Formato o estilo inválido" },
 			ruleRemediations: { "markdownlint-issue": "Guía de diagnóstico y remediación para markdownlint-issue. Revisa la incidencia detectada y ajusta el código correspondiente." },
 			unignoreDirs: getEffectiveUnignoreDirs(projectRoot),

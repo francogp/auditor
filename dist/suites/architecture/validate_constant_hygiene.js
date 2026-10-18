@@ -3,7 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/astContext.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -67,6 +67,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),
 			requiresAst: true,
 			ruleIds: CONSTANT_HYGIENE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(CONSTANT_HYGIENE_RULES, "dedup"),
 			ruleDescriptions: {
 				"duplicate-constant-identical": "Constante idéntica duplicada",
 				"duplicate-constant-divergent": "Constante dispar entre módulos",

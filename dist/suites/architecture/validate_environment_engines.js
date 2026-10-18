@@ -1,4 +1,4 @@
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
@@ -71,6 +71,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			description: "Valida versiones de Node.js y npm en package.json",
 			family: "architecture",
 			ruleIds: ENVIRONMENT_ENGINES_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(ENVIRONMENT_ENGINES_RULES, "setup"),
 			packageName: "Entorno",
 			configKey: "environment.enabled",
 			defaultConfig: { enabled: true },

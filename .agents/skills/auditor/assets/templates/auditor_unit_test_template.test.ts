@@ -51,6 +51,9 @@ describe('MyFeatureAuditor', () => {
     expect(manifest.configKey).toBe('paths.srcRoots');
     expect(manifest.rules['my-feature-forbidden-pattern']).toBeDefined();
     expect(manifest.rules['my-feature-missing-attribute']).toBeDefined();
+    expect(manifest.remediationPhases).toBeDefined();
+    expect(manifest.remediationPhases!['my-feature-forbidden-pattern']).toBe('behavior');
+    expect(manifest.remediationPhases!['my-feature-missing-attribute']).toBe('behavior');
   });
 
   it('passes cleanly when no violations are present', async () => {

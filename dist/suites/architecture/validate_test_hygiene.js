@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -72,6 +72,7 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 			description: "Audita higiene en tests, mocks y locators de Playwright",
 			family: "architecture",
 			ruleIds: TEST_HYGIENE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(TEST_HYGIENE_RULES, "hygiene"),
 			packageName: "Tests",
 			configKey: "paths",
 			defaultConfig: {},

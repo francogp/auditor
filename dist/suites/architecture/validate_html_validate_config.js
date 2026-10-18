@@ -1,7 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
@@ -139,6 +139,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 			configFiles: [HTML_VALIDATE_CONFIG_REQUIREMENT],
 			icon: "🌐",
 			ruleIds: HTML_VALIDATE_CONFIG_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_CONFIG_RULES, "setup"),
 			ruleDescriptions: {
 				"html-validate-config-missing": "Archivo .htmlvalidate.json ausente",
 				"html-validate-config-syntax": "Error de sintaxis en configuración",

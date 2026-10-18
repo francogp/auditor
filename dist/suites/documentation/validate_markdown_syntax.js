@@ -1,4 +1,4 @@
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -53,6 +53,7 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 			description: "Comandos no autorizados o tablas mal formateadas en docs",
 			family: "documentation",
 			ruleIds: MARKDOWN_SYNTAX_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_SYNTAX_RULES, "polish"),
 			packageName: "Doc",
 			configKey: "documentation.enabled",
 			defaultConfig: { enabled: true },

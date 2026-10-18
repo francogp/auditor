@@ -17,7 +17,8 @@ import {
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 
@@ -408,6 +409,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       criticalConfig: {},
       icon: '🛡️',
       ruleIds: AGENTS_CONFIG_MANDATE_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(AGENTS_CONFIG_MANDATE_RULES, 'setup'),
       ruleDescriptions: {
         'agents-missing-config-mandate': 'Falta mandato de no alterar config',
         'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',

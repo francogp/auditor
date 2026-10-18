@@ -16,7 +16,8 @@ import path from 'node:path';
 import fsSync from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { BaseAuditor,
+  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 
 enableCompileCache();
@@ -151,6 +152,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
       criticalConfig: {},
       icon: '🏷️',
       ruleIds: TYPE_CHECK_RULES,
+      ruleRemediationPhases: createUniformRemediationPhases(TYPE_CHECK_RULES, 'contracts'),
       ruleDescriptions: {
         'ts-compiler-error': 'Error de compilación o tipo'
       },

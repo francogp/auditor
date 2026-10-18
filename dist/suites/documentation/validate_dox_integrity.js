@@ -1,6 +1,6 @@
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, getEffectiveIgnoreDirs } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveIgnoreDirs } from "../../core/auditorBase.js";
 import { checkDoxIntegrity } from "../../analyzers/doxAnalyzer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -55,6 +55,7 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "📚",
 			ruleIds: DOX_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(DOX_RULES, "polish"),
 			ruleDescriptions: {
 				"dox-missing-agents-md": "Falta AGENTS.md en directorio",
 				"dox-unregistered-child": "AGENTS.md hijo no registrado",

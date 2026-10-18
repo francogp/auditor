@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, createRuleCapabilities, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -158,6 +158,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 			description: "Prohíbe supresiones a nivel de archivo e ignores globales",
 			family: "architecture",
 			ruleIds: HEADER_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(HEADER_RULES, "polish"),
 			packageName: "Header",
 			configKey: "paths",
 			defaultConfig: {},

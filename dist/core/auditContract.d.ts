@@ -1,4 +1,5 @@
 import { AuditEngineConfig, CustomAuditFamilyConfig } from "./auditConfigTypes.js";
+import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, RemediationPhaseId, RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId } from "./remediationPhases.js";
 //#region src/core/auditContract.d.ts
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "performance", "security", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
@@ -30,6 +31,7 @@ export interface AuditFinding {
   context?: string;
   fixable?: boolean;
   remediation?: string;
+  remediationPhase?: RemediationPhaseId;
 }
 export declare const AUDIT_STATUSES: readonly ["passed", "failed", "skipped"];
 export type AuditExecutionStatus = (typeof AUDIT_STATUSES)[number];
@@ -272,6 +274,8 @@ export interface AuditorManifestDTO {
   readonly rules: Readonly<Record<string, string>>;
   /** Catalog of on-demand diagnostic and remediation guides for each rule */
   readonly remediations?: Readonly<Record<string, string>>;
+  /** Catalog of strategic remediation phases for each rule */
+  readonly remediationPhases?: Readonly<Record<string, RemediationPhaseId>>;
   /** Individual capabilities declared by each sub-auditor / rule */
   readonly ruleCapabilities?: Readonly<Record<string, AuditorRuleCapabilities>>;
   /** List of ruleIds that this suite can mechanically repair automatically */
@@ -472,6 +476,13 @@ export interface ConsolidatedAuditReport {
   }>>;
   allFindings: AuditFinding[];
   findingsByFile?: Record<string, AuditFinding[]>;
+  remediationPhases?: Partial<Record<RemediationPhaseId, {
+    title: string;
+    order: number;
+    errors: number;
+    warnings: number;
+    violations: number;
+  }>>;
 }
 /**
  * Normalizes a file path from an AuditFinding into a clean relative POSIX path.
@@ -528,3 +539,4 @@ export interface FixableViolationsSummary {
  */
 export declare function computeResultsFixableViolations(results: readonly StandardAuditResult[], isFixMode?: boolean): FixableViolationsSummary;
 //#endregion
+export { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId };

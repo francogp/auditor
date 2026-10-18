@@ -13,6 +13,7 @@ import {
   FileScanAuditor,
   hasLineSuppression,
   createUniformRuleCapabilities,
+  createUniformRemediationPhases,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
   getAuditConfig,
@@ -100,6 +101,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
           '1. Agrega el atributo requerido en el elemento indicado.\n' +
           '2. Verifica la documentación del componente para conocer los valores válidos.'
       },
+      // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
+      ruleRemediationPhases: createUniformRemediationPhases(MY_FEATURE_RULES, 'behavior'),
       roots: targetRoots,
       allowedExtensions,
       // Dynamic Exemption Architecture: automatically skips documents matching strings or RegExps.

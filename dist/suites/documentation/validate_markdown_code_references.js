@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { resolveProjectVersionInfo, scanAndFixMarkdownProjectVersions } from "../../core/markdownVersionValidator.js";
@@ -422,6 +422,7 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			description: "Valida rutas, scripts, casing y skills en markdown",
 			family: "documentation",
 			ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
+			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_CODE_REFERENCE_RULES, "polish"),
 			packageName: "Doc",
 			configKey: "documentation.enabled",
 			defaultConfig: { enabled: true },
