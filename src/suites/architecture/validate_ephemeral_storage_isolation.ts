@@ -161,11 +161,33 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
       },
       ruleRemediations: {
         'ephemeral-no-source-temp-dirs':
-          'Guía de diagnóstico y remediación para ephemeral-no-source-temp-dirs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: ephemeral-no-source-temp-dirs\n' +
+          '1. Causa Raíz: Se detectó una carpeta temporal (`temp`, `tmp`, `.temp`, `.tmp`, `scratch`, `ephemeral`) dentro de las rutas de código fuente (`src/`, `scripts/`, `tests/`, `database/`). La arquitectura prohíbe crear directorios temporales dentro del árbol de código; todo almacenamiento efímero debe residir estrictamente en `scratch/`.\n' +
+          '2. Diagnóstico: Ubica la carpeta efímera reportada dentro del árbol de fuentes.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Elimina la carpeta temporal de la fuente.\n' +
+          '   b) Modifica los scripts o tests generadores para escribir en `scratch/<modulo>/` o usar la utilidad de sandbox temporal.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Prohibido: `database/tmp/` o `src/services/temp/`\n' +
+          '   ✅ Canónico:  `scratch/test-db/` o `scratch/temp-exports/`',
         'ephemeral-no-gitignore-source-temp':
-          'Guía de diagnóstico y remediación para ephemeral-no-gitignore-source-temp. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: ephemeral-no-gitignore-source-temp\n' +
+          '1. Causa Raíz: El archivo `.gitignore` contiene patrones que ignoran directorios temporales dentro de las fuentes (ej: `src/**/temp/`, `database/tmp/`). Esto oculta la contaminación de fuentes en lugar de canalizar los archivos efímeros a `scratch/`.\n' +
+          '2. Diagnóstico: Revisa el archivo `.gitignore` en la línea señalada.\n' +
+          '3. Solución Canónica: Elimina el patrón que ignora temporales en fuentes y asegúrate de que `.gitignore` contenga simplemente la regla de aislamiento global `scratch/`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `src/temp/` o `tests/tmp/` en `.gitignore`\n' +
+          '   ✅ Canónico:  `scratch/` en `.gitignore`',
         'ephemeral-no-source-temp-references':
-          'Guía de diagnóstico y remediación para ephemeral-no-source-temp-references. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: ephemeral-no-source-temp-references\n' +
+          '1. Causa Raíz: El código fuente contiene literales de ruta o resoluciones (`path.join`, `path.resolve`) que apuntan a subdirectorios temporales dentro de `src/`, `scripts/`, `tests/` o `database/`.\n' +
+          '2. Diagnóstico: Inspecciona la línea reportada y ubica la referencia de ruta temporal.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Redirige la ruta para que apunte a `path.resolve(projectRoot, \'scratch\', ...)`.\n' +
+          '   b) Si la ruta es indispensable y justificada en un test específico, añade `// scratch-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Prohibido: `const dbPath = path.resolve(__dirname, \'temp\', \'test.db\');`\n' +
+          '   ✅ Canónico:  `const dbPath = path.resolve(process.cwd(), \'scratch\', \'test.db\');`'
       },
       coverage: {
         include: ['.gitignore', ...effectiveRoots.map((r) => `${r}/**/*.{ts,vue,js,sql,sh}`)],

@@ -67,6 +67,16 @@ function extractDocumentedCommands(content) {
 	return commands;
 }
 function evaluateCommandViolation(cmd, relPosix, env) {
+	if (cmd.type === "npx") {
+		if (!(env.allowedNpx.has(cmd.target) || cmd.target.startsWith("@") && env.allowedNpx.has(cmd.target.split("/")[1] || ""))) return {
+			ruleId: "documented-cmd-unregistered-npx",
+			severity: "error",
+			file: relPosix,
+			line: cmd.lineNum,
+			message: `El comando documentado 'npx ${cmd.target}' está estrictamente prohibido por mandato arquitectónico. Utiliza 'npm run <script>' o 'vp <tool>' (o decláralo explícitamente en config.documentation.allowedNpxBinaries).`,
+			context: cmd.rawText
+		};
+	}
 	const genericViolation = evaluateGenericCommandViolation(cmd, env);
 	if (!genericViolation) return null;
 	let ruleId;
@@ -123,9 +133,9 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 				"documented-cmd-unregistered-npx": "Binario npx no registrado"
 			},
 			ruleRemediations: {
-				"documented-cmd-unregistered-npm": "Guía de diagnóstico y remediación para documented-cmd-unregistered-npm. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"documented-cmd-invalid-npm-syntax": "Guía de diagnóstico y remediación para documented-cmd-invalid-npm-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"documented-cmd-unregistered-npx": "Guía de diagnóstico y remediación para documented-cmd-unregistered-npx. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"documented-cmd-unregistered-npm": "📖 GUÍA DE REMEDIACIÓN: documented-cmd-unregistered-npm\n1. Causa Raíz: Un archivo Markdown documenta un comando \"npm run <target>\", pero el script no existe en \"package.json.scripts\". Documentar comandos inexistentes confunde a desarrolladores y a agentes de IA.\n2. Diagnóstico: Revisa el archivo Markdown reportado en la línea indicada y contrástalo contra package.json.scripts.\n3. Solución:\n   a) Si el script debe ser ejecutable: agrégalo formalmente en package.json.scripts.\n   b) Si el script fue renombrado o migrado: actualiza el bloque de código en Markdown al script canónico vigente.\n   c) Si es una herramienta de Vite+: documéntalo como \"vp <herramienta>\" o mediante su alias npm correspondiente.\n4. Ejemplo:\n   ❌ Incorrecto: ```bash\\nnpm run test:e2e\\n``` (si test:e2e no está en scripts)\n   ✅ Correcto:   ```bash\\nnpm test\\n```",
+				"documented-cmd-invalid-npm-syntax": "📖 GUÍA DE REMEDIACIÓN: documented-cmd-invalid-npm-syntax\n1. Causa Raíz: Se documentó una invocación directa \"npm <script>\" para un script que requiere \"npm run <script>\". npm solo admite comandos integrados directos (install, test, run, pack, publish, version, etc.).\n2. Diagnóstico: Busca la línea indicada en el archivo Markdown.\n3. Solución: Agrega la palabra clave \"run\" entre \"npm\" y el nombre del script.\n4. Ejemplo:\n   ❌ Incorrecto: ```bash\\nnpm lint\\n```\n   ✅ Correcto:   ```bash\\nnpm run lint\\n```",
+				"documented-cmd-unregistered-npx": "📖 GUÍA DE REMEDIACIÓN: documented-cmd-unregistered-npx\n1. Causa Raíz: Se documentó la invocación de un comando mediante \"npx <binario>\". Recomendar o documentar npx está CATEGÓRICAMENTE PROHIBIDO en este repositorio para evitar descargas no deterministas y bypasses del modelo de permisos.\n2. Diagnóstico: Inspecciona el archivo Markdown donde aparece \"npx\".\n3. Solución:\n   a) Si es una herramienta de auditoría o CLI interna: utiliza su script oficial \"npm run auditor:<herramienta>\" (ej: \"npm run auditor:motion discover\") o el ejecutable directo local \"auditor-<herramienta>\".\n   b) Si es una herramienta del toolchain Vite+: utiliza \"vp <herramienta>\" (ej: \"vp test\", \"vp check\", \"vp dev\").\n   c) Si es un script del proyecto: regístralo en package.json.scripts y documenta \"npm run <script>\".\n4. Ejemplo:\n   ❌ Prohibido: ```bash\\nnpx auditor-motion discover\\n```\n   ✅ Canónico:  ```bash\\nnpm run auditor:motion discover\\n```"
 			},
 			coverage: { include: ["**/*.md"] },
 			projectRoot: root

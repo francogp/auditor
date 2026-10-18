@@ -96,9 +96,41 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
       },
       ruleRemediations: {
         'computed-state-mutation':
-          'Guía de diagnóstico y remediación para computed-state-mutation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectó una asignación de mutación (ref.value =, state.x =, store.x =) dentro del getter de una propiedad "computed()".\n' +
+          'Los computeds en Vue 3 deben ser funciones de cálculo puro que derivan un valor sin alterar el estado del sistema. Mutar estado dentro de un getter desestabiliza el grafo de dependencias reactivas y genera loops de actualización descontrolados.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el bloque computed indicado en el reporte. Localiza la asignación con operador de igualdad (=, +=, -=).\n\n' +
+          'Solución Canónica:\n' +
+          '1. Eliminar la asignación de estado del interior del computed.\n' +
+          '2. Si la mutación debe dispararse cuando cambian otras dependencias, utiliza un "watch" o "watchEffect" explícito.\n' +
+          '3. Si el caso es una inicialización perezosa intencional legítima y aislada, utiliza el escape "// purity-ok: <justificación>".\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: mutación de ref dentro del getter\n' +
+          'const fullName = computed(() => {\n' +
+          '  accessCount.value++;\n' +
+          '  return `${firstName.value} ${lastName.value}`;\n' +
+          '});\n\n' +
+          '// ✅ Correcto: derivación pura\n' +
+          'const fullName = computed(() => `${firstName.value} ${lastName.value}`);',
         'computed-side-effect':
-          'Guía de diagnóstico y remediación para computed-side-effect. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se detectó una invocación a un método con efectos secundarios (ej. ".save()", "scheduleSave()", "authStore.logout()", "window.location") dentro de un "computed()".\n' +
+          'Los getters computados son evaluados de forma perezosa (lazy) por el motor reactivo de Vue o de forma recurrente durante el ciclo de vida del componente. Disparar persistencia o navegación dentro de un getter genera efectos colaterales impredecibles.\n\n' +
+          'Diagnóstico:\n' +
+          'Busca llamadas a persistencia o navegación dentro de "computed(() => ...)".\n\n' +
+          'Solución Canónica:\n' +
+          'Mover la llamada a la persistencia o navegación a una acción de store, a un manejador de eventos o a un "watch" que reaccione al cambio de la propiedad computada.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: guardar cambios automáticamente dentro del getter\n' +
+          'const total = computed(() => {\n' +
+          '  const res = calculateTotal();\n' +
+          '  scheduleSave();\n' +
+          '  return res;\n' +
+          '});\n\n' +
+          '// ✅ Correcto: cálculo puro en computed y persistencia en evento o watch\n' +
+          'const total = computed(() => calculateTotal());\n' +
+          'watch(total, () => { scheduleSave(); });'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),

@@ -62,17 +62,56 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
       },
       ruleRemediations: {
         'unindexed-foreign-keys':
-          'Guía de diagnóstico y remediación para unindexed-foreign-keys. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: unindexed-foreign-keys\n' +
+          '1. Causa Raíz: Se declaró una clave foránea (Foreign Key) en una tabla SQL sin crear un índice complementario en la columna hija. En PostgreSQL y SQLite, las claves foráneas no indexadas provocan escaneos secuenciales completos de tabla (Seq Scans) durante JOINs y eliminaciones en cascada.\n' +
+          '2. Diagnóstico: Ubica la definición de clave foránea en la migración SQL reportada.\n' +
+          '3. Solución Canónica: Añade una instrucción `CREATE INDEX idx_tabla_columna ON tabla(columna_fk);`.\n' +
+          '4. Ejemplo:\n' +
+          '   - SQL: `CREATE INDEX idx_orders_user_id ON orders(user_id);`',
         'select-star-in-queries':
-          'Guía de diagnóstico y remediación para select-star-in-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: select-star-in-queries\n' +
+          '1. Causa Raíz: Se ejecutó `SELECT *` en un repositorio o servicio de datos. `SELECT *` transfiere columnas innecesarias por red, rompe la cobertura de índices de solo índice (Index-Only Scans) y genera fragilidad si el esquema añade campos grandes (JSONB, TEXT).\n' +
+          '2. Diagnóstico: Revisa la consulta SQL o llamada a Supabase en la línea señalada.\n' +
+          '3. Solución Canónica: Enumera explícitamente solo las columnas que consume el llamador (`SELECT id, name, email FROM ...`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Ineficiente: `SELECT * FROM users WHERE active = true;`\n' +
+          '   ✅ Óptimo:      `SELECT id, email FROM users WHERE active = true;`',
         'unpaginated-queries':
-          'Guía de diagnóstico y remediación para unpaginated-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: unpaginated-queries\n' +
+          '1. Causa Raíz: Se realizó una consulta `SELECT` sobre una tabla de entidad potencialmente ilimitada sin cláusula `LIMIT` ni paginación por cursor. A medida que la tabla crece, agota la memoria del proceso y satura la red.\n' +
+          '2. Diagnóstico: Ubica la consulta a colección sin límite en el repositorio.\n' +
+          '3. Solución Canónica: Añade `LIMIT :pageSize` con paginación por cursor (keyset) o acota la consulta a un rango fijo seguro.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Sin límite: `SELECT id, title FROM posts;`\n' +
+          '   ✅ Paginado:   `SELECT id, title FROM posts ORDER BY id DESC LIMIT 50;`',
         'n-plus-one-patterns':
-          'Guía de diagnóstico y remediación para n-plus-one-patterns. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: n-plus-one-patterns\n' +
+          '1. Causa Raíz: Se detectó una llamada a consulta de base de datos (`query()`, `select()`, `find()`) dentro del cuerpo de un bucle (`for`, `while`, `map()`). Esto dispara 1 consulta inicial + N consultas hijas (problema N+1), saturando el pool de conexiones.\n' +
+          '2. Diagnóstico: Comprueba el bucle reportado y la llamada a persistencia interior.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Extrae los IDs de la colección y realiza una única consulta con `WHERE id IN (...)` o `IN (:...ids)`.\n' +
+          '   b) O utiliza un `JOIN` relacional en la consulta principal.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Patrón N+1: `for (const u of users) { const orders = await getOrders(u.id); }`\n' +
+          '   ✅ Batch:      `const orders = await getOrdersByUserIds(users.map(u => u.id));`',
         'heavy-count-queries':
-          'Guía de diagnóstico y remediación para heavy-count-queries. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: heavy-count-queries\n' +
+          '1. Causa Raíz: Se ejecutó `SELECT COUNT(*)` sin filtros en tablas grandes. En PostgreSQL, `COUNT(*)` requiere un escaneo completo de visibilidad MVCC, lo que bloquea recursos de CPU y disco.\n' +
+          '2. Diagnóstico: Examina la consulta `COUNT(*)` reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Para contadores aproximados en dashboards o UI administrativa, consulta estadísticas del catálogo (`reltuples` en PostgreSQL).\n' +
+          '   b) Si solo necesitas saber si existe al menos un registro, usa `SELECT EXISTS(...)` en lugar de contar.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Pesado: `SELECT COUNT(*) FROM audit_logs;`\n' +
+          '   ✅ Ligero: `SELECT EXISTS(SELECT 1 FROM audit_logs WHERE user_id = :id);`',
         'unindexed-order-by':
-          'Guía de diagnóstico y remediación para unindexed-order-by. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: unindexed-order-by\n' +
+          '1. Causa Raíz: Se utilizó paginación con `OFFSET` elevado (ej: `OFFSET 10000`). La base de datos debe escanear y descartar todas las filas previas antes de retornar la página solicitada.\n' +
+          '2. Diagnóstico: Revisa la consulta con `OFFSET` en la línea reportada.\n' +
+          '3. Solución Canónica: Reemplaza la paginación basada en OFFSET por paginación basada en cursor/keyset (`WHERE id < :lastSeenId ORDER BY id DESC LIMIT :limit`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Lento:   `SELECT * FROM items ORDER BY created_at DESC OFFSET 5000 LIMIT 20;`\n' +
+          '   ✅ Keyset: `SELECT * FROM items WHERE created_at < :lastSeen ORDER BY created_at DESC LIMIT 20;`'
       },
       ruleCapabilities: createUniformRuleCapabilities(
         QUERY_PERFORMANCE_RULES,

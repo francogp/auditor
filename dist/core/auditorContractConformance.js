@@ -165,6 +165,7 @@ function validateAuditorRuleRemediationsContract(auditor, taskId, errors) {
 	for (const ruleId of auditor.ruleIds) {
 		const guide = auditor.getRuleRemediation(ruleId);
 		if (!guide || typeof guide !== "string" || guide.trim() === "") errors.push(`Auditor [${taskId}] no define 'ruleRemediations' obligatoria para la regla '${ruleId}'.`);
+		else if (/^Guía de diagnóstico y remediación para/i.test(guide.trim())) errors.push(`Auditor [${taskId}] define una guía placeholder para la regla '${ruleId}'. Debe proveer diagnóstico y solución accionables.`);
 	}
 }
 function validateSpeedValue(speed) {

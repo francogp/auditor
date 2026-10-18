@@ -569,15 +569,49 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
       },
       ruleRemediations: {
         'markdown-broken-relative-link':
-          'Guía de diagnóstico y remediación para markdown-broken-relative-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-broken-relative-link\n' +
+          '1. Causa Raíz: Un enlace relativo en formato Markdown `[texto](./ruta/destino.md)` o enlace con ancla `#seccion` apunta a un archivo o encabezado que no existe.\n' +
+          '2. Diagnóstico: Verifica la ruta del enlace reportado en la línea indicada y comprueba si el archivo de destino existe relativamente respecto al documento actual.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Corrige la ruta relativa al archivo existente.\n' +
+          '   b) Si el archivo fue movido, ajusta los saltos de directorio (`../`).\n' +
+          '   c) Si el ancla `#heading` cambió de nombre, actualiza el slug del encabezado.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `[Guía](./docs/guide.md)` (cuando el archivo está en `../docs/guide.md`)\n' +
+          '   ✅ Correcto:   `[Guía](../docs/guide.md)`',
         'markdown-absolute-path':
-          'Guía de diagnóstico y remediación para markdown-absolute-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-absolute-path\n' +
+          '1. Causa Raíz: Se encontró una ruta absoluta de la máquina local (ej: raíz del sistema o rutas fijas de usuario) en un enlace o texto de documentación. Las rutas absolutas rompen la portabilidad y filtran datos del entorno local.\n' +
+          '2. Diagnóstico: Ubica la ruta absoluta señalada en el archivo Markdown.\n' +
+          '3. Solución Canónica: Convierte la ruta absoluta en una ruta relativa al repositorio o al archivo actual, o utiliza la sintaxis canónica `file:///ruta/relativa`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `[Config](file:///' + 'root/users/user/project/audit.config.ts)`\n' +
+          '   ✅ Correcto:   `[Config](file:///.auditor/audit.config.ts)`',
         'markdown-stale-environment-path':
-          'Guía de diagnóstico y remediación para markdown-stale-environment-path. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-stale-environment-path\n' +
+          '1. Causa Raíz: La documentación hace referencia a directorios o rutas de entornos obsoletos que ya no forman parte de la arquitectura del proyecto.\n' +
+          '2. Diagnóstico: Inspecciona el término reportado y busca su equivalente actual en la documentación de arquitectura.\n' +
+          '3. Solución Canónica: Sustituye la referencia obsoleta por la ruta del subsistema canónico vigente.\n' +
+          '4. Ejemplo:\n' +
+          '   - Actualizar referencias a carpetas legacy ya eliminadas.',
         'markdown-gitignored-target':
-          'Guía de diagnóstico y remediación para markdown-gitignored-target. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-gitignored-target\n' +
+          '1. Causa Raíz: Un enlace en Markdown apunta a un archivo o carpeta que está ignorado por Git (por ejemplo `dist/`, `scratch/`, `coverage/`, `node_modules/`). Los usuarios que clonen el repositorio no dispondrán de dicho archivo.\n' +
+          '2. Diagnóstico: Comprueba el archivo de destino del enlace contra las reglas de `.gitignore`.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Enlaza a la fuente original del artefacto (ej: `src/` en lugar de `dist/`).\n' +
+          '   b) Si el enlace es ilustrativo sobre un artefacto generado, documéntalo en un bloque de código explicativo en lugar de un enlace hipertexto navegable.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `[Ver cobertura](file:///coverage/index.html)`\n' +
+          '   ✅ Correcto:   `Consulta el reporte generado en \`scratch/coverage/\` tras ejecutar los tests.`',
         'markdown-broken-workspace-package':
-          'Guía de diagnóstico y remediación para markdown-broken-workspace-package. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: markdown-broken-workspace-package\n' +
+          '1. Causa Raíz: Un enlace o referencia en Markdown apunta a un paquete del monorepo (`packages/<pkg>`) que no existe o fue renombrado.\n' +
+          '2. Diagnóstico: Revisa el paquete indicado en la violación y verifica la lista de workspaces en `pnpm-workspace.yaml` o `package.json`.\n' +
+          '3. Solución Canónica: Corrige el nombre del paquete o actualiza la ruta al workspace válido.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `packages/old-utils`\n' +
+          '   ✅ Correcto:   `packages/core-utils`'
       },
       coverage: {
         include: ['**/*.md']

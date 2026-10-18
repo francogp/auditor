@@ -134,11 +134,31 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
       },
       ruleRemediations: {
         'environment-engines-missing':
-          'Guía de diagnóstico y remediación para environment-engines-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El archivo package.json no declara explícitamente el objeto "engines" con las versiones requeridas de "node" y "npm".\n' +
+          'Sin esta declaración, las herramientas de CI/CD y los desarrolladores pueden ejecutar el proyecto sobre versiones obsoletas de Node que no soportan el modelo de permisos nativo (--permission) o TypeScript nativo (--experimental-strip-types).\n\n' +
+          'Diagnóstico:\n' +
+          'Comprueba si existe el bloque "engines": { "node": "...", "npm": "..." } en package.json.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor inyectará dinámicamente las versiones canónicas de Node y npm sincronizadas con el motor del auditor.\n' +
+          '2. O bien ejecuta ".\\setup-windows.ps1" (Windows) o "./setup-linux.sh" (Linux).',
         'environment-engines-below-floor':
-          'Guía de diagnóstico y remediación para environment-engines-below-floor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Las versiones de Node o npm especificadas en package.json.engines son inferiores al piso mínimo homologado por @francogp/auditor.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la advertencia detalla la versión declarada versus el piso mínimo requerido (ej. Node 26+).\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para elevar automáticamente las declaraciones en package.json.\n' +
+          '2. Ejecuta ".\\update-windows.ps1" o "./update-linux.sh" para sincronizar la versión instalada en la máquina.',
         'environment-runtime-mismatch':
-          'Guía de diagnóstico y remediación para environment-runtime-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'La terminal actual está ejecutando una versión activa de Node.js o npm diferente o inferior a la exigida en package.json.engines.\n\n' +
+          'Diagnóstico:\n' +
+          'Ejecuta "node -v" y "npm -v" en tu terminal para comparar con las versiones requeridas en package.json.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta ".\\setup-windows.ps1" en Windows o "./setup-linux.sh" en Linux para configurar y activar la versión correcta mediante el gestor de entornos (fnm / nvm).\n' +
+          '2. Si usas fnm o nvm manualmente, ejecuta "fnm use" o "nvm use".\n' +
+          '3. Cierra y vuelve a abrir tu terminal para que las variables de entorno refresquen su PATH.'
       },
       coverage: { include: ['package.json'] },
       ...options

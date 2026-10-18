@@ -200,15 +200,38 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       },
       ruleRemediations: {
         'z-index-missing-var':
-          'Guía de diagnóstico y remediación para z-index-missing-var. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: z-index-missing-var\n' +
+          '1. Causa Raíz: Se declaró una capa de apilamiento en TypeScript (Z_LAYERS en src/types/zLayers.ts o en audit.config.ts), pero no existe su variable homóloga "$z-<capa>" en el archivo de estilos base (src/styles/_base.scss).\n' +
+          '2. Diagnóstico: Compara las claves de Z_LAYERS con las variables $z-* declaradas en _base.scss.\n' +
+          '3. Solución: Agrega la variable SCSS correspondiente en _base.scss igualando el valor numérico definido en TypeScript.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ En TS: Z_LAYERS = { DROPDOWN: 9000 }, pero falta $z-dropdown en SCSS\n' +
+          '   ✅ En SCSS: $z-dropdown: 9000;',
         'z-index-mismatch':
-          'Guía de diagnóstico y remediación para z-index-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: z-index-mismatch\n' +
+          '1. Causa Raíz: Existe una divergencia numérica entre el valor de z-index definido en TypeScript (Z_LAYERS) y el definido en la variable SCSS ($z-*) para la misma capa de apilamiento.\n' +
+          '2. Diagnóstico: Revisa el mensaje de error que indica qué capa y qué valores discrepan (ej: TS=11000 vs SCSS=10000).\n' +
+          '3. Solución: Unifica ambos valores haciendo coincidir la variable de SCSS con la constante canónica de TypeScript.',
         'z-index-read-error':
-          'Guía de diagnóstico y remediación para z-index-read-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: z-index-read-error\n' +
+          '1. Causa Raíz: El archivo de estilos base especificado en config.styles.baseScssFile o config.styles.zLayersScssFile no se encuentra en disco o contiene errores de sintaxis al leer las variables.\n' +
+          '2. Diagnóstico: Verifica que la ruta física configurada en .auditor/audit.config.ts exista y sea accesible.\n' +
+          '3. Solución: Corrige la ruta en audit.config.ts o repara los errores sintácticos de SCSS en el archivo de estilos base.',
         'z-index-hardcoded-literal':
-          'Guía de diagnóstico y remediación para z-index-hardcoded-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: z-index-hardcoded-literal\n' +
+          '1. Causa Raíz: Se detectó un valor numérico crudo (hardcoded) asignado a z-index (ej: z-index: 9999 o zIndex: 100) en lugar de utilizar las variables del sistema de capas Z_LAYERS. Los valores hardcodeados generan guerras de especificidad y superposición caótica de ventanas, tooltips y modales.\n' +
+          '2. Diagnóstico: Busca valores numéricos literales en propiedades z-index dentro de bloques de estilo o tweens de GSAP.\n' +
+          '3. Solución:\n' +
+          '   a) En CSS/SCSS: reemplaza el número por la variable oficial: z-index: $z-modal; o z-index: var(--z-modal);\n' +
+          '   b) En TypeScript/GSAP: importa y utiliza el valor de la capa canónica: zIndex: Z_LAYERS.MODAL\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: .tooltip { z-index: 9999; }\n' +
+          '   ✅ Correcto:   .tooltip { z-index: $z-tooltip; }',
         'z-index-isolated-constant':
-          'Guía de diagnóstico y remediación para z-index-isolated-constant. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: z-index-isolated-constant\n' +
+          '1. Causa Raíz: Se detectó la definición de una constante numérica aislada de z-index fuera del catálogo unificado Z_LAYERS (ej: const MODAL_Z = 5000 en un archivo local).\n' +
+          '2. Diagnóstico: Localiza la constante declarada en el archivo señalado por el auditor.\n' +
+          '3. Solución: Elimina la constante aislada e importa el valor canónico desde Z_LAYERS (src/types/zLayers.ts).'
       },
       projectRoot
     });

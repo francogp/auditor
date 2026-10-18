@@ -17,10 +17,10 @@ Antes de ejecutar cualquier transformación sobre los archivos fuente, la estrat
 El desperdicio de cómputo más frecuente en flujos asistidos por agentes consiste en invertir minutos extrayendo y parametrizando funciones duplicadas que en realidad son inalcanzables desde los puntos de entrada de la aplicación. Dado que fallow evalúa la alcanzabilidad de módulos y la duplicación sobre el mismo grafo en memoria, el proceso debe iniciar obligatoriamente con la intersección de ambos análisis:
 
 ```sh
-npx fallow dead-code --include-dupes --format json --quiet 2>/dev/null || true
+fallow dead-code --include-dupes --format json --quiet 2>/dev/null || true
 ```
 
-Los bloques reportados por \--include-dupes representan código que está simultáneamente duplicado y sin uso activo, constituyendo los objetivos de mayor retorno de inversión porque su eliminación suprime código muerto y duplicación en un solo cambio. Eliminar un archivo no referenciado o ejecutar la limpieza automática mediante npx fallow fix \--dry-run seguido de npx fallow fix \--yes \--format json \--quiet purga de forma determinista exportaciones muertas, miembros de enum no referenciados, entradas de catálogos pnpm y dependencias huérfanas, reduciendo inmediatamente el porcentaje de duplicación global sin haber creado una sola abstracción nueva. Al automatizar este paso, el agente debe inspeccionar el booleano auto\_fixable: true en cada elemento del arreglo actions\[\] del reporte JSON y verificar la ausencia de advertencias en reachability\_caveats o workspace\_diagnostics, ya que fallow evalúa las guardias de seguridad de borrado por instancia individual y no por tipo de acción general.
+Los bloques reportados por \--include-dupes representan código que está simultáneamente duplicado y sin uso activo, constituyendo los objetivos de mayor retorno de inversión porque su eliminación suprime código muerto y duplicación en un solo cambio. Eliminar un archivo no referenciado o ejecutar la limpieza automática mediante fallow fix \--dry-run seguido de fallow fix \--yes \--format json \--quiet purga de forma determinista exportaciones muertas, miembros de enum no referenciados, entradas de catálogos pnpm y dependencias huérfanas, reduciendo inmediatamente el porcentaje de duplicación global sin haber creado una sola abstracción nueva. Al automatizar este paso, el agente debe inspeccionar el booleano auto\_fixable: true en cada elemento del arreglo actions\[\] del reporte JSON y verificar la ausencia de advertencias en reachability\_caveats o workspace\_diagnostics, ya que fallow evalúa las guardias de seguridad de borrado por instancia individual y no por tipo de acción general.
 
 ### **Paso 2: Aplicación de la Regla de Tres y Filtrado de Ruido Estructural**
 
@@ -28,7 +28,7 @@ Por defecto, fallow dupes reporta cualquier par duplicado (minOccurrences: 2) co
 Para enfocar la capacidad de los agentes exclusivamente en las verdaderas "fábricas de errores" —aquellos bloques triplicados o multiplicados donde un cambio futuro de lógica de negocio inevitablemente actualizará dos copias y omitirá la tercera—, resulta indispensable configurar la Regla de Tres en .fallowrc.json ({ "duplicates": { "minOccurrences": 3 } }) o mediante banderas de línea de comandos:
 
 ```sh
-npx fallow dupes --min-occurrences 3 --min-tokens 50 --min-lines 5 --format json --quiet 2>/dev/null || true
+fallow dupes --min-occurrences 3 --min-tokens 50 --min-lines 5 --format json --quiet 2>/dev/null || true
 ```
 
 Adicionalmente, el motor de fallow ordena los grupos de clones (clone\_groups\[\]) mediante un algoritmo de clasificación consciente de la dispersión (_Spread-Aware Ranking_). El puntaje de prioridad se calcula multiplicando la cantidad de tokens duplicados por el número de ocurrencias y aplicando una bonificación máxima del 15 % basada en la propiedad spread. La dispersión mide la distancia máxima en el árbol de directorios entre las copias o, cuando las copias residen dentro del mismo archivo, suma un escalón de dispersión por cada 250 líneas de separación entre ellas. Procesar el arreglo clone\_groups\[\] en el orden exacto entregado por \--top garantiza que la refactorización aborde primero las duplicaciones más extensas, repetidas y distantes arquitectónicamente.
@@ -98,7 +98,7 @@ En consecuencia, la estrategia óptima combina dos acciones: instalar los servid
 En lugar de instruir al agente con órdenes abiertas para buscar y refactorizar duplicados en el repositorio, un script coordinador ejecuta fallow dupes filtrando por minOccurrences: 3 en modo semántico y captura el documento JSON tipado (identificado por el campo raíz kind: "dupes"):
 
 ```sh
-npx fallow dupes --min-occurrences 3 --mode semantic --format json --quiet 2>/dev/null || true
+fallow dupes --min-occurrences 3 --mode semantic --format json --quiet 2>/dev/null || true
 ```
 
 Cada entrada dentro de clone\_groups\[\] proporciona una huella digital estable (fingerprint, con formato dup:\<8hex\>), el conteo de tokens (token\_count), la métrica de dispersión (spread) y el arreglo de instances\[\] con las rutas de archivo y los rangos exactos de líneas donde habita cada copia (marcando además con is\_symlink: true si alguna instancia reside bajo un enlace simbólico). Asimismo, el arreglo clone\_families\[\] agrupa los clones que co-ocurren en el mismo conjunto de archivos.  
@@ -231,13 +231,13 @@ En tales escenarios, la disciplina recomendada consiste en aplicar el patrón **
 
 ### **Fase 5: Verificación en Bucle Cerrado y Bloqueo en Integración Continua**
 
-Una vez que el arnés ejecuta un lote de refactorización, el pipeline cierra el ciclo mediante tres verificaciones deterministas que toman menos de dos segundos. En primer lugar, se validan las fronteras arquitectónicas ejecutando npx fallow audit \--format json \--quiet 2\>/dev/null || true (o fallow architecture / fallow guard). Al extraer código triplicado hacia un nuevo módulo compartido, es habitual que una ubicación mal elegida viole las reglas de capas del repositorio (soportadas por los presets bulletproof, layered, hexagonal y feature-sliced en .fallowrc.json) o introduzca dependencias circulares (circular-dependencies o re-export-cycle), anomalías que fallow audit detecta de inmediato sobre los archivos modificados. En segundo lugar, se ejecuta npx fallow fix \--yes \--format json \--quiet para eliminar automáticamente cualquier exportación auxiliar o miembro de enumeración que haya quedado sin consumidores tras la consolidación de los clones. En tercer lugar, se congela el progreso alcanzado actualizando el archivo de línea base del repositorio:
+Una vez que el arnés ejecuta un lote de refactorización, el pipeline cierra el ciclo mediante tres verificaciones deterministas que toman menos de dos segundos. En primer lugar, se validan las fronteras arquitectónicas ejecutando fallow audit \--format json \--quiet 2\>/dev/null || true (o fallow architecture / fallow guard). Al extraer código triplicado hacia un nuevo módulo compartido, es habitual que una ubicación mal elegida viole las reglas de capas del repositorio (soportadas por los presets bulletproof, layered, hexagonal y feature-sliced en .fallowrc.json) o introduzca dependencias circulares (circular-dependencies o re-export-cycle), anomalías que fallow audit detecta de inmediato sobre los archivos modificados. En segundo lugar, se ejecuta fallow fix \--yes \--format json \--quiet para eliminar automáticamente cualquier exportación auxiliar o miembro de enumeración que haya quedado sin consumidores tras la consolidación de los clones. En tercer lugar, se congela el progreso alcanzado actualizando el archivo de línea base del repositorio:
 
 ```sh
-npx fallow dupes --save-baseline fallow-baselines/dupes.json
+fallow dupes --save-baseline fallow-baselines/dupes.json
 ```
 
-Al incorporar npx fallow audit en las Pull Requests (o fallow dupes \--baseline fallow-baselines/dupes.json en los flujos de GitHub Actions / GitLab CI), el sistema falla exclusivamente cuando un cambio introduce nueva duplicación por encima de la línea base, permitiendo drenar la deuda técnica existente por lotes sin bloquear el desarrollo cotidiano del equipo.
+Al incorporar fallow audit en las Pull Requests (o fallow dupes \--baseline fallow-baselines/dupes.json en los flujos de GitHub Actions / GitLab CI), el sistema falla exclusivamente cuando un cambio introduce nueva duplicación por encima de la línea base, permitiendo drenar la deuda técnica existente por lotes sin bloquear el desarrollo cotidiano del equipo.
 
 ## **Conclusiones**
 

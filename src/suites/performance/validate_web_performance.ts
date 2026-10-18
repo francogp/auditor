@@ -62,19 +62,64 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       },
       ruleRemediations: {
         'unoptimized-images':
-          'Guía de diagnóstico y remediación para unoptimized-images. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: unoptimized-images\n' +
+          '1. Causa Raíz: Se incluyó una imagen raster tradicional (`.png`, `.jpg`, `.jpeg`) sin compresión moderna (`.webp`, `.avif`) ni atributo `decoding="async"`. Los formatos antiguos aumentan drásticamente el peso de transferencia y retrasan el LCP (Largest Contentful Paint).\n' +
+          '2. Diagnóstico: Ubica la etiqueta `<img>` en la plantilla reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Convierte la imagen a formato `.webp` o `.avif`.\n' +
+          '   b) Añade los atributos de rendimiento: `loading="lazy"` y `decoding="async"`.\n' +
+          '   c) Si la imagen es un activo externo inmutable o requiere PNG por transparencia binaria, anota `<!-- unoptimized-img-ok: <justificación> -->`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Tradicional: `<img src="/hero.png">`\n' +
+          '   ✅ Optimizado:  `<img src="/hero.webp" loading="lazy" decoding="async" alt="Hero">`',
         'font-display-missing':
-          'Guía de diagnóstico y remediación para font-display-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: font-display-missing\n' +
+          '1. Causa Raíz: Una regla `@font-face` carece de la propiedad `font-display: swap` o `font-display: optional`. Esto bloquea el renderizado de texto mientras la fuente se descarga, provocando destellos invisibles de texto (FOIT).\n' +
+          '2. Diagnóstico: Inspecciona la declaración `@font-face` en el archivo de estilos reportado.\n' +
+          '3. Solución Canónica: Añade `font-display: swap;` dentro de la definición `@font-face`.\n' +
+          '4. Ejemplo:\n' +
+          '   - CSS: `@font-face { font-family: "CustomFont"; src: url(...); font-display: swap; }`',
         'inline-svg-bloat':
-          'Guía de diagnóstico y remediación para inline-svg-bloat. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: inline-svg-bloat\n' +
+          '1. Causa Raíz: Se incrustó un SVG en línea masivo (> 2KB) directamente en la plantilla HTML/Vue. Los SVGs gigantes inflan el tamaño del bundle JS/HTML e impiden el cacheo HTTP individual del navegador.\n' +
+          '2. Diagnóstico: Revisa el bloque `<svg>` en la plantilla del componente señalado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Mueve el SVG a un archivo externo en `src/assets/` o `public/` y cárgalo vía `<img src="/icon.svg" ...>`.\n' +
+          '   b) Si necesitas colorear el SVG por CSS, utiliza una máscara CSS: `mask: url(/icon.svg)` o un sistema de sprites SVG.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ SVG inline de 15KB en componente Vue.\n' +
+          '   ✅ Imagen externa: `<img src="@/assets/illustration.svg" alt="Ilustración">`',
         'css-render-blocking':
-          'Guía de diagnóstico y remediación para css-render-blocking. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: css-render-blocking\n' +
+          '1. Causa Raíz: Se encontró una hoja de estilos externa o script en el `<head>` que bloquea el árbol de renderizado del navegador sin atributos `async`, `defer` ni media queries no críticas.\n' +
+          '2. Diagnóstico: Ubica la etiqueta `<link rel="stylesheet">` o `<script>` en `index.html`.\n' +
+          '3. Solución Canónica: Añade `defer` o `async` a los scripts, o carga fuentes/estilos secundarios mediante `media="print" onload="this.media=\'all\'"`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Bloqueante: `<script src="/analytics.js"></script>`\n' +
+          '   ✅ No bloqueante: `<script src="/analytics.js" async defer></script>`',
         'excessive-dom-depth':
-          'Guía de diagnóstico y remediación para excessive-dom-depth. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: excessive-dom-depth\n' +
+          '1. Causa Raíz: La estructura de etiquetas del componente presenta un anidamiento DOM superior a 16 niveles de profundidad. Árboles DOM excesivamente profundos saturan el cálculo de estilos y el árbol de accesibilidad.\n' +
+          '2. Diagnóstico: Examina el anidamiento de `<div>` y contenedores en la plantilla del componente.\n' +
+          '3. Solución Canónica: Aplana la jerarquía HTML eliminando contenedores innecesarios (divitis) o fragmenta el componente en subcomponentes modulares más pequeños.\n' +
+          '4. Ejemplo:\n' +
+          '   - Eliminar wrappers redundantes que solo aplican una clase de layout.',
         'layout-shift-dimensions':
-          'Guía de diagnóstico y remediación para layout-shift-dimensions. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: layout-shift-dimensions\n' +
+          '1. Causa Raíz: Una etiqueta `<img>` o `<video>` carece de los atributos explícitos `width` y `height` (o de la propiedad CSS `aspect-ratio`). Cuando la imagen se descarga, el contenido circundante salta de posición, provocando un elevado Cumulative Layout Shift (CLS).\n' +
+          '2. Diagnóstico: Revisa la etiqueta `<img>` o `<video>` en la plantilla.\n' +
+          '3. Solución Canónica: Declara siempre los atributos `width` y `height` con las dimensiones intrínsecas de la imagen, o aplica `aspect-ratio` por CSS.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Sin dimensiones: `<img src="/banner.webp" />`\n' +
+          '   ✅ Con dimensiones: `<img src="/banner.webp" width="800" height="400" />`',
         'uncompressed-video':
-          'Guía de diagnóstico y remediación para uncompressed-video. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: uncompressed-video\n' +
+          '1. Causa Raíz: Una etiqueta `<video>` carece del atributo `preload="none"` o `preload="metadata"`, o no ofrece una fuente moderna en formato WebM (`<source type="video/webm">`). Descargar vídeos completos automáticamente agota el ancho de banda del usuario.\n' +
+          '2. Diagnóstico: Ubica la etiqueta `<video>` en la plantilla.\n' +
+          '3. Solución Canónica: Añade `preload="metadata"` y proporciona fuentes optimizadas en WebM y MP4.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Ineficiente: `<video src="/intro.mp4" autoplay>`\n' +
+          '   ✅ Optimizado:  `<video preload="metadata" playsinline><source src="/intro.webm" type="video/webm" /></video>`'
       },
       ruleCapabilities: createUniformRuleCapabilities(
         WEB_PERFORMANCE_RULES,

@@ -323,17 +323,51 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       },
       ruleRemediations: {
         'valibot-schema-missing-field':
-          'Guía de diagnóstico y remediación para valibot-schema-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: valibot-schema-missing-field\n' +
+          '1. Causa Raíz: Se declaró una propiedad en la interfaz TypeScript de estado (`interface GameState`, `interface UserProfile`, etc.), pero el campo correspondiente no está presente en el esquema Valibot (`v.object({ ... })`). Al deserializar datos persistidos, el campo será descartado o causará desajustes.\n' +
+          '2. Diagnóstico: Ubica el campo faltante reportado en la interfaz y comprueba el esquema en el archivo de esquemas Valibot.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Añade la validación del campo en el esquema Valibot: `key: v.string()`, `key: v.optional(...)`, etc.\n' +
+          '   b) Si el campo es estrictamente efímero en memoria y no debe persistirse, decláralo en el tipo unión de claves efímeras configurado (`ephemeralKeysType`).\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir en esquema: `avatarUrl: v.optional(v.string())`',
         'valibot-serializer-missing-field':
-          'Guía de diagnóstico y remediación para valibot-serializer-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: valibot-serializer-missing-field\n' +
+          '1. Causa Raíz: Una propiedad de la interfaz de estado no es mapeada ni devuelta en la función serializadora personalizada (`serializeGameState()`). Los datos de esa propiedad se perderán al guardar.\n' +
+          '2. Diagnóstico: Revisa el objeto retornado por la función serializadora.\n' +
+          '3. Solución Canónica: Añade la propiedad al objeto retornado por el serializador.\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir en retorno: `score: state.score`',
         'valibot-initial-state-missing-field':
-          'Guía de diagnóstico y remediación para valibot-initial-state-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: valibot-initial-state-missing-field\n' +
+          '1. Causa Raíz: Una propiedad de la interfaz de estado no está inicializada en la factoría de estado inicial (`createInitialGameState()`). Al arrancar una sesión limpia, el estado contendrá valores `undefined` inesperados.\n' +
+          '2. Diagnóstico: Comprueba la factoría de estado inicial en el archivo reportado.\n' +
+          '3. Solución Canónica: Inicializa el campo con su valor por defecto tipado (ej: `0`, `""`, `[]`, o `null`).\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir en factoría: `unlockedAchievements: []`',
         'valibot-nested-missing-field':
-          'Guía de diagnóstico y remediación para valibot-nested-missing-field. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: valibot-nested-missing-field\n' +
+          '1. Causa Raíz: Un campo perteneciente a una subinterfaz anidada (ej: `interface InventoryItem`) falta en el subesquema Valibot anidado o en la factoría de inicialización.\n' +
+          '2. Diagnóstico: Inspecciona el subesquema o subfactoría señalada en el reporte.\n' +
+          '3. Solución Canónica: Añade el campo a la definición del subesquema anidado en Valibot.\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir en subesquema: `quantity: v.pipe(v.number(), v.minValue(1))`',
         'valibot-domain-type-violation':
-          'Guía de diagnóstico y remediación para valibot-domain-type-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: valibot-domain-type-violation\n' +
+          '1. Causa Raíz: Se utilizó `v.unknown()` o `v.any()` dentro de un esquema de validación de dominio. Esto degrada la tipificación estricta y permite que datos no estructurados corrompan el estado.\n' +
+          '2. Diagnóstico: Ubica la llamada a `v.unknown()` en el archivo de esquemas.\n' +
+          '3. Solución Canónica: Sustituye `v.unknown()` por el esquema específico del tipo de dato (ej: `v.string()`, `v.record(v.string(), v.number())` o un esquema anidado).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Laxo:    `metadata: v.unknown()`\n' +
+          '   ✅ Estricto: `metadata: v.record(v.string(), v.string())`',
         'valibot-redundant-nullability':
-          'Guía de diagnóstico y remediación para valibot-redundant-nullability. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: valibot-redundant-nullability\n' +
+          '1. Causa Raíz: Se compuso redundantemente `v.optional(v.nullable(...))` para aceptar `null | undefined`. La API canónica y concisa de Valibot proporciona la función integrada `v.nullish(...)`.\n' +
+          '2. Diagnóstico: Localiza la expresión `v.optional(v.nullable(...))` en el esquema.\n' +
+          '3. Solución Canónica: Reemplaza la composición redundante por `v.nullish(...)`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Redundante: `v.optional(v.nullable(v.string()))`\n' +
+          '   ✅ Canónico:  `v.nullish(v.string())`'
       },
       coverage: {
         include:

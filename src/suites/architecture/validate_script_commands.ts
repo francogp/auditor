@@ -170,18 +170,31 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
       },
       ruleRemediations: {
         'script-cmd-unregistered-npm':
-          'Guía de diagnóstico y remediación para script-cmd-unregistered-npm:\n' +
-          '1. Causa: Un script ejecutable (.sh, .ps1, Dockerfile o workflow de CI/CD) intenta invocar "npm run <script>", pero "<script>" no está definido en package.json.scripts.\n' +
-          '2. Si el script fue renombrado o actualizado (por ejemplo, "build:prod" -> "build:deploy"), actualiza la llamada en el script ejecutable para usar el nombre canónico registrado.\n' +
-          '3. Si el script es legítimo pero falta en package.json, agrégalo a "scripts" en package.json con su comando correspondiente.',
+          'Causa Raíz:\n' +
+          'Un script ejecutable (.sh, .ps1, Dockerfile o pipeline de CI/CD en .github/workflows/) intenta ejecutar "npm run <script>", pero "<script>" no está registrado en el bloque "scripts" de package.json.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el archivo y línea donde se ejecuta el comando. Comprueba si el script fue renombrado (ej. "build:prod" migrado a "build:deploy") o si se omitió definirlo en package.json.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Si el script fue renombrado, actualiza la invocación en el script ejecutable para apuntar al nombre canónico registrado.\n' +
+          '2. Si el script es válido y requerido, agrégalo a "scripts" en package.json.\n' +
+          '3. Si fue un error tipográfico, corrige el nombre en el archivo ejecutable.',
         'script-cmd-invalid-npm-syntax':
-          'Guía de diagnóstico y remediación para script-cmd-invalid-npm-syntax:\n' +
-          '1. Causa: Se invocó "npm <nombre>" de forma directa en un script cuando "<nombre>" no es un comando nativo de npm (como "test", "install", "ci") o se omitió "run".\n' +
-          '2. Corrección: Reemplaza "npm <nombre>" por "npm run <nombre>" si se trata de un script de package.json, o usa un subcomando válido de npm.',
+          'Causa Raíz:\n' +
+          'Se invocó directamente "npm <nombre>" en un script cuando "<nombre>" no es un comando nativo del CLI de npm (como "test", "install", "ci") y se omitió la palabra clave "run".\n' +
+          'En npm, los scripts personalizados definidos por el usuario en package.json requieren obligatoriamente el subcomando "run" (ej. "npm run build").\n\n' +
+          'Diagnóstico:\n' +
+          'Busca la línea del script que ejecuta "npm <nombre>".\n\n' +
+          'Solución Canónica:\n' +
+          'Reemplaza "npm <nombre>" por "npm run <nombre>" (o "vp run <nombre>").',
         'script-cmd-unregistered-npx':
-          'Guía de diagnóstico y remediación para script-cmd-unregistered-npx:\n' +
-          '1. Causa: Un script ejecuta "npx <binario>", pero el binario no está instalado en node_modules/.bin ni declarado como dependencia en package.json.\n' +
-          '2. Corrección: Instala el paquete correspondiente con "npm install -D <paquete>", o agrégalo a config.scriptCommands.allowedNpxBinaries si es provisto por el entorno anfitrión.'
+          'Causa Raíz:\n' +
+          'Un script ejecutable o pipeline invoca "npx <binario>", pero el binario no está instalado en node_modules/.bin ni declarado como dependencia en package.json.\n' +
+          'Por mandato de arquitectura y seguridad de la cadena de suministro, invocar npx para descargar binarios al vuelo en scripts está estrictamente prohibido sin declarar la dependencia explícita.\n\n' +
+          'Diagnóstico:\n' +
+          'Examina el binario invocado tras "npx".\n\n' +
+          'Solución Canónica:\n' +
+          '1. Instalar la herramienta en devDependencies mediante "npm install -D <paquete>" e invocarla mediante su script en package.json.\n' +
+          '2. Si se trata de una utilidad provista globalmente por la imagen o el entorno anfitrión, regístrala en "config.scriptCommands.allowedNpxBinaries" en .auditor/audit.config.ts tras aprobación.'
       },
       coverage: {
         include: [

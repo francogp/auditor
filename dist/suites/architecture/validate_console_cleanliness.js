@@ -69,8 +69,8 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 				"no-console-log-in-src": "Llamadas directas a console.log()"
 			},
 			ruleRemediations: {
-				"no-debugger-statement": "Guía de diagnóstico y remediación para no-debugger-statement. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"no-console-log-in-src": "Guía de diagnóstico y remediación para no-console-log-in-src. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"no-debugger-statement": "📖 GUÍA DE REMEDIACIÓN: no-debugger-statement\n1. Causa Raíz: Se encontró una instrucción `debugger;` en el código fuente. Las declaraciones debugger detienen la ejecución en navegadores o entornos Node.js y nunca deben llegar a producción.\n2. Diagnóstico: Ubica la línea donde se encuentra `debugger;`.\n3. Solución Canónica: Elimina la sentencia `debugger;`. Si estás depurando temporalmente, retira el breakpoint antes de commitear.\n4. Ejemplo:\n   ❌ Prohibido: `debugger;`\n   ✅ Limpio:    Eliminado.",
+				"no-console-log-in-src": "📖 GUÍA DE REMEDIACIÓN: no-console-log-in-src\n1. Causa Raíz: Se detectó una llamada directa a `console.log()` en código de producción (`src/`). Contamina la salida estándar del terminal, expone datos sensibles y degrada el rendimiento de renderizado.\n2. Diagnóstico: Inspecciona la llamada a `console.log` en la línea reportada.\n3. Solución Canónica:\n   a) Si era para depuración puntual: elimina la llamada antes de commitear.\n   b) Si es para diagnóstico de errores o advertencias en producción: utiliza un logger estructurado o los canales canónicos `console.error()` / `console.warn()`.\n   c) Si es una herramienta CLI o visualizador terminal que debe imprimir deliberadamente: agrega el archivo a las excepciones de logging en `audit.config.ts` o anota `// console-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Prohibido: `console.log(\"Datos recibidos:\", data);`\n   ✅ Canónico:  `logger.debug(\"Datos recibidos\", { data });`"
 			},
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",

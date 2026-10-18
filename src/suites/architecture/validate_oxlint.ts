@@ -578,7 +578,15 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       },
       ruleRemediations: {
         'oxlint-violation':
-          'Guía de diagnóstico y remediación para oxlint-violation. Revisa la incidencia reportada por Vite+ (Oxlint) y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se detectó una violación de regla de linter, error de sintaxis o anti-patrón de código mediante el motor estático ultra-rápido Oxlint de Vite+.\n' +
+          'Oxlint valida estándares estrictos de TypeScript (@typescript-eslint), calidad moderna (unicorn), buenas prácticas de testing (vitest), componentes (vue) e higiene general de JavaScript.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la incidencia indica el código exacto de la regla (ej. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with) y la línea del archivo donde ocurrió.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Si la regla es auto-reparable, ejecuta "npm run auditor:fix" o "vp lint --fix" para aplicar los fixes automáticos soportados por Oxlint.\n' +
+          '2. Si la regla requiere corrección manual, adapta el código para satisfacer el estándar arquitectónico reportado.\n' +
+          '3. Queda CATEGÓRICAMENTE PROHIBIDO desactivar o diluir la regla en vite.config.ts ("rule": "off" o null) para pasar la auditoría (Anti-Castration Mandate y Zero-Tolerance Fake Pass Mandate).'
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue}'],

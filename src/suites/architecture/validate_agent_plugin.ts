@@ -92,7 +92,14 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       },
       ruleRemediations: {
         'missing-agent-plugin-registration':
-          'Guía de diagnóstico y remediación para missing-agent-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: missing-agent-plugin-registration\n' +
+          '1. Causa Raíz: El proyecto host no tiene registrado el plugin de auditoría `@francogp/auditor` en `.agents/plugins.json` o carece del catálogo de skills correspondientes en `.agents/skills/`.\n' +
+          '2. Diagnóstico: Comprueba si existe `.agents/plugins.json` y si contiene la referencia al plugin del auditor.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para registrar automáticamente el plugin y sincronizar los skills.\n' +
+          '   b) O ejecuta `auditor-init` en el proyecto host.\n' +
+          '4. Ejemplo:\n' +
+          '   - Comando de solución: `npm run auditor:fix`'
       },
       coverage: { include: [...AGENT_REGISTRY_FILES] },
       ...options

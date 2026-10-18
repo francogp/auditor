@@ -636,19 +636,66 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
       },
       ruleRemediations: {
         'broken-style-link':
-          'Guía de diagnóstico y remediación para broken-style-link. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: broken-style-link\n' +
+          '1. Causa Raíz: Una directiva `@import`, `@use` o `src="..."` dentro del bloque `<style>` de un componente apunta a un archivo SCSS inexistente en disco.\n' +
+          '2. Diagnóstico: Comprueba la ruta importada en el bloque `<style>` del componente reportado.\n' +
+          '3. Solución Canónica: Corrige la ruta al archivo SCSS existente o elimina la directiva si el parcial fue borrado o refactorizado.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Roto:     `@use "@/styles/button-old";`\n' +
+          '   ✅ Canónico: `@use "@/styles/buttons";`',
         'missing-style-tag':
-          'Guía de diagnóstico y remediación para missing-style-tag. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: missing-style-tag\n' +
+          '1. Causa Raíz: Un componente Vue SFC (`.vue`) carece por completo de la sección `<style lang="scss" scoped>`. La arquitectura exige encapsulamiento visual en cada componente.\n' +
+          '2. Diagnóstico: Abre el componente `.vue` indicado y observa que no tiene etiqueta `<style>`.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Añade el bloque `<style lang="scss" scoped>` con los estilos específicos del componente.\n' +
+          '   b) Si el componente es puramente lógico / renderless, añade el comentario `// renderless-ok: <justificación>` en el `<script>`.\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir: `<style lang="scss" scoped>\\n.component-root {\\n  display: block;\\n}\\n</style>`',
         'banned-style-inherited':
-          'Guía de diagnóstico y remediación para banned-style-inherited. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: banned-style-inherited\n' +
+          '1. Causa Raíz: Se utilizó el comentario de escape para esquivar la validación de estilos locales sin justificación técnica válida.\n' +
+          '2. Diagnóstico: Ubica la directiva de supresión de estilos heredados en el componente.\n' +
+          '3. Solución Canónica: Declara los estilos locales correspondientes dentro del componente en un `<style lang="scss" scoped>` propio.\n' +
+          '4. Ejemplo:\n' +
+          '   - Eliminar el comentario de supresión de estilos y definir las reglas scoped necesarias.',
         'orphaned-scss':
-          'Guía de diagnóstico y remediación para orphaned-scss. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: orphaned-scss\n' +
+          '1. Causa Raíz: Se encontró un archivo SCSS (`.scss`) en el árbol de fuentes que no es importado por ningún componente ni por la hoja global `main.scss` / `index.scss`.\n' +
+          '2. Diagnóstico: Ubica el archivo huérfano reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si el archivo está obsoleto: elimínalo de forma limpia.\n' +
+          '   b) Si debe aplicarse globalmente: impórtalo en la hoja de estilos principal (`@use "...";`).\n' +
+          '4. Ejemplo:\n' +
+          '   - Eliminar `src/styles/_obsolete-badge.scss`.',
         'ad-hoc-button-styles':
-          'Guía de diagnóstico y remediación para ad-hoc-button-styles. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: ad-hoc-button-styles\n' +
+          '1. Causa Raíz: Un botón HTML (`<button>`, `<a class="btn...">`) utiliza clases de variante inventadas o no registradas en la gobernanza de botones (`canonicalVariants`).\n' +
+          '2. Diagnóstico: Revisa las clases aplicadas al botón en la plantilla Vue.\n' +
+          '3. Solución Canónica: Utiliza exclusivamente las variantes canónicas del sistema de diseño (`btn-primary`, `btn-secondary`, `btn-dark`, `btn-sm`, etc.).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Variante ad-hoc: `<button class="btn my-custom-green-button">`\n' +
+          '   ✅ Variante canónica: `<button class="btn btn-success">`',
         'banned-plain-css-style':
-          'Guía de diagnóstico y remediación para banned-plain-css-style. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: banned-plain-css-style\n' +
+          '1. Causa Raíz: Se encontró un bloque `<style>` en un componente Vue sin el atributo obligatorio `lang="scss"`.\n' +
+          '2. Diagnóstico: Ubica la etiqueta `<style>` en el componente.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente `lang="scss"`.\n' +
+          '   b) O edita manualmente: `<style lang="scss" scoped>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `<style>`\n' +
+          '   ✅ Correcto:   `<style lang="scss" scoped>`',
         'banned-raw-css-file':
-          'Guía de diagnóstico y remediación para banned-raw-css-file. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: banned-raw-css-file\n' +
+          '1. Causa Raíz: Se encontró un archivo con extensión `.css` plano en el árbol de código. El proyecto estandariza el preprocesador SCSS para todas las hojas de estilo.\n' +
+          '2. Diagnóstico: Ubica el archivo `.css` reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para renombrar automáticamente el archivo a `.scss` y actualizar sus importaciones.\n' +
+          '   b) O renómbralo manualmente a `.scss` y ajusta las rutas de importación correspondientes.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Archivo CSS: `src/styles/theme.css`\n' +
+          '   ✅ Archivo SCSS: `src/styles/theme.scss`'
       },
       coverage: {
         include: deriveCoverageFromRoots(

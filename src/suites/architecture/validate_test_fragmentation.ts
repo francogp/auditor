@@ -103,9 +103,24 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       },
       ruleRemediations: {
         'no-fragmented-tests':
-          'Guía de diagnóstico y remediación para no-fragmented-tests. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-fragmented-tests\n' +
+          '1. Causa Raíz: El archivo de test contiene menos de 60 líneas (micro-test). La proliferación de micro-tests fragmenta el runner de Vitest, multiplica el tiempo de importación de módulos y dificulta la visión integral del subsistema.\n' +
+          '2. Diagnóstico: Comprueba la cantidad de líneas del archivo de prueba reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Consolida las aserciones de este archivo dentro de la suite de pruebas del módulo correspondiente (`<modulo>.test.ts`).\n' +
+          '   b) Si el archivo prueba un comportamiento autónomo, expande la cobertura incluyendo pruebas de casos borde, errores y caminos negativos.\n' +
+          '   c) Si es un test de integración o contrato deliberadamente conciso, añade el archivo a `testFragmentationWhitelist` en `audit.config.ts` o anota `// test-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Fragmentado: `userHelper.test.ts` con 25 líneas y un solo assert trivial.\n' +
+          '   ✅ Consolidado: Fusionado dentro de `userService.test.ts` cubriendo el ciclo completo.',
         'unnecessary-jsdom':
-          'Guía de diagnóstico y remediación para unnecessary-jsdom. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: unnecessary-jsdom\n' +
+          '1. Causa Raíz: El archivo de test declara `// @vitest-environment jsdom` o está configurado para ejecutarse bajo JSDOM, pero su código no interactúa con el DOM de navegador, no monta componentes Vue ni accede a `document`/`window`.\n' +
+          '2. Diagnóstico: Inspecciona el archivo de test y verifica si solo prueba lógica pura de TypeScript/Node.js.\n' +
+          '3. Solución Canónica: Elimina el comentario `// @vitest-environment jsdom` para que se ejecute en el entorno nativo `node` de Vitest, multiplicando por 10x la velocidad de arranque.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Innecesario: `// @vitest-environment jsdom` en prueba de cálculos matemáticos.\n' +
+          '   ✅ Optimizado:  Eliminado; ejecuta en entorno nativo `node`.'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.js']),

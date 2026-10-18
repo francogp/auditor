@@ -66,7 +66,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
       '',
       '```bash',
       'npm run build',
-      'npx vitest run',
+      'npm test',
       '```'
     ].join('\n');
 

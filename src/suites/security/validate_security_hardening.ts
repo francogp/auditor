@@ -59,21 +59,80 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       },
       ruleRemediations: {
         'hardcoded-secrets':
-          'Guía de diagnóstico y remediación para hardcoded-secrets. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: hardcoded-secrets\n' +
+          '1. Causa Raíz: Se detectó una cadena que parece ser una clave de API, secreto, token o contraseña hardcodeada en el código fuente. Esto expone credenciales a fugas y vulnerabilidades de seguridad.\n' +
+          '2. Diagnóstico: Ubica la variable o constante en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Mueve el secreto a variables de entorno (`process.env.VAR_NAME` o archivo `.env.local` excluido de git).\n' +
+          '   b) Si es un valor dummy para tests, aísla la fixture en `tests/` o concatena la cadena para no coincidir con patrones de tokens reales.\n' +
+          '   c) Si es un falso positivo justificado, añade el comentario `// secret-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `const apiKey = "AIzaSyD-fakeKeyExample123456789";`\n' +
+          '   ✅ Correcto:   `const apiKey = process.env.API_KEY ?? "";`',
         'insecure-random':
-          'Guía de diagnóstico y remediación para insecure-random. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: insecure-random\n' +
+          '1. Causa Raíz: Se utilizó `Math.random()` para generar tokens de sesión, IDs sensibles o claves. `Math.random()` es pseudo-aleatorio y predecible, lo que viola CWE-330.\n' +
+          '2. Diagnóstico: Revisa el uso de `Math.random()` en la línea señalada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Utiliza la API nativa criptográficamente segura: `crypto.randomUUID()` o `crypto.getRandomValues()` (`node:crypto` o `window.crypto`).\n' +
+          '   b) Si es puramente cosmético (ej: animación o efecto visual sin impacto en seguridad), anota `// random-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `const token = Math.random().toString(36).substring(2);`\n' +
+          '   ✅ Correcto:   `const token = crypto.randomUUID();`',
         'vulnerable-regex-redos':
-          'Guía de diagnóstico y remediación para vulnerable-regex-redos. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: vulnerable-regex-redos\n' +
+          '1. Causa Raíz: Una expresión regular contiene cuantificadores anidados o patrones ambiguos (ej: `(a+)+`, `(\\d+)+`) que pueden provocar retroceso catastrófico (ReDoS, CWE-1333) al procesar entradas maliciosas.\n' +
+          '2. Diagnóstico: Inspecciona el patrón regex en la línea del reporte.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Reescribe la expresión regular eliminando solapamientos o cuantificadores anidados.\n' +
+          '   b) Utiliza un parser procedural lineal si la validación es compleja.\n' +
+          '   c) Si el tamaño de la entrada está acotado estrictamente de antemano, añade `// redos-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Vulnerable: `/([a-zA-Z0-9]+)+$/`\n' +
+          '   ✅ Seguro:     `/^[a-zA-Z0-9]+$/`',
         'raw-html-injection':
-          'Guía de diagnóstico y remediación para raw-html-injection. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: raw-html-injection\n' +
+          '1. Causa Raíz: Uso de directivas `v-html`, propiedades `innerHTML` o `outerHTML` con datos dinámicos, lo que abre vectores de inyección de código entre sitios (XSS, CWE-79).\n' +
+          '2. Diagnóstico: Examina el enlace `v-html` o la asignación a `innerHTML`.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Reemplaza `v-html` por interpolación segura estándar `{{ variable }}` o `v-text`.\n' +
+          '   b) Si es indispensable renderizar HTML enriquecido de origen confiable, sanea la cadena mediante una librería de sanitización validada (ej: DOMPurify) y anota `// html-injection-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Vulnerable: `<div v-html="userBio" />`\n' +
+          '   ✅ Seguro:     `<div>{{ userBio }}</div>`',
         'missing-csrf-token':
-          'Guía de diagnóstico y remediación para missing-csrf-token. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: missing-csrf-token\n' +
+          '1. Causa Raíz: Un formulario HTML que envía mutaciones de estado vía método POST/PUT carece de campo o encabezado de protección CSRF (CWE-352).\n' +
+          '2. Diagnóstico: Inspecciona el `<form method="POST">` señalado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Incluye un input oculto con el token CSRF o configura el encabezado `X-CSRF-Token` en las peticiones AJAX.\n' +
+          '   b) Si el endpoint opera exclusivamente con tokens Bearer o cookies SameSite=Strict sin sesión de navegador, anota `// csrf-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir: `<input type="hidden" name="_csrf" :value="csrfToken" />`',
         'eval-or-function-constructor':
-          'Guía de diagnóstico y remediación para eval-or-function-constructor. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: eval-or-function-constructor\n' +
+          '1. Causa Raíz: Invocación de `eval()` o `new Function(...)` para evaluar cadenas como código. Esto permite ejecución remota o arbitraria de código (CWE-95).\n' +
+          '2. Diagnóstico: Localiza la llamada a `eval` o al constructor `Function`.\n' +
+          '3. Solución Canónica: Elimina el código dinámico. Utiliza mapeos de objetos, funciones puras, parsers dedicados (ej: JSON.parse) o autómatas finitos.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Vulnerable: `const result = eval(expression);`\n' +
+          '   ✅ Seguro:     `const result = mathEvaluator.parse(expression);`',
         'permissive-cors':
-          'Guía de diagnóstico y remediación para permissive-cors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: permissive-cors\n' +
+          '1. Causa Raíz: Configuración de cabeceras CORS con comodín permisivo `Access-Control-Allow-Origin: *`, lo que permite a sitios maliciosos acceder a recursos internos.\n' +
+          '2. Diagnóstico: Comprueba la cabecera CORS en el middleware o servidor.\n' +
+          '3. Solución Canónica: Restringe los orígenes autorizados a una lista blanca explícita de dominios o al origen del host actual.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inseguro: `res.setHeader("Access-Control-Allow-Origin", "*");`\n' +
+          '   ✅ Seguro:   `res.setHeader("Access-Control-Allow-Origin", allowedOrigins.includes(origin) ? origin : "");`',
         'unvalidated-redirect':
-          'Guía de diagnóstico y remediación para unvalidated-redirect. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: unvalidated-redirect\n' +
+          '1. Causa Raíz: Redirección de navegación (`window.location = target` o `router.push(target)`) hacia una URL externa sin validar que pertenezca a un dominio de confianza (Open Redirect, CWE-601).\n' +
+          '2. Diagnóstico: Revisa la lógica de redirección y cómo se construye el destino.\n' +
+          '3. Solución Canónica: Valida que la URL comience con `/` (ruta relativa) o pertenezca a un conjunto blanco cerrado antes de navegar.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inseguro: `window.location.href = req.query.returnUrl;`\n' +
+          '   ✅ Seguro:   `if (isInternalUrl(returnUrl)) window.location.href = returnUrl;`'
       },
       ruleCapabilities: createUniformRuleCapabilities(
         SECURITY_HARDENING_RULES,

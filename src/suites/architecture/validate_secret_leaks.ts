@@ -114,9 +114,27 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       },
       ruleRemediations: {
         'secret-leak-detected':
-          'Guía de diagnóstico y remediación para secret-leak-detected. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: secret-leak-detected\n' +
+          '1. Causa Raíz: El analizador de seguridad (`@secretlint`) detectó una credencial, token de API, cadena de conexión o firma secreta expuesta en texto plano dentro del código o configuración.\n' +
+          '2. Diagnóstico: Revisa la línea y columna señaladas. El valor o formato coincide con patrones conocidos de proveedores (GitHub, AWS, Google Cloud, Slack, Stripe, JWT, etc.).\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Revoca o invalida inmediatamente la credencial en el panel del proveedor si alguna vez fue commiteada.\n' +
+          '   b) Mueve el secreto a variables de entorno (`.env.local` excluido por `.gitignore` o gestores de secretos de CI/CD).\n' +
+          '   c) Si es un fixture sintético en un test unitario, altera el prefijo o entropía de la cadena para no activar heurísticas de secretos reales, o añade la excepción correspondiente en la configuración.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Expuesto: `const API_TOKEN = "sk_' + 'live_secret12345";`\n' +
+          '   ✅ Seguro:   `const API_TOKEN = process.env.API_TOKEN ?? "";`',
         'secret-leak-private-key':
-          'Guía de diagnóstico y remediación para secret-leak-private-key. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: secret-leak-private-key\n' +
+          '1. Causa Raíz: Se encontró un bloque de clave criptográfica privada (' + '`-----BEGIN ' + 'PRIVATE KEY-----`, ' + 'o similar) dentro del repositorio.\n' +
+          '2. Diagnóstico: Comprueba el archivo y la línea del hallazgo.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Retira el bloque de clave privada de los archivos fuente de inmediato y revoca los certificados asociados.\n' +
+          '   b) Inyecta la clave en tiempo de ejecución a través de variables de entorno o almacenes de claves protegidos (KMS, Vault).\n' +
+          '   c) Si es un certificado público o mock de pruebas sin valor criptográfico real, utiliza fixtures seguros en `tests/fixtures/`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Expuesto: Clave PEM pegada directamente en el archivo fuente.\n' +
+          '   ✅ Seguro:   `const privateKey = process.env.AUTH_PRIVATE_KEY;`'
       },
       roots: options.roots,
       allowedExtensions: SECRET_SCAN_EXTENSIONS,

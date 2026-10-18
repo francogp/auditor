@@ -17,10 +17,11 @@ Modern UI animation architecture requires:
 ## 🛠️ CLI Tool Usage (`auditor-motion`)
 
 ```bash
-# Direct CLI invocation
-npx auditor-motion <command> [options]
+# Direct CLI invocation (bin in node_modules/.bin)
+auditor-motion <command> [options]
 
 # Via package script
+npm run auditor:motion <command>
 npm run auditor:motion -- <command> [options]
 ```
 

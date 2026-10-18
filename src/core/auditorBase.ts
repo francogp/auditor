@@ -1480,6 +1480,12 @@ function validateAuditorRuleRemediations<TRuleId extends string>(
           `Every rule must provide actionable guidance on root cause and steps to resolve.`
       );
     }
+    if (/^Guía de diagnóstico y remediación para/i.test(guide.trim())) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] contains a placeholder remediation guide for rule '${ruleId}'. ` +
+          `Every rule must provide actionable guidance on root cause, diagnosis, and steps to resolve.`
+      );
+    }
   }
   for (const ruleId of Object.keys(options.ruleRemediations)) {
     if (!options.ruleIds.includes(ruleId as TRuleId)) {

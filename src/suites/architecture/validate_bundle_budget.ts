@@ -313,11 +313,37 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       },
       ruleRemediations: {
         'bundle-runtime-leak':
-          'Guía de diagnóstico y remediación para bundle-runtime-leak. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: bundle-runtime-leak\n' +
+          '1. Causa Raíz: Se importaron valores (funciones, objetos, clases) desde carpetas de test (`tests/`, `__tests__/`) o de utilidades de desarrollo (`scripts/`) dentro de código de producción (`src/`). Esto filtra dependencias de desarrollo y fixtures en el bundle compilado final.\n' +
+          '2. Diagnóstico: Ubica la sentencia `import ... from "...tests/..."` en el archivo de producción reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si sólo necesitas tipos o interfaces, utiliza importación de solo tipo: `import type { ... } from "..."`.\n' +
+          '   b) Si necesitas utilidades comunes, muévelas a `src/utils/` o a un paquete compartido para que pertenezcan legítimamente a la capa de aplicación.\n' +
+          '   c) Si es una excepción intencional en un módulo de test embebido, anota `// bundle-leak-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inseguro: `import { mockUser } from "../../tests/fixtures/user";`\n' +
+          '   ✅ Seguro:   `import type { UserProfile } from "@/domain/types";`',
         'bundle-heavy-import':
-          'Guía de diagnóstico y remediación para bundle-heavy-import. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: bundle-heavy-import\n' +
+          '1. Causa Raíz: Se importó una librería de backend pesada o módulo de Node.js (ej: `node:fs`, `jsdom`, `typescript`, `fallow`, `exceljs`) directamente dentro de un componente, vista o store de interfaz de usuario (UI).\n' +
+          '2. Diagnóstico: Inspecciona la sentencia de importación en el componente o store reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si la librería solo se usa en operaciones puntuales solicitadas por el usuario, aplícale importación dinámica (`await import("...")`) dentro de la acción específica para separar el chunk (code-splitting).\n' +
+          '   b) Mueve la lógica pesada a un worker web o endpoint de backend/API.\n' +
+          '   c) Utiliza alternativas ligeras optimizadas para el navegador.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Pesado estático: `import { HeavyParser } from "heavy-parser";` en componente.\n' +
+          '   ✅ Code-splitting:  `const { HeavyParser } = await import("heavy-parser");` dentro del handler.',
         'bundle-chunk-size':
-          'Guía de diagnóstico y remediación para bundle-chunk-size. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: bundle-chunk-size\n' +
+          '1. Causa Raíz: Un chunk JavaScript compilado en el directorio de distribución (`dist/`) excede el límite máximo de tamaño estipulado en `.auditor/audit.config.ts` (`config.bundle.maxChunkSizeKB`). Los chunks gigantes ralentizan el First Contentful Paint (FCP) y el tiempo de interacción en redes móviles.\n' +
+          '2. Diagnóstico: Revisa el nombre y tamaño del chunk señalado en el reporte.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Configura división de código (`manualChunks` en Vite / Rollup) para separar dependencias de terceros (`vendor`) en chunks independientes.\n' +
+          '   b) Aplica carga perezosa (`lazy loading` / `defineAsyncComponent`) en rutas de Vue Router y componentes visuales pesados.\n' +
+          '   c) Revisa con `rollup-plugin-visualizer` qué librerías consumen la mayor parte del tamaño y reemplázalas por alternativas tree-shakeables.\n' +
+          '4. Ejemplo:\n' +
+          '   - Cargar rutas con: `component: () => import("@/views/DashboardView.vue")`.'
       },
       requiresAst: true,
       projectRoot

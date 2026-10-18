@@ -83,9 +83,23 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
       },
       ruleRemediations: {
         'npm-script-exclusivity-in-docs':
-          'Guía de diagnóstico y remediación para npm-script-exclusivity-in-docs. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: npm-script-exclusivity-in-docs\n' +
+          '1. Causa Raíz: La documentación contiene comandos de invocación directa a scripts del proyecto (ej: `node scripts/...`, `./setup.sh`, `bash scripts/...`) en lugar de referenciar el script unificado de NPM/Vite+.\n' +
+          '2. Diagnóstico: Localiza la línea señalada en el documento Markdown.\n' +
+          '3. Solución Canónica: Sustituye la llamada directa por su comando canónico registrado: `npm run <script>` o `vp run <script>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: ````bash\\nnode scripts/audit.ts\\n````\n' +
+          '   ✅ Correcto:   ````bash\\nnpm run auditor\\n````',
         'markdown-table-preceding-blank-line':
-          'Guía de diagnóstico y remediación para markdown-table-preceding-blank-line. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: markdown-table-preceding-blank-line\n' +
+          '1. Causa Raíz: Una tabla Markdown comienza inmediatamente después de una línea de texto sin una línea en blanco intermedia, lo que corrompe la interpretación del parser CommonMark/GFM.\n' +
+          '2. Diagnóstico: Ubica la tabla reportada en el archivo Markdown.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para insertar automáticamente la línea en blanco.\n' +
+          '   b) O inserta manualmente una línea vacía justo antes de la fila de encabezados de la tabla (`| col1 | col2 |`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `Descripción:\\n| Columna 1 | Columna 2 |`\n' +
+          '   ✅ Correcto:   `Descripción:\\n\\n| Columna 1 | Columna 2 |`'
       },
       roots,
       allowedExtensions: new Set(['.md']),

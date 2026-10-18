@@ -226,11 +226,33 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
       },
       ruleRemediations: {
         'template-duplicate-static-id':
-          'Guía de diagnóstico y remediación para template-duplicate-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: template-duplicate-static-id\n' +
+          '1. Causa Raíz: Se encontró el mismo atributo estático `id="..."` repetido en dos o más elementos dentro de la misma plantilla de componente Vue. En el estándar HTML5, los IDs deben ser estrictamente únicos dentro del documento.\n' +
+          '2. Diagnóstico: Ubica el ID duplicado señalado en el mensaje de error y contrástalo con la línea de la primera aparición.\n' +
+          '3. Solución Canónica: Asigna IDs distintos y descriptivos a cada elemento, o utiliza clases CSS (`class="..."`) si el objetivo es estilizar o agrupar selectores.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Duplicado: `<div id="card">...</div> <div id="card">...</div>`\n' +
+          '   ✅ Único:     `<div id="card-primary">...</div> <div id="card-secondary">...</div>`',
         'template-shared-static-id':
-          'Guía de diagnóstico y remediación para template-shared-static-id. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: template-shared-static-id\n' +
+          '1. Causa Raíz: Se detectó el mismo identificador estático `id="foo"` en dos componentes Vue distintos. Si ambos componentes se montan simultáneamente en la misma vista, se produce una colisión de ID en el DOM global.\n' +
+          '2. Diagnóstico: Comprueba los dos archivos de componentes reportados en la incidencia.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Prefija el ID con el nombre del componente (ej: `id="user-profile-header"` vs `id="settings-header"`).\n' +
+          '   b) O genera un ID único por instancia usando `useId()` de Vue 3 (`const inputId = useId();` con `:id="inputId"`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Colisión: `id="submit-btn"` en LoginForm.vue y RegisterForm.vue\n' +
+          '   ✅ Prefijado: `id="login-submit-btn"` y `id="register-submit-btn"`',
         'template-missing-input-id':
-          'Guía de diagnóstico y remediación para template-missing-input-id. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: template-missing-input-id\n' +
+          '1. Causa Raíz: Un control de entrada de formulario (`<input>`, `<select>`, `<textarea>`) carece de atributo `id` o enlace reactivo `:id`, impidiendo asociarle un `<label :for="...">` accesible.\n' +
+          '2. Diagnóstico: Revisa el elemento de entrada en la plantilla del componente reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Añade un ID único al control: `<input id="search-query" ...>` y asócialo con su `<label for="search-query">`.\n' +
+          '   b) Si el componente se reutiliza múltiples veces, genera el ID dinámicamente con `const id = useId()` de Vue 3 y enlaza `:id="id"`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Sin ID: `<input v-model="name" type="text" />`\n' +
+          '   ✅ Con ID: `<input :id="nameInputId" v-model="name" type="text" />`'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue']),

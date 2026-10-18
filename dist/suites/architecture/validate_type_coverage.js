@@ -90,8 +90,8 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 				"type-coverage-untyped-identifier": "Identificador untyped any detectado"
 			},
 			ruleRemediations: {
-				"type-coverage-below-threshold": "Guía de diagnóstico y remediación para type-coverage-below-threshold. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"type-coverage-untyped-identifier": "Guía de diagnóstico y remediación para type-coverage-untyped-identifier. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"type-coverage-below-threshold": "📖 GUÍA DE REMEDIACIÓN: type-coverage-below-threshold\n1. Causa Raíz: El porcentaje de identificadores fuertemente tipados en el proyecto está por debajo del umbral mínimo configurado en `.auditor/audit.config.ts` (`config.typeCoverage.atLeast`, por defecto 95%).\n2. Diagnóstico: Comprueba el reporte emitido por `type-coverage` para ver el porcentaje actual y la cantidad de símbolos que resuelven a `any`.\n3. Solución Canónica:\n   a) Revisa los archivos con mayor número de identificadores `any` o no tipados.\n   b) Añade tipos de retorno explícitos en funciones, tipos a parámetros, y tipea los objetos de respuesta o estado.\n   c) No utilices `any`; recurre a `unknown` con type guards o define interfaces/tipos de dominio precisos.\n4. Ejemplo:\n   - Tipar variables de `const data = JSON.parse(str)` a `const data: unknown = JSON.parse(str)` seguido de validación de esquema con Valibot.",
+				"type-coverage-untyped-identifier": "📖 GUÍA DE REMEDIACIÓN: type-coverage-untyped-identifier\n1. Causa Raíz: Un identificador, propiedad, parámetro o variable específica resolvió al tipo `any` (explícito o inferido implícitamente por el compilador).\n2. Diagnóstico: Ubica el identificador y la posición (línea:columna) señalados en el reporte.\n3. Solución Canónica: Asigna una anotación de tipo explícita (`: string`, `: Record<string, unknown>`, `: TDomainEntity`) o tipea adecuadamente la función generadora de la que proviene.\n4. Ejemplo:\n   ❌ Untyped: `function handle(event) { ... }` (event es any implícito)\n   ✅ Tipado:  `function handle(event: MouseEvent): void { ... }`"
 			},
 			coverage: {
 				include: [
@@ -149,15 +149,12 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 			projectRoot: this.projectRoot,
 			fallbackRelativeBin: "bin/type-coverage"
 		});
-		const command = resolvedBin ? process.execPath : "npx";
-		const finalArgs = resolvedBin ? [resolvedBin, ...cliFlags] : [
-			"--yes",
-			"type-coverage",
-			...cliFlags
-		];
+		if (!resolvedBin) throw new Error("[validate_type_coverage] El ejecutable de 'type-coverage' no fue encontrado en node_modules/.bin ni en el entorno local. Asegúrate de que 'type-coverage' esté instalado en las dependencias del proyecto. El uso de npx está estrictamente prohibido.");
+		const command = process.execPath;
+		const finalArgs = [resolvedBin, ...cliFlags];
 		return executeCliAndReadJson(command, finalArgs, rawOutPath, {
 			cwd: this.projectRoot,
-			shell: !resolvedBin
+			shell: false
 		});
 	}
 	applyCoverageMetricsAndFindings(report, threshold) {

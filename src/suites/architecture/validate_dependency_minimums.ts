@@ -81,13 +81,38 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       },
       ruleRemediations: {
         'dependency-below-minimum-range':
-          'Guía de diagnóstico y remediación para dependency-below-minimum-range. Actualiza el rango declarado en package.json al piso mínimo del auditor.',
+          'Causa Raíz:\n' +
+          'El rango de versión declarado en package.json (dependencies o devDependencies) tiene un piso inferior al mínimo homologado por el auditor.\n' +
+          'Mantener dependencias por debajo del piso mínimo introduce incompatibilidades con el compilador, fallos de tipado o problemas de seguridad ya resueltos en versiones superiores.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la incidencia especifica el paquete, el rango declarado actualmente y el piso mínimo requerido por el framework.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor actualizará automáticamente los rangos en package.json al piso mínimo homologado.\n' +
+          '2. Luego ejecuta "npm install" para sincronizar package-lock.json.',
         'dependency-below-minimum-installed':
-          'Guía de diagnóstico y remediación para dependency-below-minimum-installed. Reinstala la dependencia para actualizar package-lock.json al piso mínimo.',
+          'Causa Raíz:\n' +
+          'La versión efectivamente instalada y fijada en package-lock.json (en node_modules/) está por debajo del piso mínimo requerido por el auditor.\n' +
+          'Esto sucede comúnmente cuando package.json fue modificado pero no se ha corrido "npm install", o cuando npm reutilizó una resolución antigua del lockfile.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa package-lock.json para comprobar qué versión exacta está resuelta en "node_modules/<paquete>".\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta el comando de instalación sugerido en el mensaje de error (por ejemplo "npm install -D <paquete>@<piso>") o corre "npm update <paquete>".',
         'dependency-exceeds-maximum-range':
-          'Guía de diagnóstico y remediación para dependency-exceeds-maximum-range. Reduce el rango declarado en package.json para no exceder el tope máximo permitido por el auditor.',
+          'Causa Raíz:\n' +
+          'El rango de versión declarado en package.json permite instalar versiones que superan el techo máximo seguro validado por el auditor.\n' +
+          'Ciertas dependencias críticas (como TypeScript, Vite o motores de renderizado) pueden introducir cambios incompatibles (breaking changes) en versiones mayores o intermedias que aún no han sido homologadas.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el rango en package.json: si utiliza "^" en una versión mayor incompatible o un operador ">=" abierto.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para acotar automáticamente el rango al techo seguro.\n' +
+          '2. O bien, ajusta manualmente el rango en package.json para que no exceda el techo especificado en el mensaje de error.',
         'dependency-exceeds-maximum-installed':
-          'Guía de diagnóstico y remediación para dependency-exceeds-maximum-installed. Reinstala la dependencia con una versión inferior al tope máximo permitido en package-lock.json.'
+          'Causa Raíz:\n' +
+          'La versión instalada en package-lock.json excede el techo máximo permitido por el ecosistema del auditor.\n\n' +
+          'Diagnóstico:\n' +
+          'Comprueba la versión instalada en node_modules/<paquete> a través del lockfile.\n\n' +
+          'Solución Canónica:\n' +
+          'Reinstala la dependencia fijando una versión dentro de la ventana de compatibilidad: "npm install -D <paquete>@<version-segura>".'
       },
       coverage: { include: ['package.json', 'package-lock.json'] },
       ...options

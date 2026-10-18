@@ -110,9 +110,9 @@ var ValidateGitConfigAuditor = class extends BaseAuditor {
 				"git-config-eol": "core.eol debe ser lf en repo"
 			},
 			ruleRemediations: {
-				"git-config-filemode": "Guía de diagnóstico y remediación para git-config-filemode. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"git-config-autocrlf": "Guía de diagnóstico y remediación para git-config-autocrlf. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"git-config-eol": "Guía de diagnóstico y remediación para git-config-eol. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"git-config-filemode": "1. Causa Raíz: La propiedad local `core.filemode` no está configurada como `false` en Git, lo que en entornos Windows provoca que Git detecte falsas diferencias de permisos de ejecución (+x) en archivos fuente.\n2. Diagnóstico: Ejecuta `git config --local core.filemode` en la terminal para inspeccionar el valor actual.\n3. Solución Canónica: Configura el repositorio para ignorar cambios de modo de archivo en el sistema de archivos local ejecutando `git config --local core.filemode false` o ejecutando el auto-fix del auditor.\n4. Ejemplo:\ngit config --local core.filemode false\nO ejecuta:\nnpm run auditor:fix",
+				"git-config-autocrlf": "1. Causa Raíz: La propiedad local `core.autocrlf` no está configurada como `input`, lo que puede provocar que los commits introduzcan saltos de línea Windows (CRLF) en el repositorio remoto.\n2. Diagnóstico: Ejecuta `git config --local core.autocrlf` en la terminal.\n3. Solución Canónica: Configura `core.autocrlf input` para que Git convierta CRLF a LF al hacer commit, preservando saltos LF limpios.\n4. Ejemplo:\ngit config --local core.autocrlf input\nO ejecuta:\nnpm run auditor:fix",
+				"git-config-eol": "1. Causa Raíz: La propiedad local `core.eol` no está fijada como `lf`, permitiendo que herramientas locales generen inconsistencias en los finales de línea de archivos fuente y scripts.\n2. Diagnóstico: Ejecuta `git config --local core.eol` en la terminal.\n3. Solución Canónica: Establece `core.eol lf` en la configuración local de Git.\n4. Ejemplo:\ngit config --local core.eol lf\nO ejecuta:\nnpm run auditor:fix"
 			},
 			coverage: { include: ["package.json"] },
 			...options

@@ -62,7 +62,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🤖",
 			ruleDescriptions: { "missing-agent-plugin-registration": "Plugin/skills no registrados en .agents" },
-			ruleRemediations: { "missing-agent-plugin-registration": "Guía de diagnóstico y remediación para missing-agent-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente." },
+			ruleRemediations: { "missing-agent-plugin-registration": "📖 GUÍA DE REMEDIACIÓN: missing-agent-plugin-registration\n1. Causa Raíz: El proyecto host no tiene registrado el plugin de auditoría `@francogp/auditor` en `.agents/plugins.json` o carece del catálogo de skills correspondientes en `.agents/skills/`.\n2. Diagnóstico: Comprueba si existe `.agents/plugins.json` y si contiene la referencia al plugin del auditor.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para registrar automáticamente el plugin y sincronizar los skills.\n   b) O ejecuta `auditor-init` en el proyecto host.\n4. Ejemplo:\n   - Comando de solución: `npm run auditor:fix`" },
 			coverage: { include: [...AGENT_REGISTRY_FILES] },
 			...options
 		});

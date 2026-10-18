@@ -106,13 +106,77 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       },
       ruleRemediations: {
         'gsap-unscoped-component-selectors':
-          'Guía de diagnóstico y remediación para gsap-unscoped-component-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se utilizan selectores CSS globales tipo string (ej. ".card", "#btn") en un componente UI (Vue SFC, React, Svelte).\n' +
+          'Esto busca elementos en todo el document global, animando accidentalmente otras instancias del mismo componente o elementos ajenos en la página.\n\n' +
+          'Diagnóstico:\n' +
+          'Identifica el selector string pasado a gsap.to/from. En componentes UI, el selector debe acotarse al subárbol del componente.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Envolver las animaciones dentro de "gsap.context((self) => { ... }, rootElementRef.value)". Todos los selectores dentro del contexto se acotan automáticamente a rootElementRef.\n' +
+          '2. Alternativamente, pasar directamente la referencia del elemento del DOM (ref.value o template ref) en lugar de un string.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: selector global sin acotar en Vue SFC\n' +
+          'gsap.to(".card", { opacity: 1 });\n\n' +
+          '// ✅ Correcto: acotado con gsap.context y template ref\n' +
+          'const root = ref<HTMLElement | null>(null);\n' +
+          'let ctx: gsap.Context;\n' +
+          'onMounted(() => {\n' +
+          '  ctx = gsap.context(() => {\n' +
+          '    gsap.to(".card", { opacity: 1 }); // busca solo dentro de root\n' +
+          '  }, root.value);\n' +
+          '});',
         'gsap-missing-context-revert':
-          'Guía de diagnóstico y remediación para gsap-missing-context-revert. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El componente inicializa animaciones con "gsap.context()" pero no invoca "ctx.revert()" al desmontarse (onUnmounted en Vue, cleanup de useEffect en React).\n' +
+          'Esto produce fugas de memoria, tweens huérfanos y distorsiones visuales si el usuario navega y vuelve al componente.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el ciclo de vida del componente donde se crea el contexto de GSAP.\n\n' +
+          'Solución Canónica:\n' +
+          'Guardar la instancia de gsap.context en una variable de alcance de componente y llamar a "ctx.revert()" en el hook "onUnmounted" (o "onScopeDispose").\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: contexto creado sin revertir al desmontar\n' +
+          'onMounted(() => {\n' +
+          '  gsap.context(() => { gsap.to(el.value, { x: 100 }); });\n' +
+          '});\n\n' +
+          '// ✅ Correcto: revert canónico en desmontaje\n' +
+          'let ctx: gsap.Context;\n' +
+          'onMounted(() => {\n' +
+          '  ctx = gsap.context(() => { gsap.to(el.value, { x: 100 }); });\n' +
+          '});\n' +
+          'onUnmounted(() => {\n' +
+          '  ctx?.revert();\n' +
+          '});',
         'gsap-missing-plugin-registration':
-          'Guía de diagnóstico y remediación para gsap-missing-plugin-registration. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se importa un plugin de GSAP (ScrollTrigger, Flip, Draggable, SplitText, etc.) pero no se ejecuta "gsap.registerPlugin(PluginName)".\n' +
+          'Sin el registro explícito, los bundlers modernos como Vite / Rollup pueden descartar el plugin en producción por tree-shaking o fallar en inicializar los hooks del núcleo de GSAP.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa los imports del archivo. Si importas ScrollTrigger de "gsap/ScrollTrigger", debes registrarlo antes de usarlo.\n\n' +
+          'Solución Canónica:\n' +
+          'Invocar "gsap.registerPlugin(ScrollTrigger)" inmediatamente debajo de las sentencias import.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: importar y usar directamente\n' +
+          'import { ScrollTrigger } from "gsap/ScrollTrigger";\n' +
+          'gsap.to(".box", { scrollTrigger: ".box" });\n\n' +
+          '// ✅ Correcto: registro explícito del plugin\n' +
+          'import { gsap } from "gsap";\n' +
+          'import { ScrollTrigger } from "gsap/ScrollTrigger";\n' +
+          'gsap.registerPlugin(ScrollTrigger);',
         'gsap-banned-devtools-production':
-          'Guía de diagnóstico y remediación para gsap-banned-devtools-production. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se detectó el uso de herramientas de depuración visual de GSAP (GSDevTools o MotionPathHelper) sin una guarda condicional de entorno de desarrollo.\n' +
+          'Estas utilidades incrementan el peso del bundle y exponen controles de depuración en entornos productivos.\n\n' +
+          'Diagnóstico:\n' +
+          'Busca llamadas a "GSDevTools.create()" o "MotionPathHelper.create()".\n\n' +
+          'Solución Canónica:\n' +
+          'Envolver la llamada en una guarda "if (import.meta.env.DEV)" o eliminar la herramienta una vez concluida la calibración de la animación.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: GSDevTools expuesto incondicionalmente\n' +
+          'GSDevTools.create();\n\n' +
+          '// ✅ Correcto: protegido bajo guarda de desarrollo\n' +
+          'if (import.meta.env.DEV) {\n' +
+          '  GSDevTools.create();\n' +
+          '}'
       }
     });
   }

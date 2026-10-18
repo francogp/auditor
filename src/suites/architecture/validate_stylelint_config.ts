@@ -352,13 +352,44 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       },
       ruleRemediations: {
         'stylelint-config-missing':
-          'Guía de diagnóstico y remediación para stylelint-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'No se encontró el archivo canónico de configuración .stylelintrc.json en la raíz del proyecto.\n' +
+          'Sin esta configuración, Stylelint no puede verificar las reglas arquitectónicas de hojas de estilo ni la prohibición de valores mágicos.\n\n' +
+          'Diagnóstico:\n' +
+          'Verifica si existe un archivo alternativo como stylelint.config.js o .stylelintrc.js. El estándar unificado del framework exige .stylelintrc.json que extienda la configuración base de @francogp/auditor.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor creará automáticamente .stylelintrc.json extendiendo "./node_modules/@francogp/auditor/.stylelintrc.json".\n' +
+          '2. Si deseas crear el archivo manualmente, crea .stylelintrc.json con el siguiente contenido:\n' +
+          '   {\n' +
+          '     "$schema": "https://json.schemastore.org/stylelintrc",\n' +
+          '     "extends": ["./node_modules/@francogp/auditor/.stylelintrc.json"]\n' +
+          '   }',
         'stylelint-config-missing-plugin':
-          'Guía de diagnóstico y remediación para stylelint-config-missing-plugin. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El archivo .stylelintrc.json local no extiende la configuración del auditor y omite plugins esenciales como "stylelint-declaration-strict-value" o "stylelint-order".\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el array "plugins" en .stylelintrc.json. Faltan plugins obligatorios para la gobernanza de variables de diseño y ordenamiento de selectores/mixins.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para que el framework inyecte automáticamente los plugins faltantes.\n' +
+          '2. La solución recomendada es extender "./node_modules/@francogp/auditor/.stylelintrc.json" en el campo "extends", lo cual hereda todos los plugins canónicos sin necesidad de duplicarlos localmente.',
         'stylelint-config-missing-strict-value':
-          'Guía de diagnóstico y remediación para stylelint-config-missing-strict-value. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'La regla "scale-unlimited/declaration-strict-value" está ausente o no cubre todas las propiedades mandatorias del baseline estricto (Anti-Castration Mandate).\n' +
+          'Propiedades requeridas: color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function.\n\n' +
+          'Diagnóstico:\n' +
+          'Comprueba si la regla declaration-strict-value en .stylelintrc.json fue modificada, desactivada o si le faltan propiedades obligatorias de diseño.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix". El auditor sincronizará y regenerará la regla completa con todas las propiedades requeridas y los valores seguros permitidos (none, transparent, inherit, etc.).\n' +
+          '2. No degrades ni desactives propiedades de esta regla; en su lugar, utiliza variables SCSS ($mi-color) o CSS (var(--mi-color)) en las hojas de estilo.',
         'stylelint-config-missing-order':
-          'Guía de diagnóstico y remediación para stylelint-config-missing-order. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'La regla "order/order" está ausente o no define el particionamiento de bloques (hasBlock: true/false) para mixins y directivas de SCSS.\n' +
+          'El particionamiento garantiza que mixins sin bloque (@include theme) se declaren antes de las propiedades CSS, y mixins con bloque (@include respond-to) se declaren al final junto a los selectores anidados.\n\n' +
+          'Diagnóstico:\n' +
+          'Inspecciona "order/order" en las reglas de .stylelintrc.json. El auditor exige una estructura determinista para evitar especificidad impredecible en CSS compilado.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para reparar la configuración automáticamente.\n' +
+          '2. Alternativamente, extiende "./node_modules/@francogp/auditor/.stylelintrc.json" para heredar la configuración canónica de orden de mixins.'
       },
       coverage: {
         include: ['.stylelintrc*']

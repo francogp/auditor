@@ -93,13 +93,42 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
       },
       ruleRemediations: {
         'no-empty-catch':
-          'Guía de diagnóstico y remediación para no-empty-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-empty-catch\n' +
+          '1. Causa Raíz: Se encontró un bloque catch vacío o que no realiza ninguna acción con el error capturado. Silenciar excepciones oculta defectos críticos y rompe el principio de fallo ruidoso (Loud Failure).\n' +
+          '2. Diagnóstico: Ubica el bloque catch reportado en el archivo y línea indicados.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Propaga el error lanzando una excepción tipada (`throw error`).\n' +
+          '   b) Registra o maneja formalmente el error si se trata de una degradación controlada.\n' +
+          '   c) Si ignorar el error es estrictamente intencional y seguro (ej: intento de lectura de archivo opcional), anota `// catch-ok: <justificación técnica explícita>` dentro del catch.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: Bloque catch vacío sin manejo ni justificación\n' +
+          '   ✅ Correcto:   Manejar el error o documentar `// catch-ok: cleanup opcional si el recurso cerró`',
         'no-silent-promise-catch':
-          'Guía de diagnóstico y remediación para no-silent-promise-catch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-silent-promise-catch\n' +
+          '1. Causa Raíz: Se encadenó un manejador catch vacío o sin acción sobre una Promesa sin registrar ni re-lanzar el error, dejando la promesa en un estado resuelto opaco.\n' +
+          '2. Diagnóstico: Revisa el handler catch de la promesa en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Registra el error en el logger o propágalo al llamador.\n' +
+          '   b) Si la omisión es segura y deliberada, documenta `// catch-ok: <justificación>` en la función callback.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: Promesa con catch vacío que descarta silenciosamente el error\n' +
+          '   ✅ Correcto:   `fetchData().catch((err) => { logger.error("Fallo al obtener datos", err); });`',
         'no-silent-mock-fallbacks':
-          'Guía de diagnóstico y remediación para no-silent-mock-fallbacks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-silent-mock-fallbacks\n' +
+          '1. Causa Raíz: Uso del método `v.fallback()` en esquemas Valibot. Los fallbacks silenciosos en esquemas enmascaran corrupciones de datos o discrepancias en la API en lugar de activar fallos de validación tempranos.\n' +
+          '2. Diagnóstico: Busca la llamada a `v.fallback(...)` en los esquemas de validación.\n' +
+          '3. Solución Canónica: Elimina `v.fallback()`. Si un campo es opcional en la API, tipifícalo explícitamente con `v.optional(...)` o `v.nullish(...)` y define el valor predeterminado en el constructor de dominio o factoría.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: Uso de fallback silencioso en el esquema\n' +
+          '   ✅ Correcto:   `v.optional(v.string(), "default")`',
         'strict-catch-narrowing':
-          'Guía de diagnóstico y remediación para strict-catch-narrowing. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: strict-catch-narrowing\n' +
+          '1. Causa Raíz: En TypeScript moderno con `useUnknownInCatchVariables: true`, la variable de error en catch es de tipo `unknown`. Acceder a propiedades como message o stack sin verificar `instanceof Error` provoca fallos en tiempo de ejecución si el valor lanzado no es un objeto Error.\n' +
+          '2. Diagnóstico: Ubica el acceso no seguro a propiedades de error en el bloque catch.\n' +
+          '3. Solución Canónica: Estrecha el tipo mediante `e instanceof Error ? e.message : String(e)` o utiliza un helper de extracción tipado como `toErrorMessage(e)`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: Acceso directo a propiedades de error sobre un tipo unknown sin narrowing\n' +
+          '   ✅ Correcto:   `const msg = e instanceof Error ? e.message : String(e);`'
       },
       roots: codeRoots,
       allowedExtensions: new Set(['.ts', '.vue']),

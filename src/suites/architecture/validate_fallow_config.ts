@@ -557,21 +557,64 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       },
       ruleRemediations: {
         'fallow-config-missing':
-          'Guía de diagnóstico y remediación para fallow-config-missing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El archivo .fallowrc.json no existe en la raíz del proyecto.\n' +
+          'Fallow requiere este archivo para mapear los puntos de entrada canónicos y las excepciones legítimas de código muerto.\n\n' +
+          'Diagnóstico:\n' +
+          'Verifica si existe el archivo .fallowrc.json en la raíz del repositorio.\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta "npm run auditor:fix" o "auditor fix". El framework generará automáticamente la configuración canónica con los puntos de entrada detectados.',
         'fallow-config-syntax':
-          'Guía de diagnóstico y remediación para fallow-config-syntax. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El archivo .fallowrc.json contiene un error de sintaxis JSON (comas de más, comillas sin cerrar o formato corrupto).\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el mensaje de error del parser JSON para ubicar la línea del defecto.\n\n' +
+          'Solución Canónica:\n' +
+          'Abre .fallowrc.json y corrige el error de formato utilizando un linter JSON o formateador de código.',
         'fallow-banned-entry-glob':
-          'Guía de diagnóstico y remediación para fallow-banned-entry-glob. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se declaró un patrón de entrada (entry) prohibido en .fallowrc.json (como comodines masivos "src/components/**/*" o "src/views/**/*").\n' +
+          'Declarar árboles completos de componentes como puntos de entrada enmascara código huérfano y vistas muertas, impidiendo que Fallow detecte archivos no enlazados en el árbol de dependencias.\n\n' +
+          'Diagnóstico:\n' +
+          'Examina el array "entry" en .fallowrc.json.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para purgar los globs prohibidos automáticamente.\n' +
+          '2. Mantén únicamente los puntos de entrada raíz auténticos (ej. "src/main.ts", "src/index.ts").',
         'fallow-stale-file':
-          'Guía de diagnóstico y remediación para fallow-stale-file. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Una entrada en "ignoreExports" referencia un archivo que ya fue eliminado, movido o renombrado en el disco.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la advertencia detalla la ruta del archivo que no se encuentra en el sistema de archivos.\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta "npm run auditor:fix" o "auditor fix". El auditor eliminará automáticamente todas las entradas obsoletas de .fallowrc.json.',
         'fallow-stale-export':
-          'Guía de diagnóstico y remediación para fallow-stale-export. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Un símbolo declarado en el array "exports" de una entrada en "ignoreExports" ya no se encuentra exportado en el archivo fuente correspondiente.\n\n' +
+          'Diagnóstico:\n' +
+          'Comprueba el archivo fuente: el símbolo fue renombrado o eliminado de las sentencias export.\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta "npm run auditor:fix" para sincronizar y eliminar los nombres de símbolos caducados.',
         'fallow-empty-export-list':
-          'Guía de diagnóstico y remediación para fallow-empty-export-list. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Una entrada de archivo en "ignoreExports" tiene un array de exports vacío ("exports": []).\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa las entradas en .fallowrc.json donde no se declaró ningún símbolo.\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta "npm run auditor:fix" para eliminar la entrada innecesaria.',
         'fallow-duplicate-entry':
-          'Guía de diagnóstico y remediación para fallow-duplicate-entry. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El mismo archivo o símbolo está repetido más de una vez dentro de .fallowrc.json.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje indica la entrada duplicada.\n\n' +
+          'Solución Canónica:\n' +
+          'Ejecuta "npm run auditor:fix" para deduplicar automáticamente las entradas y símbolos.',
         'fallow-config-workspace-diagnostic':
-          'Guía de diagnóstico y remediación para fallow-config-workspace-diagnostic. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'El analizador Fallow emitió un diagnóstico a nivel de espacio de trabajo o configuración de límites arquitectónicos.\n\n' +
+          'Diagnóstico:\n' +
+          'Inspecciona el mensaje emitido por el motor de Fallow en el reporte.\n\n' +
+          'Solución Canónica:\n' +
+          'Ajusta la configuración de paquetes o límites en .fallowrc.json de acuerdo a la recomendación del motor.'
       },
       coverage: {
         include: ['.fallowrc.json']

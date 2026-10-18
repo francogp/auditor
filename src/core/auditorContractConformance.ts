@@ -326,6 +326,10 @@ function validateAuditorRuleRemediationsContract(
       errors.push(
         `Auditor [${taskId}] no define 'ruleRemediations' obligatoria para la regla '${ruleId}'.`
       );
+    } else if (/^Guía de diagnóstico y remediación para/i.test(guide.trim())) {
+      errors.push(
+        `Auditor [${taskId}] define una guía placeholder para la regla '${ruleId}'. Debe proveer diagnóstico y solución accionables.`
+      );
     }
   }
 }

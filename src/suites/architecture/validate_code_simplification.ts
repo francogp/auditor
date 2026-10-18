@@ -67,17 +67,57 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       },
       ruleRemediations: {
         'dead-code-accumulation':
-          'Guía de diagnóstico y remediación para dead-code-accumulation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: dead-code-accumulation\n' +
+          '1. Causa Raíz: Se detectaron bloques de código fuente comentados acumulados en el archivo. El control de versiones (Git) es el único historial válido; conservar código muerto comentado ensucia el archivo y confunde a los desarrolladores.\n' +
+          '2. Diagnóstico: Ubica las líneas de código comentado reportadas.\n' +
+          '3. Solución Canónica: Elimina completamente el bloque de código comentado.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Código muerto: `// const oldTotal = items.reduce((acc, i) => acc + i.val, 0);`\n' +
+          '   ✅ Limpio:        Eliminado del archivo fuente.',
         'boolean-trap-parameters':
-          'Guía de diagnóstico y remediación para boolean-trap-parameters. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: boolean-trap-parameters\n' +
+          '1. Causa Raíz: Una función declara múltiples parámetros booleanos posicionales (ej: `fn(active: boolean, force: boolean, log: boolean)`). En el sitio de llamada (`fn(true, false, true)`), el significado de cada argumento es ilegible e induce errores.\n' +
+          '2. Diagnóstico: Inspecciona la firma de la función en la línea reportada.\n' +
+          '3. Solución Canónica: Refactoriza los booleanos posicionales en un objeto de opciones tipado con propiedades nombradas (`options: { active?: boolean; force?: boolean; log?: boolean }`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Trampa booleana: `createUser("Ana", true, false);`\n' +
+          '   ✅ Objeto nombrado: `createUser("Ana", { isAdmin: true, notify: false });`',
         'deep-nesting-control-flow':
-          'Guía de diagnóstico y remediación para deep-nesting-control-flow. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: deep-nesting-control-flow\n' +
+          '1. Causa Raíz: Estructuras de control (`if`, `for`, `while`, callbacks) anidadas a más de 4 niveles de profundidad ("Arrow Anti-pattern"), dificultando el seguimiento mental del flujo.\n' +
+          '2. Diagnóstico: Examina el bloque condicional o bucle en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Aplica cláusulas de guarda tempranas (`early return` / `guard clauses`) para aplanar el código.\n' +
+          '   b) Extrae subtareas a funciones auxiliares puras y pequeñas.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Anidado: `if (a) { if (b) { if (c) { doWork(); } } }`\n' +
+          '   ✅ Aplanado: `if (!a || !b || !c) return; doWork();`',
         'redundant-else-after-return':
-          'Guía de diagnóstico y remediación para redundant-else-after-return. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: redundant-else-after-return\n' +
+          '1. Causa Raíz: Se utilizó un bloque `else` o `else if` inmediatamente después de un `if` cuyo cuerpo siempre finaliza con `return`, `throw`, `break` o `continue`.\n' +
+          '2. Diagnóstico: Revisa la estructura `if (...) { return; } else { ... }` reportada.\n' +
+          '3. Solución Canónica: Elimina la palabra clave `else` y sube el contenido del bloque al nivel exterior.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Redundante: `if (!item) return null; else { return item.name; }`\n' +
+          '   ✅ Conciso:    `if (!item) return null; return item.name;`',
         'premature-abstraction-wrapper':
-          'Guía de diagnóstico y remediación para premature-abstraction-wrapper. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: premature-abstraction-wrapper\n' +
+          '1. Causa Raíz: Se definió una función o método wrapper de una sola línea que simplemente reenvía argumentos a otra función sin agregar validación, transformación, tipado ni comportamiento.\n' +
+          '2. Diagnóstico: Ubica la función señalada y comprueba si sólo es un pasamanos sin valor añadido.\n' +
+          '3. Solución Canónica: Elimina el wrapper y permite que los llamadores invoquen directamente la función subyacente (simplificación YAGNI).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Wrapper superfluo: `function getLength(arr: string[]) { return arr.length; }`\n' +
+          '   ✅ Directo:          Usar `arr.length` en los llamadores.',
         'massive-switch-branching':
-          'Guía de diagnóstico y remediación para massive-switch-branching. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: massive-switch-branching\n' +
+          '1. Causa Raíz: Una instrucción `switch` contiene más de 10 casos (`case`), lo que degrada la legibilidad y viola los principios de diseño modular.\n' +
+          '2. Diagnóstico: Comprueba el bloque `switch` en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Reemplaza el `switch` por un diccionario o mapa de handlers indexado por la clave de dominio: `const HANDLERS: Record<Type, Handler> = { ... };`.\n' +
+          '   b) Si la lógica de cada caso es compleja, aplica el patrón Strategy o polimorfismo.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Switch masivo: `switch(type) { case \\\'a\\\': ... case \\\'b\\\': ... // 15 casos }`\n' +
+          '   ✅ Mapa canónico: `const handler = ACTION_MAP[type]; handler?.();`'
       },
       ruleCapabilities: createUniformRuleCapabilities(
         CODE_SIMPLIFICATION_RULES,

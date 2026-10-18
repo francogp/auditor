@@ -116,7 +116,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			ruleIds: TYPE_CHECK_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(TYPE_CHECK_RULES, "contracts"),
 			ruleDescriptions: { "ts-compiler-error": "Error de compilación o tipo" },
-			ruleRemediations: { "ts-compiler-error": "Guía de diagnóstico y remediación para ts-compiler-error. Revisa la incidencia detectada y ajusta el código correspondiente." },
+			ruleRemediations: { "ts-compiler-error": "📖 GUÍA DE REMEDIACIÓN: ts-compiler-error\n1. Causa Raíz: El compilador de TypeScript (`tsc` o `vue-tsc`) detectó un error de tipos, interfaz incompatible, propiedad inexistente o fallo de sintaxis estática (código de diagnóstico TSxxxx).\n2. Diagnóstico: Revisa el archivo, número de línea y código de error TS emitido (ej: TS2322 tipo incompatible, TS2339 propiedad inexistente, TS2345 argumento inválido).\n3. Solución Canónica:\n   a) Corrige la firma de tipo o interfaz en el origen para que satisfaga el contrato estricto del compilador.\n   b) Si faltan propiedades en un objeto literal, agrégalas según el tipo esperado o define la propiedad como opcional (`?`) si el dominio lo autoriza.\n   c) Nunca utilices `// @ts-ignore` ni castings ciegos como `as any`. Modela los tipos con el rigor adecuado.\n4. Ejemplo:\n   ❌ TS2322: `const id: number = \"123\";`\n   ✅ Tipado correcto: `const id: string = \"123\";`" },
 			coverage: {
 				include: [
 					"src/**/*.ts",

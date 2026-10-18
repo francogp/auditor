@@ -657,15 +657,55 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       },
       ruleRemediations: {
         'markdown-broken-source-ref':
-          'Guía de diagnóstico y remediación para markdown-broken-source-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-broken-source-ref\n' +
+          '1. Causa Raíz: Un archivo Markdown hace referencia a una ruta de archivo o directorio que no existe en el sistema de archivos del repositorio.\n' +
+          '2. Diagnóstico: Revisa la ruta indicada en el mensaje y la línea del archivo Markdown.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si el archivo fue movido o renombrado: actualiza la ruta en el Markdown para que apunte a la ubicación actual.\n' +
+          '   b) Si el archivo fue eliminado: remueve la referencia obsoleta del documento o manual.\n' +
+          '   c) Si es una ruta abstracta o hipotética en un ejemplo: delimítala con sintaxis de marcador de posición (ej: `<path>`, `...`, `path/to/...`) para que el parser no la interprete como ruta real.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `[Config](file:///src/oldConfig.ts)` (si el archivo no existe)\n' +
+          '   ✅ Correcto:   `[Config](file:///src/config/audit.config.ts)`',
         'markdown-hardcoded-runtime-version':
-          'Guía de diagnóstico y remediación para markdown-hardcoded-runtime-version. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-hardcoded-runtime-version\n' +
+          '1. Causa Raíz: Se encontró una versión fija de Node.js u otro motor runtime hardcodeada en texto plano en la documentación, violando la regla SSoT (Single Source of Truth).\n' +
+          '2. Diagnóstico: Ubica la línea donde aparece la versión fija (por ejemplo, "Node.js v20.0.0").\n' +
+          '3. Solución Canónica:\n' +
+          '   a) En lugar de hardcodear números de versión, haz referencia a `package.json` (`engines.node`) o a `.node-version` / `.nvmrc`.\n' +
+          '   b) Si es necesario documentar el requisito, redacta "Node.js (según engines en package.json)" o sincronízalo con la versión canónica actual.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: "Requiere Node.js 20.10.0+"\n' +
+          '   ✅ Correcto:   "Requiere Node.js (según `engines.node` en `package.json`)"',
         'markdown-broken-skill-ref':
-          'Guía de diagnóstico y remediación para markdown-broken-skill-ref. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-broken-skill-ref\n' +
+          '1. Causa Raíz: Se hace referencia a un skill de agente con la sintaxis `@/nombre-skill`, pero el skill no existe en `.agents/skills/` ni entre los skills integrados.\n' +
+          '2. Diagnóstico: Comprueba el identificador del skill en la línea reportada y contrástalo con el contenido de `.agents/skills/`.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si el skill fue renombrado: actualiza el nombre al identificador canónico vigente.\n' +
+          '   b) Si el skill fue eliminado: retira la mención de la documentación.\n' +
+          '   c) Si el skill no está instalado: agrégalo a `.agents/skills/` respetando el esquema de skills.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `@/skill-inexistente`\n' +
+          '   ✅ Correcto:   `@/auditor`',
         'markdown-case-mismatch':
-          'Guía de diagnóstico y remediación para markdown-case-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: markdown-case-mismatch\n' +
+          '1. Causa Raíz: Una ruta en la documentación coincide con un archivo en disco pero difiere en mayúsculas/minúsculas. Aunque Windows es insensible a mayúsculas, Linux/macOS y entornos CI fallarán.\n' +
+          '2. Diagnóstico: Compara la ruta referenciada con el nombre exacto del archivo en el sistema de archivos.\n' +
+          '3. Solución Canónica: Corrige las mayúsculas/minúsculas de la ruta en el Markdown para que coincidan al 100% con el disco.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `src/core/Auditorbase.ts`\n' +
+          '   ✅ Correcto:   `src/core/auditorBase.ts`',
         'markdown-outdated-project-version':
-          'Actualiza las referencias de versión del proyecto o tags de release en la documentación para que coincidan con el SemVer actual de package.json (o ejecuta auditor fix).'
+          '📖 GUÍA DE REMEDIACIÓN: markdown-outdated-project-version\n' +
+          '1. Causa Raíz: Un archivo de documentación o release notes referencia una versión desactualizada del paquete que no coincide con `package.json.version`.\n' +
+          '2. Diagnóstico: Inspecciona la versión reportada en el archivo Markdown y compárala con `package.json`.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta `npm run auditor:fix` o `auditor fix` si la regla soporta corrección automática.\n' +
+          '   b) O actualiza manualmente el número de versión en el documento al SemVer actual de `package.json`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Desactualizado: `v9.1.0` (cuando el paquete está en 9.2.0)\n' +
+          '   ✅ Sincronizado:   `v9.2.0`'
       },
       coverage: {
         include: ['**/*.md']

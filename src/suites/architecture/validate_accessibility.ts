@@ -163,17 +163,61 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       },
       ruleRemediations: {
         'a11y-img-alt':
-          'Guía de diagnóstico y remediación para a11y-img-alt. Revisa la incidencia detectada y añade el atributo alt correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: a11y-img-alt\n' +
+          '1. Causa Raíz: Se encontró una etiqueta `<img>` sin atributo `alt` (o con `alt` ausente). Los lectores de pantalla no pueden transmitir el contenido visual a usuarios con discapacidad visual (WCAG 1.1.1).\n' +
+          '2. Diagnóstico: Ubica la imagen señalada en la plantilla del componente Vue.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si la imagen aporta información: describe su contenido de forma concisa mediante `alt="Descripción del gráfico o foto"`.\n' +
+          '   b) Si la imagen es puramente decorativa: añade un atributo alt vacío explícito `alt=""` o `aria-hidden="true"`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inaccesible: `<img src="/logo.png">`\n' +
+          '   ✅ Accesible:   `<img src="/logo.png" alt="Logotipo de la aplicación">`',
         'a11y-form-control-has-label':
-          'Guía de diagnóstico y remediación para a11y-form-control-has-label. Revisa la incidencia detectada y asocia un label o aria-label.',
+          '📖 GUÍA DE REMEDIACIÓN: a11y-form-control-has-label\n' +
+          '1. Causa Raíz: Un control de formulario (`<input>`, `<select>`, `<textarea>`) carece de etiqueta accesible asociada, impidiendo que los lectores de pantalla anuncien el propósito del campo (WCAG 1.3.1 / 4.1.2).\n' +
+          '2. Diagnóstico: Examina el campo de formulario en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Asocia una etiqueta `<label :for="id">Texto</label>` con el `id` correspondiente del control.\n' +
+          '   b) O añade un atributo `aria-label="Nombre del campo"` o `aria-labelledby="labelId"`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inaccesible: `<input v-model="email" type="email" placeholder="Correo">`\n' +
+          '   ✅ Accesible:   `<input v-model="email" type="email" aria-label="Correo electrónico">`',
         'a11y-interactive-supports-focus':
-          'Guía de diagnóstico y remediación para a11y-interactive-supports-focus. Revisa la incidencia detectada y añade tabindex o rol interactivo con teclado.',
+          '📖 GUÍA DE REMEDIACIÓN: a11y-interactive-supports-focus\n' +
+          '1. Causa Raíz: Un elemento no interactivo (como `<div>` o `<span>`) tiene directivas `@click` pero no es accesible mediante teclado (`tabindex` o eventos de teclado), excluyendo a usuarios que navegan sin ratón (WCAG 2.1.1).\n' +
+          '2. Diagnóstico: Revisa el elemento con manejador `@click` reportado.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Convierte el elemento en un botón semántico nativo: `<button type="button" @click="...">`.\n' +
+          '   b) Si debe ser un div por diseño, añade `role="button"`, `tabindex="0"` y un manejador `@keydown.enter.space="..."`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inaccesible: `<div class="card" @click="selectItem">`\n' +
+          '   ✅ Semántico:   `<button type="button" class="card" @click="selectItem">`',
         'a11y-anchor-has-content':
-          'Guía de diagnóstico y remediación para a11y-anchor-has-content. Revisa la incidencia detectada y añade texto o aria-label al enlace o botón.',
+          '📖 GUÍA DE REMEDIACIÓN: a11y-anchor-has-content\n' +
+          '1. Causa Raíz: Un enlace (`<a>`) o botón (`<button>`) no contiene texto visible ni etiqueta accesible (por ejemplo, contiene únicamente un icono visual sin texto alternativo), por lo que el lector de pantalla no puede anunciar su destino o acción (WCAG 2.4.4 / 4.1.2).\n' +
+          '2. Diagnóstico: Comprueba el contenido del enlace o botón en la plantilla.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Añade texto descriptivo dentro del elemento o una etiqueta oculta para lectores: `<span class="sr-only">Cerrar</span>`.\n' +
+          '   b) O define el atributo `aria-label="Descripción de la acción"`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Vacío:     `<button @click="close"><i class="icon-close" /></button>`\n' +
+          '   ✅ Accesible: `<button @click="close" aria-label="Cerrar modal"><i class="icon-close" aria-hidden="true" /></button>`',
         'a11y-aria-role-invalid':
-          'Guía de diagnóstico y remediación para a11y-aria-role-invalid. Revisa la incidencia detectada y ajusta el rol ARIA conforme a la especificación W3C.',
+          '📖 GUÍA DE REMEDIACIÓN: a11y-aria-role-invalid\n' +
+          '1. Causa Raíz: Se utilizó un valor no reconocido o mal escrito en el atributo `role="..."`. La especificación W3C WAI-ARIA define un catálogo estricto de roles válidos.\n' +
+          '2. Diagnóstico: Revisa el valor asignado a `role` en el elemento reportado.\n' +
+          '3. Solución Canónica: Corrige el valor utilizando un rol WAI-ARIA canónico (ej: `dialog`, `button`, `navigation`, `tab`, `alert`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inválido: `<div role="modal-box">`\n' +
+          '   ✅ Conforme: `<div role="dialog" aria-modal="true">`',
         'a11y-viewport-zoom-lock':
-          'Guía de diagnóstico y remediación para a11y-viewport-zoom-lock. Revisa la incidencia detectada y remueve user-scalable=no o maximum-scale=1.0 de index.html.'
+          '📖 GUÍA DE REMEDIACIÓN: a11y-viewport-zoom-lock\n' +
+          '1. Causa Raíz: La etiqueta `<meta name="viewport">` en `index.html` bloquea el zoom del usuario (`user-scalable=no` o `maximum-scale=1.0`). Esto impide que personas con baja visión amplíen el contenido, violando WCAG 1.4.4 (Resize Text).\n' +
+          '2. Diagnóstico: Inspecciona el archivo `index.html` en la etiqueta meta viewport.\n' +
+          '3. Solución Canónica: Elimina `user-scalable=no`, `user-scalable=0` y `maximum-scale=1.0`. Permite que el viewport sea el estándar responsivo.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Bloqueo: `<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">`\n' +
+          '   ✅ Accesible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`'
       },
       projectRoot: effectiveRoot,
       coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }

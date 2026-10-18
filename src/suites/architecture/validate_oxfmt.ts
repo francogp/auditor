@@ -87,7 +87,14 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       },
       ruleRemediations: {
         'oxfmt-violation':
-          'Guía de diagnóstico y remediación para oxfmt-violation. El archivo presenta diferencias respecto a las reglas de formateo de Oxfmt. Ejecuta "npm run fmt" o "vp fmt" (o "npm run auditor:fix") para reformatear automáticamente el código con las reglas canónicas de vite.config.ts / audit.config.ts.'
+          'Causa Raíz:\n' +
+          'El archivo presenta desviaciones respecto al estilo de formateo canónico de código de Oxfmt (Vite+).\n' +
+          'Oxfmt gobierna indentación, comillas, punto y coma, ordenamiento de importaciones ("sortImports") y ordenamiento de claves en package.json ("sortPackageJson") a velocidades nativas en Rust.\n\n' +
+          'Diagnóstico:\n' +
+          'El linter de formateo detectó diferencias entre el archivo en disco y el formato canónico.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run fmt" o "vp fmt" para reformatear todo el proyecto automáticamente.\n' +
+          '2. Alternativamente, ejecuta "npm run auditor:fix" o "auditor fix", lo cual incluye una fase final determinista de formateo con Oxfmt.'
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue,json,md,css,scss}'],

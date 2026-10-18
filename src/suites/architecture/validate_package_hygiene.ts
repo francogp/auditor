@@ -496,13 +496,13 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       },
       ruleRemediations: {
         'package-unused-dependency':
-          'Guía de diagnóstico y remediación para package-unused-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '1. Causa Raíz: Se declaró una librería en `dependencies` o `devDependencies` de `package.json` que no es importada en ningún archivo fuente ni invocada en scripts o herramientas de compilación.\n2. Diagnóstico: Revisa el reporte para identificar el paquete huérfano. Comprueba con Fallow o búsqueda global si existe alguna mención o uso real.\n3. Solución Canónica: Elimina la dependencia innecesaria ejecutando `npm uninstall <paquete>` para reducir el tamaño del árbol de dependencias y la superficie de ataque.\n4. Ejemplo:\nnpm uninstall <paquete-huerfano>',
         'package-unlisted-dependency':
-          'Guía de diagnóstico y remediación para package-unlisted-dependency. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '1. Causa Raíz: El código fuente importa un paquete externo (phantom dependency) que no está formalmente declarado en `dependencies` o `devDependencies` de `package.json`, funcionando solo accidentalmente por hoisting en `node_modules`.\n2. Diagnóstico: Observa la ruta y el nombre del paquete reportado en la violación.\n3. Solución Canónica: Instala y declara explícitamente el paquete en `package.json` mediante `npm install <paquete>` o `npm install -D <paquete>`.\n4. Ejemplo:\nnpm install <paquete>\nO para herramientas de desarrollo:\nnpm install -D <paquete>',
         'package-unused-binary':
-          'Guía de diagnóstico y remediación para package-unused-binary. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '1. Causa Raíz: Un script o binario declarado en el campo `bin` de `package.json` apunta a un archivo inexistente, no ejecutable o sin uso.\n2. Diagnóstico: Inspecciona el campo `bin` de `package.json` y verifica que el archivo de destino exista en disco y cuente con hashbang (`#!/usr/bin/env node`).\n3. Solución Canónica: Corrige la ruta al archivo ejecutable compilado en `dist/` o elimina la entrada del campo `bin` si el paquete ya no expone ese comando CLI.\n4. Ejemplo:\n"bin": {\n  "auditor": "dist/cli/index.js"\n}',
         'package-lockfile-integrity':
-          'Guía de diagnóstico y remediación para package-lockfile-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '1. Causa Raíz: `package-lock.json` está desincronizado con respecto a las versiones y rangos declarados en `package.json`, o presenta resoluciones inconsistentes.\n2. Diagnóstico: Verifica discrepancias entre los paquetes instalados y las declaraciones de `package.json`.\n3. Solución Canónica: Ejecuta `npm install` para regenerar y sincronizar limpiamente el lockfile sin romper contratos de dependencias.\n4. Ejemplo:\nnpm install'
       },
       coverage: {
         include: ['package.json', 'package-lock.json']

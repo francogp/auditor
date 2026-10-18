@@ -133,13 +133,37 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       },
       ruleRemediations: {
         'sql-no-positional-arrays':
-          'Guía de diagnóstico y remediación para sql-no-positional-arrays. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: sql-no-positional-arrays\n' +
+          '1. Causa Raíz: Se intentó mutar o consultar arrays JSONB en SQL mediante índices posicionales fijos (ej: `jsonb_set(col, \'{0}\', ...)` o `col->0`). Los índices numéricos en arrays JSON son extremadamente frágiles ante cambios de orden y violan el diseño relacional normalizado.\n' +
+          '2. Diagnóstico: Ubica la manipulación posicional en la consulta o función SQL reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Si los elementos poseen identidad, modela la relación como una tabla hija relacional 1:N.\n' +
+          '   b) Si debe ser JSON, manipula el array completo en memoria en la capa de aplicación o usa objetos JSON con claves nombradas en lugar de arrays posicionales.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Posicional: `UPDATE profile SET tags = jsonb_set(tags, \'{0}\', \'"admin"\')`\n' +
+          '   ✅ Normalizado: Utilizar tabla relacional `user_tags (user_id, tag)`.',
         'sql-plpgsql-declared-variables':
-          'Guía de diagnóstico y remediación para sql-plpgsql-declared-variables. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: sql-plpgsql-declared-variables\n' +
+          '1. Causa Raíz: Se utilizó un identificador de variable dentro del bloque `BEGIN ... END;` de una función PL/pgSQL que no fue formalmente declarado en la sección `DECLARE`. PostgreSQL fallará en tiempo de ejecución con error de sintaxis o referencia no vinculada.\n' +
+          '2. Diagnóstico: Revisa la función PL/pgSQL en la migración SQL reportada.\n' +
+          '3. Solución Canónica: Añade la declaración explícita de la variable y su tipo de dato bajo la sección `DECLARE`.\n' +
+          '4. Ejemplo:\n' +
+          '   - Añadir: `DECLARE v_total NUMERIC; BEGIN ...`',
         'sql-rls-policy-grant-integrity':
-          'Guía de diagnóstico y remediación para sql-rls-policy-grant-integrity. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: sql-rls-policy-grant-integrity\n' +
+          '1. Causa Raíz: Se definió una política RLS (`CREATE POLICY ... FOR SELECT/INSERT/UPDATE`) para un rol (ej: `authenticated`, `anon`), pero no se otorgó el permiso SQL correspondiente (`GRANT SELECT, INSERT ON tabla TO rol;`). Aunque la política RLS exista, la base de datos rechazará la petición con error 42501 (insufficient_privilege).\n' +
+          '2. Diagnóstico: Comprueba la migración SQL donde se crea la política RLS.\n' +
+          '3. Solución Canónica: Añade la instrucción `GRANT` correspondiente antes o después de la creación de la política.\n' +
+          '4. Ejemplo:\n' +
+          '   - SQL: `GRANT SELECT, INSERT ON public.user_profiles TO authenticated;`',
         'db-payload-snake-case':
-          'Guía de diagnóstico y remediación para db-payload-snake-case. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: db-payload-snake-case\n' +
+          '1. Causa Raíz: Un objeto de payload de persistencia, interfaz DTO de base de datos o llamada a Supabase/PostgreSQL utiliza propiedades en formato `camelCase` (ej: `{ userId: 1, createdAt: ... }`). En la base de datos relacional las columnas están estandarizadas en `snake_case` (`user_id`, `created_at`).\n' +
+          '2. Diagnóstico: Revisa las claves del objeto enviado o mapeado en la línea reportada.\n' +
+          '3. Solución Canónica: Utiliza identificadores en `snake_case` para todas las interacciones con persistencia directa, o utiliza un mapper/serializer formal que traduzca entre el dominio (`camelCase`) y la base de datos (`snake_case`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ camelCase en BD: `await db.insert({ userId: id, firstName: name });`\n' +
+          '   ✅ snake_case en BD: `await db.insert({ user_id: id, first_name: name });`'
       },
       coverage: {
         include: [

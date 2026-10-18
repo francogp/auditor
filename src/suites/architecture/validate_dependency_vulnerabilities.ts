@@ -189,11 +189,33 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       },
       ruleRemediations: {
         'dependency-cve-critical':
-          'Guía de diagnóstico y remediación para dependency-cve-critical. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectó una vulnerabilidad de seguridad crítica (CVE con puntuación CVSS >= 9.0) en una de las dependencias instaladas en el árbol de node_modules.\n' +
+          'Las vulnerabilidades críticas habitualmente permiten ejecución remota de código (RCE), elevación de privilegios no autorizada o secuestro completo del entorno.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje reporta el nombre del paquete vulnerable, la ruta del aviso de seguridad de GitHub Advisory / CVE y la cadena de dependencias afectadas.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm audit" para inspeccionar el informe detallado de npm.\n' +
+          '2. Si existe un parche seguro disponible, ejecuta "npm audit fix".\n' +
+          '3. Si la vulnerabilidad proviene de una dependencia directa, actualízala en package.json a una versión no vulnerable ("npm install <paquete>@latest").\n' +
+          '4. Si se confirma como falso positivo o entorno estrictamente aislado y sin riesgo, regístralo explícitamente en "config.dependencyVulnerabilities.allowList" en .auditor/audit.config.ts tras aprobación humana.',
         'dependency-cve-high':
-          'Guía de diagnóstico y remediación para dependency-cve-high. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectó una vulnerabilidad de severidad alta (CVSS 7.0 - 8.9) en las dependencias del proyecto.\n' +
+          'Generalmente corresponde a denegación de servicio (ReDoS), Cross-Site Scripting (XSS) o bypass de autenticación en librerías utilizadas.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el advisory URL provisto en el mensaje de error.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm audit fix" para actualizar de forma segura a versiones con parche compatible.\n' +
+          '2. Actualiza la dependencia principal que introduce la librería vulnerable.',
         'dependency-cve-moderate':
-          'Guía de diagnóstico y remediación para dependency-cve-moderate. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se detectó una vulnerabilidad de severidad moderada (CVSS 4.0 - 6.9) en dependencias instaladas.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el paquete y la versión parcheada recomendada en el aviso de npm audit.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm audit fix" o actualiza el paquete afectado mediante "npm update <paquete>".\n' +
+          '2. En entornos donde solo se bloquee ante fallos críticos, se puede calibrar "config.dependencyVulnerabilities.failOn" a "critical" o "high" en .auditor/audit.config.ts.'
       },
       coverage: {
         include: ['package.json', 'package-lock.json']

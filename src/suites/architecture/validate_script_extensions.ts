@@ -145,11 +145,32 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       },
       ruleRemediations: {
         'banned-mjs-extension':
-          'Guía de diagnóstico y remediación para banned-mjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectó un archivo con extensión ".mjs".\n' +
+          'En la arquitectura nativa Node.js 26+ con "type": "module" y soporte directo de TypeScript ("--experimental-strip-types"), todo script y módulo del proyecto debe ser TypeScript canónico (.ts). La extensión .mjs es considerada un remanente transicional innecesario.\n\n' +
+          'Diagnóstico:\n' +
+          'Identifica el archivo .mjs reportado. Si es un archivo de configuración de una herramienta externa en la raíz (ej. postcss.config.mjs), verifica si está exento o cámbialo a .ts si la herramienta lo soporta.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor renombrará automáticamente el archivo a .ts, actualizará las sentencias import relativas en todo el proyecto y reescribirá las referencias en package.json.scripts.\n' +
+          '2. Si necesitas eximir un archivo de terceros específico, agrégalo a "config.scriptExtensions.exemptFiles" en .auditor/audit.config.ts.',
         'banned-cjs-extension':
-          'Guía de diagnóstico y remediación para banned-cjs-extension. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectó un archivo con extensión ".cjs".\n' +
+          'El proyecto opera bajo el estándar moderno ECMAScript Modules (ESM). Los módulos CommonJS (.cjs) introducen dual-package hazards, impiden el tree-shaking estático y violan la gobernanza del lenguaje.\n\n' +
+          'Diagnóstico:\n' +
+          'Revisa el archivo .cjs reportado. Con frecuencia utiliza "require()" o "module.exports".\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix". El auditor convertirá la extensión a .ts.\n' +
+          '2. Reemplaza cualquier "require()" o "module.exports" por la sintaxis estándar de ESM ("import" y "export").',
         'banned-raw-js-script':
-          'Guía de diagnóstico y remediación para banned-raw-js-script. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se detectó un script JavaScript plano sin tipar (".js" o ".jsx") dentro de las carpetas de scripts o herramientas (scripts/, src/cli/, etc.).\n' +
+          'Todos los scripts operativos y utilidades deben ser TypeScript (.ts / .tsx) con tipos estrictos para garantizar seguridad y refactorización confiable.\n\n' +
+          'Diagnóstico:\n' +
+          'Examina el script de desarrollo reportado.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Ejecuta "npm run auditor:fix" para renombrar automáticamente el script a .ts y actualizar las invocaciones en package.json.\n' +
+          '2. Añade las anotaciones de tipo pertinentes en los argumentos y retornos de funciones.'
       },
       coverage: {
         include: coverageInclude

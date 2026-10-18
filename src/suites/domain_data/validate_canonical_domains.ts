@@ -642,13 +642,54 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
       },
       ruleRemediations: {
         'canonical-domain-collision':
-          'Guía de diagnóstico y remediación para canonical-domain-collision. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se detectaron dos o más declaraciones canónicas idénticas (mismo conjunto de literales) en diferentes archivos del proyecto, violando el principio de Fuente Única de Verdad (Single Source of Truth - SSoT).\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la incidencia indica el archivo y línea del catálogo original y del catálogo duplicado.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Unificar los catálogos en un único archivo de contratos dentro del directorio de tipos canónicos (ej. src/types/ o src/domain/).\n' +
+          '2. Eliminar la declaración duplicada y reemplazarla por la importación del catálogo unificado.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: Dos o más archivos declaran catálogos idénticos con distintos nombres\n' +
+          '// ✅ Correcto: Unificar la definición en src/types/ o src/domain/ e importarla en los consumidores.',
         'canonical-domain-repeated-union':
-          'Guía de diagnóstico y remediación para canonical-domain-repeated-union. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'Se utiliza una unión ad-hoc de literales string inline en múltiples firmas de funciones o interfaces en lugar de un tipo canónico con nombre.\n' +
+          'Esto dispersa el dominio y provoca desincronización cuando se añade un nuevo valor.\n\n' +
+          'Diagnóstico:\n' +
+          'Ejecuta "npm run auditor:findings rule=canonical-domain-repeated-union" para ubicar las ocurrencias de la unión dispersa.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Extraer la unión a un alias de tipo canónico con "as const" o "type" en el archivo de tipos correspondiente.\n' +
+          '2. Reemplazar las uniones ad-hoc repetidas por la referencia al tipo canónico.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: Repetir la misma unión de literales inline en varias funciones\n' +
+          '// ✅ Correcto: Centralizar en un type alias canónico exportado e importarlo.',
         'canonical-domain-library-duplicate':
-          'Guía de diagnóstico y remediación para canonical-domain-library-duplicate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          'Causa Raíz:\n' +
+          'El proyecto re-declara localmente una unión o catálogo de literales que ya existe y es provisto por una dependencia instalada en node_modules.\n\n' +
+          'Diagnóstico:\n' +
+          'El mensaje de la regla especifica la biblioteca y el nombre del tipo exportado en sus definiciones .d.ts que duplica la declaración local.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Eliminar la declaración local redundante.\n' +
+          '2. Importar el tipo o colección directamente desde el paquete correspondiente.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: re-declarar tipos ya provistos por la librería\n' +
+          'type MyHttpMethod = "GET" | "POST" | "PUT" | "DELETE";\n\n' +
+          '// ✅ Correcto: reutilizar el tipo canónico de la librería o entorno\n' +
+          '// import type { Method } from "axios"; o usar la interfaz estándar correspondiente',
         'canonical-domain-subset-mismatch':
-          'Guía de diagnóstico y remediación para canonical-domain-subset-mismatch. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Se declaró un array o unión de tipos que duplica exactamente un catálogo existente, o es un subconjunto sustancial de un catálogo maestro sin derivarse de él.\n\n' +
+          'Diagnóstico:\n' +
+          'Verifica la advertencia que indica el catálogo padre del cual se está bifurcando el subconjunto.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Si es un duplicado exacto, eliminarlo e importar el catálogo maestro.\n' +
+          '2. Si es un subconjunto, derivarlo mediante utilidades de TypeScript como Extract<ParentType, ...> o filtrado de constantes para preservar la relación de herencia con el dominio maestro.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: subconjunto ad-hoc desconectado del catálogo maestro\n' +
+          'type ActivePhase = "plan" | "execute"; // siendo que Phase tiene ["plan", "execute", "archive"]\n\n' +
+          '// ✅ Correcto: derivación segura del tipo canónico maestro\n' +
+          'type ActivePhase = Extract<Phase, "plan" | "execute">;'
       },
       coverage: {
         include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,

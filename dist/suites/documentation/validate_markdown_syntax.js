@@ -64,8 +64,8 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 				"markdown-table-preceding-blank-line": "Falta línea en blanco antes de tabla"
 			},
 			ruleRemediations: {
-				"npm-script-exclusivity-in-docs": "Guía de diagnóstico y remediación para npm-script-exclusivity-in-docs. Revisa la incidencia detectada y ajusta el código correspondiente.",
-				"markdown-table-preceding-blank-line": "Guía de diagnóstico y remediación para markdown-table-preceding-blank-line. Revisa la incidencia detectada y ajusta el código correspondiente."
+				"npm-script-exclusivity-in-docs": "📖 GUÍA DE REMEDIACIÓN: npm-script-exclusivity-in-docs\n1. Causa Raíz: La documentación contiene comandos de invocación directa a scripts del proyecto (ej: `node scripts/...`, `./setup.sh`, `bash scripts/...`) en lugar de referenciar el script unificado de NPM/Vite+.\n2. Diagnóstico: Localiza la línea señalada en el documento Markdown.\n3. Solución Canónica: Sustituye la llamada directa por su comando canónico registrado: `npm run <script>` o `vp run <script>`.\n4. Ejemplo:\n   ❌ Incorrecto: ````bash\\nnode scripts/audit.ts\\n````\n   ✅ Correcto:   ````bash\\nnpm run auditor\\n````",
+				"markdown-table-preceding-blank-line": "📖 GUÍA DE REMEDIACIÓN: markdown-table-preceding-blank-line\n1. Causa Raíz: Una tabla Markdown comienza inmediatamente después de una línea de texto sin una línea en blanco intermedia, lo que corrompe la interpretación del parser CommonMark/GFM.\n2. Diagnóstico: Ubica la tabla reportada en el archivo Markdown.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para insertar automáticamente la línea en blanco.\n   b) O inserta manualmente una línea vacía justo antes de la fila de encabezados de la tabla (`| col1 | col2 |`).\n4. Ejemplo:\n   ❌ Incorrecto: `Descripción:\\n| Columna 1 | Columna 2 |`\n   ✅ Correcto:   `Descripción:\\n\\n| Columna 1 | Columna 2 |`"
 			},
 			roots,
 			allowedExtensions: /* @__PURE__ */ new Set([".md"]),

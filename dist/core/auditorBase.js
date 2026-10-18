@@ -686,6 +686,7 @@ function validateAuditorRuleRemediations(options) {
 	for (const ruleId of options.ruleIds) {
 		const guide = remediations[ruleId];
 		if (!guide || typeof guide !== "string" || guide.trim() === "") throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] is missing a mandatory remediation guide in 'ruleRemediations' for declared rule '${ruleId}'. Every rule must provide actionable guidance on root cause and steps to resolve.`);
+		if (/^Guía de diagnóstico y remediación para/i.test(guide.trim())) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] contains a placeholder remediation guide for rule '${ruleId}'. Every rule must provide actionable guidance on root cause, diagnosis, and steps to resolve.`);
 	}
 	for (const ruleId of Object.keys(options.ruleRemediations)) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] defines remediation guide for rule '${ruleId}' in 'ruleRemediations' that is not declared in 'ruleIds'.`);
 }

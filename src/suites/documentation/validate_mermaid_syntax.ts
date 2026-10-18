@@ -130,9 +130,23 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
       },
       ruleRemediations: {
         'mermaid-syntax-error':
-          'Guía de diagnóstico y remediación para mermaid-syntax-error. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: mermaid-syntax-error\n' +
+          '1. Causa Raíz: El bloque de diagrama Mermaid (````mermaid) contiene errores sintácticos que impiden su compilación por el motor de Mermaid (palabras clave no reconocidas, flechas mal formadas, bloques no cerrados o directivas no soportadas).\n' +
+          '2. Diagnóstico: Inspecciona el bloque de código Mermaid en el archivo Markdown y la línea señalada en el mensaje de error del compilador.\n' +
+          '3. Solución Canónica: Corrige la sintaxis según las directivas oficiales de Mermaid. Verifica encabezados de diagrama (`graph TD`, `flowchart LR`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`) y la terminación de instrucciones.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: ````mermaid\\nflowchart\\nA --> B\\n```` (falta dirección TD/LR)\n' +
+          '   ✅ Correcto:   ````mermaid\\nflowchart TD\\nA --> B\\n````',
         'mermaid-unquoted-special-chars':
-          'Guía de diagnóstico y remediación para mermaid-unquoted-special-chars. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: mermaid-unquoted-special-chars\n' +
+          '1. Causa Raíz: Un nodo o etiqueta de enlace en un diagrama Mermaid incluye caracteres especiales (paréntesis `()`, corchetes, dos puntos `:`, interrogación `?`, operadores matemáticos) sin estar delimitado por comillas dobles `""`.\n' +
+          '2. Diagnóstico: Revisa el nodo o etiqueta indicado en el archivo Markdown.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para envolver automáticamente los textos entrecomillados.\n' +
+          '   b) O añade manualmente comillas dobles dentro de los corchetes o llaves del nodo.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `id[Proceso (Principal)]` o `A -->|¿Confirmar?| B`\n' +
+          '   ✅ Correcto:   `id["Proceso (Principal)"]` o `A -->|"¿Confirmar?"| B`'
       },
       roots,
       allowedExtensions: new Set(['.md']),

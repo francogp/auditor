@@ -167,7 +167,15 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
       },
       ruleRemediations: {
         'line-height-overlap':
-          'Guía de diagnóstico y remediación para line-height-overlap. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: line-height-overlap\n' +
+          '1. Causa Raíz: Se aplicó un valor de `line-height` colapsado (`0`, `1`, `1px`, `1rem`) en un elemento o clase tipográfica de texto multilínea (`p`, `span`, `h1`-`h6`, `.text`, etc.). Esto provoca que las líneas descendentes de la fuente colisionen con las ascendentes de la línea inferior, arruinando la legibilidad y violando las pautas de accesibilidad WCAG.\n' +
+          '2. Diagnóstico: Ubica la propiedad `line-height` en la línea reportada del archivo de estilos o componente.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Utiliza valores proporcionales adecuados para texto multilínea: mínimo `line-height: 1.25` para títulos y `line-height: 1.5` para párrafos y cuerpo.\n' +
+          '   b) Si el valor `line-height: 1` es intencional exclusivamente para iconos emoji monolínea o contenedores sin texto de flujo, anota `/* line-height-ok: <justificación> */` o aplica la clase emoji correspondiente.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Colapso: `p { font-size: 16px; line-height: 1; }`\n' +
+          '   ✅ Legible: `p { font-size: 16px; line-height: 1.5; }`'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css']),

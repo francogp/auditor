@@ -419,15 +419,50 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-config-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-config-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que prohíbe terminantemente a los agentes de IA modificar, relajar o desactivar configuraciones del proyecto sin autorización previa y explícita del programador humano.\n' +
+          '2. Diagnóstico: Inspecciona AGENTS.md en la sección "Local Contracts". Falta la directiva de inmutabilidad de configuración.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el comando de auto-fix canónico: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula oficial.\n' +
+          '   b) O inserta manualmente en AGENTS.md bajo Local Contracts la cláusula canónica (CANONICAL_MANDATE_SNIPPET).\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations..."',
         'agents-missing-backward-compat-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-backward-compat-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-backward-compat-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz no incluye la cláusula obligatoria de prohibición de código retrocompatible ("Loud Failure Mandate"). El sistema exige que el software falle ruidosamente ante interfaces obsoletas en lugar de acumular shims y adaptadores legacy.\n' +
+          '2. Diagnóstico: Inspecciona AGENTS.md bajo "Local Contracts". Falta el mandato de fallo ruidoso.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar el mandato canónico.\n' +
+          '   b) O agrégalo manualmente bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED..."',
         'agents-missing-fake-pass-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-fake-pass-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-fake-pass-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz no contiene la cláusula obligatoria de tolerancia cero a pases falsos ("Zero-Tolerance Fake Pass Mandate"), que prohíbe silenciar reglas de linter/auditor o crear configuraciones dummy para ocultar defectos.\n' +
+          '2. Diagnóstico: Inspecciona AGENTS.md bajo "Local Contracts". Falta la directiva anti-silenciamiento.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula.\n' +
+          '   b) O agrégala manualmente bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate**: When auditing a repository or running linters/auditors, AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from suppressing, silencing, disabling, or nullifying auditor rules..."',
         'agents-missing-chat-language-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-chat-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-chat-language-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz no define la directiva que separa explícitamente el idioma de chat/conversación de la IA (configurado en .auditor/audit.config.ts) del idioma de documentación y código fuente.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta la cláusula de idioma de interacción conversacional.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para sincronizar automáticamente el mandato con las opciones de configuración.\n' +
+          '   b) O declara manualmente la cláusula canónica alineada con tu configuración (.auditor/audit.config.ts).\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in Spanish (`\'es\'`)..."',
         'agents-missing-destructive-git-mandate':
-          'Guía de diagnóstico y remediación para agents-missing-destructive-git-mandate. Ejecuta `auditor fix` para inyectar la prohibición de comandos Git destructivos en AGENTS.md.'
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-destructive-git-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la prohibición absoluta de comandos Git destructivos (como git reset --hard, git checkout --, git clean, git restore, git push --force) sin consentimiento explícito del programador humano.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta la cláusula de seguridad de control de versiones.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente el texto oficial.\n' +
+          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization..."'
       },
       coverage: {
         include: ['AGENTS.md']

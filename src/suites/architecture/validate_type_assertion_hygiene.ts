@@ -249,15 +249,52 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       },
       ruleRemediations: {
         'type-assertion-zero-any':
-          'Guía de diagnóstico y remediación para type-assertion-zero-any. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: type-assertion-zero-any\n' +
+          '1. Causa Raíz: Se utilizó un type assertion `as any` o `as any[]`, lo que desactiva por completo el sistema de tipos de TypeScript y oculta errores en tiempo de compilación.\n' +
+          '2. Diagnóstico: Ubica la aserción `as any` en la línea reportada.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Reemplázala por el tipo estricto real o interfaz correspondiente.\n' +
+          '   b) Si los datos provienen de una fuente externa (API, JSON, localStorage), usa `unknown` y valida el esquema en tiempo de ejecución con Valibot o type guards.\n' +
+          '   c) Si es una librería externa sin tipar, tipifícala formalmente en `types/` o añade `// type-assertion-zero-any-ok: <justificación>`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inseguro: `const user = payload as any;`\n' +
+          '   ✅ Seguro:   `const user: UserProfile = v.parse(UserProfileSchema, payload);`',
         'type-assertion-double-cast':
-          'Guía de diagnóstico y remediación para type-assertion-double-cast. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: type-assertion-double-cast\n' +
+          '1. Causa Raíz: Se aplicó un doble casteo `as unknown as T` o `as any as T` para forzar la compatibilidad entre dos tipos no solapados, eludiendo la seguridad del compilador.\n' +
+          '2. Diagnóstico: Inspecciona la expresión con doble casteo.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Modela adecuadamente la estructura de datos o usa una función adaptadora/conversora con validación.\n' +
+          '   b) Si es un mock en test, define un fixture parcial tipado con `Partial<T>` o factoría de pruebas.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Inseguro: `const entity = raw as unknown as Entity;`\n' +
+          '   ✅ Seguro:   `const entity = toEntity(raw);`',
         'type-assertion-boolean-literal':
-          'Guía de diagnóstico y remediación para type-assertion-boolean-literal. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: type-assertion-boolean-literal\n' +
+          '1. Causa Raíz: Se anotó un campo o variable con el tipo literal `: true` o `: false` en lugar del tipo primitivo `: boolean`, impidiendo reasignaciones lógicas.\n' +
+          '2. Diagnóstico: Revisa la definición de tipo en la línea indicada.\n' +
+          '3. Solución Canónica: Cambia la anotación literal a `: boolean` (o usa uniones discriminadas tipadas si se trata de un patrón de estado finito).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: `interface Config { isEnabled: true; }`\n' +
+          '   ✅ Correcto:   `interface Config { isEnabled: boolean; }`',
         'type-assertion-floating-promise':
-          'Guía de diagnóstico y remediación para type-assertion-floating-promise. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: type-assertion-floating-promise\n' +
+          '1. Causa Raíz: Se invocó una función asíncrona (con sufijo `...Async()`) como una declaración de expresión sin prefijo `await` ni operador `void`, provocando que la promesa flote en segundo plano sin captura de errores.\n' +
+          '2. Diagnóstico: Ubica la llamada asíncrona sin await.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Antepón `await` si la función contenedora es asíncrona (`await service.saveAsync()`).\n' +
+          '   b) Si la ejecución fire-and-forget es deliberada, márcala explícitamente con `void` (`void service.logEventAsync();`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Promesa flotante: `doSaveAsync();`\n' +
+          '   ✅ Manejada:         `await doSaveAsync();` o `void doSaveAsync();`',
         'type-assertion-loose-array':
-          'Guía de diagnóstico y remediación para type-assertion-loose-array. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: type-assertion-loose-array\n' +
+          '1. Causa Raíz: Se utilizó `as string[]` o `as readonly string[]` en un array de literales, ensanchando la colección y destruyendo la inferencia de tipos literales de dominio.\n' +
+          '2. Diagnóstico: Examina el casteo del array en la línea señalada.\n' +
+          '3. Solución Canónica: Sustituye el casteo laxo por `as const` para preservar los tipos literales exactos y derivar el tipo unión correspondiente.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Laxo:     Castear un array de literales mediante "as string[]"\n' +
+          '   ✅ Canónico: Aplicar "as const" para preservar los literales exactos (ej: as const satisfies readonly string[])'
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,

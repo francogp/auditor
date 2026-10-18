@@ -181,7 +181,26 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       },
       ruleRemediations: {
         'html-validate-issue':
-          'Guía de diagnóstico y remediación para html-validate-issue. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          'Causa Raíz:\n' +
+          'Violación de estándares del HTML Living Standard (WHATWG) o buenas prácticas de accesibilidad y marcado semántico en archivos .html o plantillas de componentes Vue (.vue).\n' +
+          'html-validate detecta elementos obsoletos (<center>, <font>, <marquee>), anidamientos no permitidos (ej. <p> dentro de <p>, <div> dentro de <span> o <a> interactivo dentro de <a>), atributos inválidos o no admitidos en el elemento, o IDs duplicados en el mismo DOM.\n\n' +
+          'Diagnóstico:\n' +
+          '1. Ejecuta "npm run auditor:findings rule=html-validate-issue" para ver el archivo, línea y regla específica de HTML5 que falló.\n' +
+          '2. Identifica si la violación proviene de un tag deprecado, de un anidamiento prohibido o de un atributo inválido.\n\n' +
+          'Solución Canónica:\n' +
+          '1. Sustituir elementos obsoletos por contenedores semánticos (<header>, <nav>, <main>, <section>, <article>, <div>) y aplicar estilos mediante clases CSS o utilidades del sistema de diseño.\n' +
+          '2. Corregir anidamientos ilegales. Por ejemplo, en HTML5 un párrafo <p> solo puede contener elementos phrasing (en línea); un bloque <div> o lista <ul> dentro de un <p> fuerza el cierre implícito del párrafo y corrompe el árbol del DOM.\n' +
+          '3. Evitar colocar elementos interactivos dentro de otros elementos interactivos (ej. un <button> dentro de un <a>).\n' +
+          '4. Ejecuta "npm run auditor:fix" para corregir automáticamente los problemas de formateo o atributos triviales soportados por html-validate.\n\n' +
+          'Ejemplo Antes vs Después:\n' +
+          '// ❌ Incorrecto: tag obsoleto y anidamiento no permitido en HTML5\n' +
+          '<center>\n' +
+          '  <p>Texto con bloque interno: <div>Contenido ilegal</div></p>\n' +
+          '</center>\n\n' +
+          '// ✅ Correcto: elementos semánticos estándar con clases de diseño\n' +
+          '<div class="text-center">\n' +
+          '  <p>Texto con elemento en línea: <span class="highlight">Contenido válido</span></p>\n' +
+          '</div>'
       },
       coverage: {
         include: ['src/**/*.{html,vue}', 'ui-demo/**/*.{html,vue}', '*.html', '.htmlvalidate.json'],

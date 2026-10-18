@@ -210,7 +210,15 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       },
       ruleRemediations: {
         'markdownlint-issue':
-          'Guía de diagnóstico y remediación para markdownlint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: markdownlint-issue\n' +
+          '1. Causa Raíz: El motor markdownlint detectó un defecto de formato, espaciado o sintaxis según las reglas estándar de Markdown (por ejemplo, MD009 espacios al final de línea, MD012 líneas vacías consecutivas, MD022/MD032 falta de líneas en blanco alrededor de encabezados o listas, MD031 bloques de código sin líneas vacías de separación).\n' +
+          '2. Diagnóstico: Observa el código de regla (MDxxx) y el mensaje de error en la línea reportada del archivo Markdown.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Para reglas con auto-fix (MD009, MD010, MD012, MD018, MD022, MD031, etc.): ejecuta `npm run auditor:fix` o `auditor fix`.\n' +
+          '   b) Para corrección manual: ajusta el espaciado y formato según la regla señalada (ej: añade una línea vacía antes y después de cada bloque ``` o encabezado #).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ MD022/MD031: `Texto\\n# Encabezado\\n```js\\ncode\\n```\\nTexto`\n' +
+          '   ✅ Formato limpio: `Texto\\n\\n# Encabezado\\n\\n```js\\ncode\\n```\\n\\nTexto`'
       },
       unignoreDirs: getEffectiveUnignoreDirs(projectRoot),
       coverage: {

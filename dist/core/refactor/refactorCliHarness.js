@@ -39,14 +39,24 @@ async function runRefactorCliHarness(def, argv = process.argv.slice(2)) {
 		allowPositionals: true
 	});
 	const command = args.positionals[0] || "discover";
-	if (args.values.help || command === "help") {
+	if (args.values.help || command === "help" || command === "--help" || command === "-h") {
 		console.log(renderBanner(def.bannerTitle, def.bannerSubtitle));
+		const scriptAlias = def.toolName.replace(/^auditor-/, "auditor:");
 		console.log(`
-Uso:
+Uso directo (binario en node_modules/.bin):
   ${def.toolName} discover [--project <ruta>]
-  ${def.toolName} inspect --file <archivo> [--project <ruta>]
-  ${def.toolName} apply --plan <plan.json> [--worktree] [--project <ruta>]
-    `);
+  ${def.toolName} inspect <archivo> [--project <ruta>]
+  ${def.toolName} apply <plan.json> [--worktree] [--project <ruta>]
+
+Uso vía scripts npm de proyecto:
+  npm run ${scriptAlias} discover
+  npm run ${scriptAlias} inspect <archivo>
+  npm run ${scriptAlias} apply <plan.json>
+
+💡 Nota sobre npm: Si pasas opciones con guiones (--file, --project, --worktree),
+   debes anteponer '--' para que npm no las capture:
+   npm run ${scriptAlias} -- --project <ruta>
+`);
 		return;
 	}
 	const projectRoot = path.resolve(args.values.project || ".");
@@ -73,21 +83,22 @@ Uso:
 			break;
 		}
 		case "inspect": {
-			if (!args.values.file) {
-				console.error(styleText("red", "❌ Debes especificar --file <ruta> para inspeccionar."));
+			const targetFile = args.values.file || args.positionals[1];
+			if (!targetFile) {
+				console.error(styleText("red", `❌ Debes especificar un archivo para inspeccionar. Ej: ${def.toolName} inspect src/components/Modal.vue o --file <ruta>`));
 				process.exit(1);
 			}
-			const fullPath = path.isAbsolute(args.values.file) ? path.normalize(args.values.file) : path.resolve(projectRoot, args.values.file);
+			const fullPath = path.isAbsolute(targetFile) ? path.normalize(targetFile) : path.resolve(projectRoot, targetFile);
 			if (!fs.existsSync(fullPath)) {
 				console.error(styleText("red", `❌ Archivo inexistente: ${fullPath}`));
 				process.exit(1);
 			}
 			const findings = def.discoverInFile(fullPath);
 			if (findings.length === 0) {
-				console.log(styleText("green", `✨ El archivo ${args.values.file} no presenta incidencias de ${def.toolDescription}.`));
+				console.log(styleText("green", `✨ El archivo ${targetFile} no presenta incidencias de ${def.toolDescription}.`));
 				return;
 			}
-			console.log(styleText("cyan", `\n📦 Micro-Contexto Dirac para: ${args.values.file} (${findings.length} ítems):\n`));
+			console.log(styleText("cyan", `\n📦 Micro-Contexto Dirac para: ${targetFile} (${findings.length} ítems):\n`));
 			for (const f of findings) {
 				const d = def.toDiracItem(f);
 				console.log(styleText("bold", `  [Línea ${d.line}] ${d.kind.toUpperCase()}`));
@@ -100,16 +111,18 @@ Uso:
 			console.log(JSON.stringify(plan, null, 2));
 			break;
 		}
-		case "apply":
-			if (!args.values.plan) {
-				console.error(styleText("red", "❌ Debes especificar --plan <ruta-al-plan.json> para aplicar."));
+		case "apply": {
+			const planFile = args.values.plan || args.positionals[1];
+			if (!planFile) {
+				console.error(styleText("red", `❌ Debes especificar un archivo de plan para aplicar. Ej: ${def.toolName} apply plan.json o --plan <ruta>`));
 				process.exit(1);
 			}
-			await applyPlanFileWithWorktreeVerification(projectRoot, args.values.plan, Boolean(args.values.worktree), async (targetDir, plan) => {
+			await applyPlanFileWithWorktreeVerification(projectRoot, planFile, Boolean(args.values.worktree), async (targetDir, plan) => {
 				const res = def.applyPlan(targetDir, plan);
 				console.log(styleText("green", `✅ Plan aplicado con éxito: ${res.filesChanged} archivos modificados (${res.changesApplied} cambios).`));
 			}, `${def.toolName} apply --plan <ruta-al-plan.json>`);
 			break;
+		}
 		default:
 			console.error(styleText("red", `❌ Comando desconocido: ${command}`));
 			process.exit(1);

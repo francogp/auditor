@@ -444,15 +444,44 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
       },
       ruleRemediations: {
         'o1-catalog-lookup':
-          'Guía de diagnóstico y remediación para o1-catalog-lookup. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: o1-catalog-lookup\n' +
+          '1. Causa Raíz: Se detectó una búsqueda lineal O(N) sobre un catálogo o colección estática (ej: CATALOG.find(x => x.id === targetId)) en una ruta de ejecución frecuente. A medida que el catálogo crece, el costo temporal escala linealmente degradando el rendimiento.\n' +
+          '2. Diagnóstico: Busca operaciones .find(), .filter() o .some() sobre arrays estáticos de catálogo.\n' +
+          '3. Solución: Indexa el catálogo una sola vez en un diccionario Record<Id, Item> o Map<Id, Item> para acceder en tiempo constante O(1): CATALOG_BY_ID[targetId].\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: const item = ITEMS.find(i => i.id === requestedId);\n' +
+          '   ✅ Correcto:   const ITEMS_BY_ID = new Map(ITEMS.map(i => [i.id, i]));\n' +
+          '                  const item = ITEMS_BY_ID.get(requestedId);',
         'o1-linear-membership':
-          'Guía de diagnóstico y remediación para o1-linear-membership. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: o1-linear-membership\n' +
+          '1. Causa Raíz: Se detectó comprobación de pertenencia O(N) mediante array.includes(valor) o array.indexOf(valor) sobre un array de opciones en un bucle o función frecuente.\n' +
+          '2. Diagnóstico: Busca invocaciones de .includes() sobre colecciones o arrays en la línea señalada.\n' +
+          '3. Solución: Convierte el array en un Set<T> inmutable y consulta pertenencia con set.has(valor) en tiempo O(1).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: Comprobar pertenencia lineal en un Array mediante array.includes(valor) en O(N)\n' +
+          '   ✅ Correcto:   Indexar en un Set o Map inmutable y comprobar pertenencia con set.has(valor) en O(1)\n' +
+          '5. Herramienta CLI: Ejecuta "npm run auditor:o1 inspect <archivo>" para obtener la sugerencia de reemplazo Dirac automática.',
         'o1-object-scan':
-          'Guía de diagnóstico y remediación para o1-object-scan. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: o1-object-scan\n' +
+          '1. Causa Raíz: Se detectó el uso de Object.keys(obj).includes(key) o Object.values(obj).find(...) para comprobar existencia de una clave en un objeto, asignando un array en memoria y recorriéndolo en O(N).\n' +
+          '2. Diagnóstico: Busca Object.keys(...).includes(...) en la línea reportada.\n' +
+          '3. Solución: Comprueba existencia directamente en el objeto con el operador "in" o mediante indexación directa O(1).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: if (Object.keys(registry).includes(targetKey)) { ... }\n' +
+          '   ✅ Correcto:   if (targetKey in registry) { ... } // o registry[targetKey] !== undefined',
         'o1-json-clone':
-          'Guía de diagnóstico y remediación para o1-json-clone. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: o1-json-clone\n' +
+          '1. Causa Raíz: Uso del anti-patrón JSON.parse(JSON.stringify(data)) para clonar estructuras de datos en memoria. Es computacionalmente costoso, pierde tipos especiales (Date, Map, Set, BigInt, RegExp, funciones) y genera excesiva presión en el Garbage Collector.\n' +
+          '2. Diagnóstico: Busca JSON.parse(JSON.stringify(...)) en el archivo.\n' +
+          '3. Solución: Utiliza la función nativa estándar de la plataforma structuredClone(data), o shallow clone con spread { ...obj } si solo requieres clonar el primer nivel.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: const copy = JSON.parse(JSON.stringify(gameState));\n' +
+          '   ✅ Correcto:   const copy = structuredClone(gameState);',
         'o1-redundant-spread-return':
-          'Guía de diagnóstico y remediación para o1-redundant-spread-return. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: o1-redundant-spread-return\n' +
+          '1. Causa Raíz: Una función pura finaliza con "return [...arr];" duplicando innecesariamente el array en el heap cuando el consumidor no muta el resultado.\n' +
+          '2. Diagnóstico: Busca return [...array] en funciones de solo lectura.\n' +
+          '3. Solución: Tipa la firma de retorno como "readonly T[]" y devuelve la referencia directa al array (return arr;), eliminando la asignación de memoria.',
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue']),

@@ -30,10 +30,11 @@ The `auditor-o1` CLI and `O1RefactorEngine` provide automated detection and dete
 ## 🛠️ CLI Tool Usage (`auditor-o1`)
 
 ```bash
-# Direct CLI invocation
-npx auditor-o1 <command> [options]
+# Direct CLI invocation (bin in node_modules/.bin)
+auditor-o1 <command> [options]
 
 # Via package script
+npm run auditor:o1 <command>
 npm run auditor:o1 -- <command> [options]
 ```
 

@@ -469,11 +469,34 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       },
       ruleRemediations: {
         'docs-unauthorized-language':
-          'Guía de diagnóstico y remediación para docs-unauthorized-language. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: docs-unauthorized-language\n' +
+          '1. Causa Raíz: Se detectó un párrafo en un archivo Markdown redactado en un idioma distinto al idioma oficial del repositorio configurado en `.auditor/audit.config.ts` (`config.documentation.language`).\n' +
+          '2. Diagnóstico: Inspecciona el archivo Markdown y la línea reportada. Compara el texto con el idioma requerido (por ejemplo, texto en español cuando config.documentation.language es \'en\').\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Traduce el párrafo al idioma oficial del repositorio (generalmente inglés técnico para proyectos con config.documentation.language: \'en\').\n' +
+          '   b) Si el archivo corresponde a un glosario, traducción localizada o contenido que debe permanecer en otro idioma por diseño, añade su ruta a `config.documentation.exemptions` en `.auditor/audit.config.ts` tras consultar al programador.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: "Este módulo maneja la autenticación de usuarios." (en repo con docs en inglés)\n' +
+          '   ✅ Correcto:   "This module handles user authentication."',
         'docs-missing-language-mandate':
-          'Guía de diagnóstico y remediación para docs-missing-language-mandate. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: docs-missing-language-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz no especifica el mandato de idioma obligatorio que instruye a los desarrolladores y agentes de IA en qué idioma deben redactarse los artefactos y la documentación.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo la sección "Local Contracts". Falta la cláusula de idioma de documentación.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula oficial correspondiente.\n' +
+          '   b) O agrega la cláusula manualmente alineada con `config.documentation.language`.\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula canónica: "- **Documentation Language Mandate**: All project documentation, code comments, commit messages, and markdown files MUST be written in English (\'en\')."',
         'code-comment-unauthorized-language':
-          'Guía de diagnóstico y remediación para code-comment-unauthorized-language. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: code-comment-unauthorized-language\n' +
+          '1. Causa Raíz: Se detectó un comentario de código fuente (en archivos .ts, .js, .vue, etc.) escrito en un idioma no autorizado por `config.documentation.language`.\n' +
+          '2. Diagnóstico: Revisa la línea reportada en el archivo de código fuente.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Traduce el comentario al idioma canónico del repositorio (por ejemplo, inglés técnico).\n' +
+          '   b) Si el comentario era superfluo o redundante, elimínalo según los principios de clean-code.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Comentario en español: `comment in Spanish`\n' +
+          '   ✅ Comentario en inglés:  `// Verify whether the token remains active`'
       },
       coverage: {
         include: ['**/*.md', ...dynamicCodeCoverage]

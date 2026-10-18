@@ -433,21 +433,51 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       },
       ruleRemediations: {
         'stylelint-issue':
-          'Guía de diagnóstico y remediación para stylelint-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: stylelint-issue\n' +
+          '1. Causa Raíz: Se detectó una infracción a las reglas estándar de hojas de estilo configuradas en .stylelintrc.json (selectores desconocidos, unidades inválidas o directivas no conformes).\n' +
+          '2. Diagnóstico: Revisa el mensaje exacto de Stylelint en el reporte para identificar la regla específica (ej: selector-class-pattern, property-no-unknown).\n' +
+          '3. Solución: Ejecuta "npm run auditor:fix" o "npm run auditor:css:fix" para corregir problemas automáticamente. Si la regla no es auto-reparable, edita el estilo según el estándar CSS/SCSS moderno.',
         'css-duplicate-selectors':
-          'Guía de diagnóstico y remediación para css-duplicate-selectors. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: css-duplicate-selectors\n' +
+          '1. Causa Raíz: Se declaró el mismo selector CSS o SCSS múltiples veces dentro del mismo bloque o archivo. Esto fragmenta la definición de estilos y genera sobreescrituras difíciles de depurar.\n' +
+          '2. Diagnóstico: Busca el selector duplicado indicado en la línea reportada y su ocurrencia previa.\n' +
+          '3. Solución: Fusiona las propiedades de ambos bloques en una única regla consolidada.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: .badge { color: red; } ... .badge { padding: 4px; }\n' +
+          '   ✅ Correcto:   .badge { color: red; padding: 4px; }',
         'css-duplicate-properties':
-          'Guía de diagnóstico y remediación para css-duplicate-properties. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: css-duplicate-properties\n' +
+          '1. Causa Raíz: Una misma regla de estilo declara la misma propiedad CSS dos veces con valores repetidos o contradictorios.\n' +
+          '2. Diagnóstico: Revisa las declaraciones dentro del bloque señalado.\n' +
+          '3. Solución: Elimina la propiedad duplicada o redundante conservando únicamente la que debe aplicarse.',
         'css-empty-blocks':
-          'Guía de diagnóstico y remediación para css-empty-blocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: css-empty-blocks\n' +
+          '1. Causa Raíz: Se detectó un bloque de estilos completamente vacío (sin declaraciones de propiedades).\n' +
+          '2. Diagnóstico: Busca selectores con llaves vacías { } en el archivo reportado.\n' +
+          '3. Solución: Elimina el bloque de selector innecesario o añade las propiedades requeridas.',
         'css-order-violation':
-          'Guía de diagnóstico y remediación para css-order-violation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: css-order-violation\n' +
+          '1. Causa Raíz: Las propiedades CSS dentro del bloque no siguen el orden canónico establecido en el proyecto (posicionamiento -> caja/dimensiones -> tipografía -> visuales/color -> animaciones).\n' +
+          '2. Diagnóstico: Revisa la secuencia de propiedades en la regla señalada.\n' +
+          '3. Solución: Ejecuta "npm run auditor:fix" para reordenar las propiedades automáticamente.',
         'scss-syntax-issue':
-          'Guía de diagnóstico y remediación para scss-syntax-issue. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: scss-syntax-issue\n' +
+          '1. Causa Raíz: Se detectó un error sintáctico al parsear el archivo SCSS o bloque <style lang="scss"> de Vue (llaves sin cerrar, directiva @include rota o interpolación inválida).\n' +
+          '2. Diagnóstico: Revisa la línea reportada y verifica el anidamiento de llaves con el compilador sass-embedded.\n' +
+          '3. Solución: Corrige la sintaxis SCSS para que compile limpiamente.',
         'scss-sass-collision-casing':
-          'Guía de diagnóstico y remediación para scss-sass-collision-casing. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: scss-sass-collision-casing\n' +
+          '1. Causa Raíz: Se utilizó una función CSS nativa con un nombre que colisiona con funciones globales de Sass (como min(), max(), color(), invert()).\n' +
+          '2. Diagnóstico: Revisa si la función matemática o de color es interpretada por Sass en lugar de emitirse como CSS nativo.\n' +
+          '3. Solución: Utiliza el módulo Sass calificado (ej: math.min() con @use "sass:math") o escribe la función CSS en mayúsculas/minúsculas según la convención de escape.',
         'scss-strict-values':
-          'Guía de diagnóstico y remediación para scss-strict-values. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: scss-strict-values\n' +
+          '1. Causa Raíz: Se utilizaron valores numéricos o colores hexadecimales literales en propiedades CSS que deben gobernarse estrictamente mediante design tokens o variables del sistema (colores, espaciados, font-size, z-index, border-radius).\n' +
+          '2. Diagnóstico: Busca valores como #ff0000, 16px, 9999 o 8px en propiedades restringidas por stylelint-declaration-strict-value.\n' +
+          '3. Solución: Reemplaza el literal crudo por la variable SCSS o variable CSS correspondiente (ej: $color-danger, var(--font-size-md), $z-modal, var(--radius-sm)).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Incorrecto: .btn { background-color: #2563eb; font-size: 14px; }\n' +
+          '   ✅ Correcto:   .btn { background-color: $color-primary; font-size: var(--font-size-sm); }'
       },
       coverage: {
         include: [

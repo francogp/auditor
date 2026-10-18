@@ -105,15 +105,45 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       },
       ruleRemediations: {
         'no-tautological-integration-mocks':
-          'Guía de diagnóstico y remediación para no-tautological-integration-mocks. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-tautological-integration-mocks\n' +
+          '1. Causa Raíz: Se encontró un mock (`vi.mock()`, `vi.spyOn()`) en un test de integración que sustituye la base de datos o el subsistema principal evaluado. Los tests de integración deben validar el ensamblaje real con persistencia real (en memoria/SQLite), no interactuar con mocks tautológicos.\n' +
+          '2. Diagnóstico: Revisa los mocks declarados en el test de integración reportado.\n' +
+          '3. Solución Canónica: Elimina el mock y utiliza el motor de persistencia hermético o fixtures reales. Si la prueba es puramente unitaria, muévela al directorio `tests/unit/`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Mock tautológico: `vi.mock("@/services/database")` en test de integración\n' +
+          '   ✅ Ensamblaje real:  Utilizar instancia SQLite en memoria con esquema migrado.',
         'playwright-id-locators-only':
-          'Guía de diagnóstico y remediación para playwright-id-locators-only. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: playwright-id-locators-only\n' +
+          '1. Causa Raíz: Un test de extremo a extremo (E2E) localiza elementos mediante selectores de clase CSS frágiles (ej: `.btn.btn-primary.mt-2`, `div > span:nth-child(3)`). Los selectores visuales se rompen ante cualquier cambio cosmético de diseño.\n' +
+          '2. Diagnóstico: Inspecciona la llamada a `page.locator(...)` en la línea del reporte.\n' +
+          '3. Solución Canónica: Utiliza locators robustos basados en ID único (`#submit-button`), atributos de prueba (`[data-testid="..."]`) o roles accesibles (`page.getByRole(...)`).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Frágil: `page.locator(".card-body > div.btn-wrapper button")`\n' +
+          '   ✅ Robusto: `page.locator("#confirm-checkout-btn")` o `page.getByRole("button", { name: "Confirmar" })`',
         'no-playwright-force-click':
-          'Guía de diagnóstico y remediación para no-playwright-force-click. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-playwright-force-click\n' +
+          '1. Causa Raíz: Se pasó `{ force: true }` a una acción de clic en Playwright (`locator.click({ force: true })`). Forzar clics omite las comprobaciones de accionabilidad (visibilidad, estabilidad, superposiciones), enmascarando modales o animaciones que tapan el botón ante el usuario real.\n' +
+          '2. Diagnóstico: Localiza la opción `force: true` en el test E2E.\n' +
+          '3. Solución Canónica: Elimina `force: true` y asegura mediante `await expect(locator).toBeVisible()` o gestionando el overlay/animación que el elemento esté realmente listo para interactuar.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Forzado: `await btn.click({ force: true });`\n' +
+          '   ✅ Realista: `await expect(btn).toBeVisible(); await btn.click();`',
         'no-test-timeout-inflation':
-          'Guía de diagnóstico y remediación para no-test-timeout-inflation. Revisa la incidencia detectada y ajusta el código correspondiente.',
+          '📖 GUÍA DE REMEDIACIÓN: no-test-timeout-inflation\n' +
+          '1. Causa Raíz: Se infló artificialmente el tiempo límite de ejecución de un test (`test.setTimeout(60000)`, `vi.setConfig({ testTimeout: ... })`). Inflar timeouts oculta cuellos de botella de rendimiento, bucles infinitos o promesas que nunca resuelven.\n' +
+          '2. Diagnóstico: Ubica la configuración de timeout personalizada en el archivo de test.\n' +
+          '3. Solución Canónica: Elimina el timeout inflado y optimiza la velocidad de ejecución (por ejemplo acelerando animaciones con `gsap.globalTimeline.timeScale(100)` o resolviendo asincronías de forma determinista).\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Timeout inflado: `test.setTimeout(120000);`\n' +
+          '   ✅ Tiempo estándar: Respetar el timeout por defecto del framework (5s).',
         'no-playwright-polling-waits':
-          'Guía de diagnóstico y remediación para no-playwright-polling-waits. Revisa la incidencia detectada y ajusta el código correspondiente.'
+          '📖 GUÍA DE REMEDIACIÓN: no-playwright-polling-waits\n' +
+          '1. Causa Raíz: Se utilizó `page.waitForTimeout(ms)` o temporizadores fijos en tests E2E. Las esperas fijas ralentizan la suite de tests y provocan fallos intermitentes (flakiness) en máquinas CI con menor potencia.\n' +
+          '2. Diagnóstico: Ubica la llamada a `waitForTimeout` en el archivo de test.\n' +
+          '3. Solución Canónica: Sustituye la espera fija por aserciones web-first de Playwright que esperan automáticamente el estado exacto: `await expect(locator).toHaveText(...)` o `await page.waitForResponse(...)`.\n' +
+          '4. Ejemplo:\n' +
+          '   ❌ Espera fija:   `await page.waitForTimeout(3000);`\n' +
+          '   ✅ Auto-espera:  `await expect(page.locator("#status")).toHaveText("Listo");`'
       },
       roots: testRoots.length > 0 ? testRoots : ['tests'],
       allowedExtensions: new Set(['.ts', '.js'])
