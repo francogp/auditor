@@ -371,8 +371,8 @@ Hermetic test isolation requires using `testScanFile` + `finishAudit()` for snip
 
 ## 🔍 Interactive Findings Reporter (`report_findings.ts`) & CLI Tools
 
-- `npm run auditor:help`: Catálogo interactivo de comandos, opciones generales y herramientas especializadas.
-- `npm run auditor:guide -- <regla>`: Consulta directa de la guía de diagnóstico y remediación paso a paso.
+- `npm run auditor:help`: Interactive catalog of commands, general options, and specialized tools.
+- `npm run auditor:guide -- <ruleId>`: Direct inspection of step-by-step diagnostic and remediation manuals.
 - `npm run auditor:findings`: Multi-dimensional findings reporter (`rule=<id>`, `file=<a,b>`, `flat`, `search=...`).
 - `npm run auditor:rules` / `npm run auditor:by-rule`: Consolidated Box-Drawing breakdown of violations sorted by `ruleId` with `TOTAL CONSOLIDADO`.
 - `npm run auditor:errors` / `npm run auditor:warnings` / `npm run auditor:summary`: Severity presets.

@@ -129,8 +129,16 @@ function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd())
 	];
 	const include = [];
 	for (const root of effectiveRoots) {
-		let cleanRoot = path.posix.normalize(root.split("\\").join("/")).replace(/^\.\/?|\/+$/g, "");
-		if (path.isAbsolute(cleanRoot)) cleanRoot = path.relative(projectRoot, cleanRoot).split("\\").join("/").replace(/^\.\/?|\/+$/g, "");
+		let cleanRoot = path.posix.normalize(root.split("\\").join("/"));
+		if (cleanRoot.startsWith("./")) cleanRoot = cleanRoot.slice(2);
+		while (cleanRoot.endsWith("/") && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
+		if (cleanRoot === ".") cleanRoot = "";
+		if (path.isAbsolute(cleanRoot)) {
+			cleanRoot = path.relative(projectRoot, cleanRoot).split("\\").join("/");
+			if (cleanRoot.startsWith("./")) cleanRoot = cleanRoot.slice(2);
+			while (cleanRoot.endsWith("/") && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
+			if (cleanRoot === ".") cleanRoot = "";
+		}
 		const prefix = cleanRoot === "" || cleanRoot === "." ? "" : `${cleanRoot}/`;
 		for (const ext of extensions) include.push(`${prefix}**/*${ext}`);
 	}

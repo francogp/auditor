@@ -22,6 +22,7 @@ import {
 import {
   extractParsedConfigSummary,
   isRuleValueCompliant,
+  resolveVitestRoots,
   type ParsedVitePlusConfigSummary
 } from '../../core/viteConfigAst.ts';
 
@@ -120,6 +121,12 @@ const ANTI_CASTRATION_SPECS: readonly AntiCastrationRuleSpec[] = [
     ruleId: 'vite-plus-config-no-eval-allowed',
     description: 'Falta prohibir eval dinámico',
     message: `La regla 'no-eval' debe estar configurada en 'error' en vite.config.ts.`
+  },
+  {
+    oxlintRule: 'unicode-bom',
+    ruleId: 'vite-plus-config-unicode-bom-missing',
+    description: 'Falta regla unicode-bom',
+    message: `La regla 'unicode-bom' debe estar configurada en 'error' en vite.config.ts.`
   },
   {
     oxlintRule: 'vue/no-async-in-computed-properties',
@@ -1094,8 +1101,9 @@ function validateSynchronizedConfig(
     });
   }
 
-  const testRoots = auditConfig.paths?.testRoots;
-  if (testRoots && testRoots.length > 0 && summary.hasSection('test')) {
+  const rawTestRoots = auditConfig.paths?.testRoots;
+  if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection('test')) {
+    const testRoots = resolveVitestRoots(auditConfig);
     const missingRoots = testRoots.filter(
       (r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`))
     );

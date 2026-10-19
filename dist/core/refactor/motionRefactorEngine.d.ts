@@ -16,7 +16,8 @@ export declare class MotionRefactorEngine extends BaseRefactorEngine<MotionFindi
     readonly modifiedFiles: readonly string[];
   };
   /**
-   * Scans a file or directory to discover GSAP & UI timing violations.
+   * Scans a file or directory using pure TypeScript Compiler AST to discover GSAP & UI timing violations.
+   * Strictly ignores stylesheets (.scss, .css) and non-script assets.
    */
   static discoverInFile(filePath: string): readonly MotionFindingItem[];
   /**

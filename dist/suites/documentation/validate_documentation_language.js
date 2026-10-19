@@ -48,6 +48,7 @@ function containsLanguageMandate(text, expectedLanguage) {
 }
 const SPANISH_STOPWORDS = /\b(?:el|la|los|las|de|del|al|en|para|por|con|como|este|esta|estos|estas|que|una|unas|unos|pero|sin|embargo|todos|todas|sobre|entre|cuando|donde|porque)\b/i;
 const ENGLISH_STOPWORDS = /\b(?:the|and|for|with|this|that|from|have|are|will|should|must|without|each|their|these|those|which|what|where|when|why|how)\b/i;
+const FRANC_MIN_SENTENCE_CHARS = 20;
 function preserveLineBreaks(matched) {
 	return "\n".repeat((matched.match(/\n/g) || []).length);
 }
@@ -106,10 +107,46 @@ function isLanguageExemptPath(relPath, exemptions) {
 	}
 	return false;
 }
+function hasOpposingSentence(text, stopwords, expectedOpposingLang) {
+	if (!stopwords.test(text)) return false;
+	const sentences = text.split(/(?<=[.:?!])\s+/);
+	for (const sentence of sentences) {
+		if (sentence.length < FRANC_MIN_SENTENCE_CHARS || !stopwords.test(sentence)) continue;
+		if (franc(sentence, { minLength: FRANC_MIN_SENTENCE_CHARS }) === expectedOpposingLang) return true;
+	}
+	return false;
+}
+function evaluateEnglishTargetParagraph(text, detectedLang) {
+	if (detectedLang !== "eng" && detectedLang !== "und" && (detectedLang === "spa" || SPANISH_STOPWORDS.test(text)) && SPANISH_STOPWORDS.test(text)) return {
+		isUnauthorized: true,
+		detectedLang
+	};
+	if (hasOpposingSentence(text, SPANISH_STOPWORDS, "spa")) return {
+		isUnauthorized: true,
+		detectedLang: "spa"
+	};
+	return {
+		isUnauthorized: false,
+		detectedLang
+	};
+}
+function evaluateSpanishTargetParagraph(text, detectedLang) {
+	if (detectedLang !== "spa" && detectedLang !== "und" && (detectedLang === "eng" || ENGLISH_STOPWORDS.test(text)) && ENGLISH_STOPWORDS.test(text)) return {
+		isUnauthorized: true,
+		detectedLang
+	};
+	if (hasOpposingSentence(text, ENGLISH_STOPWORDS, "eng")) return {
+		isUnauthorized: true,
+		detectedLang: "eng"
+	};
+	return {
+		isUnauthorized: false,
+		detectedLang
+	};
+}
 function evaluateParagraphLanguage(para, targetLanguage) {
 	const MIN_PARAGRAPH_CHARS = 35;
 	const MIN_PARAGRAPH_WORDS = 5;
-	const FRANC_MIN_LENGTH = 20;
 	const words = para.text.split(/\s+/).filter(Boolean);
 	if (para.text.length < MIN_PARAGRAPH_CHARS || words.length < MIN_PARAGRAPH_WORDS) return {
 		isUnauthorized: false,
@@ -123,15 +160,9 @@ function evaluateParagraphLanguage(para, targetLanguage) {
 		isUnauthorized: false,
 		detectedLang: "spa"
 	};
-	const detectedLang = franc(para.text, { minLength: FRANC_MIN_LENGTH });
-	if (targetLanguage === "en") return {
-		isUnauthorized: detectedLang !== "eng" && detectedLang !== "und" && (detectedLang === "spa" || SPANISH_STOPWORDS.test(para.text)) && SPANISH_STOPWORDS.test(para.text),
-		detectedLang
-	};
-	if (targetLanguage === "es") return {
-		isUnauthorized: detectedLang !== "spa" && detectedLang !== "und" && (detectedLang === "eng" || ENGLISH_STOPWORDS.test(para.text)) && ENGLISH_STOPWORDS.test(para.text),
-		detectedLang
-	};
+	const detectedLang = franc(para.text, { minLength: FRANC_MIN_SENTENCE_CHARS });
+	if (targetLanguage === "en") return evaluateEnglishTargetParagraph(para.text, detectedLang);
+	if (targetLanguage === "es") return evaluateSpanishTargetParagraph(para.text, detectedLang);
 	return {
 		isUnauthorized: false,
 		detectedLang

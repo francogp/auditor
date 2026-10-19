@@ -59,7 +59,8 @@ const BASE_TEST_CONFIG_SECTIONS = `
   codeSimplification: { enabled: false },
   scssArchitecture: { enabled: false },
   animation: { enabled: false },
-  types: { enabled: false }
+  types: { enabled: false },
+  encoding: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {

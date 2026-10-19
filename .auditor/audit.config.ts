@@ -268,6 +268,9 @@ export default defineAuditConfig({
   types: {
     enabled: true
   },
+  encoding: {
+    enabled: true
+  },
   stylelint: {
     enabled: true,
     order: {

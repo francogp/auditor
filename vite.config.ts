@@ -52,6 +52,7 @@ export default defineConfig({
             'tests/**'
         ],
         rules: {
+            'unicode-bom': 'error',
             'no-useless-assignment': 'error',
             'vue/no-deprecated-model-definition': 'error',
             'vue/no-required-prop-with-default': 'error',

@@ -4,7 +4,7 @@ import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
-import { extractParsedConfigSummary, isRuleValueCompliant } from "../../core/viteConfigAst.js";
+import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -88,6 +88,12 @@ const ANTI_CASTRATION_SPECS = [
 		ruleId: "vite-plus-config-no-eval-allowed",
 		description: "Falta prohibir eval dinámico",
 		message: `La regla 'no-eval' debe estar configurada en 'error' en vite.config.ts.`
+	},
+	{
+		oxlintRule: "unicode-bom",
+		ruleId: "vite-plus-config-unicode-bom-missing",
+		description: "Falta regla unicode-bom",
+		message: `La regla 'unicode-bom' debe estar configurada en 'error' en vite.config.ts.`
 	},
 	{
 		oxlintRule: "vue/no-async-in-computed-properties",
@@ -972,9 +978,9 @@ function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot)
 		context: "lint.ignorePatterns",
 		message: `Faltan patrones de exclusión requeridos por audit.config.ts en lint de vite.config.ts: [${missingLint.join(", ")}]. Ejecuta 'auditor fix' para sincronizarlos automáticamente.`
 	});
-	const testRoots = auditConfig.paths?.testRoots;
-	if (testRoots && testRoots.length > 0 && summary.hasSection("test")) {
-		const missingRoots = testRoots.filter((r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`)));
+	const rawTestRoots = auditConfig.paths?.testRoots;
+	if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection("test")) {
+		const missingRoots = resolveVitestRoots(auditConfig).filter((r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`)));
 		if (missingRoots.length > 0) findings.push({
 			suiteId: "validate_vite_plus_config",
 			suiteName: "Vite+ Unified Configuration Validator",

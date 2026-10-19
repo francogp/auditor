@@ -1,3 +1,4 @@
+import path from "node:path";
 import ts from "typescript";
 //#region src/core/viteConfigAst.ts
 /**
@@ -7,6 +8,16 @@ import ts from "typescript";
 * and transforming vite.config.ts and legacy ESLint/Vitest configuration files.
 * Zero regex or manual string manipulation.
 */
+function normalizePosixRoot(rawRoot) {
+	const forwardSlashes = rawRoot.split(path.sep).join(path.posix.sep);
+	return path.posix.normalize(path.posix.join(forwardSlashes, ".")).toLowerCase();
+}
+function isPathUnderRoot(candidatePath, rootDir) {
+	const normCandidate = path.posix.normalize(candidatePath.split(path.sep).join(path.posix.sep)).toLowerCase();
+	const normRoot = normalizePosixRoot(rootDir);
+	const rel = path.posix.relative(normRoot, normCandidate);
+	return rel === "" || !rel.startsWith("..") && !path.posix.isAbsolute(rel);
+}
 const CANONICAL_LINT_RULES_MAP = {
 	"@typescript-eslint/no-explicit-any": "error",
 	"@typescript-eslint/ban-ts-comment": "error",
@@ -28,6 +39,7 @@ const CANONICAL_LINT_RULES_MAP = {
 	"no-var": "error",
 	"no-self-compare": "error",
 	"no-eval": "error",
+	"unicode-bom": "error",
 	"vue/no-async-in-computed-properties": "error",
 	"vue/no-side-effects-in-computed-properties": "error",
 	"vue/no-export-in-script-setup": "error",
@@ -426,9 +438,20 @@ function buildFmtAstObject(auditConfig, fmtIgnores) {
 	if (fmtCfg?.useTabs !== void 0) fmtData.useTabs = fmtCfg.useTabs;
 	return valueToAstExpression(fmtData);
 }
+function resolveVitestRoots(auditConfig) {
+	const rawTestRoots = auditConfig.paths?.testRoots ?? ["tests"];
+	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
+	const vitestRoots = rawTestRoots.filter((r) => {
+		const normR = normalizePosixRoot(r);
+		return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== "e2e";
+	});
+	return vitestRoots.length > 0 ? vitestRoots : ["tests"];
+}
 function buildTestAstObject(auditConfig) {
 	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-	const testRoots = auditConfig.paths?.testRoots ?? ["tests"];
+	const rawTestRoots = auditConfig.paths?.testRoots ?? ["tests"];
+	const e2eRootsList = auditConfig.paths?.e2eRoots ?? ["e2e"];
+	const testRoots = resolveVitestRoots(auditConfig);
 	const srcRoots = auditConfig.paths?.srcRoots ?? ["src"];
 	const cliRoots = auditConfig.paths?.cliRoots ?? ["src/cli"];
 	return valueToAstExpression({
@@ -438,7 +461,11 @@ function buildTestAstObject(auditConfig) {
 			provider: "v8",
 			reportsDirectory: "scratch/coverage",
 			include: srcRoots.map((r) => `${r}/**/*.ts`),
-			exclude: [...cliRoots.map((r) => `${r}/**`), ...testRoots.map((r) => `${r}/**`)],
+			exclude: [
+				...cliRoots.map((r) => `${r}/**`),
+				...rawTestRoots.map((r) => `${r}/**`),
+				...e2eRootsList.map((r) => `${r}/**`)
+			],
 			thresholds: {
 				lines: coverageThreshold,
 				functions: coverageThreshold,
@@ -693,16 +720,18 @@ function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf) {
 		modified
 	};
 }
-function syncTestSectionAst(testObj, auditConfig, sf) {
-	const dedup = deduplicateObjectProperties(testObj.properties, sf);
-	let props = dedup.props;
-	let modified = dedup.modified;
-	const testRoots = auditConfig.paths?.testRoots ?? ["tests"];
+function syncTestIncludeAst(props, auditConfig, sf) {
+	let modified = false;
+	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
+	const testRoots = resolveVitestRoots(auditConfig);
 	const includeProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "include", sf);
 	const existingIncludes = [];
 	if (includeProp && ts.isArrayLiteralExpression(includeProp.initializer)) for (const el of includeProp.initializer.elements) {
 		const v = astExpressionToValue(el, sf);
-		if (typeof v === "string") existingIncludes.push(v);
+		if (typeof v === "string") {
+			if (!(normalizedE2eRoots.some((e2e) => isPathUnderRoot(v, e2e)) || isPathUnderRoot(v, "e2e"))) existingIncludes.push(v);
+			else modified = true;
+		}
 	}
 	const missingRoots = [];
 	for (const root of testRoots) {
@@ -710,40 +739,55 @@ function syncTestSectionAst(testObj, auditConfig, sf) {
 		const simple = `${root}/**/*.test.ts`;
 		if (!existingIncludes.some((inc) => inc === pattern || inc === simple || inc.startsWith(`${root}/`))) missingRoots.push(pattern);
 	}
-	if (missingRoots.length > 0) {
-		const merged = Array.from(/* @__PURE__ */ new Set([...existingIncludes, ...missingRoots]));
-		props = updateObjectProperty(props, "include", valueToAstExpression(merged), sf);
-		modified = true;
-	}
+	if (missingRoots.length > 0 || includeProp && modified) return {
+		props: updateObjectProperty(props, "include", valueToAstExpression(Array.from(/* @__PURE__ */ new Set([...existingIncludes, ...missingRoots]))), sf),
+		modified: true
+	};
+	return {
+		props,
+		modified
+	};
+}
+function syncTestCoverageAst(props, sf) {
 	const coverageProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "coverage", sf);
-	if (!coverageProp) {
-		const defaultCoverageObj = ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("provider", ts.factory.createStringLiteral("v8", true)), ts.factory.createPropertyAssignment("reportsDirectory", ts.factory.createStringLiteral("scratch/coverage", true))], true);
-		props = updateObjectProperty(props, "coverage", defaultCoverageObj, sf);
-		modified = true;
-	} else if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
+	if (!coverageProp) return {
+		props: updateObjectProperty(props, "coverage", ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("provider", ts.factory.createStringLiteral("v8", true)), ts.factory.createPropertyAssignment("reportsDirectory", ts.factory.createStringLiteral("scratch/coverage", true))], true), sf),
+		modified: true
+	};
+	if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
 		const covObj = coverageProp.initializer;
 		let covProps = [...covObj.properties];
 		let covModified = false;
 		const repDirProp = findPropertyAssignment(covObj, "reportsDirectory", sf);
-		if (!repDirProp) {
+		const repVal = repDirProp ? astExpressionToValue(repDirProp.initializer, sf) : null;
+		if (!repDirProp || typeof repVal === "string" && repVal !== "scratch/coverage") {
 			covProps = updateObjectProperty(covProps, "reportsDirectory", ts.factory.createStringLiteral("scratch/coverage", true), sf);
 			covModified = true;
-		} else {
-			const repVal = astExpressionToValue(repDirProp.initializer, sf);
-			if (typeof repVal === "string" && repVal !== "scratch/coverage") {
-				covProps = updateObjectProperty(covProps, "reportsDirectory", ts.factory.createStringLiteral("scratch/coverage", true), sf);
-				covModified = true;
-			}
 		}
 		if (!findPropertyAssignment(covObj, "provider", sf)) {
 			covProps = updateObjectProperty(covProps, "provider", ts.factory.createStringLiteral("v8", true), sf);
 			covModified = true;
 		}
-		if (covModified) {
-			props = updateObjectProperty(props, "coverage", ts.factory.createObjectLiteralExpression(covProps, true), sf);
-			modified = true;
-		}
+		if (covModified) return {
+			props: updateObjectProperty(props, "coverage", ts.factory.createObjectLiteralExpression(covProps, true), sf),
+			modified: true
+		};
 	}
+	return {
+		props,
+		modified: false
+	};
+}
+function syncTestSectionAst(testObj, auditConfig, sf) {
+	const dedup = deduplicateObjectProperties(testObj.properties, sf);
+	let props = dedup.props;
+	let modified = dedup.modified;
+	const includeRes = syncTestIncludeAst(props, auditConfig, sf);
+	props = includeRes.props;
+	if (includeRes.modified) modified = true;
+	const covRes = syncTestCoverageAst(props, sf);
+	props = covRes.props;
+	if (covRes.modified) modified = true;
 	return {
 		obj: modified ? ts.factory.createObjectLiteralExpression(props, true) : testObj,
 		modified
@@ -888,4 +932,4 @@ function rewriteModuleSpecifiersToVitePlusAst(content, fileName) {
 	return updated;
 }
 //#endregion
-export { CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };
+export { CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };

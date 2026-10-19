@@ -279,6 +279,7 @@ describe('Auditor Architecture Conformance', () => {
         'validate_editorconfig',
         'validate_environment_engines',
         'validate_fallow_config',
+        'validate_file_encoding',
         'validate_git_config',
         'validate_html_validate',
         'validate_html_validate_config',

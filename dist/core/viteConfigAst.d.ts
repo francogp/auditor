@@ -28,6 +28,7 @@ export declare function extractEslintIgnoresFromAst(rawContent: string): string[
 export declare function buildPackAstObject(): ts.ObjectLiteralExpression;
 export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[]): ts.ObjectLiteralExpression;
 export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[]): ts.ObjectLiteralExpression;
+export declare function resolveVitestRoots(auditConfig: AuditConfig): readonly string[];
 export declare function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function buildStagedAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function printAstNode(node: ts.Node, sf?: ts.SourceFile): string;

@@ -5,9 +5,21 @@
  * and transforming vite.config.ts and legacy ESLint/Vitest configuration files.
  * Zero regex or manual string manipulation.
  */
-
+import path from 'node:path';
 import ts from 'typescript';
 import type { AuditConfig } from './auditConfig.ts';
+
+function normalizePosixRoot(rawRoot: string): string {
+  const forwardSlashes = rawRoot.split(path.sep).join(path.posix.sep);
+  return path.posix.normalize(path.posix.join(forwardSlashes, '.')).toLowerCase();
+}
+
+function isPathUnderRoot(candidatePath: string, rootDir: string): boolean {
+  const normCandidate = path.posix.normalize(candidatePath.split(path.sep).join(path.posix.sep)).toLowerCase();
+  const normRoot = normalizePosixRoot(rootDir);
+  const rel = path.posix.relative(normRoot, normCandidate);
+  return rel === '' || (!rel.startsWith('..') && !path.posix.isAbsolute(rel));
+}
 
 export const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>> = {
   '@typescript-eslint/no-explicit-any': 'error',
@@ -38,6 +50,7 @@ export const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>> = {
   'no-var': 'error',
   'no-self-compare': 'error',
   'no-eval': 'error',
+  'unicode-bom': 'error',
   'vue/no-async-in-computed-properties': 'error',
   'vue/no-side-effects-in-computed-properties': 'error',
   'vue/no-export-in-script-setup': 'error',
@@ -664,9 +677,22 @@ export function buildFmtAstObject(
   return valueToAstExpression(fmtData) as ts.ObjectLiteralExpression;
 }
 
+export function resolveVitestRoots(auditConfig: AuditConfig): readonly string[] {
+  const rawTestRoots = auditConfig.paths?.testRoots ?? ['tests'];
+  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const normalizedE2eRoots = e2eRootsList.map(normalizePosixRoot);
+  const vitestRoots = rawTestRoots.filter((r) => {
+    const normR = normalizePosixRoot(r);
+    return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== 'e2e';
+  });
+  return vitestRoots.length > 0 ? vitestRoots : ['tests'];
+}
+
 export function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression {
   const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-  const testRoots = auditConfig.paths?.testRoots ?? ['tests'];
+  const rawTestRoots = auditConfig.paths?.testRoots ?? ['tests'];
+  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const testRoots = resolveVitestRoots(auditConfig);
   const srcRoots = auditConfig.paths?.srcRoots ?? ['src'];
   const cliRoots = auditConfig.paths?.cliRoots ?? ['src/cli'];
 
@@ -677,7 +703,7 @@ export function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralEx
       provider: 'v8',
       reportsDirectory: 'scratch/coverage',
       include: srcRoots.map((r) => `${r}/**/*.ts`),
-      exclude: [...cliRoots.map((r) => `${r}/**`), ...testRoots.map((r) => `${r}/**`)],
+      exclude: [...cliRoots.map((r) => `${r}/**`), ...rawTestRoots.map((r) => `${r}/**`), ...e2eRootsList.map((r) => `${r}/**`)],
       thresholds: {
         lines: coverageThreshold,
         functions: coverageThreshold,
@@ -1128,16 +1154,15 @@ function syncFmtSectionAst(
   };
 }
 
-function syncTestSectionAst(
-  testObj: ts.ObjectLiteralExpression,
+function syncTestIncludeAst(
+  props: ts.ObjectLiteralElementLike[],
   auditConfig: AuditConfig,
   sf: ts.SourceFile
-): { obj: ts.ObjectLiteralExpression; modified: boolean } {
-  const dedup = deduplicateObjectProperties(testObj.properties, sf);
-  let props = dedup.props;
-  let modified = dedup.modified;
-
-  const testRoots = auditConfig.paths?.testRoots ?? ['tests'];
+): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
+  let modified = false;
+  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const normalizedE2eRoots = e2eRootsList.map(normalizePosixRoot);
+  const testRoots = resolveVitestRoots(auditConfig);
   const includeProp = findPropertyAssignment(
     ts.factory.createObjectLiteralExpression(props, true),
     'include',
@@ -1147,7 +1172,16 @@ function syncTestSectionAst(
   if (includeProp && ts.isArrayLiteralExpression(includeProp.initializer)) {
     for (const el of includeProp.initializer.elements) {
       const v = astExpressionToValue(el, sf);
-      if (typeof v === 'string') existingIncludes.push(v);
+      if (typeof v === 'string') {
+        const isE2e =
+          normalizedE2eRoots.some((e2e) => isPathUnderRoot(v, e2e)) ||
+          isPathUnderRoot(v, 'e2e');
+        if (!isE2e) {
+          existingIncludes.push(v);
+        } else {
+          modified = true;
+        }
+      }
     }
   }
 
@@ -1163,13 +1197,19 @@ function syncTestSectionAst(
     }
   }
 
-  if (missingRoots.length > 0) {
+  if (missingRoots.length > 0 || (includeProp && modified)) {
     const merged = Array.from(new Set([...existingIncludes, ...missingRoots]));
-    props = updateObjectProperty(props, 'include', valueToAstExpression(merged), sf);
-    modified = true;
+    const updatedProps = updateObjectProperty(props, 'include', valueToAstExpression(merged), sf);
+    return { props: updatedProps, modified: true };
   }
 
-  // Ensure coverage configuration outputs to scratch/coverage and uses v8 provider
+  return { props, modified };
+}
+
+function syncTestCoverageAst(
+  props: ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile
+): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
   const coverageProp = findPropertyAssignment(
     ts.factory.createObjectLiteralExpression(props, true),
     'coverage',
@@ -1187,15 +1227,20 @@ function syncTestSectionAst(
       ],
       true
     );
-    props = updateObjectProperty(props, 'coverage', defaultCoverageObj, sf);
-    modified = true;
-  } else if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
+    return {
+      props: updateObjectProperty(props, 'coverage', defaultCoverageObj, sf),
+      modified: true
+    };
+  }
+
+  if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
     const covObj = coverageProp.initializer;
     let covProps = [...covObj.properties];
     let covModified = false;
 
     const repDirProp = findPropertyAssignment(covObj, 'reportsDirectory', sf);
-    if (!repDirProp) {
+    const repVal = repDirProp ? astExpressionToValue(repDirProp.initializer, sf) : null;
+    if (!repDirProp || (typeof repVal === 'string' && repVal !== 'scratch/coverage')) {
       covProps = updateObjectProperty(
         covProps,
         'reportsDirectory',
@@ -1203,17 +1248,6 @@ function syncTestSectionAst(
         sf
       );
       covModified = true;
-    } else {
-      const repVal = astExpressionToValue(repDirProp.initializer, sf);
-      if (typeof repVal === 'string' && repVal !== 'scratch/coverage') {
-        covProps = updateObjectProperty(
-          covProps,
-          'reportsDirectory',
-          ts.factory.createStringLiteral('scratch/coverage', true),
-          sf
-        );
-        covModified = true;
-      }
     }
 
     const providerProp = findPropertyAssignment(covObj, 'provider', sf);
@@ -1228,15 +1262,37 @@ function syncTestSectionAst(
     }
 
     if (covModified) {
-      props = updateObjectProperty(
-        props,
-        'coverage',
-        ts.factory.createObjectLiteralExpression(covProps, true),
-        sf
-      );
-      modified = true;
+      return {
+        props: updateObjectProperty(
+          props,
+          'coverage',
+          ts.factory.createObjectLiteralExpression(covProps, true),
+          sf
+        ),
+        modified: true
+      };
     }
   }
+
+  return { props, modified: false };
+}
+
+function syncTestSectionAst(
+  testObj: ts.ObjectLiteralExpression,
+  auditConfig: AuditConfig,
+  sf: ts.SourceFile
+): { obj: ts.ObjectLiteralExpression; modified: boolean } {
+  const dedup = deduplicateObjectProperties(testObj.properties, sf);
+  let props = dedup.props;
+  let modified = dedup.modified;
+
+  const includeRes = syncTestIncludeAst(props, auditConfig, sf);
+  props = includeRes.props;
+  if (includeRes.modified) modified = true;
+
+  const covRes = syncTestCoverageAst(props, sf);
+  props = covRes.props;
+  if (covRes.modified) modified = true;
 
   return {
     obj: modified ? ts.factory.createObjectLiteralExpression(props, true) : testObj,

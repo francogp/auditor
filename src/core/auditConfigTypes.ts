@@ -207,6 +207,16 @@ export interface AuditTypesConfig extends BaseAuditSubsystemConfig {
   readonly ignoreGlobs?: readonly string[];
 }
 
+export interface AuditEncodingConfig extends BaseAuditSubsystemConfig {
+  readonly defaultEncoding?: 'utf-8';
+  readonly prohibitBom?: boolean;
+  readonly detectMojibake?: boolean;
+  readonly allowedExtensions?: readonly string[];
+  readonly exemptGlobs?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+}
+
 export interface AuditConstantsConfig extends BaseAuditSubsystemConfig {
   readonly ignoredNames?: readonly string[];
   readonly exemptMagicNumbers?: readonly number[];
@@ -639,6 +649,7 @@ export interface AuditEngineConfig {
   readonly accessibility?: AuditAccessibilityConfig;
   readonly typeCoverage?: AuditTypeCoverageConfig;
   readonly types?: AuditTypesConfig;
+  readonly encoding?: AuditEncodingConfig;
   readonly version?: AuditVersionConfig;
   readonly secretLeaks?: AuditSecretLeaksConfig;
   readonly dependencyVulnerabilities?: AuditDependencyVulnerabilitiesConfig;

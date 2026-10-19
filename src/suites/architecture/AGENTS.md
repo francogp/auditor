@@ -98,6 +98,7 @@ Architecture & Tooling Engineers.
 - [`validate_gsap_framework_hygiene.ts`](./validate_gsap_framework_hygiene.ts): GSAP framework and component lifecycle hygiene enforcing scoped selectors, cleanup on unmount, and plugin registration.
 - [`validate_html_validate.ts`](./validate_html_validate.ts): W3C/WHATWG Living Standard validator via `html-validate`.
 - [`validate_html_validate_config.ts`](./validate_html_validate_config.ts): HTML-Validate configuration integrity verifier enforcing strict baseline rules and automated scaffolding.
+- [`validate_file_encoding.ts`](./validate_file_encoding.ts): File encoding and charset hygiene auditor enforcing clean UTF-8 without BOM, non-UTF-8 transcoding, and mojibake corruption detection.
 - [`validate_accessibility.ts`](./validate_accessibility.ts): Vue and web accessibility (WCAG 2.2) standards.
 - [`validate_native_paths.ts`](./validate_native_paths.ts): Path traversal (CWE-22) and unsafe file concatenation detector.
 - [`validate_npmrc_config.ts`](./validate_npmrc_config.ts): NPM runtime configuration (.npmrc) verifier enforcing engine-strict, exact saving, and audit hygiene.

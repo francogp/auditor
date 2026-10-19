@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "9.7.3-build.20261019-122628",
+  "version": "9.7.4-build.20261019-195349",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -269,7 +269,8 @@
     "auditor:dependencies": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_dependencies.ts",
     "auditor:full": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts speed=full",
     "auditor:post-build": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts phase=post-build",
-    "build:deploy": "node --experimental-strip-types src/cli/build_deploy.ts"
+    "build:deploy": "node --experimental-strip-types src/cli/build_deploy.ts",
+    "auditor:file-encoding": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts task=validate_file_encoding"
   },
   "dependencies": {
     "@ast-grep/napi": "^0.39.5",

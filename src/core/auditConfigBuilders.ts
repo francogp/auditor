@@ -16,6 +16,9 @@ import {
   type AuditTemplatesConfig,
   type AuditStylesConfig,
   type AuditStylelintConfig,
+  type AuditTypesConfig,
+  type AuditEncodingConfig,
+  type AuditRunnerConfig,
   type AuditOxlintConfig,
   type AuditOxfmtConfig,
   type AuditVitePlusConfig,
@@ -921,6 +924,101 @@ export function buildScssArchitectureConfig(
   };
 }
 
+function buildStandaloneStylelintConfig(
+  stylelint: DeepPartial<AuditStylelintConfig> | undefined
+): AuditStylelintConfig {
+  if (!stylelint) {
+    return {
+      enabled: true,
+      rules: {},
+      ignoreGlobs: []
+    };
+  }
+
+  return {
+    enabled: stylelint.enabled ?? true,
+    configFile: stylelint.configFile,
+    rules: stylelint.rules ? Object.assign({}, stylelint.rules) : undefined,
+    ignoreGlobs: stylelint.ignoreGlobs ? [...stylelint.ignoreGlobs] : [],
+    strictValues: stylelint.strictValues
+      ? {
+          enabled: stylelint.strictValues.enabled ?? true,
+          properties: stylelint.strictValues.properties
+            ? [...stylelint.strictValues.properties]
+            : [],
+          ignoreValues: stylelint.strictValues.ignoreValues
+            ? ({ ...stylelint.strictValues.ignoreValues } as Record<string, readonly string[]>)
+            : {},
+          ignoreAtRules: stylelint.strictValues.ignoreAtRules
+            ? [...stylelint.strictValues.ignoreAtRules]
+            : []
+        }
+      : undefined
+  };
+}
+
+function buildTypesConfig(types: DeepPartial<AuditTypesConfig> | undefined): AuditTypesConfig {
+  if (!types) {
+    return (
+      DEFAULT_AUDIT_CONFIG.types ?? {
+        enabled: true,
+        exemptPaths: [],
+        exemptFiles: [],
+        ignoreGlobs: []
+      }
+    );
+  }
+  return {
+    enabled: types.enabled ?? true,
+    exemptPaths: types.exemptPaths ? [...types.exemptPaths] : [],
+    exemptFiles: types.exemptFiles ? [...types.exemptFiles] : [],
+    ignoreGlobs: types.ignoreGlobs ? [...types.ignoreGlobs] : []
+  };
+}
+
+function buildEncodingConfig(
+  encoding: DeepPartial<AuditEncodingConfig> | undefined
+): AuditEncodingConfig {
+  if (!encoding) {
+    return (
+      DEFAULT_AUDIT_CONFIG.encoding ?? {
+        enabled: true,
+        defaultEncoding: 'utf-8',
+        prohibitBom: true,
+        detectMojibake: true,
+        allowedExtensions: undefined,
+        exemptGlobs: [],
+        exemptPaths: [],
+        exemptFiles: []
+      }
+    );
+  }
+  return {
+    enabled: encoding.enabled ?? true,
+    defaultEncoding: encoding.defaultEncoding ?? 'utf-8',
+    prohibitBom: encoding.prohibitBom ?? true,
+    detectMojibake: encoding.detectMojibake ?? true,
+    allowedExtensions: encoding.allowedExtensions
+      ? [...encoding.allowedExtensions]
+      : undefined,
+    exemptGlobs: encoding.exemptGlobs ? [...encoding.exemptGlobs] : [],
+    exemptPaths: encoding.exemptPaths ? [...encoding.exemptPaths] : [],
+    exemptFiles: encoding.exemptFiles ? [...encoding.exemptFiles] : []
+  };
+}
+
+function buildRunnerConfig(runner: DeepPartial<AuditRunnerConfig> | undefined): AuditRunnerConfig {
+  if (!runner) {
+    return { enabled: true, timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES };
+  }
+  return {
+    enabled: runner.enabled ?? true,
+    timeoutMs: runner.timeoutMs ?? 0,
+    concurrency: runner.concurrency,
+    maxStalenessMinutes: runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+  };
+}
+
 export function defineAuditConfig(
   config: DeepPartial<AuditEngineConfig> & { name: string }
 ): AuditEngineConfig {
@@ -941,32 +1039,7 @@ export function defineAuditConfig(
     gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
     templates: buildTemplatesConfig(config.templates),
     styles: buildStylesConfig(config.styles, config.stylelint),
-    stylelint: config.stylelint
-      ? {
-          enabled: config.stylelint.enabled ?? true,
-          configFile: config.stylelint.configFile,
-          rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : undefined,
-          ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
-          strictValues: config.stylelint.strictValues
-            ? {
-                enabled: config.stylelint.strictValues.enabled ?? true,
-                properties: config.stylelint.strictValues.properties
-                  ? [...config.stylelint.strictValues.properties]
-                  : [],
-                ignoreValues: config.stylelint.strictValues.ignoreValues
-                  ? ({ ...config.stylelint.strictValues.ignoreValues } as Record<string, readonly string[]>)
-                  : {},
-                ignoreAtRules: config.stylelint.strictValues.ignoreAtRules
-                  ? [...config.stylelint.strictValues.ignoreAtRules]
-                  : []
-              }
-            : undefined
-        }
-      : {
-          enabled: true,
-          rules: {},
-          ignoreGlobs: []
-        },
+    stylelint: buildStandaloneStylelintConfig(config.stylelint),
     oxlint: buildOxlintConfig(config.oxlint),
     oxfmt: buildOxfmtConfig(config.oxfmt),
     vitePlusConfig: buildVitePlusConfig(config.vitePlusConfig),
@@ -993,20 +1066,14 @@ export function defineAuditConfig(
     securityHardening: buildSecurityHardeningConfig(config.securityHardening),
     codeSimplification: buildCodeSimplificationConfig(config.codeSimplification),
     scssArchitecture: buildScssArchitectureConfig(config.scssArchitecture),
+    types: buildTypesConfig(config.types),
+    encoding: buildEncodingConfig(config.encoding),
     ...agentAndSecurity,
     ...constantsAndDoc,
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
     presets: (config.presets as Record<string, readonly string[]>) ?? {},
-    runner: config.runner
-      ? {
-          enabled: config.runner.enabled ?? true,
-          timeoutMs: config.runner.timeoutMs ?? 0,
-          concurrency: config.runner.concurrency,
-          maxStalenessMinutes:
-            config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
-        }
-      : { enabled: true, timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
+    runner: buildRunnerConfig(config.runner),
     _declaredSubsystems: declared,
     _rawPaths: rawPaths,
     _rawConfig: rawConfig

@@ -90,10 +90,11 @@ function handleDiscoverCommand<TFinding, TPlan>(
   const allFindings: TFinding[] = [];
 
   for (const file of files) {
-    const fileFindings = def.discoverInFile(file);
+    const fullPath = path.isAbsolute(file) ? file : path.resolve(projectRoot, file);
+    const fileFindings = def.discoverInFile(fullPath);
     if (fileFindings.length > 0) {
       allFindings.push(...fileFindings);
-      const relFile = path.relative(projectRoot, file);
+      const relFile = path.relative(projectRoot, fullPath);
       tableRows.push(def.buildTableRow(relFile, fileFindings));
     }
   }
@@ -204,14 +205,29 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     allowPositionals: true
   });
 
-  const command = args.positionals[0] || 'discover';
+  const positionalProjectArg = argv.find(
+    (a) => a.startsWith('project=') || a.startsWith('--project=')
+  );
+  const positionalProject = positionalProjectArg
+    ? positionalProjectArg.slice(positionalProjectArg.indexOf('=') + 1)
+    : undefined;
+
+  const rawProject =
+    positionalProject ||
+    (args.values.project && args.values.project !== '.' ? (args.values.project as string) : undefined) ||
+    '.';
+
+  const nonProjectPositionals = args.positionals.filter(
+    (p) => !p.startsWith('project=') && !p.startsWith('--project=')
+  );
+  const command = nonProjectPositionals[0] || 'discover';
 
   if (args.values.help || command === 'help' || command === '--help' || command === '-h') {
     renderHarnessHelp(def);
     return;
   }
 
-  const projectRoot = path.resolve(args.values.project || '.');
+  const projectRoot = path.resolve(rawProject);
   const engine = def.engineFactory?.(projectRoot);
 
   if (engine && !engine.isToolEnabled()) {
@@ -229,10 +245,15 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
       handleDiscoverCommand(def, projectRoot, engine);
       break;
     case 'inspect':
-      handleInspectCommand(def, projectRoot, args.values.file || args.positionals[1]);
+      handleInspectCommand(def, projectRoot, args.values.file || nonProjectPositionals[1]);
       break;
     case 'apply':
-      await handleApplyCommand(def, projectRoot, args.values.plan || args.positionals[1], Boolean(args.values.worktree));
+      await handleApplyCommand(
+        def,
+        projectRoot,
+        args.values.plan || nonProjectPositionals[1],
+        Boolean(args.values.worktree)
+      );
       break;
     default:
       console.error(styleText('red', `❌ Comando desconocido: ${command}`));

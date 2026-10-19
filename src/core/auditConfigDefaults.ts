@@ -244,6 +244,15 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptFiles: [],
     ignoreGlobs: []
   },
+  encoding: {
+    enabled: true,
+    defaultEncoding: 'utf-8',
+    prohibitBom: true,
+    detectMojibake: true,
+    exemptGlobs: [],
+    exemptPaths: [],
+    exemptFiles: []
+  },
   packageHygiene: {
     enabled: true,
     ignoreDependencies: [],
