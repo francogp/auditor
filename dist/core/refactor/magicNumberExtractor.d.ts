@@ -1,17 +1,18 @@
 import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { DiscoveredMagicItem, MagicRefactorPlan, SuperDiracClusterPacket } from "./magicContracts.js";
+import { MagicNumbersAuditor as ValidateMagicNumbersAuditor } from "../../suites/architecture/validate_magic_numbers.js";
 //#region src/core/refactor/magicNumberExtractor.d.ts
-export declare class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan> {
+export declare class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan, ValidateMagicNumbersAuditor> {
   readonly toolId = "auditor-magic";
   readonly configSectionKey: "constants";
-  readonly allowedExtensions: Set<string>;
+  get allowedExtensions(): ReadonlySet<string>;
   private readonly existingConstants;
   private readonly cssVariables;
-  constructor(projectRootOrOptions?: string | {
+  constructor(auditorOrOptions?: ValidateMagicNumbersAuditor | string | {
     projectRoot?: string;
     config?: AuditEngineConfig;
-  }, explicitConfig?: AuditEngineConfig);
+  }, _explicitConfig?: AuditEngineConfig);
   /**
    * Data catalog paths (paths.dataRoots) are exempt from magic number checks,
    * matching validate_magic_numbers suite behavior 1:1.

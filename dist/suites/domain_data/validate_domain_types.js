@@ -324,7 +324,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 			ruleIds: DOMAIN_TYPES_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DOMAIN_TYPES_RULES, "contracts"),
 			packageName: "Dominio",
-			configKey: "domain.enabled",
+			configKey: "domain",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "🔒",
@@ -404,4 +404,4 @@ var DomainTypesAuditor = class extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DomainTypesAuditor());
 //#endregion
-export { CANONICAL_INFRA_ID_WHITELIST, DEFAULT_TEST_PATH_MARKERS, DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS, DOMAIN_TYPES_RULES, DomainTypesAuditor, auditFile, auditFileContent };
+export { CANONICAL_INFRA_ID_WHITELIST, DEFAULT_TEST_PATH_MARKERS, DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS, DOMAIN_TYPES_RULES, DomainTypesAuditor, DomainTypesAuditor as ValidateDomainTypesAuditor, auditFile, auditFileContent };

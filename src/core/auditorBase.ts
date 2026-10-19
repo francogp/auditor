@@ -95,6 +95,7 @@ import {
   type LineColumnPosition
 } from './auditedDocument.ts';
 import { isPathExempt } from './reportUtils.ts';
+import { isTestFileForCodeAudit } from './auditTestPredicates.ts';
 
 export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isPathExempt };
 
@@ -2095,7 +2096,18 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.explicitSubAuditors = options.subAuditors;
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-    this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
+    const config = getAuditConfig(effectiveProjectRoot);
+    const section = (options.configKey && config[options.configKey]) as Record<string, unknown> | undefined;
+    const sectionIgnoreGlobs: string[] = [];
+    if (section && typeof section === 'object' && Array.isArray(section.ignoreGlobs)) {
+      for (const item of section.ignoreGlobs) {
+        if (typeof item === 'string') sectionIgnoreGlobs.push(item);
+      }
+    }
+    this.extraIgnorePatterns = Array.from(new Set([
+      ...(options.extraIgnorePatterns ?? []),
+      ...sectionIgnoreGlobs
+    ]));
     this.unignoreDirs =
       options.unignoreDirs ??
       (options.family === 'documentation' ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
@@ -2123,6 +2135,32 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
 
     this.context = this.initExecutionContext(this.coverageRecorder.declaration);
+  }
+
+  /**
+   * Determines whether a given project-relative path is scannable by this auditor,
+   * taking into account its extraIgnorePatterns, unignoreDirs, and global project ignores.
+   */
+  public isPathScannable(relPath: string): boolean {
+    const norm = relPath.replace(/\\/g, '/');
+    if (isPathIgnored(norm, this.extraIgnorePatterns, this.unignoreDirs, this.projectRoot)) {
+      return false;
+    }
+    if (this.family !== 'testing' && isTestFileForCodeAudit(norm, this.projectRoot)) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Resolves all target project-relative files that this auditor intends to scan,
+   * applying declared roots, allowedExtensions, global ignores, and extraIgnorePatterns.
+   */
+  public getScannableFiles(): readonly string[] {
+    const rawFiles = this.context.collectFiles(this.roots, this.allowedExtensions);
+    return rawFiles
+      .map((f) => path.relative(this.projectRoot, f).replace(/\\/g, '/'))
+      .filter((rel) => this.isPathScannable(rel));
   }
 
   /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
@@ -3004,7 +3042,7 @@ export abstract class FileScanAuditor<
     TRuleId,
     (doc: AuditedDocument) => void | Promise<void>
   > = new Map();
-  protected readonly exemptPaths: readonly string[];
+  public readonly exemptPaths: readonly string[];
 
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
@@ -3163,13 +3201,44 @@ export abstract class FileScanAuditor<
         ? options
         : { ...options, roots: getEffectiveScannableRoots() }
     );
-    this.exemptPaths = options.exemptPaths ?? [];
+    const config = getAuditConfig(this.projectRoot);
+    const section = (options.configKey && config[options.configKey]) as Record<string, unknown> | undefined;
+    const sectionExemptPaths: string[] = [];
+    if (section && typeof section === 'object') {
+      if (Array.isArray(section.exemptPaths)) {
+        for (const item of section.exemptPaths) {
+          if (typeof item === 'string') sectionExemptPaths.push(item);
+        }
+      }
+      if (Array.isArray(section.exemptFiles)) {
+        for (const item of section.exemptFiles) {
+          if (typeof item === 'string') sectionExemptPaths.push(item);
+        }
+      }
+    }
+    this.exemptPaths = Array.from(new Set([
+      ...(options.exemptPaths ?? []),
+      ...sectionExemptPaths
+    ]));
+  }
+
+  /**
+   * Determines whether a given project-relative path is scannable by this file-scan auditor.
+   */
+  public override isPathScannable(relPath: string): boolean {
+    if (!super.isPathScannable(relPath)) {
+      return false;
+    }
+    if (this.isCurrentPathExempt(relPath)) {
+      return false;
+    }
+    return true;
   }
 
   /**
    * Checks whether the given relative path is exempt according to suite options.
    */
-  protected isCurrentPathExempt(relPath: string): boolean {
+  public isCurrentPathExempt(relPath: string): boolean {
     return isPathExempt(relPath, this.exemptPaths);
   }
 

@@ -82,8 +82,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       family: 'architecture',
       packageName: 'GSAP',
       icon: '🎭',
-      configKey: 'paths',
-      defaultConfig: {},
+      configKey: 'animation',
+      defaultConfig: { enabled: true },
       criticalConfig: {},
       ruleCapabilities: createRuleCapabilities(GSAP_FRAMEWORK_HYGIENE_RULES, {
         speed: 'light',

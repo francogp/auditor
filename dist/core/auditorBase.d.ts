@@ -330,6 +330,16 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   private registerAuditorDependencies;
   private initExecutionContext;
   constructor(options: AuditorOptions<TRuleId>);
+  /**
+   * Determines whether a given project-relative path is scannable by this auditor,
+   * taking into account its extraIgnorePatterns, unignoreDirs, and global project ignores.
+   */
+  isPathScannable(relPath: string): boolean;
+  /**
+   * Resolves all target project-relative files that this auditor intends to scan,
+   * applying declared roots, allowedExtensions, global ignores, and extraIgnorePatterns.
+   */
+  getScannableFiles(): readonly string[];
   /** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
   getRuleCatalog(): readonly TRuleId[];
   /** Returns the on-demand diagnostic and remediation guide for a declared rule. */
@@ -451,7 +461,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
   protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>>;
-  protected readonly exemptPaths: readonly string[];
+  readonly exemptPaths: readonly string[];
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
    * Automatically executes declared file sub-auditors measuring their runtimes
@@ -486,9 +496,13 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   protected scanFile(_relPath: string, _content: string, _sourceFile?: ts.SourceFile, _doc?: AuditedDocument): void | Promise<void>;
   constructor(options: AuditorOptions<TRuleId>);
   /**
+   * Determines whether a given project-relative path is scannable by this file-scan auditor.
+   */
+  isPathScannable(relPath: string): boolean;
+  /**
    * Checks whether the given relative path is exempt according to suite options.
    */
-  protected isCurrentPathExempt(relPath: string): boolean;
+  isCurrentPathExempt(relPath: string): boolean;
   /**
    * Adds a violation calculating 1-indexed line and column numbers from a string offset.
    */

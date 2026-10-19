@@ -15,16 +15,36 @@ import type {
   TypesRefactorPlan
 } from './refactorContracts.ts';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+import { ValidateTypeAssertionHygieneAuditor } from '../../suites/architecture/validate_type_assertion_hygiene.ts';
 
 const AS_ANY_REGEX = /\bas\s+any\b/g;
 const ANGLE_ANY_REGEX = /<any>\s*([a-zA-Z0-9_$.()]+)/g;
 const DOUBLE_ASSERTION_REGEX = /\bas\s+(?:unknown|any)\s+as\s+([A-Za-z0-9_$.<>[\]|& ]+)/g;
 const EXPORTED_FN_REGEX = /^(\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\))\s*\{/m;
 
-export class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan> {
+export class TypesRefactorEngine extends BaseRefactorEngine<
+  TypesFindingItem,
+  TypesRefactorPlan,
+  ValidateTypeAssertionHygieneAuditor
+> {
   public readonly toolId = 'auditor-types';
-  public readonly configSectionKey = 'typeCheck' as const;
-  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+  public readonly configSectionKey = 'types' as const;
+
+  constructor(
+    auditorOrOptions?: ValidateTypeAssertionHygieneAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
+    _explicitConfig?: AuditEngineConfig
+  ) {
+    const auditor =
+      auditorOrOptions instanceof ValidateTypeAssertionHygieneAuditor
+        ? auditorOrOptions
+        : new ValidateTypeAssertionHygieneAuditor(
+            typeof auditorOrOptions === 'string'
+              ? auditorOrOptions
+              : auditorOrOptions?.projectRoot
+          );
+    super(auditor);
+  }
 
   public override discoverInFile(filePath: string): readonly TypesFindingItem[] {
     return TypesRefactorEngine.discoverInFile(filePath);

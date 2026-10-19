@@ -23,6 +23,7 @@ Architecture & Tooling Engineers.
 - [`baseRefactorEngine.ts`](./baseRefactorEngine.ts): Abstract base class for all refactoring engines defining dynamic root discovery, configuration-driven filtering, and tool gating.
 - [`classHierarchyHoister.ts`](./classHierarchyHoister.ts): Discovers common base classes and hoists shared methods to base class hierarchies.
 - [`domainRefactorEngine.ts`](./domainRefactorEngine.ts): Domain type and branded ID refactoring engine auto-remediating naked strings, unfrozen catalogs, and unbranded IDs.
+- [`dupesRefactorEngine.ts`](./dupesRefactorEngine.ts): Duplication and clone refactoring engine triaging Fallow clone groups and orchestrating extract-function AST transformations.
 - [`hybridHarness.ts`](./hybridHarness.ts): Unified refactoring harness dispatching AST mutations to ts-morph, ast-grep, and Vue SFC parsers.
 - [`magicContracts.ts`](./magicContracts.ts): Type definitions, contracts, and Value-Clustering Super-Dirac compression models for magic numbers and design token refactoring.
 - [`magicNumberExtractor.ts`](./magicNumberExtractor.ts): AST extractor with zero-token contextual semantic inference, SSoT constants discovery, and Super-Dirac batch table generation.

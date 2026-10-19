@@ -1,5 +1,6 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
+import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 //#region src/core/refactor/o1RefactorEngine.ts
 /**
 * src/core/refactor/o1RefactorEngine.ts
@@ -14,8 +15,11 @@ const JSON_CLONE_REGEX = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(([^)]+)\)\s*\
 const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-o1";
-	configSectionKey = "codeSimplification";
-	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	configSectionKey = "domain";
+	constructor(auditorOrOptions, _explicitConfig) {
+		const auditor = auditorOrOptions instanceof O1DataStructuresAuditor ? auditorOrOptions : new O1DataStructuresAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		super(auditor);
+	}
 	discoverInFile(filePath) {
 		return O1RefactorEngine.discoverInFile(filePath);
 	}

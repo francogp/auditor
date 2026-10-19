@@ -1,5 +1,6 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
+import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/refactor/domainRefactorEngine.ts
@@ -17,7 +18,10 @@ const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\
 var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-domain";
 	configSectionKey = "domain";
-	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	constructor(auditorOrOptions, _explicitConfig) {
+		const auditor = auditorOrOptions instanceof DomainTypesAuditor ? auditorOrOptions : new DomainTypesAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		super(auditor);
+	}
 	discoverInFile(filePath) {
 		return DomainRefactorEngine.discoverInFile(filePath);
 	}

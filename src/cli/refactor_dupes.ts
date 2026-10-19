@@ -8,108 +8,25 @@
 
 import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
-import { execSync } from 'node:child_process';
 import {
   renderBanner,
   renderBoxTable,
   type TableColumn
 } from '../core/unifiedTheme.ts';
-import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
 import { MicroContextExtractor } from '../core/refactor/microContextExtractor.ts';
 import { HybridHarnessEngine } from '../core/refactor/hybridHarness.ts';
 import { applyPlanFileWithWorktreeVerification } from '../core/refactor/worktreeSandbox.ts';
-import { getAuditConfig } from '../core/auditConfig.ts';
-import { isInCodeRoots, isTestPath, isExemptFile } from '../core/auditPathPredicates.ts';
 import { isMainModule } from './cliUtils.ts';
 import type {
   FallowDupesOutput,
-  FallowDeadCodeOutput,
-  FallowInstance,
   TriagedCloneCandidate,
-  CloneTopology,
   RefactorPlan
 } from '../core/refactor/refactorContracts.ts';
-
-function runFallowJson<T>(cmd: string, args: string[], projectRoot: string): T {
-  const bin = resolveFallowBinary(projectRoot) ?? path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
-  const fullCmd = `node "${bin}" ${cmd} --root "${projectRoot}" ${args.join(' ')} --format json --quiet`;
-  try {
-    const stdout = execSync(fullCmd, {
-      encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'pipe'],
-      maxBuffer: 50 * 1024 * 1024
-    });
-    return JSON.parse(stdout) as T;
-  } catch (err: unknown) {
-    const out = (err as { stdout?: string }).stdout;
-    if (out && out.trim().startsWith('{')) {
-      return JSON.parse(out) as T;
-    }
-    throw new Error(`Failed to execute fallow ${cmd}: ${(err as Error).message}`);
-  }
-}
-
-function determineTopology(files: readonly string[]): CloneTopology {
-  const isSingle = files.length === 1;
-  const hasVue = files.some((f) => f.endsWith('.vue'));
-  if (isSingle) {
-    return hasVue ? 'intra-file-vue' : 'intra-file-ts';
-  }
-  return hasVue ? 'cross-file-vue-ts' : 'cross-file-ts';
-}
+import { DupesRefactorEngine, runFallowJson } from '../core/refactor/dupesRefactorEngine.ts';
 
 function triageCandidates(projectRoot: string, minOccurrences: number): TriagedCloneCandidate[] {
-  const config = getAuditConfig(projectRoot);
-  const isAllowedFile = (fileRelOrAbs: string): boolean => {
-    const rel = path.isAbsolute(fileRelOrAbs)
-      ? path.relative(projectRoot, fileRelOrAbs).replace(/\\/g, '/')
-      : fileRelOrAbs.replace(/\\/g, '/');
-    if (!isInCodeRoots(rel, config)) return false;
-    if (!config.paths.includeTestsInCodeAudit && isTestPath(rel)) return false;
-    if (isExemptFile(rel, config)) return false;
-    return true;
-  };
-
-  const dupes = runFallowJson<FallowDupesOutput>('dupes', ['--min-occurrences', String(minOccurrences)], projectRoot);
-  let deadFiles = new Set<string>();
-  try {
-    const dead = runFallowJson<FallowDeadCodeOutput>('dead-code', ['--include-dupes'], projectRoot);
-    deadFiles = new Set(dead.unused_files.map((f) => path.normalize(f.path).replace(/\\/g, '/')));
-  } catch {
-    // catch-ok: dead-code analysis is optional during clone triage
-  }
-
-  const effectiveMin = Math.max(2, minOccurrences);
-  const candidates: TriagedCloneCandidate[] = [];
-
-  for (const g of dupes.clone_groups) {
-    const validInstances: readonly FallowInstance[] = g.instances.filter((i) => isAllowedFile(i.file));
-    if (validInstances.length < effectiveMin) {
-      continue;
-    }
-    const files: readonly string[] = Array.from(new Set(validInstances.map((i) => i.file.replace(/\\/g, '/'))));
-    const topology = determineTopology(files);
-    const isDead = files.some((f) => deadFiles.has(path.normalize(f).replace(/\\/g, '/')));
-
-    candidates.push({
-      fingerprint: g.fingerprint,
-      topology,
-      tokenCount: g.token_count,
-      lineCount: g.line_count,
-      occurrenceCount: validInstances.length,
-      spread: g.spread ?? 0,
-      files,
-      instances: validInstances,
-      suggestedName: g.suggested_name,
-      isDeadCodeTarget: isDead
-    });
-  }
-
-  return candidates.sort((a, b) => {
-    const scoreA = a.tokenCount * a.occurrenceCount * (1 + 0.15 * a.spread);
-    const scoreB = b.tokenCount * b.occurrenceCount * (1 + 0.15 * b.spread);
-    return scoreB - scoreA;
-  });
+  const engine = new DupesRefactorEngine({ projectRoot });
+  return Array.from(engine.triageCandidates(minOccurrences));
 }
 
 interface CandidateRow {

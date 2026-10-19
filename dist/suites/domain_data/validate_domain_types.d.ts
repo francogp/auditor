@@ -23,3 +23,4 @@ export declare class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
   runAudit(): Promise<void>;
 }
 //#endregion
+export { DomainTypesAuditor as ValidateDomainTypesAuditor };

@@ -19,6 +19,7 @@ import type {
 } from './refactorContracts.ts';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+import { ValidateGsapAnimationsAuditor } from '../../suites/architecture/validate_gsap_animations.ts';
 
 const BANNED_TIMERS_REGEX = /\b(setTimeout|setInterval)\s*\(\s*([^,]+),\s*(\d+|\w+)\s*\)/g;
 const CLEAR_TIMERS_REGEX = /\b(clearTimeout|clearInterval)\s*\(\s*([^)]+)\s*\)/g;
@@ -211,22 +212,28 @@ function inspectLayoutProperties(line: string, actualLine: number, filePath: str
   return items;
 }
 
-export class MotionRefactorEngine extends BaseRefactorEngine<MotionFindingItem, MotionRefactorPlan> {
+export class MotionRefactorEngine extends BaseRefactorEngine<
+  MotionFindingItem,
+  MotionRefactorPlan,
+  ValidateGsapAnimationsAuditor
+> {
   public readonly toolId = 'auditor-motion';
-  public readonly configSectionKey = 'styles' as const;
-  public readonly allowedExtensions = new Set<string>(['.ts', '.vue', '.scss', '.css']);
+  public readonly configSectionKey = 'animation' as const;
 
   constructor(
-    projectRootOrOptions?: string | { projectRoot?: string; config?: AuditEngineConfig },
-    explicitConfig?: AuditEngineConfig
+    auditorOrOptions?: ValidateGsapAnimationsAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
+    _explicitConfig?: AuditEngineConfig
   ) {
-    super(projectRootOrOptions, explicitConfig);
-  }
-
-  public override resolveTargetRoots(): readonly string[] {
-    const srcRoots = this.config.paths.srcRoots ?? ['src'];
-    const stylesRoots = this.config.paths.stylesRoots ?? ['src/styles'];
-    return Array.from(new Set([...srcRoots, ...stylesRoots]));
+    const auditor =
+      auditorOrOptions instanceof ValidateGsapAnimationsAuditor
+        ? auditorOrOptions
+        : new ValidateGsapAnimationsAuditor(
+            undefined,
+            typeof auditorOrOptions === 'string'
+              ? auditorOrOptions
+              : auditorOrOptions?.projectRoot
+          );
+    super(auditor);
   }
 
   public override discoverInFile(filePath: string): readonly MotionFindingItem[] {

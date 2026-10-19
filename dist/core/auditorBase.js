@@ -1,5 +1,6 @@
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { isPathExempt } from "./reportUtils.js";
+import { isTestFileForCodeAudit } from "./auditTestPredicates.js";
 import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
@@ -1053,7 +1054,13 @@ var BaseAuditor = class BaseAuditor {
 		this.explicitSubAuditors = options.subAuditors;
 		this.roots = options.roots ?? getEffectiveScannableRoots();
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-		this.extraIgnorePatterns = options.extraIgnorePatterns ?? [];
+		const config = getAuditConfig(effectiveProjectRoot);
+		const section = options.configKey && config[options.configKey];
+		const sectionIgnoreGlobs = [];
+		if (section && typeof section === "object" && Array.isArray(section.ignoreGlobs)) {
+			for (const item of section.ignoreGlobs) if (typeof item === "string") sectionIgnoreGlobs.push(item);
+		}
+		this.extraIgnorePatterns = Array.from(/* @__PURE__ */ new Set([...options.extraIgnorePatterns ?? [], ...sectionIgnoreGlobs]));
 		this.unignoreDirs = options.unignoreDirs ?? (options.family === "documentation" ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
 		this.requiredFiles = options.requiredFiles ?? [];
 		this.projectRoot = effectiveProjectRoot;
@@ -1069,6 +1076,23 @@ var BaseAuditor = class BaseAuditor {
 			this.fixableWarningsByRule.set(ruleId, 0);
 		}
 		this.context = this.initExecutionContext(this.coverageRecorder.declaration);
+	}
+	/**
+	* Determines whether a given project-relative path is scannable by this auditor,
+	* taking into account its extraIgnorePatterns, unignoreDirs, and global project ignores.
+	*/
+	isPathScannable(relPath) {
+		const norm = relPath.replace(/\\/g, "/");
+		if (isPathIgnored(norm, this.extraIgnorePatterns, this.unignoreDirs, this.projectRoot)) return false;
+		if (this.family !== "testing" && isTestFileForCodeAudit(norm, this.projectRoot)) return false;
+		return true;
+	}
+	/**
+	* Resolves all target project-relative files that this auditor intends to scan,
+	* applying declared roots, allowedExtensions, global ignores, and extraIgnorePatterns.
+	*/
+	getScannableFiles() {
+		return this.context.collectFiles(this.roots, this.allowedExtensions).map((f) => path.relative(this.projectRoot, f).replace(/\\/g, "/")).filter((rel) => this.isPathScannable(rel));
 	}
 	/** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
 	getRuleCatalog() {
@@ -1728,7 +1752,26 @@ var FileScanAuditor = class extends BaseAuditor {
 			...options,
 			roots: getEffectiveScannableRoots()
 		});
-		this.exemptPaths = options.exemptPaths ?? [];
+		const config = getAuditConfig(this.projectRoot);
+		const section = options.configKey && config[options.configKey];
+		const sectionExemptPaths = [];
+		if (section && typeof section === "object") {
+			if (Array.isArray(section.exemptPaths)) {
+				for (const item of section.exemptPaths) if (typeof item === "string") sectionExemptPaths.push(item);
+			}
+			if (Array.isArray(section.exemptFiles)) {
+				for (const item of section.exemptFiles) if (typeof item === "string") sectionExemptPaths.push(item);
+			}
+		}
+		this.exemptPaths = Array.from(/* @__PURE__ */ new Set([...options.exemptPaths ?? [], ...sectionExemptPaths]));
+	}
+	/**
+	* Determines whether a given project-relative path is scannable by this file-scan auditor.
+	*/
+	isPathScannable(relPath) {
+		if (!super.isPathScannable(relPath)) return false;
+		if (this.isCurrentPathExempt(relPath)) return false;
+		return true;
 	}
 	/**
 	* Checks whether the given relative path is exempt according to suite options.

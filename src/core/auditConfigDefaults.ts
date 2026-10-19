@@ -272,6 +272,19 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptFiles: [],
     ignoreGlobs: []
   },
+  animation: {
+    enabled: true,
+    customTimerFunctions: [],
+    exemptPaths: [],
+    exemptFiles: [],
+    ignoreGlobs: []
+  },
+  types: {
+    enabled: true,
+    exemptPaths: [],
+    exemptFiles: [],
+    ignoreGlobs: []
+  },
   packageHygiene: {
     enabled: true,
     ignoreDependencies: [],
@@ -435,6 +448,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'gitIgnore',
     'coverage',
     'animation',
+    'types',
     'webPerformance',
     'queryPerformance',
     'securityHardening',

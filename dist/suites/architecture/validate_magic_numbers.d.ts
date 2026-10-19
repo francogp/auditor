@@ -14,6 +14,7 @@ export interface ValidateMagicNumbersOptions {
 }
 export declare class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRuleId> {
   constructor(options?: ValidateMagicNumbersOptions | readonly string[], maybeProjectRoot?: string);
+  isPathScannable(relPath: string): boolean;
   private inspectAst;
   protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void;
 }

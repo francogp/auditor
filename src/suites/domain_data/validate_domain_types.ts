@@ -777,7 +777,7 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
       ruleIds: DOMAIN_TYPES_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(DOMAIN_TYPES_RULES, 'contracts'),
       packageName: 'Dominio',
-      configKey: 'domain.enabled',
+      configKey: 'domain',
       defaultConfig: { enabled: true },
       criticalConfig: {},
       icon: '🔒',
@@ -892,6 +892,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     this.context.setMetric('Domain issues', totalIssues);
   }
 }
+
+export { DomainTypesAuditor as ValidateDomainTypesAuditor };
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
 await BaseAuditor.runCliIfMain(import.meta.url, new DomainTypesAuditor());

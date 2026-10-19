@@ -253,7 +253,19 @@ function evaluateDynamicConfigKey(
       configKey
     };
   }
-  return { enabled: true, configKey };
+  if (
+    typeof current === 'object' &&
+    current !== null &&
+    'enabled' in current &&
+    (current as Record<string, unknown>).enabled === false
+  ) {
+    return {
+      enabled: false,
+      reason: `Desactivado en config (${configKey}.enabled = false)`,
+      configKey: `${configKey}.enabled`
+    };
+  }
+  return null;
 }
 
 export function evaluateSuiteStatus(

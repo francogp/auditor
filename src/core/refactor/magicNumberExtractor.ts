@@ -22,7 +22,10 @@ import type {
   SpanReplacementSpec
 } from './magicContracts.ts';
 import { ESTIMATED_TOKENS_PER_CHAR } from './refactorContracts.ts';
-import { resolveSignedNumericLiteral } from '../../suites/architecture/validate_magic_numbers.ts';
+import {
+  resolveSignedNumericLiteral,
+  ValidateMagicNumbersAuditor
+} from '../../suites/architecture/validate_magic_numbers.ts';
 
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 import { MagicNumberHarness } from './magicNumberHarness.ts';
@@ -34,29 +37,37 @@ const UNIVERSAL_SENTINELS = new Set<number>([
 
 const STANDARD_RADIX = new Set<number>([2, 8, 10, 16, 32, 36]);
 
-export class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan> {
+export class MagicNumberExtractor extends BaseRefactorEngine<
+  DiscoveredMagicItem,
+  MagicRefactorPlan,
+  ValidateMagicNumbersAuditor
+> {
   public readonly toolId = 'auditor-magic';
   public readonly configSectionKey = 'constants' as const;
-  public readonly allowedExtensions = new Set<string>([
-    '.ts',
-    '.tsx',
-    '.js',
-    '.jsx',
-    '.mjs',
-    '.cjs',
-    '.vue',
-    '.scss',
-    '.css'
-  ]);
+  public override get allowedExtensions(): ReadonlySet<string> {
+    return new Set<string>([
+      ...this.auditor.allowedExtensions,
+      '.scss',
+      '.css'
+    ]);
+  }
 
   private readonly existingConstants: ExistingConstantEntry[] = [];
   private readonly cssVariables: Map<string, string> = new Map();
 
   constructor(
-    projectRootOrOptions?: string | { projectRoot?: string; config?: AuditEngineConfig },
-    explicitConfig?: AuditEngineConfig
+    auditorOrOptions?: ValidateMagicNumbersAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
+    _explicitConfig?: AuditEngineConfig
   ) {
-    super(projectRootOrOptions, explicitConfig);
+    const auditor =
+      auditorOrOptions instanceof ValidateMagicNumbersAuditor
+        ? auditorOrOptions
+        : new ValidateMagicNumbersAuditor(
+            typeof auditorOrOptions === 'string'
+              ? { projectRoot: auditorOrOptions }
+              : auditorOrOptions
+          );
+    super(auditor);
   }
 
   /**

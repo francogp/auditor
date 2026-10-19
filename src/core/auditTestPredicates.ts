@@ -32,12 +32,12 @@ function matchesConfiguredOrFallbackTestRoots(
  * Determines whether a file path belongs to a test, spec, mock, or e2e directory
  * driven dynamically by the project's audit.config.ts configuration.
  */
-export function isTestPath(filePath: string): boolean {
+export function isTestPath(filePath: string, projectRoot?: string): boolean {
   if (!filePath) return false;
   const norm = normalizePosixPath(filePath).toLowerCase();
   const base = norm.split('/').pop() || '';
 
-  const config = getAuditConfig();
+  const config = getAuditConfig(projectRoot);
   const customTestPatterns = config?.paths?.testFilePatterns ?? [];
   if (hasTestFileExtensionOrPattern(base, customTestPatterns)) {
     return true;
@@ -59,5 +59,5 @@ export function isTestPath(filePath: string): boolean {
 export function isTestFileForCodeAudit(filePath: string, projectRoot?: string): boolean {
   const config = getAuditConfig(projectRoot);
   if (config?.paths?.includeTestsInCodeAudit) return false;
-  return isTestPath(filePath);
+  return isTestPath(filePath, projectRoot);
 }

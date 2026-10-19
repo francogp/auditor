@@ -18,16 +18,37 @@ import type {
   DomainRefactorPlan
 } from './refactorContracts.ts';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+import { DomainTypesAuditor } from '../../suites/domain_data/validate_domain_types.ts';
 
 const UNFROZEN_ARRAY_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\[[^\]]+\])\s*;/m;
 const UNFROZEN_OBJECT_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\{[^}]+\})\s*;/m;
 const NAKED_PARAM_REGEX = /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
 const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\s*;/m;
 
-export class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan> {
+export class DomainRefactorEngine extends BaseRefactorEngine<
+  DomainFindingItem,
+  DomainRefactorPlan,
+  DomainTypesAuditor
+> {
   public readonly toolId = 'auditor-domain';
   public readonly configSectionKey = 'domain' as const;
-  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+
+  constructor(
+    auditorOrOptions?: DomainTypesAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
+    _explicitConfig?: AuditEngineConfig
+  ) {
+    const auditor =
+      auditorOrOptions instanceof DomainTypesAuditor
+        ? auditorOrOptions
+        : new DomainTypesAuditor(
+            undefined,
+            typeof auditorOrOptions === 'string'
+              ? auditorOrOptions
+              : auditorOrOptions?.projectRoot
+          );
+    super(auditor);
+  }
 
   public override discoverInFile(filePath: string): readonly DomainFindingItem[] {
     return DomainRefactorEngine.discoverInFile(filePath);

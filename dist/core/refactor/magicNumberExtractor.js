@@ -1,7 +1,7 @@
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
-import { resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
+import { MagicNumbersAuditor as ValidateMagicNumbersAuditor, resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
 import { MagicNumberHarness } from "./magicNumberHarness.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -42,21 +42,18 @@ const STANDARD_RADIX = /* @__PURE__ */ new Set([
 var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine {
 	toolId = "auditor-magic";
 	configSectionKey = "constants";
-	allowedExtensions = /* @__PURE__ */ new Set([
-		".ts",
-		".tsx",
-		".js",
-		".jsx",
-		".mjs",
-		".cjs",
-		".vue",
-		".scss",
-		".css"
-	]);
+	get allowedExtensions() {
+		return /* @__PURE__ */ new Set([
+			...this.auditor.allowedExtensions,
+			".scss",
+			".css"
+		]);
+	}
 	existingConstants = [];
 	cssVariables = /* @__PURE__ */ new Map();
-	constructor(projectRootOrOptions, explicitConfig) {
-		super(projectRootOrOptions, explicitConfig);
+	constructor(auditorOrOptions, _explicitConfig) {
+		const auditor = auditorOrOptions instanceof ValidateMagicNumbersAuditor ? auditorOrOptions : new ValidateMagicNumbersAuditor(typeof auditorOrOptions === "string" ? { projectRoot: auditorOrOptions } : auditorOrOptions);
+		super(auditor);
 	}
 	/**
 	* Data catalog paths (paths.dataRoots) are exempt from magic number checks,

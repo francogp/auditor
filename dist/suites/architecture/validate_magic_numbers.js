@@ -228,6 +228,13 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			projectRoot
 		});
 	}
+	isPathScannable(relPath) {
+		if (!super.isPathScannable(relPath)) return false;
+		if (relPath.endsWith(".d.ts")) return false;
+		const config = getAuditConfig(this.projectRoot);
+		if (isDataPath(relPath, config)) return false;
+		return true;
+	}
 	inspectAst(sourceFile, relPath, rawFileContent, customExempt) {
 		const lines = rawFileContent.split("\n");
 		const visit = (node) => {

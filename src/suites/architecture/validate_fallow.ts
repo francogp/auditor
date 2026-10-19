@@ -710,7 +710,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       description: 'Audita código muerto, targets y CWE con Fallow',
       family: 'architecture',
       packageName: 'Fallow',
-      configKey: 'fallow.enabled',
+      configKey: 'fallow',
       defaultConfig: {
         enabled: true,
         typeAware: true,

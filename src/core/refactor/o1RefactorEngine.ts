@@ -17,6 +17,8 @@ import type {
   O1RefactorPlan
 } from './refactorContracts.ts';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+import { O1DataStructuresAuditor } from '../../suites/domain_data/validate_o1_data_structures.ts';
 
 const STATIC_ARRAY_INCLUDES_REGEX =
   /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER|ERRORS|ITEMS|CONFIGS|DEFAULTS|FAMILIES|[A-Z0-9]+))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(includes|indexOf)\s*\(([^)]+)\)/g;
@@ -24,10 +26,29 @@ const STATIC_ARRAY_INCLUDES_REGEX =
 const JSON_CLONE_REGEX = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(([^)]+)\)\s*\)/g;
 const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 
-export class O1RefactorEngine extends BaseRefactorEngine<O1FindingItem, O1RefactorPlan> {
+export class O1RefactorEngine extends BaseRefactorEngine<
+  O1FindingItem,
+  O1RefactorPlan,
+  O1DataStructuresAuditor
+> {
   public readonly toolId = 'auditor-o1';
-  public readonly configSectionKey = 'codeSimplification' as const;
-  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+  public readonly configSectionKey = 'domain' as const;
+
+  constructor(
+    auditorOrOptions?: O1DataStructuresAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
+    _explicitConfig?: AuditEngineConfig
+  ) {
+    const auditor =
+      auditorOrOptions instanceof O1DataStructuresAuditor
+        ? auditorOrOptions
+        : new O1DataStructuresAuditor(
+            undefined,
+            typeof auditorOrOptions === 'string'
+              ? auditorOrOptions
+              : auditorOrOptions?.projectRoot
+          );
+    super(auditor);
+  }
 
   public override discoverInFile(filePath: string): readonly O1FindingItem[] {
     return O1RefactorEngine.discoverInFile(filePath);

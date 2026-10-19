@@ -1,5 +1,6 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine } from "./refactorFileScanner.js";
+import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
 //#region src/core/refactor/typesRefactorEngine.ts
 /**
 * src/core/refactor/typesRefactorEngine.ts
@@ -14,8 +15,11 @@ const DOUBLE_ASSERTION_REGEX = /\bas\s+(?:unknown|any)\s+as\s+([A-Za-z0-9_$.<>[\
 const EXPORTED_FN_REGEX = /^(\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\))\s*\{/m;
 var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-types";
-	configSectionKey = "typeCheck";
-	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	configSectionKey = "types";
+	constructor(auditorOrOptions, _explicitConfig) {
+		const auditor = auditorOrOptions instanceof ValidateTypeAssertionHygieneAuditor ? auditorOrOptions : new ValidateTypeAssertionHygieneAuditor(typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		super(auditor);
+	}
 	discoverInFile(filePath) {
 		return TypesRefactorEngine.discoverInFile(filePath);
 	}

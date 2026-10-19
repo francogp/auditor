@@ -56,7 +56,9 @@ const BASE_TEST_CONFIG_SECTIONS = `
   queryPerformance: { enabled: false },
   securityHardening: { enabled: false },
   codeSimplification: { enabled: false },
-  scssArchitecture: { enabled: false }
+  scssArchitecture: { enabled: false },
+  animation: { enabled: false },
+  types: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {

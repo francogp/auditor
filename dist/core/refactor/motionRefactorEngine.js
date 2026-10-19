@@ -1,5 +1,6 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
+import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validate_gsap_animations.js";
 import fs from "node:fs";
 //#region src/core/refactor/motionRefactorEngine.ts
 /**
@@ -162,20 +163,10 @@ function inspectLayoutProperties(line, actualLine, filePath) {
 }
 var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-motion";
-	configSectionKey = "styles";
-	allowedExtensions = /* @__PURE__ */ new Set([
-		".ts",
-		".vue",
-		".scss",
-		".css"
-	]);
-	constructor(projectRootOrOptions, explicitConfig) {
-		super(projectRootOrOptions, explicitConfig);
-	}
-	resolveTargetRoots() {
-		const srcRoots = this.config.paths.srcRoots ?? ["src"];
-		const stylesRoots = this.config.paths.stylesRoots ?? ["src/styles"];
-		return Array.from(/* @__PURE__ */ new Set([...srcRoots, ...stylesRoots]));
+	configSectionKey = "animation";
+	constructor(auditorOrOptions, _explicitConfig) {
+		const auditor = auditorOrOptions instanceof ValidateGsapAnimationsAuditor ? auditorOrOptions : new ValidateGsapAnimationsAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		super(auditor);
 	}
 	discoverInFile(filePath) {
 		return MotionRefactorEngine.discoverInFile(filePath);

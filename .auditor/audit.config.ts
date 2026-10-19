@@ -238,5 +238,12 @@ export default defineAuditConfig({
   },
   runner: {
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
+  },
+
+  animation: {
+    enabled: true
+  },
+  types: {
+    enabled: true
   }
 });

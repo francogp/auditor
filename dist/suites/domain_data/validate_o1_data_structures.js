@@ -270,7 +270,7 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 			ruleIds: O1_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(O1_RULES, "contracts"),
 			packageName: "O(1)",
-			configKey: "constants.enabled",
+			configKey: "domain",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "⚡",
@@ -319,4 +319,4 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());
 //#endregion
-export { DEFAULT_O1_CATALOG_PATTERNS, ESCAPE_HATCHES, O1DataStructuresAuditor, O1_RULES, P_JSON_CLONE, P_OBJECT_SCAN_LOOKUP, P_REDUNDANT_SPREAD_RETURN, P_STATIC_ARRAY_INCLUDES, getResolvedO1CatalogPatterns, scanFileForO1Issues, shouldIgnoreLine };
+export { DEFAULT_O1_CATALOG_PATTERNS, ESCAPE_HATCHES, O1DataStructuresAuditor, O1DataStructuresAuditor as ValidateO1DataStructuresAuditor, O1_RULES, P_JSON_CLONE, P_OBJECT_SCAN_LOOKUP, P_REDUNDANT_SPREAD_RETURN, P_STATIC_ARRAY_INCLUDES, getResolvedO1CatalogPatterns, scanFileForO1Issues, shouldIgnoreLine };

@@ -313,6 +313,14 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
     });
   }
 
+  public override isPathScannable(relPath: string): boolean {
+    if (!super.isPathScannable(relPath)) return false;
+    if (relPath.endsWith('.d.ts')) return false;
+    const config = getAuditConfig(this.projectRoot);
+    if (isDataPath(relPath, config)) return false;
+    return true;
+  }
+
   private inspectAst(
     sourceFile: ts.SourceFile,
     relPath: string,

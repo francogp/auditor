@@ -431,7 +431,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
       ruleIds: O1_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(O1_RULES, 'contracts'),
       packageName: 'O(1)',
-      configKey: 'constants.enabled',
+      configKey: 'domain',
       defaultConfig: { enabled: true },
       criticalConfig: {},
       icon: '⚡',
@@ -531,6 +531,8 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
     }
   }
 }
+
+export { O1DataStructuresAuditor as ValidateO1DataStructuresAuditor };
 
 // ─── CLI Entrypoint ─────────────────────────────────────────────────────────
 await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());

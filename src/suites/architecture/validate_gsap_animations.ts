@@ -322,6 +322,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   constructor(roots?: readonly string[], projectRoot?: string) {
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = roots ?? config.paths.srcRoots;
+    const stylesExempts = [
+      ...(config.styles?.exemptPaths ?? []),
+      ...(config.styles?.exemptCssFiles ?? [])
+    ];
 
     super({
       usesThirdPartyTool: false,
@@ -331,9 +335,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       family: 'architecture',
       packageName: 'GSAP',
       icon: '🎬',
-      configKey: 'paths',
-      defaultConfig: {},
+      configKey: 'animation',
+      defaultConfig: { enabled: true },
       criticalConfig: {},
+      exemptPaths: stylesExempts,
       ruleCapabilities: createRuleCapabilities(GSAP_ANIMATION_RULES, {
         speed: 'light',
         phase: 'normal',

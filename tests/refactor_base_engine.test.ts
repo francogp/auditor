@@ -15,21 +15,62 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { isInCodeRoots, isScriptPath, isSrcPath, isCliPath } from '../src/core/auditCodeRoots.ts';
 import { resetAuditConfig, setAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import type { AuditEngineConfig, DeepPartial } from '../src/core/auditConfigTypes.ts';
+import { FileScanAuditor, createRuleCapabilities } from '../src/core/auditorBase.ts';
 import { isDataPath, isDemoPath, isExemptFile } from '../src/core/auditPathPredicates.ts';
 import { BaseRefactorEngine } from '../src/core/refactor/baseRefactorEngine.ts';
 import { DomainRefactorEngine } from '../src/core/refactor/domainRefactorEngine.ts';
+import { DupesRefactorEngine } from '../src/core/refactor/dupesRefactorEngine.ts';
 import { MagicNumberExtractor } from '../src/core/refactor/magicNumberExtractor.ts';
 import { MotionRefactorEngine } from '../src/core/refactor/motionRefactorEngine.ts';
 import { O1RefactorEngine } from '../src/core/refactor/o1RefactorEngine.ts';
 import { TypesRefactorEngine } from '../src/core/refactor/typesRefactorEngine.ts';
 
-class DummyTestEngine extends BaseRefactorEngine<{ id: string }, { steps: string[] }> {
+class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
+  public constructor(projectRoot: string = process.cwd()) {
+    super({
+      usesThirdPartyTool: false,
+      id: 'dummy_auditor',
+      name: 'Dummy Auditor',
+      description: 'Dummy',
+      family: 'architecture',
+      ruleIds: ['dummy-rule'],
+      ruleDescriptions: { 'dummy-rule': 'Dummy' },
+      ruleRemediations: {
+        'dummy-rule':
+          'Causa Raíz:\nDummy.\n\nDiagnóstico:\nDummy.\n\nSolución Canónica:\nDummy.\n\nEjemplo / Comando de auto-fix:\nDummy.'
+      },
+      ruleRemediationPhases: { 'dummy-rule': 'hygiene' },
+      ruleCapabilities: createRuleCapabilities(['dummy-rule'], {
+        speed: 'light',
+        phase: 'normal',
+        fix: 'none',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
+      packageName: 'Dummy',
+      icon: '🧪',
+      configKey: 'codeSimplification',
+      defaultConfig: { enabled: true },
+      criticalConfig: {},
+      projectRoot
+    });
+  }
+}
+
+class DummyTestEngine extends BaseRefactorEngine<
+  { id: string },
+  { steps: string[] },
+  DummyAuditor
+> {
   public override readonly toolId = 'dummy';
   public override readonly configSectionKey = 'codeSimplification';
-  public override readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
 
-  public constructor(projectRoot?: string, config?: AuditEngineConfig) {
-    super(projectRoot, config);
+  public constructor(auditorOrRoot?: DummyAuditor | string) {
+    const auditor =
+      auditorOrRoot instanceof DummyAuditor ? auditorOrRoot : new DummyAuditor(auditorOrRoot);
+    super(auditor);
   }
 
   public override discoverInFile(_filePath: string): readonly { id: string }[] {
@@ -94,7 +135,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
   }
 
   describe('Inheritance & Type Contract', () => {
-    it('all 5 refactor engines inherit from BaseRefactorEngine', () => {
+    it('all 6 refactor engines inherit from BaseRefactorEngine and bind subauditor', () => {
       configure({});
       const dummy = new DummyTestEngine(tempDir);
       const magic = new MagicNumberExtractor(tempDir);
@@ -102,6 +143,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
       const motion = new MotionRefactorEngine(tempDir);
       const o1 = new O1RefactorEngine(tempDir);
       const types = new TypesRefactorEngine(tempDir);
+      const dupes = new DupesRefactorEngine(tempDir);
 
       expect(dummy).toBeInstanceOf(BaseRefactorEngine);
       expect(magic).toBeInstanceOf(BaseRefactorEngine);
@@ -109,6 +151,15 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
       expect(motion).toBeInstanceOf(BaseRefactorEngine);
       expect(o1).toBeInstanceOf(BaseRefactorEngine);
       expect(types).toBeInstanceOf(BaseRefactorEngine);
+      expect(dupes).toBeInstanceOf(BaseRefactorEngine);
+
+      expect(dummy.getAuditor()).toBeDefined();
+      expect(magic.getAuditor()).toBeDefined();
+      expect(domain.getAuditor()).toBeDefined();
+      expect(motion.getAuditor()).toBeDefined();
+      expect(o1.getAuditor()).toBeDefined();
+      expect(types.getAuditor()).toBeDefined();
+      expect(dupes.getAuditor()).toBeDefined();
     });
   });
 
@@ -276,10 +327,20 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
     });
 
     it('handles engines without a configSectionKey gracefully', () => {
-      class NoSectionEngine extends BaseRefactorEngine<{ id: string }, { steps: string[] }> {
+      class NoSectionEngine extends BaseRefactorEngine<
+        { id: string },
+        { steps: string[] },
+        DummyAuditor
+      > {
         public override readonly toolId = 'nosection';
         public override readonly configSectionKey = undefined;
-        public override readonly allowedExtensions = new Set<string>(['.ts']);
+
+        public constructor(auditorOrRoot?: DummyAuditor | string) {
+          const auditor =
+            auditorOrRoot instanceof DummyAuditor ? auditorOrRoot : new DummyAuditor(auditorOrRoot);
+          super(auditor);
+        }
+
         public discoverInFile() {
           return [];
         }

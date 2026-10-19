@@ -25,6 +25,27 @@ export class HybridHarnessEngine {
       skipAddingFilesFromTsConfig: true
     });
 
+    const sharedFile = await this.ensureSharedModule(project, absShared, plan);
+
+    // 2. Iterate through target files with surgical branch per file type
+    for (const relFile of plan.targetFiles) {
+      const absFile = path.resolve(projectRoot, relFile);
+      if (!fs.existsSync(absFile)) continue;
+
+      const fileContent = fs.readFileSync(absFile, 'utf8');
+      if (relFile.endsWith('.vue')) {
+        this.rewriteVueSfc(absFile, fileContent, absShared, plan);
+      } else {
+        await this.rewriteTypeScriptFile(absFile, relFile, fileContent, sharedFile, project, plan);
+      }
+    }
+  }
+
+  private static async ensureSharedModule(
+    project: Project,
+    absShared: string,
+    plan: RefactorPlan
+  ): Promise<SourceFile> {
     let sharedFile = project.getSourceFile(absShared);
     if (!sharedFile) {
       const initialShared = fs.existsSync(absShared) ? fs.readFileSync(absShared, 'utf8') : '';
@@ -35,84 +56,85 @@ export class HybridHarnessEngine {
       sharedFile.addStatements(`\nexport ${plan.sharedFunctionCode}\n`);
     }
     await sharedFile.save();
+    return sharedFile;
+  }
 
-    // 2. Iterate through target files with surgical branch per file type
-    for (const relFile of plan.targetFiles) {
-      const absFile = path.resolve(projectRoot, relFile);
-      if (!fs.existsSync(absFile)) continue;
+  private static rewriteVueSfc(
+    absFile: string,
+    fileContent: string,
+    absShared: string,
+    plan: RefactorPlan
+  ): void {
+    const { scripts } = parseVueSfcBlocks(fileContent);
+    const scriptBlock = scripts.find((s) => s.isSetup) ?? scripts[0];
+    if (!scriptBlock) return;
 
-      const fileContent = fs.readFileSync(absFile, 'utf8');
-      const isVue = relFile.endsWith('.vue');
+    const s = new MagicString(fileContent);
+    const scriptText = scriptBlock.content;
+    const scriptOffset = scriptBlock.contentStartIndex;
 
-      if (isVue) {
-        // --- VUE SFC SURGICAL REWRITE ---
-        const { scripts } = parseVueSfcBlocks(fileContent);
-        const scriptBlock = scripts.find((s) => s.isSetup) ?? scripts[0];
-        if (!scriptBlock) continue;
+    const updatedScript = this.applyAstGrepPatternRewrite(
+      Lang.TypeScript,
+      scriptText,
+      plan.astPattern,
+      plan.astRewrite
+    );
 
-        const s = new MagicString(fileContent);
-        const scriptText = scriptBlock.content;
-        const scriptOffset = scriptBlock.contentStartIndex;
+    s.overwrite(scriptOffset, scriptOffset + scriptText.length, updatedScript);
 
-        // Apply pattern replacement on scriptText using @ast-grep/napi
-        const updatedScript = this.applyAstGrepPatternRewrite(
-          Lang.TypeScript,
-          scriptText,
-          plan.astPattern,
-          plan.astRewrite
-        );
+    const relImport = path
+      .relative(path.dirname(absFile), absShared)
+      .replace(/\\/g, '/')
+      .replace(/\.ts$/, '');
+    const importSpecifier = relImport.startsWith('.') ? relImport : `./${relImport}`;
 
-        s.overwrite(scriptOffset, scriptOffset + scriptText.length, updatedScript);
-
-        // Inject relative import at top of script block
-        const relImport = path
-          .relative(path.dirname(absFile), absShared)
-          .replace(/\\/g, '/')
-          .replace(/\.ts$/, '');
-        const importSpecifier = relImport.startsWith('.') ? relImport : `./${relImport}`;
-
-        if (
-          !updatedScript.includes(`import { ${plan.functionName}`) &&
-          !updatedScript.includes(`import ${plan.functionName}`)
-        ) {
-          s.appendLeft(
-            scriptOffset,
-            `\nimport { ${plan.functionName} } from '${importSpecifier}';\n`
-          );
-        }
-
-        fs.writeFileSync(absFile, s.toString(), 'utf8');
-      } else {
-        // --- TYPESCRIPT FILE STRUCTURAL & SEMANTIC REWRITE ---
-        let sourceFile = project.getSourceFile(absFile);
-        if (!sourceFile) {
-          sourceFile = project.createSourceFile(absFile, fileContent, { overwrite: true });
-        }
-
-        const currentText = sourceFile.getFullText();
-        const lang = relFile.endsWith('.tsx') ? Lang.Tsx : Lang.TypeScript;
-
-        const updatedText = this.applyAstGrepPatternRewrite(
-          lang,
-          currentText,
-          plan.astPattern,
-          plan.astRewrite
-        );
-        sourceFile.replaceWithText(updatedText);
-
-        // Add import via ts-morph relative path calculation
-        const moduleSpecifier = sourceFile.getRelativePathAsModuleSpecifierTo(sharedFile);
-        this.ensureNamedImport(sourceFile, moduleSpecifier, plan.functionName);
-
-        try {
-          sourceFile.organizeImports();
-        } catch {
-          // catch-ok: organizeImports can fail harmlessly on incomplete syntax trees
-        }
-
-        await sourceFile.save();
-      }
+    if (
+      !updatedScript.includes(`import { ${plan.functionName}`) &&
+      !updatedScript.includes(`import ${plan.functionName}`)
+    ) {
+      s.appendLeft(
+        scriptOffset,
+        `\nimport { ${plan.functionName} } from '${importSpecifier}';\n`
+      );
     }
+
+    fs.writeFileSync(absFile, s.toString(), 'utf8');
+  }
+
+  private static async rewriteTypeScriptFile(
+    absFile: string,
+    relFile: string,
+    fileContent: string,
+    sharedFile: SourceFile,
+    project: Project,
+    plan: RefactorPlan
+  ): Promise<void> {
+    let sourceFile = project.getSourceFile(absFile);
+    if (!sourceFile) {
+      sourceFile = project.createSourceFile(absFile, fileContent, { overwrite: true });
+    }
+
+    const currentText = sourceFile.getFullText();
+    const lang = relFile.endsWith('.tsx') ? Lang.Tsx : Lang.TypeScript;
+
+    const updatedText = this.applyAstGrepPatternRewrite(
+      lang,
+      currentText,
+      plan.astPattern,
+      plan.astRewrite
+    );
+    sourceFile.replaceWithText(updatedText);
+
+    const moduleSpecifier = sourceFile.getRelativePathAsModuleSpecifierTo(sharedFile);
+    this.ensureNamedImport(sourceFile, moduleSpecifier, plan.functionName);
+
+    try {
+      sourceFile.organizeImports();
+    } catch {
+      // catch-ok: organizeImports can fail harmlessly on incomplete syntax trees
+    }
+
+    await sourceFile.save();
   }
 
   public static expandMetavariables(rewrite: string, match: any): string {

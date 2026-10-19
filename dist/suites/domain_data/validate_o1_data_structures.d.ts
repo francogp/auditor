@@ -40,3 +40,4 @@ export declare class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
   protected scanFile(relPath: string, content: string): void;
 }
 //#endregion
+export { O1DataStructuresAuditor as ValidateO1DataStructuresAuditor };

@@ -193,7 +193,18 @@ export interface AuditAgentPluginConfig {
 }
 
 export interface AuditAnimationConfig {
+  readonly enabled?: boolean;
   readonly customTimerFunctions?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly ignoreGlobs?: readonly string[];
+}
+
+export interface AuditTypesConfig {
+  readonly enabled?: boolean;
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly ignoreGlobs?: readonly string[];
 }
 
 export interface AuditConstantsConfig {
@@ -638,6 +649,7 @@ export interface AuditEngineConfig {
   readonly scriptCommands?: AuditScriptCommandsConfig;
   readonly accessibility?: AuditAccessibilityConfig;
   readonly typeCoverage?: AuditTypeCoverageConfig;
+  readonly types?: AuditTypesConfig;
   readonly version?: AuditVersionConfig;
   readonly secretLeaks?: AuditSecretLeaksConfig;
   readonly dependencyVulnerabilities?: AuditDependencyVulnerabilitiesConfig;

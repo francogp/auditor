@@ -1,18 +1,12 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { isTestPath } from "../core/auditTestPredicates.js";
-import { isInCodeRoots } from "../core/auditCodeRoots.js";
-import { isExemptFile } from "../core/auditPathPredicates.js";
-import "../core/auditConfig.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
-import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
+import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
-import { execSync } from "node:child_process";
 //#region src/cli/refactor_dupes.ts
 /**
 * src/cli/refactor_dupes.ts
@@ -20,71 +14,9 @@ import { execSync } from "node:child_process";
 * CANONICAL REFACTORING & DUPLICATION REMEDIATION CLI (Node.js 26+ Native)
 * Provides interactive discovery, micro-context inspection, and AST refactor application.
 */
-function runFallowJson(cmd, args, projectRoot) {
-	const fullCmd = `node "${resolveFallowBinary(projectRoot) ?? path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")}" ${cmd} --root "${projectRoot}" ${args.join(" ")} --format json --quiet`;
-	try {
-		const stdout = execSync(fullCmd, {
-			encoding: "utf8",
-			stdio: [
-				"pipe",
-				"pipe",
-				"pipe"
-			],
-			maxBuffer: 52428800
-		});
-		return JSON.parse(stdout);
-	} catch (err) {
-		const out = err.stdout;
-		if (out && out.trim().startsWith("{")) return JSON.parse(out);
-		throw new Error(`Failed to execute fallow ${cmd}: ${err.message}`);
-	}
-}
-function determineTopology(files) {
-	const isSingle = files.length === 1;
-	const hasVue = files.some((f) => f.endsWith(".vue"));
-	if (isSingle) return hasVue ? "intra-file-vue" : "intra-file-ts";
-	return hasVue ? "cross-file-vue-ts" : "cross-file-ts";
-}
 function triageCandidates(projectRoot, minOccurrences) {
-	const config = getAuditConfig(projectRoot);
-	const isAllowedFile = (fileRelOrAbs) => {
-		const rel = path.isAbsolute(fileRelOrAbs) ? path.relative(projectRoot, fileRelOrAbs).replace(/\\/g, "/") : fileRelOrAbs.replace(/\\/g, "/");
-		if (!isInCodeRoots(rel, config)) return false;
-		if (!config.paths.includeTestsInCodeAudit && isTestPath(rel)) return false;
-		if (isExemptFile(rel, config)) return false;
-		return true;
-	};
-	const dupes = runFallowJson("dupes", ["--min-occurrences", String(minOccurrences)], projectRoot);
-	let deadFiles = /* @__PURE__ */ new Set();
-	try {
-		const dead = runFallowJson("dead-code", ["--include-dupes"], projectRoot);
-		deadFiles = new Set(dead.unused_files.map((f) => path.normalize(f.path).replace(/\\/g, "/")));
-	} catch {}
-	const effectiveMin = Math.max(2, minOccurrences);
-	const candidates = [];
-	for (const g of dupes.clone_groups) {
-		const validInstances = g.instances.filter((i) => isAllowedFile(i.file));
-		if (validInstances.length < effectiveMin) continue;
-		const files = Array.from(new Set(validInstances.map((i) => i.file.replace(/\\/g, "/"))));
-		const topology = determineTopology(files);
-		const isDead = files.some((f) => deadFiles.has(path.normalize(f).replace(/\\/g, "/")));
-		candidates.push({
-			fingerprint: g.fingerprint,
-			topology,
-			tokenCount: g.token_count,
-			lineCount: g.line_count,
-			occurrenceCount: validInstances.length,
-			spread: g.spread ?? 0,
-			files,
-			instances: validInstances,
-			suggestedName: g.suggested_name,
-			isDeadCodeTarget: isDead
-		});
-	}
-	return candidates.sort((a, b) => {
-		const scoreA = a.tokenCount * a.occurrenceCount * (1 + .15 * a.spread);
-		return b.tokenCount * b.occurrenceCount * (1 + .15 * b.spread) - scoreA;
-	});
+	const engine = new DupesRefactorEngine({ projectRoot });
+	return Array.from(engine.triageCandidates(minOccurrences));
 }
 function handleDiscover(projectRoot, candidates, isJson) {
 	if (isJson) {

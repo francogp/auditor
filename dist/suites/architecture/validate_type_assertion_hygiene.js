@@ -159,8 +159,8 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 			ruleRemediationPhases: createUniformRemediationPhases(TYPE_ASSERTION_RULES, "contracts"),
 			packageName: "Tipos",
 			icon: "🛡️",
-			configKey: "paths",
-			defaultConfig: {},
+			configKey: "types",
+			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			ruleDescriptions: {
 				"type-assertion-zero-any": "Prohibición de as any o any[]",
