@@ -44,6 +44,7 @@ describe('TestHygieneAuditor', () => {
         forbiddenMockModules: ['@/logic/db/supabase']
       },
       e2e: {
+        enabled: true,
         idLocatorsOnly: true
       }
     });

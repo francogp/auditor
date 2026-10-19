@@ -65,6 +65,7 @@ function buildTemplatesConfig(raw) {
 	return {
 		...DEFAULT_AUDIT_CONFIG.templates,
 		...t,
+		enabled: t.enabled ?? DEFAULT_AUDIT_CONFIG.templates?.enabled ?? true,
 		requireInputIds: t.requireInputIds ?? DEFAULT_AUDIT_CONFIG.templates?.requireInputIds ?? true,
 		tooltipComponents: t.tooltipComponents ?? [],
 		forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
@@ -74,6 +75,7 @@ function buildTemplatesConfig(raw) {
 function buildStylelintSubConfig(rawSl) {
 	const parsedRules = rawSl?.rules ? { ...rawSl.rules } : void 0;
 	const strictValues = rawSl?.strictValues ? {
+		enabled: rawSl.strictValues.enabled ?? true,
 		properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
 		ignoreValues: rawSl.strictValues.ignoreValues ? { ...rawSl.strictValues.ignoreValues } : {},
 		ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
@@ -98,7 +100,7 @@ function buildZLayersSubConfig(s) {
 		zLayersScssFile: s.zLayersScssFile,
 		baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
 		zLayersTsFile: s.zLayersTsFile,
-		zLayers: s.zLayers
+		zLayers: s.zLayers ? { ...s.zLayers } : void 0
 	};
 }
 function buildStylesConfig(raw, rawStylelintTop) {
@@ -107,12 +109,17 @@ function buildStylesConfig(raw, rawStylelintTop) {
 	const stylelint = buildStylelintSubConfig(s.stylelint ?? rawStylelintTop);
 	const zLayers = buildZLayersSubConfig(s);
 	return {
+		enabled: s.enabled ?? def?.enabled ?? true,
 		globalUtilityClasses: s.globalUtilityClasses ?? [],
 		canonicalButtonVariants: s.canonicalButtonVariants ?? [],
 		...zLayers,
 		lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? def?.lineHeightOverlapCheck ?? true,
 		heavyEffectPaths: s.heavyEffectPaths ?? [],
-		buttonGovernance: s.buttonGovernance,
+		buttonGovernance: s.buttonGovernance ? {
+			enabled: s.buttonGovernance.enabled ?? true,
+			buttonsScssFile: s.buttonGovernance.buttonsScssFile,
+			canonicalVariants: s.buttonGovernance.canonicalVariants
+		} : void 0,
 		stylelint,
 		enforceScss: s.enforceScss ?? def?.enforceScss ?? false,
 		exemptCssFiles: s.exemptCssFiles ?? []
@@ -138,7 +145,10 @@ function buildAgentAndSecurityConfig(config) {
 	return {
 		agentPlugin: { enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true },
 		security: { enabled: secEnabled },
-		animation: { customTimerFunctions: config.animation?.customTimerFunctions ?? [] }
+		animation: {
+			enabled: config.animation?.enabled ?? DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true,
+			customTimerFunctions: config.animation?.customTimerFunctions ?? []
+		}
 	};
 }
 function buildConstantsSubConfig(c) {
@@ -154,6 +164,7 @@ function buildConstantsSubConfig(c) {
 }
 function buildDocumentationSubConfig(d) {
 	return {
+		enabled: d?.enabled ?? DEFAULT_AUDIT_CONFIG.documentation?.enabled ?? true,
 		knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
 		skillsRoots: d?.skillsRoots ?? [],
 		unignoreDirs: d?.unignoreDirs ?? [],
@@ -171,7 +182,10 @@ function buildConstantsAndDocConfig(config) {
 			enabled: config.pinia?.enabled ?? true,
 			authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
 		},
-		e2e: { idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false }
+		e2e: {
+			enabled: config.e2e?.enabled ?? DEFAULT_AUDIT_CONFIG.e2e?.enabled ?? true,
+			idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false
+		}
 	};
 }
 function buildFallowSimilarCodeConfig(raw) {
@@ -213,6 +227,7 @@ function buildFallowConfig(raw, rootSecurity) {
 		typeAware: f.typeAware ?? def?.typeAware ?? true,
 		showCascade: f.showCascade ?? def?.showCascade ?? true,
 		duplicates: {
+			enabled: f.duplicates?.enabled ?? def?.duplicates?.enabled ?? true,
 			nearMiss: f.duplicates?.nearMiss ?? def?.duplicates?.nearMiss ?? true,
 			mode: f.duplicates?.mode ?? def?.duplicates?.mode ?? "strict",
 			...f.duplicates?.minTokens !== void 0 ? { minTokens: f.duplicates.minTokens } : {},
@@ -437,8 +452,14 @@ function buildVitePlusConfig(raw) {
 		fmt: buildVitePlusFmtConfig(v.fmt, def?.fmt),
 		lint: buildVitePlusLintConfig(v.lint, def?.lint),
 		staged: buildVitePlusStagedConfig(v.staged, def?.staged),
-		hooks: v.hooks ? { ...v.hooks } : def?.hooks,
-		vscode: v.vscode ? { ...v.vscode } : def?.vscode,
+		hooks: v.hooks ? {
+			...v.hooks,
+			enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true
+		} : def?.hooks,
+		vscode: v.vscode ? {
+			...v.vscode,
+			enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true
+		} : def?.vscode,
 		extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
 	};
 }
@@ -598,6 +619,7 @@ function defineAuditConfig(config) {
 			rules: config.stylelint.rules ? Object.assign({}, config.stylelint.rules) : void 0,
 			ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
 			strictValues: config.stylelint.strictValues ? {
+				enabled: config.stylelint.strictValues.enabled ?? true,
 				properties: config.stylelint.strictValues.properties ? [...config.stylelint.strictValues.properties] : [],
 				ignoreValues: config.stylelint.strictValues.ignoreValues ? { ...config.stylelint.strictValues.ignoreValues } : {},
 				ignoreAtRules: config.stylelint.strictValues.ignoreAtRules ? [...config.stylelint.strictValues.ignoreAtRules] : []
@@ -637,10 +659,12 @@ function defineAuditConfig(config) {
 		extensions: config.extensions ?? [],
 		presets: config.presets ?? {},
 		runner: config.runner ? {
+			enabled: config.runner.enabled ?? true,
 			timeoutMs: config.runner.timeoutMs ?? 0,
 			concurrency: config.runner.concurrency,
 			maxStalenessMinutes: config.runner.maxStalenessMinutes ?? 5
 		} : {
+			enabled: true,
 			timeoutMs: 0,
 			maxStalenessMinutes: 5
 		},

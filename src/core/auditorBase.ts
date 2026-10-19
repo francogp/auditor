@@ -2097,7 +2097,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.roots = options.roots ?? getEffectiveScannableRoots();
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
     const config = getAuditConfig(effectiveProjectRoot);
-    const section = (options.configKey && config[options.configKey]) as Record<string, unknown> | undefined;
+    const section = (options.configKey && Reflect.get(config, options.configKey)) as Record<string, unknown> | undefined;
     const sectionIgnoreGlobs: string[] = [];
     if (section && typeof section === 'object' && Array.isArray(section.ignoreGlobs)) {
       for (const item of section.ignoreGlobs) {
@@ -3202,7 +3202,7 @@ export abstract class FileScanAuditor<
         : { ...options, roots: getEffectiveScannableRoots() }
     );
     const config = getAuditConfig(this.projectRoot);
-    const section = (options.configKey && config[options.configKey]) as Record<string, unknown> | undefined;
+    const section = (options.configKey && Reflect.get(config, options.configKey)) as Record<string, unknown> | undefined;
     const sectionExemptPaths: string[] = [];
     if (section && typeof section === 'object') {
       if (Array.isArray(section.exemptPaths)) {

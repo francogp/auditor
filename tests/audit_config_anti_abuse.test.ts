@@ -35,6 +35,7 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
 
   describe('getExemptRootsForPolicy', () => {
     const mockPaths: AuditPathsConfig = {
+      enabled: true,
       srcRoots: ['src'],
       testRoots: ['tests'],
       e2eRoots: ['tests/e2e'],
@@ -69,6 +70,7 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
 
     it('falls back to default roots when paths fields are undefined', () => {
       const emptyPaths: AuditPathsConfig = {
+        enabled: true,
         srcRoots: ['src'],
         testRoots: ['tests'],
         e2eRoots: [],

@@ -3,6 +3,7 @@ import { defineAuditConfig } from '../src/core/auditConfig.ts';
 export default defineAuditConfig({
   name: '@francogp/auditor',
   paths: {
+    enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
     scriptsRoots: ['src/cli'],
@@ -12,6 +13,7 @@ export default defineAuditConfig({
     ignoredDirs: []
   },
   coverage: {
+    enabled: true,
     exemptGlobs: [
       {
         glob: '.htmlvalidate.json',
@@ -83,6 +85,7 @@ export default defineAuditConfig({
     ]
   },
   persistence: {
+    enabled: false,
     engine: 'none',
     schemaQualified: false
   },
@@ -104,12 +107,14 @@ export default defineAuditConfig({
     enabled: true
   },
   styles: {
+    enabled: true,
     zLayersEnabled: false,
     stylelint: {
       enabled: true
     }
   },
   templates: {
+    enabled: true,
     requireInputIds: false
   },
   packageDistribution: {
@@ -141,6 +146,7 @@ export default defineAuditConfig({
     enabled: true
   },
   documentation: {
+    enabled: true,
     language: 'en',
     chatLanguage: 'es',
     allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright'],
@@ -159,6 +165,7 @@ export default defineAuditConfig({
       ignoreSameFile: true
     },
     duplicates: {
+      enabled: true,
       nearMiss: true,
       mode: 'strict'
     },
@@ -168,6 +175,7 @@ export default defineAuditConfig({
     }
   },
   constants: {
+    enabled: true,
     allowedNumericPrefixes: ['BASE_']
   },
   oxlint: {
@@ -182,6 +190,7 @@ export default defineAuditConfig({
       enabled: false // Herramienta CLI/librería de Node.js sin bundle web cliente para producción
     },
     lint: {
+      enabled: true,
       rules: {
         '@typescript-eslint/explicit-member-accessibility': [
           'error',
@@ -214,6 +223,7 @@ export default defineAuditConfig({
     enabled: true
   },
   pinia: {
+    enabled: false,
     authorizedMutationFiles: [] // Herramienta CLI de Node.js sin stores ni frontend Vue
   },
   valibot: {
@@ -248,6 +258,7 @@ export default defineAuditConfig({
     enabled: true
   },
   runner: {
+    enabled: true,
     timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
   },
 
@@ -258,6 +269,7 @@ export default defineAuditConfig({
     enabled: true
   },
   stylelint: {
+    enabled: true,
     order: {
       enabled: true,
       enforceHasBlockPartitioning: true

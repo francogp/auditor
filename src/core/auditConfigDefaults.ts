@@ -20,6 +20,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   name: 'Generic Project',
   auditorVersion: AUDITOR_VERSION,
   paths: {
+    enabled: true,
     srcRoots: ['src'],
     testRoots: ['tests'],
     e2eRoots: ['tests/e2e'],
@@ -45,6 +46,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     ignoredPatterns: []
   },
   persistence: {
+    enabled: true,
     engine: 'supabase',
     schemaQualified: true,
     authorizedSaveFiles: [],
@@ -87,9 +89,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     extraRequiredEntries: []
   },
   templates: {
+    enabled: true,
     requireInputIds: true
   },
   styles: {
+    enabled: true,
     globalUtilityClasses: [],
     canonicalButtonVariants: [],
     heavyEffectPaths: [],
@@ -178,6 +182,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     enabled: true
   },
   documentation: {
+    enabled: true,
     knownValidAbstractPaths: [],
     skillsRoots: [],
     allowedNpxBinaries: [],
@@ -208,6 +213,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     typeAware: true,
     showCascade: true,
     duplicates: {
+      enabled: true,
       nearMiss: true,
       mode: 'strict'
     },
@@ -359,6 +365,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   extensions: [],
   presets: {},
   runner: {
+    enabled: true,
     timeoutMs: 0,
     maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES
   }

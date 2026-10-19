@@ -227,12 +227,15 @@ export function createDefaultAuditConfigContent(
     name: packageName,
     auditorVersion: AUDITOR_VERSION,
     paths: {
+      enabled: true,
       srcRoots: ['src'],
       testRoots: ['tests'],
       scriptsRoots: ['scripts']
     },
     documentation: {
-      language: 'en'
+      enabled: true,
+      language: 'en',
+      chatLanguage: 'es'
     },
     ...collectConfigSectionsFromTasks(tasks)
   };

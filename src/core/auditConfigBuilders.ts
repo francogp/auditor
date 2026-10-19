@@ -137,6 +137,7 @@ export function buildTemplatesConfig(
   return {
     ...DEFAULT_AUDIT_CONFIG.templates,
     ...t,
+    enabled: t.enabled ?? DEFAULT_AUDIT_CONFIG.templates?.enabled ?? true,
     requireInputIds: t.requireInputIds ?? DEFAULT_AUDIT_CONFIG.templates?.requireInputIds ?? true,
     tooltipComponents: t.tooltipComponents ?? [],
     forbiddenTemplateCallPatterns: t.forbiddenTemplateCallPatterns ?? [],
@@ -150,8 +151,11 @@ function buildStylelintSubConfig(rawSl?: DeepPartial<AuditStylelintConfig>): Aud
     : undefined;
   const strictValues = rawSl?.strictValues
     ? {
+        enabled: rawSl.strictValues.enabled ?? true,
         properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
-        ignoreValues: rawSl.strictValues.ignoreValues ? { ...rawSl.strictValues.ignoreValues } : {},
+        ignoreValues: rawSl.strictValues.ignoreValues
+          ? ({ ...rawSl.strictValues.ignoreValues } as Record<string, readonly string[]>)
+          : {},
         ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
       }
     : undefined;
@@ -186,7 +190,7 @@ function buildZLayersSubConfig(s: DeepPartial<AuditStylesConfig>): ZLayersStyleS
     zLayersScssFile: s.zLayersScssFile,
     baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
     zLayersTsFile: s.zLayersTsFile,
-    zLayers: s.zLayers
+    zLayers: s.zLayers ? ({ ...s.zLayers } as Record<string, number>) : undefined
   };
 }
 
@@ -200,12 +204,19 @@ export function buildStylesConfig(
   const zLayers = buildZLayersSubConfig(s);
 
   return {
+    enabled: s.enabled ?? def?.enabled ?? true,
     globalUtilityClasses: s.globalUtilityClasses ?? [],
     canonicalButtonVariants: s.canonicalButtonVariants ?? [],
     ...zLayers,
     lineHeightOverlapCheck: s.lineHeightOverlapCheck ?? def?.lineHeightOverlapCheck ?? true,
     heavyEffectPaths: s.heavyEffectPaths ?? [],
-    buttonGovernance: s.buttonGovernance,
+    buttonGovernance: s.buttonGovernance
+      ? {
+          enabled: s.buttonGovernance.enabled ?? true,
+          buttonsScssFile: s.buttonGovernance.buttonsScssFile,
+          canonicalVariants: s.buttonGovernance.canonicalVariants
+        }
+      : undefined,
     stylelint,
     enforceScss: s.enforceScss ?? def?.enforceScss ?? false,
     exemptCssFiles: s.exemptCssFiles ?? []
@@ -252,6 +263,7 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
       enabled: secEnabled
     },
     animation: {
+      enabled: config.animation?.enabled ?? DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true,
       customTimerFunctions: config.animation?.customTimerFunctions ?? []
     }
   };
@@ -273,6 +285,7 @@ function buildDocumentationSubConfig(
   d?: DeepPartial<AuditDocumentationConfig>
 ): AuditDocumentationConfig {
   return {
+    enabled: d?.enabled ?? DEFAULT_AUDIT_CONFIG.documentation?.enabled ?? true,
     knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
     skillsRoots: d?.skillsRoots ?? [],
     unignoreDirs: d?.unignoreDirs ?? [],
@@ -297,6 +310,7 @@ export function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig
       authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
     },
     e2e: {
+      enabled: config.e2e?.enabled ?? DEFAULT_AUDIT_CONFIG.e2e?.enabled ?? true,
       idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false
     }
   };
@@ -357,6 +371,7 @@ export function buildFallowConfig(
     typeAware: f.typeAware ?? def?.typeAware ?? true,
     showCascade: f.showCascade ?? def?.showCascade ?? true,
     duplicates: {
+      enabled: f.duplicates?.enabled ?? def?.duplicates?.enabled ?? true,
       nearMiss: f.duplicates?.nearMiss ?? def?.duplicates?.nearMiss ?? true,
       mode: f.duplicates?.mode ?? def?.duplicates?.mode ?? 'strict',
       ...(f.duplicates?.minTokens !== undefined ? { minTokens: f.duplicates.minTokens } : {}),
@@ -719,9 +734,9 @@ export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): Aud
     fmt: buildVitePlusFmtConfig(v.fmt, def?.fmt),
     lint: buildVitePlusLintConfig(v.lint, def?.lint),
     staged: buildVitePlusStagedConfig(v.staged, def?.staged),
-    hooks: v.hooks ? { ...v.hooks } : def?.hooks,
-    vscode: v.vscode ? { ...v.vscode } : def?.vscode,
-    extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
+    hooks: v.hooks ? { ...v.hooks, enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true } : def?.hooks,
+    vscode: v.vscode ? { ...v.vscode, enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true } : def?.vscode,
+    extraLintRules: v.extraLintRules ? ({ ...v.extraLintRules } as Record<string, 'error' | 'warn' | 'off'>) : def?.extraLintRules
   };
 }
 
@@ -932,11 +947,12 @@ export function defineAuditConfig(
           ignoreGlobs: config.stylelint.ignoreGlobs ? [...config.stylelint.ignoreGlobs] : [],
           strictValues: config.stylelint.strictValues
             ? {
+                enabled: config.stylelint.strictValues.enabled ?? true,
                 properties: config.stylelint.strictValues.properties
                   ? [...config.stylelint.strictValues.properties]
                   : [],
                 ignoreValues: config.stylelint.strictValues.ignoreValues
-                  ? { ...config.stylelint.strictValues.ignoreValues }
+                  ? ({ ...config.stylelint.strictValues.ignoreValues } as Record<string, readonly string[]>)
                   : {},
                 ignoreAtRules: config.stylelint.strictValues.ignoreAtRules
                   ? [...config.stylelint.strictValues.ignoreAtRules]
@@ -979,15 +995,16 @@ export function defineAuditConfig(
     ...constantsAndDoc,
     customFamilies: config.customFamilies ?? [],
     extensions: config.extensions ?? [],
-    presets: config.presets ?? {},
+    presets: (config.presets as Record<string, readonly string[]>) ?? {},
     runner: config.runner
       ? {
+          enabled: config.runner.enabled ?? true,
           timeoutMs: config.runner.timeoutMs ?? 0,
           concurrency: config.runner.concurrency,
           maxStalenessMinutes:
             config.runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
         }
-      : { timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
+      : { enabled: true, timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES },
     _declaredSubsystems: declared,
     _rawPaths: rawPaths,
     _rawConfig: rawConfig

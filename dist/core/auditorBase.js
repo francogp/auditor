@@ -1055,7 +1055,7 @@ var BaseAuditor = class BaseAuditor {
 		this.roots = options.roots ?? getEffectiveScannableRoots();
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
 		const config = getAuditConfig(effectiveProjectRoot);
-		const section = options.configKey && config[options.configKey];
+		const section = options.configKey && Reflect.get(config, options.configKey);
 		const sectionIgnoreGlobs = [];
 		if (section && typeof section === "object" && Array.isArray(section.ignoreGlobs)) {
 			for (const item of section.ignoreGlobs) if (typeof item === "string") sectionIgnoreGlobs.push(item);
@@ -1753,7 +1753,7 @@ var FileScanAuditor = class extends BaseAuditor {
 			roots: getEffectiveScannableRoots()
 		});
 		const config = getAuditConfig(this.projectRoot);
-		const section = options.configKey && config[options.configKey];
+		const section = options.configKey && Reflect.get(config, options.configKey);
 		const sectionExemptPaths = [];
 		if (section && typeof section === "object") {
 			if (Array.isArray(section.exemptPaths)) {

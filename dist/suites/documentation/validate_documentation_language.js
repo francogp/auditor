@@ -300,7 +300,8 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			configKey: "documentation",
 			defaultConfig: {
 				enabled: true,
-				language: "en"
+				language: "en",
+				chatLanguage: "es"
 			},
 			criticalConfig: {},
 			icon: "🌐",

@@ -108,11 +108,16 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 		name: packageName,
 		auditorVersion: AUDITOR_VERSION,
 		paths: {
+			enabled: true,
 			srcRoots: ["src"],
 			testRoots: ["tests"],
 			scriptsRoots: ["scripts"]
 		},
-		documentation: { language: "en" },
+		documentation: {
+			enabled: true,
+			language: "en",
+			chatLanguage: "es"
+		},
 		...collectConfigSectionsFromTasks(tasks)
 	};
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineAuditConfig"))])), ts.factory.createStringLiteral("@francogp/auditor", true));

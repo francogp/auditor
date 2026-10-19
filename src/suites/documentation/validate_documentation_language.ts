@@ -457,7 +457,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       family: 'documentation',
       packageName: 'DOCS',
       configKey: 'documentation',
-      defaultConfig: { enabled: true, language: 'en' },
+      defaultConfig: { enabled: true, language: 'en', chatLanguage: 'es' },
       criticalConfig: {},
       icon: '🌐',
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,

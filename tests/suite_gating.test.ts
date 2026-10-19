@@ -13,6 +13,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
   const baseConfig: AuditConfig = {
     name: 'test-app',
     paths: {
+      enabled: true,
       srcRoots: ['src'],
       testRoots: ['tests'],
       e2eRoots: ['e2e'],
@@ -22,6 +23,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
       codeRoots: ['src']
     },
     persistence: {
+      enabled: false,
       engine: 'none',
       schemaQualified: false
     },
@@ -85,7 +87,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
 
     const configTemplates: AuditConfig = {
       ...baseConfig,
-      templates: { requireInputIds: false }
+      templates: { enabled: true, requireInputIds: false }
     };
     const statusTemplates = evaluateSuiteStatus('validate_template_ids', configTemplates);
     expect(statusTemplates.enabled).toBe(false);
@@ -95,7 +97,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
   it('detects styles.zLayersEnabled: false for validate_z_index', () => {
     const config: AuditConfig = {
       ...baseConfig,
-      styles: { zLayersEnabled: false }
+      styles: { enabled: true, zLayersEnabled: false }
     };
     const status = evaluateSuiteStatus('validate_z_index', config);
     expect(status.enabled).toBe(false);
@@ -131,7 +133,7 @@ describe('suiteGating — evaluateSuiteStatus', () => {
   it('detects fallow.similarCode.enabled: false for validate_similar_code', () => {
     const configDisabled: AuditConfig = {
       ...baseConfig,
-      fallow: { similarCode: { enabled: false } }
+      fallow: { enabled: true, similarCode: { enabled: false } }
     };
     const statusDisabled = evaluateSuiteStatus('validate_similar_code', configDisabled);
     expect(statusDisabled.enabled).toBe(false);

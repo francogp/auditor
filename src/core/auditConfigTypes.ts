@@ -15,11 +15,10 @@ export const LEGACY_ROOT_CONFIG_FILES = ['audit.config.ts', 'audit.config.json']
  * and open indexing for sub-auditor and host extensions.
  */
 export interface BaseAuditSubsystemConfig {
-  readonly enabled?: boolean;
+  readonly enabled: boolean;
   readonly ignoreGlobs?: readonly string[];
   readonly exemptPaths?: readonly string[];
   readonly exemptFiles?: readonly string[];
-  readonly [key: string]: unknown;
 }
 
 export interface AuditPathsConfig extends BaseAuditSubsystemConfig {
@@ -221,12 +220,12 @@ export interface AuditSecurityConfig extends BaseAuditSubsystemConfig {}
 export type DocumentationLanguage = 'en' | 'es';
 
 export interface AuditDocumentationConfig extends BaseAuditSubsystemConfig {
+  readonly language: DocumentationLanguage;
+  readonly chatLanguage: DocumentationLanguage;
   readonly knownValidAbstractPaths?: readonly string[];
   readonly skillsRoots?: readonly string[];
   readonly unignoreDirs?: readonly string[];
   readonly allowedNpxBinaries?: readonly string[];
-  readonly language?: DocumentationLanguage;
-  readonly chatLanguage?: DocumentationLanguage;
   readonly languageExemptions?: readonly string[];
 }
 
@@ -404,7 +403,6 @@ export interface AuditRatchetConfig extends BaseAuditSubsystemConfig {
 }
 
 export interface ResolvedRatchetConfig extends BaseAuditSubsystemConfig {
-  readonly enabled: boolean;
   readonly productionRef: string;
   readonly baselineFile: string;
 }
@@ -421,7 +419,6 @@ export interface AuditTestCoverageConfig extends BaseAuditSubsystemConfig {
 }
 
 export interface ResolvedTestCoverageConfig extends BaseAuditSubsystemConfig {
-  readonly enabled: boolean;
   readonly threshold: number;
   readonly path: string;
   readonly runCommand: string;
@@ -589,15 +586,28 @@ export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
 export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
 
 export type DeepPartial<T> = {
-  [P in keyof T]?: T[P] extends readonly (infer U)[]
-    ? readonly U[]
-    : T[P] extends object
-      ? DeepPartial<T[P]>
-      : T[P];
+  [P in keyof T]?: NonNullable<T[P]> extends Function
+    ? T[P]
+    : NonNullable<T[P]> extends readonly (infer U)[]
+      ? readonly U[]
+      : NonNullable<T[P]> extends ReadonlySet<infer S>
+        ? ReadonlySet<S>
+        : NonNullable<T[P]> extends ReadonlyMap<infer K, infer V>
+          ? ReadonlyMap<K, V>
+          : NonNullable<T[P]> extends Record<string, number>
+            ? Record<string, number>
+            : NonNullable<T[P]> extends Record<string, readonly string[]>
+              ? Record<string, readonly string[]>
+              : NonNullable<T[P]> extends Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>
+                ? Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>
+                : NonNullable<T[P]> extends Record<string, 'error' | 'warn' | 'off'>
+                  ? Record<string, 'error' | 'warn' | 'off'>
+                  : NonNullable<T[P]> extends object
+                    ? DeepPartial<NonNullable<T[P]>>
+                    : T[P];
 };
 
 export interface AuditEngineConfig {
-  readonly [key: string]: unknown;
   readonly name: string;
   readonly auditorVersion?: string;
   readonly ratchet?: AuditRatchetConfig;

@@ -43,7 +43,7 @@ export function isCompressibleExtension(ext: string): ext is CompressibleExtensi
   return COMPRESSIBLE_EXTENSIONS.some((candidate) => candidate === ext);
 }
 
-export interface VitePrecompressOptions extends AuditVitePlusPrecompressConfig {}
+export type VitePrecompressOptions = Partial<AuditVitePlusPrecompressConfig>;
 
 const DEFAULT_THRESHOLD_BYTES = 512;
 const BROTLI_MAX_QUALITY = 11;

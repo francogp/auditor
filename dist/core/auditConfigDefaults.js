@@ -14,6 +14,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	name: "Generic Project",
 	auditorVersion: AUDITOR_VERSION,
 	paths: {
+		enabled: true,
 		srcRoots: ["src"],
 		testRoots: ["tests"],
 		e2eRoots: ["tests/e2e"],
@@ -39,6 +40,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		ignoredPatterns: []
 	},
 	persistence: {
+		enabled: true,
 		engine: "supabase",
 		schemaQualified: true,
 		authorizedSaveFiles: [],
@@ -92,8 +94,12 @@ const DEFAULT_AUDIT_CONFIG = {
 		enabled: true,
 		extraRequiredEntries: []
 	},
-	templates: { requireInputIds: true },
+	templates: {
+		enabled: true,
+		requireInputIds: true
+	},
 	styles: {
+		enabled: true,
 		globalUtilityClasses: [],
 		canonicalButtonVariants: [],
 		heavyEffectPaths: [],
@@ -170,6 +176,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	agentPlugin: { enabled: true },
 	security: { enabled: true },
 	documentation: {
+		enabled: true,
 		knownValidAbstractPaths: [],
 		skillsRoots: [],
 		allowedNpxBinaries: [],
@@ -196,6 +203,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		typeAware: true,
 		showCascade: true,
 		duplicates: {
+			enabled: true,
 			nearMiss: true,
 			mode: "strict"
 		},
@@ -353,6 +361,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	extensions: [],
 	presets: {},
 	runner: {
+		enabled: true,
 		timeoutMs: 0,
 		maxStalenessMinutes: 5
 	}

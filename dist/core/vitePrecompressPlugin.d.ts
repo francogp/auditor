@@ -4,7 +4,7 @@ import { Plugin } from "vite-plus";
 export declare const COMPRESSIBLE_EXTENSIONS: readonly [".js", ".mjs", ".cjs", ".css", ".html", ".wasm", ".svg", ".json", ".ico", ".txt", ".webmanifest"];
 export type CompressibleExtension = (typeof COMPRESSIBLE_EXTENSIONS)[number];
 export declare function isCompressibleExtension(ext: string): ext is CompressibleExtension;
-export interface VitePrecompressOptions extends AuditVitePlusPrecompressConfig {}
+export type VitePrecompressOptions = Partial<AuditVitePlusPrecompressConfig>;
 /**
  * Builds canonical Apache .htaccess directives for serving precompressed .br and .gz assets
  * with correct MIME types, Content-Encoding, Vary headers, and SPA routing.
