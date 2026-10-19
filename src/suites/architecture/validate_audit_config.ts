@@ -45,6 +45,7 @@ import {
 } from '../../core/auditConfigDegradations.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import ts from 'typescript';
+import { SyntaxKind } from 'ts-morph';
 
 enableCompileCache();
 
@@ -57,7 +58,10 @@ import {
   parseAuditConfigFileAst,
   appendMissingSectionsToJsonFile,
   appendMissingSectionsToTsFile,
-  appendMissingSectionsToConfigFile
+  appendMissingSectionsToConfigFile,
+  findTargetAuditConfigObject,
+  syncAuditorVersionInTsFile,
+  mutateAuditConfigFileAst
 } from '../../core/auditConfigAst.ts';
 
 export {
@@ -69,7 +73,10 @@ export {
   parseAuditConfigFileAst,
   appendMissingSectionsToJsonFile,
   appendMissingSectionsToTsFile,
-  appendMissingSectionsToConfigFile
+  appendMissingSectionsToConfigFile,
+  findTargetAuditConfigObject,
+  syncAuditorVersionInTsFile,
+  mutateAuditConfigFileAst
 };
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
@@ -209,61 +216,7 @@ export function syncAuditorVersionInConfigFile(configFilePath: string, version: 
     }
   }
 
-  const parsed = parseAuditConfigFileAst(configFilePath);
-  if (!parsed || !parsed.configObj) return false;
-  const { code, source, configObj } = parsed;
-
-  try {
-    const versionProp = configObj.properties.find((p) => {
-      if (!ts.isPropertyAssignment(p)) return false;
-      const name = p.name.getText(source).replace(/^['"]|['"]$/g, '');
-      return name === 'auditorVersion';
-    }) as ts.PropertyAssignment | undefined;
-
-    const versionLiteral = printTsExpression(dtoValueToTsExpression(version));
-
-    if (versionProp) {
-      const currentVal = versionProp.initializer.getText(source);
-      if (currentVal === `'${version}'` || currentVal === `"${version}"`) {
-        return false;
-      }
-      const updated =
-        code.slice(0, versionProp.initializer.getStart(source)) +
-        versionLiteral +
-        code.slice(versionProp.initializer.getEnd());
-      fs.writeFileSync(configFilePath, updated, 'utf8');
-      return true;
-    }
-
-    const nameProp = configObj.properties.find((p) => {
-      if (!ts.isPropertyAssignment(p)) return false;
-      const name = p.name.getText(source).replace(/^['"]|['"]$/g, '');
-      return name === 'name';
-    });
-
-    if (nameProp) {
-      const insertPos = nameProp.getEnd();
-      const commaOffset = code.indexOf(',', insertPos);
-      const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
-      const actualPos = hasComma ? commaOffset + 1 : insertPos;
-      const commaPrefix = hasComma ? '' : ',';
-      const snippet = `${commaPrefix}\n  auditorVersion: ${versionLiteral},`;
-      const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
-      fs.writeFileSync(configFilePath, updated, 'utf8');
-      return true;
-    }
-
-    const openBracePos = code.indexOf('{', configObj.getStart(source));
-    if (openBracePos === -1) return false;
-    const updated =
-      code.slice(0, openBracePos + 1) +
-      `\n  auditorVersion: ${versionLiteral},` +
-      code.slice(openBracePos + 1);
-    fs.writeFileSync(configFilePath, updated, 'utf8');
-    return true;
-  } catch {
-    return false;
-  }
+  return syncAuditorVersionInTsFile(configFilePath, version);
 }
 
 export function createDefaultAuditConfigContent(
@@ -833,22 +786,41 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
   private migrateLegacyEslintConfigSection(configFilePath: string): boolean {
     if (!fs.existsSync(configFilePath)) return false;
-    try {
-      let text = fs.readFileSync(configFilePath, 'utf-8');
-      if (!text.includes('eslint:')) return false;
 
-      text = text.replace(/(^|\s)eslint\s*:/g, '$1oxlint:');
-      if (!text.includes('vitePlusConfig:')) {
-        text = text.replace(
-          /oxlint\s*:\s*\{[^}]*\},?/,
-          (m) => `${m}\n  vitePlusConfig: { enabled: true },`
-        );
+    if (configFilePath.endsWith('.json')) {
+      try {
+        const text = fs.readFileSync(configFilePath, 'utf8');
+        const json = JSON.parse(text) as Record<string, unknown>;
+        if (!('eslint' in json)) return false;
+        json.oxlint = json.eslint;
+        delete json.eslint;
+        if (!('vitePlusConfig' in json)) {
+          json.vitePlusConfig = { enabled: true };
+        }
+        fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
+        return true;
+      } catch {
+        return false;
       }
-      fs.writeFileSync(configFilePath, text, 'utf-8');
-      return true;
-    } catch {
-      return false;
     }
+
+    return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+      const eslintProp = targetObj.getProperty('eslint');
+      if (!eslintProp) return false;
+
+      if (eslintProp.isKind(SyntaxKind.PropertyAssignment)) {
+        eslintProp.getNameNode().replaceWithText('oxlint');
+      }
+
+      if (!targetObj.getProperty('vitePlusConfig')) {
+        targetObj.addPropertyAssignment({
+          name: 'vitePlusConfig',
+          initializer: '{ enabled: true }'
+        });
+      }
+
+      return true;
+    });
   }
 
   private verifyUnknownPathsFields(rawConfig: Record<string, unknown>): void {

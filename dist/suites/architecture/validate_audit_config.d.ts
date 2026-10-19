@@ -1,7 +1,7 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression } from "../../core/auditConfigAst.js";
+import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 //#region src/suites/architecture/validate_audit_config.d.ts
 export declare function deepMergeDefaultsObject(target: Record<string, unknown>, defaults: Record<string, unknown>): void;
 export declare function buildTaskExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Map<string, {
@@ -68,4 +68,4 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
 }
 export declare function enforceCriticalConfigurations(projectRoot: string, tasks: readonly AuditTaskDefinition[]): Promise<boolean>;
 //#endregion
-export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression };
+export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile };

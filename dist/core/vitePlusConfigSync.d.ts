@@ -32,10 +32,6 @@ export declare function findHomebrewCompressionFiles(projectRoot: string): strin
  * Detects homebrew or third-party compression plugin imports in vite.config.ts.
  */
 export declare function detectHomebrewCompressionImports(viteConfigContent: string): string[];
-/**
- * Automatically migrates homebrew compression imports and calls in vite.config.ts
- * to canonical vitePrecompressPlugin from @francogp/auditor.
- */
 export declare function migrateHomebrewCompressionInViteConfig(viteConfigContent: string): {
   content: string;
   modified: boolean;

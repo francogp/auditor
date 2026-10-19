@@ -1,9 +1,9 @@
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";
+import { Project } from "ts-morph";
 import MagicString from "magic-string";
 import { Lang, parse } from "@ast-grep/napi";
-import { Project } from "ts-morph";
 //#region src/core/refactor/hybridHarness.ts
 /**
 * src/core/refactor/hybridHarness.ts

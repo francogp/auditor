@@ -8,6 +8,7 @@ import { CANONICAL_LINT_RULES_MAP, buildCanonicalVitePlusAstSource, extractAstPr
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
+import { Project, QuoteKind, SyntaxKind } from "ts-morph";
 //#region src/core/vitePlusConfigSync.ts
 /**
 * packages/auditor/src/core/vitePlusConfigSync.ts
@@ -248,24 +249,52 @@ function detectHomebrewCompressionImports(viteConfigContent) {
 * Automatically migrates homebrew compression imports and calls in vite.config.ts
 * to canonical vitePrecompressPlugin from @francogp/auditor.
 */
-function migrateHomebrewCompressionInViteConfig(viteConfigContent) {
-	let content = viteConfigContent;
-	let modified = false;
-	const matches = [...content.matchAll(/import\s+\{\s*([a-zA-Z0-9_$]+)\s*\}\s+from\s+['"](\.[^'"]*precompress[^'"]*|vite-plugin-compression2?)['"];?/g)];
-	for (const m of matches) {
-		const fnName = m[1];
-		const fullImport = m[0];
-		content = content.replace(fullImport, `import { vitePrecompressPlugin } from '@francogp/auditor';`);
-		if (fnName && fnName !== "vitePrecompressPlugin") {
-			const callRegex = new RegExp(`\\b${fnName}\\s*\\(`, "g");
-			content = content.replace(callRegex, "vitePrecompressPlugin(");
-		}
-		modified = true;
+function replacePluginIdentifierInCalls(sourceFile, oldName, newName) {
+	if (oldName === newName) return;
+	const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+	for (const call of calls) {
+		const expr = call.getExpression();
+		if (expr.getText() === oldName) expr.replaceWithText(newName);
 	}
-	return {
-		content,
-		modified
-	};
+}
+function migrateHomebrewCompressionInViteConfig(viteConfigContent) {
+	try {
+		const sourceFile = new Project({
+			useInMemoryFileSystem: true,
+			compilerOptions: { allowJs: true },
+			manipulationSettings: { quoteKind: QuoteKind.Single }
+		}).createSourceFile("vite.config.ts", viteConfigContent);
+		let modified = false;
+		const imports = sourceFile.getImportDeclarations();
+		for (const imp of imports) {
+			const moduleSpec = imp.getModuleSpecifierValue();
+			if (!(moduleSpec.includes("precompress") || moduleSpec.startsWith("vite-plugin-compression"))) continue;
+			for (const named of imp.getNamedImports()) replacePluginIdentifierInCalls(sourceFile, named.getName(), "vitePrecompressPlugin");
+			const idx = imp.getChildIndex();
+			imp.remove();
+			sourceFile.insertImportDeclaration(idx, {
+				moduleSpecifier: "@francogp/auditor",
+				namedImports: ["vitePrecompressPlugin"]
+			});
+			modified = true;
+		}
+		if (modified) {
+			sourceFile.formatText({ indentSize: 2 });
+			return {
+				content: sourceFile.getFullText(),
+				modified: true
+			};
+		}
+		return {
+			content: viteConfigContent,
+			modified: false
+		};
+	} catch {
+		return {
+			content: viteConfigContent,
+			modified: false
+		};
+	}
 }
 /**
 * Removes homebrew compression scripts found on disk.

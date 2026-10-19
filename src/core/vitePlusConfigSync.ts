@@ -10,6 +10,7 @@ import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { Project, SyntaxKind, QuoteKind, type SourceFile } from 'ts-morph';
 import { getAuditConfig, type AuditConfig } from './auditConfig.ts';
 import {
   getAuditorCanonicalOverrides,
@@ -373,33 +374,62 @@ export function detectHomebrewCompressionImports(viteConfigContent: string): str
  * Automatically migrates homebrew compression imports and calls in vite.config.ts
  * to canonical vitePrecompressPlugin from @francogp/auditor.
  */
+function replacePluginIdentifierInCalls(
+  sourceFile: SourceFile,
+  oldName: string,
+  newName: string
+): void {
+  if (oldName === newName) return;
+  const calls = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+  for (const call of calls) {
+    const expr = call.getExpression();
+    if (expr.getText() === oldName) {
+      expr.replaceWithText(newName);
+    }
+  }
+}
+
 export function migrateHomebrewCompressionInViteConfig(viteConfigContent: string): {
   content: string;
   modified: boolean;
 } {
-  let content = viteConfigContent;
-  let modified = false;
+  try {
+    const project = new Project({
+      useInMemoryFileSystem: true,
+      compilerOptions: { allowJs: true },
+      manipulationSettings: { quoteKind: QuoteKind.Single }
+    });
+    const sourceFile = project.createSourceFile('vite.config.ts', viteConfigContent);
+    let modified = false;
 
-  const importRegex =
-    /import\s+\{\s*([a-zA-Z0-9_$]+)\s*\}\s+from\s+['"](\.[^'"]*precompress[^'"]*|vite-plugin-compression2?)['"];?/g;
+    const imports = sourceFile.getImportDeclarations();
+    for (const imp of imports) {
+      const moduleSpec = imp.getModuleSpecifierValue();
+      const isHomebrew =
+        moduleSpec.includes('precompress') || moduleSpec.startsWith('vite-plugin-compression');
+      if (!isHomebrew) continue;
 
-  const matches = [...content.matchAll(importRegex)];
-  for (const m of matches) {
-    const fnName = m[1];
-    const fullImport = m[0];
+      for (const named of imp.getNamedImports()) {
+        replacePluginIdentifierInCalls(sourceFile, named.getName(), 'vitePrecompressPlugin');
+      }
 
-    content = content.replace(
-      fullImport,
-      `import { vitePrecompressPlugin } from '@francogp/auditor';`
-    );
-    if (fnName && fnName !== 'vitePrecompressPlugin') {
-      const callRegex = new RegExp(`\\b${fnName}\\s*\\(`, 'g');
-      content = content.replace(callRegex, 'vitePrecompressPlugin(');
+      const idx = imp.getChildIndex();
+      imp.remove();
+      sourceFile.insertImportDeclaration(idx, {
+        moduleSpecifier: '@francogp/auditor',
+        namedImports: ['vitePrecompressPlugin']
+      });
+      modified = true;
     }
-    modified = true;
-  }
 
-  return { content, modified };
+    if (modified) {
+      sourceFile.formatText({ indentSize: 2 });
+      return { content: sourceFile.getFullText(), modified: true };
+    }
+    return { content: viteConfigContent, modified: false };
+  } catch {
+    return { content: viteConfigContent, modified: false };
+  }
 }
 
 /**

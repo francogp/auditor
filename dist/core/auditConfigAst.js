@@ -1,12 +1,13 @@
 import fs from "node:fs";
 import ts from "typescript";
+import { Project, SyntaxKind } from "ts-morph";
 //#region src/core/auditConfigAst.ts
 /**
 * src/core/auditConfigAst.ts
 *
 * AST PARSING & CONFIGURATION REWRITE UTILITIES (Node.js 26+ Native)
 * Provides programmatic AST extraction and insertion for .auditor/audit.config.ts
-* and .auditor/audit.config.json files.
+* and .auditor/audit.config.json files using official AST libraries (ts-morph and TypeScript).
 */
 function dtoValueToTsExpression(value) {
 	if (typeof value === "string") return ts.factory.createStringLiteral(value, true);
@@ -56,16 +57,8 @@ function findConfigObjectLiteral(source) {
 	visit(source);
 	return configObj;
 }
-function appendMissingSectionsFallback(configFilePath, code, sectionsToInsert) {
-	const lastBrace = code.lastIndexOf("}");
-	if (lastBrace === -1) return;
-	const beforeClose = code.slice(0, lastBrace).trimEnd();
-	const needsComma = !beforeClose.endsWith(",");
-	const commaPos = beforeClose.length;
-	const sectionLines = [];
-	for (const [key, val] of Object.entries(sectionsToInsert)) sectionLines.push(`  ${key}: ${formatSectionObjectLiteral(val)},`);
-	const updated = (needsComma ? code.slice(0, commaPos) + "," + code.slice(commaPos, lastBrace) : code.slice(0, lastBrace)) + ("\n" + sectionLines.join("\n") + "\n") + code.slice(lastBrace);
-	fs.writeFileSync(configFilePath, updated, "utf8");
+function appendMissingSectionsFallback(configFilePath, _code, sectionsToInsert) {
+	appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
 function parseAuditConfigFileAst(configFilePath) {
 	try {
@@ -113,65 +106,92 @@ function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
 		if (deepMergeMissingJson(json, sectionsToInsert)) fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
 	} catch {}
 }
-function formatObjectPropLines(propsToAppend, indent) {
-	return propsToAppend.map(([k, v]) => {
-		return `${indent}${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`}: ${formatValueWithIndent(v, indent)}`;
-	});
+function valueToTsMorphInitializer(val) {
+	if (typeof val === "string") return `'${val.replaceAll("'", "\\'")}'`;
+	if (typeof val === "number" || typeof val === "boolean") return String(val);
+	if (val === null || val === void 0) return "undefined";
+	if (Array.isArray(val)) return `[${val.map((item) => valueToTsMorphInitializer(item)).join(", ")}]`;
+	if (typeof val === "object") return `{\n${Object.entries(val).filter(([, v]) => v !== void 0).map(([k, v]) => {
+		return `${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k.replaceAll("'", "\\'")}'`}: ${valueToTsMorphInitializer(v)}`;
+	}).join(",\n")}\n}`;
+	return "undefined";
 }
-function appendPropsToNode(code, objNode, formattedLines, indent, insertions) {
-	const closeBracePos = code.lastIndexOf("}", objNode.getEnd() - 1);
-	if (closeBracePos === -1) return;
-	if (objNode.properties.length > 0) {
-		const lastProp = objNode.properties[objNode.properties.length - 1];
-		if (!objNode.properties.hasTrailingComma) insertions.push({
-			pos: lastProp.getEnd(),
-			text: ","
-		});
-		const lastNewlineBeforeClose = code.lastIndexOf("\n", closeBracePos);
-		const insertPos = lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= lastProp.getEnd() ? lastNewlineBeforeClose : closeBracePos;
-		insertions.push({
-			pos: insertPos,
-			text: `\n${formattedLines.join(",\n")},`
-		});
-	} else {
-		const parentIndent = indent.length >= 2 ? indent.slice(2) : "";
-		insertions.push({
-			pos: closeBracePos,
-			text: `\n${formattedLines.join(",\n")},\n${parentIndent}`
-		});
-	}
-}
-function collectMissingPropInsertions(code, source, objNode, missingProps, indent, insertions) {
-	const existingPropMap = /* @__PURE__ */ new Map();
-	for (const prop of objNode.properties) if (ts.isPropertyAssignment(prop)) {
-		const name = prop.name.getText(source).replace(/^['"]|['"]$/g, "");
-		existingPropMap.set(name, prop);
-	}
-	const propsToAppend = [];
+function syncMissingPropsWithTsMorph(obj, missingProps) {
+	let mutated = false;
 	for (const [key, missingVal] of Object.entries(missingProps)) {
 		if (missingVal === void 0) continue;
-		const existing = existingPropMap.get(key);
-		if (existing) {
-			if (ts.isObjectLiteralExpression(existing.initializer) && typeof missingVal === "object" && missingVal !== null && !Array.isArray(missingVal)) collectMissingPropInsertions(code, source, existing.initializer, missingVal, indent + "  ", insertions);
-		} else propsToAppend.push([key, missingVal]);
+		const existing = obj.getProperty(key);
+		if (existing && existing.isKind(SyntaxKind.PropertyAssignment)) {
+			const init = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+			if (init && typeof missingVal === "object" && missingVal !== null && !Array.isArray(missingVal)) {
+				if (syncMissingPropsWithTsMorph(init, missingVal)) mutated = true;
+				continue;
+			}
+		}
+		if (!existing) {
+			const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : JSON.stringify(key);
+			obj.addPropertyAssignment({
+				name: safeName,
+				initializer: valueToTsMorphInitializer(missingVal)
+			});
+			mutated = true;
+		}
 	}
-	if (propsToAppend.length > 0) appendPropsToNode(code, objNode, formatObjectPropLines(propsToAppend, indent), indent, insertions);
+	return mutated;
+}
+function findTargetAuditConfigObject(sourceFile) {
+	const callExpressions = sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression);
+	for (const call of callExpressions) if (call.getExpression().getText() === "defineAuditConfig") {
+		const arg = call.getArguments()[0];
+		if (arg && arg.isKind(SyntaxKind.ObjectLiteralExpression)) return arg;
+	}
+	const expr = sourceFile.getDescendantsOfKind(SyntaxKind.ExportAssignment)[0]?.getExpression();
+	if (expr && expr.isKind(SyntaxKind.ObjectLiteralExpression)) return expr;
+	return sourceFile.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)[0];
+}
+function mutateAuditConfigFileAst(configFilePath, mutator) {
+	try {
+		const sourceFile = new Project({
+			skipAddingFilesFromTsConfig: true,
+			skipFileDependencyResolution: true,
+			compilerOptions: { allowJs: true }
+		}).addSourceFileAtPath(configFilePath);
+		const targetObj = findTargetAuditConfigObject(sourceFile);
+		if (!targetObj) return false;
+		if (mutator(targetObj, sourceFile)) {
+			sourceFile.formatText({ indentSize: 2 });
+			sourceFile.saveSync();
+			return true;
+		}
+		return false;
+	} catch {
+		return false;
+	}
+}
+function syncAuditorVersionInTsFile(configFilePath, version) {
+	return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+		const existingProp = targetObj.getProperty("auditorVersion");
+		if (existingProp && existingProp.isKind(SyntaxKind.PropertyAssignment)) {
+			if (existingProp.getInitializer()?.getText().replace(/^['"]|['"]$/g, "") === version) return false;
+			existingProp.setInitializer(`'${version}'`);
+			return true;
+		}
+		const nameProp = targetObj.getProperty("name");
+		if (nameProp && nameProp.isKind(SyntaxKind.PropertyAssignment)) {
+			const idx = nameProp.getChildIndex();
+			targetObj.insertPropertyAssignment(idx + 1, {
+				name: "auditorVersion",
+				initializer: `'${version}'`
+			});
+		} else targetObj.insertPropertyAssignment(0, {
+			name: "auditorVersion",
+			initializer: `'${version}'`
+		});
+		return true;
+	});
 }
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
-	const parsed = parseAuditConfigFileAst(configFilePath);
-	if (!parsed) return;
-	const { code, source, configObj } = parsed;
-	if (!configObj) {
-		appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
-		return;
-	}
-	const insertions = [];
-	collectMissingPropInsertions(code, source, configObj, sectionsToInsert, "  ", insertions);
-	if (insertions.length === 0) return;
-	insertions.sort((a, b) => b.pos - a.pos);
-	let updatedCode = code;
-	for (const ins of insertions) updatedCode = updatedCode.slice(0, ins.pos) + ins.text + updatedCode.slice(ins.pos);
-	fs.writeFileSync(configFilePath, updatedCode, "utf8");
+	mutateAuditConfigFileAst(configFilePath, (targetObj) => syncMissingPropsWithTsMorph(targetObj, sectionsToInsert));
 }
 function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	if (configFilePath.endsWith(".json")) {
@@ -181,4 +201,4 @@ function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
 //#endregion
-export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, deepMergeMissingJson, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, formatValueWithIndent, parseAuditConfigFileAst, printTsExpression };
+export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, deepMergeMissingJson, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, formatValueWithIndent, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile };

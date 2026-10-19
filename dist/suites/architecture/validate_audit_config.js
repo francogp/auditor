@@ -10,13 +10,14 @@ import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { getPackageJson } from "../../core/packageJson.js";
-import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression } from "../../core/auditConfigAst.js";
+import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 import { applyAcknowledgedDegradationsFix, detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
+import { SyntaxKind } from "ts-morph";
 //#region src/suites/architecture/validate_audit_config.ts
 /**
 * packages/auditor/src/suites/architecture/validate_audit_config.ts
@@ -100,44 +101,7 @@ function syncAuditorVersionInConfigFile(configFilePath, version) {
 	} catch {
 		return false;
 	}
-	const parsed = parseAuditConfigFileAst(configFilePath);
-	if (!parsed || !parsed.configObj) return false;
-	const { code, source, configObj } = parsed;
-	try {
-		const versionProp = configObj.properties.find((p) => {
-			if (!ts.isPropertyAssignment(p)) return false;
-			return p.name.getText(source).replace(/^['"]|['"]$/g, "") === "auditorVersion";
-		});
-		const versionLiteral = printTsExpression(dtoValueToTsExpression(version));
-		if (versionProp) {
-			const currentVal = versionProp.initializer.getText(source);
-			if (currentVal === `'${version}'` || currentVal === `"${version}"`) return false;
-			const updated = code.slice(0, versionProp.initializer.getStart(source)) + versionLiteral + code.slice(versionProp.initializer.getEnd());
-			fs.writeFileSync(configFilePath, updated, "utf8");
-			return true;
-		}
-		const nameProp = configObj.properties.find((p) => {
-			if (!ts.isPropertyAssignment(p)) return false;
-			return p.name.getText(source).replace(/^['"]|['"]$/g, "") === "name";
-		});
-		if (nameProp) {
-			const insertPos = nameProp.getEnd();
-			const commaOffset = code.indexOf(",", insertPos);
-			const hasComma = commaOffset !== -1 && commaOffset < insertPos + 5;
-			const actualPos = hasComma ? commaOffset + 1 : insertPos;
-			const snippet = `${hasComma ? "" : ","}\n  auditorVersion: ${versionLiteral},`;
-			const updated = code.slice(0, actualPos) + snippet + code.slice(actualPos);
-			fs.writeFileSync(configFilePath, updated, "utf8");
-			return true;
-		}
-		const openBracePos = code.indexOf("{", configObj.getStart(source));
-		if (openBracePos === -1) return false;
-		const updated = code.slice(0, openBracePos + 1) + `\n  auditorVersion: ${versionLiteral},` + code.slice(openBracePos + 1);
-		fs.writeFileSync(configFilePath, updated, "utf8");
-		return true;
-	} catch {
-		return false;
-	}
+	return syncAuditorVersionInTsFile(configFilePath, version);
 }
 function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 	const defaultDto = {
@@ -458,16 +422,28 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 	}
 	migrateLegacyEslintConfigSection(configFilePath) {
 		if (!fs.existsSync(configFilePath)) return false;
-		try {
-			let text = fs.readFileSync(configFilePath, "utf-8");
-			if (!text.includes("eslint:")) return false;
-			text = text.replace(/(^|\s)eslint\s*:/g, "$1oxlint:");
-			if (!text.includes("vitePlusConfig:")) text = text.replace(/oxlint\s*:\s*\{[^}]*\},?/, (m) => `${m}\n  vitePlusConfig: { enabled: true },`);
-			fs.writeFileSync(configFilePath, text, "utf-8");
+		if (configFilePath.endsWith(".json")) try {
+			const text = fs.readFileSync(configFilePath, "utf8");
+			const json = JSON.parse(text);
+			if (!("eslint" in json)) return false;
+			json.oxlint = json.eslint;
+			delete json.eslint;
+			if (!("vitePlusConfig" in json)) json.vitePlusConfig = { enabled: true };
+			fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
 			return true;
 		} catch {
 			return false;
 		}
+		return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+			const eslintProp = targetObj.getProperty("eslint");
+			if (!eslintProp) return false;
+			if (eslintProp.isKind(SyntaxKind.PropertyAssignment)) eslintProp.getNameNode().replaceWithText("oxlint");
+			if (!targetObj.getProperty("vitePlusConfig")) targetObj.addPropertyAssignment({
+				name: "vitePlusConfig",
+				initializer: "{ enabled: true }"
+			});
+			return true;
+		});
 	}
 	verifyUnknownPathsFields(rawConfig) {
 		const rawPaths = rawConfig.paths;
@@ -844,4 +820,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
 //#endregion
-export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, dtoValueToTsExpression, enforceCriticalConfigurations, extractMissingConfigPaths, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInConfigFile };
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, dtoValueToTsExpression, enforceCriticalConfigurations, extractMissingConfigPaths, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInConfigFile, syncAuditorVersionInTsFile };
