@@ -48,7 +48,9 @@ import {
   type AuditCoverageExemption,
   type AuditCoverageAcknowledgedDegradation,
   type AuditRatchetConfig,
+  type ResolvedRatchetConfig,
   type AuditTestCoverageConfig,
+  type ResolvedTestCoverageConfig,
   type AuditValibotConfig,
   type ValibotParityTarget,
   type AuditWebPerformanceConfig,
@@ -480,7 +482,7 @@ export function buildScriptCommandsConfig(
 
 export function buildRatchetConfig(
   raw?: DeepPartial<AuditRatchetConfig>
-): Required<AuditRatchetConfig> {
+): ResolvedRatchetConfig {
   const r = raw ?? {};
   if (r.enabled !== undefined && typeof r.enabled !== 'boolean') {
     throw new Error(
@@ -557,7 +559,7 @@ function resolveTestCoverageCollections(
 
 export function buildTestCoverageConfig(
   raw?: DeepPartial<AuditTestCoverageConfig>
-): Required<AuditTestCoverageConfig> {
+): ResolvedTestCoverageConfig {
   const def = DEFAULT_AUDIT_CONFIG.testCoverage;
   const t = raw ?? {};
   validateTestCoverageRaw(t);

@@ -9,7 +9,7 @@ import path from 'node:path';
 
 import { describe, it, expect } from 'vite-plus/test';
 
-import type { AuditTestCoverageConfig } from '../src/core/auditConfig.ts';
+import type { ResolvedTestCoverageConfig } from '../src/core/auditConfig.ts';
 import {
   calculateMetric,
   determineCoverageStatus,
@@ -123,7 +123,7 @@ describe('testCoverageCore', () => {
   });
 
   describe('parseIstanbulCoverage', () => {
-    const config: Required<AuditTestCoverageConfig> = {
+    const config: ResolvedTestCoverageConfig = {
       enabled: true,
       threshold: 80,
       path: 'coverage/coverage-final.json',
@@ -313,7 +313,7 @@ describe('testCoverageCore', () => {
         fs.writeFileSync(path.join(srcDir, 'helper.test.ts'), 'test()');
 
         const coveredSet = new Set(['src/covered.ts']);
-        const config: Required<AuditTestCoverageConfig> = {
+        const config: ResolvedTestCoverageConfig = {
           enabled: true,
           threshold: 80,
           path: 'coverage.json',
@@ -350,7 +350,7 @@ describe('testCoverageCore', () => {
           }
         };
 
-        const config: Required<AuditTestCoverageConfig> = {
+        const config: ResolvedTestCoverageConfig = {
           enabled: true,
           threshold: 80,
           path: 'coverage.json',

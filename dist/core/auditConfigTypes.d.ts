@@ -8,7 +8,19 @@ export declare const AUDITOR_DIR = ".auditor";
 export declare const AUDIT_CONFIG_FILE = ".auditor/audit.config.ts";
 export declare const AUDIT_CONFIG_JSON_FILE = ".auditor/audit.config.json";
 export declare const LEGACY_ROOT_CONFIG_FILES: readonly ["audit.config.ts", "audit.config.json"];
-export interface AuditPathsConfig {
+/**
+ * Generic base contract for all subsystem configurations in audit.config.ts.
+ * Enforces universal 'enabled' state, section-specific path ignores/exemptions,
+ * and open indexing for sub-auditor and host extensions.
+ */
+export interface BaseAuditSubsystemConfig {
+  readonly enabled?: boolean;
+  readonly ignoreGlobs?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly [key: string]: unknown;
+}
+export interface AuditPathsConfig extends BaseAuditSubsystemConfig {
   readonly srcRoots: readonly string[];
   readonly testRoots: readonly string[];
   readonly e2eRoots: readonly string[];
@@ -41,7 +53,7 @@ export declare const AUDIT_LIST_FILTERS: readonly ["all", "enabled", "disabled"]
 export type AuditListFilter = (typeof AUDIT_LIST_FILTERS)[number];
 export declare const PERSISTENCE_ENGINES: readonly ["supabase", "sqlite", "postgres", "hybrid", "none"];
 export type PersistenceEngine = (typeof PERSISTENCE_ENGINES)[number];
-export interface AuditPersistenceConfig {
+export interface AuditPersistenceConfig extends BaseAuditSubsystemConfig {
   readonly engine: PersistenceEngine;
   readonly schemaQualified: boolean;
   readonly authorizedSaveFiles?: readonly string[];
@@ -62,8 +74,7 @@ export interface O1CatalogPatternConfig {
   readonly alternative: string;
   readonly definingFile: string;
 }
-export interface AuditDomainConfig {
-  readonly enabled?: boolean;
+export interface AuditDomainConfig extends BaseAuditSubsystemConfig {
   readonly timezoneVariable?: string;
   readonly timezoneHelperModule?: string;
   readonly loggerModule?: string;
@@ -86,14 +97,13 @@ export interface CustomAuditFamilyConfig {
   readonly icon?: string;
   readonly description?: string;
 }
-export interface AuditTemplatesConfig {
+export interface AuditTemplatesConfig extends BaseAuditSubsystemConfig {
   readonly requireInputIds?: boolean;
   readonly tooltipComponents?: readonly string[];
   readonly forbiddenTemplateCallPatterns?: readonly string[];
   readonly safeTemplateFunctions?: readonly string[];
 }
-export interface AuditCssDuplicatesConfig {
-  readonly enabled?: boolean;
+export interface AuditCssDuplicatesConfig extends BaseAuditSubsystemConfig {
   readonly minDeclarations?: number;
   readonly checkSimilar?: boolean;
   readonly similarityThreshold?: number;
@@ -103,30 +113,24 @@ export interface AuditCssDuplicatesConfig {
   readonly checkEmptyRules?: boolean;
   readonly checkUnused?: boolean;
 }
-export interface AuditStylelintStrictValuesConfig {
+export interface AuditStylelintStrictValuesConfig extends BaseAuditSubsystemConfig {
   readonly properties?: readonly string[];
   readonly ignoreValues?: Record<string, readonly string[]>;
   readonly ignoreAtRules?: readonly string[];
 }
-export interface AuditStylelintOrderConfig {
-  readonly enabled?: boolean;
+export interface AuditStylelintOrderConfig extends BaseAuditSubsystemConfig {
   readonly enforceHasBlockPartitioning?: boolean;
 }
-export interface AuditStylelintConfig {
-  readonly enabled?: boolean;
+export interface AuditStylelintConfig extends BaseAuditSubsystemConfig {
   readonly configFile?: string;
   readonly rules?: Record<string, unknown>;
   readonly ignoreGlobs?: readonly string[];
   readonly strictValues?: AuditStylelintStrictValuesConfig;
   readonly order?: AuditStylelintOrderConfig;
 }
-export interface AuditOxlintConfig {
-  readonly enabled?: boolean;
-}
-export interface AuditHtmlValidateConfig {
-  readonly enabled?: boolean;
-}
-export interface AuditStylesConfig {
+export interface AuditOxlintConfig extends BaseAuditSubsystemConfig {}
+export interface AuditHtmlValidateConfig extends BaseAuditSubsystemConfig {}
+export interface AuditStylesConfig extends BaseAuditSubsystemConfig {
   readonly globalUtilityClasses?: readonly string[];
   readonly canonicalButtonVariants?: readonly string[];
   readonly zLayersEnabled?: boolean;
@@ -148,7 +152,7 @@ export interface AuditStylesConfig {
   readonly exemptPaths?: readonly string[];
   readonly ignoreGlobs?: readonly string[];
 }
-export interface AuditE2eConfig {
+export interface AuditE2eConfig extends BaseAuditSubsystemConfig {
   readonly idLocatorsOnly?: boolean;
 }
 export interface ChunkBudgetConfig {
@@ -157,8 +161,7 @@ export interface ChunkBudgetConfig {
   readonly matcher?: string;
   readonly limitBytes: number;
 }
-export interface AuditBundleConfig {
-  readonly enabled?: boolean;
+export interface AuditBundleConfig extends BaseAuditSubsystemConfig {
   readonly statsFile?: string;
   readonly distDir?: string;
   readonly exemptChunkPrefixes?: readonly string[];
@@ -172,24 +175,19 @@ export interface AuditBundleConfig {
     readonly reason: string;
   }[];
 }
-export interface AuditAgentPluginConfig {
-  readonly enabled?: boolean;
-}
-export interface AuditAnimationConfig {
-  readonly enabled?: boolean;
+export interface AuditAgentPluginConfig extends BaseAuditSubsystemConfig {}
+export interface AuditAnimationConfig extends BaseAuditSubsystemConfig {
   readonly customTimerFunctions?: readonly string[];
   readonly exemptPaths?: readonly string[];
   readonly exemptFiles?: readonly string[];
   readonly ignoreGlobs?: readonly string[];
 }
-export interface AuditTypesConfig {
-  readonly enabled?: boolean;
+export interface AuditTypesConfig extends BaseAuditSubsystemConfig {
   readonly exemptPaths?: readonly string[];
   readonly exemptFiles?: readonly string[];
   readonly ignoreGlobs?: readonly string[];
 }
-export interface AuditConstantsConfig {
-  readonly enabled?: boolean;
+export interface AuditConstantsConfig extends BaseAuditSubsystemConfig {
   readonly ignoredNames?: readonly string[];
   readonly exemptMagicNumbers?: readonly number[];
   readonly allowedNumericPrefixes?: readonly string[];
@@ -197,11 +195,9 @@ export interface AuditConstantsConfig {
   readonly exemptFiles?: readonly string[];
   readonly ignoreGlobs?: readonly string[];
 }
-export interface AuditSecurityConfig {
-  readonly enabled?: boolean;
-}
+export interface AuditSecurityConfig extends BaseAuditSubsystemConfig {}
 export type DocumentationLanguage = 'en' | 'es';
-export interface AuditDocumentationConfig {
+export interface AuditDocumentationConfig extends BaseAuditSubsystemConfig {
   readonly knownValidAbstractPaths?: readonly string[];
   readonly skillsRoots?: readonly string[];
   readonly unignoreDirs?: readonly string[];
@@ -210,43 +206,37 @@ export interface AuditDocumentationConfig {
   readonly chatLanguage?: DocumentationLanguage;
   readonly languageExemptions?: readonly string[];
 }
-export interface AuditPiniaConfig {
-  readonly enabled?: boolean;
+export interface AuditPiniaConfig extends BaseAuditSubsystemConfig {
   readonly authorizedMutationFiles?: readonly string[];
 }
-export interface AuditFallowSimilarCodeConfig {
-  readonly enabled?: boolean;
+export interface AuditFallowSimilarCodeConfig extends BaseAuditSubsystemConfig {
   readonly threshold?: number;
   readonly ignoreSameFile?: boolean;
   readonly minLines?: number;
   readonly timeoutMs?: number;
 }
-export interface AuditFallowFlagsConfig {
-  readonly enabled?: boolean;
+export interface AuditFallowFlagsConfig extends BaseAuditSubsystemConfig {
   readonly maxFlagAgeDays?: number;
   readonly trackRetirement?: boolean;
 }
-export interface AuditFallowCoverageConfig {
-  readonly enabled?: boolean;
+export interface AuditFallowCoverageConfig extends BaseAuditSubsystemConfig {
   readonly path?: string;
   readonly root?: string;
 }
-export interface AuditFallowDuplicatesConfig {
+export interface AuditFallowDuplicatesConfig extends BaseAuditSubsystemConfig {
   readonly mode?: 'strict' | 'mild' | 'weak' | 'semantic';
   readonly nearMiss?: boolean;
   readonly minTokens?: number;
   readonly minLines?: number;
   readonly minOccurrences?: number;
 }
-export interface AuditFallowVizConfig {
-  readonly enabled?: boolean;
+export interface AuditFallowVizConfig extends BaseAuditSubsystemConfig {
   readonly outputPath?: string;
 }
 export declare const FALLOW_TARGET_PRIORITIES: readonly ["critical", "high", "medium", "moderate", "low", "all"];
 export type FallowTargetPriorityNamed = (typeof FALLOW_TARGET_PRIORITIES)[number];
 export type FallowTargetPriority = FallowTargetPriorityNamed | number;
-export interface AuditFallowConfig {
-  readonly enabled?: boolean;
+export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly security?: AuditSecurityConfig;
   readonly enforceTargets?: boolean;
   readonly maxTargetPriority?: FallowTargetPriority;
@@ -259,13 +249,12 @@ export interface AuditFallowConfig {
   readonly viz?: AuditFallowVizConfig;
 }
 export declare const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;
-export interface AuditRunnerConfig {
+export interface AuditRunnerConfig extends BaseAuditSubsystemConfig {
   readonly timeoutMs?: number;
   readonly concurrency?: number;
   readonly maxStalenessMinutes?: number;
 }
-export interface AuditPackageHygieneConfig {
-  readonly enabled?: boolean;
+export interface AuditPackageHygieneConfig extends BaseAuditSubsystemConfig {
   readonly ignoreDependencies?: readonly string[];
   readonly ignoreBinaries?: readonly string[];
   readonly entry?: readonly string[];
@@ -273,17 +262,14 @@ export interface AuditPackageHygieneConfig {
 }
 export declare const PACKAGE_DISTRIBUTION_LEVELS: readonly ["suggestion", "warning", "error"];
 export type PackageDistributionLevel = (typeof PACKAGE_DISTRIBUTION_LEVELS)[number];
-export interface AuditPackageDistributionConfig {
-  readonly enabled: boolean;
+export interface AuditPackageDistributionConfig extends BaseAuditSubsystemConfig {
   readonly pkgDir?: string;
   readonly level?: PackageDistributionLevel;
 }
-export interface AuditAccessibilityConfig {
-  readonly enabled?: boolean;
+export interface AuditAccessibilityConfig extends BaseAuditSubsystemConfig {
   readonly rules?: Record<string, boolean>;
 }
-export interface AuditTypeCoverageConfig {
-  readonly enabled?: boolean;
+export interface AuditTypeCoverageConfig extends BaseAuditSubsystemConfig {
   readonly atLeast?: number;
   readonly strict?: boolean;
   readonly ignoreFiles?: readonly string[];
@@ -294,18 +280,15 @@ export interface AuditGitIgnoreCustomEntry {
   readonly reason: string;
   readonly samplePath?: string;
 }
-export interface AuditGitIgnoreConfig {
-  readonly enabled?: boolean;
+export interface AuditGitIgnoreConfig extends BaseAuditSubsystemConfig {
   readonly extraRequiredEntries?: readonly (string | AuditGitIgnoreCustomEntry)[];
 }
-export interface AuditPackageScriptsConfig {
-  readonly enabled?: boolean;
+export interface AuditPackageScriptsConfig extends BaseAuditSubsystemConfig {
   readonly enforceBuildAudit?: boolean;
   readonly recommendedScripts?: boolean;
   readonly extraRequiredScripts?: readonly string[];
 }
-export interface AuditScriptCommandsConfig {
-  readonly enabled?: boolean;
+export interface AuditScriptCommandsConfig extends BaseAuditSubsystemConfig {
   readonly exemptGlobs?: readonly string[];
   readonly allowedNpxBinaries?: readonly string[];
 }
@@ -318,21 +301,18 @@ export interface AuditVersionTargetConfig {
   readonly prefixV?: boolean;
   readonly tsExportName?: string;
 }
-export interface AuditVersionConfig {
-  readonly enabled?: boolean;
+export interface AuditVersionConfig extends BaseAuditSubsystemConfig {
   readonly autoSyncPublicVersionJson?: boolean;
   readonly syncTargets?: readonly (string | AuditVersionTargetConfig)[];
 }
-export interface AuditSecretLeaksConfig {
-  readonly enabled?: boolean;
+export interface AuditSecretLeaksConfig extends BaseAuditSubsystemConfig {
   readonly maskSecrets?: boolean;
   readonly allowedPatterns?: readonly string[];
   readonly exemptGlobs?: readonly string[];
 }
 export declare const NPM_AUDIT_SEVERITY_LEVELS: readonly ["info", "low", "moderate", "high", "critical"];
 export type NpmAuditSeverityLevel = (typeof NPM_AUDIT_SEVERITY_LEVELS)[number];
-export interface AuditDependencyVulnerabilitiesConfig {
-  readonly enabled?: boolean;
+export interface AuditDependencyVulnerabilitiesConfig extends BaseAuditSubsystemConfig {
   readonly failOn?: NpmAuditSeverityLevel;
   readonly allowList?: readonly string[];
   readonly includeDev?: boolean;
@@ -348,18 +328,20 @@ export interface AuditCoverageAcknowledgedDegradation {
   readonly glob: string;
   readonly reason: string;
 }
-export interface AuditCoverageConfig {
-  readonly enabled?: boolean;
+export interface AuditCoverageConfig extends BaseAuditSubsystemConfig {
   readonly exemptGlobs?: readonly AuditCoverageExemption[];
   readonly acknowledgedDegradations?: readonly AuditCoverageAcknowledgedDegradation[];
 }
-export interface AuditRatchetConfig {
-  readonly enabled?: boolean;
+export interface AuditRatchetConfig extends BaseAuditSubsystemConfig {
   readonly productionRef?: string;
   readonly baselineFile?: string;
 }
-export interface AuditTestCoverageConfig {
-  readonly enabled?: boolean;
+export interface ResolvedRatchetConfig extends BaseAuditSubsystemConfig {
+  readonly enabled: boolean;
+  readonly productionRef: string;
+  readonly baselineFile: string;
+}
+export interface AuditTestCoverageConfig extends BaseAuditSubsystemConfig {
   readonly threshold?: number;
   readonly path?: string;
   readonly runCommand?: string;
@@ -368,6 +350,17 @@ export interface AuditTestCoverageConfig {
   readonly exemptGlobs?: readonly string[];
   readonly directoryThresholds?: Record<string, number>;
   readonly enforceInAudit?: boolean;
+}
+export interface ResolvedTestCoverageConfig extends BaseAuditSubsystemConfig {
+  readonly enabled: boolean;
+  readonly threshold: number;
+  readonly path: string;
+  readonly runCommand: string;
+  readonly roots: readonly string[];
+  readonly extensions: readonly string[];
+  readonly exemptGlobs: readonly string[];
+  readonly directoryThresholds: Record<string, number>;
+  readonly enforceInAudit: boolean;
 }
 export interface ValibotNestedParityTarget {
   readonly id: string;
@@ -392,58 +385,40 @@ export interface ValibotParityTarget {
   readonly allowedNullableFields?: readonly string[];
   readonly allowedUnknownFields?: readonly string[];
 }
-export interface AuditValibotConfig {
-  readonly enabled?: boolean;
+export interface AuditValibotConfig extends BaseAuditSubsystemConfig {
   readonly targets?: readonly ValibotParityTarget[];
 }
-export interface AuditEnvironmentConfig {
-  readonly enabled?: boolean;
-}
-export interface AuditAuditorHygieneConfig {
-  readonly enabled?: boolean;
-  readonly exemptFiles?: readonly string[];
+export interface AuditEnvironmentConfig extends BaseAuditSubsystemConfig {}
+export interface AuditAuditorHygieneConfig extends BaseAuditSubsystemConfig {
   readonly disabledDetectors?: readonly string[];
 }
-export interface AuditScriptExtensionsConfig {
-  readonly enabled?: boolean;
+export interface AuditScriptExtensionsConfig extends BaseAuditSubsystemConfig {
   readonly enforceTypeScript?: boolean;
   readonly allowMjs?: boolean;
   readonly allowCjs?: boolean;
   readonly allowJsScripts?: boolean;
-  readonly exemptFiles?: readonly string[];
 }
-export interface AuditWebPerformanceConfig {
-  readonly enabled?: boolean;
+export interface AuditWebPerformanceConfig extends BaseAuditSubsystemConfig {
   readonly maxDomDepth?: number;
   readonly maxInlineSvgSize?: number;
   readonly exemptSvgPaths?: readonly string[];
   readonly exemptImgClasses?: readonly string[];
-  readonly exemptPaths?: readonly string[];
 }
-export interface AuditQueryPerformanceConfig {
-  readonly enabled?: boolean;
+export interface AuditQueryPerformanceConfig extends BaseAuditSubsystemConfig {
   readonly excludeMigrationsDir?: boolean;
   readonly exemptSelectStarPaths?: readonly string[];
-  readonly exemptPaths?: readonly string[];
 }
-export interface AuditSecurityHardeningConfig {
-  readonly enabled?: boolean;
-  readonly exemptPaths?: readonly string[];
-}
-export interface AuditCodeSimplificationConfig {
-  readonly enabled?: boolean;
+export interface AuditSecurityHardeningConfig extends BaseAuditSubsystemConfig {}
+export interface AuditCodeSimplificationConfig extends BaseAuditSubsystemConfig {
   readonly maxNestingDepth?: number;
   readonly allowMatrixLoops?: boolean;
-  readonly exemptPaths?: readonly string[];
 }
-export interface AuditScssArchitectureConfig {
-  readonly enabled?: boolean;
+export interface AuditScssArchitectureConfig extends BaseAuditSubsystemConfig {
   readonly maxNestingDepth?: number;
   readonly scopedMaxNestingDepth?: number;
   readonly allowPixelArtSpacing?: boolean;
   readonly allowedSpacingUnits?: readonly string[];
   readonly allowScopedColors?: boolean;
-  readonly exemptPaths?: readonly string[];
 }
 export type OxlintCategorySeverity = 'error' | 'warn' | 'off';
 export interface OxlintCategoriesConfig {
@@ -465,8 +440,7 @@ export interface VitePlusFmtOverrideConfig {
     readonly printWidth?: number;
   };
 }
-export interface AuditVitePlusFmtConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusFmtConfig extends BaseAuditSubsystemConfig {
   readonly singleQuote?: boolean;
   readonly semi?: boolean;
   readonly trailingComma?: 'none' | 'all' | 'es5';
@@ -482,8 +456,7 @@ export interface VitePlusLintOverrideConfig {
   readonly files: readonly string[];
   readonly rules: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
 }
-export interface AuditVitePlusLintConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusLintConfig extends BaseAuditSubsystemConfig {
   readonly typeAware?: boolean;
   readonly typeCheck?: boolean;
   readonly categories?: OxlintCategoriesConfig;
@@ -491,23 +464,18 @@ export interface AuditVitePlusLintConfig {
   readonly ignorePatterns?: readonly string[];
   readonly overrides?: readonly VitePlusLintOverrideConfig[];
 }
-export interface AuditVitePlusStagedConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusStagedConfig extends BaseAuditSubsystemConfig {
   readonly rules?: Record<string, string>;
 }
-export interface AuditVitePlusHooksConfig {
-  readonly enabled?: boolean;
-}
-export interface AuditVitePlusVSCodeConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusHooksConfig extends BaseAuditSubsystemConfig {}
+export interface AuditVitePlusVSCodeConfig extends BaseAuditSubsystemConfig {
   readonly formatOnSave?: boolean;
   readonly defaultFormatter?: string;
   readonly unwantedRecommendations?: readonly string[];
 }
 export type VitePrecompressReportMode = 'summary' | 'silent' | 'table';
 export type PrecompressServerTarget = 'nginx' | 'apache' | 'caddy' | 'all';
-export interface AuditVitePlusPrecompressConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusPrecompressConfig extends BaseAuditSubsystemConfig {
   readonly brotli?: boolean;
   readonly gzip?: boolean;
   readonly server?: PrecompressServerTarget;
@@ -516,8 +484,7 @@ export interface AuditVitePlusPrecompressConfig {
   readonly threshold?: number;
   readonly outDir?: string;
 }
-export interface AuditVitePlusConfig {
-  readonly enabled?: boolean;
+export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly precompress?: AuditVitePlusPrecompressConfig;
   readonly fmt?: AuditVitePlusFmtConfig;
   readonly lint?: AuditVitePlusLintConfig;
@@ -526,9 +493,7 @@ export interface AuditVitePlusConfig {
   readonly vscode?: AuditVitePlusVSCodeConfig;
   readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
 }
-export interface AuditOxfmtConfig {
-  readonly enabled?: boolean;
-}
+export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
 export type DeepPartial<T> = { [P in keyof T]?: T[P] extends readonly (infer U)[] ? readonly U[] : T[P] extends object ? DeepPartial<T[P]> : T[P]; };
 export interface AuditEngineConfig {
   readonly [key: string]: unknown;

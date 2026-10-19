@@ -1,4 +1,4 @@
-import { AuditTestCoverageConfig } from "./auditConfigTypes.js";
+import { ResolvedTestCoverageConfig } from "./auditConfigTypes.js";
 //#region src/core/testCoverageCore.d.ts
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
 export interface CoverageMetric {
@@ -113,14 +113,14 @@ export declare function isPathExempt(relPath: string, exemptGlobs: readonly stri
 /**
  * Parses raw Istanbul JSON into structured FileCoverageResults and overall totals.
  */
-export declare function parseIstanbulCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: Required<AuditTestCoverageConfig>): {
+export declare function parseIstanbulCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: ResolvedTestCoverageConfig): {
   files: FileCoverageResult[];
   overall: TestCoverageReport['overall'];
 };
 /**
  * Scans configured roots on disk and finds files that were never executed in tests.
  */
-export declare function findUntrackedFiles(projectRoot: string, coveredRelPaths: Set<string>, config: Required<AuditTestCoverageConfig>): string[];
+export declare function findUntrackedFiles(projectRoot: string, coveredRelPaths: Set<string>, config: ResolvedTestCoverageConfig): string[];
 /**
  * Computes directory-level aggregated metrics from file coverage results.
  */
@@ -143,6 +143,6 @@ export declare function correlateComplexityHotspots(files: readonly FileCoverage
  * Complete analysis orchestrator: parses JSON, identifies untracked files,
  * builds directory breakdown, computes buckets and returns full report.
  */
-export declare function analyzeTestCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: Required<AuditTestCoverageConfig>, complexityMap?: ReadonlyMap<string, number>): TestCoverageReport;
+export declare function analyzeTestCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: ResolvedTestCoverageConfig, complexityMap?: ReadonlyMap<string, number>): TestCoverageReport;
 //#endregion
 export {};

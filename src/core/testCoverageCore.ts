@@ -7,7 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import type { AuditTestCoverageConfig } from './auditConfig.ts';
+import type { ResolvedTestCoverageConfig } from './auditConfig.ts';
 import { matchesAnyGlob } from './auditCoverage.ts';
 
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
@@ -324,7 +324,7 @@ export function isPathExempt(relPath: string, exemptGlobs: readonly string[]): b
 export function parseIstanbulCoverage(
   rawJson: Record<string, unknown>,
   projectRoot: string,
-  config: Required<AuditTestCoverageConfig>
+  config: ResolvedTestCoverageConfig
 ): { files: FileCoverageResult[]; overall: TestCoverageReport['overall'] } {
   const files: FileCoverageResult[] = [];
 
@@ -412,7 +412,7 @@ function isUntrackedCandidate(
 export function findUntrackedFiles(
   projectRoot: string,
   coveredRelPaths: Set<string>,
-  config: Required<AuditTestCoverageConfig>
+  config: ResolvedTestCoverageConfig
 ): string[] {
   const untracked: string[] = []; // no-domain: Non-domain utility collection or data structure
   const extensions = new Set(
@@ -597,7 +597,7 @@ export function correlateComplexityHotspots(
 export function analyzeTestCoverage(
   rawJson: Record<string, unknown>,
   projectRoot: string,
-  config: Required<AuditTestCoverageConfig>,
+  config: ResolvedTestCoverageConfig,
   complexityMap?: ReadonlyMap<string, number>
 ): TestCoverageReport {
   const { files, overall } = parseIstanbulCoverage(rawJson, projectRoot, config);

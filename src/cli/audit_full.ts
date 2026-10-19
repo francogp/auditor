@@ -44,7 +44,7 @@ import {
   sanitizePath,
   type AuditEngineConfig,
   type AuditListFilter,
-  type AuditRatchetConfig
+  type ResolvedRatchetConfig
 } from '../core/auditConfig.ts';
 import { runWarningRatchet, initWarningBaseline } from './auditRatchet.ts';
 import { migrateLegacyAuditConfig } from './migrateAuditConfig.ts';
@@ -973,7 +973,7 @@ interface RatchetBaseFields {
 }
 
 function handleInitBaseline(
-  ratchet: Required<AuditRatchetConfig>,
+  ratchet: ResolvedRatchetConfig,
   ctx: MasterReportContext,
   canWriteBaseline: boolean,
   base: RatchetBaseFields
@@ -989,7 +989,7 @@ function handleInitBaseline(
 }
 
 function handleStandardRatchet(
-  ratchet: Required<AuditRatchetConfig>,
+  ratchet: ResolvedRatchetConfig,
   ctx: MasterReportContext,
   canWriteBaseline: boolean,
   base: RatchetBaseFields

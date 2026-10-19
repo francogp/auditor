@@ -1,7 +1,6 @@
-import { AuditRatchetConfig } from "../core/auditConfigTypes.js";
+import { ResolvedRatchetConfig } from "../core/auditConfigTypes.js";
 import { AuditFinding, StandardAuditResult } from "../core/auditContract.js";
 //#region src/cli/auditRatchet.d.ts
-type ResolvedRatchetConfig = Required<AuditRatchetConfig>;
 export declare const RATCHET_SOURCES: readonly ["production", "local-bootstrap"];
 export type RatchetSource = (typeof RATCHET_SOURCES)[number];
 interface WarningRatchetOutcome {

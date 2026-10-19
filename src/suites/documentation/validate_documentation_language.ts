@@ -456,7 +456,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       description: 'Valida idioma de la documentación',
       family: 'documentation',
       packageName: 'DOCS',
-      configKey: 'documentation.language',
+      configKey: 'documentation',
       defaultConfig: { enabled: true, language: 'en' },
       criticalConfig: {},
       icon: '🌐',

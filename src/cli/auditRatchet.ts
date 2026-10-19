@@ -12,7 +12,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
-import type { AuditRatchetConfig } from '../core/auditConfig.ts';
+import type { ResolvedRatchetConfig } from '../core/auditConfig.ts';
 
 const BASELINE_SCHEMA_VERSION = 1 as const;
 const FINGERPRINT_HEX_LENGTH = 16 as const;
@@ -34,7 +34,6 @@ interface FingerprintedWarning extends AuditBaselineEntry {
   readonly finding: AuditFinding;
 }
 
-type ResolvedRatchetConfig = Required<AuditRatchetConfig>;
 
 export const RATCHET_SOURCES = ['production', 'local-bootstrap'] as const;
 export type RatchetSource = (typeof RATCHET_SOURCES)[number];

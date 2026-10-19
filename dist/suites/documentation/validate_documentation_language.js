@@ -297,7 +297,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			description: "Valida idioma de la documentación",
 			family: "documentation",
 			packageName: "DOCS",
-			configKey: "documentation.language",
+			configKey: "documentation",
 			defaultConfig: {
 				enabled: true,
 				language: "en"
