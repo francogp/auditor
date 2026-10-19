@@ -191,4 +191,64 @@ export interface O1RefactorPlan {
     readonly replacementReturn: string;
   }[];
 }
+export type TypesFindingKind = 'as-any' | 'double-assertion' | 'missing-return-type';
+export interface TypesFindingItem {
+  readonly file: string;
+  readonly line: number;
+  readonly kind: TypesFindingKind;
+  readonly identifier?: string;
+  readonly originalSnippet: string;
+  readonly suggestedReplacement: string;
+  readonly explanation: string;
+}
+export interface TypesRefactorPlan {
+  readonly version: 1;
+  readonly planId: string;
+  readonly targetFiles: readonly string[];
+  readonly assertionReplacements?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalSnippet: string;
+    readonly replacementSnippet: string;
+  }[];
+  readonly returnTypeInjections?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalHeader: string;
+    readonly replacementHeader: string;
+  }[];
+}
+export type DomainFindingKind = 'naked-string-parameter' | 'unfrozen-catalog' | 'unbranded-id';
+export interface DomainFindingItem {
+  readonly file: string;
+  readonly line: number;
+  readonly kind: DomainFindingKind;
+  readonly identifier?: string;
+  readonly originalSnippet: string;
+  readonly suggestedReplacement: string;
+  readonly explanation: string;
+}
+export interface DomainRefactorPlan {
+  readonly version: 1;
+  readonly planId: string;
+  readonly targetFiles: readonly string[];
+  readonly constAssertions?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalDeclaration: string;
+    readonly replacementDeclaration: string;
+  }[];
+  readonly brandWrappers?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalTypeDef: string;
+    readonly replacementTypeDef: string;
+  }[];
+  readonly parameterReplacements?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalParameter: string;
+    readonly replacementParameter: string;
+  }[];
+}
 //#endregion

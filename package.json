@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "9.2.2-build.20261018-204623",
+  "version": "9.3.0-build.20261018-220422",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -23,6 +23,7 @@
     "auditor-coverage-map": "dist/cli/report_coverage_map.js",
     "auditor-css": "dist/cli/report_css.js",
     "auditor-dependencies": "dist/cli/report_dependencies.js",
+    "auditor-domain": "dist/cli/refactor_domain.js",
     "auditor-dupes": "dist/cli/refactor_dupes.js",
     "auditor-fallow": "dist/cli/report_fallow.js",
     "auditor-findings": "dist/cli/report_findings.js",
@@ -40,6 +41,7 @@
     "auditor-similar": "dist/cli/report_similar_code.js",
     "auditor-sync-env": "dist/cli/sync_env_scripts.js",
     "auditor-test-coverage": "dist/cli/report_test_coverage.js",
+    "auditor-types": "dist/cli/refactor_types.js",
     "auditor-update": "dist/cli/update_package.js",
     "auditor-version": "dist/cli/bump_version.js"
   },
@@ -171,6 +173,12 @@
     "auditor:o1": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_o1.ts",
     "auditor:o1:inspect": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/refactor_o1.ts inspect",
     "auditor:o1:apply": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_o1.ts apply",
+    "auditor:types": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_types.ts",
+    "auditor:types:inspect": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/refactor_types.ts inspect",
+    "auditor:types:apply": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_types.ts apply",
+    "auditor:domain": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_domain.ts",
+    "auditor:domain:inspect": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/refactor_domain.ts inspect",
+    "auditor:domain:apply": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_domain.ts apply",
     "auditor:similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_similar_code.ts",
     "auditor:review": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_review.ts",
     "auditor:guard": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_guard.ts",

@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
-import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
 import { execSync } from "node:child_process";

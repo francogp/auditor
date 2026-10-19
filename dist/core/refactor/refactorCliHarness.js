@@ -1,6 +1,6 @@
 import { renderBanner, renderBoxTable } from "../unifiedTheme.js";
-import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 import { scanProjectSourceFiles } from "./refactorFileScanner.js";
+import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 import path from "node:path";
 import fs from "node:fs";
 import { parseArgs, styleText } from "node:util";

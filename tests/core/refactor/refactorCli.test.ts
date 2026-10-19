@@ -4,10 +4,12 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 
+import { runRefactorDomainCli } from '../../../src/cli/refactor_domain.ts';
 import { runRefactorCli } from '../../../src/cli/refactor_dupes.ts';
 import { runRefactorMagicCli } from '../../../src/cli/refactor_magic.ts';
 import { runRefactorMotionCli } from '../../../src/cli/refactor_motion.ts';
 import { runRefactorO1Cli } from '../../../src/cli/refactor_o1.ts';
+import { runRefactorTypesCli } from '../../../src/cli/refactor_types.ts';
 
 describe('Refactor CLI Handlers', () => {
   let tmpDir: string;
@@ -256,6 +258,46 @@ describe('Refactor CLI Handlers', () => {
 
     const result = fs.readFileSync(srcFile, 'utf8');
     expect(result).toContain('structuredClone(b)');
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_types CLI with --help flag without throwing', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(runRefactorTypesCli(['--help'])).resolves.not.toThrow();
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_types discover and inspect on target directory', async () => {
+    const sample = path.join(tmpDir, 'typesSample.ts');
+    fs.writeFileSync(sample, 'const a = x as any;');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(runRefactorTypesCli(['discover', '--project', tmpDir])).resolves.not.toThrow();
+    await expect(
+      runRefactorTypesCli(['inspect', '--file', sample, '--project', tmpDir])
+    ).resolves.not.toThrow();
+
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_domain CLI with --help flag without throwing', async () => {
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(runRefactorDomainCli(['--help'])).resolves.not.toThrow();
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_domain discover and inspect on target directory', async () => {
+    const sample = path.join(tmpDir, 'domainSample.ts');
+    fs.writeFileSync(sample, "export const MODES = ['a', 'b'];");
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(runRefactorDomainCli(['discover', '--project', tmpDir])).resolves.not.toThrow();
+    await expect(
+      runRefactorDomainCli(['inspect', '--file', sample, '--project', tmpDir])
+    ).resolves.not.toThrow();
+
     logSpy.mockRestore();
   });
 });

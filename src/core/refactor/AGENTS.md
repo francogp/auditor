@@ -20,6 +20,7 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`classHierarchyHoister.ts`](./classHierarchyHoister.ts): Discovers common base classes and hoists shared methods to base class hierarchies.
+- [`domainRefactorEngine.ts`](./domainRefactorEngine.ts): Domain type and branded ID refactoring engine auto-remediating naked strings, unfrozen catalogs, and unbranded IDs.
 - [`hybridHarness.ts`](./hybridHarness.ts): Unified refactoring harness dispatching AST mutations to ts-morph, ast-grep, and Vue SFC parsers.
 - [`magicContracts.ts`](./magicContracts.ts): Type definitions, contracts, and Value-Clustering Super-Dirac compression models for magic numbers and design token refactoring.
 - [`magicNumberExtractor.ts`](./magicNumberExtractor.ts): AST extractor with zero-token contextual semantic inference, SSoT constants discovery, and Super-Dirac batch table generation.
@@ -31,6 +32,7 @@ Architecture & Tooling Engineers.
 - [`refactorCliHarness.ts`](./refactorCliHarness.ts): Generic CLI execution harness providing unified argument parsing, Dirac micro-context rendering, Box-Drawing tables, and worktree verification.
 - [`refactorContracts.ts`](./refactorContracts.ts): TypeScript type definitions and contracts for clone groups, micro-context packets, and refactor plans.
 - [`refactorFileScanner.ts`](./refactorFileScanner.ts): Shared filesystem scanner, script block extractor, and exact text replacement utilities for refactoring engines.
+- [`typesRefactorEngine.ts`](./typesRefactorEngine.ts): Type assertion and return type governance engine auto-remediating as any, double assertions, and explicit return signatures.
 - [`worktreeSandbox.ts`](./worktreeSandbox.ts): Ephemeral Git worktree lifecycle manager with zero-copy node_modules junction support.
 
 ## Work Guidance

@@ -213,6 +213,18 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     description: 'Optimización algorítmica de búsquedas lineales y modernización O(1)',
     category: 'reporting'
   },
+  {
+    name: 'auditor:types',
+    command: 'auditor-types',
+    description: 'Remediación determinista de as any, casts dobles y contratos de retorno',
+    category: 'reporting'
+  },
+  {
+    name: 'auditor:domain',
+    command: 'auditor-domain',
+    description: 'Remediación determinista de strings crudos, catálogos mutables e IDs sin Brand',
+    category: 'reporting'
+  },
 
   // Fallow Categories
   {

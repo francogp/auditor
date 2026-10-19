@@ -1,0 +1,82 @@
+#!/usr/bin/env -S node --experimental-strip-types
+/**
+ * src/cli/refactor_types.ts
+ *
+ * CANONICAL TYPE ASSERTION & RETURN TYPE REFACTORING CLI (Node.js 26+ Native)
+ * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
+ * for `as any`, double assertions, and explicit function return contracts.
+ */
+
+import { styleText } from 'node:util';
+import type { TableColumn } from '../core/unifiedTheme.ts';
+import { TypesRefactorEngine } from '../core/refactor/typesRefactorEngine.ts';
+import {
+  runRefactorCliHarness,
+  formatCliRelativeFilePath,
+  type RefactorCliDefinition
+} from '../core/refactor/refactorCliHarness.ts';
+import type {
+  TypesFindingItem,
+  TypesRefactorPlan
+} from '../core/refactor/refactorContracts.ts';
+
+const TABLE_COLUMNS: readonly TableColumn[] = [
+  { key: 'file', header: 'Archivo', width: 46, align: 'left' },
+  { key: 'asAny', header: 'as any', width: 8, align: 'right' },
+  { key: 'casts', header: 'Casts', width: 8, align: 'right' },
+  { key: 'returns', header: 'Returns', width: 9, align: 'right' },
+  { key: 'total', header: 'Total', width: 7, align: 'right' }
+];
+
+const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = {
+  toolName: 'auditor-types',
+  toolDescription: 'as any, casts dobles o funciones sin tipo de retorno',
+  bannerTitle: 'AUDITOR TYPES: TYPE ASSERTION & RETURN TYPE HYGIENE',
+  bannerSubtitle: 'Auto-remediación determinista de as any y contratos estrictos de retorno',
+  scanningMessage: 'Escaneando as any y contratos de tipado en',
+  zeroFindingsMessage: '¡Cero as any, casts dobles o retornos no tipados detectados!',
+  tableColumns: TABLE_COLUMNS,
+  discoverInFile: (filePath) => TypesRefactorEngine.discoverInFile(filePath),
+  buildTableRow: (relFile, findings) => {
+    const asAny = findings.filter((f) => f.kind === 'as-any').length;
+    const casts = findings.filter((f) => f.kind === 'double-assertion').length;
+    const returns = findings.filter((f) => f.kind === 'missing-return-type').length;
+    return {
+      file: formatCliRelativeFilePath(relFile),
+      asAny: String(asAny),
+      casts: String(casts),
+      returns: String(returns),
+      total: String(findings.length)
+    };
+  },
+  buildSummaryMessage: (filesCount, allFindings) => {
+    const asAny = allFindings.filter((f) => f.kind === 'as-any').length;
+    const casts = allFindings.filter((f) => f.kind === 'double-assertion').length;
+    const returns = allFindings.filter((f) => f.kind === 'missing-return-type').length;
+    return `Resumen: ${filesCount} archivos con ${allFindings.length} oportunidades de tipado (${asAny} as any, ${casts} casts dobles, ${returns} retornos faltantes).`;
+  },
+  toDiracItem: (f) => ({
+    line: f.line,
+    kind: f.kind,
+    originalSnippet: f.originalSnippet,
+    suggestedReplacement: f.suggestedReplacement,
+    explanation: f.explanation
+  }),
+  createPlan: (id, findings) => TypesRefactorEngine.createPlan(id, findings),
+  applyPlan: (dir, plan) => TypesRefactorEngine.applyPlan(dir, plan)
+};
+
+export async function runRefactorTypesCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+  await runRefactorCliHarness(typesCliDef, argv);
+}
+
+if (
+  import.meta.url === `file://${process.argv[1]}` ||
+  process.argv[1]?.endsWith('refactor_types.ts') ||
+  process.argv[1]?.endsWith('auditor-types.js')
+) {
+  runRefactorTypesCli().catch((err) => {
+    console.error(styleText('red', `\n💥 Error fatal en auditor-types: ${err.message}`));
+    process.exit(1);
+  });
+}

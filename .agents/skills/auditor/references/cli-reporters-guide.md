@@ -50,6 +50,8 @@ All inspection routines MUST use the official NPM scripts declared in `package.j
 - `npm run auditor:magic` / `auditor-magic`: Polyglot magic numbers and design tokens discovery, Value-Clustering Super-Dirac compression, and AST refactoring CLI (`inspect --file=<path>`, `apply --plan=<plan.json>`).
 - `npm run auditor:motion` / `auditor-motion`: UI animation governance and GSAP refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
 - `npm run auditor:o1` / `auditor-o1`: O(1) data structure optimizer and linear search refactoring CLI (`discover`, `inspect --file=<path>`, `apply --plan=<plan.json> --worktree`).
+- `npm run auditor:types` / `auditor-types`: Type assertions, loose any, and explicit return type refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> --worktree`).
+- `npm run auditor:domain` / `auditor-domain`: Domain types, naked string parameters, and branded IDs refactoring CLI (`discover`, `inspect <file>`, `apply <plan.json> --worktree`).
 
 ---
 

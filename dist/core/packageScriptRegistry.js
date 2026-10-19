@@ -194,6 +194,18 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "reporting"
 	},
 	{
+		name: "auditor:types",
+		command: "auditor-types",
+		description: "Remediación determinista de as any, casts dobles y contratos de retorno",
+		category: "reporting"
+	},
+	{
+		name: "auditor:domain",
+		command: "auditor-domain",
+		description: "Remediación determinista de strings crudos, catálogos mutables e IDs sin Brand",
+		category: "reporting"
+	},
+	{
 		name: "auditor:fallow:dupes",
 		command: "auditor-fallow category=dupes",
 		description: "Detección de bloques de código duplicados sintácticos vía Fallow",
