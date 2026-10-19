@@ -438,12 +438,6 @@ const ANTI_CASTRATION_SPECS: readonly AntiCastrationRuleSpec[] = [
     message: `La regla 'no-labels' debe estar configurada en 'error' en vite.config.ts.`
   },
   {
-    oxlintRule: 'no-void',
-    ruleId: 'vite-plus-config-no-void-missing',
-    description: 'Falta regla no-void',
-    message: `La regla 'no-void' debe estar configurada en 'error' en vite.config.ts.`
-  },
-  {
     oxlintRule: 'no-useless-call',
     ruleId: 'vite-plus-config-no-useless-call-missing',
     description: 'Falta no-useless-call',

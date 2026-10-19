@@ -669,6 +669,9 @@ interface FindingsSummaryBlockingContext {
   isSetupBlocking: boolean;
   setupErrors: number;
   postponedAppErrors: number;
+  hasLockfileMismatch?: boolean;
+  hasEngineMismatch?: boolean;
+  hasFixableErrors?: boolean;
 }
 
 function printFindingsSummary(
@@ -693,7 +696,12 @@ function printFindingsSummary(
       '\n' +
         renderSetupBlockingBanner(
           blockingContext.setupErrors,
-          blockingContext.postponedAppErrors
+          blockingContext.postponedAppErrors,
+          {
+            hasLockfileMismatch: blockingContext.hasLockfileMismatch,
+            hasEngineMismatch: blockingContext.hasEngineMismatch,
+            hasFixableErrors: blockingContext.hasFixableErrors
+          }
         ) +
         '\n'
     );
@@ -1128,13 +1136,30 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   const sortedCategories = computeAuditCategoryCounts(displayResults);
   const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
 
+  const setupFindings = setupResults.flatMap((r) => r.findings ?? []);
+  const hasLockfileMismatch = setupFindings.some(
+    (f) =>
+      f.ruleId === 'package-lockfile-integrity' ||
+      f.ruleId === 'dependency-below-minimum-installed' ||
+      f.ruleId === 'dependency-exceeds-maximum-installed'
+  );
+  const hasEngineMismatch = setupFindings.some(
+    (f) =>
+      f.ruleId === 'environment-runtime-mismatch' ||
+      f.ruleId === 'environment-engines-below-floor'
+  );
+  const hasFixableErrors = setupFindings.some((f) => f.fixable && f.severity === 'error');
+
   printFindingsSummary(
     results,
     sortedCategories,
     {
       isSetupBlocking,
       setupErrors,
-      postponedAppErrors
+      postponedAppErrors,
+      hasLockfileMismatch,
+      hasEngineMismatch,
+      hasFixableErrors
     },
     tieredGroups
   );
@@ -1295,8 +1320,24 @@ function findTaskByUidOrName(
   if (matchById) {
     return matchById;
   }
-  const targetQuery = targetUid.toLowerCase(); // domain-ok: Open dynamic text or non-domain string payload
-  return allTasks.find((t) => t.name.toLowerCase() === targetQuery);
+  const targetQuery = targetUid.toLowerCase().trim(); // domain-ok: Open dynamic text or non-domain string payload
+  const normalizedQuery = targetQuery.replace(/-/g, '_');
+
+  const matchByName = allTasks.find((t) => t.name.toLowerCase() === targetQuery);
+  if (matchByName) return matchByName;
+
+  const matchByNormalizedId = allTasks.find(
+    (t) => t.id.toLowerCase().replace(/-/g, '_') === normalizedQuery
+  );
+  if (matchByNormalizedId) return matchByNormalizedId;
+
+  const matchWithoutPrefix = allTasks.find((t) => {
+    const idWithoutValidate = t.id.toLowerCase().replace(/^validate_/, '');
+    return idWithoutValidate === normalizedQuery || idWithoutValidate.replace(/_/g, '-') === targetQuery;
+  });
+  if (matchWithoutPrefix) return matchWithoutPrefix;
+
+  return undefined;
 }
 
 function handleHelpCommand(
@@ -1494,14 +1535,31 @@ function handleGuideCommand(
     process.exit(0);
   }
 
+  const allRuleIds = allAvailableTasks.flatMap((t) =>
+    Object.keys(t.ruleDescriptions ?? t.manifest?.rules ?? {})
+  );
+  const allSuiteIds = allAvailableTasks.map((t) => t.id);
+  const candidates = [...allRuleIds, ...allSuiteIds];
+  const queryLower = target.toLowerCase();
+  const suggestions = candidates
+    .filter((c) => c.toLowerCase().includes(queryLower) || queryLower.includes(c.toLowerCase()))
+    .slice(0, 5);
+
   console.error(
     styleText(
       'red',
       `\n❌ No se encontró ninguna regla, suite ni familia con el identificador '${target}'.`
     )
   );
+  if (suggestions.length > 0) {
+    console.error(
+      styleText('yellow', `\n💡 Quizás quisiste decir:\n`) +
+        suggestions.map((s) => `   - ${s}`).join('\n') +
+        '\n'
+    );
+  }
   console.error(
-    styleText('dim', `   Ejecuta 'auditor guide' para ver el manual de uso y ejemplos de reglas.\n`)
+    styleText('dim', `   Ejecuta 'auditor guide' para ver el catálogo global de reglas disponibles.\n`)
   );
   process.exit(1);
 }

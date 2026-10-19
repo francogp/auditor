@@ -532,6 +532,58 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
     expect(result.findings.length).toBe(0);
   });
 
+  it('reports audit-config-invalid-extension when extension misses remediationPhase contract', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  extensions: ['./scripts/auditors/invalid_extension.ts'],
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'scripts', 'auditors'), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, 'scripts', 'auditors', 'invalid_extension.ts'),
+      `
+import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
+export class InvalidAuditor extends BaseAuditor {
+  constructor(projectRoot = process.cwd()) {
+    super({
+      id: 'invalid_ext',
+      name: 'Invalid',
+      description: 'Desc',
+      family: 'architecture',
+      packageName: 'Invalid',
+      configKey: 'paths',
+      defaultConfig: {},
+      criticalConfig: {},
+      usesThirdPartyTool: false,
+      ruleCapabilities: {},
+      ruleIds: [],
+      ruleDescriptions: {},
+      ruleRemediations: {},
+      projectRoot
+    });
+  }
+  public override async runAudit() {}
+}
+`,
+      'utf-8'
+    );
+
+    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'audit-config-invalid-extension');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain("missing mandatory 'remediationPhase'");
+  });
+
   it('throws a loud error when ratchet.baselineFile escapes the project or is not JSON', () => {
     expect(() =>
       defineAuditConfig({ name: 'x', ratchet: { baselineFile: '../baseline.json' } })

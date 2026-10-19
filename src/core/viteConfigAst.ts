@@ -91,7 +91,6 @@ export const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>> = {
   'no-multi-assign': 'error',
   'no-sequences': 'error',
   'no-labels': 'error',
-  'no-void': 'error',
   'no-useless-call': 'error',
   yoda: 'error',
   'no-unneeded-ternary': 'error',

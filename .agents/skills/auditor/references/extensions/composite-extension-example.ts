@@ -65,6 +65,7 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
         enabled: true
       },
       criticalConfig: {},
+      remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       configFiles: HostDomainCompositeAuditor.configFiles,
       ruleDescriptions: {

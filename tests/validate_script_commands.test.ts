@@ -233,6 +233,32 @@ describe('ValidateScriptCommandsAuditor', () => {
     expect(finding?.message).toContain('uninstalled-fancy-tool');
   });
 
+  it('detects npx vite in scripts and advises using vp dev', async () => {
+    await fs.writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'test-pkg',
+          dependencies: {}
+        },
+        null,
+        2
+      )
+    );
+
+    await fs.writeFile(path.join(tempDir, 'dev.sh'), '#!/bin/bash\nnpx vite --host\n');
+
+    const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.summary.errors).toBeGreaterThan(0);
+    const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npx');
+    expect(finding).toBeDefined();
+    expect(finding?.message).toContain(
+      "usa 'vp dev' o 'node_modules/.bin/vite' en lugar de 'npx vite'"
+    );
+  });
+
   it('allows npx binaries configured in audit.config.ts allowedNpxBinaries', async () => {
     await fs.writeFile(
       path.join(tempDir, 'package.json'),

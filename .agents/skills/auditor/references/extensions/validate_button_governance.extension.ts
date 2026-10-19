@@ -56,6 +56,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
         enabled: true
       },
       criticalConfig: {},
+      remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'ad-hoc-button-styles': 'Sobreescritura ad-hoc de botón',

@@ -50,6 +50,7 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
         baseScssFile: 'src/styles/base.scss'
       },
       criticalConfig: {},
+      remediationPhase: 'polish',
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'

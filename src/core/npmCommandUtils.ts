@@ -383,10 +383,15 @@ function evaluateBinaryExecution(
     env.allowedNpx.has(binName);
 
   if (!isKnownBin) {
-    const detail =
+    let detail =
       runnerName === 'npx'
         ? `no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.`
         : `no existe ni está declarado en dependencias.`;
+
+    if (cmd.target === 'vite' && runnerName === 'npx') {
+      detail += ` En proyectos gobernados por Vite+, usa 'vp dev' o 'node_modules/.bin/vite' en lugar de 'npx vite'.`;
+    }
+
     return {
       kind: 'unregistered-npx',
       message: `El binario '${cmd.target}' ejecutado vía ${runnerName} ${detail}`,

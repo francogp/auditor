@@ -161,4 +161,43 @@ describe('auditor-dependencies CLI reporter', () => {
       spy.mockRestore();
     }
   });
+
+  it('runDependenciesReport outputs table report cleanly when outdated dependencies exist', async () => {
+    await writeProject({
+      dependencies: { vue: '^3.0.0' },
+      devDependencies: { 'html-validate': '^9.0.0' }
+    });
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const report = runDependenciesReport(tempDir, {
+        json: false,
+        commandsOnly: false,
+        all: false,
+        noFail: true
+      });
+      expect(report.outdatedCount).toBe(2);
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('runDependenciesReport outputs table report with all=true showing undeclared dependencies', async () => {
+    await writeProject({
+      dependencies: { vue: '^3.0.0' }
+    });
+    const spy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      const report = runDependenciesReport(tempDir, {
+        json: false,
+        commandsOnly: false,
+        all: true,
+        noFail: true
+      });
+      expect(report.outdatedCount).toBe(1);
+      expect(spy).toHaveBeenCalled();
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

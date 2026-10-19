@@ -284,20 +284,23 @@ function renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) {
 * mandating that project infrastructure, configurations, dependencies, and scripts
 * must be resolved first before application code or stylesheets.
 */
-function renderSetupBlockingBanner(setupErrors, postponedAppErrors) {
+function renderSetupBlockingBanner(setupErrors, postponedAppErrors, hints) {
 	const setupErrorStr = formatNumber(setupErrors);
 	const postponedStr = formatNumber(postponedAppErrors);
+	const lines = [
+		styleText(["bold", "white"], `Se detectaron ${styleText("red", setupErrorStr)} error(es) en suites de Configuración, Dependencias y Scripts.`),
+		styleText(["bold", "yellow"], "ESTOS ERRORES DEBEN REPARARSE PRIMERO ANTES DE TOCAR CÓDIGO O ESTILOS."),
+		styleText("dim", `Para evitar falsos positivos inducidos, se postergó el reporte de ${postponedStr} error(es) de aplicación.`),
+		""
+	];
+	if (hints?.hasEngineMismatch) lines.push(styleText(["bold", "white"], "Paso 1 imperativo — Sincroniza la versión del motor de ejecución:"), styleText(["bold", "cyan"], "  👉  nvm use / fnm use   (o instalar versión requerida en .node-version)"));
+	else if (hints?.hasLockfileMismatch) lines.push(styleText(["bold", "white"], "Paso 1 imperativo — Sincroniza dependencias con el lockfile (Terminal):"), styleText(["bold", "cyan"], "  👉  npm install"), "", styleText(["bold", "white"], "Paso 2 posterior — Ejecuta la auto-reparación del auditor:"), styleText(["bold", "cyan"], "  👉  npm run auditor:fix   (o auditor fix)"));
+	else if (hints?.hasFixableErrors !== false) lines.push(styleText(["bold", "white"], "Paso 1 imperativo — Ejecuta la auto-reparación de setup:"), styleText(["bold", "cyan"], "  👉  npm run auditor:fix   (o auditor fix)"));
+	else lines.push(styleText(["bold", "white"], "Paso 1 imperativo — Resuelve los errores de configuración indicados en la tabla:"), styleText(["dim"], "  👉  npm run auditor:guide -- <ruleId>   (o auditor guide <ruleId>)"));
 	return buildNoticeBox({
 		borderColor: "red",
 		title: "🚨  BLOQUEO CRÍTICO: CONFIGURACIÓN Y PROYECTO (FASE SETUP)",
-		lines: [
-			styleText(["bold", "white"], `Se detectaron ${styleText("red", setupErrorStr)} error(es) en suites de Configuración, Dependencias y Scripts.`),
-			styleText(["bold", "yellow"], "ESTOS ERRORES DEBEN REPARARSE PRIMERO ANTES DE TOCAR CÓDIGO O ESTILOS."),
-			styleText("dim", `Para evitar falsos positivos inducidos, se postergó el reporte de ${postponedStr} error(es) de aplicación.`),
-			"",
-			styleText(["bold", "white"], "Paso 1 imperativo — Ejecuta la auto-reparación de setup:"),
-			styleText(["bold", "cyan"], "  👉  npm run auditor:fix   (o auditor fix)")
-		]
+		lines
 	});
 }
 function renderAuditorsRegistryTable(tasks, activeFamilies, options) {

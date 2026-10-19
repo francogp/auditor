@@ -53,12 +53,17 @@ export declare function renderSimilarCodeWarningBanner(): string;
  * `auditor fix` before taking any action or attempting manual suppression.
  */
 export declare function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings: number): string;
+export interface SetupBlockingActionHints {
+  readonly hasLockfileMismatch?: boolean;
+  readonly hasEngineMismatch?: boolean;
+  readonly hasFixableErrors?: boolean;
+}
 /**
  * Renders a prominent Box-Drawing critical blocking banner when setup-phase errors exist,
  * mandating that project infrastructure, configurations, dependencies, and scripts
  * must be resolved first before application code or stylesheets.
  */
-export declare function renderSetupBlockingBanner(setupErrors: number, postponedAppErrors: number): string;
+export declare function renderSetupBlockingBanner(setupErrors: number, postponedAppErrors: number, hints?: SetupBlockingActionHints): string;
 export interface AuditorsRegistryTableOptions {
   readonly filter?: AuditListFilter;
   readonly disabledReasons?: ReadonlyMap<string, string>;

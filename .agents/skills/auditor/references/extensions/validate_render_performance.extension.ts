@@ -79,6 +79,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
         heavyEffectPaths: []
       },
       criticalConfig: {},
+      remediationPhase: 'behavior',
       usesThirdPartyTool: false,
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       ruleRemediations: {

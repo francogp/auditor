@@ -70,6 +70,26 @@ describe('Setup Phase Contract & Imperative Blocking', () => {
     expect(banner).toContain('npm run auditor:fix');
   });
 
+  it('renders contextual npm install instructions when lockfile mismatch exists', () => {
+    const banner = renderSetupBlockingBanner(2, 50, { hasLockfileMismatch: true });
+    expect(banner).toContain('npm install');
+    expect(banner).toContain('Paso 1 imperativo — Sincroniza dependencias con el lockfile');
+    expect(banner).toContain('Paso 2 posterior — Ejecuta la auto-reparación del auditor');
+    expect(banner).toContain('npm run auditor:fix');
+  });
+
+  it('renders contextual nvm/fnm instructions when engine mismatch exists', () => {
+    const banner = renderSetupBlockingBanner(1, 10, { hasEngineMismatch: true });
+    expect(banner).toContain('nvm use / fnm use');
+    expect(banner).toContain('Sincroniza la versión del motor de ejecución');
+  });
+
+  it('renders guide consultation instruction when errors are not auto-fixable', () => {
+    const banner = renderSetupBlockingBanner(1, 0, { hasFixableErrors: false });
+    expect(banner).toContain('npm run auditor:guide -- <ruleId>');
+    expect(banner).toContain('Resuelve los errores de configuración');
+  });
+
   it('strictly executes setup phase suites before all application and linter suites in fix mode', () => {
     const tasks: any[] = [
       {

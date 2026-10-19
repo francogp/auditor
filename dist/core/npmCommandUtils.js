@@ -237,7 +237,8 @@ function extractCommandsFromLine(line, lineNum, out, overrideRawText) {
 function evaluateBinaryExecution(cmd, env, runnerName) {
 	const binName = cmd.target.startsWith("@") ? cmd.target.split("/")[1] || cmd.target : cmd.target;
 	if (!(env.installedBins.has(binName) || env.declaredBins.has(cmd.target) || env.declaredBins.has(binName) || env.allowedNpx.has(cmd.target) || env.allowedNpx.has(binName))) {
-		const detail = runnerName === "npx" ? `no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.` : `no existe ni está declarado en dependencias.`;
+		let detail = runnerName === "npx" ? `no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.` : `no existe ni está declarado en dependencias.`;
+		if (cmd.target === "vite" && runnerName === "npx") detail += ` En proyectos gobernados por Vite+, usa 'vp dev' o 'node_modules/.bin/vite' en lugar de 'npx vite'.`;
 		return {
 			kind: "unregistered-npx",
 			message: `El binario '${cmd.target}' ejecutado vía ${runnerName} ${detail}`,

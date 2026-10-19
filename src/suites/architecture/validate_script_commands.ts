@@ -193,8 +193,9 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
           'Diagnóstico:\n' +
           'Examina el binario invocado tras "npx".\n\n' +
           'Solución Canónica:\n' +
-          '1. Instalar la herramienta en devDependencies mediante "npm install -D <paquete>" e invocarla mediante su script en package.json.\n' +
-          '2. Si se trata de una utilidad provista globalmente por la imagen o el entorno anfitrión, regístrala en "config.scriptCommands.allowedNpxBinaries" en .auditor/audit.config.ts tras aprobación.'
+          '1. Si invoca herramientas nativas de Vite+ (ej. "npx vite"), reemplázala por el comando oficial "vp dev" o su script canónico en package.json.\n' +
+          '2. Para otras herramientas, instálalas en devDependencies mediante "npm install -D <paquete>" e invócalas mediante su script en package.json.\n' +
+          '3. Si se trata de una utilidad provista globalmente por la imagen o el entorno anfitrión, regístrala en "config.scriptCommands.allowedNpxBinaries" en .auditor/audit.config.ts tras aprobación.'
       },
       coverage: {
         include: [

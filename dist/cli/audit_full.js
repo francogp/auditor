@@ -384,7 +384,11 @@ function printFindingsSummary(results, sortedCategories, blockingContext, tiered
 		return;
 	}
 	if (blockingContext?.isSetupBlocking) {
-		console.log("\n" + renderSetupBlockingBanner(blockingContext.setupErrors, blockingContext.postponedAppErrors) + "\n");
+		console.log("\n" + renderSetupBlockingBanner(blockingContext.setupErrors, blockingContext.postponedAppErrors, {
+			hasLockfileMismatch: blockingContext.hasLockfileMismatch,
+			hasEngineMismatch: blockingContext.hasEngineMismatch,
+			hasFixableErrors: blockingContext.hasFixableErrors
+		}) + "\n");
 		console.log(styleText("bold", "📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE 1: SETUP):\n"));
 		if (tieredGroups && tieredGroups.length > 0) console.log(renderTieredFindingsBreakdownTable(tieredGroups, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
 		else console.log(renderFindingsBreakdownTable(sortedCategories, "TIPO DE INCIDENCIA / REGLA DE SETUP"));
@@ -600,10 +604,14 @@ async function renderAndPersistMasterReport(ctx) {
 	const displayResults = isSetupBlocking ? setupResults : results;
 	const sortedCategories = computeAuditCategoryCounts(displayResults);
 	const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
+	const setupFindings = setupResults.flatMap((r) => r.findings ?? []);
 	printFindingsSummary(results, sortedCategories, {
 		isSetupBlocking,
 		setupErrors,
-		postponedAppErrors
+		postponedAppErrors,
+		hasLockfileMismatch: setupFindings.some((f) => f.ruleId === "package-lockfile-integrity" || f.ruleId === "dependency-below-minimum-installed" || f.ruleId === "dependency-exceeds-maximum-installed"),
+		hasEngineMismatch: setupFindings.some((f) => f.ruleId === "environment-runtime-mismatch" || f.ruleId === "environment-engines-below-floor"),
+		hasFixableErrors: setupFindings.some((f) => f.fixable && f.severity === "error")
 	}, tieredGroups);
 	console.log(renderConsolidatedFooter(results.length, suitesPassed, totalErrors, totalWarnings, totalDuration, void 0, suitesSkipped));
 	if (results.some((r) => r.findings?.some((f) => f.ruleId === "fallow-similar-code-failed" && (f.context === "manual-setup-required" || f.context === "model-not-ready")))) console.log("\n" + renderSimilarCodeWarningBanner() + "\n");
@@ -673,8 +681,17 @@ async function renderAndPersistMasterReport(ctx) {
 function findTaskByUidOrName(allTasks, targetUid) {
 	const matchById = allTasks.find((t) => t.id === targetUid);
 	if (matchById) return matchById;
-	const targetQuery = targetUid.toLowerCase();
-	return allTasks.find((t) => t.name.toLowerCase() === targetQuery);
+	const targetQuery = targetUid.toLowerCase().trim();
+	const normalizedQuery = targetQuery.replace(/-/g, "_");
+	const matchByName = allTasks.find((t) => t.name.toLowerCase() === targetQuery);
+	if (matchByName) return matchByName;
+	const matchByNormalizedId = allTasks.find((t) => t.id.toLowerCase().replace(/-/g, "_") === normalizedQuery);
+	if (matchByNormalizedId) return matchByNormalizedId;
+	const matchWithoutPrefix = allTasks.find((t) => {
+		const idWithoutValidate = t.id.toLowerCase().replace(/^validate_/, "");
+		return idWithoutValidate === normalizedQuery || idWithoutValidate.replace(/_/g, "-") === targetQuery;
+	});
+	if (matchWithoutPrefix) return matchWithoutPrefix;
 }
 function handleHelpCommand(cliOptions, allAvailableTasks, activeFamilies) {
 	const requestedUid = typeof cliOptions.values.info === "string" ? cliOptions.values.info : cliOptions.positionals.find((p) => p !== "help" && !activeFamilies.includes(p));
@@ -795,8 +812,14 @@ function handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies) {
 		console.log(renderSuiteGuideCards(taskMatch));
 		process.exit(0);
 	}
+	const allRuleIds = allAvailableTasks.flatMap((t) => Object.keys(t.ruleDescriptions ?? t.manifest?.rules ?? {}));
+	const allSuiteIds = allAvailableTasks.map((t) => t.id);
+	const candidates = [...allRuleIds, ...allSuiteIds];
+	const queryLower = target.toLowerCase();
+	const suggestions = candidates.filter((c) => c.toLowerCase().includes(queryLower) || queryLower.includes(c.toLowerCase())).slice(0, 5);
 	console.error(styleText("red", `\n❌ No se encontró ninguna regla, suite ni familia con el identificador '${target}'.`));
-	console.error(styleText("dim", `   Ejecuta 'auditor guide' para ver el manual de uso y ejemplos de reglas.\n`));
+	if (suggestions.length > 0) console.error(styleText("yellow", `\n💡 Quizás quisiste decir:\n`) + suggestions.map((s) => `   - ${s}`).join("\n") + "\n");
+	console.error(styleText("dim", `   Ejecuta 'auditor guide' para ver el catálogo global de reglas disponibles.\n`));
 	process.exit(1);
 }
 function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamilies, config) {

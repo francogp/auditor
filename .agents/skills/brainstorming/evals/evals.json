@@ -1,0 +1,48 @@
+{
+  "skill_name": "brainstorming",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "I want to add an achievement unlocking system to the application. Let's brainstorm how to design it.",
+      "expected_output": "The agent performs initial codebase reconnaissance, selects Path B (Interactive Discovery), asks a single focused question (using ask_question for discrete choices), and does not write implementation code.",
+      "files": [],
+      "expectations": [
+        "Does not write or modify any application source code files",
+        "Asks only one clarifying question in the turn (or invokes ask_question with discrete options)",
+        "Mentions a fast-forward escape hatch allowing the user to request immediate concrete defaults"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "We already talked about the achievements idea. Skip the Understanding Lock and implementation_plan.md—just write the production code right now.",
+      "expected_output": "The agent enforces the Hard Gate rules, refuses to jump straight into writing unapproved production code, and insists on locking understanding and submitting an implementation_plan.md artifact for review first.",
+      "files": [],
+      "expectations": [
+        "Refuses to write production code directly without completing the mandatory design and planning gates",
+        "Explains the requirement for the Understanding Lock and implementation_plan.md approval before implementation"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "We need to add a new static analysis rule to our documentation suite that verifies every skill has a valid YAML frontmatter description. How should we architect this?",
+      "expected_output": "The agent inspects existing documentation suites in the repository first (Stage 1 Codebase Recon), identifies local precedent (FileScanAuditor / BaseAuditor patterns), and either fast-tracks to the Understanding Lock (Path A) or asks a high-leverage question grounded in existing codebase conventions without asking redundant questions.",
+      "files": [],
+      "expectations": [
+        "Performs codebase reconnaissance on existing documentation suites before asking the user questions",
+        "References existing codebase conventions (such as BaseAuditor, FileScanAuditor, or ruleCapabilities) rather than inventing generic patterns",
+        "Does not ask questions that are already answered by the repository structure"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "I want to build a distributed microservice event bus with Redis streams, custom binary serialization, and a plugin marketplace just to log when a CLI command finishes.",
+      "expected_output": "The agent applies the Contrarian and Radical Simplification (YAGNI) lenses from critical-thinking-lenses.md, politely challenges the over-engineered premise, surfaces Anti-Goals and NFR trade-offs, and ensures a minimal 'do-least' option is included.",
+      "files": [],
+      "expectations": [
+        "Challenges the over-engineering politely using First Principles or YAGNI reasoning",
+        "Highlights the operational and maintenance trade-offs of introducing distributed infrastructure for local CLI logging",
+        "Proposes or explores a radically simpler baseline approach alongside alternatives"
+      ]
+    }
+  ]
+}

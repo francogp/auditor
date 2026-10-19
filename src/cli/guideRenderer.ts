@@ -22,12 +22,14 @@ export function findRuleGuide(
   ruleIdOrName: string
 ): GuideQueryMatch | undefined {
   const cleanId = ruleIdOrName.trim().toLowerCase();
+  const normalizedClean = cleanId.replace(/_/g, '-');
   for (const task of allTasks) {
     const rules = task.ruleDescriptions ?? task.manifest?.rules ?? {};
     const remediations = task.ruleRemediations ?? task.manifest?.remediations ?? {};
 
     for (const [rId, rDesc] of Object.entries(rules)) {
-      if (rId.toLowerCase() === cleanId) {
+      const lowerRId = rId.toLowerCase();
+      if (lowerRId === cleanId || lowerRId.replace(/_/g, '-') === normalizedClean) {
         return {
           ruleId: rId,
           ruleDescription: rDesc,
