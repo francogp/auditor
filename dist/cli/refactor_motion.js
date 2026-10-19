@@ -50,6 +50,7 @@ const motionCliDef = {
 			align: "right"
 		}
 	],
+	engineFactory: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
 	discoverInFile: (filePath) => MotionRefactorEngine.discoverInFile(filePath),
 	buildTableRow: (relFile, findings) => {
 		const timers = findings.filter((f) => f.kind === "banned-ui-timer").length;

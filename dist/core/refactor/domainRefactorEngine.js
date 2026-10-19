@@ -1,4 +1,7 @@
-import { executePlanFileReplacements, forEachSourceScriptLine } from "./refactorFileScanner.js";
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
+import path from "node:path";
+import fs from "node:fs";
 //#region src/core/refactor/domainRefactorEngine.ts
 /**
 * src/core/refactor/domainRefactorEngine.ts
@@ -11,7 +14,21 @@ const UNFROZEN_ARRAY_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\[[^\]]+\
 const UNFROZEN_OBJECT_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\{[^}]+\})\s*;/m;
 const NAKED_PARAM_REGEX = /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
 const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\s*;/m;
-var DomainRefactorEngine = class {
+var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine {
+	toolId = "auditor-domain";
+	configSectionKey = "domain";
+	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	discoverInFile(filePath) {
+		return DomainRefactorEngine.discoverInFile(filePath);
+	}
+	createPlan(domainPlanId, domainFindings) {
+		const targetFiles = Array.from(new Set(domainFindings.map((f) => f.file)));
+		return DomainRefactorEngine.buildDomainHygienePlan(domainPlanId, targetFiles, domainFindings);
+	}
+	applyPlan(projectRoot, plan) {
+		DomainRefactorEngine.applyPlan(projectRoot, plan);
+		return { modifiedFiles: plan.targetFiles };
+	}
 	/**
 	* Scans a file to discover domain type hygiene and branded ID opportunities.
 	*/
@@ -89,11 +106,7 @@ var DomainRefactorEngine = class {
 		});
 		return findings;
 	}
-	/**
-	* Creates a deterministic refactoring plan from findings.
-	*/
-	static createPlan(planId, findings) {
-		const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
+	static buildDomainHygienePlan(planId, targetFiles, findings) {
 		const constAssertions = [];
 		const brandWrappers = [];
 		const parameterReplacements = [];
@@ -124,27 +137,42 @@ var DomainRefactorEngine = class {
 			parameterReplacements
 		};
 	}
+	static createPlan(planId, findings) {
+		const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
+		return DomainRefactorEngine.buildDomainHygienePlan(planId, targetFiles, findings);
+	}
 	/**
 	* Deterministically applies a DomainRefactorPlan across target source files.
 	*/
 	static applyPlan(targetDir, plan) {
-		const replacementBuckets = [];
-		if (plan.constAssertions && plan.constAssertions.length > 0) replacementBuckets.push(plan.constAssertions.map((c) => ({
-			file: c.file,
-			original: c.originalDeclaration,
-			replacement: c.replacementDeclaration
-		})));
-		if (plan.brandWrappers && plan.brandWrappers.length > 0) replacementBuckets.push(plan.brandWrappers.map((b) => ({
-			file: b.file,
-			original: b.originalTypeDef,
-			replacement: b.replacementTypeDef
-		})));
-		if (plan.parameterReplacements && plan.parameterReplacements.length > 0) replacementBuckets.push(plan.parameterReplacements.map((p) => ({
-			file: p.file,
-			original: p.originalParameter,
-			replacement: p.replacementParameter
-		})));
-		return executePlanFileReplacements(targetDir, plan.targetFiles, replacementBuckets);
+		let filesChanged = 0;
+		let changesApplied = 0;
+		for (const relFile of plan.targetFiles ?? []) {
+			const fullPath = path.resolve(targetDir, relFile);
+			if (!fs.existsSync(fullPath)) continue;
+			const initialContent = fs.readFileSync(fullPath, "utf-8");
+			let currentContent = initialContent;
+			for (const item of plan.constAssertions ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalDeclaration)) {
+				currentContent = currentContent.replace(item.originalDeclaration, item.replacementDeclaration);
+				changesApplied++;
+			}
+			for (const item of plan.brandWrappers ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalTypeDef)) {
+				currentContent = currentContent.replace(item.originalTypeDef, item.replacementTypeDef);
+				changesApplied++;
+			}
+			for (const item of plan.parameterReplacements ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalParameter)) {
+				currentContent = currentContent.replace(item.originalParameter, item.replacementParameter);
+				changesApplied++;
+			}
+			if (currentContent !== initialContent) {
+				fs.writeFileSync(fullPath, currentContent, "utf-8");
+				filesChanged++;
+			}
+		}
+		return {
+			filesChanged,
+			changesApplied
+		};
 	}
 };
 //#endregion

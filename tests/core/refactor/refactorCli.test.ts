@@ -10,6 +10,10 @@ import { runRefactorMagicCli } from '../../../src/cli/refactor_magic.ts';
 import { runRefactorMotionCli } from '../../../src/cli/refactor_motion.ts';
 import { runRefactorO1Cli } from '../../../src/cli/refactor_o1.ts';
 import { runRefactorTypesCli } from '../../../src/cli/refactor_types.ts';
+import {
+  formatCliRelativeFilePath,
+  runRefactorCliHarness
+} from '../../../src/core/refactor/refactorCliHarness.ts';
 
 describe('Refactor CLI Handlers', () => {
   let tmpDir: string;
@@ -158,6 +162,29 @@ describe('Refactor CLI Handlers', () => {
     logSpy.mockRestore();
   });
 
+  it('runs refactor_magic CLI with help, discover, and inspect', async () => {
+    const srcFile = path.join(tmpDir, 'sampleMagic.ts');
+    fs.writeFileSync(srcFile, 'export function calc() { return 4200; }');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(runRefactorMagicCli(['help'])).resolves.not.toThrow();
+    await expect(runRefactorMagicCli(['discover', '--project', tmpDir])).resolves.not.toThrow();
+    await expect(
+      runRefactorMagicCli(['inspect', '--file', srcFile, '--project', tmpDir])
+    ).resolves.not.toThrow();
+
+    logSpy.mockRestore();
+  });
+
+  it('formats CLI relative file paths with ellipsis when exceeding max length', () => {
+    expect(formatCliRelativeFilePath('short/path.ts')).toBe('short/path.ts');
+    const longPath =
+      'very/long/nested/path/to/some/deeply/nested/component/that/exceeds/the/limit/file.ts';
+    const formatted = formatCliRelativeFilePath(longPath);
+    expect(formatted.startsWith('...')).toBe(true);
+    expect(formatted.length).toBeLessThanOrEqual(44);
+  });
+
   it('runs refactor_dupes apply command applying refactoring plan', async () => {
     const srcFile = path.join(tmpDir, 'testClone.ts');
     fs.writeFileSync(srcFile, 'export function add(a: number, b: number) { return a + b; }');
@@ -299,5 +326,185 @@ describe('Refactor CLI Handlers', () => {
     ).resolves.not.toThrow();
 
     logSpy.mockRestore();
+  });
+
+  it('runs refactor_motion apply command with declarative plan', async () => {
+    const sample = path.join(tmpDir, 'motionSample.ts');
+    fs.writeFileSync(sample, 'setTimeout(() => {}, 200);');
+    const planPath = path.join(tmpDir, 'motionPlan.json');
+    fs.writeFileSync(
+      planPath,
+      JSON.stringify({
+        planId: 'test-motion-plan',
+        targetFiles: []
+      })
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(
+      runRefactorMotionCli(['apply', '--plan', planPath, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_o1 apply command with declarative plan', async () => {
+    const planPath = path.join(tmpDir, 'o1Plan.json');
+    fs.writeFileSync(
+      planPath,
+      JSON.stringify({
+        planId: 'test-o1-plan',
+        targetFiles: []
+      })
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(
+      runRefactorO1Cli(['apply', '--plan', planPath, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_types apply command with declarative plan', async () => {
+    const planPath = path.join(tmpDir, 'typesPlan.json');
+    fs.writeFileSync(
+      planPath,
+      JSON.stringify({
+        planId: 'test-types-plan',
+        targetFiles: []
+      })
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(
+      runRefactorTypesCli(['apply', '--plan', planPath, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    logSpy.mockRestore();
+  });
+
+  it('runs refactor_domain apply command with declarative plan', async () => {
+    const planPath = path.join(tmpDir, 'domainPlan.json');
+    fs.writeFileSync(
+      planPath,
+      JSON.stringify({
+        planId: 'test-domain-plan',
+        targetFiles: []
+      })
+    );
+
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(
+      runRefactorDomainCli(['apply', '--plan', planPath, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    logSpy.mockRestore();
+  });
+
+  it('runs inspect on clean file reporting zero findings', async () => {
+    const sample = path.join(tmpDir, 'cleanSample.ts');
+    fs.writeFileSync(sample, 'export const a: number = 1;');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(
+      runRefactorMotionCli(['inspect', '--file', sample, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    expect(logSpy).toHaveBeenCalled();
+    logSpy.mockRestore();
+  });
+
+  it('notifies and skips when engine is disabled in audit.config', async () => {
+    const dummyDef = {
+      toolName: 'auditor-test',
+      toolDescription: 'test tool',
+      bannerTitle: 'test',
+      bannerSubtitle: 'test',
+      scanningMessage: 'scanning',
+      zeroFindingsMessage: 'zero',
+      tableColumns: [],
+      engineFactory: () =>
+        ({
+          toolId: 'testTool',
+          isToolEnabled: () => false,
+          getScannableFiles: () => []
+        }) as any,
+      discoverInFile: () => [],
+      buildTableRow: () => ({}),
+      buildSummaryMessage: () => '',
+      toDiracItem: () => ({}) as any,
+      createPlan: () => ({}),
+      applyPlan: () => ({ filesChanged: 0, changesApplied: 0 })
+    };
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await expect(runRefactorCliHarness(dummyDef, ['discover'])).resolves.not.toThrow();
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('desactivado'));
+    logSpy.mockRestore();
+  });
+
+  it('inspects file with findings and outputs Dirac micro-context', async () => {
+    const sample = path.join(tmpDir, 'motionSampleWithFindings.ts');
+    fs.writeFileSync(sample, 'setTimeout(() => {}, 200);\nsetInterval(() => {}, 500);\n');
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    await expect(
+      runRefactorMotionCli(['inspect', '--file', sample, '--project', tmpDir])
+    ).resolves.not.toThrow();
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Micro-Contexto Dirac'));
+    logSpy.mockRestore();
+  });
+
+  it('exits with error when inspect is invoked without target file', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit called');
+    }) as any);
+
+    await expect(runRefactorMotionCli(['inspect', '--project', tmpDir])).rejects.toThrow(
+      'exit called'
+    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Debes especificar un archivo'));
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('exits with error when apply is invoked without plan file', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit called');
+    }) as any);
+
+    await expect(runRefactorMotionCli(['apply', '--project', tmpDir])).rejects.toThrow(
+      'exit called'
+    );
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Debes especificar un archivo de plan')
+    );
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('exits with error on unknown command in harness', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit called');
+    }) as any);
+
+    await expect(runRefactorMotionCli(['invalid_command', '--project', tmpDir])).rejects.toThrow(
+      'exit called'
+    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Comando desconocido'));
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
+  });
+
+  it('exits with error when inspect target file does not exist', async () => {
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('exit called');
+    }) as any);
+
+    await expect(
+      runRefactorMotionCli(['inspect', '--file', 'non_existent_file.ts', '--project', tmpDir])
+    ).rejects.toThrow('exit called');
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Archivo inexistente'));
+    errSpy.mockRestore();
+    exitSpy.mockRestore();
   });
 });

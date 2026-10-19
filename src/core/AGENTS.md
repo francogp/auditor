@@ -88,6 +88,7 @@ Architecture & Tooling Engineers.
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
 - [`auditBootstrap.ts`](./auditBootstrap.ts): Pre-flight zero-setup auto-bootstrap engine initializing configurations, skills, and hygiene defaults.
+- [`auditCodeRoots.ts`](./auditCodeRoots.ts): Path predicates for source code roots, scripts, and CLI directories.
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
 - [`auditConfigAst.ts`](./auditConfigAst.ts): AST parsing, section insertion, and programmatic configuration modification utilities for `audit.config.ts`.

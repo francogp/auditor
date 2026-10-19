@@ -11,6 +11,10 @@ import path from 'node:path';
 import { collectRepositoryFiles } from '../safePath.ts';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 
+import { getAuditConfig } from '../auditConfig.ts';
+import { isTestPath, isExemptFile } from '../auditPathPredicates.ts';
+import { toPosixRelative } from '../safePath.ts';
+
 const DEFAULT_REFACTOR_EXTENSIONS = new Set<string>(['.ts', '.vue', '.js']);
 
 /**
@@ -23,8 +27,8 @@ export function isSameFilePath(fileA: string, fileB: string, baseDir: string = p
 }
 
 /**
- * Recursively scans a directory for source files matching target extensions
- * using the canonical framework file collector.
+ * Scans project code roots dynamically driven by audit.config.ts,
+ * respecting codeRoots, ignoreGlobs, test exclusions, and file exemptions.
  */
 export function scanProjectSourceFiles(
   dir: string,
@@ -32,7 +36,48 @@ export function scanProjectSourceFiles(
 ): readonly string[] {
   const normalizedDir = path.resolve(dir);
   if (!fs.existsSync(normalizedDir)) return [];
-  return collectRepositoryFiles(normalizedDir, normalizedDir, [], allowedExtensions);
+
+  const config = getAuditConfig(normalizedDir);
+  const configuredRoots = config.paths.codeRoots ?? ['src', 'scripts'];
+  const hasConfiguredRoots = configuredRoots.some((r) => fs.existsSync(path.resolve(normalizedDir, r)));
+  const roots = hasConfiguredRoots ? configuredRoots : ['.'];
+  const combinedIgnores = [
+    ...(config.paths.ignoreGlobs ?? []),
+    'node_modules/**',
+    'dist/**',
+    'scratch/**'
+  ];
+  const seen = new Set<string>();
+  const results: string[] = [];
+
+  for (const root of roots) {
+    const fullRoot = path.resolve(normalizedDir, root);
+    if (!fs.existsSync(fullRoot)) continue;
+
+    const collected = collectRepositoryFiles(
+      fullRoot,
+      normalizedDir,
+      combinedIgnores,
+      allowedExtensions
+    );
+
+    for (const absFile of collected) {
+      const relPosix = toPosixRelative(normalizedDir, absFile);
+      if (seen.has(relPosix)) continue;
+
+      if (!config.paths.includeTestsInCodeAudit && isTestPath(relPosix)) {
+        continue;
+      }
+      if (isExemptFile(relPosix, config)) {
+        continue;
+      }
+
+      seen.add(relPosix);
+      results.push(absFile);
+    }
+  }
+
+  return results;
 }
 
 /**
@@ -124,7 +169,7 @@ export function executePlanFileReplacements(
   let filesChanged = 0;
   let changesApplied = 0;
 
-  for (const relFile of targetFiles) {
+  for (const relFile of (targetFiles ?? [])) {
     const fullPath = path.isAbsolute(relFile) ? path.normalize(relFile) : path.resolve(baseDir, relFile);
     if (!fs.existsSync(fullPath)) continue;
 

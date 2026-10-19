@@ -1,5 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { isDataPath, isInCodeRoots } from "../../core/auditPathPredicates.js";
+import { isInCodeRoots } from "../../core/auditCodeRoots.js";
+import { isDataPath } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -208,6 +209,8 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "🔢",
 			roots: effectiveRoots,
+			extraIgnorePatterns: [...config.constants?.ignoreGlobs ?? []],
+			exemptPaths: [...config.constants?.exemptPaths ?? [], ...config.constants?.exemptFiles ?? []],
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",
 				".tsx",

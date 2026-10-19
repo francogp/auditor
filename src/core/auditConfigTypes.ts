@@ -81,6 +81,9 @@ export interface AuditDomainConfig {
   readonly caseNormalizationExemptTokens?: readonly string[];
   readonly allowedStoreSetterPrefixes?: readonly string[];
   readonly allowedNumericConstantPrefixes?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly ignoreGlobs?: readonly string[];
 }
 
 export interface CustomAuditFamilyConfig {
@@ -157,6 +160,8 @@ export interface AuditStylesConfig {
   readonly stylelint?: AuditStylelintConfig;
   readonly enforceScss?: boolean;
   readonly exemptCssFiles?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly ignoreGlobs?: readonly string[];
 }
 
 export interface AuditE2eConfig {
@@ -196,6 +201,9 @@ export interface AuditConstantsConfig {
   readonly ignoredNames?: readonly string[];
   readonly exemptMagicNumbers?: readonly number[];
   readonly allowedNumericPrefixes?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
+  readonly ignoreGlobs?: readonly string[];
 }
 
 export interface AuditSecurityConfig {

@@ -26,7 +26,7 @@ const MAX_DISPLAY_FILE_PATH_LENGTH = 42;
 function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): void {
   console.log(styleText('cyan', `🔍 Escaneando archivos con números mágicos en: ${projectRoot}...\n`));
 
-  const scannableFiles = MagicNumberExtractor.discoverScannableFiles(projectRoot);
+  const scannableFiles = extractor.getScannableFiles();
   const tableRows: Record<string, string>[] = [];
   let totalFound = 0;
 
@@ -132,6 +132,7 @@ export async function runRefactorMagicCli(cliArgs: string[] = process.argv.slice
     args: cliArgs,
     options: {
       project: { type: 'string', default: process.cwd() },
+      file: { type: 'string' },
       plan: { type: 'string' },
       worktree: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false }
@@ -140,7 +141,7 @@ export async function runRefactorMagicCli(cliArgs: string[] = process.argv.slice
   });
 
   const command = positionals[0] || 'discover';
-  const targetArg = positionals[1];
+  const targetArg = positionals[1] || values.file;
   const projectRoot = path.resolve(values.project || process.cwd());
 
   if (values.help || command === 'help') {
@@ -164,7 +165,18 @@ Opciones:
   }
 
   renderBanner('auditor-magic', 'Gobernanza y Refactorización Determinista de Números Mágicos');
-  const extractor = new MagicNumberExtractor();
+  const extractor = new MagicNumberExtractor({ projectRoot });
+
+  if (!extractor.isToolEnabled()) {
+    console.log(
+      styleText(
+        'yellow',
+        `\n⚠️  El subsistema 'auditor-magic' (constants) está desactivado en .auditor/audit.config.ts.\n`
+      )
+    );
+    return;
+  }
+
   extractor.indexProjectConstants(projectRoot);
 
   switch (command) {

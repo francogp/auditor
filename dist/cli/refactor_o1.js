@@ -50,6 +50,7 @@ const o1CliDef = {
 			align: "right"
 		}
 	],
+	engineFactory: (projectRoot) => new O1RefactorEngine({ projectRoot }),
 	discoverInFile: (filePath) => O1RefactorEngine.discoverInFile(filePath),
 	buildTableRow: (relFile, findings) => {
 		const membership = findings.filter((f) => f.kind === "linear-membership").length;

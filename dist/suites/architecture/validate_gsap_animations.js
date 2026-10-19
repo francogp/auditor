@@ -1,7 +1,8 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
-import { isExemptFile, isInCodeRoots } from "../../core/auditPathPredicates.js";
+import { isInCodeRoots } from "../../core/auditCodeRoots.js";
+import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";

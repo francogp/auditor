@@ -10,8 +10,8 @@
  */
 export declare function isSameFilePath(fileA: string, fileB: string, baseDir?: string): boolean;
 /**
- * Recursively scans a directory for source files matching target extensions
- * using the canonical framework file collector.
+ * Scans project code roots dynamically driven by audit.config.ts,
+ * respecting codeRoots, ignoreGlobs, test exclusions, and file exemptions.
  */
 export declare function scanProjectSourceFiles(dir: string, allowedExtensions?: ReadonlySet<string>): readonly string[];
 /**

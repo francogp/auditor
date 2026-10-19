@@ -1,3 +1,4 @@
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine } from "./refactorFileScanner.js";
 //#region src/core/refactor/typesRefactorEngine.ts
 /**
@@ -11,7 +12,20 @@ const AS_ANY_REGEX = /\bas\s+any\b/g;
 const ANGLE_ANY_REGEX = /<any>\s*([a-zA-Z0-9_$.()]+)/g;
 const DOUBLE_ASSERTION_REGEX = /\bas\s+(?:unknown|any)\s+as\s+([A-Za-z0-9_$.<>[\]|& ]+)/g;
 const EXPORTED_FN_REGEX = /^(\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\))\s*\{/m;
-var TypesRefactorEngine = class {
+var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
+	toolId = "auditor-types";
+	configSectionKey = "typeCheck";
+	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	discoverInFile(filePath) {
+		return TypesRefactorEngine.discoverInFile(filePath);
+	}
+	createPlan(typesPlanId, typesFindings) {
+		return TypesRefactorEngine.buildTypeAssertionPlan(typesPlanId, typesFindings);
+	}
+	applyPlan(projectRoot, plan) {
+		TypesRefactorEngine.applyPlan(projectRoot, plan);
+		return { modifiedFiles: plan.targetFiles };
+	}
 	/**
 	* Scans a file to discover type assertion and return type hygiene violations.
 	*/
@@ -84,7 +98,7 @@ var TypesRefactorEngine = class {
 	/**
 	* Creates a deterministic refactoring plan from findings.
 	*/
-	static createPlan(planId, findings) {
+	static buildTypeAssertionPlan(planId, findings) {
 		const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
 		const assertionReplacements = [];
 		const returnTypeInjections = [];
@@ -107,6 +121,9 @@ var TypesRefactorEngine = class {
 			assertionReplacements,
 			returnTypeInjections
 		};
+	}
+	static createPlan(planId, findings) {
+		return TypesRefactorEngine.buildTypeAssertionPlan(planId, findings);
 	}
 	/**
 	* Deterministically applies a TypesRefactorPlan across target source files.

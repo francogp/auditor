@@ -267,6 +267,11 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       criticalConfig: {},
       icon: '🔢',
       roots: effectiveRoots,
+      extraIgnorePatterns: [...(config.constants?.ignoreGlobs ?? [])],
+      exemptPaths: [
+        ...(config.constants?.exemptPaths ?? []),
+        ...(config.constants?.exemptFiles ?? [])
+      ],
       allowedExtensions: new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue']),
       requiresAst: true,
       ruleIds: MAGIC_NUMBERS_RULES,

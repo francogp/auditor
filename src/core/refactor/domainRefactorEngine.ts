@@ -6,21 +6,48 @@
  * and automated plan-based remediation for naked strings, unfrozen catalogs, and unbranded IDs.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+
 import {
-  executePlanFileReplacements,
-  forEachSourceScriptLine
+  forEachSourceScriptLine,
+  isSameFilePath
 } from './refactorFileScanner.ts';
 import type {
   DomainFindingItem,
   DomainRefactorPlan
 } from './refactorContracts.ts';
+import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 
 const UNFROZEN_ARRAY_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\[[^\]]+\])\s*;/m;
 const UNFROZEN_OBJECT_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\{[^}]+\})\s*;/m;
 const NAKED_PARAM_REGEX = /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
 const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\s*;/m;
 
-export class DomainRefactorEngine {
+export class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan> {
+  public readonly toolId = 'auditor-domain';
+  public readonly configSectionKey = 'domain' as const;
+  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+
+  public override discoverInFile(filePath: string): readonly DomainFindingItem[] {
+    return DomainRefactorEngine.discoverInFile(filePath);
+  }
+
+  public override createPlan(
+    domainPlanId: string,
+    domainFindings: readonly DomainFindingItem[]
+  ): DomainRefactorPlan {
+    const targetFiles = Array.from(new Set(domainFindings.map((f) => f.file)));
+    return DomainRefactorEngine.buildDomainHygienePlan(domainPlanId, targetFiles, domainFindings);
+  }
+
+  public override applyPlan(
+    projectRoot: string,
+    plan: DomainRefactorPlan
+  ): { readonly modifiedFiles: readonly string[] } {
+    DomainRefactorEngine.applyPlan(projectRoot, plan);
+    return { modifiedFiles: plan.targetFiles };
+  }
   /**
    * Scans a file to discover domain type hygiene and branded ID opportunities.
    */
@@ -112,14 +139,11 @@ export class DomainRefactorEngine {
     return findings;
   }
 
-  /**
-   * Creates a deterministic refactoring plan from findings.
-   */
-  public static createPlan(
+  public static buildDomainHygienePlan(
     planId: string,
+    targetFiles: readonly string[],
     findings: readonly DomainFindingItem[]
   ): DomainRefactorPlan {
-    const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
     const constAssertions: {
       file: string;
       line: number;
@@ -174,6 +198,14 @@ export class DomainRefactorEngine {
     };
   }
 
+  public static createPlan(
+    planId: string,
+    findings: readonly DomainFindingItem[]
+  ): DomainRefactorPlan {
+    const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
+    return DomainRefactorEngine.buildDomainHygienePlan(planId, targetFiles, findings);
+  }
+
   /**
    * Deterministically applies a DomainRefactorPlan across target source files.
    */
@@ -181,38 +213,42 @@ export class DomainRefactorEngine {
     targetDir: string,
     plan: DomainRefactorPlan
   ): { readonly filesChanged: number; readonly changesApplied: number } {
-    const replacementBuckets = [];
+    let filesChanged = 0;
+    let changesApplied = 0;
 
-    if (plan.constAssertions && plan.constAssertions.length > 0) {
-      replacementBuckets.push(
-        plan.constAssertions.map((c) => ({
-          file: c.file,
-          original: c.originalDeclaration,
-          replacement: c.replacementDeclaration
-        }))
-      );
+    for (const relFile of (plan.targetFiles ?? [])) {
+      const fullPath = path.resolve(targetDir, relFile);
+      if (!fs.existsSync(fullPath)) continue;
+      const initialContent = fs.readFileSync(fullPath, 'utf-8');
+      let currentContent = initialContent;
+
+      for (const item of plan.constAssertions ?? []) {
+        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalDeclaration)) {
+          currentContent = currentContent.replace(item.originalDeclaration, item.replacementDeclaration);
+          changesApplied++;
+        }
+      }
+
+      for (const item of plan.brandWrappers ?? []) {
+        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalTypeDef)) {
+          currentContent = currentContent.replace(item.originalTypeDef, item.replacementTypeDef);
+          changesApplied++;
+        }
+      }
+
+      for (const item of plan.parameterReplacements ?? []) {
+        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalParameter)) {
+          currentContent = currentContent.replace(item.originalParameter, item.replacementParameter);
+          changesApplied++;
+        }
+      }
+
+      if (currentContent !== initialContent) {
+        fs.writeFileSync(fullPath, currentContent, 'utf-8');
+        filesChanged++;
+      }
     }
 
-    if (plan.brandWrappers && plan.brandWrappers.length > 0) {
-      replacementBuckets.push(
-        plan.brandWrappers.map((b) => ({
-          file: b.file,
-          original: b.originalTypeDef,
-          replacement: b.replacementTypeDef
-        }))
-      );
-    }
-
-    if (plan.parameterReplacements && plan.parameterReplacements.length > 0) {
-      replacementBuckets.push(
-        plan.parameterReplacements.map((p) => ({
-          file: p.file,
-          original: p.originalParameter,
-          replacement: p.replacementParameter
-        }))
-      );
-    }
-
-    return executePlanFileReplacements(targetDir, plan.targetFiles, replacementBuckets);
+    return { filesChanged, changesApplied };
   }
 }

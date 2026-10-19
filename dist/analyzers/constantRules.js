@@ -1,5 +1,6 @@
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { isExemptFile, isInCodeRoots } from "../core/auditPathPredicates.js";
+import { isInCodeRoots } from "../core/auditCodeRoots.js";
+import { isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { isTestOrNodeModules, normalizeFilePath } from "./auditRuleTypes.js";
 //#region src/analyzers/constantRules.ts

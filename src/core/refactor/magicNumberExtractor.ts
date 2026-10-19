@@ -24,57 +24,67 @@ import type {
 import { ESTIMATED_TOKENS_PER_CHAR } from './refactorContracts.ts';
 import { resolveSignedNumericLiteral } from '../../suites/architecture/validate_magic_numbers.ts';
 
+import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import { MagicNumberHarness } from './magicNumberHarness.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+
 const UNIVERSAL_SENTINELS = new Set<number>([
   -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024
 ]);
 
 const STANDARD_RADIX = new Set<number>([2, 8, 10, 16, 32, 36]);
 
-export class MagicNumberExtractor {
+export class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan> {
+  public readonly toolId = 'auditor-magic';
+  public readonly configSectionKey = 'constants' as const;
+  public readonly allowedExtensions = new Set<string>([
+    '.ts',
+    '.tsx',
+    '.js',
+    '.jsx',
+    '.mjs',
+    '.cjs',
+    '.vue',
+    '.scss',
+    '.css'
+  ]);
+
   private readonly existingConstants: ExistingConstantEntry[] = [];
   private readonly cssVariables: Map<string, string> = new Map();
 
+  constructor(
+    projectRootOrOptions?: string | { projectRoot?: string; config?: AuditEngineConfig },
+    explicitConfig?: AuditEngineConfig
+  ) {
+    super(projectRootOrOptions, explicitConfig);
+  }
+
   /**
-   * Pre-indexes existing exported constants and CSS variables across the repository.
+   * Data catalog paths (paths.dataRoots) are exempt from magic number checks,
+   * matching validate_magic_numbers suite behavior 1:1.
+   */
+  public override shouldIncludeDataPaths(): boolean {
+    return false;
+  }
+
   /**
-   * Recursively discovers all candidate source files (TS, Vue SFC, SCSS) in a project,
-   * cleanly ignoring build outputs, dependencies, and ephemeral directories.
+   * Discovers all candidate source files (TS, Vue SFC, SCSS) in a project
+   * dynamically driven by audit.config.ts.
    */
   public static discoverScannableFiles(projectRoot: string): string[] {
-    const scannableFiles: string[] = [];
-    const scanDir = (dir: string): void => {
-      if (!fs.existsSync(dir)) return;
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const full = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          if (!['node_modules', '.git', 'dist', 'scratch', 'coverage'].includes(entry.name)) {
-            scanDir(full);
-          }
-        } else if (entry.isFile()) {
-          if (
-            (entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) ||
-            entry.name.endsWith('.vue') ||
-            entry.name.endsWith('.scss')
-          ) {
-            scannableFiles.push(path.relative(projectRoot, full));
-          }
-        }
-      }
-    };
-
-    scanDir(projectRoot);
-    return scannableFiles;
+    return new MagicNumberExtractor({ projectRoot })
+      .getScannableFiles()
+      .map((f) => path.normalize(f));
   }
 
   /**
    * Pre-indexes existing exported constants and CSS variables across the repository.
    */
-  public indexProjectConstants(projectRoot: string): void {
+  public indexProjectConstants(projectRoot: string = this.projectRoot): void {
     this.existingConstants.length = 0;
     this.cssVariables.clear();
 
-    const scannable = MagicNumberExtractor.discoverScannableFiles(projectRoot);
+    const scannable = this.getScannableFiles();
     for (const rel of scannable) {
       const full = path.resolve(projectRoot, rel);
       if (rel.endsWith('.ts')) {
@@ -83,6 +93,26 @@ export class MagicNumberExtractor {
         this.indexCssVariables(full);
       }
     }
+  }
+
+  public discoverInFile(filePath: string): readonly DiscoveredMagicItem[] {
+    const relFile = path.isAbsolute(filePath)
+      ? path.relative(this.projectRoot, filePath)
+      : filePath;
+    return this.scanFile(this.projectRoot, relFile);
+  }
+
+  public createPlan(id: string, findings: readonly DiscoveredMagicItem[]): MagicRefactorPlan {
+    const targetFile = findings[0]?.file ?? 'unknown';
+    return this.createRefactorPlan(id, targetFile, findings);
+  }
+
+  public applyPlan(
+    projectRoot: string,
+    plan: MagicRefactorPlan
+  ): { readonly modifiedFiles: readonly string[] } {
+    MagicNumberHarness.execute(projectRoot, plan);
+    return { modifiedFiles: plan.targetFiles };
   }
 
   private indexVariableDeclaration(
@@ -327,6 +357,7 @@ export class MagicNumberExtractor {
 
   private isExemptTsLiteral(_node: ts.Node, reported: ts.Node, val: number): boolean {
     if (UNIVERSAL_SENTINELS.has(val)) return true;
+    if (this.config.constants?.exemptMagicNumbers?.includes(val)) return true;
 
     // Is already a constant declaration?
     let curr: ts.Node | undefined = reported.parent;

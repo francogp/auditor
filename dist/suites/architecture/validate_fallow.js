@@ -1,5 +1,5 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { isCliPath } from "../../core/auditPathPredicates.js";
+import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";

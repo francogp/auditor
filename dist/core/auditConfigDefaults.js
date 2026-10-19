@@ -201,7 +201,10 @@ const DEFAULT_AUDIT_CONFIG = {
 		enabled: true,
 		ignoredNames: [],
 		exemptMagicNumbers: [],
-		allowedNumericPrefixes: []
+		allowedNumericPrefixes: [],
+		exemptPaths: [],
+		exemptFiles: [],
+		ignoreGlobs: []
 	},
 	packageHygiene: {
 		enabled: true,
@@ -519,7 +522,10 @@ function buildConstantsSubConfig(c) {
 		enabled: c?.enabled ?? DEFAULT_AUDIT_CONFIG.constants?.enabled ?? true,
 		ignoredNames: c?.ignoredNames ?? [],
 		exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
-		allowedNumericPrefixes: c?.allowedNumericPrefixes ?? []
+		allowedNumericPrefixes: c?.allowedNumericPrefixes ?? [],
+		exemptPaths: c?.exemptPaths ?? [],
+		exemptFiles: c?.exemptFiles ?? [],
+		ignoreGlobs: c?.ignoreGlobs ?? []
 	};
 }
 function buildDocumentationSubConfig(d) {

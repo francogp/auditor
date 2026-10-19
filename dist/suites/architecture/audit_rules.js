@@ -1,8 +1,9 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { isInCodeRoots, isScriptPath } from "../../core/auditCodeRoots.js";
 import { Z_LAYERS } from "../../core/auditZLayers.js";
-import { isDataPath, isExemptFile, isInCodeRoots, isScriptPath } from "../../core/auditPathPredicates.js";
+import { isDataPath, isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";

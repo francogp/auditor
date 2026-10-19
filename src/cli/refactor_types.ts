@@ -37,6 +37,7 @@ const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = 
   scanningMessage: 'Escaneando as any y contratos de tipado en',
   zeroFindingsMessage: '¡Cero as any, casts dobles o retornos no tipados detectados!',
   tableColumns: TABLE_COLUMNS,
+  engineFactory: (projectRoot) => new TypesRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => TypesRefactorEngine.discoverInFile(filePath),
   buildTableRow: (relFile, findings) => {
     const asAny = findings.filter((f) => f.kind === 'as-any').length;

@@ -37,6 +37,7 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
   scanningMessage: 'Escaneando contratos de dominio y tipos nominales en',
   zeroFindingsMessage: '¡Cero strings crudos, catálogos mutables o IDs sin Brand detectados!',
   tableColumns: TABLE_COLUMNS,
+  engineFactory: (projectRoot) => new DomainRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => DomainRefactorEngine.discoverInFile(filePath),
   buildTableRow: (relFile, findings) => {
     const naked = findings.filter((f) => f.kind === 'naked-string-parameter').length;

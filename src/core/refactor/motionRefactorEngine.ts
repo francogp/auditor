@@ -17,6 +17,8 @@ import type {
   MotionFindingItem,
   MotionRefactorPlan
 } from './refactorContracts.ts';
+import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 
 const BANNED_TIMERS_REGEX = /\b(setTimeout|setInterval)\s*\(\s*([^,]+),\s*(\d+|\w+)\s*\)/g;
 const CLEAR_TIMERS_REGEX = /\b(clearTimeout|clearInterval)\s*\(\s*([^)]+)\s*\)/g;
@@ -59,7 +61,189 @@ const LEGACY_EASE_MAP: Record<string, string> = {
 const MAX_MULTILINE_LOOKAHEAD_LINES = 15;
 const DEFAULT_FALLBACK_DELAY_SEC = 0.5;
 
-export class MotionRefactorEngine {
+function inspectInlineTimer(line: string, actualLine: number, filePath: string): MotionFindingItem | null {
+  BANNED_TIMERS_REGEX.lastIndex = 0;
+  const timerMatch = BANNED_TIMERS_REGEX.exec(line);
+  if (!timerMatch) return null;
+
+  const fullMatch = timerMatch[0];
+  const fnName = timerMatch[1];
+  const callback = timerMatch[2];
+  const delay = timerMatch[3];
+  if (!fullMatch || !fnName || !callback || !delay) return null;
+
+  const delayNum = Number(delay);
+  const delaySec = !isNaN(delayNum) ? (delayNum / 1000).toString() : `(${delay} / 1000)`;
+  const suggested = fnName === 'setTimeout'
+    ? `gsap.delayedCall(${delaySec}, ${callback.trim()})`
+    : `/* migrate to gsap ticker or timeline */`;
+
+  return {
+    file: filePath,
+    line: actualLine,
+    kind: 'banned-ui-timer',
+    originalSnippet: fullMatch,
+    suggestedReplacement: suggested,
+    explanation: `Avoid raw ${fnName} in UI animations; use gsap.delayedCall or gsapSleep to scale deterministically with timeScale.`
+  };
+}
+
+function findMultilineDelaySec(i: number, lines: readonly string[]): string | null {
+  for (let j = i + 1; j < Math.min(lines.length, i + MAX_MULTILINE_LOOKAHEAD_LINES); j++) {
+    const subsequentLine = lines[j] ?? '';
+    const delayMatch = /(?:}\s*,\s*|\bdelay\s*:\s*)(\d+(?:\.\d+)?)\s*\)?/.exec(subsequentLine);
+    if (delayMatch && delayMatch[1]) {
+      const delayNum = Number(delayMatch[1]);
+      return !isNaN(delayNum) ? (delayNum / 1000).toString() : `(${delayMatch[1]} / 1000)`;
+    }
+    if (subsequentLine.includes('});') || subsequentLine.includes('})')) {
+      break;
+    }
+  }
+  return null;
+}
+
+function inspectMultilineTimer(
+  line: string,
+  actualLine: number,
+  i: number,
+  lines: readonly string[],
+  filePath: string
+): MotionFindingItem | null {
+  if (!/\b(setTimeout|setInterval)\b/.test(line)) return null;
+
+  const fnName = line.includes('setInterval') ? 'setInterval' : 'setTimeout';
+  const multilineDelaySec = findMultilineDelaySec(i, lines);
+
+  const suggested = fnName === 'setTimeout'
+    ? (multilineDelaySec ? `gsap.delayedCall(${multilineDelaySec}, () => { ... })` : 'gsap.' + `delayedCall(${DEFAULT_FALLBACK_DELAY_SEC}, callback)`)
+    : `/* migrate to gsap ticker or timeline */`;
+
+  return {
+    file: filePath,
+    line: actualLine,
+    kind: 'banned-ui-timer',
+    ruleId: 'gsap-banned-ui-timers',
+    originalSnippet: fnName,
+    suggestedReplacement: suggested,
+    explanation: `Avoid raw ${fnName} in UI animations; use gsap.delayedCall or gsapSleep to scale deterministically with timeScale.`
+  };
+}
+
+function inspectClearTimers(line: string, actualLine: number, filePath: string): MotionFindingItem[] {
+  const items: MotionFindingItem[] = [];
+  CLEAR_TIMERS_REGEX.lastIndex = 0;
+  let timerMatch: RegExpExecArray | null;
+  while ((timerMatch = CLEAR_TIMERS_REGEX.exec(line)) !== null) {
+    const fullMatch = timerMatch[0];
+    const timerId = timerMatch[2];
+    if (!fullMatch || !timerId) continue;
+
+    items.push({
+      file: filePath,
+      line: actualLine,
+      kind: 'banned-ui-timer',
+      originalSnippet: fullMatch,
+      suggestedReplacement: `${timerId.trim()}?.kill()`,
+      explanation: `Killing GSAP tweens/delayedCalls directly prevents dangling unmounted timer callbacks.`
+    });
+  }
+  return items;
+}
+
+function inspectBannedTimers(
+  line: string,
+  actualLine: number,
+  i: number,
+  lines: readonly string[],
+  filePath: string
+): MotionFindingItem[] {
+  const items: MotionFindingItem[] = [];
+
+  const inlineItem = inspectInlineTimer(line, actualLine, filePath);
+  if (inlineItem) {
+    items.push(inlineItem);
+  } else {
+    const multilineItem = inspectMultilineTimer(line, actualLine, i, lines, filePath);
+    if (multilineItem) {
+      items.push(multilineItem);
+    }
+  }
+
+  items.push(...inspectClearTimers(line, actualLine, filePath));
+  return items;
+}
+
+function inspectLegacyEases(line: string, actualLine: number, filePath: string): MotionFindingItem[] {
+  const items: MotionFindingItem[] = [];
+  for (const [legacyEase, canonicalEase] of Object.entries(LEGACY_EASE_MAP)) {
+    if (line.includes(legacyEase)) {
+      items.push({
+        file: filePath,
+        line: actualLine,
+        kind: 'legacy-ease',
+        ruleId: 'gsap-legacy-ease-names',
+        originalSnippet: legacyEase,
+        suggestedReplacement: canonicalEase,
+        explanation: `Modern GSAP v3 uses string eases (${canonicalEase}) rather than legacy object instances.`
+      });
+    }
+  }
+  return items;
+}
+
+function inspectLayoutProperties(line: string, actualLine: number, filePath: string): MotionFindingItem[] {
+  const items: MotionFindingItem[] = [];
+  for (const layoutProp of LAYOUT_PROPERTIES) {
+    const propRegex = new RegExp(`\\b${layoutProp.from}\\s*:`, 'g');
+    if (propRegex.test(line)) {
+      items.push({
+        file: filePath,
+        line: actualLine,
+        kind: 'layout-property',
+        ruleId: 'gsap-no-layout-properties',
+        originalSnippet: `${layoutProp.from}:`,
+        suggestedReplacement: `${layoutProp.to}:`,
+        explanation: `Layout properties (${layoutProp.from}) trigger browser reflows; use GPU transform (${layoutProp.to}) or add '// layout-ok: <reason>'.`
+      });
+    }
+  }
+  return items;
+}
+
+export class MotionRefactorEngine extends BaseRefactorEngine<MotionFindingItem, MotionRefactorPlan> {
+  public readonly toolId = 'auditor-motion';
+  public readonly configSectionKey = 'styles' as const;
+  public readonly allowedExtensions = new Set<string>(['.ts', '.vue', '.scss', '.css']);
+
+  constructor(
+    projectRootOrOptions?: string | { projectRoot?: string; config?: AuditEngineConfig },
+    explicitConfig?: AuditEngineConfig
+  ) {
+    super(projectRootOrOptions, explicitConfig);
+  }
+
+  public override resolveTargetRoots(): readonly string[] {
+    const srcRoots = this.config.paths.srcRoots ?? ['src'];
+    const stylesRoots = this.config.paths.stylesRoots ?? ['src/styles'];
+    return Array.from(new Set([...srcRoots, ...stylesRoots]));
+  }
+
+  public override discoverInFile(filePath: string): readonly MotionFindingItem[] {
+    return MotionRefactorEngine.discoverInFile(filePath);
+  }
+
+  public override createPlan(id: string, findings: readonly MotionFindingItem[]): MotionRefactorPlan {
+    return MotionRefactorEngine.createPlan(id, findings);
+  }
+
+  public override applyPlan(
+    projectRoot: string,
+    plan: MotionRefactorPlan
+  ): { readonly modifiedFiles: readonly string[] } {
+    MotionRefactorEngine.applyPlan(projectRoot, plan);
+    return { modifiedFiles: plan.targetFiles };
+  }
   /**
    * Scans a file or directory to discover GSAP & UI timing violations.
    */
@@ -67,113 +251,13 @@ export class MotionRefactorEngine {
     const findings: MotionFindingItem[] = [];
 
     forEachSourceScriptLine(filePath, (line, actualLine, i, lines) => {
-      // Check escape hatches
       if (line.includes('// timer-ok:') || line.includes('// layout-ok:')) {
         return;
       }
 
-      // Check banned timers
-      let timerMatch: RegExpExecArray | null;
-      BANNED_TIMERS_REGEX.lastIndex = 0;
-      if ((timerMatch = BANNED_TIMERS_REGEX.exec(line)) !== null) {
-        const fullMatch = timerMatch[0];
-        const fnName = timerMatch[1];
-        const callback = timerMatch[2];
-        const delay = timerMatch[3];
-        if (fullMatch && fnName && callback && delay) {
-          const delayNum = Number(delay);
-          const delaySec = !isNaN(delayNum) ? (delayNum / 1000).toString() : `(${delay} / 1000)`;
-          const suggested = fnName === 'setTimeout'
-            ? `gsap.delayedCall(${delaySec}, ${callback.trim()})`
-            : `/* migrate to gsap ticker or timeline */`;
-
-          findings.push({
-            file: filePath,
-            line: actualLine,
-            kind: 'banned-ui-timer',
-            originalSnippet: fullMatch,
-            suggestedReplacement: suggested,
-            explanation: `Avoid raw ${fnName} in UI animations; use gsap.delayedCall or gsapSleep to scale deterministically with timeScale.`
-          });
-        }
-      } else if (/\b(setTimeout|setInterval)\b/.test(line)) {
-        const fnName = line.includes('setInterval') ? 'setInterval' : 'setTimeout';
-        let multilineDelaySec: string | null = null;
-        for (let j = i + 1; j < Math.min(lines.length, i + MAX_MULTILINE_LOOKAHEAD_LINES); j++) {
-          const subsequentLine = lines[j] ?? '';
-          const delayMatch = /(?:}\s*,\s*|\bdelay\s*:\s*)(\d+(?:\.\d+)?)\s*\)?/.exec(subsequentLine);
-          if (delayMatch && delayMatch[1]) {
-            const delayNum = Number(delayMatch[1]);
-            multilineDelaySec = !isNaN(delayNum) ? (delayNum / 1000).toString() : `(${delayMatch[1]} / 1000)`;
-            break;
-          }
-          if (subsequentLine.includes('});') || subsequentLine.includes('})')) {
-            break;
-          }
-        }
-
-        const suggested = fnName === 'setTimeout'
-          ? (multilineDelaySec ? `gsap.delayedCall(${multilineDelaySec}, () => { ... })` : 'gsap.' + `delayedCall(${DEFAULT_FALLBACK_DELAY_SEC}, callback)`)
-          : `/* migrate to gsap ticker or timeline */`;
-
-        findings.push({
-          file: filePath,
-          line: actualLine,
-          kind: 'banned-ui-timer',
-          ruleId: 'gsap-banned-ui-timers',
-          originalSnippet: fnName,
-          suggestedReplacement: suggested,
-          explanation: `Avoid raw ${fnName} in UI animations; use gsap.delayedCall or gsapSleep to scale deterministically with timeScale.`
-        });
-      }
-
-      // Check clear timers
-      CLEAR_TIMERS_REGEX.lastIndex = 0;
-      while ((timerMatch = CLEAR_TIMERS_REGEX.exec(line)) !== null) {
-        const fullMatch = timerMatch[0];
-        const timerId = timerMatch[2];
-        if (!fullMatch || !timerId) continue;
-
-        findings.push({
-          file: filePath,
-          line: actualLine,
-          kind: 'banned-ui-timer',
-          originalSnippet: fullMatch,
-          suggestedReplacement: `${timerId.trim()}?.kill()`,
-          explanation: `Killing GSAP tweens/delayedCalls directly prevents dangling unmounted timer callbacks.`
-        });
-      }
-
-      // Check legacy eases
-      for (const [legacyEase, canonicalEase] of Object.entries(LEGACY_EASE_MAP)) {
-        if (line.includes(legacyEase)) {
-          findings.push({
-            file: filePath,
-            line: actualLine,
-            kind: 'legacy-ease',
-            ruleId: 'gsap-legacy-ease-names',
-            originalSnippet: legacyEase,
-            suggestedReplacement: canonicalEase,
-            explanation: `Modern GSAP v3 uses string eases (${canonicalEase}) rather than legacy object instances.`
-          });
-        }
-      }
-
-      // Check layout properties in GSAP tween configs
-      for (const layoutProp of LAYOUT_PROPERTIES) {
-        const propRegex = new RegExp(`\\b${layoutProp.from}\\s*:`, 'g');
-        if (propRegex.test(line)) {
-          findings.push({
-            file: filePath,
-            line: actualLine,
-            kind: 'layout-property',
-            ruleId: 'gsap-no-layout-properties',
-            originalSnippet: `${layoutProp.from}:`,
-            suggestedReplacement: `${layoutProp.to}:`,
-            explanation: `Layout properties (${layoutProp.from}) trigger browser reflows; use GPU transform (${layoutProp.to}) or add '// layout-ok: <reason>'.`
-          });
-        }
-      }
+      findings.push(...inspectBannedTimers(line, actualLine, i, lines, filePath));
+      findings.push(...inspectLegacyEases(line, actualLine, filePath));
+      findings.push(...inspectLayoutProperties(line, actualLine, filePath));
     });
 
     return findings;

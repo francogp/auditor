@@ -37,6 +37,7 @@ const motionCliDef: RefactorCliDefinition<MotionFindingItem, MotionRefactorPlan>
   scanningMessage: 'Escaneando animaciones y timers UI en',
   zeroFindingsMessage: '¡Cero infracciones de UI Animation o timers detectadas!',
   tableColumns: TABLE_COLUMNS,
+  engineFactory: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => MotionRefactorEngine.discoverInFile(filePath),
   buildTableRow: (relFile, findings) => {
     const timers = findings.filter((f) => f.kind === 'banned-ui-timer').length;

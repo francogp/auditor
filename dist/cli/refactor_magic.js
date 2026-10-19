@@ -2,8 +2,8 @@
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
-import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
+import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
 //#region src/cli/refactor_magic.ts
@@ -16,7 +16,7 @@ import { parseArgs, styleText } from "node:util";
 const MAX_DISPLAY_FILE_PATH_LENGTH = 42;
 function handleDiscover(projectRoot, extractor) {
 	console.log(styleText("cyan", `🔍 Escaneando archivos con números mágicos en: ${projectRoot}...\n`));
-	const scannableFiles = MagicNumberExtractor.discoverScannableFiles(projectRoot);
+	const scannableFiles = extractor.getScannableFiles();
 	const tableRows = [];
 	let totalFound = 0;
 	for (const relFile of scannableFiles) {
@@ -97,6 +97,7 @@ async function runRefactorMagicCli(cliArgs = process.argv.slice(2)) {
 				type: "string",
 				default: process.cwd()
 			},
+			file: { type: "string" },
 			plan: { type: "string" },
 			worktree: {
 				type: "boolean",
@@ -111,7 +112,7 @@ async function runRefactorMagicCli(cliArgs = process.argv.slice(2)) {
 		allowPositionals: true
 	});
 	const command = positionals[0] || "discover";
-	const targetArg = positionals[1];
+	const targetArg = positionals[1] || values.file;
 	const projectRoot = path.resolve(values.project || process.cwd());
 	if (values.help || command === "help") {
 		renderBanner("auditor-magic", "Gobernanza y Refactorización Determinista de Números Mágicos");
@@ -133,7 +134,11 @@ Opciones:
 		return;
 	}
 	renderBanner("auditor-magic", "Gobernanza y Refactorización Determinista de Números Mágicos");
-	const extractor = new MagicNumberExtractor();
+	const extractor = new MagicNumberExtractor({ projectRoot });
+	if (!extractor.isToolEnabled()) {
+		console.log(styleText("yellow", `\n⚠️  El subsistema 'auditor-magic' (constants) está desactivado en .auditor/audit.config.ts.\n`));
+		return;
+	}
 	extractor.indexProjectConstants(projectRoot);
 	switch (command) {
 		case "discover":

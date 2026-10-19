@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
-import { isInCodeRoots } from "../core/auditPathPredicates.js";
+import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";

@@ -37,6 +37,7 @@ const o1CliDef: RefactorCliDefinition<O1FindingItem, O1RefactorPlan> = {
   scanningMessage: 'Escaneando anti-patrones O(N) y búsquedas lineales en',
   zeroFindingsMessage: '¡Cero cuellos de botella O(N) o búsquedas lineales detectadas!',
   tableColumns: TABLE_COLUMNS,
+  engineFactory: (projectRoot) => new O1RefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => O1RefactorEngine.discoverInFile(filePath),
   buildTableRow: (relFile, findings) => {
     const membership = findings.filter((f) => f.kind === 'linear-membership').length;

@@ -1,5 +1,6 @@
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { isDataPath, isDemoPath, isExemptFile, isInCodeRoots, isScriptPath } from "../core/auditPathPredicates.js";
+import { isInCodeRoots, isScriptPath } from "../core/auditCodeRoots.js";
+import { isDataPath, isDemoPath, isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
 import { isPathIgnored } from "../core/auditorBase.js";

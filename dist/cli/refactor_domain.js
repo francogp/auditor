@@ -50,6 +50,7 @@ const domainCliDef = {
 			align: "right"
 		}
 	],
+	engineFactory: (projectRoot) => new DomainRefactorEngine({ projectRoot }),
 	discoverInFile: (filePath) => DomainRefactorEngine.discoverInFile(filePath),
 	buildTableRow: (relFile, findings) => {
 		const naked = findings.filter((f) => f.kind === "naked-string-parameter").length;

@@ -14,13 +14,36 @@ import type {
   TypesFindingItem,
   TypesRefactorPlan
 } from './refactorContracts.ts';
+import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 
 const AS_ANY_REGEX = /\bas\s+any\b/g;
 const ANGLE_ANY_REGEX = /<any>\s*([a-zA-Z0-9_$.()]+)/g;
 const DOUBLE_ASSERTION_REGEX = /\bas\s+(?:unknown|any)\s+as\s+([A-Za-z0-9_$.<>[\]|& ]+)/g;
 const EXPORTED_FN_REGEX = /^(\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\([^)]*\))\s*\{/m;
 
-export class TypesRefactorEngine {
+export class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan> {
+  public readonly toolId = 'auditor-types';
+  public readonly configSectionKey = 'typeCheck' as const;
+  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+
+  public override discoverInFile(filePath: string): readonly TypesFindingItem[] {
+    return TypesRefactorEngine.discoverInFile(filePath);
+  }
+
+  public override createPlan(
+    typesPlanId: string,
+    typesFindings: readonly TypesFindingItem[]
+  ): TypesRefactorPlan {
+    return TypesRefactorEngine.buildTypeAssertionPlan(typesPlanId, typesFindings);
+  }
+
+  public override applyPlan(
+    projectRoot: string,
+    plan: TypesRefactorPlan
+  ): { readonly modifiedFiles: readonly string[] } {
+    TypesRefactorEngine.applyPlan(projectRoot, plan);
+    return { modifiedFiles: plan.targetFiles };
+  }
   /**
    * Scans a file to discover type assertion and return type hygiene violations.
    */
@@ -108,7 +131,7 @@ export class TypesRefactorEngine {
   /**
    * Creates a deterministic refactoring plan from findings.
    */
-  public static createPlan(
+  public static buildTypeAssertionPlan(
     planId: string,
     findings: readonly TypesFindingItem[]
   ): TypesRefactorPlan {
@@ -151,6 +174,13 @@ export class TypesRefactorEngine {
       assertionReplacements,
       returnTypeInjections
     };
+  }
+
+  public static createPlan(
+    planId: string,
+    findings: readonly TypesFindingItem[]
+  ): TypesRefactorPlan {
+    return TypesRefactorEngine.buildTypeAssertionPlan(planId, findings);
   }
 
   /**

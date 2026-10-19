@@ -1,3 +1,4 @@
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 //#region src/core/refactor/o1RefactorEngine.ts
 /**
@@ -11,7 +12,20 @@ import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } 
 const STATIC_ARRAY_INCLUDES_REGEX = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER|ERRORS|ITEMS|CONFIGS|DEFAULTS|FAMILIES|[A-Z0-9]+))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(includes|indexOf)\s*\(([^)]+)\)/g;
 const JSON_CLONE_REGEX = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(([^)]+)\)\s*\)/g;
 const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
-var O1RefactorEngine = class {
+var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
+	toolId = "auditor-o1";
+	configSectionKey = "codeSimplification";
+	allowedExtensions = /* @__PURE__ */ new Set([".ts", ".vue"]);
+	discoverInFile(filePath) {
+		return O1RefactorEngine.discoverInFile(filePath);
+	}
+	createPlan(o1PlanId, o1Findings) {
+		return O1RefactorEngine.buildOptimizationPlan(o1PlanId, o1Findings);
+	}
+	applyPlan(projectRoot, plan) {
+		O1RefactorEngine.applyPlan(projectRoot, plan);
+		return { modifiedFiles: plan.targetFiles };
+	}
 	/**
 	* Scans a file to discover O(1) optimization opportunities.
 	*/
@@ -78,7 +92,7 @@ var O1RefactorEngine = class {
 	/**
 	* Builds a declarative O1RefactorPlan from findings.
 	*/
-	static createPlan(planId, findings) {
+	static buildOptimizationPlan(planId, findings) {
 		const files = [...new Set(findings.map((f) => f.file))];
 		const membershipHoistsMap = /* @__PURE__ */ new Map();
 		const jsonCloneReplacements = [];
@@ -115,6 +129,9 @@ var O1RefactorEngine = class {
 			jsonCloneReplacements,
 			spreadReplacements
 		};
+	}
+	static createPlan(planId, findings) {
+		return O1RefactorEngine.buildOptimizationPlan(planId, findings);
 	}
 	static applyHoistReplacements(initialContent, relFile, fullPath, baseDir, hoists) {
 		if (!hoists) return {

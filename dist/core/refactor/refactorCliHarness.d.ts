@@ -1,4 +1,5 @@
 import { TableColumn } from "../unifiedTheme.js";
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 //#region src/core/refactor/refactorCliHarness.d.ts
 export interface DiracInspectionItem {
   readonly line: number;
@@ -15,6 +16,7 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   readonly scanningMessage: string;
   readonly zeroFindingsMessage: string;
   readonly tableColumns: readonly TableColumn[];
+  readonly engineFactory?: (projectRoot: string) => BaseRefactorEngine<TFinding, TPlan>;
   readonly discoverInFile: (filePath: string) => readonly TFinding[];
   readonly buildTableRow: (relFile: string, fileFindings: readonly TFinding[]) => Record<string, string>;
   readonly buildSummaryMessage: (filesCount: number, allFindings: readonly TFinding[]) => string;

@@ -1,7 +1,8 @@
 import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES } from "./auditConfigTypes.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { isTestPath } from "./auditTestPredicates.js";
-import { isCliPath, isDataPath, isDemoPath, isExemptFile, isScriptPath } from "./auditPathPredicates.js";
+import { isCliPath, isScriptPath } from "./auditCodeRoots.js";
+import { isDataPath, isDemoPath, isExemptFile } from "./auditPathPredicates.js";
 import "./auditConfig.js";
 //#region src/core/exemptionPolicies.ts
 /**

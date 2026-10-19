@@ -50,6 +50,7 @@ const typesCliDef = {
 			align: "right"
 		}
 	],
+	engineFactory: (projectRoot) => new TypesRefactorEngine({ projectRoot }),
 	discoverInFile: (filePath) => TypesRefactorEngine.discoverInFile(filePath),
 	buildTableRow: (relFile, findings) => {
 		const asAny = findings.filter((f) => f.kind === "as-any").length;

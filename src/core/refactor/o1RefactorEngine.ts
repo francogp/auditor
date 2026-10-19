@@ -16,6 +16,7 @@ import type {
   O1FindingItem,
   O1RefactorPlan
 } from './refactorContracts.ts';
+import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 
 const STATIC_ARRAY_INCLUDES_REGEX =
   /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER|ERRORS|ITEMS|CONFIGS|DEFAULTS|FAMILIES|[A-Z0-9]+))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(includes|indexOf)\s*\(([^)]+)\)/g;
@@ -23,7 +24,29 @@ const STATIC_ARRAY_INCLUDES_REGEX =
 const JSON_CLONE_REGEX = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(([^)]+)\)\s*\)/g;
 const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 
-export class O1RefactorEngine {
+export class O1RefactorEngine extends BaseRefactorEngine<O1FindingItem, O1RefactorPlan> {
+  public readonly toolId = 'auditor-o1';
+  public readonly configSectionKey = 'codeSimplification' as const;
+  public readonly allowedExtensions = new Set<string>(['.ts', '.vue']);
+
+  public override discoverInFile(filePath: string): readonly O1FindingItem[] {
+    return O1RefactorEngine.discoverInFile(filePath);
+  }
+
+  public override createPlan(
+    o1PlanId: string,
+    o1Findings: readonly O1FindingItem[]
+  ): O1RefactorPlan {
+    return O1RefactorEngine.buildOptimizationPlan(o1PlanId, o1Findings);
+  }
+
+  public override applyPlan(
+    projectRoot: string,
+    plan: O1RefactorPlan
+  ): { readonly modifiedFiles: readonly string[] } {
+    O1RefactorEngine.applyPlan(projectRoot, plan);
+    return { modifiedFiles: plan.targetFiles };
+  }
   /**
    * Scans a file to discover O(1) optimization opportunities.
    */
@@ -108,7 +131,7 @@ export class O1RefactorEngine {
   /**
    * Builds a declarative O1RefactorPlan from findings.
    */
-  public static createPlan(
+  public static buildOptimizationPlan(
     planId: string,
     findings: readonly O1FindingItem[]
   ): O1RefactorPlan {
@@ -180,6 +203,13 @@ export class O1RefactorEngine {
       jsonCloneReplacements,
       spreadReplacements
     };
+  }
+
+  public static createPlan(
+    planId: string,
+    findings: readonly O1FindingItem[]
+  ): O1RefactorPlan {
+    return O1RefactorEngine.buildOptimizationPlan(planId, findings);
   }
 
   private static applyHoistReplacements(

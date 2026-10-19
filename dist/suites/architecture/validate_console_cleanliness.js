@@ -1,6 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
-import { isCliPath, isExemptFile, isScriptPath } from "../../core/auditPathPredicates.js";
+import { isCliPath, isScriptPath } from "../../core/auditCodeRoots.js";
+import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";

@@ -1,4 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { isTestPath } from "../core/auditTestPredicates.js";
+import { isInCodeRoots } from "../core/auditCodeRoots.js";
+import { isExemptFile } from "../core/auditPathPredicates.js";
+import "../core/auditConfig.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
@@ -41,29 +46,42 @@ function determineTopology(files) {
 	return hasVue ? "cross-file-vue-ts" : "cross-file-ts";
 }
 function triageCandidates(projectRoot, minOccurrences) {
+	const config = getAuditConfig(projectRoot);
+	const isAllowedFile = (fileRelOrAbs) => {
+		const rel = path.isAbsolute(fileRelOrAbs) ? path.relative(projectRoot, fileRelOrAbs).replace(/\\/g, "/") : fileRelOrAbs.replace(/\\/g, "/");
+		if (!isInCodeRoots(rel, config)) return false;
+		if (!config.paths.includeTestsInCodeAudit && isTestPath(rel)) return false;
+		if (isExemptFile(rel, config)) return false;
+		return true;
+	};
 	const dupes = runFallowJson("dupes", ["--min-occurrences", String(minOccurrences)], projectRoot);
 	let deadFiles = /* @__PURE__ */ new Set();
 	try {
 		const dead = runFallowJson("dead-code", ["--include-dupes"], projectRoot);
 		deadFiles = new Set(dead.unused_files.map((f) => path.normalize(f.path).replace(/\\/g, "/")));
 	} catch {}
-	return dupes.clone_groups.map((g) => {
-		const files = Array.from(new Set(g.instances.map((i) => i.file.replace(/\\/g, "/"))));
+	const effectiveMin = Math.max(2, minOccurrences);
+	const candidates = [];
+	for (const g of dupes.clone_groups) {
+		const validInstances = g.instances.filter((i) => isAllowedFile(i.file));
+		if (validInstances.length < effectiveMin) continue;
+		const files = Array.from(new Set(validInstances.map((i) => i.file.replace(/\\/g, "/"))));
 		const topology = determineTopology(files);
 		const isDead = files.some((f) => deadFiles.has(path.normalize(f).replace(/\\/g, "/")));
-		return {
+		candidates.push({
 			fingerprint: g.fingerprint,
 			topology,
 			tokenCount: g.token_count,
 			lineCount: g.line_count,
-			occurrenceCount: g.instances.length,
+			occurrenceCount: validInstances.length,
 			spread: g.spread ?? 0,
 			files,
-			instances: g.instances,
+			instances: validInstances,
 			suggestedName: g.suggested_name,
 			isDeadCodeTarget: isDead
-		};
-	}).sort((a, b) => {
+		});
+	}
+	return candidates.sort((a, b) => {
 		const scoreA = a.tokenCount * a.occurrenceCount * (1 + .15 * a.spread);
 		return b.tokenCount * b.occurrenceCount * (1 + .15 * b.spread) - scoreA;
 	});

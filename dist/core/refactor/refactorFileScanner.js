@@ -1,3 +1,8 @@
+import { getAuditConfig } from "../auditConfigLoader.js";
+import { isTestPath } from "../auditTestPredicates.js";
+import { isExemptFile } from "../auditPathPredicates.js";
+import "../auditConfig.js";
+import { toPosixRelative } from "../auditCoverage.js";
 import { collectRepositoryFiles } from "../auditorBase.js";
 import "../safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
@@ -24,13 +29,37 @@ function isSameFilePath(fileA, fileB, baseDir = process.cwd()) {
 	return path.relative(absA, absB) === "" || absA.toLowerCase() === absB.toLowerCase();
 }
 /**
-* Recursively scans a directory for source files matching target extensions
-* using the canonical framework file collector.
+* Scans project code roots dynamically driven by audit.config.ts,
+* respecting codeRoots, ignoreGlobs, test exclusions, and file exemptions.
 */
 function scanProjectSourceFiles(dir, allowedExtensions = DEFAULT_REFACTOR_EXTENSIONS) {
 	const normalizedDir = path.resolve(dir);
 	if (!fs.existsSync(normalizedDir)) return [];
-	return collectRepositoryFiles(normalizedDir, normalizedDir, [], allowedExtensions);
+	const config = getAuditConfig(normalizedDir);
+	const configuredRoots = config.paths.codeRoots ?? ["src", "scripts"];
+	const roots = configuredRoots.some((r) => fs.existsSync(path.resolve(normalizedDir, r))) ? configuredRoots : ["."];
+	const combinedIgnores = [
+		...config.paths.ignoreGlobs ?? [],
+		"node_modules/**",
+		"dist/**",
+		"scratch/**"
+	];
+	const seen = /* @__PURE__ */ new Set();
+	const results = [];
+	for (const root of roots) {
+		const fullRoot = path.resolve(normalizedDir, root);
+		if (!fs.existsSync(fullRoot)) continue;
+		const collected = collectRepositoryFiles(fullRoot, normalizedDir, combinedIgnores, allowedExtensions);
+		for (const absFile of collected) {
+			const relPosix = toPosixRelative(normalizedDir, absFile);
+			if (seen.has(relPosix)) continue;
+			if (!config.paths.includeTestsInCodeAudit && isTestPath(relPosix)) continue;
+			if (isExemptFile(relPosix, config)) continue;
+			seen.add(relPosix);
+			results.push(absFile);
+		}
+	}
+	return results;
 }
 /**
 * Extracts script content and line offset from TypeScript, JavaScript, or Vue SFC files.
@@ -94,7 +123,7 @@ function applyFileTextReplacements(initialContent, relFile, fullPath, baseDir, r
 function executePlanFileReplacements(baseDir, targetFiles, replacementGroups, customTransformers = []) {
 	let filesChanged = 0;
 	let changesApplied = 0;
-	for (const relFile of targetFiles) {
+	for (const relFile of targetFiles ?? []) {
 		const fullPath = path.isAbsolute(relFile) ? path.normalize(relFile) : path.resolve(baseDir, relFile);
 		if (!fs.existsSync(fullPath)) continue;
 		let content = fs.readFileSync(fullPath, "utf8");

@@ -1,6 +1,8 @@
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
 import { resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
+import { MagicNumberHarness } from "./magicNumberHarness.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -37,50 +39,63 @@ const STANDARD_RADIX = /* @__PURE__ */ new Set([
 	32,
 	36
 ]);
-var MagicNumberExtractor = class MagicNumberExtractor {
+var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine {
+	toolId = "auditor-magic";
+	configSectionKey = "constants";
+	allowedExtensions = /* @__PURE__ */ new Set([
+		".ts",
+		".tsx",
+		".js",
+		".jsx",
+		".mjs",
+		".cjs",
+		".vue",
+		".scss",
+		".css"
+	]);
 	existingConstants = [];
 	cssVariables = /* @__PURE__ */ new Map();
+	constructor(projectRootOrOptions, explicitConfig) {
+		super(projectRootOrOptions, explicitConfig);
+	}
 	/**
-	* Pre-indexes existing exported constants and CSS variables across the repository.
+	* Data catalog paths (paths.dataRoots) are exempt from magic number checks,
+	* matching validate_magic_numbers suite behavior 1:1.
+	*/
+	shouldIncludeDataPaths() {
+		return false;
+	}
 	/**
-	* Recursively discovers all candidate source files (TS, Vue SFC, SCSS) in a project,
-	* cleanly ignoring build outputs, dependencies, and ephemeral directories.
+	* Discovers all candidate source files (TS, Vue SFC, SCSS) in a project
+	* dynamically driven by audit.config.ts.
 	*/
 	static discoverScannableFiles(projectRoot) {
-		const scannableFiles = [];
-		const scanDir = (dir) => {
-			if (!fs.existsSync(dir)) return;
-			const entries = fs.readdirSync(dir, { withFileTypes: true });
-			for (const entry of entries) {
-				const full = path.join(dir, entry.name);
-				if (entry.isDirectory()) {
-					if (![
-						"node_modules",
-						".git",
-						"dist",
-						"scratch",
-						"coverage"
-					].includes(entry.name)) scanDir(full);
-				} else if (entry.isFile()) {
-					if (entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts") || entry.name.endsWith(".vue") || entry.name.endsWith(".scss")) scannableFiles.push(path.relative(projectRoot, full));
-				}
-			}
-		};
-		scanDir(projectRoot);
-		return scannableFiles;
+		return new MagicNumberExtractor({ projectRoot }).getScannableFiles().map((f) => path.normalize(f));
 	}
 	/**
 	* Pre-indexes existing exported constants and CSS variables across the repository.
 	*/
-	indexProjectConstants(projectRoot) {
+	indexProjectConstants(projectRoot = this.projectRoot) {
 		this.existingConstants.length = 0;
 		this.cssVariables.clear();
-		const scannable = MagicNumberExtractor.discoverScannableFiles(projectRoot);
+		const scannable = this.getScannableFiles();
 		for (const rel of scannable) {
 			const full = path.resolve(projectRoot, rel);
 			if (rel.endsWith(".ts")) this.indexTsConstants(full);
 			else if (rel.endsWith(".scss") || rel.endsWith(".css")) this.indexCssVariables(full);
 		}
+	}
+	discoverInFile(filePath) {
+		const relFile = path.isAbsolute(filePath) ? path.relative(this.projectRoot, filePath) : filePath;
+		return this.scanFile(this.projectRoot, relFile);
+	}
+	createPlan(id, findings) {
+		const targetFile = findings[0]?.file ?? "unknown";
+		return this.createRefactorPlan(id, targetFile, findings);
+	}
+	applyPlan(projectRoot, plan) {
+		MagicNumberHarness.execute(projectRoot, plan);
+		return { modifiedFiles: plan.targetFiles };
 	}
 	indexVariableDeclaration(decl, isExported, absPath) {
 		if (!ts.isIdentifier(decl.name) || !decl.initializer) return;
@@ -260,6 +275,7 @@ var MagicNumberExtractor = class MagicNumberExtractor {
 	}
 	isExemptTsLiteral(_node, reported, val) {
 		if (UNIVERSAL_SENTINELS.has(val)) return true;
+		if (this.config.constants?.exemptMagicNumbers?.includes(val)) return true;
 		let curr = reported.parent;
 		while (curr) {
 			if (ts.isVariableDeclaration(curr)) {
