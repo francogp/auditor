@@ -371,6 +371,8 @@ Hermetic test isolation requires using `testScanFile` + `finishAudit()` for snip
 
 ## 🔍 Interactive Findings Reporter (`report_findings.ts`) & CLI Tools
 
+- `npm run auditor:help`: Catálogo interactivo de comandos, opciones generales y herramientas especializadas.
+- `npm run auditor:guide -- <regla>`: Consulta directa de la guía de diagnóstico y remediación paso a paso.
 - `npm run auditor:findings`: Multi-dimensional findings reporter (`rule=<id>`, `file=<a,b>`, `flat`, `search=...`).
 - `npm run auditor:rules` / `npm run auditor:by-rule`: Consolidated Box-Drawing breakdown of violations sorted by `ruleId` with `TOTAL CONSOLIDADO`.
 - `npm run auditor:errors` / `npm run auditor:warnings` / `npm run auditor:summary`: Severity presets.
@@ -380,7 +382,8 @@ Hermetic test isolation requires using `testScanFile` + `finishAudit()` for snip
 - `npm run auditor:similar`: Semantic and structural clone detection using Fallow ML vector embeddings.
 - `npm run auditor:review`: Graph-grounded architectural review brief for changed code.
 - **Mandatory Official Tools Priority & Zero Premature Scratch Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:types`, `npm run auditor:domain`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code. Creating ad-hoc scripts in `scratch/` or running `node -e` one-liners for tasks already covered by official tools is **STRICTLY PROHIBITED**. Temporary scratch scripts are permitted ONLY as an exceptional last resort when no official tool exists for the specific diagnostic or verification task.
-- **Npm Arguments Passing Rule & Prohibition of NPX**: When passing options, subcommands, or flags to npm scripts, ALWAYS use `--` (e.g. `npm run auditor:motion -- --help`, `npm run auditor -- guide <ruleId>`) or invoke the installed binary directly (`auditor-motion --help`, `auditor-findings rule=xyz`). Running `npm run <script> --help` without `--` will invoke npm's internal help, and jumping to `npx` is **STRICTLY AND CATEGORICALLY FORBIDDEN**.
+- **Dependency Immutability Mandate (Prohibition of Modifying `node_modules/`)**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances. Third-party dependencies and framework libraries are immutable. If an external tool or `@francogp/auditor` exhibits a bug, update it upstream via `npm run auditor:update` or report it to the human programmer, NEVER tamper with files inside `node_modules/`.
+- **Npm Arguments Passing Rule & Prohibition of NPX**: When passing options, subcommands, or flags to npm scripts, ALWAYS use `--` (e.g. `npm run auditor:motion -- --help`, `npm run auditor:guide -- <regla>`) or invoke the installed binary directly (`auditor-motion --help`, `auditor-findings rule=xyz`). Running `npm run <script> --help` without `--` will invoke npm's internal help, and jumping to `npx` is **STRICTLY AND CATEGORICALLY FORBIDDEN**.
 - **Non-blocking Partial Inspection**: Inspecting partial audit runs (`latest_audit.json` from a single suite) renders immediately without requiring full audit reruns.
 
 📘 **Full CLI Diagnostics Reference**: See [cli-reporters-guide.md](./references/cli-reporters-guide.md) and [test-coverage-guide.md](./references/test-coverage-guide.md).

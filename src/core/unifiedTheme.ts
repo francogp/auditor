@@ -748,7 +748,16 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push(
     '  --guide=<id>, guide <id>     Muestra la guía de remediación y soluciones para una regla o suite.'
   );
-  lines.push('  -h, --help, help             Muestra este mensaje de ayuda.\n');
+  lines.push('  -h, --help, help             Muestra este mensaje de ayuda interactivo.\n');
+
+  lines.push(boldYellow('HERRAMIENTAS DE REFACTORIZACIÓN DETERMINISTA (CERO TOKENS LLM):'));
+  lines.push('  npm run auditor:types        Remediación de as any, casts dobles y contratos de retorno.');
+  lines.push('  npm run auditor:domain       Remediación de strings crudos, catálogos e IDs sin Brand.');
+  lines.push('  npm run auditor:dupes        Deduplicación de clones sintácticos y triplicados.');
+  lines.push('  npm run auditor:magic        Extracción de números mágicos a design tokens.');
+  lines.push('  npm run auditor:motion       Gobernanza de animaciones UI y timers prohibidos.');
+  lines.push('  npm run auditor:o1           Optimización de búsquedas lineales O(N) a O(1).');
+  lines.push('  ↳ Subcomandos comunes: discover, inspect <archivo>, apply <plan.json>, help\n');
 
   lines.push(boldYellow('MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:'));
   lines.push(
@@ -770,6 +779,8 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push('  changed-since=<ref>          Filtra archivos modificados respecto de git ref.\n');
 
   lines.push(boldYellow('HERRAMIENTAS ASOCIADAS (NPM SCRIPTS):'));
+  lines.push('  npm run auditor:help         Muestra este catálogo interactivo de comandos.');
+  lines.push('  npm run auditor:guide -- <r> Consulta el manual de remediación de una regla.');
   lines.push('  npm run auditor:lint         Auditoría rápida (speed=light 🐇).');
   lines.push('  npm run auditor:full         Auditoría exhaustiva pre-build (speed=full 🐘).');
   lines.push(
@@ -777,6 +788,7 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   );
   lines.push('  npm run auditor:by-file      Árbol jerárquico de incidencias por archivo y línea.');
   lines.push('  npm run auditor:findings     Consulta interactiva con filtros y desgloses.');
+  lines.push('  npm run auditor:rules        Desglose consolidado agrupado y ordenado por regla.');
   lines.push('  npm run auditor:fix          Aplica auto-reparaciones mecánicas en el código.');
   lines.push(
     '  npm run auditor:update       Actualiza el paquete upstream de @francogp/auditor.\n'

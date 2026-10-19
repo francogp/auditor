@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { isMainModule } from "./cliUtils.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
@@ -203,7 +204,7 @@ async function runRefactorCli() {
 		default: console.log("Comandos disponibles: discover, inspect, apply");
 	}
 }
-if (process.argv[1] && process.argv[1].endsWith("refactor_dupes.ts")) runRefactorCli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-dupes", "refactor_dupes"])) runRefactorCli().catch((err) => {
 	console.error(err);
 	process.exit(1);
 });

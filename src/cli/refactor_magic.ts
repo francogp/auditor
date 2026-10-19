@@ -18,6 +18,7 @@ import { MagicNumberHarness } from '../core/refactor/magicNumberHarness.ts';
 import {
   applyPlanFileWithWorktreeVerification
 } from '../core/refactor/worktreeSandbox.ts';
+import { isMainModule } from './cliUtils.ts';
 import type { MagicRefactorPlan } from '../core/refactor/magicContracts.ts';
 
 const MAX_DISPLAY_FILE_PATH_LENGTH = 42;
@@ -176,7 +177,7 @@ Opciones:
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('refactor_magic.ts')) {
+if (isMainModule(import.meta.url, ['auditor-magic', 'refactor_magic'])) {
   runRefactorMagicCli().catch((err) => {
     console.error('\n❌ Error fatal en auditor-magic:', err);
     process.exit(1);

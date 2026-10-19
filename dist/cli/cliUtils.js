@@ -15,18 +15,23 @@ import { spawnSync } from "node:child_process";
 /**
 * Checks whether the current module is being executed directly as the CLI entrypoint.
 */
-function isMainModule(metaUrl) {
+function isMainModule(metaUrl, binaryAliases) {
 	const scriptArg = process.argv[1];
 	if (!scriptArg) return false;
 	try {
 		const targetPath = path.resolve(fileURLToPath(metaUrl));
+		let realScript;
 		try {
-			const realScript = path.resolve(fs.realpathSync(scriptArg));
-			return process.platform === "win32" ? realScript.toLowerCase() === targetPath.toLowerCase() : realScript === targetPath;
+			realScript = path.resolve(fs.realpathSync(scriptArg));
 		} catch {
-			const resolvedScript = path.resolve(scriptArg);
-			return process.platform === "win32" ? resolvedScript.toLowerCase() === targetPath.toLowerCase() : resolvedScript === targetPath;
+			realScript = path.resolve(scriptArg);
 		}
+		if (process.platform === "win32" ? realScript.toLowerCase() === targetPath.toLowerCase() : realScript === targetPath) return true;
+		const targetBase = path.basename(targetPath, path.extname(targetPath));
+		const scriptBase = path.basename(realScript, path.extname(realScript));
+		if (targetBase.toLowerCase() === scriptBase.toLowerCase()) return true;
+		if (binaryAliases && binaryAliases.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())) return true;
+		return false;
 	} catch {
 		return false;
 	}

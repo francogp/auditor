@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { isMainModule } from "./cliUtils.js";
 import { DomainRefactorEngine } from "../core/refactor/domainRefactorEngine.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { styleText } from "node:util";
@@ -81,7 +82,7 @@ const domainCliDef = {
 async function runRefactorDomainCli(argv = process.argv.slice(2)) {
 	await runRefactorCliHarness(domainCliDef, argv);
 }
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("refactor_domain.ts") || process.argv[1]?.endsWith("auditor-domain.js")) runRefactorDomainCli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-domain", "refactor_domain"])) runRefactorDomainCli().catch((err) => {
 	console.error(styleText("red", `\n💥 Error fatal en auditor-domain: ${err.message}`));
 	process.exit(1);
 });

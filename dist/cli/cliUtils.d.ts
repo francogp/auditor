@@ -7,7 +7,7 @@
 /**
  * Checks whether the current module is being executed directly as the CLI entrypoint.
  */
-export declare function isMainModule(metaUrl: string): boolean;
+export declare function isMainModule(metaUrl: string, binaryAliases?: readonly string[]): boolean;
 export declare const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES: number;
 export declare const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
 export interface CliBootstrapResult {

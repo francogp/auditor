@@ -19,6 +19,7 @@ import type {
   DomainFindingItem,
   DomainRefactorPlan
 } from '../core/refactor/refactorContracts.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
   { key: 'file', header: 'Archivo', width: 40, align: 'left' },
@@ -70,11 +71,7 @@ export async function runRefactorDomainCli(argv: string[] = process.argv.slice(2
   await runRefactorCliHarness(domainCliDef, argv);
 }
 
-if (
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith('refactor_domain.ts') ||
-  process.argv[1]?.endsWith('auditor-domain.js')
-) {
+if (isMainModule(import.meta.url, ['auditor-domain', 'refactor_domain'])) {
   runRefactorDomainCli().catch((err) => {
     console.error(styleText('red', `\n💥 Error fatal en auditor-domain: ${err.message}`));
     process.exit(1);

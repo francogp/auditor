@@ -24,6 +24,20 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'core'
   },
   {
+    name: 'auditor:help',
+    command: 'auditor --help',
+    description:
+      'Catálogo de comandos de ayuda, opciones y herramientas especializadas de remediación',
+    category: 'core'
+  },
+  {
+    name: 'auditor:guide',
+    command: 'auditor guide',
+    description:
+      'Manuales de remediación paso a paso de reglas arquitectónicas (uso: npm run auditor:guide -- <regla>)',
+    category: 'core'
+  },
+  {
     name: 'auditor:by-file',
     command: 'auditor-by-file',
     description: 'Desglose detallado de hallazgos ordenados por archivo y línea',

@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { isMainModule } from "./cliUtils.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { MotionRefactorEngine } from "../core/refactor/motionRefactorEngine.js";
 import { styleText } from "node:util";
@@ -81,7 +82,7 @@ const motionCliDef = {
 async function runRefactorMotionCli(argv = process.argv.slice(2)) {
 	await runRefactorCliHarness(motionCliDef, argv);
 }
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("refactor_motion.ts") || process.argv[1]?.endsWith("auditor-motion.js")) runRefactorMotionCli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-motion", "refactor_motion"])) runRefactorMotionCli().catch((err) => {
 	console.error(styleText("red", `\n💥 Error fatal en auditor-motion: ${err.message}`));
 	process.exit(1);
 });

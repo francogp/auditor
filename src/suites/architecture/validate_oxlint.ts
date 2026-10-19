@@ -584,9 +584,10 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
           'Diagnóstico:\n' +
           'El mensaje de la incidencia indica el código exacto de la regla (ej. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with) y la línea del archivo donde ocurrió.\n\n' +
           'Solución Canónica:\n' +
-          '1. Si la regla es auto-reparable, ejecuta "npm run auditor:fix" o "vp lint --fix" para aplicar los fixes automáticos soportados por Oxlint.\n' +
-          '2. Si la regla requiere corrección manual, adapta el código para satisfacer el estándar arquitectónico reportado.\n' +
-          '3. Queda CATEGÓRICAMENTE PROHIBIDO desactivar o diluir la regla en vite.config.ts ("rule": "off" o null) para pasar la auditoría (Anti-Castration Mandate y Zero-Tolerance Fake Pass Mandate).'
+          '1. Si la regla es auto-reparable, ejecuta "npm run auditor:fix" para aplicar los fixes automáticos soportados por Oxlint.\n' +
+          '2. Si la incidencia involucra contratos de retorno (explicit-function-return-type) o aserciones (as any), ejecuta la herramienta oficial determinista "npm run auditor:types".\n' +
+          '3. Si la regla requiere corrección manual, adapta el código para satisfacer el estándar arquitectónico reportado.\n' +
+          '4. Queda CATEGÓRICAMENTE PROHIBIDO desactivar o diluir la regla en vite.config.ts ("rule": "off" o null) para pasar la auditoría (Anti-Castration Mandate y Zero-Tolerance Fake Pass Mandate).'
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue}'],

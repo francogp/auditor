@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { isMainModule } from "./cliUtils.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { O1RefactorEngine } from "../core/refactor/o1RefactorEngine.js";
 import { styleText } from "node:util";
@@ -81,7 +82,7 @@ const o1CliDef = {
 async function runRefactorO1Cli(argv = process.argv.slice(2)) {
 	await runRefactorCliHarness(o1CliDef, argv);
 }
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("refactor_o1.ts") || process.argv[1]?.endsWith("auditor-o1.js")) runRefactorO1Cli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-o1", "refactor_o1"])) runRefactorO1Cli().catch((err) => {
 	console.error(styleText("red", `\n💥 Error fatal en auditor-o1: ${err.message}`));
 	process.exit(1);
 });

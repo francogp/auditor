@@ -19,6 +19,7 @@ import type {
   TypesFindingItem,
   TypesRefactorPlan
 } from '../core/refactor/refactorContracts.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
   { key: 'file', header: 'Archivo', width: 46, align: 'left' },
@@ -70,11 +71,7 @@ export async function runRefactorTypesCli(argv: string[] = process.argv.slice(2)
   await runRefactorCliHarness(typesCliDef, argv);
 }
 
-if (
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith('refactor_types.ts') ||
-  process.argv[1]?.endsWith('auditor-types.js')
-) {
+if (isMainModule(import.meta.url, ['auditor-types', 'refactor_types'])) {
   runRefactorTypesCli().catch((err) => {
     console.error(styleText('red', `\n💥 Error fatal en auditor-types: ${err.message}`));
     process.exit(1);

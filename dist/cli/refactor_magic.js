@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
+import { isMainModule } from "./cliUtils.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
@@ -146,7 +147,7 @@ Opciones:
 			process.exit(1);
 	}
 }
-if (process.argv[1] && process.argv[1].endsWith("refactor_magic.ts")) runRefactorMagicCli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-magic", "refactor_magic"])) runRefactorMagicCli().catch((err) => {
 	console.error("\n❌ Error fatal en auditor-magic:", err);
 	process.exit(1);
 });

@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { isMainModule } from "./cliUtils.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { TypesRefactorEngine } from "../core/refactor/typesRefactorEngine.js";
 import { styleText } from "node:util";
@@ -81,7 +82,7 @@ const typesCliDef = {
 async function runRefactorTypesCli(argv = process.argv.slice(2)) {
 	await runRefactorCliHarness(typesCliDef, argv);
 }
-if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith("refactor_types.ts") || process.argv[1]?.endsWith("auditor-types.js")) runRefactorTypesCli().catch((err) => {
+if (isMainModule(import.meta.url, ["auditor-types", "refactor_types"])) runRefactorTypesCli().catch((err) => {
 	console.error(styleText("red", `\n💥 Error fatal en auditor-types: ${err.message}`));
 	process.exit(1);
 });

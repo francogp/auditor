@@ -14,24 +14,37 @@ import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 /**
  * Checks whether the current module is being executed directly as the CLI entrypoint.
  */
-export function isMainModule(metaUrl: string): boolean {
+export function isMainModule(metaUrl: string, binaryAliases?: readonly string[]): boolean {
   const scriptArg = process.argv[1];
   if (!scriptArg) return false;
 
   try {
     const targetPath = path.resolve(fileURLToPath(metaUrl));
+    let realScript: string;
     try {
-      const realScript = path.resolve(fs.realpathSync(scriptArg));
-      return process.platform === 'win32'
-        ? realScript.toLowerCase() === targetPath.toLowerCase()
-        : realScript === targetPath;
+      realScript = path.resolve(fs.realpathSync(scriptArg));
     } catch {
       // catch-ok: Fallback to path.resolve if realpath fails
-      const resolvedScript = path.resolve(scriptArg);
-      return process.platform === 'win32'
-        ? resolvedScript.toLowerCase() === targetPath.toLowerCase()
-        : resolvedScript === targetPath;
+      realScript = path.resolve(scriptArg);
     }
+    const isExact =
+      process.platform === 'win32'
+        ? realScript.toLowerCase() === targetPath.toLowerCase()
+        : realScript === targetPath;
+    if (isExact) return true;
+
+    // Check base name without extension (supports .ts vs .js runtime variance)
+    const targetBase = path.basename(targetPath, path.extname(targetPath));
+    const scriptBase = path.basename(realScript, path.extname(realScript));
+    if (targetBase.toLowerCase() === scriptBase.toLowerCase()) return true;
+
+    if (
+      binaryAliases &&
+      binaryAliases.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())
+    ) {
+      return true;
+    }
+    return false;
   } catch {
     // catch-ok: Fallback when targetPath cannot be parsed
     return false;

@@ -19,6 +19,7 @@ import type {
   O1FindingItem,
   O1RefactorPlan
 } from '../core/refactor/refactorContracts.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
   { key: 'file', header: 'Archivo', width: 46, align: 'left' },
@@ -70,11 +71,7 @@ export async function runRefactorO1Cli(argv: string[] = process.argv.slice(2)): 
   await runRefactorCliHarness(o1CliDef, argv);
 }
 
-if (
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith('refactor_o1.ts') ||
-  process.argv[1]?.endsWith('auditor-o1.js')
-) {
+if (isMainModule(import.meta.url, ['auditor-o1', 'refactor_o1'])) {
   runRefactorO1Cli().catch((err) => {
     console.error(styleText('red', `\n💥 Error fatal en auditor-o1: ${err.message}`));
     process.exit(1);

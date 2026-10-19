@@ -83,6 +83,32 @@ describe('cliUtils', () => {
       }
     });
 
+    it('returns true when target and script match across .ts vs .js extension variance', () => {
+      const originalArgv1 = process.argv[1] ?? '';
+      try {
+        const scriptPath = path.resolve('/workspace/dist/cli/refactor_types.js');
+        const targetPath = path.resolve('/workspace/src/cli/refactor_types.ts');
+        process.argv[1] = scriptPath;
+        const metaUrl = pathToFileURL(targetPath).href;
+        expect(isMainModule(metaUrl)).toBe(true);
+      } finally {
+        process.argv[1] = originalArgv1;
+      }
+    });
+
+    it('returns true when binary aliases match script base name', () => {
+      const originalArgv1 = process.argv[1] ?? '';
+      try {
+        const scriptPath = path.resolve('/workspace/node_modules/.bin/auditor-types');
+        const targetPath = path.resolve('/workspace/src/cli/refactor_types.ts');
+        process.argv[1] = scriptPath;
+        const metaUrl = pathToFileURL(targetPath).href;
+        expect(isMainModule(metaUrl, ['auditor-types'])).toBe(true);
+      } finally {
+        process.argv[1] = originalArgv1;
+      }
+    });
+
     it('returns false when metaUrl is invalid URL', () => {
       expect(isMainModule('invalid-url-string')).toBe(false);
     });

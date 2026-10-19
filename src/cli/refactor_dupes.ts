@@ -18,6 +18,7 @@ import { resolveFallowBinary } from '../suites/architecture/validate_similar_cod
 import { MicroContextExtractor } from '../core/refactor/microContextExtractor.ts';
 import { HybridHarnessEngine } from '../core/refactor/hybridHarness.ts';
 import { applyPlanFileWithWorktreeVerification } from '../core/refactor/worktreeSandbox.ts';
+import { isMainModule } from './cliUtils.ts';
 import type {
   FallowDupesOutput,
   FallowDeadCodeOutput,
@@ -271,7 +272,7 @@ export async function runRefactorCli(): Promise<void> {
   }
 }
 
-if (process.argv[1] && process.argv[1].endsWith('refactor_dupes.ts')) {
+if (isMainModule(import.meta.url, ['auditor-dupes', 'refactor_dupes'])) {
   runRefactorCli().catch((err) => {
     console.error(err);
     process.exit(1);

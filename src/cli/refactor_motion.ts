@@ -19,6 +19,7 @@ import type {
   MotionFindingItem,
   MotionRefactorPlan
 } from '../core/refactor/refactorContracts.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
   { key: 'file', header: 'Archivo', width: 46, align: 'left' },
@@ -70,11 +71,7 @@ export async function runRefactorMotionCli(argv: string[] = process.argv.slice(2
   await runRefactorCliHarness(motionCliDef, argv);
 }
 
-if (
-  import.meta.url === `file://${process.argv[1]}` ||
-  process.argv[1]?.endsWith('refactor_motion.ts') ||
-  process.argv[1]?.endsWith('auditor-motion.js')
-) {
+if (isMainModule(import.meta.url, ['auditor-motion', 'refactor_motion'])) {
   runRefactorMotionCli().catch((err) => {
     console.error(styleText('red', `\n💥 Error fatal en auditor-motion: ${err.message}`));
     process.exit(1);
