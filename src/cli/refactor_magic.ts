@@ -102,10 +102,16 @@ function handleInspect(projectRoot: string, extractor: MagicNumberExtractor, tar
   );
 
   console.log(JSON.stringify(packet, null, 2));
+
+  const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Date.now()}`, targetFile, items);
+  console.log(styleText('yellow', '\n📄 Plan declarativo sugerido listo para aplicar (--plan):\n'));
+  console.log(JSON.stringify(suggestedPlan, null, 2));
   console.log(
     styleText(
       'cyan',
-      '\n💡 Diseña el MagicRefactorPlan JSON y aplícalo con:\n   npm run auditor:magic apply <plan.json> --worktree\n'
+      '\n💡 Para aplicar este plan automáticamente:\n' +
+        '   1. Guarda el JSON del plan en un archivo (ej: scratch/magic_plan.json)\n' +
+        '   2. Ejecuta: npm run auditor:magic apply scratch/magic_plan.json --worktree\n'
     )
   );
 }

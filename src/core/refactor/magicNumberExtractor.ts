@@ -16,7 +16,10 @@ import type {
   SuperDiracClusterPacket,
   SuperDiracBatchItem,
   InferredSemanticRole,
-  MagicLiteralKind
+  MagicLiteralKind,
+  MagicRefactorPlan,
+  ConstantDeclarationSpec,
+  SpanReplacementSpec
 } from './magicContracts.ts';
 import { ESTIMATED_TOKENS_PER_CHAR } from './refactorContracts.ts';
 import { resolveSignedNumericLiteral } from '../../suites/architecture/validate_magic_numbers.ts';
@@ -545,4 +548,53 @@ export class MagicNumberExtractor {
       items: batchItems
     };
   }
+
+  /**
+   * Generates a fully-executable MagicRefactorPlan ready to be applied by MagicNumberHarness.
+   */
+  public createRefactorPlan(
+    planId: string,
+    file: string,
+    items: readonly DiscoveredMagicItem[],
+    options?: {
+      targetLocation?: 'local-file-header' | 'shared-constants-module';
+      destinationFile?: string;
+    }
+  ): MagicRefactorPlan {
+    const targetLocation = options?.targetLocation ?? 'local-file-header';
+    const destinationFile = options?.destinationFile;
+    const declarationsMap = new Map<string, ConstantDeclarationSpec>();
+    const replacements: SpanReplacementSpec[] = [];
+
+    for (const item of items) {
+      const constName =
+        item.matchingExistingConstant?.symbol ?? item.autoCandidateName ?? 'CONSTANT_VALUE';
+      if (!declarationsMap.has(constName) && !item.matchingExistingConstant) {
+        declarationsMap.set(constName, {
+          name: constName,
+          value: item.rawValue,
+          targetLocation,
+          destinationFile,
+          isExported: targetLocation === 'shared-constants-module'
+        });
+      }
+      replacements.push({
+        startOffset: item.startOffset,
+        endOffset: item.endOffset,
+        replacement: constName,
+        originalSnippet: String(item.rawValue)
+      });
+    }
+
+    return {
+      version: 1,
+      planId,
+      targetFiles: [file],
+      declarations: Array.from(declarationsMap.values()),
+      fileReplacements: {
+        [file]: replacements
+      }
+    };
+  }
 }
+

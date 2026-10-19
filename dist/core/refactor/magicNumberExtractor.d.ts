@@ -1,4 +1,4 @@
-import { DiscoveredMagicItem, SuperDiracClusterPacket } from "./magicContracts.js";
+import { DiscoveredMagicItem, MagicRefactorPlan, SuperDiracClusterPacket } from "./magicContracts.js";
 //#region src/core/refactor/magicNumberExtractor.d.ts
 export declare class MagicNumberExtractor {
   private readonly existingConstants;
@@ -35,5 +35,12 @@ export declare class MagicNumberExtractor {
    * Generates Super-Dirac compact batch table packet.
    */
   generateSuperDiracPacket(projectRoot: string, file: string, items: readonly DiscoveredMagicItem[]): SuperDiracClusterPacket;
+  /**
+   * Generates a fully-executable MagicRefactorPlan ready to be applied by MagicNumberHarness.
+   */
+  createRefactorPlan(planId: string, file: string, items: readonly DiscoveredMagicItem[], options?: {
+    targetLocation?: 'local-file-header' | 'shared-constants-module';
+    destinationFile?: string;
+  }): MagicRefactorPlan;
 }
 //#endregion

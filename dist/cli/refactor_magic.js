@@ -80,7 +80,10 @@ function handleInspect(projectRoot, extractor, targetFile) {
 	console.log(styleText("gray", `• Total: ${packet.totalItems} | 0-Token: ${packet.zeroTokenCount} | Pendientes: ${packet.pendingAmbiguousCount}`));
 	console.log(styleText("green", `• Ahorro de Tokens: ${packet.fullFileTokensBaseline} -> ${packet.superDiracBatchTokens} (${packet.tokenSavingsPercent}% ahorro)\n`));
 	console.log(JSON.stringify(packet, null, 2));
-	console.log(styleText("cyan", "\n💡 Diseña el MagicRefactorPlan JSON y aplícalo con:\n   npm run auditor:magic apply <plan.json> --worktree\n"));
+	const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Date.now()}`, targetFile, items);
+	console.log(styleText("yellow", "\n📄 Plan declarativo sugerido listo para aplicar (--plan):\n"));
+	console.log(JSON.stringify(suggestedPlan, null, 2));
+	console.log(styleText("cyan", "\n💡 Para aplicar este plan automáticamente:\n   1. Guarda el JSON del plan en un archivo (ej: scratch/magic_plan.json)\n   2. Ejecuta: npm run auditor:magic apply scratch/magic_plan.json --worktree\n"));
 }
 async function handleApply(projectRoot, rawPlanPath, useWorktree) {
 	await applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, (dir, plan) => MagicNumberHarness.execute(dir, plan), "auditor:magic apply <plan.json>");
