@@ -6,6 +6,7 @@ import { initAgentSkill } from "../../cli/init_agent.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import yaml from "yaml";
 //#region src/suites/architecture/validate_agent_plugin.ts
 /**
 * src/suites/architecture/validate_agent_plugin.ts
@@ -17,7 +18,7 @@ import fs from "node:fs";
 * In --fix mode, automatically registers the plugin into `.agents/plugins.json`.
 */
 enableCompileCache();
-const AGENT_PLUGIN_RULES = ["missing-agent-plugin-registration"];
+const AGENT_PLUGIN_RULES = ["missing-agent-plugin-registration", "skill-invalid-yaml-frontmatter"];
 /** Agent registries read to verify the plugin/skills registration. */
 const AGENT_REGISTRY_FILES = [".agents/plugins.json", ".agents/skills.json"];
 function isPluginRegisteredInAgents(projectRoot) {
@@ -61,21 +62,23 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "🤖",
-			ruleDescriptions: { "missing-agent-plugin-registration": "Plugin/skills no registrados en .agents" },
-			ruleRemediations: { "missing-agent-plugin-registration": "📖 GUÍA DE REMEDIACIÓN: missing-agent-plugin-registration\n1. Causa Raíz: El proyecto host no tiene registrado el plugin de auditoría `@francogp/auditor` en `.agents/plugins.json` o carece del catálogo de skills correspondientes en `.agents/skills/`.\n2. Diagnóstico: Comprueba si existe `.agents/plugins.json` y si contiene la referencia al plugin del auditor.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para registrar automáticamente el plugin y sincronizar los skills.\n   b) O ejecuta `auditor-init` en el proyecto host.\n4. Ejemplo:\n   - Comando de solución: `npm run auditor:fix`" },
-			coverage: { include: [...AGENT_REGISTRY_FILES] },
+			ruleDescriptions: {
+				"missing-agent-plugin-registration": "Plugin/skills no registrados en .agents",
+				"skill-invalid-yaml-frontmatter": "Frontmatter YAML inválido en SKILL.md"
+			},
+			ruleRemediations: {
+				"missing-agent-plugin-registration": "📖 GUÍA DE REMEDIACIÓN: missing-agent-plugin-registration\n1. Causa Raíz: El proyecto host no tiene registrado el plugin de auditoría `@francogp/auditor` en `.agents/plugins.json` o carece del catálogo de skills correspondientes en `.agents/skills/`.\n2. Diagnóstico: Comprueba si existe `.agents/plugins.json` y si contiene la referencia al plugin del auditor.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para registrar automáticamente el plugin y sincronizar los skills.\n   b) O ejecuta `auditor-init` en el proyecto host.\n4. Ejemplo:\n   - Comando de solución: `npm run auditor:fix`",
+				"skill-invalid-yaml-frontmatter": "📖 GUÍA DE REMEDIACIÓN: skill-invalid-yaml-frontmatter\n1. Causa Raíz: El archivo `SKILL.md` contiene errores de sintaxis en su frontmatter YAML (comúnmente dos puntos `: ` sin entrecomillar o sin formato escalar `>-`), o carece de los campos requeridos `name` y `description`.\n2. Diagnóstico: Ejecuta `npm run auditor:agent-plugin` para identificar el skill específico y el mensaje exacto emitido por el parser YAML.\n3. Solución Canónica: Utiliza el bloque escalar plegado `description: >-` para descripciones de múltiples líneas o con caracteres especiales. Asegúrate de incluir `name: <nombre>` coincidiendo con la carpeta del skill.\n4. Ejemplo:\n   - Antes (Inválido): description: Regla: descripción\n   - Después (Canónico): description: >-\n       Regla: descripción"
+			},
+			coverage: { include: [...AGENT_REGISTRY_FILES, ".agents/skills/**/SKILL.md"] },
 			...options
 		});
 	}
 	async checkGating() {
-		if (isSelfProviderProject(this.projectRoot)) {
-			this.context.setMetric("Agent Plugin Status", "Provider Validated");
-			this.markRuleNotApplicable("missing-agent-plugin-registration", "Proyecto proveedor de @francogp/auditor (auto-registro)");
-			return true;
-		}
 		if ((this.projectRoot !== process.cwd() ? await loadAuditConfig(this.projectRoot) : getAuditConfig()).agentPlugin?.enabled === false) {
 			this.context.setMetric("Agent Plugin Status", "Disabled");
 			this.markRuleNotApplicable("missing-agent-plugin-registration", "config.agentPlugin.enabled = false");
+			this.markRuleNotApplicable("skill-invalid-yaml-frontmatter", "config.agentPlugin.enabled = false");
 			return true;
 		}
 		return false;
@@ -112,13 +115,95 @@ var AgentPluginAuditor = class extends BaseAuditor {
 	async runAudit() {
 		if (await this.checkGating()) return;
 		for (const registryFile of AGENT_REGISTRY_FILES) if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
-		this.runSubAuditorSync("missing-agent-plugin-registration", () => {
+		if (isSelfProviderProject(this.projectRoot)) {
+			this.context.setMetric("Agent Plugin Status", "Provider Validated");
+			this.markRuleNotApplicable("missing-agent-plugin-registration", "Proyecto proveedor de @francogp/auditor (auto-registro)");
+		} else this.runSubAuditorSync("missing-agent-plugin-registration", () => {
 			if (isPluginRegisteredInAgents(this.projectRoot)) {
 				this.context.setMetric("Agent Plugin Status", "Registered");
 				return;
 			}
 			if (this.tryAutoFixPlugin()) return;
 			this.reportMissingPluginViolation();
+		});
+		this.runSubAuditorSync("skill-invalid-yaml-frontmatter", () => {
+			const skillsDir = path.join(this.projectRoot, ".agents/skills");
+			if (!fs.existsSync(skillsDir)) return;
+			const entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				const skillName = entry.name;
+				const skillMdPath = path.join(skillsDir, skillName, "SKILL.md");
+				if (!fs.existsSync(skillMdPath)) continue;
+				this.recordScanned(path.relative(this.projectRoot, skillMdPath));
+				const content = fs.readFileSync(skillMdPath, "utf8");
+				if (!content.startsWith("---")) {
+					this.addViolation({
+						ruleId: "skill-invalid-yaml-frontmatter",
+						severity: "error",
+						file: path.relative(this.projectRoot, skillMdPath),
+						line: 1,
+						message: `El archivo ${skillName}/SKILL.md no contiene frontmatter delimitado por '---'`,
+						context: skillName
+					});
+					continue;
+				}
+				const parts = content.split("---");
+				if (parts.length < 3) {
+					this.addViolation({
+						ruleId: "skill-invalid-yaml-frontmatter",
+						severity: "error",
+						file: path.relative(this.projectRoot, skillMdPath),
+						line: 1,
+						message: `El frontmatter de ${skillName}/SKILL.md no tiene cierre con '---'`,
+						context: skillName
+					});
+					continue;
+				}
+				const frontmatterRaw = parts[1];
+				let parsed = null;
+				try {
+					parsed = yaml.parse(frontmatterRaw);
+				} catch (err) {
+					const errMsg = err instanceof Error ? err.message : String(err);
+					this.addViolation({
+						ruleId: "skill-invalid-yaml-frontmatter",
+						severity: "error",
+						file: path.relative(this.projectRoot, skillMdPath),
+						line: 1,
+						message: `Error de sintaxis YAML en frontmatter de ${skillName}/SKILL.md: ${errMsg.split("\n")[0]}`,
+						context: skillName
+					});
+					continue;
+				}
+				if (!parsed || typeof parsed !== "object") {
+					this.addViolation({
+						ruleId: "skill-invalid-yaml-frontmatter",
+						severity: "error",
+						file: path.relative(this.projectRoot, skillMdPath),
+						line: 1,
+						message: `El frontmatter de ${skillName}/SKILL.md no es un objeto YAML válido`,
+						context: skillName
+					});
+					continue;
+				}
+				if (!parsed.name || typeof parsed.name !== "string" || !parsed.name.trim()) this.addViolation({
+					ruleId: "skill-invalid-yaml-frontmatter",
+					severity: "error",
+					file: path.relative(this.projectRoot, skillMdPath),
+					line: 1,
+					message: `Falta el campo 'name' en el frontmatter de ${skillName}/SKILL.md`,
+					context: skillName
+				});
+				if (!parsed.description || typeof parsed.description !== "string" || !parsed.description.trim()) this.addViolation({
+					ruleId: "skill-invalid-yaml-frontmatter",
+					severity: "error",
+					file: path.relative(this.projectRoot, skillMdPath),
+					line: 1,
+					message: `Falta el campo 'description' en el frontmatter de ${skillName}/SKILL.md`,
+					context: skillName
+				});
+			}
 		});
 	}
 };

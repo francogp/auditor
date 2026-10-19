@@ -193,5 +193,53 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('detects invalid YAML syntax in skill SKILL.md frontmatter', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const skillDir = path.join(tempDir, '.agents/skills/broken-skill');
+      await fs.mkdir(skillDir, { recursive: true });
+      // Invalid YAML: unquoted colon followed by space inside mapping
+      await fs.writeFile(
+        path.join(skillDir, 'SKILL.md'),
+        '---\nname: broken-skill\ndescription: unquoted: nested key\n---\n# Broken Skill\n',
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-yaml-frontmatter');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toContain('Error de sintaxis YAML');
+    });
+
+    it('detects missing name or description in skill SKILL.md frontmatter', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const skillDir = path.join(tempDir, '.agents/skills/nameless-skill');
+      await fs.mkdir(skillDir, { recursive: true });
+      await fs.writeFile(
+        path.join(skillDir, 'SKILL.md'),
+        '---\ndescription: Has description but no name\n---\n# Nameless\n',
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'nameless-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.message).toContain("Falta el campo 'name'");
+    });
   });
 });

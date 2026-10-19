@@ -469,43 +469,29 @@ auditor family=domain_data
 npm run auditor:findings category=validate_domain_types
 ```
 
-### Full Verification Pipeline
+### Full Verification Pipeline & Review Heuristics
 
-Always verify domain types as part of the fast verification flow:
+Verify domain types as part of the fast verification flow: `npm run lint`.
+If generator scripts or generated data were touched, inspect generator templates in `scripts/` to ensure strict types are emitted.
 
-```bash
-npm run lint
-```
+**Review Heuristics**:
 
-1. If generator scripts were touched or generated data was involved, inspect the relevant npm commands in `package.json` and verify the generator template emits strict types.
-2. If TypeScript reports call sites passing raw strings, fix the call sites by using the domain type or an explicit boundary guard. Do not relax the domain to make the compiler quiet.
-
-## Review Heuristics
-
-Ask these before accepting a domain design:
-
-- Where is the single source of truth?
-- Can TypeScript reject a typo at the call site?
+- Where is the single source of truth? Can TypeScript reject typos at call sites?
 - Will regenerated data preserve this strict type?
 - Is this truly open text, or a finite ID pretending to be text?
 - Does the type allow missing/default state in exactly one canonical way?
-- Is `Partial<Record<...>>` used only because coverage is intentionally partial?
 - Are runtime validators failing loudly instead of normalizing or falling back?
 
 ## Output Expectations
 
-When reporting work to the user:
-
-- Name the canonical domain types introduced or reused.
-- Mention any generator templates audited or changed.
-- Report `validate_domain_types` audit results.
-- If strict typing exposes `vue-tsc`/lint errors, describe them as real migration work rather than weakening the domain.
+When reporting work: name canonical domain types introduced or reused, report `validate_domain_types` results, and treat `vue-tsc`/lint errors as real migration debt.
 
 ---
 
-## 🌐 Dynamic Language Governance (Zero Hardcoding)
+## Dynamic Language Governance
 
-- The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
-  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, brain artifacts (`walkthrough.md`, `task.md`, `plan_safe_commit.md`), and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
-- **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.
+Consult `.auditor/audit.config.ts` dynamically:
+
+- **Chat Language (`config.documentation.chatLanguage`)**: Interactive chat communication and user dialogs.
+- **Documentation Language (`config.documentation.language`)**: Code comments, markdown files, and commit messages.
+- **Integrity**: Never confuse or conflate conversational chat language with repository file writing language.
