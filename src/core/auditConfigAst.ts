@@ -210,6 +210,48 @@ interface AstInsertion {
   text: string;
 }
 
+function formatObjectPropLines(
+  propsToAppend: readonly [string, unknown][],
+  indent: string
+): string[] {
+  return propsToAppend.map(([k, v]) => {
+    const safeKey = /^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`;
+    return `${indent}${safeKey}: ${formatValueWithIndent(v, indent)}`;
+  });
+}
+
+function appendPropsToNode(
+  code: string,
+  objNode: ts.ObjectLiteralExpression,
+  formattedLines: readonly string[],
+  indent: string,
+  insertions: AstInsertion[]
+): void {
+  const closeBracePos = code.lastIndexOf('}', objNode.getEnd() - 1);
+  if (closeBracePos === -1) return;
+
+  if (objNode.properties.length > 0) {
+    const lastProp = objNode.properties[objNode.properties.length - 1]!;
+    if (!objNode.properties.hasTrailingComma) {
+      insertions.push({ pos: lastProp.getEnd(), text: ',' });
+    }
+
+    const lastNewlineBeforeClose = code.lastIndexOf('\n', closeBracePos);
+    const insertPos =
+      lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= lastProp.getEnd()
+        ? lastNewlineBeforeClose
+        : closeBracePos;
+
+    insertions.push({ pos: insertPos, text: `\n${formattedLines.join(',\n')},` });
+  } else {
+    const parentIndent = indent.length >= 2 ? indent.slice(2) : '';
+    insertions.push({
+      pos: closeBracePos,
+      text: `\n${formattedLines.join(',\n')},\n${parentIndent}`
+    });
+  }
+}
+
 function collectMissingPropInsertions(
   code: string,
   source: ts.SourceFile,
@@ -252,39 +294,9 @@ function collectMissingPropInsertions(
     }
   }
 
-  if (propsToAppend.length === 0) return;
-
-  const formattedLines = propsToAppend.map(([k, v]) => {
-    const safeKey = /^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`;
-    return `${indent}${safeKey}: ${formatValueWithIndent(v, indent)}`;
-  });
-
-  const closeBracePos = code.lastIndexOf('}', objNode.getEnd() - 1);
-  if (closeBracePos === -1) return;
-
-  if (objNode.properties.length > 0) {
-    const lastProp = objNode.properties[objNode.properties.length - 1]!;
-    const endOfLastProp = lastProp.getEnd();
-    const textBetween = code.slice(endOfLastProp, closeBracePos);
-    const hasComma = textBetween.includes(',');
-    const commaPrefix = hasComma ? '' : ',';
-
-    const lastNewlineBeforeClose = code.lastIndexOf('\n', closeBracePos);
-    const insertPos =
-      lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= endOfLastProp
-        ? lastNewlineBeforeClose
-        : closeBracePos;
-
-    insertions.push({
-      pos: insertPos,
-      text: `${commaPrefix}\n${formattedLines.join(',\n')},`
-    });
-  } else {
-    const parentIndent = indent.length >= 2 ? indent.slice(2) : '';
-    insertions.push({
-      pos: closeBracePos,
-      text: `\n${formattedLines.join(',\n')},\n${parentIndent}`
-    });
+  if (propsToAppend.length > 0) {
+    const lines = formatObjectPropLines(propsToAppend, indent);
+    appendPropsToNode(code, objNode, lines, indent, insertions);
   }
 }
 

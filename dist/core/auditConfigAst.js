@@ -113,6 +113,34 @@ function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
 		if (deepMergeMissingJson(json, sectionsToInsert)) fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
 	} catch {}
 }
+function formatObjectPropLines(propsToAppend, indent) {
+	return propsToAppend.map(([k, v]) => {
+		return `${indent}${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`}: ${formatValueWithIndent(v, indent)}`;
+	});
+}
+function appendPropsToNode(code, objNode, formattedLines, indent, insertions) {
+	const closeBracePos = code.lastIndexOf("}", objNode.getEnd() - 1);
+	if (closeBracePos === -1) return;
+	if (objNode.properties.length > 0) {
+		const lastProp = objNode.properties[objNode.properties.length - 1];
+		if (!objNode.properties.hasTrailingComma) insertions.push({
+			pos: lastProp.getEnd(),
+			text: ","
+		});
+		const lastNewlineBeforeClose = code.lastIndexOf("\n", closeBracePos);
+		const insertPos = lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= lastProp.getEnd() ? lastNewlineBeforeClose : closeBracePos;
+		insertions.push({
+			pos: insertPos,
+			text: `\n${formattedLines.join(",\n")},`
+		});
+	} else {
+		const parentIndent = indent.length >= 2 ? indent.slice(2) : "";
+		insertions.push({
+			pos: closeBracePos,
+			text: `\n${formattedLines.join(",\n")},\n${parentIndent}`
+		});
+	}
+}
 function collectMissingPropInsertions(code, source, objNode, missingProps, indent, insertions) {
 	const existingPropMap = /* @__PURE__ */ new Map();
 	for (const prop of objNode.properties) if (ts.isPropertyAssignment(prop)) {
@@ -127,28 +155,7 @@ function collectMissingPropInsertions(code, source, objNode, missingProps, inden
 			if (ts.isObjectLiteralExpression(existing.initializer) && typeof missingVal === "object" && missingVal !== null && !Array.isArray(missingVal)) collectMissingPropInsertions(code, source, existing.initializer, missingVal, indent + "  ", insertions);
 		} else propsToAppend.push([key, missingVal]);
 	}
-	if (propsToAppend.length === 0) return;
-	const formattedLines = propsToAppend.map(([k, v]) => {
-		return `${indent}${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`}: ${formatValueWithIndent(v, indent)}`;
-	});
-	const closeBracePos = code.lastIndexOf("}", objNode.getEnd() - 1);
-	if (closeBracePos === -1) return;
-	if (objNode.properties.length > 0) {
-		const endOfLastProp = objNode.properties[objNode.properties.length - 1].getEnd();
-		const commaPrefix = code.slice(endOfLastProp, closeBracePos).includes(",") ? "" : ",";
-		const lastNewlineBeforeClose = code.lastIndexOf("\n", closeBracePos);
-		const insertPos = lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= endOfLastProp ? lastNewlineBeforeClose : closeBracePos;
-		insertions.push({
-			pos: insertPos,
-			text: `${commaPrefix}\n${formattedLines.join(",\n")},`
-		});
-	} else {
-		const parentIndent = indent.length >= 2 ? indent.slice(2) : "";
-		insertions.push({
-			pos: closeBracePos,
-			text: `\n${formattedLines.join(",\n")},\n${parentIndent}`
-		});
-	}
+	if (propsToAppend.length > 0) appendPropsToNode(code, objNode, formatObjectPropLines(propsToAppend, indent), indent, insertions);
 }
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
 	const parsed = parseAuditConfigFileAst(configFilePath);

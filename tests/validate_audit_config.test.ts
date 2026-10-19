@@ -757,6 +757,52 @@ export default defineAuditConfig({
     expect(resolvedFinding).toBeUndefined();
   });
 
+  it('correctly handles trailing comments and missing commas when injecting sub-configurations', async () => {
+    const configWithTrailingCommentNoComma = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS.replace(
+    'vitePlusConfig: { enabled: true, precompress: { enabled: false } },',
+    `vitePlusConfig: {
+    enabled: true // Line comment without trailing comma
+  },`
+  )}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      configWithTrailingCommentNoComma,
+      'utf-8'
+    );
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    // Run in fix mode
+    resetAuditConfig();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await fixAuditor.execute();
+
+    // Verify comma is placed before the comment, not at the end of the line
+    const updatedContent = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
+    expect(updatedContent).toContain('enabled: true, // Line comment without trailing comma');
+    expect(updatedContent).toContain('precompress:');
+
+    // Re-run check mode: should pass cleanly
+    resetAuditConfig();
+    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const recheckResult = await recheckAuditor.execute();
+    const resolvedFinding = recheckResult.findings.find(
+      (f) =>
+        f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
+    );
+    expect(resolvedFinding).toBeUndefined();
+  });
+
   it('enforces required configuration section declared by host extensions', async () => {
     const extensionCode = `
 import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
