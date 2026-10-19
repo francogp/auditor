@@ -170,6 +170,9 @@ export default defineAuditConfig({
   },
   vitePlusConfig: {
     enabled: true,
+    precompress: {
+      enabled: false // Herramienta CLI/librería de Node.js sin bundle web cliente para producción
+    },
     lint: {
       rules: {
         '@typescript-eslint/explicit-member-accessibility': [

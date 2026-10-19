@@ -23,6 +23,27 @@ export declare function syncViteConfigWithAuditConfig(projectRoot: string, audit
   content: string;
 };
 export declare function cleanLegacyConfigFiles(projectRoot: string): readonly string[];
+export declare const BANNED_COMPRESSION_MODULES: readonly ["vite-plugin-compression", "vite-plugin-compression2"];
+/**
+ * Searches for homebrew compression scripts in scripts/ or other project directories.
+ */
+export declare function findHomebrewCompressionFiles(projectRoot: string): string[];
+/**
+ * Detects homebrew or third-party compression plugin imports in vite.config.ts.
+ */
+export declare function detectHomebrewCompressionImports(viteConfigContent: string): string[];
+/**
+ * Automatically migrates homebrew compression imports and calls in vite.config.ts
+ * to canonical vitePrecompressPlugin from @francogp/auditor.
+ */
+export declare function migrateHomebrewCompressionInViteConfig(viteConfigContent: string): {
+  content: string;
+  modified: boolean;
+};
+/**
+ * Removes homebrew compression scripts found on disk.
+ */
+export declare function cleanHomebrewCompressionFiles(projectRoot: string): string[];
 export declare function rewriteImportsToVitePlus(projectRoot: string, dirs?: readonly string[]): number;
 export declare function migrateNodeVersion(projectRoot: string): boolean;
 export declare function getVitePlusDefaultExcludeGlobs(projectRoot: string): string[];

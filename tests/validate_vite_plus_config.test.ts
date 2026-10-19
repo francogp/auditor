@@ -935,5 +935,42 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       );
       expect(findingsIncompletePack.some((f) => f.ruleId === 'vite-plus-config-pack')).toBe(true);
     });
+
+    it('C-CFG-58: flags homebrew compression scripts and imports, and auto-fixes them', async () => {
+      // 1. Setup a project with a homebrew precompress script and vite.config.ts
+      const scriptsDir = path.join(tempDir, 'scripts', 'maintenance');
+      fs.mkdirSync(scriptsDir, { recursive: true });
+      const homebrewScript = path.join(scriptsDir, 'vite-plugin-precompress.ts');
+      fs.writeFileSync(homebrewScript, 'export function staticPrecompressPlugin() {}', 'utf-8');
+
+      const viteConfigPath = path.join(tempDir, 'vite.config.ts');
+      const initialViteConfig = `import { defineConfig } from 'vite-plus';
+import { staticPrecompressPlugin } from './scripts/maintenance/vite-plugin-precompress.ts';
+
+export default defineConfig({
+  plugins: [staticPrecompressPlugin()]
+});
+`;
+      fs.writeFileSync(viteConfigPath, initialViteConfig, 'utf-8');
+
+      // 2. Audit without fix -> should detect violation
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+      expect(result.status).toBe('failed');
+      const compressionFindings = result.findings.filter(
+        (f) => f.context === 'homebrew-compression'
+      );
+      expect(compressionFindings.length).toBeGreaterThan(0);
+
+      // 3. Audit with fix -> should migrate vite.config.ts and delete the homebrew script
+      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
+      await fixAuditor.execute();
+
+      expect(fs.existsSync(homebrewScript)).toBe(false);
+      const updatedViteConfig = fs.readFileSync(viteConfigPath, 'utf-8');
+      expect(updatedViteConfig).toContain("from '@francogp/auditor'");
+      expect(updatedViteConfig).toContain('vitePrecompressPlugin');
+      expect(updatedViteConfig).not.toContain('staticPrecompressPlugin');
+    });
   });
 });

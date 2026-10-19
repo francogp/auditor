@@ -53,4 +53,5 @@ export * from './core/vitePlusConfigSync.ts';
 export * from './suites/architecture/validate_oxlint.ts';
 export * from './suites/architecture/validate_oxfmt.ts';
 export * from './suites/architecture/validate_vite_plus_config.ts';
+export * from './core/vitePrecompressPlugin.ts';
 export * from './core/refactor/baseRefactorEngine.ts';

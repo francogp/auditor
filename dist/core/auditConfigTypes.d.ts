@@ -504,8 +504,21 @@ export interface AuditVitePlusVSCodeConfig {
   readonly defaultFormatter?: string;
   readonly unwantedRecommendations?: readonly string[];
 }
+export type VitePrecompressReportMode = 'summary' | 'silent' | 'table';
+export type PrecompressServerTarget = 'nginx' | 'apache' | 'caddy' | 'all';
+export interface AuditVitePlusPrecompressConfig {
+  readonly enabled?: boolean;
+  readonly brotli?: boolean;
+  readonly gzip?: boolean;
+  readonly server?: PrecompressServerTarget;
+  readonly spa?: boolean;
+  readonly report?: VitePrecompressReportMode;
+  readonly threshold?: number;
+  readonly outDir?: string;
+}
 export interface AuditVitePlusConfig {
   readonly enabled?: boolean;
+  readonly precompress?: AuditVitePlusPrecompressConfig;
   readonly fmt?: AuditVitePlusFmtConfig;
   readonly lint?: AuditVitePlusLintConfig;
   readonly staged?: AuditVitePlusStagedConfig | Record<string, string>;

@@ -137,6 +137,7 @@ Architecture & Tooling Engineers.
 - [`versionAnalyzer.ts`](./versionAnalyzer.ts): Heuristic Git diff analyzer, subsystem impact classifier, CandidateVersions contract, and SemVer bump calculation engine (supporting major, minor, patch, and build).
 - [`viteConfigAst.ts`](./viteConfigAst.ts): Pure TypeScript Compiler AST parser, inspector, builder, and transformer for `vite.config.ts` and legacy configuration files.
 - [`vitePlusConfigSync.ts`](./vitePlusConfigSync.ts): Canonical Vite+ configuration builder, synchronization engine, and non-destructive legacy config migrator.
+- [`vitePrecompressPlugin.ts`](./vitePrecompressPlugin.ts): Canonical Vite+ precompression plugin using native Node.js 26+ node:zlib (Brotli Q11, Gzip L9) with multi-server scaffolding (Nginx, Apache, Caddy).
 - [`vueSfcParser.ts`](./vueSfcParser.ts): Canonical Vue Single File Component (SFC) block extractor for template, script, and style blocks.
 
 ## Work Guidance

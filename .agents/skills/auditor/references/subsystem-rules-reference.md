@@ -177,6 +177,8 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:
   All mandatory injected rules and configuration toggles must have active automated canary tests asserting positive detection, negative compliance, and active vs disabled behavior.
+- **Canonical Static Pre-compression Governance & Homebrew Plugin Ban (`vitePrecompressPlugin`, `vite-plus-config-core`)**:
+  Static asset pre-compression is centralized in `@francogp/auditor` via `vitePrecompressPlugin`, using native `node:zlib` (Brotli Q11 & Gzip L9) and multi-server config scaffolding (`nginx`, `apache`, `caddy`, `all`). Ad-hoc homebrew compression scripts (`scripts/**/vite-plugin-precompress*.ts`) and obsolete external compression libraries (`vite-plugin-compression`, `vite-plugin-compression2`) are strictly prohibited and flagged as `severity: 'error'` by `validate_vite_plus_config`. In `--fix` mode (`auditor fix`), the engine automatically cleans up the local script and rewrites `vite.config.ts` to import and call `vitePrecompressPlugin`. Web application projects enable it by default in `audit.config.ts` (`vitePlusConfig.precompress`), while non-web/CLI packages explicitly deactivate it (`precompress: { enabled: false }`).
 
 ---
 

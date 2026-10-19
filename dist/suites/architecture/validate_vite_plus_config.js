@@ -4,7 +4,7 @@ import { toPosixRelative } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
 import { extractParsedConfigSummary, isRuleValueCompliant } from "../../core/viteConfigAst.js";
-import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanLegacyConfigFiles, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
+import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -1019,7 +1019,7 @@ const RULE_DESCRIPTIONS = {
 	"vite-plus-config-ts": "Sincronización de TypeScript y pruebas"
 };
 const RULE_REMEDIATIONS = {
-	"vite-plus-config-core": "Causa Raíz:\nEl archivo vite.config.ts no existe en la raíz del proyecto, le faltan bloques fundamentales de la plataforma Vite+ (como test o staged), o conviven archivos de configuración legados obsoletos (.eslintrc.*, vitest.config.*, .prettierrc.*) que rompen la unificación del toolchain.\n\nDiagnóstico:\nComprueba si existen archivos de configuración redundantes de herramientas aisladas o si la sección \"test\" / \"staged\" está ausente en vite.config.ts.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor generará la configuración unificada canónica y purgará los archivos legados redundantes.\n2. Asegura que los comandos de compilación y pruebas invoquen el binario \"vp\" (\"vp test\", \"vp build\", \"vp dev\").",
+	"vite-plus-config-core": "Causa Raíz:\nEl archivo vite.config.ts no existe en la raíz del proyecto, le faltan bloques fundamentales de la plataforma Vite+ (como test o staged), conviven archivos de configuración legados obsoletos (.eslintrc.*, vitest.config.*, .prettierrc.*) que rompen la unificación del toolchain, o se detectaron plugins de compresión estática caseros (scripts/maintenance/vite-plugin-precompress*.ts) o librerías de terceros obsoletas (vite-plugin-compression).\n\nDiagnóstico:\nComprueba si existen archivos de configuración redundantes de herramientas aisladas, plugins de compresión caseros en scripts/, o si la sección \"test\" / \"staged\" está ausente en vite.config.ts.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor generará la configuración unificada canónica, purgará los archivos legados redundantes y migrará la compresión hacia \"vitePrecompressPlugin\" oficial de @francogp/auditor.\n2. Asegura que los comandos de compilación y pruebas invoquen el binario \"vp\" (\"vp test\", \"vp build\", \"vp dev\").",
 	"vite-plus-config-lint": "Causa Raíz:\nLa sección \"lint\" en vite.config.ts no cumple con el baseline obligatorio anti-castración (Anti-Castration Mandate), tiene reglas desactivadas (en \"off\" o null), o carece de plugins de dominio requeridos.\nPor mandato de arquitectura estricta, las reglas de TypeScript estricto, pureza de immutabilidad y control de flujo no pueden degradarse para ocultar defectos de código.\n\nDiagnóstico:\nEl mensaje de error indica qué regla de Oxlint o @typescript-eslint falta o tiene un valor inferior a \"error\".\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor inyectará y re-sincronizará el catálogo completo de reglas canónicas en vite.config.ts.\n2. Corrige los defectos reales en el código fuente señalados por el linter.",
 	"vite-plus-config-fmt": "Causa Raíz:\nLa sección \"fmt\" está ausente en vite.config.ts o no declara las opciones mandatorias \"sortImports: true\" y \"sortPackageJson: true\".\nOxfmt exige ordenamiento determinista de importaciones y claves de package.json para evitar conflictos en git diffs.\n\nDiagnóstico:\nRevisa el objeto \"fmt\" en vite.config.ts.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" para reparar la configuración automáticamente.\n2. O bien añade en vite.config.ts:\n   fmt: { sortImports: true, sortPackageJson: true }",
 	"vite-plus-config-pack": "Causa Raíz:\nEl paquete está configurado como biblioteca pública o paquete compartible, pero carece de la sección \"pack\" en vite.config.ts con los validadores publint y Are The Types Wrong (attw).\nSin esta verificación, pueden publicarse paquetes con exports rotos o tipos .d.ts incompatibles con ESM/CJS.\n\nDiagnóstico:\nRevisa si el paquete define exports o binarios y carece del bloque pack en vite.config.ts.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" para inyectar la sección pack canónica.\n2. Configura: pack: { publint: true, attw: { profile: \"esm-only\" } }.",
@@ -1096,6 +1096,39 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 						fixable: true
 					});
 				}
+			}
+			const homebrewFiles = findHomebrewCompressionFiles(this.projectRoot);
+			for (const homebrewFile of homebrewFiles) if (this.isFixActive()) {
+				cleanHomebrewCompressionFiles(this.projectRoot);
+				break;
+			} else this.addViolation({
+				ruleId: "vite-plus-config-core",
+				severity: "error",
+				file: homebrewFile,
+				line: 1,
+				context: "homebrew-compression",
+				message: `El archivo '${homebrewFile}' es un plugin de compresión casero no estándar. Toda la compresión debe resolverse mediante 'vitePrecompressPlugin' oficial de '@francogp/auditor'. Ejecuta 'auditor fix' para migrar automáticamente.`,
+				fixable: true
+			});
+			if (exists) {
+				const homebrewImports = detectHomebrewCompressionImports(content);
+				for (const imp of homebrewImports) if (this.isFixActive()) {
+					const { content: migratedContent, modified } = migrateHomebrewCompressionInViteConfig(content);
+					if (modified) {
+						fs.writeFileSync(resolvedPath, migratedContent, "utf-8");
+						content = migratedContent;
+					}
+					cleanHomebrewCompressionFiles(this.projectRoot);
+					break;
+				} else this.addViolation({
+					ruleId: "vite-plus-config-core",
+					severity: "error",
+					file: relFileName,
+					line: 1,
+					context: "homebrew-compression",
+					message: `Se detectó la importación del plugin de compresión no estándar '${imp}' en vite.config.ts. Usa 'vitePrecompressPlugin' oficial de '@francogp/auditor'. Ejecuta 'auditor fix' para migrar automáticamente.`,
+					fixable: true
+				});
 			}
 			if (!exists) {
 				this.addViolation({

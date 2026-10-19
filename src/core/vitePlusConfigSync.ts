@@ -16,6 +16,7 @@ import {
   getAuditorMinimumVersions,
   normalizeToCaretRange
 } from './auditorMinimums.ts';
+import { toPosixRelative } from './safePath.ts';
 import { getPackageJson, writePackageJson } from './packageJson.ts';
 import {
   buildCanonicalVitePlusAstSource,
@@ -293,6 +294,128 @@ export function cleanLegacyConfigFiles(projectRoot: string): readonly string[] {
         removed.push(legacy);
       } catch {
         // catch-ok: error deleting legacy config file
+      }
+    }
+  }
+  return removed;
+}
+
+export const BANNED_COMPRESSION_MODULES = [
+  'vite-plugin-compression',
+  'vite-plugin-compression2'
+] as const;
+
+/**
+ * Searches for homebrew compression scripts in scripts/ or other project directories.
+ */
+export function findHomebrewCompressionFiles(projectRoot: string): string[] {
+  const detected: string[] = []; // no-domain: Non-domain dynamic path list
+  const candidateDirs = ['scripts'];
+
+  for (const d of candidateDirs) {
+    const fullDir = path.resolve(projectRoot, d);
+    if (!fs.existsSync(fullDir)) continue;
+
+    function walk(cur: string): void {
+      const entries = fs.readdirSync(cur, { withFileTypes: true });
+      for (const entry of entries) {
+        const entryPath = path.join(cur, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name !== 'node_modules' && entry.name !== 'dist' && entry.name !== '.git') {
+            walk(entryPath);
+          }
+        } else if (entry.isFile()) {
+          const lower = entry.name.toLowerCase();
+          if (
+            (lower.includes('precompress') || lower.includes('vite-plugin-compress')) &&
+            (lower.endsWith('.ts') || lower.endsWith('.js') || lower.endsWith('.mjs'))
+          ) {
+            detected.push(toPosixRelative(projectRoot, entryPath));
+          }
+        }
+      }
+    }
+
+    walk(fullDir);
+  }
+
+  return detected;
+}
+
+/**
+ * Detects homebrew or third-party compression plugin imports in vite.config.ts.
+ */
+export function detectHomebrewCompressionImports(viteConfigContent: string): string[] {
+  const detected: string[] = []; // no-domain: Non-domain dynamic import list
+  const lines = viteConfigContent.split('\n');
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed.startsWith('import ') && !trimmed.startsWith('import{')) continue;
+
+    for (const banned of BANNED_COMPRESSION_MODULES) {
+      if (line.includes(`'${banned}'`) || line.includes(`"${banned}"`)) {
+        detected.push(banned);
+      }
+    }
+
+    const localMatch =
+      line.match(/from\s+['"](\.[^'"]*precompress[^'"]*)['"]/i) ||
+      line.match(/from\s+['"](\.[^'"]*vite-plugin-compress[^'"]*)['"]/i);
+    if (localMatch && localMatch[1]) {
+      detected.push(localMatch[1]);
+    }
+  }
+
+  return Array.from(new Set(detected));
+}
+
+/**
+ * Automatically migrates homebrew compression imports and calls in vite.config.ts
+ * to canonical vitePrecompressPlugin from @francogp/auditor.
+ */
+export function migrateHomebrewCompressionInViteConfig(viteConfigContent: string): {
+  content: string;
+  modified: boolean;
+} {
+  let content = viteConfigContent;
+  let modified = false;
+
+  const importRegex =
+    /import\s+\{\s*([a-zA-Z0-9_$]+)\s*\}\s+from\s+['"](\.[^'"]*precompress[^'"]*|vite-plugin-compression2?)['"];?/g;
+
+  const matches = [...content.matchAll(importRegex)];
+  for (const m of matches) {
+    const fnName = m[1];
+    const fullImport = m[0];
+
+    content = content.replace(
+      fullImport,
+      `import { vitePrecompressPlugin } from '@francogp/auditor';`
+    );
+    if (fnName && fnName !== 'vitePrecompressPlugin') {
+      const callRegex = new RegExp(`\\b${fnName}\\s*\\(`, 'g');
+      content = content.replace(callRegex, 'vitePrecompressPlugin(');
+    }
+    modified = true;
+  }
+
+  return { content, modified };
+}
+
+/**
+ * Removes homebrew compression scripts found on disk.
+ */
+export function cleanHomebrewCompressionFiles(projectRoot: string): string[] {
+  const files = findHomebrewCompressionFiles(projectRoot);
+  const removed: string[] = []; // no-domain: Non-domain dynamic path list
+  for (const rel of files) {
+    const fullPath = path.resolve(projectRoot, rel);
+    if (fs.existsSync(fullPath)) {
+      try {
+        fs.rmSync(fullPath, { force: true });
+        removed.push(rel);
+      } catch {
+        // catch-ok
       }
     }
   }
@@ -620,9 +743,22 @@ export function repairVitePlusProject(projectRoot: string): {
   const packageJsonUpdated = syncPackageJsonForVitePlus(projectRoot);
   const vscodeSync = syncVSCodeSettings(projectRoot, config);
   const removedConfigs = cleanLegacyConfigFiles(projectRoot);
+  const viteConfigPath = path.resolve(projectRoot, 'vite.config.ts');
+  if (fs.existsSync(viteConfigPath)) {
+    try {
+      const raw = fs.readFileSync(viteConfigPath, 'utf-8');
+      const { content, modified } = migrateHomebrewCompressionInViteConfig(raw);
+      if (modified) {
+        fs.writeFileSync(viteConfigPath, content, 'utf-8');
+      }
+    } catch {
+      // catch-ok
+    }
+  }
+  const removedHomebrew = cleanHomebrewCompressionFiles(projectRoot);
 
   return {
-    removedConfigs,
+    removedConfigs: [...removedConfigs, ...removedHomebrew],
     rewrittenFiles,
     viteConfigSync,
     nodeVersionMigrated,

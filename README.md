@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.4.2`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.5.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.4.2 --allow-git=all
+npm install -D github:francogp/auditor#v9.5.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.4.2"
+    "@francogp/auditor": "github:francogp/auditor#v9.5.0"
   }
 }
 ```
@@ -172,7 +172,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.4.2-build.20261019-080350',
+  auditorVersion: '9.5.0-build.20261019-093925',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +229,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.4.2"`), or install via `npm install -D github:francogp/auditor#v9.4.2 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.5.0"`), or install via `npm install -D github:francogp/auditor#v9.5.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -548,6 +548,35 @@ npm run build
 - **Native Rust Compression**: Reports exact bundle sizes, chunk outputs, and real-time Gzip metrics in milliseconds.
 - **Official ATTW & Publint Integration**: Built-in verification of dual ESM/CJS type declarations (`attw: { profile: 'esm-only' }`) and package export hygiene (`publint: true`).
 - **Main Thread Budget Limits**: Governed via `validate_bundle_budget` ensuring zero heavy driver leaks in UI layers and enforcing chunk size limits against `audit.config.ts`.
+
+### 7.1. Canonical Static Pre-compression Plugin (`vitePrecompressPlugin`)
+
+Centralizes static asset pre-compression across all consumer web applications using Node.js standard library (`node:zlib`) without external dependencies or homebrew scripts:
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import { vitePrecompressPlugin } from '@francogp/auditor';
+
+export default defineConfig({
+  plugins: [
+    vitePrecompressPlugin({
+      server: 'nginx', // 'nginx' (default) | 'apache' | 'caddy' | 'all'
+      spa: true,
+      report: 'summary', // 'summary' (default single-line) | 'silent' | 'table'
+      threshold: 512
+    })
+  ]
+});
+```
+
+- **Maximum Compression Quality**: Generates Brotli Q11 (`.br`) and Gzip Level 9 (`.gz`) for static production assets.
+- **Multi-Server Scaffolding**:
+  - `server: 'nginx'`: Emits `dist/nginx-precompressed.conf` with `gzip_static on;` and `brotli_static on;`.
+  - `server: 'apache'`: Emits `dist/.htaccess` with `mod_rewrite`, `Accept-Encoding` negotiation, MIME types, and SPA fallback.
+  - `server: 'caddy'`: Emits `dist/Caddyfile.snippet` with `file_server { precompressed br gzip }`.
+- **Zero Homebrew Compression**: `validate_vite_plus_config` automatically detects and migrates legacy/homebrew compression plugins in `auditor fix`.
+- **Configurable Subsystem**: Governed dynamically via `vitePlusConfig.precompress` in `.auditor/audit.config.ts`. Non-web packages (libraries/CLIs) explicitly declare `precompress: { enabled: false }`.
 
 ---
 

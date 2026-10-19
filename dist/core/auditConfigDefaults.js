@@ -11,6 +11,7 @@ import path from "node:path";
 const DEFAULT_SIMILAR_CODE_THRESHOLD = .95;
 const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
+const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
 const DEFAULT_AUDIT_CONFIG = {
 	name: "Generic Project",
 	auditorVersion: AUDITOR_VERSION,
@@ -770,45 +771,65 @@ function buildOxfmtConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.oxfmt;
 	return { enabled: (raw ?? {}).enabled ?? def?.enabled ?? true };
 }
+function buildVitePlusPrecompressConfig(raw, def) {
+	const v = raw ?? {};
+	return {
+		enabled: v.enabled ?? def?.enabled ?? true,
+		brotli: v.brotli ?? def?.brotli ?? true,
+		gzip: v.gzip ?? def?.gzip ?? true,
+		server: v.server ?? def?.server ?? "nginx",
+		spa: v.spa ?? def?.spa ?? true,
+		report: v.report ?? def?.report ?? "summary",
+		threshold: v.threshold ?? def?.threshold ?? 512,
+		outDir: v.outDir ?? def?.outDir
+	};
+}
+function buildVitePlusFmtConfig(raw, def) {
+	const v = raw ?? {};
+	return {
+		enabled: v.enabled ?? def?.enabled ?? true,
+		singleQuote: v.singleQuote ?? def?.singleQuote ?? true,
+		semi: v.semi ?? def?.semi ?? true,
+		trailingComma: v.trailingComma ?? def?.trailingComma ?? "none",
+		tabWidth: v.tabWidth ?? def?.tabWidth,
+		useTabs: v.useTabs ?? def?.useTabs,
+		printWidth: v.printWidth ?? def?.printWidth ?? 100,
+		sortPackageJson: v.sortPackageJson ?? def?.sortPackageJson ?? true,
+		ignorePatterns: v.ignorePatterns ? [...v.ignorePatterns] : def?.ignorePatterns ?? [],
+		overrides: v.overrides ? [...v.overrides] : def?.overrides ?? []
+	};
+}
+function buildVitePlusLintConfig(raw, def) {
+	const v = raw ?? {};
+	return {
+		enabled: v.enabled ?? def?.enabled ?? true,
+		typeAware: v.typeAware ?? def?.typeAware ?? true,
+		typeCheck: v.typeCheck ?? def?.typeCheck ?? true,
+		categories: v.categories ? { ...v.categories } : def?.categories,
+		rules: v.rules ? { ...v.rules } : def?.rules,
+		ignorePatterns: v.ignorePatterns ? [...v.ignorePatterns] : def?.ignorePatterns ?? [],
+		overrides: v.overrides ? [...v.overrides] : def?.overrides ?? []
+	};
+}
+function buildVitePlusStagedConfig(rawStaged, defStaged) {
+	const isStagedObject = typeof rawStaged === "object" && rawStaged !== null;
+	const isStagedWithRules = isStagedObject && ("rules" in rawStaged || "enabled" in rawStaged);
+	const stagedObj = rawStaged;
+	const defStagedObj = defStaged;
+	return {
+		enabled: isStagedWithRules && typeof stagedObj?.enabled === "boolean" ? stagedObj.enabled : typeof defStagedObj?.enabled === "boolean" ? defStagedObj.enabled : true,
+		rules: isStagedWithRules && stagedObj?.rules ? stagedObj.rules : isStagedObject && !("rules" in rawStaged) ? rawStaged : defStagedObj?.rules ? defStagedObj.rules : { "*": "vp check --fix" }
+	};
+}
 function buildVitePlusConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
 	const v = raw ?? {};
-	const vFmt = v.fmt ?? {};
-	const vLint = v.lint ?? {};
 	return {
 		enabled: v.enabled ?? def?.enabled ?? true,
-		fmt: {
-			enabled: vFmt.enabled ?? def?.fmt?.enabled ?? true,
-			singleQuote: vFmt.singleQuote ?? def?.fmt?.singleQuote ?? true,
-			semi: vFmt.semi ?? def?.fmt?.semi ?? true,
-			trailingComma: vFmt.trailingComma ?? def?.fmt?.trailingComma ?? "none",
-			tabWidth: vFmt.tabWidth ?? def?.fmt?.tabWidth,
-			useTabs: vFmt.useTabs ?? def?.fmt?.useTabs,
-			printWidth: vFmt.printWidth ?? def?.fmt?.printWidth ?? 100,
-			sortPackageJson: vFmt.sortPackageJson ?? def?.fmt?.sortPackageJson ?? true,
-			ignorePatterns: vFmt.ignorePatterns ? [...vFmt.ignorePatterns] : def?.fmt?.ignorePatterns ?? [],
-			overrides: vFmt.overrides ? [...vFmt.overrides] : def?.fmt?.overrides ?? []
-		},
-		lint: {
-			enabled: vLint.enabled ?? def?.lint?.enabled ?? true,
-			typeAware: vLint.typeAware ?? def?.lint?.typeAware ?? true,
-			typeCheck: vLint.typeCheck ?? def?.lint?.typeCheck ?? true,
-			categories: vLint.categories ? { ...vLint.categories } : def?.lint?.categories,
-			rules: vLint.rules ? { ...vLint.rules } : def?.lint?.rules,
-			ignorePatterns: vLint.ignorePatterns ? [...vLint.ignorePatterns] : def?.lint?.ignorePatterns ?? [],
-			overrides: vLint.overrides ? [...vLint.overrides] : def?.lint?.overrides ?? []
-		},
-		staged: (() => {
-			const rawStaged = v.staged;
-			const isStagedObject = typeof rawStaged === "object" && rawStaged !== null;
-			const isStagedWithRules = isStagedObject && ("rules" in rawStaged || "enabled" in rawStaged);
-			const stagedObj = rawStaged;
-			const defStaged = def?.staged;
-			return {
-				enabled: isStagedWithRules && typeof stagedObj?.enabled === "boolean" ? stagedObj.enabled : typeof defStaged?.enabled === "boolean" ? defStaged.enabled : true,
-				rules: isStagedWithRules && stagedObj?.rules ? stagedObj.rules : isStagedObject && !("rules" in rawStaged) ? rawStaged : defStaged?.rules ? defStaged.rules : { "*": "vp check --fix" }
-			};
-		})(),
+		precompress: buildVitePlusPrecompressConfig(v.precompress, def?.precompress),
+		fmt: buildVitePlusFmtConfig(v.fmt, def?.fmt),
+		lint: buildVitePlusLintConfig(v.lint, def?.lint),
+		staged: buildVitePlusStagedConfig(v.staged, def?.staged),
 		hooks: v.hooks ? { ...v.hooks } : def?.hooks,
 		vscode: v.vscode ? { ...v.vscode } : def?.vscode,
 		extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
@@ -1022,4 +1043,4 @@ function defineAuditConfig(config) {
 	};
 }
 //#endregion
-export { DEFAULT_AUDIT_CONFIG, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxfmtConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, collectDeclaredSubsystems, defineAuditConfig };
+export { DEFAULT_AUDIT_CONFIG, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildOxfmtConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, collectDeclaredSubsystems, defineAuditConfig };
