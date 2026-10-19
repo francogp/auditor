@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { defineAuditConfig } from '../src/core/auditConfigDefaults.ts';
+import { defineAuditConfig } from '../src/core/auditConfigBuilders.ts';
 import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
 import { OxfmtAuditor, OXFMT_RULES } from '../src/suites/architecture/validate_oxfmt.ts';
 

@@ -1,4 +1,4 @@
-import { buildTestCoverageConfig } from "../../core/auditConfigDefaults.js";
+import { buildTestCoverageConfig } from "../../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";

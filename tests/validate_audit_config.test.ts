@@ -26,11 +26,12 @@ const BASE_AUDITOR_PATH = path
 
 const BASE_TEST_CONFIG_SECTIONS = `
   persistence: { engine: 'none', schemaQualified: false },
-  styles: { zLayersEnabled: false },
+  styles: { enabled: false, zLayersEnabled: false },
+  stylelint: { enabled: false },
   valibot: { enabled: true, targets: [] },
   oxlint: { enabled: true },
   oxfmt: { enabled: true },
-  vitePlusConfig: { enabled: true },
+  vitePlusConfig: { enabled: true, precompress: { enabled: false } },
   htmlValidate: { enabled: true },
   pinia: { enabled: false },
   domain: { enabled: false },
@@ -50,7 +51,7 @@ const BASE_TEST_CONFIG_SECTIONS = `
   environment: { enabled: false },
   coverage: { enabled: false },
   auditorHygiene: { enabled: false },
-  packageScripts: { enabled: true },
+  packageScripts: { enabled: true, enforceBuildAudit: true, recommendedScripts: true },
   scriptExtensions: { enabled: false },
   webPerformance: { enabled: false },
   queryPerformance: { enabled: false },
@@ -466,11 +467,14 @@ export default defineAuditConfig({
   },
   ${BASE_TEST_CONFIG_SECTIONS},
   persistence: {
+    enabled: true,
     engine: 'sqlite',
     schemaQualified: false,
     authorizedSaveFiles: ['src/save.ts']
   },
   styles: {
+    enabled: true,
+    enforceScss: true,
     zLayersEnabled: true,
     baseScssFile: 'src/styles/_base.scss'
   },
@@ -695,6 +699,62 @@ export default defineAuditConfig({
       (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
     );
     expect(valibotFinding).toBeUndefined();
+  });
+
+  it('automatically injects missing sub-configurations recursively in fix mode (e.g. precompress)', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    // Replace vitePlusConfig to not have precompress
+    const configWithoutPrecompress = configContent.replace(
+      'vitePlusConfig: { enabled: true, precompress: { enabled: false } },',
+      'vitePlusConfig: { enabled: true },'
+    );
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      configWithoutPrecompress,
+      'utf-8'
+    );
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    // Verify it fails in check mode detecting missing sub-configuration
+    const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const checkResult = await checkAuditor.execute();
+    const missingSubFinding = checkResult.findings.find(
+      (f) =>
+        f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
+    );
+    expect(missingSubFinding).toBeDefined();
+    expect(missingSubFinding?.message).toContain('vitePlusConfig.precompress');
+
+    // Run in fix mode
+    resetAuditConfig();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
+    await fixAuditor.execute();
+
+    // Verify precompress was injected inside vitePlusConfig in audit.config.ts
+    const updatedContent = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
+    expect(updatedContent).toContain('precompress:');
+    expect(updatedContent).toContain("server: 'nginx'");
+
+    // Re-run check mode: should pass cleanly
+    resetAuditConfig();
+    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
+    const recheckResult = await recheckAuditor.execute();
+    const resolvedFinding = recheckResult.findings.find(
+      (f) =>
+        f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
+    );
+    expect(resolvedFinding).toBeUndefined();
   });
 
   it('enforces required configuration section declared by host extensions', async () => {

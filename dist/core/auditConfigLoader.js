@@ -1,6 +1,7 @@
 import { AUDIT_CONFIG_JSON_FILE } from "./auditConfigTypes.js";
 import { assertNoLegacyRootConfig } from "./auditConfigValidators.js";
-import { DEFAULT_AUDIT_CONFIG, defineAuditConfig } from "./auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { defineAuditConfig } from "./auditConfigBuilders.js";
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";

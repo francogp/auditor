@@ -10,6 +10,8 @@ export declare function parseAuditConfigFileAst(configFilePath: string): {
   source: ts.SourceFile;
   configObj: ts.ObjectLiteralExpression | null;
 } | null;
+export declare function formatValueWithIndent(value: unknown, indent: string): string;
+export declare function deepMergeMissingJson(target: Record<string, unknown>, missing: Record<string, unknown>): boolean;
 export declare function appendMissingSectionsToJsonFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function appendMissingSectionsToTsFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;

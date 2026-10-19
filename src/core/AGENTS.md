@@ -92,7 +92,8 @@ Architecture & Tooling Engineers.
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
 - [`auditConfigAst.ts`](./auditConfigAst.ts): AST parsing, section insertion, and programmatic configuration modification utilities for `audit.config.ts`.
-- [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and `defineAuditConfig` builder.
+- [`auditConfigBuilders.ts`](./auditConfigBuilders.ts): Subsystem configuration builders and canonical `defineAuditConfig` coordinator.
+- [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and subsystem key collectors.
 - [`auditConfigDegradations.ts`](./auditConfigDegradations.ts): Detector and AST auto-fixer for unacknowledged coverage degradations across configured exemption roots.
 - [`auditConfigLoader.ts`](./auditConfigLoader.ts): Configuration file discovery, loading, and child process environment serialization.
 - [`auditConfigTypes.ts`](./auditConfigTypes.ts): Domain types, interfaces, and sub-configuration contracts for the audit engine.

@@ -1,3 +1,4 @@
+import "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -1054,7 +1055,16 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			family: "architecture",
 			packageName: "Vite+",
 			configKey: "vitePlusConfig.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				precompress: {
+					enabled: true,
+					server: "nginx",
+					spa: true,
+					report: "summary",
+					threshold: 512
+				}
+			},
 			criticalConfig: {},
 			icon: "⚡",
 			ruleIds: VITE_PLUS_CONFIG_RULES,

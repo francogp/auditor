@@ -80,14 +80,75 @@ function parseAuditConfigFileAst(configFilePath) {
 		return null;
 	}
 }
+function formatValueWithIndent(value, indent) {
+	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+		const entries = Object.entries(value).filter(([, v]) => v !== void 0);
+		if (entries.length === 0) return "{}";
+		const subIndent = indent + "  ";
+		return `{\n${entries.map(([k, v]) => {
+			const safeKey = /^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`;
+			return `${subIndent}${safeKey}: ${formatValueWithIndent(v, subIndent)}`;
+		}).join(",\n")}\n${indent}}`;
+	}
+	return printTsExpression(dtoValueToTsExpression(value));
+}
+function deepMergeMissingJson(target, missing) {
+	let modified = false;
+	for (const [key, val] of Object.entries(missing)) {
+		if (val === void 0) continue;
+		if (target[key] === void 0) {
+			target[key] = val;
+			modified = true;
+		} else if (typeof target[key] === "object" && target[key] !== null && !Array.isArray(target[key]) && typeof val === "object" && val !== null && !Array.isArray(val)) {
+			if (deepMergeMissingJson(target[key], val)) modified = true;
+		}
+	}
+	return modified;
+}
 function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
 	try {
 		const code = fs.readFileSync(configFilePath, "utf8");
 		const json = JSON.parse(code);
 		if (!json || typeof json !== "object") return;
-		for (const [key, value] of Object.entries(sectionsToInsert)) Reflect.set(json, key, value);
-		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
+		if (deepMergeMissingJson(json, sectionsToInsert)) fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
 	} catch {}
+}
+function collectMissingPropInsertions(code, source, objNode, missingProps, indent, insertions) {
+	const existingPropMap = /* @__PURE__ */ new Map();
+	for (const prop of objNode.properties) if (ts.isPropertyAssignment(prop)) {
+		const name = prop.name.getText(source).replace(/^['"]|['"]$/g, "");
+		existingPropMap.set(name, prop);
+	}
+	const propsToAppend = [];
+	for (const [key, missingVal] of Object.entries(missingProps)) {
+		if (missingVal === void 0) continue;
+		const existing = existingPropMap.get(key);
+		if (existing) {
+			if (ts.isObjectLiteralExpression(existing.initializer) && typeof missingVal === "object" && missingVal !== null && !Array.isArray(missingVal)) collectMissingPropInsertions(code, source, existing.initializer, missingVal, indent + "  ", insertions);
+		} else propsToAppend.push([key, missingVal]);
+	}
+	if (propsToAppend.length === 0) return;
+	const formattedLines = propsToAppend.map(([k, v]) => {
+		return `${indent}${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k}'`}: ${formatValueWithIndent(v, indent)}`;
+	});
+	const closeBracePos = code.lastIndexOf("}", objNode.getEnd() - 1);
+	if (closeBracePos === -1) return;
+	if (objNode.properties.length > 0) {
+		const endOfLastProp = objNode.properties[objNode.properties.length - 1].getEnd();
+		const commaPrefix = code.slice(endOfLastProp, closeBracePos).includes(",") ? "" : ",";
+		const lastNewlineBeforeClose = code.lastIndexOf("\n", closeBracePos);
+		const insertPos = lastNewlineBeforeClose !== -1 && lastNewlineBeforeClose >= endOfLastProp ? lastNewlineBeforeClose : closeBracePos;
+		insertions.push({
+			pos: insertPos,
+			text: `${commaPrefix}\n${formattedLines.join(",\n")},`
+		});
+	} else {
+		const parentIndent = indent.length >= 2 ? indent.slice(2) : "";
+		insertions.push({
+			pos: closeBracePos,
+			text: `\n${formattedLines.join(",\n")},\n${parentIndent}`
+		});
+	}
 }
 function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
 	const parsed = parseAuditConfigFileAst(configFilePath);
@@ -97,55 +158,13 @@ function appendMissingSectionsToTsFile(configFilePath, sectionsToInsert) {
 		appendMissingSectionsFallback(configFilePath, code, sectionsToInsert);
 		return;
 	}
-	const existingProps = /* @__PURE__ */ new Map();
-	for (const prop of configObj.properties) if (ts.isPropertyAssignment(prop)) {
-		const propName = prop.name.getText(source).replace(/^['"]|['"]$/g, "");
-		existingProps.set(propName, prop);
-	}
-	const inPlaceUpdates = [];
-	const newAdditions = [];
-	for (const [key, val] of Object.entries(sectionsToInsert)) {
-		const existingProp = existingProps.get(key);
-		if (existingProp) inPlaceUpdates.push({
-			prop: existingProp,
-			val
-		});
-		else newAdditions.push([key, val]);
-	}
+	const insertions = [];
+	collectMissingPropInsertions(code, source, configObj, sectionsToInsert, "  ", insertions);
+	if (insertions.length === 0) return;
+	insertions.sort((a, b) => b.pos - a.pos);
 	let updatedCode = code;
-	if (inPlaceUpdates.length > 0) {
-		inPlaceUpdates.sort((a, b) => b.prop.initializer.getStart(source) - a.prop.initializer.getStart(source));
-		for (const { prop, val } of inPlaceUpdates) {
-			const start = prop.initializer.getStart(source);
-			const end = prop.initializer.getEnd();
-			updatedCode = updatedCode.slice(0, start) + formatSectionObjectLiteral(val) + updatedCode.slice(end);
-		}
-		fs.writeFileSync(configFilePath, updatedCode, "utf8");
-	}
-	if (newAdditions.length === 0) return;
-	const reparsed = inPlaceUpdates.length > 0 ? parseAuditConfigFileAst(configFilePath) : parsed;
-	if (!reparsed || !reparsed.configObj) return;
-	const targetCode = reparsed.code;
-	const targetObj = reparsed.configObj;
-	const properties = targetObj.properties;
-	let hasTrailingComma = false;
-	if (properties.length > 0) {
-		const endOfLastProp = properties[properties.length - 1].getEnd();
-		const closeBracePos = targetCode.lastIndexOf("}", targetObj.getEnd() - 1);
-		hasTrailingComma = targetCode.slice(endOfLastProp, closeBracePos).includes(",");
-	}
-	const closeBracePos = targetCode.lastIndexOf("}", targetObj.getEnd() - 1);
-	if (closeBracePos === -1) return;
-	let baseCode = targetCode;
-	let effectiveCloseBracePos = closeBracePos;
-	if (!hasTrailingComma && properties.length > 0) {
-		const endOfLastProp = properties[properties.length - 1].getEnd();
-		baseCode = targetCode.slice(0, endOfLastProp) + "," + targetCode.slice(endOfLastProp);
-		effectiveCloseBracePos += 1;
-	}
-	const snippet = "\n" + newAdditions.map(([key, val]) => `  ${key}: ${formatSectionObjectLiteral(val)},`).join("\n") + "\n";
-	const finalCode = baseCode.slice(0, effectiveCloseBracePos) + snippet + baseCode.slice(effectiveCloseBracePos);
-	fs.writeFileSync(configFilePath, finalCode, "utf8");
+	for (const ins of insertions) updatedCode = updatedCode.slice(0, ins.pos) + ins.text + updatedCode.slice(ins.pos);
+	fs.writeFileSync(configFilePath, updatedCode, "utf8");
 }
 function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	if (configFilePath.endsWith(".json")) {
@@ -155,4 +174,4 @@ function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
 //#endregion
-export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression };
+export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, deepMergeMissingJson, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, formatValueWithIndent, parseAuditConfigFileAst, printTsExpression };

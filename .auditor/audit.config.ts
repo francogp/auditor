@@ -157,6 +157,14 @@ export default defineAuditConfig({
       enabled: true,
       threshold: 0.95,
       ignoreSameFile: true
+    },
+    duplicates: {
+      nearMiss: true,
+      mode: 'strict'
+    },
+    viz: {
+      enabled: true,
+      outputPath: 'scratch/fallow_map.html'
     }
   },
   constants: {
@@ -248,5 +256,11 @@ export default defineAuditConfig({
   },
   types: {
     enabled: true
+  },
+  stylelint: {
+    order: {
+      enabled: true,
+      enforceHasBlockPartitioning: true
+    }
   }
 });

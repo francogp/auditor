@@ -3,13 +3,22 @@ import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/au
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, formatSectionObjectLiteral, parseAuditConfigFileAst, printTsExpression } from "../../core/auditConfigAst.js";
 //#region src/suites/architecture/validate_audit_config.d.ts
+export declare function deepMergeDefaultsObject(target: Record<string, unknown>, defaults: Record<string, unknown>): void;
+export declare function buildTaskExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Map<string, {
+  tasks: AuditTaskDefinition[];
+  expectedTree: Record<string, unknown>;
+}>;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
 export declare function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
 export interface MissingSectionEntry {
   tasks: AuditTaskDefinition[];
   defaultConfig: Record<string, unknown>;
+  missingTree: Record<string, unknown>;
+  missingPaths: string[];
 }
+export declare function computeMissingConfigDiff(expected: unknown, current: unknown, isRootLevel?: boolean): unknown | undefined;
+export declare function extractMissingConfigPaths(prefix: string, missingTree: Record<string, unknown>, currentVal?: unknown): string[];
 export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown): Map<string, MissingSectionEntry>;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];

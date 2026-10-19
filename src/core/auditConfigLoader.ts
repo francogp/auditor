@@ -14,7 +14,8 @@ import {
   AUDIT_CONFIG_JSON_FILE
 } from './auditConfigTypes.ts';
 import { assertNoLegacyRootConfig } from './auditConfigValidators.ts';
-import { DEFAULT_AUDIT_CONFIG, defineAuditConfig } from './auditConfigDefaults.ts';
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
+import { defineAuditConfig } from './auditConfigBuilders.ts';
 
 export const MAX_INLINE_ENV_CONFIG_CHARS = 16384;
 

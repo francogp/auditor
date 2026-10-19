@@ -6,6 +6,7 @@ import { BaseAuditor,
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import { DEFAULT_PRECOMPRESS_THRESHOLD_BYTES } from '../../core/auditConfigDefaults.ts';
 import {
   buildCanonicalVitePlusConfig,
   repairVitePlusProject,
@@ -1241,7 +1242,16 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       family: 'architecture',
       packageName: 'Vite+',
       configKey: 'vitePlusConfig.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        precompress: {
+          enabled: true,
+          server: 'nginx',
+          spa: true,
+          report: 'summary',
+          threshold: DEFAULT_PRECOMPRESS_THRESHOLD_BYTES
+        }
+      },
       criticalConfig: {},
       icon: '⚡',
       ruleIds: VITE_PLUS_CONFIG_RULES,

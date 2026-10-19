@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { assertAuditConfigComplete } from "../core/auditConfigValidators.js";
 import { AUDITOR_VERSION } from "../core/version.js";
-import { buildRatchetConfig } from "../core/auditConfigDefaults.js";
+import { buildRatchetConfig } from "../core/auditConfigBuilders.js";
 import { loadAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata } from "../core/remediationPhases.js";

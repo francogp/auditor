@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { AUDITOR_VERSION } from "../core/version.js";
-import { buildTestCoverageConfig } from "../core/auditConfigDefaults.js";
+import { buildTestCoverageConfig } from "../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import "../core/auditConfig.js";

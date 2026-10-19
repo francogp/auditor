@@ -1,4 +1,4 @@
-import { buildRatchetConfig } from "../../core/auditConfigDefaults.js";
+import { buildRatchetConfig } from "../../core/auditConfigBuilders.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";

@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, it, expect } from 'vite-plus/test';
 
-import { defineAuditConfig } from '../src/core/auditConfigDefaults.ts';
+import { defineAuditConfig } from '../src/core/auditConfigBuilders.ts';
 import { evaluateSuiteStatus } from '../src/core/suiteGating.ts';
 import { syncViteConfigWithAuditConfig } from '../src/core/vitePlusConfigSync.ts';
 

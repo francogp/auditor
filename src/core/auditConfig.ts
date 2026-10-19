@@ -10,5 +10,7 @@ export * from './auditConfigTypes.ts';
 export * from './auditConfigAntiAbuse.ts';
 export * from './auditConfigValidators.ts';
 export * from './auditConfigDefaults.ts';
+export * from './auditConfigBuilders.ts';
 export * from './auditConfigLoader.ts';
 export * from './auditPathPredicates.ts';
+
