@@ -17,6 +17,7 @@ import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { initAgentSkill } from './init_agent.ts';
 import { syncEnvScripts } from './sync_env_scripts.ts';
+import { AUDITOR_VERSION } from '../core/version.ts';
 
 export interface UpdateAuditorOptions {
   cwd?: string;
@@ -63,26 +64,69 @@ export function readInstalledAuditorVersion(projectRoot: string): string {
   return '(no instalada)';
 }
 
+export function parseTagSemver(
+  tagStr: string
+): { major: number; minor: number; patch: number; isClean: boolean } | null {
+  const match = tagStr.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?$/);
+  if (!match) return null;
+  return {
+    major: parseInt(match[1]!, 10),
+    minor: parseInt(match[2]!, 10),
+    patch: parseInt(match[3]!, 10),
+    isClean: !match[4]
+  };
+}
+
+export function compareTagsDescending(tagA: string, tagB: string): number {
+  const semA = parseTagSemver(tagA);
+  const semB = parseTagSemver(tagB);
+  if (!semA && !semB) return 0;
+  if (!semA) return 1;
+  if (!semB) return -1;
+
+  if (semA.major !== semB.major) return semB.major - semA.major;
+  if (semA.minor !== semB.minor) return semB.minor - semA.minor;
+  if (semA.patch !== semB.patch) return semB.patch - semA.patch;
+
+  // Prefer clean release tag over pre-release or build-metadata tag
+  if (semA.isClean && !semB.isClean) return -1;
+  if (!semA.isClean && semB.isClean) return 1;
+
+  return tagB.localeCompare(tagA);
+}
+
+export function extractTagsFromLsRemote(stdout: string): string[] {
+  const tags = new Set<string>();
+  const lines = stdout.split('\n');
+  for (const line of lines) {
+    const cleanLine = line.replace(/\^\{\}$/, '').trim();
+    const match = cleanLine.match(/refs\/tags\/(v?\d+\.\d+\.\d+(?:-[\w.-]+)?)$/);
+    if (match && match[1]) {
+      const tag = match[1].startsWith('v') ? match[1] : `v${match[1]}`;
+      tags.add(tag);
+    }
+  }
+  return Array.from(tags).sort(compareTagsDescending);
+}
+
 export function resolveLatestAuditorTag(
   repoUrl = 'https://github.com/francogp/auditor.git'
 ): string {
   try {
-    const stdout = childProcess.execSync(`git ls-remote --tags --sort=-v:refname ${repoUrl}`, {
+    const stdout = childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10000
     });
-    const lines = stdout.split('\n');
-    for (const line of lines) {
-      const match = line.match(/refs\/tags\/(v\d+\.\d+\.\d+)$/);
-      if (match && match[1]) {
-        return match[1];
-      }
+    const sortedTags = extractTagsFromLsRemote(stdout);
+    if (sortedTags.length > 0 && sortedTags[0]) {
+      return sortedTags[0];
     }
   } catch {
     // catch-ok: Fallback to local default when offline or network unavailable
   }
-  return 'v8.4.1';
+  const baseVersion = AUDITOR_VERSION.split('-')[0];
+  return `v${baseVersion}`;
 }
 
 export function updateAuditorPackage(options: UpdateAuditorOptions = {}): UpdateAuditorResult {

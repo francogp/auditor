@@ -21,6 +21,14 @@ export interface UpdateAuditorResult {
 }
 export declare function findHostProjectRoot(startDir?: string, stopAt?: string): string;
 export declare function readInstalledAuditorVersion(projectRoot: string): string;
+export declare function parseTagSemver(tagStr: string): {
+  major: number;
+  minor: number;
+  patch: number;
+  isClean: boolean;
+} | null;
+export declare function compareTagsDescending(tagA: string, tagB: string): number;
+export declare function extractTagsFromLsRemote(stdout: string): string[];
 export declare function resolveLatestAuditorTag(repoUrl?: string): string;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;

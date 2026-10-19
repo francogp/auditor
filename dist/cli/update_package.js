@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { AUDITOR_VERSION } from "../core/version.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
@@ -38,9 +39,44 @@ function readInstalledAuditorVersion(projectRoot) {
 	} catch {}
 	return "(no instalada)";
 }
+function parseTagSemver(tagStr) {
+	const match = tagStr.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?$/);
+	if (!match) return null;
+	return {
+		major: parseInt(match[1], 10),
+		minor: parseInt(match[2], 10),
+		patch: parseInt(match[3], 10),
+		isClean: !match[4]
+	};
+}
+function compareTagsDescending(tagA, tagB) {
+	const semA = parseTagSemver(tagA);
+	const semB = parseTagSemver(tagB);
+	if (!semA && !semB) return 0;
+	if (!semA) return 1;
+	if (!semB) return -1;
+	if (semA.major !== semB.major) return semB.major - semA.major;
+	if (semA.minor !== semB.minor) return semB.minor - semA.minor;
+	if (semA.patch !== semB.patch) return semB.patch - semA.patch;
+	if (semA.isClean && !semB.isClean) return -1;
+	if (!semA.isClean && semB.isClean) return 1;
+	return tagB.localeCompare(tagA);
+}
+function extractTagsFromLsRemote(stdout) {
+	const tags = /* @__PURE__ */ new Set();
+	const lines = stdout.split("\n");
+	for (const line of lines) {
+		const match = line.replace(/\^\{\}$/, "").trim().match(/refs\/tags\/(v?\d+\.\d+\.\d+(?:-[\w.-]+)?)$/);
+		if (match && match[1]) {
+			const tag = match[1].startsWith("v") ? match[1] : `v${match[1]}`;
+			tags.add(tag);
+		}
+	}
+	return Array.from(tags).sort(compareTagsDescending);
+}
 function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.git") {
 	try {
-		const lines = childProcess.execSync(`git ls-remote --tags --sort=-v:refname ${repoUrl}`, {
+		const sortedTags = extractTagsFromLsRemote(childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
 			encoding: "utf-8",
 			stdio: [
 				"ignore",
@@ -48,13 +84,10 @@ function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.
 				"ignore"
 			],
 			timeout: 1e4
-		}).split("\n");
-		for (const line of lines) {
-			const match = line.match(/refs\/tags\/(v\d+\.\d+\.\d+)$/);
-			if (match && match[1]) return match[1];
-		}
+		}));
+		if (sortedTags.length > 0 && sortedTags[0]) return sortedTags[0];
 	} catch {}
-	return "v8.4.1";
+	return `v${AUDITOR_VERSION.split("-")[0]}`;
 }
 function updateAuditorPackage(options = {}) {
 	const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
@@ -226,4 +259,4 @@ if (isMainModule(import.meta.url)) {
 	runCli();
 }
 //#endregion
-export { findHostProjectRoot, readInstalledAuditorVersion, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };
+export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, readInstalledAuditorVersion, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };

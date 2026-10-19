@@ -20,6 +20,9 @@ import {
   updateAuditorPackage,
   runAuditorFixAutoRemediation,
   resolveLatestAuditorTag,
+  parseTagSemver,
+  compareTagsDescending,
+  extractTagsFromLsRemote,
   runCli
 } from '../src/cli/update_package.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
@@ -339,6 +342,66 @@ describe('update_package CLI', () => {
       expect(() => runCli()).toThrow('process.exit(1)');
       exitSpy.mockRestore();
       errSpy.mockRestore();
+    });
+  });
+
+  describe('resolveLatestAuditorTag and SemVer Tag Parsing', () => {
+    it('parses clean SemVer tags correctly', () => {
+      const sem = parseTagSemver('v9.7.4');
+      expect(sem).toEqual({ major: 9, minor: 7, patch: 4, isClean: true });
+    });
+
+    it('parses tags without leading v', () => {
+      const sem = parseTagSemver('9.7.4');
+      expect(sem).toEqual({ major: 9, minor: 7, patch: 4, isClean: true });
+    });
+
+    it('parses tags with build metadata', () => {
+      const sem = parseTagSemver('v9.7.4-build.20261019-195349');
+      expect(sem).toEqual({ major: 9, minor: 7, patch: 4, isClean: false });
+    });
+
+    it('returns null for non-semver strings', () => {
+      expect(parseTagSemver('latest')).toBeNull();
+      expect(parseTagSemver('feature-branch')).toBeNull();
+    });
+
+    it('compares tags numerically across major, minor, patch and metadata', () => {
+      expect(compareTagsDescending('v10.0.0', 'v9.7.4')).toBeLessThan(0); // 10 comes first
+      expect(compareTagsDescending('v9.7.4', 'v10.0.0')).toBeGreaterThan(0);
+      expect(compareTagsDescending('v9.8.0', 'v9.7.9')).toBeLessThan(0);
+      expect(compareTagsDescending('v9.7.4', 'v9.7.3')).toBeLessThan(0);
+      // Clean tag is preferred over build-metadata tag for the same version
+      expect(compareTagsDescending('v9.7.4', 'v9.7.4-build.20261019-195349')).toBeLessThan(0);
+      expect(compareTagsDescending('v9.7.4-build.20261019-195349', 'v9.7.4')).toBeGreaterThan(0);
+    });
+
+    it('extracts and sorts tags from git ls-remote output stripping peeled refs', () => {
+      const mockLsRemote = `
+24b75ba... refs/tags/v9.7.4-build.20261019-195349^{}
+d455bea... refs/tags/v9.7.4-build.20261019-195349
+7e233b9... refs/tags/v9.7.4^{}
+7e233b9... refs/tags/v9.7.4
+2382883... refs/tags/v9.7.3^{}
+1917e09... refs/tags/v9.7.3
+fe2bf7d... refs/tags/v9.7.0
+`;
+      const tags = extractTagsFromLsRemote(mockLsRemote);
+      expect(tags[0]).toBe('v9.7.4');
+      expect(tags[1]).toBe('v9.7.4-build.20261019-195349');
+      expect(tags[2]).toBe('v9.7.3');
+      expect(tags[3]).toBe('v9.7.0');
+    });
+
+    it('resolves latest tag even if only build-metadata tag exists', () => {
+      const mockLsRemote = `
+24b75ba... refs/tags/v9.8.0-build.20261020-100000^{}
+d455bea... refs/tags/v9.8.0-build.20261020-100000
+7e233b9... refs/tags/v9.7.4
+`;
+      const tags = extractTagsFromLsRemote(mockLsRemote);
+      expect(tags[0]).toBe('v9.8.0-build.20261020-100000');
+      expect(tags[1]).toBe('v9.7.4');
     });
   });
 });
