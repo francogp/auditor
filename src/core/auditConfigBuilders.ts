@@ -567,7 +567,7 @@ function resolveTestCoverageCollections(
       : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
     exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
     directoryThresholds: t.directoryThresholds
-      ? { ...t.directoryThresholds }
+      ? ({ ...t.directoryThresholds } as Record<string, number>)
       : (def?.directoryThresholds ?? {})
   };
 }
@@ -691,7 +691,9 @@ function buildVitePlusLintConfig(
     typeAware: v.typeAware ?? def?.typeAware ?? true,
     typeCheck: v.typeCheck ?? def?.typeCheck ?? true,
     categories: v.categories ? { ...v.categories } : def?.categories,
-    rules: v.rules ? { ...v.rules } : def?.rules,
+    rules: v.rules
+      ? ({ ...v.rules } as Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>)
+      : def?.rules,
     ignorePatterns: v.ignorePatterns ? [...v.ignorePatterns] : (def?.ignorePatterns ?? []),
     overrides: v.overrides ? [...v.overrides] : (def?.overrides ?? [])
   };

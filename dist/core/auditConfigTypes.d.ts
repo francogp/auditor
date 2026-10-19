@@ -18,6 +18,7 @@ export interface BaseAuditSubsystemConfig {
   readonly ignoreGlobs?: readonly string[];
   readonly exemptPaths?: readonly string[];
   readonly exemptFiles?: readonly string[];
+  readonly [key: string]: unknown;
 }
 export interface AuditPathsConfig extends BaseAuditSubsystemConfig {
   readonly srcRoots: readonly string[];
@@ -491,8 +492,9 @@ export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
 }
 export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
-export type DeepPartial<T> = { [P in keyof T]?: NonNullable<T[P]> extends Function ? T[P] : NonNullable<T[P]> extends readonly (infer U)[] ? readonly U[] : NonNullable<T[P]> extends ReadonlySet<infer S> ? ReadonlySet<S> : NonNullable<T[P]> extends ReadonlyMap<infer K, infer V> ? ReadonlyMap<K, V> : NonNullable<T[P]> extends Record<string, number> ? Record<string, number> : NonNullable<T[P]> extends Record<string, readonly string[]> ? Record<string, readonly string[]> : NonNullable<T[P]> extends Record<string, 'error' | 'warn' | 'off' | readonly unknown[]> ? Record<string, 'error' | 'warn' | 'off' | readonly unknown[]> : NonNullable<T[P]> extends Record<string, 'error' | 'warn' | 'off'> ? Record<string, 'error' | 'warn' | 'off'> : NonNullable<T[P]> extends object ? DeepPartial<NonNullable<T[P]>> : T[P]; };
+export type DeepPartial<T> = { [P in keyof T]?: string extends P ? unknown : NonNullable<T[P]> extends Function ? T[P] : NonNullable<T[P]> extends readonly (infer U)[] ? readonly U[] : NonNullable<T[P]> extends ReadonlySet<infer S> ? ReadonlySet<S> : NonNullable<T[P]> extends ReadonlyMap<infer K, infer V> ? ReadonlyMap<K, V> : NonNullable<T[P]> extends object ? DeepPartial<NonNullable<T[P]>> : T[P]; };
 export interface AuditEngineConfig {
+  readonly [key: string]: unknown;
   readonly name: string;
   readonly auditorVersion?: string;
   readonly ratchet?: AuditRatchetConfig;
