@@ -1256,6 +1256,26 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
   console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));
 
+  if (anyFailed) {
+    console.log(
+      styleText(
+        'yellow',
+        '💡 ¿Dudas sobre una regla o comando? No inspecciones node_modules ni el código fuente. Consulta:'
+      )
+    );
+    console.log(
+      styleText('dim', '   📖 Guía y solución canónica:  ') +
+        styleText('cyan', 'npm run auditor:guide -- <regla>')
+    );
+    console.log(
+      styleText('dim', '   ❓ Catálogo de ayuda global:  ') + styleText('cyan', 'npm run auditor:help')
+    );
+    console.log(
+      styleText('dim', '   🔧 Ayuda de refactorizadores: ') +
+        styleText('cyan', 'npm run auditor:types help | auditor:domain help | auditor:motion help\n')
+    );
+  }
+
   await exportCustomOutputReport(
     cliOptions,
     consolidatedReport,

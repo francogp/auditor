@@ -76,14 +76,21 @@ Uso directo (binario en node_modules/.bin):
   ${def.toolName} discover [--project <ruta>]
   ${def.toolName} inspect <archivo> [--project <ruta>]
   ${def.toolName} apply <plan.json> [--worktree] [--project <ruta>]
+  ${def.toolName} help
 
 Uso vía scripts npm de proyecto:
   npm run ${scriptAlias} discover
   npm run ${scriptAlias} inspect <archivo>
   npm run ${scriptAlias} apply <plan.json>
+  npm run ${scriptAlias} help
 
-💡 Nota sobre npm: Si pasas opciones con guiones (--file, --project, --worktree),
-   debes anteponer '--' para que npm no las capture:
+💡 Consulta de Ayuda vía npm:
+   Ejecuta siempre: npm run ${scriptAlias} help
+   Evita usar '--help' con npm (ej: 'npm run ${scriptAlias} -- --help') porque el gestor
+   npm intercepta el flag y muestra la ayuda genérica de npm en lugar de esta herramienta.
+
+💡 Opciones con guiones (--file, --project, --worktree):
+   Antepone '--' para pasarlas a través de npm:
    npm run ${scriptAlias} -- --project <ruta>
 `);
     return;

@@ -163,27 +163,162 @@ export const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string> = {
 
 export const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string> = {
   'fallow-refactoring-targets':
-    'Refactoriza el módulo modularizando responsabilidades y reduciendo acoplamiento o complejidad ciclomática.',
+    'Causa Raíz:\n' +
+    'El motor de análisis arquitectónico Fallow calcula una prioridad de refactorización combinando ' +
+    'complejidad ciclomática, complejidad cognitiva, tamaño de archivo (LOC), acoplamiento aferente/eferente ' +
+    'y el número de módulos dependientes que amplifican cada cambio. Un puntaje superior al umbral configurado ' +
+    '("fallow.maxTargetPriority", por defecto "high" = 20, o "critical" = 30) señala un hotspot de alto riesgo arquitectónico.\n\n' +
+    'Diagnóstico:\n' +
+    '1. Ejecuta "npm run auditor:findings -- rule=fallow-refactoring-targets flat" para ver los archivos afectados, ' +
+    'el puntaje exacto de prioridad y las funciones concretas señaladas por Fallow.\n' +
+    '2. Ejecuta "npm run auditor:complexity" para desglosar la complejidad ciclomática y cognitiva función por función.\n' +
+    '3. Ejecuta "npm run auditor:fallow" para obtener la vista general de salud del grafo.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Descomposición funcional: Extraer las funciones de alta complejidad cognitiva identificadas en el mensaje ' +
+    'hacia funciones puras auxiliares, reduciendo anidamientos, ramas condicionales profundas y mutaciones directas.\n' +
+    '2. Modularización de archivos de alto impacto: Si el mensaje indica "Split high-impact file (N LOC), M dependents amplify every change", ' +
+    'divide el archivo en módulos o subsistemas cohesivos más pequeños y desacoplados.\n' +
+    '3. Configuración en .auditor/audit.config.ts: Fallow evalúa objetivos según "config.fallow.maxTargetPriority" ("critical" >= 30, "high" >= 20). ' +
+    'En proyectos monolíticos o coordinadores autorizados, la verificación puede ajustarse mediante "fallow.enforceTargets: false" ' +
+    'o elevar el umbral previa consulta explícita con el programador humano.\n' +
+    '4. Queda CATEGÓRICAMENTE PROHIBIDO desensamblar node_modules o parchar librerías para silenciar esta detección.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  Diagnóstico: npm run auditor:complexity\n' +
+    '  Deduplicación: npm run auditor:dupes\n' +
+    '  Inspección de objetivos: npm run auditor:findings -- rule=fallow-refactoring-targets flat',
+
   'fallow-duplicate-code':
-    'Usa `npm run auditor:dupes inspect <fingerprint>` o `auditor-dupes inspect` para extraer micro-contexto y refactorizar mediante el arnés híbrido a funciones puras o composables compartidos.',
+    'Causa Raíz:\n' +
+    'Se detectaron dos fragmentos de código estructuralmente idénticos o clones sintácticos que superan ' +
+    'el umbral configurado de tokens y líneas de Fallow, violando el principio DRY.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:dupes" para ver la tabla consolidada de duplicados por archivo, ' +
+    'o "npm run auditor:fallow:dupes" para la vista detallada de clones sintácticos.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Extraer la lógica duplicada a una función utilitaria compartida, composable o helper puro.\n' +
+    '2. Utilizar la herramienta determinista oficial: "npm run auditor:dupes inspect <fingerprint>" ' +
+    'para generar el plan de deduplicación y aplicarlo con "npm run auditor:dupes apply <plan.json>".\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  Descubrimiento: npm run auditor:dupes\n' +
+    '  Inspección: npm run auditor:dupes inspect <fingerprint>',
+
   'fallow-triplicate-code':
-    'Usa `npm run auditor:dupes inspect <fingerprint>` o `auditor-dupes inspect` para inspeccionar la triplicación crítica y refactorizar a utilidades comunes mediante `npm run auditor:dupes apply <plan.json> --worktree`.',
+    'Causa Raíz:\n' +
+    'Se detectó un bloque de código triplicado (presente en 3 o más ubicaciones distintas del repositorio). ' +
+    'La triplicación representa deuda técnica severa y multiplica exponencialmente el riesgo de desincronización de bugs.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:dupes" para inspeccionar las huellas digitales (fingerprints) de los triplicados ' +
+    'y los archivos involucrados.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Unificar el código triplicado en una única fuente de verdad (SSoT) en un módulo común compartido.\n' +
+    '2. Ejecutar "npm run auditor:dupes inspect <fingerprint>" y aplicar la refactorización mediante ' +
+    '"npm run auditor:dupes apply <plan.json> --worktree" para verificar de forma segura en un árbol aislado.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  Descubrimiento de triplicados: npm run auditor:dupes\n' +
+    '  Inspección detallada: npm run auditor:dupes inspect <fingerprint>',
+
   'fallow-unused-exports':
-    'Remueve exports no utilizados o elimina el código muerto si no tiene otros consumidores.',
+    'Causa Raíz:\n' +
+    'Una función, clase, interfaz, tipo o constante declarada con "export" no posee consumidores ni ' +
+    'referencias en ningún otro archivo del repositorio ni en las entradas del paquete.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:fallow:exports" o "npm run auditor:findings -- rule=fallow-unused-exports flat" ' +
+    'para identificar el símbolo no utilizado y la línea exacta.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Si el símbolo es de consumo puramente interno del archivo, elimina la palabra clave "export".\n' +
+    '2. Si el símbolo es código obsoleto o muerto, elimínalo completamente del archivo.\n' +
+    '3. Si el símbolo es parte de la API pública exportada por una librería, asegúrate de que el archivo esté ' +
+    'declarado en "exports" de package.json o configurado como entrypoint en .fallowrc.json.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:fallow:exports',
+
   'fallow-unused-files':
-    'Elimina el archivo muerto del repositorio o conéctalo si faltó su importación legítima.',
+    'Causa Raíz:\n' +
+    'Un archivo fuente del proyecto no es importado ni alcanzado directa o transitivamente por ningún ' +
+    'punto de entrada del grafo de dependencias analizado por Fallow.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:findings -- rule=fallow-unused-files flat" para ver el listado de archivos huérfanos.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Si el archivo es código abandonado o residual de refactorizaciones previas, elimínalo del repositorio con "git rm".\n' +
+    '2. Si el archivo debía ser utilizado por el sistema, incorpora su importación legítima en el módulo correspondiente.\n' +
+    '3. Si es un archivo de configuración, script CLI o fixture que se ejecuta de forma independiente, agrégalo a "entryPoints" en .fallowrc.json.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:fallow category=dead-code',
+
   'fallow-unused-dependencies':
-    'Remueve la dependencia no utilizada de package.json ejecutando npm rm <pkg>.',
+    'Causa Raíz:\n' +
+    'Un paquete declarado en "dependencies" o "devDependencies" de package.json no es importado ni referenciado ' +
+    'en ningún archivo fuente del proyecto.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:dependencies" o "npm run auditor:findings -- rule=fallow-unused-dependencies flat".\n\n' +
+    'Solución Canónica:\n' +
+    '1. Desinstalar la dependencia innecesaria ejecutando "npm rm <nombre-del-paquete>".\n' +
+    '2. Si la dependencia se utiliza exclusivamente en tiempo de ejecución de manera indirecta (ej. motor de testing, CLI global o plugin dinámico), ' +
+    'configúrala en la sección de exclusiones de dependencias en .fallowrc.json.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:dependencies',
+
   'fallow-circular-dependencies':
-    'Rompe el ciclo de importación extrayendo tipos o interfaces a un archivo compartido común.',
+    'Causa Raíz:\n' +
+    'Dos o más módulos forman un ciclo cerrado de dependencias (A importa B y B importa A), lo que puede ' +
+    'ocasionar valores "undefined" durante la carga de módulos, problemas de inicialización y memory leaks.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:fallow:circular" para visualizar el ciclo exacto y los módulos involucrados.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Romper el ciclo abstrayendo los tipos, interfaces o constantes compartidas a un archivo común neutral.\n' +
+    '2. Invertir dependencias mediante inyección de dependencias, callbacks o eventos.\n' +
+    '3. Usar "import type { ... }" si la dependencia cruzada se debe únicamente a definiciones de tipos en TypeScript.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:fallow:circular',
+
   'fallow-boundary-violations':
-    'Respeta los límites de arquitectura definidos en .fallowrc.json; no importes módulos internos prohibidos.',
+    'Causa Raíz:\n' +
+    'Un módulo importa código de otra capa o subsistema violando las fronteras arquitectónicas declaradas ' +
+    'en .fallowrc.json (por ejemplo, UI importando modelos internos de Server DB directamente).\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:findings -- rule=fallow-boundary-violations flat" para ver la importación infractora y los límites violados.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Sustituir la importación directa consumiendo la API pública o contrato oficial provisto por la capa destino.\n' +
+    '2. Encapsular la lógica en servicios intermediarios autorizados para preservar el desacoplamiento arquitectónico.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:findings -- rule=fallow-boundary-violations',
+
   'fallow-stale-suppressions':
-    'Remueve la directiva de supresión obsoleta ya que el problema subyacente ya no existe.',
+    'Causa Raíz:\n' +
+    'Existe una directiva de supresión de Fallow ("// fallow-ignore", etc.) en una línea donde ya no se ' +
+    'produce ninguna infracción estática, ensuciando el código fuente con comentarios obsoletos.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:findings -- rule=fallow-stale-suppressions flat" para ubicar el comentario obsoleto.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Eliminar la directiva de supresión obsoleta del código fuente para preservar la higiene estática.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:fallow category=suppressions',
+
   'fallow-workspace-diagnostic':
-    'Corrige la configuración de TypeScript o Fallow para resolver diagnósticos del espacio de trabajo.',
+    'Causa Raíz:\n' +
+    'Fallow detectó un problema de configuración estructural en el espacio de trabajo, tales como errores en tsconfig.json, ' +
+    'rutas no resolubles o sintaxis inválida en .fallowrc.json.\n\n' +
+    'Diagnóstico:\n' +
+    'Revisa el mensaje detallado del diagnóstico y ejecuta "npm run auditor:tsconfig" y "npm run auditor:fallow-config".\n\n' +
+    'Solución Canónica:\n' +
+    '1. Corregir las opciones del compilador o rutas de inclusión en tsconfig.json.\n' +
+    '2. Validar que .fallowrc.json cumpla estrictamente con el esquema esperado y sea JSON válido.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:tsconfig\n' +
+    '  npm run auditor:fallow-config',
+
   'fallow-security-cwe':
-    'Revisa el candidato de seguridad CWE detectado y aplica sanitización, validación con Valibot o escape de entrada.'
+    'Causa Raíz:\n' +
+    'Fallow identificó un patrón de código susceptible a una vulnerabilidad de seguridad catalogada en CWE ' +
+    '(Common Weakness Enumeration), como path traversal (CWE-22), inyección o manipulación insegura de entradas.\n\n' +
+    'Diagnóstico:\n' +
+    'Ejecuta "npm run auditor:fallow:security" para inspeccionar el identificador CWE y el vector de riesgo.\n\n' +
+    'Solución Canónica:\n' +
+    '1. Para validación de entradas de usuario, implementar esquemas tipados estrictos con Valibot o tipos de dominio.\n' +
+    '2. Para contención de rutas (CWE-22), utilizar siempre "path.resolve()" + "path.relative()" de node:path.\n' +
+    '3. Sanitizar y escapar todos los parámetros antes de interpolarlos en consultas o comandos del sistema.\n\n' +
+    'Ejemplo / Herramientas Oficiales:\n' +
+    '  npm run auditor:fallow:security'
 };
 
 export const FALLOW_RULE_REMEDIATION_PHASES: Record<FallowRuleId, RemediationPhaseId> = {
