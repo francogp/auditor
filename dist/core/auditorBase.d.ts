@@ -25,10 +25,6 @@ export declare function getEffectiveScannableRoots(config?: AuditEngineConfig): 
  * Validates that a path component is safe against path traversal.
  */
 export declare function assertSafePathComponent(component: string): void;
-/**
- * Loads directory ignore patterns from .fallowrc.json if present.
- */
-export declare function loadFallowIgnorePatterns(projectRoot?: string): string[];
 export declare function clearLockedSkillsCache(): void;
 /**
  * Canonical candidate relative locations for skills-lock.json in order of precedence.

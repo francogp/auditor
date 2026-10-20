@@ -31,7 +31,6 @@ import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
-  loadFallowIgnorePatterns,
   collectRepositoryFiles,
   getEffectiveScannableRoots,
   FileScanAuditor,
@@ -48,7 +47,6 @@ enableCompileCache();
 export {
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
-  loadFallowIgnorePatterns,
   getEffectiveScannableRoots
 };
 
@@ -544,7 +542,7 @@ export function scanFileForNativePathViolations(
  */
 export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResult {
   assertSafePathComponent(targetDir);
-  const extraIgnorePatterns = loadFallowIgnorePatterns(targetDir);
+  const extraIgnorePatterns: readonly string[] = [];
   const config = getAuditConfig(targetDir);
   const scannableRoots = getEffectiveScannableRoots(config);
   const rootsToScan = scannableRoots

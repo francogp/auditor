@@ -216,23 +216,6 @@ export function assertSafePathComponent(component: string): void {
   }
 }
 
-/**
- * Loads directory ignore patterns from .fallowrc.json if present.
- */
-export function loadFallowIgnorePatterns(projectRoot = process.cwd()): string[] {
-  const fallowRcPath = path.resolve(projectRoot, '.fallowrc.json');
-  try {
-    if (nodeFs.existsSync(fallowRcPath)) {
-      const raw = nodeFs.readFileSync(fallowRcPath, 'utf-8');
-      const data = JSON.parse(raw) as { ignorePatterns?: string[] };
-      return Array.isArray(data.ignorePatterns) ? data.ignorePatterns : [];
-    }
-  } catch {
-    // catch-ok: Ignore fallback
-  }
-  return [];
-}
-
 let lockedSkillsCache: Set<string> | null = null;
 let lockedSkillsCacheRoot: string | null = null;
 
@@ -694,12 +677,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
   });
 
   const projectRoot = config.projectRoot || process.cwd();
-  const scannableRoots = getEffectiveScannableRoots(getAuditConfig(projectRoot));
-  const fallowIgnores = loadFallowIgnorePatterns(projectRoot).filter((pat) => {
-    const norm = pat.replace(/\/\*\*?$/, '').replace(/^\/+/, '');
-    return !scannableRoots.some((r) => r === norm || norm.startsWith(`${r}/`));
-  });
-  const combinedIgnores = [...fallowIgnores, ...(config.extraIgnorePatterns || [])];
+  const combinedIgnores = [...(config.extraIgnorePatterns || [])];
   const unignoreDirs =
     config.unignoreDirs ??
     (config.family === 'documentation' ? getEffectiveUnignoreDirs(projectRoot) : []);

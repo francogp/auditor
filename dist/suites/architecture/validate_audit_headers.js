@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -352,4 +352,4 @@ function auditAuditHeaders(targetDir = process.cwd()) {
 }
 if (process.argv[1] && (process.argv[1].endsWith("validate_audit_headers.ts") || process.argv[1].endsWith("validate_audit_headers.js"))) await BaseAuditor.runCli(new AuditHeadersAuditor());
 //#endregion
-export { AuditHeadersAuditor, CANONICAL_IGNORE_DIRS, HEADER_RULES, MAX_HEADER_LINES_CHECK, auditAuditHeaders, isPathIgnored, loadFallowIgnorePatterns, scanFileForIllegalHeaders };
+export { AuditHeadersAuditor, CANONICAL_IGNORE_DIRS, HEADER_RULES, MAX_HEADER_LINES_CHECK, auditAuditHeaders, isPathIgnored, scanFileForIllegalHeaders };

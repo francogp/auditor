@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v9.7.6 --allow-git=all
+npm install -D github:francogp/auditor#v9.7.7 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.

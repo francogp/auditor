@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -263,7 +263,7 @@ function scanFileForNativePathViolations(filePath, content) {
 */
 function auditNativePaths(targetDir = process.cwd()) {
 	assertSafePathComponent(targetDir);
-	const extraIgnorePatterns = loadFallowIgnorePatterns(targetDir);
+	const extraIgnorePatterns = [];
 	const config = getAuditConfig(targetDir);
 	const rootsToScan = getEffectiveScannableRoots(config).map((r) => path.resolve(targetDir, r)).filter((p) => fs.existsSync(p));
 	const allFiles = [];
@@ -353,4 +353,4 @@ var NativePathsAuditor = class extends FileScanAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new NativePathsAuditor());
 //#endregion
-export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns, scanFileForNativePathViolations };
+export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, getEffectiveScannableRoots, isPathIgnored, scanFileForNativePathViolations };

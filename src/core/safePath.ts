@@ -158,7 +158,6 @@ export {
   SCANNABLE_EXTENSIONS,
   assertSafePathComponent,
   isPathIgnored,
-  loadFallowIgnorePatterns,
   collectRepositoryFiles,
   loadLockedSkills,
   isLockedSkillPath,

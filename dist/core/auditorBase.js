@@ -130,20 +130,6 @@ function getEffectiveScannableRoots(config = getAuditConfig()) {
 function assertSafePathComponent(component) {
 	if (component.includes("..")) throw new Error(`Path traversal attempt detected in path component: ${component}`);
 }
-/**
-* Loads directory ignore patterns from .fallowrc.json if present.
-*/
-function loadFallowIgnorePatterns(projectRoot = process.cwd()) {
-	const fallowRcPath = path.resolve(projectRoot, ".fallowrc.json");
-	try {
-		if (fs.existsSync(fallowRcPath)) {
-			const raw = fs.readFileSync(fallowRcPath, "utf-8");
-			const data = JSON.parse(raw);
-			return Array.isArray(data.ignorePatterns) ? data.ignorePatterns : [];
-		}
-	} catch {}
-	return [];
-}
 let lockedSkillsCache = null;
 let lockedSkillsCacheRoot = null;
 function clearLockedSkillsCache() {
@@ -344,11 +330,7 @@ function setupAuditor(config) {
 		strict: false
 	});
 	const projectRoot = config.projectRoot || process.cwd();
-	const scannableRoots = getEffectiveScannableRoots(getAuditConfig(projectRoot));
-	const combinedIgnores = [...loadFallowIgnorePatterns(projectRoot).filter((pat) => {
-		const norm = pat.replace(/\/\*\*?$/, "").replace(/^\/+/, "");
-		return !scannableRoots.some((r) => r === norm || norm.startsWith(`${r}/`));
-	}), ...config.extraIgnorePatterns || []];
+	const combinedIgnores = [...config.extraIgnorePatterns || []];
 	const unignoreDirs = config.unignoreDirs ?? (config.family === "documentation" ? getEffectiveUnignoreDirs(projectRoot) : []);
 	const isSubprocess = process.env.AUDIT_SUBPROCESS === "true";
 	const findings = [];
@@ -1908,4 +1890,4 @@ var FileScanAuditor = class extends BaseAuditor {
 	}
 };
 //#endregion
-export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, setupAuditor };
+export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, setupAuditor };

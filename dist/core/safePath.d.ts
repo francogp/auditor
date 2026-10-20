@@ -1,7 +1,7 @@
 import { sanitizePath } from "./auditConfigLoader.js";
 import { toPosixRelative } from "./auditCoverage.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
-import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills } from "./auditorBase.js";
+import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadLockedSkills } from "./auditorBase.js";
 //#region src/core/safePath.d.ts
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
@@ -49,4 +49,4 @@ export declare function isPathContained(parentDir: string, candidateChild: strin
  */
 export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (fullPath: string) => boolean): Map<string, string[]>;
 //#endregion
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, normalizePosixPath, sanitizePath, toPosixRelative };
+export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, normalizePosixPath, sanitizePath, toPosixRelative };

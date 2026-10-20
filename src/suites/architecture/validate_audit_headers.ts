@@ -26,7 +26,6 @@ import {
   FileScanAuditor,
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
-  loadFallowIgnorePatterns,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -71,7 +70,7 @@ export interface AuditHeadersResult {
   readonly countsByRule: Record<string, number>;
 }
 
-export { CANONICAL_IGNORE_DIRS, isPathIgnored, loadFallowIgnorePatterns };
+export { CANONICAL_IGNORE_DIRS, isPathIgnored };
 
 const FALLOW_IGNORE_FILE_REGEX = /^\s*\/\/\s*fallow-ignore-file\b/i;
 const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(?:nocheck|ignore|expect-error)\b/i;

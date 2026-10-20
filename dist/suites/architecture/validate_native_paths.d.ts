@@ -1,5 +1,5 @@
 import { FindingSeverity } from "../../core/auditContract.js";
-import { CANONICAL_IGNORE_DIRS, FileScanAuditor, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns } from "../../core/auditorBase.js";
+import { CANONICAL_IGNORE_DIRS, FileScanAuditor, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 //#region src/suites/architecture/validate_native_paths.d.ts
 export type NativePathRuleId = 'unsafe-path-concat' | 'unsanitized-env-argv-path' | 'untrusted-url-fetch' | 'hardcoded-slash-path' | 'homebrew-path-manipulation';
 export declare const NATIVE_PATH_RULES: readonly NativePathRuleId[];
@@ -26,4 +26,4 @@ export declare class NativePathsAuditor extends FileScanAuditor<NativePathRuleId
   constructor(roots?: readonly string[], projectRoot?: string);
 }
 //#endregion
-export { CANONICAL_IGNORE_DIRS, getEffectiveScannableRoots, isPathIgnored, loadFallowIgnorePatterns };
+export { CANONICAL_IGNORE_DIRS, getEffectiveScannableRoots, isPathIgnored };

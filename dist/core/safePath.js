@@ -2,7 +2,7 @@ import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
 import "./auditConfig.js";
 import { toPosixRelative } from "./auditCoverage.js";
-import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills } from "./auditorBase.js";
+import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadLockedSkills } from "./auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -141,4 +141,4 @@ function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
 	return index;
 }
 //#endregion
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, buildRepositoryFileIndex, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathContained, isPathExempt, isPathIgnored, loadFallowIgnorePatterns, loadLockedSkills, normalizePosixPath, safeDevUrl, safeFetch, safeJoin, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, toPosixPath, toPosixRelative };
+export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, buildRepositoryFileIndex, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathContained, isPathExempt, isPathIgnored, loadLockedSkills, normalizePosixPath, safeDevUrl, safeFetch, safeJoin, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, toPosixPath, toPosixRelative };
