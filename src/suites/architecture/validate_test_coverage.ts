@@ -56,11 +56,11 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       },
       ruleRemediations: {
         'test-coverage-below-threshold':
-          'La cobertura de código de tests unitarios está por debajo del umbral mínimo exigido. Diagnóstico: El porcentaje de sentencias cubiertas en el proyecto no alcanza el umbral establecido (por defecto 80%). Remediación: 1) Revisa los archivos con cobertura insuficiente usando "npm run auditor task=validate_test_coverage" o inspeccionando scratch/coverage/index.html. 2) Añade pruebas unitarias en tests/ para cubrir las ramas y funciones no testeadas. 3) Si ciertos archivos o módulos utilitarios están exentos, configúralos en testCoverage.exemptGlobs en .auditor/audit.config.ts.',
+          'La cobertura de código de tests unitarios está por debajo del umbral mínimo exigido. Diagnóstico: El porcentaje de sentencias cubiertas en el proyecto no alcanza el umbral establecido (por defecto 80%). Remediación: 1) Revisa los archivos con cobertura insuficiente usando "npm run auditor:coverage --below" o inspeccionando scratch/coverage/index.html. 2) Añade pruebas unitarias en tests/ para cubrir las ramas y funciones no testeadas. 3) Si ciertos archivos o módulos utilitarios están exentos, configúralos en testCoverage.exemptGlobs en .auditor/audit.config.ts.',
         'test-coverage-missing-report':
           'No se encontró el reporte de cobertura en la ruta configurada (por defecto scratch/coverage/coverage-final.json). Diagnóstico: Vitest o el ejecutor de pruebas aún no ha corrido con cobertura o los reportes se emitieron en otra carpeta. Remediación: 1) Ejecuta "npm run test:coverage" o "vp test --coverage". 2) Verifica que vite.config.ts tenga configurado test.coverage.reportsDirectory = "scratch/coverage" y provider = "v8". 3) Asegúrate de tener instalado @vitest/coverage-v8 en devDependencies.',
         'test-coverage-untracked-files':
-          'Se detectaron archivos fuente en src/ que nunca fueron ejecutados ni importados durante las pruebas unitarias. Diagnóstico: Existen módulos enteros huérfanos de pruebas. Remediación: 1) Crea archivos de test en tests/ para cada archivo fuente no cubierto. 2) Si el archivo corresponde a un barrel re-export o archivo de tipos puros sin lógica ejecutable, agrégalo a testCoverage.exemptGlobs en .auditor/audit.config.ts.'
+          'Se detectaron archivos fuente en src/ que nunca fueron ejecutados ni importados durante las pruebas unitarias. Diagnóstico: Existen módulos enteros huérfanos de pruebas. Remediación canónica: 1) Consulta la lista completa con "npm run auditor:findings rule=test-coverage-untracked-files flat" o "npm run auditor:coverage --untracked". 2) Crea archivos de test en tests/ para cada archivo fuente no cubierto. 3) Si el archivo corresponde a un barrel re-export o archivo de tipos puros sin lógica ejecutable, agrégalo a testCoverage.exemptGlobs en .auditor/audit.config.ts tras consultar con el programador.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -134,14 +134,14 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       });
 
       this.runSubAuditorSync('test-coverage-untracked-files', () => {
-        if (report.untrackedFiles.length > 0) {
+        for (const file of report.untrackedFiles) {
           this.addViolation({
             ruleId: 'test-coverage-untracked-files',
             severity: 'warning',
-            file: report.untrackedFiles[0]!,
+            file,
             line: 1,
-            context: 'untracked files',
-            message: `Se detectaron ${report.untrackedFiles.length} archivo(s) en disco que nunca fueron ejecutados por los tests (ej: ${report.untrackedFiles.slice(0, 3).join(', ')}).`
+            context: 'untracked file',
+            message: `El archivo ${file} en disco nunca fue ejecutado por las pruebas unitarias.`
           });
         }
       });
