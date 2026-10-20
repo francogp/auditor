@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   safeResolve,
   safeJoin,
@@ -23,7 +24,10 @@ import {
   toPosixPath,
   toPosixRelative,
   normalizePosixPath,
-  isPathContained
+  isPathContained,
+  isPathIgnored,
+  collectRepositoryFiles,
+  CANONICAL_IGNORE_DIRS
 } from '../src/core/safePath.ts';
 
 describe('safePath Core Security Utility', () => {
@@ -182,6 +186,81 @@ describe('safePath Core Security Utility', () => {
       expect(isPathContained(root, 'file.ts')).toBe(true);
       expect(isPathContained(root, '../secret.key')).toBe(false);
       expect(isPathContained(root, '../../etc/passwd')).toBe(false);
+    });
+  });
+
+  describe('isPathIgnored & collectRepositoryFiles (Global Ignore Contracts)', () => {
+    beforeEach(() => {
+      resetAuditConfig();
+    });
+
+    afterEach(() => {
+      resetAuditConfig();
+    });
+
+    it('identifies all canonical ignore directories', () => {
+      expect(CANONICAL_IGNORE_DIRS.has('node_modules')).toBe(true);
+      expect(CANONICAL_IGNORE_DIRS.has('dist')).toBe(true);
+      expect(CANONICAL_IGNORE_DIRS.has('scratch')).toBe(true);
+      expect(CANONICAL_IGNORE_DIRS.has('.git')).toBe(true);
+      expect(CANONICAL_IGNORE_DIRS.has('.vitest-cache')).toBe(true);
+
+      expect(isPathIgnored('node_modules/pkg/index.js')).toBe(true);
+      expect(isPathIgnored('dist/bundle.js')).toBe(true);
+      expect(isPathIgnored('scratch/coverage/report.json')).toBe(true);
+      expect(isPathIgnored('sub/nested/dist/main.js')).toBe(true);
+    });
+
+    it('respects custom paths.ignoredDirs and paths.ignoreGlobs from project config', () => {
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'custom-ignores-test',
+          paths: {
+            ignoredDirs: ['legacy-code', 'fixtures'],
+            ignoreGlobs: ['**/generated/**', '**/*.generated.ts']
+          }
+        }),
+        tempDir
+      );
+
+      expect(isPathIgnored('src/legacy-code/old.ts', [], [], tempDir)).toBe(true);
+      expect(isPathIgnored('tests/fixtures/mock.json', [], [], tempDir)).toBe(true);
+      expect(isPathIgnored('src/api/generated/client.ts', [], [], tempDir)).toBe(true);
+      expect(isPathIgnored('src/models/user.generated.ts', [], [], tempDir)).toBe(true);
+      expect(isPathIgnored('src/normal/code.ts', [], [], tempDir)).toBe(false);
+    });
+
+    it('collectRepositoryFiles strictly omits files in ignored directories or matching ignore globs', () => {
+      const srcDir = path.join(tempDir, 'src');
+      const distDir = path.join(tempDir, 'dist');
+      const ignoredDir = path.join(srcDir, 'fixtures');
+
+      fs.mkdirSync(srcDir, { recursive: true });
+      fs.mkdirSync(distDir, { recursive: true });
+      fs.mkdirSync(ignoredDir, { recursive: true });
+
+      fs.writeFileSync(path.join(srcDir, 'valid.ts'), 'export const v = 1;');
+      fs.writeFileSync(path.join(distDir, 'built.ts'), 'export const b = 1;');
+      fs.writeFileSync(path.join(ignoredDir, 'mock.ts'), 'export const m = 1;');
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'collect-test',
+          paths: {
+            ignoredDirs: ['fixtures']
+          }
+        }),
+        tempDir
+      );
+
+      const collectedSrc = collectRepositoryFiles(srcDir, tempDir, [], new Set(['.ts']));
+      const collectedDist = collectRepositoryFiles(distDir, tempDir, [], new Set(['.ts']));
+      const allCollected = [...collectedSrc, ...collectedDist];
+
+      const relCollected = allCollected.map((f) =>
+        path.relative(tempDir, f).split(path.sep).join('/')
+      );
+      expect(relCollected).toEqual(['src/valid.ts']);
     });
   });
 });

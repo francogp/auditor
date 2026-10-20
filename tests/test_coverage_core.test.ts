@@ -331,6 +331,46 @@ describe('testCoverageCore', () => {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
     });
+
+    it('strictly respects canonical ignored directories and custom ignore globs', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-cov-ignores-'));
+      try {
+        const srcDir = path.join(tmpDir, 'src');
+        const distDir = path.join(srcDir, 'dist');
+        const cacheDir = path.join(srcDir, '.vitest-cache');
+        const legacyDir = path.join(srcDir, 'legacy');
+        const generatedDir = path.join(srcDir, 'generated', 'deep');
+
+        fs.mkdirSync(distDir, { recursive: true });
+        fs.mkdirSync(cacheDir, { recursive: true });
+        fs.mkdirSync(legacyDir, { recursive: true });
+        fs.mkdirSync(generatedDir, { recursive: true });
+
+        fs.writeFileSync(path.join(srcDir, 'validUntracked.ts'), 'export const v = 1;');
+        fs.writeFileSync(path.join(distDir, 'bundle.ts'), 'export const b = 1;');
+        fs.writeFileSync(path.join(cacheDir, 'cache.ts'), 'export const c = 1;');
+        fs.writeFileSync(path.join(legacyDir, 'old.ts'), 'export const o = 1;');
+        fs.writeFileSync(path.join(generatedDir, 'auto.ts'), 'export const g = 1;');
+
+        const coveredSet = new Set<string>();
+        const config: ResolvedTestCoverageConfig = {
+          enabled: true,
+          threshold: 80,
+          path: 'coverage.json',
+          runCommand: '',
+          roots: ['src'],
+          extensions: ['.ts'],
+          exemptGlobs: ['**/legacy/**', '**/generated/**'],
+          directoryThresholds: {},
+          enforceInAudit: false
+        };
+
+        const untracked = findUntrackedFiles(tmpDir, coveredSet, config);
+        expect(untracked).toEqual(['src/validUntracked.ts']);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('analyzeTestCoverage', () => {

@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ResolvedTestCoverageConfig } from './auditConfig.ts';
 import { matchesAnyGlob } from './auditCoverage.ts';
+import { isPathIgnored, CANONICAL_IGNORE_DIRS } from './safePath.ts';
 
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
 
@@ -398,11 +399,13 @@ function isUntrackedCandidate(
   relPath: string,
   fileName: string,
   extensions: ReadonlySet<string>,
-  exemptGlobs: readonly string[]
+  exemptGlobs: readonly string[],
+  projectRoot: string
 ): boolean {
   const ext = path.extname(fileName);
   if (!extensions.has(ext)) return false;
   if (DEFAULT_TEST_PATTERNS.some((p) => p.test(relPath))) return false;
+  if (isPathIgnored(relPath, exemptGlobs, [], projectRoot)) return false;
   return !isPathExempt(relPath, exemptGlobs);
 }
 
@@ -427,12 +430,16 @@ export function findUntrackedFiles(
       const relPath = path.relative(projectRoot, fullPath).split(path.sep).join('/');
 
       if (entry.isDirectory()) {
-        if (!IGNORED_COVERAGE_DIRS.has(entry.name)) {
+        if (
+          !IGNORED_COVERAGE_DIRS.has(entry.name) &&
+          !CANONICAL_IGNORE_DIRS.has(entry.name) &&
+          !isPathIgnored(relPath, config.exemptGlobs, [], projectRoot)
+        ) {
           walk(fullPath);
         }
       } else if (
         entry.isFile() &&
-        isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs)
+        isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs, projectRoot)
       ) {
         if (!coveredRelPaths.has(relPath)) {
           untracked.push(relPath);

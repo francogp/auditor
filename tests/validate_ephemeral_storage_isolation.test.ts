@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
   EphemeralStorageIsolationAuditor,
   EPHEMERAL_STORAGE_RULES
@@ -244,6 +245,32 @@ dist/
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
       );
       expect(violations.length).toBe(0);
+    });
+
+    it('ignores forbidden temp directory names if the directory is globally ignored in paths.ignoredDirs', async () => {
+      // Create a directory that would normally violate ephemeral-no-source-temp-dirs
+      await fs.mkdir(path.join(tempDir, 'src', 'fixtures', 'temp'), { recursive: true });
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'ephemeral-ignore-test',
+          paths: {
+            codeRoots: ['src'],
+            ignoredDirs: ['fixtures']
+          }
+        }),
+        tempDir
+      );
+
+      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const result = await auditor.execute();
+
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
+      );
+      expect(violations.length).toBe(0);
+      expect(result.summary.errors).toBe(0);
+      resetAuditConfig();
     });
   });
 });

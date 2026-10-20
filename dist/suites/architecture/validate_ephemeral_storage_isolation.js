@@ -190,6 +190,7 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 		if (!entry.isDirectory() || entry.name === "node_modules" || entry.name === ".git") return;
 		const subPath = path.join(currentDir, entry.name);
 		const relSubPath = path.relative(this.projectRoot, subPath).split(path.sep).join(path.posix.sep);
+		if (this.isPathIgnored(relSubPath)) return;
 		if (isForbiddenDirName(entry.name)) this.addViolation({
 			ruleId: "ephemeral-no-source-temp-dirs",
 			severity: "error",

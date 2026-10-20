@@ -349,10 +349,17 @@ function matchesDirectorySegments(
 }
 
 export function matchesSinglePattern(normalized: string, pattern: string): boolean {
-  let cleanPattern = pattern.toLowerCase(); // no-domain: Non-domain utility collection or data structure
+  const normPattern = pattern.split(path.sep).join(path.posix.sep).toLowerCase();
+  if (path.posix.matchesGlob(normalized, normPattern)) {
+    return true;
+  }
+  let cleanPattern = normPattern; // no-domain: Non-domain utility collection or data structure
   const matchesAnywhere = cleanPattern.startsWith('**/');
   if (matchesAnywhere) {
     cleanPattern = cleanPattern.slice(3);
+    if (path.posix.matchesGlob(normalized, `**/${cleanPattern}`)) {
+      return true;
+    }
   }
   cleanPattern = cleanPattern.replace(/\/\*\*$/, '').replace(/\/\*$/, '');
 
@@ -387,7 +394,7 @@ export function isPathIgnored(
   const segments = normalized.split('/');
   const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
 
-  const rawConfigIgnoredDirs = getAuditConfig()?.paths?.ignoredDirs ?? [];
+  const rawConfigIgnoredDirs = getAuditConfig(projectRoot)?.paths?.ignoredDirs ?? [];
   const configIgnoredDirs = rawConfigIgnoredDirs.map((d) =>
     d
       .toLowerCase()
@@ -399,8 +406,8 @@ export function isPathIgnored(
     return true;
   }
 
-  const configPatterns = getAuditConfig()?.paths?.ignoredPatterns ?? [];
-  const configGlobs = getAuditConfig()?.paths?.ignoreGlobs ?? [];
+  const configPatterns = getAuditConfig(projectRoot)?.paths?.ignoredPatterns ?? [];
+  const configGlobs = getAuditConfig(projectRoot)?.paths?.ignoreGlobs ?? [];
   const allPatterns = [...extraIgnorePatterns, ...configPatterns, ...configGlobs];
 
   for (const pattern of allPatterns) {

@@ -206,9 +206,14 @@ function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnor
 	return false;
 }
 function matchesSinglePattern(normalized, pattern) {
-	let cleanPattern = pattern.toLowerCase();
+	const normPattern = pattern.split(path.sep).join(path.posix.sep).toLowerCase();
+	if (path.posix.matchesGlob(normalized, normPattern)) return true;
+	let cleanPattern = normPattern;
 	const matchesAnywhere = cleanPattern.startsWith("**/");
-	if (matchesAnywhere) cleanPattern = cleanPattern.slice(3);
+	if (matchesAnywhere) {
+		cleanPattern = cleanPattern.slice(3);
+		if (path.posix.matchesGlob(normalized, `**/${cleanPattern}`)) return true;
+	}
 	cleanPattern = cleanPattern.replace(/\/\*\*$/, "").replace(/\/\*$/, "");
 	if (!cleanPattern) return false;
 	if (matchesAnywhere) return normalized === cleanPattern || normalized.startsWith(cleanPattern + "/") || normalized.endsWith("/" + cleanPattern) || normalized.includes("/" + cleanPattern + "/");
@@ -222,9 +227,9 @@ function isPathIgnored(relPath, extraIgnorePatterns = [], unignoreDirs = [], pro
 	const normalized = relPath.split(path.sep).join(path.posix.sep).toLowerCase();
 	const segments = normalized.split("/");
 	const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
-	if (matchesDirectorySegments(normalized, segments, unignoreSet, (getAuditConfig()?.paths?.ignoredDirs ?? []).map((d) => d.toLowerCase().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")))) return true;
-	const configPatterns = getAuditConfig()?.paths?.ignoredPatterns ?? [];
-	const configGlobs = getAuditConfig()?.paths?.ignoreGlobs ?? [];
+	if (matchesDirectorySegments(normalized, segments, unignoreSet, (getAuditConfig(projectRoot)?.paths?.ignoredDirs ?? []).map((d) => d.toLowerCase().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")))) return true;
+	const configPatterns = getAuditConfig(projectRoot)?.paths?.ignoredPatterns ?? [];
+	const configGlobs = getAuditConfig(projectRoot)?.paths?.ignoreGlobs ?? [];
 	const allPatterns = [
 		...extraIgnorePatterns,
 		...configPatterns,

@@ -1,4 +1,6 @@
 import { matchesAnyGlob } from "./auditCoverage.js";
+import { CANONICAL_IGNORE_DIRS, isPathIgnored } from "./auditorBase.js";
+import "./safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/testCoverageCore.ts
@@ -221,10 +223,11 @@ const IGNORED_COVERAGE_DIRS = /* @__PURE__ */ new Set([
 	"dist",
 	"scratch"
 ]);
-function isUntrackedCandidate(relPath, fileName, extensions, exemptGlobs) {
+function isUntrackedCandidate(relPath, fileName, extensions, exemptGlobs, projectRoot) {
 	const ext = path.extname(fileName);
 	if (!extensions.has(ext)) return false;
 	if (DEFAULT_TEST_PATTERNS.some((p) => p.test(relPath))) return false;
+	if (isPathIgnored(relPath, exemptGlobs, [], projectRoot)) return false;
 	return !isPathExempt(relPath, exemptGlobs);
 }
 /**
@@ -240,8 +243,8 @@ function findUntrackedFiles(projectRoot, coveredRelPaths, config) {
 			const fullPath = path.join(currentDir, entry.name);
 			const relPath = path.relative(projectRoot, fullPath).split(path.sep).join("/");
 			if (entry.isDirectory()) {
-				if (!IGNORED_COVERAGE_DIRS.has(entry.name)) walk(fullPath);
-			} else if (entry.isFile() && isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs)) {
+				if (!IGNORED_COVERAGE_DIRS.has(entry.name) && !CANONICAL_IGNORE_DIRS.has(entry.name) && !isPathIgnored(relPath, config.exemptGlobs, [], projectRoot)) walk(fullPath);
+			} else if (entry.isFile() && isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs, projectRoot)) {
 				if (!coveredRelPaths.has(relPath)) untracked.push(relPath);
 			}
 		}

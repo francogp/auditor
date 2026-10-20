@@ -277,6 +277,10 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
       .split(path.sep)
       .join(path.posix.sep);
 
+    if (this.isPathIgnored(relSubPath)) {
+      return;
+    }
+
     if (isForbiddenDirName(entry.name)) {
       this.addViolation({
         ruleId: 'ephemeral-no-source-temp-dirs',

@@ -316,4 +316,67 @@ describe('ValidateTestCoverageAuditor', () => {
     expect(result.summary.warnings).toBe(0);
     expect(result.status).toBe('passed');
   });
+
+  it('filters out untracked files matching paths.ignoredDirs and paths.ignoreGlobs', async () => {
+    const srcDir = path.join(tmpDir, 'src');
+    const ignoredSubDir = path.join(srcDir, 'ignored-fixtures');
+    const mockDir = path.join(srcDir, 'mocks');
+
+    fs.mkdirSync(ignoredSubDir, { recursive: true });
+    fs.mkdirSync(mockDir, { recursive: true });
+
+    fs.writeFileSync(path.join(srcDir, 'covered.ts'), 'export const a = 1;');
+    fs.writeFileSync(path.join(ignoredSubDir, 'fixture.ts'), 'export const f = 1;');
+    fs.writeFileSync(path.join(mockDir, 'serviceMock.ts'), 'export const s = 1;');
+
+    const covDir = path.join(tmpDir, 'scratch', 'coverage');
+    fs.mkdirSync(covDir, { recursive: true });
+    const coverageJson = {
+      [path.join(srcDir, 'covered.ts')]: {
+        statements: { total: 10, covered: 10, pct: 100 },
+        branches: { total: 2, covered: 2, pct: 100 },
+        functions: { total: 2, covered: 2, pct: 100 },
+        lines: { total: 10, covered: 10, pct: 100 }
+      }
+    };
+    fs.writeFileSync(path.join(covDir, 'coverage-final.json'), JSON.stringify(coverageJson));
+
+    setAuditConfig(
+      defineAuditConfig({
+        name: 'test-app',
+        paths: {
+          srcRoots: ['src'],
+          codeRoots: ['src'],
+          ignoredDirs: ['ignored-fixtures'],
+          ignoreGlobs: ['**/mocks/**']
+        },
+        testCoverage: {
+          enabled: true,
+          threshold: 80,
+          enforceInAudit: true,
+          roots: ['src']
+        },
+        persistence: { engine: 'none' },
+        bundle: { enabled: false },
+        packageDistribution: { enabled: false },
+        styles: { zLayersEnabled: false },
+        templates: { requireInputIds: false },
+        agentPlugin: { enabled: false }
+      }),
+      tmpDir
+    );
+
+    const auditor = new ValidateTestCoverageAuditor({ projectRoot: tmpDir });
+    await auditor.runAudit();
+    const result = await auditor.finishAudit();
+
+    // No warning should be raised for fixture.ts or serviceMock.ts
+    const untrackedWarnings = result.findings.filter(
+      (f) => f.ruleId === 'test-coverage-untracked-file'
+    );
+    expect(untrackedWarnings).toHaveLength(0);
+    expect(result.summary.warnings).toBe(0);
+    expect(result.summary.errors).toBe(0);
+    expect(result.status).toBe('passed');
+  });
 });
