@@ -187,6 +187,7 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 		]);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
 				speed: "light",
 				phase: "normal",

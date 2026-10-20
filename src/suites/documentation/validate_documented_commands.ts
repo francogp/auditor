@@ -180,6 +180,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
     const root = options.projectRoot || process.cwd();
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
         speed: 'light',
         phase: 'normal',

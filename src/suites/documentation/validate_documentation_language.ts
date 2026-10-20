@@ -81,6 +81,7 @@ export function containsLanguageMandate(
 }
 
 export interface DocumentationLanguageOptions {
+  projectRoot?: string;
   fix?: boolean;
   language?: DocumentationLanguage;
   exemptions?: readonly string[];
@@ -174,7 +175,8 @@ export function isLanguageExemptPath(relPath: string, exemptions: readonly strin
     const normEx = normalizePosixPath(ex).toLowerCase();
     if (normEx.endsWith('/**')) {
       const prefix = normEx.slice(0, -3);
-      if (normalized.startsWith(prefix) || normalized.startsWith(prefix.replace(/^\//, ''))) {
+      const cleanPrefix = prefix.startsWith('/') ? prefix.slice(1) : prefix;
+      if (normalized.startsWith(prefix) || normalized.startsWith(cleanPrefix)) {
         return true;
       }
     } else if (normEx.endsWith('/*')) {
@@ -467,8 +469,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
   private readonly rootDir: string;
   private readonly options?: DocumentationLanguageOptions;
 
-  constructor(rootDir?: string, options?: DocumentationLanguageOptions) {
-    const projectRoot = rootDir || process.cwd();
+  constructor(options: DocumentationLanguageOptions = {}) {
+    const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
     const srcRoots = config.paths?.srcRoots ?? [];
     const dynamicCodeCoverage = deriveCoverageFromRoots(
@@ -478,6 +480,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     ).include;
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         DOCUMENTATION_LANGUAGE_RULES,
         {

@@ -59,6 +59,7 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
 } {
   const rawInitCwd = process.env.INIT_CWD;
   const safeInitCwd =
+    // path-ok: Guard verifying INIT_CWD does not contain parent traversal segments
     rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
   const targetDir = options.targetDir
     ? path.resolve(options.targetDir)

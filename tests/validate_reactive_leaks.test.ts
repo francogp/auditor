@@ -50,7 +50,7 @@ describe('ReactiveLeaksAuditor', () => {
     });
 
     it('instantiates with correct metadata', () => {
-      const auditor = new ReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new ReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_reactive_leaks');
       expect(auditor.family).toBe('architecture');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
@@ -60,7 +60,7 @@ describe('ReactiveLeaksAuditor', () => {
 
   describe('Violation Detection', () => {
     it('detects uncleaned addEventListener in component without unmount hook (dom-event-leak)', () => {
-      const auditor = new TestableReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new TestableReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const badCode = `
         <script setup lang="ts">
         window.addEventListener('resize', () => {});
@@ -74,7 +74,7 @@ describe('ReactiveLeaksAuditor', () => {
     });
 
     it('allows addEventListener when onUnmounted or removeEventListener is present', () => {
-      const auditor = new TestableReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new TestableReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `
         <script setup lang="ts">
         import { onUnmounted } from 'vue';
@@ -91,7 +91,7 @@ describe('ReactiveLeaksAuditor', () => {
     });
 
     it('allows addEventListener with { once: true }', () => {
-      const auditor = new TestableReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new TestableReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const onceCode = `
         <script setup lang="ts">
         window.addEventListener('load', () => {}, { once: true });
@@ -103,7 +103,7 @@ describe('ReactiveLeaksAuditor', () => {
     });
 
     it('detects uncleaned setInterval (interval-leak)', () => {
-      const auditor = new TestableReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new TestableReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const badCode = `
         <script setup lang="ts">
         setInterval(() => {}, 1000);
@@ -119,7 +119,7 @@ describe('ReactiveLeaksAuditor', () => {
 
   describe('Clean Execution', () => {
     it('runs audit on clean files and reports zero errors', async () => {
-      const auditor = new TestableReactiveLeaksAuditor([], PROJECT_ROOT);
+      const auditor = new TestableReactiveLeaksAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `<script setup lang="ts">\nconst x = 1;\n</script>`;
       auditor.testScanFile('src/components/Clean.vue', goodCode);
       expect(auditor.collectedViolations).toHaveLength(0);

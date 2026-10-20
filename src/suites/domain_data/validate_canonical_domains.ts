@@ -614,6 +614,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
         speed: 'light',
         phase: 'normal',

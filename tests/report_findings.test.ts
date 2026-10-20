@@ -273,4 +273,53 @@ describe('report_findings CLI Tool', () => {
     expect(() => runReport()).not.toThrow();
     expect(consoleLogSpy).toHaveBeenCalled();
   });
+
+  it('omits 76-suite dump and unrequested box tables in compact flat rule filter', () => {
+    fsReadSpy.mockImplementationOnce(() =>
+      JSON.stringify({
+        ...mockReport,
+        meta: {
+          ...mockReport.meta,
+          isFullAudit: false,
+          totalDiscoveredSuites: 80,
+          executedSuiteCount: 76,
+          executedSuites: Array.from({ length: 76 }, (_, i) => `suite_${i + 1}`),
+          omittedSuites: ['suite_77', 'suite_78', 'suite_79', 'suite_80'],
+          timestamp: Temporal.Now.instant().toString()
+        }
+      })
+    );
+
+    process.argv = ['node', 'report_findings.ts', 'rule=rule_1', 'flat', 'allow-stale'];
+    runReport();
+
+    const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+    expect(allLogs).toContain('ℹ️  [Notice] Inspecting partial run (76/80 suites executed).');
+    expect(allLogs).not.toContain('suite_1, suite_2');
+    expect(allLogs).not.toContain('┌─');
+  });
+
+  it('includes full suite list and consolidated box-drawing banner in human mode', () => {
+    fsReadSpy.mockImplementationOnce(() =>
+      JSON.stringify({
+        ...mockReport,
+        meta: {
+          ...mockReport.meta,
+          isFullAudit: false,
+          totalDiscoveredSuites: 80,
+          executedSuiteCount: 76,
+          executedSuites: Array.from({ length: 76 }, (_, i) => `suite_${i + 1}`),
+          omittedSuites: ['suite_77', 'suite_78', 'suite_79', 'suite_80'],
+          timestamp: Temporal.Now.instant().toString()
+        }
+      })
+    );
+
+    process.argv = ['node', 'report_findings.ts', 'human', 'allow-stale'];
+    runReport();
+
+    const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+    expect(allLogs).toContain('suite_1, suite_2');
+    expect(allLogs).toContain('REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES');
+  });
 });

@@ -20,14 +20,18 @@ export declare function colorizeStreamSubLine(line: string, params: {
   hasWarnings?: boolean;
   subAuditors?: readonly SubAuditorReport[];
 }): string;
+export type ConsoleOutputMode = 'compact' | 'human';
+export interface TaskStreamCoordinatorOptions {
+  indent?: string;
+  mode?: ConsoleOutputMode;
+}
 export declare class TaskStreamCoordinator {
   private completedCount;
   private readonly totalTasks;
   private readonly indent;
+  private readonly mode;
   private printLock;
-  constructor(totalTasks: number, options?: {
-    indent?: string;
-  });
+  constructor(totalTasks: number, options?: TaskStreamCoordinatorOptions);
   onTaskComplete(params: TaskStreamProgressParams): Promise<void>;
   private printTaskItem;
 }

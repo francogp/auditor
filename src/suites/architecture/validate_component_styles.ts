@@ -599,6 +599,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         COMPONENT_STYLE_RULES,
         {

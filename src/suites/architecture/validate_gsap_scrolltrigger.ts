@@ -19,8 +19,9 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig, isExemptFile } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
+  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import { isExemptFile } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -40,12 +41,14 @@ export const GSAP_SCROLLTRIGGER_RULES: readonly GsapScrollTriggerRuleId[] = [
 ] as const;
 
 export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScrollTriggerRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.srcRoots;
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       id: 'validate_gsap_scrolltrigger',
       name: 'GSAP ScrollTrigger Hygiene',
       description: 'Gobernanza de sincronización y anclajes en ScrollTrigger',
@@ -64,7 +67,6 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         changedOnly: false,
         critical: false
       }),
-      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.js']),
       ruleIds: GSAP_SCROLLTRIGGER_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GSAP_SCROLLTRIGGER_RULES, 'behavior'),

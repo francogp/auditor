@@ -14,7 +14,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { deriveCoverageFromRequiredFiles } from '../src/core/auditCoverage.ts';
+import { deriveCoverageFromRequiredFiles, toPosixRelative } from '../src/core/auditCoverage.ts';
 import {
   ALWAYS_IGNORE_DIRS,
   CODE_ONLY_IGNORE_DIRS,
@@ -122,7 +122,7 @@ describe('auditorBase infrastructure', () => {
         new Set(['.ts', '.js', '.md'])
       );
       // node_modules and .agents should be ignored by default
-      const relPaths = codeFiles.map((f) => path.relative(tempDir, f).replace(/\\/g, '/'));
+      const relPaths = codeFiles.map((f) => toPosixRelative(tempDir, f));
       expect(relPaths).toContain('src/main.ts');
       expect(relPaths).toContain('AGENTS.md');
       expect(relPaths).not.toContain('.agents/skills/demo/SKILL.md');
@@ -130,7 +130,7 @@ describe('auditorBase infrastructure', () => {
 
       // With .agents unignored
       const docFiles = collectRepositoryFiles(tempDir, tempDir, [], new Set(['.md']), ['.agents']);
-      const docRelPaths = docFiles.map((f) => path.relative(tempDir, f).replace(/\\/g, '/'));
+      const docRelPaths = docFiles.map((f) => toPosixRelative(tempDir, f));
       expect(docRelPaths).toContain('.agents/skills/demo/SKILL.md');
       expect(docRelPaths).toContain('AGENTS.md');
     });
@@ -147,6 +147,7 @@ describe('auditorBase infrastructure', () => {
             icon: '🧪',
             configKey: 'paths',
             defaultConfig: {},
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             ruleIds: ['test-rule'],
@@ -214,6 +215,7 @@ describe('auditorBase infrastructure', () => {
       icon: '🧪',
       configKey: 'paths',
       defaultConfig: {},
+      requiredPermissions: [],
       criticalConfig: {},
       ruleIds: ['dummy' as const],
       ruleDescriptions: { dummy: 'Regla dummy' },
@@ -393,6 +395,7 @@ describe('auditorBase infrastructure', () => {
           icon: '✅',
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleCapabilities: {
@@ -519,6 +522,7 @@ describe('auditorBase infrastructure', () => {
             icon: '⏱️',
             configKey: 'paths',
             defaultConfig: {},
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             ruleIds: ['only-rule'],
@@ -579,6 +583,7 @@ describe('auditorBase infrastructure', () => {
           icon: '⚙️',
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleIds: ['test-rule'],
@@ -673,6 +678,7 @@ describe('auditorBase infrastructure', () => {
           icon: '🐤',
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           ruleIds: ['canary-forbidden'],
           ruleDescriptions: { 'canary-forbidden': 'Canary forbidden token' },

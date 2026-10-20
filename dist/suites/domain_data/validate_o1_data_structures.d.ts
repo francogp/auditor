@@ -1,5 +1,5 @@
 import { SharedAstContext } from "../../core/astContext.js";
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/domain_data/validate_o1_data_structures.d.ts
 export declare const DEFAULT_O1_CATALOG_PATTERNS: Array<{
   name: string;
@@ -35,7 +35,7 @@ export declare function scanFileForO1Issues(filePath: string, content: string, c
   definingFile: string;
 }>): O1Issue[];
 export declare class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   runAudit(astContext?: SharedAstContext): Promise<void>;
   protected scanFile(relPath: string, content: string): void;
 }

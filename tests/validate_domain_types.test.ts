@@ -53,7 +53,7 @@ describe('DomainTypesAuditor', () => {
   });
 
   it('fulfills point 1: metadata and BaseAuditor contract verification', () => {
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     expect(auditor.id).toBe('validate_domain_types');
     expect(auditor.family).toBe('domain_data');
     expect(auditor.packageName).toBe('Dominio');
@@ -72,7 +72,7 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/types/user.ts'), strictCode, 'utf-8');
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
@@ -90,7 +90,7 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/untyped.ts'), code, 'utf-8');
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
@@ -108,7 +108,7 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/types/contract.ts'), code, 'utf-8');
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
@@ -122,7 +122,7 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/ambiguous.ts'), code, 'utf-8');
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
@@ -136,11 +136,32 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/unbranded.ts'), code, 'utf-8');
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-unbranded-id');
+    expect(findings.length).toBeGreaterThanOrEqual(1);
+    expect(findings[0]?.severity).toBe('error');
+  });
+
+  it('detects phase: string finite domain violation outside contract roots', async () => {
+    const code = [
+      'export interface Breakdown {',
+      '  phase: string;',
+      '  errors: number;',
+      '}'
+    ].join('\n');
+
+    const targetFile = path.join(tempDir, 'src/core/theme.ts');
+    await fs.mkdir(path.dirname(targetFile), { recursive: true });
+    await fs.writeFile(targetFile, code, 'utf-8');
+
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
+    const result = await auditor.execute();
+
+    expect(result.status).toBe('failed');
+    const findings = result.findings.filter((f) => f.ruleId === 'domain-naked-string-primitive');
     expect(findings.length).toBeGreaterThanOrEqual(1);
     expect(findings[0]?.severity).toBe('error');
   });
@@ -193,7 +214,7 @@ describe('DomainTypesAuditor', () => {
       'utf-8'
     );
 
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);

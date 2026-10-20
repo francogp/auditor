@@ -171,6 +171,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         HTML_VALIDATE_CONFIG_RULES,
         {

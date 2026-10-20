@@ -41,6 +41,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
 				speed: "light",
 				phase: "normal",

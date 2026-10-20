@@ -61,6 +61,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 		};
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(NPMRC_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",

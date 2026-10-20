@@ -42,6 +42,7 @@ class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
       },
       configKey: 'parity.enabled',
       defaultConfig: { enabled: true },
+      requiredPermissions: [],
       criticalConfig: {},
       ruleCapabilities: createRuleCapabilities(PARITY_RULES, {
         speed: 'light',
@@ -186,7 +187,7 @@ describe('Auditor Parity Verification Harness', () => {
     const directFindings = auditFileContent(targetFile, code);
 
     // 2. Full auditor execution with RAM cache and optimized loop
-    const auditor = new DomainTypesAuditor(['src'], tempDir);
+    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     // Verify exact findings count and rule distribution

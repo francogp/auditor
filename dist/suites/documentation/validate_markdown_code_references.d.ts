@@ -1,4 +1,4 @@
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/documentation/validate_markdown_code_references.d.ts
 export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch' | 'markdown-outdated-project-version';
 export declare const MARKDOWN_CODE_REFERENCE_RULES: readonly MarkdownCodeReferenceRuleId[];
@@ -26,7 +26,7 @@ export declare class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownC
   private readonly rootDir;
   private readonly scanRoots;
   private readonly gitIgnoreMatcher;
-  constructor(scanRoots?: readonly string[], rootDir?: string);
+  constructor(options?: FileScanRootsOptions);
   private scanMarkdownDocReferences;
   runAudit(): Promise<void>;
   private collectMarkdownFiles;

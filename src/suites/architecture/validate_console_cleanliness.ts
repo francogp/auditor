@@ -20,7 +20,8 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
+  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
@@ -45,20 +46,14 @@ function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
   return new Set(custom);
 }
 
-function resolveConsoleCleanlinessRoots(
-  roots?: readonly string[],
-  projectRoot?: string
-): readonly string[] {
-  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
-}
-
 export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlinessRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const scannableRoots = resolveConsoleCleanlinessRoots(roots, projectRoot);
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     super({
       usesThirdPartyTool: false,
-      roots: scannableRoots,
-      projectRoot,
+      requiredPermissions: [],
+      roots: targetRoots,
+      projectRoot: effectiveRoot,
       ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
         speed: 'light',
         phase: 'normal',

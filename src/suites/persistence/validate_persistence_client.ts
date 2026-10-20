@@ -76,6 +76,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
         speed: 'light',
         phase: 'normal',

@@ -4,8 +4,8 @@ import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
@@ -249,6 +249,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot || process.cwd();
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",

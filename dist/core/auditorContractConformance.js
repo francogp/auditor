@@ -1,6 +1,8 @@
 import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, getActiveFamilies } from "./auditContract.js";
+import { toPosixRelative } from "./auditCoverage.js";
+import "./safePath.js";
 import { BaseAuditor } from "./auditorBase.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
 import path from "node:path";
@@ -31,7 +33,7 @@ function registerExtensionAuditor(fullPath, entryName, projectRoot, tasks) {
 		id,
 		name: id,
 		family: "architecture",
-		scriptPath: path.relative(projectRoot, fullPath).replace(/\\/g, "/"),
+		scriptPath: toPosixRelative(projectRoot, fullPath),
 		command: "node",
 		args: [],
 		fast: true,
@@ -88,20 +90,19 @@ function findAuditorClass(mod) {
 	return null;
 }
 /**
-* Safely instantiates an auditor class using supported constructor signatures.
+* Safely instantiates an auditor class using canonical constructor signatures.
+* Mandate: Prohibits legacy positional arguments; strictly expects { projectRoot: tempDir } or ().
 */
 function instantiateAuditorClass(Cls, tempDir) {
-	const attempts = [
-		() => new Cls({ projectRoot: tempDir }),
-		() => new Cls(tempDir),
-		() => new Cls(void 0, tempDir),
-		() => new Cls(void 0, void 0, tempDir),
-		() => new Cls()
-	];
+	const attempts = [() => new Cls({ projectRoot: tempDir }), () => new Cls()];
+	for (const attempt of attempts) try {
+		const instance = attempt();
+		if (instance && path.resolve(instance.projectRoot) === path.resolve(tempDir)) return instance;
+	} catch {}
 	for (const attempt of attempts) try {
 		return attempt();
 	} catch {}
-	throw new Error(`No se pudo instanciar la clase ${Cls.name} con ninguna firma conocida`);
+	throw new Error(`[Auditor Contract Violation] No se pudo instanciar la clase ${Cls.name}. Debe soportar la firma canónica de opciones ({ projectRoot?: string }) o el constructor por defecto sin argumentos.`);
 }
 function validateBasicMetadata(auditor, taskId, errors) {
 	if (!auditor.id || typeof auditor.id !== "string") errors.push(`Auditor [${taskId}] no define un 'id' válido.`);
@@ -257,14 +258,14 @@ function validateRuleDescriptions(auditor, taskId, errors) {
 function findDedicatedTestFile(projectRoot, taskId, testRoots = ["tests"]) {
 	const candidateRelPaths = [];
 	for (const tr of testRoots) {
-		const cleanTr = tr.replace(/^\/+|\/+$/g, "");
-		candidateRelPaths.push(`${cleanTr}/${taskId}.test.ts`);
-		candidateRelPaths.push(`${cleanTr}/node/auditors/${taskId}.test.ts`);
-		candidateRelPaths.push(`${cleanTr}/unit/auditors/${taskId}.test.ts`);
-		candidateRelPaths.push(`${cleanTr}/auditors/${taskId}.test.ts`);
+		const cleanTr = toPosixRelative(projectRoot, tr);
+		candidateRelPaths.push(path.posix.join(cleanTr, `${taskId}.test.ts`));
+		candidateRelPaths.push(path.posix.join(cleanTr, "node", "auditors", `${taskId}.test.ts`));
+		candidateRelPaths.push(path.posix.join(cleanTr, "unit", "auditors", `${taskId}.test.ts`));
+		candidateRelPaths.push(path.posix.join(cleanTr, "auditors", `${taskId}.test.ts`));
 	}
-	candidateRelPaths.push(`packages/auditor/tests/${taskId}.test.ts`);
-	candidateRelPaths.push(`tests/${taskId}.test.ts`);
+	candidateRelPaths.push(path.posix.join("packages", "auditor", "tests", `${taskId}.test.ts`));
+	candidateRelPaths.push(path.posix.join("tests", `${taskId}.test.ts`));
 	let testFileAbs = null;
 	let testFileRel = candidateRelPaths[0];
 	for (const rel of candidateRelPaths) {

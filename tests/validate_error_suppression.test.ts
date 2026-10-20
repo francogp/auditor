@@ -120,7 +120,7 @@ describe('ErrorSuppressionAuditor', () => {
     });
 
     it('detects violations and fails with status failed and severity error', async () => {
-      const auditor = new TestableErrorSuppressionAuditor([]);
+      const auditor = new TestableErrorSuppressionAuditor({ roots: [] });
       const code = `
         try {
           doRisky();
@@ -137,7 +137,7 @@ describe('ErrorSuppressionAuditor', () => {
 
   describe('Clean execution', () => {
     it('runs on clean files and reports zero errors', async () => {
-      const auditor = new TestableErrorSuppressionAuditor([]);
+      const auditor = new TestableErrorSuppressionAuditor({ roots: [] });
       const cleanCode = `
         try {
           doWork();

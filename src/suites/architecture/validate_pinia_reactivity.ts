@@ -18,12 +18,13 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_pinia_reactivity.ts
  */
 
+import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+import { normalizePosixPath, isPathContained } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -64,24 +65,21 @@ function isStoreDestructuring(
   return ts.isIdentifier(initializer) && storeVariables.has(initializer.text);
 }
 
-function resolvePiniaAuditRoots(
-  roots?: readonly string[],
-  projectRoot?: string
-): readonly string[] {
-  return roots ?? getAuditConfig(projectRoot).paths.srcRoots ?? [];
-}
-
 export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
   private readonly storesRoots: readonly string[];
   private readonly authorizedStateMutationFiles: ReadonlySet<string>;
 
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const piniaRoots = resolvePiniaAuditRoots(roots, projectRoot);
-    const config = getAuditConfig(projectRoot);
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (cfg) => cfg.paths.srcRoots ?? []
+    );
+    const config = getAuditConfig(effectiveRoot);
     super({
       usesThirdPartyTool: false,
-      roots: piniaRoots,
-      projectRoot,
+      requiredPermissions: [],
+      roots: targetRoots,
+      projectRoot: effectiveRoot,
       ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -146,7 +144,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       requiresAst: true
     });
     this.storesRoots = config.paths.storesRoots ?? [];
-    this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(projectRoot);
+    this.authorizedStateMutationFiles = getAuthorizedStateMutationFiles(effectiveRoot);
   }
 
   private reportPiniaViolation(
@@ -239,10 +237,12 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       return;
     }
 
-    const isStoreFile = this.storesRoots.some((root) => {
-      const normalizedRoot = normalizePosixPath(root).replace(/\/+$/, '') + '/';
-      return normalizedPath.startsWith(normalizedRoot);
-    });
+    const isStoreFile = this.storesRoots.some((root) =>
+      isPathContained(
+        path.resolve(this.projectRoot, root),
+        path.resolve(this.projectRoot, normalizedPath)
+      )
+    );
     const isAuthorized =
       this.authorizedStateMutationFiles.has(normalizedPath) ||
       AUTHORIZED_STATE_MUTATION_FILES.has(normalizedPath);

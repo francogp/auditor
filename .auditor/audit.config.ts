@@ -121,7 +121,17 @@ export default defineAuditConfig({
     enabled: true
   },
   packageHygiene: {
-    enabled: true
+    enabled: true,
+    ignoreDependencies: [
+      '@arethetypeswrong/core',
+      'html-validate',
+      'html-validate-vue',
+      'markdownlint-cli',
+      'postcss-html',
+      'publint',
+      'stylelint-scss',
+      'type-coverage'
+    ]
   },
   secretLeaks: {
     enabled: true
@@ -234,7 +244,8 @@ export default defineAuditConfig({
     enabled: true
   },
   auditorHygiene: {
-    enabled: true
+    enabled: true,
+    roots: ['src/suites', 'src/analyzers', 'src/core', 'scripts/auditors']
   },
   packageScripts: {
     enabled: true

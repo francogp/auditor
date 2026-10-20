@@ -22,7 +22,8 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
+  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -319,9 +320,9 @@ function isHighDensityOrSuppressed(
 }
 
 export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.srcRoots;
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+    const config = getAuditConfig(effectiveRoot);
     const stylesExempts = [
       ...(config.styles?.exemptPaths ?? []),
       ...(config.styles?.exemptCssFiles ?? [])
@@ -329,6 +330,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       id: 'validate_gsap_animations',
       name: 'GSAP Animation & UI Timing Hygiene',
       description: 'Gobernanza estricta de animaciones GSAP y timers UI',
@@ -348,7 +352,6 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         changedOnly: false,
         critical: false
       }),
-      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.scss', '.css']),
       ruleIds: GSAP_ANIMATION_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GSAP_ANIMATION_RULES, 'behavior'),

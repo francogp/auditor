@@ -76,7 +76,8 @@ function parseJsonArrayOutput(input, options) {
 */
 function normalizePosixPath(filePath, cwd = process.cwd()) {
 	if (!filePath) return "";
-	return (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).replace(/\\/g, "/").replace(/^\.\//, "");
+	const posix = (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).split(path.sep).join(path.posix.sep);
+	return posix.startsWith("./") ? posix.slice(2) : posix;
 }
 /**
 * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
@@ -86,10 +87,15 @@ function isPathExempt(relPath, exemptPaths) {
 	if (!exemptPaths || exemptPaths.length === 0) return false;
 	const norm = normalizePosixPath(relPath);
 	for (const p of exemptPaths) {
-		let cleanPrefix = normalizePosixPath(p);
+		const normP = normalizePosixPath(p);
+		if (p.includes("*") || p.includes("?")) {
+			if (path.posix.matchesGlob(norm, normP) || path.posix.matchesGlob(norm, `**/${normP}`)) return true;
+		}
+		let cleanPrefix = normP;
 		if (cleanPrefix.endsWith("/**")) cleanPrefix = cleanPrefix.slice(0, -3);
 		else if (cleanPrefix.endsWith("/*")) cleanPrefix = cleanPrefix.slice(0, -2);
-		if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || norm.includes(cleanPrefix)) return true;
+		else if (cleanPrefix.endsWith("/")) cleanPrefix = cleanPrefix.slice(0, -1);
+		if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || norm.includes(`/${cleanPrefix}/`) || norm.endsWith(`/${cleanPrefix}`)) return true;
 	}
 	return false;
 }

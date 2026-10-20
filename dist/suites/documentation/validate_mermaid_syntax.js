@@ -1,4 +1,4 @@
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -69,9 +69,11 @@ const UNQUOTED_EDGE_LABEL_REGEX = /\|([^|"\n]+)\|/g;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b\w+\[([^\]"()\n]*[()][^\]"\n]*)\]/g;
 const UNQUOTED_BRACE_NODE_REGEX = /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g;
 var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
-	constructor(roots = ["."], projectRoot) {
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, () => ["."]);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -101,7 +103,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				"mermaid-syntax-error": "📖 GUÍA DE REMEDIACIÓN: mermaid-syntax-error\n1. Causa Raíz: El bloque de diagrama Mermaid (````mermaid) contiene errores sintácticos que impiden su compilación por el motor de Mermaid (palabras clave no reconocidas, flechas mal formadas, bloques no cerrados o directivas no soportadas).\n2. Diagnóstico: Inspecciona el bloque de código Mermaid en el archivo Markdown y la línea señalada en el mensaje de error del compilador.\n3. Solución Canónica: Corrige la sintaxis según las directivas oficiales de Mermaid. Verifica encabezados de diagrama (`graph TD`, `flowchart LR`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`) y la terminación de instrucciones.\n4. Ejemplo:\n   ❌ Incorrecto: ````mermaid\\nflowchart\\nA --> B\\n```` (falta dirección TD/LR)\n   ✅ Correcto:   ````mermaid\\nflowchart TD\\nA --> B\\n````",
 				"mermaid-unquoted-special-chars": "📖 GUÍA DE REMEDIACIÓN: mermaid-unquoted-special-chars\n1. Causa Raíz: Un nodo o etiqueta de enlace en un diagrama Mermaid incluye caracteres especiales (paréntesis `()`, corchetes, dos puntos `:`, interrogación `?`, operadores matemáticos) sin estar delimitado por comillas dobles `\"\"`.\n2. Diagnóstico: Revisa el nodo o etiqueta indicado en el archivo Markdown.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para envolver automáticamente los textos entrecomillados.\n   b) O añade manualmente comillas dobles dentro de los corchetes o llaves del nodo.\n4. Ejemplo:\n   ❌ Incorrecto: `id[Proceso (Principal)]` o `A -->|¿Confirmar?| B`\n   ✅ Correcto:   `id[\"Proceso (Principal)\"]` o `A -->|\"¿Confirmar?\"| B`"
 			},
-			roots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".md"]),
 			unignoreDirs: [
 				".agents",
@@ -114,7 +116,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				"dev-dist/**",
 				"test-results/**"
 			],
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	fixMermaidLine(line) {

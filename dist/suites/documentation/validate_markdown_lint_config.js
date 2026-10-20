@@ -53,6 +53,7 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 		};
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(MARKDOWNLINT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
@@ -72,8 +73,8 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 			ruleIds: MARKDOWNLINT_CONFIG_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWNLINT_CONFIG_RULES, "setup"),
 			packageName: "Markdown",
-			configKey: "paths",
-			defaultConfig: {},
+			configKey: "documentation",
+			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			ruleDescriptions: {
 				"markdownlint-config-missing": "Archivo .markdownlint.json ausente",
@@ -81,9 +82,9 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 				"markdownlint-config-missing-strict-rule": "Falta regla estricta obligatoria"
 			},
 			ruleRemediations: {
-				"markdownlint-config-missing": "Diagnóstico: El archivo .markdownlint.json no existe en el proyecto.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear la configuración canónica.",
-				"markdownlint-config-syntax": "Diagnóstico: El archivo de configuración de markdownlint contiene errores de sintaxis JSON.\nRemediación: Revisa comas sobrantes o caracteres de escape inválidos en .markdownlint.json.",
-				"markdownlint-config-missing-strict-rule": "Diagnóstico: Faltan reglas obligatorias del baseline (MD033 con allowed_elements: [\"br\"], MD024 con siblings_only: true, etc.).\nRemediación: Ejecuta `auditor fix` para reinyectar el baseline estricto de documentación."
+				"markdownlint-config-missing": "📖 GUÍA DE REMEDIACIÓN: markdownlint-config-missing\n1. Causa Raíz: El archivo de configuración canónico `.markdownlint.json` no existe en la raíz del repositorio.\n2. Diagnóstico: Verifica si existe `.markdownlint.json` en la raíz del proyecto.\n3. Solución Canónica: Ejecuta `npm run auditor:fix` para auto-scaffoldear automáticamente la configuración canónica con el baseline estricto.\n4. Ejemplo / Comando de auto-fix:\n   - Ejecutar: `npm run auditor:fix` o `auditor fix`",
+				"markdownlint-config-syntax": "📖 GUÍA DE REMEDIACIÓN: markdownlint-config-syntax\n1. Causa Raíz: El archivo `.markdownlint.json` contiene errores de sintaxis JSON (comas de más, comillas sin cerrar o formato corrupto).\n2. Diagnóstico: Abre `.markdownlint.json` y valida la sintaxis con un validador JSON.\n3. Solución Canónica: Corrige las comas sobrantes o comillas faltantes en `.markdownlint.json`.\n4. Ejemplo / Comando de auto-fix:\n   - Ejecutar: `npm run auditor:fix` o formatear `.markdownlint.json` con `vp run oxfmt`",
+				"markdownlint-config-missing-strict-rule": "📖 GUÍA DE REMEDIACIÓN: markdownlint-config-missing-strict-rule\n1. Causa Raíz: Faltan reglas obligatorias del baseline inmutable del auditor (MD033 con allowed_elements: [\"br\"], MD024 con siblings_only: true, etc.) en `.markdownlint.json`.\n2. Diagnóstico: Compara `.markdownlint.json` contra las reglas requeridas por el estándar de documentación del framework.\n3. Solución Canónica: Restablece las reglas del baseline estricto ejecutando la auto-reparación mecánica del auditor.\n4. Ejemplo / Comando de auto-fix:\n   - Ejecutar: `npm run auditor:fix` o `auditor fix`"
 			},
 			coverage: { include: [".markdownlint*"] },
 			projectRoot,

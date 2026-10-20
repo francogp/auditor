@@ -1,12 +1,10 @@
-import { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, createLineDetector } from "./homebrewTypes.js";
+import { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, createLineDetector, isInsideStringLiteral } from "./homebrewTypes.js";
 import { packageJsonDetector } from "./detectors/packageJsonDetector.js";
 import { vueSfcRegexDetector } from "./detectors/vueSfcRegexDetector.js";
 import { tsAstDetector } from "./detectors/tsAstDetector.js";
-import { pathNormalizeDetector } from "./detectors/pathNormalizeDetector.js";
 import { rawConsoleDetector } from "./detectors/rawConsoleDetector.js";
 import { commentStrippingDetector } from "./detectors/commentStrippingDetector.js";
 import { braceCountingDetector } from "./detectors/braceCountingDetector.js";
-import { pathContainmentDetector } from "./detectors/pathContainmentDetector.js";
 import { fileWalkerDetector } from "./detectors/fileWalkerDetector.js";
 import { predicatesDetector } from "./detectors/predicatesDetector.js";
 import { manualTimingDetector } from "./detectors/manualTimingDetector.js";
@@ -17,4 +15,4 @@ import { redundantRuleEvaluatedDetector } from "./detectors/redundantRuleEvaluat
 import { thirdPartyToolContractDetector } from "./detectors/thirdPartyToolContractDetector.js";
 import { inefficientFileScanDetector } from "./detectors/inefficientFileScanDetector.js";
 import { HomebrewDetectorRegistry } from "./homebrewRegistry.js";
-export { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewDetectorRegistry, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, pathContainmentDetector, pathNormalizeDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };
+export { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId, HomebrewDetector, HomebrewDetectorRegistry, HomebrewFinding, HomebrewInspectionContext, LineDetectorOptions, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, isInsideStringLiteral, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };

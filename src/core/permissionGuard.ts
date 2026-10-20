@@ -45,6 +45,15 @@ export function polyfillPermissionModelFsync(): void {
 // Automatically initialize polyfill on module load
 polyfillPermissionModelFsync();
 
+export const DEFAULT_PERMISSIONS = [
+  '--permission',
+  '--experimental-strip-types',
+  '--allow-fs-read=*',
+  '--allow-fs-write=*',
+  '--allow-child-process',
+  '--allow-addons'
+] as const;
+
 export interface PermissionRequirements {
   fsRead?: string[];
   fsWrite?: string[];

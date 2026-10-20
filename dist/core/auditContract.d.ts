@@ -215,6 +215,8 @@ export interface AuditorPackageScriptRequirement {
   readonly description: string;
   /** Logical category (e.g. 'core', 'versioning', 'reporting', 'suite', 'fallow', 'family', 'env', 'aliases') */
   readonly category?: string;
+  /** Node.js 26 permissions required by this script (e.g. ['--allow-addons', '--allow-child-process']) */
+  readonly permissions?: readonly string[];
   /** Optional predicate determining if this script is applicable in the current project */
   readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
 }

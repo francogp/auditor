@@ -1,3 +1,5 @@
+import { toPosixRelative } from "./auditCoverage.js";
+import "./safePath.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import util, { styleText } from "node:util";
@@ -79,7 +81,7 @@ async function compressAsset(filePath, distDir, options) {
 			await fs.writeFile(`${filePath}.gz`, gzipBuffer);
 			gzipBytes = gzipBuffer.byteLength;
 		}
-		const relPath = path.relative(distDir, filePath).replace(/\\/g, "/");
+		const relPath = toPosixRelative(distDir, filePath);
 		const bestCompressed = Math.min(enableBrotli ? brotliBytes : content.byteLength, enableGzip ? gzipBytes : content.byteLength);
 		const savings = (content.byteLength - bestCompressed) / content.byteLength * 100;
 		return {

@@ -356,6 +356,7 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       id: 'validate_file_encoding',
       name: 'File Encoding & Charset Validator',
       description: 'Garantiza codificación UTF-8 sin BOM y transcodificación',
@@ -410,7 +411,7 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
     const detectMojibake = encodingConfig?.detectMojibake ?? true;
 
     // Collect all scannable files according to canonical roots & extensions
-    const candidateFiles = this.context.collectFiles(this.roots, this.allowedExtensions);
+    const candidateFiles = this.getScannableFiles();
     let scannedCount = 0;
     let repairedCount = 0;
 
@@ -418,10 +419,6 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       const filePath = path.resolve(this.projectRoot, relPath);
       const ext = path.extname(filePath).toLowerCase();
       if (KNOWN_BINARY_EXTENSIONS.has(ext)) {
-        continue;
-      }
-
-      if (!this.isPathScannable(relPath)) {
         continue;
       }
 

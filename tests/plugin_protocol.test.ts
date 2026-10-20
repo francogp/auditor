@@ -44,6 +44,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '🧩',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleCapabilities: {
@@ -101,6 +102,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '🛡️',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleCapabilities: {
@@ -155,6 +157,7 @@ describe('Auditor Plugin Protocol', () => {
           icon: '📦',
           configKey: 'domain.enabled',
           defaultConfig: { enabled: true },
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleCapabilities: {

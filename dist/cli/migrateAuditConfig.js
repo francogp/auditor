@@ -1,5 +1,7 @@
 import { AUDITOR_DIR, LEGACY_ROOT_CONFIG_FILES } from "../core/auditConfigTypes.js";
 import "../core/auditConfig.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -22,7 +24,7 @@ function collectRelativeSpecifiers(source) {
 	return found;
 }
 function rebaseSpecifier(specifier, fromDir, toDir) {
-	const relative = path.relative(toDir, path.resolve(fromDir, specifier)).split(path.sep).join("/");
+	const relative = toPosixRelative(toDir, path.resolve(fromDir, specifier));
 	return relative.startsWith(".") ? relative : `./${relative}`;
 }
 function rewriteRelativeImports(code, fileName, fromDir, toDir) {

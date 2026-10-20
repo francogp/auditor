@@ -16,7 +16,7 @@ import {
   createUniformRemediationPhases,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
-  getAuditConfig
+  type FileScanRootsOptions
 } from '@francogp/auditor';
 
 enableCompileCache();
@@ -30,21 +30,16 @@ export const MY_AST_RULES: readonly MyAstRuleId[] = [
   'my-ast-missing-contract'
 ] as const;
 
-export interface MyAstAuditorOptions {
-  readonly projectRoot?: string;
-  readonly roots?: readonly string[];
-}
+export type MyAstAuditorOptions = FileScanRootsOptions;
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   private readonly targetRoots: readonly string[];
 
   constructor(options: MyAstAuditorOptions = {}) {
-    const config = getAuditConfig(options.projectRoot);
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots({
-      projectRoot: options.projectRoot,
-      roots: options.roots,
-      configRoots: config.paths?.srcRoots
-    });
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
     const allowedExtensions = new Set(['.ts', '.vue']);
 
     super({
@@ -74,22 +69,25 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      // Mandatory: Node.js Permission Model flags required by this suite (pass [] for standard suites)
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-ast-forbidden-pattern': 'Patrón sintáctico prohibido en AST',
         'my-ast-missing-contract': 'Declaración requerida faltante'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
       ruleRemediations: {
         'my-ast-forbidden-pattern':
-          'Se detectó una construcción de AST prohibida por las políticas del proyecto.\n' +
-          '1. Inspecciona el archivo y localiza el nodo AST infractor.\n' +
-          '2. Refactoriza el código utilizando los métodos o estructuras canónicas.\n' +
-          '3. Ejecuta "npm run auditor" para verificar que el árbol de sintaxis sea limpio.',
+          'Causa Raíz: Se detectó una construcción de AST prohibida por las políticas arquitecturales del proyecto.\n' +
+          'Diagnóstico: Inspecciona el archivo y localiza el nodo AST infractor reportado.\n' +
+          'Solución Canónica: Refactoriza el código utilizando los métodos o estructuras canónicas indicadas.\n' +
+          'Ejemplo / Comando: npm run auditor',
         'my-ast-missing-contract':
-          'El archivo analizado carece de una declaración o contrato mandatorio.\n' +
-          '1. Implementa la interfaz o añade la exportación exigida por la arquitectura.\n' +
-          '2. Revisa las directrices del módulo para conocer el contrato exacto.'
+          'Causa Raíz: El archivo analizado carece de una declaración o contrato mandatorio.\n' +
+          'Diagnóstico: Inspecciona las firmas del módulo y contrasta con la interfaz requerida.\n' +
+          'Solución Canónica: Implementa la interfaz o añade la exportación exigida por la arquitectura.\n' +
+          'Ejemplo / Comando: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_AST_RULES, 'hygiene'),

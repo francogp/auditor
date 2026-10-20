@@ -102,6 +102,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
   constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         ENVIRONMENT_ENGINES_RULES,
         {

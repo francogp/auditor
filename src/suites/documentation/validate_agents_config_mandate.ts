@@ -28,7 +28,8 @@ export type AgentsConfigMandateRuleId =
   | 'agents-missing-fake-pass-mandate'
   | 'agents-missing-chat-language-mandate'
   | 'agents-missing-destructive-git-mandate'
-  | 'agents-missing-official-tools-mandate';
+  | 'agents-missing-official-tools-mandate'
+  | 'agents-missing-architecture-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
@@ -36,7 +37,8 @@ export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] =
   'agents-missing-fake-pass-mandate',
   'agents-missing-chat-language-mandate',
   'agents-missing-destructive-git-mandate',
-  'agents-missing-official-tools-mandate'
+  'agents-missing-official-tools-mandate',
+  'agents-missing-architecture-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
@@ -81,6 +83,12 @@ export const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN =
 export const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES =
   '- **Prohibición Absoluta de Comandos Git Destructivos No Solicitados**: Los agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO ejecutar comandos Git destructivos (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) que descarten o sobrescriban cambios del árbol de trabajo o del historial de commits sin autorización previa explícita del programador humano.';
 
+export const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN =
+  '- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate), decoupled layering, Node.js 26+ native standard library mandate, dynamic SSoT configuration, and official framework tools priority. Deviating from `/architecture` or executing plans that bypass its pillars is strictly prohibited.';
+
+export const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES =
+  '- **Mandato de Gobernanza Arquitectónica Universal y Alineación Obligatoria de Planes de Trabajo (`/architecture`)**: El marco de gobernanza `/architecture` rige todo el diseño, estructura, comportamiento en runtime y refactorización en este repositorio, y DEBE permanecer continuamente activo y ser estrictamente aplicado. Cada vez que se elabore, proponga o ejecute un plan de trabajo, diseño técnico, hoja de ruta de refactorización o desglose de tareas (ej. `/plan`, `/brainstorming`, planes de tareas), el trabajo propuesto DEBE alinearse estrictamente y satisfacer `/architecture` y todo su contenido: los 6 Pilares Mandatorios de Diseño (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), la Guía Principal de Depuración (`/systematic-debugging` - Mandato RED-GREEN ante todo), desacoplamiento de capas, uso exclusivo de librerías nativas de Node.js 26+, configuración SSoT dinámica y prioridad de herramientas oficiales del framework. Desviarse de `/architecture` o ejecutar planes que eludan sus pilares está estrictamente prohibido.';
+
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
   backwardCompat: {
@@ -95,6 +103,10 @@ const CANONICAL_SNIPPET_REGISTRY = {
   officialTools: {
     en: CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN,
     es: CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES
+  },
+  architecture: {
+    en: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN,
+    es: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES
   }
 } as const;
 
@@ -124,6 +136,13 @@ export function getCanonicalOfficialToolsSnippet(language: DocumentationLanguage
   return (
     CANONICAL_SNIPPET_REGISTRY.officialTools[language] ??
     CANONICAL_SNIPPET_REGISTRY.officialTools.en
+  );
+}
+
+export function getCanonicalArchitectureSnippet(language: DocumentationLanguage = 'en'): string {
+  return (
+    CANONICAL_SNIPPET_REGISTRY.architecture[language] ??
+    CANONICAL_SNIPPET_REGISTRY.architecture.en
   );
 }
 
@@ -324,6 +343,32 @@ export function containsOfficialToolsMandate(
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the universal architecture governance and work planning alignment mandate.
+ */
+export function containsArchitectureMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /\/architecture|architecture\s+governance|gobernanza\s+arquitect[oó]nica/i.test(text);
+  if (!hasSubject) return false;
+
+  const hasPlanningOrFramework =
+    /work\s+plan|plan(?:es)?\s+de\s+trabajo|framework|marco|governs?|rige/i.test(text);
+  if (!hasPlanningOrFramework) return false;
+
+  const hasMandatoryOrActive =
+    /mandatory|obligatori|active|activo|strictly|estrictamente|enforced|aplicado/i.test(text);
+  if (!hasMandatoryOrActive) return false;
+
+  const enMarkers =
+    /(?:Architecture Governance|Work Planning|Design Pillars|Debugging Guide|governs|strictly enforced)/i;
+  const esMarkers =
+    /(?:Gobernanza Arquitect[oó]nica|Planes de Trabajo|Pilares.*Diseño|Guía Principal de Depuración|rige|estrictamente aplicado)/i;
+  return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
   check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
@@ -426,10 +471,28 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause prioritizing official framework CLI tools and prohibiting premature ad-hoc scripts.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente el mandato de prioridad de herramientas oficiales del framework y prohibición de scripts ad-hoc prematuros.'
+  },
+  {
+    ruleId: 'agents-missing-architecture-mandate',
+    check: (text, docLang) => containsArchitectureMandate(text, docLang),
+    getSnippet: (docLang) => getCanonicalArchitectureSnippet(docLang),
+    isExistingLine: (l) =>
+      l.includes('Architecture Governance') ||
+      l.includes('Gobernanza Arquitectónica') ||
+      l.includes('Work Planning Alignment') ||
+      l.includes('Alineación Obligatoria de Planes de Trabajo') ||
+      /(?:architecture\s+governance|gobernanza\s+arquitect[oó]nica).*(?:\/architecture|work\s+plan|plan\s+de\s+trabajo)/i.test(
+        l
+      ),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause establishing universal /architecture governance and mandatory work planning alignment.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente el mandato de gobernanza universal de /architecture y alineación obligatoria de planes de trabajo.'
   }
 ];
 
 export interface AgentsConfigMandateOptions {
+  projectRoot?: string;
   fix?: boolean;
   language?: DocumentationLanguage;
   chatLanguage?: DocumentationLanguage;
@@ -440,10 +503,11 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
   private readonly languageOption?: DocumentationLanguage;
   private readonly chatLanguageOption?: DocumentationLanguage;
 
-  constructor(rootDir?: string, options?: AgentsConfigMandateOptions) {
-    const projectRoot = rootDir || process.cwd();
+  constructor(options: AgentsConfigMandateOptions = {}) {
+    const projectRoot = options.projectRoot || process.cwd();
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         AGENTS_CONFIG_MANDATE_RULES,
         {
@@ -476,7 +540,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
         'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat',
         'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo',
-        'agents-missing-official-tools-mandate': 'Falta mandato de herramientas oficiales'
+        'agents-missing-official-tools-mandate': 'Falta mandato de herramientas oficiales',
+        'agents-missing-architecture-mandate': 'Falta mandato de arquitectura'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -532,7 +597,16 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
           '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
           '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
           '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code..."'
+          '   - Cláusula obligatoria: "- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code..."',
+        'agents-missing-architecture-mandate':
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-architecture-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que establece a `/architecture` como el marco transversal de gobernanza arquitectónica y exige que todo plan de trabajo, diseño técnico o refactorización satisfaga estrictamente sus pilares.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de gobernanza universal de `/architecture` y alineación obligatoria de planes de trabajo.\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
+          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)..."'
       },
       coverage: {
         include: ['AGENTS.md']

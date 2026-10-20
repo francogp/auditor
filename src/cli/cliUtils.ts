@@ -172,6 +172,40 @@ export function stripProjectCliArgs(argv: readonly string[]): string[] {
   return strippedArgs;
 }
 
+/** Canonical flags indicating user requested human console output. */
+export const HUMAN_CONSOLE_FLAGS: ReadonlySet<string> = new Set([
+  'human',
+  '--human',
+  'format=human',
+  'verbose',
+  '--verbose',
+  'format=verbose'
+]); // runtime-set: Fast O(1) human flags lookup
+
+export interface HumanConsoleOptions {
+  human?: boolean;
+  verbose?: boolean;
+  format?: string;
+}
+
+/**
+ * Resolves whether the current invocation requested human Box-Drawing output.
+ */
+export function isHumanConsoleMode(
+  options?: HumanConsoleOptions,
+  argv: readonly string[] = process.argv
+): boolean {
+  if (
+    options?.human === true ||
+    options?.verbose === true ||
+    options?.format === 'human' ||
+    options?.format === 'verbose'
+  ) {
+    return true;
+  }
+  return argv.some((arg) => HUMAN_CONSOLE_FLAGS.has(arg));
+}
+
 export interface ExecuteNodeCliOptions {
   cwd?: string;
   maxBuffer?: number;
@@ -294,7 +328,7 @@ export function resolvePackageBin(
     if (options.projectRoot) {
       const candidate = resolveNodeModuleBin(
         options.projectRoot,
-        `${packageName}/${options.fallbackRelativeBin}`
+        path.join(packageName, options.fallbackRelativeBin)
       );
       if (fs.existsSync(candidate)) return candidate;
     }
@@ -303,7 +337,8 @@ export function resolvePackageBin(
       const homeCandidate = path.resolve(
         cleanHome,
         'node_modules',
-        `${packageName}/${options.fallbackRelativeBin}`
+        packageName,
+        options.fallbackRelativeBin
       );
       if (fs.existsSync(homeCandidate)) return homeCandidate;
     }

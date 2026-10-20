@@ -19,10 +19,10 @@ Homebrew path manipulation, custom directory walkers, and ad-hoc string splittin
 
 * ❌ **FORBIDDEN**: Writing recursive functions (`walk(dir)`, `walkDir()`, `getAllFiles()`, `getFilesRecursively()`) or raw `fs.readdirSync(dir, { recursive: true })` without ignore governance.
 * ❌ **FORBIDDEN**: Hardcoding directory ignore lists (`['node_modules', 'dist', 'coverage']`) across multiple files.
-* ✅ **CANONICAL**: Use `collectRepositoryFiles()` from `@francogp/auditor` / `src/core/safePath.ts`.
+* ✅ **CANONICAL**: Use `collectRepositoryFiles()` from `@francogp/auditor` / `src/core/auditorBase.ts`.
 
   ```ts
-  import { collectRepositoryFiles } from '../safePath.ts';
+  import { collectRepositoryFiles } from '../auditorBase.ts';
 
   const files = collectRepositoryFiles(targetDir, projectRoot, [], allowedExtensions);
   ```
@@ -100,11 +100,16 @@ Homebrew path manipulation, custom directory walkers, and ad-hoc string splittin
 
 Two core auditor suites actively govern this contract:
 
-1. **`validate_native_paths`**:
-   * `unsafe-path-concat`: Flags string concatenations with slashes in filesystem sinks.
-   * `unsanitized-env-argv-path`: Flags unvalidated command-line or environment paths.
-   * `hardcoded-slash-path`: Flags `.replace(/\\/g, '/')`, hardcoded `C:\\`, and slash-dependent slicing.
-   * `homebrew-path-manipulation`: Flags non-standard path sanitization algorithms.
+1. **`validate_native_paths`** (AST-based, 9 deterministic rules declared in `phase: 'setup'`):
+   * `native-path-unsafe-concat`: Flags string concatenations or template literals with slashes/segments in filesystem sinks (e.g. `dir + '/' + f`, `${base}/${rel}`). Use `path.join()` or `path.resolve()`.
+   * `native-path-homebrew-normalize`: Flags non-standard path sanitization, manual separator normalizations, and segment splitting/slicing algorithms. Use `path.normalize()`, `path.posix.normalize()`, `toPosixPath()`, or `p.replaceAll(path.win32.sep, path.posix.sep)`.
+   * `native-path-separator-swap`: Flags hardcoded separator swapping (`replace(/\\/g, '/')`), Windows drive letters (`C:\\`), and slash-dependent index slicing. Use `path.win32.isAbsolute()`, `path.sep`, or `path.posix`.
+   * `native-path-homebrew-containment`: Flags custom substring or regex-based directory traversal validations (e.g. `p.includes('..')`, `!p.startsWith(root)`). Use `path.resolve()` + `path.relative()` bounds checking (`isPathContained()`).
+   * `native-path-homebrew-parsing`: Flags manual string splitting, regex parsing, or slicing to extract extensions, basenames, or parent directories. Use `path.extname()`, `path.basename()`, or `path.dirname()`.
+   * `native-path-homebrew-file-url`: Flags manual `file://` protocol prefix concatenation or substring stripping. Use `pathToFileURL()` and `fileURLToPath()` from `node:url`.
+   * `native-path-homebrew-url-parsing`: Flags manual URL string splitting, protocol matching regexes, or custom query/hostname parsing. Use the WHATWG standard `URL` constructor or `URLSearchParams`.
+   * `native-path-unparsed-env-argv`: Flags unvalidated command-line (`process.argv`) or environment variable (`process.env`) paths fed directly into filesystem APIs without containment or normalization assertions.
+   * `native-path-homebrew-fetch-url`: Flags passing local filesystem paths, path variables, or directory segments directly into `fetch()` or HTTP clients without an explicit URL scheme. Use `node:fs` or `pathToFileURL()`.
 
 2. **`validate_auditor_hygiene`**:
    * `auditor-manual-file-walker`: Flags recursive directory walkers or custom `readdirSync` loops.

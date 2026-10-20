@@ -1,7 +1,9 @@
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
-import { HybridHarnessEngine } from "./hybridHarness.js";
+import { toPosixRelative } from "../auditCoverage.js";
+import "../safePath.js";
 import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
+import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
+import { HybridHarnessEngine } from "./hybridHarness.js";
 import path from "node:path";
 import { execSync } from "node:child_process";
 //#region src/core/refactor/dupesRefactorEngine.ts
@@ -43,13 +45,13 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 	toolId = "auditor-dupes";
 	configSectionKey = "fallow";
 	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof FallowArchitectureAuditor ? auditorOrOptions : new FallowArchitectureAuditor(typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot ?? process.cwd());
+		const auditor = auditorOrOptions instanceof FallowArchitectureAuditor ? auditorOrOptions : new FallowArchitectureAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot ?? process.cwd() });
 		super(auditor);
 	}
 	discoverInFile(filePath) {
 		const all = this.triageCandidates();
-		const relNorm = path.relative(this.projectRoot, filePath).replace(/\\/g, "/");
-		return all.filter((c) => c.files.some((f) => f.replace(/\\/g, "/") === relNorm));
+		const relNorm = toPosixRelative(this.projectRoot, filePath);
+		return all.filter((c) => c.files.some((f) => toPosixRelative(this.projectRoot, f) === relNorm));
 	}
 	createPlan(id, findings) {
 		return {
@@ -80,19 +82,19 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 		let deadFiles = /* @__PURE__ */ new Set();
 		try {
 			const dead = runFallowJson("dead-code", ["--include-dupes"], this.projectRoot);
-			deadFiles = new Set(dead.unused_files.map((f) => path.normalize(f.path).replace(/\\/g, "/")));
+			deadFiles = new Set(dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)));
 		} catch {}
 		const effectiveMin = Math.max(2, minOccurrences);
 		const candidates = [];
 		for (const g of dupes.clone_groups) {
 			const validInstances = g.instances.filter((i) => {
-				const rel = path.isAbsolute(i.file) ? path.relative(this.projectRoot, i.file).replace(/\\/g, "/") : i.file.replace(/\\/g, "/");
+				const rel = toPosixRelative(this.projectRoot, i.file);
 				return this.isPathScannable(rel);
 			});
 			if (validInstances.length < effectiveMin) continue;
-			const files = Array.from(new Set(validInstances.map((i) => i.file.replace(/\\/g, "/"))));
+			const files = Array.from(new Set(validInstances.map((i) => toPosixRelative(this.projectRoot, i.file))));
 			const topology = determineTopology(files);
-			const isDead = files.some((f) => deadFiles.has(path.normalize(f).replace(/\\/g, "/")));
+			const isDead = files.some((f) => deadFiles.has(toPosixRelative(this.projectRoot, f)));
 			candidates.push({
 				fingerprint: g.fingerprint,
 				topology,

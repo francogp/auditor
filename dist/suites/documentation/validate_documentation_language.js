@@ -3,8 +3,8 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
 import path from "node:path";
@@ -99,7 +99,8 @@ function isLanguageExemptPath(relPath, exemptions) {
 		const normEx = normalizePosixPath(ex).toLowerCase();
 		if (normEx.endsWith("/**")) {
 			const prefix = normEx.slice(0, -3);
-			if (normalized.startsWith(prefix) || normalized.startsWith(prefix.replace(/^\//, ""))) return true;
+			const cleanPrefix = prefix.startsWith("/") ? prefix.slice(1) : prefix;
+			if (normalized.startsWith(prefix) || normalized.startsWith(cleanPrefix)) return true;
 		} else if (normEx.endsWith("/*")) {
 			const prefix = normEx.slice(0, -2);
 			if (normalized.startsWith(prefix)) return true;
@@ -301,8 +302,8 @@ function extractProseFromComments(rawComments) {
 var DocumentationLanguageAuditor = class extends BaseAuditor {
 	rootDir;
 	options;
-	constructor(rootDir, options) {
-		const projectRoot = rootDir || process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot || process.cwd();
 		const srcRoots = getAuditConfig(projectRoot).paths?.srcRoots ?? [];
 		const dynamicCodeCoverage = deriveCoverageFromRoots(srcRoots, /* @__PURE__ */ new Set([
 			".ts",
@@ -312,6 +313,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 		]), projectRoot).include;
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
 				speed: "light",
 				phase: "normal",

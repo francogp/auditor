@@ -1,3 +1,5 @@
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -38,9 +40,6 @@ function resolveGitCommit(projectRoot, ref) {
 		"--quiet",
 		`${ref}^{commit}`
 	]).ok;
-}
-function toPosixRelative(projectRoot, file) {
-	return path.relative(projectRoot, path.resolve(projectRoot, file)).split(path.sep).join("/");
 }
 function createLineReader(projectRoot) {
 	const cache = /* @__PURE__ */ new Map();

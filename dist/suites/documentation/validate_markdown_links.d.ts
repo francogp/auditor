@@ -1,4 +1,4 @@
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
 //#region src/suites/documentation/validate_markdown_links.d.ts
@@ -63,7 +63,7 @@ export declare function checkMarkdownLinksInContent(content: string, filePath: s
 export declare function auditMarkdownLinks(options?: MarkdownLinkAuditOptions): MarkdownLinkAuditResult;
 export declare class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
   private readonly scanRoots;
-  constructor(scanRoots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   runAudit(): Promise<void>;
 }
 //#endregion

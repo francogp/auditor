@@ -80,6 +80,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             packageName: 'Test',
             configKey: 'paths',
             defaultConfig: {},
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },
@@ -145,6 +146,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             packageName: 'Test',
             configKey: 'paths',
             defaultConfig: {},
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             ruleCapabilities: createRuleCapabilities(['scan-rule-1', 'scan-rule-2'], {
@@ -236,6 +238,7 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             packageName: 'Test',
             configKey: 'paths',
             defaultConfig: {},
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             coverage: { include: ['src/**/*.ts'] },

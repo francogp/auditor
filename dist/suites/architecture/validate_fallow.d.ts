@@ -131,8 +131,11 @@ export interface FallowFindingItem {
   readonly severity: FindingSeverity;
 }
 export declare function mapFallowJson(command: string, data: FallowAuditData, projectRoot?: string): FallowFindingItem[];
+export interface FallowArchitectureAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
-  constructor(projectRoot?: string);
+  constructor(options?: FallowArchitectureAuditorOptions);
   private runFallowSubCommand;
   runAudit(): Promise<void>;
 }

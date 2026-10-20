@@ -5,10 +5,11 @@ import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
 import "../core/permissionGuard.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, isMainModule, resolvePackageBin } from "./cliUtils.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../core/testCoverageCore.js";
-import path from "node:path";
 import fs from "node:fs";
 import { parseArgs, styleText } from "node:util";
 import { execSync, spawnSync } from "node:child_process";
@@ -147,7 +148,7 @@ function loadFallowComplexityMap(projectRoot) {
 		const data = parseJsonObjectOutput(stdout);
 		if (data?.findings && Array.isArray(data.findings)) for (const finding of data.findings) {
 			if (!finding.path) continue;
-			const relPath = path.relative(projectRoot, path.resolve(projectRoot, finding.path)).split(path.sep).join("/");
+			const relPath = toPosixRelative(projectRoot, finding.path);
 			const cog = finding.cognitive ?? 0;
 			const cyc = finding.cyclomatic ?? 0;
 			const current = complexityMap.get(relPath) ?? 0;

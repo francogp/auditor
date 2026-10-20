@@ -112,6 +112,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(DOCKER_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

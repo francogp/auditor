@@ -44,7 +44,7 @@ export function findRuleGuide(
 
 import { themeStyles } from '../core/unifiedTheme.ts';
 
-export function renderRuleGuideCard(match: GuideQueryMatch): string {
+export function renderRuleGuideCard(match: GuideQueryMatch, isVerbose: boolean = false): string {
   const { boldWhite, boldYellow, boldCyan, dim, white } = themeStyles;
   const sections: string[][] = [];
 
@@ -78,6 +78,10 @@ export function renderRuleGuideCard(match: GuideQueryMatch): string {
 
   const content = sections.map((sec) => sec.join('\n')).join('\n\n');
 
+  if (!isVerbose) {
+    return `\n${content}\n`;
+  }
+
   const box = boxen(content, {
     borderColor: 'yellow',
     borderStyle: 'double',
@@ -87,7 +91,7 @@ export function renderRuleGuideCard(match: GuideQueryMatch): string {
   return `${box}\n`;
 }
 
-export function renderSuiteGuideCards(task: AuditTaskDefinition): string {
+export function renderSuiteGuideCards(task: AuditTaskDefinition, isVerbose: boolean = false): string {
   const rules = task.ruleDescriptions ?? task.manifest?.rules ?? {};
   const remediations = task.ruleRemediations ?? task.manifest?.remediations ?? {};
   const ruleEntries = Object.entries(rules);
@@ -103,12 +107,15 @@ export function renderSuiteGuideCards(task: AuditTaskDefinition): string {
 
   for (const [rId, rDesc] of ruleEntries) {
     output.push(
-      renderRuleGuideCard({
-        ruleId: rId,
-        ruleDescription: rDesc,
-        remediation: remediations[rId] ?? 'Sin guía declarada.',
-        task
-      })
+      renderRuleGuideCard(
+        {
+          ruleId: rId,
+          ruleDescription: rDesc,
+          remediation: remediations[rId] ?? 'Sin guía declarada.',
+          task
+        },
+        isVerbose
+      )
     );
   }
 

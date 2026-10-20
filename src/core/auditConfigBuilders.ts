@@ -21,6 +21,8 @@ import {
   type AuditRunnerConfig,
   type AuditOxlintConfig,
   type AuditOxfmtConfig,
+  type AuditHtmlValidateConfig,
+  type BaseAuditSubsystemConfig,
   type AuditVitePlusConfig,
   type AuditVitePlusFmtConfig,
   type AuditVitePlusLintConfig,
@@ -148,32 +150,68 @@ export function buildTemplatesConfig(
   };
 }
 
-function buildStylelintSubConfig(rawSl?: DeepPartial<AuditStylelintConfig>): AuditStylelintConfig {
-  const parsedRules: Record<string, unknown> | undefined = rawSl?.rules
-    ? { ...rawSl.rules }
-    : undefined;
-  const strictValues = rawSl?.strictValues
-    ? {
-        enabled: rawSl.strictValues.enabled ?? true,
-        properties: rawSl.strictValues.properties ? [...rawSl.strictValues.properties] : [],
-        ignoreValues: rawSl.strictValues.ignoreValues
-          ? ({ ...rawSl.strictValues.ignoreValues } as Record<string, readonly string[]>)
-          : {},
-        ignoreAtRules: rawSl.strictValues.ignoreAtRules ? [...rawSl.strictValues.ignoreAtRules] : []
-      }
-    : undefined;
+function buildStandaloneStylelintConfig(
+  stylelint?: DeepPartial<AuditStylelintConfig>,
+  stylesStylelint?: DeepPartial<AuditStylelintConfig>
+): AuditStylelintConfig {
+  const mergedIgnoreGlobs = Array.from(
+    new Set([...(stylesStylelint?.ignoreGlobs ?? []), ...(stylelint?.ignoreGlobs ?? [])])
+  );
+  const mergedExemptPaths = Array.from(
+    new Set([...(stylesStylelint?.exemptPaths ?? []), ...(stylelint?.exemptPaths ?? [])])
+  );
+  const mergedExemptFiles = Array.from(
+    new Set([...(stylesStylelint?.exemptFiles ?? []), ...(stylelint?.exemptFiles ?? [])])
+  );
+
+  const merged: DeepPartial<AuditStylelintConfig> = {
+    ...stylesStylelint,
+    ...stylelint,
+    ignoreGlobs: mergedIgnoreGlobs.length > 0 ? mergedIgnoreGlobs : undefined,
+    exemptPaths: mergedExemptPaths.length > 0 ? mergedExemptPaths : undefined,
+    exemptFiles: mergedExemptFiles.length > 0 ? mergedExemptFiles : undefined
+  };
+  const base = buildBaseSubsystemConfig<AuditStylelintConfig>(merged, true);
+
+  const effectiveRules = {
+    ...(stylesStylelint?.rules ?? {}),
+    ...(stylelint?.rules ?? {})
+  };
+
+  const baseStrict = stylesStylelint?.strictValues;
+  const topStrict = stylelint?.strictValues;
+  const effectiveStrict =
+    topStrict || baseStrict
+      ? {
+          enabled: topStrict?.enabled ?? baseStrict?.enabled ?? true,
+          properties: Array.from(
+            new Set([...(baseStrict?.properties ?? []), ...(topStrict?.properties ?? [])])
+          ),
+          ignoreValues: {
+            ...(baseStrict?.ignoreValues ?? {}),
+            ...(topStrict?.ignoreValues ?? {})
+          } as Record<string, readonly string[]>,
+          ignoreAtRules: Array.from(
+            new Set([...(baseStrict?.ignoreAtRules ?? []), ...(topStrict?.ignoreAtRules ?? [])])
+          )
+        }
+      : undefined;
+
+  const effectiveConfigFile = stylelint?.configFile ?? stylesStylelint?.configFile;
 
   const order = {
-    enabled: rawSl?.order?.enabled ?? true,
-    enforceHasBlockPartitioning: rawSl?.order?.enforceHasBlockPartitioning ?? true
+    enabled: stylelint?.order?.enabled ?? stylesStylelint?.order?.enabled ?? true,
+    enforceHasBlockPartitioning:
+      stylelint?.order?.enforceHasBlockPartitioning ??
+      stylesStylelint?.order?.enforceHasBlockPartitioning ??
+      true
   };
 
   return {
-    enabled: rawSl?.enabled ?? DEFAULT_AUDIT_CONFIG.styles?.stylelint?.enabled ?? true,
-    configFile: rawSl?.configFile,
-    rules: parsedRules,
-    ignoreGlobs: rawSl?.ignoreGlobs ? [...rawSl.ignoreGlobs] : [],
-    strictValues,
+    ...base,
+    configFile: effectiveConfigFile,
+    rules: Object.keys(effectiveRules).length > 0 ? effectiveRules : {},
+    strictValues: effectiveStrict,
     order
   };
 }
@@ -203,11 +241,12 @@ export function buildStylesConfig(
 ): AuditStylesConfig {
   const s = raw ?? {};
   const def = DEFAULT_AUDIT_CONFIG.styles;
-  const stylelint = buildStylelintSubConfig(s.stylelint ?? rawStylelintTop);
+  const base = buildBaseSubsystemConfig<AuditStylesConfig>(s, def?.enabled ?? true);
+  const stylelint = buildStandaloneStylelintConfig(rawStylelintTop, s.stylelint);
   const zLayers = buildZLayersSubConfig(s);
 
   return {
-    enabled: s.enabled ?? def?.enabled ?? true,
+    ...base,
     globalUtilityClasses: s.globalUtilityClasses ?? [],
     canonicalButtonVariants: s.canonicalButtonVariants ?? [],
     ...zLayers,
@@ -228,19 +267,21 @@ export function buildStylesConfig(
 
 export function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBundleConfig {
   const b = raw ?? {};
+  const def = DEFAULT_AUDIT_CONFIG.bundle;
+  const base = buildBaseSubsystemConfig<AuditBundleConfig>(b, def?.enabled ?? true);
   return {
-    enabled: b.enabled ?? DEFAULT_AUDIT_CONFIG.bundle?.enabled ?? true,
-    statsFile: b.statsFile ?? DEFAULT_AUDIT_CONFIG.bundle?.statsFile,
-    distDir: b.distDir ?? DEFAULT_AUDIT_CONFIG.bundle?.distDir,
+    ...base,
+    statsFile: b.statsFile ?? def?.statsFile,
+    distDir: b.distDir ?? def?.distDir,
     exemptChunkPrefixes: b.exemptChunkPrefixes ?? [],
     maxClientChunkWarnBytes:
-      b.maxClientChunkWarnBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkWarnBytes,
+      b.maxClientChunkWarnBytes ?? def?.maxClientChunkWarnBytes,
     maxClientChunkErrorBytes:
-      b.maxClientChunkErrorBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.maxClientChunkErrorBytes,
+      b.maxClientChunkErrorBytes ?? def?.maxClientChunkErrorBytes,
     budgets: (b.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
     duplicateModuleThresholdBytes:
-      b.duplicateModuleThresholdBytes ?? DEFAULT_AUDIT_CONFIG.bundle?.duplicateModuleThresholdBytes,
-    topModulesLimit: b.topModulesLimit ?? DEFAULT_AUDIT_CONFIG.bundle?.topModulesLimit,
+      b.duplicateModuleThresholdBytes ?? def?.duplicateModuleThresholdBytes,
+    topModulesLimit: b.topModulesLimit ?? def?.topModulesLimit,
     forbiddenUiImports:
       (b.forbiddenUiImports as
         | readonly { readonly module: string; readonly reason: string }[]
@@ -258,44 +299,67 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
     config.security?.enabled ??
     DEFAULT_AUDIT_CONFIG.security?.enabled ??
     true;
+  const agentPluginBase = buildBaseSubsystemConfig<AuditAgentPluginConfig>(
+    config.agentPlugin,
+    DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
+  );
+  const securityBase = buildBaseSubsystemConfig<AuditSecurityConfig>(
+    config.security,
+    secEnabled
+  );
+  const animationBase = buildBaseSubsystemConfig<AuditAnimationConfig>(
+    config.animation,
+    DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true
+  );
   return {
     agentPlugin: {
-      enabled: config.agentPlugin?.enabled ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
+      ...agentPluginBase
     },
     security: {
+      ...securityBase,
       enabled: secEnabled
     },
     animation: {
-      enabled: config.animation?.enabled ?? DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true,
-      customTimerFunctions: config.animation?.customTimerFunctions ?? []
+      ...animationBase,
+      customTimerFunctions: config.animation?.customTimerFunctions
+        ? [...config.animation.customTimerFunctions]
+        : (DEFAULT_AUDIT_CONFIG.animation?.customTimerFunctions ?? [])
     }
   };
 }
 
 function buildConstantsSubConfig(c?: DeepPartial<AuditConstantsConfig>): AuditConstantsConfig {
+  const base = buildBaseSubsystemConfig<AuditConstantsConfig>(
+    c,
+    DEFAULT_AUDIT_CONFIG.constants?.enabled ?? true
+  );
   return {
-    enabled: c?.enabled ?? DEFAULT_AUDIT_CONFIG.constants?.enabled ?? true,
-    ignoredNames: c?.ignoredNames ?? [],
-    exemptMagicNumbers: c?.exemptMagicNumbers ?? [],
-    allowedNumericPrefixes: c?.allowedNumericPrefixes ?? [],
-    exemptPaths: c?.exemptPaths ?? [],
-    exemptFiles: c?.exemptFiles ?? [],
-    ignoreGlobs: c?.ignoreGlobs ?? []
+    ...base,
+    ignoredNames: c?.ignoredNames ? [...c.ignoredNames] : (DEFAULT_AUDIT_CONFIG.constants?.ignoredNames ?? []),
+    exemptMagicNumbers: c?.exemptMagicNumbers ? [...c.exemptMagicNumbers] : (DEFAULT_AUDIT_CONFIG.constants?.exemptMagicNumbers ?? []),
+    allowedNumericPrefixes: c?.allowedNumericPrefixes ? [...c.allowedNumericPrefixes] : (DEFAULT_AUDIT_CONFIG.constants?.allowedNumericPrefixes ?? []),
+    exemptPaths: c?.exemptPaths ? [...c.exemptPaths] : (base.exemptPaths ?? []),
+    exemptFiles: c?.exemptFiles ? [...c.exemptFiles] : (base.exemptFiles ?? []),
+    ignoreGlobs: c?.ignoreGlobs ? [...c.ignoreGlobs] : (base.ignoreGlobs ?? [])
   };
 }
 
 function buildDocumentationSubConfig(
   d?: DeepPartial<AuditDocumentationConfig>
 ): AuditDocumentationConfig {
+  const base = buildBaseSubsystemConfig<AuditDocumentationConfig>(
+    d,
+    DEFAULT_AUDIT_CONFIG.documentation?.enabled ?? true
+  );
   return {
-    enabled: d?.enabled ?? DEFAULT_AUDIT_CONFIG.documentation?.enabled ?? true,
-    knownValidAbstractPaths: d?.knownValidAbstractPaths ?? [],
-    skillsRoots: d?.skillsRoots ?? [],
-    unignoreDirs: d?.unignoreDirs ?? [],
-    allowedNpxBinaries: d?.allowedNpxBinaries ?? [],
-    language: d?.language ?? 'en',
-    chatLanguage: d?.chatLanguage ?? 'es',
-    languageExemptions: d?.languageExemptions ?? []
+    ...base,
+    knownValidAbstractPaths: d?.knownValidAbstractPaths ? [...d.knownValidAbstractPaths] : (DEFAULT_AUDIT_CONFIG.documentation?.knownValidAbstractPaths ?? []),
+    skillsRoots: d?.skillsRoots ? [...d.skillsRoots] : (DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []),
+    unignoreDirs: d?.unignoreDirs ? [...d.unignoreDirs] : (DEFAULT_AUDIT_CONFIG.documentation?.unignoreDirs ?? []),
+    allowedNpxBinaries: d?.allowedNpxBinaries ? [...d.allowedNpxBinaries] : (DEFAULT_AUDIT_CONFIG.documentation?.allowedNpxBinaries ?? []),
+    language: d?.language ?? DEFAULT_AUDIT_CONFIG.documentation?.language ?? 'en',
+    chatLanguage: d?.chatLanguage ?? DEFAULT_AUDIT_CONFIG.documentation?.chatLanguage ?? 'es',
+    languageExemptions: d?.languageExemptions ? [...d.languageExemptions] : (DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? [])
   };
 }
 
@@ -305,16 +369,26 @@ export function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig
   pinia: AuditPiniaConfig;
   e2e: AuditE2eConfig;
 } {
+  const piniaBase = buildBaseSubsystemConfig<AuditPiniaConfig>(
+    config.pinia,
+    DEFAULT_AUDIT_CONFIG.pinia?.enabled ?? true
+  );
+  const e2eBase = buildBaseSubsystemConfig<AuditE2eConfig>(
+    config.e2e,
+    DEFAULT_AUDIT_CONFIG.e2e?.enabled ?? true
+  );
   return {
     constants: buildConstantsSubConfig(config.constants),
     documentation: buildDocumentationSubConfig(config.documentation),
     pinia: {
-      enabled: config.pinia?.enabled ?? true,
-      authorizedMutationFiles: config.pinia?.authorizedMutationFiles ?? []
+      ...piniaBase,
+      authorizedMutationFiles: config.pinia?.authorizedMutationFiles
+        ? [...config.pinia.authorizedMutationFiles]
+        : (DEFAULT_AUDIT_CONFIG.pinia?.authorizedMutationFiles ?? [])
     },
     e2e: {
-      enabled: config.e2e?.enabled ?? DEFAULT_AUDIT_CONFIG.e2e?.enabled ?? true,
-      idLocatorsOnly: config.e2e?.idLocatorsOnly ?? false
+      ...e2eBase,
+      idLocatorsOnly: config.e2e?.idLocatorsOnly ?? DEFAULT_AUDIT_CONFIG.e2e?.idLocatorsOnly ?? false
     }
   };
 }
@@ -360,9 +434,10 @@ export function buildFallowConfig(
 ): AuditFallowConfig {
   const def = DEFAULT_AUDIT_CONFIG.fallow;
   const f = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditFallowConfig>(f, def?.enabled ?? true);
   const secEnabled = f.security?.enabled ?? rootSecurity?.enabled ?? def?.security?.enabled ?? true;
   return {
-    enabled: f.enabled ?? def?.enabled ?? true,
+    ...base,
     security: {
       enabled: secEnabled
     },
@@ -395,8 +470,9 @@ export function buildPackageHygieneConfig(
 ): AuditPackageHygieneConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageHygiene;
   const p = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditPackageHygieneConfig>(p, def?.enabled ?? true);
   return {
-    enabled: p.enabled ?? def?.enabled ?? true,
+    ...base,
     ignoreDependencies: p.ignoreDependencies
       ? [...p.ignoreDependencies]
       : (def?.ignoreDependencies ?? []),
@@ -410,10 +486,7 @@ export function buildEnvironmentConfig(
   raw?: DeepPartial<AuditEnvironmentConfig>
 ): AuditEnvironmentConfig {
   const def = DEFAULT_AUDIT_CONFIG.environment;
-  const p = raw ?? {};
-  return {
-    enabled: p.enabled ?? def?.enabled ?? true
-  };
+  return buildBaseSubsystemConfig<AuditEnvironmentConfig>(raw, def?.enabled ?? true);
 }
 
 export function buildAuditorHygieneConfig(
@@ -421,8 +494,10 @@ export function buildAuditorHygieneConfig(
 ): AuditAuditorHygieneConfig {
   const def = DEFAULT_AUDIT_CONFIG.auditorHygiene;
   const p = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditAuditorHygieneConfig>(p, def?.enabled ?? true);
   return {
-    enabled: p.enabled ?? def?.enabled ?? true,
+    ...base,
+    roots: p.roots ? [...p.roots] : (def?.roots ? [...def.roots] : ['scripts/auditors']),
     exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? []),
     disabledDetectors: p.disabledDetectors
       ? [...p.disabledDetectors]
@@ -435,8 +510,9 @@ export function buildScriptExtensionsConfig(
 ): AuditScriptExtensionsConfig {
   const def = DEFAULT_AUDIT_CONFIG.scriptExtensions;
   const p = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditScriptExtensionsConfig>(p, def?.enabled ?? true);
   return {
-    enabled: p.enabled ?? def?.enabled ?? true,
+    ...base,
     enforceTypeScript: p.enforceTypeScript ?? def?.enforceTypeScript ?? true,
     allowMjs: p.allowMjs ?? def?.allowMjs ?? false,
     allowCjs: p.allowCjs ?? def?.allowCjs ?? false,
@@ -450,8 +526,9 @@ export function buildPackageDistributionConfig(
 ): AuditPackageDistributionConfig {
   const def = DEFAULT_AUDIT_CONFIG.packageDistribution;
   const p = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditPackageDistributionConfig>(p, def?.enabled ?? false);
   return {
-    enabled: p.enabled ?? def?.enabled ?? false,
+    ...base,
     pkgDir: p.pkgDir ?? def?.pkgDir,
     level: p.level ?? def?.level ?? 'warning'
   };
@@ -474,8 +551,9 @@ export function buildPackageScriptsConfig(
         `Debe ser un valor booleano estricto (true o false).`
     );
   }
+  const base = buildBaseSubsystemConfig<AuditPackageScriptsConfig>(p, def?.enabled ?? true);
   return {
-    enabled: p.enabled ?? def?.enabled ?? true,
+    ...base,
     enforceBuildAudit: p.enforceBuildAudit ?? def?.enforceBuildAudit ?? true,
     recommendedScripts: p.recommendedScripts ?? def?.recommendedScripts ?? true,
     extraRequiredScripts: p.extraRequiredScripts
@@ -489,8 +567,9 @@ export function buildScriptCommandsConfig(
 ): AuditScriptCommandsConfig {
   const def = DEFAULT_AUDIT_CONFIG.scriptCommands;
   const p = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditScriptCommandsConfig>(p, def?.enabled ?? true);
   return {
-    enabled: p.enabled ?? def?.enabled ?? true,
+    ...base,
     exemptGlobs: p.exemptGlobs ? [...p.exemptGlobs] : (def?.exemptGlobs ?? []),
     allowedNpxBinaries: p.allowedNpxBinaries
       ? [...p.allowedNpxBinaries]
@@ -518,7 +597,7 @@ export function buildRatchetConfig(
     r.baselineFile ??
     DEFAULT_AUDIT_CONFIG.ratchet?.baselineFile ??
     path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
-  const normalized = path.posix.normalize(baselineFile.replaceAll('\\', '/'));
+  const normalized = path.posix.normalize(baselineFile.replaceAll(path.win32.sep, path.posix.sep));
   if (
     path.isAbsolute(baselineFile) ||
     normalized.startsWith('..') ||
@@ -575,20 +654,37 @@ function resolveTestCoverageCollections(
   };
 }
 
+function normalizePathToPosixGlob(p: string): string {
+  const norm = p.split(path.sep).join(path.posix.sep);
+  return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, '**');
+}
+
+function normalizeFileToPosix(f: string): string {
+  return f.split(path.sep).join(path.posix.sep);
+}
+
 export function buildTestCoverageConfig(
   raw?: DeepPartial<AuditTestCoverageConfig>
 ): ResolvedTestCoverageConfig {
   const def = DEFAULT_AUDIT_CONFIG.testCoverage;
   const t = raw ?? {};
   validateTestCoverageRaw(t);
+  const base = buildBaseSubsystemConfig<AuditTestCoverageConfig>(t, def?.enabled ?? true);
   const collections = resolveTestCoverageCollections(t, def);
+  const combinedExemptGlobs = Array.from(new Set([
+    ...collections.exemptGlobs.map(normalizeFileToPosix),
+    ...(base.ignoreGlobs?.map(normalizeFileToPosix) ?? []),
+    ...(base.exemptPaths?.map(normalizePathToPosixGlob) ?? []),
+    ...(base.exemptFiles?.map(normalizeFileToPosix) ?? [])
+  ]));
   return {
-    enabled: t.enabled ?? def?.enabled ?? true,
+    ...base,
     threshold: t.threshold ?? def?.threshold ?? DEFAULT_TEST_COVERAGE_PERCENTAGE,
     path: t.path ?? def?.path ?? 'scratch/coverage/coverage-final.json',
     runCommand: t.runCommand ?? def?.runCommand ?? 'vp test --coverage',
     enforceInAudit: t.enforceInAudit ?? def?.enforceInAudit ?? true,
-    ...collections
+    ...collections,
+    exemptGlobs: combinedExemptGlobs
   };
 }
 
@@ -608,8 +704,9 @@ export function buildAccessibilityConfig(
     }
     parsedRules[key] = val;
   }
+  const base = buildBaseSubsystemConfig<AuditAccessibilityConfig>(a, def?.enabled ?? true);
   return {
-    enabled: a.enabled ?? def?.enabled ?? true,
+    ...base,
     rules: parsedRules
   };
 }
@@ -619,8 +716,9 @@ export function buildTypeCoverageConfig(
 ): AuditTypeCoverageConfig {
   const def = DEFAULT_AUDIT_CONFIG.typeCoverage;
   const t = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditTypeCoverageConfig>(t, def?.enabled ?? true);
   return {
-    enabled: t.enabled ?? def?.enabled ?? true,
+    ...base,
     atLeast: t.atLeast ?? def?.atLeast ?? DEFAULT_TYPE_COVERAGE_AT_LEAST,
     strict: t.strict ?? def?.strict ?? true,
     ignoreFiles: t.ignoreFiles ? [...t.ignoreFiles] : (def?.ignoreFiles ?? [])
@@ -632,20 +730,65 @@ export function buildGitIgnoreConfig(
 ): AuditGitIgnoreConfig {
   const def = DEFAULT_AUDIT_CONFIG.gitIgnore;
   const g = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditGitIgnoreConfig>(g, def?.enabled ?? true);
   return {
-    enabled: g.enabled ?? def?.enabled ?? true,
+    ...base,
     extraRequiredEntries: g.extraRequiredEntries
       ? [...g.extraRequiredEntries]
       : (def?.extraRequiredEntries ?? [])
   };
 }
 
+function extractStringArrayProperty(
+  arr: unknown
+): readonly string[] | undefined {
+  if (!Array.isArray(arr)) return undefined;
+  return arr.filter((x): x is string => typeof x === 'string');
+}
+
+export function buildBaseSubsystemConfig<T extends BaseAuditSubsystemConfig>(
+  raw?: DeepPartial<T>,
+  defaultEnabled = true
+): T {
+  const enabled = raw?.enabled !== undefined ? (raw.enabled as boolean) : defaultEnabled;
+  const ignoreGlobs = extractStringArrayProperty(raw?.ignoreGlobs);
+  const exemptPaths = extractStringArrayProperty(raw?.exemptPaths);
+  const exemptFiles = extractStringArrayProperty(raw?.exemptFiles);
+
+  const base: BaseAuditSubsystemConfig = {
+    enabled,
+    ...(ignoreGlobs !== undefined ? { ignoreGlobs } : {}),
+    ...(exemptPaths !== undefined ? { exemptPaths } : {}),
+    ...(exemptFiles !== undefined ? { exemptFiles } : {})
+  };
+
+  return {
+    ...raw,
+    ...base
+  } as T;
+}
+
 export function buildOxlintConfig(raw?: DeepPartial<AuditOxlintConfig>): AuditOxlintConfig {
-  return { enabled: raw?.enabled ?? DEFAULT_AUDIT_CONFIG.oxlint?.enabled ?? true };
+  return buildBaseSubsystemConfig<AuditOxlintConfig>(
+    raw,
+    DEFAULT_AUDIT_CONFIG.oxlint?.enabled ?? true
+  );
 }
 
 export function buildOxfmtConfig(raw?: DeepPartial<AuditOxfmtConfig>): AuditOxfmtConfig {
-  return { enabled: raw?.enabled ?? DEFAULT_AUDIT_CONFIG.oxfmt?.enabled ?? true };
+  return buildBaseSubsystemConfig<AuditOxfmtConfig>(
+    raw,
+    DEFAULT_AUDIT_CONFIG.oxfmt?.enabled ?? true
+  );
+}
+
+export function buildHtmlValidateConfig(
+  raw?: DeepPartial<AuditHtmlValidateConfig>
+): AuditHtmlValidateConfig {
+  return buildBaseSubsystemConfig<AuditHtmlValidateConfig>(
+    raw,
+    DEFAULT_AUDIT_CONFIG.htmlValidate?.enabled ?? true
+  );
 }
 
 function buildVitePlusPrecompressConfig(
@@ -763,8 +906,9 @@ export function buildSecretLeaksConfig(
 ): AuditSecretLeaksConfig {
   const def = DEFAULT_AUDIT_CONFIG.secretLeaks;
   const s = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditSecretLeaksConfig>(s, def?.enabled ?? true);
   return {
-    enabled: s.enabled ?? def?.enabled ?? true,
+    ...base,
     maskSecrets: s.maskSecrets ?? def?.maskSecrets ?? true,
     allowedPatterns: s.allowedPatterns ? [...s.allowedPatterns] : (def?.allowedPatterns ?? []),
     exemptGlobs: s.exemptGlobs ? [...s.exemptGlobs] : (def?.exemptGlobs ?? [])
@@ -776,8 +920,9 @@ export function buildDependencyVulnerabilitiesConfig(
 ): AuditDependencyVulnerabilitiesConfig {
   const def = DEFAULT_AUDIT_CONFIG.dependencyVulnerabilities;
   const d = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditDependencyVulnerabilitiesConfig>(d, def?.enabled ?? false);
   return {
-    enabled: d.enabled ?? def?.enabled ?? false,
+    ...base,
     failOn: d.failOn ?? def?.failOn ?? 'critical',
     allowList: d.allowList ? [...d.allowList] : (def?.allowList ?? []),
     includeDev: d.includeDev ?? def?.includeDev ?? false
@@ -831,8 +976,12 @@ export function buildCoverageConfig(
   const protectedRoots = Array.from(
     new Set([...(paths.srcRoots ?? []), ...(paths.codeRoots ?? []), ...(paths.testRoots ?? [])])
   );
+  const base = buildBaseSubsystemConfig<AuditCoverageConfig>(
+    c,
+    DEFAULT_AUDIT_CONFIG.coverage?.enabled ?? true
+  );
   return {
-    enabled: c.enabled ?? DEFAULT_AUDIT_CONFIG.coverage?.enabled ?? true,
+    ...base,
     exemptGlobs: resolveCoverageExemptGlobs(c.exemptGlobs, protectedRoots),
     acknowledgedDegradations: resolveAcknowledgedDegradations(
       c.acknowledgedDegradations,
@@ -846,8 +995,12 @@ export function buildValibotConfig(
   raw: DeepPartial<AuditValibotConfig> | undefined
 ): AuditValibotConfig {
   const v = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditValibotConfig>(
+    v,
+    DEFAULT_AUDIT_CONFIG.valibot?.enabled ?? true
+  );
   return {
-    enabled: v.enabled ?? DEFAULT_AUDIT_CONFIG.valibot?.enabled ?? true,
+    ...base,
     targets: v.targets ? (v.targets as ValibotParityTarget[]) : []
   };
 }
@@ -857,13 +1010,13 @@ export function buildWebPerformanceConfig(
 ): AuditWebPerformanceConfig {
   const def = DEFAULT_AUDIT_CONFIG.webPerformance!;
   const w = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditWebPerformanceConfig>(w, def.enabled ?? true);
   return {
-    enabled: w.enabled ?? def.enabled,
+    ...base,
     maxDomDepth: w.maxDomDepth ?? def.maxDomDepth,
     maxInlineSvgSize: w.maxInlineSvgSize ?? def.maxInlineSvgSize,
     exemptSvgPaths: w.exemptSvgPaths ? [...w.exemptSvgPaths] : def.exemptSvgPaths,
-    exemptImgClasses: w.exemptImgClasses ? [...w.exemptImgClasses] : def.exemptImgClasses,
-    exemptPaths: w.exemptPaths ? [...w.exemptPaths] : def.exemptPaths
+    exemptImgClasses: w.exemptImgClasses ? [...w.exemptImgClasses] : def.exemptImgClasses
   };
 }
 
@@ -872,13 +1025,13 @@ export function buildQueryPerformanceConfig(
 ): AuditQueryPerformanceConfig {
   const def = DEFAULT_AUDIT_CONFIG.queryPerformance!;
   const q = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditQueryPerformanceConfig>(q, def.enabled ?? true);
   return {
-    enabled: q.enabled ?? def.enabled,
+    ...base,
     excludeMigrationsDir: q.excludeMigrationsDir ?? def.excludeMigrationsDir,
     exemptSelectStarPaths: q.exemptSelectStarPaths
       ? [...q.exemptSelectStarPaths]
-      : def.exemptSelectStarPaths,
-    exemptPaths: q.exemptPaths ? [...q.exemptPaths] : def.exemptPaths
+      : def.exemptSelectStarPaths
   };
 }
 
@@ -886,11 +1039,7 @@ export function buildSecurityHardeningConfig(
   raw?: DeepPartial<AuditSecurityHardeningConfig>
 ): AuditSecurityHardeningConfig {
   const def = DEFAULT_AUDIT_CONFIG.securityHardening!;
-  const s = raw ?? {};
-  return {
-    enabled: s.enabled ?? def.enabled,
-    exemptPaths: s.exemptPaths ? [...s.exemptPaths] : def.exemptPaths
-  };
+  return buildBaseSubsystemConfig<AuditSecurityHardeningConfig>(raw, def.enabled ?? true);
 }
 
 export function buildCodeSimplificationConfig(
@@ -898,11 +1047,11 @@ export function buildCodeSimplificationConfig(
 ): AuditCodeSimplificationConfig {
   const def = DEFAULT_AUDIT_CONFIG.codeSimplification!;
   const c = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditCodeSimplificationConfig>(c, def.enabled ?? true);
   return {
-    enabled: c.enabled ?? def.enabled,
+    ...base,
     maxNestingDepth: c.maxNestingDepth ?? def.maxNestingDepth,
-    allowMatrixLoops: c.allowMatrixLoops ?? def.allowMatrixLoops,
-    exemptPaths: c.exemptPaths ? [...c.exemptPaths] : def.exemptPaths
+    allowMatrixLoops: c.allowMatrixLoops ?? def.allowMatrixLoops
   };
 }
 
@@ -911,111 +1060,51 @@ export function buildScssArchitectureConfig(
 ): AuditScssArchitectureConfig {
   const def = DEFAULT_AUDIT_CONFIG.scssArchitecture!;
   const s = raw ?? {};
+  const base = buildBaseSubsystemConfig<AuditScssArchitectureConfig>(s, def.enabled ?? true);
   return {
-    enabled: s.enabled ?? def.enabled,
+    ...base,
     maxNestingDepth: s.maxNestingDepth ?? def.maxNestingDepth,
     scopedMaxNestingDepth: s.scopedMaxNestingDepth ?? def.scopedMaxNestingDepth,
     allowPixelArtSpacing: s.allowPixelArtSpacing ?? def.allowPixelArtSpacing,
     allowedSpacingUnits: s.allowedSpacingUnits
       ? [...s.allowedSpacingUnits]
       : def.allowedSpacingUnits,
-    allowScopedColors: s.allowScopedColors ?? def.allowScopedColors,
-    exemptPaths: s.exemptPaths ? [...s.exemptPaths] : def.exemptPaths
+    allowScopedColors: s.allowScopedColors ?? def.allowScopedColors
   };
 }
 
-function buildStandaloneStylelintConfig(
-  stylelint: DeepPartial<AuditStylelintConfig> | undefined
-): AuditStylelintConfig {
-  if (!stylelint) {
-    return {
-      enabled: true,
-      rules: {},
-      ignoreGlobs: []
-    };
-  }
-
-  return {
-    enabled: stylelint.enabled ?? true,
-    configFile: stylelint.configFile,
-    rules: stylelint.rules ? Object.assign({}, stylelint.rules) : undefined,
-    ignoreGlobs: stylelint.ignoreGlobs ? [...stylelint.ignoreGlobs] : [],
-    strictValues: stylelint.strictValues
-      ? {
-          enabled: stylelint.strictValues.enabled ?? true,
-          properties: stylelint.strictValues.properties
-            ? [...stylelint.strictValues.properties]
-            : [],
-          ignoreValues: stylelint.strictValues.ignoreValues
-            ? ({ ...stylelint.strictValues.ignoreValues } as Record<string, readonly string[]>)
-            : {},
-          ignoreAtRules: stylelint.strictValues.ignoreAtRules
-            ? [...stylelint.strictValues.ignoreAtRules]
-            : []
-        }
-      : undefined
-  };
-}
 
 function buildTypesConfig(types: DeepPartial<AuditTypesConfig> | undefined): AuditTypesConfig {
-  if (!types) {
-    return (
-      DEFAULT_AUDIT_CONFIG.types ?? {
-        enabled: true,
-        exemptPaths: [],
-        exemptFiles: [],
-        ignoreGlobs: []
-      }
-    );
-  }
-  return {
-    enabled: types.enabled ?? true,
-    exemptPaths: types.exemptPaths ? [...types.exemptPaths] : [],
-    exemptFiles: types.exemptFiles ? [...types.exemptFiles] : [],
-    ignoreGlobs: types.ignoreGlobs ? [...types.ignoreGlobs] : []
-  };
+  return buildBaseSubsystemConfig<AuditTypesConfig>(
+    types,
+    DEFAULT_AUDIT_CONFIG.types?.enabled ?? true
+  );
 }
 
 function buildEncodingConfig(
   encoding: DeepPartial<AuditEncodingConfig> | undefined
 ): AuditEncodingConfig {
-  if (!encoding) {
-    return (
-      DEFAULT_AUDIT_CONFIG.encoding ?? {
-        enabled: true,
-        defaultEncoding: 'utf-8',
-        prohibitBom: true,
-        detectMojibake: true,
-        allowedExtensions: undefined,
-        exemptGlobs: [],
-        exemptPaths: [],
-        exemptFiles: []
-      }
-    );
-  }
+  const def = DEFAULT_AUDIT_CONFIG.encoding;
+  const base = buildBaseSubsystemConfig<AuditEncodingConfig>(encoding, def?.enabled ?? true);
   return {
-    enabled: encoding.enabled ?? true,
-    defaultEncoding: encoding.defaultEncoding ?? 'utf-8',
-    prohibitBom: encoding.prohibitBom ?? true,
-    detectMojibake: encoding.detectMojibake ?? true,
-    allowedExtensions: encoding.allowedExtensions
+    ...base,
+    defaultEncoding: encoding?.defaultEncoding ?? def?.defaultEncoding ?? 'utf-8',
+    prohibitBom: encoding?.prohibitBom ?? def?.prohibitBom ?? true,
+    detectMojibake: encoding?.detectMojibake ?? def?.detectMojibake ?? true,
+    allowedExtensions: encoding?.allowedExtensions
       ? [...encoding.allowedExtensions]
-      : undefined,
-    exemptGlobs: encoding.exemptGlobs ? [...encoding.exemptGlobs] : [],
-    exemptPaths: encoding.exemptPaths ? [...encoding.exemptPaths] : [],
-    exemptFiles: encoding.exemptFiles ? [...encoding.exemptFiles] : []
+      : def?.allowedExtensions,
+    exemptGlobs: encoding?.exemptGlobs ? [...encoding.exemptGlobs] : (def?.exemptGlobs ?? [])
   };
 }
 
 function buildRunnerConfig(runner: DeepPartial<AuditRunnerConfig> | undefined): AuditRunnerConfig {
-  if (!runner) {
-    return { enabled: true, timeoutMs: 0, maxStalenessMinutes: DEFAULT_MAX_AUDIT_STALENESS_MINUTES };
-  }
+  const base = buildBaseSubsystemConfig<AuditRunnerConfig>(runner, true);
   return {
-    enabled: runner.enabled ?? true,
-    timeoutMs: runner.timeoutMs ?? 0,
-    concurrency: runner.concurrency,
-    maxStalenessMinutes: runner.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
+    ...base,
+    timeoutMs: runner?.timeoutMs ?? 0,
+    concurrency: runner?.concurrency,
+    maxStalenessMinutes: runner?.maxStalenessMinutes ?? DEFAULT_MAX_AUDIT_STALENESS_MINUTES
   };
 }
 
@@ -1039,9 +1128,10 @@ export function defineAuditConfig(
     gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
     templates: buildTemplatesConfig(config.templates),
     styles: buildStylesConfig(config.styles, config.stylelint),
-    stylelint: buildStandaloneStylelintConfig(config.stylelint),
+    stylelint: buildStandaloneStylelintConfig(config.stylelint, config.styles?.stylelint),
     oxlint: buildOxlintConfig(config.oxlint),
     oxfmt: buildOxfmtConfig(config.oxfmt),
+    htmlValidate: buildHtmlValidateConfig(config.htmlValidate),
     vitePlusConfig: buildVitePlusConfig(config.vitePlusConfig),
     bundle: buildBundleConfig(config.bundle),
     fallow: buildFallowConfig(config.fallow, config.security),

@@ -36,6 +36,7 @@ const BASE_OPTIONS = {
   icon: '🧪',
   configKey: 'core',
   defaultConfig: {},
+  requiredPermissions: [] as readonly string[],
   criticalConfig: {},
   usesThirdPartyTool: false,
   ruleDescriptions: { 'probe-rule': 'Regla sonda' },

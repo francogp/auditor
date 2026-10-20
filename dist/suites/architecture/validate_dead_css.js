@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -163,11 +163,13 @@ function auditComponentScopedCss(params) {
 	return checkedCount;
 }
 var DeadCssAuditor = class extends BaseAuditor {
-	constructor(projectRoot = process.cwd()) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const compRoots = [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
 				speed: "light",
 				phase: "normal",

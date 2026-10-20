@@ -4,8 +4,8 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { scanBalancedParens } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_gsap_framework_hygiene.ts
@@ -53,11 +53,13 @@ function isInsideAnyScopeRange(index, ranges) {
 	return ranges.some((r) => index >= r.start && index < r.end);
 }
 var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? config.paths.srcRoots;
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
+			projectRoot: effectiveRoot,
+			roots: targetRoots,
 			id: "validate_gsap_framework_hygiene",
 			name: "GSAP Framework Hygiene",
 			description: "Gobernanza de ciclo de vida UI, scope y plugins GSAP",
@@ -76,7 +78,6 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 				changedOnly: false,
 				critical: false
 			}),
-			roots: effectiveRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",
 				".vue",

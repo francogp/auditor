@@ -19,6 +19,9 @@ import { type loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../core/packageScriptRegistry.ts';
 import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
+import { toPosixRelative } from '../core/safePath.ts';
+import { DEFAULT_PERMISSIONS } from '../core/permissionGuard.ts';
+export { DEFAULT_PERMISSIONS };
 
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
 
@@ -48,15 +51,6 @@ export interface DiscoveryOptions {
 export function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number {
   return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
-
-export const DEFAULT_PERMISSIONS = [
-  '--permission',
-  '--experimental-strip-types',
-  '--allow-fs-read=*',
-  '--allow-fs-write=*',
-  '--allow-child-process',
-  '--allow-addons'
-] as const;
 
 export function getPermissionsForTask(filename: string, fullPath?: string): string[] {
   const perms: string[] = [...DEFAULT_PERMISSIONS]; // no-domain: Non-domain utility collection or data structure
@@ -88,7 +82,7 @@ export function formatTaskTitle(filename: string): string {
   ) {
     return 'CSS & SCSS Stylelint Hygiene';
   }
-  const base = filename.replace(/\.(ts|js)$/, '').replace(/^(validate_|audit_)/, '');
+  const base = path.basename(filename, path.extname(filename)).replace(/^(validate_|audit_)/, '');
   return base
     .split(/[_-]/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -198,10 +192,10 @@ export function buildTaskCliArguments(
   isBuiltin: boolean,
   options: DiscoveryOptions
 ): string[] {
-  const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+  const relScriptPath = toPosixRelative(process.cwd(), fullPath);
   const scriptArg =
     relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
-      ? path.resolve(fullPath).replace(/\\/g, '/')
+      ? path.resolve(fullPath).split(path.sep).join(path.posix.sep)
       : relScriptPath;
   const taskPermissions = getPermissionsForTask(filename, fullPath);
   const taskArgs = [...taskPermissions, scriptArg, '--json'];
@@ -291,10 +285,10 @@ export async function createAuditTaskDefinition(
   }
 
   const taskArgs = buildTaskCliArguments(filename, fullPath, id, isBuiltin, options);
-  const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+  const relScriptPath = toPosixRelative(process.cwd(), fullPath);
   const effectiveScriptPath =
     relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
-      ? path.resolve(fullPath).replace(/\\/g, '/')
+      ? path.resolve(fullPath).split(path.sep).join(path.posix.sep)
       : relScriptPath;
   const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
   const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');

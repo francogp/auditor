@@ -15,7 +15,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
 import type { SharedAstContext } from '../../core/astContext.ts';
@@ -410,11 +410,14 @@ export function scanFileForO1Issues(
 }
 
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths.codeRoots ?? []
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(O1_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -483,9 +486,9 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
           '2. Diagnóstico: Busca return [...array] en funciones de solo lectura.\n' +
           '3. Solución: Tipa la firma de retorno como "readonly T[]" y devuelve la referencia directa al array (return arr;), eliminando la asignación de memoria.',
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

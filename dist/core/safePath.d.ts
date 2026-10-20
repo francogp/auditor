@@ -1,7 +1,6 @@
 import { sanitizePath } from "./auditConfigLoader.js";
 import { toPosixRelative } from "./auditCoverage.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
-import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadLockedSkills } from "./auditorBase.js";
 //#region src/core/safePath.d.ts
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
@@ -41,12 +40,18 @@ export declare function toPosixPath(filePath: string, baseDir?: string): string;
 /**
  * Validates strict path containment (CWE-22) using native path resolution.
  * Returns true if candidateChild resides inside parentDir without directory traversal.
+ * When baseDir is provided, both parentDir and candidateChild are resolved relative to baseDir.
+ * When baseDir is omitted and candidateChild is relative, it is resolved relative to parentDir.
  */
-export declare function isPathContained(parentDir: string, candidateChild: string): boolean;
+export declare function isPathContained(parentDir: string, candidateChild: string, baseDir?: string): boolean;
 /**
  * Builds an index of repository files mapping basename to array of absolute paths.
  * Ignores common build/temporary directories.
  */
 export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (fullPath: string) => boolean): Map<string, string[]>;
+/**
+ * Strips recursive glob wildcards and trailing slashes from path patterns.
+ */
+export declare function stripGlobSuffix(pattern: string): string;
 //#endregion
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, normalizePosixPath, sanitizePath, toPosixRelative };
+export { isPathExempt, normalizePosixPath, sanitizePath, toPosixRelative };

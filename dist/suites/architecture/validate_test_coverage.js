@@ -2,9 +2,9 @@ import { buildTestCoverageConfig } from "../../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
 import { enableCompileCache } from "node:module";
 import fs from "node:fs";
@@ -26,6 +26,7 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			id: "validate_test_coverage",
 			name: "Test Execution Coverage Auditor",
 			description: "Gobernanza de cobertura real de pruebas unitarias",

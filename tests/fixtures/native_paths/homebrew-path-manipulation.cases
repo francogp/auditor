@@ -1,0 +1,43 @@
+### M01a codex#8,gemini#18 expect=homebrew-path-manipulation
+const p = somePath.replace(/\\/g, '/');
+
+### M01b gpt expect=homebrew-path-manipulation
+const winReplace = windowsPath.replace(/\\\\/g, '/');
+
+### M02 codex#9,gpt expect=homebrew-path-manipulation
+const p = somePath.split('\\').join('/');
+
+### M03 codex#10,gemini#19 expect=homebrew-path-manipulation
+const normalized = dirtyPath.replace(/\/+/g, '/');
+
+### M04 gemini#20 expect=homebrew-path-manipulation
+const noTrailing = folderPath.replace(/\/+$/, '');
+
+### M05 gpt expect=homebrew-path-manipulation
+const forwardReplace = '/etc//passwd'.split('/').filter(Boolean).join('/');
+
+### M06 gpt expect=homebrew-path-manipulation
+const manualI18n = 'camin\u00f3n/../otra'.replace(/\.\//g, '');
+
+### M07 gpt expect=homebrew-path-manipulation line=2
+const posixPath = '/var/www/html';
+const clean = posixPath.replace(/\\/g, '/');
+
+### M08 regression-inverted-whitelist expect=homebrew-path-manipulation
+const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, '/');
+
+### M09 regression expect=homebrew-path-manipulation
+const clean = rawPath.replace(/[^a-zA-Z0-9_\- /.:\\]/g, '');
+
+### M10 new expect=homebrew-path-manipulation
+const p = filePath.replaceAll('\\', '/');
+
+### M11 host-pokeborrador expect=homebrew-path-manipulation
+const isBackFile = res.filePath.split(path.sep).join('/').includes('/animated/Back');
+
+### M12 host-pokeborrador expect=homebrew-path-manipulation
+const normFile = topSuite.file.split('\\').join('/');
+
+### M13 dataflow-origin expect=homebrew-path-manipulation line=2
+const rel = path.relative(dir, parent);
+const posix = rel.replace(/\\/g, '/');

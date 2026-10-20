@@ -33,21 +33,23 @@ const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 ]);
 var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-		const config = getAuditConfig(effectiveRoot);
+		const scanRoots = resolveFileScanRoots(options);
+		const simplificationConfig = getAuditConfig(scanRoots.effectiveRoot);
 		super({
-			usesThirdPartyTool: false,
 			id: "validate_code_simplification",
 			name: "Code Complexity & Readability Simplifier Validator",
 			description: "Simplificación de código, nesting y claridad sintáctica",
 			family: "architecture",
 			packageName: "Simplify",
 			icon: "🧹",
+			requiredPermissions: [],
+			usesThirdPartyTool: false,
+			roots: scanRoots.targetRoots,
+			allowedExtensions: SCANNABLE_EXTS,
+			exemptPaths: simplificationConfig.codeSimplification?.exemptPaths,
 			configKey: "codeSimplification.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
-			roots: targetRoots,
-			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: CODE_SIMPLIFICATION_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, "hygiene"),
 			ruleDescriptions: {
@@ -67,9 +69,8 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 				"massive-switch-branching": "📖 GUÍA DE REMEDIACIÓN: massive-switch-branching\n1. Causa Raíz: Una instrucción `switch` contiene más de 10 casos (`case`), lo que degrada la legibilidad y viola los principios de diseño modular.\n2. Diagnóstico: Comprueba el bloque `switch` en la línea reportada.\n3. Solución Canónica:\n   a) Reemplaza el `switch` por un diccionario o mapa de handlers indexado por la clave de dominio: `const HANDLERS: Record<Type, Handler> = { ... };`.\n   b) Si la lógica de cada caso es compleja, aplica el patrón Strategy o polimorfismo.\n4. Ejemplo:\n   ❌ Switch masivo: `switch(type) { case \\'a\\': ... case \\'b\\': ... // 15 casos }`\n   ✅ Mapa canónico: `const handler = ACTION_MAP[type]; handler?.();`"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, CODE_SIMPLIFICATION_CAPABILITIES),
-			projectRoot: effectiveRoot,
-			coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-			exemptPaths: config.codeSimplification?.exemptPaths
+			projectRoot: scanRoots.effectiveRoot,
+			coverage: deriveCoverageFromRoots(scanRoots.targetRoots, SCANNABLE_EXTS, scanRoots.effectiveRoot)
 		});
 	}
 	scanFile(relPath, content, sourceFile, doc) {

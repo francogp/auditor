@@ -206,7 +206,7 @@ describe('O1DataStructuresAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new TestableO1DataStructuresAuditor(undefined, tempDir);
+      const auditor = new TestableO1DataStructuresAuditor({ projectRoot: tempDir });
 
       // Comments and formatting
       const commentedCode = [
@@ -304,7 +304,7 @@ describe('O1DataStructuresAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new O1DataStructuresAuditor(['src'], tempDir);
+      const auditor = new O1DataStructuresAuditor({ roots: ['src'], projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);

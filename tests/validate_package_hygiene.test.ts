@@ -9,6 +9,7 @@ import {
   ValidatePackageHygieneAuditor,
   parseKnipIssues,
   verifyLockfileIntegrity,
+  tsconfigHasReferences,
   type KnipReport
 } from '../src/suites/architecture/validate_package_hygiene.ts';
 
@@ -374,5 +375,34 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       const parsed = JSON.parse(fs.readFileSync(ephemeralConfigPath, 'utf-8'));
       expect(parsed.$schema).toContain('knip@6');
     });
+  });
+});
+
+describe('tsconfigHasReferences', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'tsconfig-refs-'));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('returns false when tsconfig.json is missing', () => {
+    expect(tsconfigHasReferences(tmpDir)).toBe(false);
+  });
+
+  it('returns false when tsconfig.json has no references', () => {
+    fs.writeFileSync(path.join(tmpDir, 'tsconfig.json'), '{ "compilerOptions": {} }');
+    expect(tsconfigHasReferences(tmpDir)).toBe(false);
+  });
+
+  it('returns true for JSONC tsconfig.json with references', () => {
+    fs.writeFileSync(
+      path.join(tmpDir, 'tsconfig.json'),
+      '{\n  // project refs\n  "references": [{ "path": "./tsconfig.app.json" },],\n}\n'
+    );
+    expect(tsconfigHasReferences(tmpDir)).toBe(true);
   });
 });

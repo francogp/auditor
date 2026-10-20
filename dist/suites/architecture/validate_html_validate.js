@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { extractJsonReportFilePaths, parseLintResultsToFindings } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -47,28 +47,30 @@ function resolveHtmlValidateConfig(projectRoot) {
 	if (fs.existsSync(packageConfig)) return packageConfig;
 	return ".htmlvalidate.json";
 }
-function collectRootHtmlTargets(projectRoot, root, targets, filesToScan) {
+function collectRootHtmlTargets(projectRoot, root, targets, filesToScan, extraIgnorePatterns = []) {
 	const fullRoot = path.resolve(projectRoot, root);
-	const found = collectRepositoryFiles(fullRoot, projectRoot, [], /* @__PURE__ */ new Set([".html", ".vue"]));
+	const found = collectRepositoryFiles(fullRoot, projectRoot, extraIgnorePatterns, /* @__PURE__ */ new Set([".html", ".vue"]));
 	if (found.length > 0) {
 		targets.push(root);
 		filesToScan.push(...found);
 	}
 }
-function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan) {
+function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan, extraIgnorePatterns = []) {
 	try {
 		const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
 		for (const entry of rootEntries) if (entry.isFile() && entry.name.endsWith(".html")) {
-			targets.push(entry.name);
-			filesToScan.push(path.join(projectRoot, entry.name));
+			if (!isPathIgnored(entry.name, extraIgnorePatterns, [], projectRoot)) {
+				targets.push(entry.name);
+				filesToScan.push(path.join(projectRoot, entry.name));
+			}
 		}
 	} catch {}
 }
-function collectHtmlTargets(projectRoot, roots) {
+function collectHtmlTargets(projectRoot, roots, extraIgnorePatterns = []) {
 	const targets = [];
 	const filesToScan = [];
-	for (const root of roots) collectRootHtmlTargets(projectRoot, root, targets, filesToScan);
-	collectTopLevelHtmlTargets(projectRoot, targets, filesToScan);
+	for (const root of roots) collectRootHtmlTargets(projectRoot, root, targets, filesToScan, extraIgnorePatterns);
+	collectTopLevelHtmlTargets(projectRoot, targets, filesToScan, extraIgnorePatterns);
 	return {
 		targets,
 		filesToScan
@@ -93,6 +95,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "html-validate",
 				fallbackBehavior: "violation",
@@ -159,7 +162,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			include: coverageInclude,
 			source: "runtime"
 		});
-		const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots);
+		const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots, this.extraIgnorePatterns);
 		if (filesToScan.length === 0 && targets.length === 0) {
 			this.markRuleNotApplicable("html-validate-issue", "No existen archivos HTML ni plantillas para validar");
 			return;

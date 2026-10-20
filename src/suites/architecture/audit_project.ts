@@ -15,7 +15,6 @@ import { execSync } from 'node:child_process';
 import {
   BaseAuditor,
   MAX_AUDITOR_DESCRIPTION_LENGTH,
-  CANONICAL_IGNORE_DIRS,
   isPathIgnored,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
@@ -489,9 +488,10 @@ export function extractAllBlocks(content: string, tag: string): VueBlock[] {
   return blocks;
 }
 
-function getChangedFiles(ref: string): string[] {
+function getChangedFiles(ref: string, projectRoot = process.cwd()): string[] {
   try {
     const output = execSync(`git diff --name-only ${ref}`, {
+      cwd: projectRoot,
       encoding: 'utf8',
       stdio: ['pipe', 'pipe', 'ignore']
     });
@@ -502,9 +502,9 @@ function getChangedFiles(ref: string): string[] {
         (f) =>
           f !== '' &&
           AUDIT_EXTENSIONS.has(path.extname(f)) &&
-          !Array.from(CANONICAL_IGNORE_DIRS).some((d) => f.split(/[/\\]/).includes(d))
+          !isPathIgnored(f, [], [], projectRoot)
       )
-      .map((f) => path.resolve(process.cwd(), f));
+      .map((f) => path.resolve(projectRoot, f));
   } catch {
     process.stderr.write(
       styleText(
@@ -1106,8 +1106,13 @@ export function getProjectArchitectureRuleRemediationPhases(): Record<string, Re
   return phases;
 }
 
+export interface AuditProjectOptions {
+  readonly projectRoot?: string;
+}
+
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
-  constructor() {
+  constructor(options: AuditProjectOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
     const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
@@ -1121,6 +1126,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createRuleCapabilities(
         ruleIds,
         {
@@ -1151,7 +1157,8 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       coverage: {
         include: ['**/*.{vue,scss,css,ts,js,md}'],
         exclude: [path.posix.join(AUDITOR_DIR, '**')]
-      }
+      },
+      projectRoot
     });
   }
 

@@ -34,10 +34,9 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   private readonly exemptSvgPaths: readonly string[];
 
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-    const config = getAuditConfig(effectiveRoot);
+    const webRoots = resolveFileScanRoots(options);
+    const webConfig = getAuditConfig(webRoots.effectiveRoot);
     super({
-      usesThirdPartyTool: false,
       id: 'validate_web_performance',
       name: 'Web Performance & Core Web Vitals Auditor',
       description: 'Rendimiento web, Core Web Vitals y optimización frontend',
@@ -47,7 +46,9 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       configKey: 'webPerformance.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: targetRoots,
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      roots: webRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: WEB_PERFORMANCE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(WEB_PERFORMANCE_RULES, 'behavior'),
@@ -125,11 +126,11 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         WEB_PERFORMANCE_RULES,
         LIGHT_RULE_CAPABILITIES
       ),
-      projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-      exemptPaths: config.webPerformance?.exemptPaths
+      projectRoot: webRoots.effectiveRoot,
+      coverage: deriveCoverageFromRoots(webRoots.targetRoots, SCANNABLE_EXTS, webRoots.effectiveRoot),
+      exemptPaths: webConfig.webPerformance?.exemptPaths
     });
-    this.exemptSvgPaths = config.webPerformance?.exemptSvgPaths ?? [];
+    this.exemptSvgPaths = webConfig.webPerformance?.exemptSvgPaths ?? [];
   }
 
   protected override scanFile(relPath: string, content: string): void {

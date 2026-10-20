@@ -32,7 +32,12 @@ const UNIVERSAL_COVERAGE_REGEX = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/;
 const NARROW_EXTENSION_REGEX = /^\*\*\/\*\.\w+$/;
 
 export function normalizeRootPath(p: string): string {
-  return p.replace(/\\/g, '/').replace(/^\.\/|\/+$/g, '');
+  // path-ok: Anti-abuse glob normalization splitting segments to compare prefixes
+  return p
+    .replaceAll(path.win32.sep, path.posix.sep)
+    .split('/')
+    .filter((seg) => Boolean(seg) && seg !== '.')
+    .join('/');
 }
 
 export function getExemptRootsForPolicy(
@@ -119,8 +124,10 @@ function isUniversalWildcard(glob: string): boolean {
 function isProtectedProductionRoot(normalizedLower: string, prodRoot: string): boolean {
   return (
     normalizedLower === prodRoot ||
+    // path-ok: Anti-abuse glob prefix validation preventing wildcard exemptions of production roots
     normalizedLower.startsWith(`${prodRoot}/`) ||
     normalizedLower.includes(`/${prodRoot}/`) ||
+    // path-ok: Anti-abuse glob wildcard prefix validation preventing wildcard exemptions
     normalizedLower.startsWith(`**/${prodRoot}`)
   );
 }
@@ -155,7 +162,7 @@ export function validateConstantsExemptGlobs(globs: readonly string[]): void {
   }
 
   for (const rawGlob of globs) {
-    const glob = rawGlob.trim().replace(/\\/g, '/');
+    const glob = rawGlob.trim().replaceAll(path.win32.sep, path.posix.sep);
     assertNoUniversalWildcard(rawGlob, glob);
     const normalizedLower = glob.toLowerCase().replace(/^\/+/, ''); // no-domain: Non-domain utility collection or data structure
     assertNoProtectedProductionRoots(rawGlob, normalizedLower);

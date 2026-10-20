@@ -17,6 +17,7 @@ import {
   createRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
@@ -33,9 +34,22 @@ enableCompileCache();
 export { AUDITOR_HOMEBREW_RULES, type AuditorHomebrewRuleId };
 
 export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options?: string | { projectRoot?: string }) {
+    const projectRoot =
+      typeof options === 'string'
+        ? options
+        : options?.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const configuredRoots =
+      config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0
+        ? config.auditorHygiene.roots
+        : isSelfProviderProject(projectRoot)
+          ? ['src/suites', 'src/analyzers', 'src/core', 'scripts/auditors']
+          : ['scripts/auditors'];
+
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       id: 'validate_auditor_hygiene',
       name: 'Auditor Architecture & Homebrew Hygiene Validator',
       description: 'Valida higiene y uso de APIs canónicas en auditores',
@@ -51,7 +65,8 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       ),
       configKey: 'auditorHygiene',
       defaultConfig: {
-        enabled: true
+        enabled: true,
+        roots: ['scripts/auditors']
       },
       criticalConfig: {},
       ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
@@ -64,7 +79,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         critical: false
       }),
       coverage: {
-        include: ['src/suites/**/*.ts', 'src/analyzers/**/*.ts', 'scripts/auditors/**/*.ts'],
+        include: deriveCoverageFromRoots(configuredRoots, new Set(['.ts']), projectRoot).include,
         exclude: ['src/analyzers/homebrew/**']
       },
       projectRoot
@@ -77,10 +92,12 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const exemptFiles = new Set(config.auditorHygiene?.exemptFiles ?? []);
 
-    const roots: string[] = ['scripts/auditors'];
-    if (isSelfRepo) {
-      roots.push('src/suites', 'src/analyzers');
-    }
+    const roots =
+      config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0
+        ? config.auditorHygiene.roots
+        : isSelfRepo
+          ? ['src/suites', 'src/analyzers', 'src/core', 'scripts/auditors']
+          : ['scripts/auditors'];
 
     const candidateFiles = this.context.collectFiles(roots, new Set(['.ts']));
 
@@ -130,6 +147,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       const isExtension = relPath.startsWith('scripts/auditors/') || !relPath.startsWith('src/');
       const isBuiltinSuite = relPath.startsWith('src/suites/');
       const isAnalyzer = relPath.startsWith('src/analyzers/');
+      const isCore = relPath.startsWith('src/core/');
 
       const inspectionContext: HomebrewInspectionContext = {
         filePath: relPath,
@@ -139,6 +157,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         isExtension,
         isBuiltinSuite,
         isAnalyzer,
+        isCore,
         projectRoot: this.projectRoot
       };
 

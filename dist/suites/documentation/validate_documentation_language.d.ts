@@ -11,6 +11,7 @@ export declare function getCanonicalLanguageMandateSnippet(language?: Documentat
  */
 export declare function containsLanguageMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
 export interface DocumentationLanguageOptions {
+  projectRoot?: string;
   fix?: boolean;
   language?: DocumentationLanguage;
   exemptions?: readonly string[];
@@ -41,7 +42,7 @@ export declare function extractProseFromComments(rawComments: readonly Extracted
 export declare class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLanguageRuleId> {
   private readonly rootDir;
   private readonly options?;
-  constructor(rootDir?: string, options?: DocumentationLanguageOptions);
+  constructor(options?: DocumentationLanguageOptions);
   private reportUnauthorizedLanguageViolation;
   private auditParagraph;
   private auditMarkdownFile;

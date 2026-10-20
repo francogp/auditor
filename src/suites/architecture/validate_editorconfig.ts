@@ -98,6 +98,7 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(EDITORCONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

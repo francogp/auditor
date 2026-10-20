@@ -48,7 +48,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('initializes with correct id and family metadata', () => {
-      const auditor = new ValidateMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new ValidateMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_mermaid_syntax');
       expect(auditor.family).toBe('documentation');
       expect(auditor.packageName).toBe('Doc');
@@ -60,13 +60,13 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('satisfies 100% of BaseAuditor metadata contracts via validateAuditorConstruction', () => {
-      const auditor = new ValidateMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new ValidateMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const errors = validateAuditorConstruction(auditor, 'validate_mermaid_syntax');
       expect(errors).toHaveLength(0);
     });
 
     it('ensures rule descriptions stay within length constraints', () => {
-      const auditor = new ValidateMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new ValidateMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       for (const [, desc] of Object.entries(auditor.ruleDescriptions)) {
         const fullDesc = `${auditor.packageName}: ${desc}`;
         expect(fullDesc.length).toBeLessThanOrEqual(50);
@@ -220,7 +220,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
 
   describe('Clean Path Testing', () => {
     it('passes cleanly on well-formed Mermaid diagrams with properly quoted nodes and edges', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Valid Guide',
         '```mermaid',
@@ -239,7 +239,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('passes cleanly on multiple valid diagrams across Markdown documents', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Flowchart Section',
         '```mermaid',
@@ -262,7 +262,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
 
   describe('Violation Path: Unquoted Special Characters', () => {
     it('detects unquoted % in edge labels (mermaid-unquoted-special-chars)', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -281,7 +281,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unquoted &, <, and Unicode comparisons in edge labels', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -300,7 +300,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unquoted parentheses in node brackets (mermaid-unquoted-special-chars)', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -318,7 +318,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unquoted slashes in edge labels', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -336,7 +336,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unquoted question marks in decision brace nodes', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -354,7 +354,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('honors line escape hatch <!-- mermaid-ok -->', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -370,7 +370,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
 
   describe('Violation Path: Syntax Errors via Parser', () => {
     it('detects broken diagram syntax (mermaid-syntax-error)', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -388,7 +388,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unknown diagram headers in markdown files', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -406,7 +406,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('detects unclosed subgraphs in markdown diagrams', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
         '```mermaid',
@@ -425,7 +425,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     });
 
     it('auto-quotes special characters in Mermaid labels when fix: true is active', async () => {
-      const auditor = new TestableMermaidSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       (auditor as unknown as { fixMode: boolean }).fixMode = true;
       const content = [
         '# Document',

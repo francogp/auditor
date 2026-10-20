@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import ts from "typescript";
 //#region src/suites/architecture/validate_pinia_reactivity.d.ts
 export type PiniaReactivityRuleId = 'no-store-destructuring-without-storetorefs' | 'no-direct-state-mutation-outside-actions';
@@ -9,7 +9,7 @@ export declare const AUTHORIZED_STATE_MUTATION_FILES: ReadonlySet<string>;
 export declare class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleId> {
   private readonly storesRoots;
   private readonly authorizedStateMutationFiles;
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   private reportPiniaViolation;
   private checkStoreVariableDeclaration;
   private checkStateMutation;

@@ -4,6 +4,7 @@ import { TEXT_ALIGNMENTS, getVisualWidth, padVisual, truncateVisual } from "./te
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
 import { formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";
+import { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "./executiveTheme.js";
 import path from "node:path";
 import { styleText } from "node:util";
 import boxen from "boxen";
@@ -507,7 +508,8 @@ function renderCliHelp(activeFamilies) {
 	lines.push(renderBanner("@francogp/auditor — Framework de Auditoría Estática y Gobernanza", "Node.js 26+ Native | UnifiedTheme Box-Drawing | Cero Hardcoding") + "\n");
 	const boldYellow = (s) => styleText(["bold", "yellow"], s);
 	lines.push(boldYellow("USO:"));
-	lines.push("  auditor [opciones] [comandos]  (o npm run auditor [opciones])\n");
+	lines.push("  auditor [opciones] [comandos]  (o npm run auditor [opciones])");
+	lines.push("  ↳ Nota npm: usa \"npm run auditor:help\" o \"npm run auditor help\" (npm intercepta \"--help\" directamente).\n");
 	lines.push(boldYellow("COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:"));
 	lines.push("  --list, list                 Lista todas las suites descubiertas y sus flags.");
 	lines.push("  --list --enabled             Lista exclusivamente las suites activas/encendidas en config.");
@@ -524,7 +526,9 @@ function renderCliHelp(activeFamilies) {
 	lines.push("  npm run auditor:motion       Gobernanza de animaciones UI y timers prohibidos.");
 	lines.push("  npm run auditor:o1           Optimización de búsquedas lineales O(N) a O(1).");
 	lines.push("  ↳ Subcomandos comunes: discover, inspect <archivo>, apply <plan.json>, help\n");
-	lines.push(boldYellow("MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:"));
+	lines.push(boldYellow("MODOS, FORMATOS Y FASES DE EJECUCIÓN:"));
+	lines.push("  format=compact (default)     Salida concisa y directa optimizada para agentes AI.");
+	lines.push("  human, format=human          Modo interactivo humano con tablas completas Box-Drawing (o npm run auditor:human).");
 	lines.push("  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.");
 	lines.push("  speed=light|heavy|full       Techo de velocidad (por defecto: heavy 🐢).");
 	lines.push("  only-speed=light|heavy|full  Ejecuta únicamente suites que declaren esa velocidad exacta.");
@@ -623,4 +627,4 @@ function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalW
 	})}\n`;
 }
 //#endregion
-export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };
+export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };

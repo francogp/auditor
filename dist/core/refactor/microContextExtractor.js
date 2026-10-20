@@ -1,3 +1,5 @@
+import { toPosixRelative } from "../auditCoverage.js";
+import "../safePath.js";
 import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -46,7 +48,7 @@ var MicroContextExtractor = class {
 			const hash = crypto.createHash("sha256").update(rawFragment).digest("hex");
 			const analysis = this.analyzeDataflow(rawFragment);
 			return {
-				file: inst.file.replace(/\\/g, "/"),
+				file: toPosixRelative(projectRoot, absPath),
 				startLine: inst.start_line,
 				endLine: inst.end_line,
 				contextStartLine: ctxStartIdx + 1,

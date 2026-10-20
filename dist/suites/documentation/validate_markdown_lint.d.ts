@@ -21,8 +21,11 @@ export declare const MARKDOWNLINT_FIXABLE_RULES: ReadonlySet<string>;
  * Parses raw JSON output or an array of issues from markdownlint into canonical AuditFindings.
  */
 export declare function parseMarkdownLintIssues(input: string | object[], cwd?: string): AuditFinding[];
+export interface MarkdownLintAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
-  constructor(projectRoot?: string);
+  constructor(options?: MarkdownLintAuditorOptions);
   runAudit(): Promise<void>;
   /**
    * Automatically repairs .markdownlint.json in --fix mode to ensure "br" is allowed

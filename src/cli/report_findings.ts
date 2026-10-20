@@ -19,13 +19,14 @@ import {
   isRemediationPhaseId
 } from '../core/auditContract.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import {
   renderBanner,
   renderFindingsBreakdownTable,
   renderSampleFindings,
   renderFindingsByFileTree
 } from '../core/unifiedTheme.ts';
-import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject, HUMAN_CONSOLE_FLAGS } from './cliUtils.ts';
 
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
@@ -62,6 +63,7 @@ interface ReportOptions {
   allowStale: boolean;
   allowPartial: boolean;
   inspectFix: boolean;
+  human: boolean;
 }
 
 const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
@@ -104,6 +106,10 @@ function isInvokedAsByRule(): boolean {
 }
 
 function parseFlagArg(arg: string, opts: ReportOptions): boolean {
+  if (HUMAN_CONSOLE_FLAGS.has(arg)) {
+    opts.human = true;
+    return true;
+  }
   if (JSON_FLAGS.has(arg)) {
     opts.jsonOutput = true;
     return true;
@@ -256,7 +262,8 @@ function parseReportOptions(): ReportOptions {
     filesOnly: false,
     allowStale: false,
     allowPartial: false,
-    inspectFix: false
+    inspectFix: false,
+    human: false
   };
 
   for (const arg of argv) {
@@ -286,7 +293,7 @@ function parseReportOptions(): ReportOptions {
 
 function loadAuditReport(inspectFix: boolean = false): AuditReport | null {
   const targetFileName = inspectFix ? 'latest_fix_audit.json' : 'latest_audit.json';
-  const reportPath = path.resolve(process.cwd(), `scratch/audits/${targetFileName}`);
+  const reportPath = path.resolve(process.cwd(), 'scratch/audits', targetFileName);
   if (!fs.existsSync(reportPath)) {
     if (inspectFix) {
       console.error(
@@ -317,15 +324,15 @@ function loadAuditReport(inspectFix: boolean = false): AuditReport | null {
 
 function getNormalizedRelPath(filePath?: string): string {
   if (!filePath) return 'General';
-  const rel = path.isAbsolute(filePath) ? path.relative(process.cwd(), filePath) : filePath;
-  return rel.split(path.sep).join(path.posix.sep);
+  return toPosixRelative(process.cwd(), filePath);
 }
 
 function getDirectoryBucket(filePath?: string): string {
   const rel = getNormalizedRelPath(filePath);
   if (rel === 'General') return 'General';
-  const parts = rel.split('/');
-  return parts.length > 1 ? `${parts[0]}/` : rel;
+  const first = rel.indexOf('/');
+  // path-ok: Table bucket category label with trailing slash
+  return first !== -1 ? `${rel.slice(0, first)}/` : rel;
 }
 
 function sortFindingsEntries<T extends { errors: number; warnings: number }>(
@@ -407,12 +414,21 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
 
   if (report.meta.isFullAudit) return;
 
-  console.log(
-    styleText(
-      'yellow',
-      `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(', ')}).\n`
-    )
-  );
+  if (args.human) {
+    console.log(
+      styleText(
+        'yellow',
+        `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(', ')}).\n`
+      )
+    );
+  } else {
+    console.log(
+      styleText(
+        'yellow',
+        `ℹ️  [Notice] Inspecting partial run (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites executed).\n`
+      )
+    );
+  }
 
   if (args.category !== 'all') {
     const matchesExecutedSuite = report.meta.executedSuites.some(
@@ -496,9 +512,10 @@ function matchesPathFilters(f: Finding, args: ReportOptions): boolean {
   if (args.scope === 'packages' && !relPath.startsWith('packages/')) return false;
 
   if (args.dirPattern) {
-    const cleanDir = args.dirPattern.replace(/^\.?\/+/, '').toLowerCase();
+    const cleanDir = toPosixRelative(process.cwd(), args.dirPattern).toLowerCase();
     const lowerRel = relPath.toLowerCase();
-    if (!lowerRel.startsWith(cleanDir) && !lowerRel.includes(`/${cleanDir}`)) {
+    // path-ok: CLI display filter matching directory prefix
+    if (lowerRel !== cleanDir && !lowerRel.startsWith(`${cleanDir}/`) && !lowerRel.includes(`/${cleanDir}/`)) {
       return false;
     }
   }
@@ -654,9 +671,10 @@ function renderFilteredDetailSample(matchingFindings: Finding[], args: ReportOpt
   ]
     .filter(Boolean)
     .join(', ');
-  console.log(
-    `\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo || 'todos'}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`
-  );
+  const headerText = args.human
+    ? `\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo || 'todos'}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n`
+    : `\n🔍 Filtered findings (active filters: ${filterInfo || 'all'}): ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}\n`;
+  console.log(headerText);
   const sample = matchingFindings.slice(0, limit);
   sample.forEach((f, idx) => {
     const loc = formatFindingLocation(f);
@@ -888,14 +906,6 @@ export function runReport(): void {
     return;
   }
 
-  console.log(
-    '\n' +
-      renderBanner(
-        'REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES',
-        `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`
-      )
-  );
-
   const categoriesToRender =
     args.phase !== 'all' ||
     args.category !== 'all' ||
@@ -908,6 +918,33 @@ export function runReport(): void {
       : categoryCounts;
 
   const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
+
+  const hasSpecificFilter = Boolean(
+    args.flat ||
+      args.rulePattern ||
+      args.search ||
+      args.filePattern ||
+      args.dirPattern ||
+      args.category !== 'all' ||
+      args.phase !== 'all' ||
+      args.severity !== 'all' ||
+      args.scope !== 'all'
+  );
+
+  if (!args.human && hasSpecificFilter) {
+    if (args.summaryOnly) return;
+    renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+    return;
+  }
+
+  console.log(
+    '\n' +
+      renderBanner(
+        'REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES',
+        `Estado: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`
+      )
+  );
+
   console.log(
     '\n' + renderFindingsBreakdownTable(sortedCategories, 'CATEGORÍA / REGLA DE AUDITORÍA') + '\n'
   );

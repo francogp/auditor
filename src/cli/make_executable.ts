@@ -30,6 +30,7 @@ export function purgeOrphanedDistFiles(
           traverseAndClean(distPath, srcSubdir);
         }
       } else if (entry.isFile()) {
+        // path-ok: Strips compiled TypeScript artifact extensions (.d.ts, .js.map) to find source file
         const baseName = entry.name.replace(/\.(d\.ts|d\.ts\.map|js|js\.map)$/, '');
         if (baseName === 'index') continue;
 

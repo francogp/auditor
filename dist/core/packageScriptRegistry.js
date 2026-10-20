@@ -185,7 +185,8 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		name: "auditor:dupes",
 		command: "auditor-dupes",
 		description: "Refactorización y deduplicación determinista de código sintáctico y clones",
-		category: "reporting"
+		category: "reporting",
+		permissions: ["--allow-addons"]
 	},
 	{
 		name: "auditor:magic",
@@ -397,5 +398,17 @@ var PackageScriptRegistry = class {
 		});
 	}
 };
+/**
+* Builds the canonical runner command for an AuditorPackageScriptRequirement,
+* dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.
+*/
+function buildCanonicalRunnerCommand(requirement) {
+	let cmd = requirement.command;
+	if (requirement.permissions && requirement.permissions.length > 0) {
+		const flagsStr = requirement.permissions.join(" ");
+		if (!cmd.includes(flagsStr)) cmd = `${cmd} ${flagsStr}`;
+	}
+	return cmd;
+}
 //#endregion
-export { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry };
+export { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry, buildCanonicalRunnerCommand };

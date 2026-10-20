@@ -2,6 +2,8 @@
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import path from "node:path";
@@ -22,10 +24,11 @@ const MAX_RECOMMENDATION_CHARS = 48;
 function extractLayerFromPath(relPath) {
 	const codeRoots = getAuditConfig().paths?.codeRoots ?? ["src", "scripts"];
 	for (const root of codeRoots) {
-		const cleanRoot = root.replace(/^\/+|\/+$/g, "") + "/";
-		if (relPath.startsWith(cleanRoot)) return relPath.slice(cleanRoot.length).split("/")[0] || "root";
+		const cleanRoot = toPosixRelative(process.cwd(), root);
+		const relToRoot = path.posix.relative(cleanRoot, relPath);
+		if (!relToRoot.startsWith("..") && !path.posix.isAbsolute(relToRoot)) return relToRoot.split("/").filter(Boolean)[0] || "root";
 	}
-	const segments = relPath.split("/");
+	const segments = relPath.split("/").filter(Boolean);
 	return segments.length > 1 && segments[0] ? segments[0] : "root";
 }
 const DEFAULT_TOP_LIMIT = 20;
@@ -86,7 +89,7 @@ function ingestLargeFunctions(rawLarge, findingsMap) {
 	if (!rawLarge) return;
 	for (const lf of rawLarge) {
 		const filePath = lf.path ?? "";
-		const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+		const relPath = toPosixRelative(process.cwd(), filePath);
 		const layer = extractLayerFromPath(relPath);
 		const key = `${relPath}:${lf.line}:${lf.name}`;
 		findingsMap.set(key, {
@@ -106,7 +109,7 @@ function ingestComplexityFindings(rawFindings, findingsMap) {
 	if (!rawFindings) return;
 	for (const f of rawFindings) {
 		const filePath = f.path ?? "";
-		const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+		const relPath = toPosixRelative(process.cwd(), filePath);
 		const layer = extractLayerFromPath(relPath);
 		const cog = f.cognitive || 0;
 		const cyc = f.cyclomatic || 0;
@@ -149,7 +152,7 @@ function ingestFallbackAuditFindings(findingsMap) {
 		const compFindings = (JSON.parse(fs.readFileSync(latestPath, "utf8")).allFindings || []).filter((f) => f.ruleId === "fallow-refactoring-targets");
 		for (const cf of compFindings) {
 			const filePath = cf.file || "";
-			const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, "/");
+			const relPath = toPosixRelative(process.cwd(), filePath);
 			const layer = extractLayerFromPath(relPath);
 			const line = cf.line || 1;
 			const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);

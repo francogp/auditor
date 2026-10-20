@@ -27,6 +27,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
 				speed: "light",
 				phase: "setup",

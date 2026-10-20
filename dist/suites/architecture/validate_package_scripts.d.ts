@@ -12,13 +12,15 @@ export declare class ValidatePackageScriptsAuditor extends BaseAuditor<PackageSc
   private loadPackageJson;
   private checkBuildScriptChainsPreAudit;
   private checkBuildScriptChainsPostAudit;
+  private rewriteBuildScript;
+  private describeBuildScriptDefect;
   private verifyBuildScript;
   private verifyLintScript;
   private verifyVitePlusScripts;
   private isObsoleteAuditorScript;
   private pruneObsoleteAuditorScripts;
   private verifyCiWorkflows;
-  private resolveTargetScriptCommand;
+  private buildCanonicalScriptCommand;
   private isScriptCommandOutdated;
   private getMissingOrOutdatedRecommendedScripts;
   private verifyRecommendedScripts;

@@ -695,10 +695,16 @@ function tryParseFallowJson(raw: string | Buffer | undefined): FallowAuditData |
   }
 }
 
+export interface FallowArchitectureAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options: FallowArchitectureAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',

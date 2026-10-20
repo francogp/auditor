@@ -41,12 +41,12 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
     const auditor =
       auditorOrOptions instanceof DomainTypesAuditor
         ? auditorOrOptions
-        : new DomainTypesAuditor(
-            undefined,
-            typeof auditorOrOptions === 'string'
-              ? auditorOrOptions
-              : auditorOrOptions?.projectRoot
-          );
+        : new DomainTypesAuditor({
+            projectRoot:
+              typeof auditorOrOptions === 'string'
+                ? auditorOrOptions
+                : auditorOrOptions?.projectRoot
+          });
     super(auditor);
   }
 

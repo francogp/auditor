@@ -1,11 +1,9 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import "../../core/astContext.js";
 import "../../core/safePath.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import "../../core/astContext.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { detectDuplicateConstants } from "../../analyzers/constantAnalyzer.js";
 import { badConstantNames, noAliasConstants, noLiteralSuffixInConstantName } from "../../analyzers/constantRules.js";
@@ -38,13 +36,12 @@ const CONSTANT_HYGIENE_RULES = [
 const P_EXPORT_REDUNDANT_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-Z_a-z]\w*)\s*;/gm;
 var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 	scannedAbsFiles = [];
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const effectiveProjectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
-		const config = getAuditConfig(effectiveProjectRoot);
-		const effectiveRoots = (optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : config.paths.srcRoots ?? [])).map((r) => toPosixRelative(effectiveProjectRoot, r));
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.srcRoots ?? []);
+		const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -82,7 +79,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 				"constant-no-alias": "Elimina el alias redundante de constante e importa o utiliza directamente la constante canónica de origen.",
 				"constant-no-literal-suffix": "Remueve el sufijo numérico crudo del nombre de la constante (ej. _100, _600); usa nombres semánticos de dominio."
 			},
-			projectRoot: effectiveProjectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	scanRegexConstantRules(relPath, content, range) {

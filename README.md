@@ -79,10 +79,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.7.9`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.8.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.7.9 --allow-git=all
+npm install -D github:francogp/auditor#v9.8.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +92,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.7.9"
+    "@francogp/auditor": "github:francogp/auditor#v9.8.0"
   }
 }
 ```
@@ -134,6 +134,8 @@ auditor-update v9.0.0
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
 
+> Dependency changes use `npm install` to regenerate `package-lock.json`; commit it together with `package.json`. Setup scripts install with `npm ci` and, if it fails because the lockfile is out of sync, fall back to `npm install` and print a warning that the lockfile was modified.
+
 ### Mandatory Minimum Library Versions (`validate_dependency_minimums`)
 
 The auditor exposes a conditional version floor for shared libraries (`typescript`, `vite-plus`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, no hardcoded versions).
@@ -172,7 +174,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.7.9-build.20261020-014135',
+  auditorVersion: '9.8.0-build.20261020-195503',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -229,7 +231,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.7.9"`), or install via `npm install -D github:francogp/auditor#v9.7.9 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.8.0"`), or install via `npm install -D github:francogp/auditor#v9.8.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -269,7 +271,35 @@ AI agents and developers are strictly forbidden from suppressing, disabling, or 
 
 ## 4. Execution Modes & Capability-Driven Presets
 
-### 4.1. Default Project Audit (`speed=heavy` `🐢`) & Exhaustive Audit (`auditor:full` / `speed=full` `🐘`)
+### 4.1. AI-Friendly Compact Mode (Default) vs. Human Mode (`:human`)
+
+By default, all auditor commands execute in an **AI-friendly compact mode** that outputs a concise, non-polluting 3-line status in English:
+
+```text
+✔ AUDIT PASSED [73/80 suites] in 1.42s
+  Errors: 0 | Warnings: 0 | Ratchet: OK
+  Report: scratch/audits/latest_audit.json
+```
+
+For human programmers desiring interactive progress, per-rule telemetry (`🔍 [X/Y]`), and full 80-column Box-Drawing summary tables, pass `human`, `format=human`, or invoke dedicated `:human` package scripts:
+
+```bash
+# Interactive human inspect mode with Box-Drawing tables and live telemetry:
+npm run auditor:human
+npm run auditor:lint:human
+npm run auditor:full:human
+npm run auditor:fix:human
+npm run auditor:findings:human
+
+# Or pass CLI flag directly (using positional 'human' to avoid npm intercepting flags):
+npm run auditor human
+auditor human
+auditor --human
+```
+
+Node.js native permission warnings (`PERM0002`) are cleanly silenced using `--disable-warning=PERM0002` while preserving 100% of real actionable warnings.
+
+### 4.2. Default Project Audit (`speed=heavy` `🐢`) & Exhaustive Audit (`auditor:full` / `speed=full` `🐘`)
 
 The 3-tier speed engine classifies rules across `light` (`🐇`), `heavy` (`🐢`), and `full` (`🐘`), supporting both **cumulative ceiling mode** (`speed=<tier>`) and **exact tier isolation** (`only-speed=<tier>`):
 
@@ -293,7 +323,7 @@ auditor only-speed=full
 - Renders the Box-Drawing consolidated summary table with the `TOTAL CONSOLIDADO` footer row.
 - Saves full structured results to `scratch/audits/latest_audit.json`.
 
-### 4.2. Dynamic Discovery & Suite Introspection (`--list`, `--info`)
+### 4.3. Dynamic Discovery & Suite Introspection (`--list`, `--info`)
 
 Discover and inspect suites dynamically without reading source code:
 
@@ -318,7 +348,7 @@ npm run auditor:guide -- <ruleId>
 auditor guide <ruleId>
 ```
 
-### 4.3. Fast Light Preset (`auditor:lint` / `speed=light` `🐇`)
+### 4.4. Fast Light Preset (`auditor:lint` / `speed=light` `🐇`)
 
 Dynamically isolates and executes only suites declaring `speed: 'light'` (or multi-profile `speed: ['light', 'full']` in light syntax-only mode) in milliseconds:
 
@@ -330,7 +360,7 @@ auditor speed=light
 
 Discovers `light`-tier (`🐇`) suites dynamically (including Oxlint syntax-only mode, Stylelint, HTML-Validate, Markdownlint, A11y, Domain Types, Vue SFC hygiene, and AST checkers).
 
-### 4.4. Documentation Preset (`preset=md`)
+### 4.5. Documentation Preset (`preset=md`)
 
 Dynamically isolates and executes suites declaring `md: true` in their `ruleCapabilities`:
 
@@ -342,7 +372,7 @@ auditor preset=md
 
 Discovers documentation suites dynamically (including DOX hierarchy, Markdown syntax, link integrity, Mermaid diagram syntax, code references, and authentic documented commands).
 
-### 4.5. Auto-Fix Mode (`auditor fix`)
+### 4.6. Auto-Fix Mode (`auditor fix`)
 
 Dynamically isolates and runs only suites declaring `fix: 'priority'` or `fix: 'normal'` under the dedicated `[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]` terminal interface (`fix: 'priority'` suites execute first):
 
@@ -354,7 +384,7 @@ auditor fix
 
 Auto-repair suites include: `validate_audit_config`, `validate_git_config`, `validate_vite_plus_config`, `validate_fallow_config`, `validate_agent_plugin`, `validate_oxlint`, `validate_oxfmt`, `validate_stylelint`, `validate_html_validate`, `validate_markdown_lint`, `validate_package_hygiene` (Knip dependency fixes), and `validate_z_index`.
 
-### 4.6. Built-In Warning Ratchet (0 errors, 0 new warnings)
+### 4.7. Built-In Warning Ratchet (0 errors, 0 new warnings)
 
 Every full default run (`npm run auditor` / `auditor`) and exhaustive run (`npm run auditor:full`) enforces the warning ratchet. Each warning is fingerprinted by content (suite, rule, file, normalized source line, occurrence index), so moving code does not change it, while new or edited offending lines do. The run fails when any fingerprint is missing from `.auditor/audit-baseline.json` as committed at `ratchet.productionRef` (default `origin/main`), including warnings in files you did not touch.
 
@@ -370,7 +400,7 @@ npm run auditor -- --init-baseline  # one-time bootstrap when the production ref
 - CI checkouts must expose the production ref (for example `fetch-depth: 0`).
 - The former `audit:for-commit` / `auditor-commit` gate is removed; `validate_audit_config` flags leftover scripts (`audit-config-removed-commit-gate`) and `auditor fix` rewrites them.
 
-### 4.7. Post-Build Artifact Phase (`auditor:post-build` / `phase=post-build` / `auditor-post-build`)
+### 4.8. Post-Build Artifact Phase (`auditor:post-build` / `phase=post-build` / `auditor-post-build`)
 
 Dynamically isolates and executes suites declaring `phase: 'post-build'` against compiled distribution artifacts in `dist/`:
 
@@ -384,7 +414,7 @@ auditor-post-build
 
 Executes `validate_bundle_budget` post-compilation against `dist/` (ATTW and Publint are executed natively by `vp pack`).
 
-### 4.8. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
+### 4.9. Deployment Build Runner (`build:deploy` / `auditor-build-deploy`)
 
 In headless deployment environments (Docker builds, deployment scripts, CI containers), execute:
 
@@ -641,13 +671,19 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
       configKey: 'persistence.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
+      requiredPermissions: [],
+      remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       ruleIds: NO_INLINE_SQL_RULES,
       ruleDescriptions: {
         'inline-sql-detected': 'Consulta SQL en capa de presentación'
       },
       ruleRemediations: {
-        'inline-sql-detected': `### ¿Por qué ocurre este problema?\nLas vistas contienen consultas SQL directas.\n\n### ¿Cómo solucionarlo paso a paso?\n1. Mueve la consulta al repositorio de datos.`
+        'inline-sql-detected':
+          'Causa Raíz: Las vistas o componentes de presentación contienen consultas SQL directas.\n' +
+          'Diagnóstico: Inspecciona el archivo y ubica la sentencia SQL inline.\n' +
+          'Solución Canónica: Mueve la consulta SQL al repositorio o cliente de persistencia de datos.\n' +
+          'Ejemplo / Comando: npm run auditor'
       },
       ruleCapabilities: createUniformRuleCapabilities(NO_INLINE_SQL_RULES, {
         speed: 'light',

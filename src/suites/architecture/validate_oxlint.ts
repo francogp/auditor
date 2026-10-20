@@ -527,6 +527,10 @@ export function parseOxlintResults(
   });
 }
 
+export interface OxlintAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
     {
@@ -538,10 +542,11 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     }
   ];
 
-  constructor(projectRoot?: string) {
-    const effectiveRoot = projectRoot || process.cwd();
+  constructor(options: OxlintAuditorOptions = {}) {
+    const effectiveRoot = options.projectRoot || process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Vite+ Oxlint',
         fallbackBehavior: 'violation',

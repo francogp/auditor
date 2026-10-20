@@ -30,10 +30,9 @@ const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html']);
 
 export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHardeningRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-    const config = getAuditConfig(effectiveRoot);
+    const securityRoots = resolveFileScanRoots(options);
+    const secConfig = getAuditConfig(securityRoots.effectiveRoot);
     super({
-      usesThirdPartyTool: false,
       id: 'validate_security_hardening',
       name: 'Security Hardening & Threat Boundary Auditor',
       description: 'Endurecimiento de seguridad, OWASP Top 10 y SSRF',
@@ -43,7 +42,9 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       configKey: 'securityHardening.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: targetRoots,
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      roots: securityRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SECURITY_HARDENING_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SECURITY_HARDENING_RULES, 'behavior'),
@@ -138,9 +139,9 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         SECURITY_HARDENING_RULES,
         LIGHT_RULE_CAPABILITIES
       ),
-      projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-      exemptPaths: config.securityHardening?.exemptPaths
+      projectRoot: securityRoots.effectiveRoot,
+      coverage: deriveCoverageFromRoots(securityRoots.targetRoots, SCANNABLE_EXTS, securityRoots.effectiveRoot),
+      exemptPaths: secConfig.securityHardening?.exemptPaths
     });
   }
 

@@ -156,6 +156,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
           icon: '⚡',
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleIds: ['r-light', 'r-heavy', 'r-multi'],

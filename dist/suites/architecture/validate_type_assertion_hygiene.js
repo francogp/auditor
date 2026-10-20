@@ -2,9 +2,9 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_type_assertion_hygiene.ts
@@ -142,6 +142,7 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 		const codeRoots = typeof options === "object" && options?.roots ? options.roots : cfg.paths.codeRoots ?? [];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
 				speed: "light",
 				phase: "normal",

@@ -1,0 +1,52 @@
+### K01 regression expect=homebrew-path-containment
+if (filePath.includes('..')) { throw new Error('Traversal'); }
+
+### K02 gemini#22 expect=homebrew-path-containment
+const isUnsafe = /\.\.[\/\\]/.test(userInputPath);
+
+### K03 gemini#23 expect=homebrew-path-containment
+const matcher = new RegExp('^' + baseDir + '/');
+
+### K04 gpt-disagreement expect=homebrew-path-containment line=2
+const safePath = path.resolve(baseDir, userInput);
+if (safePath.startsWith(baseDir)) { read(safePath); }
+
+### K05 gpt expect=homebrew-path-containment
+const sanitized = userInput.replace(/\.\.\//g, '');
+
+### K06 gpt expect=homebrew-path-containment
+const clean = segments.filter(s => s !== '..').join('/');
+
+### K07a gpt expect=homebrew-path-containment
+const broken = ambiguous.replace(/\.\.(?:\\\\|\/)+/, '');
+
+### K07b gpt expect=homebrew-path-containment
+const manualRem = userInput.replace(/\.{2,}/g, '');
+
+### K07c gpt expect=homebrew-path-containment
+const partial = userInput.replace(/%2E%2E/ig, '');
+
+### K08 gpt expect=homebrew-path-containment
+const wrongReplace = 'C:/Temp/../Windows'.replace('..', '');
+
+### K09 gpt-disagreement expect=homebrew-path-containment line=2
+const allowed = path.relative(base, path.join(base, 'subfolder'));
+if (!allowed.startsWith('..')) { use(allowed); }
+
+### K10 grok-safeResolve expect=homebrew-path-containment
+if (real !== normalizedBase && !real.startsWith(normalizedBase + path.sep)) { return null; }
+
+### K11 grok-safeResolve expect=homebrew-path-containment
+if (/^[a-zA-Z]:/.test(decoded) || decoded.startsWith('\\\\') || decoded.startsWith('//')) { return null; }
+
+### K12 grok-PATH_TRAVERSAL_RE expect=homebrew-path-containment
+const PATH_TRAVERSAL_RE = new RegExp([String.raw`\.\.[/\\]`, String.raw`[/\\]\.\.[/\\]`].join('|'), 'i');
+
+### K13 regression expect=homebrew-path-containment
+export function sanitize(p: string): string { return p.replace(/(\.\.[\/\\])+/g, ''); }
+
+### K14 host-pokeborrador expect=homebrew-path-containment
+if (!targetPath.startsWith(projectRoot) || fileName.includes('..')) { throw new Error('x'); }
+
+### K15 host-pokeborrador expect=homebrew-path-containment
+if (normalized.includes('..')) { throw new Error('x'); }

@@ -125,10 +125,16 @@ function resolveTypeCheckBinary(projectRoot: string): { cmd: string; args: strin
   return { cmd: 'tsc', args: ['--noEmit'] };
 }
 
+export interface TypeCheckAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
-  constructor(projectRoot?: string) {
+  constructor(options: TypeCheckAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'TypeScript',
         fallbackBehavior: 'throw'

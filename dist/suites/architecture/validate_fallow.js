@@ -2,9 +2,9 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { resolveFallowBinary } from "./validate_similar_code.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -373,9 +373,11 @@ function tryParseFallowJson(raw) {
 	}
 }
 var FallowArchitectureAuditor = class extends BaseAuditor {
-	constructor(projectRoot = process.cwd()) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "Fallow",
 				fallbackBehavior: "violation",

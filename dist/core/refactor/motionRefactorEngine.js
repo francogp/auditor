@@ -192,7 +192,7 @@ var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine
 	toolId = "auditor-motion";
 	configSectionKey = "animation";
 	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof ValidateGsapAnimationsAuditor ? auditorOrOptions : new ValidateGsapAnimationsAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		const auditor = auditorOrOptions instanceof ValidateGsapAnimationsAuditor ? auditorOrOptions : new ValidateGsapAnimationsAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

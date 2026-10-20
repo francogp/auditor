@@ -1,13 +1,11 @@
 import { HomebrewDetectorRegistry } from "./homebrewRegistry.js";
-import { AUDITOR_HOMEBREW_RULES, createLineDetector } from "./homebrewTypes.js";
+import { AUDITOR_HOMEBREW_RULES, createLineDetector, isInsideStringLiteral } from "./homebrewTypes.js";
 import { packageJsonDetector } from "./detectors/packageJsonDetector.js";
 import { vueSfcRegexDetector } from "./detectors/vueSfcRegexDetector.js";
 import { tsAstDetector } from "./detectors/tsAstDetector.js";
-import { pathNormalizeDetector } from "./detectors/pathNormalizeDetector.js";
 import { rawConsoleDetector } from "./detectors/rawConsoleDetector.js";
 import { commentStrippingDetector } from "./detectors/commentStrippingDetector.js";
 import { braceCountingDetector } from "./detectors/braceCountingDetector.js";
-import { pathContainmentDetector } from "./detectors/pathContainmentDetector.js";
 import { fileWalkerDetector } from "./detectors/fileWalkerDetector.js";
 import { predicatesDetector } from "./detectors/predicatesDetector.js";
 import { manualTimingDetector } from "./detectors/manualTimingDetector.js";
@@ -26,11 +24,9 @@ import { inefficientFileScanDetector } from "./detectors/inefficientFileScanDete
 HomebrewDetectorRegistry.register(packageJsonDetector);
 HomebrewDetectorRegistry.register(vueSfcRegexDetector);
 HomebrewDetectorRegistry.register(tsAstDetector);
-HomebrewDetectorRegistry.register(pathNormalizeDetector);
 HomebrewDetectorRegistry.register(rawConsoleDetector);
 HomebrewDetectorRegistry.register(commentStrippingDetector);
 HomebrewDetectorRegistry.register(braceCountingDetector);
-HomebrewDetectorRegistry.register(pathContainmentDetector);
 HomebrewDetectorRegistry.register(fileWalkerDetector);
 HomebrewDetectorRegistry.register(predicatesDetector);
 HomebrewDetectorRegistry.register(manualTimingDetector);
@@ -41,4 +37,4 @@ HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
 HomebrewDetectorRegistry.register(thirdPartyToolContractDetector);
 HomebrewDetectorRegistry.register(inefficientFileScanDetector);
 //#endregion
-export { AUDITOR_HOMEBREW_RULES, HomebrewDetectorRegistry, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, pathContainmentDetector, pathNormalizeDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };
+export { AUDITOR_HOMEBREW_RULES, HomebrewDetectorRegistry, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, isInsideStringLiteral, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };

@@ -39,6 +39,7 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
         enabled: true,
         strictList: ['alpha', 'beta']
       },
+      requiredPermissions: [],
       criticalConfig: {
         rationale: 'Las constantes alpha y beta son invariantes de seguridad.',
         requiredMinimums: {
@@ -94,6 +95,7 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       icon: '🛡️',
       configKey: 'sample',
       defaultConfig: { enabled: true },
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleIds: ['sample-rule'],

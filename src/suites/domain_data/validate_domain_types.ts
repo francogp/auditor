@@ -17,11 +17,13 @@ import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { matchesAnyRoot } from '../../core/auditRootMatcher.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import { isPositionInsideFunctionParams, stripComments } from '../../core/scannerUtils.ts';
 import ts from 'typescript';
@@ -111,6 +113,8 @@ const P_RECORD_STRING_KEY = /\bRecord\s*<\s*string\s*,/g;
 const P_RECORD_PROPERTY_KEY = /\bRecord\s*<\s*PropertyKey\s*,/g;
 const P_INDEX_SIGNATURE = /\[\s*\w+\s*:\s*string\s*\]\s*:/g;
 const P_DOMAIN_STRING_FIELD = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*string(?:\[\])?\s*[;,]?/gm;
+const P_FINITE_DOMAIN_PHASE_STRING =
+  /^\s*(?:readonly\s+)?(?:phase|remediationPhase)\??:\s*string(?:\[\])?\s*[;,]?/gm;
 const P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS =
   /^\s*(?:export\s+)?type\s+\w+\s*=[^;\n'"`]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*;|^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*;/gm;
 const P_AMBIGUOUS_EMPTY_NULL_FIELD =
@@ -154,6 +158,15 @@ function hasEscapeHatch(line: string): boolean {
   return ESCAPE_HATCHES.some((hatch) => new RegExp(`//\\s*${hatch}:\\s*\\S+`).test(line));
 }
 
+function hasDomainExemptionComment(line: string): boolean {
+  return (
+    line.includes('// domain-ok:') ||
+    line.includes('// infra-ok:') ||
+    line.includes('// type-ok:') ||
+    line.includes('// no-domain:')
+  );
+}
+
 function isTestFile(file: string): boolean {
   const config = getAuditConfig();
   if (config.paths.includeTestsInCodeAudit) return false;
@@ -163,12 +176,8 @@ function isTestFile(file: string): boolean {
 function isContractFile(file: string): boolean {
   const config = getAuditConfig();
   const contractRoots = [...(config.paths.typesRoots ?? []), ...(config.paths.dataRoots ?? [])];
-  return (
-    contractRoots.some((r) => file.includes(r.replace(/^\.?\//, ''))) ||
-    file.includes('/types/') ||
-    file.includes('/data/') ||
-    file.endsWith('.d.ts')
-  );
+  const norm = normalizePosixPath(file);
+  return matchesAnyRoot(norm, contractRoots) || file.endsWith('.d.ts');
 }
 
 function isAmbientDeclarationFile(file: string): boolean {
@@ -564,6 +573,18 @@ export function auditFileContent(
     )
   );
 
+  findings.push(
+    ...findMatches(
+      content,
+      rel,
+      P_FINITE_DOMAIN_PHASE_STRING,
+      'Finite domain property `phase` typed as raw `string` — use canonical `RemediationPhaseId` or `AuditExecutionPhase` union (or `// domain-ok: <justification>`)',
+      'ERROR',
+      'domain-naked-string-primitive',
+      (_match, line) => !line.includes('// domain-ok:')
+    )
+  );
+
   // 3. Ambiguous unions mixing empty-string and null/undefined
   findings.push(
     ...findMatches(
@@ -619,13 +640,7 @@ export function auditFileContent(
           /\bis[A-Z_a-z]\w*\s*=\s*/.test(line)
         )
           return false;
-        if (
-          line.includes('// domain-ok:') ||
-          line.includes('// infra-ok:') ||
-          line.includes('// type-ok:') ||
-          line.includes('// no-domain:')
-        )
-          return false;
+        if (hasDomainExemptionComment(line)) return false;
         const castTarget = _match[0].replace(/^as\s+/, '').trim();
         return !isExemptDomainCastTarget(castTarget);
       }
@@ -642,13 +657,7 @@ export function auditFileContent(
       'domain-naked-string-primitive',
       (_match, line) => {
         if (/\bfunction\s+is[A-Z_a-z]\w*/.test(line)) return false;
-        if (
-          line.includes('// domain-ok:') ||
-          line.includes('// infra-ok:') ||
-          line.includes('// type-ok:') ||
-          line.includes('// no-domain:')
-        )
-          return false;
+        if (hasDomainExemptionComment(line)) return false;
         const castTarget = _match[0]
           .replace(/^Object\.(?:keys|entries)\s*\([^)]+\)\s+as\s+/, '')
           .replace(/\[\]$/, '')
@@ -752,15 +761,17 @@ export async function auditFile(
 }
 
 export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots =
-      roots ??
-      (config.paths.includeTestsInCodeAudit
-        ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
-        : (config.paths.codeRoots ?? []));
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) =>
+        config.paths.includeTestsInCodeAudit
+          ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
+          : (config.paths.codeRoots ?? [])
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -825,13 +836,13 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
           '                  // O bien: export type HeroId = string & { readonly __brand: unique symbol };'
       },
       coverage: {
-        include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
+        include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,
         exclude: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**']
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: EXTENSIONS,
       extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**'],
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

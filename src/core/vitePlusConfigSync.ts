@@ -153,8 +153,14 @@ export function resolveAuditConfigIgnoreGlobs(
 
   const specificTargetIgnores =
     target === 'lint'
-      ? (config.vitePlusConfig?.lint?.ignorePatterns ?? [])
-      : (config.vitePlusConfig?.fmt?.ignorePatterns ?? []);
+      ? [
+          ...(config.vitePlusConfig?.lint?.ignorePatterns ?? []),
+          ...(config.oxlint?.ignoreGlobs ?? [])
+        ]
+      : [
+          ...(config.vitePlusConfig?.fmt?.ignorePatterns ?? []),
+          ...(config.oxfmt?.ignoreGlobs ?? [])
+        ];
 
   return Array.from(
     new Set([

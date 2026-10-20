@@ -45,7 +45,7 @@ describe('MarkdownLinkAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new MarkdownLinkAuditor([], PROJECT_ROOT);
+      const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_markdown_links');
       expect(auditor.family).toBe('documentation');
       expect(auditor.ruleIds).toEqual(MARKDOWN_LINK_RULES);
@@ -216,7 +216,7 @@ describe('MarkdownLinkAuditor', () => {
           '# Broken\n[Missing](./does_not_exist.md)\n',
           'utf-8'
         );
-        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
@@ -234,7 +234,7 @@ describe('MarkdownLinkAuditor', () => {
           '# Purpose\n\n[Broken Link](./non_existent_module.ts)\n',
           'utf-8'
         );
-        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
         const result = await auditor.execute();
         expect(result.status).toBe('failed');
         expect(
@@ -259,7 +259,7 @@ describe('MarkdownLinkAuditor', () => {
           '# Readme\n\nSee [guide](./guide.md).\n',
           'utf-8'
         );
-        const auditor = new MarkdownLinkAuditor([], sandbox);
+        const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
         const result = await auditor.execute();
 
         expect(result.summary.errors).toBe(0);

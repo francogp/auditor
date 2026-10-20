@@ -1,4 +1,4 @@
-import { createLineDetector } from "../homebrewTypes.js";
+import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
 //#region src/analyzers/homebrew/detectors/manualTimingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/manualTimingDetector.ts
@@ -18,11 +18,7 @@ const manualTimingDetector = createLineDetector({
 		if (line.includes("// timing-ok:") || line.includes("// benchmark-ok:")) return null;
 		const match = /\b(?:performance\.now\s*\(|console\.time(?:End)?\s*\(|process\.hrtime\b|\bthis\.recordRuleDuration\s*\()/.exec(line);
 		if (!match) return null;
-		const before = line.slice(0, match.index);
-		const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
-		const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
-		const backticks = (before.match(/`/g) || []).length % 2 === 1;
-		if (singleQuotes || doubleQuotes || backticks) return null;
+		if (isInsideStringLiteral(line, match.index)) return null;
 		const trimmed = line.trim();
 		if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return null;
 		return "Medición manual de tiempos o llamada casera a 'performance.now()' / 'recordRuleDuration' en subauditor o extensión. Prohibido medir tiempos ad-hoc. Declara las sub-herramientas con 'declareSubAuditor()', 'declareFileSubAuditor()' o 'declarePatternSubAuditor()', o usa 'runSubAuditorSync()' para medir cada regla individualmente.";

@@ -169,6 +169,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_constant_hygiene',
       'validate_domain_types',
       'validate_magic_numbers',
+      'validate_native_paths',
       'validate_o1_data_structures',
       'validate_pinia_reactivity',
       'validate_reactive_leaks',

@@ -36,7 +36,7 @@ describe('MarkdownLintAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+      const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_markdown_lint');
       expect(auditor.family).toBe('documentation');
       expect(auditor.ruleIds).toContain('markdownlint-issue');
@@ -136,7 +136,7 @@ describe('MarkdownLintAuditor', () => {
       const cliUtils = await import('../src/cli/cliUtils.ts');
       vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue('[]');
 
-      const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+      const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);
@@ -160,7 +160,7 @@ describe('MarkdownLintAuditor', () => {
 
       process.argv.push('fix');
       try {
-        const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+        const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
         const result = await auditor.execute();
 
         expect(spy).toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe('MarkdownLintAuditor', () => {
       try {
         nodeFs.writeFileSync(testConfigPath, JSON.stringify({ default: true }, null, 2), 'utf8');
 
-        const auditor = new MarkdownLintAuditor(tmpDir);
+        const auditor = new MarkdownLintAuditor({ projectRoot: tmpDir });
         auditor.repairMarkdownLintConfig(testConfigPath);
 
         const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
@@ -207,7 +207,7 @@ describe('MarkdownLintAuditor', () => {
           'utf8'
         );
 
-        const auditor = new MarkdownLintAuditor(tmpDir);
+        const auditor = new MarkdownLintAuditor({ projectRoot: tmpDir });
         auditor.repairMarkdownLintConfig(testConfigPath);
 
         const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
@@ -235,7 +235,7 @@ describe('MarkdownLintAuditor', () => {
           'utf8'
         );
 
-        const auditor = new MarkdownLintAuditor(tmpDir);
+        const auditor = new MarkdownLintAuditor({ projectRoot: tmpDir });
         auditor.repairMarkdownLintConfig(testConfigPath);
 
         const updated = JSON.parse(nodeFs.readFileSync(testConfigPath, 'utf8'));
@@ -246,7 +246,7 @@ describe('MarkdownLintAuditor', () => {
     });
 
     it('safely handles non-existent or invalid configuration file', async () => {
-      const auditor = new MarkdownLintAuditor(PROJECT_ROOT);
+      const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
       expect(() =>
         auditor.repairMarkdownLintConfig('/non/existent/path/.markdownlint.json')
       ).not.toThrow();

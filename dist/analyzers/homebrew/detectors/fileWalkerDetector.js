@@ -30,6 +30,7 @@ const fileWalkerDetector = {
 	ruleDescription: "Recorrido recursivo manual de dirs",
 	detect(context) {
 		if (context.content.includes("// walker-ok: all")) return [];
+		if (context.isCore && !context.filePath.startsWith("src/core/refactor/")) return [];
 		const findings = [];
 		const lines = context.lines;
 		for (let i = 0; i < lines.length; i++) {

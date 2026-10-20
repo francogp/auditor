@@ -19,7 +19,7 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 	toolId = "auditor-domain";
 	configSectionKey = "domain";
 	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof DomainTypesAuditor ? auditorOrOptions : new DomainTypesAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		const auditor = auditorOrOptions instanceof DomainTypesAuditor ? auditorOrOptions : new DomainTypesAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

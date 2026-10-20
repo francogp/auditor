@@ -2,13 +2,14 @@ import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import ts from "typescript";
 //#region src/suites/architecture/validate_package_hygiene.ts
 enableCompileCache();
 const PACKAGE_HYGIENE_RULES = [
@@ -297,11 +298,16 @@ function verifyLockfileRootDepsSync(rootPackage, allDeclaredDeps, findings) {
 		});
 	}
 }
+function toPosixGlobPattern(targetPath) {
+	const norm = targetPath.split(path.sep).join(path.posix.sep);
+	return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, "**");
+}
 var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "knip",
 				fallbackBehavior: "violation",
@@ -379,7 +385,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			this.markRuleEvaluated("package-unused-binary");
 			return;
 		}
-		const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p));
+		const findings = parseKnipIssues(report, this.projectRoot, (p) => this.isPathIgnored(p) || this.isPathExempt(p));
 		for (const ruleId of [
 			"package-unused-dependency",
 			"package-unlisted-dependency",
@@ -387,7 +393,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		]) this.runSubAuditorSync(ruleId, () => {
 			for (const finding of findings) {
 				if ((finding.ruleId ?? "package-unused-dependency") !== ruleId) continue;
-				if (finding.file && finding.file !== "package.json" && this.isPathIgnored(finding.file)) continue;
+				if (finding.file && finding.file !== "package.json" && (this.isPathIgnored(finding.file) || this.isPathExempt(finding.file))) continue;
 				this.addViolation({
 					ruleId,
 					severity: finding.severity,
@@ -399,48 +405,54 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			}
 		});
 	}
-	readFallowConfigData() {
+	resolveFallowIgnoredDependencies() {
 		const fallowConfigPath = path.resolve(this.projectRoot, ".fallowrc.json");
-		let fallowIgnoredDeps = [];
-		let fallowEntries = [];
-		if (fs.existsSync(fallowConfigPath)) try {
-			const fallowJson = JSON.parse(fs.readFileSync(fallowConfigPath, "utf-8"));
-			if (Array.isArray(fallowJson.ignoreDependencies)) fallowIgnoredDeps = fallowJson.ignoreDependencies;
-			if (Array.isArray(fallowJson.entry)) fallowEntries = fallowJson.entry;
+		if (!fs.existsSync(fallowConfigPath)) return [];
+		try {
+			const rawFallow = fs.readFileSync(fallowConfigPath, "utf-8");
+			const parsedFallow = JSON.parse(rawFallow);
+			return Array.isArray(parsedFallow.ignoreDependencies) ? parsedFallow.ignoreDependencies : [];
+		} catch {
+			return [];
+		}
+	}
+	resolveImplicitCoverageDependencies() {
+		const deps = [];
+		const viteConfigPath = path.resolve(this.projectRoot, "vite.config.ts");
+		if (!fs.existsSync(viteConfigPath)) return deps;
+		try {
+			const viteContent = fs.readFileSync(viteConfigPath, "utf-8");
+			if (viteContent.includes("'v8'") || viteContent.includes("\"v8\"")) deps.push("@vitest/coverage-v8");
+			if (viteContent.includes("'istanbul'") || viteContent.includes("\"istanbul\"")) deps.push("@vitest/coverage-istanbul");
 		} catch {}
-		return {
-			fallowEntries,
-			fallowIgnoredDeps
-		};
+		return deps;
+	}
+	hasVitePlusDependencyOrConfig() {
+		if (fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts"))) return true;
+		const pkgJsonPath = path.resolve(this.projectRoot, "package.json");
+		if (!fs.existsSync(pkgJsonPath)) return false;
+		try {
+			const pkgRaw = fs.readFileSync(pkgJsonPath, "utf-8");
+			const parsed = JSON.parse(pkgRaw);
+			return Boolean(parsed.dependencies?.["vite-plus"] || parsed.devDependencies?.["vite-plus"]);
+		} catch {
+			return false;
+		}
 	}
 	buildEphemeralKnipConfig(config, scratchDir) {
-		const { fallowEntries, fallowIgnoredDeps } = this.readFallowConfigData();
 		const customIgnoredDeps = config.packageHygiene?.ignoreDependencies ?? [];
+		const fallowIgnoredDeps = this.resolveFallowIgnoredDependencies();
 		const scriptReferencedDeps = Array.from(extractReferencedScriptDependencies(this.projectRoot));
-		const implicitTestDeps = [];
-		const viteConfigPath = path.resolve(this.projectRoot, "vite.config.ts");
-		if (fs.existsSync(viteConfigPath)) try {
-			const viteContent = fs.readFileSync(viteConfigPath, "utf-8");
-			if (viteContent.includes("'v8'") || viteContent.includes("\"v8\"")) implicitTestDeps.push("@vitest/coverage-v8");
-			if (viteContent.includes("'istanbul'") || viteContent.includes("\"istanbul\"")) implicitTestDeps.push("@vitest/coverage-istanbul");
-		} catch {}
+		const implicitTestDeps = this.resolveImplicitCoverageDependencies();
 		const allIgnoredDeps = Array.from(/* @__PURE__ */ new Set([
-			...fallowIgnoredDeps,
 			...customIgnoredDeps,
+			...fallowIgnoredDeps,
 			...scriptReferencedDeps,
 			...implicitTestDeps
 		]));
 		const customIgnoredBinaries = config.packageHygiene?.ignoreBinaries ?? [];
 		const ownBinaries = Array.from(extractOwnPackageBinaries(this.projectRoot));
-		const vitePlusConfigExists = fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts"));
-		let hasVitePlusDependency = false;
-		const pkgJsonPath = path.resolve(this.projectRoot, "package.json");
-		if (fs.existsSync(pkgJsonPath)) try {
-			const pkgRaw = fs.readFileSync(pkgJsonPath, "utf-8");
-			const parsed = JSON.parse(pkgRaw);
-			hasVitePlusDependency = Boolean(parsed.dependencies?.["vite-plus"] || parsed.devDependencies?.["vite-plus"]);
-		} catch {}
-		const vitePlusBinaries = vitePlusConfigExists || hasVitePlusDependency ? [
+		const vitePlusBinaries = this.hasVitePlusDependencyOrConfig() ? [
 			"vite",
 			"vitest",
 			"tsdown",
@@ -454,7 +466,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			...vitePlusBinaries
 		]));
 		const customEntry = config.packageHygiene?.entry;
-		const effectiveEntry = customEntry && customEntry.length > 0 ? [...customEntry] : fallowEntries.length > 0 ? fallowEntries : [
+		const effectiveEntry = customEntry && customEntry.length > 0 ? [...customEntry] : [
 			"src/index.{ts,js}",
 			"src/main.{ts,js}",
 			"index.html",
@@ -473,9 +485,11 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 				"skills/**",
 				".agents/**",
 				"**/*.d.ts",
-				...config.paths.ignoredDirs?.flatMap((d) => [`${d}/**`, d]) ?? [],
-				...config.paths.ignoredPatterns ?? [],
-				...config.paths.ignoreGlobs ?? []
+				...config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), d.split(path.sep).join(path.posix.sep)]) ?? [],
+				...config.paths.ignoredPatterns?.map((p) => p.split(path.sep).join(path.posix.sep)) ?? [],
+				...config.paths.ignoreGlobs?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? [],
+				...this.extraIgnorePatterns?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? [],
+				...this.exemptPaths?.map(toPosixGlobPattern) ?? []
 			],
 			ignoreDependencies: allIgnoredDeps,
 			ignoreBinaries: allIgnoredBinaries
@@ -497,6 +511,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			cachePath
 		];
 		if (tier === "full") cliFlags.push("--include-libs");
+		if (tsconfigHasReferences(this.projectRoot)) cliFlags.push("--use-tsconfig-files");
 		if (this.fixMode) cliFlags.push("--fix", "--fix-type", "dependencies");
 		const resolvedBin = resolvePackageBin("knip", {
 			projectRoot: this.projectRoot,
@@ -510,6 +525,16 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		});
 	}
 };
+/**
+* Detects whether the host root `tsconfig.json` declares project `references`.
+* Parsed with the TypeScript JSONC reader (no regex) so comments and trailing commas are tolerated.
+*/
+function tsconfigHasReferences(projectRoot) {
+	const tsconfigPath = path.resolve(projectRoot, "tsconfig.json");
+	if (!fs.existsSync(tsconfigPath)) return false;
+	const references = ts.parseConfigFileTextToJson(tsconfigPath, fs.readFileSync(tsconfigPath, "utf-8")).config?.references;
+	return Array.isArray(references) && references.length > 0;
+}
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePackageHygieneAuditor());
 //#endregion
-export { PACKAGE_HYGIENE_RULES, ValidatePackageHygieneAuditor, extractOwnPackageBinaries, extractReferencedScriptDependencies, parseKnipIssues, verifyLockfileIntegrity };
+export { PACKAGE_HYGIENE_RULES, ValidatePackageHygieneAuditor, extractOwnPackageBinaries, extractReferencedScriptDependencies, parseKnipIssues, tsconfigHasReferences, verifyLockfileIntegrity };

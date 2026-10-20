@@ -25,8 +25,8 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
+  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
@@ -55,16 +55,14 @@ const SILENT_PROMISE_CATCH_REGEX =
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig();
-    const codeRoots =
-      roots ??
-      (config.paths.codeRoots && config.paths.codeRoots.length > 0
-        ? config.paths.codeRoots
-        : ['src', 'scripts']);
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, ['src', 'scripts']);
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
+      roots: targetRoots,
+      projectRoot: effectiveRoot,
       ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -130,9 +128,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
           '   ❌ Incorrecto: Acceso directo a propiedades de error sobre un tipo unknown sin narrowing\n' +
           '   ✅ Correcto:   `const msg = e instanceof Error ? e.message : String(e);`'
       },
-      roots: codeRoots,
-      allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot
+      allowedExtensions: new Set(['.ts', '.vue'])
     });
   }
 

@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/architecture/validate_gsap_framework_hygiene.d.ts
 export type GsapFrameworkHygieneRuleId = 'gsap-unscoped-component-selectors' | 'gsap-missing-context-revert' | 'gsap-missing-plugin-registration' | 'gsap-banned-devtools-production';
 export declare const GSAP_FRAMEWORK_HYGIENE_RULES: readonly GsapFrameworkHygieneRuleId[];
@@ -10,7 +10,7 @@ interface GsapScopeRange {
 }
 export declare function findGsapScopeRanges(content: string): readonly GsapScopeRange[];
 export declare class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   protected scanFile(relPath: string, content: string): void;
   private isCodeFile;
   private isUiComponent;

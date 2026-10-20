@@ -1,9 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
-import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
 import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
+import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
 //#region src/cli/refactor_magic.ts

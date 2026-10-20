@@ -71,7 +71,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     process.env[COVERAGE_RUN_ID_ENV] = runId;
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
-    const auditor = new NativePathsAuditor(['src'], sandboxDir);
+    const auditor = new NativePathsAuditor({ roots: ['src'], projectRoot: sandboxDir });
     const result = await auditor.execute();
 
     const pathFinding = (result.findings || []).find((f) => f.ruleId === 'unsafe-path-concat');
@@ -95,7 +95,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     process.env[COVERAGE_RUN_ID_ENV] = runId;
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
-    const auditor = new ErrorSuppressionAuditor(['src'], sandboxDir);
+    const auditor = new ErrorSuppressionAuditor({ roots: ['src'], projectRoot: sandboxDir });
     const result = await auditor.execute();
 
     const catchFinding = (result.findings || []).find((f) => f.ruleId === 'no-empty-catch');

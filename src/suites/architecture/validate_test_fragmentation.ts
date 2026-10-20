@@ -24,7 +24,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
@@ -68,15 +68,19 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
     totalTestLines: 0
   };
 
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.testRoots ?? []),
-      ...(config.paths.integrationRoots ?? []),
-      ...(config.paths.e2eRoots ?? [])
-    ];
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => [
+        ...(config.paths.testRoots ?? []),
+        ...(config.paths.integrationRoots ?? []),
+        ...(config.paths.e2eRoots ?? [])
+      ]
+    );
+    const config = getAuditConfig(effectiveRoot);
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -122,9 +126,9 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
           '   ❌ Innecesario: `// @vitest-environment jsdom` en prueba de cálculos matemáticos.\n' +
           '   ✅ Optimizado:  Eliminado; ejecuta en entorno nativo `node`.'
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.js']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
     this.minTestLines = config.paths.minTestFileLines ?? MIN_TEST_FILE_LINES;
     const customWhitelist = config.paths.testFragmentationWhitelist ?? [];

@@ -526,7 +526,9 @@ function checkTypeScriptRuleMatch(
   if (!filePath) return false;
   const norm = normalizeFilePath(filePath);
   const codeRoots = getAuditConfig()?.paths?.codeRoots ?? [];
-  const isInCodeRoots = codeRoots.some((root) => norm.includes(root.replace(/^\/+|\/+$/g, '')));
+  const isInCodeRoots = codeRoots.some((root) =>
+    norm.includes(path.posix.relative('/', path.posix.resolve('/', root)))
+  );
   if (!isInCodeRoots) return false;
 
   const { line, trimmed } = getLineAtMatch(content, match.index);

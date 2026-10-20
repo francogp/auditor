@@ -1,0 +1,17 @@
+### E01 regression expect=unsanitized-env-argv-path
+const data = fs.readFileSync(process.argv[2], 'utf-8');
+
+### E02 regression expect=unsanitized-env-argv-path
+const p = path.join(process.env.DATA_DIR, 'x.json');
+
+### E03 regression expect=unsanitized-env-argv-path
+const p = path.resolve(process.env['DATA_DIR'] ?? '.', 'x.json');
+
+### W01 regression expect=untrusted-url-fetch
+export async function loadData(endpoint: string) { const res = await fetch(endpoint); return res.json(); }
+
+### W02 regression expect=untrusted-url-fetch
+const res = await fetch(config.apiBase);
+
+### W03 url-without-validation expect=untrusted-url-fetch
+const target = buildTarget(input); const res = await fetch(target, { method: 'POST' });

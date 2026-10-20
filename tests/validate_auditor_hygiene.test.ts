@@ -56,11 +56,11 @@ describe('AuditorHygieneAuditor', () => {
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-package-json');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-vue-sfc-regex');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-ts-ast');
-      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-path-normalize');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-raw-console');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-comment-stripping');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-brace-counting');
-      expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-path-containment');
+      expect(AUDITOR_HOMEBREW_RULES).not.toContain('auditor-manual-path-normalize');
+      expect(AUDITOR_HOMEBREW_RULES).not.toContain('auditor-manual-path-containment');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-file-walker');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-homebrew-predicates');
       expect(AUDITOR_HOMEBREW_RULES).toContain('auditor-manual-rule-timing');
@@ -192,23 +192,6 @@ describe('AuditorHygieneAuditor', () => {
       expect(finding).toBeDefined();
     });
 
-    it('detects auditor-manual-path-normalize when using .split("\\\\").join("/")', async () => {
-      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
-      await fs.mkdir(auditorsDir, { recursive: true });
-
-      const snippet = 'const norm = file.split(' + "'\\\\').join('/');";
-      await fs.writeFile(path.join(auditorsDir, 'bad_norm.ts'), snippet, 'utf8');
-
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
-
-      expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(
-        (f) => f.ruleId === ('auditor-manual-path-normalize' as AuditorHomebrewRuleId)
-      );
-      expect(finding).toBeDefined();
-    });
-
     it('detects auditor-raw-console when calling console.log without coordination', async () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
@@ -256,23 +239,6 @@ describe('AuditorHygieneAuditor', () => {
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
         (f) => f.ruleId === ('auditor-manual-brace-counting' as AuditorHomebrewRuleId)
-      );
-      expect(finding).toBeDefined();
-    });
-
-    it('detects auditor-manual-path-containment when using manual startsWith("..")', async () => {
-      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
-      await fs.mkdir(auditorsDir, { recursive: true });
-
-      const snippet = 'if (path.relative(root, file).starts' + 'With("..")) throw new Error();';
-      await fs.writeFile(path.join(auditorsDir, 'bad_cwe22.ts'), snippet, 'utf8');
-
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
-
-      expect(result.summary.errors).toBeGreaterThan(0);
-      const finding = result.findings.find(
-        (f) => f.ruleId === ('auditor-manual-path-containment' as AuditorHomebrewRuleId)
       );
       expect(finding).toBeDefined();
     });
@@ -340,6 +306,27 @@ describe('AuditorHygieneAuditor', () => {
 
       const snippet = "const dirs = ['migra" + "tions', 'supabase/migrations'];";
       await fs.writeFile(path.join(auditorsDir, 'bad_config.ts'), snippet, 'utf8');
+
+      const auditor = new AuditorHygieneAuditor(tempDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.errors).toBeGreaterThan(0);
+      const finding = result.findings.find(
+        (f) => f.ruleId === ('auditor-hardcoded-config' as AuditorHomebrewRuleId)
+      );
+      expect(finding).toBeDefined();
+    });
+
+    it('detects auditor-hardcoded-config when checking hardcoded directory substrings (file.includes("/types/"))', async () => {
+      const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
+      await fs.mkdir(auditorsDir, { recursive: true });
+
+      const snippet = [
+        'export function isContractFile(file: string): boolean {',
+        "  return file.includes('/types/') || file.includes('/data/');",
+        '}'
+      ].join('\n');
+      await fs.writeFile(path.join(auditorsDir, 'bad_folders.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();

@@ -1,10 +1,11 @@
-import { AuditEngineConfig } from "./auditConfigTypes.js";
+import { AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
 import { AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { CoverageRecorder } from "./auditCoverage.js";
 import { SharedAstContext } from "./astContext.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
 import { isPathExempt } from "./reportUtils.js";
+import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
 //#region src/core/auditorBase.d.ts
 /** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
@@ -14,7 +15,7 @@ export declare const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string>;
 /** Canonical ignore directories for application code auditors (union of ALWAYS + CODE_ONLY) */
 export declare const CANONICAL_IGNORE_DIRS: ReadonlySet<string>;
 /** Returns the effective set of ignore directories combining canonical defaults with audit.config.ts paths.ignoredDirs */
-export declare function getEffectiveIgnoreDirs(): ReadonlySet<string>;
+export declare function getEffectiveIgnoreDirs(projectRoot?: string): ReadonlySet<string>;
 /** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
 export declare function getEffectiveUnignoreDirs(projectRoot?: string): readonly string[];
 export declare const SCANNABLE_EXTENSIONS: ReadonlySet<string>;
@@ -25,17 +26,12 @@ export declare function getEffectiveScannableRoots(config?: AuditEngineConfig): 
  * Validates that a path component is safe against path traversal.
  */
 export declare function assertSafePathComponent(component: string): void;
-export declare function clearLockedSkillsCache(): void;
 /**
- * Canonical candidate relative locations for skills-lock.json in order of precedence.
+ * Resolves the subsystem configuration section from AuditEngineConfig
+ * given a declared configKey (supporting direct keys like 'paths', 'constants',
+ * or dotted keys like 'htmlValidate.enabled', 'styles.zLayersEnabled', 'fallow.similarCode.enabled').
  */
-export declare const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[];
-export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<string>;
-/**
- * Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory
- * (e.g. .agents/skills/<lockedSkill>/**, skills/<lockedSkill>/**, .skills/<lockedSkill>/**).
- */
-export declare function isLockedSkillPath(filePath: string, projectRoot?: string): boolean;
+export declare function resolveSubsystemConfig(config: AuditEngineConfig, configKey?: string): BaseAuditSubsystemConfig | undefined;
 export declare function matchesSinglePattern(normalized: string, pattern: string): boolean;
 /**
  * Determines whether a relative POSIX path belongs to an ignored directory or matches directory ignore patterns.
@@ -120,7 +116,7 @@ export interface FileScanRootsOptions {
 /**
  * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.
  */
-export declare function resolveFileScanRoots(options: FileScanRootsOptions, defaultRoots?: readonly string[]): {
+export declare function resolveFileScanRoots(options?: FileScanRootsOptions, defaultRootsResolver?: readonly string[] | ((config: AuditEngineConfig) => readonly string[])): {
   effectiveRoot: string;
   targetRoots: readonly string[];
 };
@@ -179,6 +175,11 @@ export interface AuditorOptions<TRuleId extends string = string> {
    */
   readonly usesThirdPartyTool: boolean;
   /**
+   * Node.js 26 permissions required by this suite, CLI tool or underlying binaries.
+   * Mandatory contract across all sub-auditors and extensions (pass [] if no special permissions needed).
+   */
+  readonly requiredPermissions: readonly string[];
+  /**
    * Mandatory failure policy when usesThirdPartyTool is true.
    * Prohibited when usesThirdPartyTool is false.
    */
@@ -220,6 +221,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
   readonly scripts: readonly AuditorPackageScriptRequirement[];
+  readonly requiredPermissions: readonly string[];
   readonly ruleIds: readonly TRuleId[];
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
@@ -228,6 +230,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly roots: readonly string[];
   readonly allowedExtensions: ReadonlySet<string>;
   readonly extraIgnorePatterns: readonly string[];
+  readonly exemptPaths: readonly string[];
   readonly unignoreDirs: readonly string[];
   readonly requiredFiles: readonly string[];
   readonly requiresAst: boolean;
@@ -325,10 +328,15 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   private resolveEffectiveScripts;
   private registerAuditorDependencies;
   private initExecutionContext;
+  private initRuleLedger;
   constructor(options: AuditorOptions<TRuleId>);
   /**
+   * Checks whether the given relative path is exempt according to suite options and configuration.
+   */
+  isPathExempt(relPath: string): boolean;
+  /**
    * Determines whether a given project-relative path is scannable by this auditor,
-   * taking into account its extraIgnorePatterns, unignoreDirs, and global project ignores.
+   * taking into account its extraIgnorePatterns, unignoreDirs, exemptPaths, and global project ignores.
    */
   isPathScannable(relPath: string): boolean;
   /**
@@ -423,6 +431,12 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
    */
   verifyAndFixConfigFiles(): Promise<boolean>;
   isPathIgnored(relPath: string): boolean;
+  /**
+   * Determines whether a violation on the given relative path should be suppressed
+   * due to locked skill protection, subsystem exemptions, subsystem ignore globs,
+   * or user-configured paths.ignoreGlobs / paths.ignoredPatterns.
+   */
+  isViolationSuppressed(relPath: string): boolean;
   protected getLineNumber(content: string, charIndex: number): number;
   protected getLineAt(content: string, lineIndex: number): string;
   protected scanRegexMatches(content: string, regex: RegExp, relPath: string, ruleId: TRuleId, escapeHatches: readonly string[], message: string, filter?: (lineContent: string, match: RegExpExecArray) => boolean, sourceForLines?: string, charOffset?: number): void;
@@ -457,7 +471,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
   protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>>;
-  readonly exemptPaths: readonly string[];
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
    * Automatically executes declared file sub-auditors measuring their runtimes
@@ -537,4 +550,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
 //#endregion
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, deriveCanonicalAuditorScript, isPathExempt, normalizeSpeeds, resolveEffectiveSpeed };
+export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, isPathExempt, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };

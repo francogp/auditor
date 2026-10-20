@@ -21,7 +21,8 @@ const AGENTS_CONFIG_MANDATE_RULES = [
 	"agents-missing-fake-pass-mandate",
 	"agents-missing-chat-language-mandate",
 	"agents-missing-destructive-git-mandate",
-	"agents-missing-official-tools-mandate"
+	"agents-missing-official-tools-mandate",
+	"agents-missing-architecture-mandate"
 ];
 const CANONICAL_MANDATE_SNIPPET_EN = "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.";
 const CANONICAL_MANDATE_SNIPPET_ES = "- **Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorización previa explícita del programador humano. Al solicitar autorización, el agente debe proporcionar una explicación técnica exhaustiva detallando por qué la modificación es necesaria, justificando explícitamente los pros, los contras y el balance de compensaciones.";
@@ -37,6 +38,8 @@ const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES = "- **Mandato de Idioma de Com
 const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN = "- **Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA**: El asistente / agente de IA DEBE consultar `.auditor/audit.config.ts` y comunicarse, conversar, responder e interactuar en el chat con el usuario estricta y exclusivamente en inglés (`'en'`). Este idioma conversacional del chat está explícitamente diferenciado del idioma de escritura de archivos y documentación del repositorio (`config.documentation.language`), el cual rige estrictamente el código, comentarios, mensajes de commit, documentación y archivos markdown. El agente de IA debe consultar dinámicamente estas configuraciones y jamás confundir el idioma del chat con el idioma de escritura en archivos.";
 const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN = "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization from the human programmer.";
 const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES = "- **Prohibición Absoluta de Comandos Git Destructivos No Solicitados**: Los agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO ejecutar comandos Git destructivos (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) que descarten o sobrescriban cambios del árbol de trabajo o del historial de commits sin autorización previa explícita del programador humano.";
+const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN = "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate), decoupled layering, Node.js 26+ native standard library mandate, dynamic SSoT configuration, and official framework tools priority. Deviating from `/architecture` or executing plans that bypass its pillars is strictly prohibited.";
+const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES = "- **Mandato de Gobernanza Arquitectónica Universal y Alineación Obligatoria de Planes de Trabajo (`/architecture`)**: El marco de gobernanza `/architecture` rige todo el diseño, estructura, comportamiento en runtime y refactorización en este repositorio, y DEBE permanecer continuamente activo y ser estrictamente aplicado. Cada vez que se elabore, proponga o ejecute un plan de trabajo, diseño técnico, hoja de ruta de refactorización o desglose de tareas (ej. `/plan`, `/brainstorming`, planes de tareas), el trabajo propuesto DEBE alinearse estrictamente y satisfacer `/architecture` y todo su contenido: los 6 Pilares Mandatorios de Diseño (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), la Guía Principal de Depuración (`/systematic-debugging` - Mandato RED-GREEN ante todo), desacoplamiento de capas, uso exclusivo de librerías nativas de Node.js 26+, configuración SSoT dinámica y prioridad de herramientas oficiales del framework. Desviarse de `/architecture` o ejecutar planes que eludan sus pilares está estrictamente prohibido.";
 const CANONICAL_SNIPPET_REGISTRY = {
 	config: {
 		en: CANONICAL_MANDATE_SNIPPET_EN,
@@ -57,6 +60,10 @@ const CANONICAL_SNIPPET_REGISTRY = {
 	officialTools: {
 		en: CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN,
 		es: CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES
+	},
+	architecture: {
+		en: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN,
+		es: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES
 	}
 };
 function getCanonicalMandateSnippet(language = "en") {
@@ -73,6 +80,9 @@ function getCanonicalDestructiveGitSnippet(language = "en") {
 }
 function getCanonicalOfficialToolsSnippet(language = "en") {
 	return CANONICAL_SNIPPET_REGISTRY.officialTools[language] ?? CANONICAL_SNIPPET_REGISTRY.officialTools.en;
+}
+function getCanonicalArchitectureSnippet(language = "en") {
+	return CANONICAL_SNIPPET_REGISTRY.architecture[language] ?? CANONICAL_SNIPPET_REGISTRY.architecture.en;
 }
 function getCanonicalChatLanguageSnippet(docLanguage = "en", chatLanguage = "es") {
 	if (docLanguage === "es") return chatLanguage === "en" ? CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN : CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES;
@@ -137,6 +147,15 @@ function containsOfficialToolsMandate(text, expectedLanguage) {
 	if (!/priorit|priorizar|prohibit|prohibid|strictly|estrictamente|last resort|último recurso/i.test(text)) return false;
 	return matchesMandateLanguage(text, expectedLanguage, /(?:Mandatory Official Tools Priority|official CLI tools|Reinventing the wheel|Creating temporary scripts in `scratch\/`)/i, /(?:Prioridad Obligatoria de Herramientas Oficiales|herramientas CLI oficiales|Reinventar la rueda|scripts temporales en `scratch\/`)/i);
 }
+/**
+* Checks if a block of markdown text contains the universal architecture governance and work planning alignment mandate.
+*/
+function containsArchitectureMandate(text, expectedLanguage) {
+	if (!/\/architecture|architecture\s+governance|gobernanza\s+arquitect[oó]nica/i.test(text)) return false;
+	if (!/work\s+plan|plan(?:es)?\s+de\s+trabajo|framework|marco|governs?|rige/i.test(text)) return false;
+	if (!/mandatory|obligatori|active|activo|strictly|estrictamente|enforced|aplicado/i.test(text)) return false;
+	return matchesMandateLanguage(text, expectedLanguage, /(?:Architecture Governance|Work Planning|Design Pillars|Debugging Guide|governs|strictly enforced)/i, /(?:Gobernanza Arquitect[oó]nica|Planes de Trabajo|Pilares.*Diseño|Guía Principal de Depuración|rige|estrictamente aplicado)/i);
+}
 const MANDATE_DEFINITIONS = [
 	{
 		ruleId: "agents-missing-config-mandate",
@@ -185,16 +204,25 @@ const MANDATE_DEFINITIONS = [
 		isExistingLine: (l) => l.includes("Official Tools Priority") || l.includes("Herramientas Oficiales") || l.includes("Premature Ad-Hoc Scripts") || l.includes("Scripts Ad-Hoc Prematuros") || /(?:official\s+tools|herramientas\s+oficiales)\s+priority/i.test(l),
 		errorMessageEn: "Root AGENTS.md must include the mandatory clause prioritizing official framework CLI tools and prohibiting premature ad-hoc scripts.",
 		errorMessageEs: "AGENTS.md raíz debe incluir obligatoriamente el mandato de prioridad de herramientas oficiales del framework y prohibición de scripts ad-hoc prematuros."
+	},
+	{
+		ruleId: "agents-missing-architecture-mandate",
+		check: (text, docLang) => containsArchitectureMandate(text, docLang),
+		getSnippet: (docLang) => getCanonicalArchitectureSnippet(docLang),
+		isExistingLine: (l) => l.includes("Architecture Governance") || l.includes("Gobernanza Arquitectónica") || l.includes("Work Planning Alignment") || l.includes("Alineación Obligatoria de Planes de Trabajo") || /(?:architecture\s+governance|gobernanza\s+arquitect[oó]nica).*(?:\/architecture|work\s+plan|plan\s+de\s+trabajo)/i.test(l),
+		errorMessageEn: "Root AGENTS.md must include the mandatory clause establishing universal /architecture governance and mandatory work planning alignment.",
+		errorMessageEs: "AGENTS.md raíz debe incluir obligatoriamente el mandato de gobernanza universal de /architecture y alineación obligatoria de planes de trabajo."
 	}
 ];
 var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	rootDir;
 	languageOption;
 	chatLanguageOption;
-	constructor(rootDir, options) {
-		const projectRoot = rootDir || process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot || process.cwd();
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
 				speed: "light",
 				phase: "setup",
@@ -223,7 +251,8 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 				"agents-missing-fake-pass-mandate": "Falta mandato de cero pase falso",
 				"agents-missing-chat-language-mandate": "Falta mandato de idioma del chat",
 				"agents-missing-destructive-git-mandate": "Falta mandato anti-git destructivo",
-				"agents-missing-official-tools-mandate": "Falta mandato de herramientas oficiales"
+				"agents-missing-official-tools-mandate": "Falta mandato de herramientas oficiales",
+				"agents-missing-architecture-mandate": "Falta mandato de arquitectura"
 			},
 			ruleRemediations: {
 				"agents-missing-config-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-config-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que prohíbe terminantemente a los agentes de IA modificar, relajar o desactivar configuraciones del proyecto sin autorización previa y explícita del programador humano.\n2. Diagnóstico: Inspecciona AGENTS.md en la sección \"Local Contracts\". Falta la directiva de inmutabilidad de configuración.\n3. Solución Canónica:\n   a) Ejecuta el comando de auto-fix canónico: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula oficial.\n   b) O inserta manualmente en AGENTS.md bajo Local Contracts la cláusula canónica (CANONICAL_MANDATE_SNIPPET).\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations...\"",
@@ -231,7 +260,8 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 				"agents-missing-fake-pass-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-fake-pass-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz no contiene la cláusula obligatoria de tolerancia cero a pases falsos (\"Zero-Tolerance Fake Pass Mandate\"), que prohíbe silenciar reglas de linter/auditor o crear configuraciones dummy para ocultar defectos.\n2. Diagnóstico: Inspecciona AGENTS.md bajo \"Local Contracts\". Falta la directiva anti-silenciamiento.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula.\n   b) O agrégala manualmente bajo \"Local Contracts\".\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate**: When auditing a repository or running linters/auditors, AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from suppressing, silencing, disabling, or nullifying auditor rules...\"",
 				"agents-missing-chat-language-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-chat-language-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz no define la directiva que separa explícitamente el idioma de chat/conversación de la IA (configurado en .auditor/audit.config.ts) del idioma de documentación y código fuente.\n2. Diagnóstico: Revisa AGENTS.md bajo \"Local Contracts\". Falta la cláusula de idioma de interacción conversacional.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para sincronizar automáticamente el mandato con las opciones de configuración.\n   b) O declara manualmente la cláusula canónica alineada con tu configuración (.auditor/audit.config.ts).\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in Spanish (`'es'`)...\"",
 				"agents-missing-destructive-git-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-destructive-git-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz carece de la prohibición absoluta de comandos Git destructivos (como git reset --hard, git checkout --, git clean, git restore, git push --force) sin consentimiento explícito del programador humano.\n2. Diagnóstico: Revisa AGENTS.md bajo \"Local Contracts\". Falta la cláusula de seguridad de control de versiones.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente el texto oficial.\n   b) O añade manualmente el snippet canónico bajo \"Local Contracts\".\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization...\"",
-				"agents-missing-official-tools-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-official-tools-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que exige a desarrolladores y agentes de IA priorizar las herramientas CLI oficiales provistas por el framework (`auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:dependencies`, etc.) y prohíbe crear scripts ad-hoc prematuros en `scratch/` o con `node -e`.\n2. Diagnóstico: Revisa AGENTS.md bajo \"Local Contracts\". Falta el mandato de prioridad de herramientas oficiales.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n   b) O añade manualmente el snippet canónico bajo \"Local Contracts\".\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code...\""
+				"agents-missing-official-tools-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-official-tools-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que exige a desarrolladores y agentes de IA priorizar las herramientas CLI oficiales provistas por el framework (`auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:dependencies`, etc.) y prohíbe crear scripts ad-hoc prematuros en `scratch/` o con `node -e`.\n2. Diagnóstico: Revisa AGENTS.md bajo \"Local Contracts\". Falta el mandato de prioridad de herramientas oficiales.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n   b) O añade manualmente el snippet canónico bajo \"Local Contracts\".\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code...\"",
+				"agents-missing-architecture-mandate": "📖 GUÍA DE REMEDIACIÓN: agents-missing-architecture-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que establece a `/architecture` como el marco transversal de gobernanza arquitectónica y exige que todo plan de trabajo, diseño técnico o refactorización satisfaga estrictamente sus pilares.\n2. Diagnóstico: Revisa AGENTS.md bajo \"Local Contracts\". Falta el mandato de gobernanza universal de `/architecture` y alineación obligatoria de planes de trabajo.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n   b) O añade manualmente el snippet canónico bajo \"Local Contracts\".\n4. Ejemplo:\n   - Cláusula obligatoria: \"- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)...\""
 			},
 			coverage: { include: ["AGENTS.md"] },
 			projectRoot
@@ -294,4 +324,4 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 };
 if (process.argv[1] && (process.argv[1].endsWith("validate_agents_config_mandate.ts") || typeof import.meta.filename === "string" && process.argv[1] === import.meta.filename)) await BaseAuditor.runCli(new AgentsConfigMandateAuditor());
 //#endregion
-export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet };
+export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, containsArchitectureMandate, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, getCanonicalArchitectureSnippet, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet };

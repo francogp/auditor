@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -380,6 +380,7 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 		const effectiveRoots = options.roots ?? config.paths.srcRoots ?? [];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
 				speed: "light",
 				phase: "normal",

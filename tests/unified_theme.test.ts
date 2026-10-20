@@ -435,7 +435,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     it('renders CLI help card with active families and usage examples', () => {
       const help = renderCliHelp(['architecture', 'documentation']);
       expect(help).toContain('USO:');
-      expect(help).toContain('MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:');
+      expect(help).toContain('MODOS, FORMATOS Y FASES DE EJECUCIÓN:');
       expect(help).toContain('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:');
       expect(help).toContain('FILTROS Y SELECCIÓN:');
       expect(help).toContain('architecture');

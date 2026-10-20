@@ -460,6 +460,7 @@ if (-not $installSuccess) {
         if ($LASTEXITCODE -eq 0) {
             $installSuccess = $true
             Write-Host "  [OK] Dependencias instaladas y sincronizadas exitosamente con npm install." -ForegroundColor Green
+            Write-Host "  [WARN] package-lock.json estaba desincronizado con package.json y fue modificado por npm install. Revise el cambio y commitéelo junto con package.json." -ForegroundColor Yellow
         }
     }
 }

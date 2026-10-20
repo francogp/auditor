@@ -404,7 +404,7 @@ const forbiddenTypeCasts = {
 function checkTypeScriptRuleMatch(content, match, filePath, extraBypasses = []) {
 	if (!filePath) return false;
 	const norm = normalizeFilePath(filePath);
-	if (!(getAuditConfig()?.paths?.codeRoots ?? []).some((root) => norm.includes(root.replace(/^\/+|\/+$/g, "")))) return false;
+	if (!(getAuditConfig()?.paths?.codeRoots ?? []).some((root) => norm.includes(path.posix.relative("/", path.posix.resolve("/", root))))) return false;
 	const { line, trimmed } = getLineAtMatch(content, match.index);
 	if (isCommentLine(trimmed)) return false;
 	if (line.includes("// domain-ok: Open dynamic text or non-domain string payload") || line.includes("// no-domain: Non-domain utility collection or data structure") || extraBypasses.some((b) => line.includes(b))) return false;

@@ -5,6 +5,7 @@
  * causing tools like Stylelint --fix or atomic file writers to fail even when --allow-fs-write=* is granted.
  */
 export declare function polyfillPermissionModelFsync(): void;
+export declare const DEFAULT_PERMISSIONS: readonly ["--permission", "--experimental-strip-types", "--allow-fs-read=*", "--allow-fs-write=*", "--allow-child-process", "--allow-addons"];
 export interface PermissionRequirements {
   fsRead?: string[];
   fsWrite?: string[];

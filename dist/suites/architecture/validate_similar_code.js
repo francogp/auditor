@@ -1,11 +1,12 @@
+import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -22,7 +23,7 @@ import os from "node:os";
 * local vector embeddings model (jina-embeddings-v2-base-code).
 *
 * Key Architectural Guards:
-*   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md).
+*   1. Zero Fast-Preset Impact: Completely excluded from fast presets (speed=light, preset=md).
 *   2. Strict High Threshold: Defaults to 0.95 threshold to eliminate cognitive noise and false positives.
 *   3. Intra-File Filtering: Skips pairs within the same file (e.g. sync/async pairs like safeWriteFileSync/safeWriteFile).
 *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
@@ -130,7 +131,7 @@ function normalizeRelativeCandidatePath(rawPath, projectRoot) {
 }
 function isCandidatePairIgnored(options) {
 	if (options.ignoreSameFile && options.leftPath === options.rightPath) return true;
-	if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathIgnored(options.rightPath)) return true;
+	if (options.auditor.isPathIgnored(options.leftPath) || options.auditor.isPathExempt(options.leftPath) || options.auditor.isPathIgnored(options.rightPath) || options.auditor.isPathExempt(options.rightPath)) return true;
 	if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath))) return true;
 	return false;
 }
@@ -168,10 +169,11 @@ function evaluateSimilarCodeCandidates(candidates, options, auditor) {
 	return reportedCount;
 }
 var ValidateSimilarCodeAuditor = class extends BaseAuditor {
-	constructor(targetPath) {
-		const projectRoot = targetPath || process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot || process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "Fallow",
 				fallbackBehavior: "violation",
@@ -199,7 +201,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			},
 			ruleRemediations: {
 				"fallow-similar-code": "📖 GUÍA DE REMEDIACIÓN: fallow-similar-code\n1. Causa Raíz: El motor de embeddings vectoriales de Fallow detectó dos funciones con una similitud semántica superior al umbral configurado (≥ 0.95). Ambas funciones implementan el mismo propósito conceptual con sintaxis o nombres de variables divergentes.\n2. Diagnóstico: Inspecciona las dos funciones reportadas (lado izquierdo y lado derecho) en los archivos y líneas señaladas.\n3. Solución Canónica:\n   a) Extrae la lógica común a una función de utilidad compartida en `src/utils/` o en el servicio de dominio correspondiente.\n   b) Refactoriza ambas ubicaciones para llamar a la función canónica unificada.\n   c) Si las funciones resuelven problemas de dominios estrictamente disjuntos con semántica coincidente por pura casualidad, anota `// similar-code-ok: <justificación>` sobre la cabecera de la función.\n4. Ejemplo:\n   ❌ Duplicado semántico: `formatUserDate()` y `parseDisplayTimestamp()` haciendo idéntica transformación.\n   ✅ Unificado:          `formatDate()` canónica compartida.",
-				"fallow-similar-code-failed": "📖 GUÍA DE REMEDIACIÓN: fallow-similar-code-failed\n1. Causa Raíz: El motor de análisis vectorial Fallow no pudo inicializarse, el binario nativo no fue encontrado, o falló la descarga/ejecución del modelo Candle en CPU.\n2. Diagnóstico: Revisa el mensaje de error emitido en la consola para determinar si falta el binario o si se produjo un error de permisos/red.\n3. Solución Canónica:\n   a) En Windows, ejecuta el script canónico `powershell -ExecutionPolicy Bypass -File setup-windows.ps1` para pre-crear directorios de caché y desbloquear binarios de Zone.Identifier.\n   b) Verifica que `fallow` esté instalado correctamente en `node_modules/.bin/fallow`.\n   c) Si estás ejecutando en un entorno de integración continua sin acceso a internet o en compilación de producción, asegura la variable de entorno `AUDITOR_ENV=production`.\n4. Ejemplo:\n   - Ejecutar `setup-windows.ps1` o `npm run setup:windows`."
+				"fallow-similar-code-failed": "📖 GUÍA DE REMEDIACIÓN: fallow-similar-code-failed\n1. Causa Raíz: El motor de análisis vectorial Fallow no pudo inicializarse, el binario nativo no fue encontrado, o falló la descarga/ejecución del modelo Candle en CPU.\n2. Diagnóstico: Revisa el mensaje de error emitido en la consola para determinar si falta el binario o si se produjo un error de permisos/red.\n3. Solución Canónica:\n   a) En Windows, ejecuta el comando canónico `npm run setup:windows` (o `npm run setup:linux` en Linux) para pre-crear directorios de caché y verificar binarios.\n   b) Verifica que `fallow` esté instalado correctamente en `node_modules/.bin/fallow`.\n   c) Si estás ejecutando en un entorno de integración continua sin acceso a internet o en compilación de producción, asegura la variable de entorno `AUDITOR_ENV=production`.\n4. Ejemplo:\n   - Ejecutar `npm run setup:windows` o `npm run setup:linux`."
 			},
 			coverage: {
 				include: [
@@ -218,7 +220,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "fallow-similar-code-failed",
 				severity: "error",
-				file: ".fallowrc.json",
+				file: "package.json",
 				line: 1,
 				message: "Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.",
 				context: "binary-missing"
@@ -230,7 +232,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "fallow-similar-code-failed",
 				severity: "warning",
-				file: ".fallowrc.json",
+				file: AUDIT_CONFIG_FILE,
 				line: 1,
 				message: "No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.",
 				context: "manual-setup-required"
@@ -266,7 +268,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "fallow-similar-code-failed",
 				severity: "error",
-				file: ".fallowrc.json",
+				file: AUDIT_CONFIG_FILE,
 				line: 1,
 				message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
 				context: errorMsg
@@ -278,7 +280,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "fallow-similar-code-failed",
 				severity: "error",
-				file: ".fallowrc.json",
+				file: AUDIT_CONFIG_FILE,
 				line: 1,
 				message: "fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.",
 				context: "missing-output-file"
@@ -298,7 +300,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "fallow-similar-code-failed",
 				severity: "error",
-				file: ".fallowrc.json",
+				file: AUDIT_CONFIG_FILE,
 				line: 1,
 				message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${err.message}`,
 				context: "malformed-json"
@@ -308,7 +310,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 		this.addViolation({
 			ruleId: "fallow-similar-code-failed",
 			severity: "error",
-			file: ".fallowrc.json",
+			file: AUDIT_CONFIG_FILE,
 			line: 1,
 			message: "fallow similar-code no generó contenido JSON en el archivo de salida.",
 			context: "empty-or-non-json"

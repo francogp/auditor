@@ -160,6 +160,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
   constructor(options: { projectRoot?: string } = {}) {
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'npm audit',
         fallbackBehavior: 'throw'

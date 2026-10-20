@@ -557,7 +557,7 @@ describe('audit_full CLI orchestration helpers', () => {
         expect(failed).toBe(false);
 
         const joinedLogs = logs.join('\n');
-        expect(joinedLogs).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+        expect(joinedLogs).toContain('AUTO-FIX COMPLETED');
         expect(joinedLogs).toContain('npm run auditor');
         expect(joinedLogs).not.toContain('Errores:');
         expect(joinedLogs).not.toContain('Advertencias:');
@@ -565,6 +565,72 @@ describe('audit_full CLI orchestration helpers', () => {
         expect(joinedLogs).not.toContain('AUDITORÍA GLOBAL CON OBSERVACIONES');
         expect(joinedLogs).not.toContain('de las suites aprobadas');
         expect(joinedLogs).not.toContain('Reporte detallado para IA');
+
+        await fs.rm(scratchDir, { recursive: true, force: true });
+      } finally {
+        console.log = originalLog;
+      }
+    });
+
+    it('returns false and prints auto-fix completion banner in human mode', async () => {
+      const originalLog = console.log;
+      const logs: string[] = [];
+      console.log = (...args: any[]) => {
+        logs.push(args.join(' '));
+      };
+
+      try {
+        const scratchDir = path.join(
+          process.cwd(),
+          'scratch',
+          `test_audit_fix_human_${Date.now()}`
+        );
+        await fs.mkdir(scratchDir, { recursive: true });
+
+        const fixCli = {
+          ...parseAuditFullCliArgs(activeFamilies, ['fix']),
+          consoleMode: 'human' as const
+        };
+
+        const mockResult: StandardAuditResult = {
+          id: 'validate_mock',
+          name: 'Mock Suite',
+          description: 'Mock description',
+          metrics: {},
+          family: 'architecture',
+          status: 'failed',
+          durationMs: 100,
+          summary: { errors: 5, warnings: 2, info: 0 },
+          findings: [
+            {
+              ruleId: 'mock-error',
+              severity: 'error',
+              message: 'Mock error message',
+              file: 'src/mock.ts',
+              line: 1,
+              col: 1
+            }
+          ]
+        };
+
+        const failed = await renderAndPersistMasterReport({
+          results: [mockResult],
+          tasksToRun: [],
+          allAvailableTasks: [],
+          omittedSuiteIds: [],
+          totalDuration: 1234,
+          config: { name: 'Test' } as any,
+          activeFamilies,
+          cliOptions: fixCli,
+          runMode: 'full',
+          scratchAuditsDir: scratchDir
+        });
+
+        expect(failed).toBe(false);
+
+        const joinedLogs = logs.join('\n');
+        expect(joinedLogs).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+        expect(joinedLogs).toContain('npm run auditor');
 
         await fs.rm(scratchDir, { recursive: true, force: true });
       } finally {

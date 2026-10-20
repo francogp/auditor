@@ -306,6 +306,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         STYLELINT_CONFIG_RULES,
         {

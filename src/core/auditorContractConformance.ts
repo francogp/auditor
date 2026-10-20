@@ -12,6 +12,7 @@ import path from 'node:path';
 import type { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from './auditorBase.ts';
 import { getAuditConfig } from './auditConfig.ts';
+import { toPosixRelative } from './safePath.ts';
 import type { AuditTaskDefinition, AuditFamily, AuditorRuleCapabilities } from './auditContract.ts';
 import {
   getActiveFamilies,
@@ -70,7 +71,7 @@ function registerExtensionAuditor(
     id,
     name: id,
     family: 'architecture',
-    scriptPath: path.relative(projectRoot, fullPath).replace(/\\/g, '/'),
+    scriptPath: toPosixRelative(projectRoot, fullPath),
     command: 'node',
     args: [],
     fast: true,
@@ -162,7 +163,8 @@ export function findAuditorClass(
 }
 
 /**
- * Safely instantiates an auditor class using supported constructor signatures.
+ * Safely instantiates an auditor class using canonical constructor signatures.
+ * Mandate: Prohibits legacy positional arguments; strictly expects { projectRoot: tempDir } or ().
  */
 export function instantiateAuditorClass(
   Cls: new (...args: unknown[]) => BaseAuditor<string>,
@@ -170,20 +172,32 @@ export function instantiateAuditorClass(
 ): BaseAuditor<string> {
   const attempts: (() => BaseAuditor<string>)[] = [
     () => new Cls({ projectRoot: tempDir }),
-    () => new Cls(tempDir),
-    () => new Cls(undefined, tempDir),
-    () => new Cls(undefined, undefined, tempDir),
     () => new Cls()
   ];
 
   for (const attempt of attempts) {
     try {
-      return attempt();
+      const instance = attempt();
+      if (instance && path.resolve(instance.projectRoot) === path.resolve(tempDir)) {
+        return instance;
+      }
     } catch {
-      // catch-ok: multiple constructor signatures are probed in order
+      // catch-ok: probes canonical options object first, then zero-arg
     }
   }
-  throw new Error(`No se pudo instanciar la clase ${Cls.name} con ninguna firma conocida`);
+
+  // Fallback to zero-arg attempt if valid
+  for (const attempt of attempts) {
+    try {
+      return attempt();
+    } catch {
+      // catch-ok
+    }
+  }
+
+  throw new Error(
+    `[Auditor Contract Violation] No se pudo instanciar la clase ${Cls.name}. Debe soportar la firma canónica de opciones ({ projectRoot?: string }) o el constructor por defecto sin argumentos.`
+  );
 }
 
 function validateBasicMetadata(
@@ -533,14 +547,14 @@ export function findDedicatedTestFile(
 ): { testFileAbs: string | null; testFileRel: string; allTestSources?: string } {
   const candidateRelPaths: string[] = [];
   for (const tr of testRoots) {
-    const cleanTr = tr.replace(/^\/+|\/+$/g, '');
-    candidateRelPaths.push(`${cleanTr}/${taskId}.test.ts`);
-    candidateRelPaths.push(`${cleanTr}/node/auditors/${taskId}.test.ts`);
-    candidateRelPaths.push(`${cleanTr}/unit/auditors/${taskId}.test.ts`);
-    candidateRelPaths.push(`${cleanTr}/auditors/${taskId}.test.ts`);
+    const cleanTr = toPosixRelative(projectRoot, tr);
+    candidateRelPaths.push(path.posix.join(cleanTr, `${taskId}.test.ts`));
+    candidateRelPaths.push(path.posix.join(cleanTr, 'node', 'auditors', `${taskId}.test.ts`));
+    candidateRelPaths.push(path.posix.join(cleanTr, 'unit', 'auditors', `${taskId}.test.ts`));
+    candidateRelPaths.push(path.posix.join(cleanTr, 'auditors', `${taskId}.test.ts`));
   }
-  candidateRelPaths.push(`packages/auditor/tests/${taskId}.test.ts`);
-  candidateRelPaths.push(`tests/${taskId}.test.ts`);
+  candidateRelPaths.push(path.posix.join('packages', 'auditor', 'tests', `${taskId}.test.ts`));
+  candidateRelPaths.push(path.posix.join('tests', `${taskId}.test.ts`));
 
   let testFileAbs: string | null = null;
   let testFileRel: string = candidateRelPaths[0]!;

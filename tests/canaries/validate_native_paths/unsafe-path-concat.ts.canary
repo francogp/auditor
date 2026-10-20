@@ -1,5 +1,7 @@
 // @canary rule=unsafe-path-concat
+import fs from 'node:fs';
+
 export function getFilePath(baseDir: string, filename: string): string {
   const fullPath = baseDir + '/' + filename;
-  return fullPath;
+  return fs.realpathSync(fullPath);
 }

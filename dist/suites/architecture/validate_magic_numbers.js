@@ -3,8 +3,8 @@ import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isDataPath } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_magic_numbers.ts
@@ -183,13 +183,13 @@ function isAnimationPropertyArg(node) {
 	return false;
 }
 var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
-	constructor(options, maybeProjectRoot) {
-		const optionsObj = options && !Array.isArray(options) ? options : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = (optionsObj?.roots ?? (Array.isArray(options) ? options : config.paths.codeRoots ?? [])).map((r) => toPosixRelative(projectRoot, r));
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.codeRoots ?? []);
+		const config = getAuditConfig(effectiveRoot);
+		const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -225,7 +225,7 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			ruleRemediationPhases: createUniformRemediationPhases(MAGIC_NUMBERS_RULES, "hygiene"),
 			ruleDescriptions: { "magic-number-naked": "Número mágico no en constante" },
 			ruleRemediations: { "magic-number-naked": "Causa Raíz:\nSe detectó un número literal desnudo (\"naked magic number\") embebido directamente en la lógica, cálculo o condición de control sin estar asignado a una constante descriptiva con nombre semántico. Los números mágicos oscurecen el significado del código, impiden la reutilización y generan riesgos de inconsistencia durante evoluciones del modelo.\n\nDiagnóstico:\n1. Ejecuta \"npm run auditor:findings -- rule=magic-number-naked flat\" para listar los archivos, líneas y valores infractores.\n2. Ejecuta \"npm run auditor:magic inspect <archivo>\" para obtener la inspección Dirac compacta y el plan de refactorización sugerido.\n\nSolución Canónica:\n1. Declaración Local: Si el número es específico del módulo o script, declara una constante en el encabezado del archivo (ej. \"const MAX_RETRY_COUNT = 3;\" o \"const HTTP_STATUS_OK = 200;\").\n2. Constantes de Dominio Compartidas: Si el valor representa un token de diseño o regla de negocio transversal (ej. multiplicadores de RPG, límites de rate-limit), decláralo en \"src/constants/\" o el módulo de dominio respectivo.\n3. Sentinels Universales Exentos: Recuerda que los valores -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024, así como índices de array (\"arr[0]\"), argumentos de precisión (\".toFixed(2)\"), límites de slice (\".slice(2)\") y radix (\"parseInt(x, 10)\") están exentos universalmente y no disparan alertas.\n4. Escape Hatch Justificado: Si el número es inherente a un cálculo matemático puntual o un fixture de testing y no amerita constante, agrega el comentario \"// const-ok: <justificación técnica>\" en la misma línea o inmediatamente encima.\n5. Configuración de Proyecto en .auditor/audit.config.ts: Si el repositorio utiliza códigos de estado, multiplicadores o constantes globales de dominio, se pueden registrar en \"constants.exemptMagicNumbers\" previa consulta con el programador.\n6. Refactorización Determinista Automática: Ejecuta \"npm run auditor:magic inspect <archivo>\", guarda el plan JSON sugerido y aplícalo de forma segura con \"npm run auditor:magic apply <plan.json> --worktree\".\n\nEjemplo / Herramientas Oficiales:\n  Descubrimiento global: npm run auditor:magic discover\n  Inspección y plan: npm run auditor:magic inspect <archivo>\n  Aplicación segura: npm run auditor:magic apply <plan.json> --worktree\n  Ayuda interactiva: npm run auditor:magic help" },
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	isPathScannable(relPath) {

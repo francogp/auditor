@@ -2,8 +2,9 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
+import { loadLockedSkills } from "../../core/lockedSkills.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveUnignoreDirs, loadLockedSkills } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveUnignoreDirs } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -117,9 +118,11 @@ function parseMarkdownLintIssues(input, cwd = process.cwd()) {
 	return findings;
 }
 var MarkdownLintAuditor = class extends BaseAuditor {
-	constructor(projectRoot) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "markdownlint",
 				fallbackBehavior: "violation",

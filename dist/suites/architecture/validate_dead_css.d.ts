@@ -11,8 +11,11 @@ export interface ParsedScopedCssRule {
 }
 export declare function extractClassNamesFromSelector(selector: string): string[];
 export declare function extractScopedRulesFromVueContent(rawContent: string): ParsedScopedCssRule[];
+export interface DeadCssAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
-  constructor(projectRoot?: string);
+  constructor(options?: DeadCssAuditorOptions);
   runAudit(): Promise<void>;
 }
 //#endregion

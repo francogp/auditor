@@ -1,8 +1,8 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { buildRepositoryFileIndex } from "../../core/safePath.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
 import { enableCompileCache } from "node:module";
@@ -74,13 +74,13 @@ function isExternalOrAnchorLink(rawUrl) {
 	return rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("mailto:") || rawUrl.startsWith("conversation://") || rawUrl.startsWith("#");
 }
 function resolveLocalMarkdownTarget(docFile, rawUrl) {
-	if (isExternalOrAnchorLink(rawUrl) || path.isAbsolute(rawUrl) || /^[a-z]:/i.test(rawUrl) || rawUrl.startsWith("file://")) return null;
+	if (isExternalOrAnchorLink(rawUrl) || path.isAbsolute(rawUrl) || path.win32.isAbsolute(rawUrl) || rawUrl.startsWith("file://")) return null;
 	const [rawPath] = rawUrl.split("#");
-	let urlPath = rawPath ?? "";
+	let decodedPath = rawPath ?? "";
 	try {
-		urlPath = decodeURIComponent(urlPath);
+		decodedPath = decodeURIComponent(decodedPath);
 	} catch {}
-	return urlPath.length > 0 ? path.resolve(path.dirname(docFile), urlPath) : docFile;
+	return decodedPath.length > 0 ? path.resolve(path.dirname(docFile), decodedPath) : docFile;
 }
 function formatCandidateMatchError(resolvedRelPath, candidateMatches, sourceDir, rootDir) {
 	if (candidateMatches.length === 0) return `Target path does not exist on disk: "${resolvedRelPath}"`;
@@ -134,7 +134,7 @@ function checkSingleMarkdownLink(params) {
 			line
 		}
 	};
-	if (rawUrl.startsWith("file://") || rawUrl.startsWith("/") || rawUrl.startsWith("\\") || /^[a-z]:/i.test(rawUrl) || path.isAbsolute(rawUrl)) return {
+	if (rawUrl.startsWith("file://") || rawUrl.startsWith("/") || rawUrl.startsWith("\\") || path.win32.isAbsolute(rawUrl) || path.isAbsolute(rawUrl)) return {
 		checked: true,
 		brokenLink: {
 			sourceFile: relSourceFile,
@@ -295,11 +295,13 @@ function auditMarkdownLinks(options = {}) {
 }
 var MarkdownLinkAuditor = class extends BaseAuditor {
 	scanRoots;
-	constructor(scanRoots, projectRoot) {
-		const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
-		const config = getAuditConfig(projectRoot);
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot || process.cwd();
+		const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
+		const config = getAuditConfig(effectiveRoot);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_LINK_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -343,7 +345,7 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 				...config.paths.ignoredPatterns ?? []
 			],
 			unignoreDirs: [".agents"],
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 		this.scanRoots = effectiveScanRoots;
 	}
@@ -382,7 +384,7 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 			}
 		};
 		this.runSubAuditorSync("markdown-absolute-path", () => {
-			for (const doc of docs) for (const link of doc.links) if (link.rawUrl.startsWith("file://") || link.rawUrl.startsWith("/") || link.rawUrl.startsWith("\\") || /^[a-z]:/i.test(link.rawUrl) || path.isAbsolute(link.rawUrl)) this.addViolation({
+			for (const doc of docs) for (const link of doc.links) if (link.rawUrl.startsWith("file://") || link.rawUrl.startsWith("/") || link.rawUrl.startsWith("\\") || path.win32.isAbsolute(link.rawUrl) || path.isAbsolute(link.rawUrl)) this.addViolation({
 				ruleId: "markdown-absolute-path",
 				severity: "error",
 				file: doc.relSourceFile,

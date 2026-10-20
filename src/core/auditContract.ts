@@ -385,6 +385,8 @@ export interface AuditorPackageScriptRequirement {
   readonly description: string;
   /** Logical category (e.g. 'core', 'versioning', 'reporting', 'suite', 'fallow', 'family', 'env', 'aliases') */
   readonly category?: string;
+  /** Node.js 26 permissions required by this script (e.g. ['--allow-addons', '--allow-child-process']) */
+  readonly permissions?: readonly string[];
   /** Optional predicate determining if this script is applicable in the current project */
   readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
 }
@@ -558,6 +560,7 @@ export function deriveCanonicalAuditorScript(
     command: overrides?.command ?? `auditor task=${id}`,
     description: overrides?.description ?? description,
     category: overrides?.category ?? 'suite',
+    permissions: overrides?.permissions ?? [],
     ...(overrides?.isApplicable ? { isApplicable: overrides.isApplicable } : {})
   };
 }
@@ -707,7 +710,9 @@ export interface ConsolidatedAuditReport {
 export function normalizeFindingPath(filePath?: string, cwd: string = process.cwd()): string {
   if (!filePath) return 'General';
   const rel = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-  return rel.replace(/\\/g, '/').replace(/^\/+/, '') || 'General';
+  const posix = rel.replaceAll(path.win32.sep, path.posix.sep);
+  const clean = posix.startsWith('./') ? posix.slice(2) : posix;
+  return clean || 'General';
 }
 
 /**

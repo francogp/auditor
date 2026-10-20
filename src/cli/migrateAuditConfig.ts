@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { AUDITOR_DIR, LEGACY_ROOT_CONFIG_FILES } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 
 function collectRelativeSpecifiers(source: ts.SourceFile): ts.StringLiteralLike[] {
   const found: ts.StringLiteralLike[] = [];
@@ -29,7 +30,7 @@ function collectRelativeSpecifiers(source: ts.SourceFile): ts.StringLiteralLike[
 }
 
 function rebaseSpecifier(specifier: string, fromDir: string, toDir: string): string {
-  const relative = path.relative(toDir, path.resolve(fromDir, specifier)).split(path.sep).join('/');
+  const relative = toPosixRelative(toDir, path.resolve(fromDir, specifier));
   return relative.startsWith('.') ? relative : `./${relative}`;
 }
 

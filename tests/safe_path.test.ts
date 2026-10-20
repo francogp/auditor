@@ -13,6 +13,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test'
 
 import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import {
+  CANONICAL_IGNORE_DIRS,
+  isPathIgnored,
+  collectRepositoryFiles
+} from '../src/core/auditorBase.ts';
+import {
   safeResolve,
   safeJoin,
   safeWriteFileSync,
@@ -24,10 +29,7 @@ import {
   toPosixPath,
   toPosixRelative,
   normalizePosixPath,
-  isPathContained,
-  isPathIgnored,
-  collectRepositoryFiles,
-  CANONICAL_IGNORE_DIRS
+  isPathContained
 } from '../src/core/safePath.ts';
 
 describe('safePath Core Security Utility', () => {
@@ -257,9 +259,7 @@ describe('safePath Core Security Utility', () => {
       const collectedDist = collectRepositoryFiles(distDir, tempDir, [], new Set(['.ts']));
       const allCollected = [...collectedSrc, ...collectedDist];
 
-      const relCollected = allCollected.map((f) =>
-        path.relative(tempDir, f).split(path.sep).join('/')
-      );
+      const relCollected = allCollected.map((f) => toPosixRelative(tempDir, f));
       expect(relCollected).toEqual(['src/valid.ts']);
     });
   });

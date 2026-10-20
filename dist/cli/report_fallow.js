@@ -3,6 +3,8 @@ import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
@@ -180,7 +182,7 @@ function reportSecurity(top, json) {
 	const rawFindings = runFallowCommand("security")?.security_findings || [];
 	const config = getAuditConfig();
 	const findings = rawFindings.filter((f) => {
-		const norm = (f.path || "").replace(/\\/g, "/");
+		const norm = toPosixRelative(process.cwd(), f.path || "");
 		return isInCodeRoots(norm, config);
 	});
 	if (json) {

@@ -1,3 +1,5 @@
+import { toPosixRelative } from "../auditCoverage.js";
+import "../safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -48,7 +50,8 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 		const scriptOffset = scriptBlock.contentStartIndex;
 		const updatedScript = this.applyAstGrepPatternRewrite(Lang.TypeScript, scriptText, plan.astPattern, plan.astRewrite);
 		s.overwrite(scriptOffset, scriptOffset + scriptText.length, updatedScript);
-		const relImport = path.relative(path.dirname(absFile), absShared).replace(/\\/g, "/").replace(/\.ts$/, "");
+		const rel = toPosixRelative(path.dirname(absFile), absShared);
+		const relImport = rel.endsWith(".ts") ? rel.slice(0, -3) : rel;
 		const importSpecifier = relImport.startsWith(".") ? relImport : `./${relImport}`;
 		if (!updatedScript.includes(`import { ${plan.functionName}`) && !updatedScript.includes(`import ${plan.functionName}`)) s.appendLeft(scriptOffset, `\nimport { ${plan.functionName} } from '${importSpecifier}';\n`);
 		fs.writeFileSync(absFile, s.toString(), "utf8");

@@ -345,6 +345,7 @@ export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
         speed: 'light',
         phase: 'post-run',

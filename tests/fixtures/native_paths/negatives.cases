@@ -1,0 +1,209 @@
+### N01 codex#4 expect=none
+const p = path.join(basePath, filename);
+
+### N02 codex#16 expect=none
+fs.readFileSync(path.join(__dirname, 'data.json'));
+
+### N03 codex#18 expect=none
+spawn('node', [path.join(__dirname, 'script.js')]);
+
+### N04 gemini-ok#01 expect=none
+const cfg = path.join(import.meta.dirname, 'config', 'app.json');
+
+### N05 gemini-ok#02 expect=none
+const abs = path.resolve(process.cwd(), 'dist', fileName);
+
+### N06 gemini-ok#03 expect=none
+const { name, ext, dir } = path.parse(fullPath);
+
+### N07 gemini-ok#04 expect=none
+const currentFile = fileURLToPath(import.meta.url);
+
+### N08 codex#7 expect=none
+const p = path.join(`${dir}`, file);
+
+### N09 codex#19 expect=none
+const url = 'https://example.com/' + path;
+
+### N10 codex#20 expect=none
+const css = '.class{background:url(/img/' + name + ')}';
+
+### N11 codex#21 expect=none
+const s = a + b;
+
+### N12 gemini-ok#05 expect=none
+const aspectRatio = width / height + offset / 2;
+
+### N13 gemini-ok#06 expect=none
+const greeting = `Hola ${userName}, tenés ${count} mensajes`;
+
+### N14 gemini-ok#07 expect=none
+const isNumber = /^\d+$/.test(input);
+
+### N15 gemini-ok#08 expect=none
+const tags = csvLine.split(',').map(t => t.trim());
+
+### N16 gpt-safe expect=none
+const urlObj = new URL('https://ejemplo.com/ruta?x=1');
+
+### N17 gpt-safe expect=none
+const params = new URLSearchParams('a=1&b=2');
+
+### N18 gpt-safe expect=none
+const normalized = path.normalize('/foo/bar//baz');
+
+### N19 gpt-safe expect=none
+const winNorm = path.win32.normalize('C:\\Windows\\System32');
+
+### N20 gpt-safe expect=none
+const posixJoin = path.posix.join('/usr', 'local');
+
+### N21 gpt-safe expect=none
+const safeCyrillic = path.join('/путь', 'файл');
+
+### N22 gpt-safe expect=none
+const safeURL = new URL(requestUrl, baseUrl);
+
+### N23 gpt-safe expect=none
+const id = new URL(requestUrl).searchParams.get('id');
+
+### N24 gpt-safe expect=none
+const safeObj = Object.fromEntries(new URLSearchParams('foo=bar&baz=qux'));
+
+### N25 gpt-safe expect=none
+const dec = decodeURIComponent('%2E%2E/%2E%2E/secret'); const norm = path.normalize(dec);
+
+### N26 gpt-safe expect=none
+const alt2 = path.win32.join('C:\\Windows', 'System32');
+
+### N27 gpt-disagreement expect=none
+const joined = path.join('/seguro', '/etc/passwd');
+
+### N28 gpt-disagreement expect=none
+const resolved = path.resolve('/seguro', '/etc/passwd');
+
+### N29 gpt-disagreement expect=none
+const up = path.join(base, '../../etc');
+
+### N30 gpt expect=none
+const safe = path.join(base, 'uploads', userFile);
+
+### N31 grok-payloads expect=none
+const PAYLOADS = ['../etc/passwd', '%2e%2e%2fetc%2fpasswd', 'C:\\Windows\\win.ini', '\\\\server\\share\\file', '//server/share/file'];
+
+### N32 grok-segment-whitelist expect=none
+const okSegment = /^[\w\-.]{1,255}$/.test(segment);
+
+### N33 canonical expect=none
+const rel = path.relative(root, target); const inside = !rel.startsWith('..') && !path.isAbsolute(rel);
+
+### N34 canonical expect=none
+if (!isPathContained(base, p)) { throw new Error('x'); }
+
+### N35 canonical expect=none
+const posixRel = rel.split(path.sep).join(path.posix.sep);
+
+### N36 canonical expect=none
+const posixGlob = glob.replaceAll(path.win32.sep, path.posix.sep);
+
+### N37 canonical expect=none
+const local = fileURLToPath(new URL('./x.json', import.meta.url));
+
+### N38 canonical expect=none
+const href = pathToFileURL(p).href;
+
+### N39 vue-router expect=none
+const r = `/users/${id}`;
+
+### N40 api-endpoint expect=none
+const e = `${API_BASE}/users/${id}`;
+
+### N41 date expect=none
+const d = '2026/10/20'.split('/');
+
+### N42 version expect=none
+const v = version.split('.');
+
+### N43 version-template expect=none
+const k = `${major}.${minor}`;
+
+### N44 regression-ellipsis expect=none
+const msg = match.replace(/\s+/g, ' ').slice(0, 90) + '...';
+
+### N45 regression-import-repair expect=none
+const fix = (match: string) => match.replace(/(['"])(\.\.?\/[^'"]+)(?<!\.[jt]s)(['"])/g, '$1$2.ts$3');
+
+### N46 comment expect=none
+// const p = __dirname + '/x'; fs.readFileSync(a + '/' + b);
+
+### N47 string-with-code expect=none
+const s = "fs.readFileSync(a + '/' + b) and p.replace(/\\\\/g, '/')";
+
+### N48 escape-hatch-same-line expect=none
+const p = __dirname + '/file.txt'; // path-ok: legacy fixture loader
+
+### N49 escape-hatch-prev-line expect=none
+// path-ok: legacy fixture loader
+const p = __dirname + '/file.txt';
+
+### N50 escape-hatch-url expect=none
+const res = await fetch(url); // url-ok: Internal verified endpoint
+
+### N51 safe-fetch expect=none
+const res = await fetch('https://api.example.com/data');
+
+### N52 safe-fetch expect=none
+const res = await safeFetch(endpoint);
+
+### N53 safe-fetch expect=none
+const res = await fetch(new URL(userPath, baseUrl));
+
+### N54 host-dates expect=none
+const parts = rawDate.split('/');
+
+### N55 host-dates expect=none
+const parts = dateStr.trim().split('/');
+
+### N56 host-origin expect=none
+const withoutPath = trimmed.split('/')[0] ?? '';
+
+### N57 host-status expect=none
+const statuses = responses.map((r) => r.status).join('/');
+
+### N58 host-canonical expect=none
+return !relative.startsWith('..') && !path.isAbsolute(relative);
+
+### N59 host-hp expect=none
+const hpParts = hpRatio.split('/');
+
+### N60 host-repo-slug expect=none
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+
+### N61 host-vmodel expect=none
+descriptor = sanitizeSlug(vModelMatch[1].split('.').pop() || '');
+
+### N62 host-decimal expect=none
+const lastDot = s.lastIndexOf('.');
+
+### N63 host-types-join expect=none
+const reason = `Tipo (${pokeTypes.join('/')}) no permitido en esta temporada`;
+
+### N64 fraction expect=none
+const ratio = num + '/' + den;
+
+### N65 api-concat expect=none
+const endpoint = apiBaseUrl + '/' + resource;
+
+### N66 tsx-router expect=none file=case.tsx
+const NavItem = () => <Link to={`/users/${id}`} />;
+
+### N67 limitation-cyrillic-literal expect=none
+const splitIntl = 'документы/файл'.split('/');
+
+### N68 vue-style expect=none file=case.vue
+<script setup lang="ts">
+const label = 'ok';
+</script>
+<style scoped>
+.hero { background: url(/img/a.png); }
+</style>

@@ -188,7 +188,7 @@ export const zIndexConstantDeclaration: AuditRule = {
     if (!filePath) return false;
     const norm = normalizeFilePath(filePath);
     const zFile = config.styles?.zLayersTsFile ?? config.domain?.zLayersFile;
-    if (zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase())) return false;
+    if (zFile && norm.includes(normalizeFilePath(zFile))) return false;
     return !norm.includes('node_modules');
   },
   fixable: false

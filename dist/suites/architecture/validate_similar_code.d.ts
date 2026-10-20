@@ -39,7 +39,9 @@ export declare function evaluateSimilarCodeCandidates(candidates: readonly Simil
   ignoreSameFile?: boolean;
 }, auditor: ValidateSimilarCodeAuditor): number;
 export declare class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
-  constructor(targetPath?: string);
+  constructor(options?: {
+    projectRoot?: string;
+  });
   private ensureFallowBinaryAndModel;
   private executeAnalysis;
   private processRawOutputFile;

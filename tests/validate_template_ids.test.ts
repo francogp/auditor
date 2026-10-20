@@ -22,7 +22,7 @@ class TestableTemplateIdAuditor extends TemplateIdAuditor {
   public readonly collectedViolations: ViolationInput<TemplateIdRuleId>[] = [];
 
   constructor(options?: { requireInputIds?: boolean }) {
-    super(['src'], options ?? { requireInputIds: true });
+    super({ roots: ['src'], requireInputIds: options?.requireInputIds ?? true });
   }
 
   public override addViolation(v: ViolationInput<TemplateIdRuleId>): void {

@@ -128,6 +128,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	},
 	oxlint: { enabled: true },
 	oxfmt: { enabled: true },
+	htmlValidate: { enabled: true },
 	vitePlusConfig: {
 		enabled: true,
 		precompress: {
@@ -266,6 +267,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	environment: { enabled: true },
 	auditorHygiene: {
 		enabled: true,
+		roots: ["scripts/auditors"],
 		exemptFiles: [],
 		disabledDetectors: []
 	},

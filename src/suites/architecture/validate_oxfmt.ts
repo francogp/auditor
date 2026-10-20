@@ -51,6 +51,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
     const effectiveRoot = opts.projectRoot || process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Vite+ Oxfmt',
         fallbackBehavior: 'violation',
@@ -177,6 +178,9 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
         if (!exists) continue;
 
         const cleanFile = normalizePosixPath(fullCandidate, this.projectRoot);
+        if (this.isPathIgnored(cleanFile) || this.isPathExempt(cleanFile)) {
+          continue;
+        }
         violationsCount++;
         this.addViolation({
           ruleId: 'oxfmt-violation',

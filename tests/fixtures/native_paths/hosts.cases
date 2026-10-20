@@ -1,0 +1,115 @@
+### HP01 facturacion2#InvoiceCalculatorService.ts:61 expect=homebrew-path-parsing
+const base = filePath.split('/').pop() ?? filePath;
+
+### HP02 facturacion2#InvoiceCalculatorService.ts:62 expect=homebrew-path-parsing line=2
+const base = path.basename(filePath);
+return base.replace(/\.txt$/i, '');
+
+### HP03 facturacion2#BaseDefinitionParser.ts:35 expect=homebrew-path-containment line=2
+const filePath = path.resolve(resolvedBase, fileName);
+if (!filePath.startsWith(resolvedBase)) { throw new Error('Intento de navegación de rutas no permitido (path traversal)'); }
+
+### HP04 pokeborrador#validate_sql_migrations.ts:234 expect=unsafe-path-concat
+const finding = { file: `database/migrations/${file}`, line: 1 };
+
+### HP05 pokeborrador#validate_sprites.ts:42 expect=unsafe-path-concat
+const animPath = `public/assets/sprites/pokemon/animated/Front/${animFilename}`;
+
+### HP06 pokeborrador#organize_item_sprites_by_tier.ts:77 expect=unsafe-path-concat
+item.sprite = `${tierFolder}/${item.id}`;
+
+### HP07 pokeborrador#generate_migrations.ts:61 expect=homebrew-path-parsing
+const id = filename.replace(/\.sql$/, '');
+
+### HP08 pokeborrador#generate_migrations.ts:30 expect=homebrew-path-manipulation
+const relOutputDir = path.relative(process.cwd(), OUTPUT_FILE).replace(/\\/g, '/');
+
+### HP09 pokeborrador#fileWriterQueue.ts:47 expect=homebrew-path-containment
+if (!targetPath.startsWith(projectRoot) || fileName.includes('..')) { throw new Error('x'); }
+
+### HP10 pokeborrador#migrate_dox_sections.ts:63 expect=homebrew-path-parsing line=2
+const rel = path.relative(dir, parent).replace(/\\/g, '/');
+const parts = rel.split('/');
+
+### HN01 facturacion2#setup_supabase.ts:689 expect=none
+const api_url = `${schema}://${dominio}:${puerto}`;
+
+### HN02 facturacion2#verify_migrations_live.ts:125 expect=none
+console.log(`   ${styleText('green', 'ok')} [${testedCount}/${pendingMigrations.length}] ${file} (${elapsedMs}ms)`);
+
+### HN03 facturacion2#CSVTools.ts:65 expect=none
+const msg = `Error al leer el archivo ${filePath}, semicolonCount=${semicolonCount}/${TOTAL_COLUMNS_THRESHOLD}, comaCount=${comaCount}/${TOTAL_COLUMNS_THRESHOLD}`;
+
+### HN04 facturacion2#audit_security_endpoints.ts:2388 expect=none
+for (const pathName of probePathNames) { if (res.status === HTTP_STATUS_OK && pathName.includes('..')) { report(pathName); } }
+
+### HN05 facturacion2#router/index.ts:78 expect=none env=browser
+if (targetPath.startsWith('/') && !targetPath.startsWith('//') && !targetPath.includes('\\')) { router.resolve(targetPath); }
+
+### HN06 pokeborrador#convert_assets.ts:571 expect=none
+console.log(`   - Archivos procesados: ${successfulFiles}/${files.length}`);
+
+### HN07 pokeborrador#optimize_sprites.ts:501 expect=none
+console.log(`   [OK - HILO] Procesado con éxito: ${file} (${completedCount + failedCount}/${filteredFiles.length})`);
+
+### HN08 pokeborrador#postgres_test_container.ts:711 expect=none
+const volumes = [`${confPath}:/etc/nginx/nginx.conf:ro`];
+
+### HN09 pokeborrador#validate_fsm_implementation.ts:375 expect=none
+const usageRx = new RegExp(`(?:\\.|'|")(${sub})(?:'|")?`, 'g');
+
+### HN10 pokeborrador#migrate_dox_sections.ts:91 expect=none
+childPaths.push(rel.startsWith('.') ? rel : `./${rel}`);
+
+### HN11 pokeborrador#tilesRegistry.ts:91 expect=none env=browser
+if (!manifestUrl.startsWith('/') || manifestUrl.includes('..')) { throw new Error('Disallowed manifest URL'); }
+
+### HN12 pokeborrador#tilesRegistry.ts:116 expect=none env=browser
+const relPath = manifest?.categories[category]?.file_path || `${category}/registry.json`;
+
+### HN13 pokeborrador#canonicalAssetsRegistry.ts:101 expect=none env=browser
+const filename = asset.runtimePath.split('/').pop()!;
+
+### HN14 pokeborrador#shadowEditorCatalogHelpers.ts:38 expect=none env=browser
+const animSubKey = `animated/${view}${shinyFolderSuffix}/${numVal}i${suffix}`;
+
+### HN15 pokeborrador#useShadowEditor.ts:172 expect=none env=browser
+const sub = fullPath.slice('/assets/sprites/pokemon/'.length).replace(/\.webp$/i, '');
+
+### HN16 pokeborrador#update.ts:106 expect=none env=browser
+const cleanTarget = targetPath.replace(/^\/+/, '');
+
+### HN17 pokeborrador#sqliteEngine.ts:230 expect=none env=browser
+if (isNode) return `./node_modules/sql.js/dist/${file}`;
+
+### HN18 pokeborrador#tilesRegistry.ts:95-fallow-hatch expect=none env=browser
+// fallow-ignore-next-line security-sink
+const res = await fetch(manifestUrl);
+
+### HB01 browser-url-rule-still-applies expect=homebrew-url-parsing env=browser
+const part = window.location.href.split('?')[1];
+
+### HB02 browser-fetch-rule-still-applies expect=untrusted-url-fetch env=browser
+export async function load(endpoint: string) { return fetch(endpoint); }
+
+### HB03 browser-gate expect=none env=browser
+const fileName = fullPath.split('/').pop();
+
+### HB04 facturacion2#useProjectZip.ts:48-local-path-var expect=none env=browser
+if (path.includes('__MACOSX') || path.startsWith('.') || path.includes('/.')) { skip(); }
+const basename = rawPath.split('/').pop() ?? rawPath;
+
+### HP11 pokeborrador#convert_assets.ts:334 expect=homebrew-path-manipulation
+const publicRel = path.relative(PUBLIC_ASSETS_DIR, r.destFiles[0] || '').split(path.sep).join('/');
+
+### HP12 pokeborrador#backup_migration_real.test.ts:41 expect=homebrew-path-parsing
+const migrationId = physicalFile.replace(/\.sql$/, '');
+
+### HP13 pokeborrador#parse_lint.ts:70 expect=homebrew-path-manipulation
+md += `### [${file}](${file.split('\\').join('/')})\n`;
+
+### HN19 pokeborrador#useMapCardState.ts:141 expect=none
+const label = types.map((type) => translateType(type)).join('/').toUpperCase();
+
+### HN20 facturacion2#audit_security_endpoints.ts:272 expect=none
+const target = `${baseUrl}/rest/v1/user_profiles?select=id,email,role&limit=${QUERY_PROFILE_LIMIT}`;

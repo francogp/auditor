@@ -1,9 +1,12 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { isPositionInsideFunctionParams, stripComments } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
@@ -90,6 +93,7 @@ const P_RECORD_STRING_KEY = /\bRecord\s*<\s*string\s*,/g;
 const P_RECORD_PROPERTY_KEY = /\bRecord\s*<\s*PropertyKey\s*,/g;
 const P_INDEX_SIGNATURE = /\[\s*\w+\s*:\s*string\s*\]\s*:/g;
 const P_DOMAIN_STRING_FIELD = /^\s*(?:readonly\s+)?([A-Z_a-z]\w*)\??:\s*string(?:\[\])?\s*[;,]?/gm;
+const P_FINITE_DOMAIN_PHASE_STRING = /^\s*(?:readonly\s+)?(?:phase|remediationPhase)\??:\s*string(?:\[\])?\s*[;,]?/gm;
 const P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS = /^\s*(?:export\s+)?type\s+\w+\s*=[^;\n'"`]*(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*;|^\s*(?:export\s+)?type\s+\w+\s*=[^;\n]*(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*;/gm;
 const P_AMBIGUOUS_EMPTY_NULL_FIELD = /^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n'"`]*)?(?:''|""|``)[^;\n]*\|\s*(?:null|undefined)[^;\n]*[;,]?|^\s*(?:readonly\s+)?\w+\??:\s*(?:[^\s;][^;\n]*)?(?:null|undefined)[^;\n]*\|\s*(?:''|""|``)[^;\n]*[;,]?/gm;
 const P_TYPECAST_INLINE_DOMAIN_ID = /\bas\s+(?:[A-Z]\w*Id|keyof\s+typeof\s+[A-Z_a-z]\w*)\b/g;
@@ -105,13 +109,18 @@ function toRepoPath(filePath) {
 function hasEscapeHatch(line) {
 	return ESCAPE_HATCHES.some((hatch) => new RegExp(`//\\s*${hatch}:\\s*\\S+`).test(line));
 }
+function hasDomainExemptionComment(line) {
+	return line.includes("// domain-ok:") || line.includes("// infra-ok:") || line.includes("// type-ok:") || line.includes("// no-domain:");
+}
 function isTestFile(file) {
 	if (getAuditConfig().paths.includeTestsInCodeAudit) return false;
 	return isTestPath(file);
 }
 function isContractFile(file) {
 	const config = getAuditConfig();
-	return [...config.paths.typesRoots ?? [], ...config.paths.dataRoots ?? []].some((r) => file.includes(r.replace(/^\.?\//, ""))) || file.includes("/types/") || file.includes("/data/") || file.endsWith(".d.ts");
+	const contractRoots = [...config.paths.typesRoots ?? [], ...config.paths.dataRoots ?? []];
+	const norm = normalizePosixPath(file);
+	return matchesAnyRoot(norm, contractRoots) || file.endsWith(".d.ts");
 }
 function isAmbientDeclarationFile(file) {
 	return file.endsWith(".d.ts");
@@ -270,17 +279,18 @@ function auditFileContent(filePath, content, ruleFilter) {
 		findings.push(...findMatches(content, rel, P_RECORD_PROPERTY_KEY, "Record<PropertyKey, ...> in type/data contract is an open keyspace — use a finite union key", "ERROR", "domain-naked-string-primitive"));
 	}
 	findings.push(...findMatches(content, rel, P_DOMAIN_STRING_FIELD, "Raw `string` field in type/data contract — use a strict domain type or mark truly open text (`// domain-ok: Open dynamic text or non-domain string payload` if genuinely open text)", "ERROR", "domain-naked-string-primitive", (_match, _line, file) => isContractFile(file) && !isAmbientDeclarationFile(file)));
+	findings.push(...findMatches(content, rel, P_FINITE_DOMAIN_PHASE_STRING, "Finite domain property `phase` typed as raw `string` — use canonical `RemediationPhaseId` or `AuditExecutionPhase` union (or `// domain-ok: <justification>`)", "ERROR", "domain-naked-string-primitive", (_match, line) => !line.includes("// domain-ok:")));
 	findings.push(...findMatches(content, rel, P_AMBIGUOUS_EMPTY_NULL_TYPE_ALIAS, "Ambiguous type alias mixes empty-string sentinel with null/undefined", "ERROR", "domain-ambiguous-union"));
 	findings.push(...findMatches(content, rel, P_AMBIGUOUS_EMPTY_NULL_FIELD, "Ambiguous field type mixes empty-string sentinel with null/undefined", "ERROR", "domain-ambiguous-union", (_match, _line, file) => isContractFile(file)));
 	findings.push(...findMatches(content, rel, P_UNBRANDED_DOMAIN_ID_ALIAS, "Unbranded domain ID alias detected — domain IDs should consume Brand<string, \"IdName\"> for nominal compile-time safety", "ERROR", "domain-unbranded-id", (_match, line) => !line.includes("// brand-ok: Domain branded primitive type") && !line.includes("// domain-ok: Open dynamic text or non-domain string payload") && !line.includes("string-ok")));
 	findings.push(...findMatches(content, rel, P_TYPECAST_INLINE_DOMAIN_ID, "Inline type assertion `as DomainId` used to force dynamic string into domain type — use boundary guard `isDomainId()` or `requireDomainId()`", "ERROR", "domain-naked-string-primitive", (_match, line) => {
 		if (/\bfunction\s+(?:is|require)[A-Z_a-z]\w*/.test(line) || /\bis[A-Z_a-z]\w*\s*=\s*/.test(line)) return false;
-		if (line.includes("// domain-ok:") || line.includes("// infra-ok:") || line.includes("// type-ok:") || line.includes("// no-domain:")) return false;
+		if (hasDomainExemptionComment(line)) return false;
 		return !isExemptDomainCastTarget(_match[0].replace(/^as\s+/, "").trim());
 	}));
 	findings.push(...findMatches(content, rel, P_OBJECT_KEYS_CAST, "Type assertion on `Object.keys(...)` or `Object.entries(...)` to `as DomainId[]` — use typed helper or `isDomainId` filtering", "ERROR", "domain-naked-string-primitive", (_match, line) => {
 		if (/\bfunction\s+is[A-Z_a-z]\w*/.test(line)) return false;
-		if (line.includes("// domain-ok:") || line.includes("// infra-ok:") || line.includes("// type-ok:") || line.includes("// no-domain:")) return false;
+		if (hasDomainExemptionComment(line)) return false;
 		return !isExemptDomainCastTarget(_match[0].replace(/^Object\.(?:keys|entries)\s*\([^)]+\)\s+as\s+/, "").replace(/\[\]$/, "").trim());
 	}));
 	findings.push(...findMatches(content, rel, P_INLINE_ANONYMOUS_OBJECT_PARAM, "Inline anonymous object type in function parameter prohibited — define a named interface or type contract", "ERROR", "domain-naked-string-primitive", (_match, line) => !line.includes("// type-ok: Type contract declaration") && !line.includes("// domain-ok: Open dynamic text or non-domain string payload") && !line.includes("withDefaults")));
@@ -303,11 +313,11 @@ async function auditFile(filePath, ruleFilter) {
 	return auditFileContent(filePath, await fs.readFile(filePath, "utf8"), ruleFilter);
 }
 var DomainTypesAuditor = class extends BaseAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? (config.paths.includeTestsInCodeAudit ? [...config.paths.codeRoots ?? [], ...config.paths.testRoots ?? []] : config.paths.codeRoots ?? []);
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.includeTestsInCodeAudit ? [...config.paths.codeRoots ?? [], ...config.paths.testRoots ?? []] : config.paths.codeRoots ?? []);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -341,7 +351,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 				"domain-unbranded-id": "📖 GUÍA DE REMEDIACIÓN: domain-unbranded-id\n1. Causa Raíz: Se declaró un alias de identificador como simple sinónimo de string primitivo (ej: type HeroId = string). Esto habilita el duck-typing accidental, permitiendo que una función reciba un ItemId donde esperaba un HeroId sin advertencia del compilador.\n2. Diagnóstico: Busca la declaración de tipo \"type ...Id = string\".\n3. Solución: Utiliza el tipo utilitario Brand<string, \"EntityId\"> para forzar tipado nominal estricto y distinguir identificadores de diferentes entidades.\n4. Ejemplo:\n   ❌ Incorrecto: export type HeroId = string;\n   ✅ Correcto:   export type HeroId = Brand<string, \"HeroId\">;\n                  // O bien: export type HeroId = string & { readonly __brand: unique symbol };"
 			},
 			coverage: {
-				include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
+				include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,
 				exclude: [
 					"scripts/auditors/**",
 					"scripts/lib/**",
@@ -349,7 +359,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 					"packages/**"
 				]
 			},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: EXTENSIONS,
 			extraIgnorePatterns: [
 				"scripts/auditors/**",
@@ -357,7 +367,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 				"coverage/**",
 				"packages/**"
 			],
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	collectAuditableDomainFiles() {

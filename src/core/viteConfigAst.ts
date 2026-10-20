@@ -5,20 +5,16 @@
  * and transforming vite.config.ts and legacy ESLint/Vitest configuration files.
  * Zero regex or manual string manipulation.
  */
-import path from 'node:path';
 import ts from 'typescript';
 import type { AuditConfig } from './auditConfig.ts';
+import { isPathContained, normalizePosixPath } from './safePath.ts';
 
 function normalizePosixRoot(rawRoot: string): string {
-  const forwardSlashes = rawRoot.split(path.sep).join(path.posix.sep);
-  return path.posix.normalize(path.posix.join(forwardSlashes, '.')).toLowerCase();
+  return normalizePosixPath(rawRoot).toLowerCase();
 }
 
 function isPathUnderRoot(candidatePath: string, rootDir: string): boolean {
-  const normCandidate = path.posix.normalize(candidatePath.split(path.sep).join(path.posix.sep)).toLowerCase();
-  const normRoot = normalizePosixRoot(rootDir);
-  const rel = path.posix.relative(normRoot, normCandidate);
-  return rel === '' || (!rel.startsWith('..') && !path.posix.isAbsolute(rel));
+  return isPathContained(rootDir, candidatePath);
 }
 
 export const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>> = {

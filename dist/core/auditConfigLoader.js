@@ -18,14 +18,18 @@ function sanitizePath(inputPath) {
 }
 let cachedConfig = null;
 let cachedProjectRoot = null;
+const configCache = /* @__PURE__ */ new Map();
 function tryLoadJsonConfig(jsonConfigPath, projectRoot, logWarning = false) {
 	if (!fs.existsSync(jsonConfigPath)) return null;
 	try {
 		const content = fs.readFileSync(jsonConfigPath, "utf-8");
 		const parsed = JSON.parse(content);
-		cachedConfig = defineAuditConfig(parsed);
-		cachedProjectRoot = projectRoot;
-		return cachedConfig;
+		const config = defineAuditConfig(parsed);
+		const resolvedRoot = path.resolve(projectRoot);
+		configCache.set(resolvedRoot, config);
+		cachedConfig = config;
+		cachedProjectRoot = resolvedRoot;
+		return config;
 	} catch (err) {
 		if (logWarning) {
 			const msg = err instanceof Error ? err.message : String(err);
@@ -91,7 +95,9 @@ async function loadAuditConfig(projectRoot = process.cwd()) {
 		const mod = await import(fileUrl.href);
 		if (!mod.default) throw new Error(`[AuditConfig] ${path.relative(projectRoot, configPath)} must default-export defineAuditConfig({...}).`);
 		cachedConfig = defineAuditConfig(mod.default);
-		cachedProjectRoot = projectRoot;
+		const resolvedRoot = path.resolve(projectRoot);
+		configCache.set(resolvedRoot, cachedConfig);
+		cachedProjectRoot = resolvedRoot;
 		serializeAuditConfigToEnv(cachedConfig, projectRoot);
 		return cachedConfig;
 	}
@@ -101,23 +107,37 @@ async function loadAuditConfig(projectRoot = process.cwd()) {
 		return loaded;
 	}
 	cachedConfig = DEFAULT_AUDIT_CONFIG;
-	cachedProjectRoot = projectRoot;
+	const resolvedRoot = path.resolve(projectRoot);
+	configCache.set(resolvedRoot, cachedConfig);
+	cachedProjectRoot = resolvedRoot;
 	return cachedConfig;
 }
 function getAuditConfig(projectRoot = process.cwd()) {
-	if (cachedConfig && (!cachedProjectRoot || cachedProjectRoot === projectRoot)) return cachedConfig;
+	const resolvedRoot = path.resolve(projectRoot);
+	const fromCache = configCache.get(resolvedRoot);
+	if (fromCache) return fromCache;
+	if (cachedConfig && cachedProjectRoot && path.resolve(cachedProjectRoot) === resolvedRoot) return cachedConfig;
 	const envConfig = tryLoadConfigFromEnv(projectRoot);
-	if (envConfig) return envConfig;
+	if (envConfig) {
+		configCache.set(resolvedRoot, envConfig);
+		return envConfig;
+	}
 	const loaded = tryLoadJsonConfig(path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE), projectRoot, false);
-	if (loaded) return loaded;
+	if (loaded) {
+		configCache.set(resolvedRoot, loaded);
+		return loaded;
+	}
 	return cachedConfig ?? DEFAULT_AUDIT_CONFIG;
 }
 function setAuditConfig(config, projectRoot = process.cwd()) {
+	const resolvedRoot = path.resolve(projectRoot);
+	configCache.set(resolvedRoot, config);
 	cachedConfig = config;
-	cachedProjectRoot = projectRoot;
+	cachedProjectRoot = resolvedRoot;
 	serializeAuditConfigToEnv(config, projectRoot);
 }
 function resetAuditConfig() {
+	configCache.clear();
 	cachedConfig = null;
 	cachedProjectRoot = null;
 	const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;

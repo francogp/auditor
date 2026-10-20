@@ -22,12 +22,16 @@ export interface AuditHeadersResult {
  * Scans file contents for illegal suppression headers or file-level ignores.
  */
 export declare function scanFileForIllegalHeaders(filePath: string, content: string): HeaderViolation[];
+export interface AuditHeadersOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
 /**
  * Object-oriented FileScanAuditor implementation for Illegal Audit Headers.
  */
 export declare class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
   private readonly collectedViolations;
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: AuditHeadersOptions);
   getViolations(): readonly HeaderViolation[];
   protected scanFile(relPath: string, content: string): void;
 }

@@ -8,10 +8,10 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { spawnSync, execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { getAuditConfig, buildTestCoverageConfig } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import {
   analyzeTestCoverage,
   resolveCoverageFile,
@@ -162,10 +162,7 @@ function loadFallowComplexityMap(projectRoot: string): Map<string, number> {
     if (data?.findings && Array.isArray(data.findings)) {
       for (const finding of data.findings) {
         if (!finding.path) continue;
-        const relPath = path
-          .relative(projectRoot, path.resolve(projectRoot, finding.path))
-          .split(path.sep)
-          .join('/');
+        const relPath = toPosixRelative(projectRoot, finding.path);
         const cog = finding.cognitive ?? 0;
         const cyc = finding.cyclomatic ?? 0;
         const current = complexityMap.get(relPath) ?? 0;
@@ -422,6 +419,7 @@ function renderFilteredFilesView(
     );
   }
   if (args.dirFilter) {
+    // path-ok: CLI display filter matching directory prefix
     filtered = filtered.filter((f) => f.relPath.startsWith(args.dirFilter!));
   }
   console.log(renderFilesTable(filtered, args.topLimit));
@@ -460,6 +458,7 @@ ${styleText('bold', '🎯 DISTRIBUCIÓN DE ARCHIVOS:')}
 
   let dirs = report.directories;
   if (args.dirFilter) {
+    // path-ok: CLI display filter matching directory prefix
     dirs = dirs.filter((d) => d.directory.startsWith(args.dirFilter!));
   }
   console.log(styleText('bold', '🗺️  DESGLOSE POR DIRECTORIO / SUBSISTEMA:\n'));

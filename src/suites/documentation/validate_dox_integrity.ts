@@ -45,13 +45,19 @@ export const DOX_RULES: readonly DoxRuleId[] = [
   'dox-empty-section'
 ] as const;
 
+export interface DoxIntegrityAuditorOptions {
+  projectRoot?: string;
+}
+
 export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
   private readonly rootDir: string;
 
-  constructor(rootDir?: string) {
-    const projectRoot = rootDir || process.cwd();
+  constructor(options: DoxIntegrityAuditorOptions = {}) {
+    const projectRoot = options.projectRoot || process.cwd();
     super({
+      projectRoot,
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOX_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -127,8 +133,7 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       },
       coverage: {
         include: ['**/AGENTS.md']
-      },
-      projectRoot
+      }
     });
     this.rootDir = projectRoot;
   }

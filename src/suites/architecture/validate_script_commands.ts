@@ -143,6 +143,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
     const root = options.projectRoot || process.cwd();
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(SCRIPT_COMMANDS_RULES, {
         speed: 'light',
         phase: 'setup',

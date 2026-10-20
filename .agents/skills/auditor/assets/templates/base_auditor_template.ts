@@ -94,6 +94,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      // Mandatory: Node.js Permission Model flags required by this suite (pass [] for standard suites)
+      requiredPermissions: [],
       // Mandatory: Whether this auditor delegates to third-party tools/binaries (true or false).
       // If true, thirdPartyToolPolicy ({ toolName, fallbackBehavior: 'throw' | 'violation', fallbackRuleId }) is mandatory.
       usesThirdPartyTool: false,
@@ -102,22 +104,23 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         'composite-parity-mismatch': 'Desincronización entre datasets',
         'composite-missing-config': 'Archivo de configuración faltante'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
       ruleRemediations: {
         'composite-missing-entry':
-          'Una entrada requerida no se encuentra en el registro canónico de datos.\n' +
-          '1. Abre el archivo de dataset objetivo en src/data/.\n' +
-          '2. Verifica que todas las claves requeridas estén declaradas y no contengan valores nulos/indefinidos.\n' +
-          '3. Ejecuta "npm run auditor" para validar la consistencia.',
+          'Causa Raíz: Una entrada requerida no se encuentra en el registro canónico de datos.\n' +
+          'Diagnóstico: Inspecciona el archivo de dataset objetivo en src/data/ y compara con el esquema canónico.\n' +
+          'Solución Canónica: Declara todas las claves requeridas asegurando que no contengan valores nulos o indefinidos.\n' +
+          'Ejemplo / Comando: npm run auditor',
         'composite-parity-mismatch':
-          'Existe una discrepancia de paridad entre los datasets comparados.\n' +
-          '1. Revisa los registros dispares reportados en el hallazgo.\n' +
-          '2. Sincroniza las claves y estructuras para que concuerden 1 a 1.\n' +
-          '3. Vuelve a ejecutar la suite.',
+          'Causa Raíz: Existe una discrepancia de paridad estructural o de claves entre los datasets comparados.\n' +
+          'Diagnóstico: Revisa los registros dispares reportados en el hallazgo.\n' +
+          'Solución Canónica: Sincroniza las claves y estructuras para que concuerden 1 a 1.\n' +
+          'Ejemplo / Comando: npm run auditor',
         'composite-missing-config':
-          'El archivo de configuración requerido no existe.\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix" para crearlo automáticamente si es auto-reparable.\n' +
-          '2. O créalo manualmente con la estructura canónica declarada en configFiles.'
+          'Causa Raíz: El archivo de configuración requerido por el sub-sistema no existe en la raíz del proyecto.\n' +
+          'Diagnóstico: Verifica si el archivo especificado en configFiles está ausente en el disco.\n' +
+          'Solución Canónica: Ejecuta "npm run auditor:fix" o "auditor fix" para crearlo automáticamente si es auto-reparable, o créalo manualmente con la estructura canónica.\n' +
+          'Ejemplo / Comando: npm run auditor:fix'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_COMPOSITE_RULES, 'contracts'),

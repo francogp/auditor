@@ -800,7 +800,8 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
 
   lines.push(boldYellow('USO:'));
-  lines.push('  auditor [opciones] [comandos]  (o npm run auditor [opciones])\n');
+  lines.push('  auditor [opciones] [comandos]  (o npm run auditor [opciones])');
+  lines.push('  ↳ Nota npm: usa "npm run auditor:help" o "npm run auditor help" (npm intercepta "--help" directamente).\n');
 
   lines.push(boldYellow('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:'));
   lines.push('  --list, list                 Lista todas las suites descubiertas y sus flags.');
@@ -830,7 +831,9 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
   lines.push('  npm run auditor:o1           Optimización de búsquedas lineales O(N) a O(1).');
   lines.push('  ↳ Subcomandos comunes: discover, inspect <archivo>, apply <plan.json>, help\n');
 
-  lines.push(boldYellow('MODOS, VELOCIDADES Y FASES DE EJECUCIÓN:'));
+  lines.push(boldYellow('MODOS, FORMATOS Y FASES DE EJECUCIÓN:'));
+  lines.push('  format=compact (default)     Salida concisa y directa optimizada para agentes AI.');
+  lines.push('  human, format=human          Modo interactivo humano con tablas completas Box-Drawing (o npm run auditor:human).');
   lines.push(
     '  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.'
   );
@@ -1005,3 +1008,16 @@ export function renderConsolidatedFooter(
 }
 
 export { renderMarkdownReport } from './markdownReport.ts';
+
+export {
+  renderExecutivePassSummary,
+  renderExecutiveFailSummary,
+  renderExecutiveSetupBlockingSummary,
+  renderExecutiveFixSummary,
+  extractPhaseBreakdown,
+  type ExecutivePassSummaryParams,
+  type ExecutiveFailSummaryParams,
+  type ExecutiveSetupBlockingSummaryParams,
+  type ExecutiveFixSummaryParams,
+  type ExecutiveFailPhaseBreakdown
+} from './executiveTheme.ts';

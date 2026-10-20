@@ -77,6 +77,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
   constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: ['--allow-child-process'],
       ruleCapabilities: createRuleCapabilities(
         GIT_CONFIG_RULES,
         {

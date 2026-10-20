@@ -1,5 +1,6 @@
 import { AuditEngineConfig } from "../core/auditConfigTypes.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
+import { ConsoleOutputMode } from "../core/streamingRunner.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
 //#region src/cli/audit_full.d.ts
@@ -18,6 +19,7 @@ export interface AuditFullCliOptions {
   skipSimilar: boolean;
   isEnabledFilter: boolean;
   isDisabledFilter: boolean;
+  consoleMode: ConsoleOutputMode;
 }
 export declare function resolveTargetFamily(familyOption: unknown, positionals: readonly string[], activeFamilies: readonly string[]): string | undefined;
 export declare function resolveFormattedRules(values: Record<string, unknown>, positionals: readonly string[]): string;
@@ -25,6 +27,7 @@ export declare function resolveTargetSuites(values: Record<string, unknown>): st
 export declare function resolveConcurrencyLimit(concurrencyValue: unknown): number;
 export declare function resolveSkipSimilar(): boolean;
 export declare function resolveTargetPreset(values: Record<string, unknown>, positionals: readonly string[]): AuditPresetName | undefined;
+export declare function resolveConsoleMode(values: Record<string, unknown>, positionals: readonly string[]): ConsoleOutputMode;
 export declare function parseAuditFullCliArgs(activeFamilies: readonly string[], rawArgs?: readonly string[]): AuditFullCliOptions;
 export declare function determineRunMode(targetPreset?: AuditPresetName, targetSuites?: string[], taskArg?: unknown, targetFamily?: string, extraOptions?: {
   speed?: unknown;

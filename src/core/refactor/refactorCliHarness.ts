@@ -14,6 +14,7 @@ import {
   renderBoxTable
 } from '../unifiedTheme.ts';
 import type { TableColumn } from '../unifiedTheme.ts';
+import { isHumanConsoleMode } from '../../cli/cliUtils.ts';
 import { scanProjectSourceFiles } from './refactorFileScanner.ts';
 import { applyPlanFileWithWorktreeVerification } from './worktreeSandbox.ts';
 import type { BaseRefactorEngine } from './baseRefactorEngine.ts';
@@ -82,12 +83,13 @@ Uso vía scripts npm de proyecto:
 function handleDiscoverCommand<TFinding, TPlan>(
   def: RefactorCliDefinition<TFinding, TPlan>,
   projectRoot: string,
-  engine?: BaseRefactorEngine<TFinding, TPlan>
+  engine?: BaseRefactorEngine<TFinding, TPlan>,
+  isHuman: boolean = false
 ): void {
-  console.log(styleText('cyan', `🔍 ${def.scanningMessage}: ${projectRoot}...\n`));
   const files = engine ? engine.getScannableFiles() : scanProjectSourceFiles(projectRoot);
   const tableRows: Record<string, string>[] = [];
   const allFindings: TFinding[] = [];
+  const fileSummaryList: { file: string; count: number }[] = [];
 
   for (const file of files) {
     const fullPath = path.isAbsolute(file) ? file : path.resolve(projectRoot, file);
@@ -96,16 +98,30 @@ function handleDiscoverCommand<TFinding, TPlan>(
       allFindings.push(...fileFindings);
       const relFile = path.relative(projectRoot, fullPath);
       tableRows.push(def.buildTableRow(relFile, fileFindings));
+      fileSummaryList.push({ file: relFile, count: fileFindings.length });
     }
   }
 
   if (tableRows.length === 0) {
-    console.log(styleText('green', `✨ ${def.zeroFindingsMessage}\n`));
+    if (isHuman) {
+      console.log(styleText('green', `✨ ${def.zeroFindingsMessage}\n`));
+    } else {
+      console.log(styleText('green', '✔ No refactoring opportunities found.'));
+    }
     return;
   }
 
-  console.log(renderBoxTable([...def.tableColumns], tableRows));
-  console.log(styleText('yellow', `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`));
+  if (isHuman) {
+    console.log(styleText('cyan', `🔍 ${def.scanningMessage}: ${projectRoot}...\n`));
+    console.log(renderBoxTable([...def.tableColumns], tableRows));
+    console.log(styleText('yellow', `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`));
+  } else {
+    console.log(`🔍 ${def.toolName} discover: ${allFindings.length} opportunity(ies) across ${tableRows.length} file(s):\n`);
+    for (const item of fileSummaryList) {
+      console.log(`• ${item.file}: ${item.count} item(s)`);
+    }
+    console.log(`\nNext Action: npm run ${def.toolName} inspect <file>`);
+  }
 }
 
 function handleInspectCommand<TFinding, TPlan>(
@@ -200,10 +216,17 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
       file: { type: 'string' },
       plan: { type: 'string' },
       worktree: { type: 'boolean', default: false },
-      help: { type: 'boolean', default: false }
+      help: { type: 'boolean', default: false },
+      verbose: { type: 'boolean', default: false },
+      human: { type: 'boolean', default: false }
     },
     allowPositionals: true
   });
+
+  const isHuman = isHumanConsoleMode(
+    { verbose: Boolean(args.values.verbose), human: Boolean(args.values.human) },
+    argv
+  );
 
   const positionalProjectArg = argv.find(
     (a) => a.startsWith('project=') || a.startsWith('--project=')
@@ -242,7 +265,7 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
 
   switch (command) {
     case 'discover':
-      handleDiscoverCommand(def, projectRoot, engine);
+      handleDiscoverCommand(def, projectRoot, engine, isHuman);
       break;
     case 'inspect':
       handleInspectCommand(def, projectRoot, args.values.file || nonProjectPositionals[1]);

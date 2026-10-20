@@ -9,7 +9,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import { getAuditConfig, sanitizePath } from './auditConfig.ts';
-import { isLockedSkillPath } from './auditorBase.ts';
+import { isLockedSkillPath } from './lockedSkills.ts';
 
 enableCompileCache();
 
@@ -145,24 +145,21 @@ export function toPosixPath(filePath: string, baseDir: string = process.cwd()): 
 /**
  * Validates strict path containment (CWE-22) using native path resolution.
  * Returns true if candidateChild resides inside parentDir without directory traversal.
+ * When baseDir is provided, both parentDir and candidateChild are resolved relative to baseDir.
+ * When baseDir is omitted and candidateChild is relative, it is resolved relative to parentDir.
  */
-export function isPathContained(parentDir: string, candidateChild: string): boolean {
-  const resolvedParent = path.resolve(parentDir);
-  const resolvedChild = path.resolve(resolvedParent, candidateChild);
+export function isPathContained(
+  parentDir: string,
+  candidateChild: string,
+  baseDir?: string
+): boolean {
+  const resolvedParent = baseDir ? path.resolve(baseDir, parentDir) : path.resolve(parentDir);
+  const resolvedChild = baseDir
+    ? path.resolve(baseDir, candidateChild)
+    : (path.isAbsolute(candidateChild) ? candidateChild : path.resolve(resolvedParent, candidateChild));
   const rel = path.relative(resolvedParent, resolvedChild);
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
-
-export {
-  CANONICAL_IGNORE_DIRS,
-  SCANNABLE_EXTENSIONS,
-  assertSafePathComponent,
-  isPathIgnored,
-  collectRepositoryFiles,
-  loadLockedSkills,
-  isLockedSkillPath,
-  clearLockedSkillsCache
-} from './auditorBase.ts';
 
 const SKIPPABLE_DIR_NAMES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'scratch']);
 
@@ -214,6 +211,17 @@ export function buildRepositoryFileIndex(
 
   walk(rootDir);
   return index;
+}
+
+/**
+ * Strips recursive glob wildcards and trailing slashes from path patterns.
+ */
+export function stripGlobSuffix(pattern: string): string {
+  let clean = pattern;
+  if (clean.endsWith('/**')) clean = clean.slice(0, -3);
+  else if (clean.endsWith('/*')) clean = clean.slice(0, -2);
+  else if (clean.endsWith('/')) clean = clean.slice(0, -1);
+  return clean;
 }
 
 export { isPathExempt } from './reportUtils.ts';

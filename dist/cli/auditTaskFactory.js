@@ -1,7 +1,10 @@
 import "../core/auditConfig.js";
 import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
+import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import { extractAuditorMetadataFromFile } from "./auditorMetadata.js";
 import path from "node:path";
 //#region src/cli/auditTaskFactory.ts
@@ -15,14 +18,6 @@ const DEFAULT_TIMEOUT_MS = 0;
 function getTimeoutForTask(_filename, configRunnerTimeout) {
 	return configRunnerTimeout ?? DEFAULT_TIMEOUT_MS;
 }
-const DEFAULT_PERMISSIONS = [
-	"--permission",
-	"--experimental-strip-types",
-	"--allow-fs-read=*",
-	"--allow-fs-write=*",
-	"--allow-child-process",
-	"--allow-addons"
-];
 function getPermissionsForTask(filename, fullPath) {
 	const perms = [...DEFAULT_PERMISSIONS];
 	if (fullPath && fullPath.endsWith(".js")) {
@@ -36,7 +31,7 @@ function getPermissionsForTask(filename, fullPath) {
 function formatTaskTitle(filename) {
 	if (filename === "audit_project" || filename === "audit_project.ts" || filename === "audit_project.js") return "Project Architecture & Style Rules";
 	if (filename === "validate_stylelint" || filename === "validate_stylelint.ts" || filename === "validate_stylelint.js") return "CSS & SCSS Stylelint Hygiene";
-	return filename.replace(/\.(ts|js)$/, "").replace(/^(validate_|audit_)/, "").split(/[_-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+	return path.basename(filename, path.extname(filename)).replace(/^(validate_|audit_)/, "").split(/[_-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 function shouldSkipTaskByFilters(id, filename, family, isFast, options, targetSuiteIds) {
 	if (options.skipSimilar && (id === "validate_similar_code" || filename.includes("validate_similar_code"))) return true;
@@ -66,8 +61,8 @@ function shouldSkipTaskByCapabilities(capabilities, options) {
 	return false;
 }
 function buildTaskCliArguments(filename, fullPath, id, isBuiltin, options) {
-	const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
-	const scriptArg = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).replace(/\\/g, "/") : relScriptPath;
+	const relScriptPath = toPosixRelative(process.cwd(), fullPath);
+	const scriptArg = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).split(path.sep).join(path.posix.sep) : relScriptPath;
 	const taskArgs = [
 		...getPermissionsForTask(filename, fullPath),
 		scriptArg,
@@ -113,8 +108,8 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
 	if (scripts && scripts.length > 0) PackageScriptRegistry.registerMany(scripts, id);
 	if (shouldSkipTaskByCapabilities(capabilities, options)) return null;
 	const taskArgs = buildTaskCliArguments(filename, fullPath, id, isBuiltin, options);
-	const relScriptPath = path.relative(process.cwd(), fullPath).replace(/\\/g, "/");
-	const effectiveScriptPath = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).replace(/\\/g, "/") : relScriptPath;
+	const relScriptPath = toPosixRelative(process.cwd(), fullPath);
+	const effectiveScriptPath = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).split(path.sep).join(path.posix.sep) : relScriptPath;
 	const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
 	const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : "🧩");
 	return {

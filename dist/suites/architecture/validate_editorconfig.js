@@ -61,6 +61,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 		};
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(EDITORCONFIG_RULES, {
 				speed: "light",
 				phase: "setup",

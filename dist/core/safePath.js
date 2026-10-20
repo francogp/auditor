@@ -2,7 +2,7 @@ import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
 import "./auditConfig.js";
 import { toPosixRelative } from "./auditCoverage.js";
-import { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathIgnored, loadLockedSkills } from "./auditorBase.js";
+import { isLockedSkillPath } from "./lockedSkills.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -95,10 +95,12 @@ function toPosixPath(filePath, baseDir = process.cwd()) {
 /**
 * Validates strict path containment (CWE-22) using native path resolution.
 * Returns true if candidateChild resides inside parentDir without directory traversal.
+* When baseDir is provided, both parentDir and candidateChild are resolved relative to baseDir.
+* When baseDir is omitted and candidateChild is relative, it is resolved relative to parentDir.
 */
-function isPathContained(parentDir, candidateChild) {
-	const resolvedParent = path.resolve(parentDir);
-	const resolvedChild = path.resolve(resolvedParent, candidateChild);
+function isPathContained(parentDir, candidateChild, baseDir) {
+	const resolvedParent = baseDir ? path.resolve(baseDir, parentDir) : path.resolve(parentDir);
+	const resolvedChild = baseDir ? path.resolve(baseDir, candidateChild) : path.isAbsolute(candidateChild) ? candidateChild : path.resolve(resolvedParent, candidateChild);
 	const rel = path.relative(resolvedParent, resolvedChild);
 	return !rel.startsWith("..") && !path.isAbsolute(rel);
 }
@@ -140,5 +142,15 @@ function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
 	walk(rootDir);
 	return index;
 }
+/**
+* Strips recursive glob wildcards and trailing slashes from path patterns.
+*/
+function stripGlobSuffix(pattern) {
+	let clean = pattern;
+	if (clean.endsWith("/**")) clean = clean.slice(0, -3);
+	else if (clean.endsWith("/*")) clean = clean.slice(0, -2);
+	else if (clean.endsWith("/")) clean = clean.slice(0, -1);
+	return clean;
+}
 //#endregion
-export { CANONICAL_IGNORE_DIRS, SCANNABLE_EXTENSIONS, assertSafePathComponent, buildRepositoryFileIndex, clearLockedSkillsCache, collectRepositoryFiles, isLockedSkillPath, isPathContained, isPathExempt, isPathIgnored, loadLockedSkills, normalizePosixPath, safeDevUrl, safeFetch, safeJoin, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, toPosixPath, toPosixRelative };
+export { buildRepositoryFileIndex, isPathContained, isPathExempt, normalizePosixPath, safeDevUrl, safeFetch, safeJoin, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };

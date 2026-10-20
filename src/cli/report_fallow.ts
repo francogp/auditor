@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
@@ -227,7 +228,7 @@ function reportSecurity(top: number, json: boolean): void {
   const config = getAuditConfig();
 
   const findings = rawFindings.filter((f) => {
-    const norm = (f.path || '').replace(/\\/g, '/');
+    const norm = toPosixRelative(process.cwd(), f.path || '');
     return isInCodeRoots(norm, config);
   });
 

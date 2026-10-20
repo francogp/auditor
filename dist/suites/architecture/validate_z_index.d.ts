@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import { fixZIndexLiteral } from "../../analyzers/zIndexRules.js";
 //#region src/suites/architecture/validate_z_index.d.ts
 export declare const Z_INDEX_RULES: readonly ["z-index-missing-var", "z-index-mismatch", "z-index-read-error", "z-index-hardcoded-literal", "z-index-isolated-constant"];
@@ -17,10 +17,13 @@ export interface ZIndexAuditResult {
 export declare function auditZIndexParity(scssContent: string, isFixMode: boolean, layers?: Record<string, number>): ZIndexAuditResult;
 export declare const HARDCODED_Z_INDEX_REGEX: RegExp;
 export declare const ISOLATED_Z_INDEX_CONST_REGEX: RegExp;
+export interface ZIndexAuditorOptions extends FileScanRootsOptions {
+  readonly scssPath?: string;
+}
 export declare class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
   private readonly scssPath?;
   private readonly isExplicit;
-  constructor(scssPath?: string, roots?: readonly string[], projectRoot?: string);
+  constructor(options?: ZIndexAuditorOptions);
   runAudit(): Promise<void>;
 }
 //#endregion

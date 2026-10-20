@@ -27,6 +27,14 @@ function polyfillPermissionModelFsync() {
 	} catch {}
 }
 polyfillPermissionModelFsync();
+const DEFAULT_PERMISSIONS = [
+	"--permission",
+	"--experimental-strip-types",
+	"--allow-fs-read=*",
+	"--allow-fs-write=*",
+	"--allow-child-process",
+	"--allow-addons"
+];
 /**
 * assertRequiredPermissions
 *
@@ -52,4 +60,4 @@ function assertRequiredPermissions(requirements) {
 	}
 }
 //#endregion
-export { assertRequiredPermissions, checkRequiredPermissions, polyfillPermissionModelFsync };
+export { DEFAULT_PERMISSIONS, assertRequiredPermissions, checkRequiredPermissions, polyfillPermissionModelFsync };

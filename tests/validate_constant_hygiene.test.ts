@@ -58,7 +58,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       `;
       await fs.writeFile(path.join(srcDir, 'constants.ts'), cleanTs, 'utf-8');
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);
@@ -80,7 +80,7 @@ describe('ValidateConstantHygieneAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-identical');
@@ -101,7 +101,7 @@ describe('ValidateConstantHygieneAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-divergent');
@@ -114,7 +114,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const constFile = path.join(srcDir, 'types.ts');
       await fs.writeFile(constFile, 'export const MAX_USERS_50 = 50;\n', 'utf-8');
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const finding = result.findings.find((f) => f.ruleId === 'constant-bad-names');
@@ -130,7 +130,7 @@ describe('ValidateConstantHygieneAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const finding = result.findings.find((f) => f.ruleId === 'constant-no-alias');
@@ -142,7 +142,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const suffixFile = path.join(srcDir, 'limits.ts');
       await fs.writeFile(suffixFile, 'export const RETRY_DELAY_600 = 600;\n', 'utf-8');
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const finding = result.findings.find((f) => f.ruleId === 'constant-no-literal-suffix');
@@ -159,7 +159,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       ].join('\n');
       await fs.writeFile(jsonImportFile, content, 'utf-8');
 
-      const auditor = new ValidateConstantHygieneAuditor([srcDir], tempDir);
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
 
       const aliasFindings = result.findings.filter(

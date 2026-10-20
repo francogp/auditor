@@ -134,6 +134,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
         speed: 'light',
         phase: 'normal',

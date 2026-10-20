@@ -37,9 +37,12 @@ export declare function isOxlintRuleFixable(ruleName: string): boolean;
  * Elevates all diagnostics to severity: 'error' (Zero-Warning Policy).
  */
 export declare function parseOxlintResults(input: string | object | object[], cwd?: string): AuditFinding[];
+export interface OxlintAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-  constructor(projectRoot?: string);
+  constructor(options?: OxlintAuditorOptions);
   runAudit(): Promise<void>;
 }
 //#endregion

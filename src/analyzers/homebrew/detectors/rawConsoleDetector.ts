@@ -5,7 +5,7 @@
  * instead of using BaseAuditor reporting methods or unifiedTheme box drawing.
  */
 
-import { createLineDetector } from '../homebrewTypes.ts';
+import { createLineDetector, isInsideStringLiteral } from '../homebrewTypes.ts';
 
 export const rawConsoleDetector = createLineDetector({
   id: 'raw-console',
@@ -17,11 +17,7 @@ export const rawConsoleDetector = createLineDetector({
 
     const match = /\bconsole\.(?:log|info)\s*\(/.exec(line);
     if (match) {
-      const before = line.slice(0, match.index);
-      const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
-      const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
-      const backticks = (before.match(/`/g) || []).length % 2 === 1;
-      if (singleQuotes || doubleQuotes || backticks) return null;
+      if (isInsideStringLiteral(line, match.index)) return null;
 
       return "Llamada directa a 'console.log()' en subauditor o extensión. Usa 'this.addViolation()', 'this.context.setMetric()' o 'unifiedTheme' para tablas terminales.";
     }

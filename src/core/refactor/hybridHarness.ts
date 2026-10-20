@@ -11,6 +11,7 @@ import MagicString from 'magic-string';
 import { parse as parseAstGrep, Lang } from '@ast-grep/napi';
 import { Project, SourceFile } from 'ts-morph';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
+import { toPosixRelative } from '../safePath.ts';
 import type { RefactorPlan } from './refactorContracts.ts';
 
 export class HybridHarnessEngine {
@@ -82,10 +83,8 @@ export class HybridHarnessEngine {
 
     s.overwrite(scriptOffset, scriptOffset + scriptText.length, updatedScript);
 
-    const relImport = path
-      .relative(path.dirname(absFile), absShared)
-      .replace(/\\/g, '/')
-      .replace(/\.ts$/, '');
+    const rel = toPosixRelative(path.dirname(absFile), absShared);
+    const relImport = rel.endsWith('.ts') ? rel.slice(0, -3) : rel;
     const importSpecifier = relImport.startsWith('.') ? relImport : `./${relImport}`;
 
     if (

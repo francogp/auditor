@@ -49,7 +49,7 @@ describe('MarkdownCodeReferencesAuditor', () => {
   });
 
   it('instantiates with correct metadata conforming to auditor', () => {
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     expect(auditor.id).toBe('validate_markdown_code_references');
     expect(auditor.family).toBe('documentation');
     expect(auditor.name).toBe('Markdown Code References Validator');
@@ -65,7 +65,7 @@ Also check \`supabase/nonexistent_table.sql\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
@@ -83,7 +83,7 @@ Also check \`packages/legacy_pkg\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
@@ -107,7 +107,7 @@ Refer to \`src/data/items.ts\` or \`src/data/items\` for details.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -128,7 +128,7 @@ Refer to \`src/data/Items.ts\` for details.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
@@ -148,7 +148,7 @@ Refer to \`src/data/Items.ts\` for details.
     `;
     await fs.writeFile(path.join(sessionDir, 'AGENTS.md'), agentsContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
@@ -168,7 +168,7 @@ Path alias (ignored): @/components/Button.vue
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(1);
@@ -191,7 +191,7 @@ import './src/nonexistent/sample.scss';
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -206,7 +206,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -221,7 +221,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(2);
@@ -249,7 +249,7 @@ Refer to @/clean-code.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
@@ -266,7 +266,7 @@ Temporary artifacts are placed in \`scratch/bundle_stats.html\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
@@ -288,7 +288,7 @@ Refer to @/domain-type-first and @/auditor.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
@@ -382,7 +382,7 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
 `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
     const result = await auditor.execute();
 
     const outdatedFindings = result.findings.filter(
@@ -423,7 +423,7 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     const prevArgv = [...process.argv];
     process.argv = [...prevArgv, '--fix'];
     try {
-      const auditor = new MarkdownCodeReferencesAuditor(['.'], tempDir);
+      const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
       const result = await auditor.execute();
       expect(result.summary.errors).toBe(0);
     } finally {

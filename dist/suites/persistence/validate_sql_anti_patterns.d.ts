@@ -5,9 +5,13 @@ export declare const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[];
 export declare const SQL_LOOP_HEADER_MAX_CHARS = 120;
 export declare function getPositionalJsonMutationRegex(): RegExp;
 export declare const POSITIONAL_JSON_MUTATION_REGEX: RegExp;
+export interface SqlAntiPatternsAuditorOptions {
+  readonly customMigrationsDir?: string;
+  readonly projectRoot?: string;
+}
 export declare class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private readonly configuredMigrationsDir;
-  constructor(customMigrationsDir?: string, projectRoot?: string);
+  constructor(options?: SqlAntiPatternsAuditorOptions);
   runAudit(): void;
   private scanPositionalArrays;
   private scanPlpgsqlVariables;

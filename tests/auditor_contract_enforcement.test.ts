@@ -44,6 +44,7 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   icon: '🛡️',
   configKey: 'contractProbe.enabled',
   defaultConfig: { enabled: true, mode: 'strict' },
+  requiredPermissions: [],
   criticalConfig: {},
   usesThirdPartyTool: false,
   ruleIds: ['sample-rule-a', 'sample-rule-b'],

@@ -184,6 +184,7 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
 				speed: "light",
 				phase: "post-run",

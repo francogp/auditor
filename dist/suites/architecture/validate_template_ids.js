@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -112,11 +112,12 @@ function scanTemplateFormControlIds(ctx) {
 var TemplateIdAuditor = class extends FileScanAuditor {
 	globalIdMap = /* @__PURE__ */ new Map();
 	requireInputIds;
-	constructor(roots, options, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []];
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []]);
+		const config = getAuditConfig(effectiveRoot);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -150,11 +151,11 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 				"template-shared-static-id": "📖 GUÍA DE REMEDIACIÓN: template-shared-static-id\n1. Causa Raíz: Se detectó el mismo identificador estático `id=\"foo\"` en dos componentes Vue distintos. Si ambos componentes se montan simultáneamente en la misma vista, se produce una colisión de ID en el DOM global.\n2. Diagnóstico: Comprueba los dos archivos de componentes reportados en la incidencia.\n3. Solución Canónica:\n   a) Prefija el ID con el nombre del componente (ej: `id=\"user-profile-header\"` vs `id=\"settings-header\"`).\n   b) O genera un ID único por instancia usando `useId()` de Vue 3 (`const inputId = useId();` con `:id=\"inputId\"`).\n4. Ejemplo:\n   ❌ Colisión: `id=\"submit-btn\"` en LoginForm.vue y RegisterForm.vue\n   ✅ Prefijado: `id=\"login-submit-btn\"` y `id=\"register-submit-btn\"`",
 				"template-missing-input-id": "📖 GUÍA DE REMEDIACIÓN: template-missing-input-id\n1. Causa Raíz: Un control de entrada de formulario (`<input>`, `<select>`, `<textarea>`) carece de atributo `id` o enlace reactivo `:id`, impidiendo asociarle un `<label :for=\"...\">` accesible.\n2. Diagnóstico: Revisa el elemento de entrada en la plantilla del componente reportado.\n3. Solución Canónica:\n   a) Añade un ID único al control: `<input id=\"search-query\" ...>` y asócialo con su `<label for=\"search-query\">`.\n   b) Si el componente se reutiliza múltiples veces, genera el ID dinámicamente con `const id = useId()` de Vue 3 y enlaza `:id=\"id\"`.\n4. Ejemplo:\n   ❌ Sin ID: `<input v-model=\"name\" type=\"text\" />`\n   ✅ Con ID: `<input :id=\"nameInputId\" v-model=\"name\" type=\"text\" />`"
 			},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".vue"]),
-			projectRoot
+			projectRoot: effectiveRoot
 		});
-		this.requireInputIds = options?.requireInputIds ?? config.templates?.requireInputIds ?? false;
+		this.requireInputIds = options.requireInputIds ?? config.templates?.requireInputIds ?? false;
 	}
 	getMatchLineInfo(content, lines, offset) {
 		const lineNumber = content.slice(0, offset).split("\n").length;

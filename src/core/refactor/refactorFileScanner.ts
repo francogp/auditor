@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { collectRepositoryFiles } from '../safePath.ts';
+import { collectRepositoryFiles } from '../auditorBase.ts';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 
 import { getAuditConfig } from '../auditConfig.ts';

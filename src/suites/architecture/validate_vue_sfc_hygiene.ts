@@ -26,7 +26,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
@@ -103,22 +103,17 @@ function detectTemplateMagicCalculation(expression: string): string | null {
   return checkMultDivMod(codeOnly) ?? checkMagicComparison(codeOnly) ?? checkMagicAddSub(codeOnly);
 }
 
-function resolveVueSfcScanRoots(
-  roots?: readonly string[],
-  projectRoot?: string
-): readonly string[] {
-  if (roots) return roots;
-  const cfg = getAuditConfig(projectRoot);
-  return [...(cfg.paths.componentsRoots ?? []), ...(cfg.paths.viewsRoots ?? [])];
-}
-
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const sfcRoots = resolveVueSfcScanRoots(roots, projectRoot);
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (cfg) => [...(cfg.paths.componentsRoots ?? []), ...(cfg.paths.viewsRoots ?? [])]
+    );
     super({
       usesThirdPartyTool: false,
-      roots: sfcRoots,
-      projectRoot,
+      requiredPermissions: [],
+      roots: targetRoots,
+      projectRoot: effectiveRoot,
       ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
         speed: 'light',
         phase: 'normal',

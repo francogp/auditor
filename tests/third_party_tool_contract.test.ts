@@ -45,6 +45,7 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
     icon: '🧪',
     configKey: 'core',
     defaultConfig: {},
+    requiredPermissions: [],
     criticalConfig: {},
     usesThirdPartyTool: false,
     ruleIds: ['probe-external', 'probe-internal'],

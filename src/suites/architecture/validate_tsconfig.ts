@@ -149,6 +149,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(TSCONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

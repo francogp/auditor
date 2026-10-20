@@ -106,7 +106,7 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		dataDemoIgnores.push(...dataRoots, ...demoRoots);
 	}
 	const legacyIgnores = projectRoot ? findLegacyEslintIgnores(projectRoot) : [];
-	const specificTargetIgnores = target === "lint" ? config.vitePlusConfig?.lint?.ignorePatterns ?? [] : config.vitePlusConfig?.fmt?.ignorePatterns ?? [];
+	const specificTargetIgnores = target === "lint" ? [...config.vitePlusConfig?.lint?.ignorePatterns ?? [], ...config.oxlint?.ignoreGlobs ?? []] : [...config.vitePlusConfig?.fmt?.ignorePatterns ?? [], ...config.oxfmt?.ignoreGlobs ?? []];
 	return Array.from(/* @__PURE__ */ new Set([
 		...baseIgnores,
 		...projectIgnores,

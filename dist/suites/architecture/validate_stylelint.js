@@ -98,7 +98,14 @@ function buildStylelintConfig(configFile, customRules) {
 		}
 	};
 }
-function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlobs) {
+function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlobs, exemptPaths, exemptFiles) {
+	const normExemptPaths = (exemptPaths ?? []).map((p) => {
+		const posixP = p.split(path.sep).join(path.posix.sep);
+		return posixP.endsWith(path.posix.sep) ? `${posixP}**` : path.posix.join(posixP, "**");
+	});
+	const normExemptFiles = (exemptFiles ?? []).map((f) => f.split(path.sep).join(path.posix.sep));
+	const normIgnores = (configIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
+	const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
 	return [
 		...Array.from(CANONICAL_IGNORE_DIRS).map((d) => `${d}/**`),
 		"dist/**",
@@ -107,8 +114,10 @@ function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlobs) {
 		"tests/**",
 		"**/*.spec.*",
 		"**/*.test.*",
-		...configIgnoreGlobs ?? [],
-		...stylelintIgnoreGlobs ?? []
+		...normIgnores,
+		...normStylelintIgnores,
+		...normExemptPaths,
+		...normExemptFiles
 	];
 }
 function repairDeprecatedWordBreak(content) {
@@ -267,6 +276,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		const roots = Array.from(/* @__PURE__ */ new Set([...config.paths.srcRoots ?? [], ...config.paths.stylesRoots ?? []]));
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "Stylelint",
 				fallbackBehavior: "violation",
@@ -370,14 +380,15 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		});
 		const configFile = resolveStylelintConfigFile(this.projectRoot, stylelintConfig?.configFile);
 		if (fs.existsSync(configFile)) {
-			if (!normalizePosixPath(configFile, this.projectRoot).startsWith("..")) this.recordScanned(configFile);
+			const relConfig = normalizePosixPath(configFile, this.projectRoot);
+			if (!relConfig.startsWith("..") && !path.isAbsolute(relConfig)) this.recordScanned(configFile);
 		}
 		const isFixMode = this.isFixModeRequested();
 		const cacheDir = path.resolve(this.projectRoot, "scratch/cache");
 		const cacheLocation = path.resolve(cacheDir, "stylelint_cache.json");
 		fs.mkdirSync(cacheDir, { recursive: true });
 		const filesGlobs = roots.map((r) => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`);
-		const ignoreGlobs = buildStylelintIgnoreGlobs(config.paths.ignoreGlobs, stylelintConfig?.ignoreGlobs);
+		const ignoreGlobs = buildStylelintIgnoreGlobs([...config.paths.ignoreGlobs ?? [], ...this.extraIgnorePatterns ?? []], stylelintConfig?.ignoreGlobs, [...this.exemptPaths ?? [], ...stylelintConfig?.exemptPaths ?? []], stylelintConfig?.exemptFiles);
 		const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 		if (isFixMode) repairDeprecatedCssPropertiesInRoots(this.projectRoot, roots);
 		let linterResult;
@@ -413,10 +424,13 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		for (const fileResult of linterResult.results) if (fileResult.source) this.recordScanned(fileResult.source);
 		const { violations, totalErrors, totalWarnings } = processStylelintResults(linterResult.results, this.projectRoot, isFixMode);
 		for (const ruleId of STYLELINT_RULES) this.runSubAuditorSync(ruleId, () => {
-			for (const v of violations) if (v.ruleId === ruleId) this.addViolation(isFixMode ? {
-				...v,
-				fixable: false
-			} : v);
+			for (const v of violations) if (v.ruleId === ruleId) {
+				if (this.isPathIgnored(v.file) || this.isPathExempt(v.file)) continue;
+				this.addViolation(isFixMode ? {
+					...v,
+					fixable: false
+				} : v);
+			}
 		});
 		persistStylelintReport(this.projectRoot, this.id, this.filesScannedCount, {
 			totalErrors,
@@ -430,4 +444,4 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new StylelintAuditor());
 //#endregion
-export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };
+export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, StylelintAuditor as ValidateStylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };

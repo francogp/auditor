@@ -9,7 +9,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import type { AuditorPackageScriptRequirement } from '../src/core/auditContract.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
-import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
+import {
+  PackageScriptRegistry,
+  buildCanonicalRunnerCommand
+} from '../src/core/packageScriptRegistry.ts';
 
 class DummyAuditorWithoutScripts extends BaseAuditor {
   constructor(projectRoot = process.cwd()) {
@@ -22,6 +25,7 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       icon: '🧩',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
@@ -66,6 +70,7 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       icon: '⚙️',
       configKey: 'core',
       defaultConfig: { enabled: true },
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
@@ -212,6 +217,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             icon: '💥',
             configKey: 'core',
             defaultConfig: { enabled: true },
+            requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
             ruleCapabilities: {
@@ -243,5 +249,22 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
         public override async runAudit(): Promise<void> {}
       })();
     }).toThrow(/\[COLISIÓN DE COMANDOS\]/);
+  });
+
+  it('builds canonical runner command appending runtime permissions dynamically', () => {
+    const withoutPerms = buildCanonicalRunnerCommand({
+      name: 'auditor:magic',
+      command: 'auditor-magic',
+      description: 'Remediación'
+    });
+    expect(withoutPerms).toBe('auditor-magic');
+
+    const withPerms = buildCanonicalRunnerCommand({
+      name: 'auditor:dupes',
+      command: 'auditor-dupes',
+      description: 'Deduplicación',
+      permissions: ['--allow-addons']
+    });
+    expect(withPerms).toBe('auditor-dupes --allow-addons');
   });
 });

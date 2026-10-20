@@ -3,8 +3,9 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { HomebrewDetectorRegistry } from "../../analyzers/homebrew/homebrewRegistry.js";
 import { AUDITOR_HOMEBREW_RULES } from "../../analyzers/homebrew/homebrewTypes.js";
 import "../../analyzers/homebrew/index.js";
@@ -24,9 +25,18 @@ import fs from "node:fs";
 */
 enableCompileCache();
 var AuditorHygieneAuditor = class extends BaseAuditor {
-	constructor(projectRoot = process.cwd()) {
+	constructor(options) {
+		const projectRoot = typeof options === "string" ? options : options?.projectRoot ?? process.cwd();
+		const config = getAuditConfig(projectRoot);
+		const configuredRoots = config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0 ? config.auditorHygiene.roots : isSelfProviderProject(projectRoot) ? [
+			"src/suites",
+			"src/analyzers",
+			"src/core",
+			"scripts/auditors"
+		] : ["scripts/auditors"];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			id: "validate_auditor_hygiene",
 			name: "Auditor Architecture & Homebrew Hygiene Validator",
 			description: "Valida higiene y uso de APIs canónicas en auditores",
@@ -38,7 +48,10 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 			ruleRemediations: HomebrewDetectorRegistry.getRuleRemediations(),
 			ruleRemediationPhases: createUniformRemediationPhases(HomebrewDetectorRegistry.getRuleIds(), "hygiene"),
 			configKey: "auditorHygiene",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				roots: ["scripts/auditors"]
+			},
 			criticalConfig: {},
 			ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
 				speed: "light",
@@ -50,11 +63,7 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 				critical: false
 			}),
 			coverage: {
-				include: [
-					"src/suites/**/*.ts",
-					"src/analyzers/**/*.ts",
-					"scripts/auditors/**/*.ts"
-				],
+				include: deriveCoverageFromRoots(configuredRoots, /* @__PURE__ */ new Set([".ts"]), projectRoot).include,
 				exclude: ["src/analyzers/homebrew/**"]
 			},
 			projectRoot
@@ -65,8 +74,12 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 		const isSelfRepo = isSelfProviderProject(this.projectRoot);
 		const config = getAuditConfig(this.projectRoot);
 		const exemptFiles = new Set(config.auditorHygiene?.exemptFiles ?? []);
-		const roots = ["scripts/auditors"];
-		if (isSelfRepo) roots.push("src/suites", "src/analyzers");
+		const roots = config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0 ? config.auditorHygiene.roots : isSelfRepo ? [
+			"src/suites",
+			"src/analyzers",
+			"src/core",
+			"scripts/auditors"
+		] : ["scripts/auditors"];
 		const candidateFiles = this.context.collectFiles(roots, /* @__PURE__ */ new Set([".ts"]));
 		for (const absPath of candidateFiles) {
 			const relPath = normalizePosixPath(path.relative(this.projectRoot, absPath));
@@ -104,6 +117,7 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 				isExtension: relPath.startsWith("scripts/auditors/") || !relPath.startsWith("src/"),
 				isBuiltinSuite: relPath.startsWith("src/suites/"),
 				isAnalyzer: relPath.startsWith("src/analyzers/"),
+				isCore: relPath.startsWith("src/core/"),
 				projectRoot: this.projectRoot
 			};
 			const findings = HomebrewDetectorRegistry.run(inspectionContext, disabledDetectors, (ruleId, durationMs) => {

@@ -1,0 +1,87 @@
+### C01 codex#1,gemini#01 expect=unsafe-path-concat
+const p = __dirname + '/file.txt';
+
+### C02 codex#2 expect=unsafe-path-concat
+const p = basePath + '/' + filename;
+
+### C03 codex#3 expect=unsafe-path-concat
+const p = basePath + path.sep + filename;
+
+### C04 codex#5 expect=unsafe-path-concat
+const p = `${__dirname}/file.txt`;
+
+### C05 codex#6 expect=unsafe-path-concat
+const p = `${base}/${name}.json`;
+
+### C06 codex#11 expect=unsafe-path-concat
+const p = path.join(dir) + '/file';
+
+### C07 codex#12 expect=unsafe-path-concat
+const p = path.resolve(dir) + '\\' + file;
+
+### C08 codex#15 expect=unsafe-path-concat
+fs.readFileSync(__dirname + '/data.json');
+
+### C09 codex#17 expect=unsafe-path-concat
+child_process.execFile('node', [__dirname + '/script.js']);
+
+### C10a codex#22 expect=unsafe-path-concat
+const p = dir + '\\\\' + file;
+
+### C10b codex#23 expect=unsafe-path-concat
+const p = dir + '\\' + file;
+
+### C11a codex#24 expect=unsafe-path-concat
+const p = [dir, sub, file].join('/');
+
+### C11b gemini#11 expect=unsafe-path-concat
+const route = [rootDir, 'src', 'index.ts'].join('/');
+
+### C12 codex#25 expect=unsafe-path-concat
+const p = [dir, sub, file].join(path.sep);
+
+### C13 codex#26 expect=unsafe-path-concat
+const p: string = base + '/' + name;
+
+### C14 codex#27 expect=unsafe-path-concat
+function getPath(name: string) { return `${ROOT}/${name}`; }
+
+### C15 gemini#02 expect=unsafe-path-concat
+const asset = import.meta.dirname + '\\assets\\sprite.png';
+
+### C16 gemini#03 expect=unsafe-path-concat
+const buildDir = process.cwd() + '/dist';
+
+### C17 gemini#04 expect=unsafe-path-concat
+const localFile = './' + fileName;
+
+### C18 gemini#05 expect=unsafe-path-concat
+const parentFile = baseDir + '/../shared/schema.ts';
+
+### C19 gemini#08 expect=unsafe-path-concat line=2
+let currentPath = base;
+currentPath += '/' + nextSegment;
+
+### C20a gemini#09 expect=unsafe-path-concat
+const fullPath = `${baseDir}/${subFolder}/${file}.json`;
+
+### C20b gpt expect=unsafe-path-concat
+const combined = `${base}/${file}`;
+
+### C21a gpt expect=unsafe-path-concat
+const fullPath = dir + '/' + userInput;
+
+### C21b gpt expect=unsafe-path-concat
+const fullPath = dir + '\\\\' + userInput;
+
+### C22a regression expect=unsafe-path-concat
+const content = fs.readFileSync(`${base}/${file}`, 'utf-8');
+
+### C22b regression expect=unsafe-path-concat
+const target = path.join(`${dir}/${sub}`);
+
+### C23 regression-ignores expect=unsafe-path-concat
+const content = fs.readFileSync(baseDir + "/" + file);
+
+### C24 tsx expect=unsafe-path-concat file=case.tsx
+const Logo = () => <img src={__dirname + '/a.png'} />;

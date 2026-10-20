@@ -241,13 +241,19 @@ function auditComponentScopedCss(params: {
   return checkedCount;
 }
 
+export interface DeadCssAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options: DeadCssAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const compRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
         speed: 'light',
         phase: 'normal',

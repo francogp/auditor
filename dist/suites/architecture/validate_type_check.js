@@ -88,9 +88,11 @@ function resolveTypeCheckBinary(projectRoot) {
 	};
 }
 var TypeCheckAuditor = class extends BaseAuditor {
-	constructor(projectRoot) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "TypeScript",
 				fallbackBehavior: "throw"

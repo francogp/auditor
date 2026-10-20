@@ -235,6 +235,7 @@ if [ "$INSTALL_SUCCESS" = false ]; then
         if npm install; then
             INSTALL_SUCCESS=true
             echo "✅ Dependencias instaladas y sincronizadas exitosamente con npm install."
+            echo "⚠️ AVISO: package-lock.json estaba desincronizado con package.json y fue modificado por npm install. Revise el cambio y commitéelo junto con package.json."
         fi
     fi
 fi

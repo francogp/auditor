@@ -27,10 +27,9 @@ const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 
 export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-    const config = getAuditConfig(effectiveRoot);
+    const scssRoots = resolveFileScanRoots(options);
+    const scssConfig = getAuditConfig(scssRoots.effectiveRoot);
     super({
-      usesThirdPartyTool: false,
       id: 'validate_scss_architecture',
       name: 'SCSS Architecture & Distinctive Design Validator',
       description: 'Arquitectura SCSS, tokenización y diseño distintivo',
@@ -40,7 +39,9 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       configKey: 'scssArchitecture.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: targetRoots,
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      roots: scssRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SCSS_ARCHITECTURE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SCSS_ARCHITECTURE_RULES, 'hygiene'),
@@ -99,9 +100,9 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         SCSS_ARCHITECTURE_RULES,
         LIGHT_RULE_CAPABILITIES
       ),
-      projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-      exemptPaths: config.scssArchitecture?.exemptPaths
+      projectRoot: scssRoots.effectiveRoot,
+      coverage: deriveCoverageFromRoots(scssRoots.targetRoots, SCANNABLE_EXTS, scssRoots.effectiveRoot),
+      exemptPaths: scssConfig.scssArchitecture?.exemptPaths
     });
   }
 

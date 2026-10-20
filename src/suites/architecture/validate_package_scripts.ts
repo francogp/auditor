@@ -15,12 +15,14 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import type { AuditorPackageScriptRequirement } from '../../core/auditContract.ts';
 import {
   loadAuditConfig,
   buildRatchetConfig,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
 import { collectAllPackageScriptRequirements } from '../../cli/auditScanner.ts';
+import { DEFAULT_PERMISSIONS } from '../../core/permissionGuard.ts';
 import { resolveGitCommit, describeBaselineDefect } from '../../cli/auditRatchet.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 
@@ -48,6 +50,11 @@ export interface ValidatePackageScriptsOptions {
   fix?: boolean;
 }
 
+interface BuildScriptDefectOptions {
+  hasPre: boolean;
+  hasPost: boolean;
+}
+
 interface MutablePackageJson {
   name?: string;
   scripts?: Record<string, string>;
@@ -68,6 +75,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       projectRoot: resolvedRoot,
       ruleCapabilities: createRuleCapabilities(
         PACKAGE_SCRIPTS_RULES,
@@ -307,6 +315,61 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     );
   }
 
+  private rewriteBuildScript(buildScript: string): string {
+    let rewritten = buildScript;
+    if (/\b(?:npm|pnpm|bun|vp)\s+run\s+(?:audit:build|auditor:build)\b/.test(rewritten)) {
+      rewritten = rewritten.replaceAll(
+        /\b((?:npm|pnpm|bun|vp)\s+run\s+)(?:audit:build|auditor:build)\b/g,
+        '$1auditor:post-build'
+      );
+    }
+    if (/\bauditor\s+preset=build\b/.test(rewritten)) {
+      rewritten = rewritten.replaceAll(/\bauditor\s+preset=build\b/g, 'auditor phase=post-build');
+    }
+    if (
+      /\b(?:npm|pnpm|bun|vp)\s+run\s+(?:audit:precommit|auditor:precommit|audit)\b/.test(
+        rewritten
+      )
+    ) {
+      rewritten = rewritten.replaceAll(
+        /\b((?:npm|pnpm|bun|vp)\s+run\s+)(?:audit:precommit|auditor:precommit|audit)\b/g,
+        '$1auditor:full'
+      );
+    }
+    if (/\bauditor\s+preset=precommit\b/.test(rewritten)) {
+      rewritten = rewritten.replaceAll(/\bauditor\s+preset=precommit\b/g, 'auditor speed=full');
+    }
+    if (/\bvp\s+run\s+auditor:full\b/.test(rewritten)) {
+      rewritten = rewritten.replaceAll(/\bvp\s+run\s+auditor:full\b/g, 'npm run auditor:full');
+    }
+    if (/\bvp\s+run\s+auditor:post-build\b/.test(rewritten)) {
+      rewritten = rewritten.replaceAll(
+        /\bvp\s+run\s+auditor:post-build\b/g,
+        'npm run auditor:post-build'
+      );
+    }
+    if (!this.checkBuildScriptChainsPreAudit(rewritten)) {
+      rewritten = `npm run auditor:full && ${rewritten}`;
+    }
+    if (!this.checkBuildScriptChainsPostAudit(rewritten)) {
+      rewritten = `${rewritten} && npm run auditor:post-build`;
+    }
+    return rewritten;
+  }
+
+  private describeBuildScriptDefect(options: BuildScriptDefectOptions): string {
+    if (!options.hasPre && !options.hasPost) {
+      return 'does not chain auditor:full before compilation nor auditor:post-build after compilation';
+    }
+    if (!options.hasPre) {
+      return 'does not chain auditor:full before compilation';
+    }
+    if (!options.hasPost) {
+      return 'does not chain auditor:post-build after compilation';
+    }
+    return 'uses "vp run" instead of "npm run" for auditor chaining, which deactivates Vite+ cache';
+  }
+
   private verifyBuildScript(
     pkg: { scripts?: Record<string, string> },
     config: AuditEngineConfig
@@ -333,35 +396,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     }
 
     if (this.isFixActive()) {
-      let rewritten = buildScript;
-      if (/\b(?:npm|pnpm|bun|vp)\s+run\s+(?:audit:build|auditor:build)\b/.test(rewritten)) {
-        rewritten = rewritten.replaceAll(
-          /\b((?:npm|pnpm|bun|vp)\s+run\s+)(?:audit:build|auditor:build)\b/g,
-          '$1auditor:post-build'
-        );
-      }
-      if (/\bauditor\s+preset=build\b/.test(rewritten)) {
-        rewritten = rewritten.replaceAll(/\bauditor\s+preset=build\b/g, 'auditor phase=post-build');
-      }
-      if (
-        /\b(?:npm|pnpm|bun|vp)\s+run\s+(?:audit:precommit|auditor:precommit|audit)\b/.test(
-          rewritten
-        )
-      ) {
-        rewritten = rewritten.replaceAll(
-          /\b((?:npm|pnpm|bun|vp)\s+run\s+)(?:audit:precommit|auditor:precommit|audit)\b/g,
-          '$1auditor:full'
-        );
-      }
-      if (/\bauditor\s+preset=precommit\b/.test(rewritten)) {
-        rewritten = rewritten.replaceAll(/\bauditor\s+preset=precommit\b/g, 'auditor speed=full');
-      }
-      if (!this.checkBuildScriptChainsPreAudit(rewritten)) {
-        rewritten = `npm run auditor:full && ${rewritten}`;
-      }
-      if (!this.checkBuildScriptChainsPostAudit(rewritten)) {
-        rewritten = `${rewritten} && npm run auditor:post-build`;
-      }
+      const rewritten = this.rewriteBuildScript(buildScript);
       if (rewritten !== buildScript) {
         pkg.scripts!.build = rewritten;
         return true;
@@ -370,14 +405,10 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
 
     const hasPre = this.checkBuildScriptChainsPreAudit(buildScript);
     const hasPost = this.checkBuildScriptChainsPostAudit(buildScript);
+    const usesVpRunForAuditor = /\bvp\s+run\s+auditor:(?:full|post-build)\b/.test(buildScript);
 
-    if (!hasPre || !hasPost) {
-      const missingPart =
-        !hasPre && !hasPost
-          ? 'does not chain auditor:full before compilation nor auditor:post-build after compilation'
-          : !hasPre
-            ? 'does not chain auditor:full before compilation'
-            : 'does not chain auditor:post-build after compilation';
+    if (!hasPre || !hasPost || usesVpRunForAuditor) {
+      const missingPart = this.describeBuildScriptDefect({ hasPre, hasPost });
       this.addViolation({
         ruleId: 'package-scripts-build-missing-audit',
         severity: 'error',
@@ -561,17 +592,30 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     }
   }
 
-  private resolveTargetScriptCommand(command: string, isSelfPackage: boolean): string {
+  private buildCanonicalScriptCommand(
+    req: AuditorPackageScriptRequirement,
+    isSelfPackage: boolean
+  ): string {
+    const command = req.command;
     if (!isSelfPackage) return command;
-    const SELF_RUNNER =
-      'node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process --allow-addons src/cli/audit_full.ts';
-    if (command === 'auditor') return SELF_RUNNER;
-    if (command.startsWith('auditor ')) {
-      return `${SELF_RUNNER} ${command.slice('auditor '.length)}`;
+
+    if (command === 'auditor' || command.startsWith('auditor ')) {
+      // no-domain: Runtime CLI permission flags derived from canonical engine baseline
+      const basePerms = [
+        '--disable-warning=PERM0002',
+        ...DEFAULT_PERMISSIONS.filter((p) => p !== '--allow-addons')
+      ];
+      const extraPerms = req.permissions ?? [];
+      const flags = Array.from(new Set([...basePerms, ...extraPerms])).join(' ');
+      const runner = `node ${flags} src/cli/audit_full.ts`;
+      if (command === 'auditor') return runner;
+      return `${runner} ${command.slice('auditor '.length)}`;
     }
+
     if (command === 'auditor-build-deploy') {
       return 'node --experimental-strip-types src/cli/build_deploy.ts';
     }
+
     return command;
   }
 
@@ -594,16 +638,24 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       if (seenNames.has(req.name)) continue;
       seenNames.add(req.name);
 
+      const existing = scripts[req.name];
+      if (existing) {
+        if (this.isScriptCommandOutdated(existing)) {
+          missingOrOutdated.push([
+            req.name,
+            this.buildCanonicalScriptCommand(req, isSelfPackage)
+          ]);
+        }
+        continue;
+      }
+
       if (typeof req.isApplicable === 'function' && !req.isApplicable(config, this.projectRoot)) {
         continue;
       }
-      const existing = scripts[req.name];
-      if (!existing || this.isScriptCommandOutdated(existing)) {
-        missingOrOutdated.push([
-          req.name,
-          this.resolveTargetScriptCommand(req.command, isSelfPackage)
-        ]);
-      }
+      missingOrOutdated.push([
+        req.name,
+        this.buildCanonicalScriptCommand(req, isSelfPackage)
+      ]);
     }
     return missingOrOutdated;
   }

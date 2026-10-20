@@ -141,8 +141,18 @@ export function buildStylelintConfig(
 
 export function buildStylelintIgnoreGlobs(
   configIgnoreGlobs?: readonly string[],
-  stylelintIgnoreGlobs?: readonly string[]
+  stylelintIgnoreGlobs?: readonly string[],
+  exemptPaths?: readonly string[],
+  exemptFiles?: readonly string[]
 ): string[] {
+  const normExemptPaths = (exemptPaths ?? []).map((p) => {
+    const posixP = p.split(path.sep).join(path.posix.sep);
+    return posixP.endsWith(path.posix.sep) ? `${posixP}**` : path.posix.join(posixP, '**');
+  });
+  const normExemptFiles = (exemptFiles ?? []).map((f) => f.split(path.sep).join(path.posix.sep));
+  const normIgnores = (configIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
+  const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
+
   return [
     ...Array.from(CANONICAL_IGNORE_DIRS).map((d) => `${d}/**`),
     'dist/**',
@@ -151,8 +161,10 @@ export function buildStylelintIgnoreGlobs(
     'tests/**',
     '**/*.spec.*',
     '**/*.test.*',
-    ...(configIgnoreGlobs ?? []),
-    ...(stylelintIgnoreGlobs ?? [])
+    ...normIgnores,
+    ...normStylelintIgnores,
+    ...normExemptPaths,
+    ...normExemptFiles
   ];
 }
 
@@ -390,6 +402,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
 
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Stylelint',
         fallbackBehavior: 'violation',
@@ -539,7 +552,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const configFile = resolveStylelintConfigFile(this.projectRoot, stylelintConfig?.configFile);
     if (fs.existsSync(configFile)) {
       const relConfig = normalizePosixPath(configFile, this.projectRoot);
-      if (!relConfig.startsWith('..')) {
+      if (!relConfig.startsWith('..') && !path.isAbsolute(relConfig)) {
         this.recordScanned(configFile);
       }
     }
@@ -553,8 +566,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       (r) => `${normalizePosixPath(r, this.projectRoot)}/**/*.{css,scss,sass,vue}`
     );
     const ignoreGlobs = buildStylelintIgnoreGlobs(
-      config.paths.ignoreGlobs,
-      stylelintConfig?.ignoreGlobs
+      [...(config.paths.ignoreGlobs ?? []), ...(this.extraIgnorePatterns ?? [])],
+      stylelintConfig?.ignoreGlobs,
+      [...(this.exemptPaths ?? []), ...(stylelintConfig?.exemptPaths ?? [])],
+      stylelintConfig?.exemptFiles
     );
     const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
 
@@ -611,6 +626,9 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       this.runSubAuditorSync(ruleId, () => {
         for (const v of violations) {
           if (v.ruleId === ruleId) {
+            if (this.isPathIgnored(v.file) || this.isPathExempt(v.file)) {
+              continue;
+            }
             this.addViolation(isFixMode ? { ...v, fixable: false } : v);
           }
         }
@@ -635,3 +653,5 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
 
 // Canonical CLI Entrypoint
 await BaseAuditor.runCliIfMain(import.meta.url, new StylelintAuditor());
+
+export { StylelintAuditor as ValidateStylelintAuditor };

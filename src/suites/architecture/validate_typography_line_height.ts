@@ -17,7 +17,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
@@ -137,11 +137,14 @@ function isTextSelectorCandidate(currentSelector: string, leafSelector: string):
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
   private totalRulesChecked = 0;
 
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths?.srcRoots ?? [];
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots ?? []
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -177,9 +180,9 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
           '   ❌ Colapso: `p { font-size: 16px; line-height: 1; }`\n' +
           '   ✅ Legible: `p { font-size: 16px; line-height: 1.5; }`'
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

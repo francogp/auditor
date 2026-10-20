@@ -11,6 +11,7 @@
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import { toPosixRelative } from '../safePath.ts';
 import { FallowArchitectureAuditor } from '../../suites/architecture/validate_fallow.ts';
 import { resolveFallowBinary } from '../../suites/architecture/validate_similar_code.ts';
 import { HybridHarnessEngine } from './hybridHarness.ts';
@@ -69,18 +70,19 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
     const auditor =
       auditorOrOptions instanceof FallowArchitectureAuditor
         ? auditorOrOptions
-        : new FallowArchitectureAuditor(
-            typeof auditorOrOptions === 'string'
-              ? auditorOrOptions
-              : auditorOrOptions?.projectRoot ?? process.cwd()
-          );
+        : new FallowArchitectureAuditor({
+            projectRoot:
+              typeof auditorOrOptions === 'string'
+                ? auditorOrOptions
+                : auditorOrOptions?.projectRoot ?? process.cwd()
+          });
     super(auditor);
   }
 
   public override discoverInFile(filePath: string): readonly TriagedCloneCandidate[] {
     const all = this.triageCandidates();
-    const relNorm = path.relative(this.projectRoot, filePath).replace(/\\/g, '/');
-    return all.filter((c) => c.files.some((f) => f.replace(/\\/g, '/') === relNorm));
+    const relNorm = toPosixRelative(this.projectRoot, filePath);
+    return all.filter((c) => c.files.some((f) => toPosixRelative(this.projectRoot, f) === relNorm));
   }
 
   public override createPlan(
@@ -130,7 +132,7 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
         ['--include-dupes'],
         this.projectRoot
       );
-      deadFiles = new Set(dead.unused_files.map((f) => path.normalize(f.path).replace(/\\/g, '/')));
+      deadFiles = new Set(dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)));
     } catch {
       // catch-ok: dead-code analysis is optional during clone triage
     }
@@ -140,9 +142,7 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
 
     for (const g of dupes.clone_groups) {
       const validInstances: readonly FallowInstance[] = g.instances.filter((i) => {
-        const rel = path.isAbsolute(i.file)
-          ? path.relative(this.projectRoot, i.file).replace(/\\/g, '/')
-          : i.file.replace(/\\/g, '/');
+        const rel = toPosixRelative(this.projectRoot, i.file);
         return this.isPathScannable(rel);
       });
 
@@ -151,10 +151,10 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
       }
 
       const files: readonly string[] = Array.from(
-        new Set(validInstances.map((i) => i.file.replace(/\\/g, '/')))
+        new Set(validInstances.map((i) => toPosixRelative(this.projectRoot, i.file)))
       );
       const topology = determineTopology(files);
-      const isDead = files.some((f) => deadFiles.has(path.normalize(f).replace(/\\/g, '/')));
+      const isDead = files.some((f) => deadFiles.has(toPosixRelative(this.projectRoot, f)));
 
       candidates.push({
         fingerprint: g.fingerprint,

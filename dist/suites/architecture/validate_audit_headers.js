@@ -138,10 +138,12 @@ function scanFileForIllegalHeaders(filePath, content) {
 */
 var AuditHeadersAuditor = class extends FileScanAuditor {
 	collectedViolations = [];
-	constructor(roots, projectRoot) {
-		const headerRoots = roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
+		const headerRoots = options.roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			roots: headerRoots,
 			projectRoot,
 			ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
@@ -330,7 +332,10 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 function auditAuditHeaders(targetDir = process.cwd()) {
 	const config = getAuditConfig(targetDir);
 	const rootsToScan = getEffectiveScannableRoots(config).filter((r) => fs.existsSync(path.resolve(targetDir, r)));
-	const auditor = new AuditHeadersAuditor(rootsToScan);
+	const auditor = new AuditHeadersAuditor({
+		projectRoot: targetDir,
+		roots: rootsToScan
+	});
 	const files = auditor["context"].collectFiles(rootsToScan);
 	for (const file of files) {
 		const relPath = path.relative(targetDir, file).split(path.sep).join(path.posix.sep);

@@ -47,6 +47,8 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
         enabled: true
       },
       criticalConfig: {},
+      // Mandatory: Node.js Permission Model flags required by this extension (pass [] for standard suites)
+      requiredPermissions: [],
       // Mandatory strategic remediation phase (e.g. 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish')
       remediationPhase: 'contracts' as RemediationPhaseId,
       usesThirdPartyTool: false,

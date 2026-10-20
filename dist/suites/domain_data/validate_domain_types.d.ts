@@ -1,4 +1,4 @@
-import { BaseAuditor } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/domain_data/validate_domain_types.d.ts
 export declare const DEFAULT_TEST_PATH_MARKERS: readonly [".test.", ".spec."];
 export declare const DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS: 80;
@@ -18,7 +18,7 @@ export interface Finding {
 export declare function auditFileContent(filePath: string, content: string, ruleFilter?: DomainTypesRuleId): Finding[];
 export declare function auditFile(filePath: string, ruleFilter?: DomainTypesRuleId): Promise<Finding[]>;
 export declare class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   private collectAuditableDomainFiles;
   runAudit(): Promise<void>;
 }

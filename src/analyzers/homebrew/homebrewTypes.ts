@@ -10,11 +10,9 @@ export const AUDITOR_HOMEBREW_RULES = [
   'auditor-manual-package-json',
   'auditor-manual-vue-sfc-regex',
   'auditor-manual-ts-ast',
-  'auditor-manual-path-normalize',
   'auditor-raw-console',
   'auditor-manual-comment-stripping',
   'auditor-manual-brace-counting',
-  'auditor-manual-path-containment',
   'auditor-manual-file-walker',
   'auditor-homebrew-predicates',
   'auditor-manual-rule-timing',
@@ -36,6 +34,7 @@ export interface HomebrewInspectionContext {
   readonly isExtension: boolean; // True if defined in scripts/auditors or host extensions
   readonly isBuiltinSuite: boolean; // True if residing in src/suites/
   readonly isAnalyzer: boolean; // True if residing in src/analyzers/
+  readonly isCore?: boolean; // True if residing in src/core/
   readonly projectRoot: string; // Repository root
 }
 
@@ -106,4 +105,15 @@ export function createLineDetector(options: LineDetectorOptions): HomebrewDetect
       return findings;
     }
   };
+}
+
+/**
+ * Checks whether an index within a line of code sits inside an open string literal.
+ */
+export function isInsideStringLiteral(line: string, index: number): boolean {
+  const before = line.slice(0, index);
+  const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
+  const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
+  const backticks = (before.match(/`/g) || []).length % 2 === 1;
+  return singleQuotes || doubleQuotes || backticks;
 }

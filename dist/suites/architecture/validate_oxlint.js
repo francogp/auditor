@@ -472,10 +472,11 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 		reason: "Archivo de caché incremental generado por Oxlint",
 		isApplicable: (config) => config._rawConfig?.oxlint?.enabled !== false
 	}];
-	constructor(projectRoot) {
-		const effectiveRoot = projectRoot || process.cwd();
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot || process.cwd();
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "Vite+ Oxlint",
 				fallbackBehavior: "violation",

@@ -290,6 +290,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
         speed: 'light',
         phase: 'normal',

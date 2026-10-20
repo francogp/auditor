@@ -50,7 +50,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new MarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new MarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_markdown_syntax');
       expect(auditor.family).toBe('documentation');
       expect(auditor.ruleIds).toContain('npm-script-exclusivity-in-docs');
@@ -60,7 +60,7 @@ describe('MarkdownSyntaxAuditor', () => {
 
   describe('Violation Detection: NPM Script Exclusivity', () => {
     it('detects direct script execution in fenced code blocks (npm-script-exclusivity-in-docs)', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Developer Guide',
         '```bash',
@@ -81,7 +81,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('allows npm run commands in fenced code blocks', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Developer Guide',
         '```bash',
@@ -99,7 +99,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('honors escape hatches for direct commands (<!-- npm-ok --> / <!-- doc-ok -->)', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Setup Script',
         '```bash',
@@ -114,7 +114,7 @@ describe('MarkdownSyntaxAuditor', () => {
 
   describe('Violation Detection: Markdown Tables Preceding Blank Line', () => {
     it('detects tables immediately preceded by text without a blank line (markdown-table-preceding-blank-line)', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         'Paragraph text immediately before table without blank line.',
         '| Header 1 | Header 2 |',
@@ -133,7 +133,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('allows tables preceded by a blank line, heading, or comment', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         'Some intro text.',
         '',
@@ -155,7 +155,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('honors <!-- table-ok --> escape hatch', () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         'Paragraph directly before table.',
         '| Header 1 | Header 2 | <!-- table-ok: Embedded in tight card layout -->',
@@ -170,7 +170,7 @@ describe('MarkdownSyntaxAuditor', () => {
 
   describe('Clean Execution', () => {
     it('executes cleanly on compliant documentation and reports 0 errors', async () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const cleanContent = [
         '# Clean Documentation',
         '',
@@ -193,7 +193,7 @@ describe('MarkdownSyntaxAuditor', () => {
     });
 
     it('auto-inserts a blank line before markdown tables when fix: true is active', async () => {
-      const auditor = new TestableMarkdownSyntaxAuditor([], PROJECT_ROOT);
+      const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       (auditor as unknown as { fixMode: boolean }).fixMode = true;
       const content = [
         'Paragraph immediately before table.',

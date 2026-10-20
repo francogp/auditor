@@ -69,15 +69,24 @@ export function colorizeStreamSubLine(
   return styleText('dim', line);
 }
 
+export type ConsoleOutputMode = 'compact' | 'human';
+
+export interface TaskStreamCoordinatorOptions {
+  indent?: string;
+  mode?: ConsoleOutputMode;
+}
+
 export class TaskStreamCoordinator {
   private completedCount = 0;
   private readonly totalTasks: number;
   private readonly indent: string;
+  private readonly mode: ConsoleOutputMode;
   private printLock: Promise<void> = Promise.resolve();
 
-  constructor(totalTasks: number, options?: { indent?: string }) {
+  constructor(totalTasks: number, options?: TaskStreamCoordinatorOptions) {
     this.totalTasks = totalTasks;
     this.indent = options?.indent ?? '  ';
+    this.mode = options?.mode ?? 'human';
   }
 
   public async onTaskComplete(params: TaskStreamProgressParams): Promise<void> {
@@ -97,6 +106,17 @@ export class TaskStreamCoordinator {
   }
 
   private printTaskItem(params: TaskStreamProgressParams, currentStep: number): void {
+    if (this.mode === 'compact') {
+      if (params.isSkipped || (params.isSuccess && !params.hasWarnings)) {
+        return;
+      }
+      const badge = params.isSuccess ? styleText('yellow', '⚠️ ') : styleText('red', '❌');
+      console.log(
+        `${badge} ${styleText('bold', params.taskName)} ${styleText('dim', `(${params.taskId})`)} ${styleText('dim', formatDurationMs(params.durationMs))}`
+      );
+      return;
+    }
+
     const pct = Math.round((currentStep / this.totalTasks) * 100);
     const stepStr = String(currentStep).padStart(2, '0');
     const totalStr = String(this.totalTasks).padStart(2, '0');

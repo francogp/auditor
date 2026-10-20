@@ -9,7 +9,7 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -96,9 +96,14 @@ const UNQUOTED_BRACE_NODE_REGEX =
   /\b\w+\{([^}"\n?%&<>\u2260\u2265\u2264()/:!+=\\#*~]*[?%&<>\u2260\u2265\u2264()/:!+=\\#*~][^}"\n]*)\}/g;
 
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
-  public constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      () => ['.']
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         MERMAID_SYNTAX_RULES,
         {
@@ -148,11 +153,11 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
           '   ❌ Incorrecto: `id[Proceso (Principal)]` o `A -->|¿Confirmar?| B`\n' +
           '   ✅ Correcto:   `id["Proceso (Principal)"]` o `A -->|"¿Confirmar?"| B`'
       },
-      roots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.md']),
       unignoreDirs: ['.agents', 'skills', 'docs'],
       extraIgnorePatterns: ['scratch/**', 'dist/**', 'dev-dist/**', 'test-results/**'],
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

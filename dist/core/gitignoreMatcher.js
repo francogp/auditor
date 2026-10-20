@@ -1,3 +1,5 @@
+import { toPosixRelative } from "./auditCoverage.js";
+import { isPathContained } from "./safePath.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/gitignoreMatcher.ts
@@ -113,12 +115,10 @@ var GitIgnoreMatcher = class {
 	* Evaluates if a given path (relative to rootDir or absolute) matches .gitignore rules.
 	*/
 	isIgnored(targetPath) {
-		let normalized = targetPath.replace(/\\/g, "/");
 		if (path.isAbsolute(targetPath)) {
-			const rel = path.relative(this.rootDir, targetPath).replace(/\\/g, "/");
-			if (rel.startsWith("..")) return false;
-			normalized = rel;
-		} else normalized = normalized.replace(/^\.\//, "");
+			if (!isPathContained(this.rootDir, targetPath)) return false;
+		}
+		const normalized = toPosixRelative(this.rootDir, targetPath);
 		for (const prefix of this.ignoredDirPrefixes) if (normalized === prefix || normalized.startsWith(prefix.endsWith("/") ? prefix : prefix + "/")) return true;
 		let ignored = false;
 		for (const rule of this.rules) if (rule.regex.test(normalized)) ignored = !rule.isNegative;

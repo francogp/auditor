@@ -37,8 +37,15 @@ export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHy
     fix?: boolean;
   });
   runAudit(): Promise<void>;
-  private readFallowConfigData;
+  private resolveFallowIgnoredDependencies;
+  private resolveImplicitCoverageDependencies;
+  private hasVitePlusDependencyOrConfig;
   private buildEphemeralKnipConfig;
   private executeKnip;
 }
+/**
+ * Detects whether the host root `tsconfig.json` declares project `references`.
+ * Parsed with the TypeScript JSONC reader (no regex) so comments and trailing commas are tolerated.
+ */
+export declare function tsconfigHasReferences(projectRoot: string): boolean;
 //#endregion

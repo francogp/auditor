@@ -12,6 +12,7 @@ import path from 'node:path';
 import util from 'node:util';
 import zlib from 'node:zlib';
 import { styleText } from 'node:util';
+import { toPosixRelative } from './safePath.ts';
 
 import type { Plugin } from 'vite-plus';
 import type {
@@ -128,7 +129,7 @@ async function compressAsset(
       gzipBytes = gzipBuffer.byteLength;
     }
 
-    const relPath = path.relative(distDir, filePath).replace(/\\/g, '/');
+    const relPath = toPosixRelative(distDir, filePath);
     const bestCompressed = Math.min(
       enableBrotli ? brotliBytes : content.byteLength,
       enableGzip ? gzipBytes : content.byteLength

@@ -3,9 +3,9 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
-import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -179,12 +179,14 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		reason: "Directorio de artefactos y bundle compilado de producción",
 		isApplicable: (config) => config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
 	}];
-	constructor(projectRoot = process.cwd()) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const srcRoots = config.paths.srcRoots ?? [];
 		const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : "dist";
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
 				speed: "light",
 				phase: "post-build",

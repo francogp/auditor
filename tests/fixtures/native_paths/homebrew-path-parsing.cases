@@ -1,0 +1,30 @@
+### R01 gemini#12 expect=homebrew-path-parsing
+const fileName = fullPath.split('/').pop();
+
+### R02 gemini#14 expect=homebrew-path-parsing
+const dir = filePath.substring(0, filePath.lastIndexOf('/'));
+
+### R03 gemini#15 expect=homebrew-path-parsing
+const ext = attachmentName.split('.').pop();
+
+### R04 gemini#16 expect=homebrew-path-parsing
+const nameOnly = file.slice(0, file.lastIndexOf('.'));
+
+### R05 gemini#21 expect=homebrew-path-parsing
+const basenameNoExt = file.replace(/\.[^/.]+$/, '');
+
+### R06 gpt expect=homebrew-path-parsing
+const pathParts = pathString.match(/[^\\\/]+/g);
+
+### R07 gemini-table expect=homebrew-path-parsing
+const segments = fullPath.split('/');
+
+### R08 host-facturacion2 expect=homebrew-path-parsing
+const basename = rawPath.split('/').pop() ?? rawPath;
+
+### R09 host-facturacion2 expect=homebrew-path-parsing
+const fileName = this.codeFile.split('/').pop() ?? this.codeFile;
+
+### R10 dataflow-origin expect=homebrew-path-parsing line=2
+const rel = path.relative(dir, parent);
+const parts = rel.split('/');

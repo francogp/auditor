@@ -1,6 +1,6 @@
-import { matchesAnyGlob } from "./auditCoverage.js";
-import { CANONICAL_IGNORE_DIRS, isPathIgnored } from "./auditorBase.js";
+import { matchesAnyGlob, toPosixRelative } from "./auditCoverage.js";
 import "./safePath.js";
+import { CANONICAL_IGNORE_DIRS, isPathIgnored } from "./auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/testCoverageCore.ts
@@ -137,7 +137,7 @@ function computeDetailedMetrics(raw) {
 }
 function parseRawCoverageItem(keyPath, raw, projectRoot, threshold) {
 	const absolutePath = path.isAbsolute(keyPath) ? keyPath : path.resolve(projectRoot, keyPath);
-	const relPath = path.relative(projectRoot, absolutePath).split(path.sep).join("/");
+	const relPath = toPosixRelative(projectRoot, absolutePath);
 	if (raw.statements && raw.branches && raw.functions && raw.lines) {
 		const statements = calculateMetric(raw.statements.covered, raw.statements.total);
 		return {
@@ -166,7 +166,8 @@ function parseRawCoverageItem(keyPath, raw, projectRoot, threshold) {
 function isPathExempt(relPath, exemptGlobs) {
 	if (exemptGlobs.length === 0) return false;
 	for (const glob of exemptGlobs) {
-		const cleanGlob = glob.replace(/^\.\//, "").replace(/\/$/, "");
+		let cleanGlob = glob.startsWith("./") ? glob.slice(2) : glob;
+		if (cleanGlob.endsWith("/")) cleanGlob = cleanGlob.slice(0, -1);
 		if (relPath === cleanGlob || relPath.startsWith(`${cleanGlob}/`)) return true;
 	}
 	return matchesAnyGlob(relPath, exemptGlobs);
@@ -241,7 +242,7 @@ function findUntrackedFiles(projectRoot, coveredRelPaths, config) {
 		const entries = fs.readdirSync(currentDir, { withFileTypes: true });
 		for (const entry of entries) {
 			const fullPath = path.join(currentDir, entry.name);
-			const relPath = path.relative(projectRoot, fullPath).split(path.sep).join("/");
+			const relPath = toPosixRelative(projectRoot, fullPath);
 			if (entry.isDirectory()) {
 				if (!IGNORED_COVERAGE_DIRS.has(entry.name) && !CANONICAL_IGNORE_DIRS.has(entry.name) && !isPathIgnored(relPath, config.exemptGlobs, [], projectRoot)) walk(fullPath);
 			} else if (entry.isFile() && isUntrackedCandidate(relPath, entry.name, extensions, config.exemptGlobs, projectRoot)) {

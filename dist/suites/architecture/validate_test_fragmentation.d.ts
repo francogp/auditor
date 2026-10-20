@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/architecture/validate_test_fragmentation.d.ts
 export declare const TEST_FRAGMENTATION_RULES: readonly ["no-fragmented-tests", "unnecessary-jsdom"];
 export type TestFragmentationRuleId = (typeof TEST_FRAGMENTATION_RULES)[number];
@@ -24,7 +24,7 @@ export declare class TestFragmentationAuditor extends FileScanAuditor<TestFragme
   private readonly minTestLines;
   private readonly fragmentationWhitelist;
   private distribution;
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   getDistribution(): Readonly<TestSuiteDistribution>;
   protected scanFile(relPath: string, content: string): void;
   private checkMicroTestFragmentation;

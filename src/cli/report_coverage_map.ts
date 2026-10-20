@@ -164,6 +164,7 @@ function computeDirectorySummaries(
   >();
 
   for (const entry of files) {
+    // path-ok: Segment decomposition for coverage reporting buckets
     const segments = entry.file.split('/');
     const dirKey =
       segments.length > 1

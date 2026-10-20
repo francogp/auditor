@@ -1,29 +1,27 @@
-import { FindingSeverity } from "../../core/auditContract.js";
-import { CANONICAL_IGNORE_DIRS, FileScanAuditor, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { CANONICAL_IGNORE_DIRS, FileScanAuditor, FileScanRootsOptions, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { NATIVE_PATH_RULES, NativePathRuleId, NativePathViolation } from "../../analyzers/nativePaths/nativePathTypes.js";
 //#region src/suites/architecture/validate_native_paths.d.ts
-export type NativePathRuleId = 'unsafe-path-concat' | 'unsanitized-env-argv-path' | 'untrusted-url-fetch' | 'hardcoded-slash-path' | 'homebrew-path-manipulation';
-export declare const NATIVE_PATH_RULES: readonly NativePathRuleId[];
-export interface NativePathViolation {
-  readonly file: string;
-  readonly line: number;
-  readonly ruleId: NativePathRuleId;
-  readonly message: string;
-  readonly context: string;
-  readonly severity: FindingSeverity;
-}
 export interface NativePathAuditResult {
   readonly filesScanned: number;
   readonly violations: readonly NativePathViolation[];
   readonly passed: boolean;
   readonly countsByRule: Record<NativePathRuleId, number>;
 }
+/** Script extensions scanned by this suite (JSX flavors included on top of the canonical set). */
+export declare const NATIVE_PATH_EXTENSIONS: ReadonlySet<string>;
+/**
+ * Scans in-memory source code for native path violations using the TypeScript AST.
+ */
 export declare function scanFileForNativePathViolations(filePath: string, content: string): NativePathViolation[];
 /**
  * Full repository audit runner for native paths and security integrity.
  */
 export declare function auditNativePaths(targetDir?: string): NativePathAuditResult;
 export declare class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  private readonly documentCache;
+  constructor(options?: FileScanRootsOptions);
+  /** Runs the single AST pass once per document and shares the result across rule sub-auditors. */
+  private scanDocumentOnce;
 }
 //#endregion
-export { CANONICAL_IGNORE_DIRS, getEffectiveScannableRoots, isPathIgnored };
+export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_RULES, type NativePathRuleId, type NativePathViolation, getEffectiveScannableRoots, isPathIgnored };

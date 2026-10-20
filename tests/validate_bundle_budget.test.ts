@@ -41,7 +41,7 @@ describe('BundleBudgetAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_bundle_budget');
       expect(auditor.family).toBe('architecture');
     });
@@ -57,7 +57,7 @@ describe('BundleBudgetAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
@@ -74,7 +74,7 @@ describe('BundleBudgetAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const heavy = result.findings.find((f) => f.ruleId === 'bundle-heavy-import');
@@ -90,7 +90,7 @@ describe('BundleBudgetAuditor', () => {
       const oversizeBuffer = Buffer.alloc(2.1 * 1024 * 1024, 'a');
       await fs.writeFile(path.join(distAssetsDir, 'huge-chunk.js'), oversizeBuffer);
 
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const sizeViolation = result.findings.find((f) => f.ruleId === 'bundle-chunk-size');
@@ -107,7 +107,7 @@ describe('BundleBudgetAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
@@ -125,7 +125,7 @@ describe('BundleBudgetAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new BundleBudgetAuditor(tempDir);
+      const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);

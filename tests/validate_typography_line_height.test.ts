@@ -41,7 +41,7 @@ describe('TypographyLineHeightAuditor', () => {
   });
 
   it('instantiates with correct metadata and configuration', () => {
-    const auditor = new TypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TypographyLineHeightAuditor({ roots: [], projectRoot: PROJECT_ROOT });
     expect(auditor.id).toBe('validate_typography_line_height');
     expect(auditor.family).toBe('architecture');
     expect(auditor.name).toBe('Typography Line-Height & Interlinear Spacing Validator');
@@ -53,7 +53,7 @@ describe('TypographyLineHeightAuditor', () => {
     expect(TYPOGRAPHY_LINE_HEIGHT_RULES).toContain('line-height-overlap');
     expect(TYPOGRAPHY_LINE_HEIGHT_RULES).toHaveLength(1);
 
-    const auditor = new TypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TypographyLineHeightAuditor({ roots: [], projectRoot: PROJECT_ROOT });
     expect(auditor.ruleDescriptions).toBeDefined();
     for (const ruleId of TYPOGRAPHY_LINE_HEIGHT_RULES) {
       const desc = auditor.ruleDescriptions?.[ruleId];
@@ -63,7 +63,10 @@ describe('TypographyLineHeightAuditor', () => {
   });
 
   it('detects line-height: 0 and line-height: 1 on text selectors (line-height-overlap)', () => {
-    const auditor = new TestableTypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TestableTypographyLineHeightAuditor({
+      roots: [],
+      projectRoot: PROJECT_ROOT
+    });
     const badScss = `
       .item-title {
         font-size: 10px;
@@ -77,7 +80,10 @@ describe('TypographyLineHeightAuditor', () => {
   });
 
   it('allows safe line-height on text selectors', () => {
-    const auditor = new TestableTypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TestableTypographyLineHeightAuditor({
+      roots: [],
+      projectRoot: PROJECT_ROOT
+    });
     const goodScss = `
       .item-title {
         font-size: 14px;
@@ -89,7 +95,10 @@ describe('TypographyLineHeightAuditor', () => {
   });
 
   it('honors the line-height-ok escape hatch comment', () => {
-    const auditor = new TestableTypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TestableTypographyLineHeightAuditor({
+      roots: [],
+      projectRoot: PROJECT_ROOT
+    });
     const ignoredScss = `
       .item-title {
         // line-height-ok
@@ -102,7 +111,10 @@ describe('TypographyLineHeightAuditor', () => {
   });
 
   it('runs audit on clean files and reports zero errors', async () => {
-    const auditor = new TestableTypographyLineHeightAuditor([], PROJECT_ROOT);
+    const auditor = new TestableTypographyLineHeightAuditor({
+      roots: [],
+      projectRoot: PROJECT_ROOT
+    });
     const goodScss = `.title { font-size: 14px; line-height: 1.5; }`;
     auditor.testScanFile('src/clean.scss', goodScss);
     expect(auditor.collectedViolations).toHaveLength(0);

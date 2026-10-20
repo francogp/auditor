@@ -348,6 +348,48 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(updated.scripts['audit:legacy']).toBeUndefined();
     });
 
+    it('detects vp run auditor chaining in build script and auto-repairs to npm run', async () => {
+      await writeConfig({
+        name: 'test-app',
+        paths: { srcRoots: ['src'] },
+        packageScripts: { recommendedScripts: false },
+        ratchet: { enabled: false }
+      });
+
+      const pkgPath = path.join(tempDir, 'package.json');
+      await fs.writeFile(
+        pkgPath,
+        JSON.stringify(
+          {
+            name: 'test-app',
+            scripts: {
+              build: 'vp run auditor:full && vp pack && vp run auditor:post-build'
+            }
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      );
+
+      const inspectAuditor = new ValidatePackageScriptsAuditor({
+        projectRoot: tempDir,
+        fix: false
+      });
+      const inspectResult = await inspectAuditor.execute();
+      expect(inspectResult.summary.errors).toBe(1);
+      expect(inspectResult.findings[0]?.message).toContain('uses "vp run" instead of "npm run"');
+
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.summary.errors).toBe(0);
+
+      const updated = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
+      expect(updated.scripts.build).toBe(
+        'npm run auditor:full && vp pack && npm run auditor:post-build'
+      );
+    });
+
     it('detects and migrates obsolete CI/CD workflow commands in .github/workflows/deploy.yml from build:prod to build:deploy', async () => {
       await writeConfig({
         name: 'test-app',

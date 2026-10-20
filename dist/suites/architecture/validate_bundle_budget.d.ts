@@ -12,9 +12,12 @@ export declare function getForbiddenValueImportsUI(projectRoot?: string): readon
   module: string;
   reason: string;
 }[];
+export interface BundleBudgetAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
-  constructor(projectRoot?: string);
+  constructor(options?: BundleBudgetAuditorOptions);
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
 //#endregion

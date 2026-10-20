@@ -20,8 +20,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
@@ -51,24 +50,26 @@ const WINDOW_LOCATION_NAV_REGEX =
 const VUE_ROUTER_EXTENSIONS = new Set(['.vue', '.ts', '.js']);
 
 export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots =
-      roots ??
-      (config.paths.componentsRoots?.length ||
-      config.paths.viewsRoots?.length ||
-      config.paths.composablesRoots?.length
-        ? Array.from(
-            new Set([
-              ...(config.paths.componentsRoots ?? []),
-              ...(config.paths.viewsRoots ?? []),
-              ...(config.paths.composablesRoots ?? [])
-            ])
-          )
-        : (config.paths.srcRoots ?? []));
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) =>
+        config.paths.componentsRoots?.length ||
+        config.paths.viewsRoots?.length ||
+        config.paths.composablesRoots?.length
+          ? Array.from(
+              new Set([
+                ...(config.paths.componentsRoots ?? []),
+                ...(config.paths.viewsRoots ?? []),
+                ...(config.paths.composablesRoots ?? [])
+              ])
+            )
+          : (config.paths.srcRoots ?? [])
+    );
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       id: 'validate_vue_router',
       name: 'Vue Router 4 Architecture & Navigation Auditor',
       packageName: 'Router',
@@ -122,9 +123,9 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: VUE_ROUTER_EXTENSIONS,
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

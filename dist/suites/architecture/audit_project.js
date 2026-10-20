@@ -2,8 +2,8 @@ import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";
 import { matchesRule } from "../../analyzers/auditRuleTypes.js";
 import { auditRulesConfig } from "./audit_rules.js";
 import { enableCompileCache } from "node:module";
@@ -330,16 +330,17 @@ function extractAllBlocks(content, tag) {
 	}
 	return blocks;
 }
-function getChangedFiles(ref) {
+function getChangedFiles(ref, projectRoot = process.cwd()) {
 	try {
 		return execSync(`git diff --name-only ${ref}`, {
+			cwd: projectRoot,
 			encoding: "utf8",
 			stdio: [
 				"pipe",
 				"pipe",
 				"ignore"
 			]
-		}).split("\n").map((f) => f.trim()).filter((f) => f !== "" && AUDIT_EXTENSIONS.has(path.extname(f)) && !Array.from(CANONICAL_IGNORE_DIRS).some((d) => f.split(/[/\\]/).includes(d))).map((f) => path.resolve(process.cwd(), f));
+		}).split("\n").map((f) => f.trim()).filter((f) => f !== "" && AUDIT_EXTENSIONS.has(path.extname(f)) && !isPathIgnored(f, [], [], projectRoot)).map((f) => path.resolve(projectRoot, f));
 	} catch {
 		process.stderr.write(styleText("yellow", `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`));
 		return [];
@@ -748,7 +749,8 @@ function getProjectArchitectureRuleRemediationPhases() {
 	return phases;
 }
 var ProjectArchitectureAuditor = class extends BaseAuditor {
-	constructor() {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const ruleDescriptions = getProjectArchitectureRuleDescriptions();
 		const ruleRemediations = getProjectArchitectureRuleRemediations();
 		const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
@@ -756,6 +758,7 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 		const fixableRuleIds = Object.entries(auditRulesConfig).filter(([, rule]) => typeof rule.fix === "function" || rule.fixable === true).map(([key, rule]) => rule.id || key);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createRuleCapabilities(ruleIds, {
 				speed: "light",
 				phase: "normal",
@@ -782,7 +785,8 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			coverage: {
 				include: ["**/*.{vue,scss,css,ts,js,md}"],
 				exclude: [path.posix.join(AUDITOR_DIR, "**")]
-			}
+			},
+			projectRoot
 		});
 	}
 	async runAudit() {

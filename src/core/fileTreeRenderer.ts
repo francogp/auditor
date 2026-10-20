@@ -10,6 +10,7 @@ import path from 'node:path';
 import { type AuditFinding, type AuditFileSummary } from './auditContract.ts';
 import { padVisual } from './terminalVisuals.ts';
 import { formatNumber } from './durationFormatter.ts';
+import { toPosixRelative } from './safePath.ts';
 
 const DEFAULT_MAX_FINDINGS_PREVIEW = 30;
 const DEFAULT_MAX_FILES_TREE = 10;
@@ -171,12 +172,7 @@ export function renderFindingsByFileTree(
 
 export function formatSampleErrorLine(err: AuditFinding, index: number): string {
   const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'desconocido';
-  const relPath = path.isAbsolute(fileInfo) ? path.relative(process.cwd(), fileInfo) : fileInfo;
-  const relPosixFile =
-    relPath
-      .split(path.sep)
-      .join(path.posix.sep)
-      .replace(/^[\\/]+/, '') || fileInfo;
+  const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
   const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
   const contextStr = err.context ? ` ("${err.context}")` : '';
   const mainLine = `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;

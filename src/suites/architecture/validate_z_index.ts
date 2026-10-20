@@ -18,8 +18,9 @@ import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import {
   getAuditConfig,
   resolveZLayersScssPath,
@@ -154,16 +155,24 @@ export const ISOLATED_Z_INDEX_CONST_REGEX =
 
 export { fixZIndexLiteral as fixZIndexLiteralMatch } from '../../analyzers/zIndexRules.ts';
 
+export interface ZIndexAuditorOptions extends FileScanRootsOptions {
+  readonly scssPath?: string;
+}
+
 export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
   private readonly scssPath?: string;
   private readonly isExplicit: boolean;
 
-  constructor(scssPath?: string, roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? (scssPath ? [path.dirname(scssPath)] : config.paths.srcRoots);
+  constructor(options: ZIndexAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => (options.scssPath ? [path.dirname(options.scssPath)] : config.paths.srcRoots)
+    );
+    const config = getAuditConfig(effectiveRoot);
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         Z_INDEX_RULES,
         {
@@ -187,7 +196,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       defaultConfig: { enabled: true, zLayersEnabled: true },
       criticalConfig: {},
       icon: '🥞',
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css', '.ts', '.tsx']),
       ruleIds: Z_INDEX_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(Z_INDEX_RULES, 'hygiene'),
@@ -233,11 +242,11 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           '2. Diagnóstico: Localiza la constante declarada en el archivo señalado por el auditor.\n' +
           '3. Solución: Elimina la constante aislada e importa el valor canónico desde Z_LAYERS (src/types/zLayers.ts).'
       },
-      projectRoot
+      projectRoot: effectiveRoot
     });
 
-    if (scssPath) {
-      this.scssPath = scssPath;
+    if (options.scssPath) {
+      this.scssPath = options.scssPath;
       this.isExplicit = true;
     } else {
       this.scssPath = resolveZLayersScssPath(this.projectRoot);
@@ -317,7 +326,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
         const auditConfig = getAuditConfig(this.projectRoot);
         const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
         const isZLayersDeclFile =
-          zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, '').toLowerCase());
+          zFile && norm.includes(toPosixRelative(this.projectRoot, zFile).toLowerCase());
 
         if (!isZLayersDeclFile && !norm.includes('node_modules')) {
           ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;

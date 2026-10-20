@@ -40,21 +40,23 @@ const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-    const config = getAuditConfig(effectiveRoot);
+    const scanRoots = resolveFileScanRoots(options);
+    const simplificationConfig = getAuditConfig(scanRoots.effectiveRoot);
     super({
-      usesThirdPartyTool: false,
       id: 'validate_code_simplification',
       name: 'Code Complexity & Readability Simplifier Validator',
       description: 'Simplificación de código, nesting y claridad sintáctica',
       family: 'architecture',
       packageName: 'Simplify',
       icon: '🧹',
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      roots: scanRoots.targetRoots,
+      allowedExtensions: SCANNABLE_EXTS,
+      exemptPaths: simplificationConfig.codeSimplification?.exemptPaths,
       configKey: 'codeSimplification.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
-      roots: targetRoots,
-      allowedExtensions: SCANNABLE_EXTS,
       ruleIds: CODE_SIMPLIFICATION_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, 'hygiene'),
       ruleDescriptions: {
@@ -123,9 +125,8 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         CODE_SIMPLIFICATION_RULES,
         CODE_SIMPLIFICATION_CAPABILITIES
       ),
-      projectRoot: effectiveRoot,
-      coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-      exemptPaths: config.codeSimplification?.exemptPaths
+      projectRoot: scanRoots.effectiveRoot,
+      coverage: deriveCoverageFromRoots(scanRoots.targetRoots, SCANNABLE_EXTS, scanRoots.effectiveRoot)
     });
   }
 

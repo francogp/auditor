@@ -50,7 +50,7 @@ describe('PiniaReactivityAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new PiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new PiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       expect(auditor.id).toBe('validate_pinia_reactivity');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(PINIA_REACTIVITY_RULES);
@@ -59,7 +59,7 @@ describe('PiniaReactivityAuditor', () => {
 
   describe('Violation Detection', () => {
     it('detects direct store destructuring without storeToRefs (no-store-destructuring-without-storetorefs)', () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const badCode = `
         import { useBillingProjectStore } from '@/stores/billingProjectStore';
         const { currentProject, projects } = useBillingProjectStore();
@@ -74,7 +74,7 @@ describe('PiniaReactivityAuditor', () => {
     });
 
     it('allows storeToRefs pattern', () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `
         import { storeToRefs } from 'pinia';
         import { useBillingProjectStore } from '@/stores/billingProjectStore';
@@ -87,7 +87,7 @@ describe('PiniaReactivityAuditor', () => {
     });
 
     it('detects indirect store destructuring without storeToRefs', () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const badCode = `
         import { useBillingProjectStore } from '@/stores/billingProjectStore';
         const billingStore = useBillingProjectStore();
@@ -102,7 +102,7 @@ describe('PiniaReactivityAuditor', () => {
     });
 
     it('allows action destructuring with // pinia-ok', () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `
         import { useBillingProjectStore } from '@/stores/billingProjectStore';
         const { resetProject } = useBillingProjectStore(); // pinia-ok: pure action destructuring without state
@@ -113,7 +113,7 @@ describe('PiniaReactivityAuditor', () => {
     });
 
     it('detects direct store.$state mutation outside authorized files (no-direct-state-mutation-outside-actions)', () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const badCode = `
         billingStore.$state = { ...billingStore.$state, currentProject: null };
       `;
@@ -129,7 +129,7 @@ describe('PiniaReactivityAuditor', () => {
 
   describe('Clean Execution', () => {
     it('runs audit on clean files and reports zero errors', async () => {
-      const auditor = new TestablePiniaReactivityAuditor([], PROJECT_ROOT);
+      const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `
         import { storeToRefs } from 'pinia';
         import { useBillingProjectStore } from '@/stores/billingProjectStore';

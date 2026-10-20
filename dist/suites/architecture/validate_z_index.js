@@ -5,9 +5,9 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "../../core/auditZLayers.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
+import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { fixZIndexLiteral, resolveZLayer } from "../../analyzers/zIndexRules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -105,11 +105,12 @@ const ISOLATED_Z_INDEX_CONST_REGEX = /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"
 var ZIndexAuditor = class extends FileScanAuditor {
 	scssPath;
 	isExplicit;
-	constructor(scssPath, roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? (scssPath ? [path.dirname(scssPath)] : config.paths.srcRoots);
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => options.scssPath ? [path.dirname(options.scssPath)] : config.paths.srcRoots);
+		const config = getAuditConfig(effectiveRoot);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -140,7 +141,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			},
 			criticalConfig: {},
 			icon: "🥞",
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".vue",
 				".scss",
@@ -164,10 +165,10 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				"z-index-hardcoded-literal": "📖 GUÍA DE REMEDIACIÓN: z-index-hardcoded-literal\n1. Causa Raíz: Se detectó un valor numérico crudo (hardcoded) asignado a z-index (ej: z-index: 9999 o zIndex: 100) en lugar de utilizar las variables del sistema de capas Z_LAYERS. Los valores hardcodeados generan guerras de especificidad y superposición caótica de ventanas, tooltips y modales.\n2. Diagnóstico: Busca valores numéricos literales en propiedades z-index dentro de bloques de estilo o tweens de GSAP.\n3. Solución:\n   a) En CSS/SCSS: reemplaza el número por la variable oficial: z-index: $z-modal; o z-index: var(--z-modal);\n   b) En TypeScript/GSAP: importa y utiliza el valor de la capa canónica: zIndex: Z_LAYERS.MODAL\n4. Ejemplo:\n   ❌ Incorrecto: .tooltip { z-index: 9999; }\n   ✅ Correcto:   .tooltip { z-index: $z-tooltip; }",
 				"z-index-isolated-constant": "📖 GUÍA DE REMEDIACIÓN: z-index-isolated-constant\n1. Causa Raíz: Se detectó la definición de una constante numérica aislada de z-index fuera del catálogo unificado Z_LAYERS (ej: const MODAL_Z = 5000 en un archivo local).\n2. Diagnóstico: Localiza la constante declarada en el archivo señalado por el auditor.\n3. Solución: Elimina la constante aislada e importa el valor canónico desde Z_LAYERS (src/types/zLayers.ts)."
 			},
-			projectRoot
+			projectRoot: effectiveRoot
 		});
-		if (scssPath) {
-			this.scssPath = scssPath;
+		if (options.scssPath) {
+			this.scssPath = options.scssPath;
 			this.isExplicit = true;
 		} else {
 			this.scssPath = resolveZLayersScssPath(this.projectRoot);
@@ -231,7 +232,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			if (norm.endsWith(".ts") || norm.endsWith(".tsx") || norm.endsWith(".vue")) {
 				const auditConfig = getAuditConfig(this.projectRoot);
 				const zFile = auditConfig.styles?.zLayersTsFile ?? auditConfig.domain?.zLayersFile;
-				if (!(zFile && norm.includes(zFile.replace(/^\/+|\/+$/g, "").toLowerCase())) && !norm.includes("node_modules")) {
+				if (!(zFile && norm.includes(toPosixRelative(this.projectRoot, zFile).toLowerCase())) && !norm.includes("node_modules")) {
 					ISOLATED_Z_INDEX_CONST_REGEX.lastIndex = 0;
 					let cMatch;
 					while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {

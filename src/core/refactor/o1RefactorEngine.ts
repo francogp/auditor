@@ -41,12 +41,12 @@ export class O1RefactorEngine extends BaseRefactorEngine<
     const auditor =
       auditorOrOptions instanceof O1DataStructuresAuditor
         ? auditorOrOptions
-        : new O1DataStructuresAuditor(
-            undefined,
-            typeof auditorOrOptions === 'string'
-              ? auditorOrOptions
-              : auditorOrOptions?.projectRoot
-          );
+        : new O1DataStructuresAuditor({
+            projectRoot:
+              typeof auditorOrOptions === 'string'
+                ? auditorOrOptions
+                : auditorOrOptions?.projectRoot
+          });
     super(auditor);
   }
 

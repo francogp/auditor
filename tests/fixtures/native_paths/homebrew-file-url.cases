@@ -1,0 +1,14 @@
+### F01 gemini#17 expect=homebrew-file-url
+const cleanPath = moduleUrl.replace('file://', '');
+
+### F02 codex#13-disagreement expect=homebrew-file-url
+const p = new URL('./file.txt', import.meta.url).pathname;
+
+### F03a new expect=homebrew-file-url
+const u = 'file://' + filePath;
+
+### F03b new expect=homebrew-file-url
+const u = `file://${filePath}`;
+
+### F04 new expect=homebrew-file-url
+const d = decodeURIComponent(new URL(import.meta.url).pathname);

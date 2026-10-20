@@ -69,7 +69,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       expect(auditor.id).toBe('validate_similar_code');
       expect(auditor.family).toBe('architecture');
       expect(auditor.capabilities.speed).toBe('heavy');
@@ -79,7 +79,7 @@ describe('ValidateSimilarCodeAuditor', () => {
 
   describe('Candidate Evaluation & Intra-File Filtering', () => {
     it('flags similar code candidate across different files', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'src/utils/calc.ts', name: 'calcTax', start_line: 10 },
@@ -100,7 +100,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('filters out intra-file pairs when ignoreSameFile is true', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'src/utils/io.ts', name: 'writeFileSync', start_line: 12 },
@@ -118,7 +118,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('reports intra-file pairs when ignoreSameFile is false', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'src/utils/io.ts', name: 'writeFileSync', start_line: 12 },
@@ -148,7 +148,7 @@ describe('ValidateSimilarCodeAuditor', () => {
         })
       );
 
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'tests/unit/mockHelper.test.ts', name: 'createMock', start_line: 5 },
@@ -182,7 +182,7 @@ describe('ValidateSimilarCodeAuditor', () => {
         })
       );
 
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const candidates: SimilarCodeCandidate[] = [
         {
           left: { path: 'external/vendored/feature.ts', name: 'doSomething', start_line: 1 },
@@ -200,7 +200,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('normalizes absolute candidate paths to relative POSIX paths', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const absLeft = path.resolve(scratchDir, 'src/utils/calc.ts');
       const absRight = path.resolve(scratchDir, 'src/services/billing.ts');
 
@@ -223,7 +223,7 @@ describe('ValidateSimilarCodeAuditor', () => {
 
   describe('Execution Failure Governance (Zero Warning Mandate)', () => {
     it('captures spawnSync ETIMEDOUT during runAudit and reports fallow-similar-code-failed with severity: error', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const spy = vi.spyOn(childProcess, 'execSync').mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('similar-code status')) {
           return JSON.stringify({ kind: 'status', model_ready: true });
@@ -246,7 +246,7 @@ describe('ValidateSimilarCodeAuditor', () => {
     });
 
     it('reports fallow-similar-code-failed with severity: warning when model setup fails', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       const spy = vi.spyOn(childProcess, 'execSync').mockImplementation((cmd) => {
         if (typeof cmd === 'string' && cmd.includes('similar-code status')) {
           return JSON.stringify({ kind: 'status', model_ready: false });
@@ -288,7 +288,7 @@ describe('ValidateSimilarCodeAuditor', () => {
 
   describe('Clean Execution', () => {
     it('passes with zero errors when no semantic duplicates exist', async () => {
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
       evaluateSimilarCodeCandidates([], { ignoreSameFile: true }, auditor);
 
       const result = await auditor.finishAudit();
@@ -327,7 +327,7 @@ describe('ValidateSimilarCodeAuditor', () => {
 
     it('skips execution cleanly with zero errors when isSimilarCodeSkipped is active', async () => {
       process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS = 'true';
-      const auditor = new ValidateSimilarCodeAuditor(scratchDir);
+      const auditor = new ValidateSimilarCodeAuditor({ projectRoot: scratchDir });
 
       await auditor.runAudit();
       delete process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS;

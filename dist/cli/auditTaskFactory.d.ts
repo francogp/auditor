@@ -1,5 +1,6 @@
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditTaskDefinition, AuditorRuleCapabilities } from "../core/auditContract.js";
+import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 //#region src/cli/auditTaskFactory.d.ts
 export interface DiscoveryOptions {
   baseDir?: string;
@@ -24,7 +25,6 @@ export interface DiscoveryOptions {
   includeHeavy?: boolean;
 }
 export declare function getTimeoutForTask(_filename: string, configRunnerTimeout?: number): number;
-export declare const DEFAULT_PERMISSIONS: readonly ["--permission", "--experimental-strip-types", "--allow-fs-read=*", "--allow-fs-write=*", "--allow-child-process", "--allow-addons"];
 export declare function getPermissionsForTask(filename: string, fullPath?: string): string[];
 /** Convert snake_case or kebab-case filename to Title Case */
 export declare function formatTaskTitle(filename: string): string;
@@ -33,3 +33,4 @@ export declare function shouldSkipTaskByCapabilities(capabilities: Partial<Audit
 export declare function buildTaskCliArguments(filename: string, fullPath: string, id: string, isBuiltin: boolean, options: DiscoveryOptions): string[];
 export declare function createAuditTaskDefinition(fullPath: string, filename: string, family: AuditFamily, config: Awaited<ReturnType<typeof loadAuditConfig>>, options: DiscoveryOptions, isBuiltin: boolean, targetSuiteIds: Set<string> | null): Promise<AuditTaskDefinition | null>;
 //#endregion
+export { DEFAULT_PERMISSIONS };

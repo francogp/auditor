@@ -5,8 +5,11 @@ export declare const AUDITOR_TEST_RULES: readonly AuditorTestRuleId[];
 export declare const AUDITOR_TEST_DESCRIPTIONS: Record<AuditorTestRuleId, string>;
 export declare const AUDITOR_TEST_REMEDIATIONS: Record<AuditorTestRuleId, string>;
 export declare function extractSuiteDeclaredRules(source: string): string[];
+export interface AuditorTestsAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
-  constructor(projectRoot?: string);
+  constructor(options?: AuditorTestsAuditorOptions);
   recordScannedFile(filePath: string): void;
   runAudit(): Promise<void>;
 }

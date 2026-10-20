@@ -36,7 +36,11 @@ export function resolveActiveCoverageRunId(): string | undefined {
 export function toPosixRelative(projectRoot: string, filePath: string): string {
   if (!filePath) return '';
   const rel = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
-  return rel.replace(/\\/g, '/').replace(/^\.\//, '');
+  const posix = rel.replaceAll(path.win32.sep, path.posix.sep);
+  const withoutLeadingDot = posix.startsWith('./') ? posix.slice(2) : posix;
+  return withoutLeadingDot.endsWith('/') && withoutLeadingDot.length > 1
+    ? withoutLeadingDot.slice(0, -1)
+    : withoutLeadingDot;
 }
 
 export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean {
@@ -130,11 +134,8 @@ export function isAuditableCodebaseFile(
   relPosixPath: string,
   customExemptGlobs: readonly string[] = []
 ): boolean {
-  const lastDot = relPosixPath.lastIndexOf('.');
-  if (lastDot !== -1) {
-    const ext = relPosixPath.slice(lastDot).toLowerCase();
-    if (FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
-  }
+  const ext = path.posix.extname(relPosixPath).toLowerCase();
+  if (ext && FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
   if (matchesAnyGlob(relPosixPath, DEFAULT_NON_AUDITABLE_GLOBS)) return false;
   if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;
   return true;
@@ -158,17 +159,8 @@ export function deriveCoverageFromRoots(
   const effectiveRoots = roots.length > 0 ? roots : ['src', 'scripts', 'tests'];
   const include: string[] = []; // string-ok: dynamic file glob patterns derived at runtime
   for (const root of effectiveRoots) {
-    let cleanRoot = path.posix.normalize(root.split('\\').join('/'));
-    if (cleanRoot.startsWith('./')) cleanRoot = cleanRoot.slice(2);
-    while (cleanRoot.endsWith('/') && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
-    if (cleanRoot === '.') cleanRoot = '';
-
-    if (path.isAbsolute(cleanRoot)) {
-      cleanRoot = path.relative(projectRoot, cleanRoot).split('\\').join('/');
-      if (cleanRoot.startsWith('./')) cleanRoot = cleanRoot.slice(2);
-      while (cleanRoot.endsWith('/') && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
-      if (cleanRoot === '.') cleanRoot = '';
-    }
+    const cleanRoot = toPosixRelative(projectRoot, root);
+    // path-ok: Glob pattern directory prefix
     const prefix = cleanRoot === '' || cleanRoot === '.' ? '' : `${cleanRoot}/`;
     for (const ext of extensions) {
       include.push(`${prefix}**/*${ext}`);

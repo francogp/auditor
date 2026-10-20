@@ -17,7 +17,7 @@ var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-o1";
 	configSectionKey = "domain";
 	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof O1DataStructuresAuditor ? auditorOrOptions : new O1DataStructuresAuditor(void 0, typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+		const auditor = auditorOrOptions instanceof O1DataStructuresAuditor ? auditorOrOptions : new O1DataStructuresAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

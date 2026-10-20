@@ -32,10 +32,12 @@ const DOX_RULES = [
 ];
 var DoxIntegrityAuditor = class extends BaseAuditor {
 	rootDir;
-	constructor(rootDir) {
-		const projectRoot = rootDir || process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot || process.cwd();
 		super({
+			projectRoot,
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOX_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -72,8 +74,7 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 				"dox-section-order": "📖 GUÍA DE REMEDIACIÓN: dox-section-order\n1. Causa Raíz: Los encabezados de sección en `AGENTS.md` no siguen la secuencia canónica estipulada por la especificación DOX.\n2. Diagnóstico: Verifica el orden de las secciones en el archivo reportado.\n3. Solución Canónica: Reordena las secciones respetando el flujo estándar: 1. Purpose -> 2. Ownership -> 3. Local Contracts -> 4. Manifest / Index.\n4. Ejemplo:\n   - Mover `## Ownership` inmediatamente después de `# Purpose`.",
 				"dox-empty-section": "📖 GUÍA DE REMEDIACIÓN: dox-empty-section\n1. Causa Raíz: Una sección en `AGENTS.md` está completamente vacía o contiene texto placeholder genérico (e.g. \"TBD\", \"TODO\", \"Lorem ipsum\").\n2. Diagnóstico: Revisa la sección indicada en la línea del hallazgo.\n3. Solución Canónica: Redacta una descripción técnica concisa y real de la responsabilidad o contrato del módulo.\n4. Ejemplo:\n   ❌ Incorrecto: `## Local Contracts\\nTODO`\n   ✅ Correcto:   `## Local Contracts\\n- Todos los métodos retornan Result<T, DomainError>.`"
 			},
-			coverage: { include: ["**/AGENTS.md"] },
-			projectRoot
+			coverage: { include: ["**/AGENTS.md"] }
 		});
 		this.rootDir = projectRoot;
 	}

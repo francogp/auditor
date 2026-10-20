@@ -312,12 +312,12 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
     const auditor =
       auditorOrOptions instanceof ValidateGsapAnimationsAuditor
         ? auditorOrOptions
-        : new ValidateGsapAnimationsAuditor(
-            undefined,
-            typeof auditorOrOptions === 'string'
-              ? auditorOrOptions
-              : auditorOrOptions?.projectRoot
-          );
+        : new ValidateGsapAnimationsAuditor({
+            projectRoot:
+              typeof auditorOrOptions === 'string'
+                ? auditorOrOptions
+                : auditorOrOptions?.projectRoot
+          });
     super(auditor);
   }
 

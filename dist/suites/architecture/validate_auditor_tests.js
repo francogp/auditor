@@ -83,9 +83,11 @@ function auditTaskRuleCoverage(params) {
 	};
 }
 var AuditorTestsAuditor = class extends BaseAuditor {
-	constructor(projectRoot = process.cwd()) {
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			id: "validate_auditor_tests",
 			name: "Auditor Test Existence & Completeness Validator",
 			description: "Valida existencia y cobertura de tests en auditores",

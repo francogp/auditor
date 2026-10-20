@@ -230,7 +230,7 @@ export default defineConfig({
         globals: true,
         pool: 'forks',
         environment: 'node',
-        include: ['tests/**/*.test.ts'],
+        include: ['tests/**/*.{test,spec}.ts'],
         testTimeout: 30000,
         hookTimeout: 30000,
         css: false,

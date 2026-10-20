@@ -23,7 +23,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
@@ -183,22 +183,26 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
   }
 }
 
+export interface TemplateIdAuditorOptions extends FileScanRootsOptions {
+  readonly requireInputIds?: boolean;
+}
+
 export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
   private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
-  constructor(
-    roots?: readonly string[],
-    options?: { requireInputIds?: boolean },
-    projectRoot?: string
-  ) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? [])
-    ];
+  constructor(options: TemplateIdAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => [
+        ...(config.paths.componentsRoots ?? []),
+        ...(config.paths.viewsRoots ?? [])
+      ]
+    );
+    const config = getAuditConfig(effectiveRoot);
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -254,11 +258,11 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
           '   ❌ Sin ID: `<input v-model="name" type="text" />`\n' +
           '   ✅ Con ID: `<input :id="nameInputId" v-model="name" type="text" />`'
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
-    this.requireInputIds = options?.requireInputIds ?? config.templates?.requireInputIds ?? false;
+    this.requireInputIds = options.requireInputIds ?? config.templates?.requireInputIds ?? false;
   }
 
   public getMatchLineInfo(

@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
+import { isPathContained } from "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/performance/validate_query_performance.ts
 enableCompileCache();
@@ -33,6 +33,7 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		const targetRoots = options.roots ?? [...config.paths?.srcRoots ?? [], ...migrationRoots];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			id: "validate_query_performance",
 			name: "Database Query & Index Performance Validator",
 			description: "Rendimiento de consultas SQL, índices y paginación",
@@ -125,8 +126,7 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		if (content.includes("select-star-ok")) return;
 		if (isPathExempt(relPath, this.exemptSelectStarPaths)) return;
 		if (this.excludeMigrationsDir && this.migrationsDir) {
-			const norm = normalizePosixPath(relPath);
-			if (norm === this.migrationsDir || norm.startsWith(`${this.migrationsDir}/`)) return;
+			if (isPathContained(this.migrationsDir, relPath, this.projectRoot)) return;
 		}
 		if (relPath.endsWith(".sql")) {
 			const sqlSelectStarRegex = /\bSELECT\s+\*\s+FROM\b/gi;

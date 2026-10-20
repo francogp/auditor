@@ -1,6 +1,4 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_reactive_purity.ts
@@ -43,11 +41,11 @@ function extractComputedGetterBody(firstArg, sf) {
 	return null;
 }
 var ReactivePurityAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? [...config.paths.storesRoots ?? [], ...config.paths.composablesRoots ?? []];
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [...config.paths.storesRoots ?? [], ...config.paths.composablesRoots ?? []]);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -76,9 +74,9 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 				"computed-state-mutation": "Causa Raíz:\nSe detectó una asignación de mutación (ref.value =, state.x =, store.x =) dentro del getter de una propiedad \"computed()\".\nLos computeds en Vue 3 deben ser funciones de cálculo puro que derivan un valor sin alterar el estado del sistema. Mutar estado dentro de un getter desestabiliza el grafo de dependencias reactivas y genera loops de actualización descontrolados.\n\nDiagnóstico:\nRevisa el bloque computed indicado en el reporte. Localiza la asignación con operador de igualdad (=, +=, -=).\n\nSolución Canónica:\n1. Eliminar la asignación de estado del interior del computed.\n2. Si la mutación debe dispararse cuando cambian otras dependencias, utiliza un \"watch\" o \"watchEffect\" explícito.\n3. Si el caso es una inicialización perezosa intencional legítima y aislada, utiliza el escape \"// purity-ok: <justificación>\".\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: mutación de ref dentro del getter\nconst fullName = computed(() => {\n  accessCount.value++;\n  return `${firstName.value} ${lastName.value}`;\n});\n\n// ✅ Correcto: derivación pura\nconst fullName = computed(() => `${firstName.value} ${lastName.value}`);",
 				"computed-side-effect": "Causa Raíz:\nSe detectó una invocación a un método con efectos secundarios (ej. \".save()\", \"scheduleSave()\", \"authStore.logout()\", \"window.location\") dentro de un \"computed()\".\nLos getters computados son evaluados de forma perezosa (lazy) por el motor reactivo de Vue o de forma recurrente durante el ciclo de vida del componente. Disparar persistencia o navegación dentro de un getter genera efectos colaterales impredecibles.\n\nDiagnóstico:\nBusca llamadas a persistencia o navegación dentro de \"computed(() => ...)\".\n\nSolución Canónica:\nMover la llamada a la persistencia o navegación a una acción de store, a un manejador de eventos o a un \"watch\" que reaccione al cambio de la propiedad computada.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: guardar cambios automáticamente dentro del getter\nconst total = computed(() => {\n  const res = calculateTotal();\n  scheduleSave();\n  return res;\n});\n\n// ✅ Correcto: cálculo puro en computed y persistencia en evento o watch\nconst total = computed(() => calculateTotal());\nwatch(total, () => { scheduleSave(); });"
 			},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	checkComputedCall(node, sf, relPath, content) {

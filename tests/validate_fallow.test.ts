@@ -35,7 +35,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
   describe('Metadata & Catalog', () => {
     it('initializes with canonical metadata and capabilities', () => {
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_fallow');
       expect(auditor.name).toBe('Fallow Architecture & Refactoring Targets');
       expect(auditor.family).toBe('architecture');
@@ -52,7 +52,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
 
     it('declares 100% of rules in ruleDescriptions matching FALLOW_RULES', () => {
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       for (const ruleId of FALLOW_RULES) {
         expect(auditor.ruleDescriptions?.[ruleId]).toBeDefined();
         expect(FALLOW_RULE_DESCRIPTIONS[ruleId]).toBeDefined();
@@ -69,7 +69,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         })
       );
 
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
 
@@ -141,7 +141,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
 
     it('executes runFallowSubCommand with triplets command for triplicate detection', async () => {
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const calls: string[] = [];
       (
         auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
@@ -220,7 +220,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
   describe('mapFallowJson - Health & Targets', () => {
     it('executes runFallowSubCommand with health and ["--targets"] argument to prevent design bug where targets were omitted', async () => {
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const subcommands: Array<{ cmd: string; args?: readonly string[] }> = [];
       (
         auditor as unknown as {
@@ -419,7 +419,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         })
       );
 
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const dispatchedArgs: Record<string, string[]> = {};
       (
         auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
@@ -452,7 +452,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       const prevSpeed = process.env.AUDITOR_SPEED;
       process.env.AUDITOR_SPEED = 'full';
       try {
-        const auditor = new FallowArchitectureAuditor(tempDir);
+        const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
         const dispatchedArgs: Record<string, string[]> = {};
         (
           auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
@@ -477,7 +477,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
     it('omits --type-aware when fallow.typeAware is explicitly false or tsconfig.json is missing', async () => {
       // 1. Without tsconfig.json
-      const auditorWithoutTs = new FallowArchitectureAuditor(tempDir);
+      const auditorWithoutTs = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const argsWithoutTs: Record<string, string[]> = {};
       (
         auditorWithoutTs as unknown as {
@@ -500,7 +500,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
           }
         })
       );
-      const auditorWithDisabled = new FallowArchitectureAuditor(tempDir);
+      const auditorWithDisabled = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const argsWithDisabled: Record<string, string[]> = {};
       (
         auditorWithDisabled as unknown as {
@@ -519,7 +519,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       await fs.mkdir(covDir, { recursive: true });
       await fs.writeFile(path.join(covDir, 'coverage-final.json'), '{}', 'utf-8');
 
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const dispatchedArgs: Record<string, string[]> = {};
       (
         auditor as unknown as { runFallowSubCommand: (cmd: string, args?: string[]) => unknown }
@@ -541,7 +541,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       process.env.AUDITOR_PRESET = 'lint';
 
       try {
-        const auditor = new FallowArchitectureAuditor(tempDir);
+        const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
         expect(auditor.isFastMode()).toBe(true);
 
         const dispatchedCommands: string[] = [];
@@ -569,7 +569,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
     });
 
     it('enforces the Anti-Repetition invariant when resolving dual command profiles', () => {
-      const auditor = new FallowArchitectureAuditor(tempDir);
+      const auditor = new FallowArchitectureAuditor({ projectRoot: tempDir });
       const profile = {
         command: 'fallow dead-code',
         fastArgs: ['--fast'],

@@ -2,9 +2,9 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
-import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { AuditedDocument } from "../../core/auditedDocument.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/domain_data/validate_o1_data_structures.ts
@@ -249,11 +249,11 @@ function scanFileForO1Issues(filePath, content, catalogPatterns = getResolvedO1C
 	return issues;
 }
 var O1DataStructuresAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? config.paths.codeRoots ?? [];
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.codeRoots ?? []);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(O1_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -288,9 +288,9 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 				"o1-json-clone": "📖 GUÍA DE REMEDIACIÓN: o1-json-clone\n1. Causa Raíz: Uso del anti-patrón JSON.parse(JSON.stringify(data)) para clonar estructuras de datos en memoria. Es computacionalmente costoso, pierde tipos especiales (Date, Map, Set, BigInt, RegExp, funciones) y genera excesiva presión en el Garbage Collector.\n2. Diagnóstico: Busca JSON.parse(JSON.stringify(...)) en el archivo.\n3. Solución: Utiliza la función nativa estándar de la plataforma structuredClone(data), o shallow clone con spread { ...obj } si solo requieres clonar el primer nivel.\n4. Ejemplo:\n   ❌ Incorrecto: const copy = JSON.parse(JSON.stringify(gameState));\n   ✅ Correcto:   const copy = structuredClone(gameState);",
 				"o1-redundant-spread-return": "📖 GUÍA DE REMEDIACIÓN: o1-redundant-spread-return\n1. Causa Raíz: Una función pura finaliza con \"return [...arr];\" duplicando innecesariamente el array en el heap cuando el consumidor no muta el resultado.\n2. Diagnóstico: Busca return [...array] en funciones de solo lectura.\n3. Solución: Tipa la firma de retorno como \"readonly T[]\" y devuelve la referencia directa al array (return arr;), eliminando la asignación de memoria."
 			},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	async runAudit(astContext) {

@@ -22,7 +22,7 @@ import {
 } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { getPackageJson, writePackageJson } from '../../core/packageJson.ts';
-import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath, isPathContained } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -106,6 +106,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         SCRIPT_EXTENSIONS_RULES,
         {
@@ -244,7 +245,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
           const relPath = toPosixRelative(this.projectRoot, fullPath);
           if (isExemptScriptFile(relPath, exemptFiles)) continue;
           const isScriptDir = scriptAndCliDirs.some(
-            (dir) => relPath === dir || relPath.startsWith(dir + '/')
+            (dir) => isPathContained(dir, relPath)
           );
           if (isScriptDir) {
             const targetExt = ext === '.jsx' ? '.tsx' : '.ts';

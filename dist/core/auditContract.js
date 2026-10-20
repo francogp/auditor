@@ -158,6 +158,7 @@ function deriveCanonicalAuditorScript(id, description, overrides) {
 		command: overrides?.command ?? `auditor task=${id}`,
 		description: overrides?.description ?? description,
 		category: overrides?.category ?? "suite",
+		permissions: overrides?.permissions ?? [],
 		...overrides?.isApplicable ? { isApplicable: overrides.isApplicable } : {}
 	};
 }
@@ -171,7 +172,8 @@ const RATCHET_STATUSES = [
 */
 function normalizeFindingPath(filePath, cwd = process.cwd()) {
 	if (!filePath) return "General";
-	return (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).replace(/\\/g, "/").replace(/^\/+/, "") || "General";
+	const posix = (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).replaceAll(path.win32.sep, path.posix.sep);
+	return (posix.startsWith("./") ? posix.slice(2) : posix) || "General";
 }
 /**
 * Stably sorts an array of AuditFinding instances by:

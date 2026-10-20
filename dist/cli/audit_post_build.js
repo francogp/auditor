@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import "../core/permissionGuard.js";
+import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
-import { DEFAULT_PERMISSIONS } from "./auditTaskFactory.js";
+import "./auditTaskFactory.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";

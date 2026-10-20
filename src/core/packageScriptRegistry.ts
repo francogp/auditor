@@ -207,7 +207,8 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     name: 'auditor:dupes',
     command: 'auditor-dupes',
     description: 'Refactorización y deduplicación determinista de código sintáctico y clones',
-    category: 'reporting'
+    category: 'reporting',
+    permissions: ['--allow-addons']
   },
   {
     name: 'auditor:magic',
@@ -453,4 +454,19 @@ export class PackageScriptRegistry {
       this.requirements.set(req.name, { requirement: req, sourceId: 'framework:core' });
     }
   }
+}
+
+/**
+ * Builds the canonical runner command for an AuditorPackageScriptRequirement,
+ * dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.
+ */
+export function buildCanonicalRunnerCommand(requirement: AuditorPackageScriptRequirement): string {
+  let cmd = requirement.command;
+  if (requirement.permissions && requirement.permissions.length > 0) {
+    const flagsStr = requirement.permissions.join(' ');
+    if (!cmd.includes(flagsStr)) {
+      cmd = `${cmd} ${flagsStr}`;
+    }
+  }
+  return cmd;
 }

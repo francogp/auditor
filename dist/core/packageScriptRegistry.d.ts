@@ -29,4 +29,9 @@ export declare class PackageScriptRegistry {
    */
   static reset(): void;
 }
+/**
+ * Builds the canonical runner command for an AuditorPackageScriptRequirement,
+ * dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.
+ */
+export declare function buildCanonicalRunnerCommand(requirement: AuditorPackageScriptRequirement): string;
 //#endregion

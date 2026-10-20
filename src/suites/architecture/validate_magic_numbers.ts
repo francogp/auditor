@@ -34,7 +34,9 @@ import {
   FileScanAuditor,
   createUniformRemediationPhases,
   type AuditedDocument,
-  createRuleCapabilities
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
@@ -228,26 +230,20 @@ function isAnimationPropertyArg(node: ts.Node): boolean {
   return false;
 }
 
-export interface ValidateMagicNumbersOptions {
-  readonly projectRoot?: string;
-  readonly roots?: readonly string[];
-}
+export type ValidateMagicNumbersOptions = FileScanRootsOptions;
 
 export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRuleId> {
-  constructor(
-    options?: ValidateMagicNumbersOptions | readonly string[],
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      options && !Array.isArray(options) ? (options as ValidateMagicNumbersOptions) : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
-    const config = getAuditConfig(projectRoot);
-    const rawRoots =
-      optionsObj?.roots ?? (Array.isArray(options) ? options : (config.paths.codeRoots ?? []));
-    const effectiveRoots = rawRoots.map((r) => toPosixRelative(projectRoot, r));
+  constructor(options: ValidateMagicNumbersOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths.codeRoots ?? []
+    );
+    const config = getAuditConfig(effectiveRoot);
+    const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -309,7 +305,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           '  Aplicación segura: npm run auditor:magic apply <plan.json> --worktree\n' +
           '  Ayuda interactiva: npm run auditor:magic help'
       },
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

@@ -220,16 +220,24 @@ export function scanFileForIllegalHeaders(filePath: string, content: string): He
   return violations;
 }
 
+export interface AuditHeadersOptions {
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+}
+
 /**
  * Object-oriented FileScanAuditor implementation for Illegal Audit Headers.
  */
 export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
   private readonly collectedViolations: HeaderViolation[] = [];
 
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const headerRoots = roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
+  constructor(options: AuditHeadersOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const headerRoots =
+      options.roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       roots: headerRoots,
       projectRoot,
       ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
@@ -444,7 +452,7 @@ export function auditAuditHeaders(targetDir = process.cwd()): AuditHeadersResult
   const scannableRoots = getEffectiveScannableRoots(config);
   const rootsToScan = scannableRoots.filter((r) => fs.existsSync(path.resolve(targetDir, r)));
 
-  const auditor = new AuditHeadersAuditor(rootsToScan);
+  const auditor = new AuditHeadersAuditor({ projectRoot: targetDir, roots: rootsToScan });
   const files = auditor['context'].collectFiles(rootsToScan);
   for (const file of files) {
     const relPath = path.relative(targetDir, file).split(path.sep).join(path.posix.sep);

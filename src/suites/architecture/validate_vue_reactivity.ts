@@ -22,10 +22,9 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
@@ -68,17 +67,20 @@ function getCallNameAndFirstArg(
 }
 
 export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.componentsRoots ?? []),
-      ...(config.paths.viewsRoots ?? []),
-      ...(config.paths.composablesRoots ?? []),
-      ...(config.paths.storesRoots ?? [])
-    ];
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => [
+        ...(config.paths.componentsRoots ?? []),
+        ...(config.paths.viewsRoots ?? []),
+        ...(config.paths.composablesRoots ?? []),
+        ...(config.paths.storesRoots ?? [])
+      ]
+    );
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -166,9 +168,9 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
           'const state = reactive({ foo: 1, bar: "test" });\n' +
           'const { foo, bar } = toRefs(state);'
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.ts', '.js']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

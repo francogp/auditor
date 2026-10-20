@@ -8,7 +8,7 @@ import {
 } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { normalizePosixPath, isPathExempt } from '../../core/safePath.ts';
+import { normalizePosixPath, isPathExempt, isPathContained } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -39,6 +39,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     const targetRoots = options.roots ?? [...(config.paths?.srcRoots ?? []), ...migrationRoots];
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       id: 'validate_query_performance',
       name: 'Database Query & Index Performance Validator',
       description: 'Rendimiento de consultas SQL, índices y paginación',
@@ -200,8 +201,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     if (content.includes('select-star-ok')) return;
     if (isPathExempt(relPath, this.exemptSelectStarPaths)) return;
     if (this.excludeMigrationsDir && this.migrationsDir) {
-      const norm = normalizePosixPath(relPath);
-      if (norm === this.migrationsDir || norm.startsWith(`${this.migrationsDir}/`)) return;
+      if (isPathContained(this.migrationsDir, relPath, this.projectRoot)) return;
     }
 
     if (relPath.endsWith('.sql')) {

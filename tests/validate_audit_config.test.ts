@@ -15,14 +15,15 @@ import {
 } from '../src/core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../src/core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../src/core/packageScriptRegistry.ts';
+import { toPosixPath } from '../src/core/safePath.ts';
 import { ValidateAuditConfigAuditor } from '../src/suites/architecture/validate_audit_config.ts';
 
-const AUDIT_CONFIG_MODULE_PATH = path
-  .resolve(import.meta.dirname, '../src/core/auditConfig.ts')
-  .replace(/\\/g, '/');
-const BASE_AUDITOR_PATH = path
-  .resolve(import.meta.dirname, '../src/core/auditorBase.ts')
-  .replace(/\\/g, '/');
+const AUDIT_CONFIG_MODULE_PATH = toPosixPath(
+  path.resolve(import.meta.dirname, '../src/core/auditConfig.ts')
+);
+const BASE_AUDITOR_PATH = toPosixPath(
+  path.resolve(import.meta.dirname, '../src/core/auditorBase.ts')
+);
 
 const BASE_TEST_CONFIG_SECTIONS = `
   persistence: { engine: 'none', schemaQualified: false },
@@ -283,6 +284,7 @@ export class CustomExtAuditor extends BaseAuditor {
       icon: '🔧',
       configKey: 'paths',
       defaultConfig: {},
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleIds: ['custom-tool-rule'],
@@ -508,6 +510,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       icon: '🔧',
       configKey: 'paths',
       defaultConfig: {},
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
@@ -565,6 +568,7 @@ export class InvalidAuditor extends BaseAuditor {
       packageName: 'Invalid',
       configKey: 'paths',
       defaultConfig: {},
+      requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {},
@@ -821,6 +825,7 @@ export class CustomExtAuditor extends BaseAuditor {
       coverage: { include: ['scripts/**'] },
       configKey: 'customExt.enabled',
       defaultConfig: { enabled: true, customOption: 'default_val' },
+      requiredPermissions: [],
       criticalConfig: {},
       ruleCapabilities: {
         'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }

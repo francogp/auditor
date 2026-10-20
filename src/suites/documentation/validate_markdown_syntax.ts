@@ -24,7 +24,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -49,9 +49,14 @@ function isTablePrecededProperly(prevLine: string): boolean {
 }
 
 export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId> {
-  constructor(roots: readonly string[] = ['.'], projectRoot?: string) {
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      () => ['.']
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         MARKDOWN_SYNTAX_RULES,
         {
@@ -101,10 +106,10 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
           '   ❌ Incorrecto: `Descripción:\\n| Columna 1 | Columna 2 |`\n' +
           '   ✅ Correcto:   `Descripción:\\n\\n| Columna 1 | Columna 2 |`'
       },
-      roots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.md']),
       extraIgnorePatterns: ['scratch/**', 'dist/**', 'dev-dist/**', 'test-results/**'],
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 

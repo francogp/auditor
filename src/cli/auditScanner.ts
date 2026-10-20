@@ -20,11 +20,13 @@ import {
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import { loadAuditConfig } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 import {
   PackageScriptRegistry,
   CORE_PACKAGE_SCRIPT_REQUIREMENTS
 } from '../core/packageScriptRegistry.ts';
+export { isSimilarCodeSkipped } from '../suites/architecture/validate_similar_code.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 
@@ -107,6 +109,7 @@ function inferFamilyFromRelPath(
   relPath: string,
   activeFamilies: readonly AuditFamily[]
 ): AuditFamily {
+  // path-ok: Segment decomposition to extract suite family folder
   const segments = relPath.split('/');
   const firstSegment = segments[0];
   if (segments.length > 1 && firstSegment && activeFamilies.some((f) => f === firstSegment)) {
@@ -162,7 +165,7 @@ async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
         await scanSuiteDirectory({ ...params, currentDir: fullPath, isBuiltin });
       }
     } else if (stat.isFile() && !isIgnoredFileEntry(entry)) {
-      const relPath = path.relative(params.rootDir, fullPath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(params.rootDir, fullPath);
       const family = inferFamilyFromRelPath(relPath, params.activeFamilies);
       const filename = path.basename(entry, path.extname(entry));
       const task = await createAuditTaskDefinition(
@@ -192,7 +195,7 @@ function detectExtensionFamily(
   extPath: string,
   activeFamilies: readonly AuditFamily[]
 ): AuditFamily {
-  const normalized = extPath.replace(/\\/g, '/');
+  const normalized = toPosixRelative(process.cwd(), extPath);
   for (const fam of activeFamilies) {
     if (normalized.includes(`/${fam}/`)) {
       return fam;

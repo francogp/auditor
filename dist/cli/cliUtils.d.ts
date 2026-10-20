@@ -27,6 +27,17 @@ export declare function bootstrapCliProject(argv?: readonly string[]): CliBootst
  * Strips project-targeting CLI flags (--project, project=, -p) from an argument list.
  */
 export declare function stripProjectCliArgs(argv: readonly string[]): string[];
+/** Canonical flags indicating user requested human console output. */
+export declare const HUMAN_CONSOLE_FLAGS: ReadonlySet<string>;
+export interface HumanConsoleOptions {
+  human?: boolean;
+  verbose?: boolean;
+  format?: string;
+}
+/**
+ * Resolves whether the current invocation requested human Box-Drawing output.
+ */
+export declare function isHumanConsoleMode(options?: HumanConsoleOptions, argv?: readonly string[]): boolean;
 export interface ExecuteNodeCliOptions {
   cwd?: string;
   maxBuffer?: number;

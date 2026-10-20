@@ -95,16 +95,23 @@ function isIntegerRangeLoop(executionBody: string, matchIndex: number): boolean 
   return /\.\./.test(loopSlice);
 }
 
+export interface SqlAntiPatternsAuditorOptions {
+  readonly customMigrationsDir?: string;
+  readonly projectRoot?: string;
+}
+
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private readonly configuredMigrationsDir: string;
 
-  constructor(customMigrationsDir?: string, projectRoot: string = process.cwd()) {
-    const config = getAuditConfig(projectRoot);
-    const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || 'migrations';
+  constructor(options: SqlAntiPatternsAuditorOptions = {}) {
+    const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || 'migrations';
     const srcRoots = config.paths.srcRoots || ['src'];
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -170,12 +177,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
           `${migrationsDirRel}/**/*.sql`,
           'database/**/*.sql',
           'migrations/**/*.sql',
-          ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue']), projectRoot).include
+          ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.vue']), effectiveRoot).include
         ]
       },
       roots: [migrationsDirRel, 'database', ...srcRoots],
       allowedExtensions: new Set(['.sql', '.ts', '.vue']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
 
     this.configuredMigrationsDir = migrationsDirRel;
@@ -292,10 +299,10 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     }
     const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
     for (const sub of allowedDbDirs) {
-      const cleanSub = normalizePosixPath(sub).replace(/^\.\//, '');
+      const cleanSub = normalizePosixPath(sub);
       candidateRoots.add(cleanSub);
       if (!cleanSub.startsWith('database/')) {
-        candidateRoots.add(`database/${cleanSub}`);
+        candidateRoots.add(path.posix.join('database', cleanSub));
       }
     }
     return Array.from(candidateRoots);

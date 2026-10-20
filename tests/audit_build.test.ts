@@ -33,7 +33,7 @@ describe('audit_post_build CLI', () => {
       return fakeChild;
     });
 
-    const code = await runAuditPostBuild(['--verbose']);
+    const code = await runAuditPostBuild(['human']);
 
     expect(code).toBe(0);
     expect(childProcess.spawn).toHaveBeenCalledTimes(1);
@@ -42,7 +42,7 @@ describe('audit_post_build CLI', () => {
     expect(callArgs![0]).toBe(process.execPath);
     const nodeArgs = callArgs![1] as string[];
     expect(nodeArgs).toContain('phase=post-build');
-    expect(nodeArgs).toContain('--verbose');
+    expect(nodeArgs).toContain('human');
   });
 
   it('propagates non-zero exit code on audit failure', async () => {

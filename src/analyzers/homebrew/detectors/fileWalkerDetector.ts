@@ -54,6 +54,7 @@ export const fileWalkerDetector: HomebrewDetector = {
   ruleDescription: 'Recorrido recursivo manual de dirs',
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
     if (context.content.includes('// walker-ok: all')) return [];
+    if (context.isCore && !context.filePath.startsWith('src/core/refactor/')) return [];
 
     const findings: HomebrewFinding[] = [];
     const lines = context.lines;

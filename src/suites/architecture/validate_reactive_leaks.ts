@@ -19,8 +19,7 @@
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -48,24 +47,22 @@ function hasOnceOption(node: ts.CallExpression): boolean {
   return false;
 }
 
-function resolveReactiveRoots(
-  config: ReturnType<typeof getAuditConfig>,
-  customRoots?: readonly string[]
-): readonly string[] {
-  if (customRoots && customRoots.length > 0) return customRoots;
-  return [
-    ...(config.paths.componentsRoots ?? []),
-    ...(config.paths.viewsRoots ?? []),
-    ...(config.paths.composablesRoots ?? [])
-  ];
-}
-
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = resolveReactiveRoots(config, roots);
+  constructor(options: FileScanRootsOptions = {}) {
+    const scanRoots = resolveFileScanRoots(options, (cfg) => [
+      ...(cfg.paths.componentsRoots ?? []),
+      ...(cfg.paths.viewsRoots ?? []),
+      ...(cfg.paths.composablesRoots ?? [])
+    ]);
     super({
+      id: 'validate_reactive_leaks',
+      name: 'Reactive & DOM Event Leak Auditor',
+      description: 'Detecta posibles fugas de memoria y listeners sin limpiar',
+      family: 'architecture',
       usesThirdPartyTool: false,
+      requiredPermissions: [],
+      roots: scanRoots.targetRoots,
+      projectRoot: scanRoots.effectiveRoot,
       ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -75,10 +72,6 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
         changedOnly: false,
         critical: false
       }),
-      id: 'validate_reactive_leaks',
-      name: 'Reactive & DOM Event Leak Auditor',
-      description: 'Detecta posibles fugas de memoria y listeners sin limpiar',
-      family: 'architecture',
       ruleIds: REACTIVE_LEAK_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_LEAK_RULES, 'behavior'),
       packageName: 'Fuga',
@@ -126,9 +119,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
           'import { useIntervalFn } from "@vueuse/core";\n' +
           'useIntervalFn(() => { refreshData(); }, 5000);'
       },
-      roots: effectiveRoots,
-      allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot
+      allowedExtensions: new Set(['.ts', '.vue'])
     });
   }
 

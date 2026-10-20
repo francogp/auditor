@@ -33,6 +33,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       id: 'validate_test_coverage',
       name: 'Test Execution Coverage Auditor',
       description: 'Gobernanza de cobertura real de pruebas unitarias',

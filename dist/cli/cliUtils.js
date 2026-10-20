@@ -121,6 +121,22 @@ function stripProjectCliArgs(argv) {
 	}
 	return strippedArgs;
 }
+/** Canonical flags indicating user requested human console output. */
+const HUMAN_CONSOLE_FLAGS = /* @__PURE__ */ new Set([
+	"human",
+	"--human",
+	"format=human",
+	"verbose",
+	"--verbose",
+	"format=verbose"
+]);
+/**
+* Resolves whether the current invocation requested human Box-Drawing output.
+*/
+function isHumanConsoleMode(options, argv = process.argv) {
+	if (options?.human === true || options?.verbose === true || options?.format === "human" || options?.format === "verbose") return true;
+	return argv.some((arg) => HUMAN_CONSOLE_FLAGS.has(arg));
+}
 /**
 * Runs a Node.js CLI binary with standard permission warning suppressions and returns combined stdout + stderr.
 */
@@ -200,12 +216,12 @@ function resolvePackageBin(packageName, options) {
 	} catch {}
 	if (options?.fallbackRelativeBin) {
 		if (options.projectRoot) {
-			const candidate = resolveNodeModuleBin(options.projectRoot, `${packageName}/${options.fallbackRelativeBin}`);
+			const candidate = resolveNodeModuleBin(options.projectRoot, path.join(packageName, options.fallbackRelativeBin));
 			if (fs.existsSync(candidate)) return candidate;
 		}
 		if (process.env.AUDITOR_HOME_DIR) {
 			const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
-			const homeCandidate = path.resolve(cleanHome, "node_modules", `${packageName}/${options.fallbackRelativeBin}`);
+			const homeCandidate = path.resolve(cleanHome, "node_modules", packageName, options.fallbackRelativeBin);
 			if (fs.existsSync(homeCandidate)) return homeCandidate;
 		}
 	}
@@ -280,4 +296,4 @@ function executeFallowJsonCommand(fallowBin, subCommandArgs, projectRoot = proce
 	};
 }
 //#endregion
-export { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, bootstrapCliProject, executeCliAndReadJson, executeCliToFile, executeFallowJsonCommand, executeNodeCli, isMainModule, resolveCoverageArgs, resolveNodeModuleBin, resolvePackageBin, stripProjectCliArgs };
+export { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, HUMAN_CONSOLE_FLAGS, bootstrapCliProject, executeCliAndReadJson, executeCliToFile, executeFallowJsonCommand, executeNodeCli, isHumanConsoleMode, isMainModule, resolveCoverageArgs, resolveNodeModuleBin, resolvePackageBin, stripProjectCliArgs };

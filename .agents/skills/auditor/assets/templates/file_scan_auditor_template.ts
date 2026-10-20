@@ -16,7 +16,7 @@ import {
   createUniformRemediationPhases,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
-  getAuditConfig,
+  type FileScanRootsOptions,
   type GitIgnoreRequirement
 } from '@francogp/auditor';
 
@@ -31,9 +31,7 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-missing-attribute'
 ] as const;
 
-export interface MyFeatureAuditorOptions {
-  readonly projectRoot?: string;
-  readonly roots?: readonly string[];
+export interface MyFeatureAuditorOptions extends FileScanRootsOptions {
   readonly exemptPaths?: readonly (string | RegExp)[];
 }
 
@@ -42,12 +40,10 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [];
 
   constructor(options: MyFeatureAuditorOptions = {}) {
-    const config = getAuditConfig(options.projectRoot);
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots({
-      projectRoot: options.projectRoot,
-      roots: options.roots,
-      configRoots: config.paths?.srcRoots
-    });
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
     const allowedExtensions = new Set(['.vue', '.ts']);
 
     super({
@@ -84,20 +80,26 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       // Mandatory: Invariant critical configuration baseline (requiredMinimums / forbiddenOverrides)
       // Pass empty object {} when no immutable minimums are enforced.
       criticalConfig: {},
+      // Mandatory: Node.js Permission Model flags required by this suite (pass [] for standard suites)
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
         'my-feature-missing-attribute': 'Atributo obligatorio faltante'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules:
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
       ruleRemediations: {
         'my-feature-forbidden-pattern':
-          'Se detectó un token o patrón prohibido por las normas arquitecturales.\n' +
-          '1. Abre el archivo y línea señalados.\n' +
-          '2. Reemplaza el token prohibido por la alternativa canónica del proyecto.\n' +
-          '3. Si es una excepción legítima documentada, utiliza el comentario de escape "// my-feature-ok".',
+          'Causa Raíz: Se detectó un token o patrón prohibido por las normas arquitecturales.\n' +
+          'Diagnóstico: Abre el archivo y línea señalados para ubicar el identificador prohibido.\n' +
+          'Solución Canónica: Reemplaza el token prohibido por la alternativa canónica del proyecto.\n' +
+          'Ejemplo / Comando: npm run auditor',
         'my-feature-missing-attribute':
-          'Falta un atributo obligatorio requerido por las normas del componente o marcado.\n' +
+          'Causa Raíz: Falta un atributo obligatorio requerido por las normas del componente o marcado.\n' +
+          'Diagnóstico: Revisa la declaración del elemento en la plantilla o archivo fuente.\n' +
+          'Solución Canónica: Añade el atributo mandatorio con su valor canónico correspondiente.\n' +
+          'Ejemplo / Comando: npm run auditor'
+      },
           '1. Agrega el atributo requerido en el elemento indicado.\n' +
           '2. Verifica la documentación del componente para conocer los valores válidos.'
       },

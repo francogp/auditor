@@ -9,7 +9,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { ResolvedTestCoverageConfig } from './auditConfig.ts';
 import { matchesAnyGlob } from './auditCoverage.ts';
-import { isPathIgnored, CANONICAL_IGNORE_DIRS } from './safePath.ts';
+import { isPathIgnored, CANONICAL_IGNORE_DIRS } from './auditorBase.ts';
+import { toPosixRelative } from './safePath.ts';
 
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
 
@@ -279,7 +280,7 @@ function parseRawCoverageItem(
   threshold: number
 ): FileCoverageResult {
   const absolutePath = path.isAbsolute(keyPath) ? keyPath : path.resolve(projectRoot, keyPath);
-  const relPath = path.relative(projectRoot, absolutePath).split(path.sep).join('/');
+  const relPath = toPosixRelative(projectRoot, absolutePath);
 
   if (raw.statements && raw.branches && raw.functions && raw.lines) {
     const statements = calculateMetric(raw.statements.covered, raw.statements.total);
@@ -311,7 +312,8 @@ function parseRawCoverageItem(
 export function isPathExempt(relPath: string, exemptGlobs: readonly string[]): boolean {
   if (exemptGlobs.length === 0) return false;
   for (const glob of exemptGlobs) {
-    const cleanGlob = glob.replace(/^\.\//, '').replace(/\/$/, '');
+    let cleanGlob = glob.startsWith('./') ? glob.slice(2) : glob;
+    if (cleanGlob.endsWith('/')) cleanGlob = cleanGlob.slice(0, -1);
     if (relPath === cleanGlob || relPath.startsWith(`${cleanGlob}/`)) {
       return true;
     }
@@ -427,7 +429,7 @@ export function findUntrackedFiles(
     const entries = fs.readdirSync(currentDir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(currentDir, entry.name);
-      const relPath = path.relative(projectRoot, fullPath).split(path.sep).join('/');
+      const relPath = toPosixRelative(projectRoot, fullPath);
 
       if (entry.isDirectory()) {
         if (

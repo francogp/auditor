@@ -48,7 +48,10 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       'utf-8'
     );
 
-    const auditor = new SqlAntiPatternsAuditor('database/migrations', scratchDir);
+    const auditor = new SqlAntiPatternsAuditor({
+      customMigrationsDir: 'database/migrations',
+      projectRoot: scratchDir
+    });
     const result = await auditor.execute();
 
     const rlsViolations = result.findings.filter(
@@ -84,7 +87,10 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       scratchDir
     );
 
-    const auditor = new SqlAntiPatternsAuditor('database/migrations', scratchDir);
+    const auditor = new SqlAntiPatternsAuditor({
+      customMigrationsDir: 'database/migrations',
+      projectRoot: scratchDir
+    });
     const result = await auditor.execute();
 
     const rlsViolations = result.findings.filter(

@@ -1,7 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
@@ -52,16 +50,16 @@ function getCallNameAndFirstArg(node, ast) {
 	};
 }
 var ValidateVueReactivityAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? [
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [
 			...config.paths.componentsRoots ?? [],
 			...config.paths.viewsRoots ?? [],
 			...config.paths.composablesRoots ?? [],
 			...config.paths.storesRoots ?? []
-		];
+		]);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -94,13 +92,13 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 				"no-async-in-computed": "Causa Raíz:\nSe pasó una función asíncrona a \"computed(async () => ...)\".\nEl sistema de reactividad de Vue 3 no desenvuelve promesas retornadas por un computed. En su lugar, el valor del computed será un objeto \"Promise<T>\" no resuelto, provocando fallos de renderizado en el template.\n\nDiagnóstico:\nBusca \"computed(async () =>\" en el código.\n\nSolución Canónica:\n1. Usar \"computedAsync\" de la librería oficial \"@vueuse/core\" si se requiere derivar un estado reactivo a partir de una promesa asíncrona.\n2. Alternativamente, usar un \"shallowRef\" para el dato resuelto y cargar la promesa dentro de un \"watchEffect\" gestionando estados de carga y error.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: computed devuelve Promise<UserData>\nconst user = computed(async () => await api.getUser(id.value));\n\n// ✅ Correcto: computedAsync de VueUse\nimport { computedAsync } from \"@vueuse/core\";\nconst user = computedAsync(async () => await api.getUser(id.value), null);",
 				"no-destructured-reactive": "Causa Raíz:\nSe desestructuró un objeto creado con \"reactive()\" directamente: \"const { foo, bar } = reactive(...)\".\nAl desestructurar un objeto reactivo de Vue 3, las variables resultantes se convierten en referencias a valores primitivos estáticos, perdiendo completamente su conexión reactiva con el objeto origen.\n\nDiagnóstico:\nBusca declaraciones de asignación desestructurada a partir de una llamada a \"reactive()\".\n\nSolución Canónica:\n1. Envolver el objeto con \"toRefs()\" antes de la desestructuración: \"const { foo, bar } = toRefs(state)\".\n2. O bien, mantener el objeto reactivo intacto y acceder a sus miembros con notación de punto: \"state.foo\".\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: foo y bar pierden la reactividad\nconst state = reactive({ foo: 1, bar: \"test\" });\nconst { foo, bar } = state;\n\n// ✅ Correcto: toRefs preserva la reactividad como Ref<T>\nimport { reactive, toRefs } from \"vue\";\nconst state = reactive({ foo: 1, bar: \"test\" });\nconst { foo, bar } = toRefs(state);"
 			},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".vue",
 				".ts",
 				".js"
 			]),
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	scanFile(relPath, content) {

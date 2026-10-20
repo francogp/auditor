@@ -13,7 +13,8 @@
 import path from 'node:path';
 import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { getAuditConfig } from '../auditConfig.ts';
-import { BaseAuditor, FileScanAuditor } from '../auditorBase.ts';
+import { BaseAuditor } from '../auditorBase.ts';
+import { isPathContained, stripGlobSuffix } from '../safePath.ts';
 
 export interface ScannedFileFindings<TFinding> {
   readonly file: string;
@@ -62,6 +63,10 @@ export abstract class BaseRefactorEngine<
   }
 
   public resolveTargetRoots(): readonly string[] {
+    const codeRoots = this.config.paths?.codeRoots;
+    if (codeRoots && codeRoots.length > 0) {
+      return codeRoots;
+    }
     return this.auditor.roots;
   }
 
@@ -90,7 +95,7 @@ export abstract class BaseRefactorEngine<
   }
 
   public resolveSectionExemptPaths(): readonly string[] {
-    return this.auditor instanceof FileScanAuditor ? this.auditor.exemptPaths : [];
+    return this.auditor.exemptPaths;
   }
 
   public isToolEnabled(): boolean {
@@ -100,18 +105,53 @@ export abstract class BaseRefactorEngine<
     return section.enabled !== false;
   }
 
-  /**
-   * Resolves scannable files strictly delegated to the canonical sub-auditor.
-   */
-  public getScannableFiles(): readonly string[] {
-    return this.auditor.getScannableFiles();
+  private isPathInRoots(relPath: string, roots: readonly string[]): boolean {
+    const absPath = path.resolve(this.projectRoot, relPath);
+    return roots.some((root) => {
+      const cleanRoot = stripGlobSuffix(root);
+      const absRoot = path.resolve(this.projectRoot, cleanRoot);
+      return isPathContained(absRoot, absPath);
+    });
   }
 
   /**
-   * Checks whether a given project-relative path is scannable by the sub-auditor.
+   * Resolves scannable files strictly delegated to the canonical sub-auditor,
+   * enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
+   */
+  public getScannableFiles(): readonly string[] {
+    const files = this.auditor.getScannableFiles();
+    const codeRoots = this.resolveTargetRoots();
+    let filtered = files;
+    if (codeRoots && codeRoots.length > 0) {
+      filtered = filtered.filter((f) => this.isPathInRoots(f, codeRoots));
+    }
+    if (this.shouldIncludeDataPaths()) {
+      return filtered;
+    }
+    const dataRoots = this.config.paths.dataRoots ?? [];
+    if (dataRoots.length === 0) return filtered;
+    return filtered.filter((f) => !this.isPathInRoots(f, dataRoots));
+  }
+
+  /**
+   * Checks whether a given project-relative path is scannable by the sub-auditor,
+   * enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
    */
   public isPathScannable(relPath: string): boolean {
-    return this.auditor.isPathScannable(relPath);
+    if (!this.auditor.isPathScannable(relPath)) {
+      return false;
+    }
+    const codeRoots = this.resolveTargetRoots();
+    if (codeRoots && codeRoots.length > 0 && !this.isPathInRoots(relPath, codeRoots)) {
+      return false;
+    }
+    if (!this.shouldIncludeDataPaths()) {
+      const dataRoots = this.config.paths.dataRoots ?? [];
+      if (dataRoots.length > 0 && this.isPathInRoots(relPath, dataRoots)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**

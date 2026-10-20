@@ -3,11 +3,9 @@ const AUDITOR_HOMEBREW_RULES = [
 	"auditor-manual-package-json",
 	"auditor-manual-vue-sfc-regex",
 	"auditor-manual-ts-ast",
-	"auditor-manual-path-normalize",
 	"auditor-raw-console",
 	"auditor-manual-comment-stripping",
 	"auditor-manual-brace-counting",
-	"auditor-manual-path-containment",
 	"auditor-manual-file-walker",
 	"auditor-homebrew-predicates",
 	"auditor-manual-rule-timing",
@@ -52,5 +50,15 @@ function createLineDetector(options) {
 		}
 	};
 }
+/**
+* Checks whether an index within a line of code sits inside an open string literal.
+*/
+function isInsideStringLiteral(line, index) {
+	const before = line.slice(0, index);
+	const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
+	const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
+	const backticks = (before.match(/`/g) || []).length % 2 === 1;
+	return singleQuotes || doubleQuotes || backticks;
+}
 //#endregion
-export { AUDITOR_HOMEBREW_RULES, createLineDetector };
+export { AUDITOR_HOMEBREW_RULES, createLineDetector, isInsideStringLiteral };

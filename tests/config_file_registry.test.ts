@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import type { AuditorConfigFileRequirement } from '../src/core/auditContract.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
 import { ConfigFileRegistry } from '../src/core/configFileRegistry.ts';
+import { toPosixRelative } from '../src/core/safePath.ts';
 import { defineAuditorExtension } from '../src/plugin/defineAuditorExtension.ts';
 
 describe('ConfigFileRegistry & Unified Config Protocol', () => {
@@ -94,6 +95,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         icon: '🔧',
         configKey: 'paths',
         defaultConfig: {},
+        requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
         ruleCapabilities: {
@@ -149,7 +151,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
       }
 
       this.markRuleEvaluated('custom-content-valid');
-      this.recordScanned(path.relative(this.projectRoot, ensured.resolvedPath).replace(/\\/g, '/'));
+      this.recordScanned(toPosixRelative(this.projectRoot, ensured.resolvedPath));
     }
   }
 
@@ -227,6 +229,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           icon: '⚙️',
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleCapabilities: {

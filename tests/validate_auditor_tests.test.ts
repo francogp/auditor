@@ -137,7 +137,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       // Do NOT create packages/auditor/tests/validate_dummy.test.ts
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
       const result = await auditor.execute();
       const missingViolation = result.findings.find(
@@ -198,7 +198,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
       const result = await auditor.execute();
       const untestedViolation = result.findings.find(
@@ -257,7 +257,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
       const result = await auditor.execute();
       const errClean = result.findings.find(
@@ -306,7 +306,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
       const missingViolation = result.findings.find(
         (f) => f.ruleId === 'missing-auditor-test' && f.context === 'validate_custom_ext'
@@ -377,7 +377,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
       const violation = result.findings.find(
         (f) => f.ruleId === 'missing-construction-auditor-test'
@@ -447,7 +447,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
       const violation = result.findings.find((f) => f.ruleId === 'missing-violation-auditor-test');
       expect(violation).toBeDefined();
@@ -519,7 +519,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -607,7 +607,7 @@ describe('AuditorTestsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new AuditorTestsAuditor(tempDir);
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       expect(result.summary.errors).toBe(0);

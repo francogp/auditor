@@ -1,4 +1,5 @@
 import { renderBanner, renderBoxTable } from "../unifiedTheme.js";
+import { isHumanConsoleMode } from "../../cli/cliUtils.js";
 import { scanProjectSourceFiles } from "./refactorFileScanner.js";
 import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 import path from "node:path";
@@ -43,11 +44,11 @@ Uso vía scripts npm de proyecto:
    npm run ${scriptAlias} -- --project <ruta>
 `);
 }
-function handleDiscoverCommand(def, projectRoot, engine) {
-	console.log(styleText("cyan", `🔍 ${def.scanningMessage}: ${projectRoot}...\n`));
+function handleDiscoverCommand(def, projectRoot, engine, isHuman = false) {
 	const files = engine ? engine.getScannableFiles() : scanProjectSourceFiles(projectRoot);
 	const tableRows = [];
 	const allFindings = [];
+	const fileSummaryList = [];
 	for (const file of files) {
 		const fullPath = path.isAbsolute(file) ? file : path.resolve(projectRoot, file);
 		const fileFindings = def.discoverInFile(fullPath);
@@ -55,14 +56,26 @@ function handleDiscoverCommand(def, projectRoot, engine) {
 			allFindings.push(...fileFindings);
 			const relFile = path.relative(projectRoot, fullPath);
 			tableRows.push(def.buildTableRow(relFile, fileFindings));
+			fileSummaryList.push({
+				file: relFile,
+				count: fileFindings.length
+			});
 		}
 	}
 	if (tableRows.length === 0) {
-		console.log(styleText("green", `✨ ${def.zeroFindingsMessage}\n`));
+		if (isHuman) console.log(styleText("green", `✨ ${def.zeroFindingsMessage}\n`));
+		else console.log(styleText("green", "✔ No refactoring opportunities found."));
 		return;
 	}
-	console.log(renderBoxTable([...def.tableColumns], tableRows));
-	console.log(styleText("yellow", `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`));
+	if (isHuman) {
+		console.log(styleText("cyan", `🔍 ${def.scanningMessage}: ${projectRoot}...\n`));
+		console.log(renderBoxTable([...def.tableColumns], tableRows));
+		console.log(styleText("yellow", `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`));
+	} else {
+		console.log(`🔍 ${def.toolName} discover: ${allFindings.length} opportunity(ies) across ${tableRows.length} file(s):\n`);
+		for (const item of fileSummaryList) console.log(`• ${item.file}: ${item.count} item(s)`);
+		console.log(`\nNext Action: npm run ${def.toolName} inspect <file>`);
+	}
 }
 function handleInspectCommand(def, projectRoot, targetFile) {
 	if (!targetFile) {
@@ -118,10 +131,22 @@ async function runRefactorCliHarness(def, argv = process.argv.slice(2)) {
 			help: {
 				type: "boolean",
 				default: false
+			},
+			verbose: {
+				type: "boolean",
+				default: false
+			},
+			human: {
+				type: "boolean",
+				default: false
 			}
 		},
 		allowPositionals: true
 	});
+	const isHuman = isHumanConsoleMode({
+		verbose: Boolean(args.values.verbose),
+		human: Boolean(args.values.human)
+	}, argv);
 	const positionalProjectArg = argv.find((a) => a.startsWith("project=") || a.startsWith("--project="));
 	const rawProject = (positionalProjectArg ? positionalProjectArg.slice(positionalProjectArg.indexOf("=") + 1) : void 0) || (args.values.project && args.values.project !== "." ? args.values.project : void 0) || ".";
 	const nonProjectPositionals = args.positionals.filter((p) => !p.startsWith("project=") && !p.startsWith("--project="));
@@ -138,7 +163,7 @@ async function runRefactorCliHarness(def, argv = process.argv.slice(2)) {
 	}
 	switch (command) {
 		case "discover":
-			handleDiscoverCommand(def, projectRoot, engine);
+			handleDiscoverCommand(def, projectRoot, engine, isHuman);
 			break;
 		case "inspect":
 			handleInspectCommand(def, projectRoot, args.values.file || nonProjectPositionals[1]);

@@ -20,6 +20,7 @@ Architecture & Tooling Engineers.
 - [`constantRules.ts`](./constantRules.ts): Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
 - [`homebrew/`](./homebrew/AGENTS.md): Modular analyzer engine and registry detecting homebrew anti-patterns in auditors and extensions.
+- [`nativePaths/`](./nativePaths/AGENTS.md): TypeScript AST semantic analyzer enforcing Node.js native standard library for filesystem paths and URLs.
 - [`zIndexRules.ts`](./zIndexRules.ts): Z-Index Design System Parity and isolated constant rules.
 
 ## Work Guidance
@@ -36,3 +37,4 @@ Architecture & Tooling Engineers.
 ## Child DOX Index
 
 - [`homebrew/`](./homebrew/AGENTS.md): Homebrew anti-pattern analyzer and detector registry.
+- [`nativePaths/`](./nativePaths/AGENTS.md): Native path and URL integrity AST analyzer.

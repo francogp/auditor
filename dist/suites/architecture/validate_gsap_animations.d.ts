@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/architecture/validate_gsap_animations.d.ts
 export type GsapAnimationRuleId = 'gsap-banned-css-animations' | 'gsap-banned-ui-timers' | 'gsap-no-layout-properties' | 'gsap-named-timer-constants' | 'gsap-empty-vue-transitions' | 'gsap-no-important-transforms' | 'gsap-no-important-filters' | 'gsap-gpu-layer-promotion' | 'gsap-timeline-constructor-duration' | 'gsap-kebab-case-properties' | 'gsap-raw-transform-string' | 'gsap-simultaneous-origin-conflict' | 'gsap-legacy-ease-names' | 'gsap-high-frequency-tween-creation';
 export declare const GSAP_ANIMATION_RULES: readonly GsapAnimationRuleId[];
@@ -14,7 +14,7 @@ export declare const GPU_FILTER_REGEX: RegExp;
 export declare const GSAP_LAYOUT_PROPERTIES: readonly ["backgroundPosition", "backgroundPositionX", "backgroundPositionY", "top", "bottom", "left", "right", "width", "height", "margin", "marginTop", "marginBottom", "marginLeft", "marginRight", "padding", "paddingTop", "paddingBottom", "paddingLeft", "paddingRight"];
 export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   private getScriptRanges;
   private getNamedTimerConstantsRegex;
   private scanCssAnimations;

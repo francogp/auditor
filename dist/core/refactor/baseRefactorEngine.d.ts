@@ -29,12 +29,15 @@ export declare abstract class BaseRefactorEngine<TFinding = unknown, TPlan = unk
   resolveCombinedIgnorePatterns(): readonly string[];
   resolveSectionExemptPaths(): readonly string[];
   isToolEnabled(): boolean;
+  private isPathInRoots;
   /**
-   * Resolves scannable files strictly delegated to the canonical sub-auditor.
+   * Resolves scannable files strictly delegated to the canonical sub-auditor,
+   * enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
    */
   getScannableFiles(): readonly string[];
   /**
-   * Checks whether a given project-relative path is scannable by the sub-auditor.
+   * Checks whether a given project-relative path is scannable by the sub-auditor,
+   * enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
    */
   isPathScannable(relPath: string): boolean;
   /**

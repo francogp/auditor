@@ -66,6 +66,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         AGENT_PLUGIN_RULES,
         {

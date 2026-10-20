@@ -1,6 +1,4 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_vue_router.ts
@@ -38,15 +36,15 @@ const VUE_ROUTER_EXTENSIONS = /* @__PURE__ */ new Set([
 	".js"
 ]);
 var ValidateVueRouterAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? (config.paths.componentsRoots?.length || config.paths.viewsRoots?.length || config.paths.composablesRoots?.length ? Array.from(/* @__PURE__ */ new Set([
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.componentsRoots?.length || config.paths.viewsRoots?.length || config.paths.composablesRoots?.length ? Array.from(/* @__PURE__ */ new Set([
 			...config.paths.componentsRoots ?? [],
 			...config.paths.viewsRoots ?? [],
 			...config.paths.composablesRoots ?? []
 		])) : config.paths.srcRoots ?? []);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			id: "validate_vue_router",
 			name: "Vue Router 4 Architecture & Navigation Auditor",
 			packageName: "Router",
@@ -77,9 +75,9 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			configKey: "paths",
 			defaultConfig: {},
 			criticalConfig: {},
-			roots: effectiveRoots,
+			roots: targetRoots,
 			allowedExtensions: VUE_ROUTER_EXTENSIONS,
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 	}
 	scanFile(relPath, content) {

@@ -49,8 +49,9 @@ const WAIT_FOR_TIMEOUT_REGEX = /\bpage\.waitForTimeout\s*\(/;
 const TIMEOUT_INFLATION_REGEX = /testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\)/;
 const VI_MOCK_REGEX = /vi\.mock\(\s*['"]([^'"]+)['"]/g;
 var TestHygieneAuditor = class extends FileScanAuditor {
-	constructor() {
-		const config = getAuditConfig();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
+		const config = getAuditConfig(projectRoot);
 		const testRoots = [
 			...config.paths.integrationRoots,
 			...config.paths.e2eRoots,
@@ -58,6 +59,8 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 		];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
+			projectRoot,
 			ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
 				speed: "light",
 				phase: "normal",

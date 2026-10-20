@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -72,12 +72,14 @@ function isIntegerRangeLoop(executionBody, matchIndex) {
 }
 var SqlAntiPatternsAuditor = class extends BaseAuditor {
 	configuredMigrationsDir;
-	constructor(customMigrationsDir, projectRoot = process.cwd()) {
-		const config = getAuditConfig(projectRoot);
-		const migrationsDirRel = customMigrationsDir || config.paths.migrationsDir || "migrations";
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot ?? process.cwd();
+		const config = getAuditConfig(effectiveRoot);
+		const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || "migrations";
 		const srcRoots = config.paths.srcRoots || ["src"];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -114,7 +116,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 				`${migrationsDirRel}/**/*.sql`,
 				"database/**/*.sql",
 				"migrations/**/*.sql",
-				...deriveCoverageFromRoots(srcRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), projectRoot).include
+				...deriveCoverageFromRoots(srcRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), effectiveRoot).include
 			] },
 			roots: [
 				migrationsDirRel,
@@ -126,7 +128,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 				".ts",
 				".vue"
 			]),
-			projectRoot
+			projectRoot: effectiveRoot
 		});
 		this.configuredMigrationsDir = migrationsDirRel;
 	}
@@ -202,9 +204,9 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 		if (fs.existsSync(migrationsDir)) candidateRoots.add(path.relative(this.projectRoot, migrationsDir).split(path.sep).join(path.posix.sep) || this.configuredMigrationsDir);
 		const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
 		for (const sub of allowedDbDirs) {
-			const cleanSub = normalizePosixPath(sub).replace(/^\.\//, "");
+			const cleanSub = normalizePosixPath(sub);
 			candidateRoots.add(cleanSub);
-			if (!cleanSub.startsWith("database/")) candidateRoots.add(`database/${cleanSub}`);
+			if (!cleanSub.startsWith("database/")) candidateRoots.add(path.posix.join("database", cleanSub));
 		}
 		return Array.from(candidateRoots);
 	}

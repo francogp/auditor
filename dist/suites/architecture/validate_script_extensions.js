@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
+import { isPathContained } from "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
-import "../../core/safePath.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -77,6 +77,7 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 		const coverageInclude = ["**/*.{mjs,cjs}", ...resolveScriptAndCliDirs(getAuditConfig(effectiveProjectRoot)).map((d) => `${d}/**/*.{js,jsx}`)];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
 				speed: "light",
 				phase: "setup",
@@ -177,7 +178,7 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 				if (ext === ".js" || ext === ".jsx") {
 					const relPath = toPosixRelative(this.projectRoot, fullPath);
 					if (isExemptScriptFile(relPath, exemptFiles)) continue;
-					if (scriptAndCliDirs.some((dir) => relPath === dir || relPath.startsWith(dir + "/"))) {
+					if (scriptAndCliDirs.some((dir) => isPathContained(dir, relPath))) {
 						const targetExt = ext === ".jsx" ? ".tsx" : ".ts";
 						violations.push({
 							file: relPath,

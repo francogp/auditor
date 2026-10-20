@@ -65,7 +65,11 @@ describe('ZIndexAuditor', () => {
     const cleanTs = `export const modalLayer = Z_LAYERS.MODAL;\n`;
     await fs.writeFile(path.join(tempDir, 'clean.ts'), cleanTs, 'utf-8');
 
-    const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: scssFile,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBe(0);
@@ -76,7 +80,11 @@ describe('ZIndexAuditor', () => {
   it('detects missing variable in scss file (z-index-missing-var)', async () => {
     await fs.writeFile(scssFile, ':root { --z-base: 0; }', 'utf-8');
 
-    const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: scssFile,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     expect(result.summary.errors).toBeGreaterThan(0);
@@ -88,7 +96,11 @@ describe('ZIndexAuditor', () => {
   it('detects mismatch in value between TS and scss (z-index-mismatch)', async () => {
     await fs.writeFile(scssFile, ':root { --z-base: 999; }', 'utf-8');
 
-    const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: scssFile,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     const mismatch = result.findings.find((e) => e.ruleId === 'z-index-mismatch');
@@ -98,7 +110,11 @@ describe('ZIndexAuditor', () => {
 
   it('detects unreadable or non-existent file with z-index-read-error', async () => {
     const nonExistentPath = path.join(tempDir, 'does_not_exist.scss');
-    const auditor = new ZIndexAuditor(nonExistentPath, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: nonExistentPath,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     const readError = result.findings.find((e) => e.ruleId === 'z-index-read-error');
@@ -115,7 +131,11 @@ describe('ZIndexAuditor', () => {
     const violatingVue = `<template><div class="bad">Bad</div></template>\n<style>\n.bad { z-index: 11000; }\n</style>`;
     await fs.writeFile(path.join(tempDir, 'Violating.vue'), violatingVue, 'utf-8');
 
-    const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: scssFile,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     const hardcoded = result.findings.find((e) => e.ruleId === 'z-index-hardcoded-literal');
@@ -133,7 +153,11 @@ describe('ZIndexAuditor', () => {
     const violatingTs = `export const BAD_Z_INDEX_PANEL = 1050;\n`;
     await fs.writeFile(path.join(tempDir, 'violating.ts'), violatingTs, 'utf-8');
 
-    const auditor = new ZIndexAuditor(scssFile, [tempDir], tempDir);
+    const auditor = new ZIndexAuditor({
+      scssPath: scssFile,
+      roots: [tempDir],
+      projectRoot: tempDir
+    });
     const result = await auditor.execute();
 
     const isolated = result.findings.find((e) => e.ruleId === 'z-index-isolated-constant');

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { isMainModule } from "./cliUtils.js";
-import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { O1RefactorEngine } from "../core/refactor/o1RefactorEngine.js";
+import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { styleText } from "node:util";
 //#region src/cli/refactor_o1.ts
 /**

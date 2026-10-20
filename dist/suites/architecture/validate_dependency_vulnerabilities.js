@@ -118,6 +118,7 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: true,
+			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "npm audit",
 				fallbackBehavior: "throw"

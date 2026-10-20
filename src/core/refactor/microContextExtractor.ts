@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import ts from 'typescript';
+import { toPosixRelative } from '../safePath.ts';
 import {
   type FallowCloneGroup,
   type MicroContextInstance,
@@ -69,7 +70,7 @@ export class MicroContextExtractor {
       const analysis = this.analyzeDataflow(rawFragment);
 
       return {
-        file: inst.file.replace(/\\/g, '/'),
+        file: toPosixRelative(projectRoot, absPath),
         startLine: inst.start_line,
         endLine: inst.end_line,
         contextStartLine: ctxStartIdx + 1,

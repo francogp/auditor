@@ -7,7 +7,7 @@
  * local vector embeddings model (jina-embeddings-v2-base-code).
  *
  * Key Architectural Guards:
- *   1. Zero Fast-Preset Impact: Completely excluded from fast presets (preset=lint, preset=md).
+ *   1. Zero Fast-Preset Impact: Completely excluded from fast presets (speed=light, preset=md).
  *   2. Strict High Threshold: Defaults to 0.95 threshold to eliminate cognitive noise and false positives.
  *   3. Intra-File Filtering: Skips pairs within the same file (e.g. sync/async pairs like safeWriteFileSync/safeWriteFile).
  *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
@@ -26,6 +26,7 @@ import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import {
   getAuditConfig,
   isTestPath,
+  AUDIT_CONFIG_FILE,
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
@@ -230,7 +231,9 @@ function isCandidatePairIgnored(options: CandidatePairIgnoreOptions): boolean {
   if (options.ignoreSameFile && options.leftPath === options.rightPath) return true;
   if (
     options.auditor.isPathIgnored(options.leftPath) ||
-    options.auditor.isPathIgnored(options.rightPath)
+    options.auditor.isPathExempt(options.leftPath) ||
+    options.auditor.isPathIgnored(options.rightPath) ||
+    options.auditor.isPathExempt(options.rightPath)
   )
     return true;
   if (!options.includeTests && (isTestPath(options.leftPath) || isTestPath(options.rightPath)))
@@ -295,11 +298,12 @@ export function evaluateSimilarCodeCandidates(
 }
 
 export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
-  constructor(targetPath?: string) {
-    const projectRoot = targetPath || process.cwd();
+  constructor(options: { projectRoot?: string } = {}) {
+    const projectRoot = options.projectRoot || process.cwd();
 
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',
@@ -342,11 +346,11 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
           '1. Causa Raíz: El motor de análisis vectorial Fallow no pudo inicializarse, el binario nativo no fue encontrado, o falló la descarga/ejecución del modelo Candle en CPU.\n' +
           '2. Diagnóstico: Revisa el mensaje de error emitido en la consola para determinar si falta el binario o si se produjo un error de permisos/red.\n' +
           '3. Solución Canónica:\n' +
-          '   a) En Windows, ejecuta el script canónico `powershell -ExecutionPolicy Bypass -File setup-windows.ps1` para pre-crear directorios de caché y desbloquear binarios de Zone.Identifier.\n' +
+          '   a) En Windows, ejecuta el comando canónico `npm run setup:windows` (o `npm run setup:linux` en Linux) para pre-crear directorios de caché y verificar binarios.\n' +
           '   b) Verifica que `fallow` esté instalado correctamente en `node_modules/.bin/fallow`.\n' +
           '   c) Si estás ejecutando en un entorno de integración continua sin acceso a internet o en compilación de producción, asegura la variable de entorno `AUDITOR_ENV=production`.\n' +
           '4. Ejemplo:\n' +
-          '   - Ejecutar `setup-windows.ps1` o `npm run setup:windows`.'
+          '   - Ejecutar `npm run setup:windows` o `npm run setup:linux`.'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -362,7 +366,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'error',
-        file: '.fallowrc.json',
+        file: 'package.json',
         line: 1,
         message:
           'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
@@ -377,7 +381,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'warning',
-        file: '.fallowrc.json',
+        file: AUDIT_CONFIG_FILE,
         line: 1,
         message:
           'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
@@ -422,7 +426,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'error',
-        file: '.fallowrc.json',
+        file: AUDIT_CONFIG_FILE,
         line: 1,
         message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
         context: errorMsg
@@ -435,7 +439,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'error',
-        file: '.fallowrc.json',
+        file: AUDIT_CONFIG_FILE,
         line: 1,
         message:
           'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
@@ -459,7 +463,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         this.addViolation({
           ruleId: 'fallow-similar-code-failed',
           severity: 'error',
-          file: '.fallowrc.json',
+          file: AUDIT_CONFIG_FILE,
           line: 1,
           message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${(err as Error).message}`,
           context: 'malformed-json'
@@ -471,7 +475,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     this.addViolation({
       ruleId: 'fallow-similar-code-failed',
       severity: 'error',
-      file: '.fallowrc.json',
+      file: AUDIT_CONFIG_FILE,
       line: 1,
       message: 'fallow similar-code no generó contenido JSON en el archivo de salida.',
       context: 'empty-or-non-json'

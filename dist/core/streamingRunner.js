@@ -45,10 +45,12 @@ var TaskStreamCoordinator = class {
 	completedCount = 0;
 	totalTasks;
 	indent;
+	mode;
 	printLock = Promise.resolve();
 	constructor(totalTasks, options) {
 		this.totalTasks = totalTasks;
 		this.indent = options?.indent ?? "  ";
+		this.mode = options?.mode ?? "human";
 	}
 	async onTaskComplete(params) {
 		const previousLock = this.printLock;
@@ -64,6 +66,12 @@ var TaskStreamCoordinator = class {
 		}
 	}
 	printTaskItem(params, currentStep) {
+		if (this.mode === "compact") {
+			if (params.isSkipped || params.isSuccess && !params.hasWarnings) return;
+			const badge = params.isSuccess ? styleText("yellow", "⚠️ ") : styleText("red", "❌");
+			console.log(`${badge} ${styleText("bold", params.taskName)} ${styleText("dim", `(${params.taskId})`)} ${styleText("dim", formatDurationMs(params.durationMs))}`);
+			return;
+		}
 		const pct = Math.round(currentStep / this.totalTasks * 100);
 		const stepStr = String(currentStep).padStart(2, "0");
 		const totalStr = String(this.totalTasks).padStart(2, "0");

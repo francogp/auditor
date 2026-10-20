@@ -4,8 +4,8 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { advancePastStringOrComment, scanBalancedBraces, scanBalancedParens } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
@@ -219,12 +219,15 @@ function isHighDensityOrSuppressed(content, start, matchIndex, context, filePath
 	return highDensityKeywords.test(selectorText) || (filePath ? highDensityKeywords.test(filePath) : false);
 }
 var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? config.paths.srcRoots;
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
+		const config = getAuditConfig(effectiveRoot);
 		const stylesExempts = [...config.styles?.exemptPaths ?? [], ...config.styles?.exemptCssFiles ?? []];
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
+			projectRoot: effectiveRoot,
+			roots: targetRoots,
 			id: "validate_gsap_animations",
 			name: "GSAP Animation & UI Timing Hygiene",
 			description: "Gobernanza estricta de animaciones GSAP y timers UI",
@@ -244,7 +247,6 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				changedOnly: false,
 				critical: false
 			}),
-			roots: effectiveRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",
 				".vue",

@@ -58,16 +58,12 @@ export class HomebrewDetectorRegistry {
         'Usa AuditedDocument o parseVueSfc() de core para analizar bloques SFC de Vue en lugar de expresiones regulares manuales frágiles.',
       'auditor-manual-ts-ast':
         'Usa SharedAstContext o getAstContext(projectRoot) para reutilizar el AST de TypeScript en lugar de compilar o parsear archivos manualmente.',
-      'auditor-manual-path-normalize':
-        'Usa normalizePosixPath() de src/core/safePath.ts para estandarizar rutas POSIX entre plataformas de forma canónica.',
       'auditor-raw-console':
         'Reemplaza llamadas directas a console.log/error/warn con this.addViolation(), this.renderTable() o printTerminal() autorizado.',
       'auditor-manual-comment-stripping':
         'Usa las utilidades canónicas stripComments() de src/core/ o el AST de TypeScript en vez de regexes manuales para eliminar comentarios.',
       'auditor-manual-brace-counting':
         'Usa el parser canónico de AST o extractBlocks() para balancear llaves en lugar de contadores manuales propensos a errores.',
-      'auditor-manual-path-containment':
-        'Valida contención de rutas usando path.resolve() y path.relative() comprobando startsWith("..") en vez de regexes manuales.',
       'auditor-manual-file-walker':
         'Hereda de FileScanAuditor o usa this.context.collectFiles() en lugar de recorrer el sistema de archivos con walkers manuales.',
       'auditor-homebrew-predicates':

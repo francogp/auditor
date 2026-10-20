@@ -1,7 +1,7 @@
 import { DocumentationLanguage } from "../../core/auditConfigTypes.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 //#region src/suites/documentation/validate_agents_config_mandate.d.ts
-export type AgentsConfigMandateRuleId = 'agents-missing-config-mandate' | 'agents-missing-backward-compat-mandate' | 'agents-missing-fake-pass-mandate' | 'agents-missing-chat-language-mandate' | 'agents-missing-destructive-git-mandate' | 'agents-missing-official-tools-mandate';
+export type AgentsConfigMandateRuleId = 'agents-missing-config-mandate' | 'agents-missing-backward-compat-mandate' | 'agents-missing-fake-pass-mandate' | 'agents-missing-chat-language-mandate' | 'agents-missing-destructive-git-mandate' | 'agents-missing-official-tools-mandate' | 'agents-missing-architecture-mandate';
 export declare const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[];
 export declare const CANONICAL_MANDATE_SNIPPET_EN = "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer. When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.";
 export declare const CANONICAL_MANDATE_SNIPPET_ES = "- **Prohibición de Modificar o Desactivar Configuraciones Sin Consulta Previa al Programador**: Los desarrolladores y agentes de IA tienen estrictamente prohibido deshabilitar, apagar, alterar o modificar las configuraciones del auditor (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) ante errores o advertencias sin consultar y obtener autorización previa explícita del programador humano. Al solicitar autorización, el agente debe proporcionar una explicación técnica exhaustiva detallando por qué la modificación es necesaria, justificando explícitamente los pros, los contras y el balance de compensaciones.";
@@ -17,11 +17,14 @@ export declare const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES = "- **Mandato d
 export declare const CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN = "- **Mandato de Idioma de Comunicación en el Chat con el Usuario e Interacción con IA**: El asistente / agente de IA DEBE consultar `.auditor/audit.config.ts` y comunicarse, conversar, responder e interactuar en el chat con el usuario estricta y exclusivamente en inglés (`'en'`). Este idioma conversacional del chat está explícitamente diferenciado del idioma de escritura de archivos y documentación del repositorio (`config.documentation.language`), el cual rige estrictamente el código, comentarios, mensajes de commit, documentación y archivos markdown. El agente de IA debe consultar dinámicamente estas configuraciones y jamás confundir el idioma del chat con el idioma de escritura en archivos.";
 export declare const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN = "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization from the human programmer.";
 export declare const CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES = "- **Prohibición Absoluta de Comandos Git Destructivos No Solicitados**: Los agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO ejecutar comandos Git destructivos (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) que descarten o sobrescriban cambios del árbol de trabajo o del historial de commits sin autorización previa explícita del programador humano.";
+export declare const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN = "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate), decoupled layering, Node.js 26+ native standard library mandate, dynamic SSoT configuration, and official framework tools priority. Deviating from `/architecture` or executing plans that bypass its pillars is strictly prohibited.";
+export declare const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES = "- **Mandato de Gobernanza Arquitectónica Universal y Alineación Obligatoria de Planes de Trabajo (`/architecture`)**: El marco de gobernanza `/architecture` rige todo el diseño, estructura, comportamiento en runtime y refactorización en este repositorio, y DEBE permanecer continuamente activo y ser estrictamente aplicado. Cada vez que se elabore, proponga o ejecute un plan de trabajo, diseño técnico, hoja de ruta de refactorización o desglose de tareas (ej. `/plan`, `/brainstorming`, planes de tareas), el trabajo propuesto DEBE alinearse estrictamente y satisfacer `/architecture` y todo su contenido: los 6 Pilares Mandatorios de Diseño (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), la Guía Principal de Depuración (`/systematic-debugging` - Mandato RED-GREEN ante todo), desacoplamiento de capas, uso exclusivo de librerías nativas de Node.js 26+, configuración SSoT dinámica y prioridad de herramientas oficiales del framework. Desviarse de `/architecture` o ejecutar planes que eludan sus pilares está estrictamente prohibido.";
 export declare function getCanonicalMandateSnippet(language?: DocumentationLanguage): string;
 export declare function getCanonicalBackwardCompatSnippet(language?: DocumentationLanguage): string;
 export declare function getCanonicalFakePassSnippet(language?: DocumentationLanguage): string;
 export declare function getCanonicalDestructiveGitSnippet(language?: DocumentationLanguage): string;
 export declare function getCanonicalOfficialToolsSnippet(language?: DocumentationLanguage): string;
+export declare function getCanonicalArchitectureSnippet(language?: DocumentationLanguage): string;
 export declare function getCanonicalChatLanguageSnippet(docLanguage?: DocumentationLanguage, chatLanguage?: DocumentationLanguage): string;
 /**
  * Checks if a block of markdown text contains the anti-tampering mandate.
@@ -47,7 +50,12 @@ export declare function containsDestructiveGitMandate(text: string, expectedLang
  * Checks if a block of markdown text contains the official tools priority mandate.
  */
 export declare function containsOfficialToolsMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
+/**
+ * Checks if a block of markdown text contains the universal architecture governance and work planning alignment mandate.
+ */
+export declare function containsArchitectureMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
 export interface AgentsConfigMandateOptions {
+  projectRoot?: string;
   fix?: boolean;
   language?: DocumentationLanguage;
   chatLanguage?: DocumentationLanguage;
@@ -56,7 +64,7 @@ export declare class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfig
   private readonly rootDir;
   private readonly languageOption?;
   private readonly chatLanguageOption?;
-  constructor(rootDir?: string, options?: AgentsConfigMandateOptions);
+  constructor(options?: AgentsConfigMandateOptions);
   runAudit(): Promise<void>;
   private auditSingleMandate;
 }

@@ -90,6 +90,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(NPMRC_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

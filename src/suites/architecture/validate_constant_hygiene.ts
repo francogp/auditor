@@ -17,8 +17,7 @@
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import {
   badConstantNames,
@@ -46,23 +45,16 @@ const P_EXPORT_REDUNDANT_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-
 export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygieneRuleId> {
   private readonly scannedAbsFiles: string[] = [];
 
-  constructor(
-    rootsOrOptions?: readonly string[] | { projectRoot?: string; roots?: readonly string[] },
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as { projectRoot?: string; roots?: readonly string[] })
-        : undefined;
-    const effectiveProjectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
-    const config = getAuditConfig(effectiveProjectRoot);
-    const rawRoots =
-      optionsObj?.roots ??
-      (Array.isArray(rootsOrOptions) ? rootsOrOptions : (config.paths.srcRoots ?? []));
-    const effectiveRoots = rawRoots.map((r) => toPosixRelative(effectiveProjectRoot, r));
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths.srcRoots ?? []
+    );
+    const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -105,7 +97,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         'constant-no-literal-suffix':
           'Remueve el sufijo numérico crudo del nombre de la constante (ej. _100, _600); usa nombres semánticos de dominio.'
       },
-      projectRoot: effectiveProjectRoot
+      projectRoot: effectiveRoot
     });
   }
 

@@ -171,10 +171,16 @@ export function parseMarkdownLintIssues(
   return findings;
 }
 
+export interface MarkdownLintAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
-  constructor(projectRoot?: string) {
+  constructor(options: MarkdownLintAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'markdownlint',
         fallbackBehavior: 'violation',

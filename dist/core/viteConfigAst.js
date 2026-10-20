@@ -1,4 +1,5 @@
-import path from "node:path";
+import { normalizePosixPath } from "./reportUtils.js";
+import { isPathContained } from "./safePath.js";
 import ts from "typescript";
 //#region src/core/viteConfigAst.ts
 /**
@@ -9,14 +10,10 @@ import ts from "typescript";
 * Zero regex or manual string manipulation.
 */
 function normalizePosixRoot(rawRoot) {
-	const forwardSlashes = rawRoot.split(path.sep).join(path.posix.sep);
-	return path.posix.normalize(path.posix.join(forwardSlashes, ".")).toLowerCase();
+	return normalizePosixPath(rawRoot).toLowerCase();
 }
 function isPathUnderRoot(candidatePath, rootDir) {
-	const normCandidate = path.posix.normalize(candidatePath.split(path.sep).join(path.posix.sep)).toLowerCase();
-	const normRoot = normalizePosixRoot(rootDir);
-	const rel = path.posix.relative(normRoot, normCandidate);
-	return rel === "" || !rel.startsWith("..") && !path.posix.isAbsolute(rel);
+	return isPathContained(rootDir, candidatePath);
 }
 const CANONICAL_LINT_RULES_MAP = {
 	"@typescript-eslint/no-explicit-any": "error",

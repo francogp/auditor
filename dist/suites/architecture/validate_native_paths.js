@@ -1,6 +1,10 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { toPosixRelative } from "../../core/auditCoverage.js";
+import { AuditedDocument } from "../../core/auditedDocument.js";
+import { BaseAuditor, CANONICAL_IGNORE_DIRS, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { NATIVE_PATH_RULES } from "../../analyzers/nativePaths/nativePathTypes.js";
+import { scanNativePathAst } from "../../analyzers/nativePaths/nativePathScanner.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -8,281 +12,59 @@ import fs from "node:fs";
 /**
 * scripts/auditors/architecture/validate_native_paths.ts
 *
-* SECURITY & PATH INTEGRITY AUDITOR (Node.js 26+ Native)
+* SECURITY & PATH INTEGRITY AUDITOR (Node.js 26+ Native, TypeScript AST)
 *
-* Enforces cross-platform safe path operations and security hygiene across the codebase:
-*   1. Unsafe Path Concatenation (`unsafe-path-concat`): Detects raw string templates
-*      or binary string concatenations with slashes used in filesystem operations
-*      or path variable assignments instead of `path.join`, `path.resolve`, `safeJoin`, or `safeResolve`.
-*   2. Unsanitized Env/Argv Path Sinks (`unsanitized-env-argv-path`): Detects raw `process.env`
-*      or `process.argv` passed into filesystem or path manipulation sinks without directory
-*      traversal validation (`assertSafePathComponent`, `sanitizePath`, character sanitization regex).
-*   3. Untrusted URL Fetching (`untrusted-url-fetch`): Detects dynamic URL fetching via `fetch()`
-*      without `new URL()` parsing and origin/hostname/protocol validation or `safeFetch`.
-*   4. Platform-Incompatible Path Operations (`hardcoded-slash-path`): Detects raw backslash/forward
-*      slash operations (e.g. `.lastIndexOf('\\')`, hardcoded `C:\\` drive paths, or `.split('\\')`
-*      on paths) that break POSIX/Windows cross-platform compatibility.
+* Detects homebrew filesystem path, file-URL and URL handling that must use
+* `node:path` / `node:url` / `URL` natives. Analysis runs as a single TypeScript AST pass
+* (src/analyzers/nativePaths) over `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs` and Vue `<script>` blocks:
+*   1. `unsafe-path-concat`: paths assembled with `+`, `+=`, template literals or `[...].join(sep)`.
+*   2. `unsanitized-env-argv-path`: raw `process.env` / `process.argv` passed to fs/path sinks.
+*   3. `untrusted-url-fetch`: dynamic `fetch()` without `new URL()` origin validation.
+*   4. `hardcoded-slash-path`: Windows drive/UNC literals and backslash splitting/searching.
+*   5. `homebrew-path-manipulation`: manual separator swapping, de-duplication and trimming.
+*   6. `homebrew-path-parsing`: basename/dirname/extension via split/lastIndexOf/regex.
+*   7. `homebrew-path-containment`: hand-rolled CWE-22 guards (`includes('..')`, prefix checks).
+*   8. `homebrew-file-url`: `file://` conversions by hand instead of `fileURLToPath`/`pathToFileURL`.
+*   9. `homebrew-url-parsing`: URL/query parsing by hand instead of `URL`/`URLSearchParams`.
 *
-* Escape Hatches:
-*   `// path-ok`, `// url-ok`, `// env-ok`, `// cross-platform-ok`, `// security-ok`, `// string-ok: Internal string formatting or DOM token identifier`, `// no-domain: Non-domain utility collection or data structure`
+* Authorized Escape Hatches:
+*   path-ok: <reason>, url-ok: <reason>, env-ok: <reason>, cross-platform-ok: <reason>, security-ok: <reason>, string-ok: <reason>, test-ok: <reason>, no-domain: <reason>
 *
 * Usage:
-*   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_native_paths.ts
-*   npm run validate:native-paths
+*   npm run auditor -- task=validate_native_paths
 */
 enableCompileCache();
-const NATIVE_PATH_RULES = [
-	"unsafe-path-concat",
-	"unsanitized-env-argv-path",
-	"untrusted-url-fetch",
-	"hardcoded-slash-path",
-	"homebrew-path-manipulation"
-];
-const ESCAPE_HATCH_REGEX = /\/\/\s*(?:path-ok|url-ok|env-ok|cross-platform-ok|security-ok|string-ok|no-domain|fallow-ignore-next-line|test-ok)\b/i;
-const FS_SINK_METHOD_REGEX = /\b(?:fs(?:\.promises)?|fsSync)?\.(?:readFileSync|readFile|writeFileSync|writeFile|existsSync|mkdirSync|mkdir|readdirSync|readdir|statSync|stat|lstatSync|lstat|unlinkSync|unlink|rmSync|rm|rmdirSync|rmdir|copyFileSync|copyFile|openSync|open|createReadStream|createWriteStream)\s*\(/;
-const PATH_SINK_METHOD_REGEX = /\bpath\.(?:resolve|join)\s*\(/;
-const PATH_VAR_ASSIGN_REGEX = /(?:const|let|var)\s+(\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*)\s*=\s*(.*)/i;
-function updateArgParenDepth(char, depth) {
-	if (char === "(" || char === "[" || char === "{") return depth + 1;
-	if (char === ")" || char === "]" || char === "}") return depth - 1;
-	return depth;
-}
-function handleEscapeAndString(char, state) {
-	if (state.escape) {
-		state.escape = false;
-		return true;
-	}
-	if (char === "\\") {
-		state.escape = true;
-		return true;
-	}
-	if (state.inString) {
-		if (char === state.inString) state.inString = null;
-		return true;
-	}
-	if (char === "'" || char === "\"" || char === "`") {
-		state.inString = char;
-		return true;
-	}
-	return false;
-}
+/** Script extensions scanned by this suite (JSX flavors included on top of the canonical set). */
+const NATIVE_PATH_EXTENSIONS = /* @__PURE__ */ new Set([
+	...SCANNABLE_EXTENSIONS,
+	".tsx",
+	".jsx"
+]);
 /**
-* Extracts the first argument from a function call argument list.
+* Scans in-memory source code for native path violations using the TypeScript AST.
 */
-function extractFirstArgument(callArgsText) {
-	let depth = 0;
-	const state = {
-		inString: null,
-		escape: false
-	};
-	for (let i = 0; i < callArgsText.length; i++) {
-		const char = callArgsText[i];
-		if (handleEscapeAndString(char, state)) continue;
-		depth = updateArgParenDepth(char, depth);
-		if (char === "," && depth === 0) return callArgsText.slice(0, i).trim();
-	}
-	return callArgsText.trim();
-}
-/**
-* Helper to check if a template literal or string is a URL, web asset, CSS, fraction or non-path literal.
-*/
-function isNonPathString(str) {
-	const trimmed = str.trim();
-	if (trimmed.startsWith("`http:") || trimmed.startsWith("`https:") || trimmed.startsWith("`ws:") || trimmed.startsWith("`wss:") || trimmed.startsWith("`data:") || trimmed.startsWith("`file:") || trimmed.startsWith("`blob:") || trimmed.startsWith("`/") || trimmed.startsWith("'http:") || trimmed.startsWith("'https:") || trimmed.startsWith("\"http:") || trimmed.startsWith("\"https:") || trimmed.startsWith("'/") || trimmed.startsWith("\"/")) return true;
-	return false;
-}
-/**
-* Scans a file content for path integrity and security violations.
-*/
-function checkFsSinkConcat(rawLine, trimmed, filePath, lineNum) {
-	if (!FS_SINK_METHOD_REGEX.test(rawLine)) return null;
-	const fsCallMatch = rawLine.match(FS_SINK_METHOD_REGEX);
-	if (!fsCallMatch) return null;
-	const pathArg = extractFirstArgument(rawLine.slice(rawLine.indexOf(fsCallMatch[0]) + fsCallMatch[0].length));
-	const hasTemplateWithSlash = /`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`|`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`/.test(pathArg);
-	const hasConcatWithSlash = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]|['"][^'"]+[/\\]['"]\s*\+/.test(pathArg);
-	if ((hasTemplateWithSlash || hasConcatWithSlash) && !isNonPathString(pathArg)) return {
-		file: filePath,
-		line: lineNum,
-		ruleId: "unsafe-path-concat",
-		message: `Concatenación insegura de ruta en llamada al sistema de archivos ('${fsCallMatch[0]}...'). Usa 'path.join()' o 'path.resolve()' en lugar de template literals o operadores '+' con separadores directos.`,
-		context: trimmed,
-		severity: "error"
-	};
-	return null;
-}
-function checkPathVarAssignConcat(rawLine, trimmed, filePath, lineNum) {
-	if (FS_SINK_METHOD_REGEX.test(rawLine)) return null;
-	const assignMatch = rawLine.match(PATH_VAR_ASSIGN_REGEX);
-	if (!assignMatch) return null;
-	const rhs = assignMatch[2]?.replace(/;$/, "").trim() || "";
-	const hasTemplateSlash = /^`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`$|^`[^/\\`]*[/\\][^`]*\$\{[^}]+\}[^`]*`$/.test(rhs);
-	const hasBinaryConcat = /\+\s*['"][/\\]['"]\s*\+|\+\s*['"][/\\][^'"]+['"]/.test(rhs);
-	if ((hasTemplateSlash || hasBinaryConcat) && !isNonPathString(rhs)) {
-		if (!rhs.includes("console.") && !rhs.includes("logger.") && !rhs.startsWith("`http") && !rhs.startsWith("`data:")) return {
-			file: filePath,
-			line: lineNum,
-			ruleId: "unsafe-path-concat",
-			message: `Asignación de variable de ruta '${assignMatch[1]}' mediante concatenación directa o template literal. Usa 'path.join()' o 'path.resolve()'.`,
-			context: trimmed,
-			severity: "error"
-		};
-	}
-	return null;
-}
-function checkUnsafePathConcat(rawLine, trimmed, filePath, lineNum) {
-	const fsViolation = checkFsSinkConcat(rawLine, trimmed, filePath, lineNum);
-	if (fsViolation) return fsViolation;
-	if (/\bpath\.(?:join|resolve)\s*\(\s*`[^`]*\$\{[^}]+\}[^/\\`]*[/\\][^`]*`/.test(rawLine)) return {
-		file: filePath,
-		line: lineNum,
-		ruleId: "unsafe-path-concat",
-		message: `Template literal con separadores de ruta dentro de 'path.join/resolve'. Pasa los segmentos como argumentos separados a 'path.join(a, b)'.`,
-		context: trimmed,
-		severity: "error"
-	};
-	return checkPathVarAssignConcat(rawLine, trimmed, filePath, lineNum);
-}
-function isEnvArgvSanitized(rawLine, lines, i) {
-	return rawLine.includes("sanitizePath(") || rawLine.includes("assertSafePathComponent(") || i > 0 && lines[i - 1]?.includes("assertSafePathComponent(") === true || i > 1 && lines[i - 2]?.includes("assertSafePathComponent(") === true || rawLine.includes(".replace(") || rawLine.includes("path.basename(") || rawLine.includes("path.dirname(") || rawLine.includes("cleanAppData") || rawLine.includes("cleanPath") || rawLine.includes(".includes('..')") || i > 0 && lines[i - 1]?.includes(".includes('..')") === true;
-}
-function checkUnsanitizedEnvArgv(rawLine, trimmed, filePath, lineNum, lines, i) {
-	if (!FS_SINK_METHOD_REGEX.test(rawLine) && !PATH_SINK_METHOD_REGEX.test(rawLine)) return null;
-	const hasRawEnv = /\bprocess\.env\.\w+\b/.test(rawLine);
-	const hasRawArgv = /\bprocess\.argv\[[^\]]+\]/.test(rawLine);
-	if ((hasRawEnv || hasRawArgv) && !isEnvArgvSanitized(rawLine, lines, i)) return {
-		file: filePath,
-		line: lineNum,
-		ruleId: "unsanitized-env-argv-path",
-		message: `Variable 'process.env' o 'process.argv' pasada directamente a una función de path/filesystem sin sanitizar contra path traversal (CWE-22). Aplica 'assertSafePathComponent()', 'sanitizePath()', o sanitización de caracteres.`,
-		context: trimmed,
-		severity: "error"
-	};
-	return null;
-}
-function checkUntrustedUrlFetch(rawLine, trimmed, filePath, lineNum, content) {
-	const fetchMatch = rawLine.match(/\b(?:await\s+)?fetch\s*\(\s*([\w$.]+)/);
-	if (!fetchMatch || !fetchMatch[1]) return null;
-	const arg = fetchMatch[1];
-	if (arg.startsWith("'") || arg.startsWith("\"") || arg.startsWith("`") || arg.endsWith(".href") || arg.endsWith(".toString()") || arg === "safeDevUrl" || rawLine.includes("safeFetch(")) return null;
-	if (!(content.includes("new URL(") && (content.includes(".hostname") || content.includes(".origin") || content.includes(".protocol")))) return {
-		file: filePath,
-		line: lineNum,
-		ruleId: "untrusted-url-fetch",
-		message: `Llamada dinámica a 'fetch(${arg})' sin validación de URL ni origen/host (CWE-918 SSRF). Convierte a 'new URL()' y valida hostname/origin, o usa 'safeFetch()'.`,
-		context: trimmed,
-		severity: "error"
-	};
-	return null;
-}
-function checkHardcodedSlashPath(rawLine, trimmed, filePath, lineNum) {
-	if (/\.(?:lastIndexOf|indexOf)\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/.test(rawLine)) {
-		if (!rawLine.includes("'//'") && !rawLine.includes("\"//\"")) return {
-			file: filePath,
-			line: lineNum,
-			ruleId: "hardcoded-slash-path",
-			message: `Búsqueda manual de separador backslash ('\\\\') en ruta. Rompe compatibilidad POSIX/Linux. Usa 'path.dirname()', 'path.basename()', o 'path.sep'.`,
-			context: trimmed,
-			severity: "error"
-		};
-	}
-	if (/(['"`])[a-z]:(?:\\\\|\/)[^'"`\n]+\1/i.test(rawLine)) {
-		if (!rawLine.includes("// no-domain: Non-domain utility collection or data structure") && !rawLine.includes("// test-ok") && !rawLine.includes("// cross-platform-ok")) return {
-			file: filePath,
-			line: lineNum,
-			ruleId: "hardcoded-slash-path",
-			message: `Ruta absoluta con letra de unidad Windows ('C:\\' o 'C:/') detectada en código. Usa rutas relativas o 'path.resolve()'.`,
-			context: trimmed,
-			severity: "error"
-		};
-	}
-	if (/\b\w*(?:path|dir|file|folder|filepath|dirpath|root)\w*\.split\s*\(\s*['"](?:\\\\|\\)['"]\s*\)/i.test(rawLine)) {
-		if (!rawLine.includes(".split(path.sep)") && !rawLine.includes(".replace(") && !rawLine.includes(".join(")) return {
-			file: filePath,
-			line: lineNum,
-			ruleId: "hardcoded-slash-path",
-			message: `Operación '.split(\\'\\\\\\')' directa en variable de ruta '${rawLine}'. Usa 'path.split(path.sep)' o normaliza previamente con 'path.posix.sep'.`,
-			context: trimmed,
-			severity: "error"
-		};
-	}
-	return null;
-}
-function isIgnoredOrCommentLine(rawLine, trimmed, prevLine) {
-	if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*") || trimmed.startsWith("<!--")) return true;
-	return ESCAPE_HATCH_REGEX.test(rawLine) || !!prevLine && ESCAPE_HATCH_REGEX.test(prevLine);
-}
-function checkHomebrewPathManipulation(rawLine, trimmed, filePath, lineNum) {
-	if (rawLine.includes(".replace(")) {
-		if (!/\.replace\s*\(\s*\/(?:\\\\|\/)\/[gi]*\s*,\s*['"][\\/]['"]\s*\)/.test(rawLine)) {
-			const isPathVar = /\b\w*(?:path|dir|file|folder|filepath|dirpath|root|rawPath|inputPath|cleanPath|userPath|p)\s*\.\s*replace/i.test(rawLine);
-			const replaceRegexArgMatch = /\.replace\s*\(\s*(\/(?:\\.|[^/\\\n])+\/[gimsuy]*)\s*,\s*(?:""|'')\s*\)/.exec(rawLine);
-			const isTraversalStrip = isPathVar && replaceRegexArgMatch && /\.\.|\.\\\.|\\\.\\\.|%2e/i.test(replaceRegexArgMatch[1] ?? "");
-			const isExclusionStrip = isPathVar && /\.replace\s*\(\s*\/\[\^[^\]]+\]\/[gimsuy]*\s*,\s*['"]\s*['"]\s*\)/i.test(rawLine);
-			if (isTraversalStrip || isExclusionStrip) return {
-				file: filePath,
-				line: lineNum,
-				ruleId: "homebrew-path-manipulation",
-				message: `Manipulación o sanitización casera de rutas con regex detectada. Usa funciones nativas de Node.js 'node:path' ('path.resolve()', 'path.relative()', 'path.normalize()').`,
-				context: trimmed,
-				severity: "error"
-			};
-		}
-	}
-	if (/\b\w*(?:path|dir|file|folder|filepath|dirpath|root|inputPath|cleanPath|userPath)\s*\.\s*(?:includes|indexOf)\s*\(\s*['"](?:\.\.|\.\.\/|\.\.\\)['"]\s*\)/i.test(rawLine)) return {
-		file: filePath,
-		line: lineNum,
-		ruleId: "homebrew-path-manipulation",
-		message: `Comprobación ingenua de path traversal con '.includes("..")'. Usa 'path.relative(baseDir, target)' y valida que no empiece con '..' ni sea absoluto con 'node:path'.`,
-		context: trimmed,
-		severity: "error"
-	};
-	return null;
-}
-function evaluateLineNativePathViolations(rawLine, trimmed, filePath, lineNum, lines, lineIndex, content) {
-	return checkHomebrewPathManipulation(rawLine, trimmed, filePath, lineNum) || checkUnsafePathConcat(rawLine, trimmed, filePath, lineNum) || checkUnsanitizedEnvArgv(rawLine, trimmed, filePath, lineNum, lines, lineIndex) || checkUntrustedUrlFetch(rawLine, trimmed, filePath, lineNum, content) || checkHardcodedSlashPath(rawLine, trimmed, filePath, lineNum);
-}
-function forEachActiveLine(lines, callback) {
-	for (let i = 0; i < lines.length; i++) {
-		const rawLine = lines[i];
-		const trimmed = rawLine.trim();
-		if (!isIgnoredOrCommentLine(rawLine, trimmed, lines[i - 1])) callback(rawLine, trimmed, i + 1, i);
-	}
-}
 function scanFileForNativePathViolations(filePath, content) {
-	const violations = [];
-	const lines = content.split(/\r?\n/);
-	forEachActiveLine(lines, (rawLine, trimmed, lineNum, lineIndex) => {
-		const violation = evaluateLineNativePathViolations(rawLine, trimmed, filePath, lineNum, lines, lineIndex, content);
-		if (violation) violations.push(violation);
-	});
-	return violations;
+	return scanNativePathAst(new AuditedDocument(filePath, content, filePath));
+}
+function createEmptyCounts() {
+	return Object.fromEntries(NATIVE_PATH_RULES.map((r) => [r, 0]));
 }
 /**
 * Full repository audit runner for native paths and security integrity.
 */
 function auditNativePaths(targetDir = process.cwd()) {
 	assertSafePathComponent(targetDir);
-	const extraIgnorePatterns = [];
 	const config = getAuditConfig(targetDir);
-	const rootsToScan = getEffectiveScannableRoots(config).map((r) => path.resolve(targetDir, r)).filter((p) => fs.existsSync(p));
-	const allFiles = [];
-	for (const root of rootsToScan) allFiles.push(...collectRepositoryFiles(root, targetDir, extraIgnorePatterns));
+	const extraIgnorePatterns = [...config.paths?.ignoreGlobs ?? [], ...config.paths?.ignoredPatterns ?? []];
+	const allFiles = getEffectiveScannableRoots(config).map((r) => path.resolve(targetDir, r)).filter((p) => fs.existsSync(p)).flatMap((root) => collectRepositoryFiles(root, targetDir, extraIgnorePatterns, NATIVE_PATH_EXTENSIONS));
 	const violations = [];
-	const countsByRule = {
-		"unsafe-path-concat": 0,
-		"unsanitized-env-argv-path": 0,
-		"untrusted-url-fetch": 0,
-		"hardcoded-slash-path": 0,
-		"homebrew-path-manipulation": 0
-	};
+	const countsByRule = createEmptyCounts();
 	for (const file of allFiles) {
-		const relPath = path.relative(targetDir, file).split(path.sep).join(path.posix.sep);
+		const relPath = toPosixRelative(targetDir, file);
 		try {
-			const fileViolations = scanFileForNativePathViolations(relPath, fs.readFileSync(file, "utf-8"));
-			for (const v of fileViolations) {
+			for (const v of scanFileForNativePathViolations(relPath, fs.readFileSync(file, "utf-8"))) {
 				violations.push(v);
-				countsByRule[v.ruleId] = (countsByRule[v.ruleId] || 0) + 1;
+				countsByRule[v.ruleId] += 1;
 			}
 		} catch {}
 	}
@@ -293,24 +75,47 @@ function auditNativePaths(targetDir = process.cwd()) {
 		countsByRule
 	};
 }
+const RULE_DESCRIPTIONS = {
+	"unsafe-path-concat": "Concatenación insegura de rutas",
+	"unsanitized-env-argv-path": "Ruta argv/env sin sanitizar",
+	"untrusted-url-fetch": "Llamada HTTP sin sanitizar",
+	"hardcoded-slash-path": "Separador de ruta hardcodeado",
+	"homebrew-path-manipulation": "Normalización casera de rutas",
+	"homebrew-path-parsing": "Parseo casero de rutas",
+	"homebrew-path-containment": "Contención casera de rutas",
+	"homebrew-file-url": "Conversión casera file://",
+	"homebrew-url-parsing": "Parseo casero de URLs"
+};
+const RULE_REMEDIATIONS = {
+	"unsafe-path-concat": "📖 GUÍA DE REMEDIACIÓN: unsafe-path-concat\n1. Causa Raíz: Una ruta de archivo se construyó uniendo texto (operador `+`, `+=`, template literal o `[...].join(separador)`). El separador queda fijo, se rompe entre Windows y POSIX y no se normalizan segmentos `..` (CWE-22).\n2. Diagnóstico: Ubica la expresión señalada: un origen de ruta (`__dirname`, `import.meta.dirname`, `process.cwd()`, variables `*Dir`/`*Path`/`*File`) combinado con un separador literal o `path.sep`.\n3. Solución Canónica: Pasa cada segmento como argumento separado a `path.join()` o `path.resolve()` de `node:path`.\n4. Ejemplo:\n   ❌ Frágil: unir directorio, barra y nombre de archivo como texto\n   ✅ Canónico: `const fullPath = path.join(baseDir, fileName);`",
+	"unsanitized-env-argv-path": "📖 GUÍA DE REMEDIACIÓN: unsanitized-env-argv-path\n1. Causa Raíz: Un valor de `process.argv` o `process.env` se pasa directo a `fs.*` o `path.join/resolve` sin verificar que permanezca dentro del directorio autorizado (CWE-22).\n2. Diagnóstico: Ubica la llamada al sink de filesystem o path que recibe el argumento crudo.\n3. Solución Canónica:\n   a) Asigna el valor a una variable, resuélvelo con `path.resolve(base, valor)` y valida contención con `path.relative()` + `path.isAbsolute()` (o `assertSafePathComponent()`).\n   b) Si es un script CLI con ruta ya validada, anota `// path-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Inseguro: pasar el argumento de proceso directamente a la lectura de archivos\n   ✅ Seguro:   `const target = path.resolve(root, input); assertSafePathComponent(target);`",
+	"untrusted-url-fetch": "📖 GUÍA DE REMEDIACIÓN: untrusted-url-fetch\n1. Causa Raíz: Se invoca `fetch()` con un valor dinámico sin parsearlo con `new URL()` ni validar protocolo u origen (CWE-918 SSRF).\n2. Diagnóstico: Inspecciona la llamada a `fetch()` señalada y el origen del argumento.\n3. Solución Canónica:\n   a) Construye la URL con `new URL(endpoint, baseUrl)`.\n   b) Valida `protocol` y `hostname`/`origin` contra una lista permitida, o usa `safeFetch()`.\n   c) Si es una llamada interna con URL fija, anota `// url-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Inseguro: invocar fetch con un string recibido sin validar\n   ✅ Seguro:   `fetch(new URL(userPath, baseUrl));`",
+	"hardcoded-slash-path": "📖 GUÍA DE REMEDIACIÓN: hardcoded-slash-path\n1. Causa Raíz: Se usó una letra de unidad o ruta UNC de Windows como ruta, o se dividió/buscó una ruta por contrabarra. Rompe la ejecución en Linux/macOS y CI.\n2. Diagnóstico: Busca el literal de unidad/UNC o la llamada `split`/`lastIndexOf`/`indexOf` con contrabarra en la línea del reporte.\n3. Solución Canónica:\n   a) Resuelve rutas relativas al proyecto con `path.resolve()`.\n   b) Para segmentos usa `path.parse()`, `path.basename()` o `split(path.sep)`.\n   c) Si el código es explícitamente Windows, usa `path.win32.*` (que acepta literales Windows).\n4. Ejemplo:\n   ❌ Incorrecto: rutas con prefijo rígido de unidad o división por contrabarra\n   ✅ Correcto:   `const p = path.resolve(process.cwd(), \"data\");`",
+	"homebrew-path-manipulation": "📖 GUÍA DE REMEDIACIÓN: homebrew-path-manipulation\n1. Causa Raíz: Se normalizó una ruta a mano (intercambio de separadores con regex o `split/join` literales, deduplicación de barras, recorte de barra final, limpieza con clases de caracteres). En POSIX la contrabarra es un carácter válido de nombre de archivo, así que reemplazarla corrompe rutas.\n2. Diagnóstico: Ubica la llamada `replace`/`replaceAll` o la cadena `split(...).join(...)` señalada.\n3. Solución Canónica:\n   a) Para rutas del SO actual: `p.split(path.sep).join(path.posix.sep)`.\n   b) Para entrada estilo Windows de cualquier origen: `p.replaceAll(path.win32.sep, path.posix.sep)`.\n   c) Para segmentos redundantes: `path.normalize()` / `path.posix.normalize()`.\n4. Ejemplo:\n   ❌ Frágil: reemplazar contrabarras por barras con una expresión regular\n   ✅ Canónico: `const posixRel = path.relative(root, file).split(path.sep).join(path.posix.sep);`",
+	"homebrew-path-parsing": "📖 GUÍA DE REMEDIACIÓN: homebrew-path-parsing\n1. Causa Raíz: Se extrajo nombre, directorio o extensión de una ruta con `split`, `lastIndexOf`, `pop()` o regex. Falla con separadores mixtos, archivos ocultos (`.env`) y nombres con varios puntos.\n2. Diagnóstico: Ubica la llamada de string señalada sobre una variable de ruta o nombre de archivo.\n3. Solución Canónica: Usa `path.basename()`, `path.dirname()`, `path.extname()` o `path.parse()` de `node:path`.\n4. Ejemplo:\n   ❌ Frágil: tomar el último segmento dividiendo por barra\n   ✅ Canónico: `const { name, ext, dir } = path.parse(filePath);`",
+	"homebrew-path-containment": "📖 GUÍA DE REMEDIACIÓN: homebrew-path-containment\n1. Causa Raíz: La protección contra directory traversal (CWE-22) se implementó a mano: buscar `..` en el texto, comparar prefijos con `startsWith(base)` (confunde `/base` con `/base2`), omitir `path.isAbsolute()` (en Windows otra unidad devuelve ruta absoluta) o regex que borran `../` (eludibles con encoding).\n2. Diagnóstico: Ubica la comprobación señalada y la ruta que intenta proteger.\n3. Solución Canónica: Resuelve con `path.resolve(base, input)` y valida con `const rel = path.relative(base, target); const inside = !rel.startsWith(\"..\") && !path.isAbsolute(rel);` o usa `isPathContained()`.\n4. Ejemplo:\n   ❌ Frágil: rechazar entradas que contengan dos puntos o comparar prefijos de texto\n   ✅ Canónico: `if (!isPathContained(rootDir, target)) throw new Error(\"Acceso denegado\");`",
+	"homebrew-file-url": "📖 GUÍA DE REMEDIACIÓN: homebrew-file-url\n1. Causa Raíz: Se convirtió entre rutas y URLs `file://` a mano (quitar o anteponer el esquema, o leer `.pathname` de `new URL(..., import.meta.url)`). `.pathname` queda percent-encoded (espacios como `%20`) y en Windows produce `/C:/...`.\n2. Diagnóstico: Ubica el literal `file://` o el acceso a `.pathname` señalado.\n3. Solución Canónica: Usa `fileURLToPath()` y `pathToFileURL()` de `node:url`, o `import.meta.dirname` / `import.meta.filename`.\n4. Ejemplo:\n   ❌ Frágil: quitar el esquema del string de la URL del módulo\n   ✅ Canónico: `const local = fileURLToPath(new URL(\"./data.json\", import.meta.url));`",
+	"homebrew-url-parsing": "📖 GUÍA DE REMEDIACIÓN: homebrew-url-parsing\n1. Causa Raíz: Se parseó o construyó una URL a mano: dividir por `?`, `#`, `&` o `=`, regex de query o de esquema, `path.join()` sobre URLs, concatenación dentro de `new URL()` o la API legacy `url.parse()` (deprecada).\n2. Diagnóstico: Ubica la operación de string, regex o llamada señalada sobre la URL.\n3. Solución Canónica: Usa `new URL(relativo, base)`, `url.searchParams`, `URLSearchParams`, `url.pathname` y `url.hash`.\n4. Ejemplo:\n   ❌ Frágil: dividir la URL por el signo de interrogación para leer parámetros\n   ✅ Canónico: `const id = new URL(requestUrl).searchParams.get(\"id\");`"
+};
 var NativePathsAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig(projectRoot);
-		const effectiveRoots = roots ?? getEffectiveScannableRoots(config);
+	documentCache = /* @__PURE__ */ new WeakMap();
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => getEffectiveScannableRoots(cfg));
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
 				speed: "light",
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
 			id: "validate_native_paths",
 			name: "Security & Native Path Integrity Validator",
-			description: "Garantiza uso de path.posix y evita CWE-22 traversal",
+			description: "Exige node:path, node:url y URL nativos (CWE-22)",
 			family: "architecture",
 			ruleIds: NATIVE_PATH_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(NATIVE_PATH_RULES, "setup"),
@@ -319,38 +124,25 @@ var NativePathsAuditor = class extends FileScanAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			icon: "🛤️",
-			ruleDescriptions: {
-				"unsafe-path-concat": "Concatenación insegura de rutas",
-				"unsanitized-env-argv-path": "Ruta argv/env sin sanitizar",
-				"untrusted-url-fetch": "Llamada HTTP sin sanitizar",
-				"hardcoded-slash-path": "Separador de ruta hardcodeado",
-				"homebrew-path-manipulation": "Manipulación casera de rutas"
-			},
-			ruleRemediations: {
-				"unsafe-path-concat": "📖 GUÍA DE REMEDIACIÓN: unsafe-path-concat\n1. Causa Raíz: Se concatenaron rutas de archivos mediante plantillas de texto o el operador `+`. Esto genera fallos en plataformas cruzadas (Windows vs POSIX) y expone a vulnerabilidades de Directory Traversal (CWE-22).\n2. Diagnóstico: Revisa la concatenación de cadenas en la línea indicada.\n3. Solución Canónica: Utiliza exclusivamente las funciones estándar de `node:path` (`path.join()`, `path.resolve()`).\n4. Ejemplo:\n   ❌ Inseguro: Concatenación manual de cadenas con `/` o contrabarras\n   ✅ Seguro:   `const fullPath = path.resolve(baseDir, fileName);`",
-				"unsanitized-env-argv-path": "📖 GUÍA DE REMEDIACIÓN: unsanitized-env-argv-path\n1. Causa Raíz: Una ruta recibida desde argumentos de línea de comandos (`process.argv`) o variables de entorno (`process.env`) se pasa directamente a funciones de lectura o escritura de `node:fs` sin verificar que permanezca contenida dentro del directorio raíz autorizado.\n2. Diagnóstico: Ubica la invocación a `fs` donde se utiliza el argumento o variable de entorno.\n3. Solución Canónica:\n   a) Resuelve la ruta canónicamente y valida la contención de directorio (CWE-22) mediante `path.resolve()` y `path.relative()`, comprobando que no empiece con `..` y no sea absoluta.\n   b) Si es un script CLI con ruta segura y validada, anota `// path-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Inseguro: Pasar argumentos de proceso directamente a funciones de fs sin validar\n   ✅ Seguro:   `assertSafePathComponent(targetPath);`",
-				"untrusted-url-fetch": "📖 GUÍA DE REMEDIACIÓN: untrusted-url-fetch\n1. Causa Raíz: Se realiza una petición HTTP/fetch concatenando cadenas crudas sin pasar por el parser nativo `new URL()` ni verificar el protocolo o dominio de destino.\n2. Diagnóstico: Inspecciona la llamada a `fetch()` en la línea señalada.\n3. Solución Canónica:\n   a) Construye la URL mediante `new URL(endpoint, baseUrl)`.\n   b) Valida que el protocolo sea estrictamente `https:` y el hostname pertenezca a los orígenes autorizados.\n   c) Si es una llamada interna con URL fija, anota `// url-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Inseguro: Construcción manual de URL mediante unión de cadenas\n   ✅ Seguro:   `fetch(new URL(userPath, baseUrl));`",
-				"hardcoded-slash-path": "📖 GUÍA DE REMEDIACIÓN: hardcoded-slash-path\n1. Causa Raíz: Se encontró una ruta absoluta con letra de unidad fija de disco o una operación de división directa sobre una variable de ruta. Las letras de unidad rompen la ejecución en Linux/macOS y CI.\n2. Diagnóstico: Busca la ruta hardcodeada o división con contrabarras en la línea del reporte.\n3. Solución Canónica:\n   a) Convierte la ruta en relativa al directorio de ejecución (`process.cwd()`) o resuélvela con `path.resolve()`.\n   b) Para dividir componentes de ruta, normaliza a POSIX (`path.split(path.sep)` o `.split('/')` tras normalizar).\n   c) Si es un test específico de comportamiento en Windows, añade `// cross-platform-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Incorrecto: Rutas con prefijo rígido de unidad de sistema operativo\n   ✅ Correcto:   `const p = path.resolve(process.cwd(), \"data\");`",
-				"homebrew-path-manipulation": "📖 GUÍA DE REMEDIACIÓN: homebrew-path-manipulation\n1. Causa Raíz: Se detectó una expresión regular casera para sanitizar o limpiar rutas (por ejemplo `.replace(/(\\.\\.[\\/\\\\])+/g, '')`). Las expresiones regulares caseras son frágiles, eludibles mediante encoding o dobles puntos y violan la política de Node.js nativo.\n2. Diagnóstico: Ubica la llamada a `.replace()` que intenta eliminar caracteres o secuencias de ruta.\n3. Solución Canónica: Elimina el regex casero y reemplázalo por la verificación canónica de contención usando `path.resolve()` y `path.relative()`.\n4. Ejemplo:\n   ❌ Frágil: `const clean = inputPath.replace(/\\.\\./g, \"\");`\n   ✅ Canónico: `const rel = path.relative(rootDir, path.resolve(rootDir, inputPath)); if (rel.startsWith(\"..\")) throw new Error(\"Acceso denegado\");`"
-			},
-			roots: effectiveRoots,
-			projectRoot
+			ruleDescriptions: RULE_DESCRIPTIONS,
+			ruleRemediations: RULE_REMEDIATIONS,
+			roots: targetRoots,
+			allowedExtensions: NATIVE_PATH_EXTENSIONS,
+			projectRoot: effectiveRoot
 		});
-		const registerLineRule = (ruleId, checker) => {
-			this.declareFileSubAuditor(ruleId, (doc) => {
-				forEachActiveLine(doc.lines, (rawLine, trimmed, lineNum, lineIndex) => {
-					const v = checker(rawLine, trimmed, doc.relPath, lineNum, doc.lines, lineIndex, doc);
-					if (v) this.addViolation(v);
-				});
-			});
-		};
-		registerLineRule("homebrew-path-manipulation", (raw, trim, rel, num) => checkHomebrewPathManipulation(raw, trim, rel, num));
-		registerLineRule("unsafe-path-concat", (raw, trim, rel, num) => checkUnsafePathConcat(raw, trim, rel, num));
-		registerLineRule("unsanitized-env-argv-path", (raw, trim, rel, num, lines, i) => checkUnsanitizedEnvArgv(raw, trim, rel, num, lines, i));
-		registerLineRule("untrusted-url-fetch", (raw, trim, rel, num, _lines, _i, doc) => checkUntrustedUrlFetch(raw, trim, rel, num, doc.rawContent));
-		registerLineRule("hardcoded-slash-path", (raw, trim, rel, num) => checkHardcodedSlashPath(raw, trim, rel, num));
+		for (const ruleId of NATIVE_PATH_RULES) this.declareFileSubAuditor(ruleId, (doc) => {
+			for (const v of this.scanDocumentOnce(doc)) if (v.ruleId === ruleId) this.addViolation(v);
+		});
+	}
+	/** Runs the single AST pass once per document and shares the result across rule sub-auditors. */
+	scanDocumentOnce(doc) {
+		const cached = this.documentCache.get(doc);
+		if (cached) return cached;
+		const violations = scanNativePathAst(doc);
+		this.documentCache.set(doc, violations);
+		return violations;
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new NativePathsAuditor());
 //#endregion
-export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, getEffectiveScannableRoots, isPathIgnored, scanFileForNativePathViolations };
+export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_EXTENSIONS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, getEffectiveScannableRoots, isPathIgnored, scanFileForNativePathViolations };

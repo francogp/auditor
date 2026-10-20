@@ -24,7 +24,8 @@ import {
   BaseAuditor,
   createUniformRemediationPhases,
   collectRepositoryFiles,
-  createRuleCapabilities
+  createRuleCapabilities,
+  type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -176,19 +177,19 @@ function resolveLocalMarkdownTarget(docFile: string, rawUrl: string): string | n
   if (
     isExternalOrAnchorLink(rawUrl) ||
     path.isAbsolute(rawUrl) ||
-    /^[a-z]:/i.test(rawUrl) ||
+    path.win32.isAbsolute(rawUrl) ||
     rawUrl.startsWith('file://')
   ) {
     return null;
   }
-  const [rawPath] = rawUrl.split('#');
-  let urlPath = rawPath ?? '';
+  const [rawPath] = rawUrl.split('#'); // url-ok: Markdown link fragment separator
+  let decodedPath = rawPath ?? '';
   try {
-    urlPath = decodeURIComponent(urlPath);
+    decodedPath = decodeURIComponent(decodedPath);
   } catch {
     // catch-ok
   }
-  return urlPath.length > 0 ? path.resolve(path.dirname(docFile), urlPath) : docFile;
+  return decodedPath.length > 0 ? path.resolve(path.dirname(docFile), decodedPath) : docFile;
 }
 
 function formatCandidateMatchError(
@@ -202,6 +203,7 @@ function formatCandidateMatchError(
   }
   const suggestions = candidateMatches.map((cand) => {
     let rel = toPosixRelative(sourceDir, cand);
+    // path-ok: Markdown relative link display decoration for remediation suggestions
     if (!rel.startsWith('.')) rel = './' + rel;
     return rel;
   });
@@ -291,7 +293,7 @@ function checkSingleMarkdownLink(params: {
     rawUrl.startsWith('file://') ||
     rawUrl.startsWith('/') ||
     rawUrl.startsWith('\\') ||
-    /^[a-z]:/i.test(rawUrl) ||
+    path.win32.isAbsolute(rawUrl) ||
     path.isAbsolute(rawUrl);
 
   if (isAbsolutePath) {
@@ -535,11 +537,13 @@ export function auditMarkdownLinks(
 export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
   private readonly scanRoots: readonly string[];
 
-  constructor(scanRoots?: readonly string[], projectRoot?: string) {
-    const effectiveScanRoots = resolveMarkdownScanDirectories(projectRoot, scanRoots);
-    const config = getAuditConfig(projectRoot);
+  constructor(options: FileScanRootsOptions = {}) {
+    const effectiveRoot = options.projectRoot || process.cwd();
+    const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
+    const config = getAuditConfig(effectiveRoot);
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINK_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -624,7 +628,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
         ...(config.paths.ignoredPatterns ?? [])
       ],
       unignoreDirs: ['.agents'],
-      projectRoot
+      projectRoot: effectiveRoot
     });
     this.scanRoots = effectiveScanRoots;
   }
@@ -690,7 +694,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
             link.rawUrl.startsWith('file://') ||
             link.rawUrl.startsWith('/') ||
             link.rawUrl.startsWith('\\') ||
-            /^[a-z]:/i.test(link.rawUrl) ||
+            path.win32.isAbsolute(link.rawUrl) ||
             path.isAbsolute(link.rawUrl);
           if (isAbsolute) {
             this.addViolation({

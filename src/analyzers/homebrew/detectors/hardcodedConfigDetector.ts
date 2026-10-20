@@ -41,13 +41,13 @@ export const hardcodedConfigDetector = createLineDetector({
       return 'Lista fija de archivos candidatos hardcodeada detectada. Resuelve las rutas desde la configuración.';
     }
 
-    // 4. Hardcoded path bypasses like relPath.includes('migrations') or relPath.startsWith('migrations') without consulting config
+    // 4. Hardcoded folder checking like file.includes('/types/') or relPath.includes('migrations') without consulting config
     const hasHardcodedPathExemption =
-      /relPath\.(?:includes|startsWith)\s*\(\s*['"`](?:migrations|supabase\/migrations|database\/migrations)['"`]\s*\)/i.test(
+      /(?:file|relPath|filePath|path)\.(?:includes|startsWith)\s*\(\s*['"`](?:\/?(?:types|data|migrations|supabase|fixtures)\/|migrations|supabase\/migrations|database\/migrations)['"`]\s*\)/i.test(
         trimmed
       );
-    if (hasHardcodedPathExemption && !trimmed.includes('config.')) {
-      return "Exclusión de ruta hardcodeada detectada en el escáner. Consulta dinámicamente 'config.paths.migrationsDir' o 'config.exemptPaths'.";
+    if (hasHardcodedPathExemption && !trimmed.includes('// path-ok:')) {
+      return "Comprobación de ruta o directorio hardcodeada detectada en el sub-auditor ('/types/', '/data/', '/migrations/'). Resuelve las rutas dinámicamente desde 'config.paths' o utilidades canónicas.";
     }
 
     // 5. Fallback path arrays on config.paths: e.g. config.paths.srcRoots ?? ['src']

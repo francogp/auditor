@@ -207,4 +207,70 @@ describe('streamingRunner Core Utility', () => {
       expect(result.stderr).toBeDefined();
     });
   });
+
+  describe('TaskStreamCoordinator Streaming Mode Contract', () => {
+    it('silences clean suites and 0ms sub-lines completely in compact mode', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
+
+      const cleanParams: TaskStreamProgressParams = {
+        taskId: 'validate_audit_config',
+        taskName: 'Audit Config',
+        durationMs: 12,
+        isSuccess: true,
+        hasWarnings: false,
+        isSkipped: false,
+        subLines: ['🔍 [1/8] Config: Ruta configurada no existe 🐇 (0,1 ms)']
+      };
+
+      await coordinator.onTaskComplete(cleanParams);
+
+      expect(consoleLogSpy).not.toHaveBeenCalled();
+    });
+
+    it('emits early alert line when a suite fails in compact mode without dumping sub-lines', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
+
+      const failingParams: TaskStreamProgressParams = {
+        taskId: 'validate_audit_config',
+        taskName: 'Audit Config',
+        durationMs: 45,
+        isSuccess: false,
+        hasWarnings: false,
+        isSkipped: false,
+        subLines: [
+          '🔍 [1/8] Config: Ruta configurada no existe [🐛 1] 🐇 (5 ms)',
+          '🔍 [2/8] Config: Archivo no existe 🐇 (0 ms)'
+        ]
+      };
+
+      await coordinator.onTaskComplete(failingParams);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      const logCall = consoleLogSpy.mock.calls[0]?.[0] as string;
+      expect(logCall).toContain('Audit Config');
+      expect(logCall).toContain('validate_audit_config');
+      expect(logCall).not.toContain('Config: Ruta configurada no existe');
+    });
+
+    it('emits full progress bar and all sub-lines in human mode', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'human' });
+
+      const params: TaskStreamProgressParams = {
+        taskId: 'validate_audit_config',
+        taskName: 'Audit Config',
+        durationMs: 12,
+        isSuccess: true,
+        hasWarnings: false,
+        isSkipped: false,
+        subLines: ['🔍 [1/8] Config: Ruta configurada no existe 🐇 (0,1 ms)']
+      };
+
+      await coordinator.onTaskComplete(params);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+      expect(consoleLogSpy.mock.calls[0]?.[0]).toContain('[ 01/05 │');
+      expect(consoleLogSpy.mock.calls[0]?.[0]).toContain('20%');
+      expect(consoleLogSpy.mock.calls[1]?.[0]).toContain('Config: Ruta configurada no existe');
+    });
+  });
 });

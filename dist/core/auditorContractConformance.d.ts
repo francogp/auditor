@@ -22,7 +22,8 @@ export declare function scanAllAuditorTasks(projectRoot?: string): Promise<Disco
  */
 export declare function findAuditorClass(mod: Record<string, unknown>): (new (...args: unknown[]) => BaseAuditor<string>) | null;
 /**
- * Safely instantiates an auditor class using supported constructor signatures.
+ * Safely instantiates an auditor class using canonical constructor signatures.
+ * Mandate: Prohibits legacy positional arguments; strictly expects { projectRoot: tempDir } or ().
  */
 export declare function instantiateAuditorClass(Cls: new (...args: unknown[]) => BaseAuditor<string>, tempDir: string): BaseAuditor<string>;
 /**

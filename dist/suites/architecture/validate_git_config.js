@@ -83,6 +83,7 @@ var ValidateGitConfigAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",

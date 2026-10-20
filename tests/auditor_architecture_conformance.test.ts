@@ -16,6 +16,7 @@ import { describe, it, expect } from 'vite-plus/test';
 import { discoverAuditors } from '../src/cli/auditScanner.ts';
 import { loadAuditConfig } from '../src/core/auditConfig.ts';
 import { getActiveFamilies } from '../src/core/auditContract.ts';
+import { toPosixRelative } from '../src/core/safePath.ts';
 
 const AUDITORS_ROOT = path.resolve(import.meta.dirname, '../src/suites');
 
@@ -55,7 +56,7 @@ describe('Auditor Architecture Conformance', () => {
 
   describe('OOP Inheritance Mandate', () => {
     for (const filePath of subAuditorFiles) {
-      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(process.cwd(), filePath);
       const filename = path.basename(filePath);
 
       it(`${filename} strictly inherits from BaseAuditor or FileScanAuditor`, () => {
@@ -91,7 +92,7 @@ describe('Auditor Architecture Conformance', () => {
     ];
 
     for (const filePath of subAuditorFiles) {
-      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(process.cwd(), filePath);
       const filename = path.basename(filePath);
 
       it(`${filename} contains zero custom recursive file walkers`, () => {
@@ -116,7 +117,7 @@ describe('Auditor Architecture Conformance', () => {
     ];
 
     for (const filePath of subAuditorFiles) {
-      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(process.cwd(), filePath);
       const filename = path.basename(filePath);
 
       it(`${filename} uses canonical ignore sets from auditorBase and declares zero local ignore sets`, () => {
@@ -162,7 +163,7 @@ describe('Auditor Architecture Conformance', () => {
     const MAX_LENGTH = 60;
 
     for (const filePath of subAuditorFiles) {
-      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(process.cwd(), filePath);
       const filename = path.basename(filePath);
 
       it(`${filename} declares a concise, single-line description (<= ${MAX_LENGTH} chars)`, () => {

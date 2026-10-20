@@ -68,6 +68,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
           },
           configKey: 'paths',
           defaultConfig: {},
+          requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
           ruleDescriptions: {

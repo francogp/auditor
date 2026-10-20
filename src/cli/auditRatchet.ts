@@ -13,6 +13,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
 import type { ResolvedRatchetConfig } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 
 const BASELINE_SCHEMA_VERSION = 1 as const;
 const FINGERPRINT_HEX_LENGTH = 16 as const;
@@ -57,10 +58,6 @@ function runGit(projectRoot: string, args: readonly string[]): { ok: boolean; st
 /** True when `ref` resolves to a commit in the repository at `projectRoot`. */
 export function resolveGitCommit(projectRoot: string, ref: string): boolean {
   return runGit(projectRoot, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).ok;
-}
-
-function toPosixRelative(projectRoot: string, file: string): string {
-  return path.relative(projectRoot, path.resolve(projectRoot, file)).split(path.sep).join('/');
 }
 
 function createLineReader(projectRoot: string): (file: string, line: number) => string | null {

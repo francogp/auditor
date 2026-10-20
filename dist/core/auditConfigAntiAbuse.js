@@ -36,7 +36,7 @@ const BLOCKED_WILDCARD_PATTERNS = [
 const UNIVERSAL_COVERAGE_REGEX = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/;
 const NARROW_EXTENSION_REGEX = /^\*\*\/\*\.\w+$/;
 function normalizeRootPath(p) {
-	return p.replace(/\\/g, "/").replace(/^\.\/|\/+$/g, "");
+	return p.replaceAll(path.win32.sep, path.posix.sep).split("/").filter((seg) => Boolean(seg) && seg !== ".").join("/");
 }
 function getExemptRootsForPolicy(policy, paths) {
 	switch (policy) {
@@ -85,7 +85,7 @@ function assertNoProtectedProductionRoots(rawGlob, normalizedLower) {
 function validateConstantsExemptGlobs(globs) {
 	if (globs.length > 15) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' excede el límite máximo de 15 patrones (${globs.length} configurados).\nNo abuses de las excepciones. Si tienes tantas incidencias, extrae constantes nominadas descriptivas o usa fábricas de prueba.`);
 	for (const rawGlob of globs) {
-		const glob = rawGlob.trim().replace(/\\/g, "/");
+		const glob = rawGlob.trim().replaceAll(path.win32.sep, path.posix.sep);
 		assertNoUniversalWildcard(rawGlob, glob);
 		assertNoProtectedProductionRoots(rawGlob, glob.toLowerCase().replace(/^\/+/, ""));
 	}

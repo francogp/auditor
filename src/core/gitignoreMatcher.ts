@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { isPathContained, toPosixRelative } from './safePath.ts';
 
 export interface GitIgnoreRule {
   readonly pattern: string;
@@ -129,18 +130,12 @@ export class GitIgnoreMatcher {
    * Evaluates if a given path (relative to rootDir or absolute) matches .gitignore rules.
    */
   public isIgnored(targetPath: string): boolean {
-    let normalized = targetPath.replace(/\\/g, '/');
-
-    // If absolute path, make it relative to rootDir
     if (path.isAbsolute(targetPath)) {
-      const rel = path.relative(this.rootDir, targetPath).replace(/\\/g, '/');
-      if (rel.startsWith('..')) {
+      if (!isPathContained(this.rootDir, targetPath)) {
         return false; // Outside root
       }
-      normalized = rel;
-    } else {
-      normalized = normalized.replace(/^\.\//, '');
     }
+    const normalized = toPosixRelative(this.rootDir, targetPath);
 
     // Fast-path for directory prefixes (e.g. scratch/, dist/, node_modules/)
     for (const prefix of this.ignoredDirPrefixes) {

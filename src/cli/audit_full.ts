@@ -87,15 +87,23 @@ import {
 } from './guideRenderer.ts';
 import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
 import {
+  type ConsoleOutputMode,
   executeAuditorStreaming,
   isNodeInternalWarning,
   TaskStreamCoordinator
 } from '../core/streamingRunner.ts';
+import {
+  renderExecutivePassSummary,
+  renderExecutiveFailSummary,
+  renderExecutiveSetupBlockingSummary,
+  renderExecutiveFixSummary,
+  extractPhaseBreakdown
+} from '../core/executiveTheme.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { BaseAuditor } from '../core/auditorBase.ts';
 import { evaluateSuiteStatus } from '../core/suiteGating.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
-import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
 import { ensureProjectBootstrapped } from '../core/auditBootstrap.ts';
 import '../core/permissionGuard.ts';
 
@@ -121,6 +129,7 @@ export interface AuditFullCliOptions {
   skipSimilar: boolean;
   isEnabledFilter: boolean;
   isDisabledFilter: boolean;
+  consoleMode: ConsoleOutputMode;
 }
 
 export function resolveTargetFamily(
@@ -247,6 +256,25 @@ function parsePhaseValue(raw: unknown): AuditExecutionPhase | undefined {
   return undefined;
 }
 
+export function resolveConsoleMode(
+  values: Record<string, unknown>,
+  positionals: readonly string[]
+): ConsoleOutputMode {
+  if (
+    isHumanConsoleMode(
+      {
+        human: values.human === true,
+        verbose: values.verbose === true,
+        format: typeof values.format === 'string' ? values.format : undefined
+      },
+      positionals
+    )
+  ) {
+    return 'human';
+  }
+  return 'compact';
+}
+
 export function parseAuditFullCliArgs(
   activeFamilies: readonly string[],
   rawArgs: readonly string[] = process.argv.slice(2)
@@ -265,7 +293,11 @@ export function parseAuditFullCliArgs(
     'json',
     'enabled',
     'disabled',
-    'critical'
+    'critical',
+    'verbose',
+    'human',
+    'compact',
+    'ai'
   ];
   const normalized = args.map((a) =>
     a.includes('=') && !a.startsWith('-') ? `--${a}` : BOOLEAN_FLAGS.includes(a) ? `--${a}` : a
@@ -306,7 +338,12 @@ export function parseAuditFullCliArgs(
       'post-build': { type: 'boolean' },
       full: { type: 'boolean' },
       'with-build': { type: 'boolean' },
-      'init-baseline': { type: 'boolean' }
+      'init-baseline': { type: 'boolean' },
+      verbose: { type: 'boolean' },
+      human: { type: 'boolean' },
+      compact: { type: 'boolean' },
+      ai: { type: 'boolean' },
+      format: { type: 'string' }
     },
     allowPositionals: true,
     strict: false
@@ -319,6 +356,7 @@ export function parseAuditFullCliArgs(
   const onlySpeed = parseSpeedValue(values['only-speed']);
   const explicitPhase =
     parsePhaseValue(values.phase) ?? (targetPreset === 'post-build' ? 'post-build' : undefined);
+  const consoleMode = resolveConsoleMode(values, positionals);
 
   return {
     values,
@@ -338,7 +376,8 @@ export function parseAuditFullCliArgs(
     ),
     isDisabledFilter: Boolean(
       values.disabled || positionals.includes('disabled') || positionals.includes('list:disabled')
-    )
+    ),
+    consoleMode
   };
 }
 
@@ -922,8 +961,40 @@ export function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boo
 function printRatchetVerdict(
   verdict: RatchetVerdict,
   newWarnings: readonly AuditFinding[],
-  baselineFile: string
+  baselineFile: string,
+  consoleMode: ConsoleOutputMode = 'human'
 ): void {
+  if (consoleMode === 'compact') {
+    if (verdict.status === 'passed') {
+      return;
+    }
+    if (verdict.newWarnings > 0) {
+      console.log(
+        styleText(
+          ['bold', 'red'],
+          `\n🔒 Ratchet Failed: ${verdict.newWarnings} new warning(s) relative to '${verdict.productionRef}'.`
+        )
+      );
+      return;
+    }
+    if (verdict.error) {
+      console.log(
+        styleText(['bold', 'red'], `\n🔒 Ratchet Blocked: ${verdict.error}\n`)
+      );
+      return;
+    }
+    if (verdict.status === 'initialized') {
+      console.log(
+        styleText(
+          ['bold', 'green'],
+          `\n🔒 Warning baseline created (${verdict.resolvedWarnings} warnings) at ${baselineFile}.\n`
+        )
+      );
+      return;
+    }
+    return;
+  }
+
   if (verdict.status === 'initialized') {
     console.log(
       styleText(
@@ -1030,7 +1101,7 @@ function applyWarningRatchet(
     );
   }
   if (!ratchet.enabled) {
-    if (inScope)
+    if (inScope && ctx.cliOptions.consoleMode === 'human')
       console.log(
         styleText(
           'yellow',
@@ -1064,7 +1135,7 @@ function applyWarningRatchet(
       error: err instanceof Error ? err.message : String(err)
     };
   }
-  printRatchetVerdict(verdict, newWarnings, ratchet.baselineFile);
+  printRatchetVerdict(verdict, newWarnings, ratchet.baselineFile, ctx.cliOptions.consoleMode);
   return verdict;
 }
 
@@ -1184,7 +1255,19 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
       results
     });
 
-    console.log('\n' + renderAutoFixCompletionBanner(totalDuration) + '\n');
+    if (cliOptions.consoleMode === 'compact') {
+      const filesModified = Object.keys(fileSummaryMap ?? {}).length;
+      console.log(
+        '\n' +
+          renderExecutiveFixSummary({
+            durationMs: totalDuration,
+            totalViolationsRepaired: totalErrors + totalWarnings,
+            filesModified
+          })
+      );
+    } else {
+      console.log('\n' + renderAutoFixCompletionBanner(totalDuration) + '\n');
+    }
 
     await exportCustomOutputReport(
       cliOptions,
@@ -1241,31 +1324,6 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   );
   const hasFixableErrors = setupFindings.some((f) => f.fixable && f.severity === 'error');
 
-  printFindingsSummary(
-    results,
-    sortedCategories,
-    {
-      isSetupBlocking,
-      setupErrors,
-      postponedAppErrors,
-      hasLockfileMismatch,
-      hasEngineMismatch,
-      hasFixableErrors
-    },
-    tieredGroups
-  );
-  console.log(
-    renderConsolidatedFooter(
-      results.length,
-      suitesPassed,
-      totalErrors,
-      totalWarnings,
-      totalDuration,
-      undefined,
-      suitesSkipped
-    )
-  );
-
   const hasSimilarCodeSetupFailure = results.some((r) =>
     r.findings?.some(
       (f) =>
@@ -1273,10 +1331,6 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
         (f.context === 'manual-setup-required' || f.context === 'model-not-ready')
     )
   );
-
-  if (hasSimilarCodeSetupFailure) {
-    console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
-  }
 
   const ratchet = applyWarningRatchet(ctx, isFullAudit, totalErrors);
   const anyFailed =
@@ -1289,8 +1343,85 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
     isFixMode
   );
 
-  if (autoFixRecommended) {
-    console.log('\n' + renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) + '\n');
+  if (cliOptions.consoleMode === 'compact') {
+    if (isSetupBlocking) {
+      const blockingSuites = setupResults
+        .filter((r) => (r.summary?.errors ?? 0) > 0)
+        .map((r) => `${r.name} (${r.id})`);
+      console.log(
+        '\n' +
+          renderExecutiveSetupBlockingSummary({
+            totalSuites: results.length,
+            setupErrors,
+            postponedAppErrors,
+            durationMs: totalDuration,
+            blockingSuites,
+            hasFixableErrors
+          })
+      );
+    } else if (totalErrors === 0 && !anyFailed) {
+      console.log(
+        '\n' +
+          renderExecutivePassSummary({
+            totalSuites: results.length,
+            passedSuites: suitesPassed,
+            skippedSuites: suitesSkipped,
+            totalErrors,
+            totalWarnings,
+            durationMs: totalDuration,
+            ratchetOk: ratchet?.status !== 'failed'
+          })
+      );
+    } else {
+      const phaseBreakdown = extractPhaseBreakdown(results);
+      const failedSuites = results.filter((r) => (r.summary?.errors ?? 0) > 0).length;
+      console.log(
+        '\n' +
+          renderExecutiveFailSummary({
+            totalSuites: results.length,
+            failedSuites,
+            totalErrors,
+            totalWarnings,
+            durationMs: totalDuration,
+            phaseBreakdown,
+            fixableErrors,
+            fixableWarnings
+          })
+      );
+    }
+  } else {
+    printFindingsSummary(
+      results,
+      sortedCategories,
+      {
+        isSetupBlocking,
+        setupErrors,
+        postponedAppErrors,
+        hasLockfileMismatch,
+        hasEngineMismatch,
+        hasFixableErrors
+      },
+      tieredGroups
+    );
+    console.log(
+      renderConsolidatedFooter(
+        results.length,
+        suitesPassed,
+        totalErrors,
+        totalWarnings,
+        totalDuration,
+        undefined,
+        suitesSkipped
+      )
+    );
+
+    if (hasSimilarCodeSetupFailure) {
+      console.log('\n' + renderSimilarCodeWarningBanner() + '\n');
+    }
+
+    if (autoFixRecommended) {
+      console.log('\n' + renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) + '\n');
+    }
   }
 
   const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
@@ -1319,43 +1450,45 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
     results
   });
 
-  if (!isFullAudit && !isBuildMode) {
-    console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
-    console.log(
-      styleText(
-        'yellow',
-        `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`
-      )
-    );
-    console.log(
-      styleText(
-        'dim',
-        `   Los inspectores de calidad exigirán una corrida completa ('npm run auditor').\n`
-      )
-    );
-  }
+  if (cliOptions.consoleMode === 'human') {
+    if (!isFullAudit && !isBuildMode) {
+      console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
+      console.log(
+        styleText(
+          'yellow',
+          `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`
+        )
+      );
+      console.log(
+        styleText(
+          'dim',
+          `   Los inspectores de calidad exigirán una corrida completa ('npm run auditor').\n`
+        )
+      );
+    }
 
-  console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
-  console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));
+    console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
+    console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));
 
-  if (anyFailed) {
-    console.log(
-      styleText(
-        'yellow',
-        '💡 ¿Dudas sobre una regla o comando? No inspecciones node_modules ni el código fuente. Consulta:'
-      )
-    );
-    console.log(
-      styleText('dim', '   📖 Guía y solución canónica:  ') +
-        styleText('cyan', 'npm run auditor:guide -- <regla>')
-    );
-    console.log(
-      styleText('dim', '   ❓ Catálogo de ayuda global:  ') + styleText('cyan', 'npm run auditor:help')
-    );
-    console.log(
-      styleText('dim', '   🔧 Ayuda de refactorizadores: ') +
-        styleText('cyan', 'npm run auditor:types help | auditor:domain help | auditor:motion help\n')
-    );
+    if (anyFailed) {
+      console.log(
+        styleText(
+          'yellow',
+          '💡 ¿Dudas sobre una regla o comando? No inspecciones node_modules ni el código fuente. Consulta:'
+        )
+      );
+      console.log(
+        styleText('dim', '   📖 Guía y solución canónica:  ') +
+          styleText('cyan', 'npm run auditor:guide -- <regla>')
+      );
+      console.log(
+        styleText('dim', '   ❓ Catálogo de ayuda global:  ') + styleText('cyan', 'npm run auditor:help')
+      );
+      console.log(
+        styleText('dim', '   🔧 Ayuda de refactorizadores: ') +
+          styleText('cyan', 'npm run auditor:types help | auditor:domain help | auditor:motion help\n')
+      );
+    }
   }
 
   await exportCustomOutputReport(
@@ -1580,15 +1713,16 @@ function handleGuideCommand(
     process.exit(0);
   }
 
+  const isHumanGuide = cliOptions.consoleMode === 'human';
   const ruleMatch = findRuleGuide(allAvailableTasks, target);
   if (ruleMatch) {
-    console.log(renderRuleGuideCard(ruleMatch));
+    console.log(renderRuleGuideCard(ruleMatch, isHumanGuide));
     process.exit(0);
   }
 
   const taskMatch = findTaskByUidOrName(allAvailableTasks, target);
   if (taskMatch) {
-    console.log(renderSuiteGuideCards(taskMatch));
+    console.log(renderSuiteGuideCards(taskMatch, isHumanGuide));
     process.exit(0);
   }
 
@@ -1921,6 +2055,9 @@ function displayMasterBanner(
   allAvailableTasks: readonly AuditTaskDefinition[],
   omittedSuiteIds: readonly string[]
 ): void {
+  if (cliOptions.consoleMode === 'compact') {
+    return;
+  }
   const subtitleDetails = createAuditBannerDetails(
     cliOptions,
     isFixMode,
@@ -2028,14 +2165,16 @@ async function executeAllAuditTasks(
   const isFixMode = Boolean(taskCtx.cliOptions.values.fix);
   const effectiveConcurrency = isFixMode ? 1 : concurrencyLimit;
 
-  console.log(
-    styleText(
-      'bold',
-      isFixMode
-        ? '⏳ Progreso de ejecución de suites (Concurrencia: 1 worker — Modo Reparación Serial):\n'
-        : `⏳ Progreso de ejecución de suites (Concurrencia: ${effectiveConcurrency} workers):\n`
-    )
-  );
+  if (taskCtx.cliOptions.consoleMode === 'human') {
+    console.log(
+      styleText(
+        'bold',
+        isFixMode
+          ? '⏳ Progreso de ejecución de suites (Concurrencia: 1 worker — Modo Reparación Serial):\n'
+          : `⏳ Progreso de ejecución de suites (Concurrencia: ${effectiveConcurrency} workers):\n`
+      )
+    );
+  }
   const executeSingleTask = (task: AuditTaskDefinition, index: number) => {
     return executeSingleAuditTask(task, taskCtx, index);
   };
@@ -2154,16 +2293,21 @@ export async function runMasterAudit(): Promise<void> {
   const astTasks = tasksToRun.filter((t) => t.requiresAst);
   let sharedAstContext: SharedAstContext | undefined;
   if (astTasks.length > 0 && !isFixMode) {
-    console.log(
-      styleText(
-        'cyan',
-        `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`
-      )
-    );
+    if (cliOptions.consoleMode === 'human') {
+      console.log(
+        styleText(
+          'cyan',
+          `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`
+        )
+      );
+    }
     sharedAstContext = new SharedAstContext();
   }
 
-  const coordinator = new TaskStreamCoordinator(tasksToRun.length, { indent: '  ' });
+  const coordinator = new TaskStreamCoordinator(tasksToRun.length, {
+    indent: '  ',
+    mode: cliOptions.consoleMode
+  });
   const taskCtx: TaskExecutionContext = {
     cliOptions,
     sharedAstContext,

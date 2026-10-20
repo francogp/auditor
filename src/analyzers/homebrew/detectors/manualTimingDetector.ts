@@ -7,7 +7,7 @@
  * declarePatternSubAuditor, runSubAuditorsBatch, or reportRuleDuration for 3rd-party tools).
  */
 
-import { createLineDetector } from '../homebrewTypes.ts';
+import { createLineDetector, isInsideStringLiteral } from '../homebrewTypes.ts';
 
 export const manualTimingDetector = createLineDetector({
   id: 'manual-timing',
@@ -26,12 +26,7 @@ export const manualTimingDetector = createLineDetector({
       );
     if (!match) return null;
 
-    // Ignore if inside a string literal
-    const before = line.slice(0, match.index);
-    const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
-    const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
-    const backticks = (before.match(/`/g) || []).length % 2 === 1;
-    if (singleQuotes || doubleQuotes || backticks) return null;
+    if (isInsideStringLiteral(line, match.index)) return null;
 
     // Ignore comments
     const trimmed = line.trim();

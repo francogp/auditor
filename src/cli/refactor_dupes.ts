@@ -38,13 +38,33 @@ interface CandidateRow {
   files: string;
 }
 
+const MAX_COMPACT_CLONES = 15;
+
 function handleDiscover(
   projectRoot: string,
   candidates: TriagedCloneCandidate[],
-  isJson: boolean
+  isJson: boolean,
+  isVerbose = false
 ): void {
   if (isJson) {
     console.log(JSON.stringify(candidates, null, 2));
+    return;
+  }
+
+  if (!isVerbose) {
+    if (candidates.length === 0) {
+      console.log('✔ No duplicate clones found.');
+      return;
+    }
+    console.log(`\n• Total: ${candidates.length} clone group(s) detected:`);
+    for (const c of candidates.slice(0, MAX_COMPACT_CLONES)) {
+      const fileNames = c.files.map((f) => path.basename(f)).join(', ');
+      console.log(`  - [${c.fingerprint}] ${c.topology} (${c.tokenCount * c.occurrenceCount} tokens) -> ${fileNames}`);
+    }
+    if (candidates.length > MAX_COMPACT_CLONES) {
+      console.log(`  ... and ${candidates.length - MAX_COMPACT_CLONES} more group(s).`);
+    }
+    console.log('\nNext action: npm run auditor:dupes inspect <fingerprint>\n');
     return;
   }
 
@@ -175,7 +195,8 @@ export async function runRefactorCli(): Promise<void> {
       plan: { type: 'string' },
       fingerprint: { type: 'string' },
       worktree: { type: 'boolean', default: false },
-      json: { type: 'boolean', default: false }
+      json: { type: 'boolean', default: false },
+      verbose: { type: 'boolean', default: false }
     },
     strict: false,
     allowPositionals: true
@@ -183,12 +204,17 @@ export async function runRefactorCli(): Promise<void> {
 
   const projectRoot = path.resolve(String(values.project || '.'));
   const isJson = Boolean(values.json);
+  const isVerbose =
+    values.verbose === true ||
+    args.includes('--verbose') ||
+    args.includes('verbose') ||
+    args.includes('format=verbose');
 
   switch (subCommand) {
     case 'discover': {
       const minOcc = parseInt(String(values['min-occurrences'] || '2'), 10);
       const candidates = triageCandidates(projectRoot, minOcc);
-      handleDiscover(projectRoot, candidates, isJson);
+      handleDiscover(projectRoot, candidates, isJson, isVerbose);
       break;
     }
 

@@ -208,7 +208,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(docFile, initialContent, 'utf-8');
 
       // 1. Check mode: must report violation marked fixable: true
-      const checkAuditor = new MarkdownSyntaxAuditor([tempDir], tempDir);
+      const checkAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
       const checkResult = await checkAuditor.execute();
 
       const tableFinding = checkResult.findings.find(
@@ -218,7 +218,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(tableFinding!.fixable).toBe(true);
 
       // 2. Fix mode: repairs file on disk
-      const fixAuditor = new MarkdownSyntaxAuditor([tempDir], tempDir);
+      const fixAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
       Reflect.set(fixAuditor, 'fixMode', true);
       await fixAuditor.execute();
 
@@ -228,7 +228,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       );
 
       // 3. Post-repair check pass: verify zero violations
-      const postAuditor = new MarkdownSyntaxAuditor([tempDir], tempDir);
+      const postAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
       const postResult = await postAuditor.execute();
 
       const postTableFinding = postResult.findings.find(
@@ -253,7 +253,10 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(docFile, initialContent, 'utf-8');
 
       // 1. Check mode: must report unquoted punctuation as fixable: true
-      const checkAuditor = new ValidateMermaidSyntaxAuditor([tempDir], tempDir);
+      const checkAuditor = new ValidateMermaidSyntaxAuditor({
+        roots: [tempDir],
+        projectRoot: tempDir
+      });
       const checkResult = await checkAuditor.execute();
 
       const unquotedFindings = checkResult.findings.filter(
@@ -265,7 +268,10 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       }
 
       // 2. Fix mode: repairs unquoted characters on disk
-      const fixAuditor = new ValidateMermaidSyntaxAuditor([tempDir], tempDir);
+      const fixAuditor = new ValidateMermaidSyntaxAuditor({
+        roots: [tempDir],
+        projectRoot: tempDir
+      });
       Reflect.set(fixAuditor, 'fixMode', true);
       await fixAuditor.execute();
 
@@ -274,7 +280,10 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(repairedContent).toContain('B["Step 2 (Deploy)"]');
 
       // 3. Post-repair check pass: verify clean execution with 0 fixable errors
-      const postAuditor = new ValidateMermaidSyntaxAuditor([tempDir], tempDir);
+      const postAuditor = new ValidateMermaidSyntaxAuditor({
+        roots: [tempDir],
+        projectRoot: tempDir
+      });
       const postResult = await postAuditor.execute();
 
       const remainingFindings = postResult.findings.filter(
@@ -392,7 +401,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(agentsPath, '# Title\n\n## Local Contracts\n\nSome text.\n', 'utf-8');
 
       // 1. Check mode: reports missing mandate as fixable: true
-      const checkAuditor = new AgentsConfigMandateAuditor(tempDir);
+      const checkAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
       const checkResult = await checkAuditor.execute();
 
       const mandateFinding = checkResult.findings.find(
@@ -402,7 +411,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(mandateFinding!.fixable).toBe(true);
 
       // 2. Fix mode: injects mandate into AGENTS.md
-      const fixAuditor = new AgentsConfigMandateAuditor(tempDir);
+      const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
       Reflect.set(fixAuditor, 'fixMode', true);
       await fixAuditor.execute();
 
@@ -410,7 +419,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(repaired).toContain('Prohibition on Modifying or Disabling Configurations');
 
       // 3. Post-fix check: verify mandate is present and finding is gone
-      const postAuditor = new AgentsConfigMandateAuditor(tempDir);
+      const postAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
       const postResult = await postAuditor.execute();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'agents-missing-config-mandate'
@@ -425,7 +434,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(agentsPath, '# Title\n\n## Local Contracts\n\nSome text.\n', 'utf-8');
 
       // 1. Check mode: reports missing language mandate as fixable: true
-      const checkAuditor = new DocumentationLanguageAuditor(tempDir);
+      const checkAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
       const checkResult = await checkAuditor.execute();
 
       const langFinding = checkResult.findings.find(
@@ -435,7 +444,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(langFinding!.fixable).toBe(true);
 
       // 2. Fix mode: injects language mandate into AGENTS.md
-      const fixAuditor = new DocumentationLanguageAuditor(tempDir);
+      const fixAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
       Reflect.set(fixAuditor, 'fixMode', true);
       await fixAuditor.execute();
 
@@ -443,7 +452,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(repaired).toContain('Universal English Documentation Default Mandate');
 
       // 3. Post-fix check: verify finding is gone
-      const postAuditor = new DocumentationLanguageAuditor(tempDir);
+      const postAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
       const postResult = await postAuditor.execute();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'docs-missing-language-mandate'
@@ -460,7 +469,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         'utf-8'
       );
 
-      const auditor = new DocumentationLanguageAuditor(tempDir);
+      const auditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const unauthFinding = result.findings.find((f) => f.ruleId === 'docs-unauthorized-language');
@@ -588,7 +597,10 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         'utf-8'
       );
 
-      const checkAuditor = new MarkdownCodeReferencesAuditor([tempDir], tempDir);
+      const checkAuditor = new MarkdownCodeReferencesAuditor({
+        roots: [tempDir],
+        projectRoot: tempDir
+      });
       const checkResult = await checkAuditor.execute();
 
       const versionFinding = checkResult.findings.find(
@@ -597,7 +609,10 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       if (versionFinding) {
         expect(versionFinding.fixable).toBe(true);
 
-        const fixAuditor = new MarkdownCodeReferencesAuditor([tempDir], tempDir);
+        const fixAuditor = new MarkdownCodeReferencesAuditor({
+          roots: [tempDir],
+          projectRoot: tempDir
+        });
         Reflect.set(fixAuditor, 'fixMode', true);
         await fixAuditor.execute();
 
@@ -645,14 +660,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       const cssFile = path.join(srcDir, 'style.css');
       fs.writeFileSync(cssFile, '.modal { z-index: 1000; }\n', 'utf-8');
 
-      const checkAuditor = new ZIndexAuditor(undefined, [tempDir], tempDir);
+      const checkAuditor = new ZIndexAuditor({ roots: [tempDir], projectRoot: tempDir });
       const checkResult = await checkAuditor.execute();
 
       const zFinding = checkResult.findings.find((f) => f.ruleId === 'z-index-hardcoded-literal');
       if (zFinding) {
         expect(zFinding.fixable).toBe(true);
 
-        const fixAuditor = new ZIndexAuditor(undefined, [tempDir], tempDir);
+        const fixAuditor = new ZIndexAuditor({ roots: [tempDir], projectRoot: tempDir });
         Reflect.set(fixAuditor, 'fixMode', true);
         await fixAuditor.execute();
 

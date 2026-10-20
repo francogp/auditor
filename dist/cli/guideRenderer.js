@@ -26,7 +26,7 @@ function findRuleGuide(allTasks, ruleIdOrName) {
 		}
 	}
 }
-function renderRuleGuideCard(match) {
+function renderRuleGuideCard(match, isVerbose = false) {
 	const { boldWhite, boldYellow, boldCyan, dim, white } = themeStyles;
 	const sections = [];
 	const title = `📖 GUÍA DE REMEDIACIÓN: ${match.ruleId}`;
@@ -39,6 +39,7 @@ function renderRuleGuideCard(match) {
 	sections.push([boldYellow("💡 DIAGNÓSTICO, CAUSA RAÍZ Y REMEDIACIÓN PASO A PASO:"), white(remediationLines.join("\n"))]);
 	if (match.task.configKey) sections.push([boldYellow("🛠️ CONFIGURACIÓN VINCULADA:"), dim(`  Sección en .auditor/audit.config.ts: `) + boldWhite(match.task.configKey)]);
 	const content = sections.map((sec) => sec.join("\n")).join("\n\n");
+	if (!isVerbose) return `\n${content}\n`;
 	return `${boxen(content, {
 		borderColor: "yellow",
 		borderStyle: "double",
@@ -50,7 +51,7 @@ function renderRuleGuideCard(match) {
 		}
 	})}\n`;
 }
-function renderSuiteGuideCards(task) {
+function renderSuiteGuideCards(task, isVerbose = false) {
 	const rules = task.ruleDescriptions ?? task.manifest?.rules ?? {};
 	const remediations = task.ruleRemediations ?? task.manifest?.remediations ?? {};
 	const ruleEntries = Object.entries(rules);
@@ -62,7 +63,7 @@ function renderSuiteGuideCards(task) {
 		ruleDescription: rDesc,
 		remediation: remediations[rId] ?? "Sin guía declarada.",
 		task
-	}));
+	}, isVerbose));
 	return output.join("\n");
 }
 function renderFamilyGuideIndex(family, tasksInFamily) {

@@ -48,6 +48,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
   constructor(options: Partial<AuditorOptions<DependencyMinimumsRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(
         DEPENDENCY_MINIMUMS_RULES,
         {

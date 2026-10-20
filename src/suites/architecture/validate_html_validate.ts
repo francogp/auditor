@@ -21,7 +21,8 @@ import {
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
-  collectRepositoryFiles
+  collectRepositoryFiles,
+  isPathIgnored
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -75,10 +76,11 @@ function collectRootHtmlTargets(
   projectRoot: string,
   root: string,
   targets: string[],
-  filesToScan: string[]
+  filesToScan: string[],
+  extraIgnorePatterns: readonly string[] = []
 ): void {
   const fullRoot = path.resolve(projectRoot, root);
-  const found = collectRepositoryFiles(fullRoot, projectRoot, [], new Set(['.html', '.vue']));
+  const found = collectRepositoryFiles(fullRoot, projectRoot, extraIgnorePatterns, new Set(['.html', '.vue']));
   if (found.length > 0) {
     targets.push(root);
     filesToScan.push(...found);
@@ -88,14 +90,17 @@ function collectRootHtmlTargets(
 function collectTopLevelHtmlTargets(
   projectRoot: string,
   targets: string[],
-  filesToScan: string[]
+  filesToScan: string[],
+  extraIgnorePatterns: readonly string[] = []
 ): void {
   try {
     const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
     for (const entry of rootEntries) {
       if (entry.isFile() && entry.name.endsWith('.html')) {
-        targets.push(entry.name);
-        filesToScan.push(path.join(projectRoot, entry.name));
+        if (!isPathIgnored(entry.name, extraIgnorePatterns, [], projectRoot)) {
+          targets.push(entry.name);
+          filesToScan.push(path.join(projectRoot, entry.name));
+        }
       }
     }
   } catch {
@@ -105,16 +110,17 @@ function collectTopLevelHtmlTargets(
 
 export function collectHtmlTargets(
   projectRoot: string,
-  roots: readonly string[]
+  roots: readonly string[],
+  extraIgnorePatterns: readonly string[] = []
 ): { targets: string[]; filesToScan: string[] } {
   const targets: string[] = [];
   const filesToScan: string[] = []; // no-domain: Dynamic filesystem file path list
 
   for (const root of roots) {
-    collectRootHtmlTargets(projectRoot, root, targets, filesToScan);
+    collectRootHtmlTargets(projectRoot, root, targets, filesToScan, extraIgnorePatterns);
   }
 
-  collectTopLevelHtmlTargets(projectRoot, targets, filesToScan);
+  collectTopLevelHtmlTargets(projectRoot, targets, filesToScan, extraIgnorePatterns);
 
   return { targets, filesToScan };
 }
@@ -146,6 +152,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'html-validate',
         fallbackBehavior: 'violation',
@@ -246,7 +253,11 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       source: 'runtime'
     });
 
-    const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots);
+    const { targets, filesToScan } = collectHtmlTargets(
+      this.projectRoot,
+      scannableRoots,
+      this.extraIgnorePatterns
+    );
 
     if (filesToScan.length === 0 && targets.length === 0) {
       this.markRuleNotApplicable(

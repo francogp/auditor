@@ -220,6 +220,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
         speed: 'light',
         phase: 'normal',

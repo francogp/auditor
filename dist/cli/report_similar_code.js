@@ -1,9 +1,12 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
+import { toPosixRelative } from "../core/auditCoverage.js";
+import "../core/safePath.js";
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { checkOrInitializeModel, resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
+import path from "node:path";
 import { parseArgs, styleText } from "node:util";
 import { execSync } from "node:child_process";
 //#region src/cli/report_similar_code.ts
@@ -79,7 +82,7 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 		process.exit(1);
 	}
 	if (ignoreSameFile) candidates = candidates.filter((c) => {
-		return (c.left?.path || "").replace(/\\/g, "/") !== (c.right?.path || "").replace(/\\/g, "/");
+		return toPosixRelative(process.cwd(), c.left?.path || "") !== toPosixRelative(process.cwd(), c.right?.path || "");
 	});
 	if (isJson) {
 		console.log(JSON.stringify(candidates, null, 2));
@@ -125,8 +128,8 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 	const rows = candidates.map((c, idx) => {
 		const pct = `${(c.similarity * 100).toFixed(1)}%`;
 		const simFormatted = c.similarity >= .95 ? styleText("red", pct) : styleText("yellow", pct);
-		const leftFile = c.left.path.split("/").pop() || c.left.path;
-		const rightFile = c.right.path.split("/").pop() || c.right.path;
+		const leftFile = path.basename(c.left.path);
+		const rightFile = path.basename(c.right.path);
 		const loc = `${leftFile}:${c.left.start_line} ~ ${rightFile}:${c.right.start_line}`;
 		return {
 			index: String(idx + 1),

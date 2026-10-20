@@ -8,6 +8,7 @@ import { execSync } from 'node:child_process';
 import { parseArgs, styleText } from 'node:util';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
@@ -40,14 +41,16 @@ function extractLayerFromPath(relPath: string): string {
   const config = getAuditConfig();
   const codeRoots = config.paths?.codeRoots ?? ['src', 'scripts'];
   for (const root of codeRoots) {
-    const cleanRoot = root.replace(/^\/+|\/+$/g, '') + '/';
-    if (relPath.startsWith(cleanRoot)) {
-      const rest = relPath.slice(cleanRoot.length);
-      const subSegments = rest.split('/');
+    const cleanRoot = toPosixRelative(process.cwd(), root);
+    const relToRoot = path.posix.relative(cleanRoot, relPath);
+    if (!relToRoot.startsWith('..') && !path.posix.isAbsolute(relToRoot)) {
+      // path-ok: Segment decomposition to extract architectural layer
+      const subSegments = relToRoot.split('/').filter(Boolean);
       return subSegments[0] || 'root';
     }
   }
-  const segments = relPath.split('/');
+  // path-ok: Segment decomposition to extract fallback architectural layer
+  const segments = relPath.split('/').filter(Boolean);
   return segments.length > 1 && segments[0] ? segments[0] : 'root';
 }
 
@@ -128,7 +131,7 @@ function ingestLargeFunctions(
   if (!rawLarge) return;
   for (const lf of rawLarge) {
     const filePath = lf.path ?? '';
-    const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+    const relPath = toPosixRelative(process.cwd(), filePath);
     const layer = extractLayerFromPath(relPath);
     const key = `${relPath}:${lf.line}:${lf.name}`;
 
@@ -153,7 +156,7 @@ function ingestComplexityFindings(
   if (!rawFindings) return;
   for (const f of rawFindings) {
     const filePath = f.path ?? '';
-    const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+    const relPath = toPosixRelative(process.cwd(), filePath);
     const layer = extractLayerFromPath(relPath);
     const cog = f.cognitive || 0;
     const cyc = f.cyclomatic || 0;
@@ -212,7 +215,7 @@ function ingestFallbackAuditFindings(findingsMap: Map<string, ComplexityFinding>
     );
     for (const cf of compFindings) {
       const filePath = cf.file || '';
-      const relPath = path.relative(process.cwd(), filePath).replace(/\\/g, '/');
+      const relPath = toPosixRelative(process.cwd(), filePath);
       const layer = extractLayerFromPath(relPath);
       const line = cf.line || 1;
       const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);

@@ -10,6 +10,7 @@ import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
 import { CoverageRecorder, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { formatDurationMs } from "./durationFormatter.js";
+import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import { renderFindingsDetail } from "./fileTreeRenderer.js";
 import { renderAuditTaskRow, renderBanner, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
@@ -63,8 +64,8 @@ const CODE_ONLY_IGNORE_DIRS = /* @__PURE__ */ new Set([
 /** Canonical ignore directories for application code auditors (union of ALWAYS + CODE_ONLY) */
 const CANONICAL_IGNORE_DIRS = /* @__PURE__ */ new Set([...ALWAYS_IGNORE_DIRS, ...CODE_ONLY_IGNORE_DIRS]);
 /** Returns the effective set of ignore directories combining canonical defaults with audit.config.ts paths.ignoredDirs */
-function getEffectiveIgnoreDirs() {
-	const custom = getAuditConfig().paths?.ignoredDirs ?? [];
+function getEffectiveIgnoreDirs(projectRoot = process.cwd()) {
+	const custom = getAuditConfig(projectRoot).paths?.ignoredDirs ?? [];
 	return /* @__PURE__ */ new Set([...CANONICAL_IGNORE_DIRS, ...custom]);
 }
 /** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
@@ -76,7 +77,7 @@ function getEffectiveUnignoreDirs(projectRoot = process.cwd()) {
 	if (customDocs && customDocs.length > 0) return customDocs;
 	const derived = /* @__PURE__ */ new Set();
 	if (config.documentation?.skillsRoots && config.documentation.skillsRoots.length > 0) for (const r of config.documentation.skillsRoots) {
-		const topSegment = r.replace(/\\/g, "/").replace(/^\/+/, "").split("/")[0];
+		const topSegment = toPosixRelative(process.cwd(), r).split("/")[0];
 		if (topSegment) derived.add(topSegment);
 	}
 	if (derived.size > 0) return Array.from(derived);
@@ -130,65 +131,27 @@ function getEffectiveScannableRoots(config = getAuditConfig()) {
 function assertSafePathComponent(component) {
 	if (component.includes("..")) throw new Error(`Path traversal attempt detected in path component: ${component}`);
 }
-let lockedSkillsCache = null;
-let lockedSkillsCacheRoot = null;
-function clearLockedSkillsCache() {
-	lockedSkillsCache = null;
-	lockedSkillsCacheRoot = null;
-}
 /**
-* Canonical candidate relative locations for skills-lock.json in order of precedence.
+* Resolves the subsystem configuration section from AuditEngineConfig
+* given a declared configKey (supporting direct keys like 'paths', 'constants',
+* or dotted keys like 'htmlValidate.enabled', 'styles.zLayersEnabled', 'fallow.similarCode.enabled').
 */
-const SKILLS_LOCK_CANDIDATE_PATHS = [
-	"skills-lock.json",
-	".auditor/skills-lock.json",
-	".agents/skills-lock.json"
-];
-function parseLockedSkillsFile(skillsLockPath) {
-	try {
-		if (!fs.existsSync(skillsLockPath)) return [];
-		const raw = fs.readFileSync(skillsLockPath, "utf-8");
-		const data = JSON.parse(raw);
-		if (data?.skills && typeof data.skills === "object") return Object.keys(data.skills).map((s) => s.toLowerCase());
-	} catch {}
-	return [];
-}
-function resolveSkillsLockCandidates(projectRoot) {
-	const candidatePaths = [...SKILLS_LOCK_CANDIDATE_PATHS];
-	try {
-		const config = getAuditConfig(projectRoot);
-		if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) candidatePaths.unshift(config.paths.skillsLockFile);
-	} catch {}
-	const inheritedLock = "node_modules/@francogp/auditor/skills-lock.json";
-	if (fs.existsSync(path.resolve(projectRoot, inheritedLock))) candidatePaths.push(inheritedLock);
-	return candidatePaths;
-}
-function loadLockedSkills(projectRoot = process.cwd()) {
-	if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) return lockedSkillsCache;
-	const locked = /* @__PURE__ */ new Set();
-	for (const relPath of resolveSkillsLockCandidates(projectRoot)) for (const skill of parseLockedSkillsFile(path.resolve(projectRoot, relPath))) locked.add(skill);
-	lockedSkillsCache = locked;
-	lockedSkillsCacheRoot = projectRoot;
-	return locked;
-}
-/**
-* Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory
-* (e.g. .agents/skills/<lockedSkill>/**, skills/<lockedSkill>/**, .skills/<lockedSkill>/**).
-*/
-function isLockedSkillPath(filePath, projectRoot = process.cwd()) {
-	const locked = loadLockedSkills(projectRoot);
-	if (locked.size === 0) return false;
-	const segments = (path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath).replace(/\\/g, "/").toLowerCase().replace(/^\/+/, "").split("/");
-	for (let i = 0; i < segments.length - 1; i++) {
-		const parent = segments[i];
-		const candidate = segments[i + 1];
-		if ((parent === "skills" || parent === ".skills") && candidate && locked.has(candidate)) return true;
-		if (parent === ".agents" && candidate === "skills" && i + 2 < segments.length) {
-			const skillName = segments[i + 2];
-			if (skillName && locked.has(skillName)) return true;
+function resolveSubsystemConfig(config, configKey) {
+	if (!configKey || configKey === "core" || configKey === "none") return;
+	if (configKey === "paths") return config.paths;
+	const direct = Reflect.get(config, configKey);
+	if (direct && typeof direct === "object") return direct;
+	const parts = configKey.split(".");
+	const topSection = Reflect.get(config, parts[0]);
+	if (topSection && typeof topSection === "object") {
+		if (parts.length > 2) {
+			let current = topSection;
+			for (let i = 1; i < parts.length - 1; i++) if (current && typeof current === "object" && parts[i] in current) current = Reflect.get(current, parts[i]);
+			else break;
+			if (current && typeof current === "object" && ("ignoreGlobs" in current || "exemptPaths" in current || "enabled" in current)) return current;
 		}
+		return topSection;
 	}
-	return false;
 }
 function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnoredDirs) {
 	let hasUnignoredAncestor = false;
@@ -224,10 +187,10 @@ function matchesSinglePattern(normalized, pattern) {
 */
 function isPathIgnored(relPath, extraIgnorePatterns = [], unignoreDirs = [], projectRoot = process.cwd()) {
 	if (isLockedSkillPath(relPath, projectRoot)) return true;
-	const normalized = relPath.split(path.sep).join(path.posix.sep).toLowerCase();
+	const normalized = (path.isAbsolute(relPath) ? path.relative(projectRoot, relPath) : relPath).split(path.sep).join(path.posix.sep).toLowerCase();
 	const segments = normalized.split("/");
 	const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
-	if (matchesDirectorySegments(normalized, segments, unignoreSet, (getAuditConfig(projectRoot)?.paths?.ignoredDirs ?? []).map((d) => d.toLowerCase().replace(/\\/g, "/").replace(/^\/+|\/+$/g, "")))) return true;
+	if (matchesDirectorySegments(normalized, segments, unignoreSet, (getAuditConfig(projectRoot)?.paths?.ignoredDirs ?? []).map((d) => toPosixRelative(projectRoot, d).toLowerCase()))) return true;
 	const configPatterns = getAuditConfig(projectRoot)?.paths?.ignoredPatterns ?? [];
 	const configGlobs = getAuditConfig(projectRoot)?.paths?.ignoreGlobs ?? [];
 	const allPatterns = [
@@ -283,9 +246,12 @@ async function persistAuditJsonReport(result, config, outputOption) {
 		const jsonString = JSON.stringify(result, null, 2);
 		await fs$1.writeFile(targetJsonPath, jsonString, "utf-8");
 		await fs$1.writeFile(latestJsonPath, jsonString, "utf-8");
-		if (typeof outputOption === "string" && outputOption && !outputOption.includes("..")) {
-			const outPath = path.resolve(process.cwd(), outputOption);
-			await fs$1.writeFile(outPath, jsonString, "utf-8");
+		if (typeof outputOption === "string" && outputOption) {
+			const relOut = path.relative(process.cwd(), path.resolve(process.cwd(), outputOption));
+			if (!relOut.startsWith("..") && !path.isAbsolute(relOut)) {
+				const outPath = path.resolve(process.cwd(), outputOption);
+				await fs$1.writeFile(outPath, jsonString, "utf-8");
+			}
 		}
 	} catch {}
 	return targetJsonPath;
@@ -306,7 +272,7 @@ function renderConsoleSummary(result, config, targetJsonPath) {
 }
 function normalizeAuditorFilePath(file, projectRoot) {
 	if (!file) return file;
-	const normFile = path.isAbsolute(file) ? path.relative(projectRoot, file).replace(/\\/g, "/") : file.replace(/\\/g, "/");
+	const normFile = toPosixRelative(projectRoot, file);
 	if (isLockedSkillPath(normFile, projectRoot)) return null;
 	return normFile;
 }
@@ -565,12 +531,15 @@ const AST_RULE_CAPABILITIES = Object.freeze({
 /**
 * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.
 */
-function resolveFileScanRoots(options, defaultRoots) {
+function resolveFileScanRoots(options = {}, defaultRootsResolver) {
 	const effectiveRoot = options.projectRoot ?? process.cwd();
 	const config = getAuditConfig(effectiveRoot);
+	let resolvedDefault;
+	if (typeof defaultRootsResolver === "function") resolvedDefault = defaultRootsResolver(config);
+	else if (Array.isArray(defaultRootsResolver)) resolvedDefault = defaultRootsResolver;
 	return {
 		effectiveRoot,
-		targetRoots: options.roots ?? config.paths?.srcRoots ?? defaultRoots ?? ["src"]
+		targetRoots: options.roots ?? resolvedDefault ?? config.paths?.srcRoots ?? ["src"]
 	};
 }
 /**
@@ -713,12 +682,16 @@ function validateAuditorThirdPartyToolContract(options) {
 		}
 	} else if (options.thirdPartyToolPolicy !== void 0) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`);
 }
+function validateAuditorRequiredPermissions(options) {
+	if (options.requiredPermissions === void 0 || !Array.isArray(options.requiredPermissions)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'requiredPermissions' array in its constructor options (pass [] if no special permissions are needed).`);
+}
 function validateAuditorOptions(options, effectiveCapabilities) {
 	validateAuditorIdentity(options);
 	validateAuditorConfigKey(options);
 	validateAuditorDefaultConfig(options);
 	validateAuditorCriticalConfig(options);
 	validateAuditorThirdPartyToolContract(options);
+	validateAuditorRequiredPermissions(options);
 	validateAuditorRules(options);
 	validateAuditorRuleCapabilities(options);
 	validateAuditorFixContract(options, effectiveCapabilities);
@@ -739,6 +712,32 @@ function validateAuditorRuleDescriptions(options, formatFn) {
 		if (formatted.length > 50 || formatted.includes("\n")) throw new Error(`Auditor [${options.id}] rule description for '${ruleId}' ('${formatted}', length: ${formatted.length}) exceeds 50 characters or contains newlines.`);
 	}
 }
+function extractStringList(candidate) {
+	return Array.isArray(candidate) ? candidate.filter((item) => typeof item === "string") : [];
+}
+function resolveSubsystemIgnoresAndExemptions(options, config) {
+	const section = resolveSubsystemConfig(config, options.configKey);
+	if (!section || typeof section !== "object") return {
+		extraIgnorePatterns: options.extraIgnorePatterns ?? [],
+		exemptPaths: options.exemptPaths ?? []
+	};
+	const sectionObj = section;
+	const ignoreGlobs = extractStringList(sectionObj.ignoreGlobs);
+	const exemptPaths = [...extractStringList(sectionObj.exemptPaths), ...extractStringList(sectionObj.exemptFiles)];
+	return {
+		extraIgnorePatterns: Array.from(/* @__PURE__ */ new Set([...options.extraIgnorePatterns ?? [], ...ignoreGlobs])),
+		exemptPaths: Array.from(/* @__PURE__ */ new Set([...options.exemptPaths ?? [], ...exemptPaths]))
+	};
+}
+function resolveRulePhases(options) {
+	const resolvedPhases = {};
+	for (const ruleId of options.ruleIds) resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase;
+	return Object.freeze(resolvedPhases);
+}
+function resolveFixableRuleIds(options) {
+	const configFixableRules = (options.configFiles ?? []).filter((c) => Boolean(c.ruleId && c.generateDefaultContent)).map((c) => c.ruleId);
+	return /* @__PURE__ */ new Set([...options.fixableRuleIds ?? [], ...configFixableRules]);
+}
 var BaseAuditor = class BaseAuditor {
 	id;
 	name;
@@ -751,6 +750,7 @@ var BaseAuditor = class BaseAuditor {
 	gitIgnoreEntries;
 	configFiles;
 	scripts;
+	requiredPermissions;
 	ruleIds;
 	ruleDescriptions;
 	ruleRemediations;
@@ -759,6 +759,7 @@ var BaseAuditor = class BaseAuditor {
 	roots;
 	allowedExtensions;
 	extraIgnorePatterns;
+	exemptPaths;
 	unignoreDirs;
 	requiredFiles;
 	requiresAst;
@@ -975,6 +976,7 @@ var BaseAuditor = class BaseAuditor {
 		if (options.scripts && options.scripts.length > 0) return options.scripts;
 		return [deriveCanonicalAuditorScript(options.id, options.description, {
 			category: options.family,
+			permissions: options.requiredPermissions ?? [],
 			isApplicable: (config) => evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
 		})];
 	}
@@ -1000,6 +1002,15 @@ var BaseAuditor = class BaseAuditor {
 				}
 			}
 		});
+	}
+	initRuleLedger() {
+		for (const ruleId of this.ruleIds) {
+			this.countsByRule.set(ruleId, 0);
+			this.errorsByRule.set(ruleId, 0);
+			this.warningsByRule.set(ruleId, 0);
+			this.fixableErrorsByRule.set(ruleId, 0);
+			this.fixableWarningsByRule.set(ruleId, 0);
+		}
 	}
 	constructor(options) {
 		if (Object.hasOwn(options, "capabilities")) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] passed redundant 'capabilities' to constructor options. Suite-level capabilities must NOT be passed directly; define individual 'ruleCapabilities' for each sub-auditor/rule and BaseAuditor will automatically derive suite capabilities.`);
@@ -1030,47 +1041,42 @@ var BaseAuditor = class BaseAuditor {
 		this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
 		this.configFiles = options.configFiles ?? [];
 		this.scripts = effectiveScripts;
+		this.requiredPermissions = options.requiredPermissions ?? [];
 		this.registerAuditorDependencies(options, effectiveScripts);
 		this.fixMode = Boolean(options.fix);
 		this.ruleIds = options.ruleIds;
 		this.ruleDescriptions = options.ruleDescriptions;
 		this.ruleRemediations = options.ruleRemediations;
-		const resolvedPhases = {};
-		for (const ruleId of options.ruleIds) resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase;
-		this.ruleRemediationPhases = Object.freeze(resolvedPhases);
+		this.ruleRemediationPhases = resolveRulePhases(options);
 		this.explicitSubAuditors = options.subAuditors;
 		this.roots = options.roots ?? getEffectiveScannableRoots();
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-		const config = getAuditConfig(effectiveProjectRoot);
-		const section = options.configKey && Reflect.get(config, options.configKey);
-		const sectionIgnoreGlobs = [];
-		if (section && typeof section === "object" && Array.isArray(section.ignoreGlobs)) {
-			for (const item of section.ignoreGlobs) if (typeof item === "string") sectionIgnoreGlobs.push(item);
-		}
-		this.extraIgnorePatterns = Array.from(/* @__PURE__ */ new Set([...options.extraIgnorePatterns ?? [], ...sectionIgnoreGlobs]));
+		const { extraIgnorePatterns, exemptPaths } = resolveSubsystemIgnoresAndExemptions(options, getAuditConfig(effectiveProjectRoot));
+		this.extraIgnorePatterns = extraIgnorePatterns;
+		this.exemptPaths = exemptPaths;
 		this.unignoreDirs = options.unignoreDirs ?? (options.family === "documentation" ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
 		this.requiredFiles = options.requiredFiles ?? [];
 		this.projectRoot = effectiveProjectRoot;
 		this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
-		const configFixableRules = (this.configFiles ?? []).filter((c) => Boolean(c.ruleId && c.generateDefaultContent)).map((c) => c.ruleId);
-		this.fixableRuleIds = /* @__PURE__ */ new Set([...options.fixableRuleIds ?? [], ...configFixableRules]);
+		this.fixableRuleIds = resolveFixableRuleIds(options);
 		validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
-		for (const ruleId of this.ruleIds) {
-			this.countsByRule.set(ruleId, 0);
-			this.errorsByRule.set(ruleId, 0);
-			this.warningsByRule.set(ruleId, 0);
-			this.fixableErrorsByRule.set(ruleId, 0);
-			this.fixableWarningsByRule.set(ruleId, 0);
-		}
+		this.initRuleLedger();
 		this.context = this.initExecutionContext(this.coverageRecorder.declaration);
 	}
 	/**
+	* Checks whether the given relative path is exempt according to suite options and configuration.
+	*/
+	isPathExempt(relPath) {
+		return isPathExempt(relPath, this.exemptPaths);
+	}
+	/**
 	* Determines whether a given project-relative path is scannable by this auditor,
-	* taking into account its extraIgnorePatterns, unignoreDirs, and global project ignores.
+	* taking into account its extraIgnorePatterns, unignoreDirs, exemptPaths, and global project ignores.
 	*/
 	isPathScannable(relPath) {
-		const norm = relPath.replace(/\\/g, "/");
+		const norm = toPosixRelative(this.projectRoot, relPath);
 		if (isPathIgnored(norm, this.extraIgnorePatterns, this.unignoreDirs, this.projectRoot)) return false;
+		if (this.isPathExempt(norm)) return false;
 		if (this.family !== "testing" && isTestFileForCodeAudit(norm, this.projectRoot)) return false;
 		return true;
 	}
@@ -1079,7 +1085,7 @@ var BaseAuditor = class BaseAuditor {
 	* applying declared roots, allowedExtensions, global ignores, and extraIgnorePatterns.
 	*/
 	getScannableFiles() {
-		return this.context.collectFiles(this.roots, this.allowedExtensions).map((f) => path.relative(this.projectRoot, f).replace(/\\/g, "/")).filter((rel) => this.isPathScannable(rel));
+		return this.context.collectFiles(this.roots, this.allowedExtensions).map((f) => toPosixRelative(this.projectRoot, f)).filter((rel) => this.isPathScannable(rel));
 	}
 	/** Full rule catalog used for dormancy detection (declared ruleIds, else ruleDescriptions keys). */
 	getRuleCatalog() {
@@ -1281,7 +1287,8 @@ var BaseAuditor = class BaseAuditor {
 	addViolation(v) {
 		if (!(v.ruleId in this.ruleDescriptions)) throw new Error(`[Auditor Contract Violation] Rule '${v.ruleId}' emitted in '${this.id}' is NOT registered in 'ruleDescriptions'. All emitted rules must be registered in the constructor.`);
 		const targetFile = v.file ?? v.filePath;
-		if (targetFile && isLockedSkillPath(targetFile, this.projectRoot)) return;
+		const normalizedFile = targetFile ? toPosixRelative(this.projectRoot, targetFile) : targetFile;
+		if (normalizedFile && this.isViolationSuppressed(normalizedFile)) return;
 		const current = this.countsByRule.get(v.ruleId) ?? 0;
 		this.countsByRule.set(v.ruleId, current + 1);
 		const isFixable = v.fixable !== void 0 ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
@@ -1301,7 +1308,6 @@ var BaseAuditor = class BaseAuditor {
 			}
 		}
 		const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
-		const normalizedFile = targetFile ? path.isAbsolute(targetFile) ? path.relative(this.projectRoot, targetFile).replace(/\\/g, "/") : targetFile.replace(/\\/g, "/") : targetFile;
 		const targetCol = v.col ?? v.column;
 		const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
 		const effectiveRemediationPhase = v.remediationPhase ?? this.ruleRemediationPhases?.[v.ruleId];
@@ -1439,6 +1445,31 @@ var BaseAuditor = class BaseAuditor {
 	}
 	isPathIgnored(relPath) {
 		return this.context.isPathIgnored(relPath);
+	}
+	/**
+	* Determines whether a violation on the given relative path should be suppressed
+	* due to locked skill protection, subsystem exemptions, subsystem ignore globs,
+	* or user-configured paths.ignoreGlobs / paths.ignoredPatterns.
+	*/
+	isViolationSuppressed(relPath) {
+		const effectiveRel = path.isAbsolute(relPath) ? path.relative(this.projectRoot, relPath) : relPath;
+		if (isLockedSkillPath(effectiveRel, this.projectRoot)) return true;
+		if (this.isPathExempt(effectiveRel)) return true;
+		const norm = toPosixRelative(this.projectRoot, effectiveRel);
+		for (const pattern of this.extraIgnorePatterns) if (matchesSinglePattern(norm, pattern)) return true;
+		const config = getAuditConfig(this.projectRoot);
+		const userGlobs = config?.paths?.ignoreGlobs ?? [];
+		const userPatterns = config?.paths?.ignoredPatterns ?? [];
+		for (const pattern of [...userGlobs, ...userPatterns]) if (matchesSinglePattern(norm, pattern)) return true;
+		const userIgnoredDirs = config?.paths?.ignoredDirs ?? [];
+		if (userIgnoredDirs.length > 0) {
+			const segments = norm.toLowerCase().split("/");
+			for (const d of userIgnoredDirs) {
+				const cleanD = toPosixRelative(this.projectRoot, d).toLowerCase();
+				if (cleanD && (segments.includes(cleanD) || segments.some((s) => s === cleanD))) return true;
+			}
+		}
+		return false;
 	}
 	getLineNumber(content, charIndex) {
 		return content.slice(0, charIndex).split("\n").length;
@@ -1609,7 +1640,7 @@ var BaseAuditor = class BaseAuditor {
 	*/
 	async scanFilesSinglePass(files, handlers) {
 		if (files.length === 0 || handlers.length === 0) return;
-		const exempts = this.exemptPaths ?? [];
+		const exempts = this.exemptPaths;
 		for (const file of files) {
 			const relPath = path.isAbsolute(file) ? path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep) : file.split(path.sep).join(path.posix.sep);
 			if (isPathExempt(relPath, exempts)) continue;
@@ -1657,7 +1688,6 @@ var BaseAuditor = class BaseAuditor {
 */
 var FileScanAuditor = class extends BaseAuditor {
 	declaredFileSubAuditors = /* @__PURE__ */ new Map();
-	exemptPaths;
 	/**
 	* Primary file scanning entry point receiving an immutable AuditedDocument.
 	* Automatically executes declared file sub-auditors measuring their runtimes
@@ -1739,32 +1769,18 @@ var FileScanAuditor = class extends BaseAuditor {
 			...options,
 			roots: getEffectiveScannableRoots()
 		});
-		const config = getAuditConfig(this.projectRoot);
-		const section = options.configKey && Reflect.get(config, options.configKey);
-		const sectionExemptPaths = [];
-		if (section && typeof section === "object") {
-			if (Array.isArray(section.exemptPaths)) {
-				for (const item of section.exemptPaths) if (typeof item === "string") sectionExemptPaths.push(item);
-			}
-			if (Array.isArray(section.exemptFiles)) {
-				for (const item of section.exemptFiles) if (typeof item === "string") sectionExemptPaths.push(item);
-			}
-		}
-		this.exemptPaths = Array.from(/* @__PURE__ */ new Set([...options.exemptPaths ?? [], ...sectionExemptPaths]));
 	}
 	/**
 	* Determines whether a given project-relative path is scannable by this file-scan auditor.
 	*/
 	isPathScannable(relPath) {
-		if (!super.isPathScannable(relPath)) return false;
-		if (this.isCurrentPathExempt(relPath)) return false;
-		return true;
+		return super.isPathScannable(relPath);
 	}
 	/**
 	* Checks whether the given relative path is exempt according to suite options.
 	*/
 	isCurrentPathExempt(relPath) {
-		return isPathExempt(relPath, this.exemptPaths);
+		return this.isPathExempt(relPath);
 	}
 	/**
 	* Adds a violation calculating 1-indexed line and column numbers from a string offset.
@@ -1895,4 +1911,4 @@ var FileScanAuditor = class extends BaseAuditor {
 	}
 };
 //#endregion
-export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, setupAuditor };
+export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };

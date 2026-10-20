@@ -18,7 +18,8 @@
 
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
+  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -70,12 +71,14 @@ function isInsideAnyScopeRange(index: number, ranges: readonly GsapScopeRange[])
 }
 
 export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? config.paths.srcRoots;
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       id: 'validate_gsap_framework_hygiene',
       name: 'GSAP Framework Hygiene',
       description: 'Gobernanza de ciclo de vida UI, scope y plugins GSAP',
@@ -94,7 +97,6 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         changedOnly: false,
         critical: false
       }),
-      roots: effectiveRoots,
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),
       ruleIds: GSAP_FRAMEWORK_HYGIENE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GSAP_FRAMEWORK_HYGIENE_RULES, 'behavior'),

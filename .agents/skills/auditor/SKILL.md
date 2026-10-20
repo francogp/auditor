@@ -39,7 +39,7 @@ graph TD
 2. **Symmetric OOP Model**: Both official suites and host extensions inherit from `BaseAuditor` or `FileScanAuditor`, implementing identical interfaces, capability declarations, and error handling.
 3. **Resource Sharing (`SharedAstContext`)**: Multi-rule sub-auditors share cached resources (filesystem reads, preheated ASTs, external tool passes) to maximize performance.
 4. **Atomic Console Mandate**: Multi-rule suites MUST wait for all sub-checks to finish before rendering step reports (`│  🔍 [X/Y] ...`), preventing mixed output across concurrent workers.
-5. **Mandatory Construction Contract (`ruleRemediations`, `ruleRemediationPhases`)**: `AuditorOptions` strictly requires: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleRemediationPhases`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig`. Omitting any field, lacking a remediation guide, or omitting `ruleRemediationPhases` for any declared rule ID throws a loud runtime error.
+5. **Mandatory Construction Contract (`ruleRemediations`, `ruleRemediationPhases`, `requiredPermissions`)**: `AuditorOptions` strictly requires: `id`, `name`, `description`, `family`, `packageName`, `icon`, `ruleDescriptions`, `ruleRemediations`, `ruleRemediationPhases`, `requiredPermissions`, `ruleCapabilities`, `configKey`, `defaultConfig`, and `criticalConfig`. Omitting any field, lacking a remediation guide, omitting `ruleRemediationPhases`, or omitting `requiredPermissions` throws an immediate loud runtime error.
 6. **Strategic Remediation Order (7 Canonical Phases)**: Findings are deterministically mapped to 7 canonical phases (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`). Host extension compilation or runtime failures are classified under `phase: 'setup'` (`audit-config-invalid-extension`), activating Imperative Setup Blocking and suppressing application findings until infrastructure is healthy.
 7. **On-Demand Diagnostic Guides (`auditor guide`)**: Any diagnostic and remediation manual can be rendered on-demand in the terminal via `npm run auditor guide <ruleId>`, `auditor guide suite=<suiteId>`, or `auditor guide family=<family>` with zero truncation and Box-Drawing formatting.
 8. **Compiled Artifact Verification (`npm run auditor:post-build`)**: Rules declaring `phase: 'post-build'` (`capabilities.phase === 'post-build'`) are excluded from pre-build source audit and execute post-build against `dist/` via `npm run auditor:post-build` (`auditor phase=post-build`).
@@ -74,11 +74,11 @@ graph TD
 - Every sub-auditor MUST extend `BaseAuditor<TRuleId>` or `FileScanAuditor<TRuleId>`.
 - Procedural scripts, custom CLI loggers, and ad-hoc result printers are **STRICTLY FORBIDDEN**.
 
-### 6. Dynamic Monospace Box-Drawing Table Mandate (80 Columns, Zero Wrapping)
+### 6. AI-Friendly Compact Output by Default & Box-Drawing Human Mode
 
-- All terminal output uses shared Box-Drawing utilities (`renderBanner`, `renderBoxTable`, `formatStatusBadge`, `getVisualWidth`).
-- Tables must fit within standard 80 columns (`TERMINAL_WIDTH = 80`) and use `getVisualWidth()` for emoji padding.
-- Multi-row summary tables MUST include a `TOTAL CONSOLIDADO` footer row.
+- By default, all executions operate in AI-friendly compact mode (concise 3-line status in English: status, counts, latest_audit.json path).
+- Interactive human inspections and full Box-Drawing progress tables (80-col limit, zero wrapping) are rendered on demand via `human`, `--human`, or dedicated package scripts (`npm run auditor:human`, `npm run auditor:lint:human`, `npm run auditor:full:human`). Multi-row summary tables include `TOTAL CONSOLIDADO`.
+- Node.js intrinsic `--permission` warnings (`PERM0002`) are cleanly suppressed via `--disable-warning=PERM0002` while preserving 100% of actionable warnings.
 
 ### 7. Universal Empirical Individual Timing Mandate
 

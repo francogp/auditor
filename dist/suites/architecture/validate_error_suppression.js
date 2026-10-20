@@ -1,6 +1,4 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
 //#region src/suites/architecture/validate_error_suppression.ts
@@ -39,11 +37,13 @@ const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\)\s*)?\{([^{}]*)\}/g;
 const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*|\s*(?:\/\/[^\r\n]*\r?\n|\/\*[\s\S]*?\*\/)\s*)\}|null|undefined|false|true)\s*\)/g;
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 var ErrorSuppressionAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const config = getAuditConfig();
-		const codeRoots = roots ?? (config.paths.codeRoots && config.paths.codeRoots.length > 0 ? config.paths.codeRoots : ["src", "scripts"]);
+	constructor(options = {}) {
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, ["src", "scripts"]);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
+			roots: targetRoots,
+			projectRoot: effectiveRoot,
 			ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -76,9 +76,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 				"no-silent-mock-fallbacks": "📖 GUÍA DE REMEDIACIÓN: no-silent-mock-fallbacks\n1. Causa Raíz: Uso del método `v.fallback()` en esquemas Valibot. Los fallbacks silenciosos en esquemas enmascaran corrupciones de datos o discrepancias en la API en lugar de activar fallos de validación tempranos.\n2. Diagnóstico: Busca la llamada a `v.fallback(...)` en los esquemas de validación.\n3. Solución Canónica: Elimina `v.fallback()`. Si un campo es opcional en la API, tipifícalo explícitamente con `v.optional(...)` o `v.nullish(...)` y define el valor predeterminado en el constructor de dominio o factoría.\n4. Ejemplo:\n   ❌ Incorrecto: Uso de fallback silencioso en el esquema\n   ✅ Correcto:   `v.optional(v.string(), \"default\")`",
 				"strict-catch-narrowing": "📖 GUÍA DE REMEDIACIÓN: strict-catch-narrowing\n1. Causa Raíz: En TypeScript moderno con `useUnknownInCatchVariables: true`, la variable de error en catch es de tipo `unknown`. Acceder a propiedades como message o stack sin verificar `instanceof Error` provoca fallos en tiempo de ejecución si el valor lanzado no es un objeto Error.\n2. Diagnóstico: Ubica el acceso no seguro a propiedades de error en el bloque catch.\n3. Solución Canónica: Estrecha el tipo mediante `e instanceof Error ? e.message : String(e)` o utiliza un helper de extracción tipado como `toErrorMessage(e)`.\n4. Ejemplo:\n   ❌ Incorrecto: Acceso directo a propiedades de error sobre un tipo unknown sin narrowing\n   ✅ Correcto:   `const msg = e instanceof Error ? e.message : String(e);`"
 			},
-			roots: codeRoots,
-			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),
-			projectRoot
+			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"])
 		});
 	}
 	scanFile(relPath, content) {

@@ -1,10 +1,10 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
-import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
-import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
 import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
+import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
+import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
 import { parseArgs, styleText } from "node:util";
 //#region src/cli/refactor_dupes.ts
@@ -18,9 +18,24 @@ function triageCandidates(projectRoot, minOccurrences) {
 	const engine = new DupesRefactorEngine({ projectRoot });
 	return Array.from(engine.triageCandidates(minOccurrences));
 }
-function handleDiscover(projectRoot, candidates, isJson) {
+const MAX_COMPACT_CLONES = 15;
+function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 	if (isJson) {
 		console.log(JSON.stringify(candidates, null, 2));
+		return;
+	}
+	if (!isVerbose) {
+		if (candidates.length === 0) {
+			console.log("✔ No duplicate clones found.");
+			return;
+		}
+		console.log(`\n• Total: ${candidates.length} clone group(s) detected:`);
+		for (const c of candidates.slice(0, MAX_COMPACT_CLONES)) {
+			const fileNames = c.files.map((f) => path.basename(f)).join(", ");
+			console.log(`  - [${c.fingerprint}] ${c.topology} (${c.tokenCount * c.occurrenceCount} tokens) -> ${fileNames}`);
+		}
+		if (candidates.length > MAX_COMPACT_CLONES) console.log(`  ... and ${candidates.length - MAX_COMPACT_CLONES} more group(s).`);
+		console.log("\nNext action: npm run auditor:dupes inspect <fingerprint>\n");
 		return;
 	}
 	console.log("\n" + renderBanner("REFACTORIZACIÓN DETERMINISTA: TRIAJE DE CLONES", `Directorio: ${path.basename(projectRoot)} | Total: ${candidates.length} grupos`));
@@ -134,6 +149,10 @@ async function runRefactorCli() {
 			json: {
 				type: "boolean",
 				default: false
+			},
+			verbose: {
+				type: "boolean",
+				default: false
 			}
 		},
 		strict: false,
@@ -141,9 +160,10 @@ async function runRefactorCli() {
 	});
 	const projectRoot = path.resolve(String(values.project || "."));
 	const isJson = Boolean(values.json);
+	const isVerbose = values.verbose === true || args.includes("--verbose") || args.includes("verbose") || args.includes("format=verbose");
 	switch (subCommand) {
 		case "discover":
-			handleDiscover(projectRoot, triageCandidates(projectRoot, parseInt(String(values["min-occurrences"] || "2"), 10)), isJson);
+			handleDiscover(projectRoot, triageCandidates(projectRoot, parseInt(String(values["min-occurrences"] || "2"), 10)), isJson, isVerbose);
 			break;
 		case "inspect":
 			handleInspect(projectRoot, targetArg || (typeof values.fingerprint === "string" ? values.fingerprint : void 0), isJson);

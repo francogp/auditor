@@ -1,4 +1,4 @@
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 //#region src/suites/documentation/validate_mermaid_syntax.d.ts
 export declare const MERMAID_SYNTAX_RULES: readonly ["mermaid-syntax-error", "mermaid-unquoted-special-chars"];
 export type MermaidSyntaxRuleId = (typeof MERMAID_SYNTAX_RULES)[number];
@@ -24,7 +24,7 @@ export declare function validate(diagramCode: string, parseOptions?: {
   valid: boolean;
 } | false>;
 export declare class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   private fixMermaidLine;
   private checkSpecialCharacters;
   private validateDiagramBlock;

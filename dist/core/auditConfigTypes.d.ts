@@ -397,6 +397,7 @@ export interface AuditValibotConfig extends BaseAuditSubsystemConfig {
 }
 export interface AuditEnvironmentConfig extends BaseAuditSubsystemConfig {}
 export interface AuditAuditorHygieneConfig extends BaseAuditSubsystemConfig {
+  readonly roots?: readonly string[];
   readonly disabledDetectors?: readonly string[];
 }
 export interface AuditScriptExtensionsConfig extends BaseAuditSubsystemConfig {

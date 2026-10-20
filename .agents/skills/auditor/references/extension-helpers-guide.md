@@ -67,13 +67,17 @@ await this.scanFilesSinglePass(files, [
 Specialized base class for scanning individual files. Handles automatic directory collection, gitignore filtering, test file exemptions, AST context resolution, and coverage ledger tracking.
 
 ```typescript
-import { FileScanAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
+import { FileScanAuditor, createUniformRuleCapabilities, type FileScanRootsOptions } from '@francogp/auditor';
 
 export const MY_RULES = ['my-rule-id'] as const;
 export type MyRuleId = (typeof MY_RULES)[number];
 
+export interface MyAuditorOptions extends FileScanRootsOptions {
+  readonly exemptPaths?: readonly (string | RegExp)[];
+}
+
 export class MyAuditor extends FileScanAuditor<MyRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string, exemptPaths?: readonly (string | RegExp)[]) {
+  constructor(options: MyAuditorOptions = {}) {
     super({
       id: 'validate_my_rules',
       name: 'My Custom Invariants',
@@ -82,10 +86,11 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       packageName: 'Custom',
       icon: '🛡️',
       configKey: 'paths',
-      roots: roots ?? ['src'],
+      projectRoot: options.projectRoot,
+      roots: options.roots ?? ['src'],
       allowedExtensions: new Set(['.ts', '.vue']),
       // Dynamic Exemption: automatically bypasses configured files or patterns
-      exemptPaths,
+      exemptPaths: options.exemptPaths,
       ruleIds: MY_RULES,
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         speed: 'light',
@@ -233,8 +238,8 @@ export const customExtension = defineAuditorExtension({
 Create `scripts/auditors/validate_game_design.ts`:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
-import { getAuditConfig, isExemptFile } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '@francogp/auditor';
+import { isExemptFile } from '@francogp/auditor';
 
 export type GameDesignRuleId = 'game-banned-magic-speed' | 'game-missing-layer-tag';
 
@@ -244,8 +249,8 @@ export const GAME_DESIGN_RULES: readonly GameDesignRuleId[] = [
 ] as const;
 
 export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.srcRoots);
     super({
       id: 'validate_game_design',
       name: 'Game Design Constraints',
@@ -254,7 +259,8 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       packageName: 'Game',
       icon: '🎮',
       configKey: 'paths',
-      roots: roots ?? config.paths.srcRoots,
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
       ruleIds: GAME_DESIGN_RULES,
       ruleCapabilities: createUniformRuleCapabilities(GAME_DESIGN_RULES, {
@@ -368,13 +374,13 @@ npm run auditor:fix
 Enforces color palette governance and prohibits raw hex colors in UI component templates:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile, type FileScanRootsOptions } from '@francogp/auditor';
 
 export const UI_COLOR_RULES = ['ui-banned-raw-hex-color'] as const;
 export type UiColorRuleId = (typeof UI_COLOR_RULES)[number];
 
 export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(options: FileScanRootsOptions = {}) {
     super({
       id: 'validate_ui_color_palette',
       name: 'UI Color Palette Hygiene',
@@ -383,7 +389,8 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       packageName: 'Palette',
       icon: '🎨',
       configKey: 'paths',
-      roots: roots ?? ['src/components'],
+      projectRoot: options.projectRoot,
+      roots: options.roots ?? ['src/components'],
       allowedExtensions: new Set(['.vue', '.scss']),
       ruleIds: UI_COLOR_RULES,
       ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
@@ -436,13 +443,13 @@ Verifies that all exported functions in domain services have explicit return typ
 
 ```typescript
 import ts from 'typescript';
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile } from '@francogp/auditor';
+import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile, type FileScanRootsOptions } from '@francogp/auditor';
 
 export const SERVICE_RETURN_RULES = ['service-missing-explicit-return-type'] as const;
 export type ServiceReturnRuleId = (typeof SERVICE_RETURN_RULES)[number];
 
 export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
+  constructor(options: FileScanRootsOptions = {}) {
     super({
       id: 'validate_service_types',
       name: 'Service Explicit Return Types',
@@ -451,7 +458,8 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       packageName: 'Services',
       icon: '📐',
       configKey: 'paths',
-      roots: roots ?? ['src/services'],
+      projectRoot: options.projectRoot,
+      roots: options.roots ?? ['src/services'],
       allowedExtensions: new Set(['.ts']),
       requiresAst: true, // Enables automatic TypeScript AST provision
       ruleIds: SERVICE_RETURN_RULES,

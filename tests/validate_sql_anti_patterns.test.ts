@@ -67,7 +67,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('supabase/migrations', scratchDir);
+          super({ customMigrationsDir: 'supabase/migrations', projectRoot: scratchDir });
         }
       }
 
@@ -94,7 +94,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('supabase/migrations', scratchDir);
+          super({ customMigrationsDir: 'supabase/migrations', projectRoot: scratchDir });
         }
       }
 
@@ -112,7 +112,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('supabase/migrations', scratchDir);
+          super({ customMigrationsDir: 'supabase/migrations', projectRoot: scratchDir });
         }
       }
 
@@ -125,7 +125,7 @@ describe('SqlAntiPatternsAuditor', () => {
     it('detects camelCase keys in database payloads (db-payload-snake-case)', () => {
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('supabase/migrations', scratchDir);
+          super({ customMigrationsDir: 'supabase/migrations', projectRoot: scratchDir });
         }
         public testScanTypeScript(relPath: string, content: string): void {
           this.scanTypeScriptFile(relPath, content);
@@ -161,7 +161,7 @@ describe('SqlAntiPatternsAuditor', () => {
 
       class TestableAuditor extends SqlAntiPatternsAuditor {
         constructor() {
-          super('clean_migrations', scratchDir);
+          super({ customMigrationsDir: 'clean_migrations', projectRoot: scratchDir });
         }
       }
 

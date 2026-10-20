@@ -1,0 +1,20 @@
+### H01 gemini#06 expect=hardcoded-slash-path
+const winTarget = 'C:\\Users\\Public\\' + targetFolder;
+
+### H02 gemini#07 expect=hardcoded-slash-path
+const uncPath = '\\\\nas-server\\backups\\' + backupFile;
+
+### H03 gemini#10 expect=hardcoded-slash-path
+const winPath = `${driveLetter}:\\Program Files\\${appName}`;
+
+### H04 gemini#13 expect=hardcoded-slash-path
+const parts = rawWinPath.split('\\\\');
+
+### H05a regression expect=hardcoded-slash-path
+const filename = filePath.split('\\').pop();
+
+### H05b regression expect=hardcoded-slash-path
+const idx = filePath.lastIndexOf('\\');
+
+### H06 sink-literal expect=hardcoded-slash-path
+fs.readFileSync('C:/data/input.csv', 'utf-8');

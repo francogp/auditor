@@ -59,6 +59,7 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
 				speed: "light",
 				phase: "normal",

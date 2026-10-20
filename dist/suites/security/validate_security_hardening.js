@@ -24,10 +24,9 @@ const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 ]);
 var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-		const config = getAuditConfig(effectiveRoot);
+		const securityRoots = resolveFileScanRoots(options);
+		const secConfig = getAuditConfig(securityRoots.effectiveRoot);
 		super({
-			usesThirdPartyTool: false,
 			id: "validate_security_hardening",
 			name: "Security Hardening & Threat Boundary Auditor",
 			description: "Endurecimiento de seguridad, OWASP Top 10 y SSRF",
@@ -37,7 +36,9 @@ var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 			configKey: "securityHardening.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
-			roots: targetRoots,
+			requiredPermissions: [],
+			usesThirdPartyTool: false,
+			roots: securityRoots.targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: SECURITY_HARDENING_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(SECURITY_HARDENING_RULES, "behavior"),
@@ -62,9 +63,9 @@ var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 				"unvalidated-redirect": "📖 GUÍA DE REMEDIACIÓN: unvalidated-redirect\n1. Causa Raíz: Redirección de navegación (`window.location = target` o `router.push(target)`) hacia una URL externa sin validar que pertenezca a un dominio de confianza (Open Redirect, CWE-601).\n2. Diagnóstico: Revisa la lógica de redirección y cómo se construye el destino.\n3. Solución Canónica: Valida que la URL comience con `/` (ruta relativa) o pertenezca a un conjunto blanco cerrado antes de navegar.\n4. Ejemplo:\n   ❌ Inseguro: `window.location.href = req.query.returnUrl;`\n   ✅ Seguro:   `if (isInternalUrl(returnUrl)) window.location.href = returnUrl;`"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(SECURITY_HARDENING_RULES, LIGHT_RULE_CAPABILITIES),
-			projectRoot: effectiveRoot,
-			coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-			exemptPaths: config.securityHardening?.exemptPaths
+			projectRoot: securityRoots.effectiveRoot,
+			coverage: deriveCoverageFromRoots(securityRoots.targetRoots, SCANNABLE_EXTS, securityRoots.effectiveRoot),
+			exemptPaths: secConfig.securityHardening?.exemptPaths
 		});
 	}
 	scanFile(relPath, content) {

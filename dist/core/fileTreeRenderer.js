@@ -1,6 +1,8 @@
 import "./auditContract.js";
+import { toPosixRelative } from "./auditCoverage.js";
 import { padVisual } from "./terminalVisuals.js";
 import { formatNumber } from "./durationFormatter.js";
+import "./safePath.js";
 import path from "node:path";
 import { styleText } from "node:util";
 //#region src/core/fileTreeRenderer.ts
@@ -93,7 +95,7 @@ function renderFindingsByFileTree(fileSummaries, options = {}) {
 }
 function formatSampleErrorLine(err, index) {
 	const fileInfo = err.file ? err.line ? `${err.file}:${err.line}` : err.file : "desconocido";
-	const relPosixFile = (path.isAbsolute(fileInfo) ? path.relative(process.cwd(), fileInfo) : fileInfo).split(path.sep).join(path.posix.sep).replace(/^[\\/]+/, "") || fileInfo;
+	const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
 	const ruleTag = err.ruleId ? `[${err.ruleId}] ` : "";
 	const contextStr = err.context ? ` ("${err.context}")` : "";
 	const mainLine = `    ${formatNumber(index + 1)}. ${styleText("red", relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;

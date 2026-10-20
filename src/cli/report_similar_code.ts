@@ -8,6 +8,7 @@
  * detected via local vector embeddings.
  */
 
+import path from 'node:path';
 import { parseArgs, styleText } from 'node:util';
 import { execSync } from 'node:child_process';
 import {
@@ -17,6 +18,7 @@ import {
   type TableColumn
 } from '../core/unifiedTheme.ts';
 import { getAuditConfig } from '../core/auditConfig.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import {
   isMainModule,
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
@@ -114,8 +116,8 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
 
   if (ignoreSameFile) {
     candidates = candidates.filter((c) => {
-      const leftPath = (c.left?.path || '').replace(/\\/g, '/');
-      const rightPath = (c.right?.path || '').replace(/\\/g, '/');
+      const leftPath = toPosixRelative(process.cwd(), c.left?.path || '');
+      const rightPath = toPosixRelative(process.cwd(), c.right?.path || '');
       return leftPath !== rightPath;
     });
   }
@@ -151,8 +153,8 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
       c.similarity >= DEFAULT_SIMILAR_CODE_THRESHOLD
         ? styleText('red', pct)
         : styleText('yellow', pct);
-    const leftFile = c.left.path.split('/').pop() || c.left.path;
-    const rightFile = c.right.path.split('/').pop() || c.right.path;
+    const leftFile = path.basename(c.left.path);
+    const rightFile = path.basename(c.right.path);
     const loc = `${leftFile}:${c.left.start_line} ~ ${rightFile}:${c.right.start_line}`;
 
     return {

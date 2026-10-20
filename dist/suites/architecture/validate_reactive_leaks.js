@@ -1,6 +1,4 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
 //#region src/suites/architecture/validate_reactive_leaks.ts
@@ -32,19 +30,22 @@ function hasOnceOption(node) {
 	}
 	return false;
 }
-function resolveReactiveRoots(config, customRoots) {
-	if (customRoots && customRoots.length > 0) return customRoots;
-	return [
-		...config.paths.componentsRoots ?? [],
-		...config.paths.viewsRoots ?? [],
-		...config.paths.composablesRoots ?? []
-	];
-}
 var ReactiveLeaksAuditor = class extends FileScanAuditor {
-	constructor(roots, projectRoot) {
-		const effectiveRoots = resolveReactiveRoots(getAuditConfig(projectRoot), roots);
+	constructor(options = {}) {
+		const scanRoots = resolveFileScanRoots(options, (cfg) => [
+			...cfg.paths.componentsRoots ?? [],
+			...cfg.paths.viewsRoots ?? [],
+			...cfg.paths.composablesRoots ?? []
+		]);
 		super({
+			id: "validate_reactive_leaks",
+			name: "Reactive & DOM Event Leak Auditor",
+			description: "Detecta posibles fugas de memoria y listeners sin limpiar",
+			family: "architecture",
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
+			roots: scanRoots.targetRoots,
+			projectRoot: scanRoots.effectiveRoot,
 			ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
 				speed: "light",
 				phase: "normal",
@@ -54,10 +55,6 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 				changedOnly: false,
 				critical: false
 			}),
-			id: "validate_reactive_leaks",
-			name: "Reactive & DOM Event Leak Auditor",
-			description: "Detecta posibles fugas de memoria y listeners sin limpiar",
-			family: "architecture",
 			ruleIds: REACTIVE_LEAK_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_LEAK_RULES, "behavior"),
 			packageName: "Fuga",
@@ -73,9 +70,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 				"dom-event-leak": "Causa Raíz:\nSe registró un escucha de eventos (\"addEventListener\") sobre window, document o un elemento del DOM dentro de un componente o composable sin mecanismo de desregistro.\nSi el componente se desmonta y el listener no se elimina, la función callback permanece viva en memoria y retiene todo el ámbito léxico del componente, produciendo fugas de memoria acumulativas.\n\nDiagnóstico:\nRevisa la llamada a \"addEventListener\". Faltan la opción \"{ once: true }\", la llamada a \"removeEventListener\" o el ciclo de vida \"onUnmounted\" / \"onScopeDispose\".\n\nSolución Canónica:\n1. Usar \"useEventListener\" de \"@vueuse/core\", que registra y remueve el listener automáticamente en sincronía con el ciclo de vida del componente.\n2. Si usas la API nativa, define la función listener como variable con nombre y llama a \"removeEventListener\" dentro de \"onUnmounted()\".\n3. Si el evento solo debe ocurrir una única vez, pasa \"{ once: true }\" como tercer argumento.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: listener huérfano sin limpieza\nwindow.addEventListener(\"resize\", handleResize);\n\n// ✅ Correcto (Opción A): useEventListener de VueUse\nimport { useEventListener } from \"@vueuse/core\";\nuseEventListener(window, \"resize\", handleResize);\n\n// ✅ Correcto (Opción B): limpieza explícita en onUnmounted\nonMounted(() => window.addEventListener(\"resize\", handleResize));\nonUnmounted(() => window.removeEventListener(\"resize\", handleResize));",
 				"interval-leak": "Causa Raíz:\nSe inició un temporizador repetitivo (\"setInterval\") en un componente o composable sin almacenar su identificador ni ejecutar \"clearInterval\".\nEl temporizador continuará ejecutándose indefinidamente cada N milisegundos en segundo plano incluso después de que la vista haya sido destruida, degradando la batería y la CPU.\n\nDiagnóstico:\nBusca la llamada a \"setInterval\" en el archivo señalado.\n\nSolución Canónica:\n1. Usar \"useIntervalFn\" de \"@vueuse/core\", que gestiona el arranque, pausa y destrucción automática con el hook de desmontaje de Vue.\n2. Si usas la API nativa, almacena el handle retornado y cancela el temporizador en \"onUnmounted()\".\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: setInterval sin cancelar\nsetInterval(() => { refreshData(); }, 5000);\n\n// ✅ Correcto: useIntervalFn de VueUse\nimport { useIntervalFn } from \"@vueuse/core\";\nuseIntervalFn(() => { refreshData(); }, 5000);"
 			},
-			roots: effectiveRoots,
-			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),
-			projectRoot
+			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"])
 		});
 	}
 	checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook) {

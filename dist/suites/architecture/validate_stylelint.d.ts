@@ -7,7 +7,7 @@ export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 export declare function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string;
 export declare function categorizeStylelintRule(ruleName: string | undefined): StylelintRuleId;
 export declare function buildStylelintConfig(configFile: string, customRules?: Record<string, unknown>): stylelint.Config;
-export declare function buildStylelintIgnoreGlobs(configIgnoreGlobs?: readonly string[], stylelintIgnoreGlobs?: readonly string[]): string[];
+export declare function buildStylelintIgnoreGlobs(configIgnoreGlobs?: readonly string[], stylelintIgnoreGlobs?: readonly string[], exemptPaths?: readonly string[], exemptFiles?: readonly string[]): string[];
 interface StylelintViolationPayload {
   ruleId: StylelintRuleId;
   severity: FindingSeverity;
@@ -49,4 +49,4 @@ export declare class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   runAudit(): Promise<void>;
 }
 //#endregion
-export {};
+export { StylelintAuditor as ValidateStylelintAuditor };

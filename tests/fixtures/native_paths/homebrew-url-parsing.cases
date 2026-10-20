@@ -1,0 +1,32 @@
+### U01 gpt expect=homebrew-url-parsing
+const part = urlString.split('?')[1];
+
+### U02 gpt expect=homebrew-url-parsing
+const pairs = query.split('&');
+
+### U03 gpt expect=homebrew-url-parsing
+const regex = /[\?&]id=([^&]+)/; const m = regex.exec('?id=5&x=1');
+
+### U04 gpt expect=homebrew-url-parsing
+const splitFragment = urlString.split('#')[0];
+
+### U05 gpt expect=homebrew-url-parsing
+location.search.slice(1).split('&').map(p => p.split('='));
+
+### U06 gpt expect=homebrew-url-parsing
+const direct = path.join(baseUrl, route);
+
+### U07 codex#14 expect=homebrew-url-parsing
+const p = new URL('/static/' + name, baseUrl).pathname;
+
+### U08 gpt expect=homebrew-url-parsing
+const host = url.replace(/^https?:\/\//, '');
+
+### U09 gpt expect=homebrew-url-parsing
+if (url.match(/\/api\//)) { handleApi(url); }
+
+### U10 gpt-disagreement expect=homebrew-url-parsing
+const parse = require('url').parse(requestUrl, true);
+
+### U11 named-import expect=homebrew-url-parsing
+const parsed = url.parse(requestUrl);

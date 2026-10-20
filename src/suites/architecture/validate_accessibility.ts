@@ -132,6 +132,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
         speed: 'light',
         phase: 'normal',

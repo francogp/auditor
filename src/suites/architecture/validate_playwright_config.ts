@@ -132,6 +132,7 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',

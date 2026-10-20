@@ -1,4 +1,4 @@
-import { createLineDetector } from "../homebrewTypes.js";
+import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
 //#region src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
@@ -16,11 +16,7 @@ const manualStepLoggingDetector = createLineDetector({
 	checkLine(line) {
 		const match = /\bcontext\.logStep\s*\(/.exec(line);
 		if (!match) return null;
-		const before = line.slice(0, match.index);
-		const singleQuotes = (before.match(/'/g) || []).length % 2 === 1;
-		const doubleQuotes = (before.match(/"/g) || []).length % 2 === 1;
-		const backticks = (before.match(/`/g) || []).length % 2 === 1;
-		if (singleQuotes || doubleQuotes || backticks) return null;
+		if (isInsideStringLiteral(line, match.index)) return null;
 		return "Llamada manual a 'this.context.logStep()'. El framework ya imprime una línea '🔍 [n/m]' por regla con su duración real. Elimina el log manual y mide cada regla con 'this.runSubAuditorSync(ruleId, ...)', 'await this.runSubAuditor(ruleId, ...)' o 'declareFileSubAuditor(ruleId, handler)'.";
 	}
 });

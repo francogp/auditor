@@ -25,7 +25,9 @@ function resolveActiveCoverageRunId() {
 /** Converts an absolute or relative path into a POSIX path relative to the project root. */
 function toPosixRelative(projectRoot, filePath) {
 	if (!filePath) return "";
-	return (path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath).replace(/\\/g, "/").replace(/^\.\//, "");
+	const posix = (path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath).replaceAll(path.win32.sep, path.posix.sep);
+	const withoutLeadingDot = posix.startsWith("./") ? posix.slice(2) : posix;
+	return withoutLeadingDot.endsWith("/") && withoutLeadingDot.length > 1 ? withoutLeadingDot.slice(0, -1) : withoutLeadingDot;
 }
 function matchesAnyGlob(relPosixPath, globs) {
 	return globs.some((glob) => {
@@ -106,11 +108,8 @@ const FAST_NON_AUDITABLE_EXTENSIONS = /* @__PURE__ */ new Set([
 ]);
 /** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
 function isAuditableCodebaseFile(relPosixPath, customExemptGlobs = []) {
-	const lastDot = relPosixPath.lastIndexOf(".");
-	if (lastDot !== -1) {
-		const ext = relPosixPath.slice(lastDot).toLowerCase();
-		if (FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
-	}
+	const ext = path.posix.extname(relPosixPath).toLowerCase();
+	if (ext && FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
 	if (matchesAnyGlob(relPosixPath, DEFAULT_NON_AUDITABLE_GLOBS)) return false;
 	if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;
 	return true;
@@ -129,16 +128,7 @@ function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd())
 	];
 	const include = [];
 	for (const root of effectiveRoots) {
-		let cleanRoot = path.posix.normalize(root.split("\\").join("/"));
-		if (cleanRoot.startsWith("./")) cleanRoot = cleanRoot.slice(2);
-		while (cleanRoot.endsWith("/") && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
-		if (cleanRoot === ".") cleanRoot = "";
-		if (path.isAbsolute(cleanRoot)) {
-			cleanRoot = path.relative(projectRoot, cleanRoot).split("\\").join("/");
-			if (cleanRoot.startsWith("./")) cleanRoot = cleanRoot.slice(2);
-			while (cleanRoot.endsWith("/") && cleanRoot.length > 1) cleanRoot = cleanRoot.slice(0, -1);
-			if (cleanRoot === ".") cleanRoot = "";
-		}
+		const cleanRoot = toPosixRelative(projectRoot, root);
 		const prefix = cleanRoot === "" || cleanRoot === "." ? "" : `${cleanRoot}/`;
 		for (const ext of extensions) include.push(`${prefix}**/*${ext}`);
 	}

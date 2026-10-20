@@ -257,6 +257,10 @@ function auditCompiledChunks(
   return chunksAudited;
 }
 
+export interface BundleBudgetAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [
     {
@@ -269,7 +273,8 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     }
   ];
 
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options: BundleBudgetAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const srcRoots = config.paths.srcRoots ?? [];
     const distDirRel = config.bundle?.distDir
@@ -278,6 +283,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
 
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
         speed: 'light',
         phase: 'post-build',

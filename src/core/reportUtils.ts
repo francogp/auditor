@@ -142,7 +142,8 @@ export function parseJsonArrayOutput<T = unknown>(
 export function normalizePosixPath(filePath: string, cwd: string = process.cwd()): string {
   if (!filePath) return '';
   const resolved = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-  return resolved.replace(/\\/g, '/').replace(/^\.\//, '');
+  const posix = resolved.split(path.sep).join(path.posix.sep);
+  return posix.startsWith('./') ? posix.slice(2) : posix;
 }
 
 /**
@@ -153,10 +154,22 @@ export function isPathExempt(relPath: string, exemptPaths?: readonly string[]): 
   if (!exemptPaths || exemptPaths.length === 0) return false;
   const norm = normalizePosixPath(relPath);
   for (const p of exemptPaths) {
-    let cleanPrefix = normalizePosixPath(p);
+    const normP = normalizePosixPath(p);
+    if (p.includes('*') || p.includes('?')) {
+      if (path.posix.matchesGlob(norm, normP) || path.posix.matchesGlob(norm, `**/${normP}`)) {
+        return true;
+      }
+    }
+    let cleanPrefix = normP;
     if (cleanPrefix.endsWith('/**')) cleanPrefix = cleanPrefix.slice(0, -3);
     else if (cleanPrefix.endsWith('/*')) cleanPrefix = cleanPrefix.slice(0, -2);
-    if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || norm.includes(cleanPrefix)) {
+    else if (cleanPrefix.endsWith('/')) cleanPrefix = cleanPrefix.slice(0, -1);
+    if (
+      norm === cleanPrefix ||
+      norm.startsWith(`${cleanPrefix}/`) ||
+      norm.includes(`/${cleanPrefix}/`) ||
+      norm.endsWith(`/${cleanPrefix}`)
+    ) {
       return true;
     }
   }

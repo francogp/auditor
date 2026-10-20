@@ -499,6 +499,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
 
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',

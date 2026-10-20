@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -31,10 +31,9 @@ const MAX_RECOMMENDED_DOM_DEPTH = 16;
 var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 	exemptSvgPaths;
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-		const config = getAuditConfig(effectiveRoot);
+		const webRoots = resolveFileScanRoots(options);
+		const webConfig = getAuditConfig(webRoots.effectiveRoot);
 		super({
-			usesThirdPartyTool: false,
 			id: "validate_web_performance",
 			name: "Web Performance & Core Web Vitals Auditor",
 			description: "Rendimiento web, Core Web Vitals y optimización frontend",
@@ -44,7 +43,9 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			configKey: "webPerformance.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
-			roots: targetRoots,
+			requiredPermissions: [],
+			usesThirdPartyTool: false,
+			roots: webRoots.targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: WEB_PERFORMANCE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(WEB_PERFORMANCE_RULES, "behavior"),
@@ -67,11 +68,11 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				"uncompressed-video": "📖 GUÍA DE REMEDIACIÓN: uncompressed-video\n1. Causa Raíz: Una etiqueta `<video>` carece del atributo `preload=\"none\"` o `preload=\"metadata\"`, o no ofrece una fuente moderna en formato WebM (`<source type=\"video/webm\">`). Descargar vídeos completos automáticamente agota el ancho de banda del usuario.\n2. Diagnóstico: Ubica la etiqueta `<video>` en la plantilla.\n3. Solución Canónica: Añade `preload=\"metadata\"` y proporciona fuentes optimizadas en WebM y MP4.\n4. Ejemplo:\n   ❌ Ineficiente: `<video src=\"/intro.mp4\" autoplay>`\n   ✅ Optimizado:  `<video preload=\"metadata\" playsinline><source src=\"/intro.webm\" type=\"video/webm\" /></video>`"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
-			projectRoot: effectiveRoot,
-			coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-			exemptPaths: config.webPerformance?.exemptPaths
+			projectRoot: webRoots.effectiveRoot,
+			coverage: deriveCoverageFromRoots(webRoots.targetRoots, SCANNABLE_EXTS, webRoots.effectiveRoot),
+			exemptPaths: webConfig.webPerformance?.exemptPaths
 		});
-		this.exemptSvgPaths = config.webPerformance?.exemptSvgPaths ?? [];
+		this.exemptSvgPaths = webConfig.webPerformance?.exemptSvgPaths ?? [];
 	}
 	scanFile(relPath, content) {
 		this.runSubAuditorSync("unoptimized-images", () => {

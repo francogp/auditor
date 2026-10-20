@@ -92,6 +92,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         srcRoots: ['src']
       },
       criticalConfig: {},
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
@@ -178,7 +179,7 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
 
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
+import { BaseAuditor, createUniformRuleCapabilities, createUniformRemediationPhases } from '@francogp/auditor';
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -218,6 +219,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         dataRoots: ['src/data']
       },
       criticalConfig: {},
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-data-key-missing': 'Clave faltante en registro de datos',
@@ -225,14 +227,18 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       },
       ruleRemediations: {
         'my-data-key-missing':
-          'Falta una clave obligatoria en el registro de datos.\n' +
-          '1. Abre src/data/myData.ts y localiza el objeto infractor.\n' +
-          '2. Agrega la propiedad requerida con su valor canónico.',
+          'Causa Raíz: Falta una clave obligatoria en el registro de datos.\n' +
+          'Diagnóstico: Abre src/data/myData.ts y localiza el objeto infractor.\n' +
+          'Solución Canónica: Agrega la propiedad requerida con su valor canónico.\n' +
+          'Ejemplo / Comando: npm run auditor',
         'my-data-value-invalid':
-          'El valor asignado a la propiedad de datos es inválido o de tipo incorrecto.\n' +
-          '1. Corrige el tipo de dato asignado para cumplir con el esquema tipado.\n' +
-          '2. Revalida ejecutando la suite de auditoría.'
+          'Causa Raíz: El valor asignado a la propiedad de datos es inválido o de tipo incorrecto.\n' +
+          'Diagnóstico: Inspecciona la interfaz del esquema de datos correspondiente.\n' +
+          'Solución Canónica: Corrige el tipo de dato asignado para cumplir con el esquema tipado.\n' +
+          'Ejemplo / Comando: npm run auditor'
       },
+      // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
+      ruleRemediationPhases: createUniformRemediationPhases(MY_DATA_RULES, 'contracts'),
       coverage: {
         include: ['src/data/myData.ts'],
         source: 'runtime'
@@ -325,6 +331,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         srcRoots: ['src']
       },
       criticalConfig: {},
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-ast-forbidden-call': 'Llamada prohibida detectada en AST'
@@ -1162,6 +1169,7 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
         enabled: true
       },
       criticalConfig: {},
+      requiredPermissions: [],
       usesThirdPartyTool: false,
       configFiles: MyToolAuditor.configFiles,
       ruleDescriptions: MY_TOOL_DESCRIPTIONS,
@@ -1211,6 +1219,8 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 7 fields | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). |
 | `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
 | `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
+| `remediationPhase` / `ruleRemediationPhases` | `RemediationPhaseId` \| `Record<TRuleId, RemediationPhaseId>` | 100% of rules | Mandatory strategic phase mapping (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`). Omission throws at construction. |
+| `requiredPermissions` | `readonly NodePermissionFlag[]` | Exhaustive array (or `[]`) | Mandatory Node.js Permission Model flags required by this suite (e.g. `[]` or `['--allow-addons']`). Omission throws at construction. |
 | `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
 | `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
@@ -1501,11 +1511,21 @@ super({
   // MANDATORY: Step-by-step remediation guide required by contract for every declared rule:
   ruleRemediations: {
     'my-rule-id':
-      'Explanation of why the defect occurs.\n' +
-      '1. Inspect the reported file and line number.\n' +
-      '2. Apply the canonical solution pattern.\n' +
-      '3. Revalidate by running npm run auditor.'
+      'Causa Raíz: Explicación de la desviación arquitectónica.\n' +
+      'Diagnóstico: Inspecciona el archivo y línea señalados.\n' +
+      'Solución Canónica: Aplica el patrón canónico documentado.\n' +
+      'Ejemplo / Comando: npm run auditor'
   },
   // ...
 });
 ```
+
+### 4. Error: `[Auditor Contract Violation] Auditor [...] must define mandatory 'remediationPhase' or 'ruleRemediationPhases'`
+
+- ❌ **Legacy Pattern**: Omitting `remediationPhase` in the constructor.
+- ✅ **Canonical Pattern**: Declare `remediationPhase: 'contracts'` (or another canonical phase: `setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`), or declare rule-specific phases via `ruleRemediationPhases: Record<TRuleId, RemediationPhaseId>`.
+
+### 5. Error: `[Auditor Contract Violation] Auditor [...] must define mandatory 'requiredPermissions'`
+
+- ❌ **Legacy Pattern**: Omitting `requiredPermissions` in the constructor options.
+- ✅ **Canonical Pattern**: Declare `requiredPermissions: []` (or specific flags such as `['--allow-addons']` if the suite loads native Node addons). Leaving it undefined triggers an immediate contract violation during instantiation.

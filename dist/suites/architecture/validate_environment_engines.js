@@ -56,6 +56,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
 				speed: "light",
 				phase: "setup",

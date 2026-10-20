@@ -20,10 +20,9 @@ const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 ]);
 var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
-		const config = getAuditConfig(effectiveRoot);
+		const scssRoots = resolveFileScanRoots(options);
+		const scssConfig = getAuditConfig(scssRoots.effectiveRoot);
 		super({
-			usesThirdPartyTool: false,
 			id: "validate_scss_architecture",
 			name: "SCSS Architecture & Distinctive Design Validator",
 			description: "Arquitectura SCSS, tokenización y diseño distintivo",
@@ -33,7 +32,9 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 			configKey: "scssArchitecture.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
-			roots: targetRoots,
+			requiredPermissions: [],
+			usesThirdPartyTool: false,
+			roots: scssRoots.targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: SCSS_ARCHITECTURE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(SCSS_ARCHITECTURE_RULES, "hygiene"),
@@ -52,9 +53,9 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 				"excessive-scss-nesting": "📖 GUÍA DE REMEDIACIÓN: excessive-scss-nesting\n1. Causa Raíz: Se anidaron reglas SCSS a más de 3 niveles de profundidad, lo que infla la especificidad de los selectores generados y degrada la mantenibilidad del CSS.\n2. Diagnóstico: Observa la jerarquía de llaves `{ { { { } } } }` en el bloque de estilos.\n3. Solución Canónica: Aplana las reglas SCSS utilizando la metodología BEM o selectores directos de clase.\n4. Ejemplo:\n   ❌ Anidamiento profundo: `.card { .header { .title { span { color: red; } } } }`\n   ✅ Aplanado:            `.card__title-highlight { color: var(--color-danger); }`"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
-			projectRoot: effectiveRoot,
-			coverage: deriveCoverageFromRoots(targetRoots, SCANNABLE_EXTS, effectiveRoot),
-			exemptPaths: config.scssArchitecture?.exemptPaths
+			projectRoot: scssRoots.effectiveRoot,
+			coverage: deriveCoverageFromRoots(scssRoots.targetRoots, SCANNABLE_EXTS, scssRoots.effectiveRoot),
+			exemptPaths: scssConfig.scssArchitecture?.exemptPaths
 		});
 	}
 	scanFile(relPath, content) {

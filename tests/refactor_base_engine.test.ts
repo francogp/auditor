@@ -24,6 +24,7 @@ import { MagicNumberExtractor } from '../src/core/refactor/magicNumberExtractor.
 import { MotionRefactorEngine } from '../src/core/refactor/motionRefactorEngine.ts';
 import { O1RefactorEngine } from '../src/core/refactor/o1RefactorEngine.ts';
 import { TypesRefactorEngine } from '../src/core/refactor/typesRefactorEngine.ts';
+import { toPosixRelative } from '../src/core/safePath.ts';
 
 class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
   public constructor(projectRoot: string = process.cwd()) {
@@ -53,6 +54,7 @@ class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
       icon: '🧪',
       configKey: 'codeSimplification',
       defaultConfig: { enabled: true },
+      requiredPermissions: [],
       criticalConfig: {},
       projectRoot
     });
@@ -193,6 +195,25 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
 
       expect(relativeFiles).toContain('src/main.ts');
       expect(relativeFiles).toContain('scripts/deploy.ts');
+    });
+
+    it('does not falsely include directory prefix homonyms like src-backup when codeRoot is src', async () => {
+      const backupDir = path.join(tempDir, 'src-backup');
+      await fs.mkdir(backupDir, { recursive: true });
+      await fs.writeFile(path.join(backupDir, 'backup.ts'), 'export const old = 1;\n');
+
+      configure({
+        paths: {
+          codeRoots: ['src']
+        }
+      });
+
+      const engine = new DummyTestEngine(tempDir);
+      const files = engine.getScannableFiles();
+
+      expect(files).toContain('src/main.ts');
+      expect(files).not.toContain('src-backup/backup.ts');
+      expect(engine.isPathScannable('src-backup/backup.ts')).toBe(false);
     });
   });
 
@@ -415,9 +436,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
       expect(plan.planId).toBe('domain-plan');
 
       const res = engine.applyPlan(tempDir, plan);
-      const normalizedModified = res.modifiedFiles.map((f) =>
-        path.isAbsolute(f) ? path.relative(tempDir, f).replace(/\\/g, '/') : f.replace(/\\/g, '/')
-      );
+      const normalizedModified = res.modifiedFiles.map((f) => toPosixRelative(tempDir, f));
       expect(normalizedModified).toContain('src/domain.ts');
     });
 

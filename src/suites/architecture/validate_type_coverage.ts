@@ -91,6 +91,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
       usesThirdPartyTool: true,
+      requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'type-coverage',
         fallbackBehavior: 'violation',

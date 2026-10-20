@@ -251,6 +251,7 @@ describe('Official Locked Skills Isolation', () => {
         icon: '🧪',
         configKey: 'core',
         defaultConfig: {},
+        requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
@@ -312,6 +313,7 @@ describe('Official Locked Skills Isolation', () => {
         icon: '🧪',
         configKey: 'core',
         defaultConfig: {},
+        requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {

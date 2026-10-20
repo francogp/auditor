@@ -321,6 +321,26 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
     expect(customConfig.runner?.maxStalenessMinutes).toBe(customStalenessMinutes);
   });
 
+  it('correctly maps auditorHygiene.roots with fallback to default roots', () => {
+    const defaultConfig = defineAuditConfig({
+      name: 'Default Auditor Hygiene Config'
+    });
+    expect(defaultConfig.auditorHygiene?.roots).toEqual(['scripts/auditors']);
+
+    const customConfig = defineAuditConfig({
+      name: 'Custom Auditor Hygiene Config',
+      auditorHygiene: {
+        roots: ['src/suites', 'src/analyzers', 'src/core', 'scripts/auditors']
+      }
+    });
+    expect(customConfig.auditorHygiene?.roots).toEqual([
+      'src/suites',
+      'src/analyzers',
+      'src/core',
+      'scripts/auditors'
+    ]);
+  });
+
   describe('Parent-to-Worker Configuration Inheritance', () => {
     it('serializes custom configuration to environment variables and restores it in child process context', () => {
       // Clean starting state

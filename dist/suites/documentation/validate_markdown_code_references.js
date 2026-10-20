@@ -2,8 +2,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import "../../core/safePath.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { resolveProjectVersionInfo, scanAndFixMarkdownProjectVersions } from "../../core/markdownVersionValidator.js";
 import { enableCompileCache } from "node:module";
@@ -118,8 +118,8 @@ function getKnownValidAbstractPaths(projectRoot) {
 	const paths = new Set(DEFAULT_KNOWN_VALID_ABSTRACT_PATHS);
 	if (config.paths?.migrationsDir) paths.add(config.paths.migrationsDir);
 	if (config.persistence?.supabaseDir) {
-		paths.add(`${config.persistence.supabaseDir}/migrations`);
-		paths.add(`${config.persistence.supabaseDir}/studio`);
+		paths.add(path.posix.join(config.persistence.supabaseDir, "migrations"));
+		paths.add(path.posix.join(config.persistence.supabaseDir, "studio"));
 	}
 	if (config.documentation?.knownValidAbstractPaths) for (const p of config.documentation.knownValidAbstractPaths) paths.add(p);
 	return paths;
@@ -223,7 +223,7 @@ function resolveSegmentCasing(entries, seg, isLast) {
 	};
 }
 function checkExactCase(startDir, relativePath) {
-	const segments = relativePath.split(/[/\\]+/).filter(Boolean);
+	const segments = toPosixRelative(startDir, relativePath).split("/").filter(Boolean);
 	let current = startDir;
 	for (let idx = 0; idx < segments.length; idx++) {
 		const seg = segments[idx];
@@ -402,11 +402,12 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 	rootDir;
 	scanRoots;
 	gitIgnoreMatcher;
-	constructor(scanRoots, rootDir) {
-		const effectiveRoot = rootDir || process.cwd();
-		const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, scanRoots);
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot || process.cwd();
+		const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
 		super({
 			usesThirdPartyTool: false,
+			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
 				speed: "light",
 				phase: "normal",

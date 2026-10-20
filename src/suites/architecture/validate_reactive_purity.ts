@@ -18,8 +18,7 @@
 import { enableCompileCache } from 'node:module';
 import ts from 'typescript';
 import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -62,14 +61,17 @@ function extractComputedGetterBody(firstArg: ts.Node, sf: ts.SourceFile): ts.Nod
 }
 
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
-  constructor(roots?: readonly string[], projectRoot?: string) {
-    const config = getAuditConfig(projectRoot);
-    const effectiveRoots = roots ?? [
-      ...(config.paths.storesRoots ?? []),
-      ...(config.paths.composablesRoots ?? [])
-    ];
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => [
+        ...(config.paths.storesRoots ?? []),
+        ...(config.paths.composablesRoots ?? [])
+      ]
+    );
     super({
       usesThirdPartyTool: false,
+      requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -132,9 +134,9 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
           'const total = computed(() => calculateTotal());\n' +
           'watch(total, () => { scheduleSave(); });'
       },
-      roots: effectiveRoots,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
-      projectRoot
+      projectRoot: effectiveRoot
     });
   }
 
