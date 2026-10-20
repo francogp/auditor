@@ -53,6 +53,13 @@ export declare function renderSimilarCodeWarningBanner(): string;
  * `auditor fix` before taking any action or attempting manual suppression.
  */
 export declare function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings: number): string;
+/**
+ * Renders a prominent 80-column Box-Drawing notice box when an auto-fix run (`auditor fix`)
+ * completes, informing developers and AI coding agents that auto-repairs were applied and
+ * explicitly instructing them to run the full auditor (`npm run auditor`) to inspect findings
+ * and continue working, without displaying intermediate partial error counts or conclusions.
+ */
+export declare function renderAutoFixCompletionBanner(totalDurationMs?: number): string;
 export interface SetupBlockingActionHints {
   readonly hasLockfileMismatch?: boolean;
   readonly hasEngineMismatch?: boolean;

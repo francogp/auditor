@@ -65,6 +65,7 @@ import {
   renderSampleFindings,
   renderSimilarCodeWarningBanner,
   renderAutoFixNoticeBanner,
+  renderAutoFixCompletionBanner,
   renderSetupBlockingBanner,
   renderAuditorsRegistryTable,
   renderAuditorDetailCard,
@@ -565,7 +566,7 @@ async function runAuditWorkers(
   return results;
 }
 
-interface MasterReportContext {
+export interface MasterReportContext {
   results: StandardAuditResult[];
   tasksToRun: AuditTaskDefinition[];
   allAvailableTasks: AuditTaskDefinition[];
@@ -1087,7 +1088,59 @@ export function computeFixableViolations(
   return BaseAuditor.computeFixableViolations(results, isFixMode);
 }
 
-async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean> {
+interface PersistAuditReportsParams {
+  readonly scratchAuditsDir: string;
+  readonly isFixMode: boolean;
+  readonly meta: AuditRunMetadata;
+  readonly consolidatedReport: ConsolidatedAuditReport;
+  readonly fileSummaryMap: Record<string, AuditFileSummary>;
+  readonly results: readonly StandardAuditResult[];
+}
+
+async function persistAuditReportsToDisk(params: PersistAuditReportsParams): Promise<string> {
+  const prefix = params.isFixMode ? 'latest_fix_' : 'latest_';
+  const byFilePrefix = params.isFixMode ? 'by_file_fix.json' : 'by_file.json';
+  const latestAuditPath = path.join(params.scratchAuditsDir, `${prefix}audit.json`);
+  const latestSummaryPath = path.join(params.scratchAuditsDir, `${prefix}summary.json`);
+  const latestByFilePath = path.join(params.scratchAuditsDir, byFilePrefix);
+
+  await fs.writeFile(latestAuditPath, JSON.stringify(params.consolidatedReport, null, 2), 'utf-8');
+  await fs.writeFile(
+    latestSummaryPath,
+    JSON.stringify(
+      {
+        meta: params.meta,
+        status: params.consolidatedReport.status,
+        summary: params.consolidatedReport.summary,
+        suites: params.results.map((r) => ({
+          id: r.id,
+          name: r.name,
+          family: r.family,
+          status: r.status,
+          durationMs: r.durationMs,
+          metrics: r.metrics,
+          errors: r.summary.errors,
+          warnings: r.summary.warnings
+        }))
+      },
+      null,
+      2
+    ),
+    'utf-8'
+  );
+  const byFileReport: AuditByFileReport = {
+    meta: params.meta,
+    status: params.consolidatedReport.status,
+    summary: params.consolidatedReport.summary,
+    totalAffectedFiles: Object.keys(params.fileSummaryMap).length,
+    files: params.fileSummaryMap
+  };
+  await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), 'utf-8');
+
+  return latestAuditPath;
+}
+
+export async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean> {
   const {
     results,
     tasksToRun,
@@ -1105,6 +1158,44 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
   ).length;
   const suitesSkipped = results.filter((r) => r.status === 'skipped').length;
   const isFixMode = Boolean(cliOptions.values.fix);
+
+  if (isFixMode) {
+    const { meta, consolidatedReport, fileSummaryMap } = buildConsolidatedReport({
+      ctx,
+      totalErrors,
+      totalWarnings,
+      suitesPassed,
+      anyFailed: false,
+      isFullAudit: false,
+      byFamily: groupResultsByFamily(results, activeFamilies),
+      ratchet: undefined,
+      fixableErrors: 0,
+      fixableWarnings: 0,
+      autoFixRecommended: false,
+      setupBlocking: false
+    });
+
+    await persistAuditReportsToDisk({
+      scratchAuditsDir,
+      isFixMode: true,
+      meta,
+      consolidatedReport,
+      fileSummaryMap,
+      results
+    });
+
+    console.log('\n' + renderAutoFixCompletionBanner(totalDuration) + '\n');
+
+    await exportCustomOutputReport(
+      cliOptions,
+      consolidatedReport,
+      results,
+      suitesPassed,
+      totalDuration
+    );
+
+    return false;
+  }
   const isBuildMode =
     cliOptions.phase === 'post-build' ||
     cliOptions.targetPreset === 'post-build' ||
@@ -1219,50 +1310,16 @@ async function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<b
     postponedAppErrors: isSetupBlocking ? postponedAppErrors : undefined
   });
 
-  const latestAuditPath = isFixMode
-    ? path.join(scratchAuditsDir, 'latest_fix_audit.json')
-    : path.join(scratchAuditsDir, 'latest_audit.json');
-  const latestSummaryPath = isFixMode
-    ? path.join(scratchAuditsDir, 'latest_fix_summary.json')
-    : path.join(scratchAuditsDir, 'latest_summary.json');
-  const latestByFilePath = isFixMode
-    ? path.join(scratchAuditsDir, 'by_file_fix.json')
-    : path.join(scratchAuditsDir, 'by_file.json');
-
-  await fs.writeFile(latestAuditPath, JSON.stringify(consolidatedReport, null, 2), 'utf-8');
-  await fs.writeFile(
-    latestSummaryPath,
-    JSON.stringify(
-      {
-        meta,
-        status: consolidatedReport.status,
-        summary: consolidatedReport.summary,
-        suites: results.map((r) => ({
-          id: r.id,
-          name: r.name,
-          family: r.family,
-          status: r.status,
-          durationMs: r.durationMs,
-          metrics: r.metrics,
-          errors: r.summary.errors,
-          warnings: r.summary.warnings
-        }))
-      },
-      null,
-      2
-    ),
-    'utf-8'
-  );
-  const byFileReport: AuditByFileReport = {
+  const latestAuditPath = await persistAuditReportsToDisk({
+    scratchAuditsDir,
+    isFixMode: false,
     meta,
-    status: consolidatedReport.status,
-    summary: consolidatedReport.summary,
-    totalAffectedFiles: Object.keys(fileSummaryMap).length,
-    files: fileSummaryMap
-  };
-  await fs.writeFile(latestByFilePath, JSON.stringify(byFileReport, null, 2), 'utf-8');
+    consolidatedReport,
+    fileSummaryMap,
+    results
+  });
 
-  if (!isFullAudit && !isBuildMode && !isFixMode) {
+  if (!isFullAudit && !isBuildMode) {
     console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
     console.log(
       styleText(

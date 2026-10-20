@@ -1,4 +1,5 @@
-import { AuditExecutionPhase, AuditExecutionSpeed, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
+import { AuditEngineConfig } from "../core/auditConfigTypes.js";
+import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
 //#region src/cli/audit_full.d.ts
@@ -38,6 +39,18 @@ export declare function extractSubprocessErrorMessage(proc: {
   stderr: string;
   timedOut: boolean;
 }, timeoutMs?: number, task?: AuditTaskDefinition): string;
+export interface MasterReportContext {
+  results: StandardAuditResult[];
+  tasksToRun: AuditTaskDefinition[];
+  allAvailableTasks: AuditTaskDefinition[];
+  omittedSuiteIds: string[];
+  totalDuration: number;
+  config: AuditEngineConfig;
+  activeFamilies: readonly AuditFamily[];
+  cliOptions: AuditFullCliOptions;
+  runMode: AuditRunMode;
+  scratchAuditsDir: string;
+}
 export declare function computeAuditCategoryCounts(results: readonly StandardAuditResult[]): Array<[string, {
   errors: number;
   warnings: number;
@@ -58,6 +71,7 @@ export interface FixableCountsResult {
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
 export declare function computeFixableViolations(results: readonly StandardAuditResult[], isFixMode: boolean): FixableCountsResult;
+export declare function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean>;
 export declare function createAuditBannerDetails(cliOptions: AuditFullCliOptions, isFixMode: boolean, isBuildMode: boolean, tasksCount: number, allAvailableCount: number, omittedCount: number): string[];
 export declare const MAX_BANNER_SUBTITLE_WIDTH = 72;
 export declare function formatSubtitleDetails(details: readonly string[], maxLineWidth?: number): string;

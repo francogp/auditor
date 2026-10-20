@@ -27,6 +27,7 @@ import {
   renderAuditorDetailCard,
   renderCliHelp,
   renderAutoFixNoticeBanner,
+  renderAutoFixCompletionBanner,
   renderSampleFindings,
   renderFamilyHeader,
   getVisualWidth,
@@ -257,6 +258,29 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const banner = renderAutoFixNoticeBanner(3, 0);
       expect(banner).toContain('3 error(es)');
       expect(banner).not.toContain('advertencia(s)');
+    });
+  });
+
+  describe('renderAutoFixCompletionBanner', () => {
+    it('renders completion banner instructing to run full auditor without error numbers', () => {
+      const banner = renderAutoFixCompletionBanner(1500);
+      expect(banner).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+      expect(banner).toContain('npm run auditor');
+      expect(banner).toContain('(1.500 ms)');
+      expect(banner).not.toContain('error(es)');
+      expect(banner).not.toContain('advertencia(s)');
+      expect(banner).not.toContain('Errores:');
+    });
+
+    it('has 100% identical line widths across all box lines', () => {
+      const banner = renderAutoFixCompletionBanner();
+      const lines = banner.split('\n');
+      expect(lines.length).toBeGreaterThan(0);
+      const expectedWidth = getVisualWidth(lines[0]!);
+      expect(expectedWidth).toBeLessThanOrEqual(80);
+      for (const line of lines) {
+        expect(getVisualWidth(line)).toBe(expectedWidth);
+      }
     });
   });
 

@@ -280,6 +280,27 @@ function renderAutoFixNoticeBanner(fixableErrors, fixableWarnings) {
 	});
 }
 /**
+* Renders a prominent 80-column Box-Drawing notice box when an auto-fix run (`auditor fix`)
+* completes, informing developers and AI coding agents that auto-repairs were applied and
+* explicitly instructing them to run the full auditor (`npm run auditor`) to inspect findings
+* and continue working, without displaying intermediate partial error counts or conclusions.
+*/
+function renderAutoFixCompletionBanner(totalDurationMs) {
+	return buildNoticeBox({
+		borderColor: "green",
+		title: `🛠️  FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA${totalDurationMs !== void 0 && totalDurationMs > 0 ? ` (${formatDurationMs(totalDurationMs)})` : ""}`,
+		lines: [
+			styleText("white", "Se ejecutaron las tareas de corrección automática y sincronización de código y configuración."),
+			styleText("dim", "El modo --fix ejecuta únicamente suites auto-reparables y no refleja el estado global del proyecto."),
+			"",
+			styleText(["bold", "yellow"], "ESTÁ CATEGÓRICAMENTE PROHIBIDO EVALUAR ERRORES O CONCLUSIONES DE ESTA SALIDA."),
+			"",
+			styleText(["bold", "white"], "Para ver el resultado de las reparaciones, auditar el proyecto completo y continuar:"),
+			styleText(["bold", "cyan"], "  👉  npm run auditor   (o vp run auditor)")
+		]
+	});
+}
+/**
 * Renders a prominent Box-Drawing critical blocking banner when setup-phase errors exist,
 * mandating that project infrastructure, configurations, dependencies, and scripts
 * must be resolved first before application code or stylesheets.
@@ -602,4 +623,4 @@ function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalW
 	})}\n`;
 }
 //#endregion
-export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };
+export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };

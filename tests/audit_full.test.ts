@@ -1,3 +1,6 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
 import { describe, it, expect, afterEach } from 'vite-plus/test';
 
 import {
@@ -13,7 +16,8 @@ import {
   extractSubprocessErrorMessage,
   computeAuditCategoryCounts,
   isRatchetScope,
-  createAuditBannerDetails
+  createAuditBannerDetails,
+  renderAndPersistMasterReport
 } from '../src/cli/audit_full.ts';
 import type {
   AuditTaskDefinition,
@@ -501,6 +505,71 @@ describe('audit_full CLI orchestration helpers', () => {
 
       const details = createAuditBannerDetails(remoteCli, false, false, 50, 50, 0);
       expect(details.some((d) => d.includes('🎯 Remoto: PokeBorrador'))).toBe(true);
+    });
+  });
+
+  describe('renderAndPersistMasterReport in fix mode', () => {
+    it('returns false and prints auto-fix completion banner without error counts or pass/fail conclusions', async () => {
+      const logs: string[] = [];
+      const originalLog = console.log;
+      console.log = (...args: unknown[]) => {
+        logs.push(args.join(' '));
+      };
+      try {
+        const scratchDir = path.resolve('scratch/test_fix_audit');
+        await fs.mkdir(scratchDir, { recursive: true });
+
+        const fixCli = parseAuditFullCliArgs(activeFamilies, ['fix']);
+        const mockResult: StandardAuditResult = {
+          id: 'validate_mock',
+          name: 'Mock Suite',
+          description: 'Mock description',
+          metrics: {},
+          family: 'architecture',
+          status: 'failed',
+          durationMs: 100,
+          summary: { errors: 5, warnings: 2, info: 0 },
+          findings: [
+            {
+              ruleId: 'mock-error',
+              severity: 'error',
+              message: 'Mock error message',
+              file: 'src/mock.ts',
+              line: 1,
+              col: 1
+            }
+          ]
+        };
+
+        const failed = await renderAndPersistMasterReport({
+          results: [mockResult],
+          tasksToRun: [],
+          allAvailableTasks: [],
+          omittedSuiteIds: [],
+          totalDuration: 1234,
+          config: { name: 'Test' } as any,
+          activeFamilies,
+          cliOptions: fixCli,
+          runMode: 'full',
+          scratchAuditsDir: scratchDir
+        });
+
+        expect(failed).toBe(false);
+
+        const joinedLogs = logs.join('\n');
+        expect(joinedLogs).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+        expect(joinedLogs).toContain('npm run auditor');
+        expect(joinedLogs).not.toContain('Errores:');
+        expect(joinedLogs).not.toContain('Advertencias:');
+        expect(joinedLogs).not.toContain('¡SUITE DE AUDITORÍA GLOBAL APROBADA!');
+        expect(joinedLogs).not.toContain('AUDITORÍA GLOBAL CON OBSERVACIONES');
+        expect(joinedLogs).not.toContain('de las suites aprobadas');
+        expect(joinedLogs).not.toContain('Reporte detallado para IA');
+
+        await fs.rm(scratchDir, { recursive: true, force: true });
+      } finally {
+        console.log = originalLog;
+      }
     });
   });
 });
