@@ -11,9 +11,11 @@
 
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { isMainModule } from './cliUtils.ts';
+import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 import '../core/permissionGuard.ts';
 
 export function runBuildDeploy(extraArgs: readonly string[] = []): number {
+  parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
   process.env.AUDITOR_ENV = 'production';
 
   const args = ['run', 'build', ...extraArgs];
@@ -28,6 +30,6 @@ export function runBuildDeploy(extraArgs: readonly string[] = []): number {
 }
 
 if (isMainModule(import.meta.url)) {
-  const exitCode = runBuildDeploy(process.argv.slice(2));
+  const exitCode = runBuildDeploy(getProcessCliArgs());
   process.exit(exitCode);
 }

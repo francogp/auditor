@@ -16,6 +16,7 @@ import {
   type AuditorCriticalConfig
 } from '../core/auditContract.ts';
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
+import { getProcessExecutedScript } from '../core/cli/cittyHarness.ts';
 
 const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
 
@@ -192,7 +193,7 @@ export async function extractAuditorMetadataFromFile(
   };
 
   // Self-import guard: Never dynamically import the currently executing script to prevent circular top-level await deadlock
-  const scriptArg = process.argv[1];
+  const scriptArg = getProcessExecutedScript();
   if (scriptArg) {
     const currentScriptBase = path.basename(scriptArg, path.extname(scriptArg)).toLowerCase();
     const targetScriptBase = path.basename(fullPath, path.extname(fullPath)).toLowerCase();

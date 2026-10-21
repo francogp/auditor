@@ -100,7 +100,7 @@ export function renderBoxTable<T = Record<string, unknown>>(
   });
 
   if (rows.length === 0) {
-    const emptyMsg = options?.emptyMessage || 'No se encontraron registros.';
+    const emptyMsg = options?.emptyMessage || 'No records found.';
     table.push([
       { colSpan: columns.length, content: styleText('dim', emptyMsg), hAlign: 'center' }
     ]);
@@ -162,7 +162,7 @@ interface BreakdownRow {
 function createBreakdownColumns(labelHeader: string): readonly TableColumn<BreakdownRow>[] {
   return [
     { header: labelHeader, width: BREAKDOWN_LABEL_COL_WIDTH, align: 'left', key: 'label' },
-    { header: 'ERRORES', width: BREAKDOWN_COUNT_COL_WIDTH, align: 'right', key: 'errors' },
+    { header: 'ERRORS', width: BREAKDOWN_COUNT_COL_WIDTH, align: 'right', key: 'errors' },
     { header: 'WARNINGS', width: BREAKDOWN_COUNT_COL_WIDTH, align: 'right', key: 'warnings' }
   ];
 }
@@ -175,7 +175,7 @@ function formatCountCell(count: number, color: 'red' | 'yellow', bold: boolean =
 
 function createConsolidatedFooterRow(totalErrors: number, totalWarnings: number): BreakdownRow {
   return {
-    label: styleText('bold', 'TOTAL CONSOLIDADO'),
+    label: styleText('bold', 'CONSOLIDATED TOTAL'),
     errors: formatCountCell(totalErrors, 'red', true),
     warnings: formatCountCell(totalWarnings, 'yellow', true)
   };
@@ -183,7 +183,7 @@ function createConsolidatedFooterRow(totalErrors: number, totalWarnings: number)
 
 export function renderFindingsBreakdownTable(
   items: readonly [string, FindingCountData][],
-  labelHeader: string = 'TIPO DE INCIDENCIA / REGLA'
+  labelHeader: string = 'FINDING TYPE / RULE'
 ): string {
   const cols = createBreakdownColumns(labelHeader);
   const rows: BreakdownRow[] = items.map(([name, data]) => ({
@@ -209,7 +209,7 @@ export interface TieredFindingsPhaseGroup {
 
 export function renderTieredFindingsBreakdownTable(
   groups: readonly TieredFindingsPhaseGroup[],
-  labelHeader: string = 'TIPO DE INCIDENCIA / REGLA'
+  labelHeader: string = 'FINDING TYPE / RULE'
 ): string {
   const cols = createBreakdownColumns(labelHeader);
   const rows: BreakdownRow[] = [];
@@ -240,7 +240,7 @@ export function renderTieredFindingsBreakdownTable(
 
     // Phase Subtotal (compact label strictly fits within 52 cols)
     rows.push({
-      label: styleText('bold', `  ↳ Subtotal Fase ${meta.order}`),
+      label: styleText('bold', `  ↳ Subtotal Phase ${meta.order}`),
       errors: formatCountCell(group.errors, 'red', true),
       warnings: formatCountCell(group.warnings, 'yellow', true)
     });
@@ -260,13 +260,13 @@ export function renderSampleFindings(
   const limit = limitOrAll === 'all' ? findings.length : limitOrAll;
   const sample = limit >= findings.length ? findings : findings.slice(-limit);
   const countLabel =
-    limit >= findings.length ? `todos los ${sample.length}` : `últimos ${sample.length}`;
+    limit >= findings.length ? `all ${sample.length}` : `last ${sample.length}`;
   const isOnlyWarnings = findings.length > 0 && findings.every((f) => f.severity === 'warning');
   const defaultHeader = isOnlyWarnings
-    ? `\n⚠️  Muestra de advertencias detectadas (${countLabel} de ${findings.length}):\n`
-    : `\n❌ Muestra de errores detectados (${countLabel} de ${findings.length}):\n`;
+    ? `\n⚠️  Sample of detected warnings (${countLabel} of ${findings.length}):\n`
+    : `\n❌ Sample of detected errors (${countLabel} of ${findings.length}):\n`;
   const header = options?.title
-    ? `\n${options.title} (${countLabel} de ${findings.length}):\n`
+    ? `\n${options.title} (${countLabel} of ${findings.length}):\n`
     : defaultHeader;
   const lines = sample.map((f, idx) => {
     const fileLoc = f.file
@@ -301,13 +301,13 @@ export function renderBanner(
 ): string {
   let resolvedColor: NoticeBoxColor = borderColor ?? 'cyan';
   if (!borderColor) {
-    if (title.includes('REPARACIÓN')) {
+    if (title.includes('REPAIR') || title.includes('REPARACIÓN')) {
       resolvedColor = 'magenta';
-    } else if (title.includes('CRÍTIC') || title.includes('ERROR') || title.includes('FALLO')) {
+    } else if (title.includes('CRITICAL') || title.includes('CRÍTIC') || title.includes('ERROR') || title.includes('FAIL') || title.includes('FALLO')) {
       resolvedColor = 'red';
     } else if (title.includes('WARN') || title.includes('ADVERTENCIA')) {
       resolvedColor = 'yellow';
-    } else if (title.includes('APROBAD') || title.includes('ÉXITO')) {
+    } else if (title.includes('PASS') || title.includes('APROBAD') || title.includes('SUCCESS') || title.includes('ÉXITO')) {
       resolvedColor = 'green';
     }
   }
@@ -349,11 +349,11 @@ export function buildNoticeBox(options: NoticeBoxOptions): string {
 export function renderSimilarCodeWarningBanner(): string {
   const isWindows = process.platform === 'win32';
   const lines = [
-    styleText('white', 'La inicialización automática del modelo de embeddings de Fallow falló.'),
-    styleText('white', 'El sub-auditor especializado de similar-code no se pudo ejecutar.'),
+    styleText('white', 'Automatic initialization of Fallow embedding model failed.'),
+    styleText('white', 'The specialized similar-code sub-auditor could not execute.'),
     styleText(
       'dim',
-      'Esta funcionalidad requiere instalación manual o desbloqueo en este entorno.'
+      'This functionality requires manual installation or unblocking in this environment.'
     ),
     ''
   ];
@@ -362,28 +362,28 @@ export function renderSimilarCodeWarningBanner(): string {
     lines.push(
       styleText(
         ['bold', 'yellow'],
-        'Si Windows Smart App Control o Antivirus bloqueó el binario (error 4551):'
+        'If Windows Smart App Control or Antivirus blocked the binary (error 4551):'
       ),
       styleText(
         'white',
-        '  1. En la notificación de Windows: Clic en "Más información" -> "Permitir".'
+        '  1. In Windows notification: Click "More info" -> "Run anyway".'
       ),
-      styleText('white', '  2. O intenta la auto-reparación con: npm run auditor:fix'),
+      styleText('white', '  2. Or try auto-repair with: npm run auditor:fix'),
       ''
     );
   }
 
   lines.push(
-    styleText(['bold', 'white'], 'Comando de instalación manual:'),
+    styleText(['bold', 'white'], 'Manual installation command:'),
     styleText(['bold', 'cyan'], '  👉  fallow similar-code setup --local --yes'),
     '',
-    styleText('dim', 'Nota para CI/headless: puedes omitir esta suite con:'),
-    styleText('dim', '  AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1 (o AUDITOR_ENV=production)')
+    styleText('dim', 'Note for CI/headless: you can bypass this suite with:'),
+    styleText('dim', '  AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1 (or AUDITOR_ENV=production)')
   );
 
   return buildNoticeBox({
     borderColor: 'yellow',
-    title: '⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE',
+    title: '⚠️  ATTENTION: VECTOR SIMILAR CODE ANALYSIS NOT AVAILABLE',
     lines
   });
 }
@@ -394,27 +394,27 @@ export function renderSimilarCodeWarningBanner(): string {
  * `auditor fix` before taking any action or attempting manual suppression.
  */
 export function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings: number): string {
-  const errorText = fixableErrors > 0 ? `${fixableErrors} error(es)` : '';
-  const warnText = fixableWarnings > 0 ? `${fixableWarnings} advertencia(s)` : '';
-  const sep = fixableErrors > 0 && fixableWarnings > 0 ? ' y ' : '';
+  const errorText = fixableErrors > 0 ? `${fixableErrors} error(s)` : '';
+  const warnText = fixableWarnings > 0 ? `${fixableWarnings} warning(s)` : '';
+  const sep = fixableErrors > 0 && fixableWarnings > 0 ? ' and ' : '';
   const countStr = `${errorText}${sep}${warnText}`;
 
   return buildNoticeBox({
     borderColor: 'yellow',
-    title: '🛠️  ATENCIÓN: INCIDENCIAS REPARABLES AUTOMÁTICAMENTE DETECTADAS',
+    title: '🛠️  ATTENTION: AUTOMATICALLY REPAIRABLE ISSUES DETECTED',
     lines: [
-      styleText('white', `Se detectaron ${countStr} corregibles con auto-reparación.`),
+      styleText('white', `Detected ${countStr} repairable via auto-fix.`),
       styleText(
         'dim',
-        'El auditor dispone de mecanismos automáticos para resolver la gran mayoría.'
+        'The auditor provides automated mechanisms to resolve the vast majority.'
       ),
       styleText(
         ['bold', 'yellow'],
-        'ESTÁ CATEGÓRICAMENTE PROHIBIDO SILENCIAR O APAGAR REGLAS EN PÁNICO.'
+        'IT IS CATEGORICALLY PROHIBITED TO SILENCE OR DISABLE RULES IN PANIC.'
       ),
       '',
-      styleText(['bold', 'white'], 'Ejecuta primero la auto-reparación antes de continuar:'),
-      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (o auditor fix)')
+      styleText(['bold', 'white'], 'Run auto-repair first before continuing:'),
+      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (or auditor fix)')
     ]
   });
 }
@@ -433,27 +433,27 @@ export function renderAutoFixCompletionBanner(totalDurationMs?: number): string 
 
   return buildNoticeBox({
     borderColor: 'green',
-    title: `🛠️  FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA${durationText}`,
+    title: `🛠️  AUTOMATIC REPAIR PHASE COMPLETED${durationText}`,
     lines: [
       styleText(
         'white',
-        'Se ejecutaron las tareas de corrección automática y sincronización de código y configuración.'
+        'Automated repair tasks and code/configuration synchronization completed.'
       ),
       styleText(
         'dim',
-        'El modo --fix ejecuta únicamente suites auto-reparables y no refleja el estado global del proyecto.'
+        '--fix mode executes only auto-repairable suites and does not reflect global project state.'
       ),
       '',
       styleText(
         ['bold', 'yellow'],
-        'ESTÁ CATEGÓRICAMENTE PROHIBIDO EVALUAR ERRORES O CONCLUSIONES DE ESTA SALIDA.'
+        'IT IS CATEGORICALLY PROHIBITED TO DRAW ERRORS OR CONCLUSIONS FROM THIS OUTPUT.'
       ),
       '',
       styleText(
         ['bold', 'white'],
-        'Para ver el resultado de las reparaciones, auditar el proyecto completo y continuar:'
+        'To verify repair results, audit the complete project and continue:'
       ),
-      styleText(['bold', 'cyan'], '  👉  npm run auditor   (o vp run auditor)')
+      styleText(['bold', 'cyan'], '  👉  npm run auditor   (or vp run auditor)')
     ]
   });
 }
@@ -480,47 +480,47 @@ export function renderSetupBlockingBanner(
   const lines: string[] = [
     styleText(
       ['bold', 'white'],
-      `Se detectaron ${styleText('red', setupErrorStr)} error(es) en suites de Configuración, Dependencias y Scripts.`
+      `Detected ${styleText('red', setupErrorStr)} error(s) in Configuration, Dependency, and Script suites.`
     ),
     styleText(
       ['bold', 'yellow'],
-      'ESTOS ERRORES DEBEN REPARARSE PRIMERO ANTES DE TOCAR CÓDIGO O ESTILOS.'
+      'THESE ERRORS MUST BE FIXED FIRST BEFORE TOUCHING CODE OR STYLES.'
     ),
     styleText(
       'dim',
-      `Para evitar falsos positivos inducidos, se postergó el reporte de ${postponedStr} error(es) de aplicación.`
+      `To prevent induced false positives, reporting of ${postponedStr} application error(s) was postponed.`
     ),
     ''
   ];
 
   if (hints?.hasEngineMismatch) {
     lines.push(
-      styleText(['bold', 'white'], 'Paso 1 imperativo — Sincroniza la versión del motor de ejecución:'),
-      styleText(['bold', 'cyan'], '  👉  nvm use / fnm use   (o instalar versión requerida en .node-version)')
+      styleText(['bold', 'white'], 'Imperative Step 1 — Synchronize runtime engine version:'),
+      styleText(['bold', 'cyan'], '  👉  nvm use / fnm use   (or install required version in .node-version)')
     );
   } else if (hints?.hasLockfileMismatch) {
     lines.push(
-      styleText(['bold', 'white'], 'Paso 1 imperativo — Sincroniza dependencias con el lockfile (Terminal):'),
+      styleText(['bold', 'white'], 'Imperative Step 1 — Synchronize dependencies with lockfile (Terminal):'),
       styleText(['bold', 'cyan'], '  👉  npm install'),
       '',
-      styleText(['bold', 'white'], 'Paso 2 posterior — Ejecuta la auto-reparación del auditor:'),
-      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (o auditor fix)')
+      styleText(['bold', 'white'], 'Subsequent Step 2 — Run auditor auto-repair:'),
+      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (or auditor fix)')
     );
   } else if (hints?.hasFixableErrors !== false) {
     lines.push(
-      styleText(['bold', 'white'], 'Paso 1 imperativo — Ejecuta la auto-reparación de setup:'),
-      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (o auditor fix)')
+      styleText(['bold', 'white'], 'Imperative Step 1 — Run setup auto-repair:'),
+      styleText(['bold', 'cyan'], '  👉  npm run auditor:fix   (or auditor fix)')
     );
   } else {
     lines.push(
-      styleText(['bold', 'white'], 'Paso 1 imperativo — Resuelve los errores de configuración indicados en la tabla:'),
-      styleText(['dim'], '  👉  npm run auditor:guide -- <ruleId>   (o auditor guide <ruleId>)')
+      styleText(['bold', 'white'], 'Imperative Step 1 — Resolve configuration errors indicated in the table:'),
+      styleText(['dim'], '  👉  npm run auditor:guide -- <ruleId>   (or auditor guide <ruleId>)')
     );
   }
 
   return buildNoticeBox({
     borderColor: 'red',
-    title: '🚨  BLOQUEO CRÍTICO: CONFIGURACIÓN Y PROYECTO (FASE SETUP)',
+    title: '🚨  CRITICAL BLOCKING: CONFIGURATION AND PROJECT (SETUP PHASE)',
     lines
   });
 }
@@ -544,15 +544,15 @@ export function renderAuditorsRegistryTable(
   const output: string[] = [];
   const filter = options?.filter ?? 'all';
 
-  let bannerTitle = 'CATÁLOGO DINÁMICO DE AUDITORES Y CAPACIDADES';
-  let bannerSubtitle = 'Suites descubiertas en tiempo de ejecución (cero hardcoding)';
+  let bannerTitle = 'DYNAMIC AUDITOR AND CAPABILITIES CATALOG';
+  let bannerSubtitle = 'Suites discovered at runtime (zero hardcoding)';
 
   if (filter === 'disabled') {
-    bannerTitle = 'CATÁLOGO DE AUDITORES DESACTIVADOS / APAGADOS';
-    bannerSubtitle = 'Suites omitidas por configuración (.auditor/audit.config.ts)';
+    bannerTitle = 'DISABLED AUDITORS CATALOG';
+    bannerSubtitle = 'Suites disabled in config (.auditor/audit.config.ts)';
   } else if (filter === 'enabled') {
-    bannerTitle = 'CATÁLOGO DE AUDITORES ACTIVOS / ENCENDIDOS';
-    bannerSubtitle = 'Suites habilitadas y listas para ejecución';
+    bannerTitle = 'ACTIVE AUDITORS CATALOG';
+    bannerSubtitle = 'Suites enabled and ready for execution';
   }
 
   output.push(renderBanner(bannerTitle, bannerSubtitle) + '\n');
@@ -562,14 +562,14 @@ export function renderAuditorsRegistryTable(
       output.push(
         styleText(
           'green',
-          '✨ ¡No hay auditores desactivados! Todas las suites descubiertas están encendidas y activas.\n'
+          '✨ No disabled auditors! All discovered suites are active and enabled.\n'
         )
       );
     } else {
       output.push(
         styleText(
           'yellow',
-          '⚠️ No se encontraron auditores que coincidan con los filtros especificados.\n'
+          '⚠️ No auditors found matching the specified filters.\n'
         )
       );
     }
@@ -579,7 +579,7 @@ export function renderAuditorsRegistryTable(
   function renderFamilySectionHeader(familyKey: string, count: number, label: string): string {
     const meta = FAMILY_METADATA[familyKey as AuditFamily];
     const headerTitle = meta
-      ? `${meta.icon} Familia ${meta.order}: ${meta.title}`
+      ? `${meta.icon} Family ${meta.order}: ${meta.title}`
       : familyKey.toUpperCase();
     return styleText('bold', `\n📌 ${headerTitle} (${count} ${label}):`);
   }
@@ -592,8 +592,8 @@ export function renderAuditorsRegistryTable(
 
   const DISABLED_COLS: readonly TableColumn<DisabledSuiteRow>[] = [
     { header: 'AUDITOR / SUITE ID', width: 28, align: 'left', key: 'id' },
-    { header: 'ESTADO', width: 12, align: 'left', key: 'state' },
-    { header: 'MOTIVO / CLAVE DE CONFIGURACIÓN', width: 30, align: 'left', key: 'reason' }
+    { header: 'STATUS', width: 12, align: 'left', key: 'state' },
+    { header: 'REASON / CONFIG KEY', width: 30, align: 'left', key: 'reason' }
   ];
 
   function renderFamilyTables<TRow extends object>(
@@ -620,10 +620,10 @@ export function renderAuditorsRegistryTable(
     tasks: readonly AuditTaskDefinition[],
     disabledReasons?: ReadonlyMap<string, string>
   ): string[] {
-    return renderFamilyTables(activeFamilies, tasks, 'suites desactivadas', DISABLED_COLS, (t) => ({
+    return renderFamilyTables(activeFamilies, tasks, 'disabled suites', DISABLED_COLS, (t) => ({
       id: `${t.icon ?? '🏛️'} ${t.id}`,
-      state: styleText('yellow', '⏭️  APAGADO'),
-      reason: disabledReasons?.get(t.id) ?? 'Desactivado por config'
+      state: styleText('yellow', '⏭️  DISABLED'),
+      reason: disabledReasons?.get(t.id) ?? 'Disabled in config'
     }));
   }
 
@@ -635,8 +635,8 @@ export function renderAuditorsRegistryTable(
 
   const ACTIVE_COLS: readonly TableColumn<ActiveSuiteRow>[] = [
     { header: 'AUDITOR / SUITE ID', width: 27, align: 'left', key: 'id' },
-    { header: 'FLAGS / CAPACIDADES', width: 19, align: 'left', key: 'flags' },
-    { header: 'DESCRIPCIÓN', width: REGISTRY_DESC_COL_WIDTH, align: 'left', key: 'desc' }
+    { header: 'FLAGS / CAPABILITIES', width: 19, align: 'left', key: 'flags' },
+    { header: 'DESCRIPTION', width: REGISTRY_DESC_COL_WIDTH, align: 'left', key: 'desc' }
   ];
 
   function formatTaskFlags(caps?: AuditTaskDefinition['capabilities']): string {
@@ -682,11 +682,11 @@ export function renderAuditorsRegistryTable(
   output.push(
     styleText(
       'dim',
-      `\n💡 Para ver el manual y configuración de una suite: auditor --info=<suiteId>`
+      `\n💡 To view manual and configuration for a suite: auditor --info=<suiteId>`
     )
   );
   output.push(
-    styleText('dim', `💡 Para obtener la especificación completa en JSON: auditor --list --json\n`)
+    styleText('dim', `💡 To obtain full JSON specification: auditor --list --json\n`)
   );
 
   return output.join('\n');
@@ -698,24 +698,24 @@ export function renderAuditorsRegistryTable(
 function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): string[] {
   const capList: string[] = [];
   if (caps?.fix === 'priority') {
-    capList.push(styleText('green', '✔ Auto-reparación Prioritaria (fix=priority)'));
+    capList.push(styleText('green', '✔ Priority Auto-Repair (fix=priority)'));
   } else if (caps?.fix === 'normal') {
-    capList.push(styleText('green', '✔ Auto-reparación (--fix)'));
+    capList.push(styleText('green', '✔ Auto-Repair (--fix)'));
   }
   const speeds = normalizeSpeeds(caps?.speed ?? 'light');
   if (speeds.includes('light'))
-    capList.push(styleText('cyan', '🐇 Velocidad Rápida (speed=light)'));
+    capList.push(styleText('cyan', '🐇 Fast Speed (speed=light)'));
   if (speeds.includes('heavy'))
-    capList.push(styleText('yellow', '🐢 Velocidad Pesada (speed=heavy)'));
+    capList.push(styleText('yellow', '🐢 Heavy Speed (speed=heavy)'));
   if (speeds.includes('full'))
-    capList.push(styleText('magenta', '🐘 Velocidad Exhaustiva (speed=full)'));
-  if (caps?.md) capList.push(styleText('magenta', '✔ Preset Markdown (preset=md)'));
+    capList.push(styleText('magenta', '🐘 Exhaustive Speed (speed=full)'));
+  if (caps?.md) capList.push(styleText('magenta', '✔ Markdown Preset (preset=md)'));
   if (caps?.phase === 'post-build')
-    capList.push(styleText('red', '📦 Fase Post-Build (phase=post-build)'));
+    capList.push(styleText('red', '📦 Post-Build Phase (phase=post-build)'));
   if (caps?.phase === 'post-run')
-    capList.push(styleText('blue', '🏁 Fase Post-Run (phase=post-run)'));
-  if (caps?.changedOnly) capList.push(styleText('white', '✔ Diferencial Git (changed-only)'));
-  if (caps?.ast) capList.push(styleText('white', '✔ AST TypeScript in-memory (ast)'));
+    capList.push(styleText('blue', '🏁 Post-Run Phase (phase=post-run)'));
+  if (caps?.changedOnly) capList.push(styleText('white', '✔ Git Differential (changed-only)'));
+  if (caps?.ast) capList.push(styleText('white', '✔ In-memory TypeScript AST (ast)'));
   return capList;
 }
 
@@ -736,16 +736,16 @@ export function renderAuditorDetailCard(task: AuditTaskDefinition): string {
 
   const icon = task.icon ?? '🏛️';
   const title = `${icon} ${task.name} [${task.id}]`;
-  const subtitle = `Familia: ${task.family} | Script: ${task.scriptPath}`;
+  const subtitle = `Family: ${task.family} | Script: ${task.scriptPath}`;
   sections.push([boldWhite(title), dim(subtitle)]);
 
-  const desc = task.description ?? task.manifest?.description ?? 'Sin descripción declarada.';
-  sections.push([boldYellow('📋 PROPÓSITO:'), white(`  ${desc}`)]);
+  const desc = task.description ?? task.manifest?.description ?? 'No description declared.';
+  sections.push([boldYellow('📋 PURPOSE:'), white(`  ${desc}`)]);
 
   const capList = formatCapabilityList(task.capabilities);
-  const capLines = [boldYellow('⚙️ CAPACIDADES / FLAGS SOPORTADOS:')];
+  const capLines = [boldYellow('⚙️ SUPPORTED CAPABILITIES / FLAGS:')];
   if (capList.length === 0) {
-    capLines.push(dim('  (Ejecución estándar general)'));
+    capLines.push(dim('  (Standard general execution)'));
   } else {
     for (const c of capList) {
       capLines.push(`  ${c}`);
@@ -757,21 +757,21 @@ export function renderAuditorDetailCard(task: AuditTaskDefinition): string {
   if (rules && Object.keys(rules).length > 0) {
     const MAX_CARD_DISPLAY_RULES = 8;
     const count = Object.keys(rules).length;
-    const ruleLines = [boldYellow(`🔍 REGLAS EVALUADAS (${count}):`)];
+    const ruleLines = [boldYellow(`🔍 EVALUATED RULES (${count}):`)];
     for (const [rId, rDesc] of Object.entries(rules).slice(0, MAX_CARD_DISPLAY_RULES)) {
       ruleLines.push(`  • ${boldWhite(rId)}: ${dim(rDesc)}`);
     }
     if (count > MAX_CARD_DISPLAY_RULES) {
-      ruleLines.push(dim(`  ... y ${count - MAX_CARD_DISPLAY_RULES} reglas más.`));
+      ruleLines.push(dim(`  ... and ${count - MAX_CARD_DISPLAY_RULES} more rules.`));
     }
     sections.push(ruleLines);
   }
 
   const configKey = task.configKey ?? task.manifest?.configKey;
   const configText = configKey
-    ? `  Clave configurable: ${boldWhite(configKey)}`
-    : dim('  Sin configuración requerida (opera con estándares canónicos).');
-  sections.push([boldYellow('🛠️ CONFIGURACIÓN (.auditor/audit.config.ts):'), configText]);
+    ? `  Configurable key: ${boldWhite(configKey)}`
+    : dim('  No configuration required (operates with canonical defaults).');
+  sections.push([boldYellow('🛠️ CONFIGURATION (.auditor/audit.config.ts):'), configText]);
 
   const content = sections.map((sec) => sec.join('\n')).join('\n\n');
 
@@ -792,81 +792,63 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
 
   lines.push(
     renderBanner(
-      '@francogp/auditor — Framework de Auditoría Estática y Gobernanza',
-      'Node.js 26+ Native | UnifiedTheme Box-Drawing | Cero Hardcoding'
+      '@francogp/auditor — Static Analysis and Architecture Governance Engine',
+      'Node.js 26+ Native | UnifiedTheme Box-Drawing | Zero Hardcoding'
     ) + '\n'
   );
 
   const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
 
-  lines.push(boldYellow('USO:'));
-  lines.push('  auditor [opciones] [comandos]  (o npm run auditor [opciones])');
-  lines.push('  ↳ Nota npm: usa "npm run auditor:help" o "npm run auditor help" (npm intercepta "--help" directamente).\n');
+  lines.push(boldYellow('USAGE:'));
+  lines.push('  auditor [options] [commands]  (or npm run auditor [options])');
+  lines.push('  ↳ npm note: use "npm run auditor:help" or "npm run auditor help" (npm intercepts "--help" directly).\n');
 
-  lines.push(boldYellow('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:'));
-  lines.push('  --list, list                 Lista todas las suites descubiertas y sus flags.');
-  lines.push(
-    '  --list --enabled             Lista exclusivamente las suites activas/encendidas en config.'
-  );
-  lines.push(
-    '  --list --disabled            Lista exclusivamente las suites apagadas/desactivadas en config.'
-  );
-  lines.push(
-    '  --list --json                Emite el catálogo completo en formato JSON estructurado.'
-  );
-  lines.push(
-    '  --info=<id>, info <id>       Muestra la ficha técnica, reglas y configuración de una suite.'
-  );
-  lines.push(
-    '  --guide=<id>, guide <id>     Muestra la guía de remediación y soluciones para una regla o suite.'
-  );
-  lines.push('  -h, --help, help             Muestra este mensaje de ayuda interactivo.\n');
+  lines.push(boldYellow('DISCOVERY & INTROSPECTION COMMANDS:'));
+  lines.push('  --list, list                 Lists all discovered suites and their capabilities.');
+  lines.push('  --list --enabled             Lists exclusively active/enabled suites in config.');
+  lines.push('  --list --disabled            Lists exclusively deactivated/disabled suites in config.');
+  lines.push('  --list --json                Emits the complete catalog in structured JSON format.');
+  lines.push('  --info=<id>, info <id>       Shows technical card, evaluated rules, and configuration for a suite.');
+  lines.push('  --guide=<id>, guide <id>     Shows remediation guide and solutions for a rule or suite.');
+  lines.push('  -h, --help, help             Shows this interactive help catalog.\n');
 
-  lines.push(boldYellow('HERRAMIENTAS DE REFACTORIZACIÓN DETERMINISTA (CERO TOKENS LLM):'));
-  lines.push('  npm run auditor:types        Remediación de as any, casts dobles y contratos de retorno.');
-  lines.push('  npm run auditor:domain       Remediación de strings crudos, catálogos e IDs sin Brand.');
-  lines.push('  npm run auditor:dupes        Deduplicación de clones sintácticos y triplicados.');
-  lines.push('  npm run auditor:magic        Extracción de números mágicos a design tokens.');
-  lines.push('  npm run auditor:motion       Gobernanza de animaciones UI y timers prohibidos.');
-  lines.push('  npm run auditor:o1           Optimización de búsquedas lineales O(N) a O(1).');
-  lines.push('  ↳ Subcomandos comunes: discover, inspect <archivo>, apply <plan.json>, help\n');
+  lines.push(boldYellow('DETERMINISTIC REFACTORING ENGINES (ZERO LLM TOKENS):'));
+  lines.push('  npm run auditor:types        Remediation of as any, double casts, and return contracts.');
+  lines.push('  npm run auditor:domain       Remediation of naked strings, unbranded catalogs, and raw IDs.');
+  lines.push('  npm run auditor:dupes        Deduplication of syntactic clones and triplicates.');
+  lines.push('  npm run auditor:magic        Extraction of magic numbers to design tokens.');
+  lines.push('  npm run auditor:motion       Governance of UI animations and forbidden timers.');
+  lines.push('  npm run auditor:o1           Optimization of linear O(N) searches to O(1).');
+  lines.push('  ↳ Common subcommands: discover, inspect <file>, apply <plan.json>, help\n');
 
-  lines.push(boldYellow('MODOS, FORMATOS Y FASES DE EJECUCIÓN:'));
-  lines.push('  format=compact (default)     Salida concisa y directa optimizada para agentes AI.');
-  lines.push('  human, format=human          Modo interactivo humano con tablas completas Box-Drawing (o npm run auditor:human).');
-  lines.push(
-    '  fix, --fix                   Modo reparación: ejecuta suites con capacidad de auto-fix.'
-  );
-  lines.push('  speed=light|heavy|full       Techo de velocidad (por defecto: heavy 🐢).');
-  lines.push(
-    '  only-speed=light|heavy|full  Ejecuta únicamente suites que declaren esa velocidad exacta.'
-  );
-  lines.push('  phase=post-build             Suites que validan artefactos compilados en dist/.');
-  lines.push('  preset=md                    Preset rápido de documentación y Markdown.');
-  lines.push('  --with-build                 Incluye suites post-build en la corrida general.\n');
+  lines.push(boldYellow('MODES, FORMATS & EXECUTION PHASES:'));
+  lines.push('  format=compact (default)     Concise, direct output optimized for AI agents.');
+  lines.push('  human, format=human          Human interactive mode with full Box-Drawing tables (or npm run auditor:human).');
+  lines.push('  fix, --fix                   Repair mode: runs suites with auto-fix capability.');
+  lines.push('  speed=light|heavy|full       Execution speed ceiling (default: heavy 🐢).');
+  lines.push('  only-speed=light|heavy|full  Runs exclusively suites declaring that exact speed.');
+  lines.push('  phase=post-build             Suites validating compiled dist/ artifacts.');
+  lines.push('  preset=md                    Fast documentation and Markdown preset.');
+  lines.push('  --with-build                 Includes post-build suites in general run.\n');
 
-  lines.push(boldYellow('FILTROS Y SELECCIÓN:'));
-  lines.push(`  family=<nombre>              Filtra por familia (${activeFamilies.join(', ')}).`);
-  lines.push('  task=<id>, suites=<id1,id2>  Ejecuta exclusivamente una o varias suites.');
-  lines.push('  rule=<id1,id2>               Filtra reglas específicas.');
-  lines.push('  --errors-only                Muestra únicamente errores suprimiendo advertencias.');
-  lines.push('  changed-since=<ref>          Filtra archivos modificados respecto de git ref.\n');
+  lines.push(boldYellow('FILTERS & SELECTION:'));
+  lines.push(`  family=<name>                Filters by family (${activeFamilies.join(', ')}).`);
+  lines.push('  task=<id>, suites=<id1,id2>  Runs exclusively specified suite(s).');
+  lines.push('  rule=<id1,id2>               Filters specific rules.');
+  lines.push('  --errors-only                Displays errors only, suppressing warnings.');
+  lines.push('  changed-since=<ref>          Filters files changed relative to git ref.\n');
 
-  lines.push(boldYellow('HERRAMIENTAS ASOCIADAS (NPM SCRIPTS):'));
-  lines.push('  npm run auditor:help         Muestra este catálogo interactivo de comandos.');
-  lines.push('  npm run auditor:guide -- <r> Consulta el manual de remediación de una regla.');
-  lines.push('  npm run auditor:lint         Auditoría rápida (speed=light 🐇).');
-  lines.push('  npm run auditor:full         Auditoría exhaustiva pre-build (speed=full 🐘).');
-  lines.push(
-    '  npm run auditor:post-build   Auditoría de artefactos compilados (phase=post-build).'
-  );
-  lines.push('  npm run auditor:by-file      Árbol jerárquico de incidencias por archivo y línea.');
-  lines.push('  npm run auditor:findings     Consulta interactiva con filtros y desgloses.');
-  lines.push('  npm run auditor:rules        Desglose consolidado agrupado y ordenado por regla.');
-  lines.push('  npm run auditor:fix          Aplica auto-reparaciones mecánicas en el código.');
-  lines.push(
-    '  npm run auditor:update       Actualiza el paquete upstream de @francogp/auditor.\n'
-  );
+  lines.push(boldYellow('ASSOCIATED TOOLS (NPM SCRIPTS):'));
+  lines.push('  npm run auditor:help         Shows this interactive command catalog.');
+  lines.push('  npm run auditor:guide -- <r> Consults the remediation manual for a rule.');
+  lines.push('  npm run auditor:lint         Fast audit (speed=light 🐇).');
+  lines.push('  npm run auditor:full         Exhaustive pre-build audit (speed=full 🐘).');
+  lines.push('  npm run auditor:post-build   Audit of compiled artifacts (phase=post-build).');
+  lines.push('  npm run auditor:by-file      Hierarchical issue tree by file and line.');
+  lines.push('  npm run auditor:findings     Interactive query with filters and breakdowns.');
+  lines.push('  npm run auditor:rules        Consolidated breakdown grouped and sorted by rule.');
+  lines.push('  npm run auditor:fix          Applies mechanical auto-repairs in code.');
+  lines.push('  npm run auditor:update       Updates upstream @francogp/auditor package.\n');
 
   return lines.join('\n');
 }
@@ -875,7 +857,7 @@ export function renderFamilyHeader(meta: FamilyMetadata): string {
   const line = '─'.repeat(TERMINAL_WIDTH - 8);
   return styleText(
     'bold',
-    `\n${meta.icon} [FAMILIA ${meta.order}] ${meta.title}\n${styleText('dim', `  ${line}`)}`
+    `\n${meta.icon} [FAMILY ${meta.order}] ${meta.title}\n${styleText('dim', `  ${line}`)}`
   );
 }
 
@@ -980,15 +962,15 @@ export function renderConsolidatedFooter(
 ): string {
   const statusText =
     totalErrors === 0
-      ? styleText(['bold', 'green'], '🎉 ¡SUITE DE AUDITORÍA GLOBAL APROBADA!')
-      : styleText(['bold', 'red'], '🚨 AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
+      ? styleText(['bold', 'green'], '🎉 GLOBAL AUDIT SUITE PASSED!')
+      : styleText(['bold', 'red'], '🚨 GLOBAL AUDIT FAILED WITH CRITICAL ERRORS');
 
-  const skippedNote = suitesSkipped > 0 ? ` (${formatNumber(suitesSkipped)} Omitidas)` : '';
+  const skippedNote = suitesSkipped > 0 ? ` (${formatNumber(suitesSkipped)} Skipped)` : '';
   const durationText = styleText(
     'dim',
-    `Duración Total: ${formatDurationMs(totalDurationMs)} | Suites: ${formatNumber(suitesPassed)}/${formatNumber(suitesTotal)} Aprobadas${skippedNote}`
+    `Total Duration: ${formatDurationMs(totalDurationMs)} | Suites: ${formatNumber(suitesPassed)}/${formatNumber(suitesTotal)} Passed${skippedNote}`
   );
-  const countsText = `Errores: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', formatNumber(totalErrors))}  |  Advertencias: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', formatNumber(totalWarnings))}`;
+  const countsText = `Errors: ${totalErrors === 0 ? styleText('green', '0') : styleText('red', formatNumber(totalErrors))}  |  Warnings: ${totalWarnings === 0 ? styleText('green', '0') : styleText('yellow', formatNumber(totalWarnings))}`;
 
   const rawLines = [statusText, durationText, countsText];
   if (errorFindings && errorFindings.length > 0) {

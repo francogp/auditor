@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const vueSfcRegexDetector = createLineDetector({
   id: 'vue-sfc-regex',
   ruleId: 'auditor-manual-vue-sfc-regex',
-  ruleDescription: 'Regex casero de bloques SFC de Vue',
+  ruleDescription: 'Homebrew Vue SFC regex',
   checkLine(line) {
     const hasManualSfcRegex =
       /<(?:template|script|style)(?:\b|[\s>])/i.test(line) &&

@@ -11,8 +11,15 @@
  */
 
 import path from 'node:path';
-import { styleText, parseArgs } from 'node:util';
+import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import {
   evaluateProjectDependencies,
   type ProjectDependenciesReport,
@@ -24,7 +31,7 @@ import {
   buildNoticeBox,
   type TableColumn
 } from '../core/unifiedTheme.ts';
-import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
 
 enableCompileCache();
 
@@ -34,50 +41,46 @@ export interface DependencyReportCliOptions {
   readonly commandsOnly: boolean;
   readonly all: boolean;
   readonly noFail: boolean;
+  readonly human?: boolean;
 }
 
-export function parseCliArgs(
-  rawArgs: readonly string[] = process.argv.slice(2)
-): DependencyReportCliOptions {
-  const normalized = rawArgs.map((a) => (a.includes('=') && !a.startsWith('-') ? `--${a}` : a));
+const DEPENDENCIES_CLI_ARGS = {
+  ...COMMON_CLI_ARGS,
+  commands: { type: 'boolean', alias: 'c', description: 'Print upgrade install commands only' },
+  'install-cmd': { type: 'boolean', description: 'Print upgrade install commands only' },
+  all: { type: 'boolean', alias: 'a', description: 'Include undeclared governed libraries' },
+  'no-fail': { type: 'boolean', description: 'Exit with code 0 even if dependencies are outdated' }
+} as const satisfies CittyArgsDef;
 
-  const { values } = parseArgs({
-    args: normalized,
-    options: {
-      project: { type: 'string', short: 'p' },
-      json: { type: 'boolean' },
-      commands: { type: 'boolean', short: 'c' },
-      'install-cmd': { type: 'boolean' },
-      all: { type: 'boolean', short: 'a' },
-      'no-fail': { type: 'boolean' }
-    },
-    allowPositionals: true,
-    strict: false
-  });
+export function parseCliArgs(
+  rawArgs: readonly string[] = getProcessCliArgs()
+): DependencyReportCliOptions {
+  const parsed = parseCittyArgs(DEPENDENCIES_CLI_ARGS, rawArgs);
 
   return {
-    project: typeof values.project === 'string' ? values.project : undefined,
-    json: Boolean(values.json),
-    commandsOnly: Boolean(values.commands || values['install-cmd']),
-    all: Boolean(values.all),
-    noFail: Boolean(values['no-fail'])
+    project: typeof parsed.project === 'string' && parsed.project !== '.' ? parsed.project : undefined,
+    json: Boolean(parsed.json),
+    commandsOnly: Boolean(parsed.commands || parsed['install-cmd']),
+    all: Boolean(parsed.all),
+    noFail: Boolean(parsed['no-fail']),
+    human: resolveHumanModeFromArgs(parsed)
   };
 }
 
 function formatStatusCell(item: DependencyEvaluation): string {
   switch (item.status) {
     case 'satisfied':
-      return styleText('green', '✅ Cumple');
+      return styleText('green', '[OK] Satisfied');
     case 'outdated_range':
-      return styleText('red', '❌ Rango bajo');
+      return styleText('red', '[FAIL] Range low');
     case 'outdated_installed':
-      return styleText('yellow', '⚠️  Lockfile bajo');
+      return styleText('yellow', '[WARN] Lockfile low');
     case 'undeclared':
-      return styleText('dim', '⚪ No declarada');
+      return styleText('dim', '[-] Undeclared');
     case 'exceeds_max_range':
-      return styleText('red', '❌ Excede tope');
+      return styleText('red', '[FAIL] Exceeds ceiling');
     case 'exceeds_max_installed':
-      return styleText('red', '❌ Lockfile alto');
+      return styleText('red', '[FAIL] Lockfile high');
   }
 }
 
@@ -94,6 +97,38 @@ function formatInstalledCell(item: DependencyEvaluation): string {
   if (item.status === 'outdated_installed') return styleText('yellow', item.installedVersion);
   if (item.status === 'exceeds_max_installed') return styleText('red', item.installedVersion);
   return styleText('white', item.installedVersion);
+}
+
+function renderDependenciesCompact(
+  report: ProjectDependenciesReport,
+  itemsToDisplay: readonly DependencyEvaluation[],
+  options: DependencyReportCliOptions
+): void {
+  console.log(
+    `[Dependencies] Governed: ${report.totalGoverned} | Declared: ${report.declaredCount} | Satisfied: ${report.satisfiedCount} | Outdated: ${report.outdatedCount}`
+  );
+  if (report.outdatedCount > 0) {
+    for (const item of itemsToDisplay.filter(
+      (i) => i.status !== 'satisfied' && i.status !== 'undeclared'
+    )) {
+      console.log(
+        `• ${item.name}: declared ${item.declaredRange ?? 'none'}, installed ${item.installedVersion ?? 'none'}, required >= ${item.requiredFloor} (${item.status})`
+      );
+    }
+    if (report.prodInstallCommand) {
+      console.log(`[Upgrade] ${report.prodInstallCommand}`);
+    }
+    if (report.devInstallCommand) {
+      console.log(`[Upgrade] ${report.devInstallCommand}`);
+    }
+  } else {
+    console.log('[OK] All declared dependencies meet minimum required versions.');
+  }
+  if (!options.all && report.undeclaredCount > 0) {
+    console.log(
+      `[Notice] ${report.undeclaredCount} governed libraries are not declared by this host (pass "--all" to view).`
+    );
+  }
 }
 
 export function runDependenciesReport(
@@ -116,7 +151,7 @@ export function runDependenciesReport(
     if (report.prodInstallCommand) console.log(report.prodInstallCommand);
     if (report.devInstallCommand) console.log(report.devInstallCommand);
     if (!report.prodInstallCommand && !report.devInstallCommand) {
-      console.log('# Todas las dependencias declaradas cumplen con los pisos mínimos del auditor.');
+      console.log('# All declared dependencies satisfy the auditor minimum baselines.');
     }
     return report;
   }
@@ -136,14 +171,19 @@ export function runDependenciesReport(
       (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99) || a.name.localeCompare(b.name)
   );
 
-  const bannerSubtitle = `Proyecto: ${path.basename(report.projectRoot)} | Gobernadas: ${report.totalGoverned} | Declaradas: ${report.declaredCount}`;
+  if (!isHumanConsoleMode(options)) {
+    renderDependenciesCompact(report, itemsToDisplay, options);
+    return report;
+  }
+
+  const bannerSubtitle = `Project: ${path.basename(report.projectRoot)} | Governed: ${report.totalGoverned} | Declared: ${report.declaredCount}`;
   console.log(
-    '\n' + renderBanner('DEPENDENCIAS MÍNIMAS REQUERIDAS (@francogp/auditor)', bannerSubtitle)
+    '\n' + renderBanner('MINIMUM REQUIRED DEPENDENCIES (@francogp/auditor)', bannerSubtitle)
   );
 
   const columns: TableColumn<DependencyEvaluation>[] = [
     {
-      header: 'LIBRERÍA',
+      header: 'LIBRARY',
       width: 22,
       render: (row) =>
         row.status === 'satisfied'
@@ -153,25 +193,25 @@ export function runDependenciesReport(
             : styleText('bold', row.name)
     },
     {
-      header: 'PISO MÍNIMO',
+      header: 'MIN REQUIRED',
       width: 14,
       align: 'center',
       render: (row) => styleText('yellow', row.requiredFloor)
     },
     {
-      header: 'DECLARADA',
+      header: 'DECLARED',
       width: 14,
       align: 'center',
       render: formatDeclaredCell
     },
     {
-      header: 'INSTALADA',
+      header: 'INSTALLED',
       width: 14,
       align: 'center',
       render: formatInstalledCell
     },
     {
-      header: 'ESTADO',
+      header: 'STATUS',
       width: 18,
       align: 'center',
       render: formatStatusCell
@@ -181,17 +221,17 @@ export function runDependenciesReport(
   console.log(
     '\n' +
       renderBoxTable(columns, itemsToDisplay, {
-        emptyMessage: 'No se encontraron dependencias declaradas en el proyecto.'
+        emptyMessage: 'No declared dependencies found in project.'
       }) +
       '\n'
   );
 
   const summaryLine = [
     // no-domain: Dynamic console formatting summary list
-    `Total gobernadas: ${styleText('bold', String(report.totalGoverned))}`,
-    `Declaradas en host: ${styleText('bold', String(report.declaredCount))}`,
-    `Cumplen: ${styleText('green', String(report.satisfiedCount))}`,
-    `Requieren actualización: ${report.outdatedCount > 0 ? styleText('red', String(report.outdatedCount)) : styleText('green', '0')}`
+    `Total governed: ${styleText('bold', String(report.totalGoverned))}`,
+    `Declared in host: ${styleText('bold', String(report.declaredCount))}`,
+    `Satisfied: ${styleText('green', String(report.satisfiedCount))}`,
+    `Requires update: ${report.outdatedCount > 0 ? styleText('red', String(report.outdatedCount)) : styleText('green', '0')}`
   ].join(' | ');
 
   console.log(`  ${summaryLine}\n`);
@@ -199,21 +239,21 @@ export function runDependenciesReport(
   if (report.outdatedCount > 0) {
     const commandLines: string[] = []; // no-domain: Dynamic console command line buffer
     if (report.prodInstallCommand) {
-      commandLines.push(`Producción:  ${styleText('cyan', report.prodInstallCommand)}`);
+      commandLines.push(`Production:   ${styleText('cyan', report.prodInstallCommand)}`);
     }
     if (report.devInstallCommand) {
-      commandLines.push(`Desarrollo:  ${styleText('cyan', report.devInstallCommand)}`);
+      commandLines.push(`Development:  ${styleText('cyan', report.devInstallCommand)}`);
     }
 
     const notice = buildNoticeBox({
-      title: 'COMANDOS PARA ACTUALIZAR DEPENDENCIAS AL PISO MÍNIMO',
+      title: 'COMMANDS TO UPDATE DEPENDENCIES TO MINIMUM REQUIRED VERSIONS',
       lines: commandLines,
       borderColor: 'yellow'
     });
     console.log(notice + '\n');
   } else {
     console.log(
-      `  ${styleText('green', '🎉 Todas las dependencias declaradas en el proyecto cumplen con los mínimos requeridos.')}\n`
+      `  ${styleText('green', '[OK] All dependencies declared in the project meet the required minimums.')}\n`
     );
   }
 
@@ -221,7 +261,7 @@ export function runDependenciesReport(
     console.log(
       styleText(
         'dim',
-        `  ℹ️  ${report.undeclaredCount} librerías gobernadas no están declaradas por este host (pasa '--all' para verlas).\n`
+        `  [Notice] ${report.undeclaredCount} governed libraries are not declared by this host (pass '--all' to view).\n`
       )
     );
   }

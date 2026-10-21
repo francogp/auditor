@@ -11,6 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 
 export interface SyncEnvOptions {
   targetDir?: string;
@@ -49,13 +55,13 @@ function ensurePluginsDirectory(targetDir: string, dryRun?: boolean): void {
   fs.writeFileSync(path.join(pluginsDir, '.gitkeep'), '', 'utf8');
 
   const sampleSh = `#!/usr/bin/env bash
-# Plugin de inicialización específico de proyecto (Linux/macOS)
-# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
-# echo "Ejecutando plugin de configuración local..."
+# Project-specific initialization plugin (Linux/macOS)
+# Place post-install tasks here (e.g. copy templates, configure DB)
+# echo "Running local configuration plugin..."
 `;
-  const samplePs1 = `# Plugin de inicialización específico de proyecto (Windows)
-# Coloca aquí tus tareas post-instalación específicas (ej. copiar plantillas, configurar BD)
-# Write-Host "Ejecutando plugin de configuracion local..." -ForegroundColor Cyan
+  const samplePs1 = `# Project-specific initialization plugin (Windows)
+# Place post-install tasks here (e.g. copy templates, configure DB)
+# Write-Host "Running local configuration plugin..." -ForegroundColor Cyan
 `;
   fs.writeFileSync(path.join(pluginsDir, '01_sample.sh.sample'), sampleSh, 'utf8');
   fs.writeFileSync(path.join(pluginsDir, '01_sample.ps1.sample'), samplePs1, 'utf8');
@@ -90,29 +96,35 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): {
   return {
     success: true,
     filesUpdated,
-    message: `Sincronizados scripts de entorno canónicos en ${targetDir}`
+    message: `Synchronized canonical environment scripts in ${targetDir}`
   };
 }
+
+const SYNC_ENV_ARGS = {
+  ...COMMON_CLI_ARGS,
+  'dry-run': { type: 'boolean', default: false, description: 'Preview synchronization without writing' }
+} as const satisfies CittyArgsDef;
 
 // CLI entrypoint
 if (isMainModule(import.meta.url)) {
   bootstrapCliProject();
-  const isDryRun = process.argv.includes('--dry-run');
+  const parsed = parseCittyArgs(SYNC_ENV_ARGS, getProcessCliArgs());
+  const isDryRun = Boolean(parsed['dry-run']);
   console.log('\n┌────────────────────────────────────────────────────────┐');
-  console.log('│  🔄 Sincronizador de Scripts de Entorno (@francogp/auditor) │');
+  console.log('│  Environment Scripts Synchronizer (@francogp/auditor) │');
   console.log('└────────────────────────────────────────────────────────┘\n');
 
   const result = syncEnvScripts({ dryRun: isDryRun });
 
   if (result.success) {
-    console.log(`✅ ${result.message}`);
+    console.log(`[OK] ${result.message}`);
     for (const f of result.filesUpdated) {
       console.log(`  - ${f}`);
     }
-    console.log('\nEstructura de plugins inicializada en scripts/setup/plugins/');
-    console.log('Cero divergencia con el estándar oficial de @francogp/auditor.\n');
+    console.log('\nPlugin structure initialized in scripts/setup/plugins/');
+    console.log('Zero divergence from official @francogp/auditor standard.\n');
   } else {
-    console.error(`❌ Error al sincronizar: ${result.message}`);
+    console.error(`[Error] Failed to synchronize: ${result.message}`);
     process.exit(1);
   }
 }

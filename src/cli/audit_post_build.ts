@@ -12,10 +12,12 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from './cliUtils.ts';
+import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 import '../core/permissionGuard.ts';
 import { DEFAULT_PERMISSIONS } from './auditTaskFactory.ts';
 
 export async function runAuditPostBuild(extraArgs: readonly string[] = []): Promise<number> {
+  parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const fullAuditorPath = path.resolve(currentDir, 'audit_full.ts');
   const fullAuditorJsPath = path.resolve(currentDir, 'audit_full.js');
@@ -37,6 +39,6 @@ export async function runAuditPostBuild(extraArgs: readonly string[] = []): Prom
 }
 
 if (isMainModule(import.meta.url)) {
-  const exitCode = await runAuditPostBuild(process.argv.slice(2));
+  const exitCode = await runAuditPostBuild(getProcessCliArgs());
   process.exit(exitCode);
 }

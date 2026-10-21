@@ -28,7 +28,7 @@ const MANDATORY_DOCKER_IGNORE_PATTERNS = [
 	".env*"
 ];
 const CANONICAL_DOCKERIGNORE_LINES = [
-	"# Archivos y dependencias ignoradas para construccion de imagenes Docker",
+	"# Ignored files and dependencies for Docker image builds",
 	"node_modules",
 	".git",
 	"dist",
@@ -54,7 +54,7 @@ const DOCKER_CONFIG_REQUIREMENT = {
 	id: "docker-config",
 	file: ".dockerignore",
 	candidateFiles: [".dockerignore"],
-	description: "Configuración de exclusiones Docker (.dockerignore)",
+	description: "Docker exclusions configuration (.dockerignore)",
 	ruleId: "dockerignore-missing",
 	isApplicable: (_config, projectRoot) => isDockerProjectContext(projectRoot),
 	generateDefaultContent: () => CANONICAL_DOCKERIGNORE_CONTENT
@@ -86,7 +86,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 			configFiles: [configRequirement],
 			id: "validate_docker_config",
 			name: "Docker Configuration Validator",
-			description: "Valida baseline de .dockerignore en proyectos Docker",
+			description: "Validates .dockerignore baseline in Docker projects",
 			icon: "🐳",
 			family: "architecture",
 			ruleIds: DOCKER_CONFIG_RULES,
@@ -96,12 +96,12 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			ruleDescriptions: {
-				"dockerignore-missing": "Archivo .dockerignore ausente",
-				"dockerignore-missing-pattern": "Falta patrón crítico en dockerignore"
+				"dockerignore-missing": "Missing .dockerignore file",
+				"dockerignore-missing-pattern": "Missing critical pattern in .dockerignore"
 			},
 			ruleRemediations: {
-				"dockerignore-missing": "Diagnóstico: El proyecto tiene Dockerfile o compose pero falta .dockerignore.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear el .dockerignore canónico.",
-				"dockerignore-missing-pattern": "Diagnóstico: Faltan exclusiones críticas en .dockerignore (node_modules, .git, scratch, .env*).\nRemediación: Ejecuta `auditor fix` para añadir los patrones requeridos sin alterar los existentes."
+				"dockerignore-missing": "📖 REMEDIATION GUIDE: dockerignore-missing\n1. Root Cause: The project contains Dockerfile or compose files but lacks a `.dockerignore` file, leading to excessive build context and secret leaks.\n2. Diagnosis: Check project root for `.dockerignore`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically scaffold the canonical `.dockerignore` file.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".dockerignore"] },
 			projectRoot,
@@ -111,7 +111,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 	}
 	async runAudit() {
 		if (!isDockerProjectContext(this.projectRoot)) {
-			this.markSkipped("No se detectó Dockerfile ni configuración Docker en el proyecto");
+			this.markSkipped("No Dockerfile or Docker configuration detected in project");
 			return;
 		}
 		const isFix = this.isFixActive();
@@ -122,7 +122,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("dockerignore-missing", () => this.ensureConfigFile(DOCKER_CONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("dockerignore-missing-pattern", "Archivo .dockerignore ausente");
+				this.markRuleNotApplicable("dockerignore-missing-pattern", "Missing .dockerignore file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -159,7 +159,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `El patrón "${pattern}" es obligatorio en .dockerignore para seguridad y aislamiento.`
+					message: `Pattern "${pattern}" is mandatory in .dockerignore for security and isolation.`
 				});
 			}
 		});

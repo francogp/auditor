@@ -32,7 +32,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     super({
       id: 'validate_scss_architecture',
       name: 'SCSS Architecture & Distinctive Design Validator',
-      description: 'Arquitectura SCSS, tokenización y diseño distintivo',
+      description: 'SCSS architecture, tokenization, and distinctive styling',
       family: 'architecture',
       packageName: 'SCSSArch',
       icon: '🎨',
@@ -46,55 +46,55 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       ruleIds: SCSS_ARCHITECTURE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SCSS_ARCHITECTURE_RULES, 'hygiene'),
       ruleDescriptions: {
-        'raw-css-in-sfc': '<style> sin atributo lang="scss"',
-        'scss-deep-selector-abuse': 'Abuso o anidamiento de :deep()',
-        'non-standard-spacing-unit': 'Espaciado arbitrario sin escala',
-        'missing-theme-token-usage': 'Color hardcodeado sin token de tema',
-        'excessive-scss-nesting': 'Anidamiento SCSS superior a 3 niveles'
+        'raw-css-in-sfc': '<style> tag missing lang="scss"',
+        'scss-deep-selector-abuse': 'Abuse or nesting of :deep()',
+        'non-standard-spacing-unit': 'Arbitrary spacing outside token scale',
+        'missing-theme-token-usage': 'Hardcoded color without theme token',
+        'excessive-scss-nesting': 'SCSS nesting exceeds 3 levels'
       },
       ruleRemediations: {
         'raw-css-in-sfc':
-          '📖 GUÍA DE REMEDIACIÓN: raw-css-in-sfc\n' +
-          '1. Causa Raíz: Se encontró una etiqueta `<style>` en un componente Vue (.vue) sin el atributo `lang="scss"`. La arquitectura del proyecto estandariza el preprocesador SCSS para todos los componentes.\n' +
-          '2. Diagnóstico: Ubica la etiqueta `<style>` en el componente Vue.\n' +
-          '3. Solución Canónica: Añade `lang="scss"` (y `scoped` si aplica al componente): `<style lang="scss" scoped>`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Incorrecto: `<style scoped>`\n' +
-          '   ✅ Correcto:   `<style lang="scss" scoped>`',
+          '📖 REMEDIATION GUIDE: raw-css-in-sfc\n' +
+          '1. Root Cause: A `<style>` tag was found in a Vue SFC without the `lang="scss"` attribute. Framework architecture standardizes the SCSS preprocessor across all components.\n' +
+          '2. Diagnosis: Locate the `<style>` tag in the Vue component.\n' +
+          '3. Canonical Solution: Add `lang="scss"` (and `scoped` where appropriate): `<style lang="scss" scoped>`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Incorrect: `<style scoped>`\n' +
+          '   ✅ Correct:   `<style lang="scss" scoped>`',
         'scss-deep-selector-abuse':
-          '📖 GUÍA DE REMEDIACIÓN: scss-deep-selector-abuse\n' +
-          '1. Causa Raíz: Se utilizó `:deep()` anidado o aplicado a múltiples niveles dentro de un selector (`:deep(.a :deep(.b))`), o de forma redundante. Esto rompe el encapsulamiento de estilos y genera selectores inestables.\n' +
-          '2. Diagnóstico: Busca la regla CSS con `:deep()` en la línea señalada.\n' +
-          '3. Solución Canónica: Aplica `:deep()` una sola vez en el nivel raíz del selector hijo que necesitas estilizar: `:deep(.target-class)`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Abuso:    `:deep(.parent) :deep(.child)`\n' +
-          '   ✅ Canónico: `:deep(.parent .child)`',
+          '📖 REMEDIATION GUIDE: scss-deep-selector-abuse\n' +
+          '1. Root Cause: Nested `:deep()` was used within another `:deep()` (`:deep(.a :deep(.b))`), or multiple chained compound selectors were passed into `:deep()`. This breaks style encapsulation.\n' +
+          '2. Diagnosis: Locate the CSS rule with `:deep()` at the reported line.\n' +
+          '3. Canonical Solution: Apply `:deep()` once at the root level of the target child selector: `:deep(.target-class)`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Abuse:     `:deep(.parent) :deep(.child)`\n' +
+          '   ✅ Canonical: `:deep(.parent .child)`',
         'non-standard-spacing-unit':
-          '📖 GUÍA DE REMEDIACIÓN: non-standard-spacing-unit\n' +
-          '1. Causa Raíz: Se utilizó un valor de espaciado en píxeles arbitrario (ej: `margin: 13px`, `padding: 27px`) que no se ajusta a la escala modular de diseño (múltiplos de 4px/8px o tokens de espaciado).\n' +
-          '2. Diagnóstico: Revisa la propiedad de margen, padding o gap reportada.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Reemplaza el valor por la variable de espaciado del sistema de diseño (ej: `var(--spacing-md)` o `$spacing-4`).\n' +
-          '   b) Ajusta el valor al múltiplo canónico más cercano (ej: 12px o 16px en lugar de 13px).\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Arbitrario: `padding: 15px;`\n' +
-          '   ✅ En escala:   `padding: var(--space-4, 16px);`',
+          '📖 REMEDIATION GUIDE: non-standard-spacing-unit\n' +
+          '1. Root Cause: An arbitrary pixel spacing value was used (e.g. `margin: 13px`, `padding: 27px`) that does not align with modular design tokens (multiples of 4px/8px).\n' +
+          '2. Diagnosis: Inspect the margin, padding, or gap property at the reported line.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Replace the value with a design token: `var(--spacing-md)` or `$spacing-4`.\n' +
+          '   b) Round to the nearest canonical grid multiple (e.g. 12px or 16px instead of 13px).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Arbitrary: `padding: 15px;`\n' +
+          '   ✅ On-grid:   `padding: var(--space-4, 16px);`',
         'missing-theme-token-usage':
-          '📖 GUÍA DE REMEDIACIÓN: missing-theme-token-usage\n' +
-          '1. Causa Raíz: Se encontró un color hardcodeado (`#fff`, `rgb(...)`, `#1e293b`) en las hojas de estilo en lugar de utilizar tokens de tema o variables CSS. Los colores hardcodeados impiden el soporte multitema (Dark/Light mode).\n' +
-          '2. Diagnóstico: Identifica el color literal en la línea señalada.\n' +
-          '3. Solución Canónica: Sustituye el color por la variable CSS de tema semántica correspondiente (ej: `var(--color-surface)`, `var(--color-primary-text)`).\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Hardcodeado: `background-color: #0f172a; color: #ffffff;`\n' +
-          '   ✅ Tokenizado:   `background-color: var(--color-bg-primary); color: var(--color-text-primary);`',
+          '📖 REMEDIATION GUIDE: missing-theme-token-usage\n' +
+          '1. Root Cause: A hardcoded color literal (`#fff`, `rgb(...)`, `#1e293b`) was found instead of theme tokens or CSS variables. Hardcoded colors prevent dynamic theming (Dark/Light mode).\n' +
+          '2. Diagnosis: Locate the literal color at the reported line.\n' +
+          '3. Canonical Solution: Replace the color with the corresponding semantic theme variable (e.g. `var(--color-surface)`, `var(--color-primary-text)`).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Hardcoded: `background-color: #0f172a; color: #ffffff;`\n' +
+          '   ✅ Tokenized: `background-color: var(--color-bg-primary); color: var(--color-text-primary);`',
         'excessive-scss-nesting':
-          '📖 GUÍA DE REMEDIACIÓN: excessive-scss-nesting\n' +
-          '1. Causa Raíz: Se anidaron reglas SCSS a más de 3 niveles de profundidad, lo que infla la especificidad de los selectores generados y degrada la mantenibilidad del CSS.\n' +
-          '2. Diagnóstico: Observa la jerarquía de llaves `{ { { { } } } }` en el bloque de estilos.\n' +
-          '3. Solución Canónica: Aplana las reglas SCSS utilizando la metodología BEM o selectores directos de clase.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Anidamiento profundo: `.card { .header { .title { span { color: red; } } } }`\n' +
-          '   ✅ Aplanado:            `.card__title-highlight { color: var(--color-danger); }`'
+          '📖 REMEDIATION GUIDE: excessive-scss-nesting\n' +
+          '1. Root Cause: SCSS rules were nested beyond 3 levels deep, inflating selector specificity and harming maintainability.\n' +
+          '2. Diagnosis: Examine nested braces in the stylesheet.\n' +
+          '3. Canonical Solution: Flatten SCSS rules using BEM methodology or direct class selectors.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Deep nesting: `.card { .header { .title { span { color: red; } } } }`\n' +
+          '   ✅ Flattened:    `.card__title-highlight { color: var(--color-danger); }`'
       },
       ruleCapabilities: createUniformRuleCapabilities(
         SCSS_ARCHITECTURE_RULES,
@@ -180,7 +180,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.addViolation({
           ruleId: 'raw-css-in-sfc',
           severity: 'error',
-          message: 'Bloque <style> en componente SFC sin atributo lang="scss" mandatorio',
+          message: '<style> block in SFC component missing mandatory lang="scss" attribute',
           file: relPath,
           line
         });
@@ -203,7 +203,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       this.addViolation({
         ruleId: 'scss-deep-selector-abuse',
         severity: 'error',
-        message: 'Uso de selector :deep() anidado dentro de otro :deep() en la misma regla',
+        message: 'Nested :deep() selector inside another :deep() in the same rule',
         file: relPath,
         line
       });
@@ -220,7 +220,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.addViolation({
           ruleId: 'scss-deep-selector-abuse',
           severity: 'error',
-          message: `Cadena de selectores excesivamente compleja dentro de :deep() (${parts.length} selectores > 3)`,
+          message: `Overly complex selector chain inside :deep() (${parts.length} selectors > 3)`,
           file: relPath,
           line
         });
@@ -252,7 +252,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       this.addViolation({
         ruleId: 'non-standard-spacing-unit',
         severity: 'error',
-        message: `Valor de espaciado arbitrario (${unitStr}) fuera de escala estándar o sin token de diseño`,
+        message: `Arbitrary spacing value (${unitStr}) outside standard scale or without design token`,
         file: relPath,
         line
       });
@@ -292,7 +292,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
           ruleId: 'missing-theme-token-usage',
           severity: 'error',
           message:
-            'Color hexadecimal o rgb hardcodeado sin utilizar variable o token del sistema de diseño',
+            'Hardcoded hex or rgb color without using design system token or variable',
           file: relPath,
           line
         });
@@ -356,7 +356,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.addViolation({
           ruleId: 'excessive-scss-nesting',
           severity: 'error',
-          message: `Anidamiento SCSS excesivo (${depth} niveles > ${maxAllowedDepth}); aplanar selectores con BEM o clases semánticas`,
+          message: `Excessive SCSS nesting (${depth} levels > ${maxAllowedDepth}); flatten selectors with BEM or semantic classes`,
           file: relPath,
           line: lineOffset + i
         });

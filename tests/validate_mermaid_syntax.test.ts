@@ -163,7 +163,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
     it('rejects empty diagrams', async () => {
       const res = await validateMermaid('');
       expect(res.valid).toBe(false);
-      expect(res.error?.message).toContain('vacío');
+      expect(res.error?.message).toContain('empty');
     });
 
     it('rejects unknown diagram headers', async () => {
@@ -402,7 +402,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
         (v) => v.ruleId === 'mermaid-syntax-error'
       );
       expect(violations.length).toBeGreaterThan(0);
-      expect(violations[0]?.message).toContain('Error de sintaxis en diagrama Mermaid');
+      expect(violations[0]?.message).toContain('Syntax error in Mermaid diagram');
     });
 
     it('detects unclosed subgraphs in markdown diagrams', async () => {

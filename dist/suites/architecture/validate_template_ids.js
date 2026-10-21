@@ -104,7 +104,7 @@ function scanTemplateFormControlIds(ctx) {
 			severity: "error",
 			file: ctx.relPath,
 			line: info.lineNumber,
-			message: `Elemento interactivo <${tagType}> carece de atributo id para automatización con Playwright y accesibilidad.`,
+			message: `Interactive element <${tagType}> lacks an id attribute for Playwright automation and accessibility.`,
 			context: info.lineContent.trim()
 		});
 	}
@@ -129,7 +129,7 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_template_ids",
 			name: "Template Static ID Uniqueness & Collision Validator",
-			description: "Verifica IDs estáticos e inputs en templates Vue",
+			description: "Verifies static IDs and inputs in Vue templates",
 			family: "architecture",
 			ruleIds: TEMPLATE_ID_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(TEMPLATE_ID_RULES, "hygiene"),
@@ -142,14 +142,14 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "🆔",
 			ruleDescriptions: {
-				"template-duplicate-static-id": "ID estático duplicado",
-				"template-shared-static-id": "ID compartido entre componentes",
-				"template-missing-input-id": "Control sin ID único"
+				"template-duplicate-static-id": "Duplicate static ID",
+				"template-shared-static-id": "Static ID shared across components",
+				"template-missing-input-id": "Form control missing unique ID"
 			},
 			ruleRemediations: {
-				"template-duplicate-static-id": "📖 GUÍA DE REMEDIACIÓN: template-duplicate-static-id\n1. Causa Raíz: Se encontró el mismo atributo estático `id=\"...\"` repetido en dos o más elementos dentro de la misma plantilla de componente Vue. En el estándar HTML5, los IDs deben ser estrictamente únicos dentro del documento.\n2. Diagnóstico: Ubica el ID duplicado señalado en el mensaje de error y contrástalo con la línea de la primera aparición.\n3. Solución Canónica: Asigna IDs distintos y descriptivos a cada elemento, o utiliza clases CSS (`class=\"...\"`) si el objetivo es estilizar o agrupar selectores.\n4. Ejemplo:\n   ❌ Duplicado: `<div id=\"card\">...</div> <div id=\"card\">...</div>`\n   ✅ Único:     `<div id=\"card-primary\">...</div> <div id=\"card-secondary\">...</div>`",
-				"template-shared-static-id": "📖 GUÍA DE REMEDIACIÓN: template-shared-static-id\n1. Causa Raíz: Se detectó el mismo identificador estático `id=\"foo\"` en dos componentes Vue distintos. Si ambos componentes se montan simultáneamente en la misma vista, se produce una colisión de ID en el DOM global.\n2. Diagnóstico: Comprueba los dos archivos de componentes reportados en la incidencia.\n3. Solución Canónica:\n   a) Prefija el ID con el nombre del componente (ej: `id=\"user-profile-header\"` vs `id=\"settings-header\"`).\n   b) O genera un ID único por instancia usando `useId()` de Vue 3 (`const inputId = useId();` con `:id=\"inputId\"`).\n4. Ejemplo:\n   ❌ Colisión: `id=\"submit-btn\"` en LoginForm.vue y RegisterForm.vue\n   ✅ Prefijado: `id=\"login-submit-btn\"` y `id=\"register-submit-btn\"`",
-				"template-missing-input-id": "📖 GUÍA DE REMEDIACIÓN: template-missing-input-id\n1. Causa Raíz: Un control de entrada de formulario (`<input>`, `<select>`, `<textarea>`) carece de atributo `id` o enlace reactivo `:id`, impidiendo asociarle un `<label :for=\"...\">` accesible.\n2. Diagnóstico: Revisa el elemento de entrada en la plantilla del componente reportado.\n3. Solución Canónica:\n   a) Añade un ID único al control: `<input id=\"search-query\" ...>` y asócialo con su `<label for=\"search-query\">`.\n   b) Si el componente se reutiliza múltiples veces, genera el ID dinámicamente con `const id = useId()` de Vue 3 y enlaza `:id=\"id\"`.\n4. Ejemplo:\n   ❌ Sin ID: `<input v-model=\"name\" type=\"text\" />`\n   ✅ Con ID: `<input :id=\"nameInputId\" v-model=\"name\" type=\"text\" />`"
+				"template-duplicate-static-id": "📖 REMEDIATION GUIDE: template-duplicate-static-id\n1. Root Cause: The same static attribute `id=\"...\"` was found on two or more elements inside the same Vue component template. Under HTML5 standards, IDs must be unique within a document.\n2. Diagnosis: Locate the duplicate ID indicated in the error message and contrast it with the line of its first occurrence.\n3. Canonical Solution: Assign distinct and descriptive IDs to each element, or use CSS classes (`class=\"...\"`) if grouping for styling.\n4. Example / Auto-fix command:\n   ❌ Duplicate: `<div id=\"card\">...</div> <div id=\"card\">...</div>`\n   ✅ Unique:    `<div id=\"card-primary\">...</div> <div id=\"card-secondary\">...</div>`",
+				"template-shared-static-id": "📖 REMEDIATION GUIDE: template-shared-static-id\n1. Root Cause: The same static identifier `id=\"foo\"` was detected across two different Vue components. If both mount simultaneously, an ID collision occurs in the global DOM.\n2. Diagnosis: Inspect the two component files reported in the finding.\n3. Canonical Solution:\n   a) Prefix the ID with the component name (e.g. `id=\"user-profile-header\"` vs `id=\"settings-header\"`).\n   b) Or generate unique per-instance IDs using Vue 3 `useId()` (`const inputId = useId();` with `:id=\"inputId\"`).\n4. Example / Auto-fix command:\n   ❌ Collision: `id=\"submit-btn\"` in LoginForm.vue and RegisterForm.vue\n   ✅ Prefixed:  `id=\"login-submit-btn\"` and `id=\"register-submit-btn\"`",
+				"template-missing-input-id": "📖 REMEDIATION GUIDE: template-missing-input-id\n1. Root Cause: A form control (`<input>`, `<select>`, `<textarea>`) lacks an `id` attribute or `:id` binding, preventing accessible `<label :for=\"...\">` association.\n2. Diagnosis: Review the form control in the component template.\n3. Canonical Solution:\n   a) Add a unique ID to the control: `<input id=\"search-query\" ...>` and associate with `<label for=\"search-query\">`.\n   b) If reusable across multiple instances, generate the ID with Vue 3 `useId()` and bind `:id=\"id\"`.\n4. Example / Auto-fix command:\n   ❌ Missing ID: `<input v-model=\"name\" type=\"text\" />`\n   ✅ With ID:    `<input :id=\"nameInputId\" v-model=\"name\" type=\"text\" />`"
 			},
 			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".vue"]),

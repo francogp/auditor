@@ -74,7 +74,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       fix: opts.fix,
       id: 'validate_oxfmt',
       name: 'Vite+ Oxfmt Code Formatting Validator',
-      description: 'Valida el formato de código con Oxfmt de Vite+',
+      description: 'Validates code formatting with Vite+ Oxfmt',
       family: 'architecture',
       packageName: 'Oxfmt',
       configKey: 'oxfmt.enabled',
@@ -84,18 +84,20 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       ruleIds: OXFMT_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(OXFMT_RULES, 'polish'),
       ruleDescriptions: {
-        'oxfmt-violation': 'Desviación de formato de código'
+        'oxfmt-violation': 'Code format deviation'
       },
       ruleRemediations: {
         'oxfmt-violation':
-          'Causa Raíz:\n' +
-          'El archivo presenta desviaciones respecto al estilo de formateo canónico de código de Oxfmt (Vite+).\n' +
-          'Oxfmt gobierna indentación, comillas, punto y coma, ordenamiento de importaciones ("sortImports") y ordenamiento de claves en package.json ("sortPackageJson") a velocidades nativas en Rust.\n\n' +
-          'Diagnóstico:\n' +
-          'El linter de formateo detectó diferencias entre el archivo en disco y el formato canónico.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run fmt" o "vp fmt" para reformatear todo el proyecto automáticamente.\n' +
-          '2. Alternativamente, ejecuta "npm run auditor:fix" o "auditor fix", lo cual incluye una fase final determinista de formateo con Oxfmt.'
+          '1. Root Cause:\n' +
+          'The file deviates from the canonical code formatting style governed by Oxfmt (Vite+).\n' +
+          'Oxfmt enforces indentation, quotes, semicolons, import sorting ("sortImports"), and package.json key sorting ("sortPackageJson") at Rust-native speeds.\n\n' +
+          '2. Diagnosis:\n' +
+          'The formatting linter detected stylistic differences between the file on disk and the canonical formatting specification.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run fmt" or "vp fmt" to reformat the entire repository automatically.\n' +
+          '2. Alternatively, run "npm run auditor:fix" or "auditor fix", which executes a deterministic final Oxfmt pass.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run fmt'
       },
       coverage: {
         include: ['**/*.{js,ts,mjs,cjs,vue,json,md,css,scss}'],
@@ -189,7 +191,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
           line: 1,
           col: 1,
           context: 'oxfmt',
-          message: `El archivo ${cleanFile} no cumple con el formato canónico de Oxfmt. Ejecuta 'npm run fmt' o 'auditor fix'.`,
+          message: `File ${cleanFile} does not match canonical Oxfmt formatting. Run 'npm run fmt' or 'auditor fix'.`,
           fixable: !isFixMode
         });
       }

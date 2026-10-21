@@ -412,7 +412,7 @@ export const COMPONENT_ID = 42;
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
       expect(finding?.message).toContain('5000');
-      expect(finding?.message).toContain('Número mágico no declarado');
+      expect(finding?.message).toContain('Undeclared magic number');
     });
 
     it('detects naked timer delays in setTimeout, setInterval, and delayedCall with tailored remediation message', async () => {
@@ -429,9 +429,7 @@ export const COMPONENT_ID = 42;
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
       const timerFindings = result.findings.filter(
-        (f) =>
-          f.ruleId === 'magic-number-naked' &&
-          f.message.includes('Retardo de temporizador numérico desnudo')
+        (f) => f.ruleId === 'magic-number-naked' && f.message.includes('Naked numeric timer delay')
       );
       expect(timerFindings).toHaveLength(3);
       expect(timerFindings[0]?.message).toContain('1000');

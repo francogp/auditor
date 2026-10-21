@@ -27,7 +27,7 @@ export const AUDITOR_MAXIMUM_VERSIONS: AuditorMaximumVersions = Object.freeze({
   typescript: {
     ceiling: '<7.0.0',
     prohibitedRange: '>=7.0.0',
-    reason: 'TypeScript 7+ no está permitido por incompatibilidades con el compilador de componentes Vue.'
+    reason: 'TypeScript 7+ is not permitted due to incompatibilities with the Vue component compiler.'
   }
 });
 

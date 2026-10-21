@@ -32,14 +32,14 @@ describe('Report Coverage Gaps & Fallow Coverage Integration', () => {
   it('runs fallow coverage-gaps in table output mode without errors', () => {
     const cliScript = path.resolve(process.cwd(), 'src/cli/report_fallow.ts');
     const stdout = execSync(
-      `node --experimental-strip-types "${cliScript}" category=coverage-gaps top=3`,
+      `node --experimental-strip-types "${cliScript}" category=coverage-gaps top=3 human`,
       {
         cwd: process.cwd(),
         encoding: 'utf8'
       }
     );
 
-    expect(stdout).toContain('BRECHAS DE COBERTURA DE TESTS');
+    expect(stdout).toContain('TEST COVERAGE GAPS');
   });
 
   it('runs fallow coverage-gaps with minRisk parameter in json mode', () => {

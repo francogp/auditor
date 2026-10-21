@@ -30,7 +30,13 @@ import {
   formatStatusBadge,
   type TableColumn
 } from '../core/unifiedTheme.ts';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, isHumanConsoleMode } from './cliUtils.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs
+} from '../core/cli/cittyHarness.ts';
 
 enableCompileCache();
 
@@ -175,7 +181,7 @@ export function auditSingleChunk(
           status: 'failed',
           budgetName: budget.name,
           budgetLimitBytes: budget.limitBytes,
-          note: `Supera presupuesto de ${(budget.limitBytes / 1024).toFixed(0)} KB`
+          note: `Exceeds budget of ${(budget.limitBytes / 1024).toFixed(0)} KB`
         };
       }
       return {
@@ -188,7 +194,7 @@ export function auditSingleChunk(
         status: 'passed',
         budgetName: budget.name,
         budgetLimitBytes: budget.limitBytes,
-        note: `Presupuesto: ${(budget.limitBytes / 1024).toFixed(0)} KB`
+        note: `Budget: ${(budget.limitBytes / 1024).toFixed(0)} KB`
       };
     }
   }
@@ -202,7 +208,7 @@ export function auditSingleChunk(
       gzipKB,
       compressionRatio,
       status: 'failed',
-      note: `Chunk no presupuestado excede límite ${(unbudgetedLimit / 1024).toFixed(0)} KB`
+      note: `Unbudgeted chunk exceeds limit of ${(unbudgetedLimit / 1024).toFixed(0)} KB`
     };
   }
 
@@ -214,7 +220,7 @@ export function auditSingleChunk(
     gzipKB,
     compressionRatio,
     status: 'passed',
-    note: 'Dentro de límite general'
+    note: 'Within general limit'
   };
 }
 
@@ -247,7 +253,7 @@ function auditVisualizerStats(
     if (m.heavyChunkCount > 1 && m.rendered > dupeLimitBytes) {
       dupeErrors++;
       duplicateViolations.push(
-        `Módulo duplicado en ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`
+        `Duplicate module in ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`
       );
     }
   }
@@ -391,11 +397,16 @@ export async function runBundleAudit(
   };
 }
 
-export async function executeCli(): Promise<void> {
+export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs()): Promise<void> {
   const projectRoot = process.cwd();
-  console.log(
-    renderBanner('AUDITOR DE BUNDLE Y CHUNKS DE PRODUCCIÓN', 'FrancoGP Auditor Framework')
-  );
+  const parsed = parseCittyArgs(COMMON_CLI_ARGS, rawArgs);
+  const isHuman = resolveHumanModeFromArgs(parsed) || isHumanConsoleMode(undefined, rawArgs);
+
+  if (isHuman) {
+    console.log(
+      renderBanner('PRODUCTION BUNDLE & CHUNK AUDITOR', 'FrancoGP Auditor Framework')
+    );
+  }
 
   await loadAuditConfig(projectRoot);
   const config = getAuditConfig();
@@ -404,7 +415,7 @@ export async function executeCli(): Promise<void> {
 
   if (bundleConfig?.enabled === false) {
     console.log(
-      '\nℹ️ Auditoría de bundle omitida: deshabilitada explícitamente en audit.config.ts (bundle.enabled: false).\n'
+      '\n[Notice] Bundle audit skipped: explicitly disabled in audit.config.ts (bundle.enabled: false).\n'
     );
     return;
   }
@@ -417,14 +428,34 @@ export async function executeCli(): Promise<void> {
 
   if (!fs.existsSync(statsFilePath) && !fs.existsSync(distDir)) {
     console.error(
-      '\n❌ Error: No se encontraron artefactos de build de producción ni directorio dist.'
+      '\n[FAIL] Error: No production build artifacts or dist directory found.'
     );
-    console.error(`   - Directorio de distribución esperado: ${path.relative(projectRoot, distDir)}`);
-    console.error('\nEjecuta primero: npm run build o vp pack\n');
+    console.error(`   - Expected dist directory: ${path.relative(projectRoot, distDir)}`);
+    console.error('\nRun first: npm run build or vp pack\n');
     process.exit(1);
   }
 
   const result = await runBundleAudit(projectRoot);
+
+  if (!isHuman) {
+    console.log(
+      `[Bundle] Chunks: ${result.chunkResults.length} | Top Modules: ${result.topModules.length} | Duplicate Violations: ${result.duplicateViolations.length} | Errors: ${result.totalErrors}`
+    );
+    for (const c of result.chunkResults) {
+      console.log(`  [Chunk] ${c.filename}: ${c.sizeKB} KB (gzip: ${c.gzipKB ?? 'N/A'} KB) status=${c.status} note=${c.note}`);
+    }
+    if (result.duplicateViolations.length > 0) {
+      for (const v of result.duplicateViolations) {
+        console.error(`  [Duplicate] ${v}`);
+      }
+    }
+    if (!result.success) {
+      console.error(`[Bundle] Status: FAIL (${result.totalErrors} error(s) detected)`);
+      process.exit(1);
+    }
+    console.log('[Bundle] Status: OK');
+    process.exit(0);
+  }
 
   // Render Top Modules Table if stats data exists
   if (result.topModules.length > 0) {
@@ -440,9 +471,9 @@ export async function executeCli(): Promise<void> {
 
     const moduleColumns: TableColumn<ModuleRow>[] = [
       { header: '#', width: 4, align: 'right', key: 'idx' },
-      { header: 'TAMAÑO', width: 12, align: 'right', key: 'size' },
+      { header: 'SIZE', width: 12, align: 'right', key: 'size' },
       { header: 'GZIP', width: 12, align: 'right', key: 'gzip' },
-      { header: 'MÓDULO FUENTE', width: 44, align: 'left', key: 'id' }
+      { header: 'SOURCE MODULE', width: 44, align: 'left', key: 'id' }
     ];
 
     const moduleRows: ModuleRow[] = sample.map((m, idx) => {
@@ -455,7 +486,7 @@ export async function executeCli(): Promise<void> {
       };
     });
 
-    console.log('\n📦 Top Módulos más pesados en el Bundle:');
+    console.log('\n[Notice] Top heaviest modules in bundle:');
     console.log(renderBoxTable(moduleColumns, moduleRows));
   }
 
@@ -471,12 +502,12 @@ export async function executeCli(): Promise<void> {
     }
 
     const chunkColumns: TableColumn<ChunkRow>[] = [
-      { header: 'ESTADO', width: 8, align: 'center', key: 'status' },
-      { header: 'TAMAÑO', width: 10, align: 'right', key: 'size' },
+      { header: 'STATUS', width: 8, align: 'center', key: 'status' },
+      { header: 'SIZE', width: 10, align: 'right', key: 'size' },
       { header: 'GZIP', width: 10, align: 'right', key: 'gzip' },
       { header: 'COMPR.', width: 8, align: 'right', key: 'comp' },
-      { header: 'CHUNK / ARTEFACTO', width: 24, align: 'left', key: 'filename' },
-      { header: 'PRESUPUESTO', width: 14, align: 'left', key: 'note' }
+      { header: 'CHUNK / ARTIFACT', width: 24, align: 'left', key: 'filename' },
+      { header: 'BUDGET', width: 14, align: 'left', key: 'note' }
     ];
 
     const chunkRows: ChunkRow[] = result.chunkResults.map((c) => ({
@@ -488,14 +519,14 @@ export async function executeCli(): Promise<void> {
       note: c.note
     }));
 
-    console.log('\n📊 Estado de Chunks JS de Producción (Compresión Nativa Gzip):');
+    console.log('\n[Notice] Production JS Chunks Status (Native Gzip Compression):');
     console.log(renderBoxTable(chunkColumns, chunkRows));
   }
 
   if (result.duplicateViolations.length > 0) {
-    console.log('\n🚨 Violaciones Críticas de Módulos Duplicados:');
+    console.log('\n[FAIL] Critical Duplicate Module Violations:');
     for (const v of result.duplicateViolations) {
-      console.error(`  ❌ ${v}`);
+      console.error(`  [FAIL] ${v}`);
     }
   }
 
@@ -513,12 +544,12 @@ export async function executeCli(): Promise<void> {
   }
 
   if (!result.success) {
-    console.error(`\n❌ Falló la auditoría de bundle: ${result.totalErrors} errores detectados.\n`);
+    console.error(`\n[FAIL] Bundle audit failed: ${result.totalErrors} error(s) detected.\n`);
     process.exit(1);
   }
 
   console.log(
-    '\n✨ Auditoría de bundle aprobada: Chunks y presupuestos arquitectónicos satisfechos.\n'
+    '\n[OK] Bundle audit passed: Chunks and architectural budgets satisfied.\n'
   );
   process.exit(0);
 }

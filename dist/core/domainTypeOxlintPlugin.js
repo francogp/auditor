@@ -75,7 +75,7 @@ const domainTypeOxlintPlugin = {
 		"no-naked-string-union": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe uniones de cadenas abiertas (| string) o comodines que diluyen el dominio tipado" }
+				docs: { description: "Forbids open string unions (| string) or wildcards that dilute typed domains" }
 			},
 			create(context) {
 				return { TSUnionType(node) {
@@ -89,7 +89,7 @@ const domainTypeOxlintPlugin = {
 					const hasLiteralString = types.some((t) => t.type === "TSLiteralType" && typeof t.literal?.value === "string");
 					if (hasStringKeyword && hasLiteralString) context.report({
 						node,
-						message: "Está ESTRICTAMENTE PROHIBIDO usar uniones de string abiertas (| string). Usa tipos de dominio canónicos o marcas (Branded Types)."
+						message: "Using open string unions (| string) is STRICTLY PROHIBITED. Use canonical domain types or Branded Types."
 					});
 				} };
 			}
@@ -97,7 +97,7 @@ const domainTypeOxlintPlugin = {
 		"no-record-string-key": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe Record<string, T> o Record<PropertyKey, T> en favor de claves de dominio explícitas" }
+				docs: { description: "Forbids Record<string, T> or Record<PropertyKey, T> in favor of explicit domain keys" }
 			},
 			create(context) {
 				return { TSTypeReference(node) {
@@ -118,7 +118,7 @@ const domainTypeOxlintPlugin = {
 					if (secondParam && (secondParam.type === "TSUnknownKeyword" || secondParam.type === "TSAnyKeyword")) return;
 					context.report({
 						node,
-						message: "Está PROHIBIDO usar Record<string, T> o Record<PropertyKey, T>. Usa Record<DomainId, T> con un dominio de claves canónico."
+						message: "Using Record<string, T> or Record<PropertyKey, T> is PROHIBITED. Use Record<DomainId, T> with a canonical domain key."
 					});
 				} };
 			}
@@ -126,7 +126,7 @@ const domainTypeOxlintPlugin = {
 		"no-untyped-string-set-map": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe new Set / new Map con cadenas literales sin tipado canónico de dominio" }
+				docs: { description: "Forbids new Set / new Map with string literals without canonical domain typing" }
 			},
 			create(context) {
 				return { NewExpression(node) {
@@ -146,7 +146,7 @@ const domainTypeOxlintPlugin = {
 						if (firstArg && firstArg.type === "ArrayExpression") {
 							if (firstArg.elements?.some((el) => el?.type === "Literal" && typeof el.value === "string") && (typeParams.length === 0 || hasUntypedParam)) context.report({
 								node,
-								message: `Está PROHIBIDO instanciar ${callee.name} con cadenas literales sin tipado de dominio explícito.`
+								message: `Instantiating ${callee.name} with string literals without explicit domain typing is PROHIBITED.`
 							});
 						}
 					}
@@ -156,7 +156,7 @@ const domainTypeOxlintPlugin = {
 		"no-broad-string-array": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe arrays de literales de cadena sin as const o tipado de dominio canónico" }
+				docs: { description: "Forbids string literal arrays without as const or canonical domain typing" }
 			},
 			create(context) {
 				return { VariableDeclarator(node) {
@@ -178,7 +178,7 @@ const domainTypeOxlintPlugin = {
 							const idType = node.id?.typeAnnotation?.typeAnnotation;
 							if (!idType || idType.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword") context.report({
 								node,
-								message: "Array de literales de cadena declarado sin `as const`. Añade `as const` o tipa con un dominio canónico."
+								message: "String literal array declared without `as const`. Add `as const` or type with a canonical domain."
 							});
 						}
 					}
@@ -188,7 +188,7 @@ const domainTypeOxlintPlugin = {
 		"no-double-cast-unknown": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe terminantemente el uso de doble casteo o aserciones hacia unknown (`as unknown -> as T`)" }
+				docs: { description: "Strictly forbids double assertions or casts to unknown (`as unknown -> as T`)" }
 			},
 			create(context) {
 				const verifyNode = (node) => {
@@ -200,7 +200,7 @@ const domainTypeOxlintPlugin = {
 					const typeAnn = node.typeAnnotation;
 					if (typeAnn && (typeAnn.type === "TSUnknownKeyword" || typeAnn.type === "TSTypeReference" && typeAnn.typeName?.name === "unknown")) context.report({
 						node,
-						message: "Está ESTRICTAMENTE PROHIBIDO usar casteo hacia unknown (`as unknown`). Usa guardas de tipo, tipado canónico o interfaces directas."
+						message: "Casting to unknown (`as unknown`) is STRICTLY PROHIBITED. Use type guards, canonical typing, or direct interfaces."
 					});
 				};
 				return {
@@ -212,7 +212,7 @@ const domainTypeOxlintPlugin = {
 		"no-legacy-date": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe el uso de constructores legados de Date (new Date() y Date.now()) en favor de Temporal API" }
+				docs: { description: "Forbids legacy Date constructors (new Date() and Date.now()) in favor of Temporal API" }
 			},
 			create(context) {
 				return {
@@ -225,7 +225,7 @@ const domainTypeOxlintPlugin = {
 						const callee = node.callee;
 						if (callee && (callee.name === "Date" || callee.type === "Identifier" && callee.name === "Date")) context.report({
 							node,
-							message: "El uso de new Date() está ESTRICTAMENTE PROHIBIDO. Usa la API moderna Temporal (Temporal.Now.instant() / Temporal.Instant)."
+							message: "Using new Date() is STRICTLY PROHIBITED. Use modern Temporal API (Temporal.Now.instant() / Temporal.Instant)."
 						});
 					},
 					CallExpression(node) {
@@ -240,7 +240,7 @@ const domainTypeOxlintPlugin = {
 							const prop = callee.property;
 							if ((obj?.name === "Date" || obj?.type === "Identifier" && obj.name === "Date") && (prop?.name === "now" || prop?.type === "Identifier" && prop.name === "now")) context.report({
 								node,
-								message: "El uso de Date.now() está ESTRICTAMENTE PROHIBIDO. Usa Temporal.Now.instant().epochMilliseconds o performance.now()."
+								message: "Using Date.now() is STRICTLY PROHIBITED. Use Temporal.Now.instant().epochMilliseconds or performance.now()."
 							});
 						}
 					}
@@ -250,7 +250,7 @@ const domainTypeOxlintPlugin = {
 		"no-unbranded-id": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe alias de identificadores de dominio (type XId = string) sin Brand nominal" }
+				docs: { description: "Forbids domain identifier aliases (type XId = string) without nominal Brand" }
 			},
 			create(context) {
 				return { TSTypeAliasDeclaration(node) {
@@ -263,7 +263,7 @@ const domainTypeOxlintPlugin = {
 					])) return;
 					if (node.typeAnnotation?.type === "TSStringKeyword") context.report({
 						node,
-						message: `El identificador de dominio '${name}' no debe ser string puro. Usa Brand<string, '${name}'> o una unión canónica.`
+						message: `Domain identifier '${name}' must not be a bare string. Use Brand<string, '${name}'> or a canonical union.`
 					});
 				} };
 			}
@@ -271,7 +271,7 @@ const domainTypeOxlintPlugin = {
 		"no-json-clone": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe JSON.parse(JSON.stringify(...)) en favor de structuredClone() o clonado funcional" }
+				docs: { description: "Forbids JSON.parse(JSON.stringify(...)) in favor of structuredClone() or functional factories" }
 			},
 			create(context) {
 				return { CallExpression(node) {
@@ -286,7 +286,7 @@ const domainTypeOxlintPlugin = {
 							const innerCallee = firstArg.callee;
 							if (innerCallee?.object?.name === "JSON" && (innerCallee.name === "stringify" || innerCallee.property?.name === "stringify")) context.report({
 								node,
-								message: "El uso de JSON.parse(JSON.stringify(...)) está PROHIBIDO por rendimiento O(N). Usa structuredClone() o funciones factoría."
+								message: "Using JSON.parse(JSON.stringify(...)) is PROHIBITED due to O(N) overhead. Use structuredClone() or factory functions."
 							});
 						}
 					}
@@ -296,7 +296,7 @@ const domainTypeOxlintPlugin = {
 		"no-redundant-spread-return": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe retornos con propagación superficial return [...arr] cuando el array ya es inmutable" }
+				docs: { description: "Forbids shallow spread returns return [...arr] when array is already immutable" }
 			},
 			create(context) {
 				return { ReturnStatement(node) {
@@ -306,7 +306,7 @@ const domainTypeOxlintPlugin = {
 						const elements = arg.elements ?? [];
 						if (elements.length === 1 && elements[0]?.type === "SpreadElement") context.report({
 							node,
-							message: "Retorno redundante con propagación return [...arr]. Devuelve directamente el array o márcalo como readonly T[]."
+							message: "Redundant spread return with return [...arr]. Return the array directly or mark it as readonly T[]."
 						});
 					}
 				} };
@@ -315,7 +315,7 @@ const domainTypeOxlintPlugin = {
 		"no-boolean-literal-annotation": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe anotaciones explícitas de literales booleanos (: true o : false)" }
+				docs: { description: "Forbids explicit boolean literal type annotations (: true or : false)" }
 			},
 			create(context) {
 				return { TSTypeAnnotation(node) {
@@ -324,7 +324,7 @@ const domainTypeOxlintPlugin = {
 					if (!inner) return;
 					if (inner.type === "TSLiteralType" && typeof inner.literal?.value === "boolean" || inner.type === "TSTrueKeyword" || inner.type === "TSFalseKeyword") context.report({
 						node,
-						message: "Anotación literal redundante (: true o : false). Usa : boolean o inferencia de tipos por asignación."
+						message: "Redundant literal annotation (: true or : false). Use : boolean or type inference by assignment."
 					});
 				} };
 			}
@@ -332,7 +332,7 @@ const domainTypeOxlintPlugin = {
 		"no-async-in-computed": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe callbacks asíncronos dentro de computed() en Vue 3" }
+				docs: { description: "Forbids async callbacks inside computed() in Vue 3" }
 			},
 			create(context) {
 				return { CallExpression(node) {
@@ -345,7 +345,7 @@ const domainTypeOxlintPlugin = {
 						if (callback && (callback.type === "ArrowFunctionExpression" || callback.type === "FunctionExpression")) {
 							if (callback.async) context.report({
 								node,
-								message: "Callback asíncrono en computed() prohibido. computed no desempaqueta promesas; usa watchEffect o computedAsync de VueUse."
+								message: "Async callback in computed() is prohibited. computed does not unwrap promises; use watchEffect or VueUse computedAsync."
 							});
 						}
 					}
@@ -355,7 +355,7 @@ const domainTypeOxlintPlugin = {
 		"watch-reactive-property-getter": {
 			meta: {
 				type: "problem",
-				docs: { description: "Exige pasar getter () => props.foo al observar propiedades reactivas en watch()" }
+				docs: { description: "Requires getter function () => props.foo when watching reactive properties in watch()" }
 			},
 			create(context) {
 				return { CallExpression(node) {
@@ -369,7 +369,7 @@ const domainTypeOxlintPlugin = {
 							const obj = target.object;
 							if (obj?.name === "props" || obj?.type === "Identifier" && obj.name === "props") context.report({
 								node,
-								message: "Observación directa de propiedad props en watch(). Usa una función getter watch(() => props.property, ...) para preservar reactividad."
+								message: "Direct observation of props property in watch(). Use a getter function watch(() => props.property, ...) to preserve reactivity."
 							});
 						}
 					}
@@ -379,7 +379,7 @@ const domainTypeOxlintPlugin = {
 		"no-destructured-reactive": {
 			meta: {
 				type: "problem",
-				docs: { description: "Prohíbe desestructurar objetos reactive() directamente sin toRefs()" }
+				docs: { description: "Forbids destructuring reactive() objects directly without toRefs()" }
 			},
 			create(context) {
 				return { VariableDeclarator(node) {
@@ -390,7 +390,7 @@ const domainTypeOxlintPlugin = {
 							const callee = init.callee;
 							if (callee?.name === "reactive" || callee?.property?.name === "reactive") context.report({
 								node,
-								message: "Desestructuración directa de reactive() prohibida sin toRefs(). Envuelve el objeto con toRefs() para no perder reactividad."
+								message: "Direct destructuring of reactive() is prohibited without toRefs(). Wrap object with toRefs() to preserve reactivity."
 							});
 						}
 					}

@@ -122,7 +122,7 @@ describe('Refactor CLI Handlers', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     await expect(runRefactorCli()).resolves.not.toThrow();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Comandos disponibles'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Available commands'));
 
     logSpy.mockRestore();
     process.argv = oldArgv;
@@ -224,9 +224,7 @@ describe('Refactor CLI Handlers', () => {
 
     await expect(runRefactorCli()).rejects.toThrow('exit called');
 
-    expect(errSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Debes especificar el fingerprint')
-    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('You must specify a fingerprint'));
     errSpy.mockRestore();
     exitSpy.mockRestore();
     process.argv = oldArgv;
@@ -434,7 +432,7 @@ describe('Refactor CLI Handlers', () => {
     };
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     await expect(runRefactorCliHarness(dummyDef, ['discover'])).resolves.not.toThrow();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('desactivado'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('disabled'));
     logSpy.mockRestore();
   });
 
@@ -446,7 +444,7 @@ describe('Refactor CLI Handlers', () => {
     await expect(
       runRefactorMotionCli(['inspect', '--file', sample, '--project', tmpDir])
     ).resolves.not.toThrow();
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Micro-Contexto Dirac'));
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Micro-Context'));
     logSpy.mockRestore();
   });
 
@@ -459,7 +457,7 @@ describe('Refactor CLI Handlers', () => {
     await expect(runRefactorMotionCli(['inspect', '--project', tmpDir])).rejects.toThrow(
       'exit called'
     );
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Debes especificar un archivo'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('You must specify a file'));
     errSpy.mockRestore();
     exitSpy.mockRestore();
   });
@@ -473,9 +471,7 @@ describe('Refactor CLI Handlers', () => {
     await expect(runRefactorMotionCli(['apply', '--project', tmpDir])).rejects.toThrow(
       'exit called'
     );
-    expect(errSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Debes especificar un archivo de plan')
-    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('You must specify a plan file'));
     errSpy.mockRestore();
     exitSpy.mockRestore();
   });
@@ -489,7 +485,7 @@ describe('Refactor CLI Handlers', () => {
     await expect(runRefactorMotionCli(['invalid_command', '--project', tmpDir])).rejects.toThrow(
       'exit called'
     );
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Comando desconocido'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Unknown command'));
     errSpy.mockRestore();
     exitSpy.mockRestore();
   });
@@ -503,7 +499,7 @@ describe('Refactor CLI Handlers', () => {
     await expect(
       runRefactorMotionCli(['inspect', '--file', 'non_existent_file.ts', '--project', tmpDir])
     ).rejects.toThrow('exit called');
-    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Archivo inexistente'));
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('File not found'));
     errSpy.mockRestore();
     exitSpy.mockRestore();
   });

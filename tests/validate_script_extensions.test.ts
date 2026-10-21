@@ -36,7 +36,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
       expect(auditor.name).toBe('Script & Module Extensions Validator');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
       expect(auditor.ruleIds).toEqual(SCRIPT_EXTENSIONS_RULES);
-      expect(auditor.packageName).toBe('Extensiones');
+      expect(auditor.packageName).toBe('Extensions');
       expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.capabilities.fix).not.toBe('none');
     });
@@ -49,24 +49,22 @@ describe('ValidateScriptExtensionsAuditor', () => {
 
       const auditor = new ValidateScriptExtensionsAuditor();
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(auditor.ruleDescriptions?.['banned-mjs-extension']).toBe(
-        'Archivo .mjs prohibido en TS'
-      );
+      expect(auditor.ruleDescriptions?.['banned-mjs-extension']).toBe('Prohibited .mjs file in TS');
       expect(auditor.ruleDescriptions?.['banned-cjs-extension']).toBe(
-        'Archivo .cjs prohibido en ESM'
+        'Prohibited .cjs file in ESM'
       );
       expect(auditor.ruleDescriptions?.['banned-raw-js-script']).toBe(
-        'Script .js sin tipar en scripts'
+        'Untyped .js script in scripts'
       );
 
       expect(auditor.formatRuleDescription('banned-mjs-extension')).toBe(
-        'Extensiones: Archivo .mjs prohibido en TS'
+        'Extensions: Prohibited .mjs file in TS'
       );
       expect(auditor.formatRuleDescription('banned-cjs-extension')).toBe(
-        'Extensiones: Archivo .cjs prohibido en ESM'
+        'Extensions: Prohibited .cjs file in ESM'
       );
       expect(auditor.formatRuleDescription('banned-raw-js-script')).toBe(
-        'Extensiones: Script .js sin tipar en scripts'
+        'Extensions: Untyped .js script in scripts'
       );
     });
   });
@@ -266,7 +264,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
 
         // Violation reported explaining conflict
         expect(result.findings.length).toBeGreaterThan(0);
-        expect(result.findings[0]?.message).toContain('ya existe en disco');
+        expect(result.findings[0]?.message).toContain('already exists on disk');
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
       }

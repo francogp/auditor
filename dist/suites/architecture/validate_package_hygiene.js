@@ -49,13 +49,13 @@ function parseUnusedDeps(fileIssue, relFile, scriptReferencedDeps) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-unused-dependency",
-			ruleDescription: "Dependencias: Dependencia no utilizada en package",
+			ruleDescription: "Dependencies: Unused dependencies in package.json",
 			severity: "error",
 			file: relFile,
 			line: dep.line ?? 1,
 			col: dep.col ?? 1,
 			context: dep.name,
-			message: `Dependencia no utilizada declarada en package.json: "${dep.name}"`
+			message: `Unused dependency declared in package.json: "${dep.name}"`
 		});
 	}
 	return findings;
@@ -65,13 +65,13 @@ function parseUnlistedDeps(fileIssue, relFile) {
 		suiteId: "validate_package_hygiene",
 		suiteName: "Package & Dependency Hygiene Auditor",
 		ruleId: "package-unlisted-dependency",
-		ruleDescription: "Dependencias: Dependencia fantasma no declarada",
+		ruleDescription: "Dependencies: Undeclared phantom dependency",
 		severity: "error",
 		file: relFile,
 		line: unlisted.line ?? 1,
 		col: unlisted.col ?? 1,
 		context: unlisted.name,
-		message: `Dependencia fantasma no declarada en package.json importada en código: "${unlisted.name}"`
+		message: `Phantom dependency not declared in package.json imported in code: "${unlisted.name}"`
 	}));
 }
 function extractOwnPackageBinaries(projectRoot) {
@@ -88,13 +88,13 @@ function parseUnusedBinaries(fileIssue, relFile, ownBinaries = /* @__PURE__ */ n
 		suiteId: "validate_package_hygiene",
 		suiteName: "Package & Dependency Hygiene Auditor",
 		ruleId: "package-unused-binary",
-		ruleDescription: "Dependencias: Binario o script no referenciado",
+		ruleDescription: "Dependencies: Unreferenced binary or script",
 		severity: "error",
 		file: relFile,
 		line: bin.line ?? 1,
 		col: bin.col ?? 1,
 		context: bin.name,
-		message: `Binario o script ejecutable no referenciado en el proyecto: "${bin.name}"`
+		message: `Unreferenced executable script or binary in project: "${bin.name}"`
 	}));
 }
 /**
@@ -128,12 +128,12 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: "package-lock.json",
-			message: "No se encontró package-lock.json. El proyecto debe versionar el lockfile."
+			message: "package-lock.json not found. The project must commit its lockfile."
 		});
 		return findings;
 	}
@@ -145,12 +145,12 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: "package-lock.json",
-			message: `Error al leer package-lock.json: ${err instanceof Error ? err.message : String(err)}`
+			message: `Error reading package-lock.json: ${err instanceof Error ? err.message : String(err)}`
 		});
 		return findings;
 	}
@@ -159,12 +159,12 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: "merge-conflict",
-			message: "package-lock.json contiene marcadores de conflicto de merge sin resolver."
+			message: "package-lock.json contains unresolved merge conflict markers."
 		});
 		return findings;
 	}
@@ -176,12 +176,12 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: "json-syntax",
-			message: `package-lock.json contiene JSON inválido: ${err instanceof Error ? err.message : String(err)}`
+			message: `package-lock.json contains invalid JSON: ${err instanceof Error ? err.message : String(err)}`
 		});
 		return findings;
 	}
@@ -190,23 +190,23 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 		suiteId: "validate_package_hygiene",
 		suiteName: "Package & Dependency Hygiene Auditor",
 		ruleId: "package-lockfile-integrity",
-		ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+		ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 		severity: "error",
 		file: "package-lock.json",
 		line: 1,
 		context: `lockfileVersion: ${lockfileVersion}`,
-		message: `lockfileVersion obsoleto (${lockfileVersion}). Se requiere lockfileVersion 3 (Node.js 18+ / npm v9+).`
+		message: `Outdated lockfileVersion (${lockfileVersion}). Requires lockfileVersion 3 (Node.js 18+ / npm v9+).`
 	});
 	if (/"resolved"\s*:\s*"http:\/\//.test(rawContent)) findings.push({
 		suiteId: "validate_package_hygiene",
 		suiteName: "Package & Dependency Hygiene Auditor",
 		ruleId: "package-lockfile-integrity",
-		ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+		ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 		severity: "error",
 		file: "package-lock.json",
 		line: 1,
 		context: "insecure-http-resolved",
-		message: "package-lock.json contiene resoluciones de paquetes insecure vía http:// no cifrado."
+		message: "package-lock.json contains insecure package resolutions via unencrypted http://."
 	});
 	let pkgJson = {};
 	try {
@@ -254,12 +254,12 @@ function auditFloatingGitDependencies(pkgJson, rootPackage, lockfileJson, pkgJso
 				suiteId: "validate_package_hygiene",
 				suiteName: "Package & Dependency Hygiene Auditor",
 				ruleId: "package-lockfile-integrity",
-				ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+				ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 				severity: "error",
 				file: "package.json",
 				line: 1,
 				context: `${depName}: ${spec}`,
-				message: `La dependencia "${depName}" utiliza un rango git flotante ("${spec}"). Para garantizar despliegues deterministas con 'npm ci', debes fijar un tag exacto (ej. "github:org/repo#vX.Y.Z") o un commit SHA.`
+				message: `Dependency "${depName}" uses a floating git range ("${spec}"). To guarantee deterministic deployments with 'npm ci', you must pin an exact tag (e.g. "github:org/repo#vX.Y.Z") or a commit SHA.`
 			});
 		}
 	}
@@ -278,23 +278,23 @@ function verifyLockfileRootDepsSync(rootPackage, allDeclaredDeps, findings) {
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: `${depName}: missing`,
-			message: `La dependencia "${depName}" declarada en package.json no está registrada en package-lock.json. Ejecuta "npm install" para sincronizar el lockfile.`
+			message: `Dependency "${depName}" declared in package.json is not registered in package-lock.json. Run "npm install" to synchronize the lockfile.`
 		});
 		else if (lockedSpec !== expectedSpec) findings.push({
 			suiteId: "validate_package_hygiene",
 			suiteName: "Package & Dependency Hygiene Auditor",
 			ruleId: "package-lockfile-integrity",
-			ruleDescription: "Dependencias: Lockfile corrupto o inseguro",
+			ruleDescription: "Dependencies: Corrupted or insecure lockfile",
 			severity: "error",
 			file: "package-lock.json",
 			line: 1,
 			context: `${depName}: ${expectedSpec} vs ${lockedSpec}`,
-			message: `La dependencia "${depName}" en package.json ("${expectedSpec}") difiere de package-lock.json ("${lockedSpec}"). Ejecuta "npm install" para sincronizar el lockfile.`
+			message: `Dependency "${depName}" in package.json ("${expectedSpec}") differs from package-lock.json ("${lockedSpec}"). Run "npm install" to synchronize the lockfile.`
 		});
 	}
 }
@@ -326,9 +326,9 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			fix: options.fix,
 			id: "validate_package_hygiene",
 			name: "Package & Dependency Hygiene Auditor",
-			description: "Higiene de dependencias huérfanas y fantasmas",
+			description: "Hygiene of orphaned and phantom dependencies",
 			family: "architecture",
-			packageName: "Dependencias",
+			packageName: "Dependencies",
 			configKey: "packageHygiene.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
@@ -336,16 +336,16 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			ruleIds: PACKAGE_HYGIENE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_HYGIENE_RULES, "hygiene"),
 			ruleDescriptions: {
-				"package-unused-dependency": "Dependencia no utilizada en package",
-				"package-unlisted-dependency": "Dependencia fantasma no declarada",
-				"package-unused-binary": "Binario o script no referenciado",
-				"package-lockfile-integrity": "Lockfile corrupto o inseguro"
+				"package-unused-dependency": "Unused dependency in package",
+				"package-unlisted-dependency": "Undeclared phantom dependency",
+				"package-unused-binary": "Unreferenced binary or script",
+				"package-lockfile-integrity": "Corrupted or insecure lockfile"
 			},
 			ruleRemediations: {
-				"package-unused-dependency": "1. Causa Raíz: Se declaró una librería en `dependencies` o `devDependencies` de `package.json` que no es importada en ningún archivo fuente ni invocada en scripts o herramientas de compilación.\n2. Diagnóstico: Revisa el reporte para identificar el paquete huérfano. Comprueba con Fallow o búsqueda global si existe alguna mención o uso real.\n3. Solución Canónica: Elimina la dependencia innecesaria ejecutando `npm uninstall <paquete>` para reducir el tamaño del árbol de dependencias y la superficie de ataque.\n4. Ejemplo:\nnpm uninstall <paquete-huerfano>",
-				"package-unlisted-dependency": "1. Causa Raíz: El código fuente importa un paquete externo (phantom dependency) que no está formalmente declarado en `dependencies` o `devDependencies` de `package.json`, funcionando solo accidentalmente por hoisting en `node_modules`.\n2. Diagnóstico: Observa la ruta y el nombre del paquete reportado en la violación.\n3. Solución Canónica: Instala y declara explícitamente el paquete en `package.json` mediante `npm install <paquete>` o `npm install -D <paquete>`.\n4. Ejemplo:\nnpm install <paquete>\nO para herramientas de desarrollo:\nnpm install -D <paquete>",
-				"package-unused-binary": "1. Causa Raíz: Un script o binario declarado en el campo `bin` de `package.json` apunta a un archivo inexistente, no ejecutable o sin uso.\n2. Diagnóstico: Inspecciona el campo `bin` de `package.json` y verifica que el archivo de destino exista en disco y cuente con hashbang (`#!/usr/bin/env node`).\n3. Solución Canónica: Corrige la ruta al archivo ejecutable compilado en `dist/` o elimina la entrada del campo `bin` si el paquete ya no expone ese comando CLI.\n4. Ejemplo:\n\"bin\": {\n  \"auditor\": \"dist/cli/index.js\"\n}",
-				"package-lockfile-integrity": "1. Causa Raíz: `package-lock.json` está desincronizado con respecto a las versiones y rangos declarados en `package.json`, o presenta resoluciones inconsistentes.\n2. Diagnóstico: Verifica discrepancias entre los paquetes instalados y las declaraciones de `package.json`.\n3. Solución Canónica: Ejecuta `npm install` para regenerar y sincronizar limpiamente el lockfile sin romper contratos de dependencias.\n4. Ejemplo:\nnpm install"
+				"package-unused-dependency": "📖 REMEDIATION GUIDE: package-unused-dependency\n1. Root Cause: A package was declared in `dependencies` or `devDependencies` of `package.json` that is never imported in source code nor invoked in scripts or build tooling.\n2. Diagnosis: Review the report to identify the orphaned package. Verify with Fallow or global search if any references exist.\n3. Canonical Solution: Remove the unused dependency by running `npm uninstall <package>` to minimize dependency bloat and attack surface.\n4. Example / Auto-fix command:\n   `npm uninstall <orphaned-package>`",
+				"package-unlisted-dependency": "📖 REMEDIATION GUIDE: package-unlisted-dependency\n1. Root Cause: Source code imports a third-party package (phantom dependency) that is not formally declared in `dependencies` or `devDependencies` of `package.json`, functioning only coincidentally due to `node_modules` hoisting.\n2. Diagnosis: Inspect the reported path and package name in the violation.\n3. Canonical Solution: Explicitly declare the package in `package.json` via `npm install <package>` or `npm install -D <package>`.\n4. Example / Auto-fix command:\n   `npm install <package>` or `npm install -D <package>`",
+				"package-unused-binary": "📖 REMEDIATION GUIDE: package-unused-binary\n1. Root Cause: A script or executable declared in `bin` of `package.json` points to a non-existent, non-executable, or unreferenced file.\n2. Diagnosis: Inspect the `bin` field of `package.json` and ensure the target file exists and includes a valid shebang (`#!/usr/bin/env node`).\n3. Canonical Solution: Correct the executable path in `dist/` or remove the `bin` entry if no longer exposing a CLI binary.\n4. Example / Auto-fix command:\n   `\"bin\": { \"auditor\": \"dist/cli/index.js\" }`",
+				"package-lockfile-integrity": "📖 REMEDIATION GUIDE: package-lockfile-integrity\n1. Root Cause: `package-lock.json` is out of sync with declared versions and ranges in `package.json`, or contains invalid/insecure resolutions.\n2. Diagnosis: Check discrepancies between installed packages and declarations in `package.json`.\n3. Canonical Solution: Run `npm install` to regenerate and cleanly synchronize the lockfile without breaking dependency contracts.\n4. Example / Auto-fix command:\n   `npm install`"
 			},
 			coverage: { include: ["package.json", "package-lock.json"] },
 			projectRoot: effectiveRoot

@@ -14,7 +14,7 @@ import { scanRuleMeasurement } from './ruleMeasurementScan.ts';
 export const redundantRuleEvaluatedDetector: HomebrewDetector = {
   id: 'redundant-rule-evaluated',
   ruleId: 'auditor-redundant-rule-evaluated',
-  ruleDescription: 'Marca redundante de regla evaluada',
+  ruleDescription: 'Redundant evaluated rule mark',
   detect(context) {
     const scan = scanRuleMeasurement(context);
     const findings: HomebrewFinding[] = [];
@@ -24,7 +24,7 @@ export const redundantRuleEvaluatedDetector: HomebrewDetector = {
       findings.push({
         ruleId: 'auditor-redundant-rule-evaluated',
         line: site.line,
-        message: `'markRuleEvaluated('${site.ruleId}')' es redundante: la regla ya se ejecuta con un wrapper de medición ('runSubAuditorSync', 'runSubAuditor' o 'declare*SubAuditor') que la marca como evaluada automáticamente. Elimina la llamada manual.`,
+        message: `'markRuleEvaluated('${site.ruleId}')' is redundant: the rule already executes within a timing wrapper ('runSubAuditorSync', 'runSubAuditor' or 'declare*SubAuditor') that marks it as evaluated automatically. Remove the manual call.`,
         context: site.ruleId,
         severity: 'error'
       });

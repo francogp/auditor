@@ -82,7 +82,7 @@ function analyzeUncoveredFiles(input, ledgers, scannedSets) {
 	const candidates = getAuditableCandidates(input);
 	const uncovered = [];
 	for (const file of candidates) if (!ledgers.some((l) => isCoveredBy(file, l, scannedSets))) uncovered.push(file);
-	return directoryFindings("coverage-uncovered-file", uncovered, (count) => `${count} archivo(s) versionado(s) que ninguna suite analiza (falso limpio)`, "Agrega una suite que los cubra o declara coverage.exemptGlobs con reason");
+	return directoryFindings("coverage-uncovered-file", uncovered, (count) => `${count} versioned file(s) that no suite analyzes (false clean)`, "Add a suite that covers them or declare coverage.exemptGlobs with a reason");
 }
 function analyzeDegradedFiles(input, ledgers, scannedSets) {
 	const candidates = getAuditableCandidates(input);
@@ -98,7 +98,7 @@ function analyzeDeclaredNotScanned(input, ledgers, scannedSets) {
 		if (ledger.skipped || ledger.source !== "runtime") continue;
 		const scanned = scannedSets.get(ledger.suiteId);
 		const notScanned = candidates.filter((f) => !scanned.has(f) && isDeclaredByCoverage(f, ledger.declared));
-		findings.push(...directoryFindings("coverage-declared-not-scanned", notScanned, (count) => `[${ledger.suiteId}] declara ${count} archivo(s) que no escaneó`, `${ledger.suiteId}: alinea coverage.include/exclude con lo que realmente analiza`));
+		findings.push(...directoryFindings("coverage-declared-not-scanned", notScanned, (count) => `[${ledger.suiteId}] declares ${count} file(s) that were never scanned`, `${ledger.suiteId}: align coverage.include/exclude with files actually analyzed`));
 	}
 	return findings;
 }
@@ -108,7 +108,7 @@ function analyzeScannedNotDeclared(input, ledgers, scannedSets) {
 	for (const ledger of ledgers) {
 		if (ledger.skipped || ledger.source !== "runtime") continue;
 		const undeclared = [...scannedSets.get(ledger.suiteId)].filter((f) => tracked.has(f) && !isDeclaredByCoverage(f, ledger.declared));
-		findings.push(...directoryFindings("coverage-scanned-undeclared", undeclared, (count) => `[${ledger.suiteId}] escaneó ${count} archivo(s) fuera de su declaración`, `${ledger.suiteId}: amplía coverage.include o deja de escanearlos`));
+		findings.push(...directoryFindings("coverage-scanned-undeclared", undeclared, (count) => `[${ledger.suiteId}] scanned ${count} file(s) outside its declaration`, `${ledger.suiteId}: expand coverage.include or stop scanning them`));
 	}
 	return findings;
 }
@@ -121,7 +121,7 @@ function analyzeDormantRules(ledgers) {
 			findings.push({
 				ruleId: "coverage-dormant-rule",
 				file: "",
-				message: `[${ledger.suiteId}] la regla '${ruleId}' se evaluó 0 veces: su resultado limpio no es confiable (condición de activación rota o sin instrumentar)`,
+				message: `[${ledger.suiteId}] rule '${ruleId}' was evaluated 0 times: its clean result is not reliable (broken activation condition or uninstrumented)`,
 				context: `${ledger.suiteId}/${ruleId}`
 			});
 		}
@@ -134,13 +134,13 @@ function analyzeInvalidExemptions(input) {
 	for (const exemption of input.config.coverage?.exemptGlobs ?? []) if (!input.trackedFiles.some((f) => path.posix.matchesGlob(f, exemption.glob))) findings.push({
 		ruleId: "coverage-invalid-exemption",
 		file: configFile,
-		message: `coverage.exemptGlobs '${exemption.glob}' no coincide con ningún archivo versionado (exención muerta)`,
+		message: `coverage.exemptGlobs '${exemption.glob}' does not match any tracked file (dead exemption)`,
 		context: exemption.glob
 	});
 	for (const ack of input.config.coverage?.acknowledgedDegradations ?? []) if (!input.trackedFiles.some((f) => path.posix.matchesGlob(f, ack.glob) && getMatchingExemptionPolicies(f, input.config).some((p) => p.id === ack.policy))) findings.push({
 		ruleId: "coverage-invalid-exemption",
 		file: configFile,
-		message: `coverage.acknowledgedDegradations '${ack.glob}' (policy '${ack.policy}') no reconoce ningún archivo degradado (exención muerta)`,
+		message: `coverage.acknowledgedDegradations '${ack.glob}' (policy '${ack.policy}') does not acknowledge any degraded file (dead exemption)`,
 		context: `${ack.policy}:${ack.glob}`
 	});
 	return findings;
@@ -151,7 +151,7 @@ function analyzeMissingLedgers(input, ledgers) {
 	for (const suiteId of input.expectedSuites) if (!ledgerIds.has(suiteId)) findings.push({
 		ruleId: "coverage-missing-ledger",
 		file: "",
-		message: `La suite '${suiteId}' se planificó pero su subproceso terminó sin emitir su ledger en scratch/audits/coverage/${suiteId}.json (abortó con error, excepción no capturada o fallo de ciclo ESM). Ejecuta 'npm run auditor suite=${suiteId}' para ver la traza directa.`,
+		message: `Suite '${suiteId}' was planned but its subprocess terminated without emitting its ledger at scratch/audits/coverage/${suiteId}.json (aborted with error, uncaught exception, or ESM cycle failure). Run 'npm run auditor suite=${suiteId}' to inspect direct trace.`,
 		context: suiteId
 	});
 	return findings;
@@ -196,9 +196,9 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 			}),
 			id: AUDIT_COVERAGE_SUITE_ID,
 			name: "Audit Coverage & Blind Spots",
-			description: "Detecta puntos ciegos: archivos, reglas y exenciones",
+			description: "Detects coverage blind spots: files, rules, and exemptions",
 			family: "architecture",
-			packageName: "Cobertura",
+			packageName: "Coverage",
 			configKey: "coverage.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
@@ -206,22 +206,22 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 			ruleIds: AUDIT_COVERAGE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(AUDIT_COVERAGE_RULES, "polish"),
 			ruleDescriptions: {
-				"coverage-uncovered-file": "Archivo versionado sin ninguna suite",
-				"coverage-degraded-file": "Reglas silenciadas por configuración",
-				"coverage-declared-not-scanned": "Declarado pero no escaneado",
-				"coverage-scanned-undeclared": "Escaneado fuera de lo declarado",
-				"coverage-dormant-rule": "Regla dormida: 0 evaluaciones",
-				"coverage-invalid-exemption": "Exención sin archivos que la usen",
-				"coverage-missing-ledger": "Suite sin ledger de cobertura"
+				"coverage-uncovered-file": "Tracked file without any suite coverage",
+				"coverage-degraded-file": "Rules silenced by configuration",
+				"coverage-declared-not-scanned": "Declared but not scanned",
+				"coverage-scanned-undeclared": "Scanned outside declared paths",
+				"coverage-dormant-rule": "Dormant rule: 0 evaluations",
+				"coverage-invalid-exemption": "Exemption without matching files",
+				"coverage-missing-ledger": "Suite missing coverage ledger"
 			},
 			ruleRemediations: {
-				"coverage-uncovered-file": "El archivo versionado no es cubierto por ninguna suite de auditoría activa. Posibles causas y soluciones:\n1. Si es un archivo de código fuente (.ts, .js, .vue, .scss), asócialo al include de la suite correspondiente o amplía sus raíces de escaneo.\n2. Si es un artefacto generado, temporal o de fixture, agrégalo a .gitignore o a coverage.exemptGlobs en .auditor/audit.config.ts indicando el motivo.",
-				"coverage-degraded-file": "El archivo contiene reglas de auditoría o linters silenciadas mediante configuración local o excepciones no declaradas. Posibles causas y soluciones:\n1. Elimina la excepción y corrige el código fuente subyacente para cumplir los estándares de higiene.\n2. Si la degradación es legítima y está autorizada, documéntala en coverage.acknowledgedDegradations en .auditor/audit.config.ts.",
-				"coverage-declared-not-scanned": "La suite declaró en su coverage.include que analizaría este archivo, pero durante la corrida nunca lo escaneó. Posibles causas y soluciones:\n1. Ajusta la declaración coverage.include o exclude de la suite para reflejar únicamente los archivos que realmente procesa.\n2. Si la suite omitió el archivo por un filtro prematuro o un return temprano, revisa la lógica de escaneo para que procese todos los archivos que declaró.",
-				"coverage-scanned-undeclared": "La suite escaneó un archivo que no formaba parte de su coverage.include declarado. Posibles causas y soluciones:\n1. Agrega el patrón del archivo al coverage.include de la suite para hacer explícita su responsabilidad.\n2. O bien, excluye el archivo del escaneo interno si pertenece a otra familia o subsistema.",
-				"coverage-dormant-rule": "La regla fue declarada por la suite pero se evaluó 0 veces durante toda la auditoría. Un resultado limpio con 0 evaluaciones es un falso positivo peligroso porque la verificación nunca se ejecutó. Posibles causas y soluciones:\n1. Instrumenta la regla llamando a this.runSubAuditorSync(ruleId, () => ...) o this.markRuleEvaluated(ruleId) dentro del flujo de auditoría.\n2. Si la regla no aplica en este proyecto (por ejemplo, falta una tecnología o carpeta), márcala explícitamente como no aplicable usando this.markRuleNotApplicable(ruleId, \"Motivo\").",
-				"coverage-invalid-exemption": "Se declaró una exención en coverage.exemptGlobs o coverage.acknowledgedDegradations en .auditor/audit.config.ts que ya no coincide con ningún archivo del repositorio. Posibles causas y soluciones:\n1. El archivo exento fue renombrado, movido o eliminado. Remueve la exención muerta de .auditor/audit.config.ts para mantener limpia la configuración.",
-				"coverage-missing-ledger": "La suite fue planificada y ejecutada por el orquestador, pero su proceso terminó sin emitir el archivo de ledger en scratch/audits/coverage/<suiteId>.json. Esto ocurre cuando el subproceso del sub-auditor crashea, aborta con código de salida no-cero o sufre un bloqueo asíncrono (como un ciclo de top-level await en ESM). Pasos para diagnosticar y solucionar:\n1. Ejecuta la suite de forma aislada en tu terminal: npm run auditor suite=<nombre_suite>\n2. Observa la salida y traza de error completa del proceso en la consola.\n3. Verifica que la clase del sub-auditor herede correctamente de BaseAuditor o FileScanAuditor y finalice con await BaseAuditor.runCliIfMain(import.meta.url, new TuAuditor())."
+				"coverage-uncovered-file": "📖 REMEDIATION GUIDE: coverage-uncovered-file\n1. Root Cause: A versioned file is not covered by any active auditor suite (false clean).\n2. Diagnosis: Identify the uncovered file reported in the audit findings.\n3. Canonical Solution:\n   a) Associate the file with the `include` glob of the corresponding suite or widen scanning roots.\n   b) If a generated artifact or test fixture, add to `.gitignore` or configure `coverage.exemptGlobs` with reason in `.auditor/audit.config.ts`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"coverage-degraded-file": "📖 REMEDIATION GUIDE: coverage-degraded-file\n1. Root Cause: A file has audit or linter rules silenced via unacknowledged exemptions or overrides.\n2. Diagnosis: Locate the silenced rule and corresponding override file.\n3. Canonical Solution:\n   a) Remove the exemption and fix underlying source code to satisfy hygiene standards.\n   b) If legitimately authorized, document in `coverage.acknowledgedDegradations` in `.auditor/audit.config.ts`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"coverage-declared-not-scanned": "📖 REMEDIATION GUIDE: coverage-declared-not-scanned\n1. Root Cause: A suite declared in its `coverage.include` that it would analyze this file, but during the run never scanned it.\n2. Diagnosis: Compare the suite declared coverage patterns against files actually scanned.\n3. Canonical Solution:\n   a) Adjust the suite `coverage.include` / `exclude` declaration to match files actually processed.\n   b) If skipped due to premature return, fix scanning logic so all declared files are processed.\n4. Example / Auto-fix command:\n   Align suite coverage declaration with actual scans.",
+				"coverage-scanned-undeclared": "📖 REMEDIATION GUIDE: coverage-scanned-undeclared\n1. Root Cause: A suite scanned a file that was not part of its declared `coverage.include`.\n2. Diagnosis: Inspect the file scanned by the suite outside its declaration.\n3. Canonical Solution:\n   a) Add the file glob to the suite `coverage.include` declaration.\n   b) Or exclude the file from internal scans if it belongs to another architectural family.\n4. Example / Auto-fix command:\n   Update suite `coverage.include` to declare the file.",
+				"coverage-dormant-rule": "📖 REMEDIATION GUIDE: coverage-dormant-rule\n1. Root Cause: A rule was declared by a suite but evaluated 0 times during the entire audit run (dormant verification hazard).\n2. Diagnosis: Identify which rule was never evaluated by the suite.\n3. Canonical Solution:\n   a) Instrument the rule using `this.runSubAuditorSync(ruleId, () => ...)` or `this.markRuleEvaluated(ruleId)`.\n   b) If not applicable to this project, mark explicitly with `this.markRuleNotApplicable(ruleId, \"Reason\")`.\n4. Example / Auto-fix command:\n   Mark rule evaluated or explicitly not applicable.",
+				"coverage-invalid-exemption": "📖 REMEDIATION GUIDE: coverage-invalid-exemption\n1. Root Cause: An exemption in `coverage.exemptGlobs` or `coverage.acknowledgedDegradations` in `.auditor/audit.config.ts` no longer matches any files in the repository.\n2. Diagnosis: Check configured exempt globs against files on disk.\n3. Canonical Solution: Remove stale exemptions from `.auditor/audit.config.ts`.\n4. Example / Auto-fix command:\n   Remove dead exemption from `.auditor/audit.config.ts`.",
+				"coverage-missing-ledger": "📖 REMEDIATION GUIDE: coverage-missing-ledger\n1. Root Cause: A suite was scheduled and executed by the runner, but finished without writing its ledger to `scratch/audits/coverage/<suiteId>.json`.\n2. Diagnosis: Run the suite in isolation to observe console error output.\n3. Canonical Solution:\n   a) Run `npm run auditor suite=<suiteName>` in isolation.\n   b) Inspect stack trace for unhandled rejections or top-level await deadlocks.\n   c) Ensure the suite subclasses `BaseAuditor` or `FileScanAuditor` and terminates with `await BaseAuditor.runCliIfMain(...)`.\n4. Example / Auto-fix command:\n   `npm run auditor suite=<suiteId>`"
 			},
 			coverage: { include: [AUDIT_CONFIG_FILE] },
 			projectRoot: options.projectRoot
@@ -231,11 +231,11 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 		const config = getAuditConfig(this.projectRoot);
 		const runId = resolveActiveCoverageRunId();
 		if (config.coverage?.enabled === false) {
-			this.markSkipped("Cobertura desactivada explícitamente (coverage.enabled: false)");
+			this.markSkipped("Coverage explicitly disabled (coverage.enabled: false)");
 			return;
 		}
 		if (!runId || process.env["AUDIT_COVERAGE_RUN_MODE"] !== "full") {
-			this.markSkipped("Requiere una corrida completa (npm run auditor) para verificar cobertura");
+			this.markSkipped("Requires full audit run ('npm run auditor') to verify coverage");
 			return;
 		}
 		const configPath = path.join(this.projectRoot, AUDIT_CONFIG_FILE);

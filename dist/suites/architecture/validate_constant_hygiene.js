@@ -53,9 +53,9 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_constant_hygiene",
 			name: "Constant Hygiene & Duplicate Validator",
-			description: "Gobernanza de constantes, duplicados y nomenclatura",
+			description: "Constant governance, duplicates, and naming",
 			family: "architecture",
-			packageName: "Constantes",
+			packageName: "Constants",
 			configKey: "constants",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
@@ -66,18 +66,18 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 			ruleIds: CONSTANT_HYGIENE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(CONSTANT_HYGIENE_RULES, "dedup"),
 			ruleDescriptions: {
-				"duplicate-constant-identical": "Constante idéntica duplicada",
-				"duplicate-constant-divergent": "Constante dispar entre módulos",
-				"constant-bad-names": "Nombre con sufijo de valor",
-				"constant-no-alias": "Alias redundante de constante",
-				"constant-no-literal-suffix": "Sufijo numérico en constante"
+				"duplicate-constant-identical": "Identical duplicate constant",
+				"duplicate-constant-divergent": "Divergent constant across modules",
+				"constant-bad-names": "Constant name with value suffix",
+				"constant-no-alias": "Redundant constant alias",
+				"constant-no-literal-suffix": "Numeric suffix in constant"
 			},
 			ruleRemediations: {
-				"duplicate-constant-identical": "Centraliza la constante en un módulo común de constantes del dominio (ej. src/constants/) y reusa la exportación mediante ts-morph o npm run auditor:magic.",
-				"duplicate-constant-divergent": "Resuelve la disparidad de valores asignando nombres semánticos específicos o unificando el valor canónico en un módulo SSoT.",
-				"constant-bad-names": "Elimina el valor numérico del nombre de la constante (ej. usa MAX_RETRY_COUNT en lugar de MAX_RETRY_COUNT_5).",
-				"constant-no-alias": "Elimina el alias redundante de constante e importa o utiliza directamente la constante canónica de origen.",
-				"constant-no-literal-suffix": "Remueve el sufijo numérico crudo del nombre de la constante (ej. _100, _600); usa nombres semánticos de dominio."
+				"duplicate-constant-identical": "📖 REMEDIATION GUIDE: duplicate-constant-identical\n1. Root Cause: Multiple identical constant declarations with the same name and value were found across disparate source files.\n2. Diagnosis: Inspect the reported files declaring the identical constant.\n3. Canonical Solution: Centralize the constant in a shared domain constants module (e.g. `src/constants/`) and reuse the export.\n4. Example / Auto-fix command:\n   `npm run auditor:magic`",
+				"duplicate-constant-divergent": "📖 REMEDIATION GUIDE: duplicate-constant-divergent\n1. Root Cause: Constants with identical names were found declaring divergent values across different modules.\n2. Diagnosis: Check files where the constant is defined with conflicting values.\n3. Canonical Solution: Resolve value disparity by assigning specific semantic names or unifying the canonical value in an SSoT module.\n4. Example / Auto-fix command:\n   Unify constants into single SSoT in `src/constants/`.",
+				"constant-bad-names": "📖 REMEDIATION GUIDE: constant-bad-names\n1. Root Cause: Constant identifier includes its literal value in its name.\n2. Diagnosis: Inspect constant declaration at the reported line.\n3. Canonical Solution: Remove the numerical value from the identifier name, favoring domain semantics.\n4. Example / Auto-fix command:\n   ❌ Avoid embedding the numeric literal in the constant identifier\n   ✅ `const MAX_RETRY_COUNT = 5;`",
+				"constant-no-alias": "📖 REMEDIATION GUIDE: constant-no-alias\n1. Root Cause: A redundant constant alias was declared without adding semantic value.\n2. Diagnosis: Locate the redundant alias at the reported line.\n3. Canonical Solution: Delete redundant constant aliases; import or reference the canonical source constant directly.\n4. Example / Auto-fix command:\n   Import canonical constant directly instead of re-aliasing.",
+				"constant-no-literal-suffix": "📖 REMEDIATION GUIDE: constant-no-literal-suffix\n1. Root Cause: Constant identifier uses a raw numeric suffix (e.g. `_100`, `_600`).\n2. Diagnosis: Inspect constant identifier at reported line.\n3. Canonical Solution: Replace numeric suffixes with semantic domain terms (e.g., `FAST`, `DEFAULT`, `EXTENDED`).\n4. Example / Auto-fix command:\n   ❌ Avoid naming constants with trailing numeric suffixes\n   ✅ `const FAST_TIMEOUT_MS = 500;`"
 			},
 			projectRoot: effectiveRoot
 		});
@@ -141,7 +141,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 					filePath: relPath,
 					line,
 					column,
-					message: `Redefinición redundante 1:1 de constante/función: '${m[0].trim()}'. Usa la constante canónica de origen directamente en lugar de declarar alias passthrough.`,
+					message: `Redundant 1:1 constant/function redefinition: '${m[0].trim()}'. Use the canonical origin constant directly instead of declaring passthrough aliases.`,
 					context: m[0].trim()
 				});
 			}
@@ -169,8 +169,8 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 		this.scannedAbsFiles.length = 0;
 		await super.runAudit(astContext);
 		if (this.scannedAbsFiles.length === 0) {
-			this.markRuleNotApplicable("duplicate-constant-identical", "No se encontraron archivos para verificar duplicación");
-			this.markRuleNotApplicable("duplicate-constant-divergent", "No se encontraron archivos para verificar duplicación");
+			this.markRuleNotApplicable("duplicate-constant-identical", "No files found to verify duplication");
+			this.markRuleNotApplicable("duplicate-constant-divergent", "No files found to verify duplication");
 			return;
 		}
 		await this.runSubAuditor("duplicate-constant-identical", async () => {

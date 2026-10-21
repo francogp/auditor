@@ -1,0 +1,8 @@
+### U01 missing-all-human-scripts#1 file=core/packageScriptRegistry.ts expect=cli-contracts-unregistered-script
+export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [{ name: 'auditor', command: 'auditor' }];
+
+### U02 missing-lint-human-script#1 file=core/packageScriptRegistry.ts expect=cli-contracts-unregistered-script
+export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [{ name: 'auditor:human', command: 'auditor human' }];
+
+### U03 empty-script-requirements#1 file=core/packageScriptRegistry.ts expect=cli-contracts-unregistered-script
+export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [];

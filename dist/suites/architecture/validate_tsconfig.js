@@ -65,7 +65,7 @@ const TSCONFIG_REQUIREMENT = {
 	id: "tsconfig-config",
 	file: "tsconfig.json",
 	candidateFiles: ["tsconfig.json"],
-	description: "Configuración estricta de compilador TypeScript",
+	description: "Strict TypeScript compiler configuration",
 	ruleId: "tsconfig-missing",
 	generateDefaultContent: () => JSON.stringify(CANONICAL_TSCONFIG, null, 2) + "\n"
 };
@@ -101,7 +101,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			configFiles: [configRequirement],
 			id: "validate_tsconfig",
 			name: "TypeScript Configuration Validator",
-			description: "Valida baseline estricto de tsconfig.json",
+			description: "Validates tsconfig.json strict baseline",
 			icon: "📘",
 			family: "architecture",
 			ruleIds: TSCONFIG_RULES,
@@ -111,18 +111,18 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			ruleDescriptions: {
-				"tsconfig-missing": "Archivo tsconfig.json ausente",
-				"tsconfig-syntax": "Error sintaxis tsconfig.json",
-				"tsconfig-missing-strict-compiler-option": "Falta opción estricta compiler",
-				"tsconfig-banned-option": "Opción prohibida en tsconfig",
-				"tsconfig-missing-source-include": "Include no cubre fuentes src"
+				"tsconfig-missing": "Missing tsconfig.json file",
+				"tsconfig-syntax": "Syntax error in tsconfig.json",
+				"tsconfig-missing-strict-compiler-option": "Missing strict compiler option",
+				"tsconfig-banned-option": "Banned option in tsconfig",
+				"tsconfig-missing-source-include": "Include does not cover src sources"
 			},
 			ruleRemediations: {
-				"tsconfig-missing": "Diagnóstico: El archivo tsconfig.json no existe en la raíz del proyecto.\nRemediación: Ejecuta `auditor fix` o `npm run auditor:fix` para auto-scaffoldear la configuración canónica estricta de TypeScript.",
-				"tsconfig-syntax": "Diagnóstico: El archivo tsconfig.json contiene errores de sintaxis JSON o caracteres inválidos.\nRemediación: Inspecciona tsconfig.json, corrige comas sobrantes o comillas mal cerradas.",
-				"tsconfig-missing-strict-compiler-option": "Diagnóstico: Se omitieron o degradaron opciones estrictas obligatorias (strict, noImplicitAny, noUncheckedIndexedAccess, target >= ES2025).\nRemediación: Ejecuta `auditor fix` para reinyectar el baseline estricto o configúralas manualmente en compilerOptions.",
-				"tsconfig-banned-option": "Diagnóstico: Se detectó una opción permisiva o prohibida (ej. suppressImplicitAnyIndexErrors, noImplicitThis: false).\nRemediación: Ejecuta `auditor fix` para remover las opciones prohibidas y resolver los errores de tipado legítimamente.",
-				"tsconfig-missing-source-include": "Diagnóstico: El arreglo include no abarca el directorio de código fuente principal (`src/**/*`).\nRemediación: Agrega `\"src/**/*\"` al arreglo `include` en tsconfig.json o ejecuta `auditor fix`."
+				"tsconfig-missing": "📖 REMEDIATION GUIDE: tsconfig-missing\n1. Root Cause: The `tsconfig.json` file is missing from the root of the project.\n2. Diagnosis: Check project root for `tsconfig.json`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold the strict canonical TypeScript configuration.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"tsconfig-syntax": "📖 REMEDIATION GUIDE: tsconfig-syntax\n1. Root Cause: `tsconfig.json` contains JSON syntax errors or invalid characters.\n2. Diagnosis: Inspect `tsconfig.json`, checking for trailing commas or mismatched quotes.\n3. Canonical Solution: Fix JSON syntax errors in `tsconfig.json` or run `npm run fmt`.\n4. Example / Auto-fix command:\n   Validate syntax with JSON parser or `npm run fmt`.",
+				"tsconfig-missing-strict-compiler-option": "📖 REMEDIATION GUIDE: tsconfig-missing-strict-compiler-option\n1. Root Cause: Mandatory strict options are omitted or downgraded (`strict`, `noImplicitAny`, `noUncheckedIndexedAccess`, `target >= ES2025`).\n2. Diagnosis: Check `compilerOptions` in `tsconfig.json` against required strict settings.\n3. Canonical Solution: Run `npm run auditor:fix` to re-inject strict compiler defaults, or configure them manually.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"tsconfig-banned-option": "📖 REMEDIATION GUIDE: tsconfig-banned-option\n1. Root Cause: A banned permissive option was detected (e.g., `suppressImplicitAnyIndexErrors`, `noImplicitThis: false`).\n2. Diagnosis: Look for permissive overrides in `compilerOptions`.\n3. Canonical Solution: Run `npm run auditor:fix` to remove banned options and resolve underlying type errors properly.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"tsconfig-missing-source-include": "📖 REMEDIATION GUIDE: tsconfig-missing-source-include\n1. Root Cause: The `include` array in `tsconfig.json` does not cover primary source directories (`src/**/*`).\n2. Diagnosis: Check the `include` glob patterns in `tsconfig.json`.\n3. Canonical Solution: Add `\"src/**/*\"` to `include` in `tsconfig.json` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: ["tsconfig*.json"] },
 			projectRoot,
@@ -139,10 +139,10 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("tsconfig-missing", () => this.ensureConfigFile(TSCONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("tsconfig-syntax", "Archivo tsconfig.json ausente");
-				this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Archivo tsconfig.json ausente");
-				this.markRuleNotApplicable("tsconfig-banned-option", "Archivo tsconfig.json ausente");
-				this.markRuleNotApplicable("tsconfig-missing-source-include", "Archivo tsconfig.json ausente");
+				this.markRuleNotApplicable("tsconfig-syntax", "Missing tsconfig.json file");
+				this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Missing tsconfig.json file");
+				this.markRuleNotApplicable("tsconfig-banned-option", "Missing tsconfig.json file");
+				this.markRuleNotApplicable("tsconfig-missing-source-include", "Missing tsconfig.json file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -161,10 +161,10 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 		try {
 			rawContent = fs.readFileSync(resolvedPath, "utf8");
 		} catch {
-			this.markRuleNotApplicable("tsconfig-syntax", "No se pudo leer el archivo");
-			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "No se pudo leer el archivo");
-			this.markRuleNotApplicable("tsconfig-banned-option", "No se pudo leer el archivo");
-			this.markRuleNotApplicable("tsconfig-missing-source-include", "No se pudo leer el archivo");
+			this.markRuleNotApplicable("tsconfig-syntax", "Could not read file");
+			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Could not read file");
+			this.markRuleNotApplicable("tsconfig-banned-option", "Could not read file");
+			this.markRuleNotApplicable("tsconfig-missing-source-include", "Could not read file");
 			return;
 		}
 		let parsed;
@@ -176,7 +176,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				severity: "error",
 				file: relPath,
 				line: 1,
-				message: `Error de sintaxis JSON en ${relPath}.`
+				message: `JSON syntax error in ${relPath}.`
 			});
 			else parsed = parseRes.config;
 			for (const extraFile of extraTsconfigs) {
@@ -189,7 +189,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: extraFile,
 						line: 1,
-						message: `Error de sintaxis JSON en ${extraFile}.`
+						message: `JSON syntax error in ${extraFile}.`
 					});
 					else extraParsed.set(extraFile, extraRes.config);
 				} catch {
@@ -198,15 +198,15 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: extraFile,
 						line: 1,
-						message: `Error de sintaxis JSON en ${extraFile}.`
+						message: `JSON syntax error in ${extraFile}.`
 					});
 				}
 			}
 		});
 		if (!parsed) {
-			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Sintaxis JSON inválida");
-			this.markRuleNotApplicable("tsconfig-banned-option", "Sintaxis JSON inválida");
-			this.markRuleNotApplicable("tsconfig-missing-source-include", "Sintaxis JSON inválida");
+			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Invalid JSON syntax");
+			this.markRuleNotApplicable("tsconfig-banned-option", "Invalid JSON syntax");
+			this.markRuleNotApplicable("tsconfig-missing-source-include", "Invalid JSON syntax");
 			return;
 		}
 		let modified = false;
@@ -222,7 +222,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `compilerOptions.${opt} debe ser true según el baseline estricto.`
+					message: `compilerOptions.${opt} must be true according to the strict baseline.`
 				});
 			}
 			const modRes = compilerOptions.moduleResolution ? String(compilerOptions.moduleResolution).toLowerCase() : "";
@@ -237,7 +237,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `compilerOptions.moduleResolution debe ser "bundler" en proyectos con Vite+ para permitir imports TypeScript directos (.ts).`
+					message: `compilerOptions.moduleResolution must be "bundler" in Vite+ projects to allow direct TypeScript imports (.ts).`
 				});
 			} else if (!VALID_MODULE_RESOLUTIONS.some((v) => v === modRes)) {
 				if (isFix) {
@@ -248,7 +248,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `compilerOptions.moduleResolution debe ser "bundler", "node16" o "nodenext".`
+					message: `compilerOptions.moduleResolution must be "bundler", "node16", or "nodenext".`
 				});
 			}
 			const targetOpt = compilerOptions.target ? String(compilerOptions.target).toLowerCase() : "";
@@ -261,7 +261,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `compilerOptions.target debe ser "ES2025" o "ESNext" según el baseline estricto de Node 26+.`
+					message: `compilerOptions.target must be "ES2025" or "ESNext" according to the Node 26+ strict baseline.`
 				});
 			}
 		});
@@ -275,7 +275,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+					message: `compilerOptions.${banned} is prohibited by repository quality standards.`
 				});
 			}
 			if (compilerOptions.noImplicitThis === false) {
@@ -287,7 +287,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "compilerOptions.noImplicitThis: false está prohibido. Debe ser true o eliminarse."
+					message: "compilerOptions.noImplicitThis: false is prohibited. Must be true or removed."
 				});
 			}
 			for (const [extraFile, extraCfg] of extraParsed.entries()) {
@@ -302,7 +302,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: extraFile,
 						line: 1,
-						message: `compilerOptions.${banned} está prohibida por el estándar de calidad.`
+						message: `compilerOptions.${banned} is prohibited by repository quality standards.`
 					});
 				}
 				if (isFix && extraModified) {
@@ -322,7 +322,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: relPath,
 						line: 1,
-						message: "El arreglo include en tsconfig.json debe abarcar el directorio src/."
+						message: "The include array in tsconfig.json must cover the src/ directory."
 					});
 				}
 				if (isFix) {
@@ -346,7 +346,7 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "La propiedad include debe ser un arreglo de patrones."
+					message: "The include property must be an array of glob patterns."
 				});
 			}
 		});

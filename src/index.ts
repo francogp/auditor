@@ -44,6 +44,10 @@ export {
 } from './core/vueSfcParser.ts';
 export * from './analyzers/homebrew/index.ts';
 export * from './core/npmCommandUtils.ts';
+export * from './core/cli/cittyHarness.ts';
+export * from './analyzers/cliContracts/cliContractTypes.ts';
+export * from './analyzers/cliContracts/cliContractScanner.ts';
+export * from './suites/architecture/validate_cli_contracts.ts';
 export * from './suites/architecture/validate_auditor_hygiene.ts';
 export * from './suites/architecture/validate_script_commands.ts';
 export * from './suites/architecture/validate_script_extensions.ts';

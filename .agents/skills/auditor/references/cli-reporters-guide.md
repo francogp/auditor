@@ -22,13 +22,14 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 | `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`). | `npm run auditor:findings severity=error` |
 | `top=<N\|all>` | Limits displayed items (default: 20). | `npm run auditor:findings top=all` |
 | `search=<term>` | Searches within finding messages and context snippets. | `npm run auditor:findings search=token` |
-| `json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run auditor:findings json` |
+| `json` / `--json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run auditor:findings json` |
+| `human` / `--human` / `-H` | Enables aesthetic 80-column Box-Drawing terminal mode across any audit, reporter, or refactor CLI tool. | `npm run auditor:human`, `npm run auditor:findings:human`, `auditor-motion human` |
 
 ---
 
-## 2. Official NPM Reporter Scripts
+## 2. Official NPM Reporter Scripts & `latest_audit.json` Inspection Mandate
 
-All inspection routines MUST use the official NPM scripts declared in `package.json`. Creating ad-hoc scratch scripts (`scratch/analyze_...`) or executing `node -e` one-liners is **STRICTLY PROHIBITED**:
+Whenever analyzing, inspecting, or querying `scratch/audits/latest_audit.json` or `latest_audit.json`, developers and AI agents MUST activate `/auditor` and MUST use the canonical inspection tools declared in `package.json` specifically built to consume `latest_audit.json`. Reading raw JSON directly, running manual shell greps, creating ad-hoc scratch scripts (`scratch/analyze_...`), or executing `node -e` one-liners to parse `latest_audit.json` is **STRICTLY PROHIBITED**:
 
 - `npm run auditor:rules` / `npm run auditor:by-rule`: Dedicated reporter grouping and sorting all findings by rule ID with `TOTAL CONSOLIDADO`.
 - `npm run auditor:findings`: Primary findings reporter with full filtering capabilities (`rule=...`, `file=...`, `flat`, `dir=...`, `search=...`, `category=...`, `top=...`, `json`).

@@ -1,0 +1,20 @@
+### H01 repo-audit-full#1 expect=cli-contracts-homebrew-flag-parsing
+const normalized = rawArgs.map((a) => BOOLEAN_FLAGS.includes(a) ? `--${a}` : a);
+
+### H02 repo-refactor-harness#1 expect=cli-contracts-homebrew-flag-parsing
+const nonProject = positionals.filter((p) => !p.startsWith('project=') && !p.startsWith('--project='));
+
+### H03 repo-refactor-dupes#1 expect=cli-contracts-homebrew-flag-parsing
+if (args[0] && !args[0].startsWith('-')) { subCommand = args[0]; }
+
+### H04 repo-refactor-dupes#2 expect=cli-contracts-homebrew-flag-parsing
+const isVerbose = args.includes('--verbose') || args.includes('verbose');
+
+### H05 repo-init-agent#1 expect=cli-contracts-homebrew-flag-parsing
+const isDryRun = cliArgs.includes('--dry-run');
+
+### H06 homebrew-key-value#1 expect=cli-contracts-homebrew-flag-parsing
+for (const arg of argv) { if (arg.startsWith('--')) { const [k, v] = arg.slice(2).split('='); } }
+
+### H07 homebrew-switch#1 expect=cli-contracts-homebrew-flag-parsing
+switch (rawArgs[0]) { case '--help': showHelp(); break; }

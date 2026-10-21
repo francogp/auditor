@@ -92,7 +92,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       }),
       id: 'validate_vue_reactivity',
       name: 'Vue Reactivity & State Hygiene Auditor',
-      description: 'Verifica reactividad y pureza de Vue 3 Composition API',
+      description: 'Verifies Vue 3 Composition API reactivity and purity',
       family: 'architecture',
       ruleIds: VUE_REACTIVITY_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(VUE_REACTIVITY_RULES, 'behavior'),
@@ -102,68 +102,68 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       criticalConfig: {},
       icon: '⚡',
       ruleDescriptions: {
-        'no-side-effects-in-computed': 'Mutación o efecto secundario en computed',
-        'watch-reactive-property-getter': 'Propiedad observada sin getter en watch',
-        'no-async-in-computed': 'Función asíncrona dentro de computed',
-        'no-destructured-reactive': 'Desestructuración de reactive() sin toRefs'
+        'no-side-effects-in-computed': 'Mutation or side effect in computed',
+        'watch-reactive-property-getter': 'Watched property without getter in watch',
+        'no-async-in-computed': 'Async function inside computed',
+        'no-destructured-reactive': 'Destructuring reactive() without toRefs'
       },
       ruleRemediations: {
         'no-side-effects-in-computed':
-          'Causa Raíz:\n' +
-          'Se detectó una mutación in-place (.sort(), .reverse(), .splice(), .push(), .pop()) sobre un array o una reasignación a un ref (.value =) dentro del cuerpo de una propiedad "computed()".\n' +
-          'Las propiedades computadas en Vue 3 deben ser funciones puras sin efectos secundarios. Mutar el estado reactivo que se está leyendo dentro de un computed provoca ciclos infinitos de re-renderizado o desincronización de componentes dependientes.\n\n' +
-          'Diagnóstico:\n' +
-          'Ubica la línea del computed indicada en el mensaje. Si estás ordenando o filtrando una lista que proviene de props o refs, la mutación está alterando la fuente original.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Crear una copia superficial antes de ordenar o modificar el array: "[...array].sort(...)" o "array.slice().reverse()".\n' +
-          '2. Trasladar mutaciones y reasignaciones de refs fuera del computed, ejecutándolas en "watchEffect" o en manejadores de eventos (actions).\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: sort in-place muta el prop o estado original\n' +
+          '1. Root Cause:\n' +
+          'An in-place mutation (.sort(), .reverse(), .splice(), .push(), .pop()) on an array or a ref reassignment (.value =) was detected inside a "computed()" property body.\n' +
+          'Computed properties in Vue 3 must be pure functions without side effects. Mutating reactive state being read inside computed triggers infinite re-render loops and desynchronizes dependent components.\n\n' +
+          '2. Diagnosis:\n' +
+          'Locate the computed property line indicated in the message. If sorting or filtering a list derived from props or refs, the mutation mutates the original source.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Create a shallow clone before sorting or mutating: "[...array].sort(...)" or "array.slice().reverse()".\n' +
+          '2. Move mutations and ref assignments outside computed, executing them in "watchEffect" or event handlers/actions.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: in-place sort mutates the original prop or state\n' +
           'const sortedUsers = computed(() => props.users.sort((a, b) => a.name.localeCompare(b.name)));\n\n' +
-          '// ✅ Correcto: clonación previa con operador spread\n' +
+          '// ✅ Correct: clone first via spread operator\n' +
           'const sortedUsers = computed(() => [...props.users].sort((a, b) => a.name.localeCompare(b.name)));',
         'watch-reactive-property-getter':
-          'Causa Raíz:\n' +
-          'Se pasa una propiedad reactiva individual directamente como argumento en "watch(props.propName, ...)" en lugar de envolverla en una función getter.\n' +
-          'En JavaScript y Vue 3, acceder a una propiedad primitiva (string, number, boolean) pasa el valor escalado por copia en ese instante. Vue no puede rastrear los cambios futuros de una primitiva si no se le pasa una función getter.\n\n' +
-          'Diagnóstico:\n' +
-          'Comprueba el primer argumento de "watch()". Si comienza por "props." o accede a una propiedad anidada de un objeto reactivo, debe ser una función.\n\n' +
-          'Solución Canónica:\n' +
-          'Envolver el acceso en una función getter anónima: "watch(() => props.propName, (newVal) => { ... })".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: reactividad perdida silenciosamente en primitivas\n' +
+          '1. Root Cause:\n' +
+          'An individual reactive property is passed directly as the source argument in "watch(props.propName, ...)" instead of being wrapped in a getter function.\n' +
+          'In JavaScript and Vue 3, accessing a primitive property (string, number, boolean) passes the scalar value by copy at that instant. Vue cannot track future changes of a primitive unless passed as a getter function.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the first argument of "watch()". If it accesses a property on "props." or a nested property on a reactive object, it must be wrapped in a getter function.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Wrap the property access in an anonymous getter function: "watch(() => props.propName, (newVal) => { ... })".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: reactivity lost silently on primitive values\n' +
           'watch(props.userId, (newId) => { fetchUser(newId); });\n\n' +
-          '// ✅ Correcto: getter de función reactivo\n' +
+          '// ✅ Correct: reactive function getter\n' +
           'watch(() => props.userId, (newId) => { fetchUser(newId); });',
         'no-async-in-computed':
-          'Causa Raíz:\n' +
-          'Se pasó una función asíncrona a "computed(async () => ...)".\n' +
-          'El sistema de reactividad de Vue 3 no desenvuelve promesas retornadas por un computed. En su lugar, el valor del computed será un objeto "Promise<T>" no resuelto, provocando fallos de renderizado en el template.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca "computed(async () =>" en el código.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Usar "computedAsync" de la librería oficial "@vueuse/core" si se requiere derivar un estado reactivo a partir de una promesa asíncrona.\n' +
-          '2. Alternativamente, usar un "shallowRef" para el dato resuelto y cargar la promesa dentro de un "watchEffect" gestionando estados de carga y error.\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: computed devuelve Promise<UserData>\n' +
+          '1. Root Cause:\n' +
+          'An async function was passed to "computed(async () => ...)".\n' +
+          'Vue 3\'s reactivity system does not unwrap promises returned by computed getters. The computed value will be an unresolved "Promise<T>" object, breaking template rendering.\n\n' +
+          '2. Diagnosis:\n' +
+          'Search for "computed(async () =>" in the component or composable.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Use "computedAsync" from "@vueuse/core" when deriving reactive state from an asynchronous promise.\n' +
+          '2. Alternatively, use a "shallowRef" for resolved data and load the promise inside a "watchEffect" managing loading and error states.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: computed returns Promise<UserData>\n' +
           'const user = computed(async () => await api.getUser(id.value));\n\n' +
-          '// ✅ Correcto: computedAsync de VueUse\n' +
+          '// ✅ Correct: computedAsync from VueUse\n' +
           'import { computedAsync } from "@vueuse/core";\n' +
           'const user = computedAsync(async () => await api.getUser(id.value), null);',
         'no-destructured-reactive':
-          'Causa Raíz:\n' +
-          'Se desestructuró un objeto creado con "reactive()" directamente: "const { foo, bar } = reactive(...)".\n' +
-          'Al desestructurar un objeto reactivo de Vue 3, las variables resultantes se convierten en referencias a valores primitivos estáticos, perdiendo completamente su conexión reactiva con el objeto origen.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca declaraciones de asignación desestructurada a partir de una llamada a "reactive()".\n\n' +
-          'Solución Canónica:\n' +
-          '1. Envolver el objeto con "toRefs()" antes de la desestructuración: "const { foo, bar } = toRefs(state)".\n' +
-          '2. O bien, mantener el objeto reactivo intacto y acceder a sus miembros con notación de punto: "state.foo".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: foo y bar pierden la reactividad\n' +
+          '1. Root Cause:\n' +
+          'An object created with "reactive()" was destructured directly: "const { foo, bar } = reactive(...)".\n' +
+          'Destructuring a Vue 3 reactive object extracts primitive values by copy, permanently disconnecting them from the reactive proxy.\n\n' +
+          '2. Diagnosis:\n' +
+          'Look for destructuring assignments from a "reactive()" call.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Wrap the object with "toRefs()" before destructuring: "const { foo, bar } = toRefs(state)".\n' +
+          '2. Or keep the reactive object intact and access members with dot notation: "state.foo".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: foo and bar lose reactivity\n' +
           'const state = reactive({ foo: 1, bar: "test" });\n' +
           'const { foo, bar } = state;\n\n' +
-          '// ✅ Correcto: toRefs preserva la reactividad como Ref<T>\n' +
+          '// ✅ Correct: toRefs preserves reactivity as Ref<T>\n' +
           'import { reactive, toRefs } from "vue";\n' +
           'const state = reactive({ foo: 1, bar: "test" });\n' +
           'const { foo, bar } = toRefs(state);'

@@ -20,9 +20,15 @@
  *   extensions: ['../scripts/auditors/architecture/validate_render_performance.ts']
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, FileScanAuditor, createUniformRuleCapabilities, getAuditConfig, normalizePosixPath } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  getAuditConfig,
+  normalizePosixPath,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -40,27 +46,25 @@ export const RENDER_PERFORMANCE_RULES: readonly RenderPerformanceRuleId[] = [
 ] as const;
 
 export const RENDER_PERFORMANCE_DESCRIPTIONS: Record<RenderPerformanceRuleId, string> = {
-  'render-banned-mix-blend-mode': 'mix-blend-mode prohibido',
-  'render-banned-filter-in-weather': 'Filtro costoso en clima',
-  'render-excessive-atmospheric-inset': 'Inset negativo excesivo (>128px)',
-  'render-gsap-cpu-modifier': 'Modificador de CPU en loop GSAP'
+  'render-banned-mix-blend-mode': 'Forbidden mix-blend-mode on weather layer',
+  'render-banned-filter-in-weather': 'Costly CSS filter on weather layer',
+  'render-excessive-atmospheric-inset': 'Excessive negative inset (>128px)',
+  'render-gsap-cpu-modifier': 'CPU modifier in continuous GSAP loop'
 };
 
 const MAX_PERMISSIBLE_NEGATIVE_INSET_PX = 128;
 
-export interface ValidateRenderPerformanceOptions {
-  readonly projectRoot?: string;
-  readonly roots?: readonly string[];
-}
+export type ValidateRenderPerformanceOptions = FileScanRootsOptions;
 
 export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerformanceRuleId> {
   constructor(options: ValidateRenderPerformanceOptions = {}) {
     const config = getAuditConfig(options.projectRoot);
-    const effectiveRoots = options.roots ?? config.paths.stylesRoots ?? config.paths.srcRoots ?? ['src'];
+    const effectiveRoots =
+      options.roots ?? config.paths.stylesRoots ?? config.paths.srcRoots ?? ['src'];
     super({
       id: 'validate_render_performance',
       name: 'Render & GPU Performance Hygiene Validator',
-      description: 'Valida higiene GPU y blend-modes en capas de clima',
+      description: 'Validates GPU hygiene and blend-modes in weather layers',
       icon: '⚡',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(RENDER_PERFORMANCE_RULES, {
@@ -79,26 +83,31 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
         heavyEffectPaths: []
       },
       criticalConfig: {},
+      requiredPermissions: [],
       remediationPhase: 'behavior',
       usesThirdPartyTool: false,
       ruleDescriptions: RENDER_PERFORMANCE_DESCRIPTIONS,
       ruleRemediations: {
         'render-banned-mix-blend-mode':
-          'Se detectó uso de mix-blend-mode no permitido en capas de renderizado pesado.\n' +
-          '1. Sustituye mix-blend-mode por opacidades precalculadas o capas PNG/SVG optimizadas.\n' +
-          '2. Revisa la lista de excepciones en audit.config.ts si es un efecto atmosférico autorizado.',
+          '1. Root Cause: Disallowed mix-blend-mode detected on heavy continuous rendering layers.\n' +
+          '2. Diagnosis: Inspect the reported weather or atmosphere stylesheet line.\n' +
+          '3. Canonical Solution: Replace mix-blend-mode with precomputed alpha opacities or optimized SVG/PNG layers.\n' +
+          '4. Example / Command: npm run auditor',
         'render-banned-filter-in-weather':
-          'Se detectó un filtro CSS costoso (blur, drop-shadow) en elementos animados recurrentes.\n' +
-          '1. Aplica pre-renderizado en texturas o sprites.\n' +
-          '2. Utiliza transforms de GPU en lugar de filtros de rasterización continua.',
+          '1. Root Cause: Costly CSS filter (blur, drop-shadow) detected on continuously animated elements.\n' +
+          '2. Diagnosis: Inspect the reported filter declaration in weather styles.\n' +
+          '3. Canonical Solution: Pre-render textures/sprites or use GPU transforms instead of continuous raster filters.\n' +
+          '4. Example / Command: npm run auditor',
         'render-excessive-atmospheric-inset':
-          'El valor de inset negativo supera el umbral seguro de 128px provocando sobregiro de viewport.\n' +
-          '1. Reduce el margen o inset negativo a valores dentro de los límites seguros.\n' +
-          '2. Emplea transform: translate(...) en su lugar.',
+          '1. Root Cause: Negative inset exceeds the safe 128px threshold, inflating GPU compositor textures.\n' +
+          '2. Diagnosis: Inspect the inset declaration in the reported atmospheric layer.\n' +
+          '3. Canonical Solution: Clamp negative inset to <= 128px and use transform: translate(...) for motion.\n' +
+          '4. Example / Command: npm run auditor',
         'render-gsap-cpu-modifier':
-          'Se detectó un modificador GSAP que fuerza cálculos continuos en la CPU por frame.\n' +
-          '1. Migra la animación a transforms nativos de GPU (x, y, scale).\n' +
-          '2. Evita modifiers o onUpdate pesados en loops de alta frecuencia.'
+          '1. Root Cause: A GSAP modifiers callback forces per-frame CPU calculations in a continuous animation loop.\n' +
+          '2. Diagnosis: Inspect the GSAP tween configuration in the reported file.\n' +
+          '3. Canonical Solution: Migrate the animation to native GPU transforms (x, y, scale).\n' +
+          '4. Example / Command: npm run auditor'
       },
       roots: effectiveRoots,
       allowedExtensions: new Set(['.scss', '.css', '.vue', '.ts']),
@@ -111,7 +120,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     const config = getAuditConfig();
     const heavyPaths = config.styles?.heavyEffectPaths ?? [];
     const isWeatherStyle =
-      heavyPaths.some(p => normalizedPath.includes(p.replace(/^\/+|\/+$/g, ''))) ||
+      heavyPaths.some((p) => normalizedPath.includes(p.replace(/^\/+|\/+$/g, ''))) ||
       normalizedPath.includes('weather') ||
       normalizedPath.includes('atmosphere');
 
@@ -136,7 +145,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
               severity: 'error',
               file: relPath,
               line: i + 1,
-              message: `Uso prohibido de 'mix-blend-mode: ${mixBlendMatch[1]}' en capa de clima/animación. Causa framebuffer readbacks y degrada el fill-rate GPU. Usa composición alpha estándar o capas SVG.`,
+              message: `Forbidden 'mix-blend-mode: ${mixBlendMatch[1]}' on continuous weather/animation layer. Causes GPU framebuffer readbacks; use standard alpha composition or SVG layers.`,
               context: line.trim()
             });
           }
@@ -157,7 +166,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
             severity: 'error',
             file: relPath,
             line: i + 1,
-            message: `Filtro costoso ('drop-shadow' o 'blur') en estilos de clima. Forzar convolución gaussiana en GPU a 60 FPS causa tirones de fotogramas. Usa siluetas SVG multicapa o box-shadow.`,
+            message: `Costly CSS filter ('drop-shadow' or 'blur') in weather styles. Continuous Gaussian convolution at 60 FPS causes frame drops; use multi-layer SVG silhouettes or box-shadow.`,
             context: line.trim()
           });
         }
@@ -179,7 +188,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
               severity: 'error',
               file: relPath,
               line: i + 1,
-              message: `Inset negativo excesivo (-${px}px > -${MAX_PERMISSIBLE_NEGATIVE_INSET_PX}px) en capa atmosférica. Multiplica el búfer de textura por millones de píxeles innecesarios. Usa inset: -128px como máximo.`,
+              message: `Excessive negative inset (-${px}px > -${MAX_PERMISSIBLE_NEGATIVE_INSET_PX}px) on atmospheric layer. Clamp inset to -128px maximum.`,
               context: line.trim()
             });
           }
@@ -199,7 +208,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
             severity: 'error',
             file: relPath,
             line: i + 1,
-            message: `Modificador JS en GSAP ('modifiers: { ... }') ejecutado en bucle continuo de animación. Forzar cálculos en CPU cada fotograma degrada los 60 FPS. Usa transformaciones de GPU nativas con bucle modular de GSAP.`,
+            message: `GSAP JS modifier ('modifiers: { ... }') inside continuous animation loop degrades 60 FPS. Use native GPU transforms.`,
             context: line.trim()
           });
         }
@@ -208,5 +217,5 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
   }
 }
 
-// Canonical CLI Entrypoint
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateRenderPerformanceAuditor());

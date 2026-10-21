@@ -7,7 +7,13 @@
  */
 
 import path from 'node:path';
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -24,7 +30,7 @@ import type { MagicRefactorPlan } from '../core/refactor/magicContracts.ts';
 const MAX_DISPLAY_FILE_PATH_LENGTH = 42;
 
 function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): void {
-  console.log(styleText('cyan', `🔍 Escaneando archivos con números mágicos en: ${projectRoot}...\n`));
+  console.log(styleText('cyan', `Scanning files for magic numbers in: ${projectRoot}...\n`));
 
   const scannableFiles = extractor.getScannableFiles();
   const tableRows: Record<string, string>[] = [];
@@ -47,71 +53,71 @@ function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): v
   }
 
   if (tableRows.length === 0) {
-    console.log(styleText('green', '✨ ¡Cero números mágicos detectados en el espacio de trabajo!\n'));
+    console.log(styleText('green', '[OK] Zero magic numbers detected in workspace!\n'));
     return;
   }
 
   const columns: TableColumn[] = [
-    { key: 'file', header: 'Archivo', width: 44, align: 'left' },
+    { key: 'file', header: 'File', width: 44, align: 'left' },
     { key: 'count', header: 'Total', width: 8, align: 'right' },
     { key: 'zero', header: '0-Token', width: 10, align: 'right' },
-    { key: 'pending', header: 'Pendiente', width: 11, align: 'right' }
+    { key: 'pending', header: 'Pending', width: 11, align: 'right' }
   ];
 
   console.log(renderBoxTable(columns, tableRows));
   console.log(
     styleText(
       'yellow',
-      `\nTotal: ${totalFound} literales mágicos detectados en ${tableRows.length} archivo(s).`
+      `\nTotal: ${totalFound} magic literal(s) detected across ${tableRows.length} file(s).`
     )
   );
   console.log(
     styleText(
       'cyan',
-      '\n💡 Para generar el paquete Super-Dirac de un archivo:\n   npm run auditor:magic inspect <archivo>\n'
+      '\n[Notice] To generate Super-Dirac packet for a file:\n   npm run auditor:magic inspect <file>\n'
     )
   );
 }
 
 function handleInspect(projectRoot: string, extractor: MagicNumberExtractor, targetFile: string | undefined): void {
   if (!targetFile) {
-    console.error(styleText('red', '❌ Error: Debes especificar el archivo a inspeccionar: auditor:magic inspect <archivo>'));
+    console.error(styleText('red', '[Error] You must specify a file to inspect: auditor:magic inspect <file>'));
     process.exit(1);
   }
 
   const items = extractor.scanFile(projectRoot, targetFile);
   if (items.length === 0) {
-    console.log(styleText('green', `✨ No se detectaron números mágicos en: ${targetFile}`));
+    console.log(styleText('green', `[OK] No magic numbers detected in: ${targetFile}`));
     return;
   }
 
   const packet = extractor.generateSuperDiracPacket(projectRoot, targetFile, items);
 
-  console.log(styleText('cyan', `📦 Paquete Super-Dirac para: ${targetFile}`));
+  console.log(styleText('cyan', `[Dirac] Super-Dirac Packet for: ${targetFile}`));
   console.log(
     styleText(
       'gray',
-      `• Total: ${packet.totalItems} | 0-Token: ${packet.zeroTokenCount} | Pendientes: ${packet.pendingAmbiguousCount}`
+      `• Total: ${packet.totalItems} | 0-Token: ${packet.zeroTokenCount} | Pending: ${packet.pendingAmbiguousCount}`
     )
   );
   console.log(
     styleText(
       'green',
-      `• Ahorro de Tokens: ${packet.fullFileTokensBaseline} -> ${packet.superDiracBatchTokens} (${packet.tokenSavingsPercent}% ahorro)\n`
+      `• Token Savings: ${packet.fullFileTokensBaseline} -> ${packet.superDiracBatchTokens} (${packet.tokenSavingsPercent}% savings)\n`
     )
   );
 
   console.log(JSON.stringify(packet, null, 2));
 
   const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Date.now()}`, targetFile, items);
-  console.log(styleText('yellow', '\n📄 Plan declarativo sugerido listo para aplicar (--plan):\n'));
+  console.log(styleText('yellow', '\n[Plan] Suggested declarative plan ready to apply (--plan):\n'));
   console.log(JSON.stringify(suggestedPlan, null, 2));
   console.log(
     styleText(
       'cyan',
-      '\n💡 Para aplicar este plan automáticamente:\n' +
-        '   1. Guarda el JSON del plan en un archivo (ej: scratch/magic_plan.json)\n' +
-        '   2. Ejecuta: npm run auditor:magic apply scratch/magic_plan.json --worktree\n'
+      '\n[Notice] To apply this plan automatically:\n' +
+        '   1. Save the plan JSON to a file (e.g. scratch/magic_plan.json)\n' +
+        '   2. Run: npm run auditor:magic apply scratch/magic_plan.json --worktree\n'
     )
   );
 }
@@ -124,54 +130,76 @@ async function handleApply(projectRoot: string, rawPlanPath: string | undefined,
     (dir, plan) => MagicNumberHarness.execute(dir, plan),
     'auditor:magic apply <plan.json>'
   );
-  console.log(styleText('green', '\n🎉 ¡Refactorización de números mágicos aplicada exitosamente!'));
+  console.log(styleText('green', '\n[OK] Magic numbers refactoring applied successfully!'));
 }
 
-export async function runRefactorMagicCli(cliArgs: string[] = process.argv.slice(2)): Promise<void> {
-  const { values, positionals } = parseArgs({
-    args: cliArgs,
-    options: {
-      project: { type: 'string', default: process.cwd() },
-      file: { type: 'string' },
-      plan: { type: 'string' },
-      worktree: { type: 'boolean', default: false },
-      help: { type: 'boolean', short: 'h', default: false }
-    },
-    allowPositionals: true
-  });
+const REFACTOR_MAGIC_ARGS = {
+  ...COMMON_CLI_ARGS,
+  file: {
+    type: 'string',
+    description: 'Target file to inspect for magic literals'
+  },
+  plan: {
+    type: 'string',
+    description: 'Path to MagicRefactorPlan JSON file'
+  },
+  worktree: {
+    type: 'boolean',
+    default: false,
+    description: 'Execute mutations in an isolated Git worktree'
+  }
+} as const satisfies CittyArgsDef;
 
-  const command = positionals[0] || 'discover';
-  const targetArg = positionals[1] || values.file;
-  const projectRoot = path.resolve(values.project || process.cwd());
+const MAGIC_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', 'apply', 'help']); // runtime-set: O(1) subcommand lookup
 
-  if (values.help || command === 'help') {
-    renderBanner('auditor-magic', 'Gobernanza y Refactorización Determinista de Números Mágicos');
+export async function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void> {
+  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+  const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs);
+  const posList = parsed._;
+
+  const firstPos = posList[0] ? String(posList[0]) : undefined;
+  let command = 'discover';
+  let targetArg: string | undefined;
+
+  if (firstPos && MAGIC_SUBCOMMANDS.has(firstPos)) {
+    command = firstPos;
+    targetArg = (posList[1] ? String(posList[1]) : undefined) || (typeof parsed.file === 'string' ? parsed.file : undefined);
+  } else if (firstPos) {
+    command = firstPos;
+  } else {
+    targetArg = typeof parsed.file === 'string' ? parsed.file : undefined;
+  }
+
+  const projectRoot = path.resolve(String(parsed.project || process.cwd()));
+
+  if (parsed.help || command === 'help') {
+    renderBanner('auditor-magic', 'Deterministic Magic Numbers Governance & Refactoring');
     console.log(`
-Uso:
-  npm run auditor:magic [comando] [opciones]
+Usage:
+  npm run auditor:magic [command] [options]
 
-Comandos:
-  discover                  Escanea el proyecto y lista archivos con números mágicos o tokens
-  inspect <file>            Extrae el paquete tabular Super-Dirac para un archivo específico
-  apply <plan.json>         Aplica un plan de refactorización (soporta --worktree)
+Commands:
+  discover                  Scan workspace and list files with magic numbers or tokens
+  inspect <file>            Extract Super-Dirac packet for a specific file
+  apply <plan.json>         Apply refactor plan (supports --worktree)
 
-Opciones:
-  --project <path>          Ruta al proyecto anfitrión (por defecto: cwd)
-  --plan <path>             Ruta al archivo MagicRefactorPlan JSON
-  --worktree                Ejecuta la mutación y verificación en un Git Worktree efímero
-  -h, --help                Muestra este manual de ayuda
+Options:
+  --project <path>          Path to target project root (default: cwd)
+  --plan <path>             Path to MagicRefactorPlan JSON
+  --worktree                Execute mutations in ephemeral Git Worktree
+  -h, --help                Show this help manual
 `);
     return;
   }
 
-  renderBanner('auditor-magic', 'Gobernanza y Refactorización Determinista de Números Mágicos');
+  renderBanner('auditor-magic', 'Deterministic Magic Numbers Governance & Refactoring');
   const extractor = new MagicNumberExtractor({ projectRoot });
 
   if (!extractor.isToolEnabled()) {
     console.log(
       styleText(
         'yellow',
-        `\n⚠️  El subsistema 'auditor-magic' (constants) está desactivado en .auditor/audit.config.ts.\n`
+        `\n[Warning] Tool 'auditor-magic' (constants) is disabled in .auditor/audit.config.ts.\n`
       )
     );
     return;
@@ -187,17 +215,21 @@ Opciones:
       handleInspect(projectRoot, extractor, targetArg);
       break;
     case 'apply':
-      await handleApply(projectRoot, targetArg || (typeof values.plan === 'string' ? values.plan : undefined), Boolean(values.worktree));
+      await handleApply(
+        projectRoot,
+        targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined),
+        Boolean(parsed.worktree)
+      );
       break;
     default:
-      console.error(styleText('red', `❌ Comando desconocido: ${command}`));
+      console.error(styleText('red', `[Error] Unknown command: ${command}`));
       process.exit(1);
   }
 }
 
 if (isMainModule(import.meta.url, ['auditor-magic', 'refactor_magic'])) {
   runRefactorMagicCli().catch((err) => {
-    console.error('\n❌ Error fatal en auditor-magic:', err);
+    console.error('\n[Error] Fatal error in auditor-magic:', err);
     process.exit(1);
   });
 }

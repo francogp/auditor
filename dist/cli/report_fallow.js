@@ -3,6 +3,7 @@ import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
 import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
@@ -12,7 +13,7 @@ import { runGuardReport } from "./report_guard.js";
 import { runFlagsReport } from "./report_flags.js";
 import path from "node:path";
 import fs from "node:fs";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import { execSync } from "node:child_process";
 //#region src/cli/report_fallow.ts
 /**
@@ -45,51 +46,42 @@ const VALID_CATEGORY_ALIASES = /* @__PURE__ */ new Set([
 	"viz",
 	"all"
 ]);
-function parsePositionalOption(pos, currentCategory) {
-	if (pos.startsWith("category=")) {
-		const part = pos.split("=")[1];
-		return { category: part !== void 0 ? part.toLowerCase() : "" };
+const FALLOW_REPORT_ARGS = {
+	...COMMON_CLI_ARGS,
+	category: {
+		type: "string",
+		description: "Fallow analysis category"
+	},
+	top: {
+		type: "string",
+		default: "20",
+		description: "Maximum items to display"
+	},
+	retirement: {
+		type: "boolean",
+		default: false,
+		description: "Show retirement candidates for flags"
 	}
-	if (pos.startsWith("top=")) {
-		const rawTop = pos.split("=")[1] || "20";
-		return { top: rawTop === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT };
-	}
-	if (pos === "json") return { json: true };
-	if (!currentCategory) {
-		const cleanPos = pos.toLowerCase();
-		if (VALID_CATEGORY_ALIASES.has(cleanPos)) return { category: cleanPos };
-	}
-	return {};
-}
+};
 function parseCommandLineArgs() {
-	const { values, positionals } = parseArgs({
-		options: {
-			category: { type: "string" },
-			top: {
-				type: "string",
-				default: "20"
-			},
-			json: {
-				type: "boolean",
-				default: false
-			}
-		},
-		strict: false,
-		allowPositionals: true
-	});
-	let category = typeof values.category === "string" ? values.category.toLowerCase() : "";
-	let top = parseInt(values.top, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-	let jsonOutput = Boolean(values.json);
+	const parsed = parseCittyArgs(FALLOW_REPORT_ARGS, getProcessCliArgs());
+	const positionals = parsed._.map(String);
+	let category = typeof parsed.category === "string" ? parsed.category.toLowerCase() : "";
+	const rawTopStr = String(parsed.top || "20");
+	let top = rawTopStr === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTopStr, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
+	let jsonOutput = Boolean(parsed.json);
+	let human = resolveHumanModeFromArgs(parsed);
 	for (const pos of positionals) {
-		const parsed = parsePositionalOption(pos, category);
-		if (parsed.category !== void 0) category = parsed.category;
-		if (parsed.top !== void 0) top = parsed.top;
-		if (parsed.json !== void 0) jsonOutput = parsed.json;
+		const cleanPos = pos.toLowerCase();
+		if (!category && VALID_CATEGORY_ALIASES.has(cleanPos)) category = cleanPos;
 	}
 	return {
 		category: category.length > 0 ? category : "all",
 		top,
-		jsonOutput
+		jsonOutput,
+		human,
+		retirement: Boolean(parsed.retirement),
+		positionals
 	};
 }
 function runFallowCommand(command, extraArgs = []) {
@@ -122,7 +114,7 @@ function runFallowCommand(command, extraArgs = []) {
 		return parseJsonObjectOutput(e);
 	}
 }
-function reportDupes(top, json) {
+function reportDupes(top, json, human = false) {
 	const groups = runFallowCommand("dupes")?.clone_groups || [];
 	if (json) {
 		console.log(JSON.stringify({
@@ -131,12 +123,20 @@ function reportDupes(top, json) {
 		}, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("DUPLICACIÓN Y TRIPLICACIÓN DE CÓDIGO (FALLOW)", `Grupos detectados: ${groups.length}`));
-	if (groups.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! No se encontraron bloques de código duplicado ni triplicado.\n"));
+	if (!human) {
+		console.log(`[Fallow] Clone groups: ${groups.length}`);
+		for (const g of groups.slice(0, top)) {
+			const locs = (g.instances || []).map((i) => `${path.basename(i.path || i.file || "")}:${i.start_line || i.line || 0}`).join(", ");
+			console.log(`  [Clone] tokens=${g.token_count || g.duplicated_tokens || 0} locations=${locs}`);
+		}
 		return;
 	}
-	console.log(`\n🔥 TOP ${Math.min(top, groups.length)} GRUPOS DUPLICADOS:\n`);
+	console.log("\n" + renderBanner("CODE DUPLICATION & CLONES (FALLOW)", `Detected groups: ${groups.length}`));
+	if (groups.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] Zero duplicate code blocks found.\n"));
+		return;
+	}
+	console.log(`\n[Notice] Top ${Math.min(top, groups.length)} duplicate groups:\n`);
 	const dupeCols = [
 		{
 			header: "#",
@@ -145,7 +145,7 @@ function reportDupes(top, json) {
 			key: "index"
 		},
 		{
-			header: "TIPO",
+			header: "TYPE",
 			width: 14,
 			align: "center",
 			key: "type"
@@ -157,7 +157,7 @@ function reportDupes(top, json) {
 			key: "tokens"
 		},
 		{
-			header: "UBICACIONES DE CÓDIGO CLONADO",
+			header: "CLONED CODE LOCATIONS",
 			width: 41,
 			align: "left",
 			key: "locations"
@@ -166,7 +166,7 @@ function reportDupes(top, json) {
 	const dupeRows = groups.slice(0, top).map((g, idx) => {
 		const tokens = g.token_count || g.duplicated_tokens || 0;
 		const instances = g.instances || [];
-		const typeLabel = instances.length >= 3 ? styleText("yellow", "TRIPLICADO ⚠️") : styleText("cyan", "DUPLICADO");
+		const typeLabel = instances.length >= 3 ? styleText("yellow", "TRIPLICATE") : styleText("cyan", "DUPLICATE");
 		const locs = instances.map((i) => `${path.basename(i.path || i.file || "")}:${i.start_line || i.line || 0}`).join(", ");
 		return {
 			index: String(idx + 1),
@@ -178,7 +178,7 @@ function reportDupes(top, json) {
 	console.log(renderBoxTable(dupeCols, dupeRows));
 	console.log("");
 }
-function reportSecurity(top, json) {
+function reportSecurity(top, json, human = false) {
 	const rawFindings = runFallowCommand("security")?.security_findings || [];
 	const config = getAuditConfig();
 	const findings = rawFindings.filter((f) => {
@@ -192,12 +192,17 @@ function reportSecurity(top, json) {
 		}, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("SEGURIDAD Y VULNERABILIDADES CWE (FALLOW)", `Hallazgos en código fuente: ${findings.length}`));
-	if (findings.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! 0 vulnerabilidades de seguridad CWE detectadas en código fuente.\n"));
+	if (!human) {
+		console.log(`[Fallow] Security findings: ${findings.length}`);
+		for (const f of findings.slice(0, top)) console.log(`  [Security] ${f.path}:${f.line} [CWE-${f.cwe || "?"}] ${f.evidence || f.kind || ""}`);
 		return;
 	}
-	console.log(`\n🔥 TOP ${Math.min(top, findings.length)} HALLAZGOS CWE:\n`);
+	console.log("\n" + renderBanner("SECURITY & CWE VULNERABILITIES (FALLOW)", `Source code findings: ${findings.length}`));
+	if (findings.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 security vulnerabilities detected in source code.\n"));
+		return;
+	}
+	console.log(`\n[Notice] Top ${Math.min(top, findings.length)} CWE findings:\n`);
 	const secCols = [
 		{
 			header: "#",
@@ -212,13 +217,13 @@ function reportSecurity(top, json) {
 			key: "cwe"
 		},
 		{
-			header: "UBICACIÓN",
+			header: "LOCATION",
 			width: 25,
 			align: "left",
 			key: "location"
 		},
 		{
-			header: "DESCRIPCIÓN",
+			header: "DESCRIPTION",
 			width: 29,
 			align: "left",
 			key: "description"
@@ -316,19 +321,19 @@ function renderDeadCodeJson(report, top) {
 function renderDeadCodeSummaryTable(report) {
 	const deadCodeCols = [
 		{
-			header: "CATEGORÍA / TIPO DE HALLAZGO",
+			header: "CATEGORY / FINDING TYPE",
 			width: 49,
 			align: "left",
 			key: "category"
 		},
 		{
-			header: "INCIDENCIAS",
+			header: "FINDINGS",
 			width: 13,
 			align: "right",
 			key: "count"
 		},
 		{
-			header: "ESTADO",
+			header: "STATUS",
 			width: 8,
 			align: "center",
 			key: "status"
@@ -336,155 +341,171 @@ function renderDeadCodeSummaryTable(report) {
 	];
 	const deadCodeRows = [
 		{
-			category: "Dependencias circulares",
+			category: "Circular dependencies",
 			count: String(report.circular.length),
-			status: report.circular.length === 0 ? "✅" : "❌"
+			status: report.circular.length === 0 ? styleText("green", "OK") : styleText("red", "FAIL")
 		},
 		{
-			category: "Límites arquitectónicos",
+			category: "Architectural boundaries",
 			count: String(report.boundaryViolations.length),
-			status: report.boundaryViolations.length === 0 ? "✅" : "❌"
+			status: report.boundaryViolations.length === 0 ? styleText("green", "OK") : styleText("red", "FAIL")
 		},
 		{
-			category: "Archivos huérfanos",
+			category: "Orphan files",
 			count: String(report.unusedFiles.length),
-			status: report.unusedFiles.length === 0 ? "✅" : "❌"
+			status: report.unusedFiles.length === 0 ? styleText("green", "OK") : styleText("red", "FAIL")
 		},
 		{
-			category: "Imports no resueltos",
+			category: "Unresolved imports",
 			count: String(report.unresolvedImports.length),
-			status: report.unresolvedImports.length === 0 ? "✅" : "⚠️"
+			status: report.unresolvedImports.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Dependencias no usadas",
+			category: "Unused dependencies",
 			count: String(report.unusedDeps.length),
-			status: report.unusedDeps.length === 0 ? "✅" : "⚠️"
+			status: report.unusedDeps.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Exports de valor no usados",
+			category: "Unused value exports",
 			count: String(report.unusedExports.length),
-			status: report.unusedExports.length === 0 ? "✅" : "⚠️"
+			status: report.unusedExports.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Miembros de Store no usados",
+			category: "Unused store members",
 			count: String(report.unusedStoreMembers.length),
-			status: report.unusedStoreMembers.length === 0 ? "✅" : "⚠️"
+			status: report.unusedStoreMembers.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Miembros de Clase no usados",
+			category: "Unused class members",
 			count: String(report.unusedClassMembers.length),
-			status: report.unusedClassMembers.length === 0 ? "✅" : "⚠️"
+			status: report.unusedClassMembers.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Tipos exportados no usados",
+			category: "Unused exported types",
 			count: String(report.unusedTypes.length),
-			status: report.unusedTypes.length === 0 ? "✅" : "⚠️"
+			status: report.unusedTypes.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Dependencias no listadas",
+			category: "Unlisted dependencies",
 			count: String(report.unlistedDeps.length),
-			status: report.unlistedDeps.length === 0 ? "✅" : "⚠️"
+			status: report.unlistedDeps.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Exports duplicados",
+			category: "Duplicate exports",
 			count: String(report.duplicateExports.length),
-			status: report.duplicateExports.length === 0 ? "✅" : "⚠️"
+			status: report.duplicateExports.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Emits de componentes (Vue)",
+			category: "Component emits (Vue)",
 			count: String(report.unusedEmits.length),
-			status: report.unusedEmits.length === 0 ? "✅" : "⚠️"
+			status: report.unusedEmits.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Props no usados (Vue SFC)",
+			category: "Unused props (Vue SFC)",
 			count: String(report.unusedProps.length),
-			status: report.unusedProps.length === 0 ? "✅" : "⚠️"
+			status: report.unusedProps.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Componentes no renderizados",
+			category: "Unrendered components",
 			count: String(report.unrenderedComponents.length),
-			status: report.unrenderedComponents.length === 0 ? "✅" : "⚠️"
+			status: report.unrenderedComponents.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		},
 		{
-			category: "Inyecciones no provistas",
+			category: "Unprovided injections",
 			count: String(report.unprovidedInjects.length),
-			status: report.unprovidedInjects.length === 0 ? "✅" : "⚠️"
+			status: report.unprovidedInjects.length === 0 ? styleText("green", "OK") : styleText("yellow", "WARN")
 		}
 	];
 	console.log("\n" + renderBoxTable(deadCodeCols, deadCodeRows));
 }
 function printDeadCodeStructural(report, top) {
 	if (report.boundaryViolations.length > 0) {
-		console.log("\n🚨 Violaciones de Límites Arquitectónicos:");
+		console.log("\n[FAIL] Architectural Boundary Violations:");
 		report.boundaryViolations.forEach((b, idx) => {
-			console.log(`  [${idx + 1}] '${b.from_zone}' -> '${b.to_zone}' en ${b.from_path}:${b.line}`);
+			console.log(`  [${idx + 1}] '${b.from_zone}' -> '${b.to_zone}' in ${b.from_path}:${b.line}`);
 			console.log(`       Import: ${b.import_specifier || b.to_path}`);
 		});
 	}
 	if (report.circular.length > 0) {
-		console.log("\n🔄 Dependencias Circulares Críticas:");
+		console.log("\n[FAIL] Critical Circular Dependencies:");
 		printCircularCycles(report.circular);
 	}
 	if (report.unusedFiles.length > 0) {
-		console.log(`\n🗑️ Archivos Huérfanos (${report.unusedFiles.length}):`);
+		console.log(`\n[WARN] Orphan Files (${report.unusedFiles.length}):`);
 		report.unusedFiles.slice(0, top).forEach((f, idx) => console.log(`  [${idx + 1}] ${f.path}`));
 	}
 	if (report.unusedDeps.length > 0) {
-		console.log(`\n📦 Dependencias de package.json no usadas (${report.unusedDeps.length}):`);
+		console.log(`\n[WARN] Unused package.json Dependencies (${report.unusedDeps.length}):`);
 		report.unusedDeps.forEach((d) => console.log(`  • ${d.package_name}`));
 	}
 	if (report.duplicateExports.length > 0) {
-		console.log(`\n📤 Exports Duplicados (${report.duplicateExports.length}):`);
+		console.log(`\n[WARN] Duplicate Exports (${report.duplicateExports.length}):`);
 		report.duplicateExports.forEach((d, idx) => {
 			const locs = d.locations?.map((l) => `${l.path}:${l.line}`).join(", ") || "";
-			console.log(`  [${idx + 1}] '${d.export_name}' en: ${locs}`);
+			console.log(`  [${idx + 1}] '${d.export_name}' in: ${locs}`);
 		});
 	}
 	if (report.unlistedDeps.length > 0) {
-		console.log(`\n📦 Dependencias No Listadas en package.json (${report.unlistedDeps.length}):`);
+		console.log(`\n[FAIL] Unlisted Dependencies in package.json (${report.unlistedDeps.length}):`);
 		report.unlistedDeps.forEach((d, idx) => {
-			const firstLoc = d.imported_from?.[0] ? ` (importada en ${d.imported_from[0].path}:${d.imported_from[0].line})` : "";
+			const firstLoc = d.imported_from?.[0] ? ` (imported in ${d.imported_from[0].path}:${d.imported_from[0].line})` : "";
 			console.log(`  [${idx + 1}] '${d.package_name}'${firstLoc}`);
 		});
 	}
 }
 function printDeadCodeSymbols(report, top) {
 	if (report.unusedEmits.length > 0) {
-		console.log(`\n🔔 Emits de Componente No Usados (${report.unusedEmits.length}):`);
+		console.log(`\n[INFO] Unused Component Emits (${report.unusedEmits.length}):`);
 		report.unusedEmits.forEach((e, idx) => {
 			console.log(`  [${idx + 1}] ${e.path}:${e.line} -> '${e.component_name}' emit '${e.emit_name}'`);
 		});
 	}
 	if (report.unusedStoreMembers.length > 0) {
-		console.log(`\n🏬 Top Miembros de Store No Usados (${Math.min(top, report.unusedStoreMembers.length)} de ${report.unusedStoreMembers.length}):`);
+		console.log(`\n[INFO] Top Unused Store Members (${Math.min(top, report.unusedStoreMembers.length)} of ${report.unusedStoreMembers.length}):`);
 		report.unusedStoreMembers.slice(0, top).forEach((sm, idx) => console.log(`  [${idx + 1}] ${sm.path}:${sm.line} -> ${sm.parent_name}.${sm.member_name}`));
 	}
 	if (report.unusedClassMembers.length > 0) {
-		console.log(`\n🏛️ Top Miembros de Clase No Usados (${Math.min(top, report.unusedClassMembers.length)} de ${report.unusedClassMembers.length}):`);
+		console.log(`\n[INFO] Top Unused Class Members (${Math.min(top, report.unusedClassMembers.length)} of ${report.unusedClassMembers.length}):`);
 		report.unusedClassMembers.slice(0, top).forEach((cm, idx) => console.log(`  [${idx + 1}] ${cm.path}:${cm.line} -> ${cm.parent_name}.${cm.member_name}`));
 	}
 	if (report.unusedTypes.length > 0) {
-		console.log(`\n🏷️ Top Tipos Exportados No Usados (${Math.min(top, report.unusedTypes.length)} de ${report.unusedTypes.length}):`);
+		console.log(`\n[INFO] Top Unused Exported Types (${Math.min(top, report.unusedTypes.length)} of ${report.unusedTypes.length}):`);
 		report.unusedTypes.slice(0, top).forEach((ut, idx) => console.log(`  [${idx + 1}] ${ut.path}:${ut.line} -> type '${ut.export_name}'`));
 	}
 	if (report.unusedExports.length > 0) {
-		console.log(`\n📤 Top Exports de Valor No Usados (${Math.min(top, report.unusedExports.length)} de ${report.unusedExports.length}):`);
+		console.log(`\n[INFO] Top Unused Value Exports (${Math.min(top, report.unusedExports.length)} of ${report.unusedExports.length}):`);
 		report.unusedExports.slice(0, top).forEach((x, idx) => console.log(`  [${idx + 1}] ${x.path}:${x.line} -> export '${x.export_name}'`));
 	}
 }
-function reportDeadCode(top, json) {
+function reportDeadCode(top, json, human = false) {
 	const report = parseDeadCodeReportData(runFallowCommand("dead-code"));
 	if (json) {
 		renderDeadCodeJson(report, top);
 		return;
 	}
-	console.log("\n" + renderBanner("CÓDIGO MUERTO Y DEPENDENCIAS (FALLOW)", `Total de incidencias: ${report.totalGranular}`));
+	if (!human) {
+		console.log(`[Fallow] Dead code findings: ${report.totalGranular} (circular: ${report.circular.length}, boundaries: ${report.boundaryViolations.length}, orphan files: ${report.unusedFiles.length}, unused exports: ${report.unusedExports.length})`);
+		if (report.boundaryViolations.length > 0) {
+			console.log(`  [Boundaries] ${report.boundaryViolations.length} boundary violation(s):`);
+			for (const b of report.boundaryViolations.slice(0, top)) console.log(`    • ${b.from_zone} -> ${b.to_zone} in ${b.from_path}:${b.line}`);
+		}
+		if (report.circular.length > 0) {
+			console.log(`  [Circular] ${report.circular.length} cycle(s):`);
+			for (const c of report.circular.slice(0, top)) console.log(`    • ${(c.files || c.cycle || []).join(" -> ")}`);
+		}
+		if (report.unusedFiles.length > 0) {
+			console.log(`  [Orphans] ${report.unusedFiles.length} orphan file(s):`);
+			for (const f of report.unusedFiles.slice(0, top)) console.log(`    • ${f.path}`);
+		}
+		return;
+	}
+	console.log("\n" + renderBanner("DEAD CODE & DEPENDENCIES (FALLOW)", `Total findings: ${report.totalGranular}`));
 	renderDeadCodeSummaryTable(report);
 	printDeadCodeStructural(report, top);
 	printDeadCodeSymbols(report, top);
 	console.log("");
 }
-function reportCircular(json) {
+function reportCircular(json, human = false) {
 	const circular = runFallowCommand("dead-code", ["--circular-deps"])?.circular_dependencies || [];
 	if (json) {
 		console.log(JSON.stringify({
@@ -493,16 +514,21 @@ function reportCircular(json) {
 		}, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("DEPENDENCIAS CIRCULARES (FALLOW)", `Ciclos detectados: ${circular.length}`));
-	if (circular.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! No se detectaron dependencias circulares en el proyecto.\n"));
+	if (!human) {
+		console.log(`[Fallow] Circular dependencies: ${circular.length}`);
+		for (const c of circular) console.log(`  [Circular] ${(c.files || c.cycle || []).join(" -> ")}`);
 		return;
 	}
-	console.log("\n🔄 Ciclos Detectados:\n");
+	console.log("\n" + renderBanner("CIRCULAR DEPENDENCIES (FALLOW)", `Detected cycles: ${circular.length}`));
+	if (circular.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] Zero circular dependencies detected in the project.\n"));
+		return;
+	}
+	console.log("\n[Notice] Detected cycles:\n");
 	printCircularCycles(circular);
 	console.log("");
 }
-function reportExports(top, json) {
+function reportExports(top, json, human = false) {
 	const unusedExports = runFallowCommand("dead-code", ["--unused-exports"])?.unused_exports || [];
 	if (json) {
 		console.log(JSON.stringify({
@@ -511,13 +537,18 @@ function reportExports(top, json) {
 		}, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("EXPORTS NO USADOS (FALLOW)", `Total sin uso: ${unusedExports.length}`));
+	if (!human) {
+		console.log(`[Fallow] Unused exports: ${unusedExports.length}`);
+		for (const x of unusedExports.slice(0, top)) console.log(`  [Export] ${x.path}:${x.line} -> ${x.export_name}`);
+		return;
+	}
+	console.log("\n" + renderBanner("UNUSED EXPORTS (FALLOW)", `Total unused: ${unusedExports.length}`));
 	if (unusedExports.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! 0 exports sin uso detectados.\n"));
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 unused exports detected.\n"));
 		return;
 	}
 	const showCount = Math.min(top, unusedExports.length);
-	console.log(`\n📤 Top Exports No Usados (${showCount} de ${unusedExports.length}):\n`);
+	console.log(`\n[Notice] Top Unused Exports (${showCount} of ${unusedExports.length}):\n`);
 	const expCols = [
 		{
 			header: "#",
@@ -526,13 +557,13 @@ function reportExports(top, json) {
 			key: "index"
 		},
 		{
-			header: "EXPORTACIÓN SIN USO",
+			header: "UNUSED EXPORT",
 			width: 28,
 			align: "left",
 			key: "exportName"
 		},
 		{
-			header: "UBICACIÓN EN CÓDIGO",
+			header: "CODE LOCATION",
 			width: 39,
 			align: "left",
 			key: "location"
@@ -546,7 +577,7 @@ function reportExports(top, json) {
 	console.log(renderBoxTable(expCols, expRows));
 	console.log("");
 }
-function reportBoundaries(json) {
+function reportBoundaries(json, human = false) {
 	const boundaries = runFallowCommand("dead-code")?.boundary_violations || [];
 	if (json) {
 		console.log(JSON.stringify({
@@ -555,12 +586,17 @@ function reportBoundaries(json) {
 		}, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("LÍMITES ARQUITECTÓNICOS (FALLOW)", `Violaciones detectadas: ${boundaries.length}`));
-	if (boundaries.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! 0 violaciones de límites arquitectónicos. La arquitectura está 100% aislada.\n"));
+	if (!human) {
+		console.log(`[Fallow] Architectural boundary violations: ${boundaries.length}`);
+		for (const b of boundaries) console.log(`  [Boundary] ${b.from_zone} -> ${b.to_zone} in ${b.from_path}:${b.line} (${b.import_specifier || b.to_path})`);
 		return;
 	}
-	console.log("\n🚨 VIOLACIONES DETECTADAS:\n");
+	console.log("\n" + renderBanner("ARCHITECTURAL BOUNDARIES (FALLOW)", `Violations detected: ${boundaries.length}`));
+	if (boundaries.length === 0) {
+		console.log("\n  " + styleText(["bold", "green"], "[OK] 0 architectural boundary violations. Layer architecture is 100% isolated.\n"));
+		return;
+	}
+	console.log("\n[Notice] Detected violations:\n");
 	const bndCols = [
 		{
 			header: "#",
@@ -569,13 +605,13 @@ function reportBoundaries(json) {
 			key: "index"
 		},
 		{
-			header: "TRANSICIÓN ENTRE CAPAS",
+			header: "LAYER TRANSITION",
 			width: 28,
 			align: "left",
 			key: "transition"
 		},
 		{
-			header: "UBICACIÓN EN CÓDIGO",
+			header: "CODE LOCATION",
 			width: 39,
 			align: "left",
 			key: "location"
@@ -653,93 +689,100 @@ function printJsonSummary(m) {
 		security: { findings: m.securityCount }
 	}, null, 2));
 }
-function printTableSummary(m) {
+function printTableSummary(m, human = false) {
 	const maintStr = m.maintainability > 0 ? `${m.maintainability.toFixed(1)} / 100` : "-";
-	console.log("\n" + renderBanner("DASHBOARD DE INTELIGENCIA DE CÓDIGO (FALLOW)", `Índice de Mantenibilidad: ${maintStr}`));
+	if (!human) {
+		console.log(`[Fallow] Maintainability: ${maintStr} | Quality Indicators: ${m.totalWarnings}`);
+		console.log(`  • Complexity: ${m.complexityCount} hotspots | Large functions: ${m.largeCount} | Refactor targets: ${m.targetsCount} | Churn: ${m.hotspotsCount}`);
+		console.log(`  • Dead code: ${m.unusedFilesCount} orphan files | ${m.unusedExportsCount} unused exports | ${m.unusedDepsCount} unused deps`);
+		console.log(`  • Architecture: ${m.boundaryCount} boundary violations | ${m.circularCount} circular deps | ${m.dupeGroupsCount} clone groups | ${m.securityCount} security findings`);
+		return;
+	}
+	console.log("\n" + renderBanner("CODEBASE INTELLIGENCE DASHBOARD (FALLOW)", `Maintainability Index: ${maintStr}`));
 	const sumCols = [{
-		header: "MÉTRICA / INDICADOR DE PROYECTO",
+		header: "PROJECT METRIC / INDICATOR",
 		width: 56,
 		align: "left",
 		key: "metric"
 	}, {
-		header: "VALOR",
+		header: "VALUE",
 		width: 14,
 		align: "right",
 		key: "value"
 	}];
 	const sumRows = [
 		{
-			metric: "Índice de mantenibilidad del código (Fallow)",
+			metric: "Code maintainability index (Fallow)",
 			value: maintStr
 		},
 		{
-			metric: "Funciones con alta complejidad (cognitiva/ciclomática)",
+			metric: "High complexity functions (cognitive/cyclomatic)",
 			value: String(m.complexityCount)
 		},
 		{
-			metric: "Funciones de gran tamaño (>60 LOC)",
+			metric: "Large functions (>60 LOC)",
 			value: String(m.largeCount)
 		},
 		{
-			metric: "Archivos con alta rotación / churn hotspots",
+			metric: "Files with high churn / change hotspots",
 			value: String(m.hotspotsCount)
 		},
 		{
-			metric: "Objetivos de refactorización recomendados",
+			metric: "Recommended refactoring targets",
 			value: String(m.targetsCount)
 		},
 		{
-			metric: "Archivos huérfanos / no alcanzados",
+			metric: "Orphan / unreachable files",
 			value: String(m.unusedFilesCount)
 		},
 		{
-			metric: "Exportaciones de valor no usadas",
+			metric: "Unused value exports",
 			value: String(m.unusedExportsCount)
 		},
 		{
-			metric: "Imports no resueltos",
+			metric: "Unresolved imports",
 			value: String(m.unresolvedImportsCount)
 		},
 		{
-			metric: "Dependencias de package.json no usadas",
+			metric: "Unused package.json dependencies",
 			value: String(m.unusedDepsCount)
 		},
 		{
-			metric: "Dependencias circulares críticas",
+			metric: "Critical circular dependencies",
 			value: String(m.circularCount)
 		},
 		{
-			metric: "Violaciones de límites arquitectónicos",
+			metric: "Architectural boundary violations",
 			value: String(m.boundaryCount)
 		},
 		{
-			metric: "Bloques de código duplicados / clonados",
+			metric: "Duplicated / cloned code blocks",
 			value: String(m.dupeGroupsCount)
 		},
 		{
-			metric: "Candidatos de seguridad (CWE en src/)",
+			metric: "Security candidates (CWE in src/)",
 			value: String(m.securityCount)
 		}
 	];
 	console.log("\n" + renderBoxTable(sumCols, sumRows));
-	console.log("\n🛠️ COMANDOS DISPONIBLES EN NPM:");
+	console.log("\nAVAILABLE COMMANDS IN NPM:");
 	console.log("─────────────────────────────────────────────────────────────────────────────");
-	console.log("  • npm run auditor:complexity         → Reporte de complejidad ciclomática/cognitiva");
-	console.log("  • npm run auditor:fallow:dupes       → Detección de bloques de código clonados");
-	console.log("  • npm run auditor:fallow:circular    → Detección de dependencias circulares");
-	console.log("  • npm run auditor:fallow:exports     → Detección de exports no usados");
-	console.log("  • npm run auditor:fallow:security    → Auditoría de seguridad y CWE");
-	console.log("  • npm run auditor:fallow:dead-code   → Detección de código muerto y dependencias");
-	console.log("  • npm run auditor:fallow:boundaries  → Auditoría de límites arquitectónicos");
-	console.log("  • npm run auditor                    → Suite de auditoría unificada");
+	console.log("  • npm run auditor:complexity         → Cyclomatic and cognitive complexity report");
+	console.log("  • npm run auditor:fallow:dupes       → Cloned code detection");
+	console.log("  • npm run auditor:fallow:circular    → Circular dependency detection");
+	console.log("  • npm run auditor:fallow:exports     → Unused exports detection");
+	console.log("  • npm run auditor:fallow:security    → Security and CWE audit");
+	console.log("  • npm run auditor:fallow:dead-code   → Dead code and dependencies detection");
+	console.log("  • npm run auditor:fallow:boundaries  → Architectural boundaries audit");
+	console.log("  • npm run auditor                    → Unified audit suite");
 	console.log("─────────────────────────────────────────────────────────────────────────────\n");
 }
-function reportAllSummary(json) {
+function reportAllSummary(json, human = false) {
 	const metrics = collectSummaryMetrics();
 	if (json) printJsonSummary(metrics);
-	else printTableSummary(metrics);
+	else printTableSummary(metrics, human);
 }
-function reportCoverageGaps(top, json) {
+function reportCoverageGaps(top, json, human = false) {
 	const rawGaps = runFallowCommand("health", ["--coverage-gaps"])?.coverage_gaps;
 	const isArray = Array.isArray(rawGaps);
 	const gaps = isArray ? rawGaps : rawGaps?.exports ?? [];
@@ -752,16 +795,21 @@ function reportCoverageGaps(top, json) {
 		}, null, 2));
 		return;
 	}
-	const subtitle = summary?.file_coverage_pct !== void 0 ? `Cobertura: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} archivos) • Brechas: ${gaps.length}` : `Exports alcanzables sin test: ${gaps.length}`;
-	console.log("\n" + renderBanner("BRECHAS DE COBERTURA DE TESTS (FALLOW COVERAGE GAPS)", subtitle));
+	if (!human) {
+		console.log(`[Fallow] Coverage gaps: ${gaps.length}`);
+		for (const g of gaps.slice(0, top)) console.log(`  [Gap] ${g.path || "General"}:${g.line || 1} -> ${g.export_name || "export"} (${g.actions?.[0]?.note || "Runtime export without test references"})`);
+		return;
+	}
+	const subtitle = summary?.file_coverage_pct !== void 0 ? `Coverage: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} files) • Gaps: ${gaps.length}` : `Reachable exports without tests: ${gaps.length}`;
+	console.log("\n" + renderBanner("TEST COVERAGE GAPS (FALLOW COVERAGE GAPS)", subtitle));
 	if (gaps.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! No se detectaron brechas de cobertura en exports alcanzables.\n"));
+		console.log("\n  " + styleText(["bold", "green"], "[OK] No coverage gaps detected in reachable exports.\n"));
 		return;
 	}
 	const rows = gaps.slice(0, top).map((item, idx) => {
 		const loc = `${item.path || "General"}:${item.line || 1}`;
 		const name = styleText("cyan", item.export_name || "export");
-		const note = item.actions?.[0]?.note || "Export en runtime sin referencias desde tests";
+		const note = item.actions?.[0]?.note || "Runtime export without test references";
 		return {
 			index: String(idx + 1),
 			location: loc,
@@ -777,19 +825,19 @@ function reportCoverageGaps(top, json) {
 			key: "index"
 		},
 		{
-			header: "UBICACIÓN",
+			header: "LOCATION",
 			width: 38,
 			align: "left",
 			key: "location"
 		},
 		{
-			header: "SÍMBOLO / EXPORT",
+			header: "SYMBOL / EXPORT",
 			width: 24,
 			align: "left",
 			key: "name"
 		},
 		{
-			header: "ESTADO DE COBERTURA",
+			header: "COVERAGE STATUS",
 			width: 44,
 			align: "left",
 			key: "note"
@@ -802,7 +850,7 @@ function executeComplexityReport(jsonOutput) {
 	const compScript = path.resolve(currentDir, "report_complexity.ts");
 	execSync(`node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process "${compScript}" ${jsonOutput ? "json" : ""}`, { stdio: "inherit" });
 }
-function reportSuppressions(top, json) {
+function reportSuppressions(top, json, human = false) {
 	const data = runFallowCommand("suppressions");
 	const files = data?.files ?? [];
 	const summary = data?.summary;
@@ -819,10 +867,15 @@ function reportSuppressions(top, json) {
 		}, null, 2));
 		return;
 	}
-	const sub = summary ? `Total: ${summary.total ?? flattened.length} • Sin justificación: ${summary.without_reason ?? 0} • Obsoletas: ${summary.stale ?? 0}` : `Total: ${flattened.length}`;
-	console.log("\n" + renderBanner("INVENTARIO DE SUPRESIONES ACTIVAS (FALLOW SUPPRESSIONS)", sub));
+	if (!human) {
+		console.log(`[Fallow] Active suppressions: ${flattened.length} (unjustified: ${summary?.without_reason ?? 0}, stale: ${summary?.stale ?? 0})`);
+		for (const item of flattened.slice(0, top)) console.log(`  [Suppression] ${item.path}:${item.suppression.line} [${item.suppression.kind}] reason: ${item.suppression.reason || "unjustified"}`);
+		return;
+	}
+	const sub = summary ? `Total: ${summary.total ?? flattened.length} • Without justification: ${summary.without_reason ?? 0} • Stale: ${summary.stale ?? 0}` : `Total: ${flattened.length}`;
+	console.log("\n" + renderBanner("ACTIVE SUPPRESSIONS INVENTORY (FALLOW SUPPRESSIONS)", sub));
 	if (flattened.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! No se encontraron comentarios ni reglas de supresión activas.\n"));
+		console.log("\n  " + styleText(["bold", "green"], "[OK] No active suppression comments or rules found.\n"));
 		return;
 	}
 	const cols = [
@@ -833,25 +886,25 @@ function reportSuppressions(top, json) {
 			key: "index"
 		},
 		{
-			header: "UBICACIÓN",
+			header: "LOCATION",
 			width: 32,
 			align: "left",
 			key: "location"
 		},
 		{
-			header: "TIPO / REGLA",
+			header: "TYPE / RULE",
 			width: 18,
 			align: "left",
 			key: "kind"
 		},
 		{
-			header: "NIVEL",
+			header: "LEVEL",
 			width: 8,
 			align: "center",
 			key: "level"
 		},
 		{
-			header: "JUSTIFICACIÓN",
+			header: "JUSTIFICATION",
 			width: 38,
 			align: "left",
 			key: "reason"
@@ -859,9 +912,9 @@ function reportSuppressions(top, json) {
 	];
 	const rows = flattened.slice(0, top).map((item, idx) => {
 		const loc = `${item.path}:${item.suppression.line}`;
-		const kind = styleText("cyan", item.suppression.kind || "desconocido");
+		const kind = styleText("cyan", item.suppression.kind || "unknown");
 		const level = item.suppression.level || "line";
-		const reasonText = item.suppression.reason ? item.suppression.reason : styleText("yellow", "Sin justificación");
+		const reasonText = item.suppression.reason ? item.suppression.reason : styleText("yellow", "Unjustified");
 		return {
 			index: String(idx + 1),
 			location: loc,
@@ -873,7 +926,7 @@ function reportSuppressions(top, json) {
 	console.log("\n" + renderBoxTable(cols, rows));
 	console.log();
 }
-function reportViz(json) {
+function reportViz(json, human = false) {
 	const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), "node_modules/fallow/bin/fallow");
 	const scratchDir = path.resolve(process.cwd(), "scratch");
 	const targetHtml = path.resolve(scratchDir, "fallow_map.html");
@@ -903,10 +956,14 @@ function reportViz(json) {
 			}, null, 2));
 			return;
 		}
-		console.log("\n" + renderBanner("MAPA INTERACTIVO DEL CODEBASE (FALLOW VIZ)", "Visualización interactiva HTML"));
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Mapa generado con éxito!\n"));
-		console.log(`  Archivo generado: ${styleText("cyan", "scratch/fallow_map.html")}`);
-		console.log(`  Para visualizarlo, ábrelo en tu navegador.\n`);
+		if (!human) {
+			console.log("[Fallow] Interactive codebase map generated at: scratch/fallow_map.html");
+			return;
+		}
+		console.log("\n" + renderBanner("INTERACTIVE CODEBASE MAP (FALLOW VIZ)", "Interactive HTML visualization"));
+		console.log("\n  " + styleText(["bold", "green"], "[OK] Interactive map generated successfully!\n"));
+		console.log(`  Generated file: ${styleText("cyan", "scratch/fallow_map.html")}`);
+		console.log(`  Open it in your browser to inspect.\n`);
 	} catch (err) {
 		if (json) {
 			console.log(JSON.stringify({
@@ -915,47 +972,50 @@ function reportViz(json) {
 			}, null, 2));
 			return;
 		}
-		console.error(styleText("red", `Error generando fallow viz: ${err instanceof Error ? err.message : String(err)}`));
+		console.error(styleText("red", `Error generating fallow viz: ${err instanceof Error ? err.message : String(err)}`));
 	}
 }
 const REPORT_DISPATCH_MAP = {
-	dupes: (top, json) => reportDupes(top, json),
-	duplicates: (top, json) => reportDupes(top, json),
-	security: (top, json) => reportSecurity(top, json),
-	cwe: (top, json) => reportSecurity(top, json),
-	circular: (_top, json) => reportCircular(json),
-	"circular-deps": (_top, json) => reportCircular(json),
-	exports: (top, json) => reportExports(top, json),
-	"unused-exports": (top, json) => reportExports(top, json),
-	"dead-code": (top, json) => reportDeadCode(top, json),
-	deadcode: (top, json) => reportDeadCode(top, json),
-	unused: (top, json) => reportDeadCode(top, json),
-	boundaries: (_top, json) => reportBoundaries(json),
-	architecture: (_top, json) => reportBoundaries(json),
-	boundary: (_top, json) => reportBoundaries(json),
-	"coverage-gaps": (top, json) => reportCoverageGaps(top, json),
-	coverage_gaps: (top, json) => reportCoverageGaps(top, json),
-	gaps: (top, json) => reportCoverageGaps(top, json),
-	guard: (_top, json) => {
-		const posArgs = process.argv.slice(2).filter((a) => !a.startsWith("-") && !a.startsWith("category=") && a !== "guard");
+	dupes: (top, json, human) => reportDupes(top, json, human),
+	duplicates: (top, json, human) => reportDupes(top, json, human),
+	security: (top, json, human) => reportSecurity(top, json, human),
+	cwe: (top, json, human) => reportSecurity(top, json, human),
+	circular: (_top, json, human) => reportCircular(json, human),
+	"circular-deps": (_top, json, human) => reportCircular(json, human),
+	exports: (top, json, human) => reportExports(top, json, human),
+	"unused-exports": (top, json, human) => reportExports(top, json, human),
+	"dead-code": (top, json, human) => reportDeadCode(top, json, human),
+	deadcode: (top, json, human) => reportDeadCode(top, json, human),
+	unused: (top, json, human) => reportDeadCode(top, json, human),
+	boundaries: (_top, json, human) => reportBoundaries(json, human),
+	architecture: (_top, json, human) => reportBoundaries(json, human),
+	boundary: (_top, json, human) => reportBoundaries(json, human),
+	"coverage-gaps": (top, json, human) => reportCoverageGaps(top, json, human),
+	coverage_gaps: (top, json, human) => reportCoverageGaps(top, json, human),
+	gaps: (top, json, human) => reportCoverageGaps(top, json, human),
+	guard: (_top, json, _human, extra) => {
+		const posArgs = extra.positionals.filter((a) => a !== "guard");
 		return runGuardReport(process.cwd(), posArgs, { json });
 	},
-	flags: (top, json) => {
+	flags: (top, json, _human, extra) => {
 		return runFlagsReport(process.cwd(), {
-			retirement: process.argv.includes("--retirement") || process.argv.includes("retirement"),
+			retirement: extra.retirement,
 			top,
 			json
 		});
 	},
-	suppressions: (top, json) => reportSuppressions(top, json),
-	"stale-suppressions": (top, json) => reportSuppressions(top, json),
-	viz: (_top, json) => reportViz(json),
+	suppressions: (top, json, human) => reportSuppressions(top, json, human),
+	"stale-suppressions": (top, json, human) => reportSuppressions(top, json, human),
+	viz: (_top, json, human) => reportViz(json, human),
 	complexity: (_top, json) => executeComplexityReport(json)
 };
 function runFallowReportCli() {
-	const { category, top, jsonOutput } = parseCommandLineArgs();
+	const { category, top, jsonOutput, human, retirement, positionals } = parseCommandLineArgs();
 	const handler = REPORT_DISPATCH_MAP[category];
-	const exitCode = handler ? handler(top, jsonOutput) ?? 0 : (reportAllSummary(jsonOutput), 0);
+	const exitCode = handler ? handler(top, jsonOutput, human, {
+		retirement,
+		positionals
+	}) ?? 0 : (reportAllSummary(jsonOutput, human), 0);
 	if (exitCode !== 0) process.exit(exitCode);
 }
 if (isMainModule(import.meta.url)) {

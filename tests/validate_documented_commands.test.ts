@@ -32,7 +32,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     it('initializes with correct metadata and rules', () => {
       const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_documented_commands');
-      expect(auditor.packageName).toBe('Comandos');
+      expect(auditor.packageName).toBe('Commands');
       expect(auditor.family).toBe('documentation');
       expect(auditor.ruleIds.length).toBeGreaterThan(0);
       expect(auditor.ruleDescriptions).toBeDefined();
@@ -157,7 +157,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
 
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-invalid-npm-syntax');
     expect(finding).toBeDefined();
-    expect(finding?.message).toContain("debe ser 'npm run foo'");
+    expect(finding?.message).toContain("must be 'npm run foo'");
   });
 
   it('detects unregistered npx binaries', async () => {

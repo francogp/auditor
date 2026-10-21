@@ -24,7 +24,7 @@ describe('fileWalkerDetector', () => {
   it('exposes correct detector metadata and rule id', () => {
     expect(fileWalkerDetector.id).toBe('file-walker');
     expect(fileWalkerDetector.ruleId).toBe('auditor-manual-file-walker');
-    expect(fileWalkerDetector.ruleDescription).toBe('Recorrido recursivo manual de dirs');
+    expect(fileWalkerDetector.ruleDescription).toBe('Manual recursive directory walk');
   });
 
   it('detects recursive readdirSync calls', () => {

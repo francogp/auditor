@@ -16,6 +16,7 @@ Architecture & Tooling Engineers.
 
 - [`agentsMandateAnalyzer.ts`](./agentsMandateAnalyzer.ts): AGENTS.md mandate parsing, language validation, and in-place injection helper.
 - [`auditRuleTypes.ts`](./auditRuleTypes.ts): Core rule descriptors, violation schemas, and matching primitives.
+- [`cliContracts/`](./cliContracts/AGENTS.md): CLI contract scanner and modular AST detectors.
 - [`constantAnalyzer.ts`](./constantAnalyzer.ts): TypeScript AST visitor detecting duplicate or divergent numeric/string constants.
 - [`constantRules.ts`](./constantRules.ts): Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
@@ -36,5 +37,6 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
+- [`cliContracts/`](./cliContracts/AGENTS.md): CLI contract scanner and modular AST detectors.
 - [`homebrew/`](./homebrew/AGENTS.md): Homebrew anti-pattern analyzer and detector registry.
 - [`nativePaths/`](./nativePaths/AGENTS.md): Native path and URL integrity AST analyzer.

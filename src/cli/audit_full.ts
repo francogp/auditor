@@ -9,8 +9,14 @@
  *   3. Persists the complete structured JSON report to scratch/audits/latest_audit.json.
  */
 
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -275,79 +281,50 @@ export function resolveConsoleMode(
   return 'compact';
 }
 
+const AUDIT_FULL_ARGS = {
+  ...COMMON_CLI_ARGS,
+  list: { type: 'boolean', alias: 'l', description: 'List available auditor suites' },
+  info: { type: 'string', description: 'Show detailed metadata for a suite' },
+  enabled: { type: 'boolean', description: 'Filter list by enabled suites' },
+  disabled: { type: 'boolean', description: 'Filter list by disabled suites' },
+  critical: { type: 'boolean', description: 'Run only critical suites' },
+  family: { type: 'string', description: 'Filter suites by family' },
+  task: { type: 'string', description: 'Filter by single task ID' },
+  tasks: { type: 'string', description: 'Comma-separated list of task IDs' },
+  suites: { type: 'string', description: 'Comma-separated list of suite IDs' },
+  suite: { type: 'string', description: 'Filter by suite ID' },
+  'only-suite': { type: 'string', description: 'Run only specified suite(s)' },
+  'only-task': { type: 'string', description: 'Run only specified task(s)' },
+  guide: { type: 'string', description: 'Show remediation guide for a rule or suite' },
+  preset: { type: 'string', description: 'Execution preset (lint, full, critical, md, post-build)' },
+  speed: { type: 'string', description: 'Target speed tier (light, heavy, full)' },
+  'only-speed': { type: 'string', description: 'Exclusive speed tier filter' },
+  phase: { type: 'string', description: 'Execution phase filter (setup, normal, post-run, post-build)' },
+  concurrency: { type: 'string', description: 'Maximum parallel worker concurrency' },
+  output: { type: 'string', alias: 'o', description: 'Custom output path for report' },
+  'changed-since': { type: 'string', description: 'Git ref to filter changed files' },
+  'errors-only': { type: 'boolean', description: 'Report only error-severity findings' },
+  all: { type: 'boolean', alias: 'a', description: 'Include post-build and all suites' },
+  top: { type: 'string', alias: 't', description: 'Limit top findings displayed' },
+  rule: { type: 'string', alias: 'r', description: 'Filter by rule ID' },
+  rules: { type: 'string', description: 'Filter by rule IDs' },
+  fix: { type: 'boolean', description: 'Run in automatic repair mode' },
+  'post-build': { type: 'boolean', description: 'Run post-build artifact verification suites' },
+  full: { type: 'boolean', description: 'Run full comprehensive verification' },
+  'with-build': { type: 'boolean', description: 'Include post-build suites in run' },
+  'init-baseline': { type: 'boolean', description: 'Initialize warning ratchet baseline' }
+} as const satisfies CittyArgsDef;
+
 export function parseAuditFullCliArgs(
   activeFamilies: readonly string[],
-  rawArgs: readonly string[] = process.argv.slice(2)
+  rawArgs: readonly string[] = getProcessCliArgs()
 ): AuditFullCliOptions {
-  const args = [...rawArgs];
-  const BOOLEAN_FLAGS = [
-    'errors-only',
-    'fix',
-    'all',
-    'post-build',
-    'with-build',
-    'full',
-    'init-baseline',
-    'help',
-    'list',
-    'json',
-    'enabled',
-    'disabled',
-    'critical',
-    'verbose',
-    'human',
-    'compact',
-    'ai'
-  ];
-  const normalized = args.map((a) =>
-    a.includes('=') && !a.startsWith('-') ? `--${a}` : BOOLEAN_FLAGS.includes(a) ? `--${a}` : a
-  );
-
-  const { values, positionals } = parseArgs({
-    args: normalized,
-    options: {
-      help: { type: 'boolean', short: 'h' },
-      project: { type: 'string', short: 'p' },
-      list: { type: 'boolean', short: 'l' },
-      info: { type: 'string' },
-      json: { type: 'boolean' },
-      enabled: { type: 'boolean' },
-      disabled: { type: 'boolean' },
-      critical: { type: 'boolean' },
-      family: { type: 'string' },
-      task: { type: 'string' },
-      tasks: { type: 'string' },
-      suites: { type: 'string' },
-      suite: { type: 'string' },
-      'only-suite': { type: 'string' },
-      'only-task': { type: 'string' },
-      guide: { type: 'string' },
-      preset: { type: 'string' },
-      speed: { type: 'string' },
-      'only-speed': { type: 'string' },
-      phase: { type: 'string' },
-      concurrency: { type: 'string' },
-      output: { type: 'string', short: 'o' },
-      'changed-since': { type: 'string' },
-      'errors-only': { type: 'boolean' },
-      all: { type: 'boolean', short: 'a' },
-      top: { type: 'string', short: 't' },
-      rule: { type: 'string', short: 'r', multiple: true },
-      rules: { type: 'string', multiple: true },
-      fix: { type: 'boolean' },
-      'post-build': { type: 'boolean' },
-      full: { type: 'boolean' },
-      'with-build': { type: 'boolean' },
-      'init-baseline': { type: 'boolean' },
-      verbose: { type: 'boolean' },
-      human: { type: 'boolean' },
-      compact: { type: 'boolean' },
-      ai: { type: 'boolean' },
-      format: { type: 'string' }
-    },
-    allowPositionals: true,
-    strict: false
-  });
+  const parsed = parseCittyArgs(AUDIT_FULL_ARGS, rawArgs);
+  const positionals = parsed._.map(String);
+  const values: Record<string, unknown> = {
+    ...parsed,
+    fix: Boolean(parsed.fix) || positionals.includes('fix')
+  };
 
   const targetPreset = resolveTargetPreset(values, positionals);
   const explicitSpeed =
@@ -361,7 +338,7 @@ export function parseAuditFullCliArgs(
   return {
     values,
     positionals,
-    project: typeof values.project === 'string' ? values.project : undefined,
+    project: typeof values.project === 'string' && values.project !== '.' ? values.project : undefined,
     targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
     formattedRules: resolveFormattedRules(values, positionals),
     targetPreset,
@@ -517,9 +494,9 @@ export function extractSubprocessErrorMessage(
 ): string {
   if (proc.timedOut) {
     if (task) {
-      return `Timeout excedido (${timeoutMs}ms) al ejecutar el auditor '${task.name}' (${task.id}).`;
+      return `Timeout exceeded (${timeoutMs}ms) while executing auditor '${task.name}' (${task.id}).`;
     }
-    return `Timeout excedido (${timeoutMs}ms) en la ejecución de la suite.`;
+    return `Timeout exceeded (${timeoutMs}ms) during suite execution.`;
   }
   const cleanStderr = proc.stderr
     .split('\n')
@@ -531,7 +508,7 @@ export function extractSubprocessErrorMessage(
     .filter((l) => !isNodeInternalWarning(l.trim()) && l.trim().length > 0)
     .join('\n')
     .trim();
-  return cleanStderr || cleanStdout || `Código de salida ${proc.status}`;
+  return cleanStderr || cleanStdout || `Exit code ${proc.status}`;
 }
 
 async function parseSubprocessOutput(
@@ -725,7 +702,7 @@ function printFindingsSummary(
       '\n' +
         styleText(
           ['bold', 'green'],
-          `✨ 100% de las suites aprobadas (${results.length}/${results.length}) sin errores ni advertencias.`
+          `✨ 100% of suites passed (${results.length}/${results.length}) with zero errors or warnings.`
         )
     );
     return;
@@ -748,19 +725,19 @@ function printFindingsSummary(
     console.log(
       styleText(
         'bold',
-        '📊 DESGLOSE EXCLUSIVO DE CONFIGURACIÓN Y PROYECTO (FASE 1: SETUP):\n'
+        '📊 EXCLUSIVE SETUP & PROJECT BREAKDOWN (PHASE 1: SETUP):\n'
       )
     );
     if (tieredGroups && tieredGroups.length > 0) {
       console.log(
         renderTieredFindingsBreakdownTable(
           tieredGroups,
-          'TIPO DE INCIDENCIA / REGLA DE SETUP'
+          'ISSUE TYPE / SETUP RULE'
         )
       );
     } else {
       console.log(
-        renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA DE SETUP')
+        renderFindingsBreakdownTable(sortedCategories, 'ISSUE TYPE / SETUP RULE')
       );
     }
     const setupErrors = sortedCategories.flatMap(([, data]) =>
@@ -772,13 +749,13 @@ function printFindingsSummary(
     console.log(
       styleText(
         ['yellow', 'bold'],
-        `\n⚠️  ATENCIÓN: Se postergó el reporte de ${formatNumber(blockingContext.postponedAppErrors)} error(es) de aplicación para evitar falsos positivos inducidos.`
+        `\n⚠️  ATTENTION: Reporting of ${formatNumber(blockingContext.postponedAppErrors)} application error(s) was postponed to prevent induced false positives.`
       )
     );
     console.log(
       styleText(
         'dim',
-        `   Resuelve primero los ${blockingContext.setupErrors} error(es) de configuración (ej. 'npm run auditor:fix') para desbloquear el análisis del resto del proyecto.\n`
+        `   Resolve the ${blockingContext.setupErrors} configuration error(s) first (e.g. 'npm run auditor:fix') to unblock full project analysis.\n`
       )
     );
   } else {
@@ -786,13 +763,13 @@ function printFindingsSummary(
       '\n' +
         styleText(
           'bold',
-          '📊 DESGLOSE POR TIPO DE ERROR Y ADVERTENCIA (ORDEN ESTRATÉGICO DE RESOLUCIÓN):\n'
+          '📊 BREAKDOWN BY ISSUE TYPE & SEVERITY (STRATEGIC RESOLUTION ORDER):\n'
         )
     );
     if (tieredGroups && tieredGroups.length > 0) {
-      console.log(renderTieredFindingsBreakdownTable(tieredGroups, 'TIPO DE INCIDENCIA / REGLA'));
+      console.log(renderTieredFindingsBreakdownTable(tieredGroups, 'ISSUE TYPE / RULE'));
     } else {
-      console.log(renderFindingsBreakdownTable(sortedCategories, 'TIPO DE INCIDENCIA / REGLA'));
+      console.log(renderFindingsBreakdownTable(sortedCategories, 'ISSUE TYPE / RULE'));
     }
     const allErrors = results.flatMap((suite) =>
       (suite.findings || []).filter((f) => f.severity === 'error')
@@ -999,20 +976,20 @@ function printRatchetVerdict(
     console.log(
       styleText(
         ['bold', 'green'],
-        `\n🔒 Línea base de warnings creada (${verdict.resolvedWarnings} warnings) en ${baselineFile}.`
+        `\n🔒 Warnings baseline created (${verdict.resolvedWarnings} warnings) at ${baselineFile}.`
       )
     );
     console.log(
       styleText(
         'dim',
-        `   Commiteala y publícala en '${verdict.productionRef}' para activar el ratchet.\n`
+        `   Commit and publish it to '${verdict.productionRef}' to activate the ratchet.\n`
       )
     );
     return;
   }
   if (verdict.error) {
     console.log(
-      styleText(['bold', 'red'], `\n🔒 RATCHET DE WARNINGS BLOQUEADO: ${verdict.error}\n`)
+      styleText(['bold', 'red'], `\n🔒 WARNINGS RATCHET BLOCKED: ${verdict.error}\n`)
     );
     return;
   }
@@ -1020,19 +997,19 @@ function printRatchetVerdict(
     console.log(
       styleText(
         ['bold', 'red'],
-        `\n🔒 RATCHET DE WARNINGS: ${verdict.newWarnings} warning(s) NUEVO(S) respecto de '${verdict.productionRef}'. Deben corregirse.`
+        `\n🔒 WARNINGS RATCHET: ${verdict.newWarnings} NEW warning(s) compared to '${verdict.productionRef}'. Must be fixed.`
       )
     );
     console.log(renderSampleFindings(newWarnings, 5));
     return;
   }
   const shrinkNote = verdict.baselineUpdated
-    ? ` Línea base reducida (${verdict.resolvedWarnings} resueltos): commitea ${baselineFile}.`
+    ? ` Baseline reduced (${verdict.resolvedWarnings} resolved): commit ${baselineFile}.`
     : '';
   console.log(
     styleText(
       'green',
-      `\n🔒 Ratchet de warnings OK: 0 nuevos respecto de '${verdict.productionRef}'.${shrinkNote}\n`
+      `\n🔒 Warnings ratchet OK: 0 new compared to '${verdict.productionRef}'.${shrinkNote}\n`
     )
   );
 }
@@ -1071,7 +1048,7 @@ function handleStandardRatchet(
     console.log(
       styleText(
         'yellow',
-        `\n⚠️  '${ratchet.productionRef}' aún no contiene ${ratchet.baselineFile}: se usa la copia local (bootstrap). Publícala para blindar el ratchet.`
+        `\n⚠️  '${ratchet.productionRef}' does not contain ${ratchet.baselineFile} yet: using local copy (bootstrap). Publish it to lock the ratchet.`
       )
     );
   }
@@ -1105,7 +1082,7 @@ function applyWarningRatchet(
       console.log(
         styleText(
           'yellow',
-          `\n⚠️  Ratchet de warnings DESACTIVADO (ratchet.enabled: false en .auditor/audit.config.ts).\n`
+          `\n⚠️  Warnings ratchet DISABLED (ratchet.enabled: false in .auditor/audit.config.ts).\n`
         )
       );
     return undefined;
@@ -1452,40 +1429,40 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
 
   if (cliOptions.consoleMode === 'human') {
     if (!isFullAudit && !isBuildMode) {
-      console.log(styleText('yellow', `⚠️  ADVERTENCIA DE AUDITORÍA PARCIAL:`));
+      console.log(styleText('yellow', `⚠️  PARTIAL AUDIT WARNING:`));
       console.log(
         styleText(
           'yellow',
-          `   latest_audit.json se actualizó con meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`
+          `   latest_audit.json updated with meta.isFullAudit = false (${tasksToRun.length}/${allAvailableTasks.length} suites).`
         )
       );
       console.log(
         styleText(
           'dim',
-          `   Los inspectores de calidad exigirán una corrida completa ('npm run auditor').\n`
+          `   Quality gates will require a full audit run ('npm run auditor').\n`
         )
       );
     }
 
-    console.log(styleText('dim', `💾 Reporte detallado para IA / herramientas disponible en:`));
+    console.log(styleText('dim', `💾 Detailed report for AI / tooling available at:`));
     console.log(styleText('cyan', `   📄 ${path.relative(process.cwd(), latestAuditPath)}\n`));
 
     if (anyFailed) {
       console.log(
         styleText(
           'yellow',
-          '💡 ¿Dudas sobre una regla o comando? No inspecciones node_modules ni el código fuente. Consulta:'
+          '💡 Questions about a rule or command? Do not inspect node_modules or source code. See:'
         )
       );
       console.log(
-        styleText('dim', '   📖 Guía y solución canónica:  ') +
-          styleText('cyan', 'npm run auditor:guide -- <regla>')
+        styleText('dim', '   📖 Guide & canonical fix:   ') +
+          styleText('cyan', 'npm run auditor:guide -- <rule>')
       );
       console.log(
-        styleText('dim', '   ❓ Catálogo de ayuda global:  ') + styleText('cyan', 'npm run auditor:help')
+        styleText('dim', '   ❓ Global help catalog:     ') + styleText('cyan', 'npm run auditor:help')
       );
       console.log(
-        styleText('dim', '   🔧 Ayuda de refactorizadores: ') +
+        styleText('dim', '   🔧 Refactoring tools help:  ') +
           styleText('cyan', 'npm run auditor:types help | auditor:domain help | auditor:motion help\n')
       );
     }
@@ -1546,7 +1523,7 @@ function handleHelpCommand(
       console.error(
         styleText(
           'red',
-          `\n❌ Suite no encontrada: '${requestedUid}'. Ejecuta 'auditor --list' para ver todas las disponibles.\n`
+          `\n❌ Suite not found: '${requestedUid}'. Run 'auditor --list' to view all available suites.\n`
         )
       );
       process.exit(1);
@@ -1638,7 +1615,7 @@ function handleInfoCommand(
     console.error(
       styleText(
         'red',
-        `\n❌ Suite no encontrada: '${targetUid}'. Ejecuta 'auditor --list' para ver todas las disponibles.\n`
+        `\n❌ Suite not found: '${targetUid}'. Run 'auditor --list' to view all available suites.\n`
       )
     );
     process.exit(1);
@@ -1677,7 +1654,7 @@ function handleGuideCommand(
       console.error(
         styleText(
           'red',
-          `\n❌ Suite no encontrada: '${suiteParam}'. Ejecuta 'auditor --list' para ver las suites disponibles.\n`
+          `\n❌ Suite not found: '${suiteParam}'. Run 'auditor --list' to view available suites.\n`
         )
       );
       process.exit(1);
@@ -1693,7 +1670,7 @@ function handleGuideCommand(
       console.error(
         styleText(
           'red',
-          `\n❌ Familia no encontrada o sin suites: '${fam}'. Familias válidas: ${activeFamilies.join(', ')}\n`
+          `\n❌ Family not found or has no suites: '${fam}'. Valid families: ${activeFamilies.join(', ')}\n`
         )
       );
       process.exit(1);
@@ -1739,18 +1716,18 @@ function handleGuideCommand(
   console.error(
     styleText(
       'red',
-      `\n❌ No se encontró ninguna regla, suite ni familia con el identificador '${target}'.`
+      `\n❌ No rule, suite, or family found matching identifier '${target}'.`
     )
   );
   if (suggestions.length > 0) {
     console.error(
-      styleText('yellow', `\n💡 Quizás quisiste decir:\n`) +
+      styleText('yellow', `\n💡 Did you mean:\n`) +
         suggestions.map((s) => `   - ${s}`).join('\n') +
         '\n'
     );
   }
   console.error(
-    styleText('dim', `   Ejecuta 'auditor guide' para ver el catálogo global de reglas disponibles.\n`)
+    styleText('dim', `   Run 'auditor guide' to view the global catalog of available rules.\n`)
   );
   process.exit(1);
 }
@@ -1812,13 +1789,13 @@ export function createAuditBannerDetails(
   const subtitleDetails: string[] = [
     `v${AUDITOR_VERSION}`,
     isFixMode
-      ? `Suites con Auto-Reparación: ${tasksCount} suites`
-      : `Auto-descubiertas: ${tasksCount}/${allAvailableCount} suites`
+      ? `Auto-fixable suites: ${tasksCount} suites`
+      : `Auto-discovered: ${tasksCount}/${allAvailableCount} suites`
   ];
   if (isFixMode) {
-    subtitleDetails.push('Modo: AUTO-FIX 🛠️');
+    subtitleDetails.push('Mode: AUTO-FIX 🛠️');
   } else if (isBuildMode) {
-    subtitleDetails.push('Modo: POST-BUILD 🏗️');
+    subtitleDetails.push('Mode: POST-BUILD 🏗️');
   } else {
     if (cliOptions.onlySpeed)
       subtitleDetails.push(`Only-Speed: ${cliOptions.onlySpeed.toUpperCase()}`);
@@ -1826,19 +1803,19 @@ export function createAuditBannerDetails(
     else if (cliOptions.targetPreset)
       subtitleDetails.push(`Preset: ${cliOptions.targetPreset.toUpperCase()}`);
     if (cliOptions.values.family)
-      subtitleDetails.push(`Familia: ${toOptionString(cliOptions.values.family).toUpperCase()}`);
-    if (cliOptions.skipSimilar) subtitleDetails.push('Similar-Code: OMITIDO ⏭️');
+      subtitleDetails.push(`Family: ${toOptionString(cliOptions.values.family).toUpperCase()}`);
+    if (cliOptions.skipSimilar) subtitleDetails.push('Similar-Code: SKIPPED ⏭️');
     if (tasksCount !== allAvailableCount || omittedCount > 0)
-      subtitleDetails.push('Modo: PARCIAL ⚠️');
+      subtitleDetails.push('Mode: PARTIAL ⚠️');
   }
 
   if (cliOptions.project) {
-    subtitleDetails.push(`🎯 Remoto: ${path.basename(path.resolve(cliOptions.project))}`);
+    subtitleDetails.push(`🎯 Remote: ${path.basename(path.resolve(cliOptions.project))}`);
   } else if (process.env.AUDITOR_HOME_DIR && process.env.AUDIT_PROJECT_ROOT) {
     const cleanHome = sanitizePath(process.env.AUDITOR_HOME_DIR);
     const cleanProject = sanitizePath(process.env.AUDIT_PROJECT_ROOT);
     if (path.resolve(cleanHome) !== path.resolve(cleanProject)) {
-      subtitleDetails.push(`🎯 Remoto: ${path.basename(cleanProject)}`);
+      subtitleDetails.push(`🎯 Remote: ${path.basename(cleanProject)}`);
     }
   }
 
@@ -1987,18 +1964,18 @@ async function executeSingleAuditTask(
 }
 
 async function checkEarlyCliCommands(): Promise<void> {
+  const cliTokens = getProcessCliArgs();
   if (
-    process.argv.includes('-v') ||
-    process.argv.includes('--version') ||
-    process.argv.includes('version')
+    cliTokens.includes('-v') ||
+    cliTokens.includes('--version') ||
+    cliTokens.includes('version')
   ) {
     console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
     process.exit(0);
   }
-  const rawArgs = process.argv.slice(2);
-  if (rawArgs.some((a) => a === 'dependencies' || a === 'deps' || a === '--dependencies')) {
+  if (cliTokens.some((a) => a === 'dependencies' || a === 'deps' || a === '--dependencies')) {
     const { runDependenciesReport, parseCliArgs } = await import('./report_dependencies.ts');
-    const filtered = rawArgs.filter(
+    const filtered = cliTokens.filter(
       (a) => a !== 'dependencies' && a !== 'deps' && a !== '--dependencies'
     );
     const options = parseCliArgs(filtered);
@@ -2008,12 +1985,12 @@ async function checkEarlyCliCommands(): Promise<void> {
     process.exit(exitCode);
   }
   process.env.AUDIT_SUBPROCESS = 'true';
-  if (process.argv.slice(2).some((a) => a === 'fix' || a === '--fix')) {
+  if (cliTokens.some((a) => a === 'fix' || a === '--fix')) {
     for (const moved of migrateLegacyAuditConfig(process.cwd())) {
       console.log(
         styleText(
           'green',
-          `🛠️  ${moved} movido a .auditor/${moved} (imports relativos reescritos).`
+          `🛠️  Moved ${moved} to .auditor/${moved} (relative imports rewritten).`
         )
       );
     }
@@ -2068,16 +2045,16 @@ function displayMasterBanner(
   );
 
   let bannerTitle = config.name
-    ? `${config.name.toUpperCase()} - SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN`
-    : 'SUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN';
+    ? `${config.name.toUpperCase()} - GLOBAL AUDIT & VALIDATION SUITE`
+    : 'GLOBAL AUDIT & VALIDATION SUITE';
   if (isFixMode) {
-    bannerTitle = '[ 🛠️ MODO REPARACIÓN AUTOMÁTICA ]';
+    bannerTitle = '[ 🛠️ AUTOMATIC REPAIR MODE ]';
   } else if (isBuildMode) {
-    bannerTitle = '[ 🏗️ MODO POST-BUILD / ARTEFACTOS COMPILADOS ]';
+    bannerTitle = '[ 🏗️ POST-BUILD / COMPILED ARTIFACTS MODE ]';
   } else if (cliOptions.targetPreset === 'critical') {
-    bannerTitle = '[ 🚨 MODO CRÍTICO EXCLUSIVO ]';
+    bannerTitle = '[ 🚨 EXCLUSIVE CRITICAL MODE ]';
   } else if (config.name && getVisualWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
-    bannerTitle = `${config.name.toUpperCase()}\nSUITE DE AUDITORÍA GLOBAL Y VALIDACIÓN`;
+    bannerTitle = `${config.name.toUpperCase()}\nGLOBAL AUDIT & VALIDATION SUITE`;
   }
   const formattedSubtitle = formatSubtitleDetails(subtitleDetails);
   console.log(renderBanner(bannerTitle, formattedSubtitle));
@@ -2170,8 +2147,8 @@ async function executeAllAuditTasks(
       styleText(
         'bold',
         isFixMode
-          ? '⏳ Progreso de ejecución de suites (Concurrencia: 1 worker — Modo Reparación Serial):\n'
-          : `⏳ Progreso de ejecución de suites (Concurrencia: ${effectiveConcurrency} workers):\n`
+          ? '⏳ Suite execution progress (Concurrency: 1 worker — Serial Repair Mode):\n'
+          : `⏳ Suite execution progress (Concurrency: ${effectiveConcurrency} workers):\n`
       )
     );
   }
@@ -2284,7 +2261,7 @@ export async function runMasterAudit(): Promise<void> {
     console.log(
       styleText(
         'yellow',
-        '⚠️ No se encontraron auditores que coincidan con los filtros especificados.'
+        '⚠️ No auditors found matching specified filters.'
       )
     );
     process.exit(0);
@@ -2297,7 +2274,7 @@ export async function runMasterAudit(): Promise<void> {
       console.log(
         styleText(
           'cyan',
-          `🧠 [AST Engine] Detectados ${astTasks.length} sub-auditor(es) que requieren AST. Inicializando contexto AST compartido...\n`
+          `🧠 [AST Engine] Detected ${astTasks.length} sub-auditor(s) requiring AST. Initializing shared AST context...\n`
         )
       );
     }
@@ -2342,7 +2319,7 @@ export async function runMasterAudit(): Promise<void> {
 
 if (isMainModule(import.meta.url)) {
   runMasterAudit().catch((err) => {
-    console.error(styleText('red', `\n💥 Error fatal en audit_full: ${(err as Error).message}`));
+    console.error(styleText('red', `\n💥 Fatal error in audit_full: ${(err as Error).stack || (err as Error).message}`));
     process.exit(1);
   });
 }

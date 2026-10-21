@@ -54,46 +54,46 @@ export interface FamilyMetadata {
 export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
   architecture: {
     key: 'architecture',
-    title: 'ESTÁNDARES ESTÁTICOS, AST Y ARQUITECTURA',
+    title: 'STATIC STANDARDS, AST & ARCHITECTURE',
     order: 1,
     icon: '📁',
-    description: 'Reglas de calidad de código, AST, Fallow intelligence y dependencias.'
+    description: 'Code quality rules, AST, Fallow intelligence, and dependencies.'
   },
   domain_data: {
     key: 'domain_data',
-    title: 'TIPOS DE DOMINIO Y BASES DE DATOS CANÓNICAS',
+    title: 'DOMAIN TYPES & CANONICAL DATABASES',
     order: 2,
     icon: '🔒',
     description:
-      'Validación de tipos de dominio estrictos (/domain-type-first), cuadros tarifarios y fórmulas.'
+      'Strict domain type validation (/domain-type-first), catalogs, and formulas.'
   },
   persistence: {
     key: 'persistence',
-    title: 'PERSISTENCIA, SQL Y MIGRACIONES',
+    title: 'PERSISTENCE, SQL & MIGRATIONS',
     order: 3,
     icon: '💾',
-    description: 'Integridad sintáctica de migraciones PostgreSQL/Supabase/SQLite y políticas RLS.'
+    description: 'Syntactic integrity of PostgreSQL/Supabase/SQLite migrations and RLS policies.'
   },
   performance: {
     key: 'performance',
-    title: 'RENDIMIENTO WEB, LATENCIA Y BASE DE DATOS',
+    title: 'WEB PERFORMANCE, LATENCY & DATABASE',
     order: 4,
     icon: '⚡',
-    description: 'Core Web Vitals, optimización de consultas SQL e impacto en renderizado.'
+    description: 'Core Web Vitals, SQL query optimization, and rendering efficiency.'
   },
   security: {
     key: 'security',
-    title: 'SEGURIDAD, ENDURECIMIENTO Y CONTROL DE ACCESO',
+    title: 'SECURITY, HARDENING & ACCESS CONTROL',
     order: 5,
     icon: '🛡️',
-    description: 'Vulnerabilidades OWASP Top 10, prevención de SSRF, inyecciones y ReDoS.'
+    description: 'OWASP Top 10 vulnerabilities, SSRF prevention, injections, and ReDoS.'
   },
   documentation: {
     key: 'documentation',
-    title: 'DOCUMENTACIÓN Y ESTRUCTURA DOX',
+    title: 'DOCUMENTATION & DOX STRUCTURE',
     order: 6,
     icon: '📚',
-    description: 'Integridad de enlaces relativos en markdown e índices DOX (AGENTS.md).'
+    description: 'Relative link integrity in markdown and DOX indices (AGENTS.md).'
   }
 };
 
@@ -114,7 +114,7 @@ export function resolveFamilyMetadata(
       title: custom.title,
       order: custom.order ?? DEFAULT_CUSTOM_FAMILY_ORDER,
       icon: custom.icon ?? '⚙️',
-      description: custom.description ?? `Validaciones específicas de la familia ${custom.key}.`
+      description: custom.description ?? `Specific checks for family ${custom.key}.`
     };
   }
   return {
@@ -122,7 +122,7 @@ export function resolveFamilyMetadata(
     title: familyKey.toUpperCase(),
     order: FALLBACK_FAMILY_ORDER,
     icon: '⚙️',
-    description: `Familia de auditoría ${familyKey}.`
+    description: `Audit family ${familyKey}.`
   };
 }
 

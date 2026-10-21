@@ -13,15 +13,15 @@ import { styleText } from "node:util";
 */
 const motionCliDef = {
 	toolName: "auditor-motion",
-	toolDescription: "UI Animation y timers",
+	toolDescription: "UI animations and banned timers",
 	bannerTitle: "AUDITOR MOTION: UI ANIMATION & GSAP GOVERNANCE",
-	bannerSubtitle: "Auto-remediación determinista de timers y optimización de transforms GPU",
-	scanningMessage: "Escaneando animaciones y timers UI en",
-	zeroFindingsMessage: "¡Cero infracciones de UI Animation o timers detectadas!",
+	bannerSubtitle: "Deterministic auto-remediation of UI timers and GPU transform optimization",
+	scanningMessage: "Scanning UI animations and timers in",
+	zeroFindingsMessage: "Zero UI animation violations or timers detected!",
 	tableColumns: [
 		{
 			key: "file",
-			header: "Archivo",
+			header: "File",
 			width: 46,
 			align: "left"
 		},
@@ -68,7 +68,7 @@ const motionCliDef = {
 		const timers = allFindings.filter((f) => f.kind === "banned-ui-timer").length;
 		const layout = allFindings.filter((f) => f.kind === "layout-property").length;
 		const eases = allFindings.filter((f) => f.kind === "legacy-ease").length;
-		return `Resumen: ${filesCount} archivos con ${allFindings.length} incidencias (${timers} timers, ${layout} layout props, ${eases} eases).`;
+		return `Summary: ${filesCount} file(s) with ${allFindings.length} findings (${timers} timers, ${layout} layout props, ${eases} eases).`;
 	},
 	toDiracItem: (f) => ({
 		line: f.line,
@@ -80,11 +80,11 @@ const motionCliDef = {
 	createPlan: (id, findings) => MotionRefactorEngine.createPlan(id, findings),
 	applyPlan: (dir, plan) => MotionRefactorEngine.applyPlan(dir, plan)
 };
-async function runRefactorMotionCli(argv = process.argv.slice(2)) {
+async function runRefactorMotionCli(argv) {
 	await runRefactorCliHarness(motionCliDef, argv);
 }
 if (isMainModule(import.meta.url, ["auditor-motion", "refactor_motion"])) runRefactorMotionCli().catch((err) => {
-	console.error(styleText("red", `\n💥 Error fatal en auditor-motion: ${err.message}`));
+	console.error(styleText("red", `\n[Error] Fatal error in auditor-motion: ${err.message}`));
 	process.exit(1);
 });
 //#endregion

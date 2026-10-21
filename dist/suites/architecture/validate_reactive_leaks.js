@@ -40,7 +40,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 		super({
 			id: "validate_reactive_leaks",
 			name: "Reactive & DOM Event Leak Auditor",
-			description: "Detecta posibles fugas de memoria y listeners sin limpiar",
+			description: "Detects potential memory leaks and uncleaned listeners",
 			family: "architecture",
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -57,18 +57,18 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			}),
 			ruleIds: REACTIVE_LEAK_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_LEAK_RULES, "behavior"),
-			packageName: "Fuga",
+			packageName: "Leak",
 			configKey: "paths",
 			defaultConfig: {},
 			criticalConfig: {},
 			icon: "💧",
 			ruleDescriptions: {
-				"dom-event-leak": "addEventListener sin limpiar",
-				"interval-leak": "setInterval sin limpiar"
+				"dom-event-leak": "addEventListener without cleanup",
+				"interval-leak": "setInterval without cleanup"
 			},
 			ruleRemediations: {
-				"dom-event-leak": "Causa Raíz:\nSe registró un escucha de eventos (\"addEventListener\") sobre window, document o un elemento del DOM dentro de un componente o composable sin mecanismo de desregistro.\nSi el componente se desmonta y el listener no se elimina, la función callback permanece viva en memoria y retiene todo el ámbito léxico del componente, produciendo fugas de memoria acumulativas.\n\nDiagnóstico:\nRevisa la llamada a \"addEventListener\". Faltan la opción \"{ once: true }\", la llamada a \"removeEventListener\" o el ciclo de vida \"onUnmounted\" / \"onScopeDispose\".\n\nSolución Canónica:\n1. Usar \"useEventListener\" de \"@vueuse/core\", que registra y remueve el listener automáticamente en sincronía con el ciclo de vida del componente.\n2. Si usas la API nativa, define la función listener como variable con nombre y llama a \"removeEventListener\" dentro de \"onUnmounted()\".\n3. Si el evento solo debe ocurrir una única vez, pasa \"{ once: true }\" como tercer argumento.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: listener huérfano sin limpieza\nwindow.addEventListener(\"resize\", handleResize);\n\n// ✅ Correcto (Opción A): useEventListener de VueUse\nimport { useEventListener } from \"@vueuse/core\";\nuseEventListener(window, \"resize\", handleResize);\n\n// ✅ Correcto (Opción B): limpieza explícita en onUnmounted\nonMounted(() => window.addEventListener(\"resize\", handleResize));\nonUnmounted(() => window.removeEventListener(\"resize\", handleResize));",
-				"interval-leak": "Causa Raíz:\nSe inició un temporizador repetitivo (\"setInterval\") en un componente o composable sin almacenar su identificador ni ejecutar \"clearInterval\".\nEl temporizador continuará ejecutándose indefinidamente cada N milisegundos en segundo plano incluso después de que la vista haya sido destruida, degradando la batería y la CPU.\n\nDiagnóstico:\nBusca la llamada a \"setInterval\" en el archivo señalado.\n\nSolución Canónica:\n1. Usar \"useIntervalFn\" de \"@vueuse/core\", que gestiona el arranque, pausa y destrucción automática con el hook de desmontaje de Vue.\n2. Si usas la API nativa, almacena el handle retornado y cancela el temporizador en \"onUnmounted()\".\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: setInterval sin cancelar\nsetInterval(() => { refreshData(); }, 5000);\n\n// ✅ Correcto: useIntervalFn de VueUse\nimport { useIntervalFn } from \"@vueuse/core\";\nuseIntervalFn(() => { refreshData(); }, 5000);"
+				"dom-event-leak": "1. Root Cause:\nAn event listener (\"addEventListener\") was attached to window, document, or a DOM element inside a component or composable without a deregistration mechanism.\nWhen the component unmounts without removing the listener, the callback function remains referenced in memory, capturing the component lexical scope and producing cumulative memory leaks.\n\n2. Diagnosis:\nInspect the \"addEventListener\" call. It lacks the \"{ once: true }\" option, an explicit \"removeEventListener\" invocation, or \"onUnmounted\" / \"onScopeDispose\" lifecycle cleanup.\n\n3. Canonical Solution:\n1. Use \"useEventListener\" from \"@vueuse/core\", which automatically binds and unbinds the listener in sync with the component lifecycle.\n2. If using the native DOM API, store the listener function in a named variable and call \"removeEventListener\" inside \"onUnmounted()\".\n3. If the event must only fire once, pass \"{ once: true }\" as the third argument.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: orphan listener without cleanup\nwindow.addEventListener(\"resize\", handleResize);\n\n// ✅ Correct (Option A): useEventListener from VueUse\nimport { useEventListener } from \"@vueuse/core\";\nuseEventListener(window, \"resize\", handleResize);\n\n// ✅ Correct (Option B): explicit cleanup in onUnmounted\nonMounted(() => window.addEventListener(\"resize\", handleResize));\nonUnmounted(() => window.removeEventListener(\"resize\", handleResize));",
+				"interval-leak": "1. Root Cause:\nA recurring timer (\"setInterval\") was initiated in a component or composable without storing its ID or executing \"clearInterval\".\nThe timer continues running indefinitely in the background even after the component is destroyed, degrading performance and draining battery/CPU.\n\n2. Diagnosis:\nLocate the \"setInterval\" call in the reported file.\n\n3. Canonical Solution:\n1. Use \"useIntervalFn\" from \"@vueuse/core\", which automatically manages start, pause, and teardown with Vue lifecycle hooks.\n2. If using native timers, capture the timer handle and invoke \"clearInterval\" in \"onUnmounted()\".\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: uncancelled setInterval\nsetInterval(() => { refreshData(); }, 5000);\n\n// ✅ Correct: useIntervalFn from VueUse\nimport { useIntervalFn } from \"@vueuse/core\";\nuseIntervalFn(() => { refreshData(); }, 5000);"
 			},
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"])
 		});
@@ -83,7 +83,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			severity: "error",
 			file: relPath,
 			line,
-			message: "addEventListener sin removeEventListener ni ciclo de vida onUnmounted / onScopeDispose (potencial fuga de memoria).",
+			message: "addEventListener without removeEventListener or onUnmounted / onScopeDispose lifecycle cleanup (potential memory leak).",
 			context: node.getText(sf)
 		});
 	}
@@ -97,7 +97,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			severity: "error",
 			file: relPath,
 			line,
-			message: "setInterval ejecutado sin clearInterval en el componente o composable.",
+			message: "setInterval executed without clearInterval in component or composable.",
 			context: node.getText(sf)
 		});
 	}

@@ -5,7 +5,7 @@
  *
  * Extracted from @francogp/auditor core as a host-specific architecture extension.
  * Enforces UI Architecture Governance (Button Rule 23):
- *   1. Anti-clipping perimetral 360° border on buttons in _buttons.scss (no border-bottom-color).
+ *   1. Anti-clipping perimeter 360° border on buttons in _buttons.scss (no border-bottom-color).
  *   2. Anti-cutoff uniform inset shadows in _buttons.scss (no negative inset 0 -Npx).
  *   3. Prohibition of ad-hoc .btn style overrides in component <style> blocks.
  *   4. Canonical button variants only (btn-primary, btn-secondary, btn-dark, btn-3d, etc.).
@@ -19,7 +19,14 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, createUniformRuleCapabilities, getAuditConfig, toPosixRelative, parseVueSfc } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  getAuditConfig,
+  toPosixRelative,
+  parseVueSfc,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export type ButtonGovernanceRuleId =
   | 'ad-hoc-button-styles'
@@ -33,11 +40,12 @@ export const BUTTON_GOVERNANCE_RULES: readonly ButtonGovernanceRuleId[] = [
 ] as const;
 
 export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options: FileScanRootsOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     super({
       id: 'validate_button_governance',
       name: 'Button Governance Validator (Rule 23)',
-      description: 'Valida gobernanza de botones y variantes canónicas',
+      description: 'Validates button governance and canonical variants',
       icon: '🔘',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(BUTTON_GOVERNANCE_RULES, {
@@ -50,34 +58,38 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
         critical: false
       }),
       ruleIds: BUTTON_GOVERNANCE_RULES,
-      packageName: 'Botones',
+      packageName: 'Buttons',
       configKey: 'styles.buttonGovernance',
       defaultConfig: {
         enabled: true
       },
       criticalConfig: {},
+      requiredPermissions: [],
       remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'ad-hoc-button-styles': 'Sobreescritura ad-hoc de botón',
-        'button-border-clipping': 'Borde inferior recortado en botón',
-        'button-inset-cutoff': 'Sombra inset negativa en botón'
+        'ad-hoc-button-styles': 'Ad-hoc button style override',
+        'button-border-clipping': 'Clipped bottom border on button',
+        'button-inset-cutoff': 'Negative inset shadow on button'
       },
       ruleRemediations: {
         'ad-hoc-button-styles':
-          'Se detectó un estilo ad-hoc sobreescribiendo una clase de botón en un componente.\n' +
-          '1. Utiliza las variantes estándar de botón (ej. btn-primary, btn-secondary, etc.).\n' +
-          '2. Mueve las modificaciones globales a _buttons.scss si es una variante legítima del sistema de diseño.',
+          '1. Root Cause: An ad-hoc style overriding a button class was detected inside a component.\n' +
+          '2. Diagnosis: Inspect the reported Vue SFC <style> or <template> block.\n' +
+          '3. Canonical Solution: Use canonical button variants (btn-primary, btn-secondary, etc.) and keep shared button styles in src/styles/_buttons.scss.\n' +
+          '4. Example / Command: npm run auditor',
         'button-border-clipping':
-          'El botón tiene un borde recortado o asimétrico en border-bottom-color.\n' +
-          '1. Define bordes perimetrales de 360 grados usando variables del sistema de diseño.\n' +
-          '2. Evita sobrescribir border-bottom-color individualmente en botones.',
+          '1. Root Cause: A button overrides border-bottom-color individually, causing asymmetric perimeter clipping.\n' +
+          '2. Diagnosis: Inspect src/styles/_buttons.scss for border-bottom-color declarations.\n' +
+          '3. Canonical Solution: Maintain continuous 360-degree perimeter borders using design system tokens.\n' +
+          '4. Example / Command: npm run auditor',
         'button-inset-cutoff':
-          'Se detectó una sombra inset negativa que corta el renderizado del botón.\n' +
-          '1. Utiliza sombras inset canónicas con desplazamientos positivos o simétricos.\n' +
-          '2. Ajusta el box-shadow según el manual de diseño de botones.'
+          '1. Root Cause: A negative vertical inset shadow clips the button rendering.\n' +
+          '2. Diagnosis: Inspect src/styles/_buttons.scss for negative inset 0 -Npx declarations.\n' +
+          '3. Canonical Solution: Use canonical positive or symmetric inset shadows.\n' +
+          '4. Example / Command: npm run auditor'
       },
-      roots: ['src/components', 'src/views', 'src/styles'],
+      roots: options.roots ?? ['src/components', 'src/views', 'src/styles'],
       allowedExtensions: new Set(['.vue', '.scss']),
       projectRoot
     });
@@ -101,7 +113,8 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
             severity: 'error',
             file: relButtons,
             line: 1,
-            message: 'Forbidden usage of "border-bottom-color" on buttons. All buttons must maintain continuous 360° perimeter borders.',
+            message:
+              'Forbidden usage of "border-bottom-color" on buttons. All buttons must maintain continuous 360° perimeter borders.',
             context: 'border-bottom-color'
           });
         }
@@ -114,7 +127,8 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
             severity: 'error',
             file: relButtons,
             line: 1,
-            message: 'Forbidden negative vertical inset shadow on buttons simulating visual clipping.',
+            message:
+              'Forbidden negative vertical inset shadow on buttons simulating visual clipping.',
             context: 'inset 0 -Npx'
           });
         }
@@ -129,64 +143,78 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
     }
 
     // 2. Audit Vue components for ad-hoc button classes
-    const compFiles = this.context.collectFiles(
-      [...(config.paths.componentsRoots ?? ['src/components']), ...(config.paths.viewsRoots ?? ['src/views'])],
+    const compFiles = await this.context.collectFiles(
+      [
+        ...(config.paths.componentsRoots ?? ['src/components']),
+        ...(config.paths.viewsRoots ?? ['src/views'])
+      ],
       new Set(['.vue'])
     );
 
     const canonicalVariants = new Set([
-      'btn-primary', 'btn-secondary', 'btn-dark', 'btn-success', 'btn-warning', 'btn-danger',
-      'btn-sm', 'btn-md', 'btn-lg', 'btn-block', 'btn-3d', 'btn-icon',
+      'btn-primary',
+      'btn-secondary',
+      'btn-dark',
+      'btn-success',
+      'btn-warning',
+      'btn-danger',
+      'btn-sm',
+      'btn-md',
+      'btn-lg',
+      'btn-block',
+      'btn-3d',
+      'btn-icon',
       ...(config.styles?.canonicalButtonVariants ?? [])
     ]);
 
     this.runSubAuditorSync('ad-hoc-button-styles', () => {
+      for (const file of compFiles) {
+        const relPath = toPosixRelative(file, this.projectRoot);
+        const content = fs.readFileSync(file, 'utf-8');
+        const parsedSfc = parseVueSfc(content);
 
-    for (const file of compFiles) {
-      const relPath = toPosixRelative(file, this.projectRoot);
-      const content = fs.readFileSync(file, 'utf-8');
-      const parsedSfc = parseVueSfc(content);
-
-      // Check ad-hoc button in <style>
-      for (const styleBlock of parsedSfc.styles) {
-        const styleBody = styleBlock.content;
-        const btnSelectorMatch = styleBody.match(/(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i);
-        if (btnSelectorMatch) {
-          this.addViolation({
-            ruleId: 'ad-hoc-button-styles',
-            severity: 'error',
-            file: relPath,
-            line: styleBlock.startLine,
-            message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Gobernanza exclusiva en src/styles/_buttons.scss (Mandato 23).`,
-            context: btnSelectorMatch[1]!
-          });
+        // Check ad-hoc button in <style>
+        for (const styleBlock of parsedSfc.styles) {
+          const styleBody = styleBlock.content;
+          const btnSelectorMatch = styleBody.match(
+            /(?:^|[^\w-])(\.btn(?:\s*\{|\s*[,>+~]|\.[a-z0-9_-]+))/i
+          );
+          if (btnSelectorMatch) {
+            this.addViolation({
+              ruleId: 'ad-hoc-button-styles',
+              severity: 'error',
+              file: relPath,
+              line: styleBlock.startLine,
+              message: `Ad-hoc button style override detected in <style>: "${btnSelectorMatch[1]}". Button styling must be centralized in src/styles/_buttons.scss.`,
+              context: btnSelectorMatch[1]!
+            });
+          }
         }
-      }
 
-      // Check non-canonical button variant classes in templates
-      const templateContent = parsedSfc.template?.content ?? '';
-      const allClassMatches = templateContent.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
-      for (const cm of allClassMatches) {
-        const clsList = cm[1]!.split(/\s+/).filter(Boolean);
-        if (clsList.includes('btn')) {
-          for (const c of clsList) {
-            if (c.startsWith('btn-') && !canonicalVariants.has(c)) {
-              this.addViolation({
-                ruleId: 'ad-hoc-button-styles',
-                severity: 'error',
-                file: relPath,
-                line: parsedSfc.template?.startLine ?? 1,
-                message: `Clase de botón no canónica "${c}" detectada según Mandato 23.`,
-                context: c
-              });
+        // Check non-canonical button variant classes in templates
+        const templateContent = parsedSfc.template?.content ?? '';
+        const allClassMatches = templateContent.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
+        for (const cm of allClassMatches) {
+          const clsList = cm[1]!.split(/\s+/).filter(Boolean);
+          if (clsList.includes('btn')) {
+            for (const c of clsList) {
+              if (c.startsWith('btn-') && !canonicalVariants.has(c)) {
+                this.addViolation({
+                  ruleId: 'ad-hoc-button-styles',
+                  severity: 'error',
+                  file: relPath,
+                  line: parsedSfc.template?.startLine ?? 1,
+                  message: `Non-canonical button variant class "${c}" detected.`,
+                  context: c
+                });
+              }
             }
           }
         }
       }
-    }
     });
   }
 }
 
-// Canonical CLI Entrypoint
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new ButtonGovernanceAuditor());

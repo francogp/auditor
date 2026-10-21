@@ -24,7 +24,7 @@ describe('inefficientFileScanDetector', () => {
   it('exposes correct detector metadata and rule id', () => {
     expect(inefficientFileScanDetector.id).toBe('inefficient-file-scan');
     expect(inefficientFileScanDetector.ruleId).toBe('auditor-inefficient-file-scan');
-    expect(inefficientFileScanDetector.ruleDescription).toBe('Escaneo ineficiente de archivos');
+    expect(inefficientFileScanDetector.ruleDescription).toBe('Inefficient file scanning');
   });
 
   it('detects nested rule loop over file iteration', () => {
@@ -40,7 +40,7 @@ describe('inefficientFileScanDetector', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.ruleId).toBe('auditor-inefficient-file-scan');
     expect(findings[0]!.line).toBe(2);
-    expect(findings[0]!.message).toContain('Bucle anidado de regla sobre archivos');
+    expect(findings[0]!.message).toContain('Nested loop of rule over files detected');
   });
 
   it('detects blind wildcards passed to external tools', () => {
@@ -52,7 +52,7 @@ describe('inefficientFileScanDetector', () => {
     expect(findings).toHaveLength(1);
     expect(findings[0]!.ruleId).toBe('auditor-inefficient-file-scan');
     expect(findings[0]!.line).toBe(1);
-    expect(findings[0]!.message).toContain('Comodín ciego global');
+    expect(findings[0]!.message).toContain('Blind global wildcard');
   });
 
   it('passes cleanly when using scanFilesSinglePass or targetArgs', () => {

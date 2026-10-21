@@ -44,7 +44,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       const auditor = new AgentPluginAuditor();
       expect(auditor.id).toBe('validate_agent_plugin');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Agente');
+      expect(auditor.packageName).toBe('Agent');
       expect(auditor.description.length).toBeLessThanOrEqual(60);
       expect(
         auditor.formatRuleDescription('missing-agent-plugin-registration').length
@@ -215,7 +215,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-yaml-frontmatter');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
-      expect(violation?.message).toContain('Error de sintaxis YAML');
+      expect(violation?.message).toContain('YAML syntax error in frontmatter');
     });
 
     it('detects missing name or description in skill SKILL.md frontmatter', async () => {
@@ -239,7 +239,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'nameless-skill'
       );
       expect(violation).toBeDefined();
-      expect(violation?.message).toContain("Falta el campo 'name'");
+      expect(violation?.message).toContain("Missing 'name' field in frontmatter");
     });
   });
 });

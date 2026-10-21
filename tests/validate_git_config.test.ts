@@ -120,15 +120,15 @@ describe('validate_git_config (Git Configuration Validator)', () => {
 
       expect(filemodeFinding).toBeDefined();
       expect(filemodeFinding?.severity).toBe('error');
-      expect(filemodeFinding?.message).toContain('core.filemode debe ser "false"');
+      expect(filemodeFinding?.message).toContain('core.filemode must be "false"');
 
       expect(autocrlfFinding).toBeDefined();
       expect(autocrlfFinding?.severity).toBe('error');
-      expect(autocrlfFinding?.message).toContain('core.autocrlf debe ser "input"');
+      expect(autocrlfFinding?.message).toContain('core.autocrlf must be "input"');
 
       expect(eolFinding).toBeDefined();
       expect(eolFinding?.severity).toBe('error');
-      expect(eolFinding?.message).toContain('core.eol debe ser "lf"');
+      expect(eolFinding?.message).toContain('core.eol must be "lf"');
     });
   });
 

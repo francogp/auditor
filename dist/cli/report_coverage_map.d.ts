@@ -35,8 +35,9 @@ export interface CoverageMapCliOptions {
   uncoveredOnly?: boolean;
   degradedOnly?: boolean;
   jsonOutput?: boolean;
+  human?: boolean;
 }
-export declare function parseCoverageMapCliArgs(argv?: string[]): CoverageMapCliOptions;
+export declare function parseCoverageMapCliArgs(rawInputArgs?: readonly string[]): CoverageMapCliOptions;
 export declare function generateCoverageMap(options?: CoverageMapCliOptions): Promise<CoverageMapResult>;
 export declare function renderDirectorySummaryTable(result: CoverageMapResult): string;
 export declare function renderFilesTable(files: readonly FileCoverageEntry[]): string;

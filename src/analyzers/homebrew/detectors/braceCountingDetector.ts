@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const braceCountingDetector = createLineDetector({
   id: 'brace-counting',
   ruleId: 'auditor-manual-brace-counting',
-  ruleDescription: 'Conteo casero de llaves o bloques',
+  ruleDescription: 'Homebrew brace or block counting',
   checkLine(line) {
     const hasManualDepthVar =
       /\b(?:let|var)\s+(?:parenDepth|braceDepth|braceCount)\s*=\s*0\b/.test(line) ||

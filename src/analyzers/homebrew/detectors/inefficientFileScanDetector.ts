@@ -15,7 +15,7 @@ import {
 export const inefficientFileScanDetector: HomebrewDetector = {
   id: 'inefficient-file-scan',
   ruleId: 'auditor-inefficient-file-scan',
-  ruleDescription: 'Escaneo ineficiente de archivos',
+  ruleDescription: 'Inefficient file scanning',
 
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
     const findings: HomebrewFinding[] = [];
@@ -51,7 +51,7 @@ export const inefficientFileScanDetector: HomebrewDetector = {
           ruleId: 'auditor-inefficient-file-scan',
           line: lineNum,
           message:
-            "Comodín ciego global ('**/*.ext') detectado en llamada a herramienta externa. Pasa la lista de archivos descubiertos por el auditor o usa targetArgs acotados.",
+            "Blind global wildcard ('**/*.ext') detected in external tool call. Pass files discovered by auditor or use scoped targetArgs.",
           context: trimmed.slice(0, 100),
           severity: 'error'
         });
@@ -86,7 +86,7 @@ export const inefficientFileScanDetector: HomebrewDetector = {
             ruleId: 'auditor-inefficient-file-scan',
             line: lineNum,
             message:
-              "Bucle anidado de regla sobre archivos detectado. Invierte el bucle (recorre cada archivo una sola vez en RAM) o usa 'this.scanFilesSinglePass()'.",
+              "Nested loop of rule over files detected. Invert the loop (traverse each file once in RAM) or use 'this.scanFilesSinglePass()'.",
             context: trimmed.slice(0, 100),
             severity: 'error'
           });

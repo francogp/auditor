@@ -255,7 +255,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       }),
       id: 'validate_magic_numbers',
       name: 'Magic Numbers Validator',
-      description: 'Gobernanza de números mágicos desnudos en lógica',
+      description: 'Governance of naked magic numbers in logic',
       family: 'architecture',
       packageName: 'MagicNumbers',
       configKey: 'constants',
@@ -273,37 +273,36 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
       ruleIds: MAGIC_NUMBERS_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(MAGIC_NUMBERS_RULES, 'hygiene'),
       ruleDescriptions: {
-        'magic-number-naked': 'Número mágico no en constante'
+        'magic-number-naked': 'Magic number outside constant'
       },
       ruleRemediations: {
         'magic-number-naked':
-          'Causa Raíz:\n' +
-          'Se detectó un número literal desnudo ("naked magic number") embebido directamente en la lógica, ' +
-          'cálculo o condición de control sin estar asignado a una constante descriptiva con nombre semántico. ' +
-          'Los números mágicos oscurecen el significado del código, impiden la reutilización y generan riesgos ' +
-          'de inconsistencia durante evoluciones del modelo.\n\n' +
-          'Diagnóstico:\n' +
-          '1. Ejecuta "npm run auditor:findings -- rule=magic-number-naked flat" para listar los archivos, líneas y valores infractores.\n' +
-          '2. Ejecuta "npm run auditor:magic inspect <archivo>" para obtener la inspección Dirac compacta y el plan de refactorización sugerido.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Declaración Local: Si el número es específico del módulo o script, declara una constante en el encabezado del archivo ' +
-          '(ej. "const MAX_RETRY_COUNT = 3;" o "const HTTP_STATUS_OK = 200;").\n' +
-          '2. Constantes de Dominio Compartidas: Si el valor representa un token de diseño o regla de negocio transversal ' +
-          '(ej. multiplicadores de RPG, límites de rate-limit), decláralo en "src/constants/" o el módulo de dominio respectivo.\n' +
-          '3. Sentinels Universales Exentos: Recuerda que los valores -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024, ' +
-          'así como índices de array ("arr[0]"), argumentos de precisión (".toFixed(2)"), límites de slice (".slice(2)") y radix ("parseInt(x, 10)") ' +
-          'están exentos universalmente y no disparan alertas.\n' +
-          '4. Escape Hatch Justificado: Si el número es inherente a un cálculo matemático puntual o un fixture de testing y no amerita constante, ' +
-          'agrega el comentario "// const-ok: <justificación técnica>" en la misma línea o inmediatamente encima.\n' +
-          '5. Configuración de Proyecto en .auditor/audit.config.ts: Si el repositorio utiliza códigos de estado, multiplicadores o constantes ' +
-          'globales de dominio, se pueden registrar en "constants.exemptMagicNumbers" previa consulta con el programador.\n' +
-          '6. Refactorización Determinista Automática: Ejecuta "npm run auditor:magic inspect <archivo>", guarda el plan JSON sugerido ' +
-          'y aplícalo de forma segura con "npm run auditor:magic apply <plan.json> --worktree".\n\n' +
-          'Ejemplo / Herramientas Oficiales:\n' +
-          '  Descubrimiento global: npm run auditor:magic discover\n' +
-          '  Inspección y plan: npm run auditor:magic inspect <archivo>\n' +
-          '  Aplicación segura: npm run auditor:magic apply <plan.json> --worktree\n' +
-          '  Ayuda interactiva: npm run auditor:magic help'
+          '1. Root Cause:\n' +
+          'A naked numeric literal was detected embedded directly in application logic, ' +
+          'calculations, or control conditions without being assigned to a descriptive, semantically named constant. ' +
+          'Magic numbers obscure code intent, prevent reuse, and introduce risks of inconsistency as the domain evolves.\n\n' +
+          '2. Diagnosis:\n' +
+          '1. Run "npm run auditor:findings -- rule=magic-number-naked flat" to list offending files, line numbers, and values.\n' +
+          '2. Run "npm run auditor:magic inspect <file>" to obtain a compact Dirac inspection and suggested refactoring plan.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Local Constant: If the number is specific to a single module or script, declare a top-level constant ' +
+          '(e.g. "const MAX_RETRY_COUNT = 3;" or "const HTTP_STATUS_OK = 200;").\n' +
+          '2. Shared Domain Constants: If the value represents a cross-cutting design token or business rule ' +
+          '(e.g. game multipliers, rate limits), declare it in "src/constants/" or the appropriate domain module.\n' +
+          '3. Universal Exempt Sentinels: Note that values -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024, ' +
+          'as well as array indexes ("arr[0]"), precision arguments (".toFixed(2)"), slice boundaries (".slice(2)"), and radix ("parseInt(x, 10)") ' +
+          'are universally exempt and never trigger findings.\n' +
+          '4. Justified Escape Hatch: If the number is part of a one-off mathematical formula or test fixture where a constant is unnecessary, ' +
+          'add "// const-ok: <technical justification>" on the same line or immediately above.\n' +
+          '5. Repository Configuration in .auditor/audit.config.ts: If the repository uses global status codes, multipliers, or domain constants, ' +
+          'they can be registered in "constants.exemptMagicNumbers" upon developer consultation.\n' +
+          '6. Automated Deterministic Refactoring: Run "npm run auditor:magic inspect <file>", inspect the suggested JSON plan, ' +
+          'and safely apply it via "npm run auditor:magic apply <plan.json> --worktree".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '  Global discovery:   npm run auditor:magic discover\n' +
+          '  Inspect & plan:     npm run auditor:magic inspect <file>\n' +
+          '  Safe worktree apply: npm run auditor:magic apply <plan.json> --worktree\n' +
+          '  Help & options:     npm run auditor:magic help'
       },
       projectRoot: effectiveRoot
     });
@@ -354,8 +353,8 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           const lineText = lines[actualLine - 1] ?? '';
           if (!lineText.includes('// const-ok:')) {
             const message = isTimerDelay
-              ? `Retardo de temporizador numérico desnudo: ${val}. Declara una constante explícita para este tiempo ('const RETRY_DELAY_MS = ${val}').`
-              : `Número mágico no declarado: ${val}. Declara una constante explícita para este valor ('const NOMBRE = ${val}').`;
+              ? `Naked numeric timer delay: ${val}. Declare an explicit constant for this duration ('const RETRY_DELAY_MS = ${val}').`
+              : `Undeclared magic number: ${val}. Declare an explicit constant for this value ('const NAME = ${val}').`;
 
             this.addViolation({
               ruleId: 'magic-number-naked',

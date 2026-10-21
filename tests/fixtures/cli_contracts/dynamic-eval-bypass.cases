@@ -1,0 +1,11 @@
+### D01 deep-research#7 expect=cli-contracts-dynamic-eval-bypass
+eval('console.log(process.argv)');
+
+### D02 deep-research#8 expect=cli-contracts-dynamic-eval-bypass
+const fn = new Function('return process.argv');
+
+### D03 deep-research#9 expect=cli-contracts-dynamic-eval-bypass
+const input = fs.readFileSync(0, 'utf-8');
+
+### D04 function-call-bypass#1 expect=cli-contracts-dynamic-eval-bypass
+const dynamicGetter = Function('return process.argv');

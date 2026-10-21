@@ -92,7 +92,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         ]
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('PROHIBIDO instanciar Set');
+      expect(reports[0]!.message).toContain('PROHIBITED');
     });
 
     it('Escape Canary: allows new Set with // runtime-set: directive', () => {
@@ -147,7 +147,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         ]
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('uniones de string abiertas');
+      expect(reports[0]!.message).toContain('open string unions');
     });
 
     it('Escape Canary: allows open union with // string-ok: comment', () => {
@@ -196,7 +196,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('sin `as const`');
+      expect(reports[0]!.message).toContain('without `as const`');
     });
 
     it('Escape Canary: allows literal array with // string-ok: comment', () => {
@@ -246,7 +246,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         typeAnnotation: { type: 'TSUnknownKeyword' }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('casteo hacia unknown');
+      expect(reports[0]!.message).toContain('Casting to unknown');
     });
 
     it('Escape Canary: allows as unknown with // type-ok: comment', () => {
@@ -325,7 +325,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         typeAnnotation: { type: 'TSStringKeyword' }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain("identificador de dominio 'UserId'");
+      expect(reports[0]!.message).toContain("Domain identifier 'UserId'");
     });
 
     it('Escape Canary: allows type UserId = string with // infra-id-ok: comment', () => {
@@ -432,7 +432,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('Retorno redundante con propagación');
+      expect(reports[0]!.message).toContain('Redundant spread return');
     });
 
     it('Escape Canary: allows return [...arr] with // o1-ok: comment', () => {
@@ -475,7 +475,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('Anotación literal redundante');
+      expect(reports[0]!.message).toContain('Redundant literal annotation');
     });
 
     it('Escape Canary: allows : true with // type-ok: comment', () => {
@@ -521,7 +521,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         ]
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('Callback asíncrono en computed() prohibido');
+      expect(reports[0]!.message).toContain('Async callback in computed() is prohibited');
     });
 
     it('Escape Canary: allows async computed with // reactivity-ok: comment', () => {
@@ -577,7 +577,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         ]
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('Observación directa de propiedad props en watch()');
+      expect(reports[0]!.message).toContain('Direct observation of props property in watch()');
     });
 
     it('Escape Canary: allows naked prop watch with // reactivity-ok: comment', () => {
@@ -630,7 +630,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         }
       });
       expect(reports.length).toBe(1);
-      expect(reports[0]!.message).toContain('Desestructuración directa de reactive() prohibida');
+      expect(reports[0]!.message).toContain('Direct destructuring of reactive() is prohibited');
     });
 
     it('Escape Canary: allows destructuring with // reactivity-ok: comment', () => {

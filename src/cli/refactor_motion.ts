@@ -22,7 +22,7 @@ import type {
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: 'file', header: 'Archivo', width: 46, align: 'left' },
+  { key: 'file', header: 'File', width: 46, align: 'left' },
   { key: 'timers', header: 'Timers', width: 8, align: 'right' },
   { key: 'layout', header: 'Layout', width: 8, align: 'right' },
   { key: 'eases', header: 'Eases', width: 8, align: 'right' },
@@ -31,11 +31,11 @@ const TABLE_COLUMNS: readonly TableColumn[] = [
 
 const motionCliDef: RefactorCliDefinition<MotionFindingItem, MotionRefactorPlan> = {
   toolName: 'auditor-motion',
-  toolDescription: 'UI Animation y timers',
+  toolDescription: 'UI animations and banned timers',
   bannerTitle: 'AUDITOR MOTION: UI ANIMATION & GSAP GOVERNANCE',
-  bannerSubtitle: 'Auto-remediación determinista de timers y optimización de transforms GPU',
-  scanningMessage: 'Escaneando animaciones y timers UI en',
-  zeroFindingsMessage: '¡Cero infracciones de UI Animation o timers detectadas!',
+  bannerSubtitle: 'Deterministic auto-remediation of UI timers and GPU transform optimization',
+  scanningMessage: 'Scanning UI animations and timers in',
+  zeroFindingsMessage: 'Zero UI animation violations or timers detected!',
   tableColumns: TABLE_COLUMNS,
   engineFactory: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => MotionRefactorEngine.discoverInFile(filePath),
@@ -55,7 +55,7 @@ const motionCliDef: RefactorCliDefinition<MotionFindingItem, MotionRefactorPlan>
     const timers = allFindings.filter((f) => f.kind === 'banned-ui-timer').length;
     const layout = allFindings.filter((f) => f.kind === 'layout-property').length;
     const eases = allFindings.filter((f) => f.kind === 'legacy-ease').length;
-    return `Resumen: ${filesCount} archivos con ${allFindings.length} incidencias (${timers} timers, ${layout} layout props, ${eases} eases).`;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} findings (${timers} timers, ${layout} layout props, ${eases} eases).`;
   },
   toDiracItem: (f) => ({
     line: f.line,
@@ -68,13 +68,13 @@ const motionCliDef: RefactorCliDefinition<MotionFindingItem, MotionRefactorPlan>
   applyPlan: (dir, plan) => MotionRefactorEngine.applyPlan(dir, plan)
 };
 
-export async function runRefactorMotionCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runRefactorMotionCli(argv?: readonly string[]): Promise<void> {
   await runRefactorCliHarness(motionCliDef, argv);
 }
 
 if (isMainModule(import.meta.url, ['auditor-motion', 'refactor_motion'])) {
   runRefactorMotionCli().catch((err) => {
-    console.error(styleText('red', `\n💥 Error fatal en auditor-motion: ${err.message}`));
+    console.error(styleText('red', `\n[Error] Fatal error in auditor-motion: ${err.message}`));
     process.exit(1);
   });
 }

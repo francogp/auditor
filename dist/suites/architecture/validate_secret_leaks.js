@@ -44,7 +44,7 @@ function mapSecretLintMessageToFinding(msg, relPath) {
 		suiteId: "validate_secret_leaks",
 		suiteName: "Secret Leaks & Credentials Auditor",
 		ruleId: msg.messageId === "PrivateKey" || msg.ruleId.includes("privatekey") ? "secret-leak-private-key" : "secret-leak-detected",
-		ruleDescription: "Secretos: Credencial o clave expuesta",
+		ruleDescription: "Secrets: Exposed credential or key",
 		severity: "error",
 		file: relPath,
 		line: msg.loc?.start?.line ?? 1,
@@ -71,19 +71,19 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_secret_leaks",
 			name: "Secret Leaks & Credentials Auditor",
-			description: "Detecta credenciales, tokens y secretos expuestos",
+			description: "Detects exposed credentials, tokens, and secrets",
 			family: "architecture",
-			packageName: "Secretos",
+			packageName: "Secrets",
 			icon: "🔑",
 			ruleIds: SECRET_LEAKS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(SECRET_LEAKS_RULES, "behavior"),
 			ruleDescriptions: {
-				"secret-leak-detected": "Token, secreto o credencial expuesta",
-				"secret-leak-private-key": "Clave criptográfica privada expuesta"
+				"secret-leak-detected": "Exposed token, secret, or credential",
+				"secret-leak-private-key": "Exposed private cryptographic key"
 			},
 			ruleRemediations: {
-				"secret-leak-detected": "📖 GUÍA DE REMEDIACIÓN: secret-leak-detected\n1. Causa Raíz: El analizador de seguridad (`@secretlint`) detectó una credencial, token de API, cadena de conexión o firma secreta expuesta en texto plano dentro del código o configuración.\n2. Diagnóstico: Revisa la línea y columna señaladas. El valor o formato coincide con patrones conocidos de proveedores (GitHub, AWS, Google Cloud, Slack, Stripe, JWT, etc.).\n3. Solución Canónica:\n   a) Revoca o invalida inmediatamente la credencial en el panel del proveedor si alguna vez fue commiteada.\n   b) Mueve el secreto a variables de entorno (`.env.local` excluido por `.gitignore` o gestores de secretos de CI/CD).\n   c) Si es un fixture sintético en un test unitario, altera el prefijo o entropía de la cadena para no activar heurísticas de secretos reales, o añade la excepción correspondiente en la configuración.\n4. Ejemplo:\n   ❌ Expuesto: `const API_TOKEN = \"sk_live_secret12345\";`\n   ✅ Seguro:   `const API_TOKEN = process.env.API_TOKEN ?? \"\";`",
-				"secret-leak-private-key": "📖 GUÍA DE REMEDIACIÓN: secret-leak-private-key\n1. Causa Raíz: Se encontró un bloque de clave criptográfica privada (`-----BEGIN PRIVATE KEY-----`, o similar) dentro del repositorio.\n2. Diagnóstico: Comprueba el archivo y la línea del hallazgo.\n3. Solución Canónica:\n   a) Retira el bloque de clave privada de los archivos fuente de inmediato y revoca los certificados asociados.\n   b) Inyecta la clave en tiempo de ejecución a través de variables de entorno o almacenes de claves protegidos (KMS, Vault).\n   c) Si es un certificado público o mock de pruebas sin valor criptográfico real, utiliza fixtures seguros en `tests/fixtures/`.\n4. Ejemplo:\n   ❌ Expuesto: Clave PEM pegada directamente en el archivo fuente.\n   ✅ Seguro:   `const privateKey = process.env.AUTH_PRIVATE_KEY;`"
+				"secret-leak-detected": "📖 REMEDIATION GUIDE: secret-leak-detected\n1. Root Cause: Security analyzer (`@secretlint`) detected an API token, connection string, or private secret exposed in plain text within code or configuration.\n2. Diagnosis: Inspect the line and column reported. The pattern matches known provider token signatures (GitHub, AWS, Google Cloud, Slack, Stripe, JWT, etc.).\n3. Canonical Solution:\n   a) Immediately revoke or invalidate the credential in the provider dashboard if ever committed.\n   b) Move secrets to environment variables (`.env.local` excluded in `.gitignore` or CI/CD secret vaults).\n   c) If this is synthetic test data, alter the entropy or prefix to avoid triggering live pattern heuristics, or add an exemption in configuration.\n4. Example / Auto-fix command:\n   ❌ Exposed: `const API_TOKEN = \"sk_live_secret12345\";`\n   ✅ Secure:   `const API_TOKEN = process.env.API_TOKEN ?? \"\";`",
+				"secret-leak-private-key": "📖 REMEDIATION GUIDE: secret-leak-private-key\n1. Root Cause: A cryptographic private key block (`-----BEGIN PRIVATE KEY-----`, or similar) was found in the repository.\n2. Diagnosis: Check the file and line number where the private key was detected.\n3. Canonical Solution:\n   a) Immediately remove the private key block from source files and revoke associated certificates.\n   b) Inject keys at runtime via environment variables or protected secret stores (KMS, Vault).\n   c) If this is a public certificate or non-sensitive test fixture, isolate it under `tests/fixtures/`.\n4. Example / Auto-fix command:\n   ❌ Exposed: PEM key pasted directly into source file.\n   ✅ Secure:   `const privateKey = process.env.AUTH_PRIVATE_KEY;`"
 			},
 			roots: options.roots,
 			allowedExtensions: SECRET_SCAN_EXTENSIONS,

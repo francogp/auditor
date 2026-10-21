@@ -1,0 +1,82 @@
+[
+  {
+    "query": "necesito analizar scratch/audits/latest_audit.json para saber qué reglas fallaron en el último audit",
+    "should_trigger": true
+  },
+  {
+    "query": "fijate en latest_audit.json y decime cuántos errores de typescript quedaron pendientes",
+    "should_trigger": true
+  },
+  {
+    "query": "quiero ver los findings de latest_audit.json agrupados por archivo",
+    "should_trigger": true
+  },
+  {
+    "query": "¿cómo puedo consultar scratch/audits/latest_audit.json sin abrir el archivo entero?",
+    "should_trigger": true
+  },
+  {
+    "query": "hay 5 errores en latest_audit.json en src/cli/report_fallow.ts, mostrame las líneas exactas",
+    "should_trigger": true
+  },
+  {
+    "query": "inspeccionar scratch/audits/latest_audit.json para ver qué violaciones hay de la regla oxfmt-violation",
+    "should_trigger": true
+  },
+  {
+    "query": "mostrame un resumen de los errores de latest_audit",
+    "should_trigger": true
+  },
+  {
+    "query": "can you inspect scratch/audits/latest_audit.json and give me the summary table of violations?",
+    "should_trigger": true
+  },
+  {
+    "query": "leé scratch/audits/latest_audit.json y filtrame los warnings",
+    "should_trigger": true
+  },
+  {
+    "query": "dame el detalle de las fallas que salieron en latest_audit.json en la fase setup",
+    "should_trigger": true
+  },
+  {
+    "query": "necesito parsear un archivo data/audit_log.json del backend para extraer logs de auditoría de usuarios de la base de datos",
+    "should_trigger": false
+  },
+  {
+    "query": "creame un script en python para leer un json en scratch/temp_data.json y convertirlo a csv",
+    "should_trigger": false
+  },
+  {
+    "query": "¿cómo configuro audit trail en postgresql con supabase para registrar inserts y updates?",
+    "should_trigger": false
+  },
+  {
+    "query": "ejecutá npm test para ver los tests unitarios que fallaron en tests/guide_renderer.test.ts",
+    "should_trigger": false
+  },
+  {
+    "query": "vamos a hacer un code review de los cambios entre esta rama y main",
+    "should_trigger": false
+  },
+  {
+    "query": "necesito refactorizar una función en src/utils.ts para reducir su complejidad ciclomática",
+    "should_trigger": false
+  },
+  {
+    "query": "agregale tipado estricto a los parámetros de esta función que recibe un id numérico",
+    "should_trigger": false
+  },
+  {
+    "query": "creá un nuevo componente en vue con script setup y sass scoped",
+    "should_trigger": false
+  },
+  {
+    "query": "revisá el archivo package.json para ver qué versión de typescript tenemos instalada",
+    "should_trigger": false
+  },
+  {
+    "query": "hacé un git commit seguro de los cambios que tenemos pendientes",
+    "should_trigger": false
+  }
+]

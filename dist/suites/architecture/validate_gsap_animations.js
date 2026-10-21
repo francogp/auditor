@@ -230,7 +230,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			roots: targetRoots,
 			id: "validate_gsap_animations",
 			name: "GSAP Animation & UI Timing Hygiene",
-			description: "Gobernanza estricta de animaciones GSAP y timers UI",
+			description: "Strict governance of GSAP animations and UI timers",
 			family: "architecture",
 			packageName: "GSAP",
 			icon: "🎬",
@@ -256,36 +256,36 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			ruleIds: GSAP_ANIMATION_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(GSAP_ANIMATION_RULES, "behavior"),
 			ruleDescriptions: {
-				"gsap-banned-css-animations": "Animación manual CSS prohibida",
-				"gsap-banned-ui-timers": "Timer nativo en componente UI",
-				"gsap-no-layout-properties": "Propiedad layout en tween GSAP",
-				"gsap-named-timer-constants": "Número mágico en retardo GSAP",
-				"gsap-empty-vue-transitions": "Transición Vue vacía detectada",
-				"gsap-no-important-transforms": "!important en CSS transform",
-				"gsap-no-important-filters": "!important en CSS filter",
-				"gsap-gpu-layer-promotion": "Falta will-change en filtro",
-				"gsap-timeline-constructor-duration": "Duration directa en timeline",
-				"gsap-kebab-case-properties": "Propiedad CSS en kebab-case",
-				"gsap-raw-transform-string": "String CSS crudo en transform",
-				"gsap-simultaneous-origin-conflict": "Conflicto svgOrigin y transform",
-				"gsap-legacy-ease-names": "Nombre de ease legado de GSAP v2",
-				"gsap-high-frequency-tween-creation": "Tween en listener continuo"
+				"gsap-banned-css-animations": "Prohibited manual CSS animation",
+				"gsap-banned-ui-timers": "Native timer in UI component",
+				"gsap-no-layout-properties": "Layout property in GSAP tween",
+				"gsap-named-timer-constants": "Magic number in GSAP delay",
+				"gsap-empty-vue-transitions": "Empty Vue transition detected",
+				"gsap-no-important-transforms": "!important in CSS transform",
+				"gsap-no-important-filters": "!important in CSS filter",
+				"gsap-gpu-layer-promotion": "Missing will-change on filter",
+				"gsap-timeline-constructor-duration": "Direct duration in timeline constructor",
+				"gsap-kebab-case-properties": "CSS property in kebab-case",
+				"gsap-raw-transform-string": "Raw CSS string in transform",
+				"gsap-simultaneous-origin-conflict": "svgOrigin vs transformOrigin conflict",
+				"gsap-legacy-ease-names": "Legacy GSAP v2 ease name",
+				"gsap-high-frequency-tween-creation": "Tween inside continuous event listener"
 			},
 			ruleRemediations: {
-				"gsap-banned-css-animations": "📖 GUÍA DE REMEDIACIÓN: gsap-banned-css-animations\n1. Causa Raíz: Se detectó una animación o transición manual definida en CSS o SCSS (@keyframes, transition, animation). En proyectos con GSAP como estándar de interfaz, las animaciones CSS rompen la sincronización temporal y el determinismo en tests automatizados (donde timeScale(100) avanza los tweens instantáneamente), provocando timeouts y pruebas visuales inestables.\n2. Diagnóstico: Busca la propiedad transition o animation en la regla de estilo del archivo reportado.\n3. Solución: Migra la animación a GSAP utilizando gsap.to(), gsap.fromTo(), gsap.timeline(), o los hooks de ciclo de vida del componente en Vue (onMounted, Transition con hooks JS).\n4. Ejemplo:\n   ❌ Incorrecto: .modal-card { transition: transform 0.3s ease, opacity 0.3s; }\n   ✅ Correcto:   gsap.to(cardEl, { scale: 1, opacity: 1, duration: 0.3, ease: \"power2.out\" });\n5. Excepción Válida: Se autoriza \"transition: none\" para reseteos y pseudo-clases simples de color/hover autorizadas en _base.scss.",
-				"gsap-banned-ui-timers": "📖 GUÍA DE REMEDIACIÓN: gsap-banned-ui-timers\n1. Causa Raíz: Se detectó el uso de setTimeout(), setInterval() o requestAnimationFrame() en componentes o capas de interfaz (src/ui/). Estos timers nativos no están sincronizados con la línea de tiempo de GSAP ni se limpian automáticamente al desmontar componentes, provocando memory leaks y desincronización en pruebas.\n2. Diagnóstico: Identifica la llamada a setTimeout/setInterval en el archivo reportado.\n3. Solución:\n   a) Para retardos: reemplaza setTimeout(fn, ms) por gsap.delayedCall(segundos, fn) o await gsapSleep(segundos).\n   b) Para bucles: utiliza gsap.timeline({ repeat: -1 }) o gsap.ticker.add(fn).\n4. Ejemplo:\n   ❌ Incorrecto: Retardos de interfaz con setTimeout nativo\n   ✅ Correcto:   `gsap.delayedCall(DELAY_SEC, () => { isVisible.value = false; });`",
-				"gsap-no-layout-properties": "📖 GUÍA DE REMEDIACIÓN: gsap-no-layout-properties\n1. Causa Raíz: Se detectó un tween de GSAP que anima propiedades de layout geométrico (top, left, right, bottom, width, height, margin, padding). Animar estas propiedades fuerza al navegador a recalcular el layout (reflow) en cada frame en la CPU, provocando jank y caídas de FPS.\n2. Diagnóstico: Revisa el objeto de propiedades del tween en la línea indicada.\n3. Solución: Sustituye las propiedades de layout por transformaciones de GPU compuestas por hardware (x, y, xPercent, yPercent, scale, rotation, autoAlpha).\n4. Ejemplo:\n   ❌ Incorrecto: Animar propiedades de layout como top, left o width\n   ✅ Correcto:   Animar transformaciones de GPU como x, y, scale y autoAlpha\n5. Directiva de Escape: Si el reflow es estrictamente inevitable (ej: acordiones que desplazan el flujo del documento), añade la directiva: // layout-ok: <justificación técnica del reflow inevitable>.",
-				"gsap-named-timer-constants": "📖 GUÍA DE REMEDIACIÓN: gsap-named-timer-constants\n1. Causa Raíz: Se utilizó un valor numérico crudo (número mágico) como duración o retardo en una animación o timer de GSAP sin asociarlo a una constante descriptiva o design token.\n2. Diagnóstico: Busca números literales como duraciones o retardos crudos en el tween.\n3. Solución: Define o importa una constante con nombre representativo en mayúsculas (ej: MODAL_ENTER_DURATION_SEC) para unificar la velocidad del sistema de diseño.\n4. Ejemplo:\n   ❌ Incorrecto: Números literales en duration o delay (ej: 0.3 o 350)\n   ✅ Correcto:   Constantes semánticas exportadas (ej: UI_TRANSITION_DURATION_SEC)",
-				"gsap-empty-vue-transitions": "📖 GUÍA DE REMEDIACIÓN: gsap-empty-vue-transitions\n1. Causa Raíz: Se declaró una etiqueta <Transition> o <TransitionGroup> en un componente Vue sin definir clases CSS de transición ni vincular hooks de animación de GSAP (@enter, @leave).\n2. Diagnóstico: Busca etiquetas <Transition> en el template que carezcan de name, css o listeners.\n3. Solución: Vincula los hooks de JavaScript para animar la entrada y salida con GSAP (:css=\"false\" @enter=\"onEnter\" @leave=\"onLeave\") o retira el wrapper si no se requiere animación.",
-				"gsap-no-important-transforms": "📖 GUÍA DE REMEDIACIÓN: gsap-no-important-transforms\n1. Causa Raíz: Se declaró !important en una propiedad CSS transform. Esto anula la matriz de transformación calculada por GSAP e impide que los tweens modifiquen visualmente el elemento.\n2. Diagnóstico: Busca \"transform: ... !important\" en los estilos del componente reportado.\n3. Solución: Remueve !important de la regla de transformación y gestiona la jerarquía visual con especificidad de selectores.",
-				"gsap-no-important-filters": "📖 GUÍA DE REMEDIACIÓN: gsap-no-important-filters\n1. Causa Raíz: Se declaró !important en propiedades filter o backdrop-filter en CSS, bloqueando la interpolación dinámica de efectos visuales por parte de GSAP.\n2. Diagnóstico: Busca \"filter: ... !important\" en los estilos reportados.\n3. Solución: Retira !important para permitir la transición y modulación de filtros en tiempo de ejecución.",
-				"gsap-gpu-layer-promotion": "📖 GUÍA DE REMEDIACIÓN: gsap-gpu-layer-promotion\n1. Causa Raíz: Un elemento animado intensivamente no ha sido promovido a su propia capa de composición GPU, lo que puede causar repintados continuos del contenedor padre.\n2. Diagnóstico: Revisa el contenedor o elemento animado con GSAP.\n3. Solución: Agrega force3D: true en la configuración del tween de GSAP o declara will-change: transform en el estilo CSS del elemento.",
-				"gsap-timeline-constructor-duration": "📖 GUÍA DE REMEDIACIÓN: gsap-timeline-constructor-duration\n1. Causa Raíz: Se pasó un parámetro de duración directamente al constructor del timeline. En GSAP v3, los timelines no tienen una duración fija prefijada sino que la calculan dinámicamente sumando sus tweens hijos. Este parámetro es ignorado y denota confusión de API.\n2. Diagnóstico: Revisa la creación de instancias de timeline en el código reportado.\n3. Solución: Retira duration del constructor del timeline y asígnalo individualmente a cada tween hijo o usa defaults: { duration: X }.\n4. Ejemplo:\n   ❌ Incorrecto: Pasar duration en el objeto de opciones del timeline\n   ✅ Correcto:   Usar defaults: { duration: DURATION_SEC } o duraciones en tweens hijos",
-				"gsap-kebab-case-properties": "📖 GUÍA DE REMEDIACIÓN: gsap-kebab-case-properties\n1. Causa Raíz: Se utilizó una propiedad en kebab-case dentro de un tween de GSAP. GSAP v3 exige la convención camelCase en sus objetos de configuración.\n2. Diagnóstico: Revisa las claves del objeto de animación en la línea señalada.\n3. Solución: Renombra las propiedades a camelCase (ej: backgroundColor, borderRadius, zIndex, transformOrigin).\n4. Ejemplo:\n   ❌ Incorrecto: Claves CSS con guiones como \"background\" + \"-color\"\n   ✅ Correcto:   Propiedades en camelCase como backgroundColor",
-				"gsap-raw-transform-string": "📖 GUÍA DE REMEDIACIÓN: gsap-raw-transform-string\n1. Causa Raíz: Se pasó un string CSS literal a la propiedad transform en GSAP. Esto desactiva el optimizador matricial interno de GSAP y degrada el rendimiento de animación.\n2. Diagnóstico: Busca strings crudos en la propiedad transform dentro de tweens de GSAP.\n3. Solución: Utiliza las propiedades discretas y optimizadas de GSAP: x, y, rotation, scale, skewX.\n4. Ejemplo:\n   ❌ Incorrecto: Asignar transformaciones complejas como cadena CSS cruda\n   ✅ Correcto:   Asignar propiedades discretas numéricas ({ x: 30, scale: 1.1 })",
-				"gsap-simultaneous-origin-conflict": "📖 GUÍA DE REMEDIACIÓN: gsap-simultaneous-origin-conflict\n1. Causa Raíz: Se definieron simultáneamente svgOrigin y transformOrigin en el mismo tween de SVG, lo que genera cálculos conflictivos e indeterminismo en la matriz de rotación y escala.\n2. Diagnóstico: Revisa si el tween de SVG contiene ambas propiedades.\n3. Solución: Conserva únicamente svgOrigin (para coordenadas absolutas en el canvas SVG) o transformOrigin (para puntos relativos al elemento), nunca ambos.",
-				"gsap-legacy-ease-names": "📖 GUÍA DE REMEDIACIÓN: gsap-legacy-ease-names\n1. Causa Raíz: Se utilizaron nombres de aceleración heredados de GSAP v2 en formato PascalCase.\n2. Diagnóstico: Busca referencias a clases estáticas de aceleración en mayúsculas.\n3. Solución: Actualiza los nombres a strings canónicos en minúsculas de GSAP v3: \"power2.out\", \"back.inOut\", \"elastic.out\", \"sine.inOut\".\n4. Ejemplo:\n   ❌ Incorrecto: Nombres de aceleración heredados v2 en PascalCase\n   ✅ Correcto:   Strings canónicos v3 en minúsculas (ej: \"power2.out\")",
-				"gsap-high-frequency-tween-creation": "📖 GUÍA DE REMEDIACIÓN: gsap-high-frequency-tween-creation\n1. Causa Raíz: Se detectó la creación de instancias de tweens dentro de callbacks de eventos de alta frecuencia (mousemove, pointermove, scroll, touchmove, resize) sin throttling ni uso de gsap.quickTo(). Esto satura la cola de animación y dispara el uso de CPU.\n2. Diagnóstico: Revisa el listener de eventos que crea animaciones continuamente.\n3. Solución: Inicializa gsap.quickTo() fuera del listener y en el callback únicamente actualiza la coordenada de destino, o utiliza ScrollTrigger / requestAnimationFrame coordinado.\n4. Ejemplo:\n   ❌ Incorrecto: Crear tweens continuos dentro de listeners de alta frecuencia\n   ✅ Correcto:   Inicializar xTo = gsap.quickTo(el, \"x\") fuera del evento y llamar xTo(val)"
+				"gsap-banned-css-animations": "📖 REMEDIATION GUIDE: gsap-banned-css-animations\n1. Root Cause: A manual animation or transition defined in CSS or SCSS (@keyframes, transition, animation) was detected. In projects standardizing on GSAP, CSS animations break time synchronization and test determinism.\n2. Diagnosis: Locate the transition or animation property in the reported stylesheet rule.\n3. Canonical Solution: Migrate the animation to GSAP using gsap.to(), gsap.fromTo(), gsap.timeline(), or Vue component lifecycle hooks.\n4. Example / Auto-fix command:\n   ❌ Banned:  .modal-card { transition: transform 0.3s ease, opacity 0.3s; }\n   ✅ Correct: gsap.to(cardEl, { scale: 1, opacity: 1, duration: 0.3, ease: \"power2.out\" });",
+				"gsap-banned-ui-timers": "📖 REMEDIATION GUIDE: gsap-banned-ui-timers\n1. Root Cause: Usage of setTimeout(), setInterval(), or requestAnimationFrame() in UI layers (src/ui/). These native timers desynchronize from GSAP timelines and cause memory leaks.\n2. Diagnosis: Identify the setTimeout/setInterval call in the reported file.\n3. Canonical Solution:\n   a) For delays: replace setTimeout(fn, ms) with gsap.delayedCall(seconds, fn) or await gsapSleep(seconds).\n   b) For loops: use gsap.timeline({ repeat: -1 }) or gsap.ticker.add(fn).\n4. Example / Auto-fix command:\n   ❌ Banned:  setTimeout(() => { isVisible.value = false; }, 300);\n   ✅ Correct: gsap.delayedCall(DELAY_SEC, () => { isVisible.value = false; });",
+				"gsap-no-layout-properties": "📖 REMEDIATION GUIDE: gsap-no-layout-properties\n1. Root Cause: A GSAP tween animates geometric layout properties (top, left, width, margin). Animating these forces layout reflow on CPU on every frame.\n2. Diagnosis: Check the tween properties object at the reported line.\n3. Canonical Solution: Replace layout properties with hardware-accelerated GPU transforms (x, y, xPercent, yPercent, scale, rotation, autoAlpha).\n4. Example / Auto-fix command:\n   ❌ Banned:  animating layout properties like top/left in gsap.to\n   ✅ Correct: gsap.to(el, { y: 100, x: 50 });",
+				"gsap-named-timer-constants": "📖 REMEDIATION GUIDE: gsap-named-timer-constants\n1. Root Cause: A raw numeric value (magic number) was used as duration or delay in a GSAP animation without a descriptive constant or design token.\n2. Diagnosis: Locate literal numbers in duration or delay properties in the tween.\n3. Canonical Solution: Define or import a named constant (e.g. MODAL_ENTER_DURATION_SEC) to unify design system animation speed.\n4. Example / Auto-fix command:\n   ❌ Banned:  gsap.to(el, { duration: 0.35, delay: 0.1 });\n   ✅ Correct: gsap.to(el, { duration: MODAL_ENTER_DURATION_SEC, delay: STAGGER_DELAY_SEC });",
+				"gsap-empty-vue-transitions": "📖 REMEDIATION GUIDE: gsap-empty-vue-transitions\n1. Root Cause: A <Transition> or <TransitionGroup> tag was declared in a Vue component without CSS transition classes or GSAP animation hooks.\n2. Diagnosis: Locate <Transition> tags in template lacking name, css, or listener bindings.\n3. Canonical Solution: Bind JavaScript hooks to animate entry/exit with GSAP (:css=\"false\" @enter=\"onEnter\" @leave=\"onLeave\") or remove the wrapper.\n4. Example / Auto-fix command:\n   <Transition :css=\"false\" @enter=\"onEnter\" @leave=\"onLeave\">",
+				"gsap-no-important-transforms": "📖 REMEDIATION GUIDE: gsap-no-important-transforms\n1. Root Cause: !important was declared on a CSS transform property, overriding GSAP transform matrices and breaking animations.\n2. Diagnosis: Search for \"transform: ... !important\" in the reported styles.\n3. Canonical Solution: Remove !important from transform rules and manage visual hierarchy with selector specificity.\n4. Example / Auto-fix command:\n   ❌ Banned:  transform: translateY(0) !important;\n   ✅ Correct: transform: translateY(0);",
+				"gsap-no-important-filters": "📖 REMEDIATION GUIDE: gsap-no-important-filters\n1. Root Cause: !important was declared on CSS filter or backdrop-filter properties, preventing dynamic interpolation by GSAP.\n2. Diagnosis: Search for \"filter: ... !important\" in the reported styles.\n3. Canonical Solution: Remove !important to allow runtime filter modulation.\n4. Example / Auto-fix command:\n   Remove !important from filter properties.",
+				"gsap-gpu-layer-promotion": "📖 REMEDIATION GUIDE: gsap-gpu-layer-promotion\n1. Root Cause: An intensively animated element has not been promoted to its own GPU composition layer, causing container repaints.\n2. Diagnosis: Inspect the animated element or container.\n3. Canonical Solution: Add force3D: true in GSAP tween options or declare will-change: transform in CSS.\n4. Example / Auto-fix command:\n   will-change: transform;",
+				"gsap-timeline-constructor-duration": "📖 REMEDIATION GUIDE: gsap-timeline-constructor-duration\n1. Root Cause: A duration parameter was passed to the timeline constructor. In GSAP v3, timelines calculate duration dynamically from child tweens; this parameter is ignored.\n2. Diagnosis: Inspect timeline instantiation in reported code.\n3. Canonical Solution: Remove duration from timeline constructor; set duration on child tweens or use defaults: { duration: X }.\n4. Example / Auto-fix command:\n   const tl = gsap.timeline({ defaults: { duration: DURATION_SEC } });",
+				"gsap-kebab-case-properties": "📖 REMEDIATION GUIDE: gsap-kebab-case-properties\n1. Root Cause: A kebab-case property was passed to a GSAP tween. GSAP v3 requires camelCase property names.\n2. Diagnosis: Check animation object keys at the reported line.\n3. Canonical Solution: Rename properties to camelCase (e.g. backgroundColor, borderRadius, zIndex).\n4. Example / Auto-fix command:\n   ❌ Banned:  using kebab-case CSS properties in gsap.to\n   ✅ Correct: gsap.to(el, { backgroundColor: \"#fff\" });",
+				"gsap-raw-transform-string": "📖 REMEDIATION GUIDE: gsap-raw-transform-string\n1. Root Cause: A raw CSS string was passed to the transform property in GSAP, bypassing GSAP matrix optimization.\n2. Diagnosis: Check for raw string values assigned to transform in GSAP tweens.\n3. Canonical Solution: Use discrete optimized GSAP properties: x, y, rotation, scale, skewX.\n4. Example / Auto-fix command:\n   ❌ Banned:  using raw CSS transform strings in gsap.to\n   ✅ Correct: gsap.to(el, { x: 20 });",
+				"gsap-simultaneous-origin-conflict": "📖 REMEDIATION GUIDE: gsap-simultaneous-origin-conflict\n1. Root Cause: Both svgOrigin and transformOrigin were defined in the same SVG tween, creating conflicting matrix calculations.\n2. Diagnosis: Check if the SVG tween defines both properties.\n3. Canonical Solution: Retain only svgOrigin (for SVG canvas absolute coords) or transformOrigin (for element relative points).\n4. Example / Auto-fix command:\n   Keep only one origin property in the tween.",
+				"gsap-legacy-ease-names": "📖 REMEDIATION GUIDE: gsap-legacy-ease-names\n1. Root Cause: Legacy GSAP v2 PascalCase ease names were used.\n2. Diagnosis: Locate uppercase static ease class references.\n3. Canonical Solution: Update ease names to canonical lowercase GSAP v3 strings: \"power2.out\", \"back.inOut\", \"elastic.out\".\n4. Example / Auto-fix command:\n   ❌ Banned:  legacy v2 ease names like Power2\n   ✅ Correct: ease: \"power2.out\"",
+				"gsap-high-frequency-tween-creation": "📖 REMEDIATION GUIDE: gsap-high-frequency-tween-creation\n1. Root Cause: Tweens are instantiated inside high-frequency event callbacks (mousemove, scroll) without throttling or gsap.quickTo().\n2. Diagnosis: Inspect the event listener that continuously spawns new tweens.\n3. Canonical Solution: Initialize gsap.quickTo() outside the listener and update destination coordinates in callback.\n4. Example / Auto-fix command:\n   const xTo = gsap.quickTo(el, \"x\");\n   window.addEventListener(\"mousemove\", (e) => xTo(e.clientX));"
 			}
 		});
 		this.declareFileSubAuditor("gsap-banned-css-animations", (doc) => {
@@ -377,7 +377,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			const { line, column } = getLineAndColumnAt(content, m.index);
 			this.addViolation({
 				ruleId: "gsap-banned-css-animations",
-				message: `Animación o transición CSS detectada: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Está estrictamente PROHIBIDO usar animaciones o transiciones CSS en vez de GSAP. [🚨 ALERTA DE SABOTAJE]: ESTÁ CATEGÓRICAMENTE PROHIBIDO BORRAR O ANULAR LA TRANSICIÓN PARA SILENCIAR EL AUDITOR. Todas las transiciones interactivas deben migrarse limpiamente a tweens de GSAP (gsap.to, gsap.fromTo, useGSAP).`,
+				message: `CSS animation or transition detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Using CSS animations or transitions instead of GSAP is strictly PROHIBITED. [🚨 SABOTAGE ALERT]: DELETING OR NULLIFYING THE TRANSITION TO SILENCE THE AUDITOR IS CATEGORICALLY PROHIBITED. All interactive transitions must be cleanly migrated to GSAP tweens (gsap.to, gsap.fromTo, useGSAP).`,
 				filePath: relPath,
 				line,
 				column,
@@ -393,7 +393,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			const { line, column } = getLineAndColumnAt(content, m.index);
 			this.addViolation({
 				ruleId: "gsap-empty-vue-transitions",
-				message: `Transición de Vue vacía detectada: '${m[0].trim()}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido vaciar clases de transición para evadir el auditor.`,
+				message: `Empty Vue transition detected: '${m[0].trim()}'. MANDATORY MIGRATION TO GSAP: Emptying transition classes to evade the auditor is prohibited.`,
 				filePath: relPath,
 				line,
 				column,
@@ -409,7 +409,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			const { line, column } = getLineAndColumnAt(content, m.index);
 			this.addViolation({
 				ruleId: "gsap-no-important-transforms",
-				message: `Uso de '!important' en 'transform' detectado: '${m[0]}'. Invalida las mutaciones de GSAP en tiempo de ejecución.`,
+				message: `Use of '!important' in 'transform' detected: '${m[0]}'. Overrides GSAP runtime mutations.`,
 				filePath: relPath,
 				line,
 				column,
@@ -425,7 +425,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			const { line, column } = getLineAndColumnAt(content, m.index);
 			this.addViolation({
 				ruleId: "gsap-no-important-filters",
-				message: `Uso de '!important' en 'filter' detectado: '${m[0]}'. Invalida las animaciones de efectos GSAP.`,
+				message: `Use of '!important' in 'filter' detected: '${m[0]}'. Invalidates GSAP effect animations.`,
 				filePath: relPath,
 				line,
 				column,
@@ -447,7 +447,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				const { line, column } = getLineAndColumnAt(content, m.index);
 				this.addViolation({
 					ruleId: "gsap-gpu-layer-promotion",
-					message: "Filtro dinámico detectado sin 'will-change'. Considera añadir promoción de capa GPU.",
+					message: "Dynamic filter detected without 'will-change'. Consider adding GPU layer promotion.",
 					filePath: relPath,
 					line,
 					column,
@@ -473,7 +473,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText)) continue;
 				this.addViolation({
 					ruleId: "gsap-banned-ui-timers",
-					message: `Timer de ANIMACIÓN/UI detectado: '${m[0]}'. MIGRACIÓN OBLIGATORIA A GSAP: Prohibido en UI. Usa gsap.delayedCall o promesas deterministas.`,
+					message: `ANIMATION/UI timer detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Prohibited in UI. Use gsap.delayedCall or deterministic promises.`,
 					filePath: relPath,
 					line,
 					column,
@@ -514,7 +514,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 					const { line, column } = getLineAndColumnAt(content, matchIdx);
 					this.addViolation({
 						ruleId: "gsap-no-layout-properties",
-						message: `Animación de propiedades CSS de layout en GSAP detectada: '${foundLayout.propName}:'. Usa propiedades aceleradas por GPU (x, y, scale, rotation, opacity) o Flip Plugin (o documenta con '// layout-ok: <justificación>' si es un colapso/acordeón estructural que requiere reflow).`,
+						message: `Animation of CSS layout properties in GSAP detected: '${foundLayout.propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin (or document with '// layout-ok: <justification>' if structural reflow is required).`,
 						filePath: relPath,
 						line,
 						column,
@@ -532,7 +532,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				const { line, column } = getLineAndColumnAt(content, cfg.startOffset + kebabMatch.index);
 				this.addViolation({
 					ruleId: "gsap-kebab-case-properties",
-					message: `Clave CSS en kebab-case detectada en tween GSAP: '${kebabMatch[0]}'. Usa camelCase según el estándar de GSAP.`,
+					message: `CSS property in kebab-case detected in GSAP tween: '${kebabMatch[0]}'. Use camelCase according to GSAP standards.`,
 					filePath: relPath,
 					line,
 					column,
@@ -548,7 +548,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				const { line, column } = getLineAndColumnAt(content, cfg.startOffset + rawMatch.index);
 				this.addViolation({
 					ruleId: "gsap-raw-transform-string",
-					message: `Uso de string CSS 'transform' en GSAP detectado: '${rawMatch[0]}'. Usa alias nativos optimizados de GSAP ('x', 'y', 'rotation', 'scale').`,
+					message: `Use of raw CSS string 'transform' in GSAP detected: '${rawMatch[0]}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
 					filePath: relPath,
 					line,
 					column,
@@ -563,7 +563,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				const { line, column } = getLineAndColumnAt(content, cfg.startOffset);
 				this.addViolation({
 					ruleId: "gsap-simultaneous-origin-conflict",
-					message: "Conflicto de orígenes SVG detectado: no declares 'svgOrigin' y 'transformOrigin' simultáneamente en el mismo tween.",
+					message: "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
 					filePath: relPath,
 					line,
 					column,
@@ -582,7 +582,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText)) continue;
 			this.addViolation({
 				ruleId: "gsap-named-timer-constants",
-				message: `Número mágico detectado en retardo de animación GSAP: '${m[0].trim()}'. Define y usa una constante semántica con sufijo '_SEC'.`,
+				message: `Magic number detected in GSAP animation delay: '${m[0].trim()}'. Define and use a semantic constant with '_SEC' suffix.`,
 				filePath: relPath,
 				line,
 				column,
@@ -599,7 +599,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				const { line, column } = getLineAndColumnAt(content, m.index);
 				this.addViolation({
 					ruleId: "gsap-timeline-constructor-duration",
-					message: `Propiedad 'duration' en constructor de timeline ignorada en GSAP 3. Usa 'defaults: { duration: ... }'.`,
+					message: `'duration' property in timeline constructor is ignored in GSAP 3. Use 'defaults: { duration: ... }'.`,
 					filePath: relPath,
 					line,
 					column,
@@ -615,7 +615,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			const { line, column } = getLineAndColumnAt(content, m.index);
 			this.addViolation({
 				ruleId: "gsap-legacy-ease-names",
-				message: `Ease legado de GSAP v2 '${m[0]}' detectado. Usa el formato canónico de GSAP 3 (ej: 'power2.out', 'none').`,
+				message: `Legacy GSAP v2 ease '${m[0]}' detected. Use canonical GSAP 3 format (e.g. 'power2.out', 'none').`,
 				filePath: relPath,
 				line,
 				column,
@@ -633,7 +633,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 					const { line, column } = getLineAndColumnAt(content, m.index);
 					this.addViolation({
 						ruleId: "gsap-high-frequency-tween-creation",
-						message: "Creación de tween con 'gsap.to()' dentro de listener continuo. En 'mousemove', etc. usa 'gsap.quickTo()'.",
+						message: "Tween creation with 'gsap.to()' inside continuous listener. In 'mousemove', etc. use 'gsap.quickTo()'.",
 						filePath: relPath,
 						line,
 						column,

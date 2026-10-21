@@ -31,7 +31,7 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
 
       const lines = output.trim().split('\n');
       expect(lines.length).toBe(3);
-      expect(lines[0]).toContain('✔ AUDIT PASSED [80/80 suites]');
+      expect(lines[0]).toContain('[OK] AUDIT PASSED [80/80 suites]');
       expect(lines[1]).toContain('Errors: 0 | Warnings: 0 | Ratchet: OK');
       expect(lines[2]).toContain('Report: scratch/audits/latest_audit.json');
       expect(output).not.toContain('╔');
@@ -67,7 +67,7 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
         ]
       });
 
-      expect(output).toContain('✖ AUDIT FAILED [80 suites]');
+      expect(output).toContain('[FAIL] AUDIT FAILED [80 suites]');
       expect(output).toContain('Status: 3 error(s), 1 warning(s) (2 auto-fixable) in 2 suite(s)');
       expect(output).toContain('Breakdown by Phase:');
       expect(output).toContain('• contracts   : 2 error(s)');
@@ -92,7 +92,7 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
         hasFixableErrors: true
       });
 
-      expect(output).toContain('⛔ AUDIT BLOCKED: Setup Phase Failure [80 suites]');
+      expect(output).toContain('[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [80 suites]');
       expect(output).toContain(
         'Status: 2 setup error(s) (14 downstream app errors postponed to prevent false positives)'
       );
@@ -115,7 +115,7 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
         filesModified: 2
       });
 
-      expect(output).toContain('✔ AUTO-FIX COMPLETED');
+      expect(output).toContain('[OK] AUTO-FIX COMPLETED');
       expect(output).toContain('Repaired: 4 violation(s) across 2 file(s)');
       expect(output).toContain("Next Action: Run 'npm run auditor' to verify clean pass.");
       expect(output).toContain('Full Report: scratch/audits/latest_audit.json');

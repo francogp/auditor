@@ -16,8 +16,15 @@
  *   auditor-css --errors-only
  */
 
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
 import path from 'node:path';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 import { StylelintAuditor } from '../suites/architecture/validate_stylelint.ts';
@@ -61,10 +68,10 @@ const CATEGORY_RULE_MAP: Readonly<Record<string, string>> = {
 const RULE_LABEL_MAP: Readonly<Record<string, string>> = {
   'css-duplicate-selectors': 'SELECTOR DUP',
   'css-duplicate-properties': 'PROP DUP',
-  'css-empty-blocks': 'BLOQUE VACÍO',
-  'css-order-violation': 'ORDEN CSS',
-  'scss-syntax-issue': 'SINTAXIS SCSS',
-  'wallace-complexity': 'COMPLEJIDAD'
+  'css-empty-blocks': 'EMPTY BLOCK',
+  'css-order-violation': 'CSS ORDER',
+  'scss-syntax-issue': 'SCSS SYNTAX',
+  'wallace-complexity': 'COMPLEXITY'
 };
 
 function matchesCssCategory(ruleId: string | undefined, category: string): boolean {
@@ -74,7 +81,7 @@ function matchesCssCategory(ruleId: string | undefined, category: string): boole
 
 function formatCssTableRow(f: AuditFinding, index: number): TableRow {
   const loc = `${path.basename(f.file || '')}:${f.line || 1}`;
-  const catLabel = (f.ruleId && RULE_LABEL_MAP[f.ruleId]) || 'ESTILO';
+  const catLabel = (f.ruleId && RULE_LABEL_MAP[f.ruleId]) || 'STYLE';
   const color = f.severity === 'error' ? 'red' : 'yellow';
 
   return {
@@ -85,43 +92,51 @@ function formatCssTableRow(f: AuditFinding, index: number): TableRow {
   };
 }
 
-function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], category: string): void {
+function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], category: string, isHuman: boolean): void {
   if (filteredFindings.length === 0) {
     console.log(
-      styleText('green', '✨ No se detectaron problemas ni violaciones de estilos CSS/SCSS.\n')
+      styleText('green', '[OK] No CSS/SCSS style issues or violations detected.\n')
     );
+    return;
+  }
+
+  if (!isHuman) {
+    console.log(`[CSS] Found ${filteredFindings.length} issue(s) in category '${category}':`);
+    for (const f of filteredFindings) {
+      const loc = f.file ? (f.line ? `${f.file}:${f.line}` : f.file) : 'general';
+      console.log(`• [${f.severity.toUpperCase()}] ${loc} [${f.ruleId ?? 'stylelint'}]: ${f.message}`);
+    }
+    console.log('');
     return;
   }
 
   const rows: TableRow[] = filteredFindings.map((f, i) => formatCssTableRow(f, i + 1));
   const cols: readonly TableColumn<TableRow>[] = [
     { header: '#', width: COL_WIDTH_INDEX, align: 'center', key: 'index' },
-    { header: 'CATEGORÍA', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
-    { header: 'MENSAJE / REGLA', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
-    { header: 'UBICACIÓN', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
+    { header: 'CATEGORY', width: COL_WIDTH_CATEGORY, align: 'left', key: 'category' },
+    { header: 'MESSAGE / RULE', width: COL_WIDTH_ITEM, align: 'left', key: 'item' },
+    { header: 'LOCATION', width: COL_WIDTH_LOCATION, align: 'left', key: 'location' }
   ];
 
   console.log(renderBoxTable(cols, rows));
-  console.log(`\n💡 Total de incidencias detectadas en categoría '${category}': ${rows.length}\n`);
+  console.log(`\n[Notice] Total issues detected in category '${category}': ${rows.length}\n`);
 }
 
-export async function runCssReport(projectRoot: string = process.cwd()): Promise<void> {
-  const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    options: {
-      category: { type: 'string', default: 'all' },
-      json: { type: 'boolean', default: false },
-      'errors-only': { type: 'boolean', default: false },
-      fix: { type: 'boolean', default: false }
-    },
-    strict: false,
-    allowPositionals: true
-  });
+const CSS_REPORT_ARGS = {
+  ...COMMON_CLI_ARGS,
+  category: { type: 'string', default: 'all', description: 'CSS finding category filter' },
+  'errors-only': { type: 'boolean', default: false, description: 'Show only error-severity findings' },
+  fix: { type: 'boolean', default: false, description: 'Apply Stylelint auto-fixes' }
+} as const satisfies CittyArgsDef;
 
-  const isFix = Boolean(values.fix) || positionals.includes('fix');
-  const category = String(values.category || 'all').toLowerCase();
-  const isJson = Boolean(values.json);
-  const errorsOnly = Boolean(values['errors-only']);
+export async function runCssReport(projectRoot: string = process.cwd()): Promise<void> {
+  const parsed = parseCittyArgs(CSS_REPORT_ARGS, getProcessCliArgs());
+
+  const isFix = Boolean(parsed.fix) || parsed._.map(String).includes('fix');
+  const category = String(parsed.category || 'all').toLowerCase();
+  const isJson = Boolean(parsed.json);
+  const errorsOnly = Boolean(parsed['errors-only']);
+  const isHuman = resolveHumanModeFromArgs(parsed);
 
   const auditor = new StylelintAuditor({ projectRoot });
   const result = await auditor.execute();
@@ -150,27 +165,31 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
     return;
   }
 
-  renderBanner(
-    'REPORTE DE CALIDAD Y DUPLICACIÓN CSS (STYLELINT ENGINE)',
-    'Análisis estático oficial de estilos y patrones SCSS/Vue'
-  );
-  console.log(
-    styleText(
-      'dim',
-      `🔍 Analizados ${auditor.getFilesScanned()} archivos en ${result.durationMs}ms (Categoría: ${category})\n`
-    )
-  );
-
-  if (isFix) {
+  if (isHuman) {
     console.log(
-      styleText(
-        'cyan',
-        '✨ Modo auto-fix: Stylelint aplicó correcciones automáticas sobre los archivos.\n'
+      renderBanner(
+        'CSS QUALITY AND DUPLICATION REPORT (STYLELINT ENGINE)',
+        'Official static analysis of styles and SCSS/Vue patterns'
       )
     );
+    console.log(
+      styleText(
+        'dim',
+        `[Scan] Analyzed ${auditor.getFilesScanned()} files in ${result.durationMs}ms (Category: ${category})\n`
+      )
+    );
+
+    if (isFix) {
+      console.log(
+        styleText(
+          'cyan',
+          '[Notice] Auto-fix mode: Stylelint applied automated fixes.\n'
+        )
+      );
+    }
   }
 
-  renderCssFindingsTable(filteredFindings, category);
+  renderCssFindingsTable(filteredFindings, category, isHuman);
 }
 
 if (isMainModule(import.meta.url)) {

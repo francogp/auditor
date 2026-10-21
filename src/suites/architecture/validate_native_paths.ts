@@ -125,15 +125,15 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
 }
 
 const RULE_DESCRIPTIONS: Record<NativePathRuleId, string> = {
-  'unsafe-path-concat': 'Concatenación insegura de rutas',
-  'unsanitized-env-argv-path': 'Ruta argv/env sin sanitizar',
-  'untrusted-url-fetch': 'Llamada HTTP sin sanitizar',
-  'hardcoded-slash-path': 'Separador de ruta hardcodeado',
-  'homebrew-path-manipulation': 'Normalización casera de rutas',
-  'homebrew-path-parsing': 'Parseo casero de rutas',
-  'homebrew-path-containment': 'Contención casera de rutas',
-  'homebrew-file-url': 'Conversión casera file://',
-  'homebrew-url-parsing': 'Parseo casero de URLs'
+  'unsafe-path-concat': 'Unsafe path concatenation',
+  'unsanitized-env-argv-path': 'Unsanitized argv/env path',
+  'untrusted-url-fetch': 'Unsanitized HTTP fetch call',
+  'hardcoded-slash-path': 'Hardcoded path separator',
+  'homebrew-path-manipulation': 'Homebrew path normalization',
+  'homebrew-path-parsing': 'Homebrew path parsing',
+  'homebrew-path-containment': 'Homebrew path containment',
+  'homebrew-file-url': 'Homebrew file:// conversion',
+  'homebrew-url-parsing': 'Homebrew URL parsing'
 };
 
 const RULE_REMEDIATIONS: Record<NativePathRuleId, string> = {
@@ -244,7 +244,7 @@ export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
       }),
       id: 'validate_native_paths',
       name: 'Security & Native Path Integrity Validator',
-      description: 'Exige node:path, node:url y URL nativos (CWE-22)',
+      description: 'Requires node:path, node:url, and native URL (CWE-22)',
       family: 'architecture',
       ruleIds: NATIVE_PATH_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(NATIVE_PATH_RULES, 'setup'),

@@ -18,7 +18,12 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor, createUniformRuleCapabilities, getAuditConfig } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  getAuditConfig,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export type OverscrollLockRuleId = 'overscroll-behavior-lock';
 
@@ -27,11 +32,12 @@ export const OVERSCROLL_LOCK_RULES: readonly OverscrollLockRuleId[] = [
 ] as const;
 
 export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
-  constructor(projectRoot: string = process.cwd()) {
+  constructor(options: FileScanRootsOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     super({
       id: 'validate_overscroll_lock',
       name: 'Mobile Overscroll Behavior Lock Validator',
-      description: 'Bloqueo de overscroll-behavior en hoja base móvil',
+      description: 'Validates overscroll-behavior lock in mobile base styles',
       icon: '📱',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(OVERSCROLL_LOCK_RULES, {
@@ -44,24 +50,26 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
         critical: false
       }),
       ruleIds: OVERSCROLL_LOCK_RULES,
-      packageName: 'Móvil',
+      packageName: 'Mobile',
       configKey: 'styles.baseScssFile',
       defaultConfig: {
         baseScssFile: 'src/styles/base.scss'
       },
       criticalConfig: {},
+      requiredPermissions: [],
       remediationPhase: 'polish',
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'overscroll-behavior-lock': 'Falta overscroll-behavior en hoja base'
+        'overscroll-behavior-lock': 'Missing overscroll-behavior in base stylesheet'
       },
       ruleRemediations: {
         'overscroll-behavior-lock':
-          'Falta declarar overscroll-behavior: none o contain en la hoja de estilos base.\n' +
-          '1. Abre la hoja de estilos base o raíz (e.g. src/styles/base.scss).\n' +
-          '2. Agrega "overscroll-behavior: none;" en el selector html o body para evitar el rebote no deseado en dispositivos móviles.'
+          '1. Root Cause: The base stylesheet is missing overscroll-behavior: none !important on html, body.\n' +
+          '2. Diagnosis: Open the base stylesheet configured in styles.baseScssFile (e.g. src/styles/base.scss).\n' +
+          '3. Canonical Solution: Add "overscroll-behavior: none !important;" on the html, body selector to prevent accidental mobile pull-to-refresh gestures.\n' +
+          '4. Example / Command: npm run auditor'
       },
-      roots: ['src/styles'],
+      roots: options.roots ?? ['src/styles'],
       allowedExtensions: new Set(['.scss', '.css']),
       projectRoot
     });
@@ -73,7 +81,10 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
 
     if (!targetRelFile) {
       this.runSubAuditorSync('overscroll-behavior-lock', () => {
-        this.markRuleNotApplicable('overscroll-behavior-lock', 'No baseScssFile or zLayersScssFile configured in .auditor/audit.config.ts');
+        this.markRuleNotApplicable(
+          'overscroll-behavior-lock',
+          'No baseScssFile or zLayersScssFile configured in .auditor/audit.config.ts'
+        );
       });
       return;
     }
@@ -87,7 +98,7 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
           severity: 'error',
           file: targetRelFile,
           line: 1,
-          message: `El archivo base de estilos '${targetRelFile}' no existe en disco.`,
+          message: `Configured base stylesheet '${targetRelFile}' does not exist on disk.`,
           context: targetRelFile
         });
         return;
@@ -108,12 +119,12 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
         severity: 'error',
         file: targetRelFile,
         line,
-        message: `Mandato de bloqueo de sobre-desplazamiento móvil violado: '${targetRelFile}' debe declarar 'overscroll-behavior: none !important;' para prevenir pull-to-refresh y navegación gestual accidental en navegadores móviles.`,
+        message: `Mobile overscroll lock mandate violated: '${targetRelFile}' must declare 'overscroll-behavior: none !important;' on 'html, body' to prevent accidental pull-to-refresh and gesture navigation on mobile browsers.`,
         context: 'html, body { overscroll-behavior: none !important; }'
       });
     });
   }
 }
 
-// Canonical CLI Entrypoint
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new OverscrollLockAuditor());

@@ -24,9 +24,9 @@ const FILE_ENCODING_RULES = [
 	"file-encoding-mojibake-detected"
 ];
 const FILE_ENCODING_RULE_DESCRIPTIONS = {
-	"file-encoding-invalid-charset": "Exige codificación UTF-8 limpia",
-	"file-encoding-unwanted-bom": "Prohíbe Byte Order Mark (BOM)",
-	"file-encoding-mojibake-detected": "Detección de mojibake corrupto"
+	"file-encoding-invalid-charset": "Clean UTF-8 encoding required",
+	"file-encoding-unwanted-bom": "Byte Order Mark (BOM) prohibited",
+	"file-encoding-mojibake-detected": "Corrupt mojibake detected"
 };
 const FILE_ENCODING_RULE_REMEDIATIONS = {
 	"file-encoding-invalid-charset": "📖 GUÍA DE REMEDIACIÓN: file-encoding-invalid-charset\n1. Causa Raíz: El archivo contiene bytes que no forman una secuencia UTF-8 válida, o fue guardado con codificación UTF-16LE / Windows-1252 / ISO-8859-1 (muy común al usar scripts de PowerShell o utilidades de Windows con redirección \">\" o Out-File sin -Encoding utf8).\n2. Diagnóstico: Revisa el archivo reportado. Si al abrirlo en un editor se ven caracteres nulos (\\0) o símbolos extraños (ej: ), la codificación no es UTF-8 estándar.\n3. Solución Canónica:\n   - Ejecuta \"npm run auditor:fix\" o \"auditor fix\" para que el auditor transcodifique automáticamente el archivo a UTF-8 limpio.\n   - En editores (VS Code, IntelliJ), usa \"Guardar con codificación -> UTF-8\".\n4. Ejemplo / Comando de auto-fix:\n   npm run auditor:fix",
@@ -129,7 +129,7 @@ function inspectBufferEncoding(buffer, options = {}) {
 		if (prohibitBom) return {
 			ruleId: "file-encoding-unwanted-bom",
 			severity: "error",
-			message: "El archivo contiene un Byte Order Mark (BOM) UTF-8 (0xEF, 0xBB, 0xBF). Se exige UTF-8 limpio sin BOM.",
+			message: "The file contains a UTF-8 Byte Order Mark (BOM) (0xEF, 0xBB, 0xBF). Clean UTF-8 without BOM is required.",
 			context: "BOM: UTF-8",
 			line: 1,
 			col: 1,
@@ -139,8 +139,8 @@ function inspectBufferEncoding(buffer, options = {}) {
 	if (buffer.length >= 2 && buffer[0] === 255 && buffer[1] === 254) return {
 		ruleId: "file-encoding-invalid-charset",
 		severity: "error",
-		message: "El archivo está codificado en UTF-16LE con BOM. Se exige codificación estándar UTF-8 sin BOM.",
-		context: "Charset: UTF-16LE con BOM",
+		message: "The file is encoded in UTF-16LE with BOM. Standard UTF-8 without BOM is required.",
+		context: "Charset: UTF-16LE with BOM",
 		line: 1,
 		col: 1,
 		repairAction: "transcode-utf16le"
@@ -148,8 +148,8 @@ function inspectBufferEncoding(buffer, options = {}) {
 	if (buffer.length >= 2 && buffer[0] === 254 && buffer[1] === 255) return {
 		ruleId: "file-encoding-invalid-charset",
 		severity: "error",
-		message: "El archivo está codificado en UTF-16BE con BOM. Se exige codificación estándar UTF-8 sin BOM.",
-		context: "Charset: UTF-16BE con BOM",
+		message: "The file is encoded in UTF-16BE with BOM. Standard UTF-8 without BOM is required.",
+		context: "Charset: UTF-16BE with BOM",
 		line: 1,
 		col: 1,
 		repairAction: "transcode-utf16be"
@@ -157,8 +157,8 @@ function inspectBufferEncoding(buffer, options = {}) {
 	if (isLikelyUtf16LeWithoutBom(buffer)) return {
 		ruleId: "file-encoding-invalid-charset",
 		severity: "error",
-		message: "El archivo contiene bytes alternantes nulos (UTF-16LE sin BOM). Se exige UTF-8 estándar.",
-		context: "Charset: UTF-16LE sin BOM",
+		message: "The file contains alternating null bytes (UTF-16LE without BOM). Standard UTF-8 is required.",
+		context: "Charset: UTF-16LE without BOM",
 		line: 1,
 		col: 1,
 		repairAction: "transcode-utf16le"
@@ -171,8 +171,8 @@ function inspectBufferEncoding(buffer, options = {}) {
 		return {
 			ruleId: "file-encoding-invalid-charset",
 			severity: "error",
-			message: "El archivo contiene secuencias de bytes inválidas para UTF-8 (posible Windows-1252 / ISO-8859-1).",
-			context: "Charset: No-UTF8 inválido",
+			message: "The file contains byte sequences invalid for UTF-8 (likely Windows-1252 / ISO-8859-1).",
+			context: "Charset: Invalid Non-UTF8",
 			line: 1,
 			col: 1,
 			repairAction: "transcode-win1252"
@@ -191,7 +191,7 @@ function inspectBufferEncoding(buffer, options = {}) {
 				return {
 					ruleId: "file-encoding-mojibake-detected",
 					severity: "warning",
-					message: `Se detectó posible doble codificación (mojibake): "${match[0]}" en "${snippet}".`,
+					message: `Possible double encoding (mojibake) detected: "${match[0]}" in "${snippet}".`,
 					context: snippet,
 					line: lineNum,
 					col: colNum
@@ -220,9 +220,9 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 			requiredPermissions: [],
 			id: "validate_file_encoding",
 			name: "File Encoding & Charset Validator",
-			description: "Garantiza codificación UTF-8 sin BOM y transcodificación",
+			description: "Ensures UTF-8 encoding without BOM and transcodings",
 			family: "architecture",
-			packageName: "Codificación",
+			packageName: "Encoding",
 			icon: "🔤",
 			configKey: "encoding",
 			defaultConfig: {

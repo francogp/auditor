@@ -92,8 +92,10 @@ ON CONFLICT (key) DO UPDATE SET value = '"${timestamp}"';
   };
 }
 
+import { isMainModule } from '@francogp/auditor';
+
 // Example usage demonstration
-if (import.meta.filename === process.argv[1]) {
+if (isMainModule(import.meta.url)) {
   const result = buildRoleSyncMigration();
   console.log(`Generated migration: ${result.filename}`);
   console.log('--- PostgreSQL Output Snippet ---');

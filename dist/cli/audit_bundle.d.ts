@@ -57,5 +57,5 @@ export interface DiscoveredChunk {
 export declare function discoverCompiledChunks(targetDir: string): readonly DiscoveredChunk[];
 export declare function resolveDistDir(projectRoot: string, configuredDistDir?: string): string;
 export declare function runBundleAudit(projectRoot?: string): Promise<BundleAuditSummary>;
-export declare function executeCli(): Promise<void>;
+export declare function executeCli(rawArgs?: readonly string[]): Promise<void>;
 //#endregion

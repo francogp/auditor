@@ -38,19 +38,19 @@ const BUNDLE_BUDGET_RULES = [
 const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI = [
 	{
 		module: "postgres",
-		reason: "Driver PostgreSQL backend no debe importarse en UI layers (src/components, src/views, src/stores)."
+		reason: "PostgreSQL backend driver must not be imported in UI layers (src/components, src/views, src/stores)."
 	},
 	{
 		module: "node:sqlite",
-		reason: "Driver SQLite nativo no debe importarse en UI layers."
+		reason: "Native SQLite driver must not be imported in UI layers."
 	},
 	{
 		module: "@playwright/test",
-		reason: "Librería de pruebas E2E no debe importarse en código de producción de src/."
+		reason: "E2E testing library must not be imported in src/ production code."
 	},
 	{
 		module: "vitest",
-		reason: "El framework de pruebas no debe importarse en código de producción de src/."
+		reason: "Test framework must not be imported in src/ production code."
 	}
 ];
 function getForbiddenValueImportsUI(projectRoot) {
@@ -92,7 +92,7 @@ function checkRuntimeLeaks(imports, relPath, forbiddenSegments, auditor) {
 		severity: "error",
 		file: relPath,
 		line: imp.lineNum,
-		message: `Fuga de código en tiempo de ejecución: '${imp.moduleSpecifier}'. No se permite importar valores desde '${seg}' en código de producción.`,
+		message: `Runtime code leak: '${imp.moduleSpecifier}'. Importing runtime values from '${seg}' into production code is prohibited.`,
 		context: imp.moduleSpecifier
 	});
 }
@@ -102,7 +102,7 @@ function checkHeavyImports(imports, relPath, forbiddenUiImports, auditor) {
 		severity: "error",
 		file: relPath,
 		line: imp.lineNum,
-		message: `Import de valor en tiempo de ejecución prohibido en UI: '${imp.moduleSpecifier}'. ${forbidden.reason}`,
+		message: `Runtime value import forbidden in UI: '${imp.moduleSpecifier}'. ${forbidden.reason}`,
 		context: imp.moduleSpecifier
 	});
 }
@@ -118,7 +118,7 @@ function auditSingleChunkBudget(asset, statsSize, relAssetPath, bundleConfig, au
 			severity: "error",
 			file: relAssetPath,
 			line: 1,
-			message: `El chunk '${asset}' (${(statsSize / 1024).toFixed(1)} KB) supera el presupuesto configurado '${matchingBudget.name}' de ${(matchingBudget.limitBytes / 1024).toFixed(0)} KB.`,
+			message: `Chunk '${asset}' (${(statsSize / 1024).toFixed(1)} KB) exceeds configured budget '${matchingBudget.name}' of ${(matchingBudget.limitBytes / 1024).toFixed(0)} KB.`,
 			context: asset
 		});
 		return;
@@ -130,7 +130,7 @@ function auditSingleChunkBudget(asset, statsSize, relAssetPath, bundleConfig, au
 		severity: "error",
 		file: relAssetPath,
 		line: 1,
-		message: `El chunk de cliente '${asset}' (${(statsSize / 1024).toFixed(1)} KB) supera el límite crítico configurado de ${(maxErrorBytes / 1024).toFixed(0)} KB.`,
+		message: `Client chunk '${asset}' (${(statsSize / 1024).toFixed(1)} KB) exceeds critical configured limit of ${(maxErrorBytes / 1024).toFixed(0)} KB.`,
 		context: asset
 	});
 	else if (maxWarnBytes !== void 0 && statsSize > maxWarnBytes) auditor.addViolation({
@@ -138,7 +138,7 @@ function auditSingleChunkBudget(asset, statsSize, relAssetPath, bundleConfig, au
 		severity: "warning",
 		file: relAssetPath,
 		line: 1,
-		message: `El chunk de cliente '${asset}' (${(statsSize / 1024).toFixed(1)} KB) excede el límite sugerido configurado de ${(maxWarnBytes / 1024).toFixed(0)} KB.`,
+		message: `Client chunk '${asset}' (${(statsSize / 1024).toFixed(1)} KB) exceeds suggested configured limit of ${(maxWarnBytes / 1024).toFixed(0)} KB.`,
 		context: asset
 	});
 }
@@ -176,7 +176,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		id: "dist",
 		pattern: "dist/",
 		samplePath: "dist/index.js",
-		reason: "Directorio de artefactos y bundle compilado de producción",
+		reason: "Compiled production bundle and artifact directory",
 		isApplicable: (config) => config.bundle?.enabled !== false && config.packageDistribution?.enabled !== true
 	}];
 	constructor(options = {}) {
@@ -199,7 +199,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 			gitIgnoreEntries: BundleBudgetAuditor.gitIgnoreEntries,
 			id: "validate_bundle_budget",
 			name: "Bundle Budget & Client Leak Auditor",
-			description: "Audita límites de tamaño de bundles y fugas de imports",
+			description: "Audits bundle size limits and import leaks",
 			family: "architecture",
 			ruleIds: BUNDLE_BUDGET_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(BUNDLE_BUDGET_RULES, "polish"),
@@ -214,14 +214,14 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 				".js"
 			]), projectRoot).include, `${distDirRel}/**`] },
 			ruleDescriptions: {
-				"bundle-runtime-leak": "Fuga de test/script en producción",
-				"bundle-heavy-import": "Librería pesada en capas de UI",
-				"bundle-chunk-size": "Chunk excede límite de tamaño"
+				"bundle-runtime-leak": "Test/script leak into production",
+				"bundle-heavy-import": "Heavy library imported in UI layer",
+				"bundle-chunk-size": "Chunk exceeds size limit"
 			},
 			ruleRemediations: {
-				"bundle-runtime-leak": "📖 GUÍA DE REMEDIACIÓN: bundle-runtime-leak\n1. Causa Raíz: Se importaron valores (funciones, objetos, clases) desde carpetas de test (`tests/`, `__tests__/`) o de utilidades de desarrollo (`scripts/`) dentro de código de producción (`src/`). Esto filtra dependencias de desarrollo y fixtures en el bundle compilado final.\n2. Diagnóstico: Ubica la sentencia `import ... from \"...tests/...\"` en el archivo de producción reportado.\n3. Solución Canónica:\n   a) Si sólo necesitas tipos o interfaces, utiliza importación de solo tipo: `import type { ... } from \"...\"`.\n   b) Si necesitas utilidades comunes, muévelas a `src/utils/` o a un paquete compartido para que pertenezcan legítimamente a la capa de aplicación.\n   c) Si es una excepción intencional en un módulo de test embebido, anota `// bundle-leak-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Inseguro: `import { mockUser } from \"../../tests/fixtures/user\";`\n   ✅ Seguro:   `import type { UserProfile } from \"@/domain/types\";`",
-				"bundle-heavy-import": "📖 GUÍA DE REMEDIACIÓN: bundle-heavy-import\n1. Causa Raíz: Se importó una librería de backend pesada o módulo de Node.js (ej: `node:fs`, `jsdom`, `typescript`, `fallow`, `exceljs`) directamente dentro de un componente, vista o store de interfaz de usuario (UI).\n2. Diagnóstico: Inspecciona la sentencia de importación en el componente o store reportado.\n3. Solución Canónica:\n   a) Si la librería solo se usa en operaciones puntuales solicitadas por el usuario, aplícale importación dinámica (`await import(\"...\")`) dentro de la acción específica para separar el chunk (code-splitting).\n   b) Mueve la lógica pesada a un worker web o endpoint de backend/API.\n   c) Utiliza alternativas ligeras optimizadas para el navegador.\n4. Ejemplo:\n   ❌ Pesado estático: `import { HeavyParser } from \"heavy-parser\";` en componente.\n   ✅ Code-splitting:  `const { HeavyParser } = await import(\"heavy-parser\");` dentro del handler.",
-				"bundle-chunk-size": "📖 GUÍA DE REMEDIACIÓN: bundle-chunk-size\n1. Causa Raíz: Un chunk JavaScript compilado en el directorio de distribución (`dist/`) excede el límite máximo de tamaño estipulado en `.auditor/audit.config.ts` (`config.bundle.maxChunkSizeKB`). Los chunks gigantes ralentizan el First Contentful Paint (FCP) y el tiempo de interacción en redes móviles.\n2. Diagnóstico: Revisa el nombre y tamaño del chunk señalado en el reporte.\n3. Solución Canónica:\n   a) Configura división de código (`manualChunks` en Vite / Rollup) para separar dependencias de terceros (`vendor`) en chunks independientes.\n   b) Aplica carga perezosa (`lazy loading` / `defineAsyncComponent`) en rutas de Vue Router y componentes visuales pesados.\n   c) Revisa con `rollup-plugin-visualizer` qué librerías consumen la mayor parte del tamaño y reemplázalas por alternativas tree-shakeables.\n4. Ejemplo:\n   - Cargar rutas con: `component: () => import(\"@/views/DashboardView.vue\")`."
+				"bundle-runtime-leak": "📖 REMEDIATION GUIDE: bundle-runtime-leak\n1. Root Cause: Values (functions, objects, classes) were imported from test folders (`tests/`, `__tests__/`) or dev utilities (`scripts/`) into production code (`src/`). This leaks development dependencies and fixtures into final production bundles.\n2. Diagnosis: Locate the `import ... from \"...tests/...\"` statement in the reported production file.\n3. Canonical Solution:\n   a) If only types or interfaces are needed, use type-only imports: `import type { ... } from \"...\"`.\n   b) If common utilities are needed, move them to `src/utils/` or a shared domain package.\n   c) If intentional in an embedded test harness, annotate with `// bundle-leak-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Insecure: `import { mockUser } from \"../../tests/fixtures/user\";`\n   ✅ Secure:   `import type { UserProfile } from \"@/domain/types\";`",
+				"bundle-heavy-import": "📖 REMEDIATION GUIDE: bundle-heavy-import\n1. Root Cause: A heavy backend or Node.js library (e.g. `node:fs`, `jsdom`, `typescript`, `fallow`, `exceljs`) was imported directly into a UI component, view, or store.\n2. Diagnosis: Inspect the import statement in the reported component or store.\n3. Canonical Solution:\n   a) If the library is only needed for user-initiated actions, use dynamic imports (`await import(\"...\")`) inside the specific handler for code-splitting.\n   b) Move heavy processing to a Web Worker or backend API endpoint.\n   c) Use lightweight browser-optimized alternatives.\n4. Example / Auto-fix command:\n   ❌ Heavy static:  `import { HeavyParser } from \"heavy-parser\";` in component.\n   ✅ Code-splitting: `const { HeavyParser } = await import(\"heavy-parser\");` inside handler.",
+				"bundle-chunk-size": "📖 REMEDIATION GUIDE: bundle-chunk-size\n1. Root Cause: A compiled client chunk in `dist/` exceeds the maximum configured size limit in `.auditor/audit.config.ts` (`config.bundle.maxChunkSizeKB`). Giant chunks hurt First Contentful Paint (FCP) and mobile interaction speeds.\n2. Diagnosis: Check the chunk name and size reported in the finding.\n3. Canonical Solution:\n   a) Configure manual code-splitting (`manualChunks` in Vite / Rollup) to isolate vendor dependencies.\n   b) Apply lazy loading (`defineAsyncComponent`) for Vue Router routes and heavy views.\n   c) Inspect bundle sizes using `rollup-plugin-visualizer` and replace non-tree-shakeable packages.\n4. Example / Auto-fix command:\n   - Load routes with: `component: () => import(\"@/views/DashboardView.vue\")`"
 			},
 			requiresAst: true,
 			projectRoot
@@ -254,8 +254,8 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		])).filter((f) => !isTestPath(f) && !path.basename(f).endsWith(".d.ts"));
 		const astEngine = astContext ?? new SharedAstContext();
 		if (candidateFiles.length === 0) {
-			this.markRuleNotApplicable("bundle-runtime-leak", "No se encontraron archivos de código fuente candidatos");
-			this.markRuleNotApplicable("bundle-heavy-import", "No se encontraron archivos de código fuente candidatos");
+			this.markRuleNotApplicable("bundle-runtime-leak", "No candidate source files found");
+			this.markRuleNotApplicable("bundle-heavy-import", "No candidate source files found");
 		} else for (const relPath of candidateFiles) {
 			this.recordScanned(relPath);
 			const fullPath = path.resolve(this.projectRoot, relPath);
@@ -276,7 +276,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		this.runSubAuditorSync("bundle-chunk-size", () => {
 			chunksAudited = auditCompiledChunks(distDir, config.bundle, this.projectRoot, this);
 		});
-		if (chunksAudited === 0) this.markRuleNotApplicable("bundle-chunk-size", "No se encontraron artefactos compilados en dist");
+		if (chunksAudited === 0) this.markRuleNotApplicable("bundle-chunk-size", "No compiled artifacts found in dist");
 		this.context.setMetric("Files Audited", this.filesScannedCount);
 		this.context.setMetric("Compiled Chunks", chunksAudited);
 	}

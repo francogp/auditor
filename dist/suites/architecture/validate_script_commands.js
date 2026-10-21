@@ -102,7 +102,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_script_commands",
 			name: "Script & Pipeline Commands Validator",
-			description: "Valida comandos npm y npx en scripts y CI/CD",
+			description: "Validates npm and npx commands in scripts and CI/CD",
 			family: "architecture",
 			packageName: "ScriptCommands",
 			configKey: "paths",
@@ -112,14 +112,14 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 			ruleIds: SCRIPT_COMMANDS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(SCRIPT_COMMANDS_RULES, "setup"),
 			ruleDescriptions: {
-				"script-cmd-unregistered-npm": "Script npm run no registrado",
-				"script-cmd-invalid-npm-syntax": "Comando npm directo no válido",
-				"script-cmd-unregistered-npx": "Binario npx no registrado"
+				"script-cmd-unregistered-npm": "Unregistered npm run script",
+				"script-cmd-invalid-npm-syntax": "Invalid direct npm command",
+				"script-cmd-unregistered-npx": "Unregistered npx binary"
 			},
 			ruleRemediations: {
-				"script-cmd-unregistered-npm": "Causa Raíz:\nUn script ejecutable (.sh, .ps1, Dockerfile o pipeline de CI/CD en .github/workflows/) intenta ejecutar \"npm run <script>\", pero \"<script>\" no está registrado en el bloque \"scripts\" de package.json.\n\nDiagnóstico:\nRevisa el archivo y línea donde se ejecuta el comando. Comprueba si el script fue renombrado (ej. \"build:prod\" migrado a \"build:deploy\") o si se omitió definirlo en package.json.\n\nSolución Canónica:\n1. Si el script fue renombrado, actualiza la invocación en el script ejecutable para apuntar al nombre canónico registrado.\n2. Si el script es válido y requerido, agrégalo a \"scripts\" en package.json.\n3. Si fue un error tipográfico, corrige el nombre en el archivo ejecutable.",
-				"script-cmd-invalid-npm-syntax": "Causa Raíz:\nSe invocó directamente \"npm <nombre>\" en un script cuando \"<nombre>\" no es un comando nativo del CLI de npm (como \"test\", \"install\", \"ci\") y se omitió la palabra clave \"run\".\nEn npm, los scripts personalizados definidos por el usuario en package.json requieren obligatoriamente el subcomando \"run\" (ej. \"npm run build\").\n\nDiagnóstico:\nBusca la línea del script que ejecuta \"npm <nombre>\".\n\nSolución Canónica:\nReemplaza \"npm <nombre>\" por \"npm run <nombre>\" (o \"vp run <nombre>\").",
-				"script-cmd-unregistered-npx": "Causa Raíz:\nUn script ejecutable o pipeline invoca \"npx <binario>\", pero el binario no está instalado en node_modules/.bin ni declarado como dependencia en package.json.\nPor mandato de arquitectura y seguridad de la cadena de suministro, invocar npx para descargar binarios al vuelo en scripts está estrictamente prohibido sin declarar la dependencia explícita.\n\nDiagnóstico:\nExamina el binario invocado tras \"npx\".\n\nSolución Canónica:\n1. Si invoca herramientas nativas de Vite+ (ej. \"npx vite\"), reemplázala por el comando oficial \"vp dev\" o su script canónico en package.json.\n2. Para otras herramientas, instálalas en devDependencies mediante \"npm install -D <paquete>\" e invócalas mediante su script en package.json.\n3. Si se trata de una utilidad provista globalmente por la imagen o el entorno anfitrión, regístrala en \"config.scriptCommands.allowedNpxBinaries\" en .auditor/audit.config.ts tras aprobación."
+				"script-cmd-unregistered-npm": "1. Root Cause:\nAn executable script (.sh, .ps1, Dockerfile, or CI/CD workflow under .github/workflows/) attempts to run \"npm run <script>\", but \"<script>\" is not declared in package.json.scripts.\n\n2. Diagnosis:\nCheck the file and line number executing the command. Verify whether the script was renamed (e.g. \"build:prod\" migrated to \"build:deploy\") or never declared in package.json.\n\n3. Canonical Solution:\n1. If the script was renamed, update the invocation in the script to reference the registered canonical name.\n2. If the script is valid and required, declare it in \"scripts\" in package.json.\n3. If it was a typo, fix the command name in the script.\n\n4. Example / Auto-fix command:\n// package.json:\n\"scripts\": { \"build\": \"vp build\" }",
+				"script-cmd-invalid-npm-syntax": "1. Root Cause:\nA script invokes \"npm <name>\" directly where \"<name>\" is not a native npm CLI command (like \"test\", \"install\", \"ci\") and omitted the \"run\" keyword.\nIn npm, custom scripts defined in package.json strictly require the \"run\" subcommand (e.g. \"npm run build\").\n\n2. Diagnosis:\nLocate the line in the script running \"npm <name>\".\n\n3. Canonical Solution:\nReplace \"npm <name>\" with \"npm run <name>\" (or \"vp run <name>\").\n\n4. Example / Auto-fix command:\nnpm run build",
+				"script-cmd-unregistered-npx": "1. Root Cause:\nAn executable script or CI/CD pipeline runs \"npx <binary>\", but the binary is neither installed in node_modules/.bin nor declared in package.json.\nUnder repository supply-chain security rules, invoking npx to download binaries on the fly in scripts is strictly prohibited without explicit dependency declaration.\n\n2. Diagnosis:\nInspect the binary name invoked after \"npx\".\n\n3. Canonical Solution:\n1. For built-in Vite+ tools (e.g. \"npx vite\"), replace with \"vp dev\" or its canonical npm package script.\n2. For other packages, add them to devDependencies via \"npm install -D <pkg>\" and invoke via package.json scripts.\n3. For global system or runner utilities, declare them in \"config.scriptCommands.allowedNpxBinaries\" in .auditor/audit.config.ts upon approval.\n\n4. Example / Auto-fix command:\nnpm install -D <package>"
 			},
 			coverage: { include: [
 				"**/*.sh",
@@ -142,7 +142,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 	async runAudit() {
 		const config = getAuditConfig(this.rootDir);
 		if (config.scriptCommands?.enabled === false) {
-			this.markSkipped("Desactivado en config (scriptCommands.enabled = false)");
+			this.markSkipped("Disabled in config (scriptCommands.enabled = false)");
 			return;
 		}
 		const { scripts, declaredBins, installedBins } = loadPackageScriptsAndBins(this.rootDir);
@@ -156,7 +156,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 		};
 		const candidateFiles = this.collectScriptFiles();
 		if (candidateFiles.length === 0) {
-			for (const rule of SCRIPT_COMMANDS_RULES) this.markRuleNotApplicable(rule, "No se encontraron scripts ejecutables para auditar");
+			for (const rule of SCRIPT_COMMANDS_RULES) this.markRuleNotApplicable(rule, "No executable scripts found to audit");
 			return;
 		}
 		const scannedFiles = this.readScannedFiles(candidateFiles, customExemptGlobs, scriptExemptGlobs);
@@ -190,7 +190,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 			for (const file of scannedFiles) for (const cmd of file.commands) {
 				const v = evaluateGenericCommandViolation(cmd, env);
 				if (!v || v.kind !== targetKind) continue;
-				const message = targetKind === "unregistered-npm" ? cmd.type === "npm-run" ? `El script '${file.relPosix}' (línea ${v.line}) ejecuta 'npm run ${cmd.target}', pero el script no está registrado en package.json.scripts.` : `El script '${file.relPosix}' (línea ${v.line}) ejecuta 'npm test', pero no hay un script 'test' registrado en package.json.scripts.` : `El script '${file.relPosix}' (línea ${v.line}): ${v.message}`;
+				const message = targetKind === "unregistered-npm" ? cmd.type === "npm-run" ? `The script '${file.relPosix}' (line ${v.line}) runs 'npm run ${cmd.target}', but the script is not registered in package.json.scripts.` : `The script '${file.relPosix}' (line ${v.line}) runs 'npm test', but no 'test' script is registered in package.json.scripts.` : `The script '${file.relPosix}' (line ${v.line}): ${v.message}`;
 				this.addViolation({
 					ruleId,
 					severity: "error",

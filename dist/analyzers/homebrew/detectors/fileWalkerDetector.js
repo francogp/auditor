@@ -27,7 +27,7 @@ function hasWalkerExemption(lines, idx) {
 const fileWalkerDetector = {
 	id: "file-walker",
 	ruleId: "auditor-manual-file-walker",
-	ruleDescription: "Recorrido recursivo manual de dirs",
+	ruleDescription: "Manual recursive directory walk",
 	detect(context) {
 		if (context.content.includes("// walker-ok: all")) return [];
 		if (context.isCore && !context.filePath.startsWith("src/core/refactor/")) return [];
@@ -43,7 +43,7 @@ const fileWalkerDetector = {
 					ruleId: "auditor-manual-file-walker",
 					line: i + 1,
 					context: line.trim(),
-					message: "Recorrido recursivo directo con 'readdirSync({ recursive: true })' detectado. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+					message: "Direct recursive directory traversal with 'readdirSync({ recursive: true })' detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
 				});
 				continue;
 			}
@@ -52,7 +52,7 @@ const fileWalkerDetector = {
 					ruleId: "auditor-manual-file-walker",
 					line: i + 1,
 					context: line.trim(),
-					message: "Llamada a función de recorrido recursivo manual detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+					message: "Call to manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
 				});
 				continue;
 			}
@@ -61,7 +61,7 @@ const fileWalkerDetector = {
 					ruleId: "auditor-manual-file-walker",
 					line: i + 1,
 					context: line.trim(),
-					message: "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+					message: "Manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
 				});
 				continue;
 			}
@@ -76,7 +76,7 @@ const fileWalkerDetector = {
 				ruleId: "auditor-manual-file-walker",
 				line: i + 1,
 				context: line.trim(),
-				message: "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+				message: "Manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
 			});
 		}
 		return findings;

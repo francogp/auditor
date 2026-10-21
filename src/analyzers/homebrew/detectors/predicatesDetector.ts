@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const predicatesDetector = createLineDetector({
   id: 'predicates',
   ruleId: 'auditor-homebrew-predicates',
-  ruleDescription: 'Predicados caseros de rutas o test',
+  ruleDescription: 'Homebrew path or test predicates',
   checkLine(line, _trimmed, _lineNum, context) {
     const hasHomebrewTestCheck =
       (line.includes("includes('.spec.')") ||

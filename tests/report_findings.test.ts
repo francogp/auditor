@@ -294,8 +294,18 @@ describe('report_findings CLI Tool', () => {
     runReport();
 
     const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
-    expect(allLogs).toContain('ℹ️  [Notice] Inspecting partial run (76/80 suites executed).');
+    expect(allLogs).toContain('[Notice] Inspecting partial run (76/80 suites executed).');
     expect(allLogs).not.toContain('suite_1, suite_2');
+    expect(allLogs).not.toContain('┌─');
+  });
+
+  it('supports suite= and task= filtering without falling into unknown category', () => {
+    process.argv = ['node', 'report_findings.ts', 'suite=validate_oxlint', 'allow-stale'];
+    runReport();
+
+    const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+    expect(allLogs).not.toContain('No se encontraron hallazgos para la categoría');
+    expect(allLogs).toContain('Forbidden any typecast');
     expect(allLogs).not.toContain('┌─');
   });
 
@@ -320,6 +330,6 @@ describe('report_findings CLI Tool', () => {
 
     const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(allLogs).toContain('suite_1, suite_2');
-    expect(allLogs).toContain('REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES');
+    expect(allLogs).toContain('CONSOLIDATED AUDIT WARNINGS & ERRORS REPORT');
   });
 });

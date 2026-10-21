@@ -36,7 +36,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		super({
 			id: "validate_web_performance",
 			name: "Web Performance & Core Web Vitals Auditor",
-			description: "Rendimiento web, Core Web Vitals y optimización frontend",
+			description: "Web performance, Core Web Vitals, and frontend optimization",
 			family: "performance",
 			packageName: "WebPerf",
 			icon: "⚡",
@@ -50,22 +50,22 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			ruleIds: WEB_PERFORMANCE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(WEB_PERFORMANCE_RULES, "behavior"),
 			ruleDescriptions: {
-				"unoptimized-images": "Imagen sin compresión moderna WebP",
-				"font-display-missing": "@font-face sin font-display swap",
-				"inline-svg-bloat": "SVG inline excesivo superando 2KB",
-				"css-render-blocking": "Recurso CSS o script bloqueante en head",
-				"excessive-dom-depth": "Anidamiento DOM excesivo > 16 niveles",
-				"layout-shift-dimensions": "img o video sin width o height explícito",
-				"uncompressed-video": "video sin preload none o formato webm"
+				"unoptimized-images": "Image without modern WebP compression",
+				"font-display-missing": "@font-face without font-display swap",
+				"inline-svg-bloat": "Inline SVG exceeding 2KB",
+				"css-render-blocking": "Render-blocking CSS or script in head",
+				"excessive-dom-depth": "Excessive DOM depth > 16 levels",
+				"layout-shift-dimensions": "Media element missing width/height",
+				"uncompressed-video": "Video missing preload=\"none\" or webm"
 			},
 			ruleRemediations: {
-				"unoptimized-images": "📖 GUÍA DE REMEDIACIÓN: unoptimized-images\n1. Causa Raíz: Se incluyó una imagen raster tradicional (`.png`, `.jpg`, `.jpeg`) sin compresión moderna (`.webp`, `.avif`) ni atributo `decoding=\"async\"`. Los formatos antiguos aumentan drásticamente el peso de transferencia y retrasan el LCP (Largest Contentful Paint).\n2. Diagnóstico: Ubica la etiqueta `<img>` en la plantilla reportada.\n3. Solución Canónica:\n   a) Convierte la imagen a formato `.webp` o `.avif`.\n   b) Añade los atributos de rendimiento: `loading=\"lazy\"` y `decoding=\"async\"`.\n   c) Si la imagen es un activo externo inmutable o requiere PNG por transparencia binaria, anota `<!-- unoptimized-img-ok: <justificación> -->`.\n4. Ejemplo:\n   ❌ Tradicional: `<img src=\"/hero.png\">`\n   ✅ Optimizado:  `<img src=\"/hero.webp\" loading=\"lazy\" decoding=\"async\" alt=\"Hero\">`",
-				"font-display-missing": "📖 GUÍA DE REMEDIACIÓN: font-display-missing\n1. Causa Raíz: Una regla `@font-face` carece de la propiedad `font-display: swap` o `font-display: optional`. Esto bloquea el renderizado de texto mientras la fuente se descarga, provocando destellos invisibles de texto (FOIT).\n2. Diagnóstico: Inspecciona la declaración `@font-face` en el archivo de estilos reportado.\n3. Solución Canónica: Añade `font-display: swap;` dentro de la definición `@font-face`.\n4. Ejemplo:\n   - CSS: `@font-face { font-family: \"CustomFont\"; src: url(...); font-display: swap; }`",
-				"inline-svg-bloat": "📖 GUÍA DE REMEDIACIÓN: inline-svg-bloat\n1. Causa Raíz: Se incrustó un SVG en línea masivo (> 2KB) directamente en la plantilla HTML/Vue. Los SVGs gigantes inflan el tamaño del bundle JS/HTML e impiden el cacheo HTTP individual del navegador.\n2. Diagnóstico: Revisa el bloque `<svg>` en la plantilla del componente señalado.\n3. Solución Canónica:\n   a) Mueve el SVG a un archivo externo en `src/assets/` o `public/` y cárgalo vía `<img src=\"/icon.svg\" ...>`.\n   b) Si necesitas colorear el SVG por CSS, utiliza una máscara CSS: `mask: url(/icon.svg)` o un sistema de sprites SVG.\n4. Ejemplo:\n   ❌ SVG inline de 15KB en componente Vue.\n   ✅ Imagen externa: `<img src=\"@/assets/illustration.svg\" alt=\"Ilustración\">`",
-				"css-render-blocking": "📖 GUÍA DE REMEDIACIÓN: css-render-blocking\n1. Causa Raíz: Se encontró una hoja de estilos externa o script en el `<head>` que bloquea el árbol de renderizado del navegador sin atributos `async`, `defer` ni media queries no críticas.\n2. Diagnóstico: Ubica la etiqueta `<link rel=\"stylesheet\">` o `<script>` en `index.html`.\n3. Solución Canónica: Añade `defer` o `async` a los scripts, o carga fuentes/estilos secundarios mediante `media=\"print\" onload=\"this.media='all'\"`.\n4. Ejemplo:\n   ❌ Bloqueante: `<script src=\"/analytics.js\"><\/script>`\n   ✅ No bloqueante: `<script src=\"/analytics.js\" async defer><\/script>`",
-				"excessive-dom-depth": "📖 GUÍA DE REMEDIACIÓN: excessive-dom-depth\n1. Causa Raíz: La estructura de etiquetas del componente presenta un anidamiento DOM superior a 16 niveles de profundidad. Árboles DOM excesivamente profundos saturan el cálculo de estilos y el árbol de accesibilidad.\n2. Diagnóstico: Examina el anidamiento de `<div>` y contenedores en la plantilla del componente.\n3. Solución Canónica: Aplana la jerarquía HTML eliminando contenedores innecesarios (divitis) o fragmenta el componente en subcomponentes modulares más pequeños.\n4. Ejemplo:\n   - Eliminar wrappers redundantes que solo aplican una clase de layout.",
-				"layout-shift-dimensions": "📖 GUÍA DE REMEDIACIÓN: layout-shift-dimensions\n1. Causa Raíz: Una etiqueta `<img>` o `<video>` carece de los atributos explícitos `width` y `height` (o de la propiedad CSS `aspect-ratio`). Cuando la imagen se descarga, el contenido circundante salta de posición, provocando un elevado Cumulative Layout Shift (CLS).\n2. Diagnóstico: Revisa la etiqueta `<img>` o `<video>` en la plantilla.\n3. Solución Canónica: Declara siempre los atributos `width` y `height` con las dimensiones intrínsecas de la imagen, o aplica `aspect-ratio` por CSS.\n4. Ejemplo:\n   ❌ Sin dimensiones: `<img src=\"/banner.webp\" />`\n   ✅ Con dimensiones: `<img src=\"/banner.webp\" width=\"800\" height=\"400\" />`",
-				"uncompressed-video": "📖 GUÍA DE REMEDIACIÓN: uncompressed-video\n1. Causa Raíz: Una etiqueta `<video>` carece del atributo `preload=\"none\"` o `preload=\"metadata\"`, o no ofrece una fuente moderna en formato WebM (`<source type=\"video/webm\">`). Descargar vídeos completos automáticamente agota el ancho de banda del usuario.\n2. Diagnóstico: Ubica la etiqueta `<video>` en la plantilla.\n3. Solución Canónica: Añade `preload=\"metadata\"` y proporciona fuentes optimizadas en WebM y MP4.\n4. Ejemplo:\n   ❌ Ineficiente: `<video src=\"/intro.mp4\" autoplay>`\n   ✅ Optimizado:  `<video preload=\"metadata\" playsinline><source src=\"/intro.webm\" type=\"video/webm\" /></video>`"
+				"unoptimized-images": "📖 REMEDIATION GUIDE: unoptimized-images\n1. Root Cause: A legacy raster image (`.png`, `.jpg`, `.jpeg`) was included without modern compression (`.webp`, `.avif`) or the `decoding=\"async\"` attribute. Legacy formats increase transfer weight and hurt LCP (Largest Contentful Paint).\n2. Diagnosis: Locate the `<img>` tag in the reported template.\n3. Canonical Solution:\n   a) Convert the image to `.webp` or `.avif` format.\n   b) Add performance attributes: `loading=\"lazy\"` and `decoding=\"async\"`.\n   c) If the image is an immutable external asset or requires PNG for binary transparency, annotate `<!-- unoptimized-img-ok: <reason> -->`.\n4. Example / Auto-fix command:\n   ❌ Legacy:    `<img src=\"/hero.png\">`\n   ✅ Optimized: `<img src=\"/hero.webp\" loading=\"lazy\" decoding=\"async\" alt=\"Hero\">`",
+				"font-display-missing": "📖 REMEDIATION GUIDE: font-display-missing\n1. Root Cause: An `@font-face` rule lacks the `font-display: swap` or `font-display: optional` property. This blocks text rendering while the web font is downloading, causing Flash of Invisible Text (FOIT).\n2. Diagnosis: Inspect the `@font-face` declaration in the reported stylesheet.\n3. Canonical Solution: Add `font-display: swap;` inside the `@font-face` definition block.\n4. Example / Auto-fix command:\n   - CSS: `@font-face { font-family: \"CustomFont\"; src: url(...); font-display: swap; }`",
+				"inline-svg-bloat": "📖 REMEDIATION GUIDE: inline-svg-bloat\n1. Root Cause: A large inline SVG (> 2KB) was embedded directly inside the HTML/Vue template. Giant SVGs bloat JS/HTML bundle sizes and prevent browser HTTP caching.\n2. Diagnosis: Check the `<svg>` block in the component template.\n3. Canonical Solution:\n   a) Move the SVG to an external asset in `src/assets/` or `public/` and load it via `<img src=\"/icon.svg\" ...>`.\n   b) If CSS coloring is required, use a CSS mask: `mask: url(/icon.svg)` or an SVG sprite system.\n4. Example / Auto-fix command:\n   ❌ 15KB inline SVG in Vue template.\n   ✅ External image: `<img src=\"@/assets/illustration.svg\" alt=\"Illustration\">`",
+				"css-render-blocking": "📖 REMEDIATION GUIDE: css-render-blocking\n1. Root Cause: An external stylesheet or script tag was found in `<head>` that blocks browser rendering without `async`, `defer`, or non-critical media queries.\n2. Diagnosis: Locate the `<link rel=\"stylesheet\">` or `<script>` tag in `index.html`.\n3. Canonical Solution: Add `defer` or `async` to scripts, or load secondary fonts/styles using `media=\"print\" onload=\"this.media='all'\"`.\n4. Example / Auto-fix command:\n   ❌ Blocking:    `<script src=\"/analytics.js\"><\/script>`\n   ✅ Non-blocking: `<script src=\"/analytics.js\" async defer><\/script>`",
+				"excessive-dom-depth": "📖 REMEDIATION GUIDE: excessive-dom-depth\n1. Root Cause: The component markup has a DOM depth exceeding 16 levels. Deep DOM trees slow down style recalculations and overload the accessibility tree.\n2. Diagnosis: Examine nested `<div>` containers in the component template.\n3. Canonical Solution: Flatten the HTML hierarchy by removing redundant containers or break the component down into smaller modular subcomponents.\n4. Example / Auto-fix command:\n   - Remove redundant wrapper elements that only apply a layout class.",
+				"layout-shift-dimensions": "📖 REMEDIATION GUIDE: layout-shift-dimensions\n1. Root Cause: An `<img>` or `<video>` tag lacks explicit `width` and `height` attributes (or CSS `aspect-ratio`). When the media loads, surrounding content shifts, causing Cumulative Layout Shift (CLS).\n2. Diagnosis: Inspect the `<img>` or `<video>` tag in the template.\n3. Canonical Solution: Always specify `width` and `height` attributes matching intrinsic dimensions, or declare `aspect-ratio` via CSS.\n4. Example / Auto-fix command:\n   ❌ Missing dimensions: `<img src=\"/banner.webp\" />`\n   ✅ With dimensions:    `<img src=\"/banner.webp\" width=\"800\" height=\"400\" />`",
+				"uncompressed-video": "📖 REMEDIATION GUIDE: uncompressed-video\n1. Root Cause: A `<video>` tag lacks `preload=\"none\"` or `preload=\"metadata\"`, or does not offer a modern WebM source (`<source type=\"video/webm\">`). Preloading full video files wastes client bandwidth.\n2. Diagnosis: Locate the `<video>` tag in the template.\n3. Canonical Solution: Add `preload=\"metadata\"` and provide modern WebM and MP4 sources.\n4. Example / Auto-fix command:\n   ❌ Inefficient: `<video src=\"/intro.mp4\" autoplay>`\n   ✅ Optimized:   `<video preload=\"metadata\" playsinline><source src=\"/intro.webm\" type=\"video/webm\" /></video>`"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
 			projectRoot: webRoots.effectiveRoot,
@@ -114,7 +114,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "unoptimized-images",
 					severity: "error",
-					message: `Imagen '${src}' con formato tradicional sin compresión moderna WebP/AVIF ni decoding="async"`,
+					message: `Image '${src}' uses legacy raster format without modern WebP/AVIF compression or decoding="async"`,
 					file: relPath,
 					line
 				});
@@ -132,7 +132,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "font-display-missing",
 					severity: "error",
-					message: "Declaración @font-face sin font-display: swap u optional (riesgo de FOIT)",
+					message: "@font-face declaration without font-display: swap or optional (risk of FOIT)",
 					file: relPath,
 					line
 				});
@@ -152,7 +152,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "inline-svg-bloat",
 					severity: "error",
-					message: `SVG inline excesivo (${svgContent.length} caracteres) superando el límite de ${maxSvgSize} bytes; extraer como asset`,
+					message: `Excessive inline SVG (${svgContent.length} chars) exceeding ${maxSvgSize} bytes limit; extract as asset`,
 					file: relPath,
 					line
 				});
@@ -174,7 +174,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "css-render-blocking",
 					severity: "error",
-					message: "Hoja de estilos externa síncrona en head bloqueando el primer renderizado",
+					message: "Synchronous external stylesheet in head blocking first render",
 					file: relPath,
 					line
 				});
@@ -191,7 +191,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "css-render-blocking",
 					severity: "error",
-					message: "Script externo síncrono sin atributo defer, async o type=\"module\"",
+					message: "Synchronous external script without defer, async, or type=\"module\" attribute",
 					file: relPath,
 					line
 				});
@@ -254,7 +254,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "excessive-dom-depth",
 				severity: "error",
-				message: `Anidamiento DOM excesivo (${maxDepth} niveles > ${maxAllowedDepth}) provocando sobrecarga de layout`,
+				message: `Excessive DOM depth (${maxDepth} levels > ${maxAllowedDepth}) causing layout thrashing`,
 				file: relPath,
 				line
 			});
@@ -283,7 +283,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "layout-shift-dimensions",
 					severity: "error",
-					message: `Elemento <${tag}> sin dimensiones width y height explícitas (riesgo de CLS)`,
+					message: `Element <${tag}> lacks explicit width and height dimensions (risk of CLS)`,
 					file: relPath,
 					line
 				});
@@ -305,7 +305,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "uncompressed-video",
 					severity: "error",
-					message: "Elemento video con formato no comprimido (.mov/.avi); utilizar MP4 o WebM moderno",
+					message: "Video element with uncompressed container (.mov/.avi); use modern MP4 or WebM",
 					file: relPath,
 					line
 				});
@@ -314,7 +314,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "uncompressed-video",
 					severity: "error",
-					message: "Elemento <video> sin preload=\"none\" ni fuente en formato WebM optimizado",
+					message: "Video element <video> without preload=\"none\" or optimized WebM source",
 					file: relPath,
 					line
 				});

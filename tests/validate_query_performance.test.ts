@@ -30,7 +30,7 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
   });
 
   describe('Point 1: Construction & Metadata Conformance', () => {
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateQueryPerformanceAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_query_performance');
       expect(auditor.name).toBe('Database Query & Index Performance Validator');
@@ -39,21 +39,19 @@ describe('ValidateQueryPerformanceAuditor Conformance & Rule Detection', () => {
       expect(auditor.icon).toBe('⚡');
       expect(auditor.ruleIds).toEqual([...QUERY_PERFORMANCE_RULES]);
       expect(auditor.ruleDescriptions['unindexed-foreign-keys']).toBe(
-        'Clave foránea sin índice secundario'
+        'Foreign key without secondary index'
       );
       expect(auditor.ruleDescriptions['select-star-in-queries']).toBe(
-        'SELECT * en repositorio o servicio'
+        'SELECT * in repository or service'
       );
       expect(auditor.ruleDescriptions['unpaginated-queries']).toBe(
-        'Consulta sin LIMIT ni paginación'
+        'Query without LIMIT or pagination'
       );
-      expect(auditor.ruleDescriptions['n-plus-one-patterns']).toBe(
-        'Consulta a base de datos en bucle'
-      );
+      expect(auditor.ruleDescriptions['n-plus-one-patterns']).toBe('Database query inside loop');
       expect(auditor.ruleDescriptions['heavy-count-queries']).toBe(
-        'SELECT COUNT(*) sin filtro en tabla'
+        'SELECT COUNT(*) without filter'
       );
-      expect(auditor.ruleDescriptions['unindexed-order-by']).toBe('Paginación con OFFSET alto');
+      expect(auditor.ruleDescriptions['unindexed-order-by']).toBe('Pagination with high OFFSET');
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);

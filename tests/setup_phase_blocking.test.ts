@@ -62,32 +62,32 @@ describe('Setup Phase Contract & Imperative Blocking', () => {
 
   it('renders prominent imperative setup blocking banner with red border and correct counts', () => {
     const banner = renderSetupBlockingBanner(5, 1200);
-    expect(banner).toContain('BLOQUEO CRÍTICO');
-    expect(banner).toContain('CONFIGURACIÓN Y PROYECTO (FASE SETUP)');
+    expect(banner).toContain('CRITICAL BLOCKING');
+    expect(banner).toContain('CONFIGURATION AND PROJECT (SETUP PHASE)');
     expect(banner).toContain('5');
     expect(banner).toContain('1.200');
-    expect(banner).toContain('ESTOS ERRORES DEBEN REPARARSE PRIMERO');
+    expect(banner).toContain('THESE ERRORS MUST BE FIXED FIRST');
     expect(banner).toContain('npm run auditor:fix');
   });
 
   it('renders contextual npm install instructions when lockfile mismatch exists', () => {
     const banner = renderSetupBlockingBanner(2, 50, { hasLockfileMismatch: true });
     expect(banner).toContain('npm install');
-    expect(banner).toContain('Paso 1 imperativo — Sincroniza dependencias con el lockfile');
-    expect(banner).toContain('Paso 2 posterior — Ejecuta la auto-reparación del auditor');
+    expect(banner).toContain('Imperative Step 1 — Synchronize dependencies with lockfile');
+    expect(banner).toContain('Subsequent Step 2 — Run auditor auto-repair');
     expect(banner).toContain('npm run auditor:fix');
   });
 
   it('renders contextual nvm/fnm instructions when engine mismatch exists', () => {
     const banner = renderSetupBlockingBanner(1, 10, { hasEngineMismatch: true });
     expect(banner).toContain('nvm use / fnm use');
-    expect(banner).toContain('Sincroniza la versión del motor de ejecución');
+    expect(banner).toContain('Synchronize runtime engine version');
   });
 
   it('renders guide consultation instruction when errors are not auto-fixable', () => {
     const banner = renderSetupBlockingBanner(1, 0, { hasFixableErrors: false });
     expect(banner).toContain('npm run auditor:guide -- <ruleId>');
-    expect(banner).toContain('Resuelve los errores de configuración');
+    expect(banner).toContain('Resolve configuration errors');
   });
 
   it('strictly executes setup phase suites before all application and linter suites in fix mode', () => {

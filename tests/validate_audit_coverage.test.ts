@@ -55,7 +55,7 @@ describe('validate_audit_coverage Suite', () => {
     it('initializes with correct metadata and rules', () => {
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_audit_coverage');
-      expect(auditor.packageName).toBe('Cobertura');
+      expect(auditor.packageName).toBe('Coverage');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds.length).toBeGreaterThan(0);
       expect(auditor.ruleDescriptions).toBeDefined();

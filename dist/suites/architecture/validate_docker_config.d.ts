@@ -4,7 +4,7 @@ import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 export declare const DOCKER_CONFIG_RULES: readonly ["dockerignore-missing", "dockerignore-missing-pattern"];
 export type DockerConfigRuleId = (typeof DOCKER_CONFIG_RULES)[number];
 export declare const MANDATORY_DOCKER_IGNORE_PATTERNS: readonly string[];
-export declare const CANONICAL_DOCKERIGNORE_LINES: readonly ["# Archivos y dependencias ignoradas para construccion de imagenes Docker", "node_modules", ".git", "dist", "scratch", ".env*", "*.log", ""];
+export declare const CANONICAL_DOCKERIGNORE_LINES: readonly ["# Ignored files and dependencies for Docker image builds", "node_modules", ".git", "dist", "scratch", ".env*", "*.log", ""];
 export declare const CANONICAL_DOCKERIGNORE_CONTENT: string;
 export declare const DOCKER_FILE_CANDIDATES: readonly string[];
 export declare function isDockerProjectContext(projectRoot: string): boolean;

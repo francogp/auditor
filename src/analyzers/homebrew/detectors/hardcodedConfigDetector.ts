@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const hardcodedConfigDetector = createLineDetector({
   id: 'hardcoded-config',
   ruleId: 'auditor-hardcoded-config',
-  ruleDescription: 'Rutas o configs hardcodeadas',
+  ruleDescription: 'Hardcoded paths or configs',
   checkLine(_line, trimmed) {
     if (trimmed.includes('hardcoded-config-ok') || trimmed.includes('homebrew-ok')) return null;
 

@@ -30,7 +30,7 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
   });
 
   describe('Point 1: Construction & Metadata Conformance', () => {
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_scss_architecture');
       expect(auditor.name).toBe('SCSS Architecture & Distinctive Design Validator');
@@ -38,18 +38,18 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
       expect(auditor.packageName).toBe('SCSSArch');
       expect(auditor.icon).toBe('🎨');
       expect(auditor.ruleIds).toEqual([...SCSS_ARCHITECTURE_RULES]);
-      expect(auditor.ruleDescriptions['raw-css-in-sfc']).toBe('<style> sin atributo lang="scss"');
+      expect(auditor.ruleDescriptions['raw-css-in-sfc']).toBe('<style> tag missing lang="scss"');
       expect(auditor.ruleDescriptions['scss-deep-selector-abuse']).toBe(
-        'Abuso o anidamiento de :deep()'
+        'Abuse or nesting of :deep()'
       );
       expect(auditor.ruleDescriptions['non-standard-spacing-unit']).toBe(
-        'Espaciado arbitrario sin escala'
+        'Arbitrary spacing outside token scale'
       );
       expect(auditor.ruleDescriptions['missing-theme-token-usage']).toBe(
-        'Color hardcodeado sin token de tema'
+        'Hardcoded color without theme token'
       );
       expect(auditor.ruleDescriptions['excessive-scss-nesting']).toBe(
-        'Anidamiento SCSS superior a 3 niveles'
+        'SCSS nesting exceeds 3 levels'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);

@@ -40,26 +40,26 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 			fixableRuleIds: ["dependency-below-minimum-range", "dependency-exceeds-maximum-range"],
 			id: "validate_dependency_minimums",
 			name: "Dependency Minimum Versions Validator",
-			description: "Versión mínima y máxima de librerías instaladas",
+			description: "Minimum and maximum versions of installed packages",
 			family: "architecture",
 			ruleIds: DEPENDENCY_MINIMUMS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_MINIMUMS_RULES, "setup"),
-			packageName: "Dependencias",
+			packageName: "Dependencies",
 			configKey: "environment.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "📌",
 			ruleDescriptions: {
-				"dependency-below-minimum-range": "Rango declarado inferior al mínimo",
-				"dependency-below-minimum-installed": "Versión instalada inferior al mínimo",
-				"dependency-exceeds-maximum-range": "Rango declarado excede el máximo",
-				"dependency-exceeds-maximum-installed": "Versión instalada excede el máximo"
+				"dependency-below-minimum-range": "Declared range below minimum",
+				"dependency-below-minimum-installed": "Installed version below minimum",
+				"dependency-exceeds-maximum-range": "Declared range exceeds maximum",
+				"dependency-exceeds-maximum-installed": "Installed version exceeds maximum"
 			},
 			ruleRemediations: {
-				"dependency-below-minimum-range": "Causa Raíz:\nEl rango de versión declarado en package.json (dependencies o devDependencies) tiene un piso inferior al mínimo homologado por el auditor.\nMantener dependencias por debajo del piso mínimo introduce incompatibilidades con el compilador, fallos de tipado o problemas de seguridad ya resueltos en versiones superiores.\n\nDiagnóstico:\nEl mensaje de la incidencia especifica el paquete, el rango declarado actualmente y el piso mínimo requerido por el framework.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor actualizará automáticamente los rangos en package.json al piso mínimo homologado.\n2. Luego ejecuta \"npm install\" para sincronizar package-lock.json.",
-				"dependency-below-minimum-installed": "Causa Raíz:\nLa versión efectivamente instalada y fijada en package-lock.json (en node_modules/) está por debajo del piso mínimo requerido por el auditor.\nEsto sucede comúnmente cuando package.json fue modificado pero no se ha corrido \"npm install\", o cuando npm reutilizó una resolución antigua del lockfile.\n\nDiagnóstico:\nRevisa package-lock.json para comprobar qué versión exacta está resuelta en \"node_modules/<paquete>\".\n\nSolución Canónica:\nEjecuta el comando de instalación sugerido en el mensaje de error (por ejemplo \"npm install -D <paquete>@<piso>\") o corre \"npm update <paquete>\".",
-				"dependency-exceeds-maximum-range": "Causa Raíz:\nEl rango de versión declarado en package.json permite instalar versiones que superan el techo máximo seguro validado por el auditor.\nCiertas dependencias críticas (como TypeScript, Vite o motores de renderizado) pueden introducir cambios incompatibles (breaking changes) en versiones mayores o intermedias que aún no han sido homologadas.\n\nDiagnóstico:\nRevisa el rango en package.json: si utiliza \"^\" en una versión mayor incompatible o un operador \">=\" abierto.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" para acotar automáticamente el rango al techo seguro.\n2. O bien, ajusta manualmente el rango en package.json para que no exceda el techo especificado en el mensaje de error.",
-				"dependency-exceeds-maximum-installed": "Causa Raíz:\nLa versión instalada en package-lock.json excede el techo máximo permitido por el ecosistema del auditor.\n\nDiagnóstico:\nComprueba la versión instalada en node_modules/<paquete> a través del lockfile.\n\nSolución Canónica:\nReinstala la dependencia fijando una versión dentro de la ventana de compatibilidad: \"npm install -D <paquete>@<version-segura>\"."
+				"dependency-below-minimum-range": "1. Root Cause:\nThe version range declared in package.json (dependencies or devDependencies) has a floor lower than the minimum approved by the auditor.\nKeeping dependencies below the minimum floor introduces compiler incompatibilities, typing bugs, or security vulnerabilities already resolved in higher versions.\n\n2. Diagnosis:\nThe violation message specifies the package, the currently declared range, and the required minimum floor mandated by the framework.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor will automatically update the ranges in package.json to the approved minimum floor.\n2. Then run \"npm install\" to synchronize package-lock.json.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"dependency-below-minimum-installed": "1. Root Cause:\nThe version currently installed and resolved in package-lock.json (in node_modules/) is below the minimum floor required by the auditor.\nThis typically occurs when package.json was updated without running \"npm install\", or when npm reused an older lockfile resolution.\n\n2. Diagnosis:\nInspect package-lock.json to verify the exact resolved version under \"node_modules/<package>\".\n\n3. Canonical Solution:\nRun the installation command suggested in the error message (e.g., \"npm install -D <package>@<floor>\") or execute \"npm update <package>\".\n\n4. Example / Auto-fix command:\nnpm install",
+				"dependency-exceeds-maximum-range": "1. Root Cause:\nThe version range declared in package.json allows resolving versions that exceed the safe maximum ceiling validated by the auditor.\nCritical dependencies (such as TypeScript, Vite, or UI rendering engines) can introduce breaking changes in major or minor versions that have not yet been approved.\n\n2. Diagnosis:\nCheck the range in package.json to see if it uses \"^\" across an unsupported major version or an unbounded \">=\" operator.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to automatically constrain the range to the safe ceiling.\n2. Or manually adjust the range in package.json so it does not exceed the ceiling specified in the violation message.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"dependency-exceeds-maximum-installed": "1. Root Cause:\nThe version installed in package-lock.json exceeds the maximum ceiling permitted by the auditor ecosystem.\n\n2. Diagnosis:\nVerify the installed version in node_modules/<package> via package-lock.json.\n\n3. Canonical Solution:\nReinstall the dependency constrained to a version within the compatibility window: \"npm install -D <package>@<safe-version>\".\n\n4. Example / Auto-fix command:\nnpm install -D <package>@<safe-version>"
 			},
 			coverage: { include: ["package.json", "package-lock.json"] },
 			...options
@@ -84,7 +84,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		if (semver.lt(declaredMin, requiredMin)) this.addViolation({
 			ruleId: "dependency-below-minimum-range",
 			file: "package.json",
-			message: `"${name}" declara "${declared.range}" (piso ${declaredMin.version}) por debajo del mínimo del auditor "${floor}". Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+			message: `"${name}" declares "${declared.range}" (floor ${declaredMin.version}) below the auditor minimum "${floor}". Run "auditor fix" or: ${this.installCommand(name, floor, declared)}`,
 			severity: "error",
 			fixable: true
 		});
@@ -93,7 +93,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		if (semver.intersects(declared.range, maxSpec.prohibitedRange)) this.addViolation({
 			ruleId: "dependency-exceeds-maximum-range",
 			file: "package.json",
-			message: `"${name}" declara "${declared.range}" que permite versiones superiores al máximo "${maxSpec.ceiling}". ${maxSpec.reason} Ejecuta "auditor fix" o: ${this.installCommand(name, floor, declared)}`,
+			message: `"${name}" declares "${declared.range}" which allows versions exceeding maximum "${maxSpec.ceiling}". ${maxSpec.reason} Run "auditor fix" or: ${this.installCommand(name, floor, declared)}`,
 			severity: "error",
 			fixable: true
 		});
@@ -105,7 +105,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		if (semver.lt(installed, requiredMin)) this.addViolation({
 			ruleId: "dependency-below-minimum-installed",
 			file: "package-lock.json",
-			message: `"${name}" instalada en ${installed} (package-lock.json) por debajo del mínimo del auditor "${floor}". Ejecuta: ${this.installCommand(name, floor, declared)}`,
+			message: `"${name}" installed at ${installed} (package-lock.json) below the auditor minimum "${floor}". Run: ${this.installCommand(name, floor, declared)}`,
 			severity: "error",
 			fixable: false
 		});
@@ -116,7 +116,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		if (semver.satisfies(installed, maxSpec.prohibitedRange)) this.addViolation({
 			ruleId: "dependency-exceeds-maximum-installed",
 			file: "package-lock.json",
-			message: `"${name}" instalada en ${installed} (package-lock.json) excede el máximo permitido "${maxSpec.ceiling}". ${maxSpec.reason} Ejecuta: ${this.installCommand(name, floor, declared)}`,
+			message: `"${name}" installed at ${installed} (package-lock.json) exceeds allowed maximum "${maxSpec.ceiling}". ${maxSpec.reason} Run: ${this.installCommand(name, floor, declared)}`,
 			severity: "error",
 			fixable: false
 		});
@@ -164,7 +164,7 @@ var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 		let pkg = getPackageJson(this.projectRoot, true);
 		if (!pkg) {
 			for (const ruleId of DEPENDENCY_MINIMUMS_RULES) this.runSubAuditorSync(ruleId, () => {
-				this.markRuleNotApplicable(ruleId, "package.json ausente o inválido");
+				this.markRuleNotApplicable(ruleId, "Missing or invalid package.json");
 			});
 			return;
 		}

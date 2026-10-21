@@ -273,6 +273,7 @@ describe('Auditor Architecture Conformance', () => {
         'validate_agent_plugin',
         'validate_agents_config_mandate',
         'validate_audit_config',
+        'validate_cli_contracts',
         'validate_component_styles',
         'validate_dependency_minimums',
         'validate_docker_config',

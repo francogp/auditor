@@ -6,5 +6,5 @@
  * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
  * for naked string parameters, unfrozen domain catalogs, and unbranded ID types.
  */
-export declare function runRefactorDomainCli(argv?: string[]): Promise<void>;
+export declare function runRefactorDomainCli(argv?: readonly string[]): Promise<void>;
 //#endregion

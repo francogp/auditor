@@ -111,6 +111,7 @@ Architecture & Tooling Engineers.
 - [`auditTestPredicates.ts`](./auditTestPredicates.ts): Test and spec path detection predicates driven by audit.config.ts.
 - [`auditZLayers.ts`](./auditZLayers.ts): Z-Layers SCSS parsing, TypeScript layer map extraction, and fallback definitions.
 - [`auditedDocument.ts`](./auditedDocument.ts): Central AuditedDocument engine providing O(log N) line lookup, lexical indexing, Vue SFC blocks, and auto-fix coordination.
+- [`cli/`](./cli/AGENTS.md): Declarative Citty CLI harness and argument normalization engine.
 - [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
 - [`domainTypeOxlintPlugin.ts`](./domainTypeOxlintPlugin.ts): Official Oxlint plugin for `@francogp/domain-type` architectural enforcement.
 - [`durationFormatter.ts`](./durationFormatter.ts): Universal duration formatting utilities with Spanish thousands separators, decimal comma handling, and standard space before milliseconds.
@@ -158,4 +159,5 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
+- [`cli/`](./cli/AGENTS.md): Declarative Citty CLI harness and argument normalization engine.
 - [`refactor/`](./refactor/AGENTS.md): Automated duplicate/triplicate refactoring engine, micro-context extractor, and git worktree sandbox.

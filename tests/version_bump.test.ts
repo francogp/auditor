@@ -444,8 +444,8 @@ describe('Version Analyzer & SemVer Heuristics', () => {
         runBumpCli(['analyze', '--json']);
         expect(logs.some((l) => l.includes('"recommendedBump"'))).toBe(true);
 
-        runBumpCli(['analyze']);
-        expect(logs.some((l) => l.includes('ANÁLISIS HEURÍSTICO'))).toBe(true);
+        runBumpCli(['analyze', '--human']);
+        expect(logs.some((l) => l.includes('HEURISTIC VERSION ANALYSIS'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -459,7 +459,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['unknown-command']);
-        expect(logs.some((l) => l.includes('Comando no reconocido: unknown-command'))).toBe(true);
+        expect(logs.some((l) => l.includes('Unknown command: unknown-command'))).toBe(true);
       } finally {
         logSpy.mockRestore();
       }
@@ -473,15 +473,15 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['--help']);
-        expect(logs.some((l) => l.includes('Gestor SemVer'))).toBe(true);
+        expect(logs.some((l) => l.includes('SemVer Manager'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['-h']);
-        expect(logs.some((l) => l.includes('Gestor SemVer'))).toBe(true);
+        expect(logs.some((l) => l.includes('SemVer Manager'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['bump', '--help']);
-        expect(logs.some((l) => l.includes('auditor-version bump [tipo]'))).toBe(true);
+        expect(logs.some((l) => l.includes('auditor-version bump [type]'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['analyze', '--help']);
@@ -500,7 +500,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
       try {
         runBumpCli(['bump', 'invalid-type']);
-        expect(errors.some((e) => e.includes('Tipo de salto no reconocido'))).toBe(true);
+        expect(errors.some((e) => e.includes('Unrecognized bump type'))).toBe(true);
         expect(process.exitCode).toBe(1);
       } finally {
         errorSpy.mockRestore();

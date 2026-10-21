@@ -8,9 +8,15 @@
  * and policy rules for target files before editing or creating them.
  */
 
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs
+} from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { isMainModule, executeFallowJsonCommand } from './cliUtils.ts';
+import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
 import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
 
 export interface GuardFileResult {
@@ -40,6 +46,7 @@ export interface GuardReportPayload {
 
 export interface GuardOptions {
   readonly json?: boolean;
+  readonly human?: boolean;
 }
 
 interface GuardTableRow {
@@ -51,19 +58,19 @@ interface GuardTableRow {
 
 function formatGuardRules(forbidden: readonly string[], policies: readonly string[]): string {
   const parts: string[] = [];
-  if (forbidden.length > 0) parts.push(`prohibidas: ${forbidden.join(', ')}`);
-  if (policies.length > 0) parts.push(`políticas: ${policies.join(', ')}`);
-  return parts.length > 0 ? parts.join(' | ') : styleText('dim', 'ninguna');
+  if (forbidden.length > 0) parts.push(`forbidden: ${forbidden.join(', ')}`);
+  if (policies.length > 0) parts.push(`policies: ${policies.join(', ')}`);
+  return parts.length > 0 ? parts.join(' | ') : styleText('dim', 'none');
 }
 
 function formatAllowedZones(boundary?: GuardFileResult['boundary']): string {
-  if (boundary?.unrestricted) return styleText('green', 'todas (sin restricción)');
+  if (boundary?.unrestricted) return styleText('green', 'all (unrestricted)');
   const allowed = boundary?.allowed_zones ?? [];
-  return allowed.length > 0 ? allowed.join(', ') : styleText('dim', 'ninguna');
+  return allowed.length > 0 ? allowed.join(', ') : styleText('dim', 'none');
 }
 
 function formatGuardTableRow(item: GuardFileResult): GuardTableRow {
-  const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'sin capa');
+  const zoneStr = item.zone ? styleText('cyan', item.zone) : styleText('dim', 'no zone');
   const allowedStr = formatAllowedZones(item.boundary);
   const rulesStr = formatGuardRules(item.boundary?.forbidden_calls ?? [], item.policy_rules ?? []);
 
@@ -75,20 +82,33 @@ function formatGuardTableRow(item: GuardFileResult): GuardTableRow {
   };
 }
 
-function renderGuardResultsTable(fileResults: readonly GuardFileResult[]): void {
+function renderGuardResultsTable(fileResults: readonly GuardFileResult[], options: GuardOptions = {}): void {
+  if (!isHumanConsoleMode(options)) {
+    console.log(`[Guard] Architecture pre-flight for ${fileResults.length} file(s):`);
+    for (const item of fileResults) {
+      const allowed = formatAllowedZones(item.boundary);
+      console.log(`• ${item.path} (zone: ${item.zone ?? 'none'}): can import [${allowed}]`);
+      for (const note of item.notes ?? []) {
+        console.log(`  [Notice] ${note}`);
+      }
+    }
+    console.log('');
+    return;
+  }
+
   const tableRows = fileResults.map(formatGuardTableRow);
   const columns: TableColumn<GuardTableRow>[] = [
-    { header: 'ARCHIVO EVALUADO', width: 34, align: 'left', key: 'file' },
-    { header: 'CAPA / ZONA', width: 14, align: 'left', key: 'zone' },
-    { header: 'PUEDE IMPORTAR', width: 24, align: 'left', key: 'allowed' },
-    { header: 'POLÍTICAS Y RESTRICCIONES', width: 28, align: 'left', key: 'rules' }
+    { header: 'EVALUATED FILE', width: 34, align: 'left', key: 'file' },
+    { header: 'LAYER / ZONE', width: 14, align: 'left', key: 'zone' },
+    { header: 'CAN IMPORT', width: 24, align: 'left', key: 'allowed' },
+    { header: 'POLICIES & RESTRICTIONS', width: 28, align: 'left', key: 'rules' }
   ];
 
   console.log(renderBoxTable(columns, tableRows));
 
   for (const item of fileResults) {
     for (const note of item.notes ?? []) {
-      console.log(styleText('dim', `  ℹ️  ${item.path}: ${note}`));
+      console.log(styleText('dim', `  [Notice] ${item.path}: ${note}`));
     }
   }
   console.log();
@@ -101,7 +121,7 @@ export function runGuardReport(
 ): number {
   const fallowBin = resolveFallowBinary(projectRoot);
   if (!fallowBin) {
-    console.error(styleText('red', '❌ No se encontró el binario de Fallow en node_modules.'));
+    console.error(styleText('red', '[Error] Fallow binary not found in node_modules.'));
     return 1;
   }
 
@@ -115,20 +135,20 @@ export function runGuardReport(
     console.log(
       '\n' +
         renderBanner(
-          'PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)',
-          'Límites, zonas permitidas y políticas'
+          'ARCHITECTURE PRE-FLIGHT (FALLOW GUARD)',
+          'Boundaries, allowed zones and policies'
         )
     );
     console.log(
       styleText(
         'yellow',
-        '  ⚠️  Uso: auditor-guard <ruta/archivo1.ts> [ruta/archivo2.vue...] [--json]'
+        '  [Notice] Usage: auditor-guard <path/file1.ts> [path/file2.vue...] [--json]'
       )
     );
     console.log(
       styleText(
         'dim',
-        '  Inspecciona qué reglas arquitectónicas y límites de importación aplican antes de editar.\n'
+        '  Inspect which architectural rules and import limits apply before editing.\n'
       )
     );
     return 0;
@@ -149,10 +169,12 @@ export function runGuardReport(
     return status;
   }
 
-  console.log(
-    '\n' +
-      renderBanner('PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)', `Archivos evaluados: ${files.length}`)
-  );
+  if (isHumanConsoleMode(options)) {
+    console.log(
+      '\n' +
+        renderBanner('ARCHITECTURE PRE-FLIGHT (FALLOW GUARD)', `Evaluated files: ${files.length}`)
+    );
+  }
 
   const fileResults = parsed?.files ?? [];
   if (fileResults.length === 0) {
@@ -160,28 +182,23 @@ export function runGuardReport(
       '  ' +
         styleText(
           'yellow',
-          'No se recibieron datos de reglas arquitectónicas para los archivos indicados.\n'
+          '[Notice] No architectural rules data received for the indicated files.\n'
         )
     );
     return status;
   }
 
-  renderGuardResultsTable(fileResults);
+  renderGuardResultsTable(fileResults, options);
 
   return status;
 }
 
 if (isMainModule(import.meta.url)) {
-  const { values, positionals } = parseArgs({
-    args: process.argv.slice(2),
-    options: {
-      json: { type: 'boolean', default: false }
-    },
-    strict: false,
-    allowPositionals: true
+  const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+  const files = parsed._.map(String).filter(Boolean);
+  const exitCode = runGuardReport(process.cwd(), files, {
+    json: Boolean(parsed.json),
+    human: resolveHumanModeFromArgs(parsed)
   });
-
-  const files = positionals.filter((arg) => !arg.startsWith('-') && !arg.includes('='));
-  const exitCode = runGuardReport(process.cwd(), files, { json: Boolean(values.json) });
   process.exit(exitCode);
 }

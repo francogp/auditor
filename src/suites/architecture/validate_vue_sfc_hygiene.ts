@@ -125,7 +125,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       }),
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
-      description: 'Verifica estándares de Vue SFC y <script setup lang="ts">',
+      description: 'Verifies Vue SFC standards and <script setup lang="ts">',
       family: 'architecture',
       ruleIds: VUE_SFC_HYGIENE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(VUE_SFC_HYGIENE_RULES, 'behavior'),
@@ -135,100 +135,100 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       criticalConfig: {},
       icon: '💚',
       ruleDescriptions: {
-        'script-setup-required': 'Componente sin script setup',
-        'no-script-setup-exports': 'Export dentro de script setup',
-        'vue-template-quote-escaping': 'Comillas sin escapar en template',
-        'no-data-provider-in-template': 'Data provider en template',
-        'vue-template-magic-calculation': 'Cálculo mágico en template Vue'
+        'script-setup-required': 'Component missing script setup',
+        'no-script-setup-exports': 'Export inside script setup',
+        'vue-template-quote-escaping': 'Unescaped quotes in template',
+        'no-data-provider-in-template': 'Data provider in template',
+        'vue-template-magic-calculation': 'Magic calculation in Vue template'
       },
       ruleRemediations: {
         'script-setup-required':
-          'Causa Raíz:\n' +
-          'Se detectó un componente Vue utilizando la API heredada de Opciones ("export default { ... }") o un bloque <script> que no declara el atributo "setup".\n' +
-          'El estándar mandatorio de arquitectura del repositorio exige Vue 3 Composition API nativa con "<script setup lang=\\"ts\\">" para maximizar la inferencia estricta de TypeScript, reducir el código repetitivo y optimizar el rendimiento del compilador.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el tag de script del componente. Debe ser exactamente "<script setup lang=\\"ts\\">".\n\n' +
-          'Solución Canónica:\n' +
-          'Migrar el componente a Composition API con script setup:\n' +
-          '1. Sustituir "data()" por llamadas a "ref()" o "reactive()".\n' +
-          '2. Reemplazar "computed: { ... }" por constantes "computed(() => ...)".\n' +
-          '3. Declarar métodos como funciones flecha o funciones estándar de TypeScript.\n' +
-          '4. Declarar props con "const props = defineProps<{ ... }>()" y eventos con "const emit = defineEmits<{ ... }>()".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: Options API heredada\n' +
+          '1. Root Cause:\n' +
+          'A Vue component was detected using legacy Options API ("export default { ... }") or a <script> block missing the "setup" attribute.\n' +
+          'The mandatory architecture standard requires native Vue 3 Composition API with "<script setup lang=\\"ts\\">" to maximize TypeScript inference, eliminate boilerplate, and optimize compiler performance.\n\n' +
+          '2. Diagnosis:\n' +
+          'Check the script tag of the component. It must be exactly "<script setup lang=\\"ts\\">".\n\n' +
+          '3. Canonical Solution:\n' +
+          'Migrate the component to Composition API with script setup:\n' +
+          '1. Replace "data()" with "ref()" or "reactive()" calls.\n' +
+          '2. Replace "computed: { ... }" with "computed(() => ...)" constants.\n' +
+          '3. Declare methods as standard TypeScript arrow or function declarations.\n' +
+          '4. Declare props via "const props = defineProps<{ ... }>()" and emits via "const emit = defineEmits<{ ... }>()".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: legacy Options API\n' +
           '<script lang="ts">\n' +
           'export default {\n' +
           '  data() { return { count: 0 }; },\n' +
           '  methods: { increment() { this.count++; } }\n' +
           '};\n' +
           '</script>\n\n' +
-          '// ✅ Correcto: script setup moderno\n' +
+          '// ✅ Correct: modern script setup\n' +
           '<script setup lang="ts">\n' +
           'import { ref } from "vue";\n' +
           'const count = ref(0);\n' +
           'const increment = () => { count.value++; };\n' +
           '</script>',
         'no-script-setup-exports':
-          'Causa Raíz:\n' +
-          'Se detectó una sentencia "export" ("export const", "export type", "export interface", "export enum") dentro de un bloque "<script setup>".\n' +
-          'Por especificación oficial de Vue SFC, <script setup> representa el cuerpo de la función setup del componente, no un módulo estándar. Realizar exportaciones internas rompe herramientas de análisis estático, Vite y linters de SFC.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca palabras clave "export" dentro de <script setup>.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Si el tipo o interfaz debe compartirse con otros componentes o stores, extráelo a un archivo de contratos complementario (ej. "src/types/...ts" o un archivo compañero "[Componente]Types.ts").\n' +
-          '2. Si el símbolo solo se usa dentro de este componente, elimina la palabra clave "export".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: export dentro de script setup\n' +
+          '1. Root Cause:\n' +
+          'An "export" statement ("export const", "export type", "export interface", "export enum") was detected inside a "<script setup>" block.\n' +
+          'Per the official Vue SFC specification, <script setup> represents the body of the component setup function, not a standard ES module. Internal exports break static analysis tools, Vite, and SFC linters.\n\n' +
+          '2. Diagnosis:\n' +
+          'Look for "export" keywords inside <script setup>.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. If the type or interface must be shared across components or stores, extract it to a companion contracts file (e.g. "src/types/...ts" or a companion "[Component]Types.ts").\n' +
+          '2. If the symbol is only used locally within this component, remove the "export" keyword.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: export inside script setup\n' +
           '<script setup lang="ts">\n' +
           'export interface CardProps { title: string; }\n' +
           '</script>\n\n' +
-          '// ✅ Correcto: tipo extraído a archivo independiente o mantenido local\n' +
+          '// ✅ Correct: local interface or extracted to types file\n' +
           '<script setup lang="ts">\n' +
           'interface CardProps { title: string; }\n' +
           'defineProps<CardProps>();\n' +
           '</script>',
         'vue-template-quote-escaping':
-          'Causa Raíz:\n' +
-          'Se detectaron comillas dobles sin escapar o mal balanceadas dentro de un atributo dinámico con comillas dobles en el <template> (ej. :alt="tier?.name || \\"Bronce\\"").\n' +
-          'Esto confunde el parser de atributos HTML y el compilador de templates de Vite / Vue, arrojando errores de sintaxis en tiempo de build.\n\n' +
-          'Diagnóstico:\n' +
-          'Examina el atributo dinámico señalado en el reporte.\n\n' +
-          'Solución Canónica:\n' +
-          'Alternar comillas dobles y simples: usar comillas simples para literales de string dentro de expresiones delimitadas por comillas dobles.\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: comillas dobles anidadas sin escapar\n' +
-          '<img :alt="user?.role || \\"Invitado\\"" />\n\n' +
-          '// ✅ Correcto: comillas simples en el string interior\n' +
-          '<img :alt="user?.role || \'Invitado\'" />',
+          '1. Root Cause:\n' +
+          'Unescaped or unbalanced double quotes were detected inside a double-quoted dynamic attribute binding in the <template> (e.g. :alt="tier?.name || \\"Bronze\\"").\n' +
+          'This breaks HTML attribute parsing and Vite / Vue template compilation, producing build-time syntax errors.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the dynamic attribute flagged in the report.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Alternate quotes: use single quotes for inner string literals within double-quoted attribute expressions.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: unescaped nested double quotes\n' +
+          '<img :alt="user?.role || \\"Guest\\"" />\n\n' +
+          '// ✅ Correct: single quotes for inner string\n' +
+          '<img :alt="user?.role || \'Guest\'" />',
         'no-data-provider-in-template':
-          'Causa Raíz:\n' +
-          'Se invocó un método de proveedor de persistencia o base de datos (ej. "dataProvider.get...", "supabase...", "db...") directamente dentro de una interpolación {{ ... }} o directiva :prop en el <template>.\n' +
-          'El template se re-evalúa en cada frame o ciclo reactivo de Vue; llamar a proveedores de datos en el template genera tormentas de consultas, bloqueos de UI y pérdida severa de rendimiento.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el template y localiza llamadas a métodos o clientes de persistencia dentro de {{ ... }} o atributos.\n\n' +
-          'Solución Canónica:\n' +
-          'Mover la consulta a una función o ciclo de carga en "<script setup>", almacenando el resultado en un "ref()" o "computed()", y vincular el template únicamente a dicha variable reactiva.\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: invocación directa del data provider en template\n' +
+          '1. Root Cause:\n' +
+          'A persistence or database provider method (e.g. "dataProvider.get...", "supabase...", "db...") was invoked directly inside a template interpolation {{ ... }} or dynamic attribute binding :prop.\n' +
+          'Templates re-evaluate on every render cycle; calling data providers inside templates causes query waterfalls, UI jank, and severe performance degradation.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect template expressions for database clients or provider method calls.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Move the query to an asynchronous fetch routine in "<script setup>", store the result in a "ref()" or "computed()", and bind the template strictly to that reactive state.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: direct data provider call in template\n' +
           '<span>{{ dataProvider.getStats(userId) }}</span>\n\n' +
-          '// ✅ Correcto: carga en script setup y lectura de estado\n' +
+          '// ✅ Correct: fetch in script setup and bind reactive state\n' +
           '<script setup lang="ts">\n' +
           'const stats = ref<UserStats | null>(null);\n' +
           'onMounted(async () => { stats.value = await dataProvider.getStats(props.userId); });\n' +
           '</script>\n' +
           '<template><span>{{ stats?.score }}</span></template>',
         'vue-template-magic-calculation':
-          'Causa Raíz:\n' +
-          'Se detectaron operaciones matemáticas o comparaciones complejas con números mágicos directamente dentro del <template> (ej. "v-if=\\"items.length > 5\\"", "{{ (price * 1.21).toFixed(2) }}").\n' +
-          'Los templates de Vue deben permanecer declarativos y dedicados a la presentación. Los cálculos matemáticos y constantes numéricas deben residir en TypeScript para favorecer la tipificación estricta y los tests unitarios.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca operadores matemáticos (*, /, %, +, -) o comparaciones numéricas (> 1, === 42) dentro del marcado template.\n\n' +
-          'Solución Canónica:\n' +
-          'Mover la lógica a una propiedad "computed()" con nombre semántico en el bloque "<script setup>".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: cálculo de impuestos inline en template\n' +
+          '1. Root Cause:\n' +
+          'Mathematical calculations or complex comparisons with magic numbers were detected inside the <template> (e.g. "v-if=\\"items.length > 5\\"", "{{ (price * 1.21).toFixed(2) }}").\n' +
+          'Vue templates must remain declarative and focused on presentation. Calculations and numeric constants must reside in TypeScript for strong typing and testability.\n\n' +
+          '2. Diagnosis:\n' +
+          'Search for arithmetic operators (*, /, %, +, -) or numeric comparisons (> 1, === 42) in template markup.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Extract the expression into a semantically named "computed()" property in the "<script setup>" block.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: inline math in template\n' +
           '<span>{{ (subtotal * 0.21).toFixed(2) }}</span>\n\n' +
-          '// ✅ Correcto: derivación en computed con constante nombrada\n' +
+          '// ✅ Correct: computed property with named constant\n' +
           '<script setup lang="ts">\n' +
           'const VAT_RATE = 0.21;\n' +
           'const taxAmount = computed(() => (props.subtotal * VAT_RATE).toFixed(2));\n' +
@@ -491,7 +491,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
             relPath,
             content,
             fullIndex,
-            `Acceso directo a persistencia/base de datos detectado en template Vue. Cachea los datos con computed o acciones en <script>.`
+            `Direct access to database or persistence client detected in Vue template. Cache data via computed properties or script actions.`
           );
         }
       }
@@ -518,7 +518,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
           severity: 'error',
           file: relPath,
           line,
-          message: `Cálculo o comparación con número mágico en template Vue ('${matchedSnippet}'). Mueve la lógica a un 'computed()' en <script setup>.`,
+          message: `Magic calculation or comparison in Vue template ('${matchedSnippet}'). Move logic to a 'computed()' property in <script setup>.`,
           context: lineContent.trim()
         });
       }

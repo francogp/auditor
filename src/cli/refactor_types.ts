@@ -22,7 +22,7 @@ import type {
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: 'file', header: 'Archivo', width: 46, align: 'left' },
+  { key: 'file', header: 'File', width: 46, align: 'left' },
   { key: 'asAny', header: 'as any', width: 8, align: 'right' },
   { key: 'casts', header: 'Casts', width: 8, align: 'right' },
   { key: 'returns', header: 'Returns', width: 9, align: 'right' },
@@ -31,11 +31,11 @@ const TABLE_COLUMNS: readonly TableColumn[] = [
 
 const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = {
   toolName: 'auditor-types',
-  toolDescription: 'as any, casts dobles o funciones sin tipo de retorno',
+  toolDescription: 'as any, double assertions, or missing return types',
   bannerTitle: 'AUDITOR TYPES: TYPE ASSERTION & RETURN TYPE HYGIENE',
-  bannerSubtitle: 'Auto-remediación determinista de as any y contratos estrictos de retorno',
-  scanningMessage: 'Escaneando as any y contratos de tipado en',
-  zeroFindingsMessage: '¡Cero as any, casts dobles o retornos no tipados detectados!',
+  bannerSubtitle: 'Deterministic auto-remediation of as any and strict return contracts',
+  scanningMessage: 'Scanning as any and type contracts in',
+  zeroFindingsMessage: 'Zero as any, double assertions, or untyped returns detected!',
   tableColumns: TABLE_COLUMNS,
   engineFactory: (projectRoot) => new TypesRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => TypesRefactorEngine.discoverInFile(filePath),
@@ -55,7 +55,7 @@ const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = 
     const asAny = allFindings.filter((f) => f.kind === 'as-any').length;
     const casts = allFindings.filter((f) => f.kind === 'double-assertion').length;
     const returns = allFindings.filter((f) => f.kind === 'missing-return-type').length;
-    return `Resumen: ${filesCount} archivos con ${allFindings.length} oportunidades de tipado (${asAny} as any, ${casts} casts dobles, ${returns} retornos faltantes).`;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} typing opportunities (${asAny} as any, ${casts} double casts, ${returns} missing return types).`;
   },
   toDiracItem: (f) => ({
     line: f.line,
@@ -68,13 +68,13 @@ const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = 
   applyPlan: (dir, plan) => TypesRefactorEngine.applyPlan(dir, plan)
 };
 
-export async function runRefactorTypesCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runRefactorTypesCli(argv?: readonly string[]): Promise<void> {
   await runRefactorCliHarness(typesCliDef, argv);
 }
 
 if (isMainModule(import.meta.url, ['auditor-types', 'refactor_types'])) {
   runRefactorTypesCli().catch((err) => {
-    console.error(styleText('red', `\n💥 Error fatal en auditor-types: ${err.message}`));
+    console.error(styleText('red', `\n[Error] Fatal error in auditor-types: ${err.message}`));
     process.exit(1);
   });
 }

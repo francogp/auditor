@@ -591,7 +591,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       fix: options?.fix,
       id: 'validate_agents_config_mandate',
       name: 'Root AGENTS.md Config Mandate Validator',
-      description: 'Valida mandatos de config y arquitectura en AGENTS.md',
+      description: 'Validates config and architecture mandates in AGENTS.md',
       family: 'documentation',
       packageName: 'AGENTS',
       configKey: 'documentation.enabled',
@@ -601,88 +601,88 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
       ruleIds: AGENTS_CONFIG_MANDATE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(AGENTS_CONFIG_MANDATE_RULES, 'setup'),
       ruleDescriptions: {
-        'agents-missing-config-mandate': 'Falta mandato de no alterar config',
-        'agents-missing-backward-compat-mandate': 'Falta mandato no retrocompatible',
-        'agents-missing-fake-pass-mandate': 'Falta mandato de cero pase falso',
-        'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat',
-        'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo',
-        'agents-missing-official-tools-mandate': 'Falta mandato de herramientas oficiales',
-        'agents-missing-architecture-mandate': 'Falta mandato de arquitectura',
-        'agents-missing-dependency-immutability-mandate': 'Falta mandato de node_modules'
+        'agents-missing-config-mandate': 'Missing do-not-modify config mandate',
+        'agents-missing-backward-compat-mandate': 'Missing no-backward-compatibility mandate',
+        'agents-missing-fake-pass-mandate': 'Missing zero-tolerance fake-pass mandate',
+        'agents-missing-chat-language-mandate': 'Missing chat language mandate',
+        'agents-missing-destructive-git-mandate': 'Missing anti-destructive git mandate',
+        'agents-missing-official-tools-mandate': 'Missing official tools priority mandate',
+        'agents-missing-architecture-mandate': 'Missing architecture governance mandate',
+        'agents-missing-dependency-immutability-mandate': 'Missing node_modules immutability mandate'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-config-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que prohíbe terminantemente a los agentes de IA modificar, relajar o desactivar configuraciones del proyecto sin autorización previa y explícita del programador humano.\n' +
-          '2. Diagnóstico: Inspecciona AGENTS.md en la sección "Local Contracts". Falta la directiva de inmutabilidad de configuración.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el comando de auto-fix canónico: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula oficial.\n' +
-          '   b) O inserta manualmente en AGENTS.md bajo Local Contracts la cláusula canónica (CANONICAL_MANDATE_SNIPPET).\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations..."',
+          '📖 REMEDIATION GUIDE: agents-missing-config-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory clause strictly prohibiting AI agents from modifying, relaxing, or disabling project configurations without explicit prior authorization from the human programmer.\n' +
+          '2. Diagnosis: Inspect AGENTS.md under "Local Contracts". The configuration immutability directive is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run the canonical auto-fix command: `npm run auditor:fix` or `auditor fix` to automatically inject the official clause.\n' +
+          '   b) Or manually insert the canonical clause into AGENTS.md under Local Contracts (CANONICAL_MANDATE_SNIPPET).\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation**: Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations..."',
         'agents-missing-backward-compat-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-backward-compat-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz no incluye la cláusula obligatoria de prohibición de código retrocompatible ("Loud Failure Mandate"). El sistema exige que el software falle ruidosamente ante interfaces obsoletas en lugar de acumular shims y adaptadores legacy.\n' +
-          '2. Diagnóstico: Inspecciona AGENTS.md bajo "Local Contracts". Falta el mandato de fallo ruidoso.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar el mandato canónico.\n' +
-          '   b) O agrégalo manualmente bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED..."',
+          '📖 REMEDIATION GUIDE: agents-missing-backward-compat-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file does not include the mandatory backward-compatible code prohibition clause ("Loud Failure Mandate"). The architecture requires software to fail loudly on obsolete interfaces instead of accumulating legacy shims and adapters.\n' +
+          '2. Diagnosis: Inspect AGENTS.md under "Local Contracts". The loud failure mandate is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to inject the canonical mandate.\n' +
+          '   b) Or add it manually under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate**: Writing backward-compatible shims, deprecated alias suites, legacy fallback wrappers, or dual-execution adapter code across this repository is STRICTLY PROHIBITED..."',
         'agents-missing-fake-pass-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-fake-pass-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz no contiene la cláusula obligatoria de tolerancia cero a pases falsos ("Zero-Tolerance Fake Pass Mandate"), que prohíbe silenciar reglas de linter/auditor o crear configuraciones dummy para ocultar defectos.\n' +
-          '2. Diagnóstico: Inspecciona AGENTS.md bajo "Local Contracts". Falta la directiva anti-silenciamiento.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula.\n' +
-          '   b) O agrégala manualmente bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate**: When auditing a repository or running linters/auditors, AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from suppressing, silencing, disabling, or nullifying auditor rules..."',
+          '📖 REMEDIATION GUIDE: agents-missing-fake-pass-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory Zero-Tolerance Fake Pass Mandate, prohibiting silencing linter/auditor rules or creating dummy override configs to hide defects.\n' +
+          '2. Diagnosis: Inspect AGENTS.md under "Local Contracts". The anti-silencing directive is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the clause.\n' +
+          '   b) Or add it manually under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Absolute Prohibition on Suppressing, Silencing, Nullifying, or Bypassing Audit Rules & Zero-Tolerance Fake Pass Mandate**: When auditing a repository or running linters/auditors, AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from suppressing, silencing, disabling, or nullifying auditor rules..."',
         'agents-missing-chat-language-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-chat-language-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz no define la directiva que separa explícitamente el idioma de chat/conversación de la IA (configurado en .auditor/audit.config.ts) del idioma de documentación y código fuente.\n' +
-          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta la cláusula de idioma de interacción conversacional.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para sincronizar automáticamente el mandato con las opciones de configuración.\n' +
-          '   b) O declara manualmente la cláusula canónica alineada con tu configuración (.auditor/audit.config.ts).\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in Spanish (`\'es\'`)..."',
+          '📖 REMEDIATION GUIDE: agents-missing-chat-language-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file does not define the directive explicitly decoupling the AI chat/conversational language (configured in .auditor/audit.config.ts) from the documentation and source code language.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The conversational chat language clause is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically synchronize the mandate with configuration options.\n' +
+          '   b) Or manually declare the canonical clause aligned with your configuration (.auditor/audit.config.ts).\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **AI Agent Chat Communication & Interactive Language Mandate**: The AI assistant / agent MUST strictly consult `.auditor/audit.config.ts` and communicate, converse, respond, and chat with the user in Spanish (`\'es\'`)..."',
         'agents-missing-destructive-git-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-destructive-git-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la prohibición absoluta de comandos Git destructivos (como git reset --hard, git checkout --, git clean, git restore, git push --force) sin consentimiento explícito del programador humano.\n' +
-          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta la cláusula de seguridad de control de versiones.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente el texto oficial.\n' +
-          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization..."',
+          '📖 REMEDIATION GUIDE: agents-missing-destructive-git-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the absolute prohibition of destructive Git commands (such as git reset --hard, git checkout --, git clean, git restore, git push --force) without explicit human programmer authorization.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The version control safety clause is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the official text.\n' +
+          '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Absolute Prohibition on Unrequested Destructive Git Commands**: AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from executing destructive Git commands (`git reset --hard`, `git checkout --`, `git clean`, `git restore`, `git push --force`) that discard or overwrite working tree changes or commit history without explicit prior authorization..."',
         'agents-missing-official-tools-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-official-tools-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que exige a desarrolladores y agentes de IA priorizar las herramientas CLI oficiales provistas por el framework (`auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:dependencies`, etc.) y prohíbe crear scripts ad-hoc prematuros en `scratch/` o con `node -e`.\n' +
-          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de prioridad de herramientas oficiales.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
-          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code..."',
+          '📖 REMEDIATION GUIDE: agents-missing-official-tools-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory clause requiring developers and AI agents to prioritize official framework CLI tools (`auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:dependencies`, etc.) and prohibiting premature ad-hoc scripts in `scratch/` or with `node -e`.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The official tools priority mandate is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the canonical clause.\n' +
+          '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Mandatory Official Tools Priority & Prohibition on Premature Ad-Hoc Scripts**: Developers and AI agents MUST ALWAYS prioritize and use the official CLI tools provided by the framework and package scripts (`npm run auditor:findings`, `npm run auditor:rules`, `npm run auditor:by-rule`, `npm run auditor:by-file`, `npm run auditor:dupes`, `npm run auditor:magic`, `npm run auditor:motion`, `npm run auditor:o1`, `npm run auditor:dependencies`, `npm run auditor:version`, `auditor guide <ruleId>`, `vp check`) before attempting manual inspection or writing code..."',
         'agents-missing-architecture-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-architecture-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que establece a `/architecture` como el marco transversal de gobernanza arquitectónica y exige que todo plan de trabajo, diseño técnico o refactorización satisfaga estrictamente sus pilares.\n' +
-          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de gobernanza universal de `/architecture` y alineación obligatoria de planes de trabajo.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
-          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)..."',
+          '📖 REMEDIATION GUIDE: agents-missing-architecture-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory clause establishing `/architecture` as the overarching architectural governance framework and requiring every work plan, technical design, or refactoring to strictly satisfy its pillars.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The universal `/architecture` governance and mandatory work planning alignment mandate is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the canonical clause.\n' +
+          '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)..."',
         'agents-missing-dependency-immutability-mandate':
-          '📖 GUÍA DE REMEDIACIÓN: agents-missing-dependency-immutability-mandate\n' +
-          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que prohíbe a desarrolladores y agentes de IA modificar, editar, parchear o crear archivos dentro de `node_modules/` bajo cualquier circunstancia, exigiendo detenerse y reportar al programador humano cualquier presunto bug en dependencias.\n' +
-          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de inmutabilidad de dependencias (`Dependency Immutability Mandate`).\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
-          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
-          '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances..."'
+          '📖 REMEDIATION GUIDE: agents-missing-dependency-immutability-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory clause prohibiting developers and AI agents from modifying, editing, patching, or creating files inside `node_modules/` under any circumstances, requiring them to halt and report suspected dependency bugs to the human programmer.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The Dependency Immutability Mandate is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the canonical clause.\n' +
+          '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances..."'
       },
       coverage: {
         include: ['AGENTS.md']
@@ -707,7 +707,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
             file: 'AGENTS.md',
             line: 1,
             message:
-              'No se encontró el archivo AGENTS.md en la raíz del proyecto para validar los mandatos de arquitectura.'
+              'AGENTS.md file not found at project root to validate architecture mandates.'
           });
         });
       }
@@ -781,10 +781,4 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
   }
 }
 
-if (
-  process.argv[1] &&
-  (process.argv[1].endsWith('validate_agents_config_mandate.ts') ||
-    (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename))
-) {
-  await BaseAuditor.runCli(new AgentsConfigMandateAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new AgentsConfigMandateAuditor());

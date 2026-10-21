@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
@@ -6,7 +7,7 @@ import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefact
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 //#region src/cli/refactor_dupes.ts
 /**
 * src/cli/refactor_dupes.ts
@@ -38,7 +39,7 @@ function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 		console.log("\nNext action: npm run auditor:dupes inspect <fingerprint>\n");
 		return;
 	}
-	console.log("\n" + renderBanner("REFACTORIZACIÓN DETERMINISTA: TRIAJE DE CLONES", `Directorio: ${path.basename(projectRoot)} | Total: ${candidates.length} grupos`));
+	console.log("\n" + renderBanner("DETERMINISTIC REFACTORING: CLONE TRIAGE", `Directory: ${path.basename(projectRoot)} | Total: ${candidates.length} groups`));
 	const cols = [
 		{
 			header: "#",
@@ -47,13 +48,13 @@ function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 			key: "index"
 		},
 		{
-			header: "HUELLA",
+			header: "FINGERPRINT",
 			width: 12,
 			align: "center",
 			key: "fingerprint"
 		},
 		{
-			header: "TOPOLOGÍA",
+			header: "TOPOLOGY",
 			width: 15,
 			align: "center",
 			key: "topology"
@@ -65,20 +66,20 @@ function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 			key: "tokens"
 		},
 		{
-			header: "ESTADO",
+			header: "STATUS",
 			width: 12,
 			align: "center",
 			key: "status"
 		},
 		{
-			header: "ARCHIVOS AFECTADOS",
+			header: "AFFECTED FILES",
 			width: 22,
 			align: "left",
 			key: "files"
 		}
 	];
 	const rows = candidates.slice(0, 20).map((c, i) => {
-		const statusLabel = c.isDeadCodeTarget ? styleText("red", "MUERTO 💀") : styleText("green", "ACTIVO ⚡");
+		const statusLabel = c.isDeadCodeTarget ? styleText("red", "DEAD") : styleText("green", "ACTIVE");
 		const fileNames = c.files.map((f) => path.basename(f)).join(", ");
 		return {
 			index: String(i + 1),
@@ -90,16 +91,16 @@ function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 		};
 	});
 	console.log(renderBoxTable(cols, rows));
-	console.log(styleText("cyan", "\n💡 Para inspeccionar un clon y obtener su micro-contexto Dirac:\n   npm run auditor:dupes inspect <fingerprint>\n"));
+	console.log(styleText("cyan", "\n[Notice] To inspect a clone and generate its Dirac micro-context:\n   npm run auditor:dupes inspect <fingerprint>\n"));
 }
 function handleInspect(projectRoot, fp, isJson) {
 	if (!fp) {
-		console.error(styleText("red", "❌ Error: Debes especificar el fingerprint: auditor:dupes inspect <fingerprint>"));
+		console.error(styleText("red", "[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>"));
 		process.exit(1);
 	}
 	const group = runFallowJson("dupes", [], projectRoot).clone_groups.find((g) => g.fingerprint === fp || g.fingerprint === `dup:${fp}`);
 	if (!group) {
-		console.error(styleText("red", `❌ Error: No se encontró el grupo de clones con huella "${fp}".`));
+		console.error(styleText("red", `[Error] Clone group not found for fingerprint: "${fp}".`));
 		process.exit(1);
 	}
 	const packet = new MicroContextExtractor().extract(projectRoot, group);
@@ -107,71 +108,79 @@ function handleInspect(projectRoot, fp, isJson) {
 		console.log(JSON.stringify(packet, null, 2));
 		return;
 	}
-	console.log("\n" + renderBanner("MICRO-CONTEXTO DIRAC ANCLADO POR HASH", `Huella: ${packet.fingerprint} | Instancias: ${packet.instances.length}`));
-	console.log(`  📊 Reducción de Contexto: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText("green", packet.tokenSavingsPercent + "% de ahorro")})`);
-	console.log(`  📥 Parámetros Inferidos:  ${packet.candidateParameters.join(", ") || "ninguno"}`);
-	console.log(`  📤 Retornos Inferidos:    ${packet.candidateReturns.join(", ") || "ninguno"}\n`);
+	console.log("\n" + renderBanner("DIRAC MICRO-CONTEXT ANCHORED BY HASH", `Fingerprint: ${packet.fingerprint} | Instances: ${packet.instances.length}`));
+	console.log(`  Context Reduction: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText("green", packet.tokenSavingsPercent + "% savings")})`);
+	console.log(`  Inferred Parameters: ${packet.candidateParameters.join(", ") || "none"}`);
+	console.log(`  Inferred Returns:    ${packet.candidateReturns.join(", ") || "none"}\n`);
 	for (const [idx, inst] of packet.instances.entries()) {
-		console.log(styleText("bold", `  Instancia #${idx + 1}: ${inst.file} (Líneas ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`));
+		console.log(styleText("bold", `  Instance #${idx + 1}: ${inst.file} (Lines ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`));
 		console.log(inst.contextSnippet.split("\n").map((l) => `    │ ${l}`).join("\n") + "\n");
 	}
-	console.log(styleText("cyan", "💡 Diseña el RefactorPlan JSON y aplícalo con:\n   npm run auditor:dupes apply --plan <plan.json> --worktree\n"));
+	console.log(styleText("cyan", "[Notice] Design RefactorPlan JSON and apply with:\n   npm run auditor:dupes apply --plan <plan.json> --worktree\n"));
 }
 async function handleApply(projectRoot, rawPlanPath, useWorktree) {
 	await applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, (dir, plan) => HybridHarnessEngine.execute(dir, plan), "auditor:dupes apply <plan.json>");
-	console.log(styleText("green", "✅ Refactorización aplicada exitosamente en el repositorio."));
+	console.log(styleText("green", "[OK] Refactoring successfully applied to workspace."));
 }
-async function runRefactorCli() {
-	const args = process.argv.slice(2);
+const REFACTOR_DUPES_ARGS = {
+	...COMMON_CLI_ARGS,
+	"min-occurrences": {
+		type: "string",
+		default: "2",
+		description: "Minimum number of clone occurrences to triage"
+	},
+	plan: {
+		type: "string",
+		description: "Path to RefactorPlan JSON file"
+	},
+	fingerprint: {
+		type: "string",
+		description: "Clone group fingerprint to inspect"
+	},
+	worktree: {
+		type: "boolean",
+		default: false,
+		description: "Execute mutations in an isolated Git worktree"
+	}
+};
+const DUPES_SUBCOMMANDS = /* @__PURE__ */ new Set([
+	"discover",
+	"inspect",
+	"apply",
+	"help"
+]);
+async function runRefactorCli(rawInputArgs) {
+	const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+	const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, DUPES_SUBCOMMANDS);
+	const posList = parsed._;
+	const firstPos = posList[0] ? String(posList[0]) : void 0;
 	let subCommand = "discover";
 	let targetArg;
-	if (args[0] && !args[0].startsWith("-")) {
-		subCommand = args[0];
-		if (args[1] && !args[1].startsWith("-")) targetArg = args[1];
+	if (parsed.help || firstPos === "help") {
+		console.log("Available commands: discover, inspect, apply");
+		return;
 	}
-	const { values } = parseArgs({
-		args,
-		options: {
-			project: {
-				type: "string",
-				default: "."
-			},
-			"min-occurrences": {
-				type: "string",
-				default: "2"
-			},
-			plan: { type: "string" },
-			fingerprint: { type: "string" },
-			worktree: {
-				type: "boolean",
-				default: false
-			},
-			json: {
-				type: "boolean",
-				default: false
-			},
-			verbose: {
-				type: "boolean",
-				default: false
-			}
-		},
-		strict: false,
-		allowPositionals: true
-	});
-	const projectRoot = path.resolve(String(values.project || "."));
-	const isJson = Boolean(values.json);
-	const isVerbose = values.verbose === true || args.includes("--verbose") || args.includes("verbose") || args.includes("format=verbose");
+	if (firstPos && DUPES_SUBCOMMANDS.has(firstPos)) {
+		subCommand = firstPos;
+		targetArg = posList[1] ? String(posList[1]) : void 0;
+	} else if (firstPos) {
+		console.log("Available commands: discover, inspect, apply");
+		return;
+	}
+	const projectRoot = path.resolve(String(parsed.project || "."));
+	const isJson = Boolean(parsed.json);
+	const isVerbose = resolveHumanModeFromArgs(parsed);
 	switch (subCommand) {
 		case "discover":
-			handleDiscover(projectRoot, triageCandidates(projectRoot, parseInt(String(values["min-occurrences"] || "2"), 10)), isJson, isVerbose);
+			handleDiscover(projectRoot, triageCandidates(projectRoot, parseInt(String(parsed["min-occurrences"] || "2"), 10)), isJson, isVerbose);
 			break;
 		case "inspect":
-			handleInspect(projectRoot, targetArg || (typeof values.fingerprint === "string" ? values.fingerprint : void 0), isJson);
+			handleInspect(projectRoot, targetArg || (typeof parsed.fingerprint === "string" ? parsed.fingerprint : void 0), isJson);
 			break;
 		case "apply":
-			await handleApply(projectRoot, targetArg || (typeof values.plan === "string" ? values.plan : void 0), Boolean(values.worktree));
+			await handleApply(projectRoot, targetArg || (typeof parsed.plan === "string" ? parsed.plan : void 0), Boolean(parsed.worktree));
 			break;
-		default: console.log("Comandos disponibles: discover, inspect, apply");
+		default: console.log("Available commands: discover, inspect, apply");
 	}
 }
 if (isMainModule(import.meta.url, ["auditor-dupes", "refactor_dupes"])) runRefactorCli().catch((err) => {

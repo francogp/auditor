@@ -1,8 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
-import { executeFallowJsonCommand, isMainModule } from "./cliUtils.js";
+import { executeFallowJsonCommand, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 //#region src/cli/report_guard.ts
 /**
 * src/cli/report_guard.ts
@@ -14,17 +15,17 @@ import { parseArgs, styleText } from "node:util";
 */
 function formatGuardRules(forbidden, policies) {
 	const parts = [];
-	if (forbidden.length > 0) parts.push(`prohibidas: ${forbidden.join(", ")}`);
-	if (policies.length > 0) parts.push(`políticas: ${policies.join(", ")}`);
-	return parts.length > 0 ? parts.join(" | ") : styleText("dim", "ninguna");
+	if (forbidden.length > 0) parts.push(`forbidden: ${forbidden.join(", ")}`);
+	if (policies.length > 0) parts.push(`policies: ${policies.join(", ")}`);
+	return parts.length > 0 ? parts.join(" | ") : styleText("dim", "none");
 }
 function formatAllowedZones(boundary) {
-	if (boundary?.unrestricted) return styleText("green", "todas (sin restricción)");
+	if (boundary?.unrestricted) return styleText("green", "all (unrestricted)");
 	const allowed = boundary?.allowed_zones ?? [];
-	return allowed.length > 0 ? allowed.join(", ") : styleText("dim", "ninguna");
+	return allowed.length > 0 ? allowed.join(", ") : styleText("dim", "none");
 }
 function formatGuardTableRow(item) {
-	const zoneStr = item.zone ? styleText("cyan", item.zone) : styleText("dim", "sin capa");
+	const zoneStr = item.zone ? styleText("cyan", item.zone) : styleText("dim", "no zone");
 	const allowedStr = formatAllowedZones(item.boundary);
 	const rulesStr = formatGuardRules(item.boundary?.forbidden_calls ?? [], item.policy_rules ?? []);
 	return {
@@ -34,41 +35,51 @@ function formatGuardTableRow(item) {
 		rules: rulesStr
 	};
 }
-function renderGuardResultsTable(fileResults) {
+function renderGuardResultsTable(fileResults, options = {}) {
+	if (!isHumanConsoleMode(options)) {
+		console.log(`[Guard] Architecture pre-flight for ${fileResults.length} file(s):`);
+		for (const item of fileResults) {
+			const allowed = formatAllowedZones(item.boundary);
+			console.log(`• ${item.path} (zone: ${item.zone ?? "none"}): can import [${allowed}]`);
+			for (const note of item.notes ?? []) console.log(`  [Notice] ${note}`);
+		}
+		console.log("");
+		return;
+	}
 	const tableRows = fileResults.map(formatGuardTableRow);
 	console.log(renderBoxTable([
 		{
-			header: "ARCHIVO EVALUADO",
+			header: "EVALUATED FILE",
 			width: 34,
 			align: "left",
 			key: "file"
 		},
 		{
-			header: "CAPA / ZONA",
+			header: "LAYER / ZONE",
 			width: 14,
 			align: "left",
 			key: "zone"
 		},
 		{
-			header: "PUEDE IMPORTAR",
+			header: "CAN IMPORT",
 			width: 24,
 			align: "left",
 			key: "allowed"
 		},
 		{
-			header: "POLÍTICAS Y RESTRICCIONES",
+			header: "POLICIES & RESTRICTIONS",
 			width: 28,
 			align: "left",
 			key: "rules"
 		}
 	], tableRows));
-	for (const item of fileResults) for (const note of item.notes ?? []) console.log(styleText("dim", `  ℹ️  ${item.path}: ${note}`));
+	for (const item of fileResults) for (const note of item.notes ?? []) console.log(styleText("dim", `  [Notice] ${item.path}: ${note}`));
 	console.log();
 }
 function runGuardReport(projectRoot = process.cwd(), files = [], options = {}) {
 	const fallowBin = resolveFallowBinary(projectRoot);
 	if (!fallowBin) {
-		console.error(styleText("red", "❌ No se encontró el binario de Fallow en node_modules."));
+		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
 		return 1;
 	}
 	if (files.length === 0) {
@@ -79,9 +90,9 @@ function runGuardReport(projectRoot = process.cwd(), files = [], options = {}) {
 			}));
 			return 1;
 		}
-		console.log("\n" + renderBanner("PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)", "Límites, zonas permitidas y políticas"));
-		console.log(styleText("yellow", "  ⚠️  Uso: auditor-guard <ruta/archivo1.ts> [ruta/archivo2.vue...] [--json]"));
-		console.log(styleText("dim", "  Inspecciona qué reglas arquitectónicas y límites de importación aplican antes de editar.\n"));
+		console.log("\n" + renderBanner("ARCHITECTURE PRE-FLIGHT (FALLOW GUARD)", "Boundaries, allowed zones and policies"));
+		console.log(styleText("yellow", "  [Notice] Usage: auditor-guard <path/file1.ts> [path/file2.vue...] [--json]"));
+		console.log(styleText("dim", "  Inspect which architectural rules and import limits apply before editing.\n"));
 		return 0;
 	}
 	const { parsed, status, rawOutput } = executeFallowJsonCommand(fallowBin, [
@@ -97,27 +108,22 @@ function runGuardReport(projectRoot = process.cwd(), files = [], options = {}) {
 		}));
 		return status;
 	}
-	console.log("\n" + renderBanner("PRE-VUELO ARQUITECTÓNICO (FALLOW GUARD)", `Archivos evaluados: ${files.length}`));
+	if (isHumanConsoleMode(options)) console.log("\n" + renderBanner("ARCHITECTURE PRE-FLIGHT (FALLOW GUARD)", `Evaluated files: ${files.length}`));
 	const fileResults = parsed?.files ?? [];
 	if (fileResults.length === 0) {
-		console.log("  " + styleText("yellow", "No se recibieron datos de reglas arquitectónicas para los archivos indicados.\n"));
+		console.log("  " + styleText("yellow", "[Notice] No architectural rules data received for the indicated files.\n"));
 		return status;
 	}
-	renderGuardResultsTable(fileResults);
+	renderGuardResultsTable(fileResults, options);
 	return status;
 }
 if (isMainModule(import.meta.url)) {
-	const { values, positionals } = parseArgs({
-		args: process.argv.slice(2),
-		options: { json: {
-			type: "boolean",
-			default: false
-		} },
-		strict: false,
-		allowPositionals: true
+	const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+	const files = parsed._.map(String).filter(Boolean);
+	const exitCode = runGuardReport(process.cwd(), files, {
+		json: Boolean(parsed.json),
+		human: resolveHumanModeFromArgs(parsed)
 	});
-	const files = positionals.filter((arg) => !arg.startsWith("-") && !arg.includes("="));
-	const exitCode = runGuardReport(process.cwd(), files, { json: Boolean(values.json) });
 	process.exit(exitCode);
 }
 //#endregion

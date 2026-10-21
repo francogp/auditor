@@ -9,8 +9,15 @@
  */
 
 import path from 'node:path';
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
 import { execSync } from 'node:child_process';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -47,29 +54,35 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   const config = getAuditConfig(projectRoot);
   const fallowCfg = config.fallow?.similarCode;
 
-  const { values } = parseArgs({
-    args: process.argv.slice(2),
-    options: {
-      threshold: {
-        type: 'string',
-        default: String(fallowCfg?.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD)
-      },
-      'min-lines': { type: 'string', default: String(fallowCfg?.minLines ?? 3) },
-      'include-same-file': { type: 'boolean', default: false },
-      json: { type: 'boolean', default: false }
+  const SIMILAR_CODE_ARGS = {
+    ...COMMON_CLI_ARGS,
+    threshold: {
+      type: 'string',
+      default: String(fallowCfg?.threshold ?? DEFAULT_SIMILAR_CODE_THRESHOLD),
+      description: 'Similarity threshold (0.0 to 1.0)'
     },
-    strict: false,
-    allowPositionals: true
-  });
+    'min-lines': {
+      type: 'string',
+      default: String(fallowCfg?.minLines ?? 3),
+      description: 'Minimum function lines to evaluate'
+    },
+    'include-same-file': {
+      type: 'boolean',
+      default: false,
+      description: 'Include candidate pairs within the same file'
+    }
+  } as const satisfies CittyArgsDef;
 
-  const threshold = parseFloat(String(values.threshold || String(DEFAULT_SIMILAR_CODE_THRESHOLD)));
-  const minLines = parseInt(String(values['min-lines'] || '3'), 10);
-  const ignoreSameFile = !values['include-same-file'];
-  const isJson = Boolean(values.json);
+  const parsed = parseCittyArgs(SIMILAR_CODE_ARGS, getProcessCliArgs());
+
+  const threshold = parseFloat(String(parsed.threshold || String(DEFAULT_SIMILAR_CODE_THRESHOLD)));
+  const minLines = parseInt(String(parsed['min-lines'] || '3'), 10);
+  const ignoreSameFile = !parsed['include-same-file'];
+  const isJson = Boolean(parsed.json);
 
   const fallowBin = resolveFallowBinary(projectRoot);
   if (!fallowBin) {
-    console.error(styleText('red', '❌ No se encontró el binario de Fallow en node_modules.'));
+    console.error(styleText('red', '[Error] Fallow binary not found in node_modules.'));
     process.exit(1);
   }
 
@@ -79,15 +92,18 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     process.exit(1);
   }
 
-  if (!isJson) {
-    renderBanner(
-      'REPORTE DE SIMILITUD SEMÁNTICA (FALLOW SIMILAR-CODE)',
-      'Embeddings vectoriales de funciones'
+  const isHuman = resolveHumanModeFromArgs(parsed);
+  if (!isJson && isHuman) {
+    console.log(
+      renderBanner(
+        'SEMANTIC SIMILARITY REPORT (FALLOW SIMILAR-CODE)',
+        'Vector function embeddings'
+      )
     );
     console.log(
       styleText(
         'dim',
-        `🔍 Analizando similitud (Umbral: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Excluir mismo archivo: ${ignoreSameFile ? 'Sí' : 'No'})...\n`
+        `[Scan] Analyzing similarity (Threshold: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Exclude same file: ${ignoreSameFile ? 'Yes' : 'No'})...\n`
       )
     );
   }
@@ -109,7 +125,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     }
   } catch (err) {
     console.error(
-      styleText('red', `❌ Error al ejecutar fallow similar-code: ${(err as Error).message}`)
+      styleText('red', `[Error] Failed to execute fallow similar-code: ${(err as Error).message}`)
     );
     process.exit(1);
   }
@@ -131,20 +147,31 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
     console.log(
       styleText(
         'green',
-        `✨ No se detectaron duplicados semánticos de código con umbral >= ${(threshold * 100).toFixed(0)}%.\n`
+        `[OK] No semantic code duplicates detected with threshold >= ${(threshold * 100).toFixed(0)}%.\n`
       )
     );
     return;
   }
 
-  console.log(`🔥 CANDIDATOS DETECTADOS (${candidates.length} pares):\n`);
+  if (!isHuman) {
+    console.log(`[SimilarCode] Found ${candidates.length} semantic clone pair(s) (threshold: ${(threshold * 100).toFixed(0)}%):`);
+    for (const [idx, c] of candidates.entries()) {
+      const leftFile = path.basename(c.left.path);
+      const rightFile = path.basename(c.right.path);
+      console.log(`• Pair ${idx + 1} (${(c.similarity * 100).toFixed(1)}%): ${c.left.name} (${leftFile}:${c.left.start_line}) ~ ${c.right.name} (${rightFile}:${c.right.start_line})`);
+    }
+    console.log('');
+    return;
+  }
+
+  console.log(`CANDIDATES DETECTED (${candidates.length} pairs):\n`);
 
   const cols: readonly TableColumn<SimilarCodeRow>[] = [
     { header: '#', width: 2, align: 'center', key: 'index' },
     { header: 'SIMIL.', width: 7, align: 'right', key: 'similarity' },
-    { header: 'FUNCIÓN A', width: 16, align: 'left', key: 'funcA' },
-    { header: 'FUNCIÓN B', width: 16, align: 'left', key: 'funcB' },
-    { header: 'UBICACIÓN ARCHIVOS', width: 20, align: 'left', key: 'location' }
+    { header: 'FUNCTION A', width: 16, align: 'left', key: 'funcA' },
+    { header: 'FUNCTION B', width: 16, align: 'left', key: 'funcB' },
+    { header: 'FILE LOCATIONS', width: 20, align: 'left', key: 'location' }
   ];
 
   const rows: SimilarCodeRow[] = candidates.map((c, idx) => {
@@ -174,7 +201,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   });
 
   console.log(renderBoxTable(cols, rows));
-  console.log(`\n💡 Total de pares semánticos detectados: ${candidates.length}\n`);
+  console.log(`\n[Notice] Total semantic pairs detected: ${candidates.length}\n`);
 }
 
 if (isMainModule(import.meta.url)) {

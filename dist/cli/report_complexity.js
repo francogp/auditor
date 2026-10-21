@@ -2,13 +2,14 @@
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
 import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import { execSync } from "node:child_process";
 //#region src/cli/report_complexity.ts
 /**
@@ -33,31 +34,25 @@ function extractLayerFromPath(relPath) {
 }
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
+const COMPLEXITY_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	top: {
+		type: "string",
+		default: "20",
+		description: "Number of top hotspots to display"
+	},
+	layer: {
+		type: "string",
+		description: "Filter hotspots by architectural layer"
+	}
+};
 function parseCommandLineArgs() {
-	const normalizedCliArgs = process.argv.slice(2).map((cliParam) => {
-		if (cliParam.includes("=") && !cliParam.startsWith("-")) return `--${cliParam}`;
-		return cliParam;
-	});
-	const { values } = parseArgs({
-		args: normalizedCliArgs,
-		options: {
-			top: {
-				type: "string",
-				default: "20"
-			},
-			layer: { type: "string" },
-			json: {
-				type: "boolean",
-				default: false
-			}
-		},
-		strict: false,
-		allowPositionals: true
-	});
+	const parsed = parseCittyArgs(COMPLEXITY_CLI_ARGS, getProcessCliArgs());
 	return {
-		top: parseInt(values.top, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT,
-		layerFilter: values.layer,
-		jsonOutput: Boolean(values.json)
+		top: parseInt(String(parsed.top || "20"), RADIX_DECIMAL) || DEFAULT_TOP_LIMIT,
+		layerFilter: typeof parsed.layer === "string" ? parsed.layer : void 0,
+		jsonOutput: Boolean(parsed.json),
+		isHuman: resolveHumanModeFromArgs(parsed)
 	};
 }
 function runFallowHealth() {
@@ -191,22 +186,33 @@ function loadComplexityFindings() {
 		maintainability: healthData.summary?.average_maintainability ?? healthData.summary?.maintainability_index ?? 0
 	};
 }
-function renderBoxReport(findings, targets, maintainability, topLimit, layerFilter) {
+function renderBoxReport(findings, targets, maintainability, topLimit, layerFilter, isHuman = false) {
 	const filtered = layerFilter ? findings.filter((f) => f.layer.toLowerCase() === layerFilter.toLowerCase()) : findings;
-	const subtitle = maintainability > 0 ? `Funciones fuera de umbral: ${findings.length} · Índice de mantenibilidad: ${maintainability.toFixed(1)}` : `Funciones fuera de umbral: ${findings.length}`;
-	console.log("\n" + renderBanner("COMPLEJIDAD CICLOMÁTICA, COGNITIVA Y TAMAÑO DE FUNCIONES (FALLOW)", subtitle));
+	if (!isHuman) {
+		if (findings.length === 0) {
+			console.log(styleText("green", "[OK] 0 high complexity functions found."));
+			return;
+		}
+		console.log(`\n[Complexity] Maintainability: ${maintainability.toFixed(1)}/100 | Functions exceeding threshold: ${findings.length}`);
+		console.log(`[Hotspots] Top ${Math.min(topLimit, filtered.length)} of ${filtered.length}${layerFilter ? ` (Filter: ${layerFilter})` : ""}:`);
+		for (const [idx, f] of filtered.slice(0, topLimit).entries()) console.log(`• ${idx + 1}. ${f.name} (${f.file}:${f.line}) [${f.layer}] - ${f.lines} LOC, cog: ${f.cog}, cyc: ${f.cyc}`);
+		console.log("");
+		return;
+	}
+	const subtitle = maintainability > 0 ? `Functions exceeding threshold: ${findings.length} · Maintainability index: ${maintainability.toFixed(1)}` : `Functions exceeding threshold: ${findings.length}`;
+	console.log("\n" + renderBanner("CYCLOMATIC, COGNITIVE COMPLEXITY AND FUNCTION SIZE (FALLOW)", subtitle));
 	const distribution = {};
 	for (const f of findings) distribution[f.layer] = (distribution[f.layer] || 0) + 1;
-	console.log("\n📁 DISTRIBUCIÓN POR CAPA / DIRECTORIO:\n");
+	console.log("\nDISTRIBUTION BY LAYER / DIRECTORY:\n");
 	const layerCols = [
 		{
-			header: "CAPA DE ARQUITECTURA",
+			header: "ARCHITECTURE LAYER",
 			width: 45,
 			align: "left",
 			key: "layer"
 		},
 		{
-			header: "FUNCIONES",
+			header: "FUNCTIONS",
 			width: 11,
 			align: "right",
 			key: "count"
@@ -227,7 +233,7 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 		};
 	});
 	console.log(renderBoxTable(layerCols, layerRows));
-	console.log(`\n🔥 TOP ${Math.min(topLimit, filtered.length)} HOTSPOTS (LÍNEAS Y COMPLEJIDAD) ${layerFilter ? `(Filtro: ${layerFilter})` : ""}:\n`);
+	console.log(`\nTOP ${Math.min(topLimit, filtered.length)} HOTSPOTS (LINES AND COMPLEXITY) ${layerFilter ? `(Filter: ${layerFilter})` : ""}:\n`);
 	const hotspotCols = [
 		{
 			header: "#",
@@ -236,13 +242,13 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 			key: "index"
 		},
 		{
-			header: "FUNCIÓN",
+			header: "FUNCTION",
 			width: 18,
 			align: "left",
 			key: "name"
 		},
 		{
-			header: "LÍNEAS",
+			header: "LINES",
 			width: 7,
 			align: "right",
 			key: "lines"
@@ -260,7 +266,7 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 			key: "cyc"
 		},
 		{
-			header: "ARCHIVO:LÍNEA",
+			header: "FILE:LINE",
 			width: 32,
 			align: "left",
 			key: "fileLoc"
@@ -276,7 +282,7 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 	}));
 	console.log(renderBoxTable(hotspotCols, hotspotRows));
 	if (targets.length > 0) {
-		console.log(`\n🎯 OBJETIVOS DE REFACTORIZACIÓN PRIORITARIOS (FALLOW - TOP ${targets.length}):\n`);
+		console.log(`\n[Notice] PRIORITY REFACTORING TARGETS (FALLOW - TOP ${targets.length}):\n`);
 		const targetCols = [
 			{
 				header: "#",
@@ -291,13 +297,13 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 				key: "pri"
 			},
 			{
-				header: "TIPO",
+				header: "TYPE",
 				width: 14,
 				align: "left",
 				key: "category"
 			},
 			{
-				header: "RECOMENDACIÓN DE REFACTORIZACIÓN",
+				header: "REFACTORING RECOMMENDATION",
 				width: 48,
 				align: "left",
 				key: "recommendation"
@@ -314,7 +320,7 @@ function renderBoxReport(findings, targets, maintainability, topLimit, layerFilt
 	console.log("");
 }
 function runComplexityReport() {
-	const { top, layerFilter, jsonOutput } = parseCommandLineArgs();
+	const { top, layerFilter, jsonOutput, isHuman } = parseCommandLineArgs();
 	const { findings, targets, maintainability } = loadComplexityFindings();
 	if (jsonOutput) {
 		console.log(JSON.stringify({
@@ -325,7 +331,7 @@ function runComplexityReport() {
 		}, null, 2));
 		return;
 	}
-	renderBoxReport(findings, targets, maintainability, top, layerFilter);
+	renderBoxReport(findings, targets, maintainability, top, layerFilter, isHuman);
 }
 if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();

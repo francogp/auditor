@@ -2,6 +2,7 @@ import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
 import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";
 import { matchesRule } from "../../analyzers/auditRuleTypes.js";
@@ -9,7 +10,7 @@ import { auditRulesConfig } from "./audit_rules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import { execSync } from "node:child_process";
 //#region src/suites/architecture/audit_project.ts
 /**
@@ -383,71 +384,61 @@ function filterActiveConfigRules(selectedRules) {
 	for (const rule of Object.values(auditRulesConfig)) if (matchesRule(rule, selectedRules)) activeConfigRules.add(rule);
 	return activeConfigRules;
 }
+const PROJECT_AUDIT_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	fix: {
+		type: "boolean",
+		alias: "f",
+		default: false
+	},
+	path: {
+		type: "string",
+		alias: "p",
+		default: "."
+	},
+	output: {
+		type: "string",
+		alias: "o"
+	},
+	summary: {
+		type: "boolean",
+		alias: "s",
+		default: false
+	},
+	top: {
+		type: "string",
+		alias: "t"
+	},
+	"changed-since": { type: "string" },
+	"errors-only": {
+		type: "boolean",
+		default: false
+	},
+	"css-only": {
+		type: "boolean",
+		default: false
+	},
+	rule: {
+		type: "string",
+		alias: "r"
+	},
+	rules: { type: "string" }
+};
 function parseProjectCliContext(cliArgs) {
-	const normalizedCliArgs = (cliArgs || process.argv.slice(2)).map((cliParam) => {
-		if (cliParam.includes("=") && !cliParam.startsWith("-")) return `--${cliParam}`;
-		if ([
-			"fix",
-			"summary",
-			"json",
-			"human",
-			"pretty",
-			"errors-only",
-			"css-only"
-		].includes(cliParam)) return `--${cliParam}`;
-		return cliParam;
-	});
-	const parsedConfig = parseArgs({
-		args: normalizedCliArgs,
-		options: {
-			fix: {
-				type: "boolean",
-				short: "f"
-			},
-			path: {
-				type: "string",
-				short: "p",
-				default: "."
-			},
-			output: {
-				type: "string",
-				short: "o"
-			},
-			summary: {
-				type: "boolean",
-				short: "s"
-			},
-			json: {
-				type: "boolean",
-				short: "j"
-			},
-			human: {
-				type: "boolean",
-				short: "H"
-			},
-			pretty: { type: "boolean" },
-			top: {
-				type: "string",
-				short: "t"
-			},
-			"changed-since": { type: "string" },
-			"errors-only": { type: "boolean" },
-			"css-only": { type: "boolean" },
-			rule: {
-				type: "string",
-				short: "r",
-				multiple: true
-			},
-			rules: {
-				type: "string",
-				multiple: true
-			}
-		},
-		allowPositionals: true,
-		strict: false
-	});
-	const values = parsedConfig.values;
-	const positionals = parsedConfig.positionals;
+	const rawCliArgs = cliArgs || getProcessCliArgs();
+	const parsed = parseCittyArgs(PROJECT_AUDIT_CLI_ARGS, rawCliArgs);
+	const positionals = parsed._.map(String);
+	const posLower = new Set(positionals.map((p) => p.toLowerCase()));
+	const values = {
+		...parsed,
+		fix: Boolean(parsed.fix) || posLower.has("fix"),
+		summary: Boolean(parsed.summary) || posLower.has("summary"),
+		json: Boolean(parsed.json) || posLower.has("json"),
+		human: Boolean(parsed.human) || posLower.has("human"),
+		pretty: Boolean(parsed.pretty) || posLower.has("pretty"),
+		"errors-only": Boolean(parsed["errors-only"]) || posLower.has("errors-only"),
+		"css-only": Boolean(parsed["css-only"]) || posLower.has("css-only")
+	};
 	const selectedRules = extractSelectedRules(values, positionals);
 	return {
 		values,
@@ -775,9 +766,9 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			ruleRemediationPhases,
 			id: "audit_project",
 			name: "Project Architecture & Style Rules",
-			description: "Audita reglas de arquitectura, TypeScript y estilo",
+			description: "Audits architecture, TypeScript, and style rules",
 			family: "architecture",
-			packageName: "Arquitectura",
+			packageName: "Architecture",
 			configKey: "paths",
 			defaultConfig: {},
 			criticalConfig: {},
@@ -797,7 +788,7 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			this.markRuleEvaluated(r);
 			if (!activeProjectRuleTimings.has(r)) activeProjectRuleTimings.set(r, 0);
 		}
-		const violations = await main(this.isFixActive() ? [...process.argv.slice(2), "--fix"] : void 0);
+		const violations = await main(this.isFixActive() ? [...getProcessCliArgs(), "--fix"] : void 0);
 		for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) this.reportRuleDuration(ruleId, durationMs);
 		for (const v of violations) {
 			const relFile = v.file ? normalizePosixPath(path.isAbsolute(v.file) ? path.relative(this.projectRoot, v.file) : v.file) : "";

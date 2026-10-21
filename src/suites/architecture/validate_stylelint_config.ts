@@ -78,12 +78,12 @@ export function validateOrderHasBlockPartitioning(order: unknown): {
   reason?: string;
 } {
   if (!Array.isArray(order)) {
-    return { valid: false, reason: 'order/order no está configurado como un array' };
+    return { valid: false, reason: 'order/order is not configured as an array' };
   }
 
   const declIndex = order.indexOf('declarations');
   if (declIndex === -1) {
-    return { valid: false, reason: 'Falta "declarations" en order/order' };
+    return { valid: false, reason: 'Missing "declarations" in order/order' };
   }
 
   const blocklessIncludeIndex = findIncludeMixinIndex(order, false);
@@ -93,7 +93,7 @@ export function validateOrderHasBlockPartitioning(order: unknown): {
     return {
       valid: false,
       reason:
-        'Falta at-rule @include con hasBlock: false (mixins sin bloque antes de declaraciones)'
+        'Missing at-rule @include with hasBlock: false (mixins without block before declarations)'
     };
   }
 
@@ -101,21 +101,21 @@ export function validateOrderHasBlockPartitioning(order: unknown): {
     return {
       valid: false,
       reason:
-        'Falta at-rule @include con hasBlock: true (mixins con bloque después de declaraciones)'
+        'Missing at-rule @include with hasBlock: true (mixins with block after declarations)'
     };
   }
 
   if (blocklessIncludeIndex > declIndex) {
     return {
       valid: false,
-      reason: 'at-rule @include con hasBlock: false debe ubicarse ANTES de "declarations"'
+      reason: 'at-rule @include with hasBlock: false must be placed BEFORE "declarations"'
     };
   }
 
   if (blockIncludeIndex < declIndex) {
     return {
       valid: false,
-      reason: 'at-rule @include con hasBlock: true debe ubicarse DESPUÉS de "declarations"'
+      reason: 'at-rule @include with hasBlock: true must be placed AFTER "declarations"'
     };
   }
 
@@ -280,11 +280,11 @@ export const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Stylelin
     '.stylelintrc.cjs',
     'stylelint.config.js'
   ],
-  description: 'Configuración canónica de Stylelint en .stylelintrc.json',
+  description: 'Canonical Stylelint configuration in .stylelintrc.json',
   ruleId: 'stylelint-config-missing',
   generateDefaultContent: () => CANONICAL_STYLELINT_CONFIG_CONTENT,
   customMissingMessage: (_ctx, file) =>
-    `No se encontró el archivo de configuración de Stylelint '${file}'. Ejecuta "auditor fix" para crearlo automáticamente.`
+    `Stylelint configuration file '${file}' not found. Run "auditor fix" to create it automatically.`
 };
 
 export function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boolean {
@@ -324,7 +324,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       configFiles: [STYLELINT_CONFIG_REQUIREMENT],
       id: 'validate_stylelint_config',
       name: 'Stylelint Configuration Validator',
-      description: 'Valida plugins y reglas estrictas en .stylelintrc.json',
+      description: 'Validates plugins and strict rules in .stylelintrc.json',
       family: 'architecture',
       packageName: 'Stylelint',
       configKey: 'stylelint.enabled',
@@ -337,7 +337,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       },
       criticalConfig: {
         rationale:
-          'Exigir variables SCSS ($var) o CSS (var(--var)) en propiedades de diseño (color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function) es un estándar inmutable para erradicar números mágicos en estilos.',
+          'Requiring SCSS ($var) or CSS (var(--var)) variables for design properties (color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function) is an immutable standard to eradicate magic numbers in styles.',
         requiredMinimums: {
           'strictValues.properties': [...REQUIRED_STRICT_PROPERTIES]
         }
@@ -346,51 +346,59 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       ruleIds: STYLELINT_CONFIG_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(STYLELINT_CONFIG_RULES, 'setup'),
       ruleDescriptions: {
-        'stylelint-config-missing': 'Falta .stylelintrc.json',
-        'stylelint-config-missing-plugin': 'Falta plugin stylelint',
-        'stylelint-config-missing-strict-value': 'Falta regla strict-value',
-        'stylelint-config-missing-order': 'Falta regla order/order'
+        'stylelint-config-missing': 'Missing .stylelintrc.json',
+        'stylelint-config-missing-plugin': 'Missing stylelint plugin',
+        'stylelint-config-missing-strict-value': 'Missing strict-value rule',
+        'stylelint-config-missing-order': 'Missing order/order rule'
       },
       ruleRemediations: {
         'stylelint-config-missing':
-          'Causa Raíz:\n' +
-          'No se encontró el archivo canónico de configuración .stylelintrc.json en la raíz del proyecto.\n' +
-          'Sin esta configuración, Stylelint no puede verificar las reglas arquitectónicas de hojas de estilo ni la prohibición de valores mágicos.\n\n' +
-          'Diagnóstico:\n' +
-          'Verifica si existe un archivo alternativo como stylelint.config.js o .stylelintrc.js. El estándar unificado del framework exige .stylelintrc.json que extienda la configuración base de @francogp/auditor.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor creará automáticamente .stylelintrc.json extendiendo "./node_modules/@francogp/auditor/.stylelintrc.json".\n' +
-          '2. Si deseas crear el archivo manualmente, crea .stylelintrc.json con el siguiente contenido:\n' +
+          '1. Root Cause:\n' +
+          'The canonical .stylelintrc.json configuration file was not found in the project root.\n' +
+          'Without this configuration, Stylelint cannot verify architectural stylesheet rules or enforce zero magic values.\n\n' +
+          '2. Diagnosis:\n' +
+          'Check for legacy files like stylelint.config.js or .stylelintrc.js. The unified framework requires .stylelintrc.json extending the base configuration from @francogp/auditor.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix" or "auditor fix". The auditor will automatically generate .stylelintrc.json extending "./node_modules/@francogp/auditor/.stylelintrc.json".\n' +
+          '2. Or manually create .stylelintrc.json with:\n' +
           '   {\n' +
           '     "$schema": "https://json.schemastore.org/stylelintrc",\n' +
           '     "extends": ["./node_modules/@francogp/auditor/.stylelintrc.json"]\n' +
-          '   }',
+          '   }\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
         'stylelint-config-missing-plugin':
-          'Causa Raíz:\n' +
-          'El archivo .stylelintrc.json local no extiende la configuración del auditor y omite plugins esenciales como "stylelint-declaration-strict-value" o "stylelint-order".\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el array "plugins" en .stylelintrc.json. Faltan plugins obligatorios para la gobernanza de variables de diseño y ordenamiento de selectores/mixins.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" para que el framework inyecte automáticamente los plugins faltantes.\n' +
-          '2. La solución recomendada es extender "./node_modules/@francogp/auditor/.stylelintrc.json" en el campo "extends", lo cual hereda todos los plugins canónicos sin necesidad de duplicarlos localmente.',
+          '1. Root Cause:\n' +
+          'The local .stylelintrc.json file does not extend the auditor configuration and omits essential plugins like "stylelint-declaration-strict-value" or "stylelint-order".\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the "plugins" array in .stylelintrc.json. Mandatory plugins for design variable governance and mixin/selector ordering are missing.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix" to automatically inject the missing plugins.\n' +
+          '2. The recommended approach is extending "./node_modules/@francogp/auditor/.stylelintrc.json" in "extends", which inherits all canonical plugins.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
         'stylelint-config-missing-strict-value':
-          'Causa Raíz:\n' +
-          'La regla "scale-unlimited/declaration-strict-value" está ausente o no cubre todas las propiedades mandatorias del baseline estricto (Anti-Castration Mandate).\n' +
-          'Propiedades requeridas: color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function.\n\n' +
-          'Diagnóstico:\n' +
-          'Comprueba si la regla declaration-strict-value en .stylelintrc.json fue modificada, desactivada o si le faltan propiedades obligatorias de diseño.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix". El auditor sincronizará y regenerará la regla completa con todas las propiedades requeridas y los valores seguros permitidos (none, transparent, inherit, etc.).\n' +
-          '2. No degrades ni desactives propiedades de esta regla; en su lugar, utiliza variables SCSS ($mi-color) o CSS (var(--mi-color)) en las hojas de estilo.',
+          '1. Root Cause:\n' +
+          'The "scale-unlimited/declaration-strict-value" rule is missing or fails to cover all mandatory design properties of the strict baseline (Anti-Castration Mandate).\n' +
+          'Required properties: color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function.\n\n' +
+          '2. Diagnosis:\n' +
+          'Verify whether declaration-strict-value in .stylelintrc.json was disabled, degraded, or omitted required design tokens.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix". The auditor will regenerate the full rule with all required properties and safe exempted values (none, transparent, inherit, etc.).\n' +
+          '2. Do not disable properties in this rule; instead, use SCSS ($my-color) or CSS (var(--my-color)) variables in stylesheets.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
         'stylelint-config-missing-order':
-          'Causa Raíz:\n' +
-          'La regla "order/order" está ausente o no define el particionamiento de bloques (hasBlock: true/false) para mixins y directivas de SCSS.\n' +
-          'El particionamiento garantiza que mixins sin bloque (@include theme) se declaren antes de las propiedades CSS, y mixins con bloque (@include respond-to) se declaren al final junto a los selectores anidados.\n\n' +
-          'Diagnóstico:\n' +
-          'Inspecciona "order/order" en las reglas de .stylelintrc.json. El auditor exige una estructura determinista para evitar especificidad impredecible en CSS compilado.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" para reparar la configuración automáticamente.\n' +
-          '2. Alternativamente, extiende "./node_modules/@francogp/auditor/.stylelintrc.json" para heredar la configuración canónica de orden de mixins.'
+          '1. Root Cause:\n' +
+          'The "order/order" rule is missing or does not define block partitioning (hasBlock: true/false) for SCSS mixins and at-rules.\n' +
+          'Partitioning guarantees that blockless mixins (@include theme) are declared before CSS properties, and block mixins (@include respond-to) are declared at the end alongside nested selectors.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect "order/order" in .stylelintrc.json rules. The auditor enforces a deterministic structure to prevent specificity leaks in compiled CSS.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix" to repair the configuration automatically.\n' +
+          '2. Alternatively, extend "./node_modules/@francogp/auditor/.stylelintrc.json" to inherit canonical mixin ordering.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix'
       },
       coverage: {
         include: ['.stylelintrc*']
@@ -426,7 +434,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       severity: 'error',
       file: toPosixRelative(this.projectRoot, targetFile),
       line: 1,
-      message: `Faltan plugins requeridos (${missingPlugins.join(', ')}) en plugins de ${path.basename(targetFile)}. Ejecuta "auditor fix" para agregarlos.`,
+      message: `Missing required plugins (${missingPlugins.join(', ')}) in plugins of ${path.basename(targetFile)}. Run "auditor fix" to add them.`,
       context: missingPlugins.join(', ')
     });
     return false;
@@ -460,7 +468,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       severity: 'error',
       file: toPosixRelative(this.projectRoot, targetFile),
       line: 1,
-      message: `La regla "${REQUIRED_ORDER_RULE}" en ${path.basename(targetFile)} es inválida o está ausente (${validation.reason}). Ejecuta "auditor fix" para auto-repararla.`,
+      message: `Rule "${REQUIRED_ORDER_RULE}" in ${path.basename(targetFile)} is invalid or missing (${validation.reason}). Run "auditor fix" to auto-repair it.`,
       context: REQUIRED_ORDER_RULE
     });
     return false;
@@ -508,8 +516,8 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
 
     const detailMsg =
       missingProperties.length > 0
-        ? `La regla "${REQUIRED_STRICT_VALUE_RULE}" en ${path.basename(targetFile)} no cubre todas las propiedades canónicas (faltan: ${missingProperties.join(', ')}). Ejecuta "auditor fix" para sincronizarla.`
-        : `Falta la regla requerida "${REQUIRED_STRICT_VALUE_RULE}" en rules de ${path.basename(targetFile)}. Ejecuta "auditor fix" para inyectarla.`;
+        ? `Rule "${REQUIRED_STRICT_VALUE_RULE}" in ${path.basename(targetFile)} does not cover all canonical properties (missing: ${missingProperties.join(', ')}). Run "auditor fix" to synchronize.`
+        : `Missing required rule "${REQUIRED_STRICT_VALUE_RULE}" in rules of ${path.basename(targetFile)}. Run "auditor fix" to inject it.`;
 
     this.addViolation({
       ruleId: 'stylelint-config-missing-strict-value',
@@ -528,7 +536,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     if (config.stylelint?.enabled === false && config.styles?.stylelint?.enabled === false) {
       for (const r of STYLELINT_CONFIG_RULES) {
         this.runSubAuditorSync(r, () => {
-          this.markRuleNotApplicable(r, 'Stylelint deshabilitado en audit.config.ts');
+          this.markRuleNotApplicable(r, 'Stylelint disabled in audit.config.ts');
         });
       }
       return;
@@ -551,7 +559,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
           'stylelint-config-missing-order'
         ] as const) {
           this.runSubAuditorSync(r, () => {
-            this.markRuleNotApplicable(r, 'Configuración de stylelint ausente');
+            this.markRuleNotApplicable(r, 'Stylelint configuration missing');
           });
         }
         return;

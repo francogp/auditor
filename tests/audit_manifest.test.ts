@@ -14,7 +14,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.name).toBe('Audit Configuration Integrity Validator');
     expect(manifest.family).toBe('architecture');
     expect(manifest.icon).toBe('⚙️');
-    expect(manifest.description).toBe('Valida configuración del auditor en .auditor/');
+    expect(manifest.description).toBe('Validates auditor configuration in .auditor/');
     expect(manifest.description.length).toBeLessThanOrEqual(60);
     expect(manifest.description).not.toContain('\n');
 
@@ -24,21 +24,21 @@ describe('Auditor Manifest & Introspection Registry', () => {
 
     expect(manifest.configKey).toBe('paths');
 
-    expect(manifest.rules['audit-config-missing-path']).toBe('Ruta configurada no existe');
-    expect(manifest.rules['audit-config-missing-section']).toBe('Falta sección en audit.config');
-    expect(manifest.rules['audit-config-missing-file']).toBe('Archivo configurado no existe');
+    expect(manifest.rules['audit-config-missing-path']).toBe('Configured path does not exist');
+    expect(manifest.rules['audit-config-missing-section']).toBe('Missing section in audit.config');
+    expect(manifest.rules['audit-config-missing-file']).toBe('Configured file does not exist');
     expect(manifest.rules['audit-config-invalid-extension']).toBe(
-      'Extensión configurada no existe'
+      'Configured extension does not exist'
     );
     expect(manifest.rules['audit-config-missing-gitignore-entry']).toBe(
-      'Falta entrada en .gitignore'
+      'Missing entry in .gitignore'
     );
-    expect(manifest.rules['audit-config-unknown-field']).toBe('Campo no reconocido en config');
+    expect(manifest.rules['audit-config-unknown-field']).toBe('Unrecognized field in config');
     expect(manifest.rules['audit-config-critical-violation']).toBe(
-      'Violación a configuración crítica'
+      'Critical configuration violation'
     );
     expect(manifest.rules['audit-config-unacknowledged-degradation']).toBe(
-      'Degradación de cobertura no documentada'
+      'Undocumented coverage degradation'
     );
     expect(Object.keys(manifest.rules).length).toBe(8);
   });

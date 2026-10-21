@@ -35,6 +35,7 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 - **Official Living Specification Engines**: Standards enforcement via official linters (`html-validate`, `stylelint`, `knip`, `publint`, `type-coverage`, `vue-tsc`) rather than handcrafted regex.
 - **Fallow Intelligence & Vector Semantic Duplication**: Code complexity, dead code, circular dependencies, CWE security sink auditing (100% error severity mandate), and Candle CPU vector embeddings (`jina-embeddings-v2-base-code`) with OS cache pre-creation.
 - **Child Process Stream Isolation (`executeCliAndReadJson`)**: External subprocesses pipe stdout directly to ephemeral file descriptors, preventing output truncation and heap exhaustion.
+- **Declarative CLI Contracts & Citty Governance (`validate_cli_contracts`, `citty@^0.2.2`)**: Eliminates homebrew argument parsing and brittle `process.argv` checks across all CLI binaries, tools, and extensions. Standardizes on `citty` with declarative argument typing, automatic non-hyphenated token normalization (`human` -> `--human`, `key=val` -> `--key=val`), and subcommands.
 - **UnifiedTheme Box-Drawing Output**: 80-column terminal tables with exact Unicode visual width measurement (`getVisualWidth`), live progress badges, and mandatory `TOTAL CONSOLIDADO` footer row.
 
 ---
@@ -79,10 +80,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.8.1`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.9.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.8.1 --allow-git=all
+npm install -D github:francogp/auditor#v9.9.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -92,7 +93,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.8.1"
+    "@francogp/auditor": "github:francogp/auditor#v9.9.0"
   }
 }
 ```
@@ -174,7 +175,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.8.1-build.20261020-214008',
+  auditorVersion: '9.9.0-build.20261021-081534',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -231,7 +232,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.8.1"`), or install via `npm install -D github:francogp/auditor#v9.8.1 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.9.0"`), or install via `npm install -D github:francogp/auditor#v9.9.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -654,37 +655,53 @@ Host applications can add bespoke domain sub-auditors in `scripts/auditors/<fami
 
 ```typescript
 // scripts/auditors/architecture/validate_no_inline_sql.ts
-import { FileScanAuditor, createUniformRuleCapabilities } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases,
+  resolveFileScanRoots,
+  deriveCoverageFromRoots,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export const NO_INLINE_SQL_RULES = ['inline-sql-detected'] as const;
 export type NoInlineSqlRuleId = (typeof NO_INLINE_SQL_RULES)[number];
 
 export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
-  constructor(roots: readonly string[] = ['src']) {
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots ?? ['src']
+    );
+    const allowedExtensions = new Set(['.vue', '.ts']);
+
     super({
       id: 'validate_no_inline_sql',
       name: 'No Inline SQL Auditor',
-      description: 'Prohíbe consultas SQL directas en componentes de vista',
+      description: 'Prohibits raw SQL queries inside view or component layers',
       icon: '💾', // Mandatory thematic emoji
       family: 'architecture',
-      packageName: 'Base de Datos',
-      configKey: 'persistence.enabled',
-      defaultConfig: { enabled: true },
+      packageName: 'Database',
+      configKey: 'paths.srcRoots',
+      defaultConfig: {},
       criticalConfig: {},
       requiredPermissions: [],
       remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       ruleIds: NO_INLINE_SQL_RULES,
       ruleDescriptions: {
-        'inline-sql-detected': 'Consulta SQL en capa de presentación'
+        'inline-sql-detected': 'Raw SQL query detected in presentation layer'
       },
       ruleRemediations: {
         'inline-sql-detected':
-          'Causa Raíz: Las vistas o componentes de presentación contienen consultas SQL directas.\n' +
-          'Diagnóstico: Inspecciona el archivo y ubica la sentencia SQL inline.\n' +
-          'Solución Canónica: Mueve la consulta SQL al repositorio o cliente de persistencia de datos.\n' +
-          'Ejemplo / Comando: npm run auditor'
+          '1. Root Cause: View components contain direct raw SQL queries, violating architectural decoupling.\n' +
+          '2. Diagnosis: Inspect the reported presentation file and locate the inline SQL statement.\n' +
+          '3. Canonical Solution: Extract the query into a dedicated repository or persistence service.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Move inline SQL queries to src/database/repositories/.'
       },
+      ruleRemediationPhases: createUniformRemediationPhases(NO_INLINE_SQL_RULES, 'contracts'),
       ruleCapabilities: createUniformRuleCapabilities(NO_INLINE_SQL_RULES, {
         speed: 'light',
         phase: 'normal',
@@ -694,8 +711,10 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
         changedOnly: false,
         critical: false
       }),
-      roots,
-      allowedExtensions: new Set(['.vue', '.ts'])
+      roots: targetRoots,
+      allowedExtensions,
+      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      projectRoot: effectiveRoot
     });
   }
 
@@ -704,7 +723,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 
     // Evaluated and timed individually via runSubAuditorSync
     this.runSubAuditorSync('inline-sql-detected', () => {
-      const lines = content.split('\n');
+      const lines = content.split(/\r?\n/);
       for (let i = 0; i < lines.length; i++) {
         if (/SELECT\s+.*\s+FROM\s+/i.test(lines[i]!)) {
           this.addViolation({
@@ -712,7 +731,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
             severity: 'error',
             file: relPath,
             line: i + 1,
-            message: 'Extrae la consulta SQL al servicio o repositorio correspondiente.',
+            message: 'Extract inline SQL queries to a dedicated repository or service layer.',
             context: lines[i]!.trim()
           });
         }
@@ -720,6 +739,9 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
     });
   }
 }
+
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
+await BaseAuditor.runCliIfMain(import.meta.url, new NoInlineSqlAuditor());
 ```
 
 ---
@@ -988,5 +1010,8 @@ See [`LICENSE`](LICENSE) for complete details.
 | **ts-morph**                           | [`dsherret/ts-morph`](https://github.com/dsherret/ts-morph)                                                   | [MIT License](https://github.com/dsherret/ts-morph/blob/latest/LICENSE.txt)                        |
 | **Magic-String**                       | [`Rich-Harris/magic-string`](https://github.com/Rich-Harris/magic-string)                                     | [MIT License](https://github.com/Rich-Harris/magic-string/blob/master/LICENSE)                     |
 | **Valibot**                            | [`fabian-hiller/valibot`](https://github.com/fabian-hiller/valibot)                                           | [MIT License](https://github.com/fabian-hiller/valibot/blob/main/LICENSE.md)                       |
+| **Citty**                              | [`unjs/citty`](https://github.com/unjs/citty)                                                                 | [MIT License](https://github.com/unjs/citty/blob/main/LICENSE)                                     |
+| **Boxen**                              | [`sindresorhus/boxen`](https://github.com/sindresorhus/boxen)                                                 | [MIT License](https://github.com/sindresorhus/boxen/blob/main/license)                             |
+| **cli-table3**                         | [`cli-table/cli-table3`](https://github.com/cli-table/cli-table3)                                             | [MIT License](https://github.com/cli-table/cli-table3/blob/master/LICENSE)                         |
 | **GSAP**                               | [`greensock/GSAP`](https://github.com/greensock/GSAP)                                                         | [Standard GreenSock License](https://gsap.com/licensing/)                                          |
 | **Jina Embeddings v2**                 | [`jinaai/jina-embeddings-v2-base-code`](https://huggingface.co/jinaai/jina-embeddings-v2-base-code)           | [Apache-2.0 License](https://huggingface.co/jinaai/jina-embeddings-v2-base-code/blob/main/LICENSE) |

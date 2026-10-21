@@ -31,7 +31,7 @@ describe('ComponentStylesAuditor', () => {
     expect(auditor.id).toBe('validate_component_styles');
     expect(auditor.family).toBe('architecture');
     expect(auditor.name).toBe('Vue Component Style Linkage & SCSS Auditor');
-    expect(auditor.description).toBe('Valida enlaces de estilos de componentes y huérfanos SCSS');
+    expect(auditor.description).toBe('Validates component style links and orphaned SCSS');
     expect(auditor.ruleIds).toEqual(COMPONENT_STYLE_RULES);
   });
 
@@ -48,31 +48,27 @@ describe('ComponentStylesAuditor', () => {
     const auditor = new ComponentStylesAuditor();
     expect(auditor.ruleDescriptions).toBeDefined();
     expect(auditor.ruleDescriptions?.['broken-style-link']).toBe(
-      'Enlace de estilo roto o inexistente'
+      'Broken or non-existent style link'
     );
-    expect(auditor.ruleDescriptions?.['missing-style-tag']).toBe(
-      'Componente sin bloque de estilos'
-    );
+    expect(auditor.ruleDescriptions?.['missing-style-tag']).toBe('Component missing style block');
     expect(auditor.ruleDescriptions?.['banned-style-inherited']).toBe(
-      'Marcador style-inherited prohibido'
+      'Banned style-inherited marker'
     );
-    expect(auditor.ruleDescriptions?.['orphaned-scss']).toBe('Archivo SCSS huérfano sin uso');
-    expect(auditor.ruleDescriptions?.['ad-hoc-button-styles']).toBe(
-      'Clase de botón fuera de estándar'
-    );
+    expect(auditor.ruleDescriptions?.['orphaned-scss']).toBe('Orphaned unused SCSS file');
+    expect(auditor.ruleDescriptions?.['ad-hoc-button-styles']).toBe('Non-standard button class');
     expect(auditor.ruleDescriptions?.['banned-plain-css-style']).toBe(
-      'Bloque <style> sin lang="scss"'
+      '<style> block missing lang="scss"'
     );
-    expect(auditor.ruleDescriptions?.['banned-raw-css-file']).toBe('Archivo CSS plano sin SCSS');
-    expect(auditor.packageName).toBe('Estilos');
+    expect(auditor.ruleDescriptions?.['banned-raw-css-file']).toBe('Raw CSS file without SCSS');
+    expect(auditor.packageName).toBe('Styles');
     expect(auditor.formatRuleDescription('broken-style-link')).toBe(
-      'Estilos: Enlace de estilo roto o inexistente'
+      'Styles: Broken or non-existent style link'
     );
     expect(auditor.formatRuleDescription('banned-plain-css-style')).toBe(
-      'Estilos: Bloque <style> sin lang="scss"'
+      'Styles: <style> block missing lang="scss"'
     );
     expect(auditor.formatRuleDescription('banned-raw-css-file')).toBe(
-      'Estilos: Archivo CSS plano sin SCSS'
+      'Styles: Raw CSS file without SCSS'
     );
   });
 

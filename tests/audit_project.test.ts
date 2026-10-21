@@ -68,11 +68,11 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
         line: 1,
         message: 'Directiva prohibida',
         severity: 'error' as const,
-        packageName: 'Arquitectura',
+        packageName: 'Architecture',
         ruleId: 'banned-ts-suppression',
         ruleDescription: 'Directivas @ts-ignore'
       };
-      expect(getViolationCategory(v)).toBe('Arquitectura: Directivas @ts-ignore');
+      expect(getViolationCategory(v)).toBe('Architecture: Directivas @ts-ignore');
     });
 
     it('falls back to ruleDescription when already prefixed with package name', () => {
@@ -81,11 +81,11 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
         line: 1,
         message: 'Directiva prohibida',
         severity: 'error' as const,
-        packageName: 'Arquitectura',
+        packageName: 'Architecture',
         ruleId: 'banned-ts-suppression',
-        ruleDescription: 'Arquitectura: Directivas @ts-ignore'
+        ruleDescription: 'Architecture: Directivas @ts-ignore'
       };
-      expect(getViolationCategory(v)).toBe('Arquitectura: Directivas @ts-ignore');
+      expect(getViolationCategory(v)).toBe('Architecture: Directivas @ts-ignore');
     });
 
     it('falls back to ruleId or Otros when description is missing', () => {

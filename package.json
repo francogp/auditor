@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "9.8.1-build.20261020-214008",
+  "version": "9.9.0-build.20261021-081534",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -275,13 +275,15 @@
     "auditor:full": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts speed=full",
     "auditor:post-build": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts phase=post-build",
     "build:deploy": "node --experimental-strip-types src/cli/build_deploy.ts",
-    "auditor:file-encoding": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_file_encoding"
+    "auditor:file-encoding": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_file_encoding",
+    "auditor:cli-contracts": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_cli_contracts"
   },
   "dependencies": {
     "@ast-grep/napi": "^0.51.0",
     "@secretlint/core": "^13.0.7",
     "@secretlint/secretlint-rule-preset-recommend": "^13.0.7",
     "boxen": "^9.0.0",
+    "citty": "0.2.2",
     "cli-table3": "^0.6.5",
     "fallow": "^3.34.1",
     "franc-min": "^6.2.0",
@@ -324,6 +326,7 @@
     "@types/node": "^26.6.5",
     "@vitejs/plugin-vue": "^6.0.10",
     "@vitest/coverage-v8": "^5.0.5",
+    "citty": "^0.2.2",
     "fallow": "^3.34.1",
     "gsap": "^3.15.0",
     "html-validate": "^11.17.0",
@@ -337,6 +340,9 @@
     "vue-router": "^5.4.0"
   },
   "peerDependenciesMeta": {
+    "citty": {
+      "optional": true
+    },
     "@types/node": {
       "optional": true
     },

@@ -151,7 +151,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
 
     expect(() => {
       PackageScriptRegistry.register(collisionScript, 'conflicting-subauditor');
-    }).toThrow(/\[COLISIÓN DE COMANDOS\]/);
+    }).toThrow(/\[COMMAND COLLISION\]/);
   });
 
   it('reports source IDs in the collision error message to facilitate renaming', () => {
@@ -172,9 +172,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
 
     expect(() => {
       PackageScriptRegistry.register(customReq2, 'subauditor_beta');
-    }).toThrow(
-      /El comando de script 'auditor:unique-tool' está duplicado entre 'subauditor_alpha'/
-    );
+    }).toThrow(/Script command 'auditor:unique-tool' is duplicated between 'subauditor_alpha'/);
   });
 
   it('automatically derives canonical package scripts in BaseAuditor when scripts option is omitted', () => {
@@ -248,7 +246,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
         }
         public override async runAudit(): Promise<void> {}
       })();
-    }).toThrow(/\[COLISIÓN DE COMANDOS\]/);
+    }).toThrow(/\[COMMAND COLLISION\]/);
   });
 
   it('builds canonical runner command appending runtime permissions dynamically', () => {

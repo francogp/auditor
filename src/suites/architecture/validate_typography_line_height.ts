@@ -156,29 +156,32 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
       }),
       id: 'validate_typography_line_height',
       name: 'Typography Line-Height & Interlinear Spacing Validator',
-      description: 'Detecta colisiones de line-height en tipografías multilínea',
+      description: 'Detects line-height collisions in multiline typography',
       family: 'architecture',
       ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(TYPOGRAPHY_LINE_HEIGHT_RULES, 'behavior'),
-      packageName: 'Tipografía',
+      packageName: 'Typography',
       configKey: 'styles.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
       icon: '🔤',
       ruleDescriptions: {
-        'line-height-overlap': 'Colisión de line-height'
+        'line-height-overlap': 'Line-height collision'
       },
       ruleRemediations: {
         'line-height-overlap':
-          '📖 GUÍA DE REMEDIACIÓN: line-height-overlap\n' +
-          '1. Causa Raíz: Se aplicó un valor de `line-height` colapsado (`0`, `1`, `1px`, `1rem`) en un elemento o clase tipográfica de texto multilínea (`p`, `span`, `h1`-`h6`, `.text`, etc.). Esto provoca que las líneas descendentes de la fuente colisionen con las ascendentes de la línea inferior, arruinando la legibilidad y violando las pautas de accesibilidad WCAG.\n' +
-          '2. Diagnóstico: Ubica la propiedad `line-height` en la línea reportada del archivo de estilos o componente.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Utiliza valores proporcionales adecuados para texto multilínea: mínimo `line-height: 1.25` para títulos y `line-height: 1.5` para párrafos y cuerpo.\n' +
-          '   b) Si el valor `line-height: 1` es intencional exclusivamente para iconos emoji monolínea o contenedores sin texto de flujo, anota `/* line-height-ok: <justificación> */` o aplica la clase emoji correspondiente.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Colapso: `p { font-size: 16px; line-height: 1; }`\n' +
-          '   ✅ Legible: `p { font-size: 16px; line-height: 1.5; }`'
+          '1. Root Cause:\n' +
+          'A collapsed line-height value (`0`, `1`, `1px`, `1rem`) was declared on a multiline text element or typography class (`p`, `span`, `h1`-`h6`, `.text`, etc.). When text wraps across multiple lines, font descenders collide with ascenders of the line below, impairing legibility and violating WCAG accessibility guidelines.\n\n' +
+          '2. Diagnosis:\n' +
+          'Locate the `line-height` declaration in the reported line of the stylesheet or Vue component.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Use proportional line-height values suitable for multiline text: minimum `line-height: 1.25` for headings and `line-height: 1.5` for body text and paragraphs.\n' +
+          '2. If `line-height: 1` is strictly intentional for single-line emoji icons or non-text containers, annotate `/* line-height-ok: <justification> */` or apply the appropriate icon/emoji class.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: collapsed line-height in multiline text\n' +
+          'p { font-size: 16px; line-height: 1; }\n\n' +
+          '// ✅ Correct: accessible line-height\n' +
+          'p { font-size: 16px; line-height: 1.5; }'
       },
       roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.scss', '.css']),

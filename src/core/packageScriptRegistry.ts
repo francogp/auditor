@@ -14,84 +14,114 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     name: 'auditor',
     command: 'auditor',
     description:
-      'Ejecución del orquestador de auditoría estática y arquitectura (techo máximo por defecto: speed=heavy)',
+      'Execute static analysis and architecture audit engine (default speed cap: speed=heavy)',
     category: 'core'
   },
   {
     name: 'auditor:fix',
     command: 'auditor fix',
-    description: 'Modo de auto-reparación mecánica y scaffolding de configuraciones',
+    description: 'Mechanical auto-fix and configuration scaffolding mode',
     category: 'core'
+  },
+  {
+    name: 'auditor:human',
+    command: 'auditor human',
+    description: 'Interactive human console audit with Box-Drawing tables and live telemetry',
+    category: 'core'
+  },
+  {
+    name: 'auditor:lint:human',
+    command: 'auditor speed=light human',
+    description: 'Fast linter audit in interactive human Box-Drawing console mode',
+    category: 'core'
+  },
+  {
+    name: 'auditor:full:human',
+    command: 'auditor speed=full human',
+    description: 'Exhaustive pre-build audit in interactive human Box-Drawing console mode',
+    category: 'core'
+  },
+  {
+    name: 'auditor:fix:human',
+    command: 'auditor fix human',
+    description: 'Mechanical auto-fix mode with interactive human Box-Drawing console output',
+    category: 'core'
+  },
+  {
+    name: 'auditor:findings:human',
+    command: 'auditor-findings human',
+    description: 'Inspect latest audit findings in interactive human Box-Drawing console mode',
+    category: 'reporting'
   },
   {
     name: 'auditor:help',
     command: 'auditor --help',
     description:
-      'Catálogo de comandos de ayuda, opciones y herramientas especializadas de remediación',
+      'Catalog of help commands, options, and specialized remediation tools',
     category: 'core'
   },
   {
     name: 'auditor:guide',
     command: 'auditor guide',
     description:
-      'Manuales de remediación paso a paso de reglas arquitectónicas (uso: npm run auditor:guide -- <regla>)',
+      'Step-by-step architectural rule remediation manuals (usage: npm run auditor:guide -- <rule>)',
     category: 'core'
   },
   {
     name: 'auditor:by-file',
     command: 'auditor-by-file',
-    description: 'Desglose detallado de hallazgos ordenados por archivo y línea',
+    description: 'Detailed breakdown of findings sorted by file and line',
     category: 'reporting'
   },
   {
     name: 'auditor:lint',
     command: 'auditor speed=light',
-    description: 'Auditoría rápida de linter y análisis estático (techo speed=light)',
+    description: 'Fast linter and static analysis audit (speed cap: speed=light)',
     category: 'core'
   },
   {
     name: 'auditor:critical',
     command: 'auditor critical',
     description:
-      'Ejecución exclusiva de suites críticas de código, tipado y sintaxis (bypass de velocidad)',
+      'Exclusive execution of critical code, typing, and syntax suites (speed bypass)',
     category: 'core'
   },
   {
     name: 'auditor:md',
     command: 'auditor preset=md',
-    description: 'Preset rápido de documentación y markdown (enlaces relativos e índices DOX)',
+    description: 'Fast documentation and markdown preset (relative links and DOX indices)',
     category: 'core'
   },
   {
     name: 'auditor:full',
     command: 'auditor speed=full',
     description:
-      'Auditoría exhaustiva pre-build con techo speed=full (incluye fallow dead-code --type-aware)',
+      'Exhaustive pre-build audit with speed cap speed=full (includes fallow dead-code --type-aware)',
     category: 'core'
   },
   {
     name: 'auditor:post-build',
     command: 'auditor phase=post-build',
-    description: 'Validación post-compilación sobre artefactos distribuidos en dist/',
+    description: 'Post-compilation validation on distributed artifacts in dist/',
     category: 'core'
   },
   {
     name: 'build:deploy',
     command: 'auditor-build-deploy',
     description:
-      'Compilación de despliegue CI/CD bajo AUDITOR_ENV=production (omite similar-code y cobertura)',
+      'CI/CD deployment build under AUDITOR_ENV=production (skips similar-code and coverage)',
     category: 'core'
   },
   {
     name: 'auditor:changed',
     command: 'auditor changed-since=main',
-    description: 'Auditoría incremental acotada a diferencias respecto a la rama principal',
+    description: 'Incremental audit scoped to changes against main branch',
     category: 'core'
   },
   {
     name: 'test:coverage',
     command: 'vp test --coverage',
-    description: 'Ejecución de pruebas unitarias con generación de cobertura en scratch/coverage/',
+    description: 'Unit test execution with coverage report generation in scratch/coverage/',
     category: 'core'
   },
 
@@ -99,25 +129,25 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:update',
     command: 'auditor-update',
-    description: 'Actualización y sincronización automática del paquete @francogp/auditor',
+    description: 'Automatic update and synchronization of @francogp/auditor package',
     category: 'lifecycle'
   },
   {
     name: 'auditor:version',
     command: 'auditor-version',
-    description: 'Diagnóstico e inspección de versión del motor auditor',
+    description: 'Auditor engine version inspection and diagnosis',
     category: 'lifecycle'
   },
   {
     name: 'version:analyze',
     command: 'auditor-version analyze',
-    description: 'Análisis estático de cambios y cálculo de incremento de versión semántica',
+    description: 'Static change analysis and semantic version bump calculation',
     category: 'versioning'
   },
   {
     name: 'version:bump',
     command: 'auditor-version bump',
-    description: 'Incremento atómico de versión en package.json y commit histórico',
+    description: 'Atomic version increment in package.json and historical commit',
     category: 'versioning'
   },
 
@@ -125,80 +155,80 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:findings',
     command: 'auditor-findings',
-    description: 'Visor de hallazgos en formato Box-Drawing de 80 columnas',
+    description: 'Findings viewer in 80-column Box-Drawing format',
     category: 'reporting'
   },
   {
     name: 'auditor:errors',
     command: 'auditor-findings severity=error',
-    description: 'Filtro de hallazgos exclusivo para errores bloqueantes',
+    description: 'Findings filter exclusive to blocking errors',
     category: 'reporting'
   },
   {
     name: 'auditor:warnings',
     command: 'auditor-findings severity=warning',
-    description: 'Filtro de hallazgos exclusivo para advertencias de deuda técnica',
+    description: 'Findings filter exclusive to technical debt warnings',
     category: 'reporting'
   },
   {
     name: 'auditor:summary',
     command: 'auditor-findings',
-    description: 'Resumen consolidado de métricas y violaciones de la última auditoría',
+    description: 'Consolidated summary of metrics and violations from latest audit',
     category: 'reporting'
   },
   {
     name: 'auditor:files',
     command: 'auditor-findings files',
-    description: 'Lista consolidada de archivos con violaciones de arquitectura',
+    description: 'Consolidated list of files with architecture violations',
     category: 'reporting'
   },
   {
     name: 'auditor:rules',
     command: 'auditor-findings rules',
-    description: 'Desglose consolidado de violaciones agrupadas y ordenadas por regla',
+    description: 'Consolidated breakdown of violations grouped and sorted by rule',
     category: 'reporting'
   },
   {
     name: 'auditor:by-rule',
     command: 'auditor-findings by-rule',
-    description: 'Desglose consolidado de violaciones agrupadas y ordenadas por regla',
+    description: 'Consolidated breakdown of violations grouped and sorted by rule',
     category: 'reporting'
   },
   {
     name: 'auditor:complexity',
     command: 'auditor-complexity',
-    description: 'Diagnóstico de complejidad ciclomática y refactoring targets de Fallow',
+    description: 'Cyclomatic complexity diagnosis and Fallow refactoring targets',
     category: 'reporting'
   },
   {
     name: 'auditor:similar',
     command: 'auditor-similar',
-    description: 'Detección de código duplicado semántico por vectores Candle CPU',
+    description: 'Semantic duplicate code detection via Candle CPU vectors',
     category: 'reporting',
     isApplicable: (config) => config.fallow?.similarCode?.enabled !== false
   },
   {
     name: 'auditor:review',
     command: 'auditor-review',
-    description: 'Revisión arquitectónica de diffs contra grafo estático de Fallow',
+    description: 'Architectural review of diffs against Fallow static graph',
     category: 'reporting'
   },
   {
     name: 'auditor:guard',
     command: 'auditor-guard',
-    description: 'Barrera de control de sanidad y bloqueo de regresiones',
+    description: 'Sanity control gate and regression barrier',
     category: 'reporting'
   },
   {
     name: 'auditor:flags',
     command: 'auditor-flags',
-    description: 'Auditoría de feature flags y dead-code derivado de condicionales',
+    description: 'Feature flags and conditional dead-code audit',
     category: 'reporting'
   },
   {
     name: 'auditor:coverage-gaps',
     command: 'auditor-fallow category=coverage-gaps',
-    description: 'Brechas de cobertura y código no ejecutado detectado por Fallow',
+    description: 'Coverage gaps and unexecuted code detected by Fallow',
     category: 'reporting'
   },
 
@@ -206,44 +236,44 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:dupes',
     command: 'auditor-dupes',
-    description: 'Refactorización y deduplicación determinista de código sintáctico y clones',
+    description: 'Deterministic refactoring and deduplication of syntactic code and clones',
     category: 'reporting',
     permissions: ['--allow-addons']
   },
   {
     name: 'auditor:magic',
     command: 'auditor-magic',
-    description: 'Remediación de números mágicos y extracción Super-Dirac a design tokens',
+    description: 'Magic numbers remediation and Super-Dirac extraction to design tokens',
     category: 'reporting'
   },
   {
     name: 'auditor:motion',
     command: 'auditor-motion',
-    description: 'Gobernanza de animaciones UI, migración de timers y transforms GPU',
+    description: 'UI animation governance, timer migration, and GPU transforms',
     category: 'reporting'
   },
   {
     name: 'auditor:o1',
     command: 'auditor-o1',
-    description: 'Optimización algorítmica de búsquedas lineales y modernización O(1)',
+    description: 'Algorithmic optimization of linear lookups and O(1) modernization',
     category: 'reporting'
   },
   {
     name: 'auditor:types',
     command: 'auditor-types',
-    description: 'Remediación determinista de as any, casts dobles y contratos de retorno',
+    description: 'Deterministic remediation of as any, double assertions, and return contracts',
     category: 'reporting'
   },
   {
     name: 'auditor:domain',
     command: 'auditor-domain',
-    description: 'Remediación determinista de strings crudos, catálogos mutables e IDs sin Brand',
+    description: 'Deterministic remediation of raw strings, mutable catalogs, and unbranded IDs',
     category: 'reporting'
   },
   {
     name: 'auditor:dependencies',
     command: 'auditor-dependencies',
-    description: 'Inspección de versiones mínimas y máximas de librerías homologadas',
+    description: 'Inspection of minimum and maximum versions of approved libraries',
     category: 'reporting'
   },
 
@@ -251,28 +281,28 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:fallow:dupes',
     command: 'auditor-fallow category=dupes',
-    description: 'Detección de bloques de código duplicados sintácticos vía Fallow',
+    description: 'Syntactic duplicate code blocks detection via Fallow',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:circular',
     command: 'auditor-fallow category=circular',
-    description: 'Detección de dependencias circulares entre módulos vía Fallow',
+    description: 'Circular dependencies detection between modules via Fallow',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:exports',
     command: 'auditor-fallow category=exports',
-    description: 'Detección de exportaciones huérfanas y símbolos no importados',
+    description: 'Orphan exports and unimported symbols detection',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:security',
     command: 'auditor-fallow category=security',
-    description: 'Escaneo estático de vulnerabilidades y sinks de seguridad CWE',
+    description: 'Static vulnerability scanning and CWE security sinks',
     category: 'fallow',
     isApplicable: (config) =>
       config.fallow?.enabled !== false && config.fallow?.security?.enabled !== false
@@ -280,28 +310,28 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:fallow:dead-code',
     command: 'auditor-fallow category=dead-code',
-    description: 'Detección de archivos muertos y código no referenciado vía Fallow',
+    description: 'Dead files and unreferenced code detection via Fallow',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:suppressions',
     command: 'auditor-fallow category=suppressions',
-    description: 'Auditoría de marcadores de supresión activos de fallow-ignore',
+    description: 'Active fallow-ignore suppression markers audit',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:flags',
     command: 'auditor-fallow category=flags',
-    description: 'Auditoría de feature flags y código condicional vía Fallow',
+    description: 'Feature flags and conditional code audit via Fallow',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
     name: 'auditor:fallow:viz',
     command: 'auditor-fallow category=viz',
-    description: 'Generación de mapa interactivo HTML de arquitectura vía Fallow',
+    description: 'Interactive HTML architecture map generation via Fallow',
     category: 'fallow',
     isApplicable: (config) => config.fallow?.enabled !== false
   },
@@ -310,20 +340,20 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:family:architecture',
     command: 'auditor family=architecture',
-    description: 'Ejecución de la familia de arquitectura, estándares AST y Fallow',
+    description: 'Architecture family execution, AST standards, and Fallow',
     category: 'family'
   },
   {
     name: 'auditor:family:domain',
     command: 'auditor family=domain_data',
-    description: 'Ejecución de la familia de tipos de dominio y cuadros de datos',
+    description: 'Domain types and data structures family execution',
     category: 'family',
     isApplicable: (config) => config.domain?.enabled !== false
   },
   {
     name: 'auditor:family:persistence',
     command: 'auditor family=persistence',
-    description: 'Ejecución de la familia de persistencia, SQL y migraciones',
+    description: 'Persistence, SQL, and database migrations family execution',
     category: 'family',
     isApplicable: (config) => config.persistence?.engine !== 'none'
   },
@@ -332,13 +362,13 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'lint',
     command: 'npm run auditor:lint',
-    description: 'Alias canónico de linter delegando en auditor speed=light',
+    description: 'Canonical linter alias delegating to auditor speed=light',
     category: 'aliases'
   },
   {
     name: 'lint:fix',
     command: 'auditor speed=light fix',
-    description: 'Reparación automática rápida de violaciones de linting',
+    description: 'Fast automatic remediation of linting violations',
     category: 'aliases'
   },
 
@@ -346,21 +376,21 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'check',
     command: 'vp check',
-    description: 'Verificación estática y linting integral con Vite+ (Oxlint/Oxfmt)',
+    description: 'Static verification and comprehensive linting with Vite+ (Oxlint/Oxfmt)',
     category: 'core',
     isApplicable: (config) => config.vitePlusConfig?.enabled !== false
   },
   {
     name: 'check:fix',
     command: 'vp check --fix',
-    description: 'Reparación automática integral de reglas de sintaxis y tipado con Vite+',
+    description: 'Comprehensive auto-repair of syntax and typing rules with Vite+',
     category: 'core',
     isApplicable: (config) => config.vitePlusConfig?.enabled !== false
   },
   {
     name: 'fmt',
     command: 'vp fmt',
-    description: 'Formateo automático de código en el proyecto mediante Oxfmt',
+    description: 'Automatic code formatting across project via Oxfmt',
     category: 'core',
     isApplicable: (config) =>
       config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false
@@ -368,7 +398,7 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'fmt:check',
     command: 'vp fmt --check',
-    description: 'Comprobación de higiene de formato de código sin modificar archivos',
+    description: 'Code formatting hygiene check without modifying files',
     category: 'core',
     isApplicable: (config) =>
       config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false
@@ -376,7 +406,7 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   {
     name: 'auditor:oxfmt',
     command: 'auditor task=validate_oxfmt',
-    description: 'Auditoría y verificación de formateo estricto con Oxfmt',
+    description: 'Strict formatting audit and verification with Oxfmt',
     category: 'core',
     isApplicable: (config) =>
       config.vitePlusConfig?.enabled !== false &&
@@ -409,10 +439,10 @@ export class PackageScriptRegistry {
         return;
       }
       throw new Error(
-        `[COLISIÓN DE COMANDOS] El comando de script '${requirement.name}' está duplicado entre '${existing.sourceId ?? 'core'}' ` +
-          `('${existing.requirement.command}') y '${sourceId ?? 'desconocido'}' ('${requirement.command}'). ` +
-          `Cada sub-auditor y extensión DEBE declarar nombres de comandos únicos en package.json. ` +
-          `Cambia el nombre del comando para resolver la colisión.`
+        `[COMMAND COLLISION] Script command '${requirement.name}' is duplicated between '${existing.sourceId ?? 'core'}' ` +
+          `('${existing.requirement.command}') and '${sourceId ?? 'unknown'}' ('${requirement.command}'). ` +
+          `Each sub-auditor and extension MUST declare unique command names in package.json. ` +
+          `Rename the command to resolve the collision.`
       );
     }
     this.requirements.set(requirement.name, { requirement, sourceId });

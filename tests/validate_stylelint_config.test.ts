@@ -78,7 +78,7 @@ describe('ValidateStylelintConfigAuditor', () => {
     it('declares all 13 canonical properties in criticalConfig.requiredMinimums', () => {
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       expect(auditor.criticalConfig).toBeDefined();
-      expect(auditor.criticalConfig?.rationale).toContain('Exigir variables SCSS ($var) o CSS');
+      expect(auditor.criticalConfig?.rationale).toContain('Requiring SCSS ($var) or CSS');
       const criticalProps = auditor.criticalConfig?.requiredMinimums?.['strictValues.properties'];
       expect(criticalProps).toBeDefined();
       expect(criticalProps).toHaveLength(13);
@@ -384,7 +384,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
-      expect(finding?.message).toContain('ANTES de "declarations"');
+      expect(finding?.message).toContain('BEFORE "declarations"');
     });
 
     it('detects inverted order where hasBlock: true is placed before declarations', async () => {
@@ -412,7 +412,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
       expect(finding).toBeDefined();
-      expect(finding?.message).toContain('DESPUÉS de "declarations"');
+      expect(finding?.message).toContain('AFTER "declarations"');
     });
 
     it('validates helper validateOrderHasBlockPartitioning with granular checks', () => {

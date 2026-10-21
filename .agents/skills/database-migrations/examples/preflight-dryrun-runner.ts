@@ -63,8 +63,10 @@ export function executePreflightDryRun(
   console.log('✨ [Pre-flight] SUCCESS: All pending migrations are valid, safe, and compatible.');
 }
 
+import { isMainModule } from '@francogp/auditor';
+
 // Self-test demonstration using an in-memory SQL simulator
-if (import.meta.filename === process.argv[1]) {
+if (isMainModule(import.meta.url)) {
   const mockValidDriver: SqlExecutionDriver = {
     execSql: (sql: string) => {
       // Simulator: fail if SQL contains forbidden syntax

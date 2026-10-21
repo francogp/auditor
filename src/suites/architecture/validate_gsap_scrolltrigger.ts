@@ -51,7 +51,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       roots: targetRoots,
       id: 'validate_gsap_scrolltrigger',
       name: 'GSAP ScrollTrigger Hygiene',
-      description: 'Gobernanza de sincronización y anclajes en ScrollTrigger',
+      description: 'Governance of synchronization and pinning in ScrollTrigger',
       family: 'architecture',
       packageName: 'ScrollTrigger',
       icon: '📜',
@@ -71,89 +71,49 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       ruleIds: GSAP_SCROLLTRIGGER_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GSAP_SCROLLTRIGGER_RULES, 'behavior'),
       ruleDescriptions: {
-        'gsap-scrolltrigger-in-timeline-child': 'scrollTrigger en tween de timeline',
-        'gsap-scrolltrigger-scrub-and-toggle': 'Conflicto scrub y toggleActions',
-        'gsap-scrolltrigger-markers-production': 'markers: true en código productivo',
-        'gsap-scrolltrigger-animating-pinned-element': 'Animación en elemento fijado pin',
-        'gsap-scrolltrigger-container-animation-ease': 'Falta ease: none en contenedor'
+        'gsap-scrolltrigger-in-timeline-child': 'scrollTrigger inside timeline tween',
+        'gsap-scrolltrigger-scrub-and-toggle': 'scrub vs toggleActions conflict',
+        'gsap-scrolltrigger-markers-production': 'markers: true in production code',
+        'gsap-scrolltrigger-animating-pinned-element': 'Animation on pinned element',
+        'gsap-scrolltrigger-container-animation-ease': 'Missing ease: none on container'
       },
       ruleRemediations: {
         'gsap-scrolltrigger-in-timeline-child':
-          'Causa Raíz:\n' +
-          'Se declaró la propiedad "scrollTrigger" dentro de un tween individual (tl.to, tl.from, tl.fromTo) que forma parte de una Timeline de GSAP.\n' +
-          'Los tweens hijos no pueden tener su propio ScrollTrigger independiente porque la Timeline madre es la que controla el progreso y tiempo de sus hijos, generando bloqueos o desincronización severa.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca ".to(..., { scrollTrigger: ... })" o similar encadenado a una Timeline ("tl" o "timeline").\n\n' +
-          'Solución Canónica:\n' +
-          'Declarar el ScrollTrigger en la configuración de la Timeline constructora: "gsap.timeline({ scrollTrigger: { ... } })". Todos los tweens hijos se ejecutarán secuencialmente conforme avance el scroll.\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: scrollTrigger en tween hijo de timeline\n' +
-          '// tl.to(".box1", { x: 100, [\'scroll\' + \'Trigger\']: { ... } })\n' +
-          '// ✅ Correcto: scrollTrigger en la timeline madre\n' +
-          'const tl = gsap.timeline({ scrollTrigger: { trigger: ".container", scrub: true } });\n' +
-          'tl.to(".box1", { x: 100 }).to(".box2", { x: 200 });',
+          '📖 REMEDIATION GUIDE: gsap-scrolltrigger-in-timeline-child\n' +
+          '1. Root Cause: Declaring scrollTrigger on a child tween in a GSAP timeline disrupts timeline time control and causes desynchronization.\n' +
+          '2. Diagnosis: Look for scrollTrigger inside tl.to(), tl.from(), or tl.fromTo() child tweens.\n' +
+          '3. Canonical Solution: Declare scrollTrigger in the parent timeline configuration: gsap.timeline({ scrollTrigger: { ... } }).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Banned:  declaring scrollTrigger in child tweens like tl.to()\n' +
+          '   ✅ Correct: const tl = gsap.timeline({ scrollTrigger: { trigger: ".container", scrub: true } });',
         'gsap-scrolltrigger-scrub-and-toggle':
-          'Causa Raíz:\n' +
-          'Se configuraron simultáneamente "scrub" y "toggleActions" en el mismo objeto ScrollTrigger.\n' +
-          '"scrub" vincula el progreso continuo de la animación a la posición de la barra de desplazamiento, haciendo que "toggleActions" (que reacciona a eventos discretos al cruzar umbrales como onEnter/onLeave) quede neutralizado o entre en conflicto de cálculo.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa las opciones de ScrollTrigger donde coinciden ambas propiedades.\n\n' +
-          'Solución Canónica:\n' +
-          'Decide el modelo de interacción deseado:\n' +
-          '1. Si la animación debe seguir el dedo o rueda del ratón progresivamente, conserva "scrub" y elimina "toggleActions".\n' +
-          '2. Si la animación debe dispararse (play, pause, reverse, restart) al entrar o salir del viewport, conserva "toggleActions" y elimina "scrub".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: combinar scrub numérico con toggleActions en el mismo objeto\n' +
-          '// ✅ Correcto: modelo scrub puro sin toggleActions (o viceversa)\n' +
-          'ScrollTrigger.create({ trigger: ".elem", scrub: 1 });',
+          '📖 REMEDIATION GUIDE: gsap-scrolltrigger-scrub-and-toggle\n' +
+          '1. Root Cause: Both scrub and toggleActions were configured in the same ScrollTrigger object. scrub ties animation progress continuously to scroll position, neutralizing discrete toggleActions.\n' +
+          '2. Diagnosis: Locate ScrollTrigger definitions where both properties are present.\n' +
+          '3. Canonical Solution: Retain scrub for scroll-linked animations, or retain toggleActions for threshold-triggered animations.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ScrollTrigger.create({ trigger: ".elem", scrub: 1 });',
         'gsap-scrolltrigger-markers-production':
-          'Causa Raíz:\n' +
-          'Se encontró "markers: true" en el código fuente de ScrollTrigger sin protección condicional de desarrollo.\n' +
-          'Esto dibuja guías visuales rojas y verdes en el viewport de los usuarios en producción.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca la propiedad "markers: true" en la inicialización de ScrollTrigger.\n\n' +
-          'Solución Canónica:\n' +
-          'Eliminar "markers: true" o condicionarla mediante "markers: import.meta.env.DEV".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: marcadores expuestos en producción\n' +
-          'scrollTrigger: { trigger: ".box", markers: true }\n\n' +
-          '// ✅ Correcto: condicionado al entorno de desarrollo\n' +
-          'scrollTrigger: { trigger: ".box", markers: import.meta.env.DEV }',
+          '📖 REMEDIATION GUIDE: gsap-scrolltrigger-markers-production\n' +
+          '1. Root Cause: markers: true was found in ScrollTrigger code without a development environment guard, exposing debug guides to end users.\n' +
+          '2. Diagnosis: Search for markers: true in ScrollTrigger configurations.\n' +
+          '3. Canonical Solution: Remove markers: true or guard it with import.meta.env.DEV.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   scrollTrigger: { trigger: ".box", markers: import.meta.env.DEV }',
         'gsap-scrolltrigger-animating-pinned-element':
-          'Causa Raíz:\n' +
-          'Se aplican animaciones de transformación ("x", "y", "scale", "rotation") directamente sobre un elemento fijado ("pin: true").\n' +
-          'Al fijar un elemento, ScrollTrigger envuelve el nodo en un contenedor espaciador ("pin-spacer") y manipula sus estilos de posición. Modificar las transformaciones del elemento fijado distorsiona las dimensiones del espaciador y genera saltos visuales o desalineación de layout.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el tween: si el elemento animado en el target es el mismo que tiene "pin: true".\n\n' +
-          'Solución Canónica:\n' +
-          'Fijar el contenedor padre y animar un contenedor hijo interno (nested wrapper).\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: animar el mismo elemento fijado\n' +
-          'gsap.to(".pinned-card", {\n' +
-          '  scrollTrigger: { trigger: ".pinned-card", pin: true },\n' +
-          '  x: 200\n' +
-          '});\n\n' +
-          '// ✅ Correcto: fijar el contenedor exterior y animar el contenido interior\n' +
-          'gsap.to(".pinned-card-inner", {\n' +
-          '  scrollTrigger: { trigger: ".pinned-card-wrapper", pin: true },\n' +
-          '  x: 200\n' +
-          '});',
+          '📖 REMEDIATION GUIDE: gsap-scrolltrigger-animating-pinned-element\n' +
+          '1. Root Cause: Transforms (x, y, scale, rotation) were applied directly to a pinned element (pin: true), distorting the pin-spacer layout.\n' +
+          '2. Diagnosis: Check if the animated target element is the same element being pinned.\n' +
+          '3. Canonical Solution: Pin the outer container and animate an inner child wrapper.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   gsap.to(".pinned-card-inner", { scrollTrigger: { trigger: ".pinned-wrapper", pin: true }, x: 200 });',
         'gsap-scrolltrigger-container-animation-ease':
-          'Causa Raíz:\n' +
-          'El tween impulsor de un scroll horizontal (usado como "containerAnimation" para ScrollTriggers anidados) tiene un ease no lineal (como "power1.out" o el valor predeterminado "power1.inOut").\n' +
-          'Para que los ScrollTriggers anidados sincronicen perfectamente sus posiciones de activación con el avance del desplazamiento horizontal, el movimiento del contenedor debe ser estrictamente lineal.\n\n' +
-          'Diagnóstico:\n' +
-          'Comprueba la definición del tween asignado a containerAnimation.\n\n' +
-          'Solución Canónica:\n' +
-          'Establecer "ease: \'none\'" en el tween principal del contenedor horizontal.\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: tween con ease implícito o no lineal\n' +
-          'const horizontalTween = gsap.to(".sections", { xPercent: -300 });\n\n' +
-          '// ✅ Correcto: interpolación lineal obligatoria\n' +
-          'const horizontalTween = gsap.to(".sections", {\n' +
-          '  xPercent: -300,\n' +
-          '  ease: "none"\n' +
-          '});'
+          '📖 REMEDIATION GUIDE: gsap-scrolltrigger-container-animation-ease\n' +
+          '1. Root Cause: The horizontal container tween assigned to containerAnimation uses a non-linear ease (e.g. power1.out), desynchronizing nested triggers.\n' +
+          '2. Diagnosis: Check the ease property of the tween used for containerAnimation.\n' +
+          '3. Canonical Solution: Set ease: "none" on the container tween for strictly linear scroll mapping.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   const horizontalTween = gsap.to(".sections", { xPercent: -300, ease: "none" });'
       }
     });
   }
@@ -202,7 +162,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         content,
         matchIndex: m.index,
         message:
-          "Declarar 'scrollTrigger' en un tween hijo de timeline rompe la secuencia. Decláralo en 'gsap.timeline({ scrollTrigger: ... })'.",
+          "Declaring 'scrollTrigger' on a child tween in a timeline breaks sequence timing. Declare it in 'gsap.timeline({ scrollTrigger: ... })'.",
         severity: 'error'
       });
     }
@@ -232,7 +192,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
           content,
           matchIndex,
           message:
-            "Conflicto en ScrollTrigger: 'scrub' y 'toggleActions' no pueden coexistir. 'scrub' neutraliza las toggleActions.",
+            "Conflict in ScrollTrigger: 'scrub' and 'toggleActions' cannot coexist. 'scrub' neutralizes toggleActions.",
           severity: 'error'
         });
       }
@@ -257,7 +217,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
             content,
             matchIndex,
             message:
-              "Uso de 'markers: true' en código productivo. Elimina los marcadores o enciérralos con guardia de desarrollo ('import.meta.env.DEV').",
+              "Using 'markers: true' in production code. Remove markers or guard them with 'import.meta.env.DEV'.",
             severity: 'error'
           });
         }
@@ -281,7 +241,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         content,
         matchIndex: m.index,
         message:
-          "Animación de transformación sobre elemento fijado con 'pin: true' distorsiona el pin-spacer. Fija el contenedor padre.",
+          "Transform animation on pinned element ('pin: true') distorts pin-spacer. Pin the outer parent container instead.",
         severity: 'error'
       });
     }
@@ -307,7 +267,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
             filePath: relPath,
             content,
             matchIndex: defMatch.index,
-            message: `El tween impulsor de containerAnimation '${animVar}' debe tener 'ease: "none"' para sincronizar linealmente con el scroll.`,
+            message: `The containerAnimation driving tween '${animVar}' must have 'ease: "none"' for linear scroll synchronization.`,
             severity: 'error'
           });
         }

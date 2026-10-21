@@ -1,12 +1,17 @@
 /**
  * TEMPLATE: FileScanAuditor (Line-by-Line File Scanner)
  * Location: scripts/auditors/<family>/validate_<name>.ts
- * 
+ *
  * Use this template when your auditor scans source files (e.g. .vue, .ts, .json, .md)
  * line-by-line to detect forbidden tokens, anti-patterns, missing attributes, or syntax errors.
+ *
+ * CLI Contract Governance (`validate_cli_contracts`):
+ *   - Standalone CLI execution MUST use `await BaseAuditor.runCliIfMain(import.meta.url, new MyFeatureAuditor());`
+ *     which delegates argument parsing (`human`, `--fix`, `--json`, `--help`) to the canonical `citty` harness.
+ *   - Direct `process.argv` access, `node:util.parseArgs`, or homebrew flag parsing (`startsWith('--')`)
+ *     is strictly prohibited.
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
@@ -61,11 +66,11 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       gitIgnoreEntries: MyFeatureAuditor.gitIgnoreEntries,
       id: 'validate_my_feature',
       name: 'My Feature Auditor',
-      description: 'Valida tokens prohibidos y atributos en src/',
+      description: 'Validates forbidden tokens and required attributes in src/',
       icon: '🔍', // Mandatory thematic emoji representing this auditor
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_FEATURE_RULES,
-      packageName: 'MiModulo',
+      packageName: 'MyModule',
       // Configuration Governance:
       // Case 1 (Standalone feature): Declare dedicated section in .auditor/audit.config.ts:
       //   configKey: 'myFeature',
@@ -84,24 +89,21 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'my-feature-forbidden-pattern': 'Token prohibido en archivo fuente',
-        'my-feature-missing-attribute': 'Atributo obligatorio faltante'
+        'my-feature-forbidden-pattern': 'Forbidden token in source file',
+        'my-feature-missing-attribute': 'Missing mandatory attribute'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):
       ruleRemediations: {
         'my-feature-forbidden-pattern':
-          'Causa Raíz: Se detectó un token o patrón prohibido por las normas arquitecturales.\n' +
-          'Diagnóstico: Abre el archivo y línea señalados para ubicar el identificador prohibido.\n' +
-          'Solución Canónica: Reemplaza el token prohibido por la alternativa canónica del proyecto.\n' +
-          'Ejemplo / Comando: npm run auditor',
+          '1. Root Cause: A token or pattern prohibited by architectural standards was detected.\n' +
+          '2. Diagnosis: Open the reported file and line to locate the forbidden identifier.\n' +
+          '3. Canonical Solution: Replace the forbidden token with the canonical project helper.\n' +
+          '4. Example / Command: npm run auditor',
         'my-feature-missing-attribute':
-          'Causa Raíz: Falta un atributo obligatorio requerido por las normas del componente o marcado.\n' +
-          'Diagnóstico: Revisa la declaración del elemento en la plantilla o archivo fuente.\n' +
-          'Solución Canónica: Añade el atributo mandatorio con su valor canónico correspondiente.\n' +
-          'Ejemplo / Comando: npm run auditor'
-      },
-          '1. Agrega el atributo requerido en el elemento indicado.\n' +
-          '2. Verifica la documentación del componente para conocer los valores válidos.'
+          '1. Root Cause: A mandatory attribute required by component or markup standards is missing.\n' +
+          '2. Diagnosis: Inspect the element declaration in the template or source file.\n' +
+          '3. Canonical Solution: Add the mandatory attribute with its canonical value.\n' +
+          '4. Example / Command: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_FEATURE_RULES, 'behavior'),
@@ -132,7 +134,12 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         const line = lines[i]!;
         const lineNum = i + 1;
 
-        if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)) continue;
+        if (
+          this.isLineIgnored(line, ['my-feature-ok']) ||
+          hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)
+        ) {
+          continue;
+        }
 
         if (line.includes('forbiddenToken')) {
           this.addViolation({
@@ -149,7 +156,11 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 
     // Rule 2: Missing attribute check
     this.runSubAuditorSync('my-feature-missing-attribute', () => {
-      if (relPath.endsWith('.vue') && content.includes('<custom-widget') && !content.includes('aria-label=')) {
+      if (
+        relPath.endsWith('.vue') &&
+        content.includes('<custom-widget') &&
+        !content.includes('aria-label=')
+      ) {
         this.addViolation({
           ruleId: 'my-feature-missing-attribute',
           severity: 'error',
@@ -163,6 +174,5 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   }
 }
 
-// Canonical CLI Entrypoint for standalone and dynamic execution
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new MyFeatureAuditor());
-

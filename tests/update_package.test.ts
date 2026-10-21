@@ -66,9 +66,9 @@ describe('update_package CLI', () => {
   });
 
   describe('readInstalledAuditorVersion', () => {
-    it('returns (no instalada) if node_modules does not exist', () => {
+    it('returns (not installed) if node_modules does not exist', () => {
       const version = readInstalledAuditorVersion(sandboxDir);
-      expect(version).toBe('(no instalada)');
+      expect(version).toBe('(not installed)');
     });
 
     it('reads version from node_modules/@francogp/auditor/package.json', () => {
@@ -88,7 +88,7 @@ describe('update_package CLI', () => {
     it('fails cleanly if package.json does not exist', () => {
       const result = updateAuditorPackage({ cwd: sandboxDir, stopAt: sandboxDir, silent: true });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('No se encontró package.json');
+      expect(result.error).toContain('package.json not found');
     });
 
     it('fails cleanly if @francogp/auditor is not declared in dependencies', () => {
@@ -99,7 +99,7 @@ describe('update_package CLI', () => {
 
       const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('no está declarado en dependencies');
+      expect(result.error).toContain('not declared in dependencies');
     });
 
     it('executes npm install with unpinned github repo when declared in dependencies', () => {
@@ -280,7 +280,7 @@ describe('update_package CLI', () => {
 
       const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
       expect(result.success).toBe(false);
-      expect(result.error).toContain('Error al leer package.json');
+      expect(result.error).toContain('Failed to read package.json');
     });
   });
 

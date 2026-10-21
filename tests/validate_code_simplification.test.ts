@@ -30,7 +30,7 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
   });
 
   describe('Point 1: Construction & Metadata Conformance', () => {
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateCodeSimplificationAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_code_simplification');
       expect(auditor.name).toBe('Code Complexity & Readability Simplifier Validator');
@@ -38,23 +38,21 @@ describe('ValidateCodeSimplificationAuditor Conformance & Rule Detection', () =>
       expect(auditor.packageName).toBe('Simplify');
       expect(auditor.icon).toBe('🧹');
       expect(auditor.ruleIds).toEqual([...CODE_SIMPLIFICATION_RULES]);
-      expect(auditor.ruleDescriptions['dead-code-accumulation']).toBe(
-        'Bloques de código muerto comentados'
-      );
+      expect(auditor.ruleDescriptions['dead-code-accumulation']).toBe('Commented dead code blocks');
       expect(auditor.ruleDescriptions['boolean-trap-parameters']).toBe(
-        'Parámetros booleanos posicionales'
+        'Positional boolean parameters'
       );
       expect(auditor.ruleDescriptions['deep-nesting-control-flow']).toBe(
-        'Anidamiento excesivo > 4 niveles'
+        'Excessive nesting > 4 levels'
       );
       expect(auditor.ruleDescriptions['redundant-else-after-return']).toBe(
-        'Cláusula else tras return o throw'
+        'Else clause after return or throw'
       );
       expect(auditor.ruleDescriptions['premature-abstraction-wrapper']).toBe(
-        'Wrapper innecesario sin lógica'
+        'Unnecessary wrapper without logic'
       );
       expect(auditor.ruleDescriptions['massive-switch-branching']).toBe(
-        'Switch masivo con más de 10 casos'
+        'Massive switch with over 10 cases'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);

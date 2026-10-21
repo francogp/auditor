@@ -48,7 +48,7 @@ When a failure involves storage, SQL migrations, schemas, query builders, or per
    - **PostgreSQL-Specific Pitfalls**: Undeclared PL/pgSQL variables, missing RLS policies, double-stringified JSONB scalars, or unique constraint conflicts.
    - **Connection Pitfalls**: Supabase host unreachable or invalid anon key.
 3. **Inspect Active Database Traces**:
-   - Check `scratch/audits/latest_audit.json` for persistence auditor warnings.
+   - Check persistence auditor findings in `latest_audit.json` via official tools (`npm run auditor:findings -- category=persistence` or `npm run auditor:findings -- rule=<id>`).
    - Extract raw SQL statement, error code, and error details.
 
 ---

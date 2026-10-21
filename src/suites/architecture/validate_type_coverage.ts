@@ -53,13 +53,13 @@ export function parseTypeCoverageReport(
       suiteId: 'validate_type_coverage',
       suiteName: 'TypeScript Quantitative Type Coverage Auditor',
       ruleId: 'type-coverage-below-threshold',
-      ruleDescription: 'Tipos: Cobertura de tipos bajo el umbral',
+      ruleDescription: 'Types: Type coverage below threshold',
       severity: 'error',
       file: 'tsconfig.json',
       line: 1,
       col: 1,
       context: `${percentStr}% < ${threshold}%`,
-      message: `Cobertura de tipos de ${percentStr}% inferior al umbral configurado de ${threshold}% (${correct}/${total} identificadores tipados).`
+      message: `Type coverage of ${percentStr}% is below configured threshold of ${threshold}% (${correct}/${total} identifiers typed).`
     });
 
     // When threshold fails, surface the untyped symbols as diagnostics
@@ -70,13 +70,13 @@ export function parseTypeCoverageReport(
         suiteId: 'validate_type_coverage',
         suiteName: 'TypeScript Quantitative Type Coverage Auditor',
         ruleId: 'type-coverage-untyped-identifier',
-        ruleDescription: 'Tipos: Identificador untyped any detectado',
+        ruleDescription: 'Types: Untyped any identifier detected',
         severity: 'error',
         file: relFile,
         line: item.line,
         col: item.character,
         context: item.text,
-        message: `Identificador con tipo any o implícito no tipado: "${item.text}"`
+        message: `Identifier with any or untyped implicit type: "${item.text}"`
       });
     }
   }
@@ -108,9 +108,9 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       }),
       id: 'validate_type_coverage',
       name: 'TypeScript Quantitative Type Coverage Auditor',
-      description: 'Gobernanza cuantitativa de cobertura de tipos estricta',
+      description: 'Quantitative strict type coverage governance',
       family: 'architecture',
-      packageName: 'Tipos',
+      packageName: 'Types',
       configKey: 'typeCoverage.enabled',
       defaultConfig: { enabled: true, atLeast: DEFAULT_TYPE_COVERAGE_THRESHOLD },
       criticalConfig: {},
@@ -118,28 +118,28 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       ruleIds: TYPE_COVERAGE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(TYPE_COVERAGE_RULES, 'contracts'),
       ruleDescriptions: {
-        'type-coverage-below-threshold': 'Cobertura de tipos bajo el umbral',
-        'type-coverage-untyped-identifier': 'Identificador untyped any detectado'
+        'type-coverage-below-threshold': 'Type coverage below threshold',
+        'type-coverage-untyped-identifier': 'Untyped any identifier detected'
       },
       ruleRemediations: {
         'type-coverage-below-threshold':
-          '📖 GUÍA DE REMEDIACIÓN: type-coverage-below-threshold\n' +
-          '1. Causa Raíz: El porcentaje de identificadores fuertemente tipados en el proyecto está por debajo del umbral mínimo configurado en `.auditor/audit.config.ts` (`config.typeCoverage.atLeast`, por defecto 95%).\n' +
-          '2. Diagnóstico: Comprueba el reporte emitido por `type-coverage` para ver el porcentaje actual y la cantidad de símbolos que resuelven a `any`.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Revisa los archivos con mayor número de identificadores `any` o no tipados.\n' +
-          '   b) Añade tipos de retorno explícitos en funciones, tipos a parámetros, y tipea los objetos de respuesta o estado.\n' +
-          '   c) No utilices `any`; recurre a `unknown` con type guards o define interfaces/tipos de dominio precisos.\n' +
-          '4. Ejemplo:\n' +
-          '   - Tipar variables de `const data = JSON.parse(str)` a `const data: unknown = JSON.parse(str)` seguido de validación de esquema con Valibot.',
+          '📖 REMEDIATION GUIDE: type-coverage-below-threshold\n' +
+          '1. Root Cause: The percentage of strongly typed identifiers in the project is below the minimum threshold configured in `.auditor/audit.config.ts` (`config.typeCoverage.atLeast`, default 95%).\n' +
+          '2. Diagnosis: Inspect the report emitted by `type-coverage` to view the current percentage and count of symbols resolving to `any`.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Review files containing the highest count of `any` or untyped identifiers.\n' +
+          '   b) Add explicit function return types, parameter types, and type response/state objects.\n' +
+          '   c) Do not use `any`; use `unknown` with type guards or define precise domain interfaces/types.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - Type variables from `const data = JSON.parse(str)` to `const data: unknown = JSON.parse(str)` followed by schema validation with Valibot.',
         'type-coverage-untyped-identifier':
-          '📖 GUÍA DE REMEDIACIÓN: type-coverage-untyped-identifier\n' +
-          '1. Causa Raíz: Un identificador, propiedad, parámetro o variable específica resolvió al tipo `any` (explícito o inferido implícitamente por el compilador).\n' +
-          '2. Diagnóstico: Ubica el identificador y la posición (línea:columna) señalados en el reporte.\n' +
-          '3. Solución Canónica: Asigna una anotación de tipo explícita (`: string`, `: Record<string, unknown>`, `: TDomainEntity`) o tipea adecuadamente la función generadora de la que proviene.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Untyped: `function handle(event) { ... }` (event es any implícito)\n' +
-          '   ✅ Tipado:  `function handle(event: MouseEvent): void { ... }`'
+          '📖 REMEDIATION GUIDE: type-coverage-untyped-identifier\n' +
+          '1. Root Cause: A specific identifier, property, parameter, or variable resolved to type `any` (explicit or implicitly inferred by the compiler).\n' +
+          '2. Diagnosis: Locate the identifier and location (line:col) indicated in the report.\n' +
+          '3. Canonical Solution: Assign an explicit type annotation (`: string`, `: Record<string, unknown>`, `: TDomainEntity`) or properly type the function producing it.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Untyped: `function handle(event) { ... }` (event is implicit any)\n' +
+          '   ✅ Typed:   `function handle(event: MouseEvent): void { ... }`'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],

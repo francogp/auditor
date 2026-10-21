@@ -11,6 +11,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from './cliUtils.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 
 export interface InitAgentOptions {
   targetDir?: string;
@@ -68,7 +74,7 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
   if (isSelfProviderProject(targetDir)) {
     return {
       success: true,
-      message: 'Repositorio proveedor @francogp/auditor detectado. Registro omitido.',
+      message: 'Provider repository @francogp/auditor detected. Registration skipped.',
       created: false
     };
   }
@@ -94,8 +100,8 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
 
   const anyCreated = pluginCreated || skillsCreated;
   const message = anyCreated
-    ? `Registrado exitosamente @francogp/auditor en .agents/plugins.json y .agents/skills.json`
-    : `El plugin y las skills de @francogp/auditor ya se encuentran registrados en .agents`;
+    ? `Successfully registered @francogp/auditor in .agents/plugins.json and .agents/skills.json`
+    : `@francogp/auditor plugin and skills are already registered in .agents`;
 
   return {
     success: true,
@@ -104,14 +110,21 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
   };
 }
 
+const INIT_AGENT_ARGS = {
+  ...COMMON_CLI_ARGS,
+  'dry-run': { type: 'boolean', default: false, description: 'Preview registration without writing' },
+  'from-postinstall': { type: 'boolean', default: false, description: 'Invoked from npm postinstall hook' }
+} as const satisfies CittyArgsDef;
+
 // CLI entrypoint
 if (isMainModule(import.meta.url)) {
-  const isDryRun = process.argv.includes('--dry-run');
-  const isPostinstall = process.argv.includes('--from-postinstall');
+  const parsed = parseCittyArgs(INIT_AGENT_ARGS, getProcessCliArgs());
+  const isDryRun = Boolean(parsed['dry-run']);
+  const isPostinstall = Boolean(parsed['from-postinstall']);
 
   if (!isPostinstall) {
     console.log('\n┌────────────────────────────────────────────────────────┐');
-    console.log('│  🤖 Antigravity Agent Skill Registrator (@francogp/auditor) │');
+    console.log('│  Antigravity Agent Skill Registrator (@francogp/auditor) │');
     console.log('└────────────────────────────────────────────────────────┘\n');
   }
 
@@ -120,15 +133,15 @@ if (isMainModule(import.meta.url)) {
 
     if (result.success) {
       if (result.created || !isPostinstall) {
-        console.log(`🤖 ${result.message}`);
+        console.log(`[OK] ${result.message}`);
       }
       if (!isPostinstall) {
-        console.log('\nEl agente Antigravity ahora tiene acceso nativo a:');
-        console.log('  - Skills: auditor y skills bundled de @francogp/auditor\n');
+        console.log('\nAntigravity agent now has native access to:');
+        console.log('  - Skills: auditor and bundled skills from @francogp/auditor\n');
       }
     } else {
       if (!isPostinstall) {
-        console.error(`❌ Error al registrar plugin: ${result.message}`);
+        console.error(`[Error] Failed to register plugin: ${result.message}`);
         process.exit(1);
       }
     }

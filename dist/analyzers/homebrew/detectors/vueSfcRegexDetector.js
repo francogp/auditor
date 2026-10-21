@@ -9,7 +9,7 @@ import { createLineDetector } from "../homebrewTypes.js";
 const vueSfcRegexDetector = createLineDetector({
 	id: "vue-sfc-regex",
 	ruleId: "auditor-manual-vue-sfc-regex",
-	ruleDescription: "Regex casero de bloques SFC de Vue",
+	ruleDescription: "Homebrew Vue SFC regex",
 	checkLine(line) {
 		const hasManualSfcRegex = /<(?:template|script|style)(?:\b|[\s>])/i.test(line) && /(?:RegExp|match|exec|\.test|matchAll)\(/.test(line);
 		const hasManualTagSlice = /<(?:template|script|style)/i.test(line) && (line.includes("indexOf(") || line.includes("slice(") || line.includes("substring(")) && /<\/(?:template|script|style)>/i.test(line);

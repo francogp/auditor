@@ -35,7 +35,7 @@ function parseHtmlValidateResults(input, cwd = process.cwd()) {
 		suiteId: "validate_html_validate",
 		suiteName: "HTML5 Standards & Markup Hygiene Validator",
 		ruleId: "html-validate-issue",
-		ruleDescription: "Violación de estándar HTML5",
+		ruleDescription: "HTML5 standard violation",
 		defaultRuleName: "html-validate",
 		defaultMessage: "HTML validation issue"
 	});
@@ -113,7 +113,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			fixableRuleIds: ["html-validate-issue"],
 			id: "validate_html_validate",
 			name: "HTML5 Standards & Markup Hygiene Validator",
-			description: "Valida estándares y elementos obsoletos con html-validate",
+			description: "Validates standards and obsolete elements with html-validate",
 			family: "architecture",
 			packageName: "HTML",
 			configKey: "htmlValidate.enabled",
@@ -122,8 +122,8 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			icon: "🌐",
 			ruleIds: HTML_VALIDATE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_RULES, "behavior"),
-			ruleDescriptions: { "html-validate-issue": "Violación de estándar HTML5" },
-			ruleRemediations: { "html-validate-issue": "Causa Raíz:\nViolación de estándares del HTML Living Standard (WHATWG) o buenas prácticas de accesibilidad y marcado semántico en archivos .html o plantillas de componentes Vue (.vue).\nhtml-validate detecta elementos obsoletos (<center>, <font>, <marquee>), anidamientos no permitidos (ej. <p> dentro de <p>, <div> dentro de <span> o <a> interactivo dentro de <a>), atributos inválidos o no admitidos en el elemento, o IDs duplicados en el mismo DOM.\n\nDiagnóstico:\n1. Ejecuta \"npm run auditor:findings rule=html-validate-issue\" para ver el archivo, línea y regla específica de HTML5 que falló.\n2. Identifica si la violación proviene de un tag deprecado, de un anidamiento prohibido o de un atributo inválido.\n\nSolución Canónica:\n1. Sustituir elementos obsoletos por contenedores semánticos (<header>, <nav>, <main>, <section>, <article>, <div>) y aplicar estilos mediante clases CSS o utilidades del sistema de diseño.\n2. Corregir anidamientos ilegales. Por ejemplo, en HTML5 un párrafo <p> solo puede contener elementos phrasing (en línea); un bloque <div> o lista <ul> dentro de un <p> fuerza el cierre implícito del párrafo y corrompe el árbol del DOM.\n3. Evitar colocar elementos interactivos dentro de otros elementos interactivos (ej. un <button> dentro de un <a>).\n4. Ejecuta \"npm run auditor:fix\" para corregir automáticamente los problemas de formateo o atributos triviales soportados por html-validate.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: tag obsoleto y anidamiento no permitido en HTML5\n<center>\n  <p>Texto con bloque interno: <div>Contenido ilegal</div></p>\n</center>\n\n// ✅ Correcto: elementos semánticos estándar con clases de diseño\n<div class=\"text-center\">\n  <p>Texto con elemento en línea: <span class=\"highlight\">Contenido válido</span></p>\n</div>" },
+			ruleDescriptions: { "html-validate-issue": "HTML5 standard violation" },
+			ruleRemediations: { "html-validate-issue": "1. Root Cause:\nViolation of WHATWG HTML Living Standard rules or accessibility and semantic markup best practices in .html files or Vue component templates (.vue).\nhtml-validate detects obsolete elements (<center>, <font>, <marquee>), disallowed nesting (e.g. <p> inside <p>, <div> inside <span>, or interactive <a> inside <a>), invalid attributes, or duplicate IDs in the same DOM tree.\n\n2. Diagnosis:\n1. Run \"npm run auditor:findings rule=html-validate-issue\" to inspect the exact file, line, and HTML5 rule that failed.\n2. Identify whether the violation is a deprecated tag, illegal nesting, or an unsupported attribute.\n\n3. Canonical Solution:\n1. Replace obsolete elements with semantic HTML5 elements (<header>, <nav>, <main>, <section>, <article>, <div>) and style via CSS classes or design system utilities.\n2. Fix illegal nesting. In HTML5, <p> can only contain phrasing (inline) elements; a block <div> or list <ul> inside a <p> forces implicit closure of the paragraph and corrupts the DOM tree.\n3. Avoid nesting interactive elements within other interactive elements (e.g. <button> inside an <a>).\n4. Run \"npm run auditor:fix\" to automatically fix supported formatting issues or trivial attributes.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: obsolete tag and illegal nesting in HTML5\n<center>\n  <p>Text with inner block: <div>Disallowed content</div></p>\n</center>\n\n// ✅ Correct: standard semantic elements with styling classes\n<div class=\"text-center\">\n  <p>Text with inline element: <span class=\"highlight\">Valid content</span></p>\n</div>" },
 			coverage: {
 				include: [
 					"src/**/*.{html,vue}",
@@ -137,7 +137,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("HTML-Validate deshabilitado en configuración")) return;
+		if (this.isSuiteGatingDisabled("HTML-Validate disabled in configuration")) return;
 		const isFixMode = this.isFixModeRequested();
 		const config = getAuditConfig(this.projectRoot);
 		const binPath = resolveNodeModuleBin(this.projectRoot, "html-validate/bin/html-validate.mjs");
@@ -164,7 +164,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		});
 		const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots, this.extraIgnorePatterns);
 		if (filesToScan.length === 0 && targets.length === 0) {
-			this.markRuleNotApplicable("html-validate-issue", "No existen archivos HTML ni plantillas para validar");
+			this.markRuleNotApplicable("html-validate-issue", "No HTML files or templates to validate");
 			return;
 		}
 		for (const f of filesToScan) this.recordScanned(f);

@@ -40,7 +40,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         suiteId: 'validate_eslint',
         suiteName: 'ESLint Code Hygiene Validator',
         ruleId: 'eslint-violation',
-        ruleDescription: 'Error de sintaxis o regla'
+        ruleDescription: 'Syntax error or rule violation'
       });
 
       expect(findings).toHaveLength(4);
@@ -118,7 +118,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         suiteId: 'validate_eslint',
         suiteName: 'ESLint Code Hygiene Validator',
         ruleId: 'eslint-violation',
-        ruleDescription: 'Error de sintaxis o regla',
+        ruleDescription: 'Syntax error or rule violation',
         severity: 'error',
         file: `test_aventura/file_${i}.ts`,
         line: 10,
@@ -131,7 +131,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
         suiteId: 'validate_stylelint',
         suiteName: 'Stylelint & SCSS Hygiene Validator',
         ruleId: 'css-duplicate-selectors',
-        ruleDescription: 'Selectores duplicados en el bloque',
+        ruleDescription: 'Duplicate selectors in stylesheet block',
         severity: 'error',
         file: `test_aventura/styles_${i}.scss`,
         line: 25,
@@ -145,7 +145,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
           suiteId: 'audit_project',
           suiteName: 'Project Architecture & Style Rules',
           ruleId: 'noRawJsonImportsOutsideData',
-          ruleDescription: 'Arquitectura: Optimización de Bundle',
+          ruleDescription: 'Architecture: Bundle Optimization',
           severity: 'error',
           file: 'test_aventura/composables/studio/useAssetAtlas.ts',
           line: 12,
@@ -157,7 +157,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
           suiteId: 'audit_project',
           suiteName: 'Project Architecture & Style Rules',
           ruleId: 'noRawJsonImportsOutsideData',
-          ruleDescription: 'Arquitectura: Optimización de Bundle',
+          ruleDescription: 'Architecture: Bundle Optimization',
           severity: 'error',
           file: 'test_aventura/composables/studio/useAssetAtlas.ts',
           line: 45,
@@ -172,7 +172,7 @@ describe('Zero False-Fix Mandate (Gobernanza de Auto-Reparación Estricta)', () 
           suiteId: 'validate_accessibility',
           suiteName: 'Vue & Web Accessibility Standards Auditor',
           ruleId: 'a11y-interactive-supports-focus',
-          ruleDescription: 'Elemento interactivo sin foco',
+          ruleDescription: 'Interactive element missing focus',
           severity: 'error',
           file: 'test_aventura/components/studio/ContinentStudioControls.vue',
           line: 55,

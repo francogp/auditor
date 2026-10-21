@@ -2,6 +2,7 @@
 import { AUDITOR_VERSION } from "../core/version.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { initAgentSkill } from "./init_agent.js";
@@ -35,9 +36,9 @@ function findHostProjectRoot(startDir = process.cwd(), stopAt) {
 function readInstalledAuditorVersion(projectRoot) {
 	try {
 		const pkgJsonPath = path.join(projectRoot, "node_modules/@francogp/auditor/package.json");
-		if (fs.existsSync(pkgJsonPath)) return JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")).version || "(desconocida)";
+		if (fs.existsSync(pkgJsonPath)) return JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")).version || "(unknown)";
 	} catch {}
-	return "(no instalada)";
+	return "(not installed)";
 }
 function parseTagSemver(tagStr) {
 	const match = tagStr.match(/^v?(\d+)\.(\d+)\.(\d+)(?:-([\w.-]+))?$/);
@@ -95,10 +96,10 @@ function updateAuditorPackage(options = {}) {
 	if (!fs.existsSync(hostPkgJsonPath)) return {
 		success: false,
 		projectRoot,
-		previousVersion: "(no disponible)",
-		newVersion: "(no disponible)",
+		previousVersion: "(n/a)",
+		newVersion: "(n/a)",
 		updated: false,
-		error: `No se encontró package.json en ${projectRoot}`
+		error: `package.json not found in ${projectRoot}`
 	};
 	let hostPkg;
 	try {
@@ -107,10 +108,10 @@ function updateAuditorPackage(options = {}) {
 		return {
 			success: false,
 			projectRoot,
-			previousVersion: "(no disponible)",
-			newVersion: "(no disponible)",
+			previousVersion: "(n/a)",
+			newVersion: "(n/a)",
 			updated: false,
-			error: `Error al leer package.json: ${err.message}`
+			error: `Failed to read package.json: ${err.message}`
 		};
 	}
 	const deps = hostPkg.dependencies || {};
@@ -118,10 +119,10 @@ function updateAuditorPackage(options = {}) {
 	if (!Boolean(devDeps["@francogp/auditor"] || deps["@francogp/auditor"])) return {
 		success: false,
 		projectRoot,
-		previousVersion: "(no declarada)",
-		newVersion: "(no declarada)",
+		previousVersion: "(undeclared)",
+		newVersion: "(undeclared)",
 		updated: false,
-		error: "El paquete @francogp/auditor no está declarado en dependencies ni devDependencies."
+		error: "Package @francogp/auditor is not declared in dependencies or devDependencies."
 	};
 	const targetTag = options.targetVersion ? options.targetVersion.startsWith("v") ? options.targetVersion : `v${options.targetVersion}` : resolveLatestAuditorTag();
 	const npmArgs = [
@@ -132,8 +133,8 @@ function updateAuditorPackage(options = {}) {
 	ensureNpmrcAllowGit(projectRoot);
 	const previousVersion = readInstalledAuditorVersion(projectRoot);
 	if (!options.silent) {
-		console.log(renderBanner("@FRANCOGP/AUDITOR - ACTUALIZADOR NATIVO DE PAQUETE", `Directorio: ${projectRoot}  |  Versión Actual: ${previousVersion}  |  Objetivo: ${targetTag}`));
-		console.log(styleText("cyan", `📦 Ejecutando actualización nativa vía npm ${npmArgs.join(" ")}...\n`));
+		console.log(renderBanner("@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER", `Directory: ${projectRoot}  |  Current Version: ${previousVersion}  |  Target: ${targetTag}`));
+		console.log(styleText("cyan", `[Update] Running native update via npm ${npmArgs.join(" ")}...\n`));
 	}
 	const proc = runNpmCommandSync(npmArgs, {
 		cwd: projectRoot,
@@ -146,14 +147,14 @@ function updateAuditorPackage(options = {}) {
 		previousVersion,
 		newVersion: previousVersion,
 		updated: false,
-		error: proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} falló con código de salida ${proc.status}`
+		error: proc.error?.message || proc.stderr?.toString() || `npm ${npmArgs[0]} failed with exit code ${proc.status}`
 	};
 	const newVersion = readInstalledAuditorVersion(projectRoot);
 	const updated = previousVersion !== newVersion;
 	const agentInitResult = initAgentSkill({ targetDir: projectRoot });
-	if (!options.silent && agentInitResult.created) console.log(styleText("green", `🤖 ${agentInitResult.message}\n`));
+	if (!options.silent && agentInitResult.created) console.log(styleText("green", `[OK] ${agentInitResult.message}\n`));
 	const envSyncResult = syncEnvScripts({ targetDir: projectRoot });
-	if (!options.silent && envSyncResult.filesUpdated.length > 0) console.log(styleText("green", `📜 ${envSyncResult.message}\n`));
+	if (!options.silent && envSyncResult.filesUpdated.length > 0) console.log(styleText("green", `[OK] ${envSyncResult.message}\n`));
 	runAuditorFixAutoRemediation(projectRoot, options.silent);
 	return {
 		success: true,
@@ -166,7 +167,7 @@ function updateAuditorPackage(options = {}) {
 function runAuditorFixAutoRemediation(projectRoot, silent) {
 	try {
 		const isSelf = isSelfProviderProject(projectRoot);
-		if (!silent) console.log(styleText("cyan", "🛠️ Ejecutando auditor fix automáticamente para sincronizar scripts y configuraciones...\n"));
+		if (!silent) console.log(styleText("cyan", "[Fix] Running auditor fix automatically to synchronize scripts and configs...\n"));
 		const hostAuditorPkg = path.join(projectRoot, "node_modules/@francogp/auditor/dist/cli/audit_full.js");
 		let cmd = process.platform === "win32" ? "npm.cmd" : "npm";
 		let args = ["run", "auditor:fix"];
@@ -211,47 +212,62 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 		return false;
 	}
 }
+const UPDATE_PACKAGE_ARGS = {
+	...COMMON_CLI_ARGS,
+	silent: {
+		type: "boolean",
+		alias: "s",
+		default: false,
+		description: "Suppress console progress output"
+	}
+};
 function runCli() {
-	const args = process.argv.slice(2);
+	const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, getProcessCliArgs());
+	const targetVersion = parsed._.map(String)[0];
 	const result = updateAuditorPackage({
-		targetVersion: args.find((a) => !a.startsWith("-")),
-		silent: args.includes("--silent") || args.includes("-s")
+		targetVersion,
+		silent: Boolean(parsed.silent)
 	});
 	if (!result.success) {
-		console.error(styleText("red", `\n❌ Falló la actualización de @francogp/auditor: ${result.error}`));
+		console.error(styleText("red", `\n[Error] Failed to update @francogp/auditor: ${result.error}`));
 		process.exit(1);
 	}
+	if (!resolveHumanModeFromArgs(parsed)) {
+		const status = result.updated ? "UPDATED" : "UP-TO-DATE";
+		console.log(`[Update] Package: @francogp/auditor | Previous: ${result.previousVersion} | Installed: ${result.newVersion} | Status: ${status}`);
+		process.exit(0);
+	}
 	const columns = [{
-		header: "PARÁMETRO",
+		header: "PARAMETER",
 		width: 26,
 		render: (r) => r.param
 	}, {
-		header: "VALOR / ESTADO",
+		header: "VALUE / STATUS",
 		width: 48,
 		render: (r) => r.val
 	}];
-	const statusVal = result.updated ? "ACTUALIZADO EXITOSAMENTE ✅" : "YA EN LA ÚLTIMA VERSIÓN (SIN CAMBIOS) ℹ️";
+	const statusVal = result.updated ? "SUCCESSFULLY UPDATED" : "ALREADY UP TO DATE (NO CHANGES)";
 	const rows = [
 		{
-			param: "Paquete",
+			param: "Package",
 			val: "@francogp/auditor"
 		},
 		{
-			param: "Versión Anterior",
+			param: "Previous Version",
 			val: result.previousVersion
 		},
 		{
-			param: "Versión Instalada",
+			param: "Installed Version",
 			val: result.newVersion
 		},
 		{
-			param: "Estado",
+			param: "Status",
 			val: statusVal
 		}
 	];
 	console.log("\n" + renderBoxTable(columns, rows));
-	if (result.updated) console.log(styleText("green", `\n✔ @francogp/auditor se actualizó correctamente de v${result.previousVersion} a v${result.newVersion}.\n`));
-	else console.log(styleText("cyan", `\nℹ @francogp/auditor ya se encuentra en la última versión disponible (v${result.newVersion}).\n`));
+	if (result.updated) console.log(styleText("green", `\n[OK] @francogp/auditor was successfully updated from v${result.previousVersion} to v${result.newVersion}.\n`));
+	else console.log(styleText("cyan", `\n[Notice] @francogp/auditor is already up to date (v${result.newVersion}).\n`));
 	process.exit(0);
 }
 if (isMainModule(import.meta.url)) {

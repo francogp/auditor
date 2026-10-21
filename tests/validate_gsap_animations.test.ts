@@ -352,8 +352,8 @@ describe('ValidateGsapAnimationsAuditor', () => {
         (v) => v.ruleId === 'gsap-banned-css-animations'
       );
       expect(violations).toHaveLength(1);
-      expect(violations[0]?.message).toContain('ALERTA DE SABOTAJE');
-      expect(violations[0]?.message).toContain('MIGRACIÓN OBLIGATORIA A GSAP');
+      expect(violations[0]?.message).toContain('SABOTAGE ALERT');
+      expect(violations[0]?.message).toContain('MANDATORY MIGRATION TO GSAP');
     });
 
     it('honors // layout-ok: line suppression for backgroundPosition', () => {

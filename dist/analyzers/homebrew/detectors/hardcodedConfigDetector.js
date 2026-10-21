@@ -9,7 +9,7 @@ import { createLineDetector } from "../homebrewTypes.js";
 const hardcodedConfigDetector = createLineDetector({
 	id: "hardcoded-config",
 	ruleId: "auditor-hardcoded-config",
-	ruleDescription: "Rutas o configs hardcodeadas",
+	ruleDescription: "Hardcoded paths or configs",
 	checkLine(_line, trimmed) {
 		if (trimmed.includes("hardcoded-config-ok") || trimmed.includes("homebrew-ok")) return null;
 		if (/\[\s*['"`](?:migrations|supabase\/migrations|database\/migrations|src['"`]\s*,\s*['"`]app)['"`]/i.test(trimmed)) return "Array de rutas candidatas hardcodeadas detectado. Resuelve las rutas dinámicamente desde 'config.paths' o 'audit.config.ts'.";

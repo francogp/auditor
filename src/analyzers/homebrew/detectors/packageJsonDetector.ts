@@ -9,7 +9,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const packageJsonDetector = createLineDetector({
   id: 'package-json',
   ruleId: 'auditor-manual-package-json',
-  ruleDescription: 'Lectura manual de package.json',
+  ruleDescription: 'Manual package.json reading',
   checkLine(line) {
     const readsManualPkg =
       (line.includes('readFileSync(') && line.includes('package.json')) ||

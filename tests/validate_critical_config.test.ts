@@ -351,7 +351,7 @@ export default defineAuditConfig({
     it('declares criticalConfig with all 13 REQUIRED_STRICT_PROPERTIES', () => {
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
       expect(auditor.criticalConfig).toBeDefined();
-      expect(auditor.criticalConfig?.rationale).toContain('Exigir variables SCSS ($var) o CSS');
+      expect(auditor.criticalConfig?.rationale).toContain('Requiring SCSS ($var) or CSS');
       const strictMinima = auditor.criticalConfig?.requiredMinimums?.['strictValues.properties'];
       expect(strictMinima).toBeDefined();
       expect(strictMinima).toHaveLength(13);

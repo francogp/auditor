@@ -4,9 +4,10 @@ import { getAuditConfig, loadAuditConfig } from "../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
 import "../core/auditContract.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import "../core/safePath.js";
 import { formatStatusBadge, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
-import { isMainModule } from "./cliUtils.js";
+import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -85,7 +86,7 @@ function auditSingleChunk(filename, fullPath, budgets, unbudgetedLimit = DEFAULT
 			status: "failed",
 			budgetName: budget.name,
 			budgetLimitBytes: budget.limitBytes,
-			note: `Supera presupuesto de ${(budget.limitBytes / 1024).toFixed(0)} KB`
+			note: `Exceeds budget of ${(budget.limitBytes / 1024).toFixed(0)} KB`
 		};
 		return {
 			filename,
@@ -97,7 +98,7 @@ function auditSingleChunk(filename, fullPath, budgets, unbudgetedLimit = DEFAULT
 			status: "passed",
 			budgetName: budget.name,
 			budgetLimitBytes: budget.limitBytes,
-			note: `Presupuesto: ${(budget.limitBytes / 1024).toFixed(0)} KB`
+			note: `Budget: ${(budget.limitBytes / 1024).toFixed(0)} KB`
 		};
 	}
 	if (sizeBytes > unbudgetedLimit) return {
@@ -108,7 +109,7 @@ function auditSingleChunk(filename, fullPath, budgets, unbudgetedLimit = DEFAULT
 		gzipKB,
 		compressionRatio,
 		status: "failed",
-		note: `Chunk no presupuestado excede límite ${(unbudgetedLimit / 1024).toFixed(0)} KB`
+		note: `Unbudgeted chunk exceeds limit of ${(unbudgetedLimit / 1024).toFixed(0)} KB`
 	};
 	return {
 		filename,
@@ -118,7 +119,7 @@ function auditSingleChunk(filename, fullPath, budgets, unbudgetedLimit = DEFAULT
 		gzipKB,
 		compressionRatio,
 		status: "passed",
-		note: "Dentro de límite general"
+		note: "Within general limit"
 	};
 }
 function auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit) {
@@ -138,7 +139,7 @@ function auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit) {
 	let dupeErrors = 0;
 	for (const m of topModules.slice(0, topLimit)) if (m.heavyChunkCount > 1 && m.rendered > dupeLimitBytes) {
 		dupeErrors++;
-		duplicateViolations.push(`Módulo duplicado en ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`);
+		duplicateViolations.push(`Duplicate module in ${m.heavyChunkCount} chunks (${(m.rendered / 1024).toFixed(1)} KB): ${m.id}`);
 	}
 	return {
 		topModules,
@@ -225,26 +226,39 @@ async function runBundleAudit(projectRoot = process.cwd()) {
 		duplicateViolations
 	};
 }
-async function executeCli() {
+async function executeCli(rawArgs = getProcessCliArgs()) {
 	const projectRoot = process.cwd();
-	console.log(renderBanner("AUDITOR DE BUNDLE Y CHUNKS DE PRODUCCIÓN", "FrancoGP Auditor Framework"));
+	const parsed = parseCittyArgs(COMMON_CLI_ARGS, rawArgs);
+	const isHuman = resolveHumanModeFromArgs(parsed) || isHumanConsoleMode(void 0, rawArgs);
+	if (isHuman) console.log(renderBanner("PRODUCTION BUNDLE & CHUNK AUDITOR", "FrancoGP Auditor Framework"));
 	await loadAuditConfig(projectRoot);
 	const config = getAuditConfig();
 	assertAuditConfigComplete(config);
 	const bundleConfig = config.bundle;
 	if (bundleConfig?.enabled === false) {
-		console.log("\nℹ️ Auditoría de bundle omitida: deshabilitada explícitamente en audit.config.ts (bundle.enabled: false).\n");
+		console.log("\n[Notice] Bundle audit skipped: explicitly disabled in audit.config.ts (bundle.enabled: false).\n");
 		return;
 	}
 	const statsFilePath = path.resolve(projectRoot, bundleConfig?.statsFile ?? "scratch/bundle_stats.html");
 	const distDir = resolveDistDir(projectRoot, bundleConfig?.distDir);
 	if (!fs.existsSync(statsFilePath) && !fs.existsSync(distDir)) {
-		console.error("\n❌ Error: No se encontraron artefactos de build de producción ni directorio dist.");
-		console.error(`   - Directorio de distribución esperado: ${path.relative(projectRoot, distDir)}`);
-		console.error("\nEjecuta primero: npm run build o vp pack\n");
+		console.error("\n[FAIL] Error: No production build artifacts or dist directory found.");
+		console.error(`   - Expected dist directory: ${path.relative(projectRoot, distDir)}`);
+		console.error("\nRun first: npm run build or vp pack\n");
 		process.exit(1);
 	}
 	const result = await runBundleAudit(projectRoot);
+	if (!isHuman) {
+		console.log(`[Bundle] Chunks: ${result.chunkResults.length} | Top Modules: ${result.topModules.length} | Duplicate Violations: ${result.duplicateViolations.length} | Errors: ${result.totalErrors}`);
+		for (const c of result.chunkResults) console.log(`  [Chunk] ${c.filename}: ${c.sizeKB} KB (gzip: ${c.gzipKB ?? "N/A"} KB) status=${c.status} note=${c.note}`);
+		if (result.duplicateViolations.length > 0) for (const v of result.duplicateViolations) console.error(`  [Duplicate] ${v}`);
+		if (!result.success) {
+			console.error(`[Bundle] Status: FAIL (${result.totalErrors} error(s) detected)`);
+			process.exit(1);
+		}
+		console.log("[Bundle] Status: OK");
+		process.exit(0);
+	}
 	if (result.topModules.length > 0) {
 		const topLimit = bundleConfig?.topModulesLimit ?? 15;
 		const sample = result.topModules.slice(0, topLimit);
@@ -256,7 +270,7 @@ async function executeCli() {
 				key: "idx"
 			},
 			{
-				header: "TAMAÑO",
+				header: "SIZE",
 				width: 12,
 				align: "right",
 				key: "size"
@@ -268,7 +282,7 @@ async function executeCli() {
 				key: "gzip"
 			},
 			{
-				header: "MÓDULO FUENTE",
+				header: "SOURCE MODULE",
 				width: 44,
 				align: "left",
 				key: "id"
@@ -283,19 +297,19 @@ async function executeCli() {
 				id: `${m.id}${dupeTag}`
 			};
 		});
-		console.log("\n📦 Top Módulos más pesados en el Bundle:");
+		console.log("\n[Notice] Top heaviest modules in bundle:");
 		console.log(renderBoxTable(moduleColumns, moduleRows));
 	}
 	if (result.chunkResults.length > 0) {
 		const chunkColumns = [
 			{
-				header: "ESTADO",
+				header: "STATUS",
 				width: 8,
 				align: "center",
 				key: "status"
 			},
 			{
-				header: "TAMAÑO",
+				header: "SIZE",
 				width: 10,
 				align: "right",
 				key: "size"
@@ -313,13 +327,13 @@ async function executeCli() {
 				key: "comp"
 			},
 			{
-				header: "CHUNK / ARTEFACTO",
+				header: "CHUNK / ARTIFACT",
 				width: 24,
 				align: "left",
 				key: "filename"
 			},
 			{
-				header: "PRESUPUESTO",
+				header: "BUDGET",
 				width: 14,
 				align: "left",
 				key: "note"
@@ -333,12 +347,12 @@ async function executeCli() {
 			filename: c.filename,
 			note: c.note
 		}));
-		console.log("\n📊 Estado de Chunks JS de Producción (Compresión Nativa Gzip):");
+		console.log("\n[Notice] Production JS Chunks Status (Native Gzip Compression):");
 		console.log(renderBoxTable(chunkColumns, chunkRows));
 	}
 	if (result.duplicateViolations.length > 0) {
-		console.log("\n🚨 Violaciones Críticas de Módulos Duplicados:");
-		for (const v of result.duplicateViolations) console.error(`  ❌ ${v}`);
+		console.log("\n[FAIL] Critical Duplicate Module Violations:");
+		for (const v of result.duplicateViolations) console.error(`  [FAIL] ${v}`);
 	}
 	const scratchDir = path.resolve(projectRoot, "scratch/audits/architecture");
 	try {
@@ -346,10 +360,10 @@ async function executeCli() {
 		fs.writeFileSync(path.join(scratchDir, "latest_audit_bundle.json"), JSON.stringify(result, null, 2), "utf8");
 	} catch {}
 	if (!result.success) {
-		console.error(`\n❌ Falló la auditoría de bundle: ${result.totalErrors} errores detectados.\n`);
+		console.error(`\n[FAIL] Bundle audit failed: ${result.totalErrors} error(s) detected.\n`);
 		process.exit(1);
 	}
-	console.log("\n✨ Auditoría de bundle aprobada: Chunks y presupuestos arquitectónicos satisfechos.\n");
+	console.log("\n[OK] Bundle audit passed: Chunks and architectural budgets satisfied.\n");
 	process.exit(0);
 }
 if (isMainModule(import.meta.url)) await executeCli();

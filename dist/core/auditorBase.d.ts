@@ -1,9 +1,9 @@
 import { AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
 import { AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
-import { CoverageRecorder } from "./auditCoverage.js";
 import { SharedAstContext } from "./astContext.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
+import { CoverageRecorder } from "./auditCoverage.js";
 import { isPathExempt } from "./reportUtils.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
@@ -112,6 +112,7 @@ export declare const AST_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
 export interface FileScanRootsOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
+  readonly fix?: boolean;
 }
 /**
  * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.

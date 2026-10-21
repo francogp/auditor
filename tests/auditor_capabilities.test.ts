@@ -121,6 +121,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_agent_plugin',
       'validate_agents_config_mandate',
       'validate_audit_config',
+      'validate_cli_contracts',
       'validate_component_styles',
       'validate_dependency_minimums',
       'validate_docker_config',
@@ -165,6 +166,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const EXPECTED_AST_SUITES = [
       'audit_project',
       'validate_bundle_budget',
+      'validate_cli_contracts',
       'validate_code_simplification',
       'validate_constant_hygiene',
       'validate_domain_types',

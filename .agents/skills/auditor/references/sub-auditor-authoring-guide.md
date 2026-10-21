@@ -73,7 +73,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
     super({
       id: 'validate_my_feature',
       name: 'My Feature Validator',
-      description: 'Valida tokens prohibidos y atributos en src/',
+      description: 'Validates forbidden tokens and required attributes in src/',
       icon: '🔍', // Mandatory thematic emoji
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
@@ -86,7 +86,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         critical: false
       }),
       ruleIds: MY_FEATURE_RULES,
-      packageName: 'MiModulo',
+      packageName: 'MyModule',
       configKey: 'paths.srcRoots',
       defaultConfig: {
         srcRoots: ['src']
@@ -95,18 +95,20 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'my-feature-forbidden-token': 'Token prohibido en archivo fuente',
-        'my-feature-missing-attribute': 'Atributo obligatorio faltante'
+        'my-feature-forbidden-token': 'Forbidden token in source file',
+        'my-feature-missing-attribute': 'Missing mandatory attribute'
       },
       ruleRemediations: {
         'my-feature-forbidden-token':
-          'Se detectó un token prohibido en el archivo fuente.\n' +
-          '1. Reemplázalo por la función o constante canónica correspondiente.\n' +
-          '2. Si es una excepción legítima, agrega el comentario "// my-feature-ok".',
+          '1. Root Cause: A prohibited token was detected in the source file.\n' +
+          '2. Diagnosis: Locate the reported file and line.\n' +
+          '3. Canonical Solution: Replace it with the canonical function or constant, or add "// my-feature-ok: <reason>" if justified.\n' +
+          '4. Example / Command: npm run auditor',
         'my-feature-missing-attribute':
-          'Falta un atributo obligatorio en el elemento analizado.\n' +
-          '1. Agrega el atributo requerido en el archivo señalado.\n' +
-          '2. Consulta la documentación del componente.'
+          '1. Root Cause: A mandatory attribute is missing on the analyzed element.\n' +
+          '2. Diagnosis: Inspect the reported template element.\n' +
+          '3. Canonical Solution: Add the required attribute according to component documentation.\n' +
+          '4. Example / Command: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_FEATURE_RULES, 'behavior'),
@@ -200,7 +202,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
     super({
       id: 'validate_my_data',
       name: 'My Data Validator',
-      description: 'Valida integridad y campos obligatorios en base de datos',
+      description: 'Validates dataset integrity and required fields',
       icon: '📊', // Mandatory thematic emoji
       family: 'domain_data',
       ruleCapabilities: createUniformRuleCapabilities(MY_DATA_RULES, {
@@ -213,7 +215,7 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
         critical: false
       }),
       ruleIds: MY_DATA_RULES,
-      packageName: 'Datos',
+      packageName: 'Data',
       configKey: 'paths.dataRoots',
       defaultConfig: {
         dataRoots: ['src/data']
@@ -222,20 +224,20 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'my-data-key-missing': 'Clave faltante en registro de datos',
-        'my-data-value-invalid': 'Valor no válido en propiedad requerida'
+        'my-data-key-missing': 'Missing key in data record',
+        'my-data-value-invalid': 'Invalid value in required property'
       },
       ruleRemediations: {
         'my-data-key-missing':
-          'Causa Raíz: Falta una clave obligatoria en el registro de datos.\n' +
-          'Diagnóstico: Abre src/data/myData.ts y localiza el objeto infractor.\n' +
-          'Solución Canónica: Agrega la propiedad requerida con su valor canónico.\n' +
-          'Ejemplo / Comando: npm run auditor',
+          '1. Root Cause: A mandatory key is missing in the data record.\n' +
+          '2. Diagnosis: Open src/data/myData.ts and locate the offending object.\n' +
+          '3. Canonical Solution: Add the required property with its canonical value.\n' +
+          '4. Example / Command: npm run auditor',
         'my-data-value-invalid':
-          'Causa Raíz: El valor asignado a la propiedad de datos es inválido o de tipo incorrecto.\n' +
-          'Diagnóstico: Inspecciona la interfaz del esquema de datos correspondiente.\n' +
-          'Solución Canónica: Corrige el tipo de dato asignado para cumplir con el esquema tipado.\n' +
-          'Ejemplo / Comando: npm run auditor'
+          '1. Root Cause: The value assigned to the data property is invalid or has an incorrect type.\n' +
+          '2. Diagnosis: Inspect the corresponding data schema interface.\n' +
+          '3. Canonical Solution: Fix the assigned value to satisfy the typed schema.\n' +
+          '4. Example / Command: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_DATA_RULES, 'contracts'),
@@ -1211,13 +1213,13 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | :--- | :--- | :--- | :--- |
 | `id` | `string` | Canonical ID | Unique identifier across the orchestrator (`validate_<name>`). |
 | `name` | `string` | Non-empty | Formal human-readable name of the suite. |
-| `description` | `string` | `<= 60` chars | Concise Spanish explanation of what the suite verifies. |
+| `description` | `string` | `<= 60` chars | Concise English explanation of what the suite verifies. |
 | `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'performance'`, `'security'`, `'documentation'` (or dynamic host extensions). |
-| `packageName` | `string` | Non-empty | Technology scope prefix (`'Oxlint'`, `'TypeScript'`, `'Config'`, `'Estilos'`, `'DOX'`). |
+| `packageName` | `string` | Non-empty | Technology scope prefix (`'Oxlint'`, `'TypeScript'`, `'Config'`, `'Styles'`, `'DOX'`). |
 | `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
 | `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
 | `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 7 fields | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). |
-| `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Pure Spanish description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
+| `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Concise English description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
 | `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
 | `remediationPhase` / `ruleRemediationPhases` | `RemediationPhaseId` \| `Record<TRuleId, RemediationPhaseId>` | 100% of rules | Mandatory strategic phase mapping (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`). Omission throws at construction. |
 | `requiredPermissions` | `readonly NodePermissionFlag[]` | Exhaustive array (or `[]`) | Mandatory Node.js Permission Model flags required by this suite (e.g. `[]` or `['--allow-addons']`). Omission throws at construction. |
@@ -1511,10 +1513,11 @@ super({
   // MANDATORY: Step-by-step remediation guide required by contract for every declared rule:
   ruleRemediations: {
     'my-rule-id':
-      'Causa Raíz: Explicación de la desviación arquitectónica.\n' +
-      'Diagnóstico: Inspecciona el archivo y línea señalados.\n' +
-      'Solución Canónica: Aplica el patrón canónico documentado.\n' +
-      'Ejemplo / Comando: npm run auditor'
+      '📖 REMEDIATION GUIDE: my-rule-id\n' +
+      '1. Root Cause: Explanation of architectural deviation.\n' +
+      '2. Diagnosis: Inspect the reported file and line number.\n' +
+      '3. Canonical Solution: Apply canonical documented pattern.\n' +
+      '4. Example / Auto-fix command: npm run auditor:fix'
   },
   // ...
 });
@@ -1529,3 +1532,49 @@ super({
 
 - ❌ **Legacy Pattern**: Omitting `requiredPermissions` in the constructor options.
 - ✅ **Canonical Pattern**: Declare `requiredPermissions: []` (or specific flags such as `['--allow-addons']` if the suite loads native Node addons). Leaving it undefined triggers an immediate contract violation during instantiation.
+
+---
+
+## 24. Declarative CLI Contracts & Citty Governance Mandate (`validate_cli_contracts`, `citty@^0.2.2`)
+
+Every sub-auditor, host extension, refactoring engine, and CLI reporter across `@francogp/auditor` and consumer host repositories is strictly governed by **`validate_cli_contracts`** (`phase: 'setup'`, `critical: true`). Reinventing the wheel with homebrew CLI argument parsing is **STRICTLY PROHIBITED**.
+
+### 1. The 7 Rules Enforced by `validate_cli_contracts`
+
+1. **`cli-contracts-direct-argv-access`**: Prohibits direct, bracketed, destructured, or aliased access to `process.argv`, `Deno.args`, or `Bun.argv` outside the canonical Citty harness (`src/core/cli/cittyHarness.ts`).
+2. **`cli-contracts-banned-parser-library`**: Prohibits importing or requiring unauthorized CLI parsers (`minimist`, `yargs`, `commander`, `cac`, `arg`, `mri`, `sade`, `meow`, `clipanion`, `oclif`, or `node:util.parseArgs`). All CLIs standardize exclusively on **`citty`** (`citty@^0.2.2`).
+3. **`cli-contracts-homebrew-flag-parsing`**: Prohibits manual flag heuristics on CLI arguments (`arg.startsWith('--')`, `args.includes('--fix')`, `arg.split('=')`, `BOOLEAN_FLAGS.has(arg)`, `args[0]`, or `switch (cmd)`).
+4. **`cli-contracts-dynamic-eval-bypass`**: Prohibits dynamic evaluation or synchronous stdin descriptor bypasses (`eval()`, `new Function()`, `fs.readFileSync(0)`).
+5. **`cli-contracts-missing-citty-contract`**: Every CLI entrypoint under `src/cli/` MUST declare its command contract using `defineCommand`, `createAuditorCli`, `parseCittyArgs`, or `createRefactorCli`.
+6. **`cli-contracts-missing-citty-dependency`**: Enforces that `"citty": "^0.2.2"` is declared in `peerDependencies` of `@francogp/auditor` and `devDependencies` of all host projects consuming it. Automatically fixable with `auditor fix`.
+7. **`cli-contracts-unregistered-script`**: Enforces that `CORE_PACKAGE_SCRIPT_REQUIREMENTS` in `src/core/packageScriptRegistry.ts` registers all 5 mandatory `:human` package scripts (`auditor:human`, `auditor:lint:human`, `auditor:full:human`, `auditor:fix:human`, `auditor:findings:human`).
+
+### 2. Canonical CLI Entrypoints by Component Type
+
+- **Sub-Auditors & Host Extensions (`BaseAuditor` / `FileScanAuditor`)**:
+  Always end your sub-auditor file with:
+
+  ```typescript
+  await BaseAuditor.runCliIfMain(import.meta.url, new MyFeatureAuditor());
+  ```
+
+  `BaseAuditor.runCliIfMain` uses `isMainModule(import.meta.url)` and parses CLI options (`--fix`, `human`, `--human`, `--json`, `--help`) via `parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs())`. Never write manual `if (process.argv[1]?.endsWith(...))` checks.
+
+- **Interactive Refactoring Engines (`BaseRefactorEngine`)**:
+  Always dispatch your refactoring engine via `createRefactorCli` from `src/core/refactor/refactorCliHarness.ts`:
+
+  ```typescript
+  await createRefactorCli({
+    toolName: 'auditor-motion',
+    bannerTitle: 'UI MOTION & GSAP REFACTOR ENGINE',
+    helpText: HELP_TEXT,
+    createEngine: (projectRoot) => new MotionRefactorEngine({ projectRoot }),
+    renderDiscoverHuman,
+    renderInspectHuman
+  });
+  ```
+
+  `createRefactorCli` registers declarative `citty` subcommands (`discover`, `inspect`, `apply`, `human`, `help`) so passing `human` or `--human` in any position renders the aesthetic Box-Drawing interface without throwing `Unknown command: human`.
+
+- **Standalone CLI Reporters (`src/cli/report_*.ts`)**:
+  Consume `parseCittyArgs`, `COMMON_CLI_ARGS`, `getProcessCliArgs`, and `resolveHumanModeFromArgs` from `src/core/cli/cittyHarness.ts`.

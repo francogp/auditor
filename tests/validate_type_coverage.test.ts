@@ -33,7 +33,7 @@ describe('ValidateTypeCoverageAuditor & parseTypeCoverageReport', () => {
     it('initializes with correct metadata and rules', () => {
       const auditor = new ValidateTypeCoverageAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_type_coverage');
-      expect(auditor.packageName).toBe('Tipos');
+      expect(auditor.packageName).toBe('Types');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds.length).toBeGreaterThan(0);
       expect(auditor.ruleDescriptions).toBeDefined();

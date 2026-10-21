@@ -102,13 +102,14 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
         critical: false
       }),
       ruleDescriptions: {
-        'my-rule-id': 'Regla de invariant personalizado'
+        'my-rule-id': 'Custom project invariant rule'
       },
       ruleRemediations: {
         'my-rule-id':
-          'Se violó el invariante personalizado del proyecto.\n' +
-          '1. Abre el archivo y línea reportados.\n' +
-          '2. Ajusta el código para cumplir el invariante documentado.'
+          '1. Root Cause: The custom project invariant was violated.\n' +
+          '2. Diagnosis: Open the reported file and line.\n' +
+          '3. Canonical Solution: Update the code to satisfy the documented invariant.\n' +
+          '4. Example / Command: npm run auditor'
       }
     });
   }
@@ -129,7 +130,7 @@ this.addViolationAtMatch({
   filePath: relPath,
   content,
   matchIndex: match.index,
-  message: 'Descriptive error message in Spanish',
+  message: 'Descriptive error message in English',
   severity: 'error' // or 'warning'
 });
 ```
@@ -228,6 +229,19 @@ export const customExtension = defineAuditorExtension({
   ]
 });
 ```
+
+---
+
+### 2.6 Declarative CLI Harness & Refactor CLI Helpers (`citty@^0.2.2`)
+
+All sub-auditors, host extensions, and CLI tools are governed by `validate_cli_contracts` (`phase: 'setup'`). Direct `process.argv` access, `node:util.parseArgs`, third-party CLI parsers (`commander`, `yargs`, `minimist`, `cac`), and manual flag checks (`.startsWith('--')`, `args[0]`) are strictly prohibited.
+
+| Helper | Module | Purpose |
+|:---|:---|:---|
+| `BaseAuditor.runCliIfMain(importMetaUrl, auditor)` | `@francogp/auditor` | Canonical CLI entrypoint for sub-auditors and host extensions; parses `human`, `--fix`, `--json`, and `--help` via Citty. |
+| `createAuditorCli(options)` | `src/core/cli/cittyHarness.ts` | Builds a declarative Citty `CommandDef` merging `COMMON_CLI_ARGS` (`human`, `pretty`, `json`, `project`, `fix`, `help`, `version`). |
+| `parseCittyArgs(argsDef, rawArgs)` | `src/core/cli/cittyHarness.ts` | Synchronously normalizes bare `key=value` and positional `human`/`help` tokens and parses them through Citty's parser. |
+| `createRefactorCli(spec)` | `src/core/refactor/refactorCliHarness.ts` | Declarative Citty CLI harness for `BaseRefactorEngine` tools (`discover`, `inspect`, `apply`, `human`, `help`). |
 
 ---
 

@@ -108,15 +108,15 @@ describe('report_test_coverage CLI Tool', () => {
     expect(parsed.untrackedFiles).toContain('src/untracked.ts');
   });
 
-  it('renders box table report including TOTAL CONSOLIDADO footer row', async () => {
-    process.argv = ['node', 'report_test_coverage.ts'];
+  it('renders box table report including CONSOLIDATED TOTAL footer row with --human', async () => {
+    process.argv = ['node', 'report_test_coverage.ts', '--human'];
     await runTestCoverageReport();
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('REPORTE DE COBERTURA DE PRUEBAS');
-    expect(output).toContain('TOTAL CONSOLIDADO');
-    expect(output).toContain('MÉTRICAS GLOBALES DE COBERTURA');
+    expect(output).toContain('TEST COVERAGE REPORT');
+    expect(output).toContain('CONSOLIDATED TOTAL');
+    expect(output).toContain('GLOBAL COVERAGE METRICS');
   });
 
   it('filters files below threshold with --below', async () => {
@@ -125,7 +125,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('ARCHIVOS POR DEBAJO DEL UMBRAL');
+    expect(output).toContain('[Below]');
     expect(output).toContain('src/b.ts');
   });
 
@@ -135,7 +135,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('ARCHIVOS EN DISCO NO RASTREADOS POR TESTS');
+    expect(output).toContain('[Untracked]');
     expect(output).toContain('src/untracked.ts');
   });
 
@@ -145,7 +145,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('DETALLE DE ARCHIVO: src/a.ts');
+    expect(output).toContain('File details: src/a.ts');
     expect(output).toContain('100%');
   });
 
@@ -156,7 +156,7 @@ describe('report_test_coverage CLI Tool', () => {
     expect(processExitSpy).toHaveBeenCalledWith(1);
     expect(consoleErrorSpy).toHaveBeenCalled();
     const errorOutput = consoleErrorSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(errorOutput).toContain('FALLO DE CALIDAD');
+    expect(errorOutput).toContain('QUALITY GATE FAILED');
   });
 
   it('passes quality check when threshold is met', async () => {
@@ -165,7 +165,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(processExitSpy).not.toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('PUERTA DE CALIDAD APROBADA');
+    expect(output).toContain('QUALITY GATE PASSED');
   });
 
   it('filters files with 0% coverage with --zero', async () => {
@@ -188,7 +188,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('ARCHIVOS CON 0% DE COBERTURA');
+    expect(output).toContain('[Zero]');
     expect(output).toContain('src/zero.ts');
   });
 
@@ -198,7 +198,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('HOTSPOTS DE RIESGO');
+    expect(output).toContain('[Coverage] Hotspots');
   });
 
   it('handles non-existent file filter gracefully', async () => {
@@ -207,7 +207,7 @@ describe('report_test_coverage CLI Tool', () => {
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join('\n');
-    expect(output).toContain('No se encontró cobertura para el archivo');
+    expect(output).toContain('No coverage found for file');
   });
 
   it('filters directory with --dir', async () => {

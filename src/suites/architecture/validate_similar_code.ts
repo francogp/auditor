@@ -23,6 +23,7 @@ import { BaseAuditor,
   createUniformRemediationPhases } from '../../core/auditorBase.ts';
 import type { AuditorCapabilities } from '../../core/auditContract.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
+import { getProcessCliArgs } from '../../core/cli/cittyHarness.ts';
 import {
   getAuditConfig,
   isTestPath,
@@ -98,8 +99,8 @@ export function resolveFallowBinary(projectRoot: string = process.cwd()): string
 }
 
 export function isFastPresetActive(): boolean {
-  const args = process.argv.join(' ');
-  return args.includes('--preset=lint') || args.includes('--preset=md');
+  const joined = getProcessCliArgs().join(' ');
+  return joined.includes('--preset=lint') || joined.includes('--preset=md');
 }
 
 export function isSimilarCodeSkipped(): boolean {
@@ -256,7 +257,7 @@ function reportSingleCandidateViolation(
     severity: 'error',
     file: leftPath,
     line: c.left.start_line || 1,
-    message: `Similitud semántica crítica (${similarityPct}%) entre '${c.left.name}' y '${c.right.name}'. Candidatos: ${leftDesc} ~ ${rightDesc}`,
+    message: `Critical semantic similarity (${similarityPct}%) between '${c.left.name}' and '${c.right.name}'. Candidates: ${leftDesc} ~ ${rightDesc}`,
     context: `${c.left.name} ~ ${c.right.name}`
   });
 }
@@ -312,7 +313,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
       id: 'validate_similar_code',
       name: 'Fallow Similar Code Semantics Validator',
-      description: 'Detecta duplicados semánticos de funciones',
+      description: 'Detects semantic function duplication',
       family: 'architecture',
       ruleIds: SIMILAR_CODE_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SIMILAR_CODE_RULES, 'dedup'),
@@ -326,31 +327,31 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       criticalConfig: {},
       icon: '🔍',
       ruleDescriptions: {
-        'fallow-similar-code': 'Duplicado semántico',
-        'fallow-similar-code-failed': 'Salud del motor similar-code'
+        'fallow-similar-code': 'Semantic duplication',
+        'fallow-similar-code-failed': 'Similar-code engine health'
       },
       ruleRemediations: {
         'fallow-similar-code':
-          '📖 GUÍA DE REMEDIACIÓN: fallow-similar-code\n' +
-          '1. Causa Raíz: El motor de embeddings vectoriales de Fallow detectó dos funciones con una similitud semántica superior al umbral configurado (≥ 0.95). Ambas funciones implementan el mismo propósito conceptual con sintaxis o nombres de variables divergentes.\n' +
-          '2. Diagnóstico: Inspecciona las dos funciones reportadas (lado izquierdo y lado derecho) en los archivos y líneas señaladas.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Extrae la lógica común a una función de utilidad compartida en `src/utils/` o en el servicio de dominio correspondiente.\n' +
-          '   b) Refactoriza ambas ubicaciones para llamar a la función canónica unificada.\n' +
-          '   c) Si las funciones resuelven problemas de dominios estrictamente disjuntos con semántica coincidente por pura casualidad, anota `// similar-code-ok: <justificación>` sobre la cabecera de la función.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Duplicado semántico: `formatUserDate()` y `parseDisplayTimestamp()` haciendo idéntica transformación.\n' +
-          '   ✅ Unificado:          `formatDate()` canónica compartida.',
+          '📖 REMEDIATION GUIDE: fallow-similar-code\n' +
+          '1. Root Cause: Fallow vector embedding engine detected two functions with semantic similarity exceeding the configured threshold (≥ 0.95). Both implement identical conceptual intent with divergent syntax or variable names.\n' +
+          '2. Diagnosis: Inspect the two functions reported (left and right) at the indicated files and lines.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Extract common logic into a shared utility function in `src/utils/` or within the corresponding domain service.\n' +
+          '   b) Refactor both call sites to invoke the unified canonical function.\n' +
+          '   c) If functions serve strictly disjoint domains and similarity is coincidental, annotate with `// similar-code-ok: <reason>` above the function signature.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Semantic duplicate: `formatUserDate()` and `parseDisplayTimestamp()` performing identical transformations.\n' +
+          '   ✅ Unified:            Canonical shared `formatDate()` helper.',
         'fallow-similar-code-failed':
-          '📖 GUÍA DE REMEDIACIÓN: fallow-similar-code-failed\n' +
-          '1. Causa Raíz: El motor de análisis vectorial Fallow no pudo inicializarse, el binario nativo no fue encontrado, o falló la descarga/ejecución del modelo Candle en CPU.\n' +
-          '2. Diagnóstico: Revisa el mensaje de error emitido en la consola para determinar si falta el binario o si se produjo un error de permisos/red.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) En Windows, ejecuta el comando canónico `npm run setup:windows` (o `npm run setup:linux` en Linux) para pre-crear directorios de caché y verificar binarios.\n' +
-          '   b) Verifica que `fallow` esté instalado correctamente en `node_modules/.bin/fallow`.\n' +
-          '   c) Si estás ejecutando en un entorno de integración continua sin acceso a internet o en compilación de producción, asegura la variable de entorno `AUDITOR_ENV=production`.\n' +
-          '4. Ejemplo:\n' +
-          '   - Ejecutar `npm run setup:windows` o `npm run setup:linux`.'
+          '📖 REMEDIATION GUIDE: fallow-similar-code-failed\n' +
+          '1. Root Cause: Fallow vector analysis engine failed to initialize, the native binary was missing, or Candle CPU model execution failed.\n' +
+          '2. Diagnosis: Check the console error output to determine if the binary is missing or if permissions/network errors occurred.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) On Windows, run `npm run setup:windows` (or `npm run setup:linux` on Linux) to pre-create cache directories and verify binaries.\n' +
+          '   b) Verify `fallow` is installed in `node_modules/.bin/fallow`.\n' +
+          '   c) In CI environments without internet or in production builds, set `AUDITOR_ENV=production`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - Run `npm run setup:windows` or `npm run setup:linux`'
       },
       coverage: {
         include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
@@ -369,7 +370,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         file: 'package.json',
         line: 1,
         message:
-          'Binario de Fallow no encontrado en dependencias locales para ejecutar similar-code.',
+          'Fallow binary not found in local dependencies to run similar-code.',
         context: 'binary-missing'
       });
       return null;
@@ -377,14 +378,14 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
 
     const modelReady = checkOrInitializeModel(fallowBin, this.projectRoot, this.isFixActive());
     if (!modelReady) {
-      this.context.setMetric('Similar-Code', 'Instalación manual');
+      this.context.setMetric('Similar-Code', 'Manual installation');
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',
         severity: 'warning',
         file: AUDIT_CONFIG_FILE,
         line: 1,
         message:
-          'No se pudo inicializar o descargar automáticamente el modelo de embeddings para fallow similar-code. Se requiere instalación manual.',
+          'Failed to automatically initialize or download the embedding model for fallow similar-code. Manual installation is required.',
         context: 'manual-setup-required'
       });
       return null;
@@ -428,7 +429,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         severity: 'error',
         file: AUDIT_CONFIG_FILE,
         line: 1,
-        message: `Fallo al ejecutar fallow similar-code: ${errorMsg}`,
+        message: `Failure running fallow similar-code: ${errorMsg}`,
         context: errorMsg
       });
     }
@@ -442,7 +443,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         file: AUDIT_CONFIG_FILE,
         line: 1,
         message:
-          'fallow similar-code finalizó pero no generó el archivo de reporte esperado en scratch.',
+          'fallow similar-code terminated but did not generate the expected report file in scratch.',
         context: 'missing-output-file'
       });
       return;
@@ -456,8 +457,8 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         const totalCandidates = parsed.candidates?.length ?? 0;
         const reported = evaluateSimilarCodeCandidates(parsed.candidates, { ignoreSameFile }, this);
 
-        this.context.setMetric('Candidatos Totales', totalCandidates);
-        this.context.setMetric('Pares Reportados', reported);
+        this.context.setMetric('Total Candidates', totalCandidates);
+        this.context.setMetric('Reported Pairs', reported);
         return;
       } catch (err) {
         this.addViolation({
@@ -465,7 +466,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
           severity: 'error',
           file: AUDIT_CONFIG_FILE,
           line: 1,
-          message: `El archivo de salida de fallow similar-code contiene JSON malformado: ${(err as Error).message}`,
+          message: `The fallow similar-code output file contains malformed JSON: ${(err as Error).message}`,
           context: 'malformed-json'
         });
         return;
@@ -477,7 +478,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       severity: 'error',
       file: AUDIT_CONFIG_FILE,
       line: 1,
-      message: 'fallow similar-code no generó contenido JSON en el archivo de salida.',
+      message: 'fallow similar-code did not generate JSON content in the output file.',
       context: 'empty-or-non-json'
     });
   }
@@ -489,12 +490,12 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     const similarCfg = config.fallow?.similarCode;
 
     if (!similarCfg?.enabled) {
-      this.markSkipped('Deshabilitado en audit.config.ts (fallow.similarCode.enabled: false)');
+      this.markSkipped('Disabled in audit.config.ts (fallow.similarCode.enabled: false)');
       return;
     }
 
     if (isProductionEnvironment()) {
-      this.markSkipped('Omitido en entorno de producción (AUDITOR_ENV=production)');
+      this.markSkipped('Skipped in production environment (AUDITOR_ENV=production)');
       return;
     }
 
@@ -506,7 +507,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
     }
 
     if (isFastPresetActive()) {
-      this.markSkipped('Omitido en preset rápido');
+      this.markSkipped('Skipped in fast preset');
       return;
     }
 

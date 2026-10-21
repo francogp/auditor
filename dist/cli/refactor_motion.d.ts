@@ -6,5 +6,5 @@
  * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
  * for UI timers, GPU transforms, and GSAP animation hygiene.
  */
-export declare function runRefactorMotionCli(argv?: string[]): Promise<void>;
+export declare function runRefactorMotionCli(argv?: readonly string[]): Promise<void>;
 //#endregion

@@ -28,10 +28,10 @@ describe('validate_markdown_lint_config contract and remediation conformance', (
     for (const ruleId of MARKDOWNLINT_CONFIG_RULES) {
       const guide = auditor.getRuleRemediation(ruleId);
       expect(guide).toBeDefined();
-      expect(guide).toMatch(/Causa Raíz/i);
-      expect(guide).toMatch(/Diagnóstico/i);
-      expect(guide).toMatch(/Solución Canónica/i);
-      expect(guide).toMatch(/Ejemplo|Auto-fix/i);
+      expect(guide).toMatch(/Root Cause|Causa Raíz/i);
+      expect(guide).toMatch(/Diagnosis|Diagnóstico/i);
+      expect(guide).toMatch(/Canonical Solution|Solución Canónica/i);
+      expect(guide).toMatch(/Example|Ejemplo|Auto-fix/i);
     }
   });
 });

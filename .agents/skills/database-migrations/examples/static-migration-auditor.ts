@@ -124,8 +124,10 @@ export function auditMigrationFiles(files: readonly { name: string; content: str
   return violations;
 }
 
+import { isMainModule } from '@francogp/auditor';
+
 // Self-test assertion demonstration
-if (import.meta.filename === process.argv[1]) {
+if (isMainModule(import.meta.url)) {
   const sampleBadFiles = [
     {
       name: '20261001120000_create_calc.sql',

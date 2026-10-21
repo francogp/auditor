@@ -4,6 +4,7 @@ import { isTestFileForCodeAudit } from "./auditTestPredicates.js";
 import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "./cli/cittyHarness.js";
 import "./permissionGuard.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
@@ -20,7 +21,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import ts from "typescript";
 //#region src/core/auditorBase.ts
 /**
@@ -283,23 +284,50 @@ const globalWorkspaceFileRamCache = /* @__PURE__ */ new Map();
 function clearWorkspaceFileCache() {
 	globalWorkspaceFileRamCache.clear();
 }
+const SUB_AUDITOR_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	output: {
+		type: "string",
+		alias: "o",
+		description: "Output JSON file path"
+	},
+	"errors-only": {
+		type: "boolean",
+		default: false,
+		description: "Report only error-severity findings"
+	},
+	speed: {
+		type: "string",
+		description: "Execution speed tier ceiling"
+	},
+	"only-speed": {
+		type: "string",
+		description: "Exact execution speed tier"
+	},
+	fix: {
+		type: "boolean",
+		default: false,
+		description: "Run in automatic repair mode"
+	},
+	rule: {
+		type: "string",
+		alias: "r",
+		description: "Filter by rule ID"
+	},
+	top: {
+		type: "string",
+		alias: "t",
+		description: "Maximum findings to display"
+	},
+	"changed-since": {
+		type: "string",
+		description: "Git ref for differential scan"
+	}
+};
 function setupAuditor(config) {
 	const fileRamCache = /* @__PURE__ */ new Map();
 	const startTime = performance.now();
-	const normalized = process.argv.slice(2).map((a) => a.includes("=") && !a.startsWith("-") ? `--${a}` : ["errors-only"].includes(a) ? `--${a}` : a);
-	const { values } = parseArgs({
-		args: normalized,
-		options: {
-			output: {
-				type: "string",
-				short: "o"
-			},
-			"errors-only": { type: "boolean" },
-			speed: { type: "string" },
-			"only-speed": { type: "string" }
-		},
-		strict: false
-	});
+	const values = { ...parseCittyArgs(SUB_AUDITOR_CLI_ARGS, getProcessCliArgs()) };
 	const projectRoot = config.projectRoot || process.cwd();
 	const combinedIgnores = [...config.extraIgnorePatterns || []];
 	const unignoreDirs = config.unignoreDirs ?? (config.family === "documentation" ? getEffectiveUnignoreDirs(projectRoot) : []);
@@ -1363,7 +1391,8 @@ var BaseAuditor = class BaseAuditor {
 	}
 	isFixModeRequested() {
 		const rawValues = this.context.values;
-		return this.fixMode || process.argv.includes("fix") || process.argv.includes("--fix") || process.env.AUDIT_FIX === "true" || Boolean(rawValues?.fix);
+		const cliTokens = getProcessCliArgs();
+		return this.fixMode || cliTokens.includes("fix") || cliTokens.includes("--fix") || process.env.AUDIT_FIX === "true" || Boolean(rawValues?.fix);
 	}
 	/**
 	* Resolves whether any declared file or candidate file for this requirement exists on disk.

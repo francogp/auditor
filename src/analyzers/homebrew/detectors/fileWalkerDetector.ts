@@ -51,7 +51,7 @@ function hasWalkerExemption(lines: readonly string[], idx: number): boolean {
 export const fileWalkerDetector: HomebrewDetector = {
   id: 'file-walker',
   ruleId: 'auditor-manual-file-walker',
-  ruleDescription: 'Recorrido recursivo manual de dirs',
+  ruleDescription: 'Manual recursive directory walk',
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
     if (context.content.includes('// walker-ok: all')) return [];
     if (context.isCore && !context.filePath.startsWith('src/core/refactor/')) return [];
@@ -85,7 +85,7 @@ export const fileWalkerDetector: HomebrewDetector = {
           line: i + 1,
           context: line.trim(),
           message:
-            "Recorrido recursivo directo con 'readdirSync({ recursive: true })' detectado. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+            "Direct recursive directory traversal with 'readdirSync({ recursive: true })' detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
         });
         continue;
       }
@@ -102,7 +102,7 @@ export const fileWalkerDetector: HomebrewDetector = {
           line: i + 1,
           context: line.trim(),
           message:
-            "Llamada a función de recorrido recursivo manual detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+            "Call to manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
         });
         continue;
       }
@@ -119,7 +119,7 @@ export const fileWalkerDetector: HomebrewDetector = {
           line: i + 1,
           context: line.trim(),
           message:
-            "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+            "Manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
         });
         continue;
       }
@@ -153,7 +153,7 @@ export const fileWalkerDetector: HomebrewDetector = {
           line: i + 1,
           context: line.trim(),
           message:
-            "Función de recorrido recursivo manual de directorios detectada. Usa 'this.context.collectFiles()', 'collectRepositoryFiles()' o extiende 'FileScanAuditor'."
+            "Manual recursive directory walk function detected. Use 'this.context.collectFiles()', 'collectRepositoryFiles()' or extend 'FileScanAuditor'."
         });
       }
     }

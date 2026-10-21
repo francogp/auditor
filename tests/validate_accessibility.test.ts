@@ -39,14 +39,16 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       expect(ACCESSIBILITY_RULES).toContain('a11y-viewport-zoom-lock');
     });
 
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_accessibility');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('A11y');
-      expect(auditor.ruleDescriptions['a11y-img-alt']).toBe('Imagen sin atributo alt accesible');
+      expect(auditor.ruleDescriptions['a11y-img-alt']).toBe(
+        'Image missing accessible alt attribute'
+      );
       expect(auditor.ruleDescriptions['a11y-viewport-zoom-lock']).toBe(
-        'Bloqueo de zoom en viewport HTML'
+        'Viewport zoom lock in HTML'
       );
     });
   });

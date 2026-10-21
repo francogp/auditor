@@ -92,7 +92,7 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       const result = auditSingleChunk('auth-client.js', chunkFile, budgets);
 
       expect(result.status).toBe('failed');
-      expect(result.note).toContain('Supera presupuesto');
+      expect(result.note).toContain('Exceeds budget');
     });
 
     it('fails when unbudgeted chunk exceeds general 500 KB limit', () => {
@@ -101,7 +101,7 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
 
       const result = auditSingleChunk('custom-feature.js', chunkFile, []);
       expect(result.status).toBe('failed');
-      expect(result.note).toContain('Chunk no presupuestado excede límite');
+      expect(result.note).toContain('Unbudgeted chunk exceeds limit');
     });
   });
 

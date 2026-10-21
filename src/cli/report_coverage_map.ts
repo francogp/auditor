@@ -20,7 +20,14 @@ import { listTrackedFiles, isCoveredBy } from '../suites/architecture/validate_a
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { isMainModule } from './cliUtils.ts';
+import { isMainModule, isHumanConsoleMode } from './cliUtils.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import '../core/permissionGuard.ts';
 
 const PERCENT_SCALE_FACTOR = 1000 as const;
@@ -67,20 +74,35 @@ export interface CoverageMapCliOptions {
   uncoveredOnly?: boolean;
   degradedOnly?: boolean;
   jsonOutput?: boolean;
+  human?: boolean;
 }
 
+const COVERAGE_MAP_ARGS = {
+  ...COMMON_CLI_ARGS,
+  files: { type: 'boolean', default: false, description: 'List individual files' },
+  uncovered: { type: 'boolean', default: false, description: 'Show only uncovered files' },
+  degraded: { type: 'boolean', default: false, description: 'Show only degraded files' },
+  'run-id': { type: 'string', description: 'Specific coverage run ID to inspect' }
+} as const satisfies CittyArgsDef;
+
+const COVERAGE_MAP_BARE_BOOLEANS: ReadonlySet<string> = new Set([
+  'files',
+  'uncovered',
+  'degraded'
+]); // runtime-set: O(1) bare boolean token lookup
+
 export function parseCoverageMapCliArgs(
-  argv: string[] = process.argv.slice(2)
+  rawInputArgs: readonly string[] = getProcessCliArgs()
 ): CoverageMapCliOptions {
+  const parsed = parseCittyArgs(COVERAGE_MAP_ARGS, rawInputArgs, COVERAGE_MAP_BARE_BOOLEANS);
   const options: CoverageMapCliOptions = {};
-  for (let i = 0; i < argv.length; i++) {
-    const arg = argv[i]!;
-    if (arg === '--json' || arg === 'json') options.jsonOutput = true;
-    else if (arg === '--files' || arg === 'files') options.filesOnly = true;
-    else if (arg === '--uncovered' || arg === 'uncovered') options.uncoveredOnly = true;
-    else if (arg === '--degraded' || arg === 'degraded') options.degradedOnly = true;
-    else if (arg === '--run-id' && i + 1 < argv.length) options.runId = argv[++i];
-    else if (arg.startsWith('--run-id=')) options.runId = arg.substring('--run-id='.length);
+  if (parsed.json) options.jsonOutput = true;
+  if (resolveHumanModeFromArgs(parsed)) options.human = true;
+  if (parsed.files) options.filesOnly = true;
+  if (parsed.uncovered) options.uncoveredOnly = true;
+  if (parsed.degraded) options.degradedOnly = true;
+  if (typeof parsed['run-id'] === 'string' && parsed['run-id']) {
+    options.runId = parsed['run-id'];
   }
   return options;
 }
@@ -103,7 +125,7 @@ function classifyTrackedFiles(
         status: 'exempt',
         coveringSuites: [],
         degradedPolicies: [],
-        exemptionReason: 'Directorio/archivo canónico ignorado (dist/scratch/etc)'
+        exemptionReason: 'Canonical ignored directory/file (dist/scratch/etc)'
       };
     }
 
@@ -270,16 +292,16 @@ interface FileTableRow {
 
 export function renderDirectorySummaryTable(result: CoverageMapResult): string {
   const columns: TableColumn<DirTableRow>[] = [
-    { header: 'DIRECTORIO / MÓDULO', width: 34, align: 'left', key: 'directory' },
-    { header: 'ARCHIVOS', width: 9, align: 'right', key: 'total' },
-    { header: 'CUBIERTOS', width: 10, align: 'right', key: 'covered' },
-    { header: 'DEGRADADOS', width: 11, align: 'right', key: 'degraded' },
-    { header: 'DESCUBIERTOS', width: 13, align: 'right', key: 'uncovered' },
-    { header: 'COBERTURA', width: 10, align: 'right', key: 'percent' }
+    { header: 'DIRECTORY / MODULE', width: 34, align: 'left', key: 'directory' },
+    { header: 'FILES', width: 9, align: 'right', key: 'total' },
+    { header: 'COVERED', width: 10, align: 'right', key: 'covered' },
+    { header: 'DEGRADED', width: 11, align: 'right', key: 'degraded' },
+    { header: 'UNCOVERED', width: 13, align: 'right', key: 'uncovered' },
+    { header: 'COVERAGE', width: 10, align: 'right', key: 'percent' }
   ];
 
   const rows: DirTableRow[] = result.directories.map((d) => ({
-    directory: d.directory === '.' ? '(archivos raíz)' : d.directory,
+    directory: d.directory === '.' ? '(root files)' : d.directory,
     total: String(d.total),
     covered: d.covered > 0 ? styleText('green', String(d.covered)) : styleText('dim', '0'),
     degraded: d.degraded > 0 ? styleText('yellow', String(d.degraded)) : styleText('dim', '0'),
@@ -293,7 +315,7 @@ export function renderDirectorySummaryTable(result: CoverageMapResult): string {
   }));
 
   const footerRow: DirTableRow = {
-    directory: styleText('bold', 'TOTAL CONSOLIDADO'),
+    directory: styleText('bold', 'CONSOLIDATED TOTAL'),
     total: styleText('bold', String(result.totalTracked)),
     covered: styleText('bold', String(result.totalCovered)),
     degraded:
@@ -312,9 +334,9 @@ export function renderDirectorySummaryTable(result: CoverageMapResult): string {
 
 export function renderFilesTable(files: readonly FileCoverageEntry[]): string {
   const columns: TableColumn<FileTableRow>[] = [
-    { header: 'ARCHIVO VERSIONADO', width: 44, align: 'left', key: 'file' },
-    { header: 'ESTADO', width: 15, align: 'left', key: 'status' },
-    { header: 'SUITES QUE LO ANALIZAN', width: 35, align: 'left', key: 'suites' }
+    { header: 'VERSIONED FILE', width: 44, align: 'left', key: 'file' },
+    { header: 'STATUS', width: 15, align: 'left', key: 'status' },
+    { header: 'COVERING SUITES', width: 35, align: 'left', key: 'suites' }
   ];
 
   const rows: FileTableRow[] = files.map((f) => {
@@ -322,20 +344,20 @@ export function renderFilesTable(files: readonly FileCoverageEntry[]): string {
     let suitesText: string;
 
     if (f.status === 'covered') {
-      statusText = styleText('green', '✅ CUBIERTO');
+      statusText = styleText('green', 'COVERED');
       suitesText =
         f.coveringSuites.slice(0, 3).join(', ') +
         (f.coveringSuites.length > 3 ? ` (+${f.coveringSuites.length - 3})` : '');
     } else if (f.status === 'degraded') {
-      statusText = styleText('yellow', '⚠️  DEGRADADO');
+      statusText = styleText('yellow', 'DEGRADED');
       const policies = f.degradedPolicies.map((p) => p.configKey).join(', ');
-      suitesText = styleText('yellow', `Silenciado: ${policies}`);
+      suitesText = styleText('yellow', `Silenced: ${policies}`);
     } else if (f.status === 'exempt') {
-      statusText = styleText('cyan', '⏭️  EXENTO');
-      suitesText = styleText('dim', f.exemptionReason ?? 'Exención configurada');
+      statusText = styleText('cyan', 'EXEMPT');
+      suitesText = styleText('dim', f.exemptionReason ?? 'Configured exemption');
     } else {
-      statusText = styleText('red', '❌ DESCUBIERTO');
-      suitesText = styleText('red', 'Ninguna suite lo analiza');
+      statusText = styleText('red', 'UNCOVERED');
+      suitesText = styleText('red', 'Not analyzed by any suite');
     }
 
     return {
@@ -350,12 +372,60 @@ export function renderFilesTable(files: readonly FileCoverageEntry[]): string {
   const degradedCount = files.filter((f) => f.status === 'degraded').length;
 
   const footerRow: FileTableRow = {
-    file: styleText('bold', 'TOTAL CONSOLIDADO'),
-    status: styleText('bold', `${files.length} archivos`),
-    suites: `${styleText('green', `${coveredCount} cubiertos`)} | ${styleText('yellow', `${degradedCount} degradados`)} | ${styleText('red', `${uncoveredCount} descubiertos`)}`
+    file: styleText('bold', 'CONSOLIDATED TOTAL'),
+    status: styleText('bold', `${files.length} files`),
+    suites: `${styleText('green', `${coveredCount} covered`)} | ${styleText('yellow', `${degradedCount} degraded`)} | ${styleText('red', `${uncoveredCount} uncovered`)}`
   };
 
   return renderBoxTable(columns, rows, { footerRows: [footerRow] });
+}
+
+function renderCoverageMapCompact(
+  result: CoverageMapResult,
+  options: CoverageMapCliOptions
+): void {
+  if (options.uncoveredOnly) {
+    const uncovered = result.files.filter((f) => f.status === 'uncovered');
+    console.log(`[CoverageMap] Uncovered files (${uncovered.length}):`);
+    for (const f of uncovered) {
+      console.log(`  [Uncovered] ${f.file}`);
+    }
+    return;
+  }
+
+  if (options.degradedOnly) {
+    const degraded = result.files.filter((f) => f.status === 'degraded');
+    console.log(`[CoverageMap] Degraded files (${degraded.length}):`);
+    for (const f of degraded) {
+      const policies = f.degradedPolicies.map((p) => p.configKey).join(', ');
+      console.log(`  [Degraded] ${f.file} (silenced: ${policies})`);
+    }
+    return;
+  }
+
+  if (options.filesOnly) {
+    console.log(`[CoverageMap] Files (${result.files.length}):`);
+    for (const f of result.files) {
+      console.log(
+        `  [File] ${f.file} status=${f.status} suites=${f.coveringSuites.join(',') || 'none'}`
+      );
+    }
+    return;
+  }
+
+  console.log(
+    `[CoverageMap] Directories: ${result.directories.length} | Tracked: ${result.totalTracked} | Covered: ${result.totalCovered} | Degraded: ${result.totalDegraded} | Uncovered: ${result.totalUncovered} | Coverage: ${result.overallCoveragePercent}%`
+  );
+  for (const d of result.directories) {
+    console.log(
+      `  [Dir] ${d.directory === '.' ? '(root)' : d.directory}: ${d.covered}/${d.total} covered (${d.coveragePercent}%) degraded=${d.degraded} uncovered=${d.uncovered}`
+    );
+  }
+  if (result.totalUncovered > 0) {
+    console.log(`[CoverageMap] Status: FAIL (${result.totalUncovered} uncovered files)`);
+  } else {
+    console.log(`[CoverageMap] Status: OK (${result.overallCoveragePercent}% coverage)`);
+  }
 }
 
 export async function runCoverageMapReport(
@@ -368,12 +438,17 @@ export async function runCoverageMapReport(
     return;
   }
 
+  if (!isHumanConsoleMode(options)) {
+    renderCoverageMapCompact(result, options);
+    return;
+  }
+
   const runSubtitle = result.runId
     ? `Run ID: ${result.runId}`
-    : 'Sin ledgers activos (ejecuta npm run auditor)';
+    : 'No active ledgers (run npm run auditor)';
   console.log(
     renderBanner(
-      'MAPA DE COBERTURA DE AUDITORÍA Y PUNTOS CIEGOS',
+      'AUDIT COVERAGE MAP & BLIND SPOTS',
       `v${AUDITOR_VERSION}  |  ${runSubtitle}`
     )
   );
@@ -382,13 +457,13 @@ export async function runCoverageMapReport(
     console.log(
       styleText(
         'yellow',
-        '\n⚠️  No se encontraron ledgers de cobertura en scratch/audits/coverage.'
+        '\n[Warning] No coverage ledgers found in scratch/audits/coverage.'
       )
     );
     console.log(
       styleText(
         'dim',
-        '   Ejecuta una corrida completa con `npm run auditor` para registrar qué suites escanean cada archivo.\n'
+        '   Run a full audit with `npm run auditor` to record which suites scan each file.\n'
       )
     );
   }
@@ -396,13 +471,13 @@ export async function runCoverageMapReport(
   if (options.uncoveredOnly) {
     const uncovered = result.files.filter((f) => f.status === 'uncovered');
     console.log(
-      styleText('bold', `\n🔍 ARCHIVOS DESCUBIERTOS / PUNTOS CIEGOS (${uncovered.length}):\n`)
+      styleText('bold', `\n[CoverageMap] Uncovered files / blind spots (${uncovered.length}):\n`)
     );
     if (uncovered.length === 0) {
       console.log(
         styleText(
           'green',
-          '✨ ¡Cero archivos descubiertos! 100% de los archivos versionados están cubiertos por suites.\n'
+          '[OK] Zero uncovered files. 100% of versioned files are covered by suites.\n'
         )
       );
     } else {
@@ -417,14 +492,14 @@ export async function runCoverageMapReport(
     console.log(
       styleText(
         'bold',
-        `\n⚠️  ARCHIVOS CON REGLAS SILENCIADAS / DEGRADADAS (${degraded.length}):\n`
+        `\n[Warning] Files with silenced / degraded rules (${degraded.length}):\n`
       )
     );
     if (degraded.length === 0) {
       console.log(
         styleText(
           'green',
-          '✨ ¡Cero archivos degradados! No hay reglas silenciadas por configuración en archivos activos.\n'
+          '[OK] Zero degraded files. No silenced rules in active files.\n'
         )
       );
     } else {
@@ -435,13 +510,13 @@ export async function runCoverageMapReport(
   }
 
   if (options.filesOnly) {
-    console.log(styleText('bold', `\n📋 DETALLE COMPLETO DE ARCHIVOS (${result.files.length}):\n`));
+    console.log(styleText('bold', `\n[CoverageMap] Full file details (${result.files.length}):\n`));
     console.log(renderFilesTable(result.files));
     console.log();
     return;
   }
 
-  console.log(styleText('bold', '\n🗺️  RESUMEN DE COBERTURA POR MÓDULO / DIRECTORIO:\n'));
+  console.log(styleText('bold', '\n[CoverageMap] Module / directory coverage summary:\n'));
   console.log(renderDirectorySummaryTable(result));
   console.log();
 
@@ -449,20 +524,20 @@ export async function runCoverageMapReport(
     console.log(
       styleText(
         'red',
-        `❌ Se detectaron ${result.totalUncovered} archivo(s) sin cobertura de auditoría.`
+        `[Error] Detected ${result.totalUncovered} file(s) without audit coverage.`
       )
     );
     console.log(
       styleText(
         'dim',
-        '   Usa `npm run auditor:coverage-map -- --uncovered` para ver el detalle de archivos.\n'
+        '   Run `npm run auditor:coverage-map -- --uncovered` to view uncovered files.\n'
       )
     );
   } else {
     console.log(
       styleText(
         'green',
-        `✨ Cobertura completa: ${result.overallCoveragePercent}% de los archivos activos tienen verificación arquitectónica.\n`
+        `[OK] Complete coverage: ${result.overallCoveragePercent}% of active files have architectural verification.\n`
       )
     );
   }
@@ -471,7 +546,7 @@ export async function runCoverageMapReport(
 if (isMainModule(import.meta.url)) {
   runCoverageMapReport().catch((err) => {
     console.error(
-      styleText('red', `\n💥 Error en auditor:coverage-map: ${(err as Error).message}`)
+      styleText('red', `\n[Error] auditor:coverage-map failed: ${(err as Error).message}`)
     );
     process.exit(1);
   });

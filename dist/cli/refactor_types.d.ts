@@ -6,5 +6,5 @@
  * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
  * for `as any`, double assertions, and explicit function return contracts.
  */
-export declare function runRefactorTypesCli(argv?: string[]): Promise<void>;
+export declare function runRefactorTypesCli(argv?: readonly string[]): Promise<void>;
 //#endregion

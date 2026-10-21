@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
 import { runSetup } from "./setup_env.js";
 import path from "node:path";
@@ -54,8 +55,8 @@ function getAuditorEngines() {
 function validateHostEnginesDeclaration(hostPkg, projectName, verbose = true) {
 	if (!hostPkg.engines?.node || !hostPkg.engines?.npm) {
 		if (verbose) {
-			console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-			console.error("El archivo package.json debe declarar explícitamente \"engines.node\" y \"engines.npm\".");
+			console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
+			console.error("The package.json file must explicitly declare \"engines.node\" and \"engines.npm\".");
 		}
 		return false;
 	}
@@ -68,11 +69,11 @@ function validateHostEnginesDeclaration(hostPkg, projectName, verbose = true) {
 	const isHostNpmEngineAdequate = compareVersions(hostNpmReq, auditorNpmReq);
 	if (!isHostNodeEngineAdequate || !isHostNpmEngineAdequate) {
 		if (verbose) {
-			console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-			console.error("Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @francogp/auditor:");
-			console.error(`  - Requisito del Auditor: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`);
-			console.error(`  - Declarado en Host:     Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`);
-			console.error("\nActualiza \"engines.node\" y \"engines.npm\" en package.json para satisfacer o superar el piso del auditor.");
+			console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
+			console.error("The Node.js or npm versions declared in package.json are LOWER than those required by @francogp/auditor:");
+			console.error(`  - Auditor Requirement: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`);
+			console.error(`  - Declared in Host:    Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`);
+			console.error("\nUpdate \"engines.node\" and \"engines.npm\" in package.json to meet or exceed the auditor baseline.");
 		}
 		return false;
 	}
@@ -81,19 +82,19 @@ function validateHostEnginesDeclaration(hostPkg, projectName, verbose = true) {
 function printEnvironmentRemediation(nodeReq, npmReq, npmDetected) {
 	const isWindows = process.platform === "win32";
 	const targetNodeVer = nodeReq.replace(/[^0-9.]/g, "");
-	console.error(`Requisito configurado en package.json ("engines"):`);
-	console.error(`  - Node.js: \x1b[33m${nodeReq}\x1b[0m (Detectado: v${process.versions.node})`);
-	console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detectado: v${npmDetected})\n`);
-	console.error("\x1B[32m\x1B[1m💡 CÓMO SOLUCIONARLO SIN AFECTAR OTROS PROYECTOS:\x1B[0m");
-	console.error("Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:");
+	console.error(`Requirement configured in package.json ("engines"):`);
+	console.error(`  - Node.js: \x1b[33m${nodeReq}\x1b[0m (Detected: v${process.versions.node})`);
+	console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detected: v${npmDetected})\n`);
+	console.error("\x1B[32m\x1B[1m💡 HOW TO RESOLVE WITHOUT AFFECTING OTHER PROJECTS:\x1B[0m");
+	console.error("Run the project setup script to activate the isolated environment:");
 	if (isWindows) {
 		console.error("  .\\setup-windows.ps1");
-		console.error("  (o ejecuta: vp env use " + targetNodeVer + ")");
+		console.error("  (or run: vp env use " + targetNodeVer + ")");
 	} else {
 		console.error("  ./setup-linux.sh");
-		console.error("  (o ejecuta: vp env use " + targetNodeVer + ")");
+		console.error("  (or run: vp env use " + targetNodeVer + ")");
 	}
-	console.error("\nℹ️  Convivencia multi-proyecto: El proyecto lee .node-version localmente sin alterar tus otros proyectos.\n");
+	console.error("\nℹ️  Multi-project isolation: The project reads .node-version locally without altering your other projects.\n");
 }
 function validateRuntimeEnvironment(hostPkg, projectName, verbose = true) {
 	if (!hostPkg.engines?.node || !hostPkg.engines?.npm) return false;
@@ -106,14 +107,15 @@ function validateRuntimeEnvironment(hostPkg, projectName, verbose = true) {
 	const isCurrentNpmValid = currentNpm.major === 0 || compareVersions(currentNpm, hostNpmReq);
 	if (!isCurrentNodeValid || !isCurrentNpmValid) {
 		if (verbose) {
-			console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
-			printEnvironmentRemediation(hostPkg.engines.node, hostPkg.engines.npm, npmMatch ? npmMatch[1] : "desconocido");
+			console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
+			printEnvironmentRemediation(hostPkg.engines.node, hostPkg.engines.npm, npmMatch ? npmMatch[1] : "unknown");
 		}
 		return false;
 	}
 	return true;
 }
 function checkEnvironment(targetDir = process.cwd(), autoRemediate = true) {
+	const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
 	const hostPkgPath = path.resolve(targetDir, "package.json");
 	if (!fs.existsSync(hostPkgPath)) {
 		console.error(`[check_environment] package.json not found in ${targetDir}`);
@@ -126,15 +128,15 @@ function checkEnvironment(targetDir = process.cwd(), autoRemediate = true) {
 	if (isDeclaredValid && isRuntimeValid) return true;
 	const setupScriptName = process.platform === "win32" ? "setup-windows.ps1" : "setup-linux.sh";
 	const setupScriptPath = path.resolve(targetDir, setupScriptName);
-	const isPreinstallHook = process.env.npm_lifecycle_event === "preinstall" || process.argv.includes("preinstall");
+	const isPreinstallHook = process.env.npm_lifecycle_event === "preinstall" || parsed._.map(String).includes("preinstall");
 	if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
-		console.log(`\n\x1b[36m\x1b[1m🔄 Desalineación de entorno detectada en ${projectName}. Ejecutando automáticamente ${setupScriptName} para sincronizar el entorno...\x1b[0m\n`);
+		console.log(`\n\x1b[36m\x1b[1m🔄 Environment drift detected in ${projectName}. Automatically running ${setupScriptName} to synchronize environment...\x1b[0m\n`);
 		if (runSetup([], targetDir) === 0) {
 			const refreshedPkg = JSON.parse(fs.readFileSync(hostPkgPath, "utf8"));
 			const refreshedDeclared = validateHostEnginesDeclaration(refreshedPkg, projectName, false);
 			const refreshedRuntime = refreshedDeclared && validateRuntimeEnvironment(refreshedPkg, projectName, false);
 			if (refreshedDeclared && refreshedRuntime) {
-				console.log(`\n\x1b[32m\x1b[1m✅ Auto-remediación completada con éxito. El entorno de ${projectName} ha sido actualizado y sincronizado.\x1b[0m\n`);
+				console.log(`\n\x1b[32m\x1b[1m✅ Auto-remediation completed successfully. The ${projectName} environment has been updated and synchronized.\x1b[0m\n`);
 				return true;
 			}
 		}

@@ -35,9 +35,9 @@ export const FILE_ENCODING_RULES = [
 export type FileEncodingRuleId = (typeof FILE_ENCODING_RULES)[number];
 
 export const FILE_ENCODING_RULE_DESCRIPTIONS: Record<FileEncodingRuleId, string> = {
-  'file-encoding-invalid-charset': 'Exige codificación UTF-8 limpia',
-  'file-encoding-unwanted-bom': 'Prohíbe Byte Order Mark (BOM)',
-  'file-encoding-mojibake-detected': 'Detección de mojibake corrupto'
+  'file-encoding-invalid-charset': 'Clean UTF-8 encoding required',
+  'file-encoding-unwanted-bom': 'Byte Order Mark (BOM) prohibited',
+  'file-encoding-mojibake-detected': 'Corrupt mojibake detected'
 };
 
 export const FILE_ENCODING_RULE_REMEDIATIONS: Record<FileEncodingRuleId, string> = {
@@ -222,7 +222,7 @@ export function inspectBufferEncoding(
         ruleId: 'file-encoding-unwanted-bom',
         severity: 'error',
         message:
-          'El archivo contiene un Byte Order Mark (BOM) UTF-8 (0xEF, 0xBB, 0xBF). Se exige UTF-8 limpio sin BOM.',
+          'The file contains a UTF-8 Byte Order Mark (BOM) (0xEF, 0xBB, 0xBF). Clean UTF-8 without BOM is required.',
         context: 'BOM: UTF-8',
         line: 1,
         col: 1,
@@ -237,8 +237,8 @@ export function inspectBufferEncoding(
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
       message:
-        'El archivo está codificado en UTF-16LE con BOM. Se exige codificación estándar UTF-8 sin BOM.',
-      context: 'Charset: UTF-16LE con BOM',
+        'The file is encoded in UTF-16LE with BOM. Standard UTF-8 without BOM is required.',
+      context: 'Charset: UTF-16LE with BOM',
       line: 1,
       col: 1,
       repairAction: 'transcode-utf16le'
@@ -251,8 +251,8 @@ export function inspectBufferEncoding(
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
       message:
-        'El archivo está codificado en UTF-16BE con BOM. Se exige codificación estándar UTF-8 sin BOM.',
-      context: 'Charset: UTF-16BE con BOM',
+        'The file is encoded in UTF-16BE with BOM. Standard UTF-8 without BOM is required.',
+      context: 'Charset: UTF-16BE with BOM',
       line: 1,
       col: 1,
       repairAction: 'transcode-utf16be'
@@ -265,8 +265,8 @@ export function inspectBufferEncoding(
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
       message:
-        'El archivo contiene bytes alternantes nulos (UTF-16LE sin BOM). Se exige UTF-8 estándar.',
-      context: 'Charset: UTF-16LE sin BOM',
+        'The file contains alternating null bytes (UTF-16LE without BOM). Standard UTF-8 is required.',
+      context: 'Charset: UTF-16LE without BOM',
       line: 1,
       col: 1,
       repairAction: 'transcode-utf16le'
@@ -283,8 +283,8 @@ export function inspectBufferEncoding(
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
       message:
-        'El archivo contiene secuencias de bytes inválidas para UTF-8 (posible Windows-1252 / ISO-8859-1).',
-      context: 'Charset: No-UTF8 inválido',
+        'The file contains byte sequences invalid for UTF-8 (likely Windows-1252 / ISO-8859-1).',
+      context: 'Charset: Invalid Non-UTF8',
       line: 1,
       col: 1,
       repairAction: 'transcode-win1252'
@@ -305,7 +305,7 @@ export function inspectBufferEncoding(
         return {
           ruleId: 'file-encoding-mojibake-detected',
           severity: 'warning',
-          message: `Se detectó posible doble codificación (mojibake): "${match[0]}" en "${snippet}".`,
+          message: `Possible double encoding (mojibake) detected: "${match[0]}" in "${snippet}".`,
           context: snippet,
           line: lineNum,
           col: colNum
@@ -361,9 +361,9 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       requiredPermissions: [],
       id: 'validate_file_encoding',
       name: 'File Encoding & Charset Validator',
-      description: 'Garantiza codificación UTF-8 sin BOM y transcodificación',
+      description: 'Ensures UTF-8 encoding without BOM and transcodings',
       family: 'architecture',
-      packageName: 'Codificación',
+      packageName: 'Encoding',
       icon: '🔤',
       configKey: 'encoding',
       defaultConfig: {

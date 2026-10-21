@@ -145,7 +145,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       fix: options.fix,
       id: 'validate_accessibility',
       name: 'Vue & Web Accessibility Standards Auditor',
-      description: 'Valida estándares WCAG 2.1/2.2 y accesibilidad',
+      description: 'Validates WCAG 2.1/2.2 standards and accessibility',
       family: 'architecture',
       packageName: 'A11y',
       configKey: 'accessibility.enabled',
@@ -155,70 +155,70 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       ruleIds: ACCESSIBILITY_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(ACCESSIBILITY_RULES, 'behavior'),
       ruleDescriptions: {
-        'a11y-img-alt': 'Imagen sin atributo alt accesible',
-        'a11y-form-control-has-label': 'Control de formulario sin label',
-        'a11y-interactive-supports-focus': 'Elemento interactivo sin foco',
-        'a11y-anchor-has-content': 'Enlace o botón sin texto o label',
-        'a11y-aria-role-invalid': 'Rol o atributo ARIA no conforme',
-        'a11y-viewport-zoom-lock': 'Bloqueo de zoom en viewport HTML'
+        'a11y-img-alt': 'Image missing accessible alt attribute',
+        'a11y-form-control-has-label': 'Form control missing label',
+        'a11y-interactive-supports-focus': 'Interactive element missing focus',
+        'a11y-anchor-has-content': 'Link or button missing text or label',
+        'a11y-aria-role-invalid': 'Non-compliant ARIA role or attribute',
+        'a11y-viewport-zoom-lock': 'Viewport zoom lock in HTML'
       },
       ruleRemediations: {
         'a11y-img-alt':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-img-alt\n' +
-          '1. Causa Raíz: Se encontró una etiqueta `<img>` sin atributo `alt` (o con `alt` ausente). Los lectores de pantalla no pueden transmitir el contenido visual a usuarios con discapacidad visual (WCAG 1.1.1).\n' +
-          '2. Diagnóstico: Ubica la imagen señalada en la plantilla del componente Vue.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Si la imagen aporta información: describe su contenido de forma concisa mediante `alt="Descripción del gráfico o foto"`.\n' +
-          '   b) Si la imagen es puramente decorativa: añade un atributo alt vacío explícito `alt=""` o `aria-hidden="true"`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Inaccesible: `<img src="/logo.png">`\n' +
-          '   ✅ Accesible:   `<img src="/logo.png" alt="Logotipo de la aplicación">`',
+          '📖 REMEDIATION GUIDE: a11y-img-alt\n' +
+          '1. Root Cause: An `<img>` tag was found without an `alt` attribute (or with missing `alt`). Screen readers cannot convey visual content to visually impaired users (WCAG 1.1.1).\n' +
+          '2. Diagnosis: Locate the reported image in the Vue component template.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) If the image conveys information: concisely describe its content via `alt="Description of graphic or photo"`.\n' +
+          '   b) If the image is purely decorative: add an explicit empty `alt=""` or `aria-hidden="true"`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Inaccessible: `<img src="/logo.png">`\n' +
+          '   ✅ Accessible:   `<img src="/logo.png" alt="Application logo">`',
         'a11y-form-control-has-label':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-form-control-has-label\n' +
-          '1. Causa Raíz: Un control de formulario (`<input>`, `<select>`, `<textarea>`) carece de etiqueta accesible asociada, impidiendo que los lectores de pantalla anuncien el propósito del campo (WCAG 1.3.1 / 4.1.2).\n' +
-          '2. Diagnóstico: Examina el campo de formulario en la línea reportada.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Asocia una etiqueta `<label :for="id">Texto</label>` con el `id` correspondiente del control.\n' +
-          '   b) O añade un atributo `aria-label="Nombre del campo"` o `aria-labelledby="labelId"`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Inaccesible: `<input v-model="email" type="email" placeholder="Correo">`\n' +
-          '   ✅ Accesible:   `<input v-model="email" type="email" aria-label="Correo electrónico">`',
+          '📖 REMEDIATION GUIDE: a11y-form-control-has-label\n' +
+          '1. Root Cause: A form control (`<input>`, `<select>`, `<textarea>`) lacks an associated accessible label, preventing screen readers from announcing field purpose (WCAG 1.3.1 / 4.1.2).\n' +
+          '2. Diagnosis: Examine the form control at the reported line.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Associate a `<label :for="id">Text</label>` with the control\'s matching `id`.\n' +
+          '   b) Or add an `aria-label="Field name"` or `aria-labelledby="labelId"` attribute.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Inaccessible: `<input v-model="email" type="email" placeholder="Email">`\n' +
+          '   ✅ Accessible:   `<input v-model="email" type="email" aria-label="Email address">`',
         'a11y-interactive-supports-focus':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-interactive-supports-focus\n' +
-          '1. Causa Raíz: Un elemento no interactivo (como `<div>` o `<span>`) tiene directivas `@click` pero no es accesible mediante teclado (`tabindex` o eventos de teclado), excluyendo a usuarios que navegan sin ratón (WCAG 2.1.1).\n' +
-          '2. Diagnóstico: Revisa el elemento con manejador `@click` reportado.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Convierte el elemento en un botón semántico nativo: `<button type="button" @click="...">`.\n' +
-          '   b) Si debe ser un div por diseño, añade `role="button"`, `tabindex="0"` y un manejador `@keydown.enter.space="..."`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Inaccesible: `<div class="card" @click="selectItem">`\n' +
-          '   ✅ Semántico:   `<button type="button" class="card" @click="selectItem">`',
+          '📖 REMEDIATION GUIDE: a11y-interactive-supports-focus\n' +
+          '1. Root Cause: A non-interactive element (e.g. `<div>` or `<span>`) has `@click` handlers but is not keyboard accessible (`tabindex` or keyboard listeners), excluding keyboard-only users (WCAG 2.1.1).\n' +
+          '2. Diagnosis: Check the element with `@click` at the reported line.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Convert the element into a native semantic button: `<button type="button" @click="...">`.\n' +
+          '   b) If it must remain a div for layout, add `role="button"`, `tabindex="0"`, and a `@keydown.enter.space="..."` listener.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Inaccessible: `<div class="card" @click="selectItem">`\n' +
+          '   ✅ Semantic:     `<button type="button" class="card" @click="selectItem">`',
         'a11y-anchor-has-content':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-anchor-has-content\n' +
-          '1. Causa Raíz: Un enlace (`<a>`) o botón (`<button>`) no contiene texto visible ni etiqueta accesible (por ejemplo, contiene únicamente un icono visual sin texto alternativo), por lo que el lector de pantalla no puede anunciar su destino o acción (WCAG 2.4.4 / 4.1.2).\n' +
-          '2. Diagnóstico: Comprueba el contenido del enlace o botón en la plantilla.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Añade texto descriptivo dentro del elemento o una etiqueta oculta para lectores: `<span class="sr-only">Cerrar</span>`.\n' +
-          '   b) O define el atributo `aria-label="Descripción de la acción"`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Vacío:     `<button @click="close"><i class="icon-close" /></button>`\n' +
-          '   ✅ Accesible: `<button @click="close" aria-label="Cerrar modal"><i class="icon-close" aria-hidden="true" /></button>`',
+          '📖 REMEDIATION GUIDE: a11y-anchor-has-content\n' +
+          '1. Root Cause: A link (`<a>`) or button (`<button>`) has no visible text or accessible label (e.g. an icon without text alternative), preventing screen readers from announcing its destination or action (WCAG 2.4.4 / 4.1.2).\n' +
+          '2. Diagnosis: Check link or button content in the template.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Add descriptive text or a visually hidden label: `<span class="sr-only">Close</span>`.\n' +
+          '   b) Or define `aria-label="Action description"`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Empty:      `<button @click="close"><i class="icon-close" /></button>`\n' +
+          '   ✅ Accessible: `<button @click="close" aria-label="Close modal"><i class="icon-close" aria-hidden="true" /></button>`',
         'a11y-aria-role-invalid':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-aria-role-invalid\n' +
-          '1. Causa Raíz: Se utilizó un valor no reconocido o mal escrito en el atributo `role="..."`. La especificación W3C WAI-ARIA define un catálogo estricto de roles válidos.\n' +
-          '2. Diagnóstico: Revisa el valor asignado a `role` en el elemento reportado.\n' +
-          '3. Solución Canónica: Corrige el valor utilizando un rol WAI-ARIA canónico (ej: `dialog`, `button`, `navigation`, `tab`, `alert`).\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Inválido: `<div role="modal-box">`\n' +
-          '   ✅ Conforme: `<div role="dialog" aria-modal="true">`',
+          '📖 REMEDIATION GUIDE: a11y-aria-role-invalid\n' +
+          '1. Root Cause: An unrecognized or misspelled value was used in `role="..."`. W3C WAI-ARIA defines an exact catalog of valid roles.\n' +
+          '2. Diagnosis: Inspect the value assigned to `role` at the reported element.\n' +
+          '3. Canonical Solution: Correct the value using a canonical WAI-ARIA role (e.g. `dialog`, `button`, `navigation`, `tab`, `alert`).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Invalid:    `<div role="modal-box">`\n' +
+          '   ✅ Compliant:  `<div role="dialog" aria-modal="true">`',
         'a11y-viewport-zoom-lock':
-          '📖 GUÍA DE REMEDIACIÓN: a11y-viewport-zoom-lock\n' +
-          '1. Causa Raíz: La etiqueta `<meta name="viewport">` en `index.html` bloquea el zoom del usuario (`user-scalable=no` o `maximum-scale=1.0`). Esto impide que personas con baja visión amplíen el contenido, violando WCAG 1.4.4 (Resize Text).\n' +
-          '2. Diagnóstico: Inspecciona el archivo `index.html` en la etiqueta meta viewport.\n' +
-          '3. Solución Canónica: Elimina `user-scalable=no`, `user-scalable=0` y `maximum-scale=1.0`. Permite que el viewport sea el estándar responsivo.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Bloqueo: `<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">`\n' +
-          '   ✅ Accesible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`'
+          '📖 REMEDIATION GUIDE: a11y-viewport-zoom-lock\n' +
+          '1. Root Cause: The `<meta name="viewport">` tag in `index.html` disables user zooming (`user-scalable=no` or `maximum-scale=1.0`), preventing low-vision users from magnifying content (WCAG 1.4.4 Resize Text).\n' +
+          '2. Diagnosis: Inspect `index.html` at the viewport meta tag.\n' +
+          '3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Allow standard responsive zoom.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Locked:     `<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">`\n' +
+          '   ✅ Accessible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`'
       },
       projectRoot: effectiveRoot,
       coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
@@ -318,7 +318,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           line: lineNum,
           context: match[0],
           message:
-            'Elemento <img> no posee atributo alt accesible. Viola WCAG 1.1.1 Non-text Content.',
+            'Element <img> is missing accessible alt attribute. Violates WCAG 1.1.1 Non-text Content.',
           fixable: false
         });
       }
@@ -355,7 +355,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           line: lineNum,
           context: match[0],
           message:
-            'Control de formulario sin label asociado ni aria-label. Viola WCAG 1.3.1 Info and Relationships.',
+            'Form control missing associated label or aria-label. Violates WCAG 1.3.1 Info and Relationships.',
           fixable: false
         });
       }
@@ -380,7 +380,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           file: relPath,
           line: lineNum,
           context: match[0],
-          message: `Elemento no interactivo <${match[1]}> con manejador de clic sin soporte de foco ni teclado. Viola WCAG 2.1.1 Keyboard.`,
+          message: `Non-interactive element <${match[1]}> with click handler without focus or keyboard support. Violates WCAG 2.1.1 Keyboard.`,
           fixable: false
         });
       }
@@ -408,7 +408,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           file: relPath,
           line: lineNum,
           context: match[0].slice(0, 100),
-          message: `Elemento <${tag}> carece de contenido textual accesible o aria-label. Viola WCAG 2.4.4 Link Purpose.`,
+          message: `Element <${tag}> lacks accessible textual content or aria-label. Violates WCAG 2.4.4 Link Purpose.`,
           fixable: false
         });
       }
@@ -428,7 +428,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           file: relPath,
           line: lineNum,
           context: match[0],
-          message: `El rol ARIA '${roleVal}' no es un rol WAI-ARIA válido conforme a W3C.`,
+          message: `ARIA role '${roleVal}' is not a valid WAI-ARIA role according to W3C.`,
           fixable: false
         });
       }
@@ -440,7 +440,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     if (!fs.existsSync(indexPath)) {
       this.markRuleNotApplicable(
         'a11y-viewport-zoom-lock',
-        `No existe ${INDEX_HTML_FILE} en la raíz del proyecto`
+        `${INDEX_HTML_FILE} does not exist at project root`
       );
       return;
     }
@@ -465,7 +465,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         line: lineNum,
         context: tag.trim(),
         message:
-          'Meta viewport bloquea el zoom móvil (user-scalable=no o maximum-scale=1.0). Viola WCAG 1.4.4 Resize text.',
+          'Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.',
         fixable: false
       });
     }

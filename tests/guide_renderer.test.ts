@@ -57,7 +57,7 @@ describe('guideRenderer', () => {
   it('renders a formatted rule guide card with Box-Drawing border', () => {
     const match = findRuleGuide([sampleTask], 'sample-rule-1')!;
     const output = renderRuleGuideCard(match);
-    expect(output).toContain('GUÍA DE REMEDIACIÓN: sample-rule-1');
+    expect(output).toContain('REMEDIATION GUIDE: sample-rule-1');
     expect(output).toContain('Pasos para solucionar regla 1.');
     expect(output).toContain('npm run auditor suite=validate_sample_task');
     expect(output).toContain('sample.enabled');
@@ -70,8 +70,8 @@ describe('guideRenderer', () => {
     };
     const match = findRuleGuide([taskNoConfig], 'sample-rule-1')!;
     const output = renderRuleGuideCard(match);
-    expect(output).toContain('GUÍA DE REMEDIACIÓN: sample-rule-1');
-    expect(output).not.toContain('CONFIGURACIÓN VINCULADA:');
+    expect(output).toContain('REMEDIATION GUIDE: sample-rule-1');
+    expect(output).not.toContain('LINKED CONFIGURATION:');
   });
 
   it('renders family guide index with default puzzle icon when icon is omitted', () => {
@@ -105,20 +105,20 @@ describe('guideRenderer', () => {
       ruleDescriptions: {}
     };
     const output = renderSuiteGuideCards(taskWithoutRules);
-    expect(output).toContain('no declara reglas evaluables');
+    expect(output).toContain('does not declare evaluable rules');
   });
 
   it('renders family guide index', () => {
     const output = renderFamilyGuideIndex('architecture', [sampleTask]);
-    expect(output).toContain('CATÁLOGO DE REGLAS Y GUÍAS PARA LA FAMILIA: ARCHITECTURE');
+    expect(output).toContain('RULES & GUIDES CATALOG FOR FAMILY: ARCHITECTURE');
     expect(output).toContain('Sample Suite');
     expect(output).toContain('sample-rule-1');
   });
 
   it('renders global guide index with command examples', () => {
     const output = renderGlobalGuideIndex([sampleTask]);
-    expect(output).toContain('SISTEMA DE GUÍAS Y MANUALES A PEDIDO');
+    expect(output).toContain('ON-DEMAND AUDIT GUIDES & MANUALS');
     expect(output).toContain('auditor guide <ruleId>');
-    expect(output).toContain('Total de reglas documentadas');
+    expect(output).toContain('Total documented rules');
   });
 });

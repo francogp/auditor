@@ -107,7 +107,7 @@ describe('report_coverage_map', () => {
           status: 'exempt',
           coveringSuites: [],
           degradedPolicies: [],
-          exemptionReason: 'Directorio/archivo canónico ignorado (dist/scratch/etc)'
+          exemptionReason: 'Canonical ignored directory/file (dist/scratch/etc)'
         },
         {
           file: 'unknown.ts',
@@ -118,22 +118,22 @@ describe('report_coverage_map', () => {
       ]
     };
 
-    it('renders directory summary table with TOTAL CONSOLIDADO', () => {
+    it('renders directory summary table with CONSOLIDATED TOTAL', () => {
       const table = renderDirectorySummaryTable(mockResult);
-      expect(table).toContain('DIRECTORIO / MÓDULO');
-      expect(table).toContain('TOTAL CONSOLIDADO');
+      expect(table).toContain('DIRECTORY / MODULE');
+      expect(table).toContain('CONSOLIDATED TOTAL');
       expect(table).toContain('src/core');
-      expect(table).toContain('(archivos raíz)');
+      expect(table).toContain('(root files)');
     });
 
     it('renders files table with status labels', () => {
       const table = renderFilesTable(mockResult.files);
-      expect(table).toContain('ARCHIVO VERSIONADO');
-      expect(table).toContain('TOTAL CONSOLIDADO');
-      expect(table).toContain('CUBIERTO');
-      expect(table).toContain('DEGRADADO');
-      expect(table).toContain('EXENTO');
-      expect(table).toContain('DESCUBIERTO');
+      expect(table).toContain('VERSIONED FILE');
+      expect(table).toContain('CONSOLIDATED TOTAL');
+      expect(table).toContain('COVERED');
+      expect(table).toContain('DEGRADED');
+      expect(table).toContain('EXEMPT');
+      expect(table).toContain('UNCOVERED');
     });
   });
 

@@ -13,21 +13,21 @@ export const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[] = [
     id: 'node_modules',
     pattern: 'node_modules/',
     samplePath: 'node_modules/package/index.js',
-    reason: 'Directorio de dependencias instaladas de npm',
+    reason: 'Installed npm dependencies directory',
     isApplicable: () => true
   },
   {
     id: 'scratch',
     pattern: 'scratch/',
     samplePath: 'scratch/latest_audit.json',
-    reason: 'Directorio universal de reportes, caché y artefactos efímeros del auditor',
+    reason: 'Universal directory for auditor scratch reports, caches, and ephemeral artifacts',
     isApplicable: () => true
   },
   {
     id: '*.log',
     pattern: '*.log',
     samplePath: 'npm-debug.log',
-    reason: 'Archivos de logs de ejecución y volcados de depuración de CLI y Node.js',
+    reason: 'Execution logs and debug dump files from CLI and Node.js',
     isApplicable: () => true
   }
 ];

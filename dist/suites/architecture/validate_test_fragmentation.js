@@ -1,5 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { getProcessCliArgs } from "../../core/cli/cittyHarness.js";
 import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -71,7 +72,7 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_test_fragmentation",
 			name: "Test Anti-Fragmentation Validator",
-			description: "Previene micro-tests (<60 líns) y JSDOM innecesario",
+			description: "Prevents micro-tests (<60 lines) and unnecessary JSDOM",
 			family: "architecture",
 			ruleIds: TEST_FRAGMENTATION_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(TEST_FRAGMENTATION_RULES, "hygiene"),
@@ -81,12 +82,12 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "🧪",
 			ruleDescriptions: {
-				"no-fragmented-tests": "Archivo fragmentado (<60 líneas)",
-				"unnecessary-jsdom": "JSDOM innecesario sin Vue/DOM"
+				"no-fragmented-tests": "Fragmented test file (<60 lines)",
+				"unnecessary-jsdom": "Unnecessary JSDOM without Vue/DOM"
 			},
 			ruleRemediations: {
-				"no-fragmented-tests": "📖 GUÍA DE REMEDIACIÓN: no-fragmented-tests\n1. Causa Raíz: El archivo de test contiene menos de 60 líneas (micro-test). La proliferación de micro-tests fragmenta el runner de Vitest, multiplica el tiempo de importación de módulos y dificulta la visión integral del subsistema.\n2. Diagnóstico: Comprueba la cantidad de líneas del archivo de prueba reportado.\n3. Solución Canónica:\n   a) Consolida las aserciones de este archivo dentro de la suite de pruebas del módulo correspondiente (`<modulo>.test.ts`).\n   b) Si el archivo prueba un comportamiento autónomo, expande la cobertura incluyendo pruebas de casos borde, errores y caminos negativos.\n   c) Si es un test de integración o contrato deliberadamente conciso, añade el archivo a `testFragmentationWhitelist` en `audit.config.ts` o anota `// test-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Fragmentado: `userHelper.test.ts` con 25 líneas y un solo assert trivial.\n   ✅ Consolidado: Fusionado dentro de `userService.test.ts` cubriendo el ciclo completo.",
-				"unnecessary-jsdom": "📖 GUÍA DE REMEDIACIÓN: unnecessary-jsdom\n1. Causa Raíz: El archivo de test declara `// @vitest-environment jsdom` o está configurado para ejecutarse bajo JSDOM, pero su código no interactúa con el DOM de navegador, no monta componentes Vue ni accede a `document`/`window`.\n2. Diagnóstico: Inspecciona el archivo de test y verifica si solo prueba lógica pura de TypeScript/Node.js.\n3. Solución Canónica: Elimina el comentario `// @vitest-environment jsdom` para que se ejecute en el entorno nativo `node` de Vitest, multiplicando por 10x la velocidad de arranque.\n4. Ejemplo:\n   ❌ Innecesario: `// @vitest-environment jsdom` en prueba de cálculos matemáticos.\n   ✅ Optimizado:  Eliminado; ejecuta en entorno nativo `node`."
+				"no-fragmented-tests": "📖 REMEDIATION GUIDE: no-fragmented-tests\n1. Root Cause: Test file has fewer than 60 lines (micro-test). A proliferation of micro-tests fragments the Vitest runner, multiplies module bootstrap overhead, and obscures subsystem cohesion.\n2. Diagnosis: Check the line count of the reported test file.\n3. Canonical Solution:\n   a) Consolidate assertions into the related module test suite (`<module>.test.ts`).\n   b) If testing a standalone behavior, expand test coverage with edge cases, failure modes, and negative assertions.\n   c) If this is an intentionally concise integration or contract test, add to `testFragmentationWhitelist` in `audit.config.ts` or annotate with `// test-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Fragmented: `userHelper.test.ts` with 25 lines and a single trivial assert.\n   ✅ Consolidated: Merged into `userService.test.ts` covering complete lifecycle.",
+				"unnecessary-jsdom": "📖 REMEDIATION GUIDE: unnecessary-jsdom\n1. Root Cause: The test file declares `// @vitest-environment jsdom` or runs under JSDOM, but does not interact with the browser DOM, mount Vue components, or access `document`/`window`.\n2. Diagnosis: Inspect the test file to see if it only exercises pure TypeScript/Node.js logic.\n3. Canonical Solution: Remove `// @vitest-environment jsdom` to run under Vitest native `node` environment, speeding execution up to 10x.\n4. Example / Auto-fix command:\n   ❌ Unnecessary: `// @vitest-environment jsdom` in math calculation test.\n   ✅ Optimized:   Removed; executes under native `node` environment."
 			},
 			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".js"]),
@@ -161,7 +162,7 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 		this.context.setMetric("Sobredimensionadas (>1200L)", this.distribution.oversized);
 		this.context.setMetric("Total Archivos Test", this.distribution.totalTestFiles);
 		this.context.setMetric("Total Líneas Test", this.distribution.totalTestLines);
-		if (process.argv.some((arg) => arg.includes("summary=true") || arg === "--summary")) this.printDistributionSummary();
+		if (getProcessCliArgs().some((token) => token.includes("summary=true") || token === "--summary")) this.printDistributionSummary();
 	}
 	printDistributionSummary() {
 		const d = this.distribution;

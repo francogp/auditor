@@ -6,5 +6,5 @@
  * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
  * for linear search anti-patterns, structuredClone migration, and ReadonlySet hoists.
  */
-export declare function runRefactorO1Cli(argv?: string[]): Promise<void>;
+export declare function runRefactorO1Cli(argv?: readonly string[]): Promise<void>;
 //#endregion

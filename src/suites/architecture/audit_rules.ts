@@ -44,19 +44,19 @@ export const FALLOW_SUITE_DESCRIPTORS: Record<
   dupes: {
     id: 'fallow:dupes',
     name: 'Fallow Code Duplication',
-    category: 'Fallow: Código duplicado',
+    category: 'Fallow: Duplicate code',
     aliases: ['dupes', 'duplicados', 'clones', 'fallow:dupes', 'fallow-dupes', 'fallow']
   },
   triplets: {
     id: 'fallow:triplets',
     name: 'Fallow Code Triplication',
-    category: 'Fallow: Código triplicado',
+    category: 'Fallow: Triplicate code',
     aliases: ['triplets', 'triplicados', 'fallow:triplets', 'fallow-triplets', 'fallow']
   },
   security: {
     id: 'fallow:security',
     name: 'Fallow Security CWE Vulnerabilities',
-    category: 'Fallow: Vulnerabilidad de seguridad',
+    category: 'Fallow: Security vulnerability',
     aliases: [
       'security',
       'seguridad',
@@ -71,7 +71,7 @@ export const FALLOW_SUITE_DESCRIPTORS: Record<
   'dead-code': {
     id: 'fallow:dead-code',
     name: 'Fallow Dead Code, Circular Dependencies & Unused',
-    category: 'Fallow: Archivos huérfanos',
+    category: 'Fallow: Orphaned files',
     aliases: [
       'dead-code',
       'deadcode',
@@ -96,7 +96,7 @@ export const FALLOW_SUITE_DESCRIPTORS: Record<
   health: {
     id: 'fallow:health',
     name: 'Fallow Code Health & Complexity',
-    category: 'Fallow: Complejidad',
+    category: 'Fallow: Complexity',
     aliases: [
       'health',
       'salud',
@@ -143,10 +143,10 @@ export const viewport: AuditRule = {
 export const legacyDates: AuditRule = {
   id: 'legacyDates',
   name: 'Temporal Migration',
-  category: 'Uso de Date (Temporal)',
+  category: 'Date Usage (Temporal)',
   aliases: ['temporal', 'date', 'dates', 'legacy-dates'],
   regex: /new Date\(|Date\.now\(\)/g,
-  message: "Uso de 'Date' detectado. Usa 'Temporal'.",
+  message: "Usage of 'Date' detected. Use 'Temporal'.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   appliesTo: (filePath: string) => {
     return !isExemptFile(filePath) && isInCodeRoots(filePath);
@@ -167,8 +167,8 @@ export const hardcodedTimezone: AuditRule = {
   message: (match: string) => {
     const tzVar = getAuditConfig().domain?.timezoneVariable ?? 'APP_TIMEZONE';
     const helperMod = getAuditConfig().domain?.timezoneHelperModule;
-    const modMsg = helperMod ? ` importada desde '${helperMod}'` : '';
-    return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}'${modMsg} para respetar la configuración del servidor.`;
+    const modMsg = helperMod ? ` imported from '${helperMod}'` : '';
+    return `Hardcoded timezone detected: '${match}'. Use global variable '${tzVar}'${modMsg} to respect server configuration.`;
   },
   severity: 'error',
   appliesTo: (filePath: string) => {
@@ -227,7 +227,7 @@ export const noDomainIdFallbacks: AuditRule = {
     return getDomainIdFallbackRegex();
   },
   message:
-    "FALLBACK SILENCIOSO EN ID DE DOMINIO / NOMBRE DETECTADO. Queda estrictamente prohibido usar fallbacks silenciosos (como || '', ?? '', o alternar id con name) para identificadores de dominio. Debe usarse una función de validación estricta que lance un error explícito (Fail Loud) si el ID falta o es inválido.",
+    "SILENT FALLBACK ON DOMAIN ID / NAME DETECTED. Using silent fallbacks (such as || '', ?? '', or swapping id with name) is strictly prohibited for domain identifiers. A strict validation function throwing an explicit error (Fail Loud) must be used if the ID is missing or invalid.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
@@ -259,7 +259,7 @@ export const noDomainIdFallbacks: AuditRule = {
 
 export const nodePrefix: AuditRule = {
   regex: /import .* from ['"](fs|path|os|crypto|util|url|events|stream|child_process)['"]/g,
-  message: "Import de Node sin prefijo 'node:'.",
+  message: "Node import without 'node:' prefix.",
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath || filePath.includes('audit_rules.ts')) return false;
     return true;
@@ -307,12 +307,12 @@ export const esmExtensions: AuditRule = {
   regex: /(?:import|export)\s+(?:type\s+)?(?:[^;'"]+?\s+from\s+)?['"](\.\.?\/[^'"]+)['"]/g,
   message: (match: string) => {
     if (/\.(?:js|jsx|mjs|cjs)['"]/.test(match)) {
-      return `Import relativo con extensión JS legada: '${match}'. Migra a extensión TypeScript explícita (.ts / .tsx).`;
+      return `Relative import with legacy JS extension: '${match}'. Migrate to explicit TypeScript extension (.ts / .tsx).`;
     }
     if (/\.css['"]/.test(match)) {
-      return `Import relativo a archivo CSS plano: '${match}'. Migra a SCSS (.scss).`;
+      return `Relative import to plain CSS file: '${match}'. Migrate to SCSS (.scss).`;
     }
-    return `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`;
+    return `Relative import without extension: '${match}'. In native Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ file extensions are mandatory.`;
   },
   severity: 'error',
   fix: (match: string, _p1?: string, filePath?: string) =>
@@ -340,7 +340,7 @@ export const esmExtensions: AuditRule = {
 
 export const tsIgnore: AuditRule = {
   regex: /\/\/\s*@ts-(ignore|nocheck|expect-error)/g,
-  message: "Uso de supresión de TypeScript detectado. Prohibido por la política 'Zero-Ignore'.",
+  message: "TypeScript suppression detected. Prohibited under the 'Zero-Ignore' policy.",
   severity: 'error',
   fix: () => '',
   fixable: true
@@ -359,7 +359,7 @@ import { isAuditableCodeFile } from '../../analyzers/constantRules.ts';
 export const timersPromises: AuditRule = {
   regex: /new Promise\(r => setTimeout\(r, (\d+)\)\)/g,
   message:
-    'Uso de setTimeout manual en script Node. Considera \'import { setTimeout } from "node:timers/promises"\'.',
+    'Manual setTimeout detected in Node script. Use \'import { setTimeout } from "node:timers/promises"\' instead.',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) =>
     !!filePath && isScriptPath(filePath) && !normalizeFilePath(filePath).includes('node_modules'),
   fixable: false
@@ -367,7 +367,7 @@ export const timersPromises: AuditRule = {
 
 export const explicitResource: AuditRule = {
   regex: /const (\w+) = (new DatabaseSync|fs\.openSync)/g,
-  message: `Recurso detectado sin 'using'. Usa Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
+  message: `Resource detected without 'using'. Use Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
   fix: (match: string) => match.replace('const', 'using'),
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath || !isScriptPath(filePath)) return false;
@@ -384,7 +384,7 @@ export const zeroTimerLogic: AuditRule = {
   aliases: ['zerotimerlogic'],
   regex: /(?<!\.)\b(sleep)\s*\(/g,
   message:
-    "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
+    "Native 'sleep()' detected in core logic. Business logic functions must be 100% deterministic and event-driven.",
   severity: 'error',
   check: (content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -400,7 +400,7 @@ export const zeroTimerLogic: AuditRule = {
 export const jsonStringifyInWatch: AuditRule = {
   regex: /\bwatch\s*\(\s*(?:\(\)\s*=>\s*)?JSON\.stringify/g,
   message:
-    "Uso de 'JSON.stringify' dentro de un watcher detectado. Serializar objetos/arrays en watchers de alta frecuencia satura la CPU. Realiza comparaciones directas por elementos o usa watchers profundos ({ deep: true }) con moderación.",
+    "Usage of 'JSON.stringify' inside a watcher detected. Serializing objects/arrays in high-frequency watchers saturates CPU. Perform direct element comparisons or use deep watchers ({ deep: true }) with care.",
   severity: 'error',
   fixable: false
 };
@@ -408,7 +408,7 @@ export const jsonStringifyInWatch: AuditRule = {
 export const intersectionObserverRoot: AuditRule = {
   regex: /new\s+IntersectionObserver\s*\([^,]+,\s*\{[^}]*root\s*:\s*(?!null\b)[\w$]/g,
   message:
-    "Uso de 'root' dinámico o DOM en IntersectionObserver detectado. En contenedores escalados o con zoom (ej: #zoomable-content), usar un root distinto de null genera fallos de cálculo de visibilidad que apagan animaciones. Deja 'root' como 'null' (viewport) o no lo declares.",
+    "Dynamic or DOM 'root' in IntersectionObserver detected. In scaled or zoomed containers, using a root other than null causes visibility calculation bugs that disable animations. Leave 'root' as 'null' (viewport) or omit it.",
   severity: 'warning',
   fixable: false
 };
@@ -416,7 +416,7 @@ export const intersectionObserverRoot: AuditRule = {
 export const functionCallsInTemplates: AuditRule = {
   regex: /(?::[a-z0-9-]+|v-bind:[a-z0-9-]+)="([\w$]+)\([^"]*\)"|\{\{\s*([\w$]+)\([^}]*\)\}/gi,
   message: (match: string) =>
-    `Llamada a función/método '${match}' detectada en plantilla Vue. Está PROHIBIDO llamar a funciones que realicen consultas a bases de datos, transformaciones de array (.map/.filter) o lógica pesada en el render loop. Cachea los datos con 'computed'.`,
+    `Function or method call '${match}' detected in Vue template. Calling functions that perform database queries, array transformations (.map/.filter), or heavy logic in the render loop is PROHIBITED. Cache data via 'computed'.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -760,7 +760,7 @@ export const noInlineLiteralUnions: AuditRule = {
 export const noRawJsonImportsOutsideData: AuditRule = {
   id: 'noRawJsonImportsOutsideData',
   name: 'No Raw JSON Import Outside Data Layer',
-  category: 'Optimización de Bundle',
+  category: 'Bundle Optimization',
   regex: /\bimport\s[^;]+\sfrom\s+['"][^'"]+\.json['"]/g,
   message: (match: string) =>
     `Importación estática de JSON fuera de src/data/ o scripts/: '${match}'. Centraliza catálogos en src/data/ o usa importación dinámica para prevenir empaquetado redundante.`,

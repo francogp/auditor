@@ -22,7 +22,7 @@ import type {
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: 'file', header: 'Archivo', width: 46, align: 'left' },
+  { key: 'file', header: 'File', width: 46, align: 'left' },
   { key: 'membership', header: 'Set.has', width: 9, align: 'right' },
   { key: 'json', header: 'Clone', width: 7, align: 'right' },
   { key: 'spread', header: 'Spread', width: 8, align: 'right' },
@@ -31,11 +31,11 @@ const TABLE_COLUMNS: readonly TableColumn[] = [
 
 const o1CliDef: RefactorCliDefinition<O1FindingItem, O1RefactorPlan> = {
   toolName: 'auditor-o1',
-  toolDescription: 'cuellos de botella O(N) o búsquedas lineales',
+  toolDescription: 'O(N) bottlenecks or linear searches',
   bannerTitle: 'AUDITOR O(1): DATA STRUCTURES & LINEAR SEARCH OPTIMIZER',
-  bannerSubtitle: 'Auto-remediación determinista de búsquedas lineales y structuredClone',
-  scanningMessage: 'Escaneando anti-patrones O(N) y búsquedas lineales en',
-  zeroFindingsMessage: '¡Cero cuellos de botella O(N) o búsquedas lineales detectadas!',
+  bannerSubtitle: 'Deterministic auto-remediation of linear searches and structuredClone',
+  scanningMessage: 'Scanning O(N) anti-patterns and linear searches in',
+  zeroFindingsMessage: 'Zero O(N) bottlenecks or linear searches detected!',
   tableColumns: TABLE_COLUMNS,
   engineFactory: (projectRoot) => new O1RefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => O1RefactorEngine.discoverInFile(filePath),
@@ -55,7 +55,7 @@ const o1CliDef: RefactorCliDefinition<O1FindingItem, O1RefactorPlan> = {
     const membership = allFindings.filter((f) => f.kind === 'linear-membership').length;
     const json = allFindings.filter((f) => f.kind === 'json-clone').length;
     const spread = allFindings.filter((f) => f.kind === 'redundant-spread').length;
-    return `Resumen: ${filesCount} archivos con ${allFindings.length} oportunidades O(1) (${membership} membresías, ${json} structuredClone, ${spread} spreads).`;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} O(1) opportunities (${membership} set memberships, ${json} structuredClone, ${spread} spreads).`;
   },
   toDiracItem: (f) => ({
     line: f.line,
@@ -68,13 +68,13 @@ const o1CliDef: RefactorCliDefinition<O1FindingItem, O1RefactorPlan> = {
   applyPlan: (dir, plan) => O1RefactorEngine.applyPlan(dir, plan)
 };
 
-export async function runRefactorO1Cli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runRefactorO1Cli(argv?: readonly string[]): Promise<void> {
   await runRefactorCliHarness(o1CliDef, argv);
 }
 
 if (isMainModule(import.meta.url, ['auditor-o1', 'refactor_o1'])) {
   runRefactorO1Cli().catch((err) => {
-    console.error(styleText('red', `\n💥 Error fatal en auditor-o1: ${err.message}`));
+    console.error(styleText('red', `\n[Error] Fatal error in auditor-o1: ${err.message}`));
     process.exit(1);
   });
 }

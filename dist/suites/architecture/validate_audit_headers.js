@@ -47,7 +47,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "file-level-fallow-ignore",
-		message: `Cabecera ilegal 'fallow-ignore-file' detectada. Está ESTRICTAMENTE PROHIBIDO silenciar auditorías para archivos completos. Resuelve el problema en el código o excluye el directorio a nivel de configuración global.`,
+		message: `Illegal 'fallow-ignore-file' header detected. Silencing audits for entire files is STRICTLY PROHIBITED. Resolve the issue in source code or exclude the directory in global configuration.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -55,7 +55,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "banned-ts-suppression",
-		message: `Supresión de TypeScript detectada ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibido por la política 'Zero-Ignore'.`,
+		message: `TypeScript suppression detected ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibited under Zero-Ignore policy.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -63,7 +63,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "file-level-eslint-disable",
-		message: `Bloque '/* eslint-disable */' a nivel de archivo detectado. Usa 'eslint-disable-next-line' acotado a la línea específica únicamente cuando esté estrictamente justificado.`,
+		message: `File-level '/* eslint-disable */' or '/* oxlint-disable */' block detected. Use line-scoped directives only when strictly justified.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -71,7 +71,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "file-level-eslint-disable",
-		message: `Directiva '<!-- eslint-disable -->' a nivel de template detectada. Evita deshabilitar reglas en templates enteros.`,
+		message: `Template-level '<!-- eslint-disable -->' or '<!-- oxlint-disable -->' directive detected. Avoid disabling rules across entire templates.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -80,7 +80,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "banned-magic-suppression",
-		message: `Directiva de escape prohibida '// ${bannedMagicMatch[1]}' detectada. La política de Zero Magic Numbers exige declarar constantes descriptivas ('as const') sin excepciones.`,
+		message: `Banned escape directive '// ${bannedMagicMatch[1]}' detected. The Zero Magic Numbers policy requires declaring descriptive constants ('as const') without exceptions.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -89,7 +89,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "banned-style-suppression",
-		message: `Directiva de escape prohibida '// ${bannedStyleMatch[1]}' detectada. Los estilos scoped de Vue 3 no penetran a componentes hijos; está estrictamente prohibido usar comentarios de herencia simulada de estilos. Cada componente con clases debe vincular o declarar sus estilos explícitamente.`,
+		message: `Banned escape directive '// ${bannedStyleMatch[1]}' detected. Vue 3 scoped styles do not penetrate child components; simulated style inheritance comments are prohibited. Each component with classes must declare or link its styles explicitly.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -97,7 +97,7 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "header-auditor-escape",
-		message: `Anotación de escape '${trimmed}' usada indebidamente como cabecera de archivo. Las anotaciones de escape deben añadirse únicamente al final de sentencias de código activas.`,
+		message: `Misplaced escape hatch '${trimmed}' used as file header. Escape annotations must only be added directly on active code statements.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -106,16 +106,16 @@ function checkLineForIllegalHeaders(filePath, rawLine, lineNum) {
 		file: filePath,
 		line: lineNum,
 		ruleId: "unjustified-escape-hatch",
-		message: `[GUÍA DE ESCAPE HATCHES / IGNORES JUSTIFICADOS] Escape hatch '// ${unjustifiedMatch[1]}' sin justificación técnica obligatoria.
-   📚 FORMATO CANÓNICO REQUERIDO: '// ${unjustifiedMatch[1]}: <motivo técnico detallado>'
-   💡 EJEMPLOS VÁLIDOS SEGÚN EL CASO:
-      - // domain-ok: Texto dinámico de UI, mensajes de chat o cadenas narrativas
-      - // uuid-ok: UUID de base de datos o identificador único de sesión
-      - // infra-id-ok: Identificador DOM o socket de red externo
-      - // open-record: Contenedor JSON dinámico de clave-valor genérico
-      - // runtime-set: Set O(1) de validación rápida de identificadores
-      - // spanish-ok: Etiqueta o texto de interfaz en español
-   ⚠️ PROHIBICIÓN: Nunca uses ignores genéricos ni los uses para ocultar errores de tipado en entidades del sistema.`,
+		message: `[JUSTIFIED ESCAPES & IGNORES GUIDE] Escape hatch '// ${unjustifiedMatch[1]}' missing mandatory technical justification.
+   📚 CANONICAL FORMAT REQUIRED: '// ${unjustifiedMatch[1]}: <detailed technical reason>'
+   💡 VALID EXAMPLES:
+      - // domain-ok: Dynamic UI text, chat messages, or narrative strings
+      - // uuid-ok: Database UUID or unique session identifier
+      - // infra-id-ok: DOM element identifier or network socket ID
+      - // open-record: Dynamic JSON key-value dictionary
+      - // runtime-set: Fast O(1) set for identifier validation
+      - // spanish-ok: User-facing UI label in Spanish
+   ⚠️ PROHIBITION: Never use generic ignores or use escapes to mask type errors in domain entities.`,
 		context: trimmed,
 		severity: "error"
 	};
@@ -157,7 +157,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_audit_headers",
 			name: "Audit Headers & Suppression Validator",
-			description: "Prohíbe supresiones a nivel de archivo e ignores globales",
+			description: "Prohibits file-level suppressions and global ignores",
 			family: "architecture",
 			ruleIds: HEADER_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(HEADER_RULES, "polish"),
@@ -167,22 +167,22 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "📰",
 			ruleDescriptions: {
-				"file-level-fallow-ignore": "fallow-ignore-file prohibido",
-				"file-level-eslint-disable": "eslint-disable global prohibido",
-				"banned-ts-suppression": "@ts-ignore/@ts-nocheck prohibido",
-				"banned-magic-suppression": "Escape de número mágico prohibido",
-				"banned-style-suppression": "Escape de estilos prohibido",
-				"header-auditor-escape": "Escape hatch mal ubicado",
-				"unjustified-escape-hatch": "Escape hatch sin justificación"
+				"file-level-fallow-ignore": "Prohibited file fallow-ignore",
+				"file-level-eslint-disable": "Prohibited global eslint-disable",
+				"banned-ts-suppression": "Prohibited @ts-ignore/@ts-nocheck",
+				"banned-magic-suppression": "Prohibited magic number suppression",
+				"banned-style-suppression": "Prohibited style suppression",
+				"header-auditor-escape": "Misplaced escape hatch",
+				"unjustified-escape-hatch": "Unjustified escape hatch"
 			},
 			ruleRemediations: {
-				"file-level-fallow-ignore": "1. Causa Raíz: Se encontró una directiva de supresión global `/* fallow-ignore-file */` o equivalente en la cabecera del archivo, ocultando deuda técnica, código muerto o duplicaciones en todo el módulo.\n2. Diagnóstico: Busca comentarios al inicio del archivo que contengan `fallow-ignore-file`.\n3. Solución Canónica: Elimina la directiva global. Si existe una excepción justificada para una sentencia puntual, acota la excepción a nivel de línea o aborda legítimamente la advertencia de Fallow refactorizando el código.\n4. Ejemplo:\n// Incorrecto:\n/* fallow-ignore-file */\n\n// Correcto: Resolver las violaciones en el módulo o solicitar excepción acotada con justificación.",
-				"file-level-eslint-disable": "1. Causa Raíz: Se declaró una directiva `/* eslint-disable */` o `/* oxlint-disable */` sin acotar a una regla específica o aplicándola a todo el archivo.\n2. Diagnóstico: Revisa las primeras líneas del archivo para localizar comentarios `eslint-disable` globales.\n3. Solución Canónica: Elimina el disable global. Corrige el código para cumplir con el linter o, si es estrictamente inevitable, deshabilita únicamente la regla específica en la línea exacta mediante `// eslint-disable-next-line <regla> -- <motivo>`.\n4. Ejemplo:\n// Incorrecto:\n/* eslint-disable */\n\n// Correcto:\n// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Interoperabilidad con API externa no tipada",
-				"banned-ts-suppression": "1. Causa Raíz: Uso de directivas de silenciamiento ciego `@ts-ignore` o `@ts-nocheck` en el archivo, lo que destruye la seguridad del sistema de tipos.\n2. Diagnóstico: Busca `@ts-ignore` o `@ts-nocheck` en el código fuente.\n3. Solución Canónica: Corrige los tipos en las interfaces, funciones o aserciones. Si existe un error conocido en una librería externa sin tipos, utiliza `@ts-expect-error` acompañado de un comentario explicativo obligatorio.\n4. Ejemplo:\n// Incorrecto:\n// @ts-ignore\nconst x = foo.bar();\n\n// Correcto:\n// @ts-expect-error - Librería externa emite tipos incorrectos en v1.2\nconst x = foo.bar();",
-				"banned-magic-suppression": "1. Causa Raíz: Se intentó suprimir la auditoría de números mágicos mediante comentarios no canónicos o a nivel de cabecera.\n2. Diagnóstico: Revisa comentarios que intenten desactivar la regla de números mágicos en el archivo.\n3. Solución Canónica: Extrae los valores numéricos a constantes con significado semántico o tómalos del catálogo de tokens de diseño o configuración (`constants.ts`, `tokens.ts`).\n4. Ejemplo:\n// Incorrecto:\n// magic-number-disable\nconst timeout = 5000;\n\n// Correcto:\nexport const NETWORK_RETRY_DELAY_MS = 5000;\nconst timeout = NETWORK_RETRY_DELAY_MS;",
-				"banned-style-suppression": "1. Causa Raíz: Se detectó una supresión global de reglas de estilos `/* stylelint-disable */` en la cabecera o bloque de estilos.\n2. Diagnóstico: Inspecciona las directivas `stylelint-disable` en archivos `.css`, `.scss` o bloques `<style>` de Vue.\n3. Solución Canónica: Corrige las propiedades CSS, anidamientos o valores z-index según los lineamientos de diseño. No apagues Stylelint a nivel de archivo.\n4. Ejemplo:\n// Incorrecto:\n/* stylelint-disable */\n.card { z-index: 99999; }\n\n// Correcto: Usar variables de z-index del sistema o corregir el selector.",
-				"header-auditor-escape": "1. Causa Raíz: Se ubicó un comentario de escape o excepción de auditoría en la cabecera del archivo en vez de colocarlo directamente sobre la línea de código afectada.\n2. Diagnóstico: Revisa si hay comentarios como `// layout-ok:` o similar en el encabezado o imports del archivo.\n3. Solución Canónica: Mueve el escape hatch inmediatamente antes de la sentencia que lo requiere, o elimina el comentario si ya no es aplicable.\n4. Ejemplo:\n// Incorrecto: Colocar // layout-ok en la línea 1 del archivo\n// Correcto: Ubicar el comentario exactamente antes de gsap.set(elem, { width: 100 })",
-				"unjustified-escape-hatch": "1. Causa Raíz: Se utilizó un escape hatch (ej. `layout-ok`, `@ts-expect-error`) sin proporcionar la justificación técnica requerida.\n2. Diagnóstico: Identifica comentarios de excepción que carecen de explicación o dos puntos seguidos del motivo (`// layout-ok: <explicación>`).\n3. Solución Canónica: Agrega una justificación clara y detallada explicando el motivo arquitectónico o la limitación técnica que fundamenta el escape.\n4. Ejemplo:\n// Incorrecto:\n// layout-ok\n\n// Correcto:\n// layout-ok: Animación de ancho de contenedor requerida por diseño responsive no transformable"
+				"file-level-fallow-ignore": "📖 REMEDIATION GUIDE: file-level-fallow-ignore\n1. Root Cause: A global suppression directive /* fallow-ignore-file */ was found in the file header, masking technical debt or dead code across the whole module.\n2. Diagnosis: Look for comments at the beginning of the file containing fallow-ignore-file.\n3. Canonical Solution: Remove the global directive. If a justified exception exists, scope it to the specific line or refactor the code legitimately.\n4. Example / Auto-fix command:\n   ❌ Banned:  /* fallow-ignore-file */\n   ✅ Clean:   Resolve violations or scope with technical justification.",
+				"file-level-eslint-disable": "📖 REMEDIATION GUIDE: file-level-eslint-disable\n1. Root Cause: An un-scoped /* eslint-disable */ or /* oxlint-disable */ directive was declared for the entire file or template.\n2. Diagnosis: Check the top of the file for global linter disable comments.\n3. Canonical Solution: Remove the global directive. Fix the lint issues or disable only the specific rule on the exact line using // eslint-disable-next-line <rule> -- <reason>.\n4. Example / Auto-fix command:\n   ❌ Banned:  /* eslint-disable */\n   ✅ Scoped:  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Interop with untyped 3rd-party library",
+				"banned-ts-suppression": "📖 REMEDIATION GUIDE: banned-ts-suppression\n1. Root Cause: Blind suppression directives (@ts-ignore or @ts-nocheck) were used, destroying type safety.\n2. Diagnosis: Search for @ts-ignore or @ts-nocheck in the source file.\n3. Canonical Solution: Correct the types in interfaces or functions. If an external untyped library causes an unavoidable type error, use @ts-expect-error with a mandatory explanation.\n4. Example / Auto-fix command:\n   ❌ Banned:  // @ts-ignore\n   ✅ Scoped:  // @ts-expect-error - External library emits incorrect types in v1.2",
+				"banned-magic-suppression": "📖 REMEDIATION GUIDE: banned-magic-suppression\n1. Root Cause: An attempt was made to suppress magic number auditing through non-canonical comments or file headers.\n2. Diagnosis: Check for comments attempting to disable the magic numbers rule.\n3. Canonical Solution: Extract numeric values into semantic constants or import them from design tokens.\n4. Example / Auto-fix command:\n   ❌ Banned:  // magic-ok\n   ✅ Clean:   export const NETWORK_RETRY_DELAY_MS = 5000;",
+				"banned-style-suppression": "📖 REMEDIATION GUIDE: banned-style-suppression\n1. Root Cause: A global stylelint-disable suppression was detected in the file header or style block.\n2. Diagnosis: Inspect stylelint-disable directives in .css, .scss, or Vue <style> blocks.\n3. Canonical Solution: Fix CSS properties, nesting, or z-index values according to design guidelines. Do not disable Stylelint for entire files.\n4. Example / Auto-fix command:\n   Use system z-index variables or correct the selector.",
+				"header-auditor-escape": "📖 REMEDIATION GUIDE: header-auditor-escape\n1. Root Cause: An auditor escape hatch was placed in the file header instead of directly on the affected code line.\n2. Diagnosis: Check for comments like // layout-ok: in file headers or imports.\n3. Canonical Solution: Move the escape hatch immediately before the statement requiring it, or remove it if no longer needed.\n4. Example / Auto-fix command:\n   Place the comment directly before the code line: // layout-ok: <justification>",
+				"unjustified-escape-hatch": "📖 REMEDIATION GUIDE: unjustified-escape-hatch\n1. Root Cause: An escape hatch was used without the required technical justification after a colon.\n2. Diagnosis: Identify exception comments that lack an explanation (// layout-ok: <explanation>).\n3. Canonical Solution: Add a clear technical reason explaining the architectural necessity for the escape.\n4. Example / Auto-fix command:\n   ❌ Banned:  // layout-ok\n   ✅ Valid:   // layout-ok: Container width animation required by non-transformable responsive layout"
 			}
 		});
 	}
@@ -199,7 +199,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "file-level-fallow-ignore",
-						message: `Cabecera ilegal 'fallow-ignore-file' detectada. Está ESTRICTAMENTE PROHIBIDO silenciar auditorías para archivos completos. Resuelve el problema en el código o excluye el directorio a nivel de configuración global.`,
+						message: `Illegal 'fallow-ignore-file' header detected. Silencing audits for entire files is STRICTLY PROHIBITED. Resolve the issue in source code or exclude the directory in global configuration.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -216,7 +216,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "banned-ts-suppression",
-						message: `Supresión de TypeScript detectada ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibido por la política 'Zero-Ignore'.`,
+						message: `TypeScript suppression detected ('@ts-ignore/@ts-nocheck/@ts-expect-error'). Prohibited under Zero-Ignore policy.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -233,7 +233,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "file-level-eslint-disable",
-						message: `Bloque '/* eslint-disable */' o '/* oxlint-disable */' a nivel de archivo detectado. Usa directivas acotadas a la línea específica únicamente cuando esté estrictamente justificado.`,
+						message: `File-level '/* eslint-disable */' or '/* oxlint-disable */' block detected. Use line-scoped directives only when strictly justified.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -244,7 +244,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "file-level-eslint-disable",
-						message: `Directiva '<!-- eslint-disable -->' o '<!-- oxlint-disable -->' a nivel de template detectada. Evita deshabilitar reglas en templates enteros.`,
+						message: `Template-level '<!-- eslint-disable -->' or '<!-- oxlint-disable -->' directive detected. Avoid disabling rules across entire templates.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -261,7 +261,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "banned-magic-suppression",
-						message: `Supresión de número mágico desaconsejada detectada ('/' + '/ no-magic', '/' + '/ magic-ok', '/' + '/ number-ok'). Centraliza los números en constantes de dominio con 'as const' o tipado explícito.`,
+						message: `Banned magic number suppression detected ('/' + '/ no-magic', '/' + '/ magic-ok', '/' + '/ number-ok'). Centralize numbers into domain constants with 'as const' or explicit typing.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -278,7 +278,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "banned-style-suppression",
-						message: `Supresión de estilos prohibida detectada ('/' + '/ style-inherited', '/' + '/ style-ok'). Todos los componentes .vue DEBEN incluir su propio bloque <style lang="scss"> según la gobernanza de arquitectura.`,
+						message: `Banned style suppression detected ('/' + '/ style-inherited', '/' + '/ style-ok'). All .vue components MUST include their own <style lang="scss"> block per architecture governance.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -295,7 +295,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "header-auditor-escape",
-						message: `Escape hatch huérfano o mal ubicado detectado ('${line.trim()}'). Los escapes deben ubicarse en la misma línea del statement o inmediatamente precediéndolo con ':' y el motivo técnico.`,
+						message: `Orphan or misplaced escape hatch detected ('${line.trim()}'). Escape hatches must be on the same statement line or immediately preceding with ':' and the technical reason.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -313,9 +313,9 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 						file: relPath,
 						line: i + 1,
 						ruleId: "unjustified-escape-hatch",
-						message: `[GUÍA DE ESCAPE HATCHES / IGNORES JUSTIFICADOS] Escape hatch '// ${unjustifiedMatch[1]}' sin justificación técnica obligatoria.
-    📚 FORMATO CANÓNICO REQUERIDO: '// ${unjustifiedMatch[1]}: <motivo técnico detallado>'
-    ⚠️ PROHIBICIÓN: Nunca uses ignores genéricos ni los uses para ocultar errores de tipado en entidades del sistema.`,
+						message: `[JUSTIFIED ESCAPES & IGNORES GUIDE] Escape hatch '// ${unjustifiedMatch[1]}' missing mandatory technical justification.
+    📚 CANONICAL FORMAT REQUIRED: '// ${unjustifiedMatch[1]}: <detailed technical reason>'
+    ⚠️ PROHIBITION: Never use generic ignores or use escapes to mask type errors in domain entities.`,
 						context: line.trim(),
 						severity: "error"
 					};
@@ -355,6 +355,6 @@ function auditAuditHeaders(targetDir = process.cwd()) {
 		countsByRule
 	};
 }
-if (process.argv[1] && (process.argv[1].endsWith("validate_audit_headers.ts") || process.argv[1].endsWith("validate_audit_headers.js"))) await BaseAuditor.runCli(new AuditHeadersAuditor());
+await BaseAuditor.runCliIfMain(import.meta.url, new AuditHeadersAuditor());
 //#endregion
 export { AuditHeadersAuditor, CANONICAL_IGNORE_DIRS, HEADER_RULES, MAX_HEADER_LINES_CHECK, auditAuditHeaders, isPathIgnored, scanFileForIllegalHeaders };

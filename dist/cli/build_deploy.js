@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
@@ -13,6 +14,7 @@ import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 * styles, and post-build bundle budget verification gates.
 */
 function runBuildDeploy(extraArgs = []) {
+	parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
 	process.env.AUDITOR_ENV = "production";
 	const args = [
 		"run",
@@ -26,7 +28,7 @@ function runBuildDeploy(extraArgs = []) {
 	}).status ?? 0;
 }
 if (isMainModule(import.meta.url)) {
-	const exitCode = runBuildDeploy(process.argv.slice(2));
+	const exitCode = runBuildDeploy(getProcessCliArgs());
 	process.exit(exitCode);
 }
 //#endregion

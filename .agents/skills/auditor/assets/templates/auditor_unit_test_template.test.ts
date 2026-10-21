@@ -47,8 +47,8 @@ describe('MyFeatureAuditor', () => {
     const manifest = auditor.toManifest();
     expect(manifest.id).toBe('validate_my_feature');
     expect(manifest.family).toBe('architecture');
-    expect(manifest.packageName).toBe('MiModulo');
-    expect(manifest.configKey).toBe('paths.srcRoots');
+    expect(manifest.packageName).toBe('MyModule');
+    expect(manifest.configKey).toBe('myFeature');
     expect(manifest.rules['my-feature-forbidden-pattern']).toBeDefined();
     expect(manifest.rules['my-feature-missing-attribute']).toBeDefined();
     expect(manifest.remediationPhases).toBeDefined();

@@ -123,7 +123,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       }),
       id: 'validate_sql_anti_patterns',
       name: 'SQL & Relational Schema Anti-Patterns Validator',
-      description: 'Antipatrones SQL, variables sin declarar o camelCase en BD',
+      description: 'SQL anti-patterns, undeclared variables, or camelCase in DB',
       family: 'persistence',
       ruleIds: SQL_ANTI_PATTERN_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SQL_ANTI_PATTERN_RULES, 'behavior'),
@@ -133,44 +133,44 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       criticalConfig: {},
       icon: '💾',
       ruleDescriptions: {
-        'sql-no-positional-arrays': 'Mutación de array JSON en SQL',
-        'sql-plpgsql-declared-variables': 'Variable PL/pgSQL sin declarar',
-        'sql-rls-policy-grant-integrity': 'Permiso GRANT faltante en RLS',
-        'db-payload-snake-case': 'Propiedad sin snake_case en BD'
+        'sql-no-positional-arrays': 'JSON array mutation in SQL',
+        'sql-plpgsql-declared-variables': 'Undeclared PL/pgSQL variable',
+        'sql-rls-policy-grant-integrity': 'Missing GRANT permission in RLS',
+        'db-payload-snake-case': 'Property not in snake_case in DB'
       },
       ruleRemediations: {
         'sql-no-positional-arrays':
-          '📖 GUÍA DE REMEDIACIÓN: sql-no-positional-arrays\n' +
-          '1. Causa Raíz: Se intentó mutar o consultar arrays JSONB en SQL mediante índices posicionales fijos (ej: `jsonb_set(col, \'{0}\', ...)` o `col->0`). Los índices numéricos en arrays JSON son extremadamente frágiles ante cambios de orden y violan el diseño relacional normalizado.\n' +
-          '2. Diagnóstico: Ubica la manipulación posicional en la consulta o función SQL reportada.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Si los elementos poseen identidad, modela la relación como una tabla hija relacional 1:N.\n' +
-          '   b) Si debe ser JSON, manipula el array completo en memoria en la capa de aplicación o usa objetos JSON con claves nombradas en lugar de arrays posicionales.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Posicional: `UPDATE profile SET tags = jsonb_set(tags, \'{0}\', \'"admin"\')`\n' +
-          '   ✅ Normalizado: Utilizar tabla relacional `user_tags (user_id, tag)`.',
+          '📖 REMEDIATION GUIDE: sql-no-positional-arrays\n' +
+          '1. Root Cause: Attempted to mutate or query JSONB arrays in SQL using fixed positional indexes (e.g.: `jsonb_set(col, \'{0}\', ...)` or `col->0`). Numeric indexes in JSON arrays are fragile to ordering and violate normalized relational design.\n' +
+          '2. Diagnosis: Locate positional manipulation in the reported SQL query or function.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) If elements have identity, model the relationship as a 1:N relational child table.\n' +
+          '   b) If it must be JSON, manipulate the entire array in-memory in application layer or use named object keys instead of positional arrays.\n' +
+          '4. Example:\n' +
+          '   ❌ Positional: `UPDATE profile SET tags = jsonb_set(tags, \'{0}\', \'"admin"\')`\n' +
+          '   ✅ Normalized: Use relational table `user_tags (user_id, tag)`.',
         'sql-plpgsql-declared-variables':
-          '📖 GUÍA DE REMEDIACIÓN: sql-plpgsql-declared-variables\n' +
-          '1. Causa Raíz: Se utilizó un identificador de variable dentro del bloque `BEGIN ... END;` de una función PL/pgSQL que no fue formalmente declarado en la sección `DECLARE`. PostgreSQL fallará en tiempo de ejecución con error de sintaxis o referencia no vinculada.\n' +
-          '2. Diagnóstico: Revisa la función PL/pgSQL en la migración SQL reportada.\n' +
-          '3. Solución Canónica: Añade la declaración explícita de la variable y su tipo de dato bajo la sección `DECLARE`.\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir: `DECLARE v_total NUMERIC; BEGIN ...`',
+          '📖 REMEDIATION GUIDE: sql-plpgsql-declared-variables\n' +
+          '1. Root Cause: A variable identifier was used inside the `BEGIN ... END;` block of a PL/pgSQL function without being formally declared in `DECLARE`. PostgreSQL will fail at runtime with a syntax or unlinked reference error.\n' +
+          '2. Diagnosis: Review the PL/pgSQL function in the reported SQL migration.\n' +
+          '3. Canonical Solution: Add explicit declaration of variable and its data type under the `DECLARE` section.\n' +
+          '4. Example:\n' +
+          '   - Add: `DECLARE v_total NUMERIC; BEGIN ...`',
         'sql-rls-policy-grant-integrity':
-          '📖 GUÍA DE REMEDIACIÓN: sql-rls-policy-grant-integrity\n' +
-          '1. Causa Raíz: Se definió una política RLS (`CREATE POLICY ... FOR SELECT/INSERT/UPDATE`) para un rol (ej: `authenticated`, `anon`), pero no se otorgó el permiso SQL correspondiente (`GRANT SELECT, INSERT ON tabla TO rol;`). Aunque la política RLS exista, la base de datos rechazará la petición con error 42501 (insufficient_privilege).\n' +
-          '2. Diagnóstico: Comprueba la migración SQL donde se crea la política RLS.\n' +
-          '3. Solución Canónica: Añade la instrucción `GRANT` correspondiente antes o después de la creación de la política.\n' +
-          '4. Ejemplo:\n' +
+          '📖 REMEDIATION GUIDE: sql-rls-policy-grant-integrity\n' +
+          '1. Root Cause: An RLS policy was defined (`CREATE POLICY ... FOR SELECT/INSERT/UPDATE`) for a role (e.g.: `authenticated`, `anon`), but the corresponding SQL grant was omitted (`GRANT SELECT, INSERT ON table TO role;`). Although the RLS policy exists, database will reject requests with error 42501 (insufficient_privilege).\n' +
+          '2. Diagnosis: Check the SQL migration where the RLS policy is created.\n' +
+          '3. Canonical Solution: Add the corresponding `GRANT` statement before or after policy creation.\n' +
+          '4. Example:\n' +
           '   - SQL: `GRANT SELECT, INSERT ON public.user_profiles TO authenticated;`',
         'db-payload-snake-case':
-          '📖 GUÍA DE REMEDIACIÓN: db-payload-snake-case\n' +
-          '1. Causa Raíz: Un objeto de payload de persistencia, interfaz DTO de base de datos o llamada a Supabase/PostgreSQL utiliza propiedades en formato `camelCase` (ej: `{ userId: 1, createdAt: ... }`). En la base de datos relacional las columnas están estandarizadas en `snake_case` (`user_id`, `created_at`).\n' +
-          '2. Diagnóstico: Revisa las claves del objeto enviado o mapeado en la línea reportada.\n' +
-          '3. Solución Canónica: Utiliza identificadores en `snake_case` para todas las interacciones con persistencia directa, o utiliza un mapper/serializer formal que traduzca entre el dominio (`camelCase`) y la base de datos (`snake_case`).\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ camelCase en BD: `await db.insert({ userId: id, firstName: name });`\n' +
-          '   ✅ snake_case en BD: `await db.insert({ user_id: id, first_name: name });`'
+          '📖 REMEDIATION GUIDE: db-payload-snake-case\n' +
+          '1. Root Cause: A persistence payload object, database DTO interface, or Supabase/PostgreSQL call uses `camelCase` properties (e.g.: `{ userId: 1, createdAt: ... }`). In relational databases, columns are standardized in `snake_case` (`user_id`, `created_at`).\n' +
+          '2. Diagnosis: Check the keys of the object passed or mapped on the reported line.\n' +
+          '3. Canonical Solution: Use `snake_case` identifiers for direct persistence interactions, or use a formal mapper/serializer translating between domain (`camelCase`) and database (`snake_case`).\n' +
+          '4. Example:\n' +
+          '   ❌ camelCase in DB:  `await db.insert({ userId: id, firstName: name });`\n' +
+          '   ✅ snake_case in DB: `await db.insert({ user_id: id, first_name: name });`'
       },
       coverage: {
         include: [
@@ -191,9 +191,9 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   public override runAudit(): void {
     const config = getAuditConfig(this.projectRoot);
     if (config.persistence?.engine === 'none') {
-      this.markSkipped('Persistencia configurada en none');
+      this.markSkipped('Persistence engine configured as none');
       for (const r of SQL_ANTI_PATTERN_RULES) {
-        this.markRuleNotApplicable(r, 'Persistencia configurada en none');
+        this.markRuleNotApplicable(r, 'Persistence engine configured as none');
       }
       this.context.setMetric('Engine', 'none (omitted)');
       return;

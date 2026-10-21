@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const commentStrippingDetector = createLineDetector({
   id: 'comment-stripping',
   ruleId: 'auditor-manual-comment-stripping',
-  ruleDescription: 'Limpieza manual de comentarios',
+  ruleDescription: 'Manual comment stripping',
   checkLine(line) {
     const hasManualCommentRegex =
       line.includes('replace(') &&

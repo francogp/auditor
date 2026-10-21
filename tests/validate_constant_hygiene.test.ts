@@ -39,7 +39,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const auditor = new ValidateConstantHygieneAuditor();
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_constant_hygiene');
-      expect(auditor.packageName).toBe('Constantes');
+      expect(auditor.packageName).toBe('Constants');
       expect(auditor.family).toBe('architecture');
       expect(auditor.requiresAst).toBe(true);
       expect(auditor.ruleIds).toEqual(CONSTANT_HYGIENE_RULES);
@@ -86,7 +86,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-identical');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
-      expect(finding?.message).toContain('idéntico');
+      expect(finding?.message).toContain('identical value');
     });
 
     it('detects duplicate divergent constants across separate files (duplicate-constant-divergent)', async () => {
@@ -107,7 +107,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       const finding = result.findings.find((f) => f.ruleId === 'duplicate-constant-divergent');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
-      expect(finding?.message).toContain('diferentes');
+      expect(finding?.message).toContain('different values');
     });
 
     it('detects bad constant names with numeric value suffix (constant-bad-names)', async () => {

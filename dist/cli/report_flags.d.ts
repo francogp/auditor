@@ -34,6 +34,7 @@ export interface FlagsOptions {
   readonly retirement?: boolean;
   readonly top?: number;
   readonly json?: boolean;
+  readonly human?: boolean;
 }
 export declare function runFlagsReport(projectRoot?: string, options?: FlagsOptions): number;
 //#endregion

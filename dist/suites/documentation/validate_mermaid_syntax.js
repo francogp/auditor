@@ -29,7 +29,7 @@ async function validateMermaid(diagramCode) {
 		valid: false,
 		error: {
 			line: 1,
-			message: "El diagrama Mermaid está vacío o no contiene código"
+			message: "The Mermaid diagram is empty or does not contain code"
 		}
 	};
 	try {
@@ -86,7 +86,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 			fixableRuleIds: ["mermaid-unquoted-special-chars"],
 			id: "validate_mermaid_syntax",
 			name: "Mermaid Diagram Syntax Auditor",
-			description: "Sintaxis y caracteres válidos en diagramas Mermaid",
+			description: "Valid syntax and characters in Mermaid diagrams",
 			family: "documentation",
 			packageName: "Doc",
 			configKey: "documentation.enabled",
@@ -96,12 +96,12 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 			ruleIds: MERMAID_SYNTAX_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(MERMAID_SYNTAX_RULES, "polish"),
 			ruleDescriptions: {
-				"mermaid-syntax-error": "Error sintáctico en diagrama Mermaid",
-				"mermaid-unquoted-special-chars": "Caracter especial sin comillas en Mermaid"
+				"mermaid-syntax-error": "Syntax error in Mermaid diagram",
+				"mermaid-unquoted-special-chars": "Unquoted special character in Mermaid"
 			},
 			ruleRemediations: {
-				"mermaid-syntax-error": "📖 GUÍA DE REMEDIACIÓN: mermaid-syntax-error\n1. Causa Raíz: El bloque de diagrama Mermaid (````mermaid) contiene errores sintácticos que impiden su compilación por el motor de Mermaid (palabras clave no reconocidas, flechas mal formadas, bloques no cerrados o directivas no soportadas).\n2. Diagnóstico: Inspecciona el bloque de código Mermaid en el archivo Markdown y la línea señalada en el mensaje de error del compilador.\n3. Solución Canónica: Corrige la sintaxis según las directivas oficiales de Mermaid. Verifica encabezados de diagrama (`graph TD`, `flowchart LR`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`) y la terminación de instrucciones.\n4. Ejemplo:\n   ❌ Incorrecto: ````mermaid\\nflowchart\\nA --> B\\n```` (falta dirección TD/LR)\n   ✅ Correcto:   ````mermaid\\nflowchart TD\\nA --> B\\n````",
-				"mermaid-unquoted-special-chars": "📖 GUÍA DE REMEDIACIÓN: mermaid-unquoted-special-chars\n1. Causa Raíz: Un nodo o etiqueta de enlace en un diagrama Mermaid incluye caracteres especiales (paréntesis `()`, corchetes, dos puntos `:`, interrogación `?`, operadores matemáticos) sin estar delimitado por comillas dobles `\"\"`.\n2. Diagnóstico: Revisa el nodo o etiqueta indicado en el archivo Markdown.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix canónico: `npm run auditor:fix` o `auditor fix` para envolver automáticamente los textos entrecomillados.\n   b) O añade manualmente comillas dobles dentro de los corchetes o llaves del nodo.\n4. Ejemplo:\n   ❌ Incorrecto: `id[Proceso (Principal)]` o `A -->|¿Confirmar?| B`\n   ✅ Correcto:   `id[\"Proceso (Principal)\"]` o `A -->|\"¿Confirmar?\"| B`"
+				"mermaid-syntax-error": "📖 REMEDIATION GUIDE: mermaid-syntax-error\n1. Root Cause: The Mermaid diagram block (````mermaid) contains syntax errors preventing compilation by Mermaid engine (unrecognized keywords, malformed arrows, unclosed blocks, or unsupported directives).\n2. Diagnosis: Inspect the Mermaid code block in the Markdown file and the reported line in the compiler error message.\n3. Canonical Solution: Correct syntax per official Mermaid directives. Verify diagram headers (`graph TD`, `flowchart LR`, `sequenceDiagram`, `stateDiagram-v2`, `erDiagram`) and statement endings.\n4. Example:\n   ❌ Incorrect: ````mermaid\nflowchart\nA --> B\n```` (missing TD/LR direction)\n   ✅ Correct:   ````mermaid\nflowchart TD\nA --> B\n````",
+				"mermaid-unquoted-special-chars": "📖 REMEDIATION GUIDE: mermaid-unquoted-special-chars\n1. Root Cause: A Mermaid node or edge label contains special characters (parentheses `()`, brackets, colon `:`, question mark `?`, math operators) without being wrapped in double quotes `\"\"`.\n2. Diagnosis: Check the reported node or label in the Markdown file.\n3. Canonical Solution:\n   a) Run the canonical auto-fix command: `npm run auditor:fix` or `auditor fix` to automatically wrap unquoted text in quotes.\n   b) Or manually add double quotes inside brackets or node braces.\n4. Example:\n   ❌ Incorrect: `id[Process (Main)]` or `A -->|Confirm?| B`\n   ✅ Correct:   `id[\"Process (Main)\"]` or `A -->|\"Confirm?\"| B`"
 			},
 			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".md"]),
@@ -144,7 +144,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				file: relPath,
 				line: lineNum,
 				context: match[0],
-				message: `Etiqueta de arista Mermaid contiene caracteres especiales no entrecomillados ("${text}"). Envuélvela en comillas: |"${text}"|.`,
+				message: `Mermaid edge label contains unquoted special characters ("${text}"). Wrap it in quotes: |"${text}"|.`,
 				fixable: true
 			});
 		}
@@ -157,7 +157,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				file: relPath,
 				line: lineNum,
 				context: match[0],
-				message: `Definición de nodo con paréntesis no entrecomillados ("${label}"). Envuélvela en comillas dobles: ["${label}"].`,
+				message: `Node definition with unquoted parentheses ("${label}"). Wrap it in double quotes: ["${label}"].`,
 				fixable: true
 			});
 		}
@@ -170,7 +170,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 				file: relPath,
 				line: lineNum,
 				context: match[0],
-				message: `Definición de rombo/decisión con caracteres especiales no entrecomillados ("${label}"). Envuélvela en comillas dobles: {"${label}"}.`,
+				message: `Rhombus/decision definition with unquoted special characters ("${label}"). Wrap it in double quotes: {"${label}"}.`,
 				fixable: true
 			});
 		}
@@ -187,7 +187,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 					file: relPath,
 					line: errorLine,
 					context: validation.error.message.slice(0, 100),
-					message: `Error de sintaxis en diagrama Mermaid: ${validation.error.message}`
+					message: `Syntax error in Mermaid diagram: ${validation.error.message}`
 				});
 			}
 		});

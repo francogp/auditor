@@ -134,16 +134,16 @@ describe('report_css CLI Tool', () => {
       ]
     });
 
-    process.argv = ['node', 'report_css.ts'];
+    process.argv = ['node', 'report_css.ts', 'human'];
     await runCssReport();
 
     expect(consoleLogSpy).toHaveBeenCalled();
     const output = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(output).toContain('SELECTOR DUP');
     expect(output).toContain('PROP DUP');
-    expect(output).toContain('BLOQUE VACÍO');
-    expect(output).toContain('ORDEN CSS');
-    expect(output).toContain('SINTAXIS SCSS');
-    expect(output).toContain('COMPLEJIDAD');
+    expect(output).toContain('EMPTY BLOCK');
+    expect(output).toContain('CSS ORDER');
+    expect(output).toContain('SCSS SYNTAX');
+    expect(output).toContain('COMPLEXITY');
   });
 });

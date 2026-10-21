@@ -1,8 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { renderBanner } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import { spawnSync } from "node:child_process";
 //#region src/cli/report_review.ts
 /**
@@ -13,32 +14,33 @@ import { spawnSync } from "node:child_process";
 * Runs graph-grounded change review via fallow review, displaying structural
 * decisions, blast radius, public API changes, and code risk.
 */
+const REVIEW_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	base: {
+		type: "string",
+		description: "Git base branch or ref for review"
+	},
+	"changed-since": {
+		type: "string",
+		description: "Git ref to review changes since"
+	}
+};
 function runReviewReport(projectRoot = process.cwd()) {
-	const { values, positionals } = parseArgs({
-		args: process.argv.slice(2),
-		options: {
-			base: { type: "string" },
-			"changed-since": { type: "string" },
-			json: {
-				type: "boolean",
-				default: false
-			}
-		},
-		strict: false,
-		allowPositionals: true
-	});
+	const parsed = parseCittyArgs(REVIEW_CLI_ARGS, getProcessCliArgs());
+	const positionals = parsed._.map(String);
 	const fallowBin = resolveFallowBinary(projectRoot);
 	if (!fallowBin) {
-		console.error(styleText("red", "❌ No se encontró el binario de Fallow en node_modules."));
+		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
 		process.exit(1);
 	}
-	const isJson = Boolean(values.json);
+	const isJson = Boolean(parsed.json);
 	const args = ["review"];
-	if (values.base) args.push("--base", String(values.base));
-	else if (values["changed-since"]) args.push("--changed-since", String(values["changed-since"]));
+	if (parsed.base) args.push("--base", String(parsed.base));
+	else if (parsed["changed-since"]) args.push("--changed-since", String(parsed["changed-since"]));
 	else if (positionals.length > 0 && positionals[0]) args.push("--changed-since", positionals[0]);
 	if (isJson) args.push("--format", "json");
-	if (!isJson) renderBanner("REVISIÓN DE CAMBIOS (FALLOW REVIEW)", "Decisiones estructurales y radio de impacto");
+	const isHuman = resolveHumanModeFromArgs(parsed);
+	if (!isJson && isHuman) console.log(renderBanner("CHANGE REVIEW (FALLOW REVIEW)", "Structural decisions and blast radius"));
 	const result = spawnSync("node", [fallowBin, ...args], {
 		cwd: projectRoot,
 		stdio: "inherit"

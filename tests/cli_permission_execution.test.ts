@@ -17,7 +17,7 @@ describe('CLI Commands Execution under Node.js 26 Permissions', () => {
       shell: true
     });
     expect(result.status).toBe(0);
-    expect(result.stdout).toContain('Comandos disponibles');
+    expect(result.stdout).toContain('Available commands');
     expect(result.stderr).not.toContain('ERR_DLOPEN_DISABLED');
   });
 });

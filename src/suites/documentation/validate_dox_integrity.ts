@@ -69,7 +69,7 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       }),
       id: 'validate_dox_integrity',
       name: 'DOX & AGENTS.md Integrity Validator',
-      description: 'Valida jerarquía, estructura e integridad de AGENTS.md',
+      description: 'Validates AGENTS.md hierarchy, structure, and integrity',
       family: 'documentation',
       packageName: 'DOX',
       configKey: 'documentation.enabled',
@@ -79,57 +79,57 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       ruleIds: DOX_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(DOX_RULES, 'polish'),
       ruleDescriptions: {
-        'dox-missing-agents-md': 'Falta AGENTS.md en directorio',
-        'dox-unregistered-child': 'AGENTS.md hijo no registrado',
-        'dox-unindexed-file': 'Archivo de código no indexado en DOX',
-        'dox-missing-section': 'Sección obligatoria ausente en AGENTS.md',
-        'dox-section-order': 'Orden incorrecto de secciones en AGENTS.md',
-        'dox-empty-section': 'Sección vacía o con contenido basura'
+        'dox-missing-agents-md': 'Missing AGENTS.md in directory',
+        'dox-unregistered-child': 'Unregistered child AGENTS.md',
+        'dox-unindexed-file': 'Code file not indexed in DOX',
+        'dox-missing-section': 'Missing mandatory section in AGENTS.md',
+        'dox-section-order': 'Incorrect section ordering in AGENTS.md',
+        'dox-empty-section': 'Empty or placeholder section'
       },
       ruleRemediations: {
         'dox-missing-agents-md':
-          '📖 GUÍA DE REMEDIACIÓN: dox-missing-agents-md\n' +
-          '1. Causa Raíz: Un directorio auditable de la jerarquía DOX carece de su archivo descriptivo `AGENTS.md`. La arquitectura DOX exige documentación local en cada paquete o módulo clave.\n' +
-          '2. Diagnóstico: Comprueba el directorio indicado en la violación.\n' +
-          '3. Solución Canónica: Crea `AGENTS.md` en dicho directorio con las secciones estándar: `# Purpose`, `## Ownership`, `## Local Contracts` y `## File Manifest`.\n' +
-          '4. Ejemplo:\n' +
-          '   - Crear `src/services/auth/AGENTS.md` con su descripción y lista de responsabilidades.',
+          '📖 REMEDIATION GUIDE: dox-missing-agents-md\n' +
+          '1. Root Cause: An auditable directory in the DOX hierarchy lacks its descriptive `AGENTS.md` file. The DOX architecture requires local documentation in every key package or module.\n' +
+          '2. Diagnosis: Check the directory indicated in the violation.\n' +
+          '3. Canonical Solution: Create `AGENTS.md` in that directory with standard sections: `# Purpose`, `## Ownership`, `## Local Contracts`, and `## Key Files`.\n' +
+          '4. Example:\n' +
+          '   - Create `src/services/auth/AGENTS.md` with its purpose, ownership, and responsibilities.',
         'dox-unregistered-child':
-          '📖 GUÍA DE REMEDIACIÓN: dox-unregistered-child\n' +
-          '1. Causa Raíz: Un archivo `AGENTS.md` hijo existe en un subdirectorio pero no está referenciado/enlazado en la sección correspondiente del `AGENTS.md` padre.\n' +
-          '2. Diagnóstico: Revisa el `AGENTS.md` del directorio superior.\n' +
-          '3. Solución Canónica: Añade el enlace relativo al `AGENTS.md` hijo en el índice o lista de submódulos del archivo padre.\n' +
-          '4. Ejemplo:\n' +
-          '   - En `src/AGENTS.md`: `- [auth](file:///services/auth/AGENTS.md)`',
+          '📖 REMEDIATION GUIDE: dox-unregistered-child\n' +
+          '1. Root Cause: A child `AGENTS.md` file exists in a subdirectory but is not referenced or linked in the parent `AGENTS.md` Child DOX Index section.\n' +
+          '2. Diagnosis: Review the parent `AGENTS.md` in the directory above.\n' +
+          '3. Canonical Solution: Add the relative link to the child `AGENTS.md` under `## Child DOX Index`.\n' +
+          '4. Example:\n' +
+          '   - In `src/AGENTS.md`: `- [`auth/`](./services/auth/AGENTS.md)`',
         'dox-unindexed-file':
-          '📖 GUÍA DE REMEDIACIÓN: dox-unindexed-file\n' +
-          '1. Causa Raíz: Un archivo de código o componente no está indexado en el `AGENTS.md` correspondiente a su directorio.\n' +
-          '2. Diagnóstico: Ubica el archivo señalado en el mensaje de error y abre el `AGENTS.md` de su carpeta.\n' +
-          '3. Solución Canónica: Agrega una entrada en la tabla o lista de archivos de `AGENTS.md` describiendo brevemente su propósito y responsabilidades.\n' +
-          '4. Ejemplo:\n' +
-          '   - `- [`AuthService.ts`](file:///src/services/AuthService.ts): Servicio de autenticación y renovación de tokens JWT.`',
+          '📖 REMEDIATION GUIDE: dox-unindexed-file\n' +
+          '1. Root Cause: A code or component file is not indexed in the `AGENTS.md` corresponding to its directory.\n' +
+          '2. Diagnosis: Locate the file reported in the message and open the `AGENTS.md` in its directory.\n' +
+          '3. Canonical Solution: Add an entry in the Key Files list of `AGENTS.md` briefly describing its purpose and responsibilities.\n' +
+          '4. Example:\n' +
+          '   - `- [`AuthService.ts`](./AuthService.ts): Authentication service and JWT token management.`',
         'dox-missing-section':
-          '📖 GUÍA DE REMEDIACIÓN: dox-missing-section\n' +
-          '1. Causa Raíz: El archivo `AGENTS.md` carece de una de las secciones estructurales obligatorias (ej: `Purpose`, `Ownership`, `Local Contracts`).\n' +
-          '2. Diagnóstico: Revisa los encabezados H1/H2 en el `AGENTS.md` reportado.\n' +
-          '3. Solución Canónica: Agrega el encabezado faltante respetando la especificación canónica de DOX.\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir: `## Ownership\\n\\nCore Team / Architecture.`',
+          '📖 REMEDIATION GUIDE: dox-missing-section\n' +
+          '1. Root Cause: The `AGENTS.md` file lacks one of the mandatory structural sections (e.g. `Purpose`, `Ownership`, `Local Contracts`).\n' +
+          '2. Diagnosis: Review H1/H2 headers in the reported `AGENTS.md`.\n' +
+          '3. Canonical Solution: Add the missing header adhering to the canonical DOX specification.\n' +
+          '4. Example:\n' +
+          '   - Add: `## Ownership\n\nArchitecture & Tooling Engineers.`',
         'dox-section-order':
-          '📖 GUÍA DE REMEDIACIÓN: dox-section-order\n' +
-          '1. Causa Raíz: Los encabezados de sección en `AGENTS.md` no siguen la secuencia canónica estipulada por la especificación DOX.\n' +
-          '2. Diagnóstico: Verifica el orden de las secciones en el archivo reportado.\n' +
-          '3. Solución Canónica: Reordena las secciones respetando el flujo estándar: 1. Purpose -> 2. Ownership -> 3. Local Contracts -> 4. Manifest / Index.\n' +
-          '4. Ejemplo:\n' +
-          '   - Mover `## Ownership` inmediatamente después de `# Purpose`.',
+          '📖 REMEDIATION GUIDE: dox-section-order\n' +
+          '1. Root Cause: Section headers in `AGENTS.md` do not follow the canonical sequence required by the DOX specification.\n' +
+          '2. Diagnosis: Verify the section order in the reported file.\n' +
+          '3. Canonical Solution: Reorder sections adhering to the standard flow: 1. Purpose -> 2. Ownership -> 3. Local Contracts -> 4. Key Files -> 5. Work Guidance -> 6. Verification -> 7. Child DOX Index.\n' +
+          '4. Example:\n' +
+          '   - Move `## Ownership` immediately after `# Purpose`.',
         'dox-empty-section':
-          '📖 GUÍA DE REMEDIACIÓN: dox-empty-section\n' +
-          '1. Causa Raíz: Una sección en `AGENTS.md` está completamente vacía o contiene texto placeholder genérico (e.g. "TBD", "TODO", "Lorem ipsum").\n' +
-          '2. Diagnóstico: Revisa la sección indicada en la línea del hallazgo.\n' +
-          '3. Solución Canónica: Redacta una descripción técnica concisa y real de la responsabilidad o contrato del módulo.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Incorrecto: `## Local Contracts\\nTODO`\n' +
-          '   ✅ Correcto:   `## Local Contracts\\n- Todos los métodos retornan Result<T, DomainError>.`'
+          '📖 REMEDIATION GUIDE: dox-empty-section\n' +
+          '1. Root Cause: A section in `AGENTS.md` is empty or contains placeholder text (e.g. "TBD", "TODO", "Lorem ipsum").\n' +
+          '2. Diagnosis: Review the reported section at the finding line.\n' +
+          '3. Canonical Solution: Write a concise, genuine technical description of the module responsibilities or contracts.\n' +
+          '4. Example:\n' +
+          '   ❌ Incorrect: `## Local Contracts\nTODO`\n' +
+          '   ✅ Correct:   `## Local Contracts\n- All methods return Result<T, DomainError>.`'
       },
       coverage: {
         include: ['**/AGENTS.md']
@@ -176,10 +176,4 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
   }
 }
 
-if (
-  process.argv[1] &&
-  (process.argv[1].endsWith('validate_dox_integrity.ts') ||
-    (typeof import.meta.filename === 'string' && process.argv[1] === import.meta.filename))
-) {
-  await BaseAuditor.runCli(new DoxIntegrityAuditor());
-}
+await BaseAuditor.runCliIfMain(import.meta.url, new DoxIntegrityAuditor());

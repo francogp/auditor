@@ -11,7 +11,7 @@ import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
 const manualTimingDetector = createLineDetector({
 	id: "manual-timing",
 	ruleId: "auditor-manual-rule-timing",
-	ruleDescription: "Medición casera de tiempos en auditor",
+	ruleDescription: "Homebrew timing in auditor",
 	checkLine(line, _trimmed, _lineNum, context) {
 		if (context.filePath.includes("/cli/") || context.filePath.startsWith("src/cli/")) return null;
 		if (context.filePath.includes("src/core/") || context.filePath.startsWith("src/core/")) return null;

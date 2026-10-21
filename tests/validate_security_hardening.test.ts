@@ -30,7 +30,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
   });
 
   describe('Point 1: Construction & Metadata Conformance', () => {
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_security_hardening');
       expect(auditor.name).toBe('Security Hardening & Threat Boundary Auditor');
@@ -39,24 +39,24 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       expect(auditor.icon).toBe('🛡️');
       expect(auditor.ruleIds).toEqual([...SECURITY_HARDENING_RULES]);
       expect(auditor.ruleDescriptions['hardcoded-secrets']).toBe(
-        'Secret o token hardcodeado en código'
+        'Hardcoded secret or token in code'
       );
       expect(auditor.ruleDescriptions['insecure-random']).toBe(
-        'Math.random() para valores sensibles'
+        'Math.random() for sensitive values'
       );
       expect(auditor.ruleDescriptions['vulnerable-regex-redos']).toBe(
-        'Expresión regular vulnerable a ReDoS'
+        'Regular expression vulnerable to ReDoS'
       );
       expect(auditor.ruleDescriptions['raw-html-injection']).toBe(
-        'Inyección HTML con v-html o innerHTML'
+        'HTML injection via v-html or innerHTML'
       );
-      expect(auditor.ruleDescriptions['missing-csrf-token']).toBe('Formulario POST sin token CSRF');
+      expect(auditor.ruleDescriptions['missing-csrf-token']).toBe('POST form missing CSRF token');
       expect(auditor.ruleDescriptions['eval-or-function-constructor']).toBe(
-        'Uso de eval() o new Function() dinámico'
+        'Use of eval() or dynamic new Function()'
       );
-      expect(auditor.ruleDescriptions['permissive-cors']).toBe("CORS permisivo con origen '*'");
+      expect(auditor.ruleDescriptions['permissive-cors']).toBe("Permissive CORS with origin '*'");
       expect(auditor.ruleDescriptions['unvalidated-redirect']).toBe(
-        'Redirección abierta sin validar ruta'
+        'Open redirect without path validation'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);

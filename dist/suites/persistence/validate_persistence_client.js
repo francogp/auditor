@@ -57,7 +57,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_persistence_client",
 			name: "Client-Side Web Storage & Persistence Hygiene",
-			description: "Gobernanza de localStorage, cuotas y tipado de claves",
+			description: "localStorage governance, quotas, and key typing",
 			family: "persistence",
 			ruleIds: PERSISTENCE_CLIENT_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(PERSISTENCE_CLIENT_RULES, "behavior"),
@@ -67,14 +67,14 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			ruleDescriptions: {
-				"persistence-client-uncoordinated-save": "Escritura no coordinada en storage",
-				"persistence-client-untyped-key": "Clave de storage no tipada",
-				"persistence-client-unhandled-quota-error": "SetItem sin captura de cuota"
+				"persistence-client-uncoordinated-save": "Uncoordinated write to storage",
+				"persistence-client-untyped-key": "Untyped storage key",
+				"persistence-client-unhandled-quota-error": "setItem without quota error handling"
 			},
 			ruleRemediations: {
-				"persistence-client-uncoordinated-save": "📖 GUÍA DE REMEDIACIÓN: persistence-client-uncoordinated-save\n1. Causa Raíz: Se invocó directamente `localStorage.setItem()` o `sessionStorage.setItem()` fuera del servicio o almacén de persistencia autorizado (`authorizedSaveFiles`). Las escrituras directas dispersas provocan carreras de sincronización y corrupción de estado.\n2. Diagnóstico: Ubica la llamada a `setItem` en el componente o módulo reportado.\n3. Solución Canónica: Canaliza todas las mutaciones de almacenamiento a través del servicio centralizado de persistencia o store Pinia correspondiente.\n4. Ejemplo:\n   ❌ Inseguro: `localStorage.setItem(\"user\", JSON.stringify(user));` en un componente.\n   ✅ Coordinado: `await persistenceService.saveUser(user);`",
-				"persistence-client-untyped-key": "📖 GUÍA DE REMEDIACIÓN: persistence-client-untyped-key\n1. Causa Raíz: Se utilizó un string literal desnudo (ej: `\"app_settings\"`) como clave de almacenamiento web en lugar de una constante o tipo unión tipado de dominio.\n2. Diagnóstico: Revisa la clave pasada a `getItem` o `setItem` en la línea del reporte.\n3. Solución Canónica: Define las claves en un objeto constante canónico (`STORAGE_KEYS = { ... } as const`) y utiliza la clave tipada.\n4. Ejemplo:\n   ❌ Clave desnuda: `localStorage.getItem(\"theme_mode\");`\n   ✅ Tipada:       `localStorage.getItem(STORAGE_KEYS.THEME_MODE);`",
-				"persistence-client-unhandled-quota-error": "📖 GUÍA DE REMEDIACIÓN: persistence-client-unhandled-quota-error\n1. Causa Raíz: La llamada a `setItem()` no está envuelta en un bloque `try-catch` que capture `QuotaExceededError`. Si el navegador agota la cuota de almacenamiento local (5MB-10MB o modo incógnito restringido), la excepción no capturada detiene la ejecución de la aplicación.\n2. Diagnóstico: Inspecciona la llamada a `localStorage.setItem()` reportada.\n3. Solución Canónica: Envuelve la llamada en un bloque `try-catch` y gestiona la degradación o notificación de cuota excedida.\n4. Ejemplo:\n   ❌ Sin captura: `localStorage.setItem(key, value);`\n   ✅ Robusto:     `try { localStorage.setItem(key, value); } catch (e) { handleStorageQuotaError(e); }`"
+				"persistence-client-uncoordinated-save": "📖 REMEDIATION GUIDE: persistence-client-uncoordinated-save\n1. Root Cause: `localStorage.setItem()` or `sessionStorage.setItem()` was called directly outside the authorized persistence service (`authorizedSaveFiles`). Dispersed direct writes cause synchronization races and state corruption.\n2. Diagnosis: Locate the `setItem` call in the reported component or module.\n3. Canonical Solution: Route all storage mutations through the centralized persistence service or corresponding Pinia store.\n4. Example:\n   ❌ Insecure:     `localStorage.setItem(\"user\", JSON.stringify(user));` in a component.\n   ✅ Coordinated:  `await persistenceService.saveUser(user);`",
+				"persistence-client-untyped-key": "📖 REMEDIATION GUIDE: persistence-client-untyped-key\n1. Root Cause: A naked string literal (e.g.: `\"app_settings\"`) was used as web storage key instead of a typed domain constant or union.\n2. Diagnosis: Check the key passed to `getItem` or `setItem` on the report line.\n3. Canonical Solution: Define storage keys in a canonical constant object (`STORAGE_KEYS = { ... } as const`) and use the typed key.\n4. Example:\n   ❌ Naked key: `localStorage.getItem(\"theme_mode\");`\n   ✅ Typed:     `localStorage.getItem(STORAGE_KEYS.THEME_MODE);`",
+				"persistence-client-unhandled-quota-error": "📖 REMEDIATION GUIDE: persistence-client-unhandled-quota-error\n1. Root Cause: The `setItem()` call is not wrapped in a `try-catch` block capturing `QuotaExceededError`. If the browser exceeds storage quota (5MB-10MB or private browsing mode), the uncaught exception halts application execution.\n2. Diagnosis: Inspect the reported `localStorage.setItem()` call.\n3. Canonical Solution: Wrap the call in a `try-catch` block and gracefully handle degradation or quota notification.\n4. Example:\n   ❌ Uncaught: `localStorage.setItem(key, value);`\n   ✅ Robust:   `try { localStorage.setItem(key, value); } catch (e) { handleStorageQuotaError(e); }`"
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,

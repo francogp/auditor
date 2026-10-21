@@ -43,7 +43,7 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
 
     expect(divergent.length).toBe(0);
     expect(identical.length).toBe(2);
-    expect(identical[0]?.message).toContain('idéntico');
+    expect(identical[0]?.message).toContain('identical value');
   });
 
   it('unwraps parenthesized expressions and type assertion angles (<const>)', async () => {
@@ -82,6 +82,6 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
 
     expect(identical.length).toBe(0);
     expect(divergent.length).toBe(2);
-    expect(divergent[0]?.message).toContain('valores diferentes');
+    expect(divergent[0]?.message).toContain('different values');
   });
 });

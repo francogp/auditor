@@ -1,3 +1,4 @@
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -44,6 +45,7 @@ function makeCliBinariesExecutable(distDir = path.resolve(process.cwd(), "dist/c
 	}
 }
 if (isMainModule(import.meta.url)) {
+	parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
 	purgeOrphanedDistFiles();
 	makeCliBinariesExecutable();
 }

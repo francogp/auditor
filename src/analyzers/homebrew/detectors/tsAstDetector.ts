@@ -10,7 +10,7 @@ import { createLineDetector } from '../homebrewTypes.ts';
 export const tsAstDetector = createLineDetector({
   id: 'ts-ast',
   ruleId: 'auditor-manual-ts-ast',
-  ruleDescription: 'Creación aislada de AST TypeScript',
+  ruleDescription: 'Isolated TypeScript AST creation',
   checkLine(line, trimmed, lineNum, context) {
     if (trimmed.includes('ast-ok') || trimmed.includes('homebrew-ok')) return null;
     const prevLine = lineNum > 1 ? context.lines[lineNum - 2]?.trim() : '';

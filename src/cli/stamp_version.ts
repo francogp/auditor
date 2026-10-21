@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { generateBuildId, parseBaseSemver } from '../core/versionAnalyzer.ts';
 import { isMainModule } from './cliUtils.ts';
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from '../core/cli/cittyHarness.ts';
 
 export interface StampVersionResult {
   version: string;
@@ -69,6 +70,7 @@ export const AUDITOR_BUILD_DATE = '${buildDate}';
 }
 
 if (isMainModule(import.meta.url)) {
+  parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
   const result = stampVersion();
   console.log(`[Version Stamped] ${result.version} (Build: ${result.buildId})`);
 }

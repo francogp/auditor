@@ -5,7 +5,6 @@ import path from "node:path";
 import fs from "node:fs";
 import { Project } from "ts-morph";
 import MagicString from "magic-string";
-import { Lang, parse } from "@ast-grep/napi";
 //#region src/core/refactor/hybridHarness.ts
 /**
 * src/core/refactor/hybridHarness.ts
@@ -13,6 +12,16 @@ import { Lang, parse } from "@ast-grep/napi";
 * CANONICAL DETERMINISTIC HYBRID HARNESS (@ast-grep/napi + ts-morph + Vue SFC + MagicString)
 * Core automated refactoring engine for duplicate & triplicate remediation in @francogp/auditor.
 */
+let cachedAstGrep = null;
+async function getAstGrep() {
+	if (cachedAstGrep) return cachedAstGrep;
+	try {
+		cachedAstGrep = await import("@ast-grep/napi");
+		return cachedAstGrep;
+	} catch {
+		return null;
+	}
+}
 var HybridHarnessEngine = class HybridHarnessEngine {
 	static async execute(projectRoot, plan) {
 		const absShared = path.resolve(projectRoot, plan.sharedModulePath);
@@ -27,7 +36,7 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 			const absFile = path.resolve(projectRoot, relFile);
 			if (!fs.existsSync(absFile)) continue;
 			const fileContent = fs.readFileSync(absFile, "utf8");
-			if (relFile.endsWith(".vue")) this.rewriteVueSfc(absFile, fileContent, absShared, plan);
+			if (relFile.endsWith(".vue")) await this.rewriteVueSfc(absFile, fileContent, absShared, plan);
 			else await this.rewriteTypeScriptFile(absFile, relFile, fileContent, sharedFile, project, plan);
 		}
 	}
@@ -41,14 +50,14 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 		await sharedFile.save();
 		return sharedFile;
 	}
-	static rewriteVueSfc(absFile, fileContent, absShared, plan) {
+	static async rewriteVueSfc(absFile, fileContent, absShared, plan) {
 		const { scripts } = parseVueSfcBlocks(fileContent);
 		const scriptBlock = scripts.find((s) => s.isSetup) ?? scripts[0];
 		if (!scriptBlock) return;
 		const s = new MagicString(fileContent);
 		const scriptText = scriptBlock.content;
 		const scriptOffset = scriptBlock.contentStartIndex;
-		const updatedScript = this.applyAstGrepPatternRewrite(Lang.TypeScript, scriptText, plan.astPattern, plan.astRewrite);
+		const updatedScript = await this.applyAstGrepPatternRewrite("TypeScript", scriptText, plan.astPattern, plan.astRewrite);
 		s.overwrite(scriptOffset, scriptOffset + scriptText.length, updatedScript);
 		const rel = toPosixRelative(path.dirname(absFile), absShared);
 		const relImport = rel.endsWith(".ts") ? rel.slice(0, -3) : rel;
@@ -60,8 +69,8 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 		let sourceFile = project.getSourceFile(absFile);
 		if (!sourceFile) sourceFile = project.createSourceFile(absFile, fileContent, { overwrite: true });
 		const currentText = sourceFile.getFullText();
-		const lang = relFile.endsWith(".tsx") ? Lang.Tsx : Lang.TypeScript;
-		const updatedText = this.applyAstGrepPatternRewrite(lang, currentText, plan.astPattern, plan.astRewrite);
+		const lang = relFile.endsWith(".tsx") ? "Tsx" : "TypeScript";
+		const updatedText = await this.applyAstGrepPatternRewrite(lang, currentText, plan.astPattern, plan.astRewrite);
 		sourceFile.replaceWithText(updatedText);
 		const moduleSpecifier = sourceFile.getRelativePathAsModuleSpecifierTo(sharedFile);
 		this.ensureNamedImport(sourceFile, moduleSpecifier, plan.functionName);
@@ -89,9 +98,10 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 			namedImports: [namedImport]
 		});
 	}
-	static applyAstGrepPatternRewrite(lang, sourceCode, pattern, rewrite) {
-		try {
-			const matches = parse(lang, sourceCode).root().findAll(pattern);
+	static async applyAstGrepPatternRewrite(lang, sourceCode, pattern, rewrite) {
+		const astGrep = await getAstGrep();
+		if (astGrep) try {
+			const matches = astGrep.parse(lang, sourceCode).root().findAll(pattern);
 			if (matches.length > 0) {
 				const edits = matches.map((m) => m.replace(HybridHarnessEngine.expandMetavariables(rewrite, m))).sort((a, b) => b.startPos - a.startPos);
 				let updated = sourceCode;

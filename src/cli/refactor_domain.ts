@@ -31,11 +31,11 @@ const TABLE_COLUMNS: readonly TableColumn[] = [
 
 const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan> = {
   toolName: 'auditor-domain',
-  toolDescription: 'parámetros con strings crudos, catálogos sin as const o IDs sin Brand',
+  toolDescription: 'parameters with naked strings, mutable catalogs, or unbranded IDs',
   bannerTitle: 'AUDITOR DOMAIN: DOMAIN TYPE & BRANDED ID HYGIENE',
-  bannerSubtitle: 'Auto-remediación determinista de strings crudos, catálogos mutables e IDs sin Brand',
-  scanningMessage: 'Escaneando contratos de dominio y tipos nominales en',
-  zeroFindingsMessage: '¡Cero strings crudos, catálogos mutables o IDs sin Brand detectados!',
+  bannerSubtitle: 'Deterministic auto-remediation of naked strings, mutable catalogs, and unbranded IDs',
+  scanningMessage: 'Scanning domain contracts and nominal types in',
+  zeroFindingsMessage: 'Zero raw strings, mutable catalogs, or unbranded IDs detected!',
   tableColumns: TABLE_COLUMNS,
   engineFactory: (projectRoot) => new DomainRefactorEngine({ projectRoot }),
   discoverInFile: (filePath) => DomainRefactorEngine.discoverInFile(filePath),
@@ -55,7 +55,7 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
     const naked = allFindings.filter((f) => f.kind === 'naked-string-parameter').length;
     const unfrozen = allFindings.filter((f) => f.kind === 'unfrozen-catalog').length;
     const unbranded = allFindings.filter((f) => f.kind === 'unbranded-id').length;
-    return `Resumen: ${filesCount} archivos con ${allFindings.length} oportunidades de dominio (${naked} strings crudos, ${unfrozen} catálogos mutables, ${unbranded} IDs sin Brand).`;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} domain opportunities (${naked} raw strings, ${unfrozen} mutable catalogs, ${unbranded} unbranded IDs).`;
   },
   toDiracItem: (f) => ({
     line: f.line,
@@ -68,13 +68,13 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
   applyPlan: (dir, plan) => DomainRefactorEngine.applyPlan(dir, plan)
 };
 
-export async function runRefactorDomainCli(argv: string[] = process.argv.slice(2)): Promise<void> {
+export async function runRefactorDomainCli(argv?: readonly string[]): Promise<void> {
   await runRefactorCliHarness(domainCliDef, argv);
 }
 
 if (isMainModule(import.meta.url, ['auditor-domain', 'refactor_domain'])) {
   runRefactorDomainCli().catch((err) => {
-    console.error(styleText('red', `\n💥 Error fatal en auditor-domain: ${err.message}`));
+    console.error(styleText('red', `\n[Error] Fatal error in auditor-domain: ${err.message}`));
     process.exit(1);
   });
 }

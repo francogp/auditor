@@ -1,0 +1,31 @@
+### P01 copilot#13 expect=cli-contracts-banned-parser-library
+import minimist from 'minimist';
+
+### P02 copilot#14 expect=cli-contracts-banned-parser-library
+const yargs = require('yargs');
+
+### P03 copilot#15 expect=cli-contracts-banned-parser-library
+import * as commander from 'commander';
+
+### P04 deep-research#6 expect=cli-contracts-banned-parser-library
+const argv = require('yargs').argv;
+
+### P05 commander-named#1 expect=cli-contracts-banned-parser-library
+import { Command } from 'commander';
+
+### P06 cac-import#1 expect=cli-contracts-banned-parser-library
+import { cac } from 'cac';
+
+### P07 node-util-parseargs#1 expect=cli-contracts-banned-parser-library
+import { parseArgs } from 'node:util';
+const parsed = parseArgs({ allowPositionals: true });
+
+### P08 node-util-parseargs#2 expect=cli-contracts-banned-parser-library line=2
+import util from 'node:util';
+const res = util.parseArgs({ args: [] });
+
+### P09 mri-import#1 expect=cli-contracts-banned-parser-library
+import mri from 'mri';
+
+### P10 clipanion-import#1 expect=cli-contracts-banned-parser-library
+import { Cli, Command } from 'clipanion';

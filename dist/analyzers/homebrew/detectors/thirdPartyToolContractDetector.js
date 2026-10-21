@@ -31,7 +31,7 @@ function createContractFinding(context, matcher, message, contextTag) {
 const thirdPartyToolContractDetector = {
 	id: "third-party-tool-contract",
 	ruleId: "auditor-third-party-tool-contract",
-	ruleDescription: "Contrato de herramienta externa faltante",
+	ruleDescription: "Missing third-party tool contract",
 	detect(context) {
 		if (!context.isBuiltinSuite && !context.isExtension) return [];
 		if (context.filePath.includes("/analyzers/") || context.filePath.includes("/cli/") || context.filePath.includes("/core/")) return [];

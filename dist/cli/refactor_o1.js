@@ -13,15 +13,15 @@ import { styleText } from "node:util";
 */
 const o1CliDef = {
 	toolName: "auditor-o1",
-	toolDescription: "cuellos de botella O(N) o búsquedas lineales",
+	toolDescription: "O(N) bottlenecks or linear searches",
 	bannerTitle: "AUDITOR O(1): DATA STRUCTURES & LINEAR SEARCH OPTIMIZER",
-	bannerSubtitle: "Auto-remediación determinista de búsquedas lineales y structuredClone",
-	scanningMessage: "Escaneando anti-patrones O(N) y búsquedas lineales en",
-	zeroFindingsMessage: "¡Cero cuellos de botella O(N) o búsquedas lineales detectadas!",
+	bannerSubtitle: "Deterministic auto-remediation of linear searches and structuredClone",
+	scanningMessage: "Scanning O(N) anti-patterns and linear searches in",
+	zeroFindingsMessage: "Zero O(N) bottlenecks or linear searches detected!",
 	tableColumns: [
 		{
 			key: "file",
-			header: "Archivo",
+			header: "File",
 			width: 46,
 			align: "left"
 		},
@@ -68,7 +68,7 @@ const o1CliDef = {
 		const membership = allFindings.filter((f) => f.kind === "linear-membership").length;
 		const json = allFindings.filter((f) => f.kind === "json-clone").length;
 		const spread = allFindings.filter((f) => f.kind === "redundant-spread").length;
-		return `Resumen: ${filesCount} archivos con ${allFindings.length} oportunidades O(1) (${membership} membresías, ${json} structuredClone, ${spread} spreads).`;
+		return `Summary: ${filesCount} file(s) with ${allFindings.length} O(1) opportunities (${membership} set memberships, ${json} structuredClone, ${spread} spreads).`;
 	},
 	toDiracItem: (f) => ({
 		line: f.line,
@@ -80,11 +80,11 @@ const o1CliDef = {
 	createPlan: (id, findings) => O1RefactorEngine.createPlan(id, findings),
 	applyPlan: (dir, plan) => O1RefactorEngine.applyPlan(dir, plan)
 };
-async function runRefactorO1Cli(argv = process.argv.slice(2)) {
+async function runRefactorO1Cli(argv) {
 	await runRefactorCliHarness(o1CliDef, argv);
 }
 if (isMainModule(import.meta.url, ["auditor-o1", "refactor_o1"])) runRefactorO1Cli().catch((err) => {
-	console.error(styleText("red", `\n💥 Error fatal en auditor-o1: ${err.message}`));
+	console.error(styleText("red", `\n[Error] Fatal error in auditor-o1: ${err.message}`));
 	process.exit(1);
 });
 //#endregion

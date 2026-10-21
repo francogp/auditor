@@ -1,8 +1,9 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
-import { executeFallowJsonCommand, isMainModule } from "./cliUtils.js";
+import { executeFallowJsonCommand, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 //#region src/cli/report_flags.ts
 /**
 * src/cli/report_flags.ts
@@ -16,29 +17,39 @@ const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 function formatRetirementReason(reason) {
 	switch (reason) {
-		case "single-read-site": return "Leída en un solo sitio";
-		case "empty-branch": return "Rama vacía";
-		case "literal-constant": return "Constante literal";
-		case "defined-never-read": return "Definida pero nunca leída";
-		case "identical-branches": return "Ramas idénticas";
-		case "guards-dead-code": return "Protege código muerto";
-		case "fully-rolled-out": return "Completamente desplegada";
+		case "single-read-site": return "Single read site";
+		case "empty-branch": return "Empty branch";
+		case "literal-constant": return "Literal constant";
+		case "defined-never-read": return "Defined but never read";
+		case "identical-branches": return "Identical branches";
+		case "guards-dead-code": return "Guards dead code";
+		case "fully-rolled-out": return "Fully rolled out";
 		default: return reason;
 	}
 }
-function renderRetirementFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT) {
+function renderRetirementFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT, options = {}) {
 	const candidates = parsed?.retirement?.flags ?? [];
 	const displayed = candidates.slice(0, topLimit);
 	if (displayed.length === 0) {
-		console.log("\n  " + styleText(["bold", "green"], "✨ ¡Excelente! No se detectaron feature flags candidatas a retiro.\n"));
+		console.log("\n  " + styleText(["bold", "green"], "[OK] No feature flags candidate for retirement detected.\n"));
 		return;
 	}
-	console.log(`  Candidatas a retiro: ${styleText("yellow", String(candidates.length))}\n`);
+	if (!isHumanConsoleMode(options)) {
+		console.log(`[Flags] Found ${candidates.length} candidate(s) for retirement:`);
+		for (const item of displayed) {
+			const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
+			const reasonsStr = reasonsList.length > 0 ? reasonsList.join(", ") : "none";
+			console.log(`• ${item.name} (${item.age_days !== void 0 ? `${item.age_days}d` : "n/a"}, ${item.read_sites ?? 0} sites): ${reasonsStr}`);
+		}
+		console.log("");
+		return;
+	}
+	console.log(`  Candidates for retirement: ${styleText("yellow", String(candidates.length))}\n`);
 	const tableRows = displayed.map((item) => {
-		const ageStr = item.age_days !== void 0 ? `${item.age_days}d` : styleText("dim", "n/d");
+		const ageStr = item.age_days !== void 0 ? `${item.age_days}d` : styleText("dim", "n/a");
 		const sitesStr = item.read_sites !== void 0 ? String(item.read_sites) : styleText("dim", "0");
 		const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
-		const reasonsStr = reasonsList.length > 0 ? reasonsList.join(", ") : styleText("dim", "ninguno");
+		const reasonsStr = reasonsList.length > 0 ? reasonsList.join(", ") : styleText("dim", "none");
 		return {
 			name: styleText("cyan", item.name),
 			age: ageStr,
@@ -54,19 +65,19 @@ function renderRetirementFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT) {
 			key: "name"
 		},
 		{
-			header: "EDAD",
+			header: "AGE",
 			width: 8,
 			align: "right",
 			key: "age"
 		},
 		{
-			header: "LECTURAS",
+			header: "READ SITES",
 			width: 10,
 			align: "right",
 			key: "sites"
 		},
 		{
-			header: "MOTIVO DE RETIRO RECOMENDADO",
+			header: "RECOMMENDED RETIREMENT REASON",
 			width: 44,
 			align: "left",
 			key: "reasons"
@@ -74,14 +85,20 @@ function renderRetirementFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT) {
 	], tableRows));
 	console.log();
 }
-function renderActiveFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT) {
+function renderActiveFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT, options = {}) {
 	const flags = parsed?.feature_flags ?? [];
 	if (flags.length === 0) {
-		console.log("\n  " + styleText("dim", "No se encontraron feature flags configuradas en este proyecto.\n"));
+		console.log("\n  " + styleText("dim", "[Notice] No feature flags configured in this project.\n"));
+		return;
+	}
+	if (!isHumanConsoleMode(options)) {
+		console.log(`[Flags] ${flags.length} active feature flag(s):`);
+		for (const f of flags.slice(0, topLimit)) console.log(`• ${f.name ?? "unknown"}: ${f.read_sites ?? 0} read sites`);
+		console.log("");
 		return;
 	}
 	const tableRows = flags.slice(0, topLimit).map((f) => ({
-		name: styleText("cyan", f.name ?? "desconocida"),
+		name: styleText("cyan", f.name ?? "unknown"),
 		sites: String(f.read_sites ?? 0)
 	}));
 	console.log("\n" + renderBoxTable([{
@@ -90,17 +107,17 @@ function renderActiveFlagsView(parsed, topLimit = DEFAULT_TOP_LIMIT) {
 		align: "left",
 		key: "name"
 	}, {
-		header: "SITIOS DE LECTURA",
+		header: "READ SITES",
 		width: 20,
 		align: "right",
 		key: "sites"
 	}], tableRows));
-	console.log(styleText("dim", "  💡 Tip: Ejecuta auditor-flags --retirement para ver recomendaciones de retiro.\n"));
+	console.log(styleText("dim", "  [Notice] Run auditor-flags --retirement to see retirement recommendations.\n"));
 }
 function runFlagsReport(projectRoot = process.cwd(), options = {}) {
 	const fallowBin = resolveFallowBinary(projectRoot);
 	if (!fallowBin) {
-		console.error(styleText("red", "❌ No se encontró el binario de Fallow en node_modules."));
+		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
 		return 1;
 	}
 	const runArgs = [
@@ -118,48 +135,37 @@ function runFlagsReport(projectRoot = process.cwd(), options = {}) {
 		return status;
 	}
 	const isRetirement = Boolean(options.retirement);
-	console.log("\n" + renderBanner("GOBERNANZA DE FEATURE FLAGS (FALLOW FLAGS)", isRetirement ? "Análisis de retiro de flags obsoletas o redundantes" : "Detección y uso de feature flags"));
-	const totalFlags = parsed?.total_flags ?? parsed?.feature_flags?.length ?? 0;
-	console.log(`  Total de feature flags detectadas: ${styleText("bold", String(totalFlags))}`);
-	if (isRetirement) renderRetirementFlagsView(parsed, options.top);
-	else renderActiveFlagsView(parsed, options.top);
+	if (isHumanConsoleMode(options)) {
+		console.log("\n" + renderBanner("FEATURE FLAGS GOVERNANCE (FALLOW FLAGS)", isRetirement ? "Retirement analysis for stale or redundant flags" : "Feature flag detection and usage"));
+		const totalFlags = parsed?.total_flags ?? parsed?.feature_flags?.length ?? 0;
+		console.log(`  Total feature flags detected: ${styleText("bold", String(totalFlags))}\n`);
+	}
+	if (isRetirement) renderRetirementFlagsView(parsed, options.top, options);
+	else renderActiveFlagsView(parsed, options.top, options);
 	return status;
 }
-if (isMainModule(import.meta.url)) {
-	const { values, positionals } = parseArgs({
-		args: process.argv.slice(2),
-		options: {
-			retirement: {
-				type: "boolean",
-				default: false
-			},
-			top: {
-				type: "string",
-				default: "20"
-			},
-			json: {
-				type: "boolean",
-				default: false
-			}
-		},
-		strict: false,
-		allowPositionals: true
-	});
-	let retirement = Boolean(values.retirement);
-	let top = parseInt(values.top, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-	let jsonOutput = Boolean(values.json);
-	for (const pos of positionals) {
-		if (pos === "retirement") retirement = true;
-		if (pos.startsWith("top=")) {
-			const raw = pos.split("=")[1];
-			top = raw === "all" ? Number.MAX_SAFE_INTEGER : parseInt(raw || "20", RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-		}
-		if (pos === "json") jsonOutput = true;
+const FLAGS_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	retirement: {
+		type: "boolean",
+		default: false,
+		description: "Show retirement candidates"
+	},
+	top: {
+		type: "string",
+		default: "20",
+		description: "Maximum flags to display"
 	}
+};
+if (isMainModule(import.meta.url)) {
+	const parsed = parseCittyArgs(FLAGS_CLI_ARGS, getProcessCliArgs());
+	const rawTop = String(parsed.top || "20");
+	const top = rawTop === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTop, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
 	const exitCode = runFlagsReport(process.cwd(), {
-		retirement,
+		retirement: Boolean(parsed.retirement),
 		top,
-		json: jsonOutput
+		json: Boolean(parsed.json),
+		human: resolveHumanModeFromArgs(parsed)
 	});
 	process.exit(exitCode);
 }

@@ -1,0 +1,39 @@
+{
+  "skill_name": "auditor",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Quiero analizar scratch/audits/latest_audit.json para ver qué falló en el último audit.",
+      "expected_output": "The agent activates the /auditor skill and uses the official CLI tools (such as npm run auditor:findings or npm run auditor:rules) to inspect the findings rather than reading raw JSON directly or writing ad-hoc scripts.",
+      "files": ["scratch/audits/latest_audit.json"],
+      "expectations": [
+        "Activates /auditor skill and prioritizes canonical framework CLI tools",
+        "Uses npm run auditor:findings or npm run auditor:rules to inspect scratch/audits/latest_audit.json",
+        "Does NOT attempt to read raw JSON with file reading tools or grep",
+        "Does NOT create scratch scripts or node -e one-liners to parse latest_audit.json"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "Inspeccioná latest_audit.json y mostrame qué errores de tipo salieron en src/cli/report_fallow.ts.",
+      "expected_output": "The agent activates /auditor and uses 'npm run auditor:findings -- file=src/cli/report_fallow.ts flat' or 'npm run auditor:findings -- rule=ts-compiler-error' to retrieve the exact violations from latest_audit.json.",
+      "files": ["scratch/audits/latest_audit.json"],
+      "expectations": [
+        "Uses npm run auditor:findings with file or rule filtering",
+        "Does NOT parse latest_audit.json manually",
+        "Emits clear terminal report from canonical tool"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Mostrame cuántos errores y warnings quedaron en el último audit agrupados por regla a partir de scratch/audits/latest_audit.json.",
+      "expected_output": "The agent activates /auditor and runs 'npm run auditor:rules' or 'npm run auditor:by-rule' to render the Box-Drawing summary table by rule with consolidated totals.",
+      "files": ["scratch/audits/latest_audit.json"],
+      "expectations": [
+        "Executes npm run auditor:rules or npm run auditor:by-rule",
+        "Presents the consolidated breakdown using the framework's Box-Drawing table",
+        "Avoids ad-hoc scripts"
+      ]
+    }
+  ]
+}

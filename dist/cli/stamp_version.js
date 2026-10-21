@@ -1,3 +1,4 @@
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
 import { generateBuildId, parseBaseSemver } from "../core/versionAnalyzer.js";
 import path from "node:path";
@@ -46,6 +47,7 @@ export const AUDITOR_BUILD_DATE = '${buildDate}';
 	};
 }
 if (isMainModule(import.meta.url)) {
+	parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
 	const result = stampVersion();
 	console.log(`[Version Stamped] ${result.version} (Build: ${result.buildId})`);
 }

@@ -237,11 +237,11 @@ function extractCommandsFromLine(line, lineNum, out, overrideRawText) {
 function evaluateBinaryExecution(cmd, env, runnerName) {
 	const binName = cmd.target.startsWith("@") ? cmd.target.split("/")[1] || cmd.target : cmd.target;
 	if (!(env.installedBins.has(binName) || env.declaredBins.has(cmd.target) || env.declaredBins.has(binName) || env.allowedNpx.has(cmd.target) || env.allowedNpx.has(binName))) {
-		let detail = runnerName === "npx" ? `no existe en node_modules/.bin ni está declarado en package.json ni en allowedNpxBinaries.` : `no existe ni está declarado en dependencias.`;
-		if (cmd.target === "vite" && runnerName === "npx") detail += ` En proyectos gobernados por Vite+, usa 'vp dev' o 'node_modules/.bin/vite' en lugar de 'npx vite'.`;
+		let detail = runnerName === "npx" ? `does not exist in node_modules/.bin nor is declared in package.json or allowedNpxBinaries.` : `does not exist nor is declared in dependencies.`;
+		if (cmd.target === "vite" && runnerName === "npx") detail += ` In projects governed by Vite+, use 'vp dev' or 'node_modules/.bin/vite' instead of 'npx vite'.`;
 		return {
 			kind: "unregistered-npx",
-			message: `El binario '${cmd.target}' ejecutado vía ${runnerName} ${detail}`,
+			message: `Binary '${cmd.target}' executed via ${runnerName} ${detail}`,
 			context: cmd.rawText,
 			line: cmd.lineNum
 		};
@@ -252,13 +252,13 @@ function evaluateVpDirectCommand(cmd, env) {
 	if (VALID_VP_BUILTINS.has(cmd.target)) return null;
 	if (env.scripts.has(cmd.target)) return {
 		kind: "invalid-npm-syntax",
-		message: `Sintaxis incorrecta: '${cmd.target}' es un script de proyecto, no un comando nativo de Vite+. Usa 'vp run ${cmd.target}' o 'vpr ${cmd.target}'.`,
+		message: `Incorrect syntax: '${cmd.target}' is a project script, not a native Vite+ command. Use 'vp run ${cmd.target}' or 'vpr ${cmd.target}'.`,
 		context: cmd.rawText,
 		line: cmd.lineNum
 	};
 	return {
 		kind: "invalid-npm-syntax",
-		message: `'vp ${cmd.target}' no es un comando nativo de Vite+ (${Array.from(VALID_VP_BUILTINS).join(", ")}).`,
+		message: `'vp ${cmd.target}' is not a native Vite+ command (${Array.from(VALID_VP_BUILTINS).join(", ")}).`,
 		context: cmd.rawText,
 		line: cmd.lineNum
 	};
@@ -267,7 +267,7 @@ function evaluateNpmDirectCommand(cmd, env) {
 	if (VALID_NPM_BUILTINS.has(cmd.target)) {
 		if (cmd.target === "test" && !env.scripts.has("test")) return {
 			kind: "unregistered-npm",
-			message: `El comando 'npm test' requiere un script 'test' en package.json.`,
+			message: `Command 'npm test' requires a 'test' script in package.json.`,
 			context: cmd.rawText,
 			line: cmd.lineNum
 		};
@@ -275,13 +275,13 @@ function evaluateNpmDirectCommand(cmd, env) {
 	}
 	if (env.scripts.has(cmd.target)) return {
 		kind: "invalid-npm-syntax",
-		message: `Sintaxis incorrecta: se ejecutó 'npm ${cmd.target}', pero debe ser 'npm run ${cmd.target}'.`,
+		message: `Incorrect syntax: executed 'npm ${cmd.target}', but must be 'npm run ${cmd.target}'.`,
 		context: cmd.rawText,
 		line: cmd.lineNum
 	};
 	return {
 		kind: "invalid-npm-syntax",
-		message: `'npm ${cmd.target}' no es un comando nativo de npm ni un script registrado.`,
+		message: `'npm ${cmd.target}' is not a native npm command nor a registered script.`,
 		context: cmd.rawText,
 		line: cmd.lineNum
 	};
@@ -293,7 +293,7 @@ function evaluateGenericCommandViolation(cmd, env) {
 			if (env.scripts.has(cmd.target) || KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET.has(cmd.target)) return null;
 			return {
 				kind: "unregistered-npm",
-				message: `El comando 'vp run ${cmd.target}' (o 'vpr ${cmd.target}') no está registrado en package.json.scripts ni en run.tasks.`,
+				message: `Command 'vp run ${cmd.target}' (or 'vpr ${cmd.target}') is not registered in package.json.scripts or run.tasks.`,
 				context: cmd.rawText,
 				line: cmd.lineNum
 			};
@@ -303,7 +303,7 @@ function evaluateGenericCommandViolation(cmd, env) {
 			if (env.scripts.has(cmd.target) || KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET.has(cmd.target)) return null;
 			return {
 				kind: "unregistered-npm",
-				message: `El comando 'npm run ${cmd.target}' no está registrado en package.json.scripts.`,
+				message: `Command 'npm run ${cmd.target}' is not registered in package.json.scripts.`,
 				context: cmd.rawText,
 				line: cmd.lineNum
 			};

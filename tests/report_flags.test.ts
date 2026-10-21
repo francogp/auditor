@@ -44,9 +44,7 @@ describe('Report Flags CLI Tool', () => {
 
     const code = runFlagsReport('/empty/dir');
     expect(code).toBe(1);
-    expect(errSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No se encontró el binario de Fallow')
-    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Fallow binary not found'));
 
     errSpy.mockRestore();
   });
@@ -79,7 +77,7 @@ describe('Report Flags CLI Tool', () => {
     const code = runFlagsReport(process.cwd(), { retirement: false, json: false });
     expect(code).toBe(0);
     const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(allLogs).toContain('No se encontraron feature flags configuradas');
+    expect(allLogs).toContain('No feature flags configured');
 
     logSpy.mockRestore();
   });
@@ -98,13 +96,18 @@ describe('Report Flags CLI Tool', () => {
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const code = runFlagsReport(process.cwd(), { retirement: false, json: false, top: 10 });
+    const code = runFlagsReport(process.cwd(), {
+      retirement: false,
+      json: false,
+      top: 10,
+      human: true
+    });
     expect(code).toBe(0);
     const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
     expect(allLogs).toContain('FEATURE FLAG');
     expect(allLogs).toContain('enable_new_pricing');
     expect(allLogs).toContain('dark_mode_v2');
-    expect(allLogs).toContain('Tip: Ejecuta auditor-flags --retirement');
+    expect(allLogs).toContain('Run auditor-flags --retirement');
 
     logSpy.mockRestore();
   });
@@ -123,7 +126,7 @@ describe('Report Flags CLI Tool', () => {
     const code = runFlagsReport(process.cwd(), { retirement: true, json: false });
     expect(code).toBe(0);
     const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(allLogs).toContain('No se detectaron feature flags candidatas a retiro');
+    expect(allLogs).toContain('No feature flags candidate for retirement detected');
 
     logSpy.mockRestore();
   });
@@ -175,16 +178,21 @@ describe('Report Flags CLI Tool', () => {
     });
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
-    const code = runFlagsReport(process.cwd(), { retirement: true, json: false, top: 10 });
+    const code = runFlagsReport(process.cwd(), {
+      retirement: true,
+      json: false,
+      top: 10,
+      human: true
+    });
     expect(code).toBe(0);
     const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(allLogs).toContain('Leída en un solo sitio');
-    expect(allLogs).toContain('Rama vacía');
-    expect(allLogs).toContain('Constante literal');
-    expect(allLogs).toContain('Definida pero nunca leída');
-    expect(allLogs).toContain('Ramas idénticas');
-    expect(allLogs).toContain('Protege código muerto');
-    expect(allLogs).toContain('Completamente desplegada');
+    expect(allLogs).toContain('Single read site');
+    expect(allLogs).toContain('Empty branch');
+    expect(allLogs).toContain('Literal constant');
+    expect(allLogs).toContain('Defined but never read');
+    expect(allLogs).toContain('Identical branches');
+    expect(allLogs).toContain('Guards dead code');
+    expect(allLogs).toContain('Fully rolled out');
     expect(allLogs).toContain('unknown-custom-reason');
 
     logSpy.mockRestore();

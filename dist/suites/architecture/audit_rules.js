@@ -22,7 +22,7 @@ const FALLOW_SUITE_DESCRIPTORS = {
 	dupes: {
 		id: "fallow:dupes",
 		name: "Fallow Code Duplication",
-		category: "Fallow: Código duplicado",
+		category: "Fallow: Duplicate code",
 		aliases: [
 			"dupes",
 			"duplicados",
@@ -35,7 +35,7 @@ const FALLOW_SUITE_DESCRIPTORS = {
 	triplets: {
 		id: "fallow:triplets",
 		name: "Fallow Code Triplication",
-		category: "Fallow: Código triplicado",
+		category: "Fallow: Triplicate code",
 		aliases: [
 			"triplets",
 			"triplicados",
@@ -47,7 +47,7 @@ const FALLOW_SUITE_DESCRIPTORS = {
 	security: {
 		id: "fallow:security",
 		name: "Fallow Security CWE Vulnerabilities",
-		category: "Fallow: Vulnerabilidad de seguridad",
+		category: "Fallow: Security vulnerability",
 		aliases: [
 			"security",
 			"seguridad",
@@ -62,7 +62,7 @@ const FALLOW_SUITE_DESCRIPTORS = {
 	"dead-code": {
 		id: "fallow:dead-code",
 		name: "Fallow Dead Code, Circular Dependencies & Unused",
-		category: "Fallow: Archivos huérfanos",
+		category: "Fallow: Orphaned files",
 		aliases: [
 			"dead-code",
 			"deadcode",
@@ -87,7 +87,7 @@ const FALLOW_SUITE_DESCRIPTORS = {
 	health: {
 		id: "fallow:health",
 		name: "Fallow Code Health & Complexity",
-		category: "Fallow: Complejidad",
+		category: "Fallow: Complexity",
 		aliases: [
 			"health",
 			"salud",
@@ -129,7 +129,7 @@ const viewport = {
 const legacyDates = {
 	id: "legacyDates",
 	name: "Temporal Migration",
-	category: "Uso de Date (Temporal)",
+	category: "Date Usage (Temporal)",
 	aliases: [
 		"temporal",
 		"date",
@@ -137,7 +137,7 @@ const legacyDates = {
 		"legacy-dates"
 	],
 	regex: /new Date\(|Date\.now\(\)/g,
-	message: "Uso de 'Date' detectado. Usa 'Temporal'.",
+	message: "Usage of 'Date' detected. Use 'Temporal'.",
 	severity: "error",
 	appliesTo: (filePath) => {
 		return !isExemptFile(filePath) && isInCodeRoots(filePath);
@@ -154,7 +154,7 @@ const hardcodedTimezone = {
 	message: (match) => {
 		const tzVar = getAuditConfig().domain?.timezoneVariable ?? "APP_TIMEZONE";
 		const helperMod = getAuditConfig().domain?.timezoneHelperModule;
-		return `Timezone hardcodeado detectado: '${match}'. Usa la variable global '${tzVar}'${helperMod ? ` importada desde '${helperMod}'` : ""} para respetar la configuración del servidor.`;
+		return `Hardcoded timezone detected: '${match}'. Use global variable '${tzVar}'${helperMod ? ` imported from '${helperMod}'` : ""} to respect server configuration.`;
 	},
 	severity: "error",
 	appliesTo: (filePath) => {
@@ -202,7 +202,7 @@ const noDomainIdFallbacks = {
 	get regex() {
 		return getDomainIdFallbackRegex();
 	},
-	message: "FALLBACK SILENCIOSO EN ID DE DOMINIO / NOMBRE DETECTADO. Queda estrictamente prohibido usar fallbacks silenciosos (como || '', ?? '', o alternar id con name) para identificadores de dominio. Debe usarse una función de validación estricta que lance un error explícito (Fail Loud) si el ID falta o es inválido.",
+	message: "SILENT FALLBACK ON DOMAIN ID / NAME DETECTED. Using silent fallbacks (such as || '', ?? '', or swapping id with name) is strictly prohibited for domain identifiers. A strict validation function throwing an explicit error (Fail Loud) must be used if the ID is missing or invalid.",
 	severity: "error",
 	check: (content, match, filePath) => {
 		const config = getAuditConfig();
@@ -225,7 +225,7 @@ const noDomainIdFallbacks = {
 };
 const nodePrefix = {
 	regex: /import .* from ['"](fs|path|os|crypto|util|url|events|stream|child_process)['"]/g,
-	message: "Import de Node sin prefijo 'node:'.",
+	message: "Node import without 'node:' prefix.",
 	check: (_content, _match, filePath) => {
 		if (!filePath || filePath.includes("audit_rules.ts")) return false;
 		return true;
@@ -259,9 +259,9 @@ function resolveRelativeTargetExtension(importSpec, importerFile) {
 const esmExtensions = {
 	regex: /(?:import|export)\s+(?:type\s+)?(?:[^;'"]+?\s+from\s+)?['"](\.\.?\/[^'"]+)['"]/g,
 	message: (match) => {
-		if (/\.(?:js|jsx|mjs|cjs)['"]/.test(match)) return `Import relativo con extensión JS legada: '${match}'. Migra a extensión TypeScript explícita (.ts / .tsx).`;
-		if (/\.css['"]/.test(match)) return `Import relativo a archivo CSS plano: '${match}'. Migra a SCSS (.scss).`;
-		return `Import relativo sin extensión: '${match}'. En Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ nativo las extensiones son obligatorias.`;
+		if (/\.(?:js|jsx|mjs|cjs)['"]/.test(match)) return `Relative import with legacy JS extension: '${match}'. Migrate to explicit TypeScript extension (.ts / .tsx).`;
+		if (/\.css['"]/.test(match)) return `Relative import to plain CSS file: '${match}'. Migrate to SCSS (.scss).`;
+		return `Relative import without extension: '${match}'. In native Node.js ${RULES_TARGET_NODE_VERSION_LABEL}+ file extensions are mandatory.`;
 	},
 	severity: "error",
 	fix: (match, _p1, filePath) => match.replace(/(['"])(\.\.?\/[^'"]+)(['"])/, (fullQuote, q1, p, q2) => {
@@ -280,20 +280,20 @@ const esmExtensions = {
 };
 const tsIgnore = {
 	regex: /\/\/\s*@ts-(ignore|nocheck|expect-error)/g,
-	message: "Uso de supresión de TypeScript detectado. Prohibido por la política 'Zero-Ignore'.",
+	message: "TypeScript suppression detected. Prohibited under the 'Zero-Ignore' policy.",
 	severity: "error",
 	fix: () => "",
 	fixable: true
 };
 const timersPromises = {
 	regex: /new Promise\(r => setTimeout\(r, (\d+)\)\)/g,
-	message: "Uso de setTimeout manual en script Node. Considera 'import { setTimeout } from \"node:timers/promises\"'.",
+	message: "Manual setTimeout detected in Node script. Use 'import { setTimeout } from \"node:timers/promises\"' instead.",
 	check: (_content, _match, filePath) => !!filePath && isScriptPath(filePath) && !normalizeFilePath(filePath).includes("node_modules"),
 	fixable: false
 };
 const explicitResource = {
 	regex: /const (\w+) = (new DatabaseSync|fs\.openSync)/g,
-	message: `Recurso detectado sin 'using'. Usa Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
+	message: `Resource detected without 'using'. Use Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
 	fix: (match) => match.replace("const", "using"),
 	check: (content, match, filePath) => {
 		if (!filePath || !isScriptPath(filePath)) return false;
@@ -308,7 +308,7 @@ const zeroTimerLogic = {
 	name: "Zero Timer Logic",
 	aliases: ["zerotimerlogic"],
 	regex: /(?<!\.)\b(sleep)\s*\(/g,
-	message: "Uso de 'sleep()' nativo detectado en lógica central. Las funciones de lógica de negocio deben ser 100% deterministas y orientadas a eventos.",
+	message: "Native 'sleep()' detected in core logic. Business logic functions must be 100% deterministic and event-driven.",
 	severity: "error",
 	check: (content, _match, filePath) => {
 		if (!filePath) return false;
@@ -322,19 +322,19 @@ const zeroTimerLogic = {
 };
 const jsonStringifyInWatch = {
 	regex: /\bwatch\s*\(\s*(?:\(\)\s*=>\s*)?JSON\.stringify/g,
-	message: "Uso de 'JSON.stringify' dentro de un watcher detectado. Serializar objetos/arrays en watchers de alta frecuencia satura la CPU. Realiza comparaciones directas por elementos o usa watchers profundos ({ deep: true }) con moderación.",
+	message: "Usage of 'JSON.stringify' inside a watcher detected. Serializing objects/arrays in high-frequency watchers saturates CPU. Perform direct element comparisons or use deep watchers ({ deep: true }) with care.",
 	severity: "error",
 	fixable: false
 };
 const intersectionObserverRoot = {
 	regex: /new\s+IntersectionObserver\s*\([^,]+,\s*\{[^}]*root\s*:\s*(?!null\b)[\w$]/g,
-	message: "Uso de 'root' dinámico o DOM en IntersectionObserver detectado. En contenedores escalados o con zoom (ej: #zoomable-content), usar un root distinto de null genera fallos de cálculo de visibilidad que apagan animaciones. Deja 'root' como 'null' (viewport) o no lo declares.",
+	message: "Dynamic or DOM 'root' in IntersectionObserver detected. In scaled or zoomed containers, using a root other than null causes visibility calculation bugs that disable animations. Leave 'root' as 'null' (viewport) or omit it.",
 	severity: "warning",
 	fixable: false
 };
 const functionCallsInTemplates = {
 	regex: /(?::[a-z0-9-]+|v-bind:[a-z0-9-]+)="([\w$]+)\([^"]*\)"|\{\{\s*([\w$]+)\([^}]*\)\}/gi,
-	message: (match) => `Llamada a función/método '${match}' detectada en plantilla Vue. Está PROHIBIDO llamar a funciones que realicen consultas a bases de datos, transformaciones de array (.map/.filter) o lógica pesada en el render loop. Cachea los datos con 'computed'.`,
+	message: (match) => `Function or method call '${match}' detected in Vue template. Calling functions that perform database queries, array transformations (.map/.filter), or heavy logic in the render loop is PROHIBITED. Cache data via 'computed'.`,
 	severity: "error",
 	check: (content, match, filePath) => {
 		if (!filePath) return false;
@@ -564,7 +564,7 @@ const noInlineLiteralUnions = {
 const noRawJsonImportsOutsideData = {
 	id: "noRawJsonImportsOutsideData",
 	name: "No Raw JSON Import Outside Data Layer",
-	category: "Optimización de Bundle",
+	category: "Bundle Optimization",
 	regex: /\bimport\s[^;]+\sfrom\s+['"][^'"]+\.json['"]/g,
 	message: (match) => `Importación estática de JSON fuera de src/data/ o scripts/: '${match}'. Centraliza catálogos en src/data/ o usa importación dinámica para prevenir empaquetado redundante.`,
 	severity: "error",

@@ -84,7 +84,7 @@ function computeFindingSeverity(sev, failOn) {
 function extractAdvisoryDetails(vuln, pkgName) {
 	const advisory = vuln.via.find((v) => typeof v !== "string");
 	return {
-		title: advisory?.title ?? `Aviso de seguridad ${vuln.severity} en ${pkgName}`,
+		title: advisory?.title ?? `${vuln.severity} security advisory in ${pkgName}`,
 		url: advisory?.url ? ` (${advisory.url})` : ""
 	};
 }
@@ -104,7 +104,7 @@ function parseNpmAuditReport(json, allowList, failOn = "critical") {
 			suiteId: "validate_dependency_vulnerabilities",
 			suiteName: "Dependency Vulnerabilities & CVE Auditor",
 			ruleId,
-			ruleDescription: "Dependencias: Vulnerabilidad CVE detectada",
+			ruleDescription: "Dependencies: Detected CVE vulnerability",
 			severity: findingSeverity,
 			file: "package-lock.json",
 			line: 1,
@@ -135,21 +135,21 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_dependency_vulnerabilities",
 			name: "Dependency Vulnerabilities & CVE Auditor",
-			description: "Detecta vulnerabilidades y avisos de seguridad CVE",
+			description: "Detects vulnerabilities and CVE security advisories",
 			family: "architecture",
-			packageName: "Dependencias",
+			packageName: "Dependencies",
 			icon: "🛡️",
 			ruleIds: DEPENDENCY_VULNERABILITIES_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_VULNERABILITIES_RULES, "hygiene"),
 			ruleDescriptions: {
-				"dependency-cve-critical": "Vulnerabilidad crítica en paquete",
-				"dependency-cve-high": "Vulnerabilidad de severidad alta",
-				"dependency-cve-moderate": "Vulnerabilidad moderada detectada"
+				"dependency-cve-critical": "Critical vulnerability in package",
+				"dependency-cve-high": "High vulnerability in package",
+				"dependency-cve-moderate": "Moderate vulnerability detected"
 			},
 			ruleRemediations: {
-				"dependency-cve-critical": "Causa Raíz:\nSe detectó una vulnerabilidad de seguridad crítica (CVE con puntuación CVSS >= 9.0) en una de las dependencias instaladas en el árbol de node_modules.\nLas vulnerabilidades críticas habitualmente permiten ejecución remota de código (RCE), elevación de privilegios no autorizada o secuestro completo del entorno.\n\nDiagnóstico:\nEl mensaje reporta el nombre del paquete vulnerable, la ruta del aviso de seguridad de GitHub Advisory / CVE y la cadena de dependencias afectadas.\n\nSolución Canónica:\n1. Ejecuta \"npm audit\" para inspeccionar el informe detallado de npm.\n2. Si existe un parche seguro disponible, ejecuta \"npm audit fix\".\n3. Si la vulnerabilidad proviene de una dependencia directa, actualízala en package.json a una versión no vulnerable (\"npm install <paquete>@latest\").\n4. Si se confirma como falso positivo o entorno estrictamente aislado y sin riesgo, regístralo explícitamente en \"config.dependencyVulnerabilities.allowList\" en .auditor/audit.config.ts tras aprobación humana.",
-				"dependency-cve-high": "Causa Raíz:\nSe detectó una vulnerabilidad de severidad alta (CVSS 7.0 - 8.9) en las dependencias del proyecto.\nGeneralmente corresponde a denegación de servicio (ReDoS), Cross-Site Scripting (XSS) o bypass de autenticación en librerías utilizadas.\n\nDiagnóstico:\nRevisa el advisory URL provisto en el mensaje de error.\n\nSolución Canónica:\n1. Ejecuta \"npm audit fix\" para actualizar de forma segura a versiones con parche compatible.\n2. Actualiza la dependencia principal que introduce la librería vulnerable.",
-				"dependency-cve-moderate": "Causa Raíz:\nSe detectó una vulnerabilidad de severidad moderada (CVSS 4.0 - 6.9) en dependencias instaladas.\n\nDiagnóstico:\nRevisa el paquete y la versión parcheada recomendada en el aviso de npm audit.\n\nSolución Canónica:\n1. Ejecuta \"npm audit fix\" o actualiza el paquete afectado mediante \"npm update <paquete>\".\n2. En entornos donde solo se bloquee ante fallos críticos, se puede calibrar \"config.dependencyVulnerabilities.failOn\" a \"critical\" o \"high\" en .auditor/audit.config.ts."
+				"dependency-cve-critical": "1. Root Cause:\nA critical security vulnerability (CVE with CVSS score >= 9.0) was detected in one of the dependencies installed in node_modules.\nCritical vulnerabilities typically allow remote code execution (RCE), unauthorized privilege escalation, or complete environment compromise.\n\n2. Diagnosis:\nThe violation message reports the vulnerable package name, the GitHub Advisory / CVE URL, and the affected dependency chain.\n\n3. Canonical Solution:\n1. Run \"npm audit\" to inspect the detailed security report.\n2. If a safe patch is available, run \"npm audit fix\".\n3. If the vulnerability originates from a direct dependency, update it in package.json to a secure release (\"npm install <package>@latest\").\n4. If confirmed as a false positive in an isolated, non-risky environment, register it explicitly in \"config.dependencyVulnerabilities.allowList\" in .auditor/audit.config.ts after human review.\n\n4. Example / Auto-fix command:\nnpm audit fix",
+				"dependency-cve-high": "1. Root Cause:\nA high severity vulnerability (CVSS 7.0 - 8.9) was detected in project dependencies.\nCommon causes include Regular Expression Denial of Service (ReDoS), Cross-Site Scripting (XSS), or authentication bypass in third-party libraries.\n\n2. Diagnosis:\nReview the advisory URL provided in the violation message.\n\n3. Canonical Solution:\n1. Run \"npm audit fix\" to safely update to semver-compatible patched versions.\n2. Upgrade the top-level dependency that introduces the vulnerable package.\n\n4. Example / Auto-fix command:\nnpm audit fix",
+				"dependency-cve-moderate": "1. Root Cause:\nA moderate severity vulnerability (CVSS 4.0 - 6.9) was detected in installed dependencies.\n\n2. Diagnosis:\nCheck the package and the recommended patched version in the npm audit advisory.\n\n3. Canonical Solution:\n1. Run \"npm audit fix\" or update the affected package with \"npm update <package>\".\n2. In environments gated strictly on critical issues, configure \"config.dependencyVulnerabilities.failOn\" to \"critical\" or \"high\" in .auditor/audit.config.ts.\n\n4. Example / Auto-fix command:\nnpm audit fix"
 			},
 			coverage: { include: ["package.json", "package-lock.json"] },
 			configKey: "dependencyVulnerabilities.enabled",
@@ -161,7 +161,7 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Auditoría de vulnerabilidades de dependencias desactivada")) return;
+		if (this.isSuiteGatingDisabled("Dependency vulnerability audit disabled")) return;
 		const pkgJsonRelative = "package.json";
 		if (fs.existsSync(path.resolve(this.projectRoot, pkgJsonRelative))) this.recordScanned(pkgJsonRelative);
 		const lockfileRelative = "package-lock.json";
@@ -181,16 +181,16 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 		if (tier !== "full" && lockfileHash && fs.existsSync(cacheFile)) try {
 			const cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
 			if (cached.hash === lockfileHash && Array.isArray(cached.findings)) {
-				this.context.logProgress("⚡ Reutilizando reporte de vulnerabilidades auditado (package-lock.json sin cambios)");
+				this.context.logProgress("⚡ Reusing cached vulnerability report (unchanged package-lock.json)");
 				this.applyAuditFindings(cached.findings);
 				return;
 			}
 		} catch {}
 		const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
 		if (error || !stdout) {
-			this.context.logProgress("⚠️  No se pudo conectar con el registro npm para audit (modo offline)");
+			this.context.logProgress("⚠️  Could not connect to npm registry for audit (offline mode)");
 			for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) this.runSubAuditorSync(ruleId, () => {
-				this.markRuleNotApplicable(ruleId, "Sin conexión con registro npm (offline)");
+				this.markRuleNotApplicable(ruleId, "No connection to npm registry (offline)");
 			});
 			return;
 		}
@@ -198,7 +198,7 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 		try {
 			report = JSON.parse(stdout);
 		} catch {
-			throw new Error(`[validate_dependency_vulnerabilities] Error al interpretar la salida JSON de 'npm audit'. Salida recibida: ${stdout.trim().slice(0, 300)}`);
+			throw new Error(`[validate_dependency_vulnerabilities] Failed to parse JSON output from 'npm audit'. Received output: ${stdout.trim().slice(0, 300)}`);
 		}
 		const findings = parseNpmAuditReport(report, allowList, failOn);
 		if (lockfileHash) try {

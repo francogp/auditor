@@ -44,9 +44,7 @@ describe('Report Guard CLI Tool', () => {
 
     const exitCode = runGuardReport('/missing/root', ['src/a.ts']);
     expect(exitCode).toBe(1);
-    expect(errSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No se encontró el binario de Fallow')
-    );
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Fallow binary not found'));
 
     errSpy.mockRestore();
   });
@@ -58,7 +56,7 @@ describe('Report Guard CLI Tool', () => {
     expect(exitCode).toBe(0);
     expect(logSpy).toHaveBeenCalled();
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('PRE-VUELO ARQUITECTÓNICO');
+    expect(output).toContain('ARCHITECTURE PRE-FLIGHT');
 
     logSpy.mockRestore();
   });
@@ -121,7 +119,7 @@ describe('Report Guard CLI Tool', () => {
     const exitCode = runGuardReport(process.cwd(), ['src/unknown.ts'], { json: false });
     expect(exitCode).toBe(0);
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('No se recibieron datos de reglas arquitectónicas');
+    expect(output).toContain('No architectural rules data received');
 
     logSpy.mockRestore();
   });
@@ -150,15 +148,16 @@ describe('Report Guard CLI Tool', () => {
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
     const exitCode = runGuardReport(process.cwd(), ['src/unrestricted.ts', 'src/isolated.ts'], {
-      json: false
+      json: false,
+      human: true
     });
     expect(exitCode).toBe(0);
     const output = logSpy.mock.calls.map((c) => c[0]).join('\n');
-    expect(output).toContain('PRE-VUELO ARQUITECTÓNICO');
-    expect(output).toContain('todas (sin restricción)');
-    expect(output).toContain('prohibidas: eval');
-    expect(output).toContain('política');
-    expect(output).toContain('sin capa');
+    expect(output).toContain('ARCHITECTURE PRE-FLIGHT');
+    expect(output).toContain('all (unrestricted)');
+    expect(output).toContain('forbidden: eval');
+    expect(output).toContain('no-direct-fs');
+    expect(output).toContain('no zone');
     expect(output).toContain('Layer exemption granted');
 
     logSpy.mockRestore();

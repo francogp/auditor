@@ -12,6 +12,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from './cliUtils.ts';
 import { runSetup } from './setup_env.ts';
+import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 
 export interface SemverVersion {
   major: number;
@@ -92,9 +93,9 @@ function validateHostEnginesDeclaration(
 ): boolean {
   if (!hostPkg.engines?.node || !hostPkg.engines?.npm) {
     if (verbose) {
-      console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
+      console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
       console.error(
-        'El archivo package.json debe declarar explícitamente "engines.node" y "engines.npm".'
+        'The package.json file must explicitly declare "engines.node" and "engines.npm".'
       );
     }
     return false;
@@ -112,18 +113,18 @@ function validateHostEnginesDeclaration(
 
   if (!isHostNodeEngineAdequate || !isHostNpmEngineAdequate) {
     if (verbose) {
-      console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
+      console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
       console.error(
-        'Las versiones de Node.js o npm declaradas en package.json son INFERIORES a las requeridas por @francogp/auditor:'
+        'The Node.js or npm versions declared in package.json are LOWER than those required by @francogp/auditor:'
       );
       console.error(
-        `  - Requisito del Auditor: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`
+        `  - Auditor Requirement: Node ${auditorEngines.node} | npm ${auditorEngines.npm}`
       );
       console.error(
-        `  - Declarado en Host:     Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`
+        `  - Declared in Host:    Node ${hostPkg.engines.node} | npm ${hostPkg.engines.npm}`
       );
       console.error(
-        '\nActualiza "engines.node" y "engines.npm" en package.json para satisfacer o superar el piso del auditor.'
+        '\nUpdate "engines.node" and "engines.npm" in package.json to meet or exceed the auditor baseline.'
       );
     }
     return false;
@@ -136,23 +137,23 @@ function printEnvironmentRemediation(nodeReq: string, npmReq: string, npmDetecte
   const isWindows = process.platform === 'win32';
   const targetNodeVer = nodeReq.replace(/[^0-9.]/g, '');
 
-  console.error(`Requisito configurado en package.json ("engines"):`);
-  console.error(`  - Node.js: \x1b[33m${nodeReq}\x1b[0m (Detectado: v${process.versions.node})`);
-  console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detectado: v${npmDetected})\n`);
+  console.error(`Requirement configured in package.json ("engines"):`);
+  console.error(`  - Node.js: \x1b[33m${nodeReq}\x1b[0m (Detected: v${process.versions.node})`);
+  console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detected: v${npmDetected})\n`);
 
-  console.error('\x1b[32m\x1b[1m💡 CÓMO SOLUCIONARLO SIN AFECTAR OTROS PROYECTOS:\x1b[0m');
+  console.error('\x1b[32m\x1b[1m💡 HOW TO RESOLVE WITHOUT AFFECTING OTHER PROJECTS:\x1b[0m');
   console.error(
-    'Ejecuta el script de setup del proyecto para activar el entorno de forma aislada:'
+    'Run the project setup script to activate the isolated environment:'
   );
   if (isWindows) {
     console.error('  .\\setup-windows.ps1');
-    console.error('  (o ejecuta: vp env use ' + targetNodeVer + ')');
+    console.error('  (or run: vp env use ' + targetNodeVer + ')');
   } else {
     console.error('  ./setup-linux.sh');
-    console.error('  (o ejecuta: vp env use ' + targetNodeVer + ')');
+    console.error('  (or run: vp env use ' + targetNodeVer + ')');
   }
   console.error(
-    '\nℹ️  Convivencia multi-proyecto: El proyecto lee .node-version localmente sin alterar tus otros proyectos.\n'
+    '\nℹ️  Multi-project isolation: The project reads .node-version locally without altering your other projects.\n'
   );
 }
 
@@ -176,11 +177,11 @@ function validateRuntimeEnvironment(
 
   if (!isCurrentNodeValid || !isCurrentNpmValid) {
     if (verbose) {
-      console.error(`\n\x1b[31m\x1b[1m❌ ERROR DE ENTORNO EN ${projectName}:\x1b[0m`);
+      console.error(`\n\x1b[31m\x1b[1m❌ ENVIRONMENT ERROR IN ${projectName}:\x1b[0m`);
       printEnvironmentRemediation(
         hostPkg.engines.node,
         hostPkg.engines.npm,
-        npmMatch ? npmMatch[1]! : 'desconocido'
+        npmMatch ? npmMatch[1]! : 'unknown'
       );
     }
     return false;
@@ -193,6 +194,7 @@ export function checkEnvironment(
   targetDir: string = process.cwd(),
   autoRemediate: boolean = true
 ): boolean {
+  const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
   const hostPkgPath = path.resolve(targetDir, 'package.json');
   if (!fs.existsSync(hostPkgPath)) {
     console.error(`[check_environment] package.json not found in ${targetDir}`);
@@ -214,11 +216,11 @@ export function checkEnvironment(
   const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
   const setupScriptPath = path.resolve(targetDir, setupScriptName);
   const isPreinstallHook =
-    process.env.npm_lifecycle_event === 'preinstall' || process.argv.includes('preinstall');
+    process.env.npm_lifecycle_event === 'preinstall' || parsed._.map(String).includes('preinstall');
 
   if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
     console.log(
-      `\n\x1b[36m\x1b[1m🔄 Desalineación de entorno detectada en ${projectName}. Ejecutando automáticamente ${setupScriptName} para sincronizar el entorno...\x1b[0m\n`
+      `\n\x1b[36m\x1b[1m🔄 Environment drift detected in ${projectName}. Automatically running ${setupScriptName} to synchronize environment...\x1b[0m\n`
     );
     const setupStatus = runSetup([], targetDir);
     if (setupStatus === 0) {
@@ -228,7 +230,7 @@ export function checkEnvironment(
         refreshedDeclared && validateRuntimeEnvironment(refreshedPkg, projectName, false);
       if (refreshedDeclared && refreshedRuntime) {
         console.log(
-          `\n\x1b[32m\x1b[1m✅ Auto-remediación completada con éxito. El entorno de ${projectName} ha sido actualizado y sincronizado.\x1b[0m\n`
+          `\n\x1b[32m\x1b[1m✅ Auto-remediation completed successfully. The ${projectName} environment has been updated and synchronized.\x1b[0m\n`
         );
         return true;
       }

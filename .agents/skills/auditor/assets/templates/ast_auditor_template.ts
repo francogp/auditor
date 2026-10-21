@@ -1,9 +1,15 @@
 /**
  * TEMPLATE: AST-Driven Sub-Auditor
  * Location: scripts/auditors/<family>/validate_<name>.ts
- * 
+ *
  * Use this template when your auditor requires TypeScript AST syntax analysis
  * across source files or Vue Single File Components (SFC).
+ *
+ * CLI Contract Governance (`validate_cli_contracts`):
+ *   - Standalone CLI execution MUST use `await BaseAuditor.runCliIfMain(import.meta.url, new MyAstAuditor());`
+ *     which delegates argument parsing (`human`, `--fix`, `--json`, `--help`) to the canonical `citty` harness.
+ *   - Direct `process.argv` access, `node:util.parseArgs`, or homebrew flag parsing (`startsWith('--')`)
+ *     is strictly prohibited.
  */
 
 import path from 'node:path';
@@ -55,7 +61,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       }),
       id: 'validate_my_ast',
       name: 'My AST Validator',
-      description: 'Valida contratos AST en TypeScript y Vue SFC',
+      description: 'Validates AST contracts across TypeScript and Vue SFCs',
       icon: '🌳', // Mandatory thematic emoji representing this auditor
       family: 'architecture', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_AST_RULES,
@@ -73,21 +79,21 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       requiredPermissions: [],
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'my-ast-forbidden-pattern': 'Patrón sintáctico prohibido en AST',
-        'my-ast-missing-contract': 'Declaración requerida faltante'
+        'my-ast-forbidden-pattern': 'Forbidden syntactic pattern in AST',
+        'my-ast-missing-contract': 'Missing required declaration contract'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):
       ruleRemediations: {
         'my-ast-forbidden-pattern':
-          'Causa Raíz: Se detectó una construcción de AST prohibida por las políticas arquitecturales del proyecto.\n' +
-          'Diagnóstico: Inspecciona el archivo y localiza el nodo AST infractor reportado.\n' +
-          'Solución Canónica: Refactoriza el código utilizando los métodos o estructuras canónicas indicadas.\n' +
-          'Ejemplo / Comando: npm run auditor',
+          '1. Root Cause: An AST construct prohibited by architectural policies was detected.\n' +
+          '2. Diagnosis: Inspect the file and locate the offending AST node reported.\n' +
+          '3. Canonical Solution: Refactor the code using the canonical methods or structures.\n' +
+          '4. Example / Command: npm run auditor',
         'my-ast-missing-contract':
-          'Causa Raíz: El archivo analizado carece de una declaración o contrato mandatorio.\n' +
-          'Diagnóstico: Inspecciona las firmas del módulo y contrasta con la interfaz requerida.\n' +
-          'Solución Canónica: Implementa la interfaz o añade la exportación exigida por la arquitectura.\n' +
-          'Ejemplo / Comando: npm run auditor'
+          '1. Root Cause: The analyzed module is missing a mandatory declaration or contract.\n' +
+          '2. Diagnosis: Inspect the module signatures and compare against the required interface.\n' +
+          '3. Canonical Solution: Implement the required interface or export.\n' +
+          '4. Example / Command: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_AST_RULES, 'hygiene'),
@@ -106,7 +112,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     const astEngine = astContext ?? new SharedAstContext(this.projectRoot);
 
     const relFiles = await this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
-    const targetFiles = relFiles.filter(f => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts'));
+    const targetFiles = relFiles.filter(
+      (f) => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts')
+    );
 
     for (const relFile of targetFiles) {
       const absPath = path.resolve(this.projectRoot, relFile);
@@ -135,6 +143,5 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
   }
 }
 
-// Canonical CLI Entrypoint for standalone and dynamic execution
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new MyAstAuditor());
-

@@ -32,6 +32,7 @@ export interface GuardReportPayload {
 }
 export interface GuardOptions {
   readonly json?: boolean;
+  readonly human?: boolean;
 }
 export declare function runGuardReport(projectRoot?: string, files?: readonly string[], options?: GuardOptions): number;
 //#endregion

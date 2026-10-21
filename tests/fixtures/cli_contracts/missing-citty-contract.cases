@@ -1,0 +1,12 @@
+### C01 missing-citty-in-main-module#1 file=cli/broken_tool.ts expect=cli-contracts-missing-citty-contract
+import { isMainModule } from './cliUtils.ts';
+if (isMainModule(import.meta.url, ['auditor-broken'])) { console.log('running ad-hoc'); }
+
+### C02 missing-citty-shebang#1 file=cli/shebang_tool.ts expect=cli-contracts-missing-citty-contract
+#!/usr/bin/env -S node --experimental-strip-types
+export function runAdHocCli(): void { console.log('no citty'); }
+
+### C03 missing-citty-report#1 file=cli/report_custom.ts expect=cli-contracts-missing-citty-contract
+import { isMainModule } from './cliUtils.ts';
+export function renderReport(): void {}
+if (isMainModule(import.meta.url, ['auditor-custom'])) { renderReport(); }

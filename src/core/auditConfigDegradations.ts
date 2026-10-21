@@ -42,7 +42,7 @@ const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     getRoots: (config, projectRoot) =>
       config.paths?.scriptsRoots ??
       (fs.existsSync(path.resolve(projectRoot, 'scripts')) ? ['scripts'] : []),
-    reason: 'Scripts de compilación, herramientas de desarrollo y mantenimiento',
+    reason: 'Build scripts, development tooling, and maintenance',
     isRoot: true
   },
   {
@@ -50,7 +50,7 @@ const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     getRoots: (config, projectRoot) =>
       config.paths?.dataRoots ??
       (fs.existsSync(path.resolve(projectRoot, 'src/data')) ? ['src/data'] : []),
-    reason: 'Tablas de datos estáticos, fixtures y catálogos de dominio',
+    reason: 'Static data tables, fixtures, and domain catalogs',
     isRoot: true
   },
   {
@@ -58,19 +58,19 @@ const POLICY_DEFINITIONS: readonly PolicyDefinition[] = [
     getRoots: (config, projectRoot) =>
       config.paths?.cliRoots ??
       (fs.existsSync(path.resolve(projectRoot, 'src/cli')) ? ['src/cli'] : []),
-    reason: 'Puntos de entrada y comandos de ejecución de terminal CLI',
+    reason: 'Entry points and CLI terminal execution commands',
     isRoot: true
   },
   {
     policy: 'demo',
     getRoots: (config) => config.paths?.demoRoots ?? [],
-    reason: 'Demostraciones interactivas y entornos de prueba visual',
+    reason: 'Interactive demonstrations and visual test playgrounds',
     isRoot: true
   },
   {
     policy: 'exemptFiles',
     getRoots: (config) => config.paths?.exemptFiles ?? [],
-    reason: 'Archivos exentos de reglas de arquitectura de dominio',
+    reason: 'Files exempt from domain architecture rules',
     isRoot: false
   }
 ];

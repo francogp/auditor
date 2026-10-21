@@ -2,7 +2,7 @@
 const inefficientFileScanDetector = {
 	id: "inefficient-file-scan",
 	ruleId: "auditor-inefficient-file-scan",
-	ruleDescription: "Escaneo ineficiente de archivos",
+	ruleDescription: "Inefficient file scanning",
 	detect(context) {
 		const findings = [];
 		const lines = context.lines;
@@ -17,7 +17,7 @@ const inefficientFileScanDetector = {
 			if (/['"]\*\*\/\*\.(?:md|vue|html|ts|js)['"]/.test(trimmed) && !isConfigObjectPattern && !line.includes("// glob-ok:") && !line.includes("coverage") && !line.includes("include:") && !line.includes("targetArgs") && !context.filePath.includes("inefficientFileScanDetector")) findings.push({
 				ruleId: "auditor-inefficient-file-scan",
 				line: lineNum,
-				message: "Comodín ciego global ('**/*.ext') detectado en llamada a herramienta externa. Pasa la lista de archivos descubiertos por el auditor o usa targetArgs acotados.",
+				message: "Blind global wildcard ('**/*.ext') detected in external tool call. Pass files discovered by auditor or use scoped targetArgs.",
 				context: trimmed.slice(0, 100),
 				severity: "error"
 			});
@@ -33,7 +33,7 @@ const inefficientFileScanDetector = {
 				if (/for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(line) && !line.includes("// nesting-ok:")) findings.push({
 					ruleId: "auditor-inefficient-file-scan",
 					line: lineNum,
-					message: "Bucle anidado de regla sobre archivos detectado. Invierte el bucle (recorre cada archivo una sola vez en RAM) o usa 'this.scanFilesSinglePass()'.",
+					message: "Nested loop of rule over files detected. Invert the loop (traverse each file once in RAM) or use 'this.scanFilesSinglePass()'.",
 					context: trimmed.slice(0, 100),
 					severity: "error"
 				});

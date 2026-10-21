@@ -7,7 +7,14 @@
  */
 
 import path from 'node:path';
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -71,24 +78,24 @@ function handleDiscover(
   console.log(
     '\n' +
       renderBanner(
-        'REFACTORIZACIÓN DETERMINISTA: TRIAJE DE CLONES',
-        `Directorio: ${path.basename(projectRoot)} | Total: ${candidates.length} grupos`
+        'DETERMINISTIC REFACTORING: CLONE TRIAGE',
+        `Directory: ${path.basename(projectRoot)} | Total: ${candidates.length} groups`
       )
   );
 
   const cols: readonly TableColumn<CandidateRow>[] = [
     { header: '#', width: 3, align: 'center', key: 'index' },
-    { header: 'HUELLA', width: 12, align: 'center', key: 'fingerprint' },
-    { header: 'TOPOLOGÍA', width: 15, align: 'center', key: 'topology' },
+    { header: 'FINGERPRINT', width: 12, align: 'center', key: 'fingerprint' },
+    { header: 'TOPOLOGY', width: 15, align: 'center', key: 'topology' },
     { header: 'TOKENS', width: 8, align: 'right', key: 'tokens' },
-    { header: 'ESTADO', width: 12, align: 'center', key: 'status' },
-    { header: 'ARCHIVOS AFECTADOS', width: 22, align: 'left', key: 'files' }
+    { header: 'STATUS', width: 12, align: 'center', key: 'status' },
+    { header: 'AFFECTED FILES', width: 22, align: 'left', key: 'files' }
   ];
 
   const rows: CandidateRow[] = candidates.slice(0, 20).map((c, i) => {
     const statusLabel = c.isDeadCodeTarget
-      ? styleText('red', 'MUERTO 💀')
-      : styleText('green', 'ACTIVO ⚡');
+      ? styleText('red', 'DEAD')
+      : styleText('green', 'ACTIVE');
     const fileNames = c.files.map((f) => path.basename(f)).join(', ');
     return {
       index: String(i + 1),
@@ -104,7 +111,7 @@ function handleDiscover(
   console.log(
     styleText(
       'cyan',
-      '\n💡 Para inspeccionar un clon y obtener su micro-contexto Dirac:\n   npm run auditor:dupes inspect <fingerprint>\n'
+      '\n[Notice] To inspect a clone and generate its Dirac micro-context:\n   npm run auditor:dupes inspect <fingerprint>\n'
     )
   );
 }
@@ -115,7 +122,7 @@ function handleInspect(
   isJson: boolean
 ): void {
   if (!fp) {
-    console.error(styleText('red', '❌ Error: Debes especificar el fingerprint: auditor:dupes inspect <fingerprint>'));
+    console.error(styleText('red', '[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>'));
     process.exit(1);
   }
 
@@ -123,7 +130,7 @@ function handleInspect(
   const group = dupes.clone_groups.find((g) => g.fingerprint === fp || g.fingerprint === `dup:${fp}`);
 
   if (!group) {
-    console.error(styleText('red', `❌ Error: No se encontró el grupo de clones con huella "${fp}".`));
+    console.error(styleText('red', `[Error] Clone group not found for fingerprint: "${fp}".`));
     process.exit(1);
   }
 
@@ -138,24 +145,24 @@ function handleInspect(
   console.log(
     '\n' +
       renderBanner(
-        'MICRO-CONTEXTO DIRAC ANCLADO POR HASH',
-        `Huella: ${packet.fingerprint} | Instancias: ${packet.instances.length}`
+        'DIRAC MICRO-CONTEXT ANCHORED BY HASH',
+        `Fingerprint: ${packet.fingerprint} | Instances: ${packet.instances.length}`
       )
   );
 
-  console.log(`  📊 Reducción de Contexto: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText('green', packet.tokenSavingsPercent + '% de ahorro')})`);
-  console.log(`  📥 Parámetros Inferidos:  ${packet.candidateParameters.join(', ') || 'ninguno'}`);
-  console.log(`  📤 Retornos Inferidos:    ${packet.candidateReturns.join(', ') || 'ninguno'}\n`);
+  console.log(`  Context Reduction: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText('green', packet.tokenSavingsPercent + '% savings')})`);
+  console.log(`  Inferred Parameters: ${packet.candidateParameters.join(', ') || 'none'}`);
+  console.log(`  Inferred Returns:    ${packet.candidateReturns.join(', ') || 'none'}\n`);
 
   for (const [idx, inst] of packet.instances.entries()) {
-    console.log(styleText('bold', `  Instancia #${idx + 1}: ${inst.file} (Líneas ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`));
+    console.log(styleText('bold', `  Instance #${idx + 1}: ${inst.file} (Lines ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`));
     console.log(inst.contextSnippet.split('\n').map((l) => `    │ ${l}`).join('\n') + '\n');
   }
 
   console.log(
     styleText(
       'cyan',
-      '💡 Diseña el RefactorPlan JSON y aplícalo con:\n   npm run auditor:dupes apply --plan <plan.json> --worktree\n'
+      '[Notice] Design RefactorPlan JSON and apply with:\n   npm run auditor:dupes apply --plan <plan.json> --worktree\n'
     )
   );
 }
@@ -172,66 +179,81 @@ async function handleApply(
     (dir, plan) => HybridHarnessEngine.execute(dir, plan),
     'auditor:dupes apply <plan.json>'
   );
-  console.log(styleText('green', '✅ Refactorización aplicada exitosamente en el repositorio.'));
+  console.log(styleText('green', '[OK] Refactoring successfully applied to workspace.'));
 }
 
-export async function runRefactorCli(): Promise<void> {
-  const args = process.argv.slice(2);
+const REFACTOR_DUPES_ARGS = {
+  ...COMMON_CLI_ARGS,
+  'min-occurrences': {
+    type: 'string',
+    default: '2',
+    description: 'Minimum number of clone occurrences to triage'
+  },
+  plan: {
+    type: 'string',
+    description: 'Path to RefactorPlan JSON file'
+  },
+  fingerprint: {
+    type: 'string',
+    description: 'Clone group fingerprint to inspect'
+  },
+  worktree: {
+    type: 'boolean',
+    default: false,
+    description: 'Execute mutations in an isolated Git worktree'
+  }
+} as const satisfies CittyArgsDef;
+
+const DUPES_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', 'apply', 'help']); // runtime-set: O(1) subcommand lookup
+
+export async function runRefactorCli(rawInputArgs?: readonly string[]): Promise<void> {
+  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+  const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, DUPES_SUBCOMMANDS);
+  const posList = parsed._;
+
+  const firstPos = posList[0] ? String(posList[0]) : undefined;
   let subCommand = 'discover';
   let targetArg: string | undefined;
 
-  if (args[0] && !args[0].startsWith('-')) {
-    subCommand = args[0];
-    if (args[1] && !args[1].startsWith('-')) {
-      targetArg = args[1];
-    }
+  if (parsed.help || firstPos === 'help') {
+    console.log('Available commands: discover, inspect, apply');
+    return;
   }
 
-  const { values } = parseArgs({
-    args,
-    options: {
-      project: { type: 'string', default: '.' },
-      'min-occurrences': { type: 'string', default: '2' },
-      plan: { type: 'string' },
-      fingerprint: { type: 'string' },
-      worktree: { type: 'boolean', default: false },
-      json: { type: 'boolean', default: false },
-      verbose: { type: 'boolean', default: false }
-    },
-    strict: false,
-    allowPositionals: true
-  });
+  if (firstPos && DUPES_SUBCOMMANDS.has(firstPos)) {
+    subCommand = firstPos;
+    targetArg = posList[1] ? String(posList[1]) : undefined;
+  } else if (firstPos) {
+    console.log('Available commands: discover, inspect, apply');
+    return;
+  }
 
-  const projectRoot = path.resolve(String(values.project || '.'));
-  const isJson = Boolean(values.json);
-  const isVerbose =
-    values.verbose === true ||
-    args.includes('--verbose') ||
-    args.includes('verbose') ||
-    args.includes('format=verbose');
+  const projectRoot = path.resolve(String(parsed.project || '.'));
+  const isJson = Boolean(parsed.json);
+  const isVerbose = resolveHumanModeFromArgs(parsed);
 
   switch (subCommand) {
     case 'discover': {
-      const minOcc = parseInt(String(values['min-occurrences'] || '2'), 10);
+      const minOcc = parseInt(String(parsed['min-occurrences'] || '2'), 10);
       const candidates = triageCandidates(projectRoot, minOcc);
       handleDiscover(projectRoot, candidates, isJson, isVerbose);
       break;
     }
 
     case 'inspect': {
-      const fp = targetArg || (typeof values.fingerprint === 'string' ? values.fingerprint : undefined);
+      const fp = targetArg || (typeof parsed.fingerprint === 'string' ? parsed.fingerprint : undefined);
       handleInspect(projectRoot, fp, isJson);
       break;
     }
 
     case 'apply': {
-      const rawPlanPath = targetArg || (typeof values.plan === 'string' ? values.plan : undefined);
-      await handleApply(projectRoot, rawPlanPath, Boolean(values.worktree));
+      const rawPlanPath = targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined);
+      await handleApply(projectRoot, rawPlanPath, Boolean(parsed.worktree));
       break;
     }
 
     default:
-      console.log('Comandos disponibles: discover, inspect, apply');
+      console.log('Available commands: discover, inspect, apply');
       break;
   }
 }

@@ -57,7 +57,7 @@ function createContractFinding(
 export const thirdPartyToolContractDetector: HomebrewDetector = {
   id: 'third-party-tool-contract',
   ruleId: 'auditor-third-party-tool-contract',
-  ruleDescription: 'Contrato de herramienta externa faltante',
+  ruleDescription: 'Missing third-party tool contract',
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
     // Only inspect auditor suites and extensions (ignore analyzers and utility helpers)
     if (!context.isBuiltinSuite && !context.isExtension) return [];

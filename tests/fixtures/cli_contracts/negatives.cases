@@ -1,0 +1,56 @@
+### N01 gemini-citty#1 expect=none
+import { defineCommand, runMain } from 'citty';
+const main = defineCommand({
+  meta: { name: 'auditor-motion' },
+  args: {
+    name: { type: 'positional', required: true },
+    human: { type: 'boolean', default: false }
+  },
+  run({ args }) {
+    console.log(args.name, args.human);
+  }
+});
+runMain(main);
+
+### N02 gemini-process-other#1 expect=none
+console.log(process.pid, process.cwd(), process.platform, process.env.NODE_ENV);
+
+### N03 gemini-shadowing#1 expect=none
+const process = { argv: ['custom'] };
+console.log(process.argv);
+
+### N04 deep-research-similar-names#1 expect=none
+const processa = { argv: [] };
+const myArgv = ['--help'];
+console.log(processa.argv, myArgv);
+
+### N05 copilot-strings-comments#1 expect=none
+// process.argv.slice(2)
+const s = "process.argv";
+const t = `process.argv`;
+/* import minimist from 'minimist' */
+
+### N06 normal-fs-read#1 expect=none
+const content = fs.readFileSync('package.json', 'utf-8');
+
+### N07 escape-hatch#1 expect=none
+const raw = process.argv.slice(2); // cli-ok: Canonical bootstrap entry
+
+### N08 citty-cli-entrypoint#1 file=cli/refactor_motion.ts expect=none
+import { createRefactorCli, runCliMain } from '../core/cli/cittyHarness.ts';
+import { isMainModule } from './cliUtils.ts';
+const cmd = createRefactorCli({ toolName: 'auditor-motion' });
+if (isMainModule(import.meta.url, ['auditor-motion'])) { runCliMain(cmd); }
+
+### N09 complete-human-scripts#1 file=core/packageScriptRegistry.ts expect=none
+export const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
+  { name: 'auditor:human', command: 'auditor human' },
+  { name: 'auditor:lint:human', command: 'auditor speed=light human' },
+  { name: 'auditor:full:human', command: 'auditor speed=full human' },
+  { name: 'auditor:fix:human', command: 'auditor fix human' },
+  { name: 'auditor:findings:human', command: 'auditor-findings human' }
+];
+
+### N10 authorized-citty-harness#1 file=core/cli/cittyHarness.ts expect=none
+const raw = process.argv.slice(2);
+export function normalizeCliArgv(args: string[]): string[] { return args; }

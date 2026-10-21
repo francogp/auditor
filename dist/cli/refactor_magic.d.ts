@@ -5,5 +5,5 @@
  * CANONICAL MAGIC LITERAL & DESIGN TOKEN REFACTORING CLI (Node.js 26+ Native)
  * Provides interactive discovery, Super-Dirac batch inspection, and safe worktree application.
  */
-export declare function runRefactorMagicCli(cliArgs?: string[]): Promise<void>;
+export declare function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void>;
 //#endregion

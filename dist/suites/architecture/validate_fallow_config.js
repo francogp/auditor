@@ -78,7 +78,7 @@ function loadFallowConfig(configPath, auditor) {
 			severity: "error",
 			file: ".fallowrc.json",
 			line: 1,
-			message: `Error al parsear .fallowrc.json: ${err.message}`,
+			message: `Error parsing .fallowrc.json: ${err.message}`,
 			context: ".fallowrc.json"
 		});
 		return null;
@@ -99,7 +99,7 @@ function validateFallowEntries(config, bannedGlobs, auditor) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: i + 1,
-				message: `Patrón entry prohibido '${pattern}' detectado. Oculta componentes o vistas muertas.`,
+				message: `Banned entry pattern '${pattern}' detected. Masks dead components or views.`,
 				context: pattern,
 				fixable: true
 			});
@@ -124,7 +124,7 @@ function validateExportSymbols(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: params.lineNum,
-				message: `Export duplicado '${exp}' en '${params.relFile}'.`,
+				message: `Duplicate export '${exp}' in '${params.relFile}'.`,
 				context: `${params.relFile} -> ${exp}`,
 				fixable: true
 			});
@@ -138,7 +138,7 @@ function validateExportSymbols(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: params.lineNum,
-				message: `El símbolo '${exp}' no se encuentra exportado en el archivo real '${params.relFile}'.`,
+				message: `Symbol '${exp}' is not exported in real file '${params.relFile}'.`,
 				context: `${params.relFile} -> ${exp}`,
 				fixable: true
 			});
@@ -165,7 +165,7 @@ function validateSingleIgnoreEntry(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: lineNum,
-				message: `Archivo duplicado en ignoreExports: '${relFile}'.`,
+				message: `Duplicate file in ignoreExports: '${relFile}'.`,
 				context: relFile,
 				fixable: true
 			});
@@ -187,7 +187,7 @@ function validateSingleIgnoreEntry(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: lineNum,
-				message: `Entrada para '${relFile}' no declara ningún export en su array de exports.`,
+				message: `Entry for '${relFile}' does not declare any exports in its exports array.`,
 				context: relFile,
 				fixable: true
 			});
@@ -209,7 +209,7 @@ function validateSingleIgnoreEntry(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: lineNum,
-				message: `Archivo '${relFile}' declarado en ignoreExports no existe en el disco.`,
+				message: `File '${relFile}' declared in ignoreExports does not exist on disk.`,
 				context: relFile,
 				fixable: true
 			});
@@ -235,7 +235,7 @@ function validateSingleIgnoreEntry(params) {
 				severity: "error",
 				file: ".fallowrc.json",
 				line: lineNum,
-				message: `No se pudo leer el archivo '${relFile}': ${err.message}`,
+				message: `Could not read file '${relFile}': ${err.message}`,
 				context: relFile,
 				fixable: true
 			});
@@ -303,7 +303,7 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor) {
 			severity: "error",
 			file: d.path && d.path !== "." ? d.path : ".fallowrc.json",
 			line: 1,
-			message: `Diagnóstico de workspace (Fallow): [${d.kind || "diagnostic"}] ${d.message || ""}`,
+			message: `Workspace diagnostic (Fallow): [${d.kind || "diagnostic"}] ${d.message || ""}`,
 			context: d.kind || "workspace_diagnostic"
 		});
 	}
@@ -311,7 +311,7 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor) {
 const FALLOW_CONFIG_REQUIREMENT = {
 	id: "fallow-config",
 	file: ".fallowrc.json",
-	description: "Configuración de Fallow y control de exports",
+	description: "Fallow configuration and exports control",
 	ruleId: "fallow-config-missing",
 	generateDefaultContent: () => createDefaultFallowConfigContent()
 };
@@ -371,7 +371,7 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 			fix,
 			id: "validate_fallow_config",
 			name: "Fallow Configuration & Exports Hygiene Validator",
-			description: "Valida integridad de .fallowrc.json y sus ignoreExports",
+			description: "Validates .fallowrc.json integrity and ignoreExports",
 			family: "architecture",
 			ruleIds: FALLOW_CONFIG_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(FALLOW_CONFIG_RULES, "setup"),
@@ -381,24 +381,24 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🌾",
 			ruleDescriptions: {
-				"fallow-config-missing": "Falta archivo .fallowrc.json",
-				"fallow-config-syntax": "JSON inválido en .fallowrc.json",
-				"fallow-banned-entry-glob": "Glob prohibido en entry",
-				"fallow-stale-file": "Archivo inexistente en config",
-				"fallow-stale-export": "Export inexistente en config",
-				"fallow-empty-export-list": "Entrada vacía en ignoreExports",
-				"fallow-duplicate-entry": "Entrada o export duplicado",
-				"fallow-config-workspace-diagnostic": "Diagnóstico de workspace"
+				"fallow-config-missing": "Missing .fallowrc.json file",
+				"fallow-config-syntax": "Invalid JSON in .fallowrc.json",
+				"fallow-banned-entry-glob": "Banned glob in entry",
+				"fallow-stale-file": "Non-existent file in config",
+				"fallow-stale-export": "Non-existent export in config",
+				"fallow-empty-export-list": "Empty entry in ignoreExports",
+				"fallow-duplicate-entry": "Duplicate entry or export",
+				"fallow-config-workspace-diagnostic": "Workspace diagnostic"
 			},
 			ruleRemediations: {
-				"fallow-config-missing": "Causa Raíz:\nEl archivo .fallowrc.json no existe en la raíz del proyecto.\nFallow requiere este archivo para mapear los puntos de entrada canónicos y las excepciones legítimas de código muerto.\n\nDiagnóstico:\nVerifica si existe el archivo .fallowrc.json en la raíz del repositorio.\n\nSolución Canónica:\nEjecuta \"npm run auditor:fix\" o \"auditor fix\". El framework generará automáticamente la configuración canónica con los puntos de entrada detectados.",
-				"fallow-config-syntax": "Causa Raíz:\nEl archivo .fallowrc.json contiene un error de sintaxis JSON (comas de más, comillas sin cerrar o formato corrupto).\n\nDiagnóstico:\nRevisa el mensaje de error del parser JSON para ubicar la línea del defecto.\n\nSolución Canónica:\nAbre .fallowrc.json y corrige el error de formato utilizando un linter JSON o formateador de código.",
-				"fallow-banned-entry-glob": "Causa Raíz:\nSe declaró un patrón de entrada (entry) prohibido en .fallowrc.json (como comodines masivos \"src/components/**/*\" o \"src/views/**/*\").\nDeclarar árboles completos de componentes como puntos de entrada enmascara código huérfano y vistas muertas, impidiendo que Fallow detecte archivos no enlazados en el árbol de dependencias.\n\nDiagnóstico:\nExamina el array \"entry\" en .fallowrc.json.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" para purgar los globs prohibidos automáticamente.\n2. Mantén únicamente los puntos de entrada raíz auténticos (ej. \"src/main.ts\", \"src/index.ts\").",
-				"fallow-stale-file": "Causa Raíz:\nUna entrada en \"ignoreExports\" referencia un archivo que ya fue eliminado, movido o renombrado en el disco.\n\nDiagnóstico:\nEl mensaje de la advertencia detalla la ruta del archivo que no se encuentra en el sistema de archivos.\n\nSolución Canónica:\nEjecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor eliminará automáticamente todas las entradas obsoletas de .fallowrc.json.",
-				"fallow-stale-export": "Causa Raíz:\nUn símbolo declarado en el array \"exports\" de una entrada en \"ignoreExports\" ya no se encuentra exportado en el archivo fuente correspondiente.\n\nDiagnóstico:\nComprueba el archivo fuente: el símbolo fue renombrado o eliminado de las sentencias export.\n\nSolución Canónica:\nEjecuta \"npm run auditor:fix\" para sincronizar y eliminar los nombres de símbolos caducados.",
-				"fallow-empty-export-list": "Causa Raíz:\nUna entrada de archivo en \"ignoreExports\" tiene un array de exports vacío (\"exports\": []).\n\nDiagnóstico:\nRevisa las entradas en .fallowrc.json donde no se declaró ningún símbolo.\n\nSolución Canónica:\nEjecuta \"npm run auditor:fix\" para eliminar la entrada innecesaria.",
-				"fallow-duplicate-entry": "Causa Raíz:\nEl mismo archivo o símbolo está repetido más de una vez dentro de .fallowrc.json.\n\nDiagnóstico:\nEl mensaje indica la entrada duplicada.\n\nSolución Canónica:\nEjecuta \"npm run auditor:fix\" para deduplicar automáticamente las entradas y símbolos.",
-				"fallow-config-workspace-diagnostic": "Causa Raíz:\nEl analizador Fallow emitió un diagnóstico a nivel de espacio de trabajo o configuración de límites arquitectónicos.\n\nDiagnóstico:\nInspecciona el mensaje emitido por el motor de Fallow en el reporte.\n\nSolución Canónica:\nAjusta la configuración de paquetes o límites en .fallowrc.json de acuerdo a la recomendación del motor."
+				"fallow-config-missing": "📖 REMEDIATION GUIDE: fallow-config-missing\n1. Root Cause: The .fallowrc.json configuration file does not exist in the project root. Fallow requires this file to map canonical entry points and exceptions.\n2. Diagnosis: Check if the .fallowrc.json file exists in the repository root directory.\n3. Canonical Solution: Run npm run auditor:fix or auditor fix to generate the default configuration automatically.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-config-syntax": "📖 REMEDIATION GUIDE: fallow-config-syntax\n1. Root Cause: The .fallowrc.json file contains a JSON syntax error (trailing commas, unclosed quotes, or invalid tokens).\n2. Diagnosis: Inspect the JSON parser error message to locate the defective line.\n3. Canonical Solution: Open .fallowrc.json and correct the syntax error using a JSON linter or code formatter.\n4. Example / Auto-fix command:\n   Format .fallowrc.json with a valid JSON schema.",
+				"fallow-banned-entry-glob": "📖 REMEDIATION GUIDE: fallow-banned-entry-glob\n1. Root Cause: A banned entry pattern was declared in .fallowrc.json (such as wildcard components or views). This masks dead components.\n2. Diagnosis: Inspect the entry array in .fallowrc.json for broad component globs.\n3. Canonical Solution: Run npm run auditor:fix to purge banned globs and retain only genuine root entry points (e.g. src/main.ts, src/index.ts).\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-stale-file": "📖 REMEDIATION GUIDE: fallow-stale-file\n1. Root Cause: An entry in ignoreExports references a file that has been deleted, moved, or renamed on disk.\n2. Diagnosis: The warning message specifies the file path that is missing from the filesystem.\n3. Canonical Solution: Run npm run auditor:fix or auditor fix to automatically remove obsolete entries from .fallowrc.json.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-stale-export": "📖 REMEDIATION GUIDE: fallow-stale-export\n1. Root Cause: A symbol declared in the exports array of an ignoreExports entry is no longer exported in the source file.\n2. Diagnosis: Check the source file to verify that the symbol was renamed or deleted.\n3. Canonical Solution: Run npm run auditor:fix to synchronize and purge obsolete symbol names.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-empty-export-list": "📖 REMEDIATION GUIDE: fallow-empty-export-list\n1. Root Cause: A file entry in ignoreExports has an empty exports array (exports: []).\n2. Diagnosis: Review entries in .fallowrc.json where no symbols are declared.\n3. Canonical Solution: Run npm run auditor:fix to remove the redundant entry.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-duplicate-entry": "📖 REMEDIATION GUIDE: fallow-duplicate-entry\n1. Root Cause: The same file or symbol is repeated more than once within .fallowrc.json.\n2. Diagnosis: The message indicates the duplicate entry.\n3. Canonical Solution: Run npm run auditor:fix to deduplicate entries and symbols automatically.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
+				"fallow-config-workspace-diagnostic": "📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n1. Root Cause: The Fallow engine emitted a workspace-level diagnostic or boundary configuration warning.\n2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n3. Canonical Solution: Adjust package or boundary settings in .fallowrc.json according to engine recommendations.\n4. Example / Auto-fix command:\n   Review and update boundaries in .fallowrc.json."
 			},
 			coverage: { include: [".fallowrc.json"] },
 			projectRoot

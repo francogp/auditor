@@ -58,7 +58,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
     expect(auditor.id).toBe('validate_canonical_domains');
     expect(auditor.family).toBe('domain_data');
-    expect(auditor.packageName).toBe('Catálogos');
+    expect(auditor.packageName).toBe('Catalogs');
     expect(auditor.ruleIds).toEqual(CANONICAL_DOMAIN_RULES);
     validateAuditorConstruction(auditor);
   });

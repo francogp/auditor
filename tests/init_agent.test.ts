@@ -31,7 +31,7 @@ describe('init_agent CLI Tool', () => {
     const result = initAgentSkill({ targetDir: process.cwd() });
     expect(result.success).toBe(true);
     expect(result.created).toBe(false);
-    expect(result.message).toContain('Repositorio proveedor');
+    expect(result.message).toContain('Provider repository');
   });
 
   it('registers auditor in .agents/plugins.json and skills.json for host projects', () => {
@@ -75,7 +75,7 @@ describe('init_agent CLI Tool', () => {
     const secondResult = initAgentSkill({ targetDir: tempDir });
     expect(secondResult.success).toBe(true);
     expect(secondResult.created).toBe(false);
-    expect(secondResult.message).toContain('ya se encuentran registrados');
+    expect(secondResult.message).toContain('already registered');
   });
 
   it('respects dryRun option without writing to disk', () => {

@@ -1,0 +1,79 @@
+### A01 copilot#1 expect=cli-contracts-direct-argv-access
+const args = process.argv;
+
+### A02 copilot#2 expect=cli-contracts-direct-argv-access
+console.log(process.argv[2]);
+
+### A03 copilot#3 expect=cli-contracts-direct-argv-access
+const sliced = process['argv'].slice(2);
+
+### A04 copilot#4 expect=cli-contracts-direct-argv-access
+const opt = process?.argv;
+
+### A05 copilot#5 expect=cli-contracts-direct-argv-access
+const { argv } = process;
+
+### A06 gemini#4 expect=cli-contracts-direct-argv-access
+const { argv: rawArgs } = process;
+
+### A07 copilot#6 expect=cli-contracts-direct-argv-access line=2
+const p = process;
+const first = p.argv[0];
+
+### A08 copilot#7 expect=cli-contracts-direct-argv-access
+const g = global.process.argv;
+
+### A09 gemini#5 expect=cli-contracts-direct-argv-access
+const gt = globalThis.process.argv;
+
+### A10 deep-research#1 expect=cli-contracts-direct-argv-access
+const winArgv = window.process.argv;
+
+### A11 copilot#8 expect=cli-contracts-direct-argv-access
+const a = process.argv;
+export { a };
+
+### A12 copilot#9 expect=cli-contracts-direct-argv-access
+export const cliArgs = process.argv;
+
+### A13 copilot#10 expect=cli-contracts-direct-argv-access
+function getArgs() { return process.argv; }
+
+### A14 copilot#11 expect=cli-contracts-direct-argv-access
+const args2 = (() => process.argv)();
+
+### A15 copilot#12 expect=cli-contracts-direct-argv-access line=2
+const key = 'argv';
+const dynamicVal = process[key];
+
+### A16 deep-research#2 expect=cli-contracts-direct-argv-access
+const [, , target] = process.argv;
+
+### A17 deep-research#3 expect=cli-contracts-direct-argv-access
+const [...rest] = process.argv;
+
+### A18 deep-research#4 expect=cli-contracts-direct-argv-access
+console.log(`Args: ${process.argv.join(' ')}`);
+
+### A19 deep-research#5 expect=cli-contracts-direct-argv-access
+console.log(Deno.args[0]);
+
+### A20 bun-runtime#1 expect=cli-contracts-direct-argv-access
+console.log(Bun.argv[2]);
+
+### A21 gemini#10 expect=cli-contracts-direct-argv-access
+[1, 2, 3].forEach(() => process.argv);
+
+### A22 gemini#11 expect=cli-contracts-direct-argv-access
+import('node:process').then((p) => p.argv);
+
+### A23 gemini#12 expect=cli-contracts-direct-argv-access
+const casted = (process as unknown as { argv: string[] }).argv;
+
+### A24 node-process-import#1 expect=cli-contracts-direct-argv-access
+import { argv } from 'node:process';
+console.log(argv);
+
+### A25 node-process-import#2 expect=cli-contracts-direct-argv-access line=2
+import proc from 'process';
+console.log(proc.argv.slice(2));

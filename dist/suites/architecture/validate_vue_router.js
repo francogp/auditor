@@ -49,7 +49,7 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			name: "Vue Router 4 Architecture & Navigation Auditor",
 			packageName: "Router",
 			family: "architecture",
-			description: "Verifica estándares de Vue Router 4 y navegación SPA",
+			description: "Verifies Vue Router 4 standards and SPA navigation",
 			icon: "🧭",
 			ruleCapabilities: createRuleCapabilities(VUE_ROUTER_RULES, {
 				speed: "light",
@@ -63,14 +63,14 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			ruleIds: VUE_ROUTER_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(VUE_ROUTER_RULES, "behavior"),
 			ruleDescriptions: {
-				"no-deprecated-router-next": "Uso de next() obsoleto en navigation guard",
-				"no-define-async-component-in-router": "defineAsyncComponent en ruta de router",
-				"no-window-location-navigation": "Navegación con window.location en SPA"
+				"no-deprecated-router-next": "Deprecated next() in router guard",
+				"no-define-async-component-in-router": "defineAsyncComponent in router route",
+				"no-window-location-navigation": "Navigation using window.location in SPA"
 			},
 			ruleRemediations: {
-				"no-deprecated-router-next": "📖 GUÍA DE REMEDIACIÓN: no-deprecated-router-next\n1. Causa Raíz: Se utilizó el parámetro obsoleto `next` en un navigation guard de Vue Router (`beforeEach((to, from, next) => ...)`). En Vue Router 4, `next` es propenso a errores de invocación múltiple y ha sido deprecado.\n2. Diagnóstico: Ubica la función guard en el router y observa la firma `(to, from, next)`.\n3. Solución Canónica: Elimina el parámetro `next`. Devuelve directamente un booleano (`true` para permitir, `false` para cancelar) o una ruta de redirección (`return { name: \"Login\" }`).\n4. Ejemplo:\n   ❌ Obsoleto: `router.beforeEach((to, from, next) => { if (!auth) next(\"/login\"); else next(); });`\n   ✅ Moderno:  `router.beforeEach((to) => { if (!auth) return \"/login\"; return true; });`",
-				"no-define-async-component-in-router": "📖 GUÍA DE REMEDIACIÓN: no-define-async-component-in-router\n1. Causa Raíz: Se envolvió un componente con `defineAsyncComponent()` dentro de la definición de rutas del router. Vue Router 4 soporta nativamente promesas de importación dinámica y no requiere `defineAsyncComponent` en `routes`.\n2. Diagnóstico: Revisa la propiedad `component:` en la configuración de la ruta reportada.\n3. Solución Canónica: Utiliza la función de importación dinámica directa: `component: () => import(\"@/views/HomeView.vue\")`.\n4. Ejemplo:\n   ❌ Redundante: `component: defineAsyncComponent(() => import(\"@/views/HomeView.vue\"))`\n   ✅ Canónico:   `component: () => import(\"@/views/HomeView.vue\")`",
-				"no-window-location-navigation": "📖 GUÍA DE REMEDIACIÓN: no-window-location-navigation\n1. Causa Raíz: Se utilizó `window.location.href = ...` o `window.location.assign(...)` para navegar entre vistas internas de la SPA. Esto provoca una recarga completa del navegador (Hard Reload), destruye el estado de Pinia/memoria y anula las ventajas de una Single Page Application.\n2. Diagnóstico: Busca la asignación a `window.location` en la línea reportada.\n3. Solución Canónica:\n   a) Utiliza la instancia del router: `const router = useRouter(); router.push(target);`.\n   b) Si la navegación es intencionalmente hacia una URL externa o proveedor de autenticación de terceros (OAuth/Stripe), anota `// router-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Hard reload: `window.location.href = \"/dashboard\";`\n   ✅ SPA Router:  `router.push({ name: \"Dashboard\" });`"
+				"no-deprecated-router-next": "📖 REMEDIATION GUIDE: no-deprecated-router-next\n1. Root Cause: Deprecated `next` callback was used in a Vue Router navigation guard (`beforeEach((to, from, next) => ...)`). In Vue Router 4, `next` is error-prone and deprecated.\n2. Diagnosis: Locate the guard function in the router and observe the `(to, from, next)` signature.\n3. Canonical Solution: Remove the `next` parameter. Return a boolean (`true` to allow, `false` to cancel) or a route location object (`return { name: \"Login\" }`).\n4. Example / Auto-fix command:\n   ❌ Deprecated: `router.beforeEach((to, from, next) => { if (!auth) next(\"/login\"); else next(); });`\n   ✅ Modern:     `router.beforeEach((to) => { if (!auth) return \"/login\"; return true; });`",
+				"no-define-async-component-in-router": "📖 REMEDIATION GUIDE: no-define-async-component-in-router\n1. Root Cause: A route component was wrapped with `defineAsyncComponent()` inside route definitions. Vue Router 4 natively supports dynamic import promises and does not need `defineAsyncComponent` in `routes`.\n2. Diagnosis: Check the `component:` property in the reported route configuration.\n3. Canonical Solution: Use direct dynamic imports: `component: () => import(\"@/views/HomeView.vue\")`.\n4. Example / Auto-fix command:\n   ❌ Redundant: `component: defineAsyncComponent(() => import(\"@/views/HomeView.vue\"))`\n   ✅ Canonical: `component: () => import(\"@/views/HomeView.vue\")`",
+				"no-window-location-navigation": "📖 REMEDIATION GUIDE: no-window-location-navigation\n1. Root Cause: `window.location.href = ...` or `window.location.assign(...)` was used for internal SPA navigation. This triggers a full browser reload, discards Pinia/Vue state, and degrades performance.\n2. Diagnosis: Look for assignments to `window.location` at the reported line.\n3. Canonical Solution:\n   a) Use the router instance: `const router = useRouter(); router.push(target);`.\n   b) If intentionally navigating to an external third-party URL (OAuth/Stripe), annotate with `// router-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Hard reload: `window.location.href = \"/dashboard\";`\n   ✅ SPA Router:  `router.push({ name: \"Dashboard\" });`"
 			},
 			configKey: "paths",
 			defaultConfig: {},

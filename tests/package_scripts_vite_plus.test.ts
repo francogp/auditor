@@ -59,7 +59,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
         },
         'test-collision-plugin'
       );
-    }).toThrow(/\[COLISIÓN DE COMANDOS\]/);
+    }).toThrow(/\[COMMAND COLLISION\]/);
   });
 
   it('C-SCR-03: ValidatePackageScriptsAuditor detects missing Vite+ recommended scripts', async () => {

@@ -189,7 +189,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       fixableRuleIds: ['z-index-missing-var', 'z-index-mismatch', 'z-index-hardcoded-literal'],
       id: 'validate_z_index',
       name: 'Z-Index Consistency Validator',
-      description: 'Valida paridad entre Z_LAYERS y variables CSS (SCSS)',
+      description: 'Validates parity between Z_LAYERS and CSS variables (SCSS)',
       family: 'architecture',
       packageName: 'Z-Index',
       configKey: 'styles.zLayersEnabled',
@@ -201,46 +201,52 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       ruleIds: Z_INDEX_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(Z_INDEX_RULES, 'hygiene'),
       ruleDescriptions: {
-        'z-index-missing-var': 'Falta variable en _base.scss',
-        'z-index-mismatch': 'Desincronización TS vs SCSS',
-        'z-index-read-error': 'Error al leer estilos base',
-        'z-index-hardcoded-literal': 'Valor hardcodeado sin variable',
-        'z-index-isolated-constant': 'Constante aislada fuera de Z_LAYERS'
+        'z-index-missing-var': 'Missing variable in _base.scss',
+        'z-index-mismatch': 'TS vs SCSS desynchronization',
+        'z-index-read-error': 'Error reading base styles',
+        'z-index-hardcoded-literal': 'Hardcoded value without variable',
+        'z-index-isolated-constant': 'Isolated constant outside Z_LAYERS'
       },
       ruleRemediations: {
         'z-index-missing-var':
-          '📖 GUÍA DE REMEDIACIÓN: z-index-missing-var\n' +
-          '1. Causa Raíz: Se declaró una capa de apilamiento en TypeScript (Z_LAYERS en src/types/zLayers.ts o en audit.config.ts), pero no existe su variable homóloga "$z-<capa>" en el archivo de estilos base (src/styles/_base.scss).\n' +
-          '2. Diagnóstico: Compara las claves de Z_LAYERS con las variables $z-* declaradas en _base.scss.\n' +
-          '3. Solución: Agrega la variable SCSS correspondiente en _base.scss igualando el valor numérico definido en TypeScript.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ En TS: Z_LAYERS = { DROPDOWN: 9000 }, pero falta $z-dropdown en SCSS\n' +
-          '   ✅ En SCSS: $z-dropdown: 9000;',
+          '📖 REMEDIATION GUIDE: z-index-missing-var\n' +
+          '1. Root Cause: A stacking layer was declared in TypeScript (`Z_LAYERS` in `src/types/zLayers.ts` or in `audit.config.ts`), but lacks its matching `$z-<layer>` variable in the base styles file (`src/styles/_base.scss`).\n' +
+          '2. Diagnosis: Compare `Z_LAYERS` keys against `$z-*` variables declared in `_base.scss`.\n' +
+          '3. Canonical Solution: Add the corresponding SCSS variable in `_base.scss` matching the numeric value in TypeScript.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - In TS: `Z_LAYERS = { DROPDOWN: 9000 }`\n' +
+          '   - In SCSS: `$z-dropdown: 9000;`',
         'z-index-mismatch':
-          '📖 GUÍA DE REMEDIACIÓN: z-index-mismatch\n' +
-          '1. Causa Raíz: Existe una divergencia numérica entre el valor de z-index definido en TypeScript (Z_LAYERS) y el definido en la variable SCSS ($z-*) para la misma capa de apilamiento.\n' +
-          '2. Diagnóstico: Revisa el mensaje de error que indica qué capa y qué valores discrepan (ej: TS=11000 vs SCSS=10000).\n' +
-          '3. Solución: Unifica ambos valores haciendo coincidir la variable de SCSS con la constante canónica de TypeScript.',
+          '📖 REMEDIATION GUIDE: z-index-mismatch\n' +
+          '1. Root Cause: Numerical divergence exists between the z-index value defined in TypeScript (`Z_LAYERS`) and the value in the SCSS variable (`$z-*`) for the same stacking layer.\n' +
+          '2. Diagnosis: Review the error message indicating which layer and values diverge (e.g., TS=11000 vs SCSS=10000).\n' +
+          '3. Canonical Solution: Unify both values by updating the SCSS variable to match the canonical TypeScript constant.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
         'z-index-read-error':
-          '📖 GUÍA DE REMEDIACIÓN: z-index-read-error\n' +
-          '1. Causa Raíz: El archivo de estilos base especificado en config.styles.baseScssFile o config.styles.zLayersScssFile no se encuentra en disco o contiene errores de sintaxis al leer las variables.\n' +
-          '2. Diagnóstico: Verifica que la ruta física configurada en .auditor/audit.config.ts exista y sea accesible.\n' +
-          '3. Solución: Corrige la ruta en audit.config.ts o repara los errores sintácticos de SCSS en el archivo de estilos base.',
+          '📖 REMEDIATION GUIDE: z-index-read-error\n' +
+          '1. Root Cause: The base styles file specified in `config.styles.baseScssFile` or `config.styles.zLayersScssFile` was not found on disk or has syntax errors.\n' +
+          '2. Diagnosis: Verify the physical path configured in `.auditor/audit.config.ts` exists and is readable.\n' +
+          '3. Canonical Solution: Correct the path in `audit.config.ts` or fix SCSS syntax errors in the base stylesheet.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Verify `styles.baseScssFile` in `.auditor/audit.config.ts`.',
         'z-index-hardcoded-literal':
-          '📖 GUÍA DE REMEDIACIÓN: z-index-hardcoded-literal\n' +
-          '1. Causa Raíz: Se detectó un valor numérico crudo (hardcoded) asignado a z-index (ej: z-index: 9999 o zIndex: 100) en lugar de utilizar las variables del sistema de capas Z_LAYERS. Los valores hardcodeados generan guerras de especificidad y superposición caótica de ventanas, tooltips y modales.\n' +
-          '2. Diagnóstico: Busca valores numéricos literales en propiedades z-index dentro de bloques de estilo o tweens de GSAP.\n' +
-          '3. Solución:\n' +
-          '   a) En CSS/SCSS: reemplaza el número por la variable oficial: z-index: $z-modal; o z-index: var(--z-modal);\n' +
-          '   b) En TypeScript/GSAP: importa y utiliza el valor de la capa canónica: zIndex: Z_LAYERS.MODAL\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Incorrecto: .tooltip { z-index: 9999; }\n' +
-          '   ✅ Correcto:   .tooltip { z-index: $z-tooltip; }',
+          '📖 REMEDIATION GUIDE: z-index-hardcoded-literal\n' +
+          '1. Root Cause: A raw numeric literal was assigned to z-index (e.g. `z-index: 9999` or `zIndex: 100`) instead of using canonical `Z_LAYERS` variables. Hardcoded values trigger specificity wars and modal z-fighting.\n' +
+          '2. Diagnosis: Look for numeric literals in z-index properties within styles or GSAP tweens.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) In CSS/SCSS: replace the number with official variables: `z-index: $z-modal;` or `z-index: var(--z-modal);`.\n' +
+          '   b) In TypeScript/GSAP: import and use canonical layers: `zIndex: Z_LAYERS.MODAL`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Incorrect: `.tooltip { z-index: 9999; }`\n' +
+          '   ✅ Correct:   `.tooltip { z-index: $z-tooltip; }`',
         'z-index-isolated-constant':
-          '📖 GUÍA DE REMEDIACIÓN: z-index-isolated-constant\n' +
-          '1. Causa Raíz: Se detectó la definición de una constante numérica aislada de z-index fuera del catálogo unificado Z_LAYERS (ej: const MODAL_Z = 5000 en un archivo local).\n' +
-          '2. Diagnóstico: Localiza la constante declarada en el archivo señalado por el auditor.\n' +
-          '3. Solución: Elimina la constante aislada e importa el valor canónico desde Z_LAYERS (src/types/zLayers.ts).'
+          '📖 REMEDIATION GUIDE: z-index-isolated-constant\n' +
+          '1. Root Cause: An isolated numeric z-index constant was defined outside the unified `Z_LAYERS` catalog (e.g. `const MODAL_Z = 5000` in a local file).\n' +
+          '2. Diagnosis: Locate the constant declared in the reported file.\n' +
+          '3. Canonical Solution: Delete the isolated constant and import the canonical value from `Z_LAYERS` (`src/types/zLayers.ts`).\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `import { Z_LAYERS } from "@/types/zLayers";`'
       },
       projectRoot: effectiveRoot
     });
@@ -286,11 +292,11 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
 
         let msg: string;
         if (exactKey && cssVarExpr) {
-          msg = `Z-Index hardcodeado detectado: '${m[0]}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
+          msg = `Hardcoded Z-Index detected: '${m[0]}'. Corresponds to Z_LAYERS.${exactKey}. Use '${cssVarExpr}'.`;
         } else if (nearestKey && cssVarExpr) {
-          msg = `Z-Index relativo detectado: '${m[0]}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
+          msg = `Relative Z-Index detected: '${m[0]}'. Near Z_LAYERS.${nearestKey}. Use '${cssVarExpr}'.`;
         } else {
-          msg = `Z-Index hardcodeado fuera de estándar: '${m[0]}'. Registra la capa en Z_LAYERS o usa una existente.`;
+          msg = `Non-standard hardcoded Z-Index: '${m[0]}'. Register the layer in Z_LAYERS or use an existing one.`;
         }
 
         this.addViolation({
@@ -342,7 +348,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
               filePath: doc.relPath,
               line: pos.line,
               column: pos.column,
-              message: `Declaración de constante de Z-Index aislada detectada: '${cMatch[0]}'. Está PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`,
+              message: `Isolated Z-Index constant declaration detected: '${cMatch[0]}'. Declaring Z-Index constants outside Z_LAYERS is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`,
               context: cMatch[0],
               fixable: false
             });
@@ -353,7 +359,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    if (!this.isExplicit && this.isSuiteGatingDisabled('Z-Layers desactivado en config')) {
+    if (!this.isExplicit && this.isSuiteGatingDisabled('Z-Layers disabled in config')) {
       return;
     }
 
@@ -366,7 +372,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           file: AUDIT_CONFIG_FILE,
           line: 1,
           message:
-            "Falta configuración de Z-Layers en audit.config.ts: no se encontró archivo SCSS. Defina 'styles.zLayersScssFile' apuntando a su archivo SCSS base, o configure explícitamente 'styles.zLayersEnabled: false' si este proyecto no utiliza capas Z de SCSS.",
+            "Missing Z-Layers configuration in audit.config.ts: no SCSS file found. Define 'styles.zLayersScssFile' pointing to your base SCSS file, or explicitly configure 'styles.zLayersEnabled: false' if this project does not use SCSS Z-layers.",
           context: AUDIT_CONFIG_FILE
         });
       });

@@ -302,7 +302,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       }),
       id: 'validate_valibot_parity',
       name: 'Valibot Schema & Persistence Parity Auditor',
-      description: 'Valida paridad bidireccional entre interfaces y Valibot',
+      description: 'Validates parity between interfaces and Valibot',
       icon: '🛡️',
       family: 'persistence',
       ruleIds: VALIBOT_PARITY_RULES,
@@ -315,60 +315,60 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       },
       criticalConfig: {},
       ruleDescriptions: {
-        'valibot-schema-missing-field': 'Campo faltante en schema',
-        'valibot-serializer-missing-field': 'Campo faltante en serializer',
-        'valibot-initial-state-missing-field': 'Campo ausente en estado base',
-        'valibot-nested-missing-field': 'Campo faltante en anidado',
-        'valibot-domain-type-violation': 'unknown() prohibido en schema',
-        'valibot-redundant-nullability': 'optional(nullable) redundante'
+        'valibot-schema-missing-field': 'Missing field in schema',
+        'valibot-serializer-missing-field': 'Missing field in serializer',
+        'valibot-initial-state-missing-field': 'Missing field in base state',
+        'valibot-nested-missing-field': 'Missing field in nested schema',
+        'valibot-domain-type-violation': 'unknown() prohibited in schema',
+        'valibot-redundant-nullability': 'Redundant optional(nullable) wrapper'
       },
       ruleRemediations: {
         'valibot-schema-missing-field':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-schema-missing-field\n' +
-          '1. Causa Raíz: Se declaró una propiedad en la interfaz TypeScript de estado (`interface GameState`, `interface UserProfile`, etc.), pero el campo correspondiente no está presente en el esquema Valibot (`v.object({ ... })`). Al deserializar datos persistidos, el campo será descartado o causará desajustes.\n' +
-          '2. Diagnóstico: Ubica el campo faltante reportado en la interfaz y comprueba el esquema en el archivo de esquemas Valibot.\n' +
-          '3. Solución Canónica:\n' +
-          '   a) Añade la validación del campo en el esquema Valibot: `key: v.string()`, `key: v.optional(...)`, etc.\n' +
-          '   b) Si el campo es estrictamente efímero en memoria y no debe persistirse, decláralo en el tipo unión de claves efímeras configurado (`ephemeralKeysType`).\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir en esquema: `avatarUrl: v.optional(v.string())`',
+          '📖 REMEDIATION GUIDE: valibot-schema-missing-field\n' +
+          '1. Root Cause: A property was declared in the TypeScript state interface (`interface GameState`, `interface UserProfile`, etc.), but the corresponding field is missing in the Valibot schema (`v.object({ ... })`). When deserializing persisted data, the field will be discarded or cause mismatches.\n' +
+          '2. Diagnosis: Locate the reported missing field in the interface and check the schema in the Valibot schema file.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Add field validation to the Valibot schema: `key: v.string()`, `key: v.optional(...)`, etc.\n' +
+          '   b) If the field is strictly ephemeral in-memory and must not be persisted, declare it in the configured ephemeral keys union (`ephemeralKeysType`).\n' +
+          '4. Example:\n' +
+          '   - Add to schema: `avatarUrl: v.optional(v.string())`',
         'valibot-serializer-missing-field':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-serializer-missing-field\n' +
-          '1. Causa Raíz: Una propiedad de la interfaz de estado no es mapeada ni devuelta en la función serializadora personalizada (`serializeGameState()`). Los datos de esa propiedad se perderán al guardar.\n' +
-          '2. Diagnóstico: Revisa el objeto retornado por la función serializadora.\n' +
-          '3. Solución Canónica: Añade la propiedad al objeto retornado por el serializador.\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir en retorno: `score: state.score`',
+          '📖 REMEDIATION GUIDE: valibot-serializer-missing-field\n' +
+          '1. Root Cause: A state interface property is not mapped or returned in the custom serializer function (`serializeGameState()`). Data for that property will be lost upon saving.\n' +
+          '2. Diagnosis: Review the object returned by the serializer function.\n' +
+          '3. Canonical Solution: Add the property to the object returned by the serializer.\n' +
+          '4. Example:\n' +
+          '   - Add to return: `score: state.score`',
         'valibot-initial-state-missing-field':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-initial-state-missing-field\n' +
-          '1. Causa Raíz: Una propiedad de la interfaz de estado no está inicializada en la factoría de estado inicial (`createInitialGameState()`). Al arrancar una sesión limpia, el estado contendrá valores `undefined` inesperados.\n' +
-          '2. Diagnóstico: Comprueba la factoría de estado inicial en el archivo reportado.\n' +
-          '3. Solución Canónica: Inicializa el campo con su valor por defecto tipado (ej: `0`, `""`, `[]`, o `null`).\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir en factoría: `unlockedAchievements: []`',
+          '📖 REMEDIATION GUIDE: valibot-initial-state-missing-field\n' +
+          '1. Root Cause: A state interface property is not initialized in the initial state factory (`createInitialGameState()`). On starting a clean session, state will contain unexpected `undefined` values.\n' +
+          '2. Diagnosis: Check the initial state factory in the reported file.\n' +
+          '3. Canonical Solution: Initialize the field with its default typed value (e.g.: `0`, `""`, `[]`, or `null`).\n' +
+          '4. Example:\n' +
+          '   - Add to factory: `unlockedAchievements: []`',
         'valibot-nested-missing-field':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-nested-missing-field\n' +
-          '1. Causa Raíz: Un campo perteneciente a una subinterfaz anidada (ej: `interface InventoryItem`) falta en el subesquema Valibot anidado o en la factoría de inicialización.\n' +
-          '2. Diagnóstico: Inspecciona el subesquema o subfactoría señalada en el reporte.\n' +
-          '3. Solución Canónica: Añade el campo a la definición del subesquema anidado en Valibot.\n' +
-          '4. Ejemplo:\n' +
-          '   - Añadir en subesquema: `quantity: v.pipe(v.number(), v.minValue(1))`',
+          '📖 REMEDIATION GUIDE: valibot-nested-missing-field\n' +
+          '1. Root Cause: A field belonging to a nested sub-interface (e.g.: `interface InventoryItem`) is missing in the nested Valibot sub-schema or in the initialization factory.\n' +
+          '2. Diagnosis: Inspect the sub-schema or sub-factory indicated in the report.\n' +
+          '3. Canonical Solution: Add the field to the nested Valibot sub-schema definition.\n' +
+          '4. Example:\n' +
+          '   - Add to sub-schema: `quantity: v.pipe(v.number(), v.minValue(1))`',
         'valibot-domain-type-violation':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-domain-type-violation\n' +
-          '1. Causa Raíz: Se utilizó `v.unknown()` o `v.any()` dentro de un esquema de validación de dominio. Esto degrada la tipificación estricta y permite que datos no estructurados corrompan el estado.\n' +
-          '2. Diagnóstico: Ubica la llamada a `v.unknown()` en el archivo de esquemas.\n' +
-          '3. Solución Canónica: Sustituye `v.unknown()` por el esquema específico del tipo de dato (ej: `v.string()`, `v.record(v.string(), v.number())` o un esquema anidado).\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Laxo:    `metadata: v.unknown()`\n' +
-          '   ✅ Estricto: `metadata: v.record(v.string(), v.string())`',
+          '📖 REMEDIATION GUIDE: valibot-domain-type-violation\n' +
+          '1. Root Cause: `v.unknown()` or `v.any()` was used inside a domain validation schema. This degrades strict typing and allows unstructured data to corrupt state.\n' +
+          '2. Diagnosis: Locate the `v.unknown()` call in the schema file.\n' +
+          '3. Canonical Solution: Replace `v.unknown()` with the specific schema for the data type (e.g.: `v.string()`, `v.record(v.string(), v.number())` or a nested schema).\n' +
+          '4. Example:\n' +
+          '   ❌ Loose:  `metadata: v.unknown()`\n' +
+          '   ✅ Strict: `metadata: v.record(v.string(), v.string())`',
         'valibot-redundant-nullability':
-          '📖 GUÍA DE REMEDIACIÓN: valibot-redundant-nullability\n' +
-          '1. Causa Raíz: Se compuso redundantemente `v.optional(v.nullable(...))` para aceptar `null | undefined`. La API canónica y concisa de Valibot proporciona la función integrada `v.nullish(...)`.\n' +
-          '2. Diagnóstico: Localiza la expresión `v.optional(v.nullable(...))` en el esquema.\n' +
-          '3. Solución Canónica: Reemplaza la composición redundante por `v.nullish(...)`.\n' +
-          '4. Ejemplo:\n' +
-          '   ❌ Redundante: `v.optional(v.nullable(v.string()))`\n' +
-          '   ✅ Canónico:  `v.nullish(v.string())`'
+          '📖 REMEDIATION GUIDE: valibot-redundant-nullability\n' +
+          '1. Root Cause: Redundantly composed `v.optional(v.nullable(...))` to accept `null | undefined`. Valibot canonical API provides the built-in `v.nullish(...)` function.\n' +
+          '2. Diagnosis: Locate `v.optional(v.nullable(...))` expression in the schema.\n' +
+          '3. Canonical Solution: Replace the redundant composition with `v.nullish(...)`.\n' +
+          '4. Example:\n' +
+          '   ❌ Redundant: `v.optional(v.nullable(v.string()))`\n' +
+          '   ✅ Canonical: `v.nullish(v.string())`'
       },
       coverage: {
         include:
@@ -385,7 +385,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     const targets = config.valibot?.targets ?? [];
 
     if (targets.length === 0) {
-      this.markSkipped('No se configuraron objetivos en valibot.targets');
+      this.markSkipped('No targets configured in valibot.targets');
       for (const rule of VALIBOT_PARITY_RULES) {
         this.markRuleNotApplicable(
           rule,
@@ -412,7 +412,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
         severity: 'error',
         file: !fs.existsSync(absTypes) ? target.typesFile : target.schemaFile,
         line: 1,
-        message: `El archivo configurado para '${target.id}' no existe en disco.`,
+        message: `Configured file for '${target.id}' does not exist on disk.`,
         context: target.id
       });
       return;
@@ -471,7 +471,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
           severity: 'error',
           file: target.schemaFile,
           line: 1,
-          message: `Campo '${key}' declarado en '${target.interfaceName}' falta en esquema '${target.schemaVarName}'.`,
+          message: `Field '${key}' declared in '${target.interfaceName}' is missing in schema '${target.schemaVarName}'.`,
           context: key
         });
       }
@@ -498,7 +498,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
           severity: 'error',
           file: target.serializerFile,
           line: 1,
-          message: `Campo '${key}' no se serializa en ${target.serializerFunctionName ?? 'serialize'}().`,
+          message: `Field '${key}' is not serialized in ${target.serializerFunctionName ?? 'serialize'}().`,
           context: key
         });
       }
@@ -528,7 +528,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
           severity: 'error',
           file: target.initialStateFile,
           line: 1,
-          message: `Campo '${key}' no está inicializado en ${target.initialStateFunctionName ?? 'createInitialGameState'}().`,
+          message: `Field '${key}' is not initialized in ${target.initialStateFunctionName ?? 'createInitialGameState'}().`,
           context: key
         });
       }
@@ -575,7 +575,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       severity: 'error',
       file: target.schemaFile,
       line: 1,
-      message: `Propiedad '${nKey}' de '${nested.interfaceName}' falta en '${nested.schemaVarName}'.`,
+      message: `Property '${nKey}' from '${nested.interfaceName}' is missing in '${nested.schemaVarName}'.`,
       context: nKey
     });
   }
@@ -595,7 +595,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       severity: 'error',
       file: target.initialStateFile ?? target.schemaFile,
       line: 1,
-      message: `Propiedad '${nKey}' de '${nested.interfaceName}' no está inicializada en ${nested.initialStateProperty}.`,
+      message: `Property '${nKey}' from '${nested.interfaceName}' is not initialized in ${nested.initialStateProperty}.`,
       context: nKey
     });
   }
@@ -660,7 +660,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
           severity: 'error',
           file: target.schemaFile,
           line,
-          message: `Campo '${propName}' usa unknown() en ${target.schemaVarName}.`,
+          message: `Field '${propName}' uses unknown() in ${target.schemaVarName}.`,
           context: propName
         });
       }
@@ -692,7 +692,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
             severity: 'warning',
             file: target.schemaFile,
             line,
-            message: `Campo '${propName}' usa optional(nullable(...)) redundante en ${target.schemaVarName}.`,
+            message: `Field '${propName}' uses redundant optional(nullable(...)) in ${target.schemaVarName}.`,
             context: propName
           });
         }

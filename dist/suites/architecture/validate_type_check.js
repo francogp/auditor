@@ -33,7 +33,7 @@ function createFindingFromMatch(groups, cwd) {
 		suiteId: "validate_type_check",
 		suiteName: "TypeScript & Vue Type Validator",
 		ruleId: "ts-compiler-error",
-		ruleDescription: "TypeScript: Error de compilación o tipo",
+		ruleDescription: "TypeScript: Compilation or type error",
 		severity: "error",
 		file: (path.isAbsolute(rawFile) ? path.relative(cwd, rawFile) : rawFile).split(path.sep).join(path.posix.sep),
 		line: Number.parseInt(lineStr, DECIMAL_RADIX) || DEFAULT_ERROR_LINE,
@@ -108,7 +108,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_type_check",
 			name: "TypeScript & Vue Type Validator",
-			description: "Errores de tipado y compilación en TypeScript y SFCs Vue",
+			description: "Type and compilation errors in TypeScript and Vue SFCs",
 			family: "architecture",
 			packageName: "TypeScript",
 			configKey: "paths",
@@ -117,8 +117,8 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			icon: "🏷️",
 			ruleIds: TYPE_CHECK_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(TYPE_CHECK_RULES, "contracts"),
-			ruleDescriptions: { "ts-compiler-error": "Error de compilación o tipo" },
-			ruleRemediations: { "ts-compiler-error": "📖 GUÍA DE REMEDIACIÓN: ts-compiler-error\n1. Causa Raíz: El compilador de TypeScript (`tsc` o `vue-tsc`) detectó un error de tipos, interfaz incompatible, propiedad inexistente o fallo de sintaxis estática (código de diagnóstico TSxxxx).\n2. Diagnóstico: Revisa el archivo, número de línea y código de error TS emitido (ej: TS2322 tipo incompatible, TS2339 propiedad inexistente, TS2345 argumento inválido).\n3. Solución Canónica:\n   a) Corrige la firma de tipo o interfaz en el origen para que satisfaga el contrato estricto del compilador.\n   b) Si faltan propiedades en un objeto literal, agrégalas según el tipo esperado o define la propiedad como opcional (`?`) si el dominio lo autoriza.\n   c) Nunca utilices `// @ts-ignore` ni castings ciegos como `as any`. Modela los tipos con el rigor adecuado.\n4. Ejemplo:\n   ❌ TS2322: `const id: number = \"123\";`\n   ✅ Tipado correcto: `const id: string = \"123\";`" },
+			ruleDescriptions: { "ts-compiler-error": "Compilation or type error" },
+			ruleRemediations: { "ts-compiler-error": "📖 REMEDIATION GUIDE: ts-compiler-error\n1. Root Cause: The TypeScript compiler (`tsc` or `vue-tsc`) detected a type mismatch, incompatible interface, missing property, or static syntax failure (diagnostic code TSxxxx).\n2. Diagnosis: Inspect the file, line number, and TS error code emitted (e.g., TS2322 type incompatibility, TS2339 missing property, TS2345 invalid argument).\n3. Canonical Solution:\n   a) Correct the type signature or interface contract at the source to satisfy the compiler.\n   b) If properties are missing in an object literal, provide them according to the expected type or make them optional (`?`) if permitted by domain.\n   c) Never use `// @ts-ignore` or blind casts like `as any`. Model domain types rigorously.\n4. Example / Auto-fix command:\n   ❌ TS2322: `const id: number = \"123\";`\n   ✅ Correct: `const id: string = \"123\";`" },
 			coverage: {
 				include: [
 					"src/**/*.ts",

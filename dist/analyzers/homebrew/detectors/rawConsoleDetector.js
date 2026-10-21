@@ -9,7 +9,7 @@ import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
 const rawConsoleDetector = createLineDetector({
 	id: "raw-console",
 	ruleId: "auditor-raw-console",
-	ruleDescription: "Llamada directa a console.log",
+	ruleDescription: "Direct call to console.log",
 	checkLine(line, _trimmed, _lineNum, context) {
 		if (context.filePath.includes("/cli/") || context.filePath.startsWith("src/cli/")) return null;
 		if (line.includes("// console-ok:")) return null;

@@ -52,7 +52,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_environment_engines');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Entorno');
+      expect(auditor.packageName).toBe('Environment');
       expect(auditor.icon).toBe('⚡');
       expect(auditor.capabilities.fix).toBe('priority');
       expect(auditor.capabilities.speed).toBe('light');

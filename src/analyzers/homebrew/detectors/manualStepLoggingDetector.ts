@@ -13,7 +13,7 @@ import { createLineDetector, isInsideStringLiteral } from '../homebrewTypes.ts';
 export const manualStepLoggingDetector = createLineDetector({
   id: 'manual-step-logging',
   ruleId: 'auditor-manual-step-logging',
-  ruleDescription: 'Log manual de pasos en auditor',
+  ruleDescription: 'Manual step logging in auditor',
   checkLine(line) {
     const match = /\bcontext\.logStep\s*\(/.exec(line);
     if (!match) return null;

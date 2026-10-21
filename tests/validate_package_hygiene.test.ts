@@ -35,7 +35,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
     it('initializes with correct metadata and rules', () => {
       const auditor = new ValidatePackageHygieneAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_package_hygiene');
-      expect(auditor.packageName).toBe('Dependencias');
+      expect(auditor.packageName).toBe('Dependencies');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds.length).toBeGreaterThan(0);
       expect(auditor.ruleDescriptions).toBeDefined();
@@ -144,7 +144,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       const findings = verifyLockfileIntegrity(tempDir);
       expect(findings).toHaveLength(1);
       expect(findings[0]!.ruleId).toBe('package-lockfile-integrity');
-      expect(findings[0]!.message).toContain('No se encontró package-lock.json');
+      expect(findings[0]!.message).toContain('package-lock.json not found');
     });
 
     it('detects unresolved merge conflict markers in package-lock.json', () => {
@@ -164,7 +164,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
         JSON.stringify({ name: 'pkg', lockfileVersion: 2 })
       );
       const findings = verifyLockfileIntegrity(tempDir);
-      expect(findings.some((f) => f.message.includes('lockfileVersion obsoleto'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('Outdated lockfileVersion'))).toBe(true);
     });
 
     it('detects insecure http:// registry resolutions', () => {
@@ -232,7 +232,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
       );
       const findings = verifyLockfileIntegrity(tempDir);
       expect(findings.some((f) => f.context?.includes('#semver:*'))).toBe(true);
-      expect(findings.some((f) => f.message.includes('rango git flotante'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('floating git range'))).toBe(true);
     });
 
     it('detects desynchronization between package.json and package-lock.json', () => {
@@ -260,7 +260,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
         })
       );
       const findings = verifyLockfileIntegrity(tempDir);
-      expect(findings.some((f) => f.message.includes('difiere de package-lock.json'))).toBe(true);
+      expect(findings.some((f) => f.message.includes('differs from package-lock.json'))).toBe(true);
     });
 
     it('auto-replaces floating #semver:* with #v<auditorVersion> when isFixMode is true (fix: true)', () => {

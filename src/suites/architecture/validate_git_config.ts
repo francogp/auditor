@@ -94,7 +94,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
       fixableRuleIds: [...GIT_CONFIG_RULES],
       id: 'validate_git_config',
       name: 'Git Configuration Validator',
-      description: 'Valida y sincroniza configuración local de Git',
+      description: 'Validates and synchronizes local Git configuration',
       family: 'architecture',
       ruleIds: GIT_CONFIG_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GIT_CONFIG_RULES, 'setup'),
@@ -104,17 +104,32 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
       criticalConfig: {},
       icon: '🌿',
       ruleDescriptions: {
-        'git-config-filemode': 'core.filemode debe ser false en repo',
-        'git-config-autocrlf': 'core.autocrlf debe ser input en repo',
-        'git-config-eol': 'core.eol debe ser lf en repo'
+        'git-config-filemode': 'core.filemode must be false in repository',
+        'git-config-autocrlf': 'core.autocrlf must be input in repository',
+        'git-config-eol': 'core.eol must be lf in repository'
       },
       ruleRemediations: {
         'git-config-filemode':
-          '1. Causa Raíz: La propiedad local `core.filemode` no está configurada como `false` en Git, lo que en entornos Windows provoca que Git detecte falsas diferencias de permisos de ejecución (+x) en archivos fuente.\n2. Diagnóstico: Ejecuta `git config --local core.filemode` en la terminal para inspeccionar el valor actual.\n3. Solución Canónica: Configura el repositorio para ignorar cambios de modo de archivo en el sistema de archivos local ejecutando `git config --local core.filemode false` o ejecutando el auto-fix del auditor.\n4. Ejemplo:\ngit config --local core.filemode false\nO ejecuta:\nnpm run auditor:fix',
+          '📖 REMEDIATION GUIDE: git-config-filemode\n' +
+          '1. Root Cause: Local property `core.filemode` is not configured as `false` in Git, causing Windows environments to detect false execution permission differences (+x) on source files.\n' +
+          '2. Diagnosis: Run `git config --local core.filemode` in the terminal to inspect current value.\n' +
+          '3. Canonical Solution: Configure the repository to ignore file mode changes on local filesystem via `git config --local core.filemode false` or run auditor auto-fix.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix` or `git config --local core.filemode false`',
         'git-config-autocrlf':
-          '1. Causa Raíz: La propiedad local `core.autocrlf` no está configurada como `input`, lo que puede provocar que los commits introduzcan saltos de línea Windows (CRLF) en el repositorio remoto.\n2. Diagnóstico: Ejecuta `git config --local core.autocrlf` en la terminal.\n3. Solución Canónica: Configura `core.autocrlf input` para que Git convierta CRLF a LF al hacer commit, preservando saltos LF limpios.\n4. Ejemplo:\ngit config --local core.autocrlf input\nO ejecuta:\nnpm run auditor:fix',
+          '📖 REMEDIATION GUIDE: git-config-autocrlf\n' +
+          '1. Root Cause: Local property `core.autocrlf` is not configured as `input`, which may introduce Windows line endings (CRLF) into the remote repository.\n' +
+          '2. Diagnosis: Run `git config --local core.autocrlf` in the terminal.\n' +
+          '3. Canonical Solution: Configure `core.autocrlf input` so Git converts CRLF to LF on commit, preserving clean LF line endings.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix` or `git config --local core.autocrlf input`',
         'git-config-eol':
-          '1. Causa Raíz: La propiedad local `core.eol` no está fijada como `lf`, permitiendo que herramientas locales generen inconsistencias en los finales de línea de archivos fuente y scripts.\n2. Diagnóstico: Ejecuta `git config --local core.eol` en la terminal.\n3. Solución Canónica: Establece `core.eol lf` en la configuración local de Git.\n4. Ejemplo:\ngit config --local core.eol lf\nO ejecuta:\nnpm run auditor:fix'
+          '📖 REMEDIATION GUIDE: git-config-eol\n' +
+          '1. Root Cause: Local property `core.eol` is not set to `lf`, allowing local tooling to introduce line ending inconsistencies across source files and scripts.\n' +
+          '2. Diagnosis: Run `git config --local core.eol` in the terminal.\n' +
+          '3. Canonical Solution: Set `core.eol lf` in local Git configuration.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix` or `git config --local core.eol lf`'
       },
       coverage: { include: ['package.json'] },
       ...options
@@ -123,7 +138,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
 
   public override async runAudit(): Promise<void> {
     if (isProductionEnvironment()) {
-      this.markSkipped('Git config omitido en entorno de producción (AUDITOR_ENV=production)');
+      this.markSkipped('Git config skipped in production environment (AUDITOR_ENV=production)');
       return;
     }
 
@@ -132,7 +147,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
     const gitPath = path.resolve(this.projectRoot, '.git');
     if (!fs.existsSync(gitPath)) {
       for (const r of GIT_CONFIG_RULES) {
-        this.markRuleNotApplicable(r, 'No es un repositorio Git (.git no encontrado)');
+        this.markRuleNotApplicable(r, 'Not a Git repository (.git not found)');
       }
       return;
     }
@@ -153,7 +168,7 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
             ruleId: item.ruleId,
             file: '.git/config',
             line: 1,
-            message: `${item.key} debe ser "${item.expected}" en el repositorio local (detectado: "${currentVal ?? 'no configurado'}").`,
+            message: `${item.key} must be "${item.expected}" in local repository (detected: "${currentVal ?? 'unset'}").`,
             severity: 'error',
             context: `${item.key} = ${currentVal ?? 'unset'}`
           });

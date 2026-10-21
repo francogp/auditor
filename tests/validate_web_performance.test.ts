@@ -30,7 +30,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
   });
 
   describe('Point 1: Construction & Metadata Conformance', () => {
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_web_performance');
       expect(auditor.name).toBe('Web Performance & Core Web Vitals Auditor');
@@ -39,25 +39,23 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(auditor.icon).toBe('⚡');
       expect(auditor.ruleIds).toEqual([...WEB_PERFORMANCE_RULES]);
       expect(auditor.ruleDescriptions['unoptimized-images']).toBe(
-        'Imagen sin compresión moderna WebP'
+        'Image without modern WebP compression'
       );
       expect(auditor.ruleDescriptions['font-display-missing']).toBe(
-        '@font-face sin font-display swap'
+        '@font-face without font-display swap'
       );
-      expect(auditor.ruleDescriptions['inline-svg-bloat']).toBe(
-        'SVG inline excesivo superando 2KB'
-      );
+      expect(auditor.ruleDescriptions['inline-svg-bloat']).toBe('Inline SVG exceeding 2KB');
       expect(auditor.ruleDescriptions['css-render-blocking']).toBe(
-        'Recurso CSS o script bloqueante en head'
+        'Render-blocking CSS or script in head'
       );
       expect(auditor.ruleDescriptions['excessive-dom-depth']).toBe(
-        'Anidamiento DOM excesivo > 16 niveles'
+        'Excessive DOM depth > 16 levels'
       );
       expect(auditor.ruleDescriptions['layout-shift-dimensions']).toBe(
-        'img o video sin width o height explícito'
+        'Media element missing width/height'
       );
       expect(auditor.ruleDescriptions['uncompressed-video']).toBe(
-        'video sin preload none o formato webm'
+        'Video missing preload="none" or webm'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);
@@ -215,7 +213,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find((f) => f.ruleId === 'css-render-blocking');
       expect(finding).toBeDefined();
-      expect(finding?.message).toContain('Hoja de estilos externa');
+      expect(finding?.message).toContain('Synchronous external stylesheet');
     });
 
     it('detects inline-svg-bloat when SVG contains > 30 paths even under 2KB', async () => {
@@ -251,8 +249,8 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       const result = await auditor.finishAudit();
       const findings = result.findings.filter((f) => f.ruleId === 'uncompressed-video');
       expect(findings.length).toBe(2);
-      expect(findings[0]?.message).toContain('formato no comprimido');
-      expect(findings[1]?.message).toContain('sin preload="none" ni fuente en formato WebM');
+      expect(findings[0]?.message).toContain('uncompressed container');
+      expect(findings[1]?.message).toContain('without preload="none" or optimized WebM source');
     });
 
     it('honors all escape hatches and allows compliant modern alternatives', async () => {

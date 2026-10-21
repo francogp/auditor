@@ -96,7 +96,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(violations).toHaveLength(2);
       expect(violations[0]!.severity).toBe('error');
       expect(violations[0]!.ruleId).toBe('fallow-duplicate-code');
-      expect(violations[0]!.message).toContain('Código duplicado detectado');
+      expect(violations[0]!.message).toContain('Duplicate code detected');
     });
 
     it('maps triplicate code clone groups as error severity', () => {
@@ -116,7 +116,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(violations).toHaveLength(3);
       expect(violations[0]!.severity).toBe('error');
       expect(violations[0]!.ruleId).toBe('fallow-triplicate-code');
-      expect(violations[0]!.message).toContain('Código triplicado crítico');
+      expect(violations[0]!.message).toContain('Critical triplicate code');
     });
 
     it('extracts token_count from modern Fallow clone groups schema', () => {

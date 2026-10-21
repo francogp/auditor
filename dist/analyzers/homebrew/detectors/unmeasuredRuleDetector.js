@@ -3,7 +3,7 @@ import { scanRuleMeasurement } from "./ruleMeasurementScan.js";
 const unmeasuredRuleDetector = {
 	id: "unmeasured-rule",
 	ruleId: "auditor-unmeasured-rule",
-	ruleDescription: "Regla sin medición individual",
+	ruleDescription: "Unmeasured individual rule",
 	detect(context) {
 		const scan = scanRuleMeasurement(context);
 		if (scan.hasDynamicMeasurement) return [];
@@ -15,7 +15,7 @@ const unmeasuredRuleDetector = {
 			findings.push({
 				ruleId: "auditor-unmeasured-rule",
 				line: site.line,
-				message: `La regla '${site.ruleId}' emite violaciones sin medición individual. Envuelve su ejecución en 'this.runSubAuditorSync('${site.ruleId}', ...)', 'await this.runSubAuditor('${site.ruleId}', ...)' o 'declareFileSubAuditor('${site.ruleId}', handler)'; un 'markRuleEvaluated' suelto no mide tiempo.`,
+				message: `Rule '${site.ruleId}' emits violations without individual timing measurement. Wrap its execution in 'this.runSubAuditorSync('${site.ruleId}', ...)', 'await this.runSubAuditor('${site.ruleId}', ...)' or 'declareFileSubAuditor('${site.ruleId}', handler)'; a standalone 'markRuleEvaluated' does not record elapsed time.`,
 				context: site.ruleId,
 				severity: "error"
 			});

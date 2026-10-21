@@ -38,11 +38,11 @@ export const AUDITOR_TEST_RULES: readonly AuditorTestRuleId[] = [
 ] as const;
 
 export const AUDITOR_TEST_DESCRIPTIONS: Record<AuditorTestRuleId, string> = {
-  'missing-auditor-test': 'Falta test para subauditor',
-  'untested-auditor-rule': 'Regla sin test que verifique',
-  'missing-clean-auditor-test': 'Falta test de verificación limpia',
-  'missing-construction-auditor-test': 'Falta test de construcción',
-  'missing-violation-auditor-test': 'Falta test de error o violación'
+  'missing-auditor-test': 'Missing test for sub-auditor',
+  'untested-auditor-rule': 'Rule missing verification test',
+  'missing-clean-auditor-test': 'Missing clean verification test',
+  'missing-construction-auditor-test': 'Missing construction test',
+  'missing-violation-auditor-test': 'Missing violation test'
 };
 
 export const AUDITOR_TEST_REMEDIATIONS: Record<AuditorTestRuleId, string> = {
@@ -116,7 +116,7 @@ function auditTaskRuleCoverage(params: {
         severity: 'error',
         file: params.testFileRel,
         line: 1,
-        message: `El test '${params.testFileRel}' no verifica la regla '${rule}' declarada en '${params.taskId}'.`,
+        message: `Test '${params.testFileRel}' does not verify rule '${rule}' declared in '${params.taskId}'.`,
         context: rule
       });
     }
@@ -137,7 +137,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       requiredPermissions: [],
       id: 'validate_auditor_tests',
       name: 'Auditor Test Existence & Completeness Validator',
-      description: 'Valida existencia y cobertura de tests en auditores',
+      description: 'Validates test existence and coverage for auditors',
       family: 'architecture',
       ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
         speed: 'light',
@@ -254,7 +254,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
             severity: 'error',
             file: ctx.task.scriptPath,
             line: 1,
-            message: `El sub-auditor '${ctx.task.id}' no posee un archivo de prueba dedicado. Se esperaba '${ctx.testFileRel}'.`,
+            message: `Sub-auditor '${ctx.task.id}' lacks a dedicated test file. Expected '${ctx.testFileRel}'.`,
             context: ctx.task.id
           });
         } else {
@@ -289,7 +289,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
             severity: 'error',
             file: ctx.testFileRel,
             line: 1,
-            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de ejecución limpia (cero errores).`,
+            message: `Test '${ctx.testFileRel}' for '${ctx.task.id}' does not include clean execution verification (zero errors).`,
             context: ctx.task.id
           });
         }
@@ -305,7 +305,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
             severity: 'error',
             file: ctx.testFileRel,
             line: 1,
-            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de construcción o metadatos del auditor.`,
+            message: `Test '${ctx.testFileRel}' for '${ctx.task.id}' does not include auditor construction or metadata verification.`,
             context: ctx.task.id
           });
         }
@@ -321,7 +321,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
             severity: 'error',
             file: ctx.testFileRel,
             line: 1,
-            message: `El test '${ctx.testFileRel}' para '${ctx.task.id}' no incluye verificación de detección de violaciones o fallos con error.`,
+            message: `Test '${ctx.testFileRel}' for '${ctx.task.id}' does not include violation detection or error failure verification.`,
             context: ctx.task.id
           });
         }

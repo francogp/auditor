@@ -52,7 +52,7 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
     expect(auditor.id).toBe('validate_type_assertion_hygiene');
     expect(auditor.family).toBe('architecture');
-    expect(auditor.packageName).toBe('Tipos');
+    expect(auditor.packageName).toBe('Types');
     expect(auditor.ruleIds).toEqual(TYPE_ASSERTION_RULES);
     validateAuditorConstruction(auditor);
   });

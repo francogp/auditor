@@ -9,7 +9,7 @@ import { createLineDetector } from "../homebrewTypes.js";
 const commentStrippingDetector = createLineDetector({
 	id: "comment-stripping",
 	ruleId: "auditor-manual-comment-stripping",
-	ruleDescription: "Limpieza manual de comentarios",
+	ruleDescription: "Manual comment stripping",
 	checkLine(line) {
 		if (line.includes("replace(") && (line.includes("\\/\\*") || line.includes("\\/\\/")) && (line.includes("comment") || line.includes("''") || line.includes("\"\"") || line.includes("`"))) return "Regex casero para remover comentarios detectado. Usa la utilidad canónica 'stripComments(code)' o 'stripCommentsAndStrings(code)' de 'src/core/scannerUtils.ts'.";
 		return null;

@@ -169,13 +169,55 @@ describe('report_similar_code CLI', () => {
     runSimilarCodeReport();
 
     expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('No se detectaron duplicados semánticos')
+      expect.stringContaining('No semantic code duplicates detected')
     );
 
     logSpy.mockRestore();
   });
 
-  it('renders box table when duplicates are detected in terminal mode', () => {
+  it('renders box table when duplicates are detected in human mode', () => {
+    process.argv = [
+      'node',
+      'report_similar_code.ts',
+      '--threshold',
+      '0.90',
+      '--min-lines',
+      '5',
+      'human'
+    ];
+
+    const mockOutput = {
+      candidates: [
+        {
+          similarity: 0.96,
+          left: {
+            path: 'src/utils/very_long_file_name_left.ts',
+            name: 'veryLongFunctionNameLeftA',
+            start_line: 10
+          },
+          right: {
+            path: 'src/utils/very_long_file_name_right.ts',
+            name: 'veryLongFunctionNameRightB',
+            start_line: 25
+          }
+        }
+      ]
+    };
+
+    vi.mocked(childProcess.execSync).mockReturnValue(JSON.stringify(mockOutput));
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    runSimilarCodeReport();
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('CANDIDATES DETECTED'));
+    expect(logSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Total semantic pairs detected: 1')
+    );
+
+    logSpy.mockRestore();
+  });
+
+  it('renders compact AI output by default when duplicates are detected', () => {
     process.argv = ['node', 'report_similar_code.ts', '--threshold', '0.90', '--min-lines', '5'];
 
     const mockOutput = {
@@ -201,10 +243,9 @@ describe('report_similar_code CLI', () => {
 
     runSimilarCodeReport();
 
-    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('CANDIDATOS DETECTADOS'));
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Total de pares semánticos detectados: 1')
-    );
+    const allLogs = logSpy.mock.calls.map((c) => c[0]).join('\n');
+    expect(allLogs).toContain('[SimilarCode] Found 1 semantic clone pair(s)');
+    expect(allLogs).not.toContain('┌─');
 
     logSpy.mockRestore();
   });

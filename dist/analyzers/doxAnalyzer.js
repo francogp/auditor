@@ -94,26 +94,26 @@ function validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap) {
 		if (!doxFilesMap.has(dir)) violations.push({
 			file: agentsPath,
 			line: 1,
-			message: `Falta el archivo obligatorio de documentación 'AGENTS.md' en el directorio '${path.relative(rootDir, dir)}'.`,
+			message: `Missing required documentation file 'AGENTS.md' in directory '${path.relative(rootDir, dir)}'.`,
 			context: "AGENTS.md",
 			severity: "error",
 			fixable: false,
 			packageName: "DOX",
 			ruleId: "dox-missing-agents-md",
-			ruleDescription: "Falta archivo AGENTS.md"
+			ruleDescription: "Missing AGENTS.md file"
 		});
 	}
 	const rootAgentsPath = path.join(rootDir, "AGENTS.md");
 	if (!doxFilesMap.has(rootDir)) violations.push({
 		file: rootAgentsPath,
 		line: 1,
-		message: `Falta el archivo de documentación raíz 'AGENTS.md'.`,
+		message: `Missing root documentation file 'AGENTS.md'.`,
 		context: "AGENTS.md",
 		severity: "error",
 		fixable: false,
 		packageName: "DOX",
 		ruleId: "dox-missing-agents-md",
-		ruleDescription: "Falta AGENTS.md en la raíz"
+		ruleDescription: "Missing root AGENTS.md"
 	});
 	return violations;
 }
@@ -134,13 +134,13 @@ function validateChildRegistration(rootDir, doxFilesMap) {
 			violations.push({
 				file: parentFile,
 				line: 1,
-				message: `El archivo '${path.relative(rootDir, agentsPath)}' no está registrado en el índice DOX de '${path.relative(rootDir, parentFile)}'.`,
+				message: `File '${path.relative(rootDir, agentsPath)}' is not registered in the DOX index of '${path.relative(rootDir, parentFile)}'.`,
 				context: cleanPath,
 				severity: "error",
 				fixable: false,
 				packageName: "DOX",
 				ruleId: "dox-unregistered-child",
-				ruleDescription: "AGENTS.md hijo no registrado"
+				ruleDescription: "Unregistered child AGENTS.md"
 			});
 		}
 	}
@@ -182,13 +182,13 @@ async function checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoreMa
 			violations.push({
 				file: agentsPath,
 				line: 1,
-				message: `El archivo de código '${path.relative(rootDir, fullPath)}' no está indexado en el AGENTS.md local ('${path.relative(rootDir, agentsPath)}').`,
+				message: `Code file '${path.relative(rootDir, fullPath)}' is not indexed in local AGENTS.md ('${path.relative(rootDir, agentsPath)}').`,
 				context: entry.name,
 				severity: "error",
 				fixable: false,
 				packageName: "DOX",
 				ruleId: "dox-unindexed-file",
-				ruleDescription: "Archivo de código no indexado en DOX"
+				ruleDescription: "Code file not indexed in DOX"
 			});
 		}
 	}
@@ -343,13 +343,13 @@ function checkMandatoryDoxSections(headerInfos, agentsPath, rootDir) {
 	for (const mandatory of MANDATORY_DOX_SECTIONS) if (!headerInfos.find((h) => h.level === mandatory.level && h.normalizedTitle === mandatory.normalized)) violations.push({
 		file: agentsPath,
 		line: 1,
-		message: `Falta la sección obligatoria '${mandatory.raw}' en '${path.relative(rootDir, agentsPath)}'.`,
+		message: `Missing required section '${mandatory.raw}' in '${path.relative(rootDir, agentsPath)}'.`,
 		context: mandatory.raw,
 		severity: "error",
 		fixable: false,
 		packageName: "DOX",
 		ruleId: "dox-missing-section",
-		ruleDescription: "Sección obligatoria ausente en AGENTS.md"
+		ruleDescription: "Missing required section in AGENTS.md"
 	});
 	return violations;
 }
@@ -360,16 +360,16 @@ function checkDoxSectionOrder(headerInfos, agentsPath, rootDir) {
 	const seenSections = /* @__PURE__ */ new Set();
 	for (const h of headerInfos) {
 		if (seenSections.has(h.normalizedTitle)) {
-			violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Sección duplicada '${h.rawHeader}' en '${path.relative(rootDir, agentsPath)}' (línea ${h.line}).`));
+			violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Duplicate section '${h.rawHeader}' in '${path.relative(rootDir, agentsPath)}' (line ${h.line}).`));
 			continue;
 		}
 		seenSections.add(h.normalizedTitle);
 		const rank = getHeaderRank(h.normalizedTitle, lastRank);
 		if (rank === null) {
-			violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Sección no reconocida o no canónica '${h.rawHeader}' en '${path.relative(rootDir, agentsPath)}' (línea ${h.line}). Estructura permitida: # Purpose -> ## Ownership -> ## Local Contracts -> [## Key Files] -> ## Work Guidance -> ## Verification -> ## Child DOX Index.`));
+			violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Unrecognized or non-canonical section '${h.rawHeader}' in '${path.relative(rootDir, agentsPath)}' (line ${h.line}). Allowed structure: # Purpose -> ## Ownership -> ## Local Contracts -> [## Key Files] -> ## Work Guidance -> ## Verification -> ## Child DOX Index.`));
 			continue;
 		}
-		if (rank <= lastRank) violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Orden incorrecto de secciones en '${path.relative(rootDir, agentsPath)}': '${h.rawHeader}' (línea ${h.line}) no debe aparecer después de '${lastHeader?.rawHeader ?? "inicio"}' (línea ${lastHeader?.line ?? 1}). Se exige el orden canónico: # Purpose -> ## Ownership -> ## Local Contracts -> ## Work Guidance -> ## Verification -> ## Child DOX Index.`));
+		if (rank <= lastRank) violations.push(createSectionOrderViolation(agentsPath, h.line, h.rawHeader, `Incorrect section order in '${path.relative(rootDir, agentsPath)}': '${h.rawHeader}' (line ${h.line}) must not appear after '${lastHeader?.rawHeader ?? "start"}' (line ${lastHeader?.line ?? 1}). Canonical order required: # Purpose -> ## Ownership -> ## Local Contracts -> ## Work Guidance -> ## Verification -> ## Child DOX Index.`));
 		else {
 			lastRank = rank;
 			lastHeader = h;
@@ -386,13 +386,13 @@ function checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
 		if (isGarbageOrEmptyContent(originalLines.slice(h.lineIndex + 1, endLineIndex).join("\n"))) violations.push({
 			file: agentsPath,
 			line: h.line,
-			message: `La sección obligatoria '${h.rawHeader}' en '${path.relative(rootDir, agentsPath)}' (línea ${h.line}) está vacía o contiene texto de relleno/basura. Debe contener información sustancial y útil.`,
+			message: `Required section '${h.rawHeader}' in '${path.relative(rootDir, agentsPath)}' (line ${h.line}) is empty or contains placeholder text. It must contain substantial and useful information.`,
 			context: h.rawHeader,
 			severity: "error",
 			fixable: false,
 			packageName: "DOX",
 			ruleId: "dox-empty-section",
-			ruleDescription: "Sección vacía o con contenido basura"
+			ruleDescription: "Empty section or placeholder content"
 		});
 	}
 	return violations;

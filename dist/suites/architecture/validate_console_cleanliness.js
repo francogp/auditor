@@ -54,22 +54,22 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_console_cleanliness",
 			name: "Console & Debugger Cleanliness Auditor",
-			description: "Prohíbe console.log directo y debugger en src/",
+			description: "Prohibits direct console.log and debugger in src/",
 			family: "architecture",
 			ruleIds: CONSOLE_CLEANLINESS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(CONSOLE_CLEANLINESS_RULES, "hygiene"),
-			packageName: "Consola",
+			packageName: "Console",
 			configKey: "paths",
 			defaultConfig: {},
 			criticalConfig: {},
 			icon: "🧹",
 			ruleDescriptions: {
-				"no-debugger-statement": "Instrucciones debugger en src/",
-				"no-console-log-in-src": "Llamadas directas a console.log()"
+				"no-debugger-statement": "Debugger statements in src/",
+				"no-console-log-in-src": "Direct console.log() calls"
 			},
 			ruleRemediations: {
-				"no-debugger-statement": "📖 GUÍA DE REMEDIACIÓN: no-debugger-statement\n1. Causa Raíz: Se encontró una instrucción `debugger;` en el código fuente. Las declaraciones debugger detienen la ejecución en navegadores o entornos Node.js y nunca deben llegar a producción.\n2. Diagnóstico: Ubica la línea donde se encuentra `debugger;`.\n3. Solución Canónica: Elimina la sentencia `debugger;`. Si estás depurando temporalmente, retira el breakpoint antes de commitear.\n4. Ejemplo:\n   ❌ Prohibido: `debugger;`\n   ✅ Limpio:    Eliminado.",
-				"no-console-log-in-src": "📖 GUÍA DE REMEDIACIÓN: no-console-log-in-src\n1. Causa Raíz: Se detectó una llamada directa a `console.log()` en código de producción (`src/`). Contamina la salida estándar del terminal, expone datos sensibles y degrada el rendimiento de renderizado.\n2. Diagnóstico: Inspecciona la llamada a `console.log` en la línea reportada.\n3. Solución Canónica:\n   a) Si era para depuración puntual: elimina la llamada antes de commitear.\n   b) Si es para diagnóstico de errores o advertencias en producción: utiliza un logger estructurado o los canales canónicos `console.error()` / `console.warn()`.\n   c) Si es una herramienta CLI o visualizador terminal que debe imprimir deliberadamente: agrega el archivo a las excepciones de logging en `audit.config.ts` o anota `// console-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Prohibido: `console.log(\"Datos recibidos:\", data);`\n   ✅ Canónico:  `logger.debug(\"Datos recibidos\", { data });`"
+				"no-debugger-statement": "📖 REMEDIATION GUIDE: no-debugger-statement\n1. Root Cause: A `debugger;` statement was found in source code. Debugger statements halt execution in browser and Node.js environments and must never ship to production.\n2. Diagnosis: Locate the line containing `debugger;`.\n3. Canonical Solution: Remove the `debugger;` statement. If temporarily debugging, remove breakpoints before committing.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `debugger;`\n   ✅ Clean:      Removed.",
+				"no-console-log-in-src": "📖 REMEDIATION GUIDE: no-console-log-in-src\n1. Root Cause: A direct call to `console.log()` was detected in production code (`src/`). It pollutes standard output, exposes sensitive data, and harms runtime performance.\n2. Diagnosis: Inspect the `console.log` call at the reported line.\n3. Canonical Solution:\n   a) If used for ad-hoc debugging: remove the call before committing.\n   b) If used for production diagnostics: use a structured logger or canonical error channels (`console.error()` / `console.warn()`).\n   c) If this is a CLI tool or terminal renderer that intentionally writes to stdout: add the file to logging exemptions in `audit.config.ts` or annotate with `// console-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `console.log(\"Data received:\", data);`\n   ✅ Canonical:  `logger.debug(\"Data received\", { data });`"
 			},
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",

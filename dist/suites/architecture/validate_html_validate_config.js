@@ -75,10 +75,10 @@ const HTML_VALIDATE_CONFIG_REQUIREMENT = {
 		".htmlvalidate.cjs",
 		"htmlvalidate.config.js"
 	],
-	description: "Configuración canónica para HTML5 y Vue con html-validate",
+	description: "Canonical configuration for HTML5 and Vue with html-validate",
 	ruleId: "html-validate-config-missing",
 	generateDefaultContent: () => CANONICAL_HTML_VALIDATE_CONFIG_CONTENT,
-	customMissingMessage: (_ctx, file) => `No se encontró el archivo de configuración de HTML-Validate '${file}'. Ejecuta "auditor fix" para crearlo automáticamente.`
+	customMissingMessage: (_ctx, file) => `Missing HTML-Validate configuration file '${file}'. Run "npm run auditor:fix" or "auditor fix" to create it automatically.`
 };
 function isVueProjectContext(projectRoot) {
 	try {
@@ -131,7 +131,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 			fixableRuleIds: fixableRules,
 			id: "validate_html_validate_config",
 			name: "HTML-Validate Configuration Integrity Validator",
-			description: "Valida baseline e integridad de .htmlvalidate.json",
+			description: "Validates .htmlvalidate.json baseline and integrity",
 			family: "architecture",
 			packageName: "HTML",
 			configKey: "htmlValidate.enabled",
@@ -142,20 +142,20 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 			ruleIds: HTML_VALIDATE_CONFIG_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(HTML_VALIDATE_CONFIG_RULES, "setup"),
 			ruleDescriptions: {
-				"html-validate-config-missing": "Archivo .htmlvalidate.json ausente",
-				"html-validate-config-syntax": "Error de sintaxis en configuración",
-				"html-validate-config-missing-strict-rule": "Falta regla estricta obligatoria",
-				"html-validate-config-missing-plugin": "Falta plugin html-validate-vue",
-				"html-validate-config-missing-transform": "Falta transform para archivos Vue",
-				"html-validate-config-missing-doctype-style": "Falta doctype-style lowercase"
+				"html-validate-config-missing": "Missing .htmlvalidate.json file",
+				"html-validate-config-syntax": "Configuration syntax error",
+				"html-validate-config-missing-strict-rule": "Missing mandatory strict rule",
+				"html-validate-config-missing-plugin": "Missing html-validate-vue plugin",
+				"html-validate-config-missing-transform": "Missing transform for Vue files",
+				"html-validate-config-missing-doctype-style": "Missing lowercase doctype-style"
 			},
 			ruleRemediations: {
-				"html-validate-config-missing": "El archivo .htmlvalidate.json es mandatorio para estandarizar el marcado HTML5 y componentes Vue.\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\" para generar automáticamente la configuración canónica.\n2. Verifica que el archivo generado incluya los plugins y transformadores para Vue 3.",
-				"html-validate-config-syntax": "El archivo .htmlvalidate.json contiene errores de sintaxis JSON inválidos.\n1. Abre .htmlvalidate.json y corrige las comas sobrantes o comillas mal cerradas.\n2. Valida la sintaxis con un linter JSON o ejecuta \"npm run fmt\".",
-				"html-validate-config-missing-strict-rule": "Por mandato de arquitectura estricta (Anti-Castration Mandate), las reglas esenciales de HTML5 no pueden omitirse.\n1. Restaura las reglas obligatorias en .htmlvalidate.json (no-deprecated-attr, deprecated, element-permitted-content, element-required-attributes, attribute-allowed-values).\n2. Ejecuta \"npm run auditor:fix\" para re-inyectar el baseline automáticamente.",
-				"html-validate-config-missing-plugin": "Los proyectos con componentes Vue 3 requieren el plugin \"html-validate-vue\".\n1. Asegúrate de que .htmlvalidate.json contenga \"plugins\": [\"html-validate-vue\"].\n2. Ejecuta \"npm run auditor:fix\" para agregarlo automáticamente.",
-				"html-validate-config-missing-transform": "Para que html-validate procese la sección <template> de los archivos .vue, se debe declarar la transformación.\n1. Agrega en \"transform\": { \"^.*\\\\.vue$\": \"html-validate-vue\" }.\n2. Ejecuta \"npm run auditor:fix\" para reparar la configuración.",
-				"html-validate-config-missing-doctype-style": "Vite+ (oxfmt) formatea <!doctype html> en minúsculas. html-validate debe configurar doctype-style en lowercase.\n1. Agrega en rules: \"doctype-style\": [\"error\", { \"style\": \"lowercase\" }].\n2. Ejecuta \"npm run auditor:fix\" para sincronizar la regla automáticamente."
+				"html-validate-config-missing": "📖 REMEDIATION GUIDE: html-validate-config-missing\n1. Root Cause: The `.htmlvalidate.json` configuration file is missing from the project root.\n2. Diagnosis: Check whether `.htmlvalidate.json` exists in project root.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically scaffold the canonical HTML-Validate configuration with Vue plugins and transforms.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"html-validate-config-syntax": "📖 REMEDIATION GUIDE: html-validate-config-syntax\n1. Root Cause: The `.htmlvalidate.json` file contains invalid JSON syntax.\n2. Diagnosis: Inspect `.htmlvalidate.json` for trailing commas, unbalanced brackets, or unquoted keys.\n3. Canonical Solution: Fix the invalid JSON syntax or format with `npm run fmt`.\n4. Example / Auto-fix command:\n   Validate syntax with JSON parser or `npm run fmt`.",
+				"html-validate-config-missing-strict-rule": "📖 REMEDIATION GUIDE: html-validate-config-missing-strict-rule\n1. Root Cause: Under framework Anti-Castration Mandates, mandatory HTML5 validation rules cannot be omitted or silenced.\n2. Diagnosis: Check which required rule is missing from `.htmlvalidate.json` (e.g. `no-deprecated-attr`, `deprecated`, `element-permitted-content`, `element-required-attributes`, `attribute-allowed-values`).\n3. Canonical Solution: Run `npm run auditor:fix` to automatically re-inject the mandatory strict rule baseline.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"html-validate-config-missing-plugin": "📖 REMEDIATION GUIDE: html-validate-config-missing-plugin\n1. Root Cause: Vue projects require the `html-validate-vue` plugin in `.htmlvalidate.json`.\n2. Diagnosis: Inspect the `plugins` array in `.htmlvalidate.json`.\n3. Canonical Solution: Run `npm run auditor:fix` to automatically append `html-validate-vue` to plugins.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"html-validate-config-missing-transform": "📖 REMEDIATION GUIDE: html-validate-config-missing-transform\n1. Root Cause: To extract and validate `<template>` markup in `.vue` SFC files, the corresponding file transform must be declared.\n2. Diagnosis: Check `transform` mappings in `.htmlvalidate.json`.\n3. Canonical Solution: Add `\"transform\": { \"^.*\\\\.vue$\": \"html-validate-vue\" }` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"html-validate-config-missing-doctype-style": "📖 REMEDIATION GUIDE: html-validate-config-missing-doctype-style\n1. Root Cause: Vite+ and modern code formatters enforce lowercase `<!doctype html>`. HTML-Validate must configure `doctype-style` to lowercase.\n2. Diagnosis: Check rule `\"doctype-style\"` in `.htmlvalidate.json`.\n3. Canonical Solution: Configure `\"doctype-style\": [\"error\", { \"style\": \"lowercase\" }]` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".htmlvalidate*"] },
 			projectRoot,
@@ -171,11 +171,11 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("html-validate-config-missing", () => this.ensureConfigFile(HTML_VALIDATE_CONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("html-validate-config-syntax", "Archivo .htmlvalidate.json ausente");
-				this.markRuleNotApplicable("html-validate-config-missing-strict-rule", "Archivo .htmlvalidate.json ausente");
-				this.markRuleNotApplicable("html-validate-config-missing-plugin", "Archivo .htmlvalidate.json ausente");
-				this.markRuleNotApplicable("html-validate-config-missing-transform", "Archivo .htmlvalidate.json ausente");
-				this.markRuleNotApplicable("html-validate-config-missing-doctype-style", "Archivo .htmlvalidate.json ausente");
+				this.markRuleNotApplicable("html-validate-config-syntax", "Missing .htmlvalidate.json file");
+				this.markRuleNotApplicable("html-validate-config-missing-strict-rule", "Missing .htmlvalidate.json file");
+				this.markRuleNotApplicable("html-validate-config-missing-plugin", "Missing .htmlvalidate.json file");
+				this.markRuleNotApplicable("html-validate-config-missing-transform", "Missing .htmlvalidate.json file");
+				this.markRuleNotApplicable("html-validate-config-missing-doctype-style", "Missing .htmlvalidate.json file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -204,16 +204,16 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `Error de sintaxis JSON en ${path.basename(resolvedFile)}: ${err.message}`,
+					message: `JSON syntax error in ${path.basename(resolvedFile)}: ${err.message}`,
 					context: rawContent.slice(0, 100)
 				});
 			}
 		});
 		if (!parsed) {
-			this.markRuleNotApplicable("html-validate-config-missing-strict-rule", "Sintaxis JSON inválida");
-			this.markRuleNotApplicable("html-validate-config-missing-plugin", "Sintaxis JSON inválida");
-			this.markRuleNotApplicable("html-validate-config-missing-transform", "Sintaxis JSON inválida");
-			this.markRuleNotApplicable("html-validate-config-missing-doctype-style", "Sintaxis JSON inválida");
+			this.markRuleNotApplicable("html-validate-config-missing-strict-rule", "Invalid JSON syntax");
+			this.markRuleNotApplicable("html-validate-config-missing-plugin", "Invalid JSON syntax");
+			this.markRuleNotApplicable("html-validate-config-missing-transform", "Invalid JSON syntax");
+			this.markRuleNotApplicable("html-validate-config-missing-doctype-style", "Invalid JSON syntax");
 			return;
 		}
 		const parsedConfig = parsed;
@@ -231,7 +231,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `Falta elemento 'html5' en elements de ${path.basename(resolvedFile)}. Ejecuta "auditor fix" para agregarlo.`,
+					message: `Missing 'html5' element in elements of ${path.basename(resolvedFile)}. Run "npm run auditor:fix" or "auditor fix" to add it.`,
 					context: "elements"
 				});
 			}
@@ -249,7 +249,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: relPath,
 						line: 1,
-						message: `Falta plugin 'html-validate-vue' en plugins de ${path.basename(resolvedFile)}. Ejecuta "auditor fix" para agregarlo.`,
+						message: `Missing plugin 'html-validate-vue' in plugins of ${path.basename(resolvedFile)}. Run "npm run auditor:fix" or "auditor fix" to add it.`,
 						context: "plugins"
 					});
 				}
@@ -271,14 +271,14 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: relPath,
 						line: 1,
-						message: `Falta transformación para archivos Vue ('^.*\\.vue$': 'html-validate-vue') en ${path.basename(resolvedFile)}. Ejecuta "auditor fix" para repararlo.`,
+						message: `Missing transform for Vue files ('^.*\\.vue$': 'html-validate-vue') in ${path.basename(resolvedFile)}. Run "npm run auditor:fix" or "auditor fix" to fix it.`,
 						context: "transform"
 					});
 				}
 			});
 		} else {
-			this.markRuleNotApplicable("html-validate-config-missing-plugin", "No es un proyecto Vue");
-			this.markRuleNotApplicable("html-validate-config-missing-transform", "No es un proyecto Vue");
+			this.markRuleNotApplicable("html-validate-config-missing-plugin", "Not a Vue project");
+			this.markRuleNotApplicable("html-validate-config-missing-transform", "Not a Vue project");
 		}
 		this.runSubAuditorSync("html-validate-config-missing-strict-rule", () => {
 			const rules = typeof parsedConfig.rules === "object" && parsedConfig.rules !== null ? { ...parsedConfig.rules } : {};
@@ -294,7 +294,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: relPath,
 						line: 1,
-						message: `Falta la regla estricta obligatoria "${reqRule}: 'error'" en rules de ${path.basename(resolvedFile)}. Ejecuta "auditor fix" para auto-repararla.`,
+						message: `Missing mandatory strict rule "${reqRule}: 'error'" in rules of ${path.basename(resolvedFile)}. Run "npm run auditor:fix" or "auditor fix" to auto-fix it.`,
 						context: reqRule
 					});
 				}
@@ -313,7 +313,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: `La regla "doctype-style" en ${path.basename(resolvedFile)} debe configurarse como ["error", { "style": "lowercase" }] para armonizar con Vite+ (oxfmt). Ejecuta "auditor fix" para auto-repararla.`,
+					message: `The "doctype-style" rule in ${path.basename(resolvedFile)} must be configured as ["error", { "style": "lowercase" }] to harmonize with Vite+ (oxfmt). Run "npm run auditor:fix" or "auditor fix" to auto-fix it.`,
 					context: "doctype-style"
 				});
 			}

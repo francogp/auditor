@@ -75,7 +75,7 @@ describe('Audit Rules Deep Coverage', () => {
         typeof hardcodedTimezone.message === 'function'
           ? hardcodedTimezone.message('America/New_York')
           : hardcodedTimezone.message;
-      expect(msg).toContain('Timezone hardcodeado');
+      expect(msg).toContain('Hardcoded timezone detected');
 
       expect(hardcodedTimezone.appliesTo?.('src/utils/time.ts')).toBe(true);
       expect(hardcodedTimezone.check?.('', {} as RegExpExecArray, 'src/utils/time.ts')).toBe(true);

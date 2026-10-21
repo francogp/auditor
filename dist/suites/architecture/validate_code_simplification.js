@@ -38,7 +38,7 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 		super({
 			id: "validate_code_simplification",
 			name: "Code Complexity & Readability Simplifier Validator",
-			description: "Simplificación de código, nesting y claridad sintáctica",
+			description: "Code simplification, nesting, and syntactic clarity",
 			family: "architecture",
 			packageName: "Simplify",
 			icon: "🧹",
@@ -53,20 +53,20 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 			ruleIds: CODE_SIMPLIFICATION_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, "hygiene"),
 			ruleDescriptions: {
-				"dead-code-accumulation": "Bloques de código muerto comentados",
-				"boolean-trap-parameters": "Parámetros booleanos posicionales",
-				"deep-nesting-control-flow": "Anidamiento excesivo > 4 niveles",
-				"redundant-else-after-return": "Cláusula else tras return o throw",
-				"premature-abstraction-wrapper": "Wrapper innecesario sin lógica",
-				"massive-switch-branching": "Switch masivo con más de 10 casos"
+				"dead-code-accumulation": "Commented dead code blocks",
+				"boolean-trap-parameters": "Positional boolean parameters",
+				"deep-nesting-control-flow": "Excessive nesting > 4 levels",
+				"redundant-else-after-return": "Else clause after return or throw",
+				"premature-abstraction-wrapper": "Unnecessary wrapper without logic",
+				"massive-switch-branching": "Massive switch with over 10 cases"
 			},
 			ruleRemediations: {
-				"dead-code-accumulation": "📖 GUÍA DE REMEDIACIÓN: dead-code-accumulation\n1. Causa Raíz: Se detectaron bloques de código fuente comentados acumulados en el archivo. El control de versiones (Git) es el único historial válido; conservar código muerto comentado ensucia el archivo y confunde a los desarrolladores.\n2. Diagnóstico: Ubica las líneas de código comentado reportadas.\n3. Solución Canónica: Elimina completamente el bloque de código comentado.\n4. Ejemplo:\n   ❌ Código muerto: `// const oldTotal = items.reduce((acc, i) => acc + i.val, 0);`\n   ✅ Limpio:        Eliminado del archivo fuente.",
-				"boolean-trap-parameters": "📖 GUÍA DE REMEDIACIÓN: boolean-trap-parameters\n1. Causa Raíz: Una función declara múltiples parámetros booleanos posicionales (ej: `fn(active: boolean, force: boolean, log: boolean)`). En el sitio de llamada (`fn(true, false, true)`), el significado de cada argumento es ilegible e induce errores.\n2. Diagnóstico: Inspecciona la firma de la función en la línea reportada.\n3. Solución Canónica: Refactoriza los booleanos posicionales en un objeto de opciones tipado con propiedades nombradas (`options: { active?: boolean; force?: boolean; log?: boolean }`).\n4. Ejemplo:\n   ❌ Trampa booleana: `createUser(\"Ana\", true, false);`\n   ✅ Objeto nombrado: `createUser(\"Ana\", { isAdmin: true, notify: false });`",
-				"deep-nesting-control-flow": "📖 GUÍA DE REMEDIACIÓN: deep-nesting-control-flow\n1. Causa Raíz: Estructuras de control (`if`, `for`, `while`, callbacks) anidadas a más de 4 niveles de profundidad (\"Arrow Anti-pattern\"), dificultando el seguimiento mental del flujo.\n2. Diagnóstico: Examina el bloque condicional o bucle en la línea reportada.\n3. Solución Canónica:\n   a) Aplica cláusulas de guarda tempranas (`early return` / `guard clauses`) para aplanar el código.\n   b) Extrae subtareas a funciones auxiliares puras y pequeñas.\n4. Ejemplo:\n   ❌ Anidado: `if (a) { if (b) { if (c) { doWork(); } } }`\n   ✅ Aplanado: `if (!a || !b || !c) return; doWork();`",
-				"redundant-else-after-return": "📖 GUÍA DE REMEDIACIÓN: redundant-else-after-return\n1. Causa Raíz: Se utilizó un bloque `else` o `else if` inmediatamente después de un `if` cuyo cuerpo siempre finaliza con `return`, `throw`, `break` o `continue`.\n2. Diagnóstico: Revisa la estructura `if (...) { return; } else { ... }` reportada.\n3. Solución Canónica: Elimina la palabra clave `else` y sube el contenido del bloque al nivel exterior.\n4. Ejemplo:\n   ❌ Redundante: `if (!item) return null; else { return item.name; }`\n   ✅ Conciso:    `if (!item) return null; return item.name;`",
-				"premature-abstraction-wrapper": "📖 GUÍA DE REMEDIACIÓN: premature-abstraction-wrapper\n1. Causa Raíz: Se definió una función o método wrapper de una sola línea que simplemente reenvía argumentos a otra función sin agregar validación, transformación, tipado ni comportamiento.\n2. Diagnóstico: Ubica la función señalada y comprueba si sólo es un pasamanos sin valor añadido.\n3. Solución Canónica: Elimina el wrapper y permite que los llamadores invoquen directamente la función subyacente (simplificación YAGNI).\n4. Ejemplo:\n   ❌ Wrapper superfluo: `function getLength(arr: string[]) { return arr.length; }`\n   ✅ Directo:          Usar `arr.length` en los llamadores.",
-				"massive-switch-branching": "📖 GUÍA DE REMEDIACIÓN: massive-switch-branching\n1. Causa Raíz: Una instrucción `switch` contiene más de 10 casos (`case`), lo que degrada la legibilidad y viola los principios de diseño modular.\n2. Diagnóstico: Comprueba el bloque `switch` en la línea reportada.\n3. Solución Canónica:\n   a) Reemplaza el `switch` por un diccionario o mapa de handlers indexado por la clave de dominio: `const HANDLERS: Record<Type, Handler> = { ... };`.\n   b) Si la lógica de cada caso es compleja, aplica el patrón Strategy o polimorfismo.\n4. Ejemplo:\n   ❌ Switch masivo: `switch(type) { case \\'a\\': ... case \\'b\\': ... // 15 casos }`\n   ✅ Mapa canónico: `const handler = ACTION_MAP[type]; handler?.();`"
+				"dead-code-accumulation": "📖 REMEDIATION GUIDE: dead-code-accumulation\n1. Root Cause: Commented-out dead code blocks were detected in source files. Git is the single valid history; leaving commented-out code creates clutter and confuses maintainers.\n2. Diagnosis: Locate the commented code lines indicated in the report.\n3. Canonical Solution: Completely delete the commented-out code block.\n4. Example / Auto-fix command:\n   ❌ Dead code: // const oldTotal = items.reduce((acc, i) => acc + i.val, 0);\n   ✅ Clean:     Removed from source file.",
+				"boolean-trap-parameters": "📖 REMEDIATION GUIDE: boolean-trap-parameters\n1. Root Cause: A function declares multiple positional boolean parameters (e.g. fn(active: boolean, force: boolean, log: boolean)). At call sites, the meaning of each argument is ambiguous, unreadable, and error-prone.\n2. Diagnosis: Inspect the function signature at the reported line.\n3. Canonical Solution: Refactor positional booleans into a typed options interface with named properties (e.g., options: UserActionOptions).\n4. Example / Auto-fix command:\n   ❌ Boolean trap: createUser('Alice', true, false);\n   ✅ Named options: createUser('Alice', { isAdmin: true, notify: false });",
+				"deep-nesting-control-flow": "📖 REMEDIATION GUIDE: deep-nesting-control-flow\n1. Root Cause: Control structures (if, for, while, callbacks) are nested beyond 4 levels deep (\"Arrow Anti-pattern\"), making mental execution tracking difficult.\n2. Diagnosis: Examine the nested conditionals or loops at the reported line.\n3. Canonical Solution:\n   a) Apply early returns (guard clauses) to flatten control flow.\n   b) Extract subtasks into small pure helper functions.\n4. Example / Auto-fix command:\n   ❌ Nested:    if (a) { if (b) { if (c) { doWork(); } } }\n   ✅ Flattened: if (!a || !b || !c) return; doWork();",
+				"redundant-else-after-return": "📖 REMEDIATION GUIDE: redundant-else-after-return\n1. Root Cause: An else or else if block immediately follows an if block whose body always terminates with return, throw, break, or continue.\n2. Diagnosis: Review the reported if (...) { return; } else { ... } construct.\n3. Canonical Solution: Remove the else keyword and hoist the block body to the outer scope.\n4. Example / Auto-fix command:\n   ❌ Redundant: if (!item) return null; else { return item.name; }\n   ✅ Concise:   if (!item) return null; return item.name;",
+				"premature-abstraction-wrapper": "📖 REMEDIATION GUIDE: premature-abstraction-wrapper\n1. Root Cause: A single-line wrapper function merely forwards arguments to another function without adding validation, transformation, typing, or behavior.\n2. Diagnosis: Inspect the reported wrapper function to check if it adds value.\n3. Canonical Solution: Delete the wrapper and have callers invoke the underlying function directly (YAGNI simplification).\n4. Example / Auto-fix command:\n   ❌ Wrapper: function getLength(arr: string[]) { return arr.length; }\n   ✅ Direct:  Use arr.length at call sites.",
+				"massive-switch-branching": "📖 REMEDIATION GUIDE: massive-switch-branching\n1. Root Cause: A switch statement contains more than 10 case branches, harming readability and violating modular design.\n2. Diagnosis: Inspect the switch statement at the reported line.\n3. Canonical Solution:\n   a) Replace the switch with a dictionary or handler map indexed by domain keys: const HANDLERS: Record<Type, Handler> = { ... };.\n   b) If individual branch logic is complex, apply the Strategy pattern or polymorphism.\n4. Example / Auto-fix command:\n   ❌ Massive switch: switch(type) { case 'a': ... case 'b': ... // 15 cases }\n   ✅ Canonical map:  const handler = ACTION_MAP[type]; handler?.();"
 			},
 			ruleCapabilities: createUniformRuleCapabilities(CODE_SIMPLIFICATION_RULES, CODE_SIMPLIFICATION_CAPABILITIES),
 			projectRoot: scanRoots.effectiveRoot,
@@ -126,7 +126,7 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 					this.addViolation({
 						ruleId: "dead-code-accumulation",
 						severity: "error",
-						message: `Acumulación de código muerto comentado (>= 3 líneas consecutivas iniciando en línea ${startLine})`,
+						message: `Dead commented code accumulation (>= 3 consecutive lines starting at line ${startLine})`,
 						file: relPath,
 						line: startLine
 					});
@@ -167,7 +167,7 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 		if (!(lineText.includes("nesting-ok") || prevLineText.includes("nesting-ok") || (doc ? doc.hasEscapeHatch(line, "deep-nesting-control-flow") : false))) this.addViolation({
 			ruleId: "deep-nesting-control-flow",
 			severity: "error",
-			message: `Control de flujo con anidamiento profundo (${depth} niveles > ${maxDepth}); aplicar early return`,
+			message: `Deeply nested control flow (${depth} levels > ${maxDepth}); apply early return`,
 			file: relPath,
 			line
 		});

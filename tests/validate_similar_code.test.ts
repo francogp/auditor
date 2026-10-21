@@ -269,20 +269,16 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('warning');
       expect(finding?.context).toBe('manual-setup-required');
-      expect(finding?.message).toContain('No se pudo inicializar o descargar');
+      expect(finding?.message).toContain('Failed to automatically initialize or download');
     });
 
     it('renderSimilarCodeWarningBanner generates a striking box containing the manual setup command', () => {
       const banner = renderSimilarCodeWarningBanner();
-      expect(banner).toContain('⚠️  ATENCIÓN: ANÁLISIS DE CÓDIGO SIMILAR VECTORIAL NO DISPONIBLE');
+      expect(banner).toContain('⚠️  ATTENTION: VECTOR SIMILAR CODE ANALYSIS NOT AVAILABLE');
       expect(banner).toContain('fallow similar-code setup --local --yes');
       expect(banner).toContain('AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS=1');
-      expect(banner).toContain(
-        '╔══════════════════════════════════════════════════════════════════════════════╗'
-      );
-      expect(banner).toContain(
-        '╚══════════════════════════════════════════════════════════════════════════════╝'
-      );
+      expect(banner).toContain('╔══════════════════════════════════');
+      expect(banner).toContain('╚══════════════════════════════════');
     });
   });
 

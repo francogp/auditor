@@ -343,14 +343,14 @@ describe('audit_full CLI orchestration helpers', () => {
         task
       );
       expect(msgWithTask).toContain(
-        "Timeout excedido (5000ms) al ejecutar el auditor 'Heavy Audit' (heavy_audit)."
+        "Timeout exceeded (5000ms) while executing auditor 'Heavy Audit' (heavy_audit)."
       );
 
       const msgWithoutTask = extractSubprocessErrorMessage(
         { status: null, stdout: '', stderr: '', timedOut: true },
         3000
       );
-      expect(msgWithoutTask).toContain('Timeout excedido (3000ms) en la ejecución de la suite.');
+      expect(msgWithoutTask).toContain('Timeout exceeded (3000ms) during suite execution.');
     });
 
     it('extracts clean stderr ignoring node experimental warnings', () => {
@@ -383,7 +383,7 @@ describe('audit_full CLI orchestration helpers', () => {
         stderr: '',
         timedOut: false
       });
-      expect(msg).toBe('Código de salida 2');
+      expect(msg).toBe('Exit code 2');
     });
   });
 
@@ -478,13 +478,13 @@ describe('audit_full CLI orchestration helpers', () => {
 
     it('renders auto-fix mode banner details', () => {
       const details = createAuditBannerDetails(baseCli, true, false, 5, 20, 0);
-      expect(details.some((d) => d.includes('Suites con Auto-Reparación: 5 suites'))).toBe(true);
-      expect(details.some((d) => d.includes('Modo: AUTO-FIX 🛠️'))).toBe(true);
+      expect(details.some((d) => d.includes('Auto-fixable suites: 5 suites'))).toBe(true);
+      expect(details.some((d) => d.includes('Mode: AUTO-FIX 🛠️'))).toBe(true);
     });
 
     it('renders post-build mode banner details', () => {
       const details = createAuditBannerDetails(baseCli, false, true, 1, 20, 0);
-      expect(details.some((d) => d.includes('Modo: POST-BUILD 🏗️'))).toBe(true);
+      expect(details.some((d) => d.includes('Mode: POST-BUILD 🏗️'))).toBe(true);
     });
 
     it('renders normal run details with speed/preset, family, and partial badges', () => {
@@ -493,10 +493,10 @@ describe('audit_full CLI orchestration helpers', () => {
         'family=architecture'
       ]);
       const details = createAuditBannerDetails(customCli, false, false, 4, 10, 6);
-      expect(details.some((d) => d.includes('Auto-descubiertas: 4/10 suites'))).toBe(true);
+      expect(details.some((d) => d.includes('Auto-discovered: 4/10 suites'))).toBe(true);
       expect(details.some((d) => d.includes('Speed: LIGHT'))).toBe(true);
-      expect(details.some((d) => d.includes('Familia: ARCHITECTURE'))).toBe(true);
-      expect(details.some((d) => d.includes('Modo: PARCIAL ⚠️'))).toBe(true);
+      expect(details.some((d) => d.includes('Family: ARCHITECTURE'))).toBe(true);
+      expect(details.some((d) => d.includes('Mode: PARTIAL ⚠️'))).toBe(true);
     });
 
     it('renders remote banner detail when cli.project is specified', () => {
@@ -504,7 +504,7 @@ describe('audit_full CLI orchestration helpers', () => {
       expect(remoteCli.project).toBe('../PokeBorrador');
 
       const details = createAuditBannerDetails(remoteCli, false, false, 50, 50, 0);
-      expect(details.some((d) => d.includes('🎯 Remoto: PokeBorrador'))).toBe(true);
+      expect(details.some((d) => d.includes('🎯 Remote: PokeBorrador'))).toBe(true);
     });
   });
 
@@ -629,7 +629,7 @@ describe('audit_full CLI orchestration helpers', () => {
         expect(failed).toBe(false);
 
         const joinedLogs = logs.join('\n');
-        expect(joinedLogs).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+        expect(joinedLogs).toContain('AUTOMATIC REPAIR PHASE COMPLETED');
         expect(joinedLogs).toContain('npm run auditor');
 
         await fs.rm(scratchDir, { recursive: true, force: true });

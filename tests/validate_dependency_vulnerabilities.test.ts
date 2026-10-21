@@ -39,19 +39,17 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
       expect(DEPENDENCY_VULNERABILITIES_RULES).toContain('dependency-cve-moderate');
     });
 
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateDependencyVulnerabilitiesAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_dependency_vulnerabilities');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Dependencias');
+      expect(auditor.packageName).toBe('Dependencies');
       expect(auditor.ruleDescriptions['dependency-cve-critical']).toBe(
-        'Vulnerabilidad crítica en paquete'
+        'Critical vulnerability in package'
       );
-      expect(auditor.ruleDescriptions['dependency-cve-high']).toBe(
-        'Vulnerabilidad de severidad alta'
-      );
+      expect(auditor.ruleDescriptions['dependency-cve-high']).toBe('High vulnerability in package');
       expect(auditor.ruleDescriptions['dependency-cve-moderate']).toBe(
-        'Vulnerabilidad moderada detectada'
+        'Moderate vulnerability detected'
       );
     });
   });

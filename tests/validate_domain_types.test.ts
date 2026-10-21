@@ -56,7 +56,7 @@ describe('DomainTypesAuditor', () => {
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
     expect(auditor.id).toBe('validate_domain_types');
     expect(auditor.family).toBe('domain_data');
-    expect(auditor.packageName).toBe('Dominio');
+    expect(auditor.packageName).toBe('Domain');
     expect(auditor.ruleIds).toEqual(DOMAIN_TYPES_RULES);
     validateAuditorConstruction(auditor);
   });

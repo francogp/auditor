@@ -276,7 +276,7 @@ describe('Project Architecture Rules & Auditor', () => {
       const auditor = new ProjectArchitectureAuditor();
       expect(auditor.id).toBe('audit_project');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Arquitectura');
+      expect(auditor.packageName).toBe('Architecture');
       expect(auditor.ruleDescriptions).toBeDefined();
       if (auditor.ruleDescriptions) {
         expect(Object.keys(auditor.ruleDescriptions).length).toBeGreaterThanOrEqual(6);

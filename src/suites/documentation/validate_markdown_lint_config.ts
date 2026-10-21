@@ -65,7 +65,7 @@ export const MARKDOWNLINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Markd
     id: 'markdownlint-config',
     file: '.markdownlint.json',
     candidateFiles: ['.markdownlint.json', '.markdownlint-cli2.jsonc'],
-    description: 'Configuración estándar de markdownlint para documentación',
+    description: 'Standard markdownlint configuration for documentation',
     ruleId: 'markdownlint-config-missing',
     generateDefaultContent: () => JSON.stringify(CANONICAL_MARKDOWNLINT_CONFIG, null, 2) + '\n'
   };
@@ -120,7 +120,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       configFiles: [configRequirement],
       id: 'validate_markdown_lint_config',
       name: 'Markdownlint Configuration Validator',
-      description: 'Valida baseline de configuración markdownlint',
+      description: 'Validates markdownlint configuration baseline',
       icon: '📝',
       family: 'documentation',
       ruleIds: MARKDOWNLINT_CONFIG_RULES,
@@ -132,32 +132,32 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       },
       criticalConfig: {},
       ruleDescriptions: {
-        'markdownlint-config-missing': 'Archivo .markdownlint.json ausente',
-        'markdownlint-config-syntax': 'Error de sintaxis en configuración',
-        'markdownlint-config-missing-strict-rule': 'Falta regla estricta obligatoria'
+        'markdownlint-config-missing': 'Missing .markdownlint.json file',
+        'markdownlint-config-syntax': 'Configuration syntax error',
+        'markdownlint-config-missing-strict-rule': 'Missing mandatory strict rule'
       },
       ruleRemediations: {
         'markdownlint-config-missing':
-          '📖 GUÍA DE REMEDIACIÓN: markdownlint-config-missing\n' +
-          '1. Causa Raíz: El archivo de configuración canónico `.markdownlint.json` no existe en la raíz del repositorio.\n' +
-          '2. Diagnóstico: Verifica si existe `.markdownlint.json` en la raíz del proyecto.\n' +
-          '3. Solución Canónica: Ejecuta `npm run auditor:fix` para auto-scaffoldear automáticamente la configuración canónica con el baseline estricto.\n' +
-          '4. Ejemplo / Comando de auto-fix:\n' +
-          '   - Ejecutar: `npm run auditor:fix` o `auditor fix`',
+          '📖 REMEDIATION GUIDE: markdownlint-config-missing\n' +
+          '1. Root Cause: Canonical configuration file `.markdownlint.json` does not exist in repository root.\n' +
+          '2. Diagnosis: Check whether `.markdownlint.json` exists in project root.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` to auto-scaffold canonical configuration with the strict baseline.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - Run: `npm run auditor:fix` or `auditor fix`',
         'markdownlint-config-syntax':
-          '📖 GUÍA DE REMEDIACIÓN: markdownlint-config-syntax\n' +
-          '1. Causa Raíz: El archivo `.markdownlint.json` contiene errores de sintaxis JSON (comas de más, comillas sin cerrar o formato corrupto).\n' +
-          '2. Diagnóstico: Abre `.markdownlint.json` y valida la sintaxis con un validador JSON.\n' +
-          '3. Solución Canónica: Corrige las comas sobrantes o comillas faltantes en `.markdownlint.json`.\n' +
-          '4. Ejemplo / Comando de auto-fix:\n' +
-          '   - Ejecutar: `npm run auditor:fix` o formatear `.markdownlint.json` con `vp run oxfmt`',
+          '📖 REMEDIATION GUIDE: markdownlint-config-syntax\n' +
+          '1. Root Cause: File `.markdownlint.json` contains JSON syntax errors (trailing commas, unclosed quotes, or corrupt format).\n' +
+          '2. Diagnosis: Open `.markdownlint.json` and validate syntax with a JSON parser.\n' +
+          '3. Canonical Solution: Correct trailing commas or missing quotes in `.markdownlint.json`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - Run: `npm run auditor:fix` or format `.markdownlint.json` with `vp run oxfmt`',
         'markdownlint-config-missing-strict-rule':
-          '📖 GUÍA DE REMEDIACIÓN: markdownlint-config-missing-strict-rule\n' +
-          '1. Causa Raíz: Faltan reglas obligatorias del baseline inmutable del auditor (MD033 con allowed_elements: ["br"], MD024 con siblings_only: true, etc.) en `.markdownlint.json`.\n' +
-          '2. Diagnóstico: Compara `.markdownlint.json` contra las reglas requeridas por el estándar de documentación del framework.\n' +
-          '3. Solución Canónica: Restablece las reglas del baseline estricto ejecutando la auto-reparación mecánica del auditor.\n' +
-          '4. Ejemplo / Comando de auto-fix:\n' +
-          '   - Ejecutar: `npm run auditor:fix` o `auditor fix`'
+          '📖 REMEDIATION GUIDE: markdownlint-config-missing-strict-rule\n' +
+          '1. Root Cause: Missing mandatory strict baseline rules (MD033 with allowed_elements: ["br"], MD024 with siblings_only: true, etc.) in `.markdownlint.json`.\n' +
+          '2. Diagnosis: Compare `.markdownlint.json` against required rules from framework documentation standards.\n' +
+          '3. Canonical Solution: Restore strict baseline rules by running auditor mechanical auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   - Run: `npm run auditor:fix` or `auditor fix`'
       },
       coverage: {
         include: ['.markdownlint*']
@@ -180,8 +180,8 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
         this.ensureConfigFile(MARKDOWNLINT_CONFIG_REQUIREMENT)
       );
       if (!ensured) {
-        this.markRuleNotApplicable('markdownlint-config-syntax', 'Archivo .markdownlint.json ausente');
-        this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Archivo .markdownlint.json ausente');
+        this.markRuleNotApplicable('markdownlint-config-syntax', 'Missing .markdownlint.json file');
+        this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Missing .markdownlint.json file');
         return;
       }
       configFile = ensured.resolvedPath;
@@ -211,13 +211,13 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
           severity: 'error',
           file: relPath,
           line: 1,
-          message: `Error de sintaxis JSON en ${relPath}.`
+          message: `JSON syntax error in ${relPath}.`
         });
       }
     });
 
     if (!parsed || typeof parsed !== 'object') {
-      this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Sintaxis JSON inválida');
+      this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Invalid JSON syntax');
       return;
     }
 
@@ -236,7 +236,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             severity: 'error',
             file: relPath,
             line: 1,
-            message: 'La configuración debe definir "default": true.'
+            message: 'Configuration must define "default": true.'
           });
         }
       }
@@ -259,7 +259,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             severity: 'error',
             file: relPath,
             line: 1,
-            message: 'MD033 debe permitir <br> vía allowed_elements: ["br"].'
+            message: 'MD033 must allow <br> via allowed_elements: ["br"].'
           });
         }
       }
@@ -279,7 +279,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             severity: 'error',
             file: relPath,
             line: 1,
-            message: 'MD024 debe tener siblings_only: true para permitir subtítulos iguales en secciones distintas.'
+            message: 'MD024 must configure siblings_only: true to allow duplicate headings across different sections.'
           });
         }
       }
@@ -299,7 +299,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             severity: 'error',
             file: relPath,
             line: 1,
-            message: 'MD007 debe tener indent: 2 según la guía de Markdown.'
+            message: 'MD007 must configure indent: 2 according to markdown style standards.'
           });
         }
       }

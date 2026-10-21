@@ -163,7 +163,7 @@ describe('ZIndexAuditor', () => {
     const isolated = result.findings.find((e) => e.ruleId === 'z-index-isolated-constant');
     expect(isolated).toBeDefined();
     expect(isolated?.message).toContain(
-      'PROHIBIDO declarar constantes de Z-Index fuera de Z_LAYERS'
+      'Declaring Z-Index constants outside Z_LAYERS is PROHIBITED'
     );
   });
 

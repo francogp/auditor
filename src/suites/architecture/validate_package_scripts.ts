@@ -104,7 +104,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       fix: scriptOpts.fix,
       id: 'validate_package_scripts',
       name: 'Package Scripts & Build Chaining Validator',
-      description: 'Valida scripts en package.json y encadenamiento del build',
+      description: 'Validates package.json scripts and build pipeline',
       family: 'architecture',
       ruleIds: PACKAGE_SCRIPTS_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(PACKAGE_SCRIPTS_RULES, 'setup'),
@@ -114,78 +114,64 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       defaultConfig: { enabled: true, enforceBuildAudit: true, recommendedScripts: true },
       criticalConfig: {},
       ruleDescriptions: {
-        'package-scripts-missing-file': 'package.json ausente o inválido',
-        'package-scripts-build-missing-audit': 'Falta auditor en script build',
-        'package-scripts-removed-commit-gate': 'Script usa audit:for-commit eliminado',
-        'package-scripts-invalid-production-ref': 'Ref de producción no resuelve en git',
-        'package-scripts-invalid-ratchet-baseline': 'Línea base del ratchet inválida',
-        'package-scripts-missing-recommended': 'Falta script recomendado en package',
-        'package-scripts-obsolete': 'Script legado u obsoleto en package.json'
+        'package-scripts-missing-file': 'Missing or invalid package.json',
+        'package-scripts-build-missing-audit': 'Missing auditor in build script',
+        'package-scripts-removed-commit-gate': 'Script uses obsolete commit gate',
+        'package-scripts-invalid-production-ref': 'Production ref does not resolve in git',
+        'package-scripts-invalid-ratchet-baseline': 'Invalid ratchet baseline',
+        'package-scripts-missing-recommended': 'Missing recommended script in package',
+        'package-scripts-obsolete': 'Legacy or obsolete script in package.json'
       },
       ruleRemediations: {
         'package-scripts-missing-file':
-          'Causa Raíz:\n' +
-          'El archivo package.json no existe en la raíz del proyecto o contiene un error de sintaxis JSON no recuperable.\n\n' +
-          'Diagnóstico:\n' +
-          'Verifica si el archivo package.json está presente en process.cwd() y valida que sea un JSON bien formado sin comas sobrantes.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Crear o restaurar package.json mediante "npm init -y" si se trata de un nuevo paquete.\n' +
-          '2. Corregir cualquier error sintáctico con un formateador JSON.',
+          '📖 REMEDIATION GUIDE: package-scripts-missing-file\n' +
+          '1. Root Cause: package.json does not exist in project root or contains an unrecoverable JSON syntax error.\n' +
+          '2. Diagnosis: Verify that package.json exists in project root and is well-formed JSON.\n' +
+          '3. Canonical Solution: Create or restore package.json using "npm init -y" or fix JSON syntax errors.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm init -y',
         'package-scripts-build-missing-audit':
-          'Causa Raíz:\n' +
-          'El script "build" en package.json no encadena la auditoría estricta previa a la compilación ("npm run auditor:full") ni la validación de artefactos generados post-compilación ("npm run auditor:post-build").\n' +
-          'Sin este encadenamiento, se permite generar artefactos o bundles distribuidos que contienen defectos arquitectónicos o de tipado ocultos.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa "scripts.build" en package.json. Debe contener la secuencia completa: auditor previo -> compilación -> auditor posterior.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor reescribirá automáticamente el script "build" encadenando los comandos oficiales.\n' +
-          '2. O bien, configúralo manualmente:\n' +
+          '📖 REMEDIATION GUIDE: package-scripts-build-missing-audit\n' +
+          '1. Root Cause: The "build" script in package.json does not chain strict pre-build auditing ("npm run auditor:full") and post-build artifact validation ("npm run auditor:post-build").\n' +
+          '2. Diagnosis: Inspect scripts.build in package.json. It must contain the complete chain: pre-audit -> build -> post-audit.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" to automatically configure the canonical build script.\n' +
+          '4. Example / Auto-fix command:\n' +
           '   "build": "npm run auditor:full && vp build && npm run auditor:post-build"',
         'package-scripts-removed-commit-gate':
-          'Causa Raíz:\n' +
-          'Uno de los scripts en package.json invoca el gate legado "audit:for-commit".\n' +
-          'Ese comando fue deprecado y unificado en el auditor estándar, que aplica automáticamente tolerancia cero (0 errores y 0 warnings tolerados salvo ratchet).\n\n' +
-          'Diagnóstico:\n' +
-          'Busca menciones de "audit:for-commit" en los scripts de package.json.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" para migrar el script automáticamente.\n' +
-          '2. Reemplaza la llamada por "npm run auditor" o "auditor".',
+          '📖 REMEDIATION GUIDE: package-scripts-removed-commit-gate\n' +
+          '1. Root Cause: A script in package.json invokes the deprecated "audit:for-commit" gate.\n' +
+          '2. Diagnosis: Search for "audit:for-commit" in package.json scripts.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" or replace the invocation with "npm run auditor" or "auditor".\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm run auditor:fix',
         'package-scripts-invalid-production-ref':
-          'Causa Raíz:\n' +
-          'La referencia git configurada para el ratchet de advertencias ("ratchet.productionRef", por ejemplo "origin/main") no resuelve a ningún commit en el repositorio local.\n' +
-          'Esto ocurre con frecuencia en entornos de CI cuando se clona con un checkout shallow (depth: 1) o cuando la rama remota no ha sido descargada.\n\n' +
-          'Diagnóstico:\n' +
-          'Ejecuta "git rev-parse <productionRef>" en la terminal para comprobar si el commit existe localmente.\n\n' +
-          'Solución Canónica:\n' +
-          '1. En CI/CD (GitHub Actions), configurar "actions/checkout" con "fetch-depth: 0" para traer el historial completo.\n' +
-          '2. En local, ejecutar "git fetch origin main" para descargar las referencias remotas.\n' +
-          '3. Si la rama principal tiene otro nombre, ajústala en .auditor/audit.config.ts en "ratchet.productionRef".',
+          '📖 REMEDIATION GUIDE: package-scripts-invalid-production-ref\n' +
+          '1. Root Cause: The configured git ref for the warning ratchet ("ratchet.productionRef") does not resolve in the local repository.\n' +
+          '2. Diagnosis: Run "git rev-parse <productionRef>" to check if the commit exists locally.\n' +
+          '3. Canonical Solution: In CI/CD, set fetch-depth: 0 on checkout. Locally, run "git fetch origin main".\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   git fetch origin main',
         'package-scripts-invalid-ratchet-baseline':
-          'Causa Raíz:\n' +
-          'El archivo de línea base de advertencias (".auditor/audit-baseline.json") está corrupto, tiene una estructura inválida o hace referencia a reglas inexistentes.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el mensaje de error para identificar el defecto específico en el archivo de baseline.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "auditor --ratchet-baseline" desde la rama principal limpia para regenerar el archivo canónico.\n' +
-          '2. Si no deseas utilizar el ratchet de advertencias, desactívalo en .auditor/audit.config.ts mediante "ratchet: { enabled: false }".',
+          '📖 REMEDIATION GUIDE: package-scripts-invalid-ratchet-baseline\n' +
+          '1. Root Cause: The warning ratchet baseline file (".auditor/audit-baseline.json") is corrupt, invalid, or references non-existent rules.\n' +
+          '2. Diagnosis: Inspect the error message to identify the specific defect in the baseline file.\n' +
+          '3. Canonical Solution: Run "auditor --ratchet-baseline" from a clean main branch to regenerate the file.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm run auditor -- --ratchet-baseline',
         'package-scripts-missing-recommended':
-          'Causa Raíz:\n' +
-          'Faltan uno o más scripts canónicos del ecosistema del auditor en el bloque "scripts" de package.json (ej. auditor, auditor:fix, auditor:full, auditor:watch, auditor:post-build, auditor:lint, auditor:dupes, auditor:magic, auditor:motion, auditor:o1, auditor:update, build:deploy).\n\n' +
-          'Diagnóstico:\n' +
-          'El mensaje de advertencia indica qué scripts específicos faltan o están desactualizados respecto al catálogo canónico del auditor.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor inyectará y sincronizará automáticamente todos los scripts mandatorios en package.json.\n' +
-          '2. Consulta la lista oficial de scripts en la documentación del framework.',
+          '📖 REMEDIATION GUIDE: package-scripts-missing-recommended\n' +
+          '1. Root Cause: Mandatory canonical scripts from the auditor ecosystem are missing in package.json scripts.\n' +
+          '2. Diagnosis: The warning message specifies which required scripts are missing.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" to inject and synchronize all mandatory scripts.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm run auditor:fix',
         'package-scripts-obsolete':
-          'Causa Raíz:\n' +
-          'Se detectaron scripts obsoletos o legados en package.json o en workflows de CI/CD (.github/workflows):\n' +
-          '- Invocación directa de "vitest" o "vite" en proyectos donde Vite+ ("vp") es el estándar mandatorio.\n' +
-          '- Nombres legados como "audit", "auditor:build", "auditor:precommit", "build:prod".\n\n' +
-          'Diagnóstico:\n' +
-          'Examina los scripts marcados en el reporte de la auditoría.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor migrará automáticamente los comandos a "vp test", "vp build", "vp dev", "auditor:post-build", "auditor:full" y "build:deploy".\n' +
-          '2. En workflows de GitHub Actions, actualiza las llamadas a "npm run build:deploy".'
+          '📖 REMEDIATION GUIDE: package-scripts-obsolete\n' +
+          '1. Root Cause: Obsolete or legacy scripts were detected in package.json or CI/CD workflows.\n' +
+          '2. Diagnosis: Examine the flagged scripts in the audit report.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" to migrate scripts to Vite+ and canonical auditor commands.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   npm run auditor:fix'
       },
       coverage: {
         include: ['package.json', '.auditor/audit-baseline.json', '.github/workflows/**']
@@ -196,7 +182,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
   public override async runAudit(): Promise<void> {
     const config = await loadAuditConfig(this.projectRoot);
     if (config.packageScripts?.enabled === false) {
-      this.markSkipped('Desactivado en config (packageScripts.enabled = false)');
+      this.markSkipped('Disabled in config (packageScripts.enabled = false)');
       return;
     }
 
@@ -486,7 +472,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
             severity: 'warning',
             filePath: 'package.json',
             line: 1,
-            message: `Script "${name}" en package.json utiliza binarios legados de Vite/Vitest ("${command}"). En proyectos gobernados por Vite+, debe utilizar el binario unificado "vp" (ej. "${migrated}"). Ejecuta "auditor fix" para migrarlo automáticamente.`,
+            message: `Script "${name}" in package.json uses legacy Vite/Vitest binaries ("${command}"). In projects governed by Vite+, use the unified "vp" binary (e.g. "${migrated}"). Run "auditor fix" to migrate automatically.`,
             context: `${name}: "${command}" -> "${migrated}"`
           });
         }
@@ -538,7 +524,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
             severity: 'warning',
             filePath: 'package.json',
             line: 1,
-            message: `Script obsoleto o legado del auditor detectado en package.json: "${name}". Ejecuta "auditor fix" para sanear automáticamente.`,
+            message: `Obsolete or legacy auditor script detected in package.json: "${name}". Run "auditor fix" to clean up automatically.`,
             context: `${name}: ${command}`
           });
         }
@@ -585,7 +571,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
           severity: 'warning',
           filePath: relPath,
           line: 1,
-          message: `Workflow CI/CD "${relPath}" utiliza comandos obsoletos (build:prod, auditor:build o auditor:precommit). Ejecuta "auditor fix" para migrarlos a build:deploy, auditor:post-build y auditor:full.`,
+          message: `CI/CD Workflow "${relPath}" uses obsolete commands (build:prod, auditor:build, or auditor:precommit). Run "auditor fix" to migrate them to build:deploy, auditor:post-build, and auditor:full.`,
           context: relPath
         });
       }

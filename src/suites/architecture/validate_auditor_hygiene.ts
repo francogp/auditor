@@ -52,7 +52,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       requiredPermissions: [],
       id: 'validate_auditor_hygiene',
       name: 'Auditor Architecture & Homebrew Hygiene Validator',
-      description: 'Valida higiene y uso de APIs canónicas en auditores',
+      description: 'Validates auditor hygiene and canonical API usage',
       family: 'architecture',
       ruleIds: HomebrewDetectorRegistry.getRuleIds(),
       packageName: 'Auditor',

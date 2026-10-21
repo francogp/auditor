@@ -44,7 +44,7 @@ const NPMRC_CONFIG_REQUIREMENT = {
 	id: "npmrc-config",
 	file: ".npmrc",
 	candidateFiles: [".npmrc"],
-	description: "Configuración de reproducibilidad y motores de npm (.npmrc)",
+	description: "Reproducibility and engine configuration for npm (.npmrc)",
 	ruleId: "npmrc-config-missing",
 	generateDefaultContent: () => CANONICAL_NPMRC_CONTENT
 };
@@ -75,7 +75,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 			configFiles: [configRequirement],
 			id: "validate_npmrc_config",
 			name: "NPMRC Configuration Validator",
-			description: "Valida directivas de reproducibilidad en .npmrc",
+			description: "Validates reproducibility directives in .npmrc",
 			icon: "📦",
 			family: "architecture",
 			ruleIds: NPMRC_CONFIG_RULES,
@@ -85,12 +85,12 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			ruleDescriptions: {
-				"npmrc-config-missing": "Archivo .npmrc ausente",
-				"npmrc-config-missing-setting": "Falta directiva obligatoria"
+				"npmrc-config-missing": "Missing .npmrc file",
+				"npmrc-config-missing-setting": "Missing mandatory directive"
 			},
 			ruleRemediations: {
-				"npmrc-config-missing": "Diagnóstico: El archivo .npmrc no existe en el proyecto.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear las directivas canónicas de reproducibilidad.",
-				"npmrc-config-missing-setting": "Diagnóstico: Faltan directivas críticas en .npmrc (engine-strict=true, save-exact=true, package-lock=true).\nRemediación: Ejecuta `auditor fix` para agregar o corregir las directivas manteniendo tus registries y tokens."
+				"npmrc-config-missing": "📖 REMEDIATION GUIDE: npmrc-config-missing\n1. Root Cause: The `.npmrc` file does not exist in the project root.\n2. Diagnosis: Check project root for `.npmrc`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold canonical reproducibility directives.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"npmrc-config-missing-setting": "📖 REMEDIATION GUIDE: npmrc-config-missing-setting\n1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, save-exact=true, package-lock=true).\n2. Diagnosis: Inspect existing `.npmrc` directives against mandatory settings.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to append or correct directives while preserving registries and tokens.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".npmrc"] },
 			projectRoot,
@@ -107,7 +107,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("npmrc-config-missing", () => this.ensureConfigFile(NPMRC_CONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("npmrc-config-missing-setting", "Archivo .npmrc ausente");
+				this.markRuleNotApplicable("npmrc-config-missing-setting", "Missing .npmrc file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -159,7 +159,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 						severity: "error",
 						file: relPath,
 						line: found ? found.lineIndex + 1 : 1,
-						message: `La directiva "${req.key}=${req.expected}" es requerida en .npmrc.`
+						message: `Directive "${req.key}=${req.expected}" is required in .npmrc.`
 					});
 				}
 			}

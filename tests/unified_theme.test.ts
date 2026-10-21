@@ -135,7 +135,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderConsolidatedFooter', () => {
     it('renders footer for 100% passed execution', () => {
       const footer = renderConsolidatedFooter(10, 10, 0, 0, 1500, undefined, 0);
-      expect(footer).toContain('¡SUITE DE AUDITORÍA GLOBAL APROBADA!');
+      expect(footer).toContain('GLOBAL AUDIT SUITE PASSED!');
       expect(footer).toContain('1.500 ms');
     });
 
@@ -146,14 +146,14 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           file: 'src/app.ts',
           line: 42,
           ruleId: 'no-any',
-          ruleDescription: 'Dominio: Tipo any prohibido',
+          ruleDescription: 'Domain: Prohibited any type',
           message: 'Explicit any is prohibited'
         }
       ];
 
       const footer = renderConsolidatedFooter(10, 8, 1, 0, 2300, errors, 2);
-      expect(footer).toContain('AUDITORÍA GLOBAL CON ERRORES CRÍTICOS');
-      expect(footer).toContain('2 Omitidas');
+      expect(footer).toContain('GLOBAL AUDIT FAILED WITH CRITICAL ERRORS');
+      expect(footer).toContain('2 Skipped');
       expect(footer).toContain('src');
     });
   });
@@ -178,7 +178,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
     it('renders similar code warning banner', () => {
       const banner = renderSimilarCodeWarningBanner();
-      expect(banner).toContain('CÓDIGO SIMILAR VECTORIAL');
+      expect(banner).toContain('VECTOR SIMILAR CODE ANALYSIS');
       expect(banner).toContain('fallow similar-code setup');
     });
   });
@@ -193,7 +193,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const table = renderFindingsBreakdownTable(counts);
       expect(table).toContain('validate_oxlint');
       expect(table).toContain('validate_stylelint');
-      expect(table).toContain('TOTAL CONSOLIDADO');
+      expect(table).toContain('CONSOLIDATED TOTAL');
     });
   });
 
@@ -249,27 +249,27 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
   describe('renderAutoFixNoticeBanner', () => {
     it('renders notice banner with error and warning counts', () => {
       const banner = renderAutoFixNoticeBanner(5, 2);
-      expect(banner).toContain('INCIDENCIAS REPARABLES AUTOMÁTICAMENTE');
-      expect(banner).toContain('5 error(es) y 2 advertencia(s)');
+      expect(banner).toContain('AUTOMATICALLY REPAIRABLE ISSUES DETECTED');
+      expect(banner).toContain('5 error(s) and 2 warning(s)');
       expect(banner).toContain('npm run auditor:fix');
     });
 
     it('renders notice banner with only errors', () => {
       const banner = renderAutoFixNoticeBanner(3, 0);
-      expect(banner).toContain('3 error(es)');
-      expect(banner).not.toContain('advertencia(s)');
+      expect(banner).toContain('3 error(s)');
+      expect(banner).not.toContain('warning(s)');
     });
   });
 
   describe('renderAutoFixCompletionBanner', () => {
     it('renders completion banner instructing to run full auditor without error numbers', () => {
       const banner = renderAutoFixCompletionBanner(1500);
-      expect(banner).toContain('FASE DE REPARACIÓN AUTOMÁTICA COMPLETADA');
+      expect(banner).toContain('AUTOMATIC REPAIR PHASE COMPLETED');
       expect(banner).toContain('npm run auditor');
       expect(banner).toContain('(1.500 ms)');
-      expect(banner).not.toContain('error(es)');
-      expect(banner).not.toContain('advertencia(s)');
-      expect(banner).not.toContain('Errores:');
+      expect(banner).not.toContain('error(s)');
+      expect(banner).not.toContain('warning(s)');
+      expect(banner).not.toContain('Errors:');
     });
 
     it('has 100% identical line widths across all box lines', () => {
@@ -325,10 +325,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
       const card = renderAuditorDetailCard(task);
       expect(card).toContain('Oxlint Hygiene');
-      expect(card).toContain('Auto-reparación (--fix)');
-      expect(card).toContain('Velocidad Rápida (speed=light)');
+      expect(card).toContain('Auto-Repair (--fix)');
+      expect(card).toContain('Fast Speed (speed=light)');
       expect(card).toContain('oxlint-violation');
-      expect(card).toContain('Clave configurable:');
+      expect(card).toContain('Configurable key:');
       expect(card).toContain('oxlint');
     });
 
@@ -344,8 +344,8 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
 
       const card = renderAuditorDetailCard(task);
       expect(card).toContain('Simple Task');
-      expect(card).toContain('Velocidad Rápida (speed=light)');
-      expect(card).toContain('Sin configuración requerida');
+      expect(card).toContain('Fast Speed (speed=light)');
+      expect(card).toContain('No configuration required');
     });
   });
 
@@ -394,7 +394,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     it('renders all suites with dynamic headers and flags', () => {
       const table = renderAuditorsRegistryTable(sampleTasks, ['architecture', 'domain_data']);
       const cleanTable = stripVTControlCharacters(table);
-      expect(cleanTable).toContain('CATÁLOGO DINÁMICO DE AUDITORES');
+      expect(cleanTable).toContain('DYNAMIC AUDITOR AND CAPABILITIES CATALOG');
       expect(cleanTable).toContain('suite_a');
       expect(cleanTable).toContain('suite_b');
       expect(cleanTable).toContain('FIX! 🐇');
@@ -405,7 +405,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const table = renderAuditorsRegistryTable(sampleTasks, ['architecture'], {
         filter: 'enabled'
       });
-      expect(table).toContain('CATÁLOGO DE AUDITORES ACTIVOS / ENCENDIDOS');
+      expect(table).toContain('ACTIVE AUDITORS CATALOG');
       expect(table).toContain('suite_a');
     });
 
@@ -415,29 +415,29 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         filter: 'disabled',
         disabledReasons: reasons
       });
-      expect(table).toContain('CATÁLOGO DE AUDITORES DESACTIVADOS / APAGADOS');
+      expect(table).toContain('DISABLED AUDITORS CATALOG');
       expect(table).toContain('suite_a');
       expect(table).toContain('Desactivado por config');
     });
 
     it('handles empty task list gracefully for both enabled and disabled filters', () => {
       const emptyEnabled = renderAuditorsRegistryTable([], ['architecture'], { filter: 'enabled' });
-      expect(emptyEnabled).toContain('No se encontraron auditores');
+      expect(emptyEnabled).toContain('No auditors found');
 
       const emptyDisabled = renderAuditorsRegistryTable([], ['architecture'], {
         filter: 'disabled'
       });
-      expect(emptyDisabled).toContain('¡No hay auditores desactivados!');
+      expect(emptyDisabled).toContain('No disabled auditors!');
     });
   });
 
   describe('renderCliHelp', () => {
     it('renders CLI help card with active families and usage examples', () => {
       const help = renderCliHelp(['architecture', 'documentation']);
-      expect(help).toContain('USO:');
-      expect(help).toContain('MODOS, FORMATOS Y FASES DE EJECUCIÓN:');
-      expect(help).toContain('COMANDOS DE DESCUBRIMIENTO E INTROSPECCIÓN:');
-      expect(help).toContain('FILTROS Y SELECCIÓN:');
+      expect(help).toContain('USAGE:');
+      expect(help).toContain('MODES, FORMATS & EXECUTION PHASES:');
+      expect(help).toContain('DISCOVERY & INTROSPECTION COMMANDS:');
+      expect(help).toContain('FILTERS & SELECTION:');
       expect(help).toContain('architecture');
       expect(help).toContain('documentation');
     });
@@ -588,7 +588,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           severity: 'error'
         }
       ]);
-      expect(sample).toContain('❌ Muestra de errores detectados (todos los 1 de 1):');
+      expect(sample).toContain('❌ Sample of detected errors (all 1 of 1):');
       expect(sample).toContain('app.ts:10: [error-rule] Test error');
     });
 
@@ -602,7 +602,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
           severity: 'warning'
         }
       ]);
-      expect(sample).toContain('⚠️  Muestra de advertencias detectadas (todos los 1 de 1):');
+      expect(sample).toContain('⚠️  Sample of detected warnings (all 1 of 1):');
       expect(sample).toContain('package.json:1: [warn-rule] Test warning');
     });
 
@@ -615,7 +615,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         severity: 'warning' as const
       }));
       const sample = renderSampleFindings(warnings, 5);
-      expect(sample).toContain('⚠️  Muestra de advertencias detectadas (últimos 5 de 15):');
+      expect(sample).toContain('⚠️  Sample of detected warnings (last 5 of 15):');
       expect(sample).toContain('file_14.ts');
       expect(sample).not.toContain('file_0.ts');
     });

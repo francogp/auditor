@@ -1,4 +1,5 @@
 import "../core/auditContract.js";
+import { getProcessExecutedScript } from "../core/cli/cittyHarness.js";
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from "../core/auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -92,7 +93,7 @@ async function extractAuditorMetadataFromFile(fullPath) {
 		capabilities: DEFAULT_AUDITOR_CAPABILITIES,
 		gitIgnoreEntries: []
 	};
-	const scriptArg = process.argv[1];
+	const scriptArg = getProcessExecutedScript();
 	if (scriptArg) {
 		if (path.basename(scriptArg, path.extname(scriptArg)).toLowerCase() === path.basename(fullPath, path.extname(fullPath)).toLowerCase()) return extractStaticMetadataFromFile(fullPath);
 	}

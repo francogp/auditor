@@ -13,14 +13,14 @@ function renderExecutivePassSummary(params) {
 	const skippedText = skippedSuites > 0 ? ` (${skippedSuites} skipped)` : "";
 	const ratchetText = ratchetOk ? " | Ratchet: OK" : "";
 	const isWarningPass = totalWarnings > 0;
-	const title = isWarningPass ? `✔ AUDIT PASSED WITH WARNINGS [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}` : `✔ AUDIT PASSED [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`;
+	const title = isWarningPass ? `[WARN] AUDIT PASSED WITH WARNINGS [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}` : `[OK] AUDIT PASSED [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`;
 	return `${styleText(isWarningPass ? ["bold", "yellow"] : ["bold", "green"], title)}\n${`  Errors: ${totalErrors} | Warnings: ${totalWarnings}${ratchetText}`}\n${styleText("dim", `  Report: ${latestAuditJsonPath}`)}\n`;
 }
 function renderExecutiveFailSummary(params) {
 	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
 	const fixableText = fixableErrors > 0 ? ` (${fixableErrors} auto-fixable)` : "";
 	const suiteText = failedSuites > 0 ? ` in ${failedSuites} suite(s)` : "";
-	const header = styleText(["bold", "red"], `✖ AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
+	const header = styleText(["bold", "red"], `[FAIL] AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
 	const status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
 	const phaseLines = ["  Breakdown by Phase:"];
 	for (const p of phaseBreakdown) {
@@ -38,7 +38,7 @@ function renderExecutiveFailSummary(params) {
 }
 function renderExecutiveSetupBlockingSummary(params) {
 	const { totalSuites, setupErrors, postponedAppErrors, durationMs, blockingSuites, hasFixableErrors, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
-	const header = styleText(["bold", "red"], `⛔ AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
+	const header = styleText(["bold", "red"], `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
 	const status = `  Status: ${formatNumber(setupErrors)} setup error(s) (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)`;
 	const suitesLines = ["  Blocking Suites:"];
 	for (const s of blockingSuites) suitesLines.push(`  • ${s}`);
@@ -53,7 +53,7 @@ function renderExecutiveSetupBlockingSummary(params) {
 }
 function renderExecutiveFixSummary(params) {
 	const { durationMs, totalViolationsRepaired, filesModified, remainingErrors = 0, remainingWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
-	const header = styleText(["bold", "green"], `✔ AUTO-FIX COMPLETED in ${formatDurationMs(durationMs)}`);
+	const header = styleText(["bold", "green"], `[OK] AUTO-FIX COMPLETED in ${formatDurationMs(durationMs)}`);
 	const details = `  Repaired: ${formatNumber(totalViolationsRepaired)} violation(s) across ${formatNumber(filesModified)} file(s)`;
 	let remaining = "";
 	if (remainingErrors > 0 || remainingWarnings > 0) remaining = styleText("yellow", `  Remaining: ${formatNumber(remainingErrors)} unfixable error(s), ${formatNumber(remainingWarnings)} warning(s)`);

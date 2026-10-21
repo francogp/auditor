@@ -471,7 +471,7 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
   id: 'audit-config',
   file: AUDIT_CONFIG_FILE,
   candidateFiles: [AUDIT_CONFIG_FILE, '.auditor/audit.config.json'],
-  description: 'Configuración del auditor en .auditor/',
+  description: 'Auditor configuration in .auditor/',
   ruleId: 'audit-config-missing-file',
   generateDefaultContent: async (ctx) => {
     const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) =>
@@ -558,7 +558,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       fix: options.fix,
       id: 'validate_audit_config',
       name: 'Audit Configuration Integrity Validator',
-      description: 'Valida configuración del auditor en .auditor/',
+      description: 'Validates auditor configuration in .auditor/',
       family: 'architecture',
       ruleIds: AUDIT_CONFIG_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(AUDIT_CONFIG_RULES, 'setup'),
@@ -568,56 +568,72 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       defaultConfig: {},
       criticalConfig: {},
       ruleDescriptions: {
-        'audit-config-missing-path': 'Ruta configurada no existe',
-        'audit-config-missing-file': 'Archivo configurado no existe',
-        'audit-config-invalid-extension': 'Extensión configurada no existe',
-        'audit-config-missing-gitignore-entry': 'Falta entrada en .gitignore',
-        'audit-config-missing-section': 'Falta sección en audit.config',
-        'audit-config-unknown-field': 'Campo no reconocido en config',
-        'audit-config-critical-violation': 'Violación a configuración crítica',
-        'audit-config-unacknowledged-degradation': 'Degradación de cobertura no documentada'
+        'audit-config-missing-path': 'Configured path does not exist',
+        'audit-config-missing-file': 'Configured file does not exist',
+        'audit-config-invalid-extension': 'Configured extension does not exist',
+        'audit-config-missing-gitignore-entry': 'Missing entry in .gitignore',
+        'audit-config-missing-section': 'Missing section in audit.config',
+        'audit-config-unknown-field': 'Unrecognized field in config',
+        'audit-config-critical-violation': 'Critical configuration violation',
+        'audit-config-unacknowledged-degradation': 'Undocumented coverage degradation'
       },
       ruleRemediations: {
         'audit-config-missing-path':
-          'Una de las rutas declaradas en config.paths no existe en el sistema de archivos del proyecto.\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Si el directorio fue renombrado o movido, actualiza la ruta correspondiente en .auditor/audit.config.ts.\n' +
-          '2. Si el directorio es opcional o aún no se ha creado, crea la carpeta vacía o remuévela de la configuración si no corresponde a este proyecto.',
+          '📖 REMEDIATION GUIDE: audit-config-missing-path\n' +
+          '1. Root Cause: A directory path declared in `config.paths` does not exist on the project filesystem.\n' +
+          '2. Diagnosis: Compare the paths defined in `.auditor/audit.config.ts` against actual folders in your repository.\n' +
+          '3. Canonical Solution: If the directory was renamed or moved, update `.auditor/audit.config.ts`. If optional or not yet created, create the empty directory or remove it from configuration.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Update `.auditor/audit.config.ts` with correct paths.',
         'audit-config-missing-file':
-          'No se encontró el archivo principal de configuración .auditor/audit.config.ts (o audit.config.json).\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Ejecuta "auditor fix" o "npm run auditor:fix" para generar automáticamente la configuración canónica con sus valores por defecto.\n' +
-          '2. Si existe en la raíz como audit.config.ts, muévelo dentro de .auditor/.',
+          '📖 REMEDIATION GUIDE: audit-config-missing-file\n' +
+          '1. Root Cause: The primary auditor configuration file `.auditor/audit.config.ts` (or `audit.config.json`) was not found.\n' +
+          '2. Diagnosis: Check whether `.auditor/audit.config.ts` exists in the project root.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically generate the canonical configuration file with default settings.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
         'audit-config-invalid-extension':
-          'Se declaró una extensión o plugin en config.extensions que no pudo resolverse en disco o no exporta un auditor válido.\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Verifica la ruta relativa declarada en extensions: [...] dentro de .auditor/audit.config.ts.\n' +
-          '2. Asegúrate de que el archivo termine en .ts o .js y exporte una subclase de BaseAuditor.',
+          '📖 REMEDIATION GUIDE: audit-config-invalid-extension\n' +
+          '1. Root Cause: An extension or plugin declared in `config.extensions` could not be resolved on disk or does not export a valid BaseAuditor instance.\n' +
+          '2. Diagnosis: Inspect the relative path declared in `extensions: [...]` inside `.auditor/audit.config.ts`.\n' +
+          '3. Canonical Solution: Ensure the target extension file exists, is valid TypeScript/JavaScript, and exports an auditor subclassing `BaseAuditor`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Verify `extensions: ["./custom_audit.ts"]` in `.auditor/audit.config.ts`.',
         'audit-config-missing-gitignore-entry':
-          'Faltan entradas obligatorias gobernadas por el auditor en el archivo .gitignore del repositorio (ej. scratch/, coverage/).\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Ejecuta "auditor fix" para inyectar automáticamente las entradas requeridas en .gitignore.\n' +
-          '2. O agrega manualmente las entradas indicadas en el reporte a tu archivo .gitignore.',
+          '📖 REMEDIATION GUIDE: audit-config-missing-gitignore-entry\n' +
+          '1. Root Cause: Mandatory entries governed by the auditor (e.g., `scratch/`, `coverage/`) are missing from `.gitignore`.\n' +
+          '2. Diagnosis: Inspect `.gitignore` against required auditor artifact paths.\n' +
+          '3. Canonical Solution: Run `auditor fix` to automatically inject missing gitignore entries, or add them manually.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
         'audit-config-missing-section':
-          'Uno de los sub-auditores activos requiere una sección de configuración específica en .auditor/audit.config.ts que no está presente.\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Ejecuta "auditor fix" para que el motor de AST de TypeScript inyecte automáticamente la sección faltante con sus valores canónicos.\n' +
-          '2. O agrega manualmente la sección declarada por el sub-auditor en tu archivo .auditor/audit.config.ts.',
+          '📖 REMEDIATION GUIDE: audit-config-missing-section\n' +
+          '1. Root Cause: An active sub-auditor requires a specific configuration section in `.auditor/audit.config.ts` that is currently missing.\n' +
+          '2. Diagnosis: Identify the missing configuration section mentioned in the report.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` to automatically inject the missing section with canonical default values via TypeScript AST.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
         'audit-config-unknown-field':
-          'Se encontró una clave o propiedad en .auditor/audit.config.ts que no es reconocida por el esquema del auditor (clave obsoleta o mal tipada).\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Revisa el nombre del campo en .auditor/audit.config.ts por posibles errores tipográficos.\n' +
-          '2. Si era una clave de una versión anterior del auditor, elimínala o migra al nombre canónico actual.',
+          '📖 REMEDIATION GUIDE: audit-config-unknown-field\n' +
+          '1. Root Cause: An unrecognized property or key was found in `.auditor/audit.config.ts` (obsolete or misspelled key).\n' +
+          '2. Diagnosis: Review the field name reported in `.auditor/audit.config.ts` for typographical errors.\n' +
+          '3. Canonical Solution: Remove obsolete keys or rename them to the canonical modern schema.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Remove unknown property from `.auditor/audit.config.ts`.',
         'audit-config-critical-violation':
-          'La configuración viola una política crítica e inmutable del framework (ej. omisión de reglas estrictas obligatorias o valores prohibidos).\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Revisa la justificación técnica mostrada en el mensaje del error.\n' +
-          '2. Ejecuta "auditor fix" para restablecer automáticamente la línea base mínima obligatoria requerida por el sub-auditor.',
+          '📖 REMEDIATION GUIDE: audit-config-critical-violation\n' +
+          '1. Root Cause: Configuration violates an immutable framework policy (e.g. omitting mandatory strict values or setting prohibited overrides).\n' +
+          '2. Diagnosis: Read the technical explanation in the violation message.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` to restore the immutable required baseline, or update the configuration accordingly.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
         'audit-config-unacknowledged-degradation':
-          'Se declararon rutas en config.paths (scriptsRoots, dataRoots, cliRoots, demoRoots o exemptFiles) que contienen archivos en disco pero cuyas reglas silenciadas no están documentadas en coverage.acknowledgedDegradations.\n' +
-          'Posibles causas y soluciones:\n' +
-          '1. Ejecuta "auditor fix" o "npm run auditor:fix" para registrar automáticamente en coverage.acknowledgedDegradations las políticas correspondientes con su motivo y glob canónico.\n' +
-          '2. O declara manualmente en coverage.acknowledgedDegradations en .auditor/audit.config.ts el objeto { policy, glob, reason } justificando la exención.'
+          '📖 REMEDIATION GUIDE: audit-config-unacknowledged-degradation\n' +
+          '1. Root Cause: Paths declared in `config.paths` contain files whose silenced rules are not documented in `coverage.acknowledgedDegradations`.\n' +
+          '2. Diagnosis: Check unacknowledged degradation paths reported by the auditor.\n' +
+          '3. Canonical Solution: Run `npm run auditor:fix` to register acknowledged degradation policies with canonical globs and rationales, or declare them manually.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']

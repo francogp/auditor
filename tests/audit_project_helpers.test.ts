@@ -74,7 +74,7 @@ describe('Project Architecture Helpers', () => {
       const auditor = new ProjectArchitectureAuditor();
       expect(auditor.id).toBe('audit_project');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Arquitectura');
+      expect(auditor.packageName).toBe('Architecture');
       expect(auditor.capabilities.fix).not.toBe('none');
       expect(auditor.capabilities.ast).toBe(true);
       expect(auditor.capabilities.speed).toBe('light');

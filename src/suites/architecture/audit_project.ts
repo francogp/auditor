@@ -10,8 +10,13 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
-import { parseArgs } from 'node:util';
 import { execSync } from 'node:child_process';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../../core/cli/cittyHarness.ts';
 import {
   BaseAuditor,
   MAX_AUDITOR_DESCRIPTION_LENGTH,
@@ -580,38 +585,35 @@ export function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRu
   return activeConfigRules;
 }
 
+const PROJECT_AUDIT_CLI_ARGS: CittyArgsDef = {
+  ...COMMON_CLI_ARGS,
+  fix: { type: 'boolean', alias: 'f', default: false },
+  path: { type: 'string', alias: 'p', default: '.' },
+  output: { type: 'string', alias: 'o' },
+  summary: { type: 'boolean', alias: 's', default: false },
+  top: { type: 'string', alias: 't' },
+  'changed-since': { type: 'string' },
+  'errors-only': { type: 'boolean', default: false },
+  'css-only': { type: 'boolean', default: false },
+  rule: { type: 'string', alias: 'r' },
+  rules: { type: 'string' }
+};
+
 function parseProjectCliContext(cliArgs?: string[]): ProjectCliContext {
-  const rawCliArgs = cliArgs || process.argv.slice(2);
-  const normalizedCliArgs = rawCliArgs.map((cliParam) => {
-    if (cliParam.includes('=') && !cliParam.startsWith('-')) return `--${cliParam}`;
-    if (['fix', 'summary', 'json', 'human', 'pretty', 'errors-only', 'css-only'].includes(cliParam))
-      return `--${cliParam}`;
-    return cliParam;
-  });
-
-  const parsedConfig = parseArgs({
-    args: normalizedCliArgs,
-    options: {
-      fix: { type: 'boolean', short: 'f' },
-      path: { type: 'string', short: 'p', default: '.' },
-      output: { type: 'string', short: 'o' },
-      summary: { type: 'boolean', short: 's' },
-      json: { type: 'boolean', short: 'j' },
-      human: { type: 'boolean', short: 'H' },
-      pretty: { type: 'boolean' },
-      top: { type: 'string', short: 't' },
-      'changed-since': { type: 'string' },
-      'errors-only': { type: 'boolean' },
-      'css-only': { type: 'boolean' },
-      rule: { type: 'string', short: 'r', multiple: true },
-      rules: { type: 'string', multiple: true }
-    },
-    allowPositionals: true,
-    strict: false
-  });
-
-  const values = parsedConfig.values;
-  const positionals = parsedConfig.positionals;
+  const rawCliArgs = cliArgs || getProcessCliArgs();
+  const parsed = parseCittyArgs(PROJECT_AUDIT_CLI_ARGS, rawCliArgs);
+  const positionals = parsed._.map(String);
+  const posLower = new Set(positionals.map((p: string) => p.toLowerCase())); // runtime-set: O(1) positional flag lookup
+  const values: Record<string, unknown> = {
+    ...parsed,
+    fix: Boolean(parsed.fix) || posLower.has('fix'),
+    summary: Boolean(parsed.summary) || posLower.has('summary'),
+    json: Boolean(parsed.json) || posLower.has('json'),
+    human: Boolean(parsed.human) || posLower.has('human'),
+    pretty: Boolean(parsed.pretty) || posLower.has('pretty'),
+    'errors-only': Boolean(parsed['errors-only']) || posLower.has('errors-only'),
+    'css-only': Boolean(parsed['css-only']) || posLower.has('css-only')
+  };
   const selectedRules = extractSelectedRules(values, positionals);
   const activeConfigRules = filterActiveConfigRules(selectedRules);
 
@@ -1147,9 +1149,9 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       ruleRemediationPhases,
       id: 'audit_project',
       name: 'Project Architecture & Style Rules',
-      description: 'Audita reglas de arquitectura, TypeScript y estilo',
+      description: 'Audits architecture, TypeScript, and style rules',
       family: 'architecture',
-      packageName: 'Arquitectura',
+      packageName: 'Architecture',
       configKey: 'paths',
       defaultConfig: {},
       criticalConfig: {},
@@ -1175,7 +1177,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       }
     }
     const cliArgs = this.isFixActive()
-      ? [...process.argv.slice(2), '--fix']
+      ? [...getProcessCliArgs(), '--fix']
       : undefined;
     const violations = await main(cliArgs);
     for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) {

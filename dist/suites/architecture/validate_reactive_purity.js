@@ -57,7 +57,7 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 			}),
 			id: "validate_reactive_purity",
 			name: "Reactive Computed Purity Auditor",
-			description: "Verifica pureza reactiva y ausencia de efectos en computeds",
+			description: "Verifies reactive purity and computed effects",
 			family: "architecture",
 			ruleIds: REACTIVE_PURITY_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(REACTIVE_PURITY_RULES, "behavior"),
@@ -67,12 +67,12 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			icon: "🧼",
 			ruleDescriptions: {
-				"computed-state-mutation": "Mutación de estado prohibida",
-				"computed-side-effect": "Efecto secundario prohibido"
+				"computed-state-mutation": "Prohibited state mutation",
+				"computed-side-effect": "Prohibited side-effect in computed"
 			},
 			ruleRemediations: {
-				"computed-state-mutation": "Causa Raíz:\nSe detectó una asignación de mutación (ref.value =, state.x =, store.x =) dentro del getter de una propiedad \"computed()\".\nLos computeds en Vue 3 deben ser funciones de cálculo puro que derivan un valor sin alterar el estado del sistema. Mutar estado dentro de un getter desestabiliza el grafo de dependencias reactivas y genera loops de actualización descontrolados.\n\nDiagnóstico:\nRevisa el bloque computed indicado en el reporte. Localiza la asignación con operador de igualdad (=, +=, -=).\n\nSolución Canónica:\n1. Eliminar la asignación de estado del interior del computed.\n2. Si la mutación debe dispararse cuando cambian otras dependencias, utiliza un \"watch\" o \"watchEffect\" explícito.\n3. Si el caso es una inicialización perezosa intencional legítima y aislada, utiliza el escape \"// purity-ok: <justificación>\".\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: mutación de ref dentro del getter\nconst fullName = computed(() => {\n  accessCount.value++;\n  return `${firstName.value} ${lastName.value}`;\n});\n\n// ✅ Correcto: derivación pura\nconst fullName = computed(() => `${firstName.value} ${lastName.value}`);",
-				"computed-side-effect": "Causa Raíz:\nSe detectó una invocación a un método con efectos secundarios (ej. \".save()\", \"scheduleSave()\", \"authStore.logout()\", \"window.location\") dentro de un \"computed()\".\nLos getters computados son evaluados de forma perezosa (lazy) por el motor reactivo de Vue o de forma recurrente durante el ciclo de vida del componente. Disparar persistencia o navegación dentro de un getter genera efectos colaterales impredecibles.\n\nDiagnóstico:\nBusca llamadas a persistencia o navegación dentro de \"computed(() => ...)\".\n\nSolución Canónica:\nMover la llamada a la persistencia o navegación a una acción de store, a un manejador de eventos o a un \"watch\" que reaccione al cambio de la propiedad computada.\n\nEjemplo Antes vs Después:\n// ❌ Incorrecto: guardar cambios automáticamente dentro del getter\nconst total = computed(() => {\n  const res = calculateTotal();\n  scheduleSave();\n  return res;\n});\n\n// ✅ Correcto: cálculo puro en computed y persistencia en evento o watch\nconst total = computed(() => calculateTotal());\nwatch(total, () => { scheduleSave(); });"
+				"computed-state-mutation": "📖 REMEDIATION GUIDE: computed-state-mutation\n1. Root Cause: A state mutation assignment (`ref.value =`, `state.x =`, `store.x =`) was detected inside a `computed()` getter. In Vue 3, computed properties must be pure derivations without side effects. Mutating state inside a getter destabilizes reactive dependencies and triggers infinite re-render loops.\n2. Diagnosis: Inspect the reported computed block and locate the assignment operator (`=`, `+=`, `-=`).\n3. Canonical Solution:\n   a) Remove state mutations from the computed getter.\n   b) If mutations must execute on dependency changes, use an explicit `watch` or `watchEffect`.\n   c) If lazy initialization is strictly necessary and isolated, annotate with `// purity-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const fullName = computed(() => { accessCount.value++; return `${firstName.value} ${lastName.value}`; });`\n   ✅ Canonical:  `const fullName = computed(() => `${firstName.value} ${lastName.value}`);`",
+				"computed-side-effect": "📖 REMEDIATION GUIDE: computed-side-effect\n1. Root Cause: A side-effect method call (e.g., `.save()`, `scheduleSave()`, `authStore.logout()`, `window.location`) was detected inside a `computed()` getter. Computed getters are lazily evaluated by Vue and should remain free of side-effects.\n2. Diagnosis: Look for persistence, navigation, or asynchronous calls inside `computed(() => ...)`.\n3. Canonical Solution: Move side effects to an event handler, store action, or a `watch()` observing the computed property.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const total = computed(() => { const r = calc(); scheduleSave(); return r; });`\n   ✅ Canonical:  `const total = computed(() => calc()); watch(total, () => scheduleSave());`"
 			},
 			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"]),

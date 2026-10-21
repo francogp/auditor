@@ -139,7 +139,7 @@ describe('validate_dependency_minimums', () => {
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.fixable).toBe(true);
-    expect(finding?.message).toContain('TypeScript 7+ no está permitido');
+    expect(finding?.message).toContain('TypeScript 7+ is not permitted');
   });
 
   it('fails when installed version exceeds maximum allowed (e.g. typescript 7.0.1 in lockfile)', async () => {
@@ -151,7 +151,7 @@ describe('validate_dependency_minimums', () => {
     );
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
-    expect(finding?.message).toContain('excede el máximo permitido');
+    expect(finding?.message).toContain('exceeds allowed maximum');
   });
 
   it('findDeclaredDependency locates libraries across sections', () => {

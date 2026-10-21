@@ -76,8 +76,8 @@ export function renderExecutivePassSummary(params: ExecutivePassSummaryParams): 
 
   const isWarningPass = totalWarnings > 0;
   const title = isWarningPass
-    ? `✔ AUDIT PASSED WITH WARNINGS [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`
-    : `✔ AUDIT PASSED [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`;
+    ? `[WARN] AUDIT PASSED WITH WARNINGS [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`
+    : `[OK] AUDIT PASSED [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`;
   const color = isWarningPass ? (['bold', 'yellow'] as const) : (['bold', 'green'] as const);
 
   const line1 = styleText(color, title);
@@ -104,7 +104,7 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
 
   const header = styleText(
     ['bold', 'red'],
-    `✖ AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
+    `[FAIL] AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
   );
   const status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
 
@@ -149,7 +149,7 @@ export function renderExecutiveSetupBlockingSummary(
 
   const header = styleText(
     ['bold', 'red'],
-    `⛔ AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
+    `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
   );
   const status = `  Status: ${formatNumber(setupErrors)} setup error(s) (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)`;
 
@@ -190,7 +190,7 @@ export function renderExecutiveFixSummary(params: ExecutiveFixSummaryParams): st
 
   const header = styleText(
     ['bold', 'green'],
-    `✔ AUTO-FIX COMPLETED in ${formatDurationMs(durationMs)}`
+    `[OK] AUTO-FIX COMPLETED in ${formatDurationMs(durationMs)}`
   );
   const details = `  Repaired: ${formatNumber(totalViolationsRepaired)} violation(s) across ${formatNumber(filesModified)} file(s)`;
 

@@ -327,7 +327,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			fix: options?.fix,
 			id: "validate_documentation_language",
 			name: "Documentation Language Validator",
-			description: "Valida idioma de la documentación",
+			description: "Validates documentation language",
 			family: "documentation",
 			packageName: "DOCS",
 			configKey: "documentation",
@@ -341,14 +341,14 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			ruleIds: DOCUMENTATION_LANGUAGE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DOCUMENTATION_LANGUAGE_RULES, "polish"),
 			ruleDescriptions: {
-				"docs-unauthorized-language": "Texto en idioma no autorizado",
-				"docs-missing-language-mandate": "Falta mandato de idioma en AGENTS.md",
-				"code-comment-unauthorized-language": "Comentario en idioma no autorizado"
+				"docs-unauthorized-language": "Text in unauthorized language",
+				"docs-missing-language-mandate": "Missing language mandate in AGENTS.md",
+				"code-comment-unauthorized-language": "Comment in unauthorized language"
 			},
 			ruleRemediations: {
-				"docs-unauthorized-language": "📖 GUÍA DE REMEDIACIÓN: docs-unauthorized-language\n1. Causa Raíz: Se detectó un párrafo en un archivo Markdown redactado en un idioma distinto al idioma oficial del repositorio configurado en `.auditor/audit.config.ts` (`config.documentation.language`).\n2. Diagnóstico: Inspecciona el archivo Markdown y la línea reportada. Compara el texto con el idioma requerido (por ejemplo, texto en español cuando config.documentation.language es 'en').\n3. Solución Canónica:\n   a) Traduce el párrafo al idioma oficial del repositorio (generalmente inglés técnico para proyectos con config.documentation.language: 'en').\n   b) Si el archivo corresponde a un glosario, traducción localizada o contenido que debe permanecer en otro idioma por diseño, añade su ruta a `config.documentation.exemptions` en `.auditor/audit.config.ts` tras consultar al programador.\n4. Ejemplo:\n   ❌ Incorrecto: \"Este módulo maneja la autenticación de usuarios.\" (en repo con docs en inglés)\n   ✅ Correcto:   \"This module handles user authentication.\"",
-				"docs-missing-language-mandate": "📖 GUÍA DE REMEDIACIÓN: docs-missing-language-mandate\n1. Causa Raíz: El archivo AGENTS.md raíz no especifica el mandato de idioma obligatorio que instruye a los desarrolladores y agentes de IA en qué idioma deben redactarse los artefactos y la documentación.\n2. Diagnóstico: Revisa AGENTS.md bajo la sección \"Local Contracts\". Falta la cláusula de idioma de documentación.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula oficial correspondiente.\n   b) O agrega la cláusula manualmente alineada con `config.documentation.language`.\n4. Ejemplo:\n   - Cláusula canónica: \"- **Documentation Language Mandate**: All project documentation, code comments, commit messages, and markdown files MUST be written in English ('en').\"",
-				"code-comment-unauthorized-language": "📖 GUÍA DE REMEDIACIÓN: code-comment-unauthorized-language\n1. Causa Raíz: Se detectó un comentario de código fuente (en archivos .ts, .js, .vue, etc.) escrito en un idioma no autorizado por `config.documentation.language`.\n2. Diagnóstico: Revisa la línea reportada en el archivo de código fuente.\n3. Solución Canónica:\n   a) Traduce el comentario al idioma canónico del repositorio (por ejemplo, inglés técnico).\n   b) Si el comentario era superfluo o redundante, elimínalo según los principios de clean-code.\n4. Ejemplo:\n   ❌ Comentario en español: `comment in Spanish`\n   ✅ Comentario en inglés:  `// Verify whether the token remains active`"
+				"docs-unauthorized-language": "📖 REMEDIATION GUIDE: docs-unauthorized-language\n1. Root Cause: A paragraph in a Markdown file was detected in a language other than the repository official language configured in `.auditor/audit.config.ts` (`config.documentation.language`).\n2. Diagnosis: Inspect the Markdown file and reported line. Compare text with the required language (e.g. Spanish text when config.documentation.language is 'en').\n3. Canonical Solution:\n   a) Translate the paragraph into the official repository language (typically technical English for projects with config.documentation.language: 'en').\n   b) If the file corresponds to a glossary, localized translation, or content that must remain in another language by design, add its path to `config.documentation.exemptions` in `.auditor/audit.config.ts` after consulting the human programmer.\n4. Example:\n   ❌ Incorrect: Non-English text in documentation paragraph\n   ✅ Correct:   \"This module handles user authentication.\"",
+				"docs-missing-language-mandate": "📖 REMEDIATION GUIDE: docs-missing-language-mandate\n1. Root Cause: The root AGENTS.md file lacks the mandatory language governance clause instructing developers and AI agents in which language artifacts and documentation must be written.\n2. Diagnosis: Review AGENTS.md under \"Local Contracts\". The documentation language clause is missing.\n3. Canonical Solution:\n   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the official clause.\n   b) Or manually add the clause aligned with `config.documentation.language`.\n4. Example:\n   - Canonical clause: \"- **Documentation Language Mandate**: All project documentation, code comments, commit messages, and markdown files MUST be written in English ('en').\"",
+				"code-comment-unauthorized-language": "📖 REMEDIATION GUIDE: code-comment-unauthorized-language\n1. Root Cause: A source code comment (in .ts, .js, .vue files, etc.) was detected in an unauthorized language per `config.documentation.language`.\n2. Diagnosis: Review the reported line in the source code file.\n3. Canonical Solution:\n   a) Translate the comment into the canonical repository language (e.g., technical English).\n   b) If the comment was superfluous or redundant, delete it according to clean-code principles.\n4. Example:\n   ❌ Spanish comment: `comment in Spanish`\n   ✅ English comment:  `// Verify whether the token remains active`"
 			},
 			coverage: { include: ["**/*.md", ...dynamicCodeCoverage] },
 			unignoreDirs: [
@@ -363,21 +363,21 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 	}
 	reportUnauthorizedLanguageViolation(ruleId, entityLabel, targetScope, para, relFile, targetLanguage, detectedLang) {
 		const preview = para.text.length > 70 ? `${para.text.slice(0, 67)}...` : para.text;
-		const langName = targetLanguage === "en" ? "español" : "inglés";
-		const targetName = targetLanguage === "en" ? "inglés" : "español";
+		const langName = targetLanguage === "en" ? "Spanish" : "English";
+		const targetName = targetLanguage === "en" ? "English" : "Spanish";
 		this.addViolation({
 			ruleId,
 			severity: "error",
 			file: relFile,
 			line: para.startLine,
-			message: `${entityLabel} en ${langName} detectado en ${targetScope} para ${targetName} (detectado: ${detectedLang}).`,
+			message: `${entityLabel} in ${langName} detected in ${targetScope} configured for ${targetName} (detected: ${detectedLang}).`,
 			context: preview
 		});
 	}
 	auditParagraph(para, relFile, targetLanguage) {
 		const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
 		if (!isUnauthorized) return;
-		this.reportUnauthorizedLanguageViolation("docs-unauthorized-language", "Párrafo", "documentación configurada", para, relFile, targetLanguage, detectedLang);
+		this.reportUnauthorizedLanguageViolation("docs-unauthorized-language", "Paragraph", "configured documentation", para, relFile, targetLanguage, detectedLang);
 	}
 	auditMarkdownFile(relFile, exemptions, targetLanguage) {
 		if (isLanguageExemptPath(relFile, exemptions)) return;
@@ -401,7 +401,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 				severity: "error",
 				file: "AGENTS.md",
 				line: 1,
-				message: "No se encontró el archivo AGENTS.md en la raíz del proyecto para validar el mandato de gobernanza de idioma."
+				message: "Root AGENTS.md file not found to validate documentation language mandate."
 			});
 			return;
 		}
@@ -431,7 +431,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			severity: "error",
 			file: "AGENTS.md",
 			line: findLocalContractsHeaderLine(content),
-			message: targetLanguage === "es" ? "AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en español (validate_documentation_language)." : "AGENTS.md raíz debe incluir obligatoriamente el mandato de idioma y gobernanza de documentación en inglés (validate_documentation_language)."
+			message: targetLanguage === "es" ? "Root AGENTS.md must include the mandatory Spanish documentation language governance mandate (validate_documentation_language)." : "Root AGENTS.md must include the mandatory English documentation language governance mandate (validate_documentation_language)."
 		});
 	}
 	auditCodeFileComments(relFile, exemptions, targetLanguage) {
@@ -449,7 +449,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 		for (const para of paragraphs) {
 			const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
 			if (!isUnauthorized) continue;
-			this.reportUnauthorizedLanguageViolation("code-comment-unauthorized-language", "Comentario", "código fuente configurado", para, relFile, targetLanguage, detectedLang);
+			this.reportUnauthorizedLanguageViolation("code-comment-unauthorized-language", "Comment", "configured source code", para, relFile, targetLanguage, detectedLang);
 		}
 	}
 	async runAudit() {

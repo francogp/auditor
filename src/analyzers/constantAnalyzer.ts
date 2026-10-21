@@ -311,7 +311,7 @@ function createConstantViolations(
       violations.push({
         file: decl.file,
         line: decl.line,
-        message: `Constante duplicada '${constName}' con valor idéntico declarada en múltiples módulos (${fileList}). DEBE modularizarse obligatoriamente en ${targetConstantsDir} para su reutilización.`,
+        message: `Duplicate constant '${constName}' with identical value declared across multiple modules (${fileList}). MUST be modularized into ${targetConstantsDir} for reuse.`,
         context: constName,
         severity: 'error',
         fixable: false
@@ -323,7 +323,7 @@ function createConstantViolations(
       violations.push({
         file: decl.file,
         line: decl.line,
-        message: `Constante '${constName}' declarada con valores diferentes en múltiples módulos (${fileList}). Revisa si es un posible bug o si se debe unificar/renombrar según su subdominio.`,
+        message: `Constant '${constName}' declared with different values across multiple modules (${fileList}). Check for potential bug or unify/rename according to subdomain.`,
         context: constName,
         severity: 'error',
         fixable: false

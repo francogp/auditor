@@ -146,7 +146,7 @@ function auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic) {
 			severity: "error",
 			file: params.relFile,
 			line: rule.line,
-			message: `Clase CSS scoped '.${className}' es código muerto (huérfana): no se encuentra en el componente ni en el código de la aplicación.`,
+			message: `Scoped CSS class '.${className}' is dead code (orphaned): not found in component template or script logic.`,
 			context: className
 		});
 	}
@@ -181,7 +181,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_dead_css",
 			name: "Scoped Dead CSS Auditor",
-			description: "Detecta clases CSS scoped huérfanas en componentes Vue",
+			description: "Detects orphaned scoped CSS classes in Vue components",
 			family: "architecture",
 			ruleIds: DEAD_CSS_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DEAD_CSS_RULES, "hygiene"),
@@ -190,8 +190,8 @@ var DeadCssAuditor = class extends BaseAuditor {
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "💀",
-			ruleDescriptions: { "dead-scoped-css": "Clase scoped huérfana sin uso" },
-			ruleRemediations: { "dead-scoped-css": "📖 GUÍA DE REMEDIACIÓN: dead-scoped-css\n1. Causa Raíz: Se declaró una clase CSS dentro del bloque `<style scoped>` de un componente Vue que no se utiliza en ninguna parte de su plantilla (`<template>`) ni en su lógica de presentación (`<script>`). El CSS muerto infla el bundle y confunde la lectura del diseño.\n2. Diagnóstico: Ubica la clase CSS señalada en la línea del bloque `<style scoped>` del componente.\n3. Solución Canónica:\n   a) Si el elemento HTML fue eliminado o refactorizado: elimina la regla de estilo huérfana.\n   b) Si la clase se aplica dinámicamente mediante concatenación que el analizador no infiere: utiliza nombres de clase completos en plantillas (`:class=\"{ 'my-class': isActive }\"`) en lugar de fragmentación dinámica.\n   c) Si es una clase transicional o inyectada por una librería externa, anota `/* dead-css-ok: <justificación> */` justo antes de la regla.\n4. Ejemplo:\n   ❌ Clase huérfana: `.btn-old-badge { font-size: 10px; }` (sin uso en el template)\n   ✅ Limpio:        Eliminada del bloque `<style scoped>`." },
+			ruleDescriptions: { "dead-scoped-css": "Orphaned unused scoped class" },
+			ruleRemediations: { "dead-scoped-css": "📖 REMEDIATION GUIDE: dead-scoped-css\n1. Root Cause: A CSS class was declared within `<style scoped>` in a Vue component that is never used in `<template>` markup or `<script>` presentation logic. Dead CSS bloats bundle size and confuses maintainers.\n2. Diagnosis: Locate the reported CSS class within `<style scoped>` in the component.\n3. Canonical Solution:\n   a) If the HTML element was removed or refactored: delete the orphaned style rule.\n   b) If dynamically applied via string concatenation: use full static class names in templates (`:class=\"{ 'my-class': isActive }\"`) rather than dynamic fragments.\n   c) If transition-related or injected by an external library, annotate with `/* dead-css-ok: <reason> */` immediately before the rule.\n4. Example / Auto-fix command:\n   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n   ✅ Clean:          Removed from `<style scoped>` block." },
 			coverage: { include: deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), projectRoot).include },
 			projectRoot
 		});
@@ -211,7 +211,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 		const componentFiles = this.context.collectFiles(compRoots, /* @__PURE__ */ new Set([".vue"]));
 		if (componentFiles.length === 0) {
 			this.runSubAuditorSync("dead-scoped-css", () => {
-				this.markRuleNotApplicable("dead-scoped-css", "No se encontraron componentes .vue en el proyecto");
+				this.markRuleNotApplicable("dead-scoped-css", "No .vue components found in project");
 			});
 			return;
 		}

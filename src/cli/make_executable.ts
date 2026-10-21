@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from './cliUtils.ts';
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from '../core/cli/cittyHarness.ts';
 
 export function purgeOrphanedDistFiles(
   distDir = path.resolve(process.cwd(), 'dist'),
@@ -65,6 +66,7 @@ export function makeCliBinariesExecutable(distDir = path.resolve(process.cwd(), 
 }
 
 if (isMainModule(import.meta.url)) {
+  parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
   purgeOrphanedDistFiles();
   makeCliBinariesExecutable();
 }

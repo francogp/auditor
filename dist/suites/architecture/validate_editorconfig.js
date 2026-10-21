@@ -44,7 +44,7 @@ const EDITORCONFIG_REQUIREMENT = {
 	id: "editorconfig-config",
 	file: ".editorconfig",
 	candidateFiles: [".editorconfig"],
-	description: "Configuración estándar de estilo de editor (.editorconfig)",
+	description: "Standard editor style configuration (.editorconfig)",
 	ruleId: "editorconfig-missing",
 	generateDefaultContent: () => CANONICAL_EDITORCONFIG_CONTENT
 };
@@ -75,7 +75,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 			configFiles: [configRequirement],
 			id: "validate_editorconfig",
 			name: "EditorConfig Validator",
-			description: "Valida consistencia y formato en .editorconfig",
+			description: "Validates consistency and format in .editorconfig",
 			icon: "📐",
 			family: "architecture",
 			ruleIds: EDITORCONFIG_RULES,
@@ -85,12 +85,12 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			ruleDescriptions: {
-				"editorconfig-missing": "Archivo .editorconfig ausente",
-				"editorconfig-missing-setting": "Falta directiva obligatoria"
+				"editorconfig-missing": "Missing .editorconfig file",
+				"editorconfig-missing-setting": "Missing mandatory directive"
 			},
 			ruleRemediations: {
-				"editorconfig-missing": "Diagnóstico: El archivo .editorconfig no existe en la raíz del proyecto.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear la configuración canónica de editores.",
-				"editorconfig-missing-setting": "Diagnóstico: Faltan directivas obligatorias en .editorconfig (root=true, end_of_line=lf, charset=utf-8, etc.).\nRemediación: Ejecuta `auditor fix` para armonizar las directivas de formato de editores."
+				"editorconfig-missing": "📖 REMEDIATION GUIDE: editorconfig-missing\n1. Root Cause: The `.editorconfig` file does not exist in the root of the project.\n2. Diagnosis: Check project root for `.editorconfig`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold the canonical EditorConfig configuration.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"editorconfig-missing-setting": "📖 REMEDIATION GUIDE: editorconfig-missing-setting\n1. Root Cause: Mandatory directives are missing from `.editorconfig` (root=true, end_of_line=lf, charset=utf-8, etc.).\n2. Diagnosis: Inspect existing `.editorconfig` sections and directives against canonical standards.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to harmonize editor formatting directives.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".editorconfig"] },
 			projectRoot,
@@ -107,7 +107,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("editorconfig-missing", () => this.ensureConfigFile(EDITORCONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("editorconfig-missing-setting", "Archivo .editorconfig ausente");
+				this.markRuleNotApplicable("editorconfig-missing-setting", "Missing .editorconfig file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -142,7 +142,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere \"root = true\" al inicio de .editorconfig."
+					message: "Missing \"root = true\" at the top of .editorconfig."
 				});
 			}
 			if (!/^\s*end_of_line\s*=\s*lf\b/im.test(updatedContent)) {
@@ -155,7 +155,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere \"end_of_line = lf\" en la sección [*] de .editorconfig."
+					message: "Missing \"end_of_line = lf\" in the [*] section of .editorconfig."
 				});
 			}
 			if (!/^\s*charset\s*=\s*utf-8\b/im.test(updatedContent)) {
@@ -168,7 +168,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere \"charset = utf-8\" en la sección [*] de .editorconfig."
+					message: "Missing \"charset = utf-8\" in the [*] section of .editorconfig."
 				});
 			}
 			if (!/^\s*indent_size\s*=\s*2\b/im.test(updatedContent)) {
@@ -181,7 +181,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere \"indent_size = 2\" en la sección [*] de .editorconfig."
+					message: "Missing \"indent_size = 2\" in the [*] section of .editorconfig."
 				});
 			}
 		});

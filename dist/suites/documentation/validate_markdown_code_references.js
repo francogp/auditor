@@ -268,7 +268,7 @@ function checkHardcodedRuntimeVersions(line, lineNum, relPath, auditor) {
 		severity: "error",
 		file: relPath,
 		line: lineNum,
-		message: `Versión runtime hardcodeada detectada: "${versionMatch[0]}". Debe referenciar package.json (engines) y .node-version`,
+		message: `Hardcoded runtime version detected: "${versionMatch[0]}". Must reference package.json (engines) and .node-version`,
 		context: versionMatch[0]
 	});
 	return 1;
@@ -288,7 +288,7 @@ function checkSkillReferences(line, lineNum, relPath, allSkills, auditor) {
 			severity: "error",
 			file: relPath,
 			line: lineNum,
-			message: `Referencia a skill inexistente: "@/${candidate}". El skill no existe en .agents/skills ni en skills integrados`,
+			message: `Reference to non-existent skill: "@/${candidate}". Skill does not exist in .agents/skills or built-in skills`,
 			context: `@/${candidate}`
 		});
 	}
@@ -308,7 +308,7 @@ function validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir,
 			severity: "error",
 			file: relPath,
 			line: lineNum,
-			message: `Ruta de código referenciada no existe en disco: "${candidate}"`,
+			message: `Referenced code path does not exist on disk: "${candidate}"`,
 			context: candidate
 		});
 		else if (!localCaseCheck.exactMatch) auditor.addViolation({
@@ -316,7 +316,7 @@ function validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir,
 			severity: "error",
 			file: relPath,
 			line: lineNum,
-			message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${localCaseCheck.actualCasing}" (Linux ext4)`,
+			message: `Referenced code path has casing mismatch on disk: "${candidate}" -> "${localCaseCheck.actualCasing}" (Linux ext4)`,
 			context: candidate
 		});
 	} else if (!caseCheck.exactMatch) auditor.addViolation({
@@ -324,7 +324,7 @@ function validateSingleSourceRef(candidate, lineNum, relPath, filePath, rootDir,
 		severity: "error",
 		file: relPath,
 		line: lineNum,
-		message: `Ruta de código tiene discrepancia de mayúsculas/minúsculas en disco: "${candidate}" -> "${caseCheck.actualCasing}" (Linux ext4)`,
+		message: `Referenced code path has casing mismatch on disk: "${candidate}" -> "${caseCheck.actualCasing}" (Linux ext4)`,
 		context: candidate
 	});
 }
@@ -355,7 +355,7 @@ function checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, rootDir
 			severity: "error",
 			file: relPath,
 			line: lineNum,
-			message: `Archivo declarado en lista de contratos locales no existe en "${path.relative(rootDir, fileDir)}": "${token}"`,
+			message: `File declared in local contracts list does not exist in "${path.relative(rootDir, fileDir)}": "${token}"`,
 			context: token
 		});
 	} else if (!localCheck.exactMatch && !seenViolations.has(violationKey)) {
@@ -365,7 +365,7 @@ function checkAgentsMdBulletDeclaration(line, lineNum, relPath, fileDir, rootDir
 			severity: "error",
 			file: relPath,
 			line: lineNum,
-			message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${localCheck.actualCasing}" (Linux ext4)`,
+			message: `File "${token}" has casing mismatch on disk: "${localCheck.actualCasing}" (Linux ext4)`,
 			context: token
 		});
 	}
@@ -390,7 +390,7 @@ function checkAgentsMdInlineTokens(line, lineNum, relPath, fileDir, dirEntries, 
 					severity: "error",
 					file: relPath,
 					line: lineNum,
-					message: `Archivo "${token}" tiene discrepancia de mayúsculas/minúsculas en disco: "${foundCase}" (Linux ext4)`,
+					message: `File "${token}" has casing mismatch on disk: "${foundCase}" (Linux ext4)`,
 					context: token
 				});
 			}
@@ -420,7 +420,7 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			fixableRuleIds: ["markdown-outdated-project-version"],
 			id: "validate_markdown_code_references",
 			name: "Markdown Code References Validator",
-			description: "Valida rutas, scripts, casing y skills en markdown",
+			description: "Validates paths, scripts, casing, and skills in markdown",
 			family: "documentation",
 			ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_CODE_REFERENCE_RULES, "polish"),
@@ -430,18 +430,18 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "💻",
 			ruleDescriptions: {
-				"markdown-broken-source-ref": "Ruta de código inexistente",
-				"markdown-hardcoded-runtime-version": "Versión Node/npm hardcodeada",
-				"markdown-broken-skill-ref": "Referencia a skill inexistente",
-				"markdown-case-mismatch": "Casing incorrecto en ruta",
-				"markdown-outdated-project-version": "Versión del proyecto desactualizada"
+				"markdown-broken-source-ref": "Non-existent code path",
+				"markdown-hardcoded-runtime-version": "Hardcoded Node/npm version",
+				"markdown-broken-skill-ref": "Non-existent skill reference",
+				"markdown-case-mismatch": "Incorrect path casing",
+				"markdown-outdated-project-version": "Outdated project version"
 			},
 			ruleRemediations: {
-				"markdown-broken-source-ref": "📖 GUÍA DE REMEDIACIÓN: markdown-broken-source-ref\n1. Causa Raíz: Un archivo Markdown hace referencia a una ruta de archivo o directorio que no existe en el sistema de archivos del repositorio.\n2. Diagnóstico: Revisa la ruta indicada en el mensaje y la línea del archivo Markdown.\n3. Solución Canónica:\n   a) Si el archivo fue movido o renombrado: actualiza la ruta en el Markdown para que apunte a la ubicación actual.\n   b) Si el archivo fue eliminado: remueve la referencia obsoleta del documento o manual.\n   c) Si es una ruta abstracta o hipotética en un ejemplo: delimítala con sintaxis de marcador de posición (ej: `<path>`, `...`, `path/to/...`) para que el parser no la interprete como ruta real.\n4. Ejemplo:\n   ❌ Incorrecto: `[Config](file:///src/oldConfig.ts)` (si el archivo no existe)\n   ✅ Correcto:   `[Config](file:///src/config/audit.config.ts)`",
-				"markdown-hardcoded-runtime-version": "📖 GUÍA DE REMEDIACIÓN: markdown-hardcoded-runtime-version\n1. Causa Raíz: Se encontró una versión fija de Node.js u otro motor runtime hardcodeada en texto plano en la documentación, violando la regla SSoT (Single Source of Truth).\n2. Diagnóstico: Ubica la línea donde aparece la versión fija (por ejemplo, \"Node.js v20.0.0\").\n3. Solución Canónica:\n   a) En lugar de hardcodear números de versión, haz referencia a `package.json` (`engines.node`) o a `.node-version` / `.nvmrc`.\n   b) Si es necesario documentar el requisito, redacta \"Node.js (según engines en package.json)\" o sincronízalo con la versión canónica actual.\n4. Ejemplo:\n   ❌ Incorrecto: \"Requiere Node.js 20.10.0+\"\n   ✅ Correcto:   \"Requiere Node.js (según `engines.node` en `package.json`)\"",
-				"markdown-broken-skill-ref": "📖 GUÍA DE REMEDIACIÓN: markdown-broken-skill-ref\n1. Causa Raíz: Se hace referencia a un skill de agente con la sintaxis `@/nombre-skill`, pero el skill no existe en `.agents/skills/` ni entre los skills integrados.\n2. Diagnóstico: Comprueba el identificador del skill en la línea reportada y contrástalo con el contenido de `.agents/skills/`.\n3. Solución Canónica:\n   a) Si el skill fue renombrado: actualiza el nombre al identificador canónico vigente.\n   b) Si el skill fue eliminado: retira la mención de la documentación.\n   c) Si el skill no está instalado: agrégalo a `.agents/skills/` respetando el esquema de skills.\n4. Ejemplo:\n   ❌ Incorrecto: `@/skill-inexistente`\n   ✅ Correcto:   `@/auditor`",
-				"markdown-case-mismatch": "📖 GUÍA DE REMEDIACIÓN: markdown-case-mismatch\n1. Causa Raíz: Una ruta en la documentación coincide con un archivo en disco pero difiere en mayúsculas/minúsculas. Aunque Windows es insensible a mayúsculas, Linux/macOS y entornos CI fallarán.\n2. Diagnóstico: Compara la ruta referenciada con el nombre exacto del archivo en el sistema de archivos.\n3. Solución Canónica: Corrige las mayúsculas/minúsculas de la ruta en el Markdown para que coincidan al 100% con el disco.\n4. Ejemplo:\n   ❌ Incorrecto: `src/core/Auditorbase.ts`\n   ✅ Correcto:   `src/core/auditorBase.ts`",
-				"markdown-outdated-project-version": "📖 GUÍA DE REMEDIACIÓN: markdown-outdated-project-version\n1. Causa Raíz: Un archivo de documentación o release notes referencia una versión desactualizada del paquete que no coincide con `package.json.version`.\n2. Diagnóstico: Inspecciona la versión reportada en el archivo Markdown y compárala con `package.json`.\n3. Solución Canónica:\n   a) Ejecuta `npm run auditor:fix` o `auditor fix` si la regla soporta corrección automática.\n   b) O actualiza manualmente el número de versión en el documento al SemVer actual de `package.json`.\n4. Ejemplo:\n   ❌ Desactualizado: `v9.1.0` (cuando el paquete está en 9.2.0)\n   ✅ Sincronizado:   `v9.2.0`"
+				"markdown-broken-source-ref": "📖 REMEDIATION GUIDE: markdown-broken-source-ref\n1. Root Cause: A Markdown file references a file or directory path that does not exist in the repository filesystem.\n2. Diagnosis: Check the path indicated in the message and line of the Markdown file.\n3. Canonical Solution:\n   a) If the file was moved or renamed: update the Markdown path to point to its current location.\n   b) If the file was deleted: remove the obsolete reference from the document or manual.\n   c) If it is an abstract or hypothetical path in an example: delimit it with placeholder syntax (e.g. `<path>`, `...`, `path/to/...`) so the parser does not treat it as a real path.\n4. Example:\n   ❌ Incorrect: `[Config](./src/oldConfig.ts)` (if the file does not exist)\n   ✅ Correct:   `[Config](./src/config/audit.config.ts)`",
+				"markdown-hardcoded-runtime-version": "📖 REMEDIATION GUIDE: markdown-hardcoded-runtime-version\n1. Root Cause: A fixed Node.js or runtime version was found hardcoded in plain text in documentation, violating SSoT (Single Source of Truth).\n2. Diagnosis: Locate the line where the fixed version appears (for example, \"Node.js v20.0.0\").\n3. Canonical Solution:\n   a) Instead of hardcoding version numbers, reference `package.json` (`engines.node`) or `.node-version` / `.nvmrc`.\n   b) If necessary to document requirements, write \"Node.js (per package.json engines)\" or synchronize with current canonical version.\n4. Example:\n   ❌ Incorrect: \"Requires Node.js 20.10.0+\"\n   ✅ Correct:   \"Requires Node.js (per `engines.node` in `package.json`)\"",
+				"markdown-broken-skill-ref": "📖 REMEDIATION GUIDE: markdown-broken-skill-ref\n1. Root Cause: An agent skill is referenced with `@/skill-name` syntax, but the skill does not exist in `.agents/skills/` or built-in skills.\n2. Diagnosis: Check the skill identifier on the reported line against `.agents/skills/` contents.\n3. Canonical Solution:\n   a) If the skill was renamed: update the name to the current canonical identifier.\n   b) If the skill was removed: delete the reference from documentation.\n   c) If the skill is not installed: add it to `.agents/skills/` adhering to the skills schema.\n4. Example:\n   ❌ Incorrect: `@/non-existent-skill`\n   ✅ Correct:   `@/auditor`",
+				"markdown-case-mismatch": "📖 REMEDIATION GUIDE: markdown-case-mismatch\n1. Root Cause: A path in documentation matches a file on disk but differs in casing. While Windows is case-insensitive, Linux/macOS and CI environments will fail.\n2. Diagnosis: Compare the referenced path with the exact filename on the filesystem.\n3. Canonical Solution: Correct the casing of the path in Markdown to match the disk 100%.\n4. Example:\n   ❌ Incorrect: `src/core/Auditorbase.ts`\n   ✅ Correct:   `src/core/auditorBase.ts`",
+				"markdown-outdated-project-version": "📖 REMEDIATION GUIDE: markdown-outdated-project-version\n1. Root Cause: A documentation file or release notes references an outdated package version that does not match `package.json.version`.\n2. Diagnosis: Inspect the reported version in the Markdown file and compare with `package.json`.\n3. Canonical Solution:\n   a) Run `npm run auditor:fix` or `auditor fix` if the rule supports auto-fix.\n   b) Or manually update the version number in the document to the current SemVer in `package.json`.\n4. Example:\n   ❌ Outdated:     `v9.1.0` (when package is at 9.2.0)\n   ✅ Synchronized: `v9.2.0`"
 			},
 			coverage: { include: ["**/*.md"] },
 			roots: effectiveScanRoots,
@@ -541,14 +541,14 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: doc.relPath,
 					line: m.lineNum,
-					message: `Referencia de versión desactualizada "${m.found}" en documentación (versión actual esperada: "${m.expected}").`,
+					message: `Outdated version reference "${m.found}" in documentation (expected current version: "${m.expected}").`,
 					context: m.context,
 					fixable: true
 				});
 			}
 		});
-		this.context.setMetric("Archivos Markdown escaneados", mdFiles.length);
-		this.context.setMetric("Referencias de código analizadas", referencesChecked);
+		this.context.setMetric("Scanned Markdown Files", mdFiles.length);
+		this.context.setMetric("Analyzed Code References", referencesChecked);
 	}
 	collectMarkdownFiles() {
 		return this.context.collectFiles(this.scanRoots, /* @__PURE__ */ new Set([".md"]));

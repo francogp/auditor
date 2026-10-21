@@ -91,7 +91,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       }),
       id: 'validate_pinia_reactivity',
       name: 'Pinia Reactivity & State Integrity Auditor',
-      description: 'Protege reactividad e integridad de stores de Pinia',
+      description: 'Protects reactivity and integrity of Pinia stores',
       family: 'architecture',
       ruleIds: PINIA_REACTIVITY_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(PINIA_REACTIVITY_RULES, 'behavior'),
@@ -101,44 +101,44 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       criticalConfig: {},
       icon: '🍍',
       ruleDescriptions: {
-        'no-store-destructuring-without-storetorefs': 'Desestructuración sin storeToRefs',
-        'no-direct-state-mutation-outside-actions': 'Mutación directa de $state'
+        'no-store-destructuring-without-storetorefs': 'Destructuring without storeToRefs',
+        'no-direct-state-mutation-outside-actions': 'Direct mutation of $state'
       },
       ruleRemediations: {
         'no-store-destructuring-without-storetorefs':
-          'Causa Raíz:\n' +
-          'Se desestructuraron propiedades de estado o getters directamente desde una instancia de store de Pinia: "const { foo, bar } = useMyStore()".\n' +
-          'En Pinia, la store es un proxy reactivo creado sobre reactive(). Al desestructurar primitivos directamente sin envoltorio, JavaScript extrae el valor por copia, rompiendo la reactividad con la store de forma silenciosa.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa la declaración desestructurada que llama a "use...Store()". Si estás extrayendo estado o getters, deben pasar por storeToRefs.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Usar la utilidad oficial "storeToRefs(store)" para desestructurar estado y getters como "Ref<T>".\n' +
-          '2. Las acciones (métodos de la store) NO deben pasarse por storeToRefs, sino desestructurarse directamente de la store o invocarse como "store.action()".\n' +
-          '3. Si solo estás desestructurando acciones, documenta con "// pinia-ok: actions only".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: reactividad rota en username y score\n' +
+          '1. Root Cause:\n' +
+          'State properties or getters were destructured directly from a Pinia store instance: "const { foo, bar } = useMyStore()".\n' +
+          'In Pinia, the store is a reactive proxy built on reactive(). When destructuring primitive state directly without wrapping, JavaScript copies the values, silently severing reactivity from the store.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the destructuring assignment that calls "use...Store()". If extracting state or getters, they must pass through storeToRefs.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Use the official utility "storeToRefs(store)" to destructure state and getters as "Ref<T>".\n' +
+          '2. Actions (store methods) must NOT pass through storeToRefs; destructure actions directly from the store instance or call "store.action()".\n' +
+          '3. If exclusively destructuring actions, document with "// pinia-ok: actions only".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: severed reactivity on username and score\n' +
           'const { username, score, login } = useAuthStore();\n\n' +
-          '// ✅ Correcto: storeToRefs para estado/getters, store directo para acciones\n' +
+          '// ✅ Correct: storeToRefs for state/getters, direct store for actions\n' +
           'import { storeToRefs } from "pinia";\n' +
           'const authStore = useAuthStore();\n' +
           'const { username, score } = storeToRefs(authStore);\n' +
           'const { login } = authStore;',
         'no-direct-state-mutation-outside-actions':
-          'Causa Raíz:\n' +
-          'Se detectó una asignación directa a la propiedad interna "store.$state = ..." fuera de los coordinadores autorizados de persistencia.\n' +
-          'Sobrescribir $state elude los plugins de Pinia, desincroniza las suscripciones de auditoría ($subscribe) y viola el principio de encapsulamiento del estado.\n\n' +
-          'Diagnóstico:\n' +
-          'Busca ". $state =" en el código del componente o composable.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Encapsular la modificación dentro de una acción nombrada ("action") en la definición de la store.\n' +
-          '2. Si necesitas aplicar un parche múltiple de varias propiedades a la vez, utiliza "store.$patch({ ... })" o "store.$patch((state) => { ... })".\n' +
-          '3. Si se trata de un módulo oficial de persistencia/hidratación de partidas o datos locales, registra el archivo en "config.persistence.authorizedSaveFiles" o "config.pinia.authorizedMutationFiles" en "audit.config.ts".\n\n' +
-          'Ejemplo Antes vs Después:\n' +
-          '// ❌ Incorrecto: reasignación directa de $state en componente\n' +
+          '1. Root Cause:\n' +
+          'Direct assignment to the internal property "store.$state = ..." was detected outside authorized persistence coordinators.\n' +
+          'Overwriting $state bypasses Pinia plugins, desynchronizes $subscribe audit listeners, and violates state encapsulation.\n\n' +
+          '2. Diagnosis:\n' +
+          'Search for ".$state =" in the component or composable source code.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Encapsulate the mutation inside a named action in the store definition.\n' +
+          '2. If applying multiple property updates simultaneously, use "store.$patch({ ... })" or "store.$patch((state) => { ... })".\n' +
+          '3. If this is an authorized game persistence/hydration coordinator, register the file in "config.persistence.authorizedSaveFiles" or "config.pinia.authorizedMutationFiles" in "audit.config.ts".\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Incorrect: direct reassignment of $state in component\n' +
           'playerStore.$state = newPlayerData;\n\n' +
-          '// ✅ Correcto: llamada a acción o uso de $patch\n' +
+          '// ✅ Correct: call action or use $patch\n' +
           'playerStore.loadProfile(newPlayerData);\n' +
-          '// o bien: playerStore.$patch(newPlayerData);'
+          '// or: playerStore.$patch(newPlayerData);'
       },
       allowedExtensions: new Set(['.vue', '.ts']),
       requiresAst: true

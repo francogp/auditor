@@ -111,24 +111,24 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_ephemeral_storage_isolation",
 			name: "Ephemeral Storage & Scratch Isolation Validator",
-			description: "Aislamiento estricto de archivos temporales en scratch/",
+			description: "Strict isolation of temporary files in scratch/",
 			family: "architecture",
 			ruleIds: EPHEMERAL_STORAGE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(EPHEMERAL_STORAGE_RULES, "behavior"),
-			packageName: "Aislamiento",
+			packageName: "Isolation",
 			configKey: "persistence.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "📁",
 			ruleDescriptions: {
-				"ephemeral-no-source-temp-dirs": "Carpeta temporal en código",
-				"ephemeral-no-gitignore-source-temp": "Entrada temporal en .gitignore",
-				"ephemeral-no-source-temp-references": "Referencia a carpeta temporal"
+				"ephemeral-no-source-temp-dirs": "Temporary directory in source code",
+				"ephemeral-no-gitignore-source-temp": "Temporary entry in .gitignore",
+				"ephemeral-no-source-temp-references": "Reference to temporary directory"
 			},
 			ruleRemediations: {
-				"ephemeral-no-source-temp-dirs": "📖 GUÍA DE REMEDIACIÓN: ephemeral-no-source-temp-dirs\n1. Causa Raíz: Se detectó una carpeta temporal (`temp`, `tmp`, `.temp`, `.tmp`, `scratch`, `ephemeral`) dentro de las rutas de código fuente (`src/`, `scripts/`, `tests/`, `database/`). La arquitectura prohíbe crear directorios temporales dentro del árbol de código; todo almacenamiento efímero debe residir estrictamente en `scratch/`.\n2. Diagnóstico: Ubica la carpeta efímera reportada dentro del árbol de fuentes.\n3. Solución Canónica:\n   a) Elimina la carpeta temporal de la fuente.\n   b) Modifica los scripts o tests generadores para escribir en `scratch/<modulo>/` o usar la utilidad de sandbox temporal.\n4. Ejemplo:\n   ❌ Prohibido: `database/tmp/` o `src/services/temp/`\n   ✅ Canónico:  `scratch/test-db/` o `scratch/temp-exports/`",
-				"ephemeral-no-gitignore-source-temp": "📖 GUÍA DE REMEDIACIÓN: ephemeral-no-gitignore-source-temp\n1. Causa Raíz: El archivo `.gitignore` contiene patrones que ignoran directorios temporales dentro de las fuentes (ej: `src/**/temp/`, `database/tmp/`). Esto oculta la contaminación de fuentes en lugar de canalizar los archivos efímeros a `scratch/`.\n2. Diagnóstico: Revisa el archivo `.gitignore` en la línea señalada.\n3. Solución Canónica: Elimina el patrón que ignora temporales en fuentes y asegúrate de que `.gitignore` contenga simplemente la regla de aislamiento global `scratch/`.\n4. Ejemplo:\n   ❌ Incorrecto: `src/temp/` o `tests/tmp/` en `.gitignore`\n   ✅ Canónico:  `scratch/` en `.gitignore`",
-				"ephemeral-no-source-temp-references": "📖 GUÍA DE REMEDIACIÓN: ephemeral-no-source-temp-references\n1. Causa Raíz: El código fuente contiene literales de ruta o resoluciones (`path.join`, `path.resolve`) que apuntan a subdirectorios temporales dentro de `src/`, `scripts/`, `tests/` o `database/`.\n2. Diagnóstico: Inspecciona la línea reportada y ubica la referencia de ruta temporal.\n3. Solución Canónica:\n   a) Redirige la ruta para que apunte a `path.resolve(projectRoot, 'scratch', ...)`.\n   b) Si la ruta es indispensable y justificada en un test específico, añade `// scratch-ok: <justificación>`.\n4. Ejemplo:\n   ❌ Prohibido: `const dbPath = path.resolve(__dirname, 'temp', 'test.db');`\n   ✅ Canónico:  `const dbPath = path.resolve(process.cwd(), 'scratch', 'test.db');`"
+				"ephemeral-no-source-temp-dirs": "📖 REMEDIATION GUIDE: ephemeral-no-source-temp-dirs\n1. Root Cause: A temporary folder (`temp`, `tmp`, `.temp`, `.tmp`, `scratch`, `ephemeral`) was detected inside source code trees (`src/`, `scripts/`, `tests/`, `database/`). Ephemeral storage must strictly reside inside `scratch/`.\n2. Diagnosis: Locate the reported ephemeral folder inside the source tree.\n3. Canonical Solution:\n   a) Delete the temporary directory from source code.\n   b) Update generating scripts or tests to write to `scratch/<module>/` or use the ephemeral sandbox utility.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `database/tmp/` or `src/services/temp/`\n   ✅ Canonical:  `scratch/test-db/` or `scratch/temp-exports/`",
+				"ephemeral-no-gitignore-source-temp": "📖 REMEDIATION GUIDE: ephemeral-no-gitignore-source-temp\n1. Root Cause: The `.gitignore` file ignores temporary directories inside sources (e.g. `src/**/temp/`, `database/tmp/`). This masks source pollution instead of funneling artifacts to `scratch/`.\n2. Diagnosis: Inspect `.gitignore` at the reported line.\n3. Canonical Solution: Remove patterns ignoring source-level temporaries and ensure `.gitignore` contains the global isolation rule `scratch/`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: `src/temp/` or `tests/tmp/` in `.gitignore`\n   ✅ Canonical: `scratch/` in `.gitignore`",
+				"ephemeral-no-source-temp-references": "📖 REMEDIATION GUIDE: ephemeral-no-source-temp-references\n1. Root Cause: Source code contains path literals or resolutions (`path.join`, `path.resolve`) targeting temporary directories inside `src/`, `scripts/`, `tests/`, or `database/`.\n2. Diagnosis: Locate the temporary path reference at the reported line.\n3. Canonical Solution:\n   a) Redirect paths to target `path.resolve(projectRoot, 'scratch', ...)`.\n   b) If strictly required in a specific test fixture, annotate with `// scratch-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const dbPath = path.resolve(__dirname, 'temp', 'test.db');`\n   ✅ Canonical:  `const dbPath = path.resolve(process.cwd(), 'scratch', 'test.db');`"
 			},
 			coverage: {
 				include: [".gitignore", ...effectiveRoots.map((r) => `${r}/**/*.{ts,vue,js,sql,sh}`)],
@@ -257,6 +257,6 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 		}
 	}
 };
-if (process.argv[1] && import.meta.filename && path.basename(process.argv[1]) === path.basename(import.meta.filename)) await BaseAuditor.runCli(new EphemeralStorageIsolationAuditor());
+await BaseAuditor.runCliIfMain(import.meta.url, new EphemeralStorageIsolationAuditor());
 //#endregion
 export { CANONICAL_SOURCE_ROOTS, EPHEMERAL_STORAGE_RULES, EphemeralStorageIsolationAuditor, getEffectiveSourceRoots };

@@ -202,7 +202,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-invalid-npm-syntax');
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
-    expect(finding?.message).toContain("debe ser 'npm run compile'");
+    expect(finding?.message).toContain("must be 'npm run compile'");
   });
 
   it('detects unregistered npx binaries invoked inside scripts', async () => {
@@ -255,7 +255,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npx');
     expect(finding).toBeDefined();
     expect(finding?.message).toContain(
-      "usa 'vp dev' o 'node_modules/.bin/vite' en lugar de 'npx vite'"
+      "use 'vp dev' or 'node_modules/.bin/vite' instead of 'npx vite'"
     );
   });
 

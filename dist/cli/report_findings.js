@@ -4,11 +4,12 @@ import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { isRemediationPhaseId } from "../core/remediationPhases.js";
 import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
 import "../core/safePath.js";
 import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
 import { renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
-import { HUMAN_CONSOLE_FLAGS, bootstrapCliProject, isMainModule } from "./cliUtils.js";
+import { HUMAN_CONSOLE_FLAGS, bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -95,11 +96,11 @@ const FIX_FLAGS = /* @__PURE__ */ new Set([
 	"--fix-report"
 ]);
 function isInvokedAsByFile() {
-	const scriptArg = process.argv[1] ?? "";
+	const scriptArg = getProcessExecutedScript() ?? "";
 	return path.basename(scriptArg).toLowerCase().includes("auditor-by-file");
 }
 function isInvokedAsByRule() {
-	const scriptArg = process.argv[1] ?? "";
+	const scriptArg = getProcessExecutedScript() ?? "";
 	const scriptName = path.basename(scriptArg).toLowerCase();
 	return scriptName.includes("auditor-rules") || scriptName.includes("auditor-by-rule");
 }
@@ -204,6 +205,11 @@ function parseFilterAndValue(arg, opts) {
 		opts.category = arg.slice(9).toLowerCase();
 		return true;
 	}
+	if (arg.startsWith("suite=") || arg.startsWith("task=")) {
+		const prefixLen = arg.startsWith("suite=") ? 6 : 5;
+		opts.suitePattern = arg.slice(prefixLen).toLowerCase();
+		return true;
+	}
 	if (arg.startsWith("search=")) {
 		opts.search = arg.slice(7).toLowerCase();
 		return true;
@@ -225,8 +231,9 @@ function parseFilterAndValue(arg, opts) {
 	}
 	return false;
 }
-function parseReportOptions() {
-	const argv = process.argv.slice(2);
+function parseReportOptions(rawInputArgs = getProcessCliArgs()) {
+	const parsedCitty = parseCittyArgs(COMMON_CLI_ARGS, rawInputArgs);
+	const isHuman = resolveHumanModeFromArgs(parsedCitty) || isHumanConsoleMode(void 0, rawInputArgs);
 	const opts = {
 		category: "all",
 		phase: "all",
@@ -235,29 +242,30 @@ function parseReportOptions() {
 		filePattern: "",
 		dirPattern: "",
 		rulePattern: "",
+		suitePattern: "",
 		scope: "all",
 		breakdown: false,
 		byFile: isInvokedAsByFile(),
 		byRule: isInvokedAsByRule(),
 		flat: false,
 		top: DEFAULT_TOP_LIMIT,
-		jsonOutput: false,
+		jsonOutput: Boolean(parsedCitty.json),
 		summaryOnly: false,
 		filesOnly: false,
 		allowStale: false,
 		allowPartial: false,
 		inspectFix: false,
-		human: false
+		human: isHuman
 	};
-	for (const arg of argv) {
-		if (parseFlagArg(arg, opts) || parseScopeAndSeverity(arg, opts) || parseFilterAndValue(arg, opts)) continue;
-		if (!arg.startsWith("-")) {
-			const lower = arg.toLowerCase();
-			if (lower === "by-file" || lower === "byfile") opts.byFile = true;
-			else if (lower === "by-rule" || lower === "byrule" || lower === "rules") opts.byRule = true;
-			else if (lower === "flat" || lower === "raw") opts.flat = true;
-			else opts.category = lower;
-		}
+	const handledEntries = /* @__PURE__ */ new Set();
+	for (const rawEntry of rawInputArgs) if (parseFlagArg(rawEntry, opts) || parseScopeAndSeverity(rawEntry, opts) || parseFilterAndValue(rawEntry, opts)) handledEntries.add(rawEntry);
+	for (const posEntry of parsedCitty._.map(String)) {
+		if (handledEntries.has(posEntry)) continue;
+		const lower = posEntry.toLowerCase();
+		if (lower === "by-file" || lower === "byfile") opts.byFile = true;
+		else if (lower === "by-rule" || lower === "byrule" || lower === "rules") opts.byRule = true;
+		else if (lower === "flat" || lower === "raw") opts.flat = true;
+		else if (lower !== "human" && lower !== "json" && lower !== "help") opts.category = lower;
 	}
 	return opts;
 }
@@ -265,20 +273,20 @@ function loadAuditReport(inspectFix = false) {
 	const targetFileName = inspectFix ? "latest_fix_audit.json" : "latest_audit.json";
 	const reportPath = path.resolve(process.cwd(), "scratch/audits", targetFileName);
 	if (!fs.existsSync(reportPath)) {
-		if (inspectFix) console.error("❌ No se encontró scratch/audits/latest_fix_audit.json. Ejecuta primero \"npm run auditor:fix\".");
-		else console.error("❌ No se encontró scratch/audits/latest_audit.json. Ejecuta primero \"npm run auditor\".");
+		if (inspectFix) console.error("[Error] Could not find scratch/audits/latest_fix_audit.json. Run \"npm run auditor:fix\" first.");
+		else console.error("[Error] Could not find scratch/audits/latest_audit.json. Run \"npm run auditor\" first.");
 		return null;
 	}
 	try {
 		const raw = fs.readFileSync(reportPath, "utf8");
 		const parsed = JSON.parse(raw);
 		if (!parsed.meta) {
-			console.error(`❌ scratch/audits/${targetFileName} no contiene la cabecera de metadatos "meta". Ejecuta "npm run auditor" para regenerarlo.`);
+			console.error(`[Error] scratch/audits/${targetFileName} does not contain metadata header "meta". Run "npm run auditor" to regenerate.`);
 			return null;
 		}
 		return parsed;
 	} catch (e) {
-		console.error(`❌ Error al parsear scratch/audits/${targetFileName}: ${e.message}`);
+		console.error(`[Error] Failed to parse scratch/audits/${targetFileName}: ${e.message}`);
 		return null;
 	}
 }
@@ -320,17 +328,21 @@ function validateReportFreshnessAndScope(report, args) {
 		const effectiveMaxAgeMs = configuredMinutes * ONE_MINUTE_MS;
 		if (!args.allowStale && elapsedMs > effectiveMaxAgeMs) {
 			const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: "minute" })));
-			console.error(styleText("red", `❌ scratch/audits/${targetFileName} está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${configuredMinutes} min).\n`) + styleText("yellow", `   El código fuente pudo haber cambiado desde la última auditoría.\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
+			console.error(styleText("red", `[Error] scratch/audits/${targetFileName} is STALE (${elapsedMins} minutes old, limit: ${configuredMinutes} min).\n`) + styleText("yellow", `   Source code may have changed since last audit.\n`) + styleText("cyan", `   Run 'npm run auditor' to regenerate and validate report.`));
 			process.exit(1);
 		}
 	} catch (err) {
-		if (err.message.includes("OBSOLETO")) throw err;
-		console.error(styleText("red", `❌ scratch/audits/${targetFileName} contiene un timestamp inválido ('${report.meta.timestamp}').\n`) + styleText("cyan", `👉 DEBES ejecutar 'npm run auditor' para regenerar y validar el reporte.`));
+		if (err.message.includes("STALE") || err.message.includes("OBSOLETO")) throw err;
+		console.error(styleText("red", `[Error] scratch/audits/${targetFileName} contains an invalid timestamp ('${report.meta.timestamp}').\n`) + styleText("cyan", `   Run 'npm run auditor' to regenerate and validate report.`));
 		process.exit(1);
 	}
 	if (report.meta.isFullAudit) return;
-	if (args.human) console.log(styleText("yellow", `⚠️  MODO PARCIAL: Inspeccionando resultados de corrida parcial (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(", ")}).\n`));
-	else console.log(styleText("yellow", `ℹ️  [Notice] Inspecting partial run (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites executed).\n`));
+	if (args.human) console.log(styleText("yellow", `[Notice] Partial run: inspecting ${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites: ${report.meta.executedSuites.join(", ")}.\n`));
+	else console.log(styleText("yellow", `[Notice] Inspecting partial run (${report.meta.executedSuiteCount}/${report.meta.totalDiscoveredSuites} suites executed).\n`));
+	if (args.suitePattern) {
+		const cleanSuite = args.suitePattern.toLowerCase();
+		if (!report.meta.executedSuites.some((s) => s.toLowerCase().includes(cleanSuite) || cleanSuite.includes(s.toLowerCase())) && !args.allowPartial) console.warn(styleText("yellow", `[Warning] Requested suite ('${args.suitePattern}') may not have been audited in this partial run.\n   Suites executed: ${report.meta.executedSuites.join(", ")}\n`));
+	}
 	if (args.category !== "all") {
 		const matchesExecutedSuite = report.meta.executedSuites.some((s) => s.toLowerCase().includes(args.category.toLowerCase()) || args.category.toLowerCase().includes(s.toLowerCase()));
 		const matchesExecutedFinding = Object.values(report.families).some((fam) => {
@@ -344,11 +356,11 @@ function validateReportFreshnessAndScope(report, args) {
 				return ruleDescMatches || ruleIdMatches || suiteDescMatches || suiteNameMatches;
 			}));
 		});
-		if (!matchesExecutedSuite && !matchesExecutedFinding && !args.allowPartial) console.warn(styleText("yellow", `⚠️  La categoría solicitada ('${args.category}') podría no haber sido auditada en la última corrida parcial.\n   Suites ejecutadas: ${report.meta.executedSuites.join(", ")}\n`));
+		if (!matchesExecutedSuite && !matchesExecutedFinding && !args.allowPartial) console.warn(styleText("yellow", `[Warning] Requested category ('${args.category}') may not have been audited in this partial run.\n   Suites executed: ${report.meta.executedSuites.join(", ")}\n`));
 	}
 }
 function recordFindingInCategory(finding, suiteDesc, categoryCounts) {
-	const catKey = finding.ruleDescription || suiteDesc || finding.ruleId || "Sin Categoría";
+	const catKey = finding.ruleDescription || suiteDesc || finding.ruleId || "Uncategorized";
 	const entry = categoryCounts[catKey] ?? (categoryCounts[catKey] = {
 		errors: 0,
 		warnings: 0,
@@ -366,6 +378,9 @@ function collectReportCategoryCounts(report) {
 		for (const suite of fam.suites) {
 			const suiteDesc = suite.description || suite.name || "";
 			for (const finding of suite.findings) {
+				if (!finding.suiteId && suite.id) finding.suiteId = suite.id;
+				else if (!finding.suiteId && suite.name) finding.suiteId = suite.name;
+				if (!finding.suiteName && suiteDesc) finding.suiteName = suiteDesc;
 				recordFindingInCategory(finding, suiteDesc, categoryCounts);
 				allFindings.push(finding);
 			}
@@ -400,6 +415,13 @@ function matchesSearchFilter(f, catKey, search) {
 }
 function checkFindingMatchesFilter(f, catKey, args) {
 	if (args.phase !== "all" && f.remediationPhase !== args.phase) return false;
+	if (args.suitePattern) {
+		const cleanSuite = args.suitePattern.toLowerCase();
+		const inSuiteId = f.suiteId ? f.suiteId.toLowerCase().includes(cleanSuite) : false;
+		const inSuiteName = f.suiteName ? f.suiteName.toLowerCase().includes(cleanSuite) : false;
+		const inRuleId = f.ruleId ? f.ruleId.toLowerCase().includes(cleanSuite) : false;
+		if (!inSuiteId && !inSuiteName && !inRuleId) return false;
+	}
 	if (args.category !== "all") {
 		const cleanArg = args.category.replace(/[-_]/g, " ").toLowerCase();
 		if (!catKey.replace(/[-_]/g, " ").toLowerCase().includes(cleanArg)) return false;
@@ -475,15 +497,16 @@ function renderCategoryDetailSample(target, categoryArg, sortedCategories, args)
 		const [catName, data] = target;
 		const filtered = data.findings.filter((f) => checkFindingMatchesFilter(f, catName, args));
 		const limit = args.top === "all" ? filtered.length : args.top;
-		console.log(`\n🔍 Muestra de hallazgos para categoría "${catName}" (Mostrando ${Math.min(limit, filtered.length)} de ${filtered.length}):\n`);
+		if (args.human) console.log(`\n🔍 Sample findings for category "${catName}" (Showing ${Math.min(limit, filtered.length)} of ${filtered.length}):\n`);
+		else console.log(`\n[Findings] Category "${catName}" (Showing ${Math.min(limit, filtered.length)} of ${filtered.length}):\n`);
 		filtered.slice(0, limit).forEach((f, idx) => {
 			console.log(`  ${idx + 1}. [${f.severity.toUpperCase()}] ${formatFindingLocation(f)}`);
 			console.log(`     ${f.message}`);
-			if (f.context) console.log(`     Contexto: ${f.context}`);
+			if (f.context) console.log(`     Context: ${f.context}`);
 		});
 		console.log("");
 	} else {
-		console.log(`\n⚠️  No se encontraron hallazgos para la categoría "${categoryArg}". Categorías disponibles:`);
+		console.log(`\n[Notice] No findings found for category "${categoryArg}". Available categories:`);
 		sortedCategories.forEach(([name]) => console.log(`  • ${name}`));
 		console.log("");
 	}
@@ -491,6 +514,7 @@ function renderCategoryDetailSample(target, categoryArg, sortedCategories, args)
 function renderFilteredDetailSample(matchingFindings, args) {
 	const limit = args.flat || args.top === "all" ? matchingFindings.length : args.top;
 	const filterInfo = [
+		args.suitePattern ? `suite="${args.suitePattern}"` : null,
 		args.severity !== "all" ? `severity=${args.severity}` : null,
 		args.dirPattern ? `dir="${args.dirPattern}"` : null,
 		args.rulePattern ? `rule="${args.rulePattern}"` : null,
@@ -499,7 +523,7 @@ function renderFilteredDetailSample(matchingFindings, args) {
 		args.filePattern ? `file="${args.filePattern}"` : null,
 		args.flat ? "flat" : null
 	].filter(Boolean).join(", ");
-	const headerText = args.human ? `\n🔍 Hallazgos filtrados (Filtros activos: ${filterInfo || "todos"}): ${Math.min(limit, matchingFindings.length)} de ${matchingFindings.length}\n` : `\n🔍 Filtered findings (active filters: ${filterInfo || "all"}): ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}\n`;
+	const headerText = args.human ? `\n🔍 Filtered findings (active filters: ${filterInfo || "all"}): ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}\n` : `\n[Findings] Filtered (filters: ${filterInfo || "all"}): showing ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}:\n`;
 	console.log(headerText);
 	matchingFindings.slice(0, limit).forEach((f, idx) => {
 		const loc = formatFindingLocation(f);
@@ -509,7 +533,7 @@ function renderFilteredDetailSample(matchingFindings, args) {
 	console.log("");
 }
 function renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args) {
-	if (args.flat || args.rulePattern || args.search || args.filePattern || args.dirPattern || args.scope !== "all" || args.severity !== "all") renderFilteredDetailSample(matchingFindings, args);
+	if (args.flat || args.suitePattern || args.rulePattern || args.search || args.filePattern || args.dirPattern || args.scope !== "all" || args.severity !== "all") renderFilteredDetailSample(matchingFindings, args);
 	else if (args.category !== "all") {
 		const cleanArg = args.category.replace(/[-_]/g, " ").toLowerCase();
 		renderCategoryDetailSample(sortedCategories.find(([name]) => name.toLowerCase().replace(/[-_]/g, " ").includes(cleanArg)), args.category, sortedCategories, args);
@@ -517,29 +541,96 @@ function renderFindingsDetailSample(matchingFindings, sortedCategories, allFindi
 		const allErrors = allFindings.filter((f) => f.severity === "error");
 		if (allErrors.length > 0) {
 			const limit = args.top === "all" ? allErrors.length : typeof args.top === "number" ? args.top : DEFAULT_SAMPLE_ERROR_LIMIT;
-			console.log(renderSampleFindings(allErrors, limit));
+			if (args.human) console.log(renderSampleFindings(allErrors, limit));
+			else {
+				console.log(`\n[Errors] Top ${Math.min(limit, allErrors.length)} of ${allErrors.length} error(s):`);
+				allErrors.slice(0, limit).forEach((f, idx) => {
+					const loc = formatFindingLocation(f);
+					const ruleTag = f.ruleId ? `[${f.ruleId}] ` : "";
+					console.log(`  ${idx + 1}. [ERROR] ${loc}: ${ruleTag}${f.message}`);
+				});
+				console.log("");
+			}
 		}
 	}
 }
 function renderRulesView(matchingFindings, args) {
-	const sortedRules = aggregateAndSortFindings(matchingFindings, (f) => f.ruleId || f.ruleDescription || "desconocida");
+	const sortedRules = aggregateAndSortFindings(matchingFindings, (f) => f.ruleId || f.ruleDescription || "unknown");
 	const rulesToDisplay = args.top === "all" ? sortedRules : sortedRules.slice(0, args.top);
-	const bannerTitle = args.category !== "all" ? `DESGLOSE POR REGLA (${args.category})` : "DESGLOSE POR REGLA DE AUDITORÍA";
-	console.log("\n" + renderBanner(bannerTitle, `Total hallazgos: ${matchingFindings.length} | Reglas con violaciones: ${sortedRules.length}`));
-	console.log("\n" + renderFindingsBreakdownTable(rulesToDisplay, "REGLA / ID DE VERIFICACIÓN") + "\n");
+	if (!args.human) {
+		if (matchingFindings.length === 0) {
+			console.log(styleText("green", "[OK] No findings match active filters."));
+			return;
+		}
+		console.log(`\n[ByRule] ${sortedRules.length} rule(s) violated (${matchingFindings.length} findings):`);
+		for (const [ruleId, stats] of rulesToDisplay) console.log(`• [${ruleId}]: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
+		console.log("");
+		return;
+	}
+	const bannerTitle = args.category !== "all" ? `BREAKDOWN BY RULE (${args.category})` : "AUDIT RULE BREAKDOWN";
+	console.log("\n" + renderBanner(bannerTitle, `Total findings: ${matchingFindings.length} | Rules with violations: ${sortedRules.length}`));
+	console.log("\n" + renderFindingsBreakdownTable(rulesToDisplay, "RULE / AUDIT ID") + "\n");
 }
 function renderBreakdownView(matchingFindings, args) {
 	const sortedDirs = aggregateAndSortFindings(matchingFindings, (f) => getDirectoryBucket(f.file));
-	const bannerTitle = args.category !== "all" ? `DISTRIBUCIÓN POR DIRECTORIO (${args.category})` : "DISTRIBUCIÓN POR DIRECTORIO / ÁMBITO";
-	console.log("\n" + renderBanner(bannerTitle, `Total hallazgos: ${matchingFindings.length} | Directorios afectados: ${sortedDirs.length}`));
-	console.log("\n" + renderFindingsBreakdownTable(sortedDirs, "DIRECTORIO / ÁMBITO") + "\n");
+	if (!args.human) {
+		if (matchingFindings.length === 0) {
+			console.log(styleText("green", "[OK] No findings match active filters."));
+			return;
+		}
+		console.log(`\n[Breakdown] ${sortedDirs.length} scope(s) affected (${matchingFindings.length} findings):`);
+		for (const [dir, stats] of sortedDirs) console.log(`• ${dir}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
+		console.log("");
+		return;
+	}
+	const bannerTitle = args.category !== "all" ? `DISTRIBUTION BY DIRECTORY (${args.category})` : "DIRECTORY / SCOPE DISTRIBUTION";
+	console.log("\n" + renderBanner(bannerTitle, `Total findings: ${matchingFindings.length} | Affected directories: ${sortedDirs.length}`));
+	console.log("\n" + renderFindingsBreakdownTable(sortedDirs, "DIRECTORY / SCOPE") + "\n");
 }
 function renderFilesOnlyView(matchingFindings, report, args) {
 	const sortedFiles = aggregateAndSortFindings(matchingFindings, (f) => getNormalizedRelPath(f.file));
 	const filesToDisplay = args.top === "all" ? sortedFiles : sortedFiles.slice(0, args.top);
-	const bannerTitle = args.category !== "all" ? `ARCHIVOS CON HALLAZGOS (${args.category})` : "ARCHIVOS CON HALLAZGOS DE AUDITORÍA";
-	console.log("\n" + renderBanner(bannerTitle, `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Archivos afectados: ${sortedFiles.length}`));
-	console.log("\n" + renderFindingsBreakdownTable(filesToDisplay, "ARCHIVO AFECTADO") + "\n");
+	if (!args.human) {
+		if (matchingFindings.length === 0) {
+			console.log(styleText("green", "[OK] No findings match active filters."));
+			return;
+		}
+		console.log(`\n[Files] ${sortedFiles.length} file(s) affected (${matchingFindings.length} findings):`);
+		for (const [file, stats] of filesToDisplay) console.log(`• ${file}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
+		console.log("");
+		return;
+	}
+	const bannerTitle = args.category !== "all" ? `FILES WITH FINDINGS (${args.category})` : "FILES WITH AUDIT FINDINGS";
+	console.log("\n" + renderBanner(bannerTitle, `Status: ${report.status === "passed" ? "PASSED" : "FAILED"} | Affected files: ${sortedFiles.length}`));
+	console.log("\n" + renderFindingsBreakdownTable(filesToDisplay, "AFFECTED FILE") + "\n");
+}
+function renderByFileCompact(fileSummaries, totalFindings, totalErrors, totalWarnings, args) {
+	if (fileSummaries.length === 0) {
+		console.log(styleText("green", "[OK] No findings match active filters."));
+		return;
+	}
+	console.log(`\n[ByFile] ${fileSummaries.length} file(s) affected (${totalFindings} findings):`);
+	const limit = typeof args.top === "number" ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
+	for (const fs of fileSummaries.slice(0, limit)) {
+		console.log(`• ${fs.file} (${fs.errors} error(s), ${fs.warnings} warning(s))`);
+		if (!args.summaryOnly) for (const f of fs.findings) {
+			const loc = f.line ? `${f.line}:${f.col ?? 0}` : "1:1";
+			const rule = f.ruleId ?? "unknown";
+			console.log(`  [${f.severity.toUpperCase()}] ${loc} [${rule}]: ${f.message}`);
+		}
+	}
+	console.log(`\nTotal: ${totalErrors} error(s), ${totalWarnings} warning(s) across ${fileSummaries.length} file(s).\n`);
+}
+function buildByFileFilterLabels(args) {
+	const filterLabels = [];
+	if (args.phase !== "all") filterLabels.push(`phase: "${args.phase}"`);
+	if (args.filePattern) filterLabels.push(`file: "${args.filePattern}"`);
+	if (args.suitePattern) filterLabels.push(`suite: "${args.suitePattern}"`);
+	if (args.category !== "all") filterLabels.push(`category: "${args.category}"`);
+	if (args.severity !== "all") filterLabels.push(`severity: ${args.severity}`);
+	if (args.dirPattern) filterLabels.push(`directory: "${args.dirPattern}"`);
+	if (args.search) filterLabels.push(`search: "${args.search}"`);
+	return filterLabels;
 }
 function renderByFileView(matchingFindings, report, args) {
 	const sortedFindings = sortFindingsByFileAndLine(matchingFindings);
@@ -569,17 +660,15 @@ function renderByFileView(matchingFindings, report, args) {
 		console.log(JSON.stringify(byFileReport, null, 2));
 		return;
 	}
-	const filterLabels = [];
-	if (args.phase !== "all") filterLabels.push(`fase: "${args.phase}"`);
-	if (args.filePattern) filterLabels.push(`archivo: "${args.filePattern}"`);
-	if (args.category !== "all") filterLabels.push(`categoría: "${args.category}"`);
-	if (args.severity !== "all") filterLabels.push(`severidad: ${args.severity}`);
-	if (args.dirPattern) filterLabels.push(`directorio: "${args.dirPattern}"`);
-	if (args.search) filterLabels.push(`búsqueda: "${args.search}"`);
-	const subtitle = filterLabels.length > 0 ? `Filtros: ${filterLabels.join(", ")} | Archivos: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}` : `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Archivos afectados: ${fileSummaries.length} | Incidencias: ${matchingFindings.length}`;
-	console.log("\n" + renderBanner("HALLAZGOS DE AUDITORÍA AGRUPADOS POR ARCHIVO Y LÍNEA", subtitle));
+	if (!args.human) {
+		renderByFileCompact(fileSummaries, matchingFindings.length, totalErrors, totalWarnings, args);
+		return;
+	}
+	const filterLabels = buildByFileFilterLabels(args);
+	const subtitle = filterLabels.length > 0 ? `Filters: ${filterLabels.join(", ")} | Files: ${fileSummaries.length} | Findings: ${matchingFindings.length}` : `Status: ${report.status === "passed" ? "PASSED" : "FAILED"} | Files: ${fileSummaries.length} | Findings: ${matchingFindings.length}`;
+	console.log("\n" + renderBanner("AUDIT FINDINGS GROUPED BY FILE AND LINE", subtitle));
 	if (fileSummaries.length === 0) {
-		console.log(styleText("green", "\n✨ No se encontraron incidencias que coincidan con los filtros activos.\n"));
+		console.log(styleText("green", "\n✨ No findings match active filters.\n"));
 		return;
 	}
 	if (fileSummaries.length > 1 && !args.filePattern) {
@@ -588,7 +677,7 @@ function renderByFileView(matchingFindings, report, args) {
 			warnings: fs.warnings
 		}]);
 		const tableLimit = typeof args.top === "number" ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
-		console.log("\n" + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), "ARCHIVO AFECTADO") + "\n");
+		console.log("\n" + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), "AFFECTED FILE") + "\n");
 	}
 	const treeOutput = renderFindingsByFileTree(fileSummaries, {
 		maxFiles: args.top,
@@ -623,16 +712,29 @@ function runReport() {
 		renderFilesOnlyView(matchingFindings, report, args);
 		return;
 	}
-	const categoriesToRender = args.phase !== "all" || args.category !== "all" || args.severity !== "all" || args.search || args.filePattern || args.dirPattern || args.scope !== "all" ? filteredCategories : categoryCounts;
+	const categoriesToRender = args.phase !== "all" || args.suitePattern || args.category !== "all" || args.severity !== "all" || args.search || args.filePattern || args.dirPattern || args.scope !== "all" ? filteredCategories : categoryCounts;
 	const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
-	const hasSpecificFilter = Boolean(args.flat || args.rulePattern || args.search || args.filePattern || args.dirPattern || args.category !== "all" || args.phase !== "all" || args.severity !== "all" || args.scope !== "all");
+	const hasSpecificFilter = Boolean(args.flat || args.suitePattern || args.rulePattern || args.search || args.filePattern || args.dirPattern || args.category !== "all" || args.phase !== "all" || args.severity !== "all" || args.scope !== "all");
 	if (!args.human && hasSpecificFilter) {
 		if (args.summaryOnly) return;
 		renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 		return;
 	}
-	console.log("\n" + renderBanner("REPORTE CONSOLIDADO DE ADVERTENCIAS Y ERRORES", `Estado: ${report.status === "passed" ? "PASSED" : "FAILED"} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`));
-	console.log("\n" + renderFindingsBreakdownTable(sortedCategories, "CATEGORÍA / REGLA DE AUDITORÍA") + "\n");
+	if (!args.human) {
+		if (matchingFindings.length === 0) {
+			console.log(styleText("green", "[OK] 0 errors and 0 warnings. All audit suites passed."));
+			return;
+		}
+		console.log(`\n[Summary] Status: ${report.status === "passed" ? "PASSED" : "FAILED"} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal} | Violations: ${matchingFindings.length} (${report.summary.errors} errors, ${report.summary.warnings} warnings)`);
+		console.log("\n[Categories]:");
+		for (const [name, stats] of sortedCategories.slice(0, typeof args.top === "number" ? args.top : DEFAULT_TOP_LIMIT)) console.log(`• ${name}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
+		console.log("");
+		if (args.summaryOnly) return;
+		renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+		return;
+	}
+	console.log("\n" + renderBanner("CONSOLIDATED AUDIT WARNINGS & ERRORS REPORT", `Status: ${report.status === "passed" ? "PASSED" : "FAILED"} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal}`));
+	console.log("\n" + renderFindingsBreakdownTable(sortedCategories, "CATEGORY / AUDIT RULE") + "\n");
 	if (args.summaryOnly) return;
 	renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }

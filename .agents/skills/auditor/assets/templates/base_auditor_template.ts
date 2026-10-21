@@ -1,12 +1,17 @@
 /**
  * TEMPLATE: BaseAuditor (Composite / Multi-File / Database Auditor)
  * Location: scripts/auditors/<family>/validate_<name>.ts
- * 
+ *
  * Use this template when your auditor validates cross-file relationships,
  * static TypeScript databases, SQL schemas, FSM diagrams, or asset bundles.
+ *
+ * CLI Contract Governance (`validate_cli_contracts`):
+ *   - Standalone CLI execution MUST use `await BaseAuditor.runCliIfMain(import.meta.url, new MyCompositeAuditor());`
+ *     which delegates argument parsing (`human`, `--fix`, `--json`, `--help`) to the canonical `citty` harness.
+ *   - Direct `process.argv` access, `node:util.parseArgs`, or homebrew flag parsing (`startsWith('--')`)
+ *     is strictly prohibited.
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
@@ -80,11 +85,11 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       configFiles: MyCompositeAuditor.configFiles,
       id: 'validate_my_composite',
       name: 'My Composite Auditor',
-      description: 'Valida integridad y paridad cruzada en bases de datos',
+      description: 'Validates cross-dataset parity and registry integrity',
       icon: '🏛️', // Mandatory thematic emoji representing this auditor
       family: 'domain_data', // 'architecture' | 'domain_data' | 'persistence' | 'fsm' | 'assets' | 'documentation'
       ruleIds: MY_COMPOSITE_RULES,
-      packageName: 'Datos',
+      packageName: 'Data',
       // Mandatory: SSoT configuration key inspected by the dynamic suite gating engine:
       configKey: 'paths.dataRoots',
       // Mandatory: Default configuration object dynamically collected for .auditor/audit.config.ts:
@@ -100,27 +105,27 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       // If true, thirdPartyToolPolicy ({ toolName, fallbackBehavior: 'throw' | 'violation', fallbackRuleId }) is mandatory.
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'composite-missing-entry': 'Entrada faltante en registro canónico',
-        'composite-parity-mismatch': 'Desincronización entre datasets',
-        'composite-missing-config': 'Archivo de configuración faltante'
+        'composite-missing-entry': 'Missing entry in canonical registry',
+        'composite-parity-mismatch': 'Cross-dataset parity mismatch',
+        'composite-missing-config': 'Missing required configuration file'
       },
-      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure):
+      // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):
       ruleRemediations: {
         'composite-missing-entry':
-          'Causa Raíz: Una entrada requerida no se encuentra en el registro canónico de datos.\n' +
-          'Diagnóstico: Inspecciona el archivo de dataset objetivo en src/data/ y compara con el esquema canónico.\n' +
-          'Solución Canónica: Declara todas las claves requeridas asegurando que no contengan valores nulos o indefinidos.\n' +
-          'Ejemplo / Comando: npm run auditor',
+          '1. Root Cause: A required entry is missing from the canonical data registry.\n' +
+          '2. Diagnosis: Inspect the target dataset file in src/data/ and compare against the canonical schema.\n' +
+          '3. Canonical Solution: Declare all required keys ensuring no null or undefined values exist.\n' +
+          '4. Example / Command: npm run auditor',
         'composite-parity-mismatch':
-          'Causa Raíz: Existe una discrepancia de paridad estructural o de claves entre los datasets comparados.\n' +
-          'Diagnóstico: Revisa los registros dispares reportados en el hallazgo.\n' +
-          'Solución Canónica: Sincroniza las claves y estructuras para que concuerden 1 a 1.\n' +
-          'Ejemplo / Comando: npm run auditor',
+          '1. Root Cause: Structural or key parity mismatch detected between compared datasets.\n' +
+          '2. Diagnosis: Review the mismatched records reported in the finding.\n' +
+          '3. Canonical Solution: Synchronize keys and structures so they match 1-to-1.\n' +
+          '4. Example / Command: npm run auditor',
         'composite-missing-config':
-          'Causa Raíz: El archivo de configuración requerido por el sub-sistema no existe en la raíz del proyecto.\n' +
-          'Diagnóstico: Verifica si el archivo especificado en configFiles está ausente en el disco.\n' +
-          'Solución Canónica: Ejecuta "npm run auditor:fix" o "auditor fix" para crearlo automáticamente si es auto-reparable, o créalo manualmente con la estructura canónica.\n' +
-          'Ejemplo / Comando: npm run auditor:fix'
+          '1. Root Cause: The configuration file required by the subsystem is missing from the project root.\n' +
+          '2. Diagnosis: Check whether the file specified in configFiles exists on disk.\n' +
+          '3. Canonical Solution: Run "npm run auditor:fix" or "auditor fix" to scaffold it automatically, or create it with the canonical structure.\n' +
+          '4. Example / Command: npm run auditor:fix'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_COMPOSITE_RULES, 'contracts'),
@@ -188,6 +193,5 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   }
 }
 
-// Canonical CLI Entrypoint for standalone and dynamic execution
+// Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new MyCompositeAuditor());
-

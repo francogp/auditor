@@ -11,8 +11,14 @@
 import fs from 'node:fs/promises';
 import nodeFs from 'node:fs';
 import path from 'node:path';
-import { parseArgs, styleText } from 'node:util';
+import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from './cli/cittyHarness.ts';
 import './permissionGuard.ts';
 import {
   type AuditFamily,
@@ -631,25 +637,24 @@ export function clearWorkspaceFileCache(): void {
   globalWorkspaceFileRamCache.clear();
 }
 
+const SUB_AUDITOR_CLI_ARGS = {
+  ...COMMON_CLI_ARGS,
+  output: { type: 'string', alias: 'o', description: 'Output JSON file path' },
+  'errors-only': { type: 'boolean', default: false, description: 'Report only error-severity findings' },
+  speed: { type: 'string', description: 'Execution speed tier ceiling' },
+  'only-speed': { type: 'string', description: 'Exact execution speed tier' },
+  fix: { type: 'boolean', default: false, description: 'Run in automatic repair mode' },
+  rule: { type: 'string', alias: 'r', description: 'Filter by rule ID' },
+  top: { type: 'string', alias: 't', description: 'Maximum findings to display' },
+  'changed-since': { type: 'string', description: 'Git ref for differential scan' }
+} as const satisfies CittyArgsDef;
+
 export function setupAuditor(config: AuditorConfig): AuditorContext {
   const fileRamCache = new Map<string, string[]>();
 
   const startTime = performance.now();
-  const args = process.argv.slice(2);
-  const normalized = args.map((a) =>
-    a.includes('=') && !a.startsWith('-') ? `--${a}` : ['errors-only'].includes(a) ? `--${a}` : a
-  );
-
-  const { values } = parseArgs({
-    args: normalized,
-    options: {
-      output: { type: 'string', short: 'o' },
-      'errors-only': { type: 'boolean' },
-      speed: { type: 'string' },
-      'only-speed': { type: 'string' }
-    },
-    strict: false
-  });
+  const parsed = parseCittyArgs(SUB_AUDITOR_CLI_ARGS, getProcessCliArgs());
+  const values: Record<string, unknown> = { ...parsed };
 
   const projectRoot = config.projectRoot || process.cwd();
   const combinedIgnores = [...(config.extraIgnorePatterns || [])];
@@ -1019,6 +1024,7 @@ export const AST_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities> = Object.f
 export interface FileScanRootsOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
+  readonly fix?: boolean;
 }
 
 /**
@@ -2582,10 +2588,11 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   protected isFixModeRequested(): boolean {
     const rawValues = this.context.values as Record<string, unknown> | undefined; // open-record: Generic parsed CLI flags and options dictionary
+    const cliTokens = getProcessCliArgs();
     return (
       this.fixMode ||
-      process.argv.includes('fix') ||
-      process.argv.includes('--fix') ||
+      cliTokens.includes('fix') ||
+      cliTokens.includes('--fix') ||
       process.env.AUDIT_FIX === 'true' ||
       Boolean(rawValues?.fix)
     );

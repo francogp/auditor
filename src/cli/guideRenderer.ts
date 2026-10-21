@@ -33,7 +33,7 @@ export function findRuleGuide(
         return {
           ruleId: rId,
           ruleDescription: rDesc,
-          remediation: remediations[rId] ?? 'No hay guía de remediación registrada.',
+          remediation: remediations[rId] ?? 'No remediation guide registered.',
           task
         };
       }
@@ -49,30 +49,30 @@ export function renderRuleGuideCard(match: GuideQueryMatch, isVerbose: boolean =
   const sections: string[][] = [];
 
   // 1. Header
-  const title = `📖 GUÍA DE REMEDIACIÓN: ${match.ruleId}`;
-  const subtitle = `Suite: ${match.task.name} [${match.task.id}] | Familia: ${match.task.family.toUpperCase()}`;
+  const title = `📖 REMEDIATION GUIDE: ${match.ruleId}`;
+  const subtitle = `Suite: ${match.task.name} [${match.task.id}] | Family: ${match.task.family.toUpperCase()}`;
   sections.push([boldCyan(title), dim(subtitle)]);
 
   // 2. Rule purpose and description
-  sections.push([boldYellow('📋 DESCRIPCIÓN DEL CONTROL:'), white(`  ${match.ruleDescription}`)]);
+  sections.push([boldYellow('📋 RULE DESCRIPTION:'), white(`  ${match.ruleDescription}`)]);
 
   // 3. Isolated execution command for diagnostic reproduction
   const runCommand = `npm run auditor suite=${match.task.id}`;
-  sections.push([boldYellow('🚀 EJECUCIÓN AISLADA PARA DIAGNÓSTICO:'), white(`  ${runCommand}`)]);
+  sections.push([boldYellow('🚀 ISOLATED DIAGNOSTIC COMMAND:'), white(`  ${runCommand}`)]);
 
   // 4. Step-by-step remediation guide
   const remediationLines = match.remediation.split('\n').map((l) => `  ${l}`);
 
   sections.push([
-    boldYellow('💡 DIAGNÓSTICO, CAUSA RAÍZ Y REMEDIACIÓN PASO A PASO:'),
+    boldYellow('💡 DIAGNOSIS, ROOT CAUSE & STEP-BY-STEP REMEDIATION:'),
     white(remediationLines.join('\n'))
   ]);
 
   // 5. Linked configuration if applicable
   if (match.task.configKey) {
     sections.push([
-      boldYellow('🛠️ CONFIGURACIÓN VINCULADA:'),
-      dim(`  Sección en .auditor/audit.config.ts: `) + boldWhite(match.task.configKey)
+      boldYellow('🛠️ LINKED CONFIGURATION:'),
+      dim(`  Section in .auditor/audit.config.ts: `) + boldWhite(match.task.configKey)
     ]);
   }
 
@@ -97,12 +97,12 @@ export function renderSuiteGuideCards(task: AuditTaskDefinition, isVerbose: bool
   const ruleEntries = Object.entries(rules);
 
   if (ruleEntries.length === 0) {
-    return styleText('yellow', `\n⚠️ La suite '${task.id}' no declara reglas evaluables.\n`);
+    return styleText('yellow', `\n⚠️ Suite '${task.id}' does not declare evaluable rules.\n`);
   }
 
   const output: string[] = [];
   output.push(
-    styleText(['bold', 'cyan'], `\n🏛️ GUÍA COMPLETA DE REGLAS: ${task.name} [${task.id}]\n`)
+    styleText(['bold', 'cyan'], `\n🏛️ SUITE RULES GUIDE: ${task.name} [${task.id}]\n`)
   );
 
   for (const [rId, rDesc] of ruleEntries) {
@@ -111,7 +111,7 @@ export function renderSuiteGuideCards(task: AuditTaskDefinition, isVerbose: bool
         {
           ruleId: rId,
           ruleDescription: rDesc,
-          remediation: remediations[rId] ?? 'Sin guía declarada.',
+          remediation: remediations[rId] ?? 'No guide declared.',
           task
         },
         isVerbose
@@ -132,7 +132,7 @@ export function renderFamilyGuideIndex(
 
   const lines: string[] = [];
   lines.push(
-    boldYellow(`\n📚 CATÁLOGO DE REGLAS Y GUÍAS PARA LA FAMILIA: ${family.toUpperCase()}\n`)
+    boldYellow(`\n📚 RULES & GUIDES CATALOG FOR FAMILY: ${family.toUpperCase()}\n`)
   );
 
   for (const task of tasksInFamily) {
@@ -144,7 +144,7 @@ export function renderFamilyGuideIndex(
     lines.push('');
   }
 
-  lines.push(dim(`👉 Para ver la guía completa de una regla: auditor guide <ruleId>\n`));
+  lines.push(dim(`👉 To view the full guide for a rule: auditor guide <ruleId>\n`));
   return lines.join('\n');
 }
 
@@ -152,19 +152,19 @@ export function renderGlobalGuideIndex(allTasks: readonly AuditTaskDefinition[])
   const { boldYellow, boldCyan, dim } = themeStyles;
 
   const lines: string[] = [];
-  lines.push(boldYellow('\n📚 SISTEMA DE GUÍAS Y MANUALES A PEDIDO (@francogp/auditor)\n'));
-  lines.push('USO DEL COMANDO:');
+  lines.push(boldYellow('\n📚 ON-DEMAND AUDIT GUIDES & MANUALS (@francogp/auditor)\n'));
+  lines.push('USAGE:');
   lines.push(
-    `  ${boldCyan('auditor guide <ruleId>')}              Muestra la guía completa de una regla en particular.`
+    `  ${boldCyan('auditor guide <ruleId>')}              Shows full guide for a specific rule.`
   );
   lines.push(
-    `  ${boldCyan('auditor guide suite=<suiteId>')}        Muestra todas las guías de las reglas de una suite.`
+    `  ${boldCyan('auditor guide suite=<suiteId>')}        Shows all rule guides for a suite.`
   );
   lines.push(
-    `  ${boldCyan('auditor guide family=<family>')}        Muestra el índice de reglas por familia arquitectónica.\n`
+    `  ${boldCyan('auditor guide family=<family>')}        Shows rules index for an architectural family.\n`
   );
 
-  lines.push(boldYellow('EJEMPLOS RÁPIDOS:'));
+  lines.push(boldYellow('QUICK EXAMPLES:'));
   lines.push(`  npm run auditor guide coverage-missing-ledger`);
   lines.push(`  npm run auditor guide audit-config-missing-section`);
   lines.push(`  npm run auditor guide suite=validate_audit_coverage\n`);
@@ -173,7 +173,7 @@ export function renderGlobalGuideIndex(allTasks: readonly AuditTaskDefinition[])
     (acc, t) => acc + Object.keys(t.ruleDescriptions ?? t.manifest?.rules ?? {}).length,
     0
   );
-  lines.push(dim(`Total de reglas documentadas disponibles en este repositorio: ${totalRules}\n`));
+  lines.push(dim(`Total documented rules available in this repository: ${totalRules}\n`));
 
   return lines.join('\n');
 }

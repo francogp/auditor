@@ -8,11 +8,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import MagicString from 'magic-string';
-import { parse as parseAstGrep, Lang } from '@ast-grep/napi';
 import { Project, SourceFile } from 'ts-morph';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import { toPosixRelative } from '../safePath.ts';
 import type { RefactorPlan } from './refactorContracts.ts';
+
+type AstGrepModule = typeof import('@ast-grep/napi');
+type AstGrepLang = Parameters<AstGrepModule['parse']>[0];
+let cachedAstGrep: AstGrepModule | null = null;
+
+async function getAstGrep(): Promise<AstGrepModule | null> {
+  if (cachedAstGrep) return cachedAstGrep;
+  try {
+    cachedAstGrep = await import('@ast-grep/napi');
+    return cachedAstGrep;
+  } catch {
+    return null;
+  }
+}
 
 export class HybridHarnessEngine {
   public static async execute(projectRoot: string, plan: RefactorPlan): Promise<void> {
@@ -35,7 +48,7 @@ export class HybridHarnessEngine {
 
       const fileContent = fs.readFileSync(absFile, 'utf8');
       if (relFile.endsWith('.vue')) {
-        this.rewriteVueSfc(absFile, fileContent, absShared, plan);
+        await this.rewriteVueSfc(absFile, fileContent, absShared, plan);
       } else {
         await this.rewriteTypeScriptFile(absFile, relFile, fileContent, sharedFile, project, plan);
       }
@@ -60,12 +73,12 @@ export class HybridHarnessEngine {
     return sharedFile;
   }
 
-  private static rewriteVueSfc(
+  private static async rewriteVueSfc(
     absFile: string,
     fileContent: string,
     absShared: string,
     plan: RefactorPlan
-  ): void {
+  ): Promise<void> {
     const { scripts } = parseVueSfcBlocks(fileContent);
     const scriptBlock = scripts.find((s) => s.isSetup) ?? scripts[0];
     if (!scriptBlock) return;
@@ -74,8 +87,8 @@ export class HybridHarnessEngine {
     const scriptText = scriptBlock.content;
     const scriptOffset = scriptBlock.contentStartIndex;
 
-    const updatedScript = this.applyAstGrepPatternRewrite(
-      Lang.TypeScript,
+    const updatedScript = await this.applyAstGrepPatternRewrite(
+      'TypeScript',
       scriptText,
       plan.astPattern,
       plan.astRewrite
@@ -114,9 +127,9 @@ export class HybridHarnessEngine {
     }
 
     const currentText = sourceFile.getFullText();
-    const lang = relFile.endsWith('.tsx') ? Lang.Tsx : Lang.TypeScript;
+    const lang = relFile.endsWith('.tsx') ? 'Tsx' : 'TypeScript';
 
-    const updatedText = this.applyAstGrepPatternRewrite(
+    const updatedText = await this.applyAstGrepPatternRewrite(
       lang,
       currentText,
       plan.astPattern,
@@ -172,29 +185,32 @@ export class HybridHarnessEngine {
     }
   }
 
-  private static applyAstGrepPatternRewrite(
-    lang: Lang,
+  private static async applyAstGrepPatternRewrite(
+    lang: string,
     sourceCode: string,
     pattern: string,
     rewrite: string
-  ): string {
-    try {
-      const rootNode = parseAstGrep(lang, sourceCode).root();
-      const matches = rootNode.findAll(pattern);
+  ): Promise<string> {
+    const astGrep = await getAstGrep();
+    if (astGrep) {
+      try {
+        const rootNode = astGrep.parse(lang as AstGrepLang, sourceCode).root();
+        const matches = rootNode.findAll(pattern);
 
-      if (matches.length > 0) {
-        const edits = matches
-          .map((m) => m.replace(HybridHarnessEngine.expandMetavariables(rewrite, m)))
-          .sort((a, b) => b.startPos - a.startPos);
+        if (matches.length > 0) {
+          const edits = matches
+            .map((m) => m.replace(HybridHarnessEngine.expandMetavariables(rewrite, m)))
+            .sort((a, b) => b.startPos - a.startPos);
 
-        let updated = sourceCode;
-        for (const edit of edits) {
-          updated = updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
+          let updated = sourceCode;
+          for (const edit of edits) {
+            updated = updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
+          }
+          return updated;
         }
-        return updated;
+      } catch {
+        // catch-ok: fallback to direct pattern replacement on syntax/parse errors
       }
-    } catch {
-      // catch-ok: fallback to direct pattern replacement on syntax/parse errors
     }
 
     return sourceCode.replace(pattern, rewrite);

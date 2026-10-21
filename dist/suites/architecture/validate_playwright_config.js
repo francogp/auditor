@@ -58,7 +58,7 @@ const PLAYWRIGHT_CONFIG_REQUIREMENT = {
 		"playwright.config.js",
 		"playwright.config.mjs"
 	],
-	description: "Configuración estándar de pruebas E2E (playwright.config.ts)",
+	description: "Standard E2E test configuration (playwright.config.ts)",
 	ruleId: "playwright-config-missing",
 	isApplicable: (_config, projectRoot) => isPlaywrightProjectContext(projectRoot),
 	generateDefaultContent: () => CANONICAL_PLAYWRIGHT_CONFIG_CONTENT
@@ -90,7 +90,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			configFiles: [configRequirement],
 			id: "validate_playwright_config",
 			name: "Playwright Configuration Validator",
-			description: "Valida configuración de Playwright para suites E2E",
+			description: "Validates Playwright configuration for E2E suites",
 			icon: "🎭",
 			family: "architecture",
 			ruleIds: PLAYWRIGHT_CONFIG_RULES,
@@ -100,12 +100,12 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 			defaultConfig: {},
 			criticalConfig: {},
 			ruleDescriptions: {
-				"playwright-config-missing": "Archivo playwright.config.ts ausente",
-				"playwright-config-missing-setting": "Falta directiva en playwright"
+				"playwright-config-missing": "Missing playwright.config.ts file",
+				"playwright-config-missing-setting": "Missing directive in playwright config"
 			},
 			ruleRemediations: {
-				"playwright-config-missing": "Diagnóstico: El proyecto usa Playwright o tiene suites E2E pero falta playwright.config.ts.\nRemediación: Ejecuta `auditor fix` para auto-scaffoldear la configuración canónica.",
-				"playwright-config-missing-setting": "Diagnóstico: Faltan directivas obligatorias de tiempo de espera o reporte en playwright.config.ts.\nRemediación: Configura `timeout`, `reporter` y `use.trace` en playwright.config.ts o corre `auditor fix`."
+				"playwright-config-missing": "📖 REMEDIATION GUIDE: playwright-config-missing\n1. Root Cause: The project uses Playwright or contains E2E suites but lacks a `playwright.config.ts` configuration file.\n2. Diagnosis: Check project root for `playwright.config.ts`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold the canonical Playwright configuration.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"playwright-config-missing-setting": "📖 REMEDIATION GUIDE: playwright-config-missing-setting\n1. Root Cause: Mandatory timeout or reporter directives are missing from `playwright.config.ts`.\n2. Diagnosis: Inspect `playwright.config.ts` settings against required baseline.\n3. Canonical Solution: Configure `timeout`, `reporter`, and `use.trace` in `playwright.config.ts` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: ["playwright.config.*"] },
 			projectRoot,
@@ -115,7 +115,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 	}
 	async runAudit() {
 		if (!isPlaywrightProjectContext(this.projectRoot)) {
-			this.markSkipped("No se detectó Playwright ni directorio e2e en el proyecto");
+			this.markSkipped("No Playwright or e2e directory detected in project");
 			return;
 		}
 		const isFix = this.isFixActive();
@@ -126,7 +126,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 		if (!configFile) {
 			const ensured = await this.runSubAuditor("playwright-config-missing", () => this.ensureConfigFile(PLAYWRIGHT_CONFIG_REQUIREMENT));
 			if (!ensured) {
-				this.markRuleNotApplicable("playwright-config-missing-setting", "Archivo playwright.config.ts ausente");
+				this.markRuleNotApplicable("playwright-config-missing-setting", "Missing playwright.config.ts file");
 				return;
 			}
 			configFile = ensured.resolvedPath;
@@ -166,7 +166,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere configurar \"timeout\" para evitar bloqueos indefinidos en tests E2E."
+					message: "Configuring \"timeout\" is required to prevent indefinite hangs in E2E tests."
 				});
 			}
 			if (!(rootObj ? Boolean(findPropertyAssignment(currentRoot(), "reporter", sf)) : false)) {
@@ -178,7 +178,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere configurar \"reporter\" en playwright.config.ts."
+					message: "Configuring \"reporter\" in playwright.config.ts is required."
 				});
 			}
 			const useProp = rootObj ? findPropertyAssignment(currentRoot(), "use", sf) : null;
@@ -194,7 +194,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se requiere configurar \"use.trace\" para diagnósticos de fallos en E2E."
+					message: "Configuring \"use.trace\" is required for failure diagnostics in E2E."
 				});
 			}
 			let foundNpxVite = false;
@@ -214,7 +214,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 					severity: "error",
 					file: relPath,
 					line: 1,
-					message: "Se prohíbe usar \"npx vite\" en webServer.command; utiliza \"vp dev\"."
+					message: "Using \"npx vite\" in webServer.command is prohibited; use \"vp dev\"."
 				});
 			}
 		});

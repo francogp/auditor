@@ -329,26 +329,26 @@ var DomainTypesAuditor = class extends BaseAuditor {
 			}),
 			id: "validate_domain_types",
 			name: "Domain Types Integrity Audit",
-			description: "Uso de strings crudos en vez de tipos de dominio",
+			description: "Raw string usage instead of domain types",
 			family: "domain_data",
 			ruleIds: DOMAIN_TYPES_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(DOMAIN_TYPES_RULES, "contracts"),
-			packageName: "Dominio",
+			packageName: "Domain",
 			configKey: "domain",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "🔒",
 			ruleDescriptions: {
-				"domain-naked-string-primitive": "String crudo en contratos de dominio",
-				"domain-untyped-collection": "Set, Map o Array sin as const",
-				"domain-ambiguous-union": "Unión con empty-string y null",
-				"domain-unbranded-id": "Alias de ID sin Brand nominal"
+				"domain-naked-string-primitive": "Raw string in domain contracts",
+				"domain-untyped-collection": "Set, Map, or Array without as const",
+				"domain-ambiguous-union": "Union with empty string and null",
+				"domain-unbranded-id": "ID alias without nominal Brand"
 			},
 			ruleRemediations: {
-				"domain-naked-string-primitive": "📖 GUÍA DE REMEDIACIÓN: domain-naked-string-primitive\n1. Causa Raíz: Se utilizó el tipo primitivo \"string\" crudo en una propiedad de contrato de dominio (interface, DTO, type o estado) que representa un conjunto finito de categorías, modos o estados. El uso de string crudo anula la seguridad de tipos estática y permite valores tipográficos inválidos en tiempo de ejecución.\n2. Diagnóstico: Busca la propiedad señalada en la interfaz o tipo del archivo reportado.\n3. Solución: Modela la propiedad como una unión literal canónica o deriva el tipo desde un array inmutable con \"as const\".\n4. Ejemplo:\n   ❌ Incorrecto: interface Character { status: string; rarity: string; }\n   ✅ Correcto:   export type CharacterStatus = \"active\" | \"resting\" | \"fallen\";\n                  interface Character { status: CharacterStatus; rarity: ItemRarity; }",
-				"domain-untyped-collection": "📖 GUÍA DE REMEDIACIÓN: domain-untyped-collection\n1. Causa Raíz: Se detectó una colección (Set, Map o Array de constantes) declarada sin tipado de dominio específico o sin el modificador \"as const\", permitiendo que TypeScript infiera string[] o Set<string> genérico.\n2. Diagnóstico: Revisa la declaración del array, Set o Map reportado.\n3. Solución: Agrega \"as const\" al array o tipa explícitamente el genérico de la colección con tipos de dominio canónicos.\n4. Ejemplo:\n   ❌ Incorrecto: const VALID_MODES = [\"solo\", \"party\", \"guild\"];\n   ✅ Correcto:   const VALID_MODES = [\"solo\", \"party\", \"guild\"] as const;\n                  export type GameMode = (typeof VALID_MODES)[number];",
-				"domain-ambiguous-union": "📖 GUÍA DE REMEDIACIÓN: domain-ambiguous-union\n1. Causa Raíz: Se detectó una unión de tipos que combina simultáneamente empty-string (\"\") junto con null o undefined (ej: string | \"\" | null). Esto genera ambigüedad semántica sobre cuál es el estado nulo o vacío legítimo.\n2. Diagnóstico: Revisa la definición del tipo en la línea indicada.\n3. Solución: Unifica la representación de ausencia de valor utilizando exclusivamente null o undefined (o la unión literal válida), erradicando el string vacío como centinela.\n4. Ejemplo:\n   ❌ Incorrecto: type FilterValue = CategoryId | \"\" | null;\n   ✅ Correcto:   type FilterValue = CategoryId | null;",
-				"domain-unbranded-id": "📖 GUÍA DE REMEDIACIÓN: domain-unbranded-id\n1. Causa Raíz: Se declaró un alias de identificador como simple sinónimo de string primitivo (ej: type HeroId = string). Esto habilita el duck-typing accidental, permitiendo que una función reciba un ItemId donde esperaba un HeroId sin advertencia del compilador.\n2. Diagnóstico: Busca la declaración de tipo \"type ...Id = string\".\n3. Solución: Utiliza el tipo utilitario Brand<string, \"EntityId\"> para forzar tipado nominal estricto y distinguir identificadores de diferentes entidades.\n4. Ejemplo:\n   ❌ Incorrecto: export type HeroId = string;\n   ✅ Correcto:   export type HeroId = Brand<string, \"HeroId\">;\n                  // O bien: export type HeroId = string & { readonly __brand: unique symbol };"
+				"domain-naked-string-primitive": "📖 REMEDIATION GUIDE: domain-naked-string-primitive\n1. Root Cause: Primitive \"string\" was used in a domain contract property (interface, DTO, type, or state) representing a finite set of categories, modes, or states. Naked strings undermine static type safety and allow invalid values at runtime.\n2. Diagnosis: Look up the reported property in the interface or type of the reported file.\n3. Canonical Solution: Model the property as a canonical string literal union or derive the type from an immutable array with \"as const\".\n4. Example:\n   ❌ Incorrect: interface Character { status: string; rarity: string; }\n   ✅ Correct:   export type CharacterStatus = \"active\" | \"resting\" | \"fallen\";\n                  interface Character { status: CharacterStatus; rarity: ItemRarity; }",
+				"domain-untyped-collection": "📖 REMEDIATION GUIDE: domain-untyped-collection\n1. Root Cause: A collection (Set, Map, or constant Array) was declared without specific domain typing or without \"as const\", allowing TypeScript to infer generic string[] or Set<string>.\n2. Diagnosis: Review the declaration of the reported array, Set, or Map.\n3. Canonical Solution: Add \"as const\" to the array or explicitly type the collection generic with canonical domain types.\n4. Example:\n   ❌ Incorrect: const VALID_MODES = [\"solo\", \"party\", \"guild\"];\n   ✅ Correct:   const VALID_MODES = [\"solo\", \"party\", \"guild\"] as const;\n                  export type GameMode = (typeof VALID_MODES)[number];",
+				"domain-ambiguous-union": "📖 REMEDIATION GUIDE: domain-ambiguous-union\n1. Root Cause: A type union simultaneously combines empty-string (\"\") along with null or undefined (e.g.: string | \"\" | null). This generates semantic ambiguity regarding which represents the legitimate empty state.\n2. Diagnosis: Review the type definition on the reported line.\n3. Canonical Solution: Unify representation of absence of value exclusively using null or undefined (or valid literal union), eradicating empty-string as sentinel.\n4. Example:\n   ❌ Incorrect: type FilterValue = CategoryId | \"\" | null;\n   ✅ Correct:   type FilterValue = CategoryId | null;",
+				"domain-unbranded-id": "📖 REMEDIATION GUIDE: domain-unbranded-id\n1. Root Cause: An identifier alias was declared as a simple synonym of primitive string (e.g. type HeroId = string). This enables accidental duck-typing, allowing a function to receive an ItemId where it expected a HeroId without compiler warning.\n2. Diagnosis: Look for type declaration \"type ...Id = string\".\n3. Canonical Solution: Use the utility type Brand<string, \"EntityId\"> to enforce strict nominal typing and distinguish identifiers across entities.\n4. Example:\n   ❌ Incorrect: export type HeroId = string;\n   ✅ Correct:   export type HeroId = Brand<string, \"HeroId\">;\n                  // Or: export type HeroId = string & { readonly __brand: unique symbol };"
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,
@@ -372,11 +372,11 @@ var DomainTypesAuditor = class extends BaseAuditor {
 	}
 	collectAuditableDomainFiles() {
 		const files = this.context.collectFiles(this.roots, this.allowedExtensions);
-		if (files.length === 0) for (const rule of DOMAIN_TYPES_RULES) this.markRuleNotApplicable(rule, "Sin archivos fuente para validar tipos de dominio");
+		if (files.length === 0) for (const rule of DOMAIN_TYPES_RULES) this.markRuleNotApplicable(rule, "No source files found to validate domain types");
 		return files;
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Dominio desactivado en config")) {
+		if (this.isSuiteGatingDisabled("Domain disabled in config")) {
 			this.redeclareCoverage({
 				include: ["src/**/*.ts"],
 				source: "declared-only"

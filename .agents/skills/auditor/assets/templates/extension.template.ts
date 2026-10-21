@@ -1,7 +1,7 @@
 /**
  * .agents/skills/auditor/assets/templates/extension.template.ts
  *
- * CANONICAL EXTENSION SUB-AUDITOR TEMPLATE (@francogp/auditor v9.4+)
+ * CANONICAL EXTENSION SUB-AUDITOR TEMPLATE (@francogp/auditor)
  *
  * Ready-to-copy blueprint for implementing custom project-specific sub-auditors
  * in scripts/auditors/<family>/<suite_name>.ts.
@@ -11,10 +11,20 @@
  *   export default defineAuditConfig({
  *     extensions: [new MyCustomAuditor()]
  *   });
+ *
+ * CLI Contract Governance (`validate_cli_contracts`):
+ *   - Standalone CLI execution MUST use `await BaseAuditor.runCliIfMain(import.meta.url, new MyCustomAuditor());`
+ *     which delegates argument parsing (`human`, `--fix`, `--json`, `--help`) to the canonical `citty` harness.
+ *   - Direct `process.argv` access, `node:util.parseArgs`, or homebrew flag parsing (`startsWith('--')`)
+ *     is strictly prohibited.
  */
 
-import process from 'node:process';
-import { BaseAuditor, createUniformRuleCapabilities, type RemediationPhaseId } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  type FileScanRootsOptions,
+  type RemediationPhaseId
+} from '@francogp/auditor';
 
 export type MyCustomRuleId = 'my-custom-rule-a' | 'my-custom-rule-b';
 
@@ -24,11 +34,11 @@ export const MY_CUSTOM_RULES: readonly MyCustomRuleId[] = [
 ] as const;
 
 export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
-  public constructor(projectRoot: string = process.cwd()) {
+  public constructor(options: FileScanRootsOptions = {}) {
     super({
       id: 'validate_my_custom',
       name: 'My Custom Project Rules Validator',
-      description: 'Valida reglas específicas del dominio y arquitectura del proyecto',
+      description: 'Validates project-specific domain and architectural invariants',
       icon: '🛡️',
       family: 'architecture',
       ruleCapabilities: createUniformRuleCapabilities(MY_CUSTOM_RULES, {
@@ -53,28 +63,27 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       remediationPhase: 'contracts' as RemediationPhaseId,
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'my-custom-rule-a': 'Violación a la regla personalizada A',
-        'my-custom-rule-b': 'Violación a la regla personalizada B'
+        'my-custom-rule-a': 'Violation of custom project architectural rule A',
+        'my-custom-rule-b': 'Violation of custom project architectural rule B'
       },
       ruleRemediations: {
         'my-custom-rule-a':
-          'Causa Raíz: La regla personalizada A detectó una desviación arquitectónica.\n' +
-          'Diagnóstico: Revisa el archivo reportado para verificar el contrato esperado.\n' +
-          'Solución Canónica: Corrige la definición para alinearla con el estándar del proyecto.\n' +
-          'Ejemplo / Comando: Consulta la documentación local en AGENTS.md.',
+          'Causa Raíz: Custom rule A detected an architectural deviation from the documented contract.\n' +
+          'Diagnóstico: Check the reported file to verify compliance with expected domain interfaces.\n' +
+          'Solución Canónica: Update the module definition to align with project architecture standards.\n' +
+          'Ejemplo / Comando: Consult AGENTS.md for domain boundary requirements.',
         'my-custom-rule-b':
-          'Causa Raíz: La regla personalizada B detectó inconsistencia de tipos.\n' +
-          'Diagnóstico: Revisa los tipos derivados en el módulo afectado.\n' +
-          'Solución Canónica: Utiliza tipos canónicos de dominio sin strings crudos.\n' +
+          'Causa Raíz: Custom rule B detected inconsistent domain types or untyped structures.\n' +
+          'Diagnóstico: Review derived types in the affected module.\n' +
+          'Solución Canónica: Use canonical domain type models instead of raw strings or primitives.\n' +
           'Ejemplo / Comando: npm run auditor:domain'
       },
-      roots: ['src'],
-      projectRoot
+      roots: options.roots ?? ['src'],
+      projectRoot: options.projectRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
-    // Implement custom analysis logic wrapped in measureRule
     await this.runSubAuditor('my-custom-rule-a', async () => {
       // Diagnostic inspection code...
       // If violation found:
@@ -83,7 +92,7 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       //   severity: 'error',
       //   file: 'src/example.ts',
       //   line: 10,
-      //   message: 'Descripción del error detectado',
+      //   message: 'Description of detected issue',
       //   context: 'snippet'
       // });
     });
@@ -93,3 +102,5 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
     });
   }
 }
+
+await BaseAuditor.runCliIfMain(import.meta.url, new MyCustomAuditor());

@@ -69,24 +69,24 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			fixableRuleIds: ["environment-engines-missing", "environment-engines-below-floor"],
 			id: "validate_environment_engines",
 			name: "Environment Engines & Runtime Validator",
-			description: "Valida versiones de Node.js y npm en package.json",
+			description: "Validates Node.js and npm versions in package.json",
 			family: "architecture",
 			ruleIds: ENVIRONMENT_ENGINES_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(ENVIRONMENT_ENGINES_RULES, "setup"),
-			packageName: "Entorno",
+			packageName: "Environment",
 			configKey: "environment.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "⚡",
 			ruleDescriptions: {
-				"environment-engines-missing": "Falta engines en package.json",
-				"environment-engines-below-floor": "Motores inferiores al piso auditor",
-				"environment-runtime-mismatch": "Versión activa no coincide con engines"
+				"environment-engines-missing": "Missing engines in package.json",
+				"environment-engines-below-floor": "Engines below auditor floor",
+				"environment-runtime-mismatch": "Active runtime does not match engines"
 			},
 			ruleRemediations: {
-				"environment-engines-missing": "Causa Raíz:\nEl archivo package.json no declara explícitamente el objeto \"engines\" con las versiones requeridas de \"node\" y \"npm\".\nSin esta declaración, las herramientas de CI/CD y los desarrolladores pueden ejecutar el proyecto sobre versiones obsoletas de Node que no soportan el modelo de permisos nativo (--permission) o TypeScript nativo (--experimental-strip-types).\n\nDiagnóstico:\nComprueba si existe el bloque \"engines\": { \"node\": \"...\", \"npm\": \"...\" } en package.json.\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" o \"auditor fix\". El auditor inyectará dinámicamente las versiones canónicas de Node y npm sincronizadas con el motor del auditor.\n2. O bien ejecuta \".\\setup-windows.ps1\" (Windows) o \"./setup-linux.sh\" (Linux).",
-				"environment-engines-below-floor": "Causa Raíz:\nLas versiones de Node o npm especificadas en package.json.engines son inferiores al piso mínimo homologado por @francogp/auditor.\n\nDiagnóstico:\nEl mensaje de la advertencia detalla la versión declarada versus el piso mínimo requerido (ej. Node 26+).\n\nSolución Canónica:\n1. Ejecuta \"npm run auditor:fix\" para elevar automáticamente las declaraciones en package.json.\n2. Ejecuta \".\\update-windows.ps1\" o \"./update-linux.sh\" para sincronizar la versión instalada en la máquina.",
-				"environment-runtime-mismatch": "Causa Raíz:\nLa terminal actual está ejecutando una versión activa de Node.js o npm diferente o inferior a la exigida en package.json.engines.\n\nDiagnóstico:\nEjecuta \"node -v\" y \"npm -v\" en tu terminal para comparar con las versiones requeridas en package.json.\n\nSolución Canónica:\n1. Ejecuta \".\\setup-windows.ps1\" en Windows o \"./setup-linux.sh\" en Linux para configurar y activar la versión correcta mediante el gestor de entornos (fnm / nvm).\n2. Si usas fnm o nvm manualmente, ejecuta \"fnm use\" o \"nvm use\".\n3. Cierra y vuelve a abrir tu terminal para que las variables de entorno refresquen su PATH."
+				"environment-engines-missing": "1. Root Cause:\nThe package.json file does not explicitly declare the \"engines\" field with the required \"node\" and \"npm\" versions.\nWithout this declaration, CI/CD pipelines and developers may execute the project on legacy Node versions lacking the native permission model (--permission) or native TypeScript execution (--experimental-strip-types).\n\n2. Diagnosis:\nCheck whether the \"engines\": { \"node\": \"...\", \"npm\": \"...\" } block exists in package.json.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor will dynamically inject canonical Node and npm versions synchronized with the auditor engine.\n2. Or run \".\\setup-windows.ps1\" (Windows) or \"./setup-linux.sh\" (Linux).\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"environment-engines-below-floor": "1. Root Cause:\nThe Node or npm versions specified in package.json.engines are below the minimum floor mandated by @francogp/auditor.\n\n2. Diagnosis:\nThe violation message details the declared version versus the required floor (e.g. Node 26+).\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to automatically raise the declarations in package.json.\n2. Run \".\\update-windows.ps1\" or \"./update-linux.sh\" to synchronize the version installed on your machine.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"environment-runtime-mismatch": "1. Root Cause:\nThe active terminal is running a Node.js or npm version different from or lower than what is required in package.json.engines.\n\n2. Diagnosis:\nRun \"node -v\" and \"npm -v\" in your terminal to compare with the versions required in package.json.\n\n3. Canonical Solution:\n1. Run \".\\setup-windows.ps1\" on Windows or \"./setup-linux.sh\" on Linux to configure and activate the correct version via your environment manager (fnm / nvm).\n2. If using fnm or nvm manually, run \"fnm use\" or \"nvm use\".\n3. Restart your terminal session so environment variables and PATH refresh properly.\n\n4. Example / Auto-fix command:\nfnm use"
 			},
 			coverage: { include: ["package.json"] },
 			...options
@@ -97,7 +97,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "environment-engines-missing",
 				file: "package.json",
-				message: `package.json no encontrado en ${this.projectRoot}.`,
+				message: `package.json not found in ${this.projectRoot}.`,
 				severity: "error",
 				fixable: false
 			});
@@ -108,7 +108,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "environment-engines-missing",
 				file: "package.json",
-				message: "package.json no contiene un JSON válido.",
+				message: "package.json does not contain valid JSON.",
 				severity: "error",
 				fixable: false
 			});
@@ -122,7 +122,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "environment-engines-missing",
 				file: "package.json",
-				message: `package.json debe declarar explícitamente "engines.node" y "engines.npm". Ejecuta "auditor fix" o ${setupScript} para sincronizar el entorno.`,
+				message: `package.json must explicitly declare "engines.node" and "engines.npm". Run "auditor fix" or ${setupScript} to synchronize the environment.`,
 				severity: "error",
 				fixable: true
 			});
@@ -149,7 +149,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 				this.addViolation({
 					ruleId: "environment-engines-below-floor",
 					file: "package.json",
-					message: `Versiones de motores en package.json inferiores al piso del auditor (Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}). Ejecuta "auditor fix" o ${updateScript} para actualizar el entorno a la última versión.`,
+					message: `Engine versions in package.json are below the auditor floor (Node: ${auditorEngines.node}, npm: ${auditorEngines.npm}). Run "auditor fix" or ${updateScript} to update the environment to the latest version.`,
 					severity: "error",
 					fixable: true
 				});
@@ -175,7 +175,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			this.addViolation({
 				ruleId: "environment-runtime-mismatch",
 				file: "package.json",
-				message: `Entorno de ejecución desalineado. Detectado Node v${process.versions.node} / npm ${rawNpmVer}, requerido Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. Ejecuta ${setupScript} (o vp env use) para alinear tu terminal, o ${updateScript} para actualizar a la última versión.`,
+				message: `Runtime environment misaligned. Detected Node v${process.versions.node} / npm ${rawNpmVer}, required Node ${pkg.engines?.node ?? auditorEngines.node} / npm ${pkg.engines?.npm ?? auditorEngines.npm}. Run ${setupScript} (or vp env use) to align your terminal, or ${updateScript} to update to the latest version.`,
 				severity: "error",
 				fixable: false
 			});
@@ -213,10 +213,10 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 		if (!pkg) {
 			this.runSubAuditorSync("environment-engines-missing", () => {});
 			this.runSubAuditorSync("environment-engines-below-floor", () => {
-				this.markRuleNotApplicable("environment-engines-below-floor", "package.json ausente o inválido");
+				this.markRuleNotApplicable("environment-engines-below-floor", "Missing or invalid package.json");
 			});
 			this.runSubAuditorSync("environment-runtime-mismatch", () => {
-				this.markRuleNotApplicable("environment-runtime-mismatch", "package.json ausente o inválido");
+				this.markRuleNotApplicable("environment-runtime-mismatch", "Missing or invalid package.json");
 			});
 			return;
 		}

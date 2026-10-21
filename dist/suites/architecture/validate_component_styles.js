@@ -130,7 +130,7 @@ function checkButtonStyleOverrides(relPath, styles, auditor) {
 		if (btnSelectorMatch) auditor.recordViolation({
 			file: relPath,
 			type: "ad_hoc_button_styles",
-			message: `Sobreescritura ad-hoc de estilos de botón detectada en <style>: "${btnSelectorMatch[1]}". Todos los estilos de botón deben gobernarse de forma centralizada.`
+			message: `Ad-hoc button style override detected in <style>: "${btnSelectorMatch[1]}". All button styles must be centrally governed.`
 		}, "ad-hoc-button-styles", btnSelectorMatch[1]);
 	}
 }
@@ -142,7 +142,7 @@ function checkCanonicalButtonClasses(relPath, content, canonicalButtonVariants, 
 		for (const c of clsList) if (c.startsWith("btn-") && !canonicalButtonVariants.has(c)) auditor.recordViolation({
 			file: relPath,
 			type: "ad_hoc_button_styles",
-			message: `Clase de botón no canónica "${c}" detectada. Solo se permiten variantes canónicas configuradas (${Array.from(canonicalButtonVariants).join(", ")}).`
+			message: `Non-canonical button class "${c}" detected. Only configured canonical variants are allowed (${Array.from(canonicalButtonVariants).join(", ")}).`
 		}, "ad-hoc-button-styles", c);
 	}
 }
@@ -209,7 +209,7 @@ function auditScssEnforcement(file, relPath, content, styles, auditor) {
 		auditor.recordViolation({
 			file: relPath,
 			type: "banned_plain_css_style",
-			message: `Bloque <style> en "${relPath}" no declara lang="scss". Todo componente Vue debe utilizar SCSS.`
+			message: `<style> block in "${relPath}" does not declare lang="scss". All Vue components must use SCSS.`
 		}, "banned-plain-css-style", openingTag, style.startLine, true);
 	}
 }
@@ -271,7 +271,7 @@ function auditRawCssFiles(cssFiles, projectRoot, exemptCssFiles, auditor) {
 		auditor.recordViolation({
 			file: relPath,
 			type: "banned_raw_css_file",
-			message: `Archivo CSS plano "${relPath}" detectado. Todo archivo de estilos debe utilizar preprocesador SCSS (.scss).`
+			message: `Plain CSS file "${relPath}" detected. All stylesheet files must use the SCSS preprocessor (.scss).`
 		}, "banned-raw-css-file", relPath, 1, true);
 	}
 	if (auditor.isFixActive() && renamedPairs.length > 0) rewriteCssReferencesInProject(projectRoot, auditor.roots, renamedPairs, auditor);
@@ -306,7 +306,7 @@ function auditVueComponent(file, projectRoot, srcDir, trackScssFile, config, aud
 		if (content.includes("style-inherited")) auditor.recordViolation({
 			file: relPath,
 			type: "banned_style_inherited",
-			message: `Directiva ilegal '// ' + 'style-inherited' detectada. Los estilos scoped en Vue 3 no penetran a componentes hijos; cada SFC debe declarar o enlazar explícitamente sus propios estilos.`
+			message: `Illegal '// ' + 'style-inherited' directive detected. Scoped styles in Vue 3 do not penetrate child components; each SFC must declare or explicitly link its own styles.`
 		}, "banned-style-inherited", "style-inherited");
 	});
 	const sfc = parseVueSfcBlocks(content);
@@ -366,9 +366,9 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			fix: options.fix,
 			id: "validate_component_styles",
 			name: "Vue Component Style Linkage & SCSS Auditor",
-			description: "Valida enlaces de estilos de componentes y huérfanos SCSS",
+			description: "Validates component style links and orphaned SCSS",
 			family: "architecture",
-			packageName: "Estilos",
+			packageName: "Styles",
 			configKey: "styles.enabled",
 			defaultConfig: {
 				enabled: true,
@@ -379,22 +379,22 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			ruleIds: COMPONENT_STYLE_RULES,
 			ruleRemediationPhases: createUniformRemediationPhases(COMPONENT_STYLE_RULES, "hygiene"),
 			ruleDescriptions: {
-				"broken-style-link": "Enlace de estilo roto o inexistente",
-				"missing-style-tag": "Componente sin bloque de estilos",
-				"banned-style-inherited": "Marcador style-inherited prohibido",
-				"orphaned-scss": "Archivo SCSS huérfano sin uso",
-				"ad-hoc-button-styles": "Clase de botón fuera de estándar",
-				"banned-plain-css-style": "Bloque <style> sin lang=\"scss\"",
-				"banned-raw-css-file": "Archivo CSS plano sin SCSS"
+				"broken-style-link": "Broken or non-existent style link",
+				"missing-style-tag": "Component missing style block",
+				"banned-style-inherited": "Banned style-inherited marker",
+				"orphaned-scss": "Orphaned unused SCSS file",
+				"ad-hoc-button-styles": "Non-standard button class",
+				"banned-plain-css-style": "<style> block missing lang=\"scss\"",
+				"banned-raw-css-file": "Raw CSS file without SCSS"
 			},
 			ruleRemediations: {
-				"broken-style-link": "📖 GUÍA DE REMEDIACIÓN: broken-style-link\n1. Causa Raíz: Una directiva `@import`, `@use` o `src=\"...\"` dentro del bloque `<style>` de un componente apunta a un archivo SCSS inexistente en disco.\n2. Diagnóstico: Comprueba la ruta importada en el bloque `<style>` del componente reportado.\n3. Solución Canónica: Corrige la ruta al archivo SCSS existente o elimina la directiva si el parcial fue borrado o refactorizado.\n4. Ejemplo:\n   ❌ Roto:     `@use \"@/styles/button-old\";`\n   ✅ Canónico: `@use \"@/styles/buttons\";`",
-				"missing-style-tag": "📖 GUÍA DE REMEDIACIÓN: missing-style-tag\n1. Causa Raíz: Un componente Vue SFC (`.vue`) carece por completo de la sección `<style lang=\"scss\" scoped>`. La arquitectura exige encapsulamiento visual en cada componente.\n2. Diagnóstico: Abre el componente `.vue` indicado y observa que no tiene etiqueta `<style>`.\n3. Solución Canónica:\n   a) Añade el bloque `<style lang=\"scss\" scoped>` con los estilos específicos del componente.\n   b) Si el componente es puramente lógico / renderless, añade el comentario `// renderless-ok: <justificación>` en el `<script>`.\n4. Ejemplo:\n   - Añadir: `<style lang=\"scss\" scoped>\\n.component-root {\\n  display: block;\\n}\\n</style>`",
-				"banned-style-inherited": "📖 GUÍA DE REMEDIACIÓN: banned-style-inherited\n1. Causa Raíz: Se utilizó el comentario de escape para esquivar la validación de estilos locales sin justificación técnica válida.\n2. Diagnóstico: Ubica la directiva de supresión de estilos heredados en el componente.\n3. Solución Canónica: Declara los estilos locales correspondientes dentro del componente en un `<style lang=\"scss\" scoped>` propio.\n4. Ejemplo:\n   - Eliminar el comentario de supresión de estilos y definir las reglas scoped necesarias.",
-				"orphaned-scss": "📖 GUÍA DE REMEDIACIÓN: orphaned-scss\n1. Causa Raíz: Se encontró un archivo SCSS (`.scss`) en el árbol de fuentes que no es importado por ningún componente ni por la hoja global `main.scss` / `index.scss`.\n2. Diagnóstico: Ubica el archivo huérfano reportado.\n3. Solución Canónica:\n   a) Si el archivo está obsoleto: elimínalo de forma limpia.\n   b) Si debe aplicarse globalmente: impórtalo en la hoja de estilos principal (`@use \"...\";`).\n4. Ejemplo:\n   - Eliminar `src/styles/_obsolete-badge.scss`.",
-				"ad-hoc-button-styles": "📖 GUÍA DE REMEDIACIÓN: ad-hoc-button-styles\n1. Causa Raíz: Un botón HTML (`<button>`, `<a class=\"btn...\">`) utiliza clases de variante inventadas o no registradas en la gobernanza de botones (`canonicalVariants`).\n2. Diagnóstico: Revisa las clases aplicadas al botón en la plantilla Vue.\n3. Solución Canónica: Utiliza exclusivamente las variantes canónicas del sistema de diseño (`btn-primary`, `btn-secondary`, `btn-dark`, `btn-sm`, etc.).\n4. Ejemplo:\n   ❌ Variante ad-hoc: `<button class=\"btn my-custom-green-button\">`\n   ✅ Variante canónica: `<button class=\"btn btn-success\">`",
-				"banned-plain-css-style": "📖 GUÍA DE REMEDIACIÓN: banned-plain-css-style\n1. Causa Raíz: Se encontró un bloque `<style>` en un componente Vue sin el atributo obligatorio `lang=\"scss\"`.\n2. Diagnóstico: Ubica la etiqueta `<style>` en el componente.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente `lang=\"scss\"`.\n   b) O edita manualmente: `<style lang=\"scss\" scoped>`.\n4. Ejemplo:\n   ❌ Incorrecto: `<style>`\n   ✅ Correcto:   `<style lang=\"scss\" scoped>`",
-				"banned-raw-css-file": "📖 GUÍA DE REMEDIACIÓN: banned-raw-css-file\n1. Causa Raíz: Se encontró un archivo con extensión `.css` plano en el árbol de código. El proyecto estandariza el preprocesador SCSS para todas las hojas de estilo.\n2. Diagnóstico: Ubica el archivo `.css` reportado.\n3. Solución Canónica:\n   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para renombrar automáticamente el archivo a `.scss` y actualizar sus importaciones.\n   b) O renómbralo manualmente a `.scss` y ajusta las rutas de importación correspondientes.\n4. Ejemplo:\n   ❌ Archivo CSS: `src/styles/theme.css`\n   ✅ Archivo SCSS: `src/styles/theme.scss`"
+				"broken-style-link": "📖 REMEDIATION GUIDE: broken-style-link\n1. Root Cause: An `@import`, `@use`, or `src=\"...\"` directive in `<style>` points to a non-existent SCSS file on disk.\n2. Diagnosis: Check the imported path in the reported component `<style>` block.\n3. Canonical Solution: Correct the path to an existing SCSS file or remove the directive if the partial was deleted or refactored.\n4. Example / Auto-fix command:\n   ❌ Broken:    `@use \"@/styles/button-old\";`\n   ✅ Canonical: `@use \"@/styles/buttons\";`",
+				"missing-style-tag": "📖 REMEDIATION GUIDE: missing-style-tag\n1. Root Cause: A Vue component SFC (`.vue`) completely lacks a `<style lang=\"scss\" scoped>` section. Architectural standards require visual encapsulation in each component.\n2. Diagnosis: Open the `.vue` component and verify it has no `<style>` block.\n3. Canonical Solution:\n   a) Add `<style lang=\"scss\" scoped>` containing component-specific rules.\n   b) If purely logical / renderless, add `// renderless-ok: <reason>` in `<script>`.\n4. Example / Auto-fix command:\n   - Add: `<style lang=\"scss\" scoped>\n.component-root {\n  display: block;\n}\n</style>`",
+				"banned-style-inherited": "📖 REMEDIATION GUIDE: banned-style-inherited\n1. Root Cause: An escape comment was used to bypass local style validation without valid technical justification.\n2. Diagnosis: Locate the inherited styles suppression directive in the component.\n3. Canonical Solution: Declare corresponding local scoped styles in `<style lang=\"scss\" scoped>`.\n4. Example / Auto-fix command:\n   - Remove suppression comment and define required scoped rules.",
+				"orphaned-scss": "📖 REMEDIATION GUIDE: orphaned-scss\n1. Root Cause: An SCSS file (`.scss`) was found in source roots that is never imported by any component or global stylesheet (`main.scss` / `index.scss`).\n2. Diagnosis: Locate the reported orphaned file.\n3. Canonical Solution:\n   a) If obsolete: delete the file cleanly.\n   b) If intended globally: import it in the primary stylesheet (`@use \"...\";`).\n4. Example / Auto-fix command:\n   - Delete `src/styles/_obsolete-badge.scss`.",
+				"ad-hoc-button-styles": "📖 REMEDIATION GUIDE: ad-hoc-button-styles\n1. Root Cause: An HTML button (`<button>`, `<a class=\"btn...\">`) uses invented variant classes not registered in button governance (`canonicalVariants`).\n2. Diagnosis: Check classes applied to the button in the Vue template.\n3. Canonical Solution: Use strictly canonical design system variants (`btn-primary`, `btn-secondary`, `btn-dark`, `btn-sm`, etc.).\n4. Example / Auto-fix command:\n   ❌ Ad-hoc:    `<button class=\"btn my-custom-green-button\">`\n   ✅ Canonical: `<button class=\"btn btn-success\">`",
+				"banned-plain-css-style": "📖 REMEDIATION GUIDE: banned-plain-css-style\n1. Root Cause: A `<style>` block in a Vue component lacks mandatory `lang=\"scss\"` attribute.\n2. Diagnosis: Locate the `<style>` tag in the component.\n3. Canonical Solution:\n   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject `lang=\"scss\"`.\n   b) Or manually edit: `<style lang=\"scss\" scoped>`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: `<style>`\n   ✅ Correct:   `<style lang=\"scss\" scoped>`",
+				"banned-raw-css-file": "📖 REMEDIATION GUIDE: banned-raw-css-file\n1. Root Cause: A file with `.css` extension was found in source code. Architecture standardizes the SCSS preprocessor for all stylesheets.\n2. Diagnosis: Locate the reported `.css` file.\n3. Canonical Solution:\n   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically rename the file to `.scss` and update imports.\n   b) Or manually rename to `.scss` and update import references.\n4. Example / Auto-fix command:\n   ❌ CSS:  `src/styles/theme.css`\n   ✅ SCSS: `src/styles/theme.scss`"
 			},
 			coverage: { include: deriveCoverageFromRoots(effectiveRoots, /* @__PURE__ */ new Set([
 				".vue",

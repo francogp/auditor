@@ -123,11 +123,11 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
       id: 'validate_script_extensions',
       name: 'Script & Module Extensions Validator',
-      description: 'Valida extensiones TypeScript (.ts) y prohíbe .mjs/.cjs',
+      description: 'Validates TypeScript scripts and extensions',
       family: 'architecture',
       ruleIds: SCRIPT_EXTENSIONS_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(SCRIPT_EXTENSIONS_RULES, 'setup'),
-      packageName: 'Extensiones',
+      packageName: 'Extensions',
       icon: '📜',
       configKey: 'scriptExtensions',
       defaultConfig: {
@@ -140,38 +140,44 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
       },
       criticalConfig: {},
       ruleDescriptions: {
-        'banned-mjs-extension': 'Archivo .mjs prohibido en TS',
-        'banned-cjs-extension': 'Archivo .cjs prohibido en ESM',
-        'banned-raw-js-script': 'Script .js sin tipar en scripts'
+        'banned-mjs-extension': 'Prohibited .mjs file in TS',
+        'banned-cjs-extension': 'Prohibited .cjs file in ESM',
+        'banned-raw-js-script': 'Untyped .js script in scripts'
       },
       ruleRemediations: {
         'banned-mjs-extension':
-          'Causa Raíz:\n' +
-          'Se detectó un archivo con extensión ".mjs".\n' +
-          'En la arquitectura nativa Node.js 26+ con "type": "module" y soporte directo de TypeScript ("--experimental-strip-types"), todo script y módulo del proyecto debe ser TypeScript canónico (.ts). La extensión .mjs es considerada un remanente transicional innecesario.\n\n' +
-          'Diagnóstico:\n' +
-          'Identifica el archivo .mjs reportado. Si es un archivo de configuración de una herramienta externa en la raíz (ej. postcss.config.mjs), verifica si está exento o cámbialo a .ts si la herramienta lo soporta.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor renombrará automáticamente el archivo a .ts, actualizará las sentencias import relativas en todo el proyecto y reescribirá las referencias en package.json.scripts.\n' +
-          '2. Si necesitas eximir un archivo de terceros específico, agrégalo a "config.scriptExtensions.exemptFiles" en .auditor/audit.config.ts.',
+          '1. Root Cause:\n' +
+          'A file with the ".mjs" extension was detected.\n' +
+          'In native Node.js 26+ architecture with "type": "module" and native TypeScript execution ("--experimental-strip-types"), all project scripts and modules must be canonical TypeScript (.ts). The .mjs extension is an obsolete transitional artifact.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the reported .mjs file. If it is a root tool configuration (e.g. postcss.config.mjs), verify if it is exempt or rename to .ts if supported by the tool.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix" or "auditor fix". The auditor will automatically rename the file to .ts, update relative import specifiers across the codebase, and rewrite package.json.scripts references.\n' +
+          '2. If a specific third-party tool requires .mjs, declare it in "config.scriptExtensions.exemptFiles" in .auditor/audit.config.ts.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
         'banned-cjs-extension':
-          'Causa Raíz:\n' +
-          'Se detectó un archivo con extensión ".cjs".\n' +
-          'El proyecto opera bajo el estándar moderno ECMAScript Modules (ESM). Los módulos CommonJS (.cjs) introducen dual-package hazards, impiden el tree-shaking estático y violan la gobernanza del lenguaje.\n\n' +
-          'Diagnóstico:\n' +
-          'Revisa el archivo .cjs reportado. Con frecuencia utiliza "require()" o "module.exports".\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix". El auditor convertirá la extensión a .ts.\n' +
-          '2. Reemplaza cualquier "require()" o "module.exports" por la sintaxis estándar de ESM ("import" y "export").',
+          '1. Root Cause:\n' +
+          'A file with the ".cjs" extension was detected.\n' +
+          'The project standardizes on modern ECMAScript Modules (ESM). CommonJS modules (.cjs) introduce dual-package hazards, defeat static tree-shaking, and violate language consistency.\n\n' +
+          '2. Diagnosis:\n' +
+          'Review the reported .cjs file, which often contains "require()" or "module.exports".\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix". The auditor will migrate the extension to .ts.\n' +
+          '2. Replace "require()" or "module.exports" with standard ESM syntax ("import" and "export").\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix',
         'banned-raw-js-script':
-          'Causa Raíz:\n' +
-          'Se detectó un script JavaScript plano sin tipar (".js" o ".jsx") dentro de las carpetas de scripts o herramientas (scripts/, src/cli/, etc.).\n' +
-          'Todos los scripts operativos y utilidades deben ser TypeScript (.ts / .tsx) con tipos estrictos para garantizar seguridad y refactorización confiable.\n\n' +
-          'Diagnóstico:\n' +
-          'Examina el script de desarrollo reportado.\n\n' +
-          'Solución Canónica:\n' +
-          '1. Ejecuta "npm run auditor:fix" para renombrar automáticamente el script a .ts y actualizar las invocaciones en package.json.\n' +
-          '2. Añade las anotaciones de tipo pertinentes en los argumentos y retornos de funciones.'
+          '1. Root Cause:\n' +
+          'An untyped plain JavaScript script (".js" or ".jsx") was detected in a tooling or script directory (scripts/, src/cli/, etc.).\n' +
+          'All operational scripts and CLI utilities must be strictly typed TypeScript (.ts / .tsx) for maintainability and safety.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the reported script file.\n\n' +
+          '3. Canonical Solution:\n' +
+          '1. Run "npm run auditor:fix" to automatically rename the script to .ts and update package.json invocations.\n' +
+          '2. Add type annotations to function parameters and return values.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          'npm run auditor:fix'
       },
       coverage: {
         include: coverageInclude
@@ -183,7 +189,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.scriptExtensions?.enabled === false) {
-      this.markSkipped('Desactivado en config (scriptExtensions.enabled = false)');
+      this.markSkipped('Disabled in config (scriptExtensions.enabled = false)');
       return;
     }
 
@@ -212,7 +218,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
             file: relPath,
             fullPath,
             ruleId: 'banned-mjs-extension',
-            message: `Archivo con extensión ".mjs" detectado: "${relPath}". En proyectos Node.js 26+ nativos, todo módulo o script debe ser TypeScript (.ts).`,
+            message: `File with ".mjs" extension detected: "${relPath}". In native Node.js 26+ projects, all modules and scripts must be TypeScript (.ts).`,
             targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
           });
         }
@@ -230,7 +236,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
             file: relPath,
             fullPath,
             ruleId: 'banned-cjs-extension',
-            message: `Archivo con extensión ".cjs" detectado: "${relPath}". En proyectos Node.js 26+ ("type": "module"), los módulos CommonJS (.cjs) están prohibidos.`,
+            message: `File with ".cjs" extension detected: "${relPath}". In native Node.js 26+ projects ("type": "module"), CommonJS modules (.cjs) are prohibited.`,
             targetTsPath: fullPath.slice(0, -ext.length) + '.ts'
           });
         }
@@ -253,7 +259,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
               file: relPath,
               fullPath,
               ruleId: 'banned-raw-js-script',
-              message: `Archivo JavaScript sin tipar "${relPath}" detectado. Debe migrarse a TypeScript (${targetExt}).`,
+              message: `Untyped JavaScript file "${relPath}" detected. Must be migrated to TypeScript (${targetExt}).`,
               targetTsPath: fullPath.slice(0, -ext.length) + targetExt
             });
           }
@@ -352,7 +358,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
           file: v.file,
           line: 1,
           col: 1,
-          message: `No se puede convertir automáticamente "${v.file}": el archivo de destino "${targetRel}" ya existe en disco.`,
+          message: `Cannot automatically convert "${v.file}": destination file "${targetRel}" already exists on disk.`,
           context: path.basename(v.file),
           fixable: false
         });

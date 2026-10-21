@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
 import "./auditTaskFactory.js";
@@ -15,6 +16,7 @@ import { spawn } from "node:child_process";
 * against compiled production artifacts in dist/.
 */
 async function runAuditPostBuild(extraArgs = []) {
+	parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
 	const currentDir = path.dirname(fileURLToPath(import.meta.url));
 	const fullAuditorPath = path.resolve(currentDir, "audit_full.ts");
 	const fullAuditorJsPath = path.resolve(currentDir, "audit_full.js");
@@ -36,7 +38,7 @@ async function runAuditPostBuild(extraArgs = []) {
 	});
 }
 if (isMainModule(import.meta.url)) {
-	const exitCode = await runAuditPostBuild(process.argv.slice(2));
+	const exitCode = await runAuditPostBuild(getProcessCliArgs());
 	process.exit(exitCode);
 }
 //#endregion

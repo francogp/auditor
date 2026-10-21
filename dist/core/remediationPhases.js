@@ -20,58 +20,58 @@ const REMEDIATION_PHASES = Object.freeze({
 	setup: {
 		id: "setup",
 		order: 1,
-		title: "FASE 1 · INFRAESTRUCTURA Y SETUP",
+		title: "PHASE 1 · INFRASTRUCTURE & SETUP",
 		icon: "⚙️",
-		description: "Configuración base, scripts, tsconfig, engines y dependencias mínimas.",
-		rationale: "Resuelve primero bloqueos de compilación e infraestructura para erradicar falsos positivos en cascada."
+		description: "Base configuration, scripts, tsconfig, engines, and minimum dependencies.",
+		rationale: "Resolves compilation and infrastructure blockers first to eradicate cascading false positives."
 	},
 	prune: {
 		id: "prune",
 		order: 2,
-		title: "FASE 2 · PODA DE CÓDIGO MUERTO",
+		title: "PHASE 2 · DEAD CODE PRUNING",
 		icon: "🧹",
-		description: "Archivos muertos, exports no consumidos y dependencias no utilizadas.",
-		rationale: "Elimina archivos y exports muertos antes de refactorizar: extirpa cientos de errores de raíz con cero esfuerzo."
+		description: "Dead files, unconsumed exports, and unused dependencies.",
+		rationale: "Removes dead files and exports before refactoring: eliminates hundreds of errors at the root with zero effort."
 	},
 	dedup: {
 		id: "dedup",
 		order: 3,
-		title: "FASE 3 · DESDUPLICACIÓN Y CLONES",
+		title: "PHASE 3 · DEDUPLICATION & CLONES",
 		icon: "🧩",
-		description: "Bloques triplicados, código duplicado Fallow, clones semánticos y constantes redundantes.",
-		rationale: "Unifica clones en una única función canónica antes de pulir detalles, evitando multiplicar el trabajo por 5x."
+		description: "Triplicated blocks, Fallow duplicate code, semantic clones, and redundant constants.",
+		rationale: "Unifies clones into a single canonical function before polishing details, avoiding multiplying work by 5x."
 	},
 	contracts: {
 		id: "contracts",
 		order: 4,
-		title: "FASE 4 · CONTRATOS Y TIPADO",
+		title: "PHASE 4 · CONTRACTS & TYPING",
 		icon: "🔒",
-		description: "Errores TypeScript, as any/unknown, strings crudos en dominio y paridad Valibot.",
-		rationale: "Establece cimientos sólidos en el modelo de datos y contratos antes de alterar la lógica de componentes o UI."
+		description: "TypeScript errors, as any/unknown, naked strings in domain, and Valibot parity.",
+		rationale: "Establishes solid data model foundations and contracts before altering component or UI logic."
 	},
 	behavior: {
 		id: "behavior",
 		order: 5,
-		title: "FASE 5 · FRAMEWORK Y UI",
+		title: "PHASE 5 · FRAMEWORK & UI",
 		icon: "🎨",
-		description: "GSAP, HTML5 semántico, reactividad Vue/SFC, timers fuera de ciclo y colisiones de estilos.",
-		rationale: "Garantiza la corrección funcional, rendimiento y ciclo de vida de la interfaz de usuario."
+		description: "GSAP, semantic HTML5, Vue/SFC reactivity, unmanaged lifecycle timers, and style collisions.",
+		rationale: "Guarantees functional correctness, performance, and UI lifecycle integrity."
 	},
 	hygiene: {
 		id: "hygiene",
 		order: 6,
-		title: "FASE 6 · HIGIENE Y LINTER",
+		title: "PHASE 6 · HYGIENE & LINTER",
 		icon: "🔍",
-		description: "Reglas de Oxlint, objetivos de refactor Fallow y números mágicos (MagicNumbers).",
-		rationale: "Extrae constantes y simplifica funciones largas sobre código que ya fue desduplicado, tipado y saneado."
+		description: "Oxlint rules, Fallow refactoring targets, and magic numbers (MagicNumbers).",
+		rationale: "Extracts constants and simplifies complex functions on code that is already deduplicated, typed, and sanitized."
 	},
 	polish: {
 		id: "polish",
 		order: 7,
-		title: "FASE 7 · FORMATO Y COBERTURA",
+		title: "PHASE 7 · FORMATTING & COVERAGE",
 		icon: "✨",
-		description: "Formateo Oxfmt, índices DOX (AGENTS.md), sintaxis Markdown/Mermaid y umbrales de tests.",
-		rationale: "Paso final: formateo automático, sincronización documental y confirmación de que la suite de tests pasa limpia."
+		description: "Oxfmt formatting, DOX indices (AGENTS.md), Markdown/Mermaid syntax, and test coverage thresholds.",
+		rationale: "Final pass: automated formatting, documentation sync, and confirmation that test suites pass cleanly."
 	}
 });
 const REMEDIATION_PHASE_SET = new Set(REMEDIATION_PHASE_IDS);

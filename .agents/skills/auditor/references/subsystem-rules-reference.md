@@ -23,6 +23,8 @@ This reference documents the detailed technical specifications, edge-case handli
 15. [Dynamic Sub-Auditor Conformance Testing Mandate](#15-dynamic-sub-auditor-conformance-testing-mandate)
 16. [Markdown Project SemVer Reference Synchronization Mandate](#16-markdown-project-semver-reference-synchronization-mandate)
 17. [TypeScript Compiler Baseline & ES2025 Standard Mandate (`validate_tsconfig`)](#17-typescript-compiler-baseline--es2025-standard-mandate-validate_tsconfig)
+18. [Serial Fix Execution & Pure TypeScript Compiler AST Configuration Sync](#18-serial-fix-execution-concurrency--1--pure-typescript-compiler-ast-configuration-sync)
+19. [Canonical CLI Contracts & Citty Governance Mandate (`validate_cli_contracts`)](#19-canonical-cli-contracts--citty-governance-mandate-validate_cli_contracts)
 
 ---
 
@@ -299,3 +301,21 @@ Governed by `src/cli/audit_full.ts`, `src/core/viteConfigAst.ts`, and `src/core/
 
 - **100% Serial Execution in Auto-Fix Mode (`concurrency = 1`)**: When running `auditor fix` (`--fix`), `audit_full.ts` enforces `effectiveConcurrency = 1`, disables `sharedAstContext` to ensure fresh disk reads between fixers, clears stale subprocess JSON files prior to each execution, and runs fix-enabled suites in deterministic 4-phase order (`FIX_MODE_EXPLICIT_ORDER`).
 - **Pure AST & Native JSON Configuration Governance**: Configuration files (`vite.config.ts`, `playwright.config.ts`, `tsconfig.json`, `package.json`, `.fallowrc.json`, `.stylelintrc.json`, `.htmlvalidate.json`) and Vite+ import specifier migrations (`rewriteModuleSpecifiersToVitePlusAst`) are parsed, inspected, and mutated exclusively via the TypeScript Compiler AST (`ts.createSourceFile`, `ts.factory`, `ts.transform`, `ts.createPrinter()`) or native JSON parsing (`JSON.parse` / `ts.readConfigFile` + `JSON.stringify`), eradicating manual string manipulation and regex brace-counting.
+
+---
+
+## 19. Canonical CLI Contracts & Citty Governance Mandate (`validate_cli_contracts`)
+
+Governed by `src/suites/architecture/validate_cli_contracts.ts`:
+
+- **Universal Citty Standard (`citty@^0.2.2`)**: All standalone CLI tools, sub-auditors, reporters, refactoring utilities, and host scripts across the framework and consumer host repositories MUST parse command-line arguments declaratively using `citty` via `src/core/cli/cittyHarness.ts` (`defineCommand`, `runMain`, `runCommand`, `COMMON_CLI_ARGS`, `createRefactorCli`, `parseCittyArgs`).
+- **7 Non-Negotiable Contract Rules**:
+  1. `cli-contracts-direct-argv-access`: Banning direct access to `process.argv` (or runtime equivalents like `Deno.args`, `Bun.argv`).
+  2. `cli-contracts-banned-parser-library`: Banning unauthorized CLI argument parsers (`node:util.parseArgs`, `yargs`, `commander`, `minimist`, `cac`, `arg`, `mri`, `sade`, `meow`, `clipanion`, `oclif`).
+  3. `cli-contracts-homebrew-flag-parsing`: Banning homebrew manual flag parsing via `.startsWith('--')` or regex inspection on raw CLI tokens.
+  4. `cli-contracts-dynamic-eval-bypass`: Banning dynamic evaluation or stdin descriptor bypasses (`eval()`, `new Function()`, `fs.readFileSync(0)`).
+  5. `cli-contracts-missing-citty-contract`: Requiring explicit `defineCommand`, `createAuditorCli`, `parseCittyArgs`, or `createRefactorCli` for standalone CLI scripts and sub-auditors.
+  6. `cli-contracts-missing-citty-dependency`: Mandatory `"citty": "^0.2.2"` in `package.json` (`peerDependencies` in `@francogp/auditor`, `devDependencies` in consumer host repositories). Fixable via `auditor fix`.
+  7. `cli-contracts-unregistered-script`: Mandatory registration of `:human` script variants across package script manifests.
+- **Token Normalization (`getProcessCliArgs()`)**: Positional tokens (`human`, `help`, bare `key=val`) are normalized automatically into canonical flags (`--human`, `--help`, `--key=val`) before feeding into `citty`.
+- **Absolute Blocking in Setup Phase (`phase: 'setup'`)**: Any defect in CLI contracts halts downstream analysis to prevent broken CLI runners from masking findings or producing false passes.

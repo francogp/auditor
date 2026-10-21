@@ -1,13 +1,14 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
+import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
 import "../core/safePath.js";
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { checkOrInitializeModel, resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import path from "node:path";
-import { parseArgs, styleText } from "node:util";
+import { styleText } from "node:util";
 import { execSync } from "node:child_process";
 //#region src/cli/report_similar_code.ts
 /**
@@ -22,45 +23,42 @@ const MAX_FUNCTION_NAME_COL_WIDTH = 16;
 const MAX_LOCATION_COL_WIDTH = 20;
 function runSimilarCodeReport(projectRoot = process.cwd()) {
 	const fallowCfg = getAuditConfig(projectRoot).fallow?.similarCode;
-	const { values } = parseArgs({
-		args: process.argv.slice(2),
-		options: {
-			threshold: {
-				type: "string",
-				default: String(fallowCfg?.threshold ?? .95)
-			},
-			"min-lines": {
-				type: "string",
-				default: String(fallowCfg?.minLines ?? 3)
-			},
-			"include-same-file": {
-				type: "boolean",
-				default: false
-			},
-			json: {
-				type: "boolean",
-				default: false
-			}
+	const SIMILAR_CODE_ARGS = {
+		...COMMON_CLI_ARGS,
+		threshold: {
+			type: "string",
+			default: String(fallowCfg?.threshold ?? .95),
+			description: "Similarity threshold (0.0 to 1.0)"
 		},
-		strict: false,
-		allowPositionals: true
-	});
-	const threshold = parseFloat(String(values.threshold || String(.95)));
-	const minLines = parseInt(String(values["min-lines"] || "3"), 10);
-	const ignoreSameFile = !values["include-same-file"];
-	const isJson = Boolean(values.json);
+		"min-lines": {
+			type: "string",
+			default: String(fallowCfg?.minLines ?? 3),
+			description: "Minimum function lines to evaluate"
+		},
+		"include-same-file": {
+			type: "boolean",
+			default: false,
+			description: "Include candidate pairs within the same file"
+		}
+	};
+	const parsed = parseCittyArgs(SIMILAR_CODE_ARGS, getProcessCliArgs());
+	const threshold = parseFloat(String(parsed.threshold || String(.95)));
+	const minLines = parseInt(String(parsed["min-lines"] || "3"), 10);
+	const ignoreSameFile = !parsed["include-same-file"];
+	const isJson = Boolean(parsed.json);
 	const fallowBin = resolveFallowBinary(projectRoot);
 	if (!fallowBin) {
-		console.error(styleText("red", "❌ No se encontró el binario de Fallow en node_modules."));
+		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
 		process.exit(1);
 	}
 	if (!checkOrInitializeModel(fallowBin, projectRoot)) {
 		console.error("\n" + renderSimilarCodeWarningBanner() + "\n");
 		process.exit(1);
 	}
-	if (!isJson) {
-		renderBanner("REPORTE DE SIMILITUD SEMÁNTICA (FALLOW SIMILAR-CODE)", "Embeddings vectoriales de funciones");
-		console.log(styleText("dim", `🔍 Analizando similitud (Umbral: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Excluir mismo archivo: ${ignoreSameFile ? "Sí" : "No"})...\n`));
+	const isHuman = resolveHumanModeFromArgs(parsed);
+	if (!isJson && isHuman) {
+		console.log(renderBanner("SEMANTIC SIMILARITY REPORT (FALLOW SIMILAR-CODE)", "Vector function embeddings"));
+		console.log(styleText("dim", `[Scan] Analyzing similarity (Threshold: ${(threshold * 100).toFixed(0)}%, Min-Lines: ${minLines}, Exclude same file: ${ignoreSameFile ? "Yes" : "No"})...\n`));
 	}
 	let candidates = [];
 	try {
@@ -78,7 +76,7 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 		const jsonStart = stdout.indexOf("{");
 		if (jsonStart !== -1) candidates = JSON.parse(stdout.substring(jsonStart)).candidates ?? [];
 	} catch (err) {
-		console.error(styleText("red", `❌ Error al ejecutar fallow similar-code: ${err.message}`));
+		console.error(styleText("red", `[Error] Failed to execute fallow similar-code: ${err.message}`));
 		process.exit(1);
 	}
 	if (ignoreSameFile) candidates = candidates.filter((c) => {
@@ -89,10 +87,20 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 		return;
 	}
 	if (candidates.length === 0) {
-		console.log(styleText("green", `✨ No se detectaron duplicados semánticos de código con umbral >= ${(threshold * 100).toFixed(0)}%.\n`));
+		console.log(styleText("green", `[OK] No semantic code duplicates detected with threshold >= ${(threshold * 100).toFixed(0)}%.\n`));
 		return;
 	}
-	console.log(`🔥 CANDIDATOS DETECTADOS (${candidates.length} pares):\n`);
+	if (!isHuman) {
+		console.log(`[SimilarCode] Found ${candidates.length} semantic clone pair(s) (threshold: ${(threshold * 100).toFixed(0)}%):`);
+		for (const [idx, c] of candidates.entries()) {
+			const leftFile = path.basename(c.left.path);
+			const rightFile = path.basename(c.right.path);
+			console.log(`• Pair ${idx + 1} (${(c.similarity * 100).toFixed(1)}%): ${c.left.name} (${leftFile}:${c.left.start_line}) ~ ${c.right.name} (${rightFile}:${c.right.start_line})`);
+		}
+		console.log("");
+		return;
+	}
+	console.log(`CANDIDATES DETECTED (${candidates.length} pairs):\n`);
 	const cols = [
 		{
 			header: "#",
@@ -107,19 +115,19 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 			key: "similarity"
 		},
 		{
-			header: "FUNCIÓN A",
+			header: "FUNCTION A",
 			width: 16,
 			align: "left",
 			key: "funcA"
 		},
 		{
-			header: "FUNCIÓN B",
+			header: "FUNCTION B",
 			width: 16,
 			align: "left",
 			key: "funcB"
 		},
 		{
-			header: "UBICACIÓN ARCHIVOS",
+			header: "FILE LOCATIONS",
 			width: 20,
 			align: "left",
 			key: "location"
@@ -140,7 +148,7 @@ function runSimilarCodeReport(projectRoot = process.cwd()) {
 		};
 	});
 	console.log(renderBoxTable(cols, rows));
-	console.log(`\n💡 Total de pares semánticos detectados: ${candidates.length}\n`);
+	console.log(`\n[Notice] Total semantic pairs detected: ${candidates.length}\n`);
 }
 if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();

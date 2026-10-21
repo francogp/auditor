@@ -217,7 +217,7 @@ Architecture & Tooling Engineers.
       const result = await auditor.execute();
       const orderViolation = result.findings.find((f) => f.ruleId === 'dox-section-order');
       expect(orderViolation).toBeDefined();
-      expect(orderViolation?.message).toContain('no debe aparecer después de');
+      expect(orderViolation?.message).toContain('must not appear after');
     });
 
     it('detects empty or placeholder sections in AGENTS.md (dox-empty-section)', async () => {

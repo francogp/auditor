@@ -154,7 +154,7 @@ async function collectAllGitIgnoreRequirements(projectRoot = process.cwd(), conf
 	for (const entry of customEntries) if (typeof entry === "string") GitIgnoreRegistry.register({
 		id: entry,
 		pattern: entry,
-		reason: `Entrada requerida configurada en audit.config.ts (${entry})`
+		reason: `Required entry configured in audit.config.ts (${entry})`
 	});
 	else if (entry && typeof entry === "object" && entry.id && entry.pattern) GitIgnoreRegistry.register(entry);
 	return GitIgnoreRegistry.getRequirements();
@@ -182,7 +182,7 @@ async function collectAllPackageScriptRequirements(projectRoot = process.cwd(), 
 	for (const scriptName of customScripts) addRequirement({
 		name: scriptName,
 		command: `auditor task=${scriptName}`,
-		description: `Script requerido adicional configurado en audit.config.ts (${scriptName})`,
+		description: `Additional required script configured in audit.config.ts (${scriptName})`,
 		category: "custom"
 	});
 	return collected;

@@ -35,16 +35,16 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       expect(SECRET_LEAKS_RULES).toContain('secret-leak-private-key');
     });
 
-    it('initializes with correct auditor metadata and Spanish rule descriptions', () => {
+    it('initializes with correct auditor metadata and rule descriptions', () => {
       const auditor = new ValidateSecretLeaksAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_secret_leaks');
       expect(auditor.family).toBe('architecture');
-      expect(auditor.packageName).toBe('Secretos');
+      expect(auditor.packageName).toBe('Secrets');
       expect(auditor.ruleDescriptions['secret-leak-detected']).toBe(
-        'Token, secreto o credencial expuesta'
+        'Exposed token, secret, or credential'
       );
       expect(auditor.ruleDescriptions['secret-leak-private-key']).toBe(
-        'Clave criptográfica privada expuesta'
+        'Exposed private cryptographic key'
       );
     });
   });
