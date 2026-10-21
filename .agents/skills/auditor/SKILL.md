@@ -62,6 +62,7 @@ graph TD
 ### 3. Absolute Prohibition on Suppressing Audit Rules & Zero-Tolerance Fake Pass Mandate
 
 - Suppressing, silencing, or bypassing rules (e.g., setting `"rule": null`, `"rule": "off"`, passing arbitrary skip flags) to achieve a fake pass is considered critical architectural sabotage.
+- **Dependency Immutability (`node_modules/`) & Upstream Bug Reporting**: Modifying, editing, patching, or writing files inside `node_modules/` under ANY circumstances is **STRICTLY AND CATEGORICALLY PROHIBITED**. Reading and inspecting dependency source code or type definitions (`.d.ts`) is completely permitted, but installed dependencies are immutable runtime artifacts. If an agent suspects a bug or false positive in `@francogp/auditor` or any installed dependency, it **MUST HALT AND REPORT IT TO THE HUMAN PROGRAMMER** so it is legitimately resolved in the upstream source repository—never hot-patch or mutate `node_modules/`.
 
 ### 4. Node.js 26+ Native Engine & Prohibition of NPX / Third-Party Runners
 

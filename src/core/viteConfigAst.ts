@@ -14,7 +14,11 @@ function normalizePosixRoot(rawRoot: string): string {
 }
 
 function isPathUnderRoot(candidatePath: string, rootDir: string): boolean {
-  return isPathContained(rootDir, candidatePath);
+  return isPathContained(
+    normalizePosixRoot(rootDir),
+    normalizePosixRoot(candidatePath),
+    process.cwd()
+  );
 }
 
 export const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>> = {
@@ -1186,7 +1190,7 @@ function syncTestIncludeAst(
     const pattern = `${root}/**/*.{test,spec}.ts`;
     const simple = `${root}/**/*.test.ts`;
     const covered = existingIncludes.some(
-      (inc) => inc === pattern || inc === simple || inc.startsWith(`${root}/`)
+      (inc) => inc === pattern || inc === simple || isPathUnderRoot(inc, root)
     );
     if (!covered) {
       missingRoots.push(pattern);

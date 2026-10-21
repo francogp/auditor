@@ -296,8 +296,22 @@ function migrateHomebrewCompressionInViteConfig(viteConfigContent) {
 		};
 	}
 }
+function removeDeletedFileFromSiblingAgentsMd(deletedFilePath) {
+	const siblingAgentsPath = path.join(path.dirname(deletedFilePath), "AGENTS.md");
+	if (!fs.existsSync(siblingAgentsPath)) return;
+	try {
+		const baseName = path.basename(deletedFilePath);
+		const lines = fs.readFileSync(siblingAgentsPath, "utf8").split(/\r?\n/);
+		const filtered = lines.filter((line) => {
+			const trimmed = line.trim();
+			return !((trimmed.startsWith("- ") || trimmed.startsWith("* ")) && line.includes(baseName));
+		});
+		if (filtered.length !== lines.length) fs.writeFileSync(siblingAgentsPath, filtered.join("\n"), "utf8");
+	} catch {}
+}
 /**
-* Removes homebrew compression scripts found on disk.
+* Removes homebrew compression scripts found on disk and cleans their stale entries
+* from the sibling AGENTS.md DOX index if present.
 */
 function cleanHomebrewCompressionFiles(projectRoot) {
 	const files = findHomebrewCompressionFiles(projectRoot);
@@ -306,6 +320,7 @@ function cleanHomebrewCompressionFiles(projectRoot) {
 		const fullPath = path.resolve(projectRoot, rel);
 		if (fs.existsSync(fullPath)) try {
 			fs.rmSync(fullPath, { force: true });
+			removeDeletedFileFromSiblingAgentsMd(fullPath);
 			removed.push(rel);
 		} catch {}
 	}

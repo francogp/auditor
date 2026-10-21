@@ -203,6 +203,25 @@ describe('ValidateFileEncodingAuditor', () => {
         true
       );
     });
+
+    it('respects SQL -- mojibake-ok: suppression comment in .sql files', async () => {
+      const srcDir = path.join(tmpDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      const sqlFile = path.join(srcDir, '20260611120000_migrate_save_v3_ids.sql');
+      fs.writeFileSync(
+        sqlFile,
+        "UPDATE items SET item_id = 'item_potion' WHERE item_id = 'PociÃ³n'; -- mojibake-ok: legacy save repair\n",
+        'utf8'
+      );
+
+      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
+      const result = await auditor.execute();
+
+      expect(result.status).toBe('passed');
+      expect(result.summary.warnings).toBe(0);
+      expect(result.findings).toHaveLength(0);
+    });
   });
 
   describe('Binary Files & Exemptions Safety', () => {

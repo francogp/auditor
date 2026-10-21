@@ -240,6 +240,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     description: 'Remediación determinista de strings crudos, catálogos mutables e IDs sin Brand',
     category: 'reporting'
   },
+  {
+    name: 'auditor:dependencies',
+    command: 'auditor-dependencies',
+    description: 'Inspección de versiones mínimas y máximas de librerías homologadas',
+    category: 'reporting'
+  },
 
   // Fallow Categories
   {

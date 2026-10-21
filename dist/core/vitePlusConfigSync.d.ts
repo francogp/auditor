@@ -37,7 +37,8 @@ export declare function migrateHomebrewCompressionInViteConfig(viteConfigContent
   modified: boolean;
 };
 /**
- * Removes homebrew compression scripts found on disk.
+ * Removes homebrew compression scripts found on disk and cleans their stale entries
+ * from the sibling AGENTS.md DOX index if present.
  */
 export declare function cleanHomebrewCompressionFiles(projectRoot: string): string[];
 export declare function rewriteImportsToVitePlus(projectRoot: string, dirs?: readonly string[]): number;

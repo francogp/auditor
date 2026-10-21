@@ -29,7 +29,8 @@ export type AgentsConfigMandateRuleId =
   | 'agents-missing-chat-language-mandate'
   | 'agents-missing-destructive-git-mandate'
   | 'agents-missing-official-tools-mandate'
-  | 'agents-missing-architecture-mandate';
+  | 'agents-missing-architecture-mandate'
+  | 'agents-missing-dependency-immutability-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
@@ -38,7 +39,8 @@ export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] =
   'agents-missing-chat-language-mandate',
   'agents-missing-destructive-git-mandate',
   'agents-missing-official-tools-mandate',
-  'agents-missing-architecture-mandate'
+  'agents-missing-architecture-mandate',
+  'agents-missing-dependency-immutability-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
@@ -89,6 +91,12 @@ export const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN =
 export const CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES =
   '- **Mandato de Gobernanza Arquitectónica Universal y Alineación Obligatoria de Planes de Trabajo (`/architecture`)**: El marco de gobernanza `/architecture` rige todo el diseño, estructura, comportamiento en runtime y refactorización en este repositorio, y DEBE permanecer continuamente activo y ser estrictamente aplicado. Cada vez que se elabore, proponga o ejecute un plan de trabajo, diseño técnico, hoja de ruta de refactorización o desglose de tareas (ej. `/plan`, `/brainstorming`, planes de tareas), el trabajo propuesto DEBE alinearse estrictamente y satisfacer `/architecture` y todo su contenido: los 6 Pilares Mandatorios de Diseño (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), la Guía Principal de Depuración (`/systematic-debugging` - Mandato RED-GREEN ante todo), desacoplamiento de capas, uso exclusivo de librerías nativas de Node.js 26+, configuración SSoT dinámica y prioridad de herramientas oficiales del framework. Desviarse de `/architecture` o ejecutar planes que eludan sus pilares está estrictamente prohibido.';
 
+export const CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN =
+  "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or writing files inside `node_modules/` under ANY circumstances. Inspecting or reading dependency source code and type definitions is permitted, but packages installed via package managers are immutable runtime artifacts. Copying, transferring, or pasting build artifacts (`dist/`), packages, or files directly into another project's `node_modules/` to test changes is STRICTLY AND CATEGORICALLY PROHIBITED. If a bug or false positive is suspected in `@francogp/auditor` or any installed dependency, the AI agent MUST HALT and report the issue to the human programmer to fix it in the upstream source repository rather than hot-patching `node_modules/`. All cross-project verification MUST execute non-destructively through the canonical remote CLI flag (`project=<path>`) from the auditor workspace or by upgrading via the canonical package update tool (`npm run auditor:update`), NEVER by mutating `node_modules/`. Mutating `node_modules/` introduces untracked volatile state that is immediately destroyed on the next `npm install`, masks upstream architectural debt, and constitutes a critical operational violation.";
+
+export const CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES =
+  '- **Mandato de Inmutabilidad de Dependencias y Prohibición Categórica de Mutar `node_modules/` (`Dependency Immutability Mandate`)**: Los desarrolladores y agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO modificar, editar, parchear o escribir archivos dentro de `node_modules/` bajo CUALQUIER circunstancia. La lectura o inspección de código fuente y definiciones de tipos en dependencias está permitida, pero los paquetes instalados mediante gestores de paquetes son artefactos de runtime inmutables. Copiar, transferir o pegar artefactos compilados (`dist/`), paquetes o archivos directamente dentro del `node_modules/` de otro proyecto para probar cambios está ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO. Si se sospecha de un bug o falso positivo en `@francogp/auditor` o cualquier dependencia instalada, el agente de IA DEBE DETENERSE e informar el hallazgo al programador humano para corregirlo en el repositorio fuente upstream en lugar de parchear `node_modules/`. Toda verificación entre proyectos DEBE ejecutarse de forma no destructiva mediante el flag remoto canónico (`project=<path>`) desde el workspace del auditor o actualizando con la herramienta canónica (`npm run auditor:update`), JAMÁS mutando `node_modules/`. Mutar `node_modules/` introduce estado volátil no rastreado que se destruye en el próximo `npm install`, oculta deuda arquitectónica upstream y constituye una violación operativa crítica.';
+
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
   backwardCompat: {
@@ -107,6 +115,10 @@ const CANONICAL_SNIPPET_REGISTRY = {
   architecture: {
     en: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN,
     es: CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES
+  },
+  dependencyImmutability: {
+    en: CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN,
+    es: CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES
   }
 } as const;
 
@@ -143,6 +155,15 @@ export function getCanonicalArchitectureSnippet(language: DocumentationLanguage 
   return (
     CANONICAL_SNIPPET_REGISTRY.architecture[language] ??
     CANONICAL_SNIPPET_REGISTRY.architecture.en
+  );
+}
+
+export function getCanonicalDependencyImmutabilitySnippet(
+  language: DocumentationLanguage = 'en'
+): string {
+  return (
+    CANONICAL_SNIPPET_REGISTRY.dependencyImmutability[language] ??
+    CANONICAL_SNIPPET_REGISTRY.dependencyImmutability.en
   );
 }
 
@@ -369,6 +390,36 @@ export function containsArchitectureMandate(
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the dependency immutability (node_modules) mandate.
+ */
+export function containsDependencyImmutabilityMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /node_modules|dependency\s+immutability|inmutabilidad\s+de\s+dependencias/i.test(text);
+  if (!hasSubject) return false;
+
+  const hasProhibition =
+    /prohibit|prohibid|categorically|categóricamente|strictly|estrictamente|never|jamás/i.test(
+      text
+    );
+  if (!hasProhibition) return false;
+
+  const hasMutationConcept =
+    /mutat|modif|edit|patch|tamper|mutar|modificar|editar|parchear|manipular|immutable|inmutables?/i.test(
+      text
+    );
+  if (!hasMutationConcept) return false;
+
+  const enMarkers =
+    /(?:Dependency Immutability Mandate|Categorical Prohibition on Mutating|immutable runtime artifacts|tampering with)/i;
+  const esMarkers =
+    /(?:Mandato de Inmutabilidad de Dependencias|Prohibición Categórica de Mutar|artefactos de runtime inmutables|manipulando)/i;
+  return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
   check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
@@ -488,6 +539,21 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause establishing universal /architecture governance and mandatory work planning alignment.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente el mandato de gobernanza universal de /architecture y alineación obligatoria de planes de trabajo.'
+  },
+  {
+    ruleId: 'agents-missing-dependency-immutability-mandate',
+    check: (text, docLang) => containsDependencyImmutabilityMandate(text, docLang),
+    getSnippet: (docLang) => getCanonicalDependencyImmutabilitySnippet(docLang),
+    isExistingLine: (l) =>
+      l.includes('Dependency Immutability Mandate') ||
+      l.includes('Mandato de Inmutabilidad de Dependencias') ||
+      l.includes('Prohibition on Mutating `node_modules/`') ||
+      l.includes('Prohibición Categórica de Mutar `node_modules/`') ||
+      /(?:dependency\s+immutability|inmutabilidad\s+de\s+dependencias).*(?:node_modules)/i.test(l),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause prohibiting mutating or patching files inside node_modules/.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente el mandato de inmutabilidad de dependencias y prohibición absoluta de mutar node_modules/.'
   }
 ];
 
@@ -541,7 +607,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-chat-language-mandate': 'Falta mandato de idioma del chat',
         'agents-missing-destructive-git-mandate': 'Falta mandato anti-git destructivo',
         'agents-missing-official-tools-mandate': 'Falta mandato de herramientas oficiales',
-        'agents-missing-architecture-mandate': 'Falta mandato de arquitectura'
+        'agents-missing-architecture-mandate': 'Falta mandato de arquitectura',
+        'agents-missing-dependency-immutability-mandate': 'Falta mandato de node_modules'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -606,7 +673,16 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
           '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
           '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
           '4. Ejemplo:\n' +
-          '   - Cláusula obligatoria: "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)..."'
+          '   - Cláusula obligatoria: "- **Universal Architecture Governance & Mandatory Work Planning Alignment Mandate (`/architecture`)**: The `/architecture` governance framework governs all design, structure, runtime behavior, and refactoring across this repository and MUST remain continuously active and strictly enforced. Whenever creating, proposing, or executing any work plan, technical design, refactoring roadmap, or task breakdown (e.g. `/plan`, `/brainstorming`, brain task plans), the proposed work MUST strictly align with and satisfy `/architecture` and its complete contents: the 6 Mandatory Design Pillars (`/domain-type-first`, `/clean-code`, `/dox-navigator`, `/ponytail`, `/auditor`, `/fallow`), the Primary Debugging Guide (`/systematic-debugging` - RED-GREEN First Mandate)..."',
+        'agents-missing-dependency-immutability-mandate':
+          '📖 GUÍA DE REMEDIACIÓN: agents-missing-dependency-immutability-mandate\n' +
+          '1. Causa Raíz: El archivo AGENTS.md raíz carece de la cláusula obligatoria que prohíbe a desarrolladores y agentes de IA modificar, editar, parchear o crear archivos dentro de `node_modules/` bajo cualquier circunstancia, exigiendo detenerse y reportar al programador humano cualquier presunto bug en dependencias.\n' +
+          '2. Diagnóstico: Revisa AGENTS.md bajo "Local Contracts". Falta el mandato de inmutabilidad de dependencias (`Dependency Immutability Mandate`).\n' +
+          '3. Solución Canónica:\n' +
+          '   a) Ejecuta el auto-fix: `npm run auditor:fix` o `auditor fix` para inyectar automáticamente la cláusula canónica.\n' +
+          '   b) O añade manualmente el snippet canónico bajo "Local Contracts".\n' +
+          '4. Ejemplo:\n' +
+          '   - Cláusula obligatoria: "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances..."'
       },
       coverage: {
         include: ['AGENTS.md']

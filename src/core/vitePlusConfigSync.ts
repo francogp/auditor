@@ -438,8 +438,29 @@ export function migrateHomebrewCompressionInViteConfig(viteConfigContent: string
   }
 }
 
+function removeDeletedFileFromSiblingAgentsMd(deletedFilePath: string): void {
+  const siblingAgentsPath = path.join(path.dirname(deletedFilePath), 'AGENTS.md');
+  if (!fs.existsSync(siblingAgentsPath)) return;
+  try {
+    const baseName = path.basename(deletedFilePath);
+    const content = fs.readFileSync(siblingAgentsPath, 'utf8');
+    const lines = content.split(/\r?\n/);
+    const filtered = lines.filter((line) => {
+      const trimmed = line.trim();
+      const isBullet = trimmed.startsWith('- ') || trimmed.startsWith('* ');
+      return !(isBullet && line.includes(baseName));
+    });
+    if (filtered.length !== lines.length) {
+      fs.writeFileSync(siblingAgentsPath, filtered.join('\n'), 'utf8');
+    }
+  } catch {
+    // catch-ok
+  }
+}
+
 /**
- * Removes homebrew compression scripts found on disk.
+ * Removes homebrew compression scripts found on disk and cleans their stale entries
+ * from the sibling AGENTS.md DOX index if present.
  */
 export function cleanHomebrewCompressionFiles(projectRoot: string): string[] {
   const files = findHomebrewCompressionFiles(projectRoot);
@@ -449,6 +470,7 @@ export function cleanHomebrewCompressionFiles(projectRoot: string): string[] {
     if (fs.existsSync(fullPath)) {
       try {
         fs.rmSync(fullPath, { force: true });
+        removeDeletedFileFromSiblingAgentsMd(fullPath);
         removed.push(rel);
       } catch {
         // catch-ok

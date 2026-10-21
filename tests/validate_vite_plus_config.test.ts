@@ -5,6 +5,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { getAuditConfig, defineAuditConfig, setAuditConfig } from '../src/core/auditConfig.ts';
+import { resolveVitestRoots, synchronizeViteConfigAst } from '../src/core/viteConfigAst.ts';
 import {
   buildCanonicalVitePlusConfig,
   resolveAuditConfigIgnoreGlobs,
@@ -971,6 +972,86 @@ export default defineConfig({
       expect(updatedViteConfig).toContain("from '@francogp/auditor'");
       expect(updatedViteConfig).toContain('vitePrecompressPlugin');
       expect(updatedViteConfig).not.toContain('staticPrecompressPlugin');
+    });
+
+    it('C-CFG-59: resolveVitestRoots preserves multiple non-e2e testRoots and synchronizeViteConfigAst is idempotent (modified: false)', () => {
+      const customAuditConfig = defineAuditConfig({
+        name: 'Multi Test Roots App',
+        paths: {
+          srcRoots: ['src'],
+          testRoots: ['tests', 'test_aventura/tests', 'scripts/e2e'],
+          e2eRoots: ['scripts/e2e']
+        }
+      });
+
+      const resolvedRoots = resolveVitestRoots(customAuditConfig);
+      expect(resolvedRoots).toEqual(['tests', 'test_aventura/tests']);
+
+      const viteConfigPath = path.join(tempDir, 'vite.config.ts');
+      setAuditConfig(customAuditConfig, tempDir);
+
+      // First sync creates vite.config.ts
+      const firstSync = syncViteConfigWithAuditConfig(tempDir, customAuditConfig);
+      expect(firstSync.modified).toBe(true);
+      expect(fs.readFileSync(viteConfigPath, 'utf-8')).toContain(
+        'test_aventura/tests/**/*.{test,spec}.ts'
+      );
+
+      // Second sync on the exact same file MUST be a no-op (modified: false)
+      // so it never overwrites Oxfmt formatting during read-only audit runs
+      const secondSync = syncViteConfigWithAuditConfig(tempDir, customAuditConfig);
+      expect(secondSync.modified).toBe(false);
+
+      const lintIgnores = resolveAuditConfigIgnoreGlobs(customAuditConfig, 'lint', tempDir);
+      const fmtIgnores = resolveAuditConfigIgnoreGlobs(customAuditConfig, 'fmt', tempDir);
+      const currentContent = fs.readFileSync(viteConfigPath, 'utf-8');
+      const astSync = synchronizeViteConfigAst(
+        currentContent,
+        customAuditConfig,
+        lintIgnores,
+        fmtIgnores,
+        null
+      );
+      expect(astSync.modified).toBe(false);
+    });
+
+    it('C-CFG-60: cleanHomebrewCompressionFiles removes stale DOX entry from sibling AGENTS.md when deleting homebrew script', async () => {
+      const scriptsDir = path.join(tempDir, 'scripts', 'maintenance');
+      fs.mkdirSync(scriptsDir, { recursive: true });
+      const homebrewScript = path.join(scriptsDir, 'vite-plugin-precompress.ts');
+      fs.writeFileSync(homebrewScript, 'export function staticPrecompressPlugin() {}', 'utf-8');
+
+      const agentsMdPath = path.join(scriptsDir, 'AGENTS.md');
+      fs.writeFileSync(
+        agentsMdPath,
+        [
+          '# Purpose',
+          '',
+          'Maintenance scripts.',
+          '',
+          '## Key Files',
+          '',
+          '- [`keep-script.ts`](./keep-script.ts): Active maintenance helper.',
+          '- [`vite-plugin-precompress.ts`](./vite-plugin-precompress.ts): Obsolete precompress plugin.',
+          ''
+        ].join('\n'),
+        'utf-8'
+      );
+
+      const viteConfigPath = path.join(tempDir, 'vite.config.ts');
+      fs.writeFileSync(
+        viteConfigPath,
+        "import { defineConfig } from 'vite-plus';\nexport default defineConfig({});\n",
+        'utf-8'
+      );
+
+      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
+      await fixAuditor.execute();
+
+      expect(fs.existsSync(homebrewScript)).toBe(false);
+      const updatedAgentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
+      expect(updatedAgentsMd).toContain('keep-script.ts');
+      expect(updatedAgentsMd).not.toContain('vite-plugin-precompress.ts');
     });
   });
 });

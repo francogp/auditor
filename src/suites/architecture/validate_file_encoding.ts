@@ -63,7 +63,9 @@ export const FILE_ENCODING_RULE_REMEDIATIONS: Record<FileEncodingRuleId, string>
     '📖 GUÍA DE REMEDIACIÓN: file-encoding-mojibake-detected\n' +
     '1. Causa Raíz: Se detectaron secuencias típicas de mojibake (doble codificación UTF-8 interpretada como Latin-1/Windows-1252), produciendo caracteres corruptos.\n' +
     '2. Diagnóstico: Busca la línea indicada en el archivo y verifica si los acentos o caracteres especiales se ven corruptos.\n' +
-    '3. Solución Canónica: Corrige manualmente el texto o restaura los caracteres originales en español / Unicode limpio.\n' +
+    '3. Solución Canónica:\n' +
+    '   - Corrige manualmente el texto o restaura los caracteres originales en español / Unicode limpio.\n' +
+    '   - Si la línea contiene secuencias mojibake intencionales (ej. tablas de reparación SQL REPLACE o tests de transcodificación), agrega el comentario canónico `// mojibake-ok: <motivo>` (TS/JS) o `-- mojibake-ok: <motivo>` (SQL) en esa misma línea.\n' +
     '4. Ejemplo:\n' +
     '   ❌ Incorrecto: Archivo con acentos rotos por doble codificación.\n' +
     '   ✅ Correcto:   const msg = "Configuración de sesión";'
@@ -294,7 +296,7 @@ export function inspectBufferEncoding(
     const lines = decodedText.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      if (line.includes('// mojibake-ok:')) continue;
+      if (line.includes('mojibake-ok:')) continue;
       const match = MOJIBAKE_REGEX.exec(line);
       if (match && typeof match.index === 'number') {
         const lineNum = i + 1;

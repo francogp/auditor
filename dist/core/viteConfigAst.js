@@ -13,7 +13,7 @@ function normalizePosixRoot(rawRoot) {
 	return normalizePosixPath(rawRoot).toLowerCase();
 }
 function isPathUnderRoot(candidatePath, rootDir) {
-	return isPathContained(rootDir, candidatePath);
+	return isPathContained(normalizePosixRoot(rootDir), normalizePosixRoot(candidatePath), process.cwd());
 }
 const CANONICAL_LINT_RULES_MAP = {
 	"@typescript-eslint/no-explicit-any": "error",
@@ -734,7 +734,7 @@ function syncTestIncludeAst(props, auditConfig, sf) {
 	for (const root of testRoots) {
 		const pattern = `${root}/**/*.{test,spec}.ts`;
 		const simple = `${root}/**/*.test.ts`;
-		if (!existingIncludes.some((inc) => inc === pattern || inc === simple || inc.startsWith(`${root}/`))) missingRoots.push(pattern);
+		if (!existingIncludes.some((inc) => inc === pattern || inc === simple || isPathUnderRoot(inc, root))) missingRoots.push(pattern);
 	}
 	if (missingRoots.length > 0 || includeProp && modified) return {
 		props: updateObjectProperty(props, "include", valueToAstExpression(Array.from(/* @__PURE__ */ new Set([...existingIncludes, ...missingRoots]))), sf),

@@ -1118,4 +1118,10 @@ describe('migrateLegacyAuditConfig', () => {
   it('is a no-op on already migrated projects', () => {
     expect(migrateLegacyAuditConfig(root)).toEqual([]);
   });
+
+  it('registers auditor:dependencies in CORE_PACKAGE_SCRIPT_REQUIREMENTS', () => {
+    const depScript = PackageScriptRegistry.get('auditor:dependencies');
+    expect(depScript).toBeDefined();
+    expect(depScript?.command).toBe('auditor-dependencies');
+  });
 });
