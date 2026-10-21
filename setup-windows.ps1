@@ -8,23 +8,23 @@ param(
     [switch]$ConfigureFallow = $false
 )
 
-# Script Canónico de Inicialización y Preparación de Entorno para Windows (PowerShell)
-# Proporcionado por @francogp/auditor - Cero Hardcoding, Aislamiento Multi-Proyecto y Soporte de Plugins
+# Canonical Environment Initialization & Setup Script for Windows (PowerShell)
+# Provided by @francogp/auditor - Zero Hardcoding, Multi-Project Isolation, and Plugin Support
 
 $ErrorActionPreference = "Stop"
 
-# Por defecto: instalación fija y reproducible según lo declarado en el commit (.node-version / package.json)
-# -UpdateVersion / update-windows.ps1: actualiza a la última versión estable (Node.js Current + npm@latest)
+# Default: fixed reproducible installation as declared in commit (.node-version / package.json)
+# -UpdateVersion / update-windows.ps1: updates to latest stable version (Node.js Current + npm@latest)
 $updateToLatest = [bool]$UpdateVersion
 
-# Forzar codificación UTF-8 en consola de Windows
+# Force UTF-8 encoding in Windows console
 try {
     [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
     [Console]::InputEncoding = [System.Text.Encoding]::UTF8
     $OutputEncoding = [System.Text.Encoding]::UTF8
 } catch {}
 
-# Función para recargar todas las variables de entorno de Machine y User en la sesión actual
+# Function to reload Machine and User environment variables in current session
 function Refresh-ProcessEnvironment {
     foreach ($level in "Machine", "User") {
         [System.Environment]::GetEnvironmentVariables($level).GetEnumerator() | ForEach-Object {
@@ -44,20 +44,20 @@ function Refresh-ProcessEnvironment {
 
 Refresh-ProcessEnvironment
 
-# 1. Determinar versión de Node.js y nombre de proyecto
+# 1. Determine Node.js version and project name
 $pkgPath = Join-Path $PSScriptRoot "package.json"
 $nodeVersionPath = Join-Path $PSScriptRoot ".node-version"
 $nvmrcPath = Join-Path $PSScriptRoot ".nvmrc"
 
 if (-not (Test-Path $pkgPath)) {
-    Write-Host "[ERROR] No se encontró package.json en $pkgPath" -ForegroundColor Red
+    Write-Host "[ERROR] package.json not found in $pkgPath" -ForegroundColor Red
     exit 1
 }
 
 $pkgContent = Get-Content -Raw -Path $pkgPath | ConvertFrom-Json
 $projectName = if ($pkgContent.name) { $pkgContent.name } else { (Split-Path $PSScriptRoot -Leaf) }
 
-# Limpieza proactiva de archivo legacy .nvmrc
+# Proactive cleanup of legacy .nvmrc file
 if (Test-Path $nvmrcPath) {
     Remove-Item -Path $nvmrcPath -Force -ErrorAction SilentlyContinue
 }
@@ -65,7 +65,7 @@ if (Test-Path $nvmrcPath) {
 $targetNodeVer = ""
 
 if ($updateToLatest) {
-    Write-Host "[NODE] Consultando la última versión Current estable de Node.js en nodejs.org..." -ForegroundColor Cyan
+    Write-Host "[NODE] Querying latest stable Node.js Current version from nodejs.org..." -ForegroundColor Cyan
     try {
         $nodeDist = Invoke-RestMethod -Uri "https://nodejs.org/dist/index.json" -TimeoutSec 10 -ErrorAction Stop
         foreach ($item in $nodeDist) {
@@ -80,16 +80,16 @@ if ($updateToLatest) {
             $pkgUpdated = $pkgRaw -replace '("node":\s*")[^"]*(")', "`$1$expectedNodeEngine`$2"
             [System.IO.File]::WriteAllText($pkgPath, $pkgUpdated, (New-Object System.Text.UTF8Encoding $false))
             [System.IO.File]::WriteAllText($nodeVersionPath, "$targetNodeVer`n", (New-Object System.Text.UTF8Encoding $false))
-            Write-Host "[CONFIG] Sincronizado package.json y .node-version con v$targetNodeVer" -ForegroundColor Green
+            Write-Host "[CONFIG] Synchronized package.json and .node-version with v$targetNodeVer" -ForegroundColor Green
         }
     } catch {
-        Write-Host "  [WARN] No se pudo consultar la API de nodejs.org: $_. Usando definición local..." -ForegroundColor Yellow
+        Write-Host "  [WARN] Could not query nodejs.org API: $_. Using local definition..." -ForegroundColor Yellow
     }
 } else {
-    Write-Host "[NODE] Modo versiones declaradas activo (-DeclaredVersions). Preservando versión exacta de .node-version..." -ForegroundColor Cyan
+    Write-Host "[NODE] Declared versions mode active (-DeclaredVersions). Preserving exact version from .node-version..." -ForegroundColor Cyan
 }
 
-# Si no hubo consulta o falló: leer .node-version
+# If no remote query or query failed: read .node-version
 if (-not $targetNodeVer -and (Test-Path $nodeVersionPath)) {
     $rawNodeVer = (Get-Content -Raw -Path $nodeVersionPath).Trim() -replace '^v', ''
     if ($rawNodeVer) {
@@ -97,7 +97,7 @@ if (-not $targetNodeVer -and (Test-Path $nodeVersionPath)) {
     }
 }
 
-# Fallback a package.json
+# Fallback to package.json
 if (-not $targetNodeVer -and $pkgContent.engines -and $pkgContent.engines.node) {
     $targetNodeVer = $pkgContent.engines.node -replace '[^0-9.]', ''
     if ($targetNodeVer) {
@@ -106,11 +106,11 @@ if (-not $targetNodeVer -and $pkgContent.engines -and $pkgContent.engines.node) 
 }
 
 if (-not $targetNodeVer) {
-    Write-Host "[ERROR] No se pudo determinar la versión de Node.js a instalar." -ForegroundColor Red
+    Write-Host "[ERROR] Could not determine Node.js version to install." -ForegroundColor Red
     exit 1
 }
 
-# Invariante Dinámico: Si el proyecto host usa @francogp/auditor, validar que no sea inferior
+# Dynamic Invariant: If host project uses @francogp/auditor, validate >= minimum requirement
 $auditorPkgPath = Join-Path $PSScriptRoot "node_modules/@francogp/auditor/package.json"
 if (Test-Path $auditorPkgPath) {
     try {
@@ -120,7 +120,7 @@ if (Test-Path $auditorPkgPath) {
             $targetSemver = [System.Version]$targetNodeVer
             $auditorSemver = [System.Version]$auditorNodeMin
             if ($targetSemver -lt $auditorSemver) {
-                Write-Host "[ERROR] La versión objetivo v$targetNodeVer es INFERIOR al mínimo exigido por @francogp/auditor (v$auditorNodeMin)." -ForegroundColor Red
+                Write-Host "[ERROR] Target version v$targetNodeVer is LOWER than minimum required by @francogp/auditor (v$auditorNodeMin)." -ForegroundColor Red
                 exit 1
             }
         }
@@ -128,10 +128,10 @@ if (Test-Path $auditorPkgPath) {
 }
 
 Write-Host "======================================================" -ForegroundColor Cyan
-Write-Host " [SETUP] PREPARACIÓN DE ENTORNO NODE (v$targetNodeVer) [$projectName]" -ForegroundColor Cyan
+Write-Host " [SETUP] NODE ENVIRONMENT PREPARATION (v$targetNodeVer) [$projectName]" -ForegroundColor Cyan
 Write-Host "======================================================" -ForegroundColor Cyan
 
-# 2. Detectar NVM para Windows y asegurar rutas
+# 2. Detect NVM for Windows and ensure paths
 function Find-NvmInstallation {
     $candidates = @(
         $env:NVM_HOME,
@@ -171,7 +171,7 @@ if (-not $nvmRoot -and -not (Get-Command nvm -ErrorAction SilentlyContinue)) {
 
         if ($isAdmin) {
             Write-Host ""
-            Write-Host "[NVM] NVM para Windows no detectado. Instalando via winget..." -ForegroundColor Cyan
+            Write-Host "[NVM] NVM for Windows not detected. Installing via winget..." -ForegroundColor Cyan
             try {
                 if ($wingetCmd -eq "winget") {
                     winget install CoreyButler.NVMforWindows --accept-source-agreements --accept-package-agreements
@@ -180,13 +180,13 @@ if (-not $nvmRoot -and -not (Get-Command nvm -ErrorAction SilentlyContinue)) {
                 }
                 Refresh-ProcessEnvironment
             } catch {
-                Write-Host "  [WARN] No se pudo instalar NVM via winget: $_" -ForegroundColor Yellow
+                Write-Host "  [WARN] Could not install NVM via winget: $_" -ForegroundColor Yellow
             }
         } else {
             Write-Host ""
-            Write-Host "[NVM] NVM para Windows no detectado. Intentando instalar via winget..." -ForegroundColor Yellow
-            Write-Host "  [SECURITY] Se requieren permisos de Administrador para instalar NVM for Windows." -ForegroundColor Yellow
-            Write-Host "  [SECURITY] Solicitando elevación para instalar NVM via winget..." -ForegroundColor Cyan
+            Write-Host "[NVM] NVM for Windows not detected. Attempting installation via winget..." -ForegroundColor Yellow
+            Write-Host "  [SECURITY] Administrator privileges required to install NVM for Windows." -ForegroundColor Yellow
+            Write-Host "  [SECURITY] Requesting elevation to install NVM via winget..." -ForegroundColor Cyan
             $wingetInstallCmd = if ($wingetCmd -eq "winget") {
                 "winget $wingetArgs; exit `$LASTEXITCODE"
             } else {
@@ -195,19 +195,19 @@ if (-not $nvmRoot -and -not (Get-Command nvm -ErrorAction SilentlyContinue)) {
             try {
                 $elevProc = Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -Command `"$wingetInstallCmd`"" -PassThru -Wait
                 if ($elevProc.ExitCode -eq 0) {
-                    Write-Host "  [OK] NVM for Windows instalado con éxito mediante elevación UAC." -ForegroundColor Green
+                    Write-Host "  [OK] NVM for Windows installed successfully via UAC elevation." -ForegroundColor Green
                     Refresh-ProcessEnvironment
                 } else {
-                    Write-Host "  [WARN] La instalación de NVM mediante elevación finalizó con código $($elevProc.ExitCode)." -ForegroundColor Yellow
+                    Write-Host "  [WARN] NVM installation via elevation finished with exit code $($elevProc.ExitCode)." -ForegroundColor Yellow
                 }
             } catch {
-                Write-Host "  [WARN] Permisos de Administrador omitidos o denegados. NVM for Windows no se pudo instalar automáticamente." -ForegroundColor Yellow
-                Write-Host "         Para instalarlo manualmente en una consola con privilegios de Administrador:" -ForegroundColor Gray
+                Write-Host "  [WARN] Administrator privileges skipped or denied. NVM for Windows could not be installed automatically." -ForegroundColor Yellow
+                Write-Host "         To install manually in an elevated Administrator console:" -ForegroundColor Gray
                 Write-Host "         winget install CoreyButler.NVMforWindows" -ForegroundColor Cyan
             }
         }
 
-        # Re-detectar NVM tras el intento de instalación
+        # Re-detect NVM after installation attempt
         $nvmRoot = Find-NvmInstallation
         if ($nvmRoot) {
             if (-not $env:NVM_HOME) { $env:NVM_HOME = $nvmRoot }
@@ -215,7 +215,7 @@ if (-not $nvmRoot -and -not (Get-Command nvm -ErrorAction SilentlyContinue)) {
         }
     } else {
         Write-Host ""
-        Write-Host "[NVM] NVM para Windows no detectado y winget no está disponible." -ForegroundColor Yellow
+        Write-Host "[NVM] NVM for Windows not detected and winget is not available." -ForegroundColor Yellow
     }
 }
 
@@ -225,7 +225,7 @@ if (-not $nvmRoot) {
         New-Item -ItemType Directory -Path $nvmRoot -Force | Out-Null
     }
 } else {
-    # Verificar si el directorio nvmRoot tiene permisos de escritura; de lo contrario, usar fallback de usuario
+    # Check if nvmRoot has write permissions; otherwise fallback to user directory
     try {
         $testFile = Join-Path $nvmRoot ".test-write-$PID"
         [System.IO.File]::WriteAllText($testFile, "test")
@@ -238,7 +238,7 @@ if (-not $nvmRoot) {
     }
 }
 
-# 3. Asegurar el directorio receptor del Symlink/Junction de Node
+# 3. Ensure target directory for Node Symlink/Junction
 $nodeSymlinkPath = if ($env:NVM_SYMLINK) { $env:NVM_SYMLINK } else { "C:\nvm4w\nodejs" }
 $parentSymlinkDir = Split-Path -Parent $nodeSymlinkPath
 if ($parentSymlinkDir -and -not (Test-Path -Path $parentSymlinkDir)) {
@@ -251,13 +251,13 @@ if ($parentSymlinkDir -and -not (Test-Path -Path $parentSymlinkDir)) {
     }
 }
 
-# 4. Instalar Node.js objetivo si no existe
+# 4. Install target Node.js if missing
 $targetNodeDir = Join-Path $nvmRoot "v$targetNodeVer"
 $nodeExePath = Join-Path $targetNodeDir "node.exe"
 
 if (-not (Test-Path $nodeExePath)) {
     Write-Host ""
-    Write-Host "[NODE] Instalando Node.js v$targetNodeVer..." -ForegroundColor Cyan
+    Write-Host "[NODE] Installing Node.js v$targetNodeVer..." -ForegroundColor Cyan
     $installedViaNvm = $false
     if (Get-Command nvm -ErrorAction SilentlyContinue) {
         try {
@@ -269,7 +269,7 @@ if (-not (Test-Path $nodeExePath)) {
     }
 
     if (-not $installedViaNvm -and -not (Test-Path $nodeExePath)) {
-        Write-Host "  [DOWNLOAD] Descargando binarios oficiales de Node.js v$targetNodeVer..." -ForegroundColor Cyan
+        Write-Host "  [DOWNLOAD] Downloading official Node.js v$targetNodeVer binaries..." -ForegroundColor Cyan
         $zipUrl = "https://nodejs.org/dist/v$targetNodeVer/node-v$targetNodeVer-win-x64.zip"
         $tempZip = Join-Path $env:TEMP "node-v$targetNodeVer-win-x64.zip"
         $tempExtractDir = Join-Path $env:TEMP "node-v$targetNodeVer-extract"
@@ -289,17 +289,17 @@ if (-not (Test-Path $nodeExePath)) {
             }
             Copy-Item -Path "$extractedSubdir\*" -Destination $targetNodeDir -Recurse -Force
             Remove-Item -Path $tempZip, $tempExtractDir -Recurse -Force -ErrorAction SilentlyContinue
-            Write-Host "  [OK] Node.js v$targetNodeVer extraído correctamente en $targetNodeDir" -ForegroundColor Green
+            Write-Host "  [OK] Node.js v$targetNodeVer extracted successfully into $targetNodeDir" -ForegroundColor Green
         } catch {
-            Write-Host "  [ERROR] Falló la descarga y extracción de Node.js: $_" -ForegroundColor Red
+            Write-Host "  [ERROR] Node.js download and extraction failed: $_" -ForegroundColor Red
             exit 1
         }
     }
 }
 
-# 5. Activar Node.js (con fallback nativo Junction)
+# 5. Activate Node.js (with native Junction fallback)
 Write-Host ""
-Write-Host "[NODE] Activando Node.js v$targetNodeVer..." -ForegroundColor Cyan
+Write-Host "[NODE] Activating Node.js v$targetNodeVer..." -ForegroundColor Cyan
 $activated = $false
 
 if (Test-Path $targetNodeDir) {
@@ -338,14 +338,14 @@ if (-not $activated -and (Get-Command fnm -ErrorAction SilentlyContinue)) {
     } catch {}
 }
 
-# 6. Limpieza de versiones obsoletas (ESTRICTAMENTE OPT-IN con -PruneOtherVersions)
+# 6. Obsolete versions cleanup (STRICTLY OPT-IN with -PruneOtherVersions)
 if ($PruneOtherVersions) {
     Write-Host ""
-    Write-Host "[CLEANUP] Limpiando versiones obsoletas de Node.js (-PruneOtherVersions activado)..." -ForegroundColor Cyan
+    Write-Host "[CLEANUP] Cleaning obsolete Node.js versions (-PruneOtherVersions enabled)..." -ForegroundColor Cyan
     try {
         Get-ChildItem -Path $nvmRoot -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match '^v\d+\.\d+\.\d+$' -and $_.Name -ne "v$targetNodeVer" } | ForEach-Object {
             $verName = $_.Name
-            Write-Host "  [-] Eliminando versión: $verName..." -ForegroundColor Yellow
+            Write-Host "  [-] Removing version: $verName..." -ForegroundColor Yellow
             Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
             if (Test-Path $_.FullName -and (Get-Command nvm -ErrorAction SilentlyContinue)) {
                 nvm uninstall ($verName -replace '^v','') 2>$null | Out-Null
@@ -354,19 +354,17 @@ if ($PruneOtherVersions) {
     } catch {}
 } else {
     Write-Host ""
-    Write-Host "[INFO] Preservando todas las demás versiones de Node.js instaladas para convivencia multi-proyecto." -ForegroundColor Cyan
+    Write-Host "[INFO] Preserving all other Node.js versions installed for multi-project coexistence." -ForegroundColor Cyan
 }
 
-# Asegurar precedencia de la versión objetivo en el PATH del proceso actual (Aislamiento de Sesión)
-# Esto garantiza que el proceso actual siempre ejecute la versión exacta de .node-version incluso si otro
-# proceso en Windows modifica concurrentemente el Junction global ($nodeSymlinkPath).
+# Ensure target version precedence in process PATH (Session Isolation)
 if ($targetNodeDir -and (Test-Path (Join-Path $targetNodeDir "node.exe"))) {
     if ($env:Path -notlike "*$targetNodeDir*") {
         $env:Path = "$targetNodeDir;" + $env:Path
     }
 }
 
-# Asegurar que el symlink activo de Node y Roaming npm estén en el PATH de la sesión actual
+# Ensure active Node symlink and Roaming npm are in current session PATH
 $npmRoamingPath = "$env:APPDATA\npm"
 if ($env:Path -notlike "*$nodeSymlinkPath*") {
     $env:Path = "$nodeSymlinkPath;" + $env:Path
@@ -375,10 +373,10 @@ if ($env:Path -notlike "*$npmRoamingPath*") {
     $env:Path = "$npmRoamingPath;" + $env:Path
 }
 
-# 7. Actualizar npm a la versión adecuada (en auto-actualización instala npm@latest y sincroniza package.json; en -DeclaredVersions sincroniza con el commit)
+# 7. Update npm to appropriate version
 Write-Host ""
 if ($updateToLatest) {
-    Write-Host "[NPM] Actualizando npm a la última versión global (npm@latest)..." -ForegroundColor Cyan
+    Write-Host "[NPM] Updating npm to latest global version (npm@latest)..." -ForegroundColor Cyan
     try {
         npm install -g npm@latest
         $newNpmVer = (npm -v).Trim()
@@ -387,11 +385,11 @@ if ($updateToLatest) {
             if ($rawPkg -match '("npm":\s*">=)[^"]*(")') {
                 $updatedPkg = $rawPkg -replace '("npm":\s*">=)[^"]*(")', "`${1}$newNpmVer`${2}"
                 [System.IO.File]::WriteAllText($pkgPath, $updatedPkg)
-                Write-Host "  [OK] Versión de npm sincronizada a >=$newNpmVer en package.json" -ForegroundColor Green
+                Write-Host "  [OK] npm version synchronized to >=$newNpmVer in package.json" -ForegroundColor Green
             }
         }
     } catch {
-        Write-Host "  [WARN] Advertencia al actualizar npm global: $_" -ForegroundColor Yellow
+        Write-Host "  [WARN] Warning updating global npm: $_" -ForegroundColor Yellow
     }
 } else {
     $targetNpmVer = ""
@@ -403,21 +401,21 @@ if ($updateToLatest) {
     }
     $currentNpmVer = (npm -v).Trim()
     if ($targetNpmVer -and ($currentNpmVer -ne $targetNpmVer)) {
-        Write-Host "[NPM] Sincronizando npm a la versión declarada en el commit (npm@$targetNpmVer)..." -ForegroundColor Cyan
+        Write-Host "[NPM] Synchronizing npm to version declared in commit (npm@$targetNpmVer)..." -ForegroundColor Cyan
         try {
             npm install -g "npm@$targetNpmVer"
-            Write-Host "  [OK] npm instalado en v$targetNpmVer" -ForegroundColor Green
+            Write-Host "  [OK] npm installed at v$targetNpmVer" -ForegroundColor Green
         } catch {
-            Write-Host "  [WARN] Advertencia al instalar npm@${targetNpmVer}: $_" -ForegroundColor Yellow
+            Write-Host "  [WARN] Warning installing npm@${targetNpmVer}: $_" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "[NPM] Preservando versión activa de npm ($currentNpmVer)." -ForegroundColor Gray
+        Write-Host "[NPM] Preserving active npm version ($currentNpmVer)." -ForegroundColor Gray
     }
 }
 
-# 8. Verificación de configuración NPM aislada al proyecto
+# 8. Verify project-isolated NPM configuration
 Write-Host ""
-Write-Host "[CONFIG] Verificando políticas de NPM (.npmrc local del proyecto)..." -ForegroundColor Cyan
+Write-Host "[CONFIG] Verifying NPM policies (local project .npmrc)..." -ForegroundColor Cyan
 $projectNpmrc = Join-Path $PSScriptRoot ".npmrc"
 if (-not (Test-Path $projectNpmrc)) {
     $npmrcContent = @"
@@ -427,40 +425,40 @@ registry=https://registry.npmjs.org/
 audit-level=high
 "@
     [System.IO.File]::WriteAllText($projectNpmrc, $npmrcContent, (New-Object System.Text.UTF8Encoding $false))
-    Write-Host " [CONFIG] Archivo .npmrc local inicializado correctamente." -ForegroundColor Green
+    Write-Host " [CONFIG] Local .npmrc file initialized successfully." -ForegroundColor Green
 } else {
-    Write-Host " [CONFIG] Archivo .npmrc local detectado y activo." -ForegroundColor Green
+    Write-Host " [CONFIG] Local .npmrc file detected and active." -ForegroundColor Green
 }
 
-# 9. Instalar dependencias limpias del proyecto
+# 9. Clean installation of project dependencies
 Write-Host ""
 Set-Location $PSScriptRoot
 
 $installSuccess = $false
 
 if (Get-Command vp -ErrorAction SilentlyContinue) {
-    Write-Host "[DEPENDENCIES] Instalando dependencias del proyecto con Vite+ (vp install)..." -ForegroundColor Cyan
+    Write-Host "[DEPENDENCIES] Installing project dependencies with Vite+ (vp install)..." -ForegroundColor Cyan
     & vp install
     if ($LASTEXITCODE -eq 0) {
         $installSuccess = $true
     } else {
-        Write-Host "  [WARN] 'vp install' falló (código $LASTEXITCODE). Reintentando con npm ci..." -ForegroundColor Yellow
+        Write-Host "  [WARN] 'vp install' failed (code $LASTEXITCODE). Retrying with npm ci..." -ForegroundColor Yellow
     }
 }
 
 if (-not $installSuccess) {
-    Write-Host "[DEPENDENCIES] Instalando dependencias limpias con npm ci..." -ForegroundColor Cyan
+    Write-Host "[DEPENDENCIES] Installing clean dependencies with npm ci..." -ForegroundColor Cyan
     & npm ci
     if ($LASTEXITCODE -eq 0) {
         $installSuccess = $true
     } else {
-        Write-Host "  [WARN] 'npm ci' falló con código $LASTEXITCODE (posible desincronización de lockfile o dependencias remotas)." -ForegroundColor Yellow
-        Write-Host "  [RECOVERY] Intentando recuperación con 'npm install' para sincronizar dependencias..." -ForegroundColor Cyan
+        Write-Host "  [WARN] 'npm ci' failed with code $LASTEXITCODE (possible lockfile desynchronization or remote dependencies)." -ForegroundColor Yellow
+        Write-Host "  [RECOVERY] Attempting recovery with 'npm install' to synchronize dependencies..." -ForegroundColor Cyan
         & npm install
         if ($LASTEXITCODE -eq 0) {
             $installSuccess = $true
-            Write-Host "  [OK] Dependencias instaladas y sincronizadas exitosamente con npm install." -ForegroundColor Green
-            Write-Host "  [WARN] package-lock.json estaba desincronizado con package.json y fue modificado por npm install. Revise el cambio y commitéelo junto con package.json." -ForegroundColor Yellow
+            Write-Host "  [OK] Dependencies installed and synchronized successfully via npm install." -ForegroundColor Green
+            Write-Host "  [WARN] package-lock.json was desynchronized with package.json and was updated by npm install. Review and commit alongside package.json." -ForegroundColor Yellow
         }
     }
 }
@@ -468,31 +466,31 @@ if (-not $installSuccess) {
 if (-not $installSuccess) {
     Write-Host ""
     Write-Host "======================================================" -ForegroundColor Red
-    Write-Host " ❌ [ERROR] Falló la instalación de dependencias en $projectName." -ForegroundColor Red
-    Write-Host " Verifique los errores de npm arriba. No es seguro continuar sin dependencias instaladas." -ForegroundColor Red
+    Write-Host " ❌ [ERROR] Dependency installation failed in $projectName." -ForegroundColor Red
+    Write-Host " Check npm errors above. It is unsafe to proceed without dependencies installed." -ForegroundColor Red
     Write-Host "======================================================" -ForegroundColor Red
     exit 1
 }
 
 if (Get-Command vp -ErrorAction SilentlyContinue) {
     Write-Host ""
-    Write-Host "[CONFIG] Sincronizando configuración y agentes con Vite+ (vp config)..." -ForegroundColor Cyan
+    Write-Host "[CONFIG] Synchronizing configuration and agents with Vite+ (vp config)..." -ForegroundColor Cyan
     try {
         & vp config
     } catch {}
 }
 
-# 10. Desbloquear binarios nativos descargados por npm en Windows
+# 10. Unblock native binaries downloaded by npm on Windows
 Write-Host ""
-Write-Host "[SECURITY] Desbloqueando binarios nativos de node_modules..." -ForegroundColor Cyan
+Write-Host "[SECURITY] Unblocking native binaries in node_modules..." -ForegroundColor Cyan
 $nodeModulesDir = Join-Path $PSScriptRoot "node_modules"
 if (Test-Path $nodeModulesDir) {
     Get-ChildItem -Path $nodeModulesDir -Include "*.node", "*.dll", "*.exe" -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 }
 
-# 11. Inicializar Directorios Básicos del Auditor y del Proyecto
+# 11. Initialize Auditor & Project Base Directories
 Write-Host ""
-Write-Host "[DIRECTORIES] Inicializando directorios básicos del auditor y del proyecto..." -ForegroundColor Cyan
+Write-Host "[DIRECTORIES] Initializing auditor and project base directories..." -ForegroundColor Cyan
 
 $requiredDirs = @(
     "scratch",
@@ -511,13 +509,13 @@ foreach ($dir in $requiredDirs) {
     $targetPath = Join-Path $PSScriptRoot $dir
     if (-not (Test-Path $targetPath)) {
         New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
-        Write-Host "  [+] Creado directorio: $dir" -ForegroundColor Green
+        Write-Host "  [+] Created directory: $dir" -ForegroundColor Green
     } else {
-        Write-Host "  [✓] Directorio detectado: $dir" -ForegroundColor Gray
+        Write-Host "  [✓] Directory detected: $dir" -ForegroundColor Gray
     }
 }
 
-# 11.1 Configuración de Fallow, Modelo de Embeddings de IA y Lista Blanca en Windows
+# 11.1 Fallow Configuration, AI Embedding Model and Windows Defender Whitelisting
 $hasFallow = $ConfigureFallow -or `
     ($pkgContent.dependencies -and $pkgContent.dependencies.fallow) -or `
     ($pkgContent.devDependencies -and $pkgContent.devDependencies.fallow) -or `
@@ -525,9 +523,9 @@ $hasFallow = $ConfigureFallow -or `
 
 if ($hasFallow) {
     Write-Host ""
-    Write-Host "[FALLOW] Configurando Fallow similar-code y lista blanca de seguridad en Windows..." -ForegroundColor Cyan
+    Write-Host "[FALLOW] Configuring Fallow similar-code and security whitelisting on Windows..." -ForegroundColor Cyan
 
-    # 1. Asegurar directorios de caché de modelos y vectores
+    # 1. Ensure model and vector cache directories
     $fallowBase = if ($env:LOCALAPPDATA) { $env:LOCALAPPDATA } else { Join-Path $HOME "AppData\Local" }
     $fallowUserCache = Join-Path $fallowBase "fallow\similar-code"
     $fallowModelsDir = Join-Path $fallowUserCache "models"
@@ -539,9 +537,9 @@ if ($hasFallow) {
     if (-not (Test-Path $fallowVectorsDir)) {
         New-Item -ItemType Directory -Path $fallowVectorsDir -Force | Out-Null
     }
-    Write-Host "  [✓] Directorio de caché persistente verificado: $fallowUserCache" -ForegroundColor Gray
+    Write-Host "  [✓] Persistent cache directory verified: $fallowUserCache" -ForegroundColor Gray
 
-    # 2. Desbloquear binarios de Fallow (SmartScreen / Marca de la Web)
+    # 2. Unblock Fallow binaries (SmartScreen / Mark of the Web)
     $fallowCliDirs = @(
         (Join-Path $PSScriptRoot "node_modules\@fallow-cli"),
         (Join-Path $PSScriptRoot "node_modules\fallow")
@@ -551,9 +549,9 @@ if ($hasFallow) {
             Get-ChildItem -Path $dir -Include "*.exe", "*.dll", "*.node" -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
         }
     }
-    Write-Host "  [✓] Binarios de Fallow desbloqueados (Unblock-File)." -ForegroundColor Gray
+    Write-Host "  [✓] Fallow binaries unblocked (Unblock-File)." -ForegroundColor Gray
 
-    # 3. Lista Blanca en Windows Defender Antivirus
+    # 3. Windows Defender Antivirus Whitelist
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     $fallowCliPath = Join-Path $PSScriptRoot "node_modules\@fallow-cli"
 
@@ -561,103 +559,103 @@ if ($hasFallow) {
         try {
             Add-MpPreference -ExclusionProcess "fallow.exe", "fallow-similar-code.exe" -ErrorAction SilentlyContinue
             Add-MpPreference -ExclusionPath $fallowUserCache, $fallowCliPath -ErrorAction SilentlyContinue
-            Write-Host "  [OK] Exclusiones de Windows Defender aplicadas con éxito." -ForegroundColor Green
+            Write-Host "  [OK] Windows Defender exclusions applied successfully." -ForegroundColor Green
         } catch {
-            Write-Host "  [WARN] No se pudieron registrar exclusiones de Defender: $_" -ForegroundColor Yellow
+            Write-Host "  [WARN] Could not register Defender exclusions: $_" -ForegroundColor Yellow
         }
     } else {
-        Write-Host "  [SECURITY] Se requieren permisos de Administrador para registrar la lista blanca en Windows Defender." -ForegroundColor Yellow
-        Write-Host "  [SECURITY] Solicitando elevación para registrar exclusiones de Defender..." -ForegroundColor Cyan
+        Write-Host "  [SECURITY] Administrator privileges required to whitelist Fallow in Windows Defender." -ForegroundColor Yellow
+        Write-Host "  [SECURITY] Requesting elevation to register Defender exclusions..." -ForegroundColor Cyan
         $elevateCmd = "Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe' -ErrorAction SilentlyContinue; Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath' -ErrorAction SilentlyContinue"
         try {
             $elevProc = Start-Process powershell.exe -Verb RunAs -ArgumentList "-NoProfile -WindowStyle Hidden -Command `"$elevateCmd`"" -PassThru -Wait
             if ($elevProc.ExitCode -eq 0) {
-                Write-Host "  [OK] Exclusiones de Windows Defender registradas mediante elevación UAC." -ForegroundColor Green
+                Write-Host "  [OK] Windows Defender exclusions registered via UAC elevation." -ForegroundColor Green
             } else {
-                Write-Host "  [WARN] La solicitud de elevación finalizó con código $($elevProc.ExitCode)." -ForegroundColor Yellow
+                Write-Host "  [WARN] Elevation request finished with exit code $($elevProc.ExitCode)." -ForegroundColor Yellow
             }
         } catch {
-            Write-Host "  [WARN] Permisos de Administrador omitidos o denegados. Las exclusiones de Defender no se pudieron registrar automáticamente." -ForegroundColor Yellow
-            Write-Host "         Para registrarlas manualmente en una consola con privilegios de Administrador:" -ForegroundColor Gray
+            Write-Host "  [WARN] Administrator privileges skipped or denied. Defender exclusions could not be registered automatically." -ForegroundColor Yellow
+            Write-Host "         To register manually in an elevated Administrator console:" -ForegroundColor Gray
             Write-Host "         Add-MpPreference -ExclusionProcess 'fallow.exe', 'fallow-similar-code.exe'" -ForegroundColor Cyan
             Write-Host "         Add-MpPreference -ExclusionPath '$fallowUserCache', '$fallowCliPath'" -ForegroundColor Cyan
         }
     }
 
-    # 4. Inicializar y verificar modelo de IA de similar-code
+    # 4. Initialize and verify similar-code AI model
     $fallowBin = Join-Path $PSScriptRoot "node_modules\fallow\bin\fallow"
     if (Test-Path $fallowBin) {
-        Write-Host "  [+] Verificando estado del modelo vectorial de similar-code..." -ForegroundColor Cyan
+        Write-Host "  [+] Verifying similar-code vector model status..." -ForegroundColor Cyan
         try {
             $statusJson = node $fallowBin similar-code status --format json 2>$null | ConvertFrom-Json
             if ($statusJson.model_ready -ne $true) {
-                Write-Host "  [+] Descargando e inicializando modelo de embeddings de IA (jina-embeddings-v2-base-code)..." -ForegroundColor Cyan
+                Write-Host "  [+] Downloading and initializing AI embedding model (jina-embeddings-v2-base-code)..." -ForegroundColor Cyan
                 node $fallowBin similar-code setup --local --yes
             } else {
-                Write-Host "  [✓] Modelo de embeddings de IA para similar-code verificado y listo." -ForegroundColor Green
+                Write-Host "  [✓] Similar-code AI embedding model verified and ready." -ForegroundColor Green
             }
         } catch {
-            Write-Host "  [WARN] No se pudo inicializar similar-code automáticamente: $_" -ForegroundColor Yellow
+            Write-Host "  [WARN] Could not initialize similar-code automatically: $_" -ForegroundColor Yellow
         }
     }
 }
 
-# Verificación de exclusión de scratch/ en .gitignore
+# Verify scratch/ exclusion in .gitignore
 $projectGitignore = Join-Path $PSScriptRoot ".gitignore"
 if (Test-Path $projectGitignore) {
     $gitignoreContent = [System.IO.File]::ReadAllText($projectGitignore)
     if ($gitignoreContent -notmatch "(?m)^scratch/?\s*$") {
-        Write-Host "  [+] Asegurando exclusión de scratch/ en .gitignore..." -ForegroundColor Cyan
+        Write-Host "  [+] Ensuring scratch/ exclusion in .gitignore..." -ForegroundColor Cyan
         $separator = if ($gitignoreContent.EndsWith("`n")) { "`n" } else { "`n`n" }
         $entry = "${separator}# Scratch & Temporary Audits`nscratch/`n"
         [System.IO.File]::AppendAllText($projectGitignore, $entry, (New-Object System.Text.UTF8Encoding $false))
-        Write-Host "  [OK] scratch/ agregado a .gitignore" -ForegroundColor Green
+        Write-Host "  [OK] scratch/ added to .gitignore" -ForegroundColor Green
     } else {
-        Write-Host "  [✓] scratch/ ya está excluido en .gitignore" -ForegroundColor Gray
+        Write-Host "  [✓] scratch/ is already excluded in .gitignore" -ForegroundColor Gray
     }
 } else {
-    Write-Host "  [+] Creando .gitignore básico con exclusión de scratch/..." -ForegroundColor Cyan
+    Write-Host "  [+] Creating basic .gitignore excluding scratch/..." -ForegroundColor Cyan
     $newGitignore = "# Dependencies`nnode_modules/`n`n# Scratch & Temporary Audits`nscratch/`n*.log`n"
     [System.IO.File]::WriteAllText($projectGitignore, $newGitignore, (New-Object System.Text.UTF8Encoding $false))
-    Write-Host "  [OK] .gitignore creado con scratch/" -ForegroundColor Green
+    Write-Host "  [OK] .gitignore created with scratch/" -ForegroundColor Green
 }
 
-# Configuración de estándares locales de Git en el proyecto
+# Local Git standards configuration in project
 $gitDir = Join-Path $PSScriptRoot ".git"
 if (Test-Path $gitDir) {
-    Write-Host "  [+] Asegurando estandares locales de Git (core.filemode, core.autocrlf, core.eol)..." -ForegroundColor Cyan
+    Write-Host "  [+] Ensuring local Git standards (core.filemode, core.autocrlf, core.eol)..." -ForegroundColor Cyan
     git -C $PSScriptRoot config core.filemode false
     git -C $PSScriptRoot config core.autocrlf input
     git -C $PSScriptRoot config core.eol lf
-    Write-Host "  [OK] Estandares de Git configurados localmente en el proyecto" -ForegroundColor Green
+    Write-Host "  [OK] Local Git standards configured successfully in project" -ForegroundColor Green
 }
 
-# 12. Ejecutar Plugins Específicos del Proyecto (scripts\setup\plugins\*.ps1)
+# 12. Execute Project-Specific Plugins (scripts\setup\plugins\*.ps1)
 $pluginsDir = Join-Path $PSScriptRoot "scripts\setup\plugins"
 if (Test-Path $pluginsDir) {
     Get-ChildItem -Path $pluginsDir -Filter "*.ps1" -ErrorAction SilentlyContinue | Sort-Object Name | ForEach-Object {
         Write-Host ""
-        Write-Host "[PLUGIN] Ejecutando plugin de setup: $($_.Name)..." -ForegroundColor Cyan
+        Write-Host "[PLUGIN] Executing setup plugin: $($_.Name)..." -ForegroundColor Cyan
         & $_.FullName
     }
 }
 
-# 13. Gancho npm opcional: env:post-setup
+# 13. Optional npm hook: env:post-setup
 if ($pkgContent.scripts -and $pkgContent.scripts.'env:post-setup') {
     Write-Host ""
-    Write-Host "[HOOK] Ejecutando gancho post-setup (npm run env:post-setup)..." -ForegroundColor Cyan
+    Write-Host "[HOOK] Executing post-setup hook (npm run env:post-setup)..." -ForegroundColor Cyan
     npm run env:post-setup
 }
 
 Write-Host ""
 Write-Host "======================================================" -ForegroundColor Green
-Write-Host " [SUCCESS] ENTORNO Y DEPENDENCIAS PREPARADOS CON ÉXITO!" -ForegroundColor Green
-Write-Host " Proyecto: $projectName" -ForegroundColor Green
+Write-Host " [SUCCESS] ENVIRONMENT AND DEPENDENCIES PREPARED SUCCESSFULLY!" -ForegroundColor Green
+Write-Host " Project: $projectName" -ForegroundColor Green
 Write-Host "======================================================" -ForegroundColor Green
-Write-Host "Versiones activas en esta sesión:"
+Write-Host "Active versions in this session:"
 node -v
 npm -v
 Write-Host ""
-Write-Host "[NOTE] Si tienes terminales del IDE previamente abiertas, recárgalas para heredar el PATH actualizado." -ForegroundColor Cyan
-Write-Host "Todo listo para trabajar." -ForegroundColor Yellow
+Write-Host "[NOTE] If you have open IDE terminal sessions, reload them to inherit the updated PATH." -ForegroundColor Cyan
+Write-Host "Ready to work." -ForegroundColor Yellow
 Write-Host ""

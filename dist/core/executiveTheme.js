@@ -27,12 +27,9 @@ function renderExecutiveFailSummary(params) {
 		const counts = [p.errors > 0 ? `${p.errors} error(s)` : "", p.warnings > 0 ? `${p.warnings} warning(s)` : ""].filter(Boolean).join(", ");
 		phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
 	}
-	const nextActions = [
-		"  Next Actions for AI:",
-		"  1. Inspect findings:   npm run auditor:findings",
-		phaseBreakdown[0] ? `  2. Inspect by phase:   npm run auditor:findings -- phase=${phaseBreakdown[0].phase}` : "  2. Inspect by rule:    npm run auditor:by-rule",
-		fixableErrors > 0 ? "  3. Attempt auto-fix:   npm run auditor:fix" : "  3. Consult rule guide: npm run auditor -- guide <ruleId>"
-	];
+	const nextActions = ["  Next Actions for AI:"];
+	if (fixableErrors > 0) nextActions.push(`  1. Mandatory Auto-Fix: npm run auditor:fix (${fixableErrors} auto-fixable)`);
+	else nextActions.push("  1. Focus critical phase: npm run auditor:next", "  2. Inspect findings:   npm run auditor:findings", phaseBreakdown[0] ? `  3. Inspect by phase:   npm run auditor:findings -- phase=${phaseBreakdown[0].phase}` : "  3. Inspect by rule:    npm run auditor:by-rule", "  4. Consult rule guide: npm run auditor -- guide <ruleId>");
 	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
 	return `${header}\n${status}\n\n${phaseLines.join("\n")}\n\n${nextActions.join("\n")}\n\n${reportLine}\n`;
 }

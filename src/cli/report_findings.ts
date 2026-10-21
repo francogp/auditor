@@ -18,10 +18,15 @@ import {
   groupFindingsByFileMap,
   isRemediationPhaseId
 } from '../core/auditContract.ts';
+import {
+  REMEDIATION_PHASE_IDS,
+  REMEDIATION_PHASES
+} from '../core/remediationPhases.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
 import { toPosixRelative } from '../core/safePath.ts';
 import {
   renderBanner,
+  buildNoticeBox,
   renderFindingsBreakdownTable,
   renderSampleFindings,
   renderFindingsByFileTree
@@ -50,9 +55,11 @@ export type SeverityFilter = (typeof SEVERITY_FILTERS)[number];
 export const REPORT_SCOPES = ['all', 'host', 'packages'] as const;
 export type ReportScope = (typeof REPORT_SCOPES)[number];
 
+export type PhaseFilter = RemediationPhaseId | 'all' | 'next';
+
 interface ReportOptions {
   category: string;
-  phase: RemediationPhaseId | 'all';
+  phase: PhaseFilter;
   severity: SeverityFilter;
   search: string;
   filePattern: string;
@@ -113,6 +120,12 @@ function isInvokedAsByRule(): boolean {
   return scriptName.includes('auditor-rules') || scriptName.includes('auditor-by-rule');
 }
 
+function isInvokedAsNext(): boolean {
+  const scriptArg = getProcessExecutedScript() ?? '';
+  const scriptName = path.basename(scriptArg).toLowerCase();
+  return scriptName.includes('auditor-next');
+}
+
 function parseFlagArg(arg: string, opts: ReportOptions): boolean {
   if (HUMAN_CONSOLE_FLAGS.has(arg)) {
     opts.human = true;
@@ -157,6 +170,10 @@ function parseFlagArg(arg: string, opts: ReportOptions): boolean {
   if (FIX_FLAGS.has(arg)) {
     opts.inspectFix = true;
     opts.allowPartial = true;
+    return true;
+  }
+  if (arg === 'next' || arg === '--next') {
+    opts.phase = 'next';
     return true;
   }
   return false;
@@ -215,7 +232,9 @@ function parseFilterAndValue(arg: string, opts: ReportOptions): boolean {
   }
   if (arg.startsWith('phase=') || arg.startsWith('fase=')) {
     const val = arg.slice(arg.indexOf('=') + 1).toLowerCase();
-    if (isRemediationPhaseId(val)) {
+    if (val === 'next') {
+      opts.phase = 'next';
+    } else if (isRemediationPhaseId(val)) {
       opts.phase = val;
     }
     return true;
@@ -259,7 +278,7 @@ function parseReportOptions(rawInputArgs: readonly string[] = getProcessCliArgs(
   const isHuman = resolveHumanModeFromArgs(parsedCitty) || isHumanConsoleMode(undefined, rawInputArgs);
   const opts: ReportOptions = {
     category: 'all',
-    phase: 'all',
+    phase: isInvokedAsNext() ? 'next' : 'all',
     severity: 'all',
     search: '',
     filePattern: '',
@@ -303,6 +322,8 @@ function parseReportOptions(rawInputArgs: readonly string[] = getProcessCliArgs(
       opts.byRule = true;
     } else if (lower === 'flat' || lower === 'raw') {
       opts.flat = true;
+    } else if (lower === 'next') {
+      opts.phase = 'next';
     } else if (lower !== 'human' && lower !== 'json' && lower !== 'help') {
       opts.category = lower;
     }
@@ -585,7 +606,8 @@ function matchesSearchFilter(f: Finding, catKey: string, search: string): boolea
 }
 
 function checkFindingMatchesFilter(f: Finding, catKey: string, args: ReportOptions): boolean {
-  if (args.phase !== 'all' && f.remediationPhase !== args.phase) return false;
+  const effectivePhase = f.remediationPhase ?? 'hygiene';
+  if (args.phase !== 'all' && effectivePhase !== args.phase) return false;
   if (args.suitePattern) {
     const cleanSuite = args.suitePattern.toLowerCase();
     const inSuiteId = f.suiteId ? f.suiteId.toLowerCase().includes(cleanSuite) : false;
@@ -692,7 +714,7 @@ function renderCategoryDetailSample(
     const limit = args.top === 'all' ? filtered.length : args.top;
     if (args.human) {
       console.log(
-        `\n🔍 Sample findings for category "${catName}" (Showing ${Math.min(limit, filtered.length)} of ${filtered.length}):\n`
+        `\n[Category Findings] "${catName}" (Showing ${Math.min(limit, filtered.length)} of ${filtered.length}):\n`
       );
     } else {
       console.log(
@@ -730,7 +752,7 @@ function renderFilteredDetailSample(matchingFindings: Finding[], args: ReportOpt
     .filter(Boolean)
     .join(', ');
   const headerText = args.human
-    ? `\n🔍 Filtered findings (active filters: ${filterInfo || 'all'}): ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}\n`
+    ? `\n[Filtered Findings] (filters: ${filterInfo || 'all'}): showing ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}:\n`
     : `\n[Findings] Filtered (filters: ${filterInfo || 'all'}): showing ${Math.min(limit, matchingFindings.length)} of ${matchingFindings.length}:\n`;
   console.log(headerText);
   const sample = matchingFindings.slice(0, limit);
@@ -996,10 +1018,13 @@ function renderByFileView(
 
   if (fileSummaries.length === 0) {
     console.log(
-      styleText(
-        'green',
-        '\n✨ No findings match active filters.\n'
-      )
+      '\n' +
+        buildNoticeBox({
+          borderColor: 'green',
+          title: 'AUDIT FINDINGS BY FILE: ZERO VIOLATIONS',
+          lines: ['No findings match active filters.']
+        }) +
+        '\n'
     );
     return;
   }
@@ -1030,54 +1055,223 @@ function renderByFileView(
   console.log(treeOutput + '\n');
 }
 
-export function runReport(): void {
-  const args = parseReportOptions();
-  const report = loadAuditReport(args.inspectFix);
-  if (!report) process.exit(1);
+export interface ActiveRemediationPhaseResolution {
+  readonly phase: RemediationPhaseId;
+  readonly errors: number;
+  readonly warnings: number;
+  readonly postponedCount: number;
+  readonly totalErrorsInReport: number;
+  readonly totalWarningsInReport: number;
+}
 
-  validateReportFreshnessAndScope(report, args);
-  const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
-  const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
+export function resolveActiveRemediationPhase(
+  allFindings: readonly Finding[]
+): ActiveRemediationPhaseResolution | null {
+  const phaseStats: Record<RemediationPhaseId, { errors: number; warnings: number; total: number }> = {
+    setup: { errors: 0, warnings: 0, total: 0 },
+    prune: { errors: 0, warnings: 0, total: 0 },
+    dedup: { errors: 0, warnings: 0, total: 0 },
+    contracts: { errors: 0, warnings: 0, total: 0 },
+    behavior: { errors: 0, warnings: 0, total: 0 },
+    hygiene: { errors: 0, warnings: 0, total: 0 },
+    polish: { errors: 0, warnings: 0, total: 0 }
+  };
 
+  let totalErrors = 0;
+  let totalWarnings = 0;
+
+  for (const f of allFindings) {
+    const rawPhase = f.remediationPhase;
+    const p: RemediationPhaseId = rawPhase && isRemediationPhaseId(rawPhase)
+      ? rawPhase
+      : 'hygiene';
+    if (f.severity === 'error') {
+      phaseStats[p].errors++;
+      totalErrors++;
+    } else {
+      phaseStats[p].warnings++;
+      totalWarnings++;
+    }
+    phaseStats[p].total++;
+  }
+
+  // Priority 1: Earliest phase with at least 1 blocking error
+  for (let i = 0; i < REMEDIATION_PHASE_IDS.length; i++) {
+    const p = REMEDIATION_PHASE_IDS[i]!;
+    if (phaseStats[p].errors > 0) {
+      let postponedCount = 0;
+      for (let j = i + 1; j < REMEDIATION_PHASE_IDS.length; j++) {
+        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!]!.total;
+      }
+      return {
+        phase: p,
+        errors: phaseStats[p].errors,
+        warnings: phaseStats[p].warnings,
+        postponedCount,
+        totalErrorsInReport: totalErrors,
+        totalWarningsInReport: totalWarnings
+      };
+    }
+  }
+
+  // Priority 2: If zero errors, earliest phase with at least 1 warning
+  for (let i = 0; i < REMEDIATION_PHASE_IDS.length; i++) {
+    const p = REMEDIATION_PHASE_IDS[i]!;
+    if (phaseStats[p].warnings > 0) {
+      let postponedCount = 0;
+      for (let j = i + 1; j < REMEDIATION_PHASE_IDS.length; j++) {
+        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!]!.total;
+      }
+      return {
+        phase: p,
+        errors: 0,
+        warnings: phaseStats[p].warnings,
+        postponedCount,
+        totalErrorsInReport: totalErrors,
+        totalWarningsInReport: totalWarnings
+      };
+    }
+  }
+
+  return null;
+}
+
+export function renderActivePhaseFocusBanner(
+  resolution: ActiveRemediationPhaseResolution,
+  isHuman: boolean = false
+): string {
+  const meta = REMEDIATION_PHASES[resolution.phase];
+  const phaseOrder = meta.order;
+  const title = meta.title;
+
+  const targetDesc = resolution.errors > 0
+    ? `${resolution.errors} error(s)` + (resolution.warnings > 0 ? ` and ${resolution.warnings} warning(s)` : '')
+    : `${resolution.warnings} warning(s)`;
+  const postponedDesc = resolution.postponedCount > 0
+    ? `Postponing ${resolution.postponedCount} downstream finding(s) in lower-priority phases to prevent premature fixes.`
+    : 'No downstream findings.';
+
+  if (isHuman) {
+    return buildNoticeBox({
+      borderColor: resolution.errors > 0 ? 'red' : 'yellow',
+      title: `ACTIVE REMEDIATION PHASE ${phaseOrder}/7: ${meta.icon} ${title.toUpperCase()}`,
+      lines: [
+        `Focus: ${targetDesc} in this phase.`,
+        postponedDesc
+      ]
+    });
+  }
+
+  const header = `[FOCUS] ACTIVE REMEDIATION PHASE ${phaseOrder}/7: ${title.toUpperCase()}`;
+  const statusLine = `Target: ${targetDesc}.`;
+  const postponedLine = resolution.postponedCount > 0
+    ? `Postponed: ${resolution.postponedCount} downstream finding(s).`
+    : 'Downstream: clean.';
+
+  return styleText(['bold', 'cyan'], `${header}\n  ${statusLine} ${postponedLine}\n`);
+}
+
+type FindingsCategoryEntry = [string, { errors: number; warnings: number; findings: Finding[] }];
+
+function handleActiveRemediationPhase(
+  args: ReportOptions,
+  allFindings: Finding[]
+): boolean {
+  if (args.phase !== 'next') return true;
+
+  const activeResolution = resolveActiveRemediationPhase(allFindings);
+  if (!activeResolution) {
+    if (args.jsonOutput) {
+      console.log(JSON.stringify({ activePhase: null, status: 'clean', findings: [] }, null, 2));
+    } else if (args.human) {
+      console.log(
+        '\n' +
+          buildNoticeBox({
+            borderColor: 'green',
+            title: 'STRATEGIC REMEDIATION STATUS: ALL PHASES CLEAN',
+            lines: [
+              'All 7 remediation phases passed cleanly (0 errors, 0 warnings).',
+              'The repository is fully verified and ready for commit.'
+            ]
+          }) +
+          '\n'
+      );
+    } else {
+      console.log(
+        styleText('green', '\n[OK] All 7 remediation phases are clean (0 errors, 0 warnings).\n')
+      );
+    }
+    return false;
+  }
+
+  args.phase = activeResolution.phase;
+  if (!args.jsonOutput) {
+    console.log('\n' + renderActivePhaseFocusBanner(activeResolution, args.human));
+  }
+  return true;
+}
+
+function dispatchCustomReportView(
+  args: ReportOptions,
+  report: AuditReport,
+  matchingFindings: Finding[],
+  filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }>
+): boolean {
   if (args.byFile) {
     renderByFileView(matchingFindings, report, args);
-    return;
+    return true;
   }
-
   if (args.byRule) {
     renderRulesView(matchingFindings, args);
-    return;
+    return true;
   }
-
   if (args.jsonOutput) {
     renderFindingsJson(matchingFindings, filteredCategories, report, args);
-    return;
+    return true;
   }
-
   if (args.breakdown) {
     renderBreakdownView(matchingFindings, args);
-    return;
+    return true;
   }
-
   if (args.filesOnly) {
     renderFilesOnlyView(matchingFindings, report, args);
+    return true;
+  }
+  return false;
+}
+
+function renderCompactSummary(
+  report: AuditReport,
+  matchingFindings: Finding[],
+  sortedCategories: FindingsCategoryEntry[],
+  allFindings: Finding[],
+  args: ReportOptions
+): void {
+  if (matchingFindings.length === 0) {
+    console.log(styleText('green', '[OK] 0 errors and 0 warnings. All audit suites passed.'));
     return;
   }
 
-  const categoriesToRender =
-    args.phase !== 'all' ||
-    args.suitePattern ||
-    args.category !== 'all' ||
-    args.severity !== 'all' ||
-    args.search ||
-    args.filePattern ||
-    args.dirPattern ||
-    args.scope !== 'all'
-      ? filteredCategories
-      : categoryCounts;
+  console.log(
+    `\n[Summary] Status: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal} | Violations: ${matchingFindings.length} (${report.summary.errors} errors, ${report.summary.warnings} warnings)`
+  );
+  console.log('\n[Categories]:');
+  for (const [name, stats] of sortedCategories.slice(0, typeof args.top === 'number' ? args.top : DEFAULT_TOP_LIMIT)) {
+    console.log(`• ${name}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
+  }
+  console.log('');
+  if (args.summaryOnly) return;
+  renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+}
 
-  const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
-
+function renderDefaultReportView(
+  args: ReportOptions,
+  report: AuditReport,
+  matchingFindings: Finding[],
+  categoryCounts: Record<string, { errors: number; warnings: number; findings: Finding[] }>,
+  filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }>,
+  allFindings: Finding[]
+): void {
   const hasSpecificFilter = Boolean(
     args.flat ||
       args.suitePattern ||
@@ -1091,6 +1285,9 @@ export function runReport(): void {
       args.scope !== 'all'
   );
 
+  const categoriesToRender = hasSpecificFilter ? filteredCategories : categoryCounts;
+  const sortedCategories = sortFindingsEntries(Object.entries(categoriesToRender));
+
   if (!args.human && hasSpecificFilter) {
     if (args.summaryOnly) return;
     renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
@@ -1098,20 +1295,7 @@ export function runReport(): void {
   }
 
   if (!args.human) {
-    if (matchingFindings.length === 0) {
-      console.log(styleText('green', '[OK] 0 errors and 0 warnings. All audit suites passed.'));
-      return;
-    }
-    console.log(
-      `\n[Summary] Status: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal} | Violations: ${matchingFindings.length} (${report.summary.errors} errors, ${report.summary.warnings} warnings)`
-    );
-    console.log('\n[Categories]:');
-    for (const [name, stats] of sortedCategories.slice(0, typeof args.top === 'number' ? args.top : DEFAULT_TOP_LIMIT)) {
-      console.log(`• ${name}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
-    }
-    console.log('');
-    if (args.summaryOnly) return;
-    renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+    renderCompactSummary(report, matchingFindings, sortedCategories, allFindings, args);
     return;
   }
 
@@ -1129,6 +1313,34 @@ export function runReport(): void {
 
   if (args.summaryOnly) return;
   renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
+}
+
+export function runReport(): void {
+  const args = parseReportOptions();
+  const report = loadAuditReport(args.inspectFix);
+  if (!report) process.exit(1);
+
+  validateReportFreshnessAndScope(report, args);
+  const { categoryCounts, allFindings } = collectReportCategoryCounts(report);
+
+  if (!handleActiveRemediationPhase(args, allFindings)) {
+    return;
+  }
+
+  const { filteredCategories, matchingFindings } = filterMatchingFindings(categoryCounts, args);
+
+  if (dispatchCustomReportView(args, report, matchingFindings, filteredCategories)) {
+    return;
+  }
+
+  renderDefaultReportView(
+    args,
+    report,
+    matchingFindings,
+    categoryCounts,
+    filteredCategories,
+    allFindings
+  );
 }
 
 if (isMainModule(import.meta.url)) {

@@ -80,10 +80,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.9.1`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v9.9.2`):
 
 ```bash
-npm install -D github:francogp/auditor#v9.9.1 --allow-git=all
+npm install -D github:francogp/auditor#v9.9.2 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -93,7 +93,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v9.9.1"
+    "@francogp/auditor": "github:francogp/auditor#v9.9.2"
   }
 }
 ```
@@ -175,7 +175,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '9.9.1-build.20261021-083314',
+  auditorVersion: '9.9.2-build.20261021-102346',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -232,7 +232,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.9.1"`), or install via `npm install -D github:francogp/auditor#v9.9.1 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v9.9.2"`), or install via `npm install -D github:francogp/auditor#v9.9.2 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -482,11 +482,16 @@ flowchart TD
 - **Binary Fallback**: If an external linter binary is not installed in the host's `node_modules/.bin/`, the framework falls back to `AUDITOR_HOME_DIR/node_modules/.bin/`.
 - **Zero Host Pollution**: Runs directly from `@francogp/auditor` in memory and writes reports directly into `host/scratch/audits/`.
 
-### 4.10. Findings & Rule Inspection Tools (`auditor:findings`, `auditor:rules`, `auditor:by-file`)
+### 4.10. Findings & Rule Inspection Tools (`auditor:next`, `auditor:findings`, `auditor:rules`, `auditor:by-file`)
 
 Inspect, filter, and drill down into audit findings recorded in `scratch/audits/latest_audit.json` without writing custom inspection scripts:
 
 ```bash
+# Focus sequentially on the earliest active strategic phase (setup -> prune -> dedup -> contracts -> behavior -> hygiene -> polish):
+npm run auditor:next
+# or in human-readable boxed format:
+npm run auditor:next:human
+
 # View finding counts grouped by rule in an 80-col Box-Drawing table:
 npm run auditor:rules
 # or:
@@ -944,6 +949,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-post-build`          | `src/cli/audit_post_build.ts`     | Runs post-build compiled artifact audit suites against `dist/` (`phase=post-build`).                                                                                                                                                                      |
 | `auditor-build-deploy`        | `src/cli/build_deploy.ts`         | Runs deployment build (`npm run build:deploy`) under `AUDITOR_ENV=production`.                                                                                                                                                                            |
 | `auditor-findings`            | `src/cli/report_findings.ts`      | Interactive finding query and filtering tool (`severity=error`, `category=...`, `files`).                                                                                                                                                                 |
+| `auditor-next`                | `src/cli/report_findings.ts`      | Focuses findings on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`), postponing downstream errors (`auditor:next`, `auditor:next:human`).                                       |
 | `auditor-by-file`             | `src/cli/report_findings.ts`      | Hierarchical tree report of findings grouped strictly by file and ordered by line ascending (`auditor:by-file`).                                                                                                                                          |
 | `auditor-fallow`              | `src/cli/report_fallow.ts`        | Fallow intelligence breakdown (`category=dupes`, `category=circular`, `category=security`, `category=suppressions`, `category=flags`, `category=viz`).                                                                                                    |
 | `auditor:fallow:suppressions` | `src/cli/report_fallow.ts`        | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                              |

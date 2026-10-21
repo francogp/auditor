@@ -51,6 +51,17 @@ When a failure involves storage, SQL migrations, schemas, query builders, or per
    - Check persistence auditor findings in `latest_audit.json` via official tools (`npm run auditor:findings -- category=persistence` or `npm run auditor:findings -- rule=<id>`).
    - Extract raw SQL statement, error code, and error details.
 
+### E. Static Analysis & Auditor Rule Failures
+
+When static verification or audit commands fail (`npm run auditor`, `npm run auditor:lint`):
+
+1. **Strategic Phase Remediation**:
+   - Run `npm run auditor:next` to focus exclusively on the earliest active strategic phase (`setup` -> `prune` -> `dedup` -> `contracts` -> `behavior` -> `hygiene` -> `polish`).
+   - Postpones downstream findings to eradicate cascading false positives.
+2. **Rule Guidance & Drill-Down**:
+   - Run `npm run auditor -- guide <ruleId>` to fetch canonical 4-section remediation steps.
+   - Run `npm run auditor:findings -- rule=<ruleId>` or `npm run auditor:by-file` for detailed context.
+
 ---
 
 ## 2. DOX Contract Mapping (`dox-navigator`)

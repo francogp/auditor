@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "9.9.1-build.20261021-083314",
+  "version": "9.9.2-build.20261021-102346",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -32,6 +32,7 @@
     "auditor-init-agent": "dist/cli/init_agent.js",
     "auditor-magic": "dist/cli/refactor_magic.js",
     "auditor-motion": "dist/cli/refactor_motion.js",
+    "auditor-next": "dist/cli/report_findings.js",
     "auditor-o1": "dist/cli/refactor_o1.js",
     "auditor-post-build": "dist/cli/audit_post_build.js",
     "auditor-report-findings": "dist/cli/report_findings.js",
@@ -142,6 +143,8 @@
     "auditor:package-scripts": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/suites/architecture/validate_package_scripts.ts",
     "auditor:script-commands": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_script_commands",
     "auditor:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
+    "auditor:next": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next",
+    "auditor:next:human": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next human",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "vp run build",
     "auditor:publish": "npm publish --tag latest",

@@ -73,11 +73,31 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       expect(output).toContain('• contracts   : 2 error(s)');
       expect(output).toContain('• polish      : 1 error(s), 1 warning(s)');
       expect(output).toContain('Next Actions for AI:');
-      expect(output).toContain('npm run auditor:findings');
-      expect(output).toContain('npm run auditor:findings -- phase=contracts');
-      expect(output).toContain('npm run auditor:fix');
+      expect(output).toContain('Mandatory Auto-Fix: npm run auditor:fix (2 auto-fixable)');
+      // When auto-fixable errors exist, DO NOT recommend manual triage tools to keep AI on rails
+      expect(output).not.toContain('npm run auditor:next');
+      expect(output).not.toContain('npm run auditor:findings');
       expect(output).toContain('Full Report: scratch/audits/latest_audit.json');
       expect(output).not.toContain('╔');
+    });
+
+    it('emits phase and findings triage recommendations when fixableErrors is zero', () => {
+      const output = renderExecutiveFailSummary({
+        totalSuites: 80,
+        failedSuites: 1,
+        totalErrors: 2,
+        totalWarnings: 0,
+        durationMs: 9800,
+        fixableErrors: 0,
+        phaseBreakdown: [{ phase: 'behavior', errors: 2, warnings: 0 }]
+      });
+
+      expect(output).toContain('Next Actions for AI:');
+      expect(output).toContain('1. Focus critical phase: npm run auditor:next');
+      expect(output).toContain('2. Inspect findings:   npm run auditor:findings');
+      expect(output).toContain('3. Inspect by phase:   npm run auditor:findings -- phase=behavior');
+      expect(output).toContain('4. Consult rule guide: npm run auditor -- guide <ruleId>');
+      expect(output).not.toContain('auditor:fix');
     });
   });
 

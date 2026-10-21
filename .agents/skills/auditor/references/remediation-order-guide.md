@@ -10,6 +10,16 @@ The auditor implements a **Canonical 7-Phase Strategic Remediation Order** (`Rem
 
 ## 1. The 7 Canonical Remediation Phases
 
+```mermaid
+flowchart LR
+    P1["1. ⚙️ Setup\n(Infrastructure)"] --> P2["2. 🧹 Prune\n(Dead Code)"]
+    P2 --> P3["3. 🧩 Dedup\n(Clones)"]
+    P3 --> P4["4. 🔒 Contracts\n(Types & Models)"]
+    P4 --> P5["5. 🎨 Behavior\n(UI & Logic)"]
+    P5 --> P6["6. 🔍 Hygiene\n(Linter & Magic)"]
+    P6 --> P7["7. ✨ Polish\n(Format & Docs)"]
+```
+
 | Order | Phase ID | Title | Primary Focus | Representative Suites | Strategic Rationale |
 |---|---|---|---|---|---|
 | **1** | `setup` | **Infrastructure & Setup** | Project integrity, runtime, extensions, dependencies, and package scripts | `validate_audit_config`, `validate_tsconfig`, `validate_dependency_minimums`, `validate_vite_plus_config`, etc. | If configuration or extensions are broken, downstream analysis produces **massive false positives**. This phase triggers *Imperative Setup Blocking*. |
@@ -120,11 +130,66 @@ Each active phase displays:
 
 ---
 
-## 5. Command-Line Inspection (CLI)
+## 5. Strategic Focus with `auditor:next` (Automated Active Phase)
 
-Developers and AI agents can filter and inspect findings phase-by-phase using `auditor:findings`:
+To eliminate the risk of developers or AI agents arbitrarily jumping between phases or polishing dead code, the framework provides the canonical focus tool:
 
 ```bash
+npm run auditor:next
+# or in interactive Box-Drawing mode:
+npm run auditor:next:human
+# or via flag:
+npm run auditor:findings next
+```
+
+### Deterministic Remediation Workflow
+
+```mermaid
+flowchart TD
+    START(["Audit Fails (Errors > 0)"]) --> CMD["Execute: npm run auditor:next"]
+    CMD --> RESOLVE{"Detect Critical Phase with Errors"}
+    
+    RESOLVE -->|Errors in Setup| S1["Fase 1: Setup\n(audit.config, tsconfig, scripts)"]
+    RESOLVE -->|Errors in Prune| S2["Fase 2: Prune\n(fallow unused files/exports)"]
+    RESOLVE -->|Errors in Dedup| S3["Fase 3: Dedup\n(npm run auditor:dupes)"]
+    RESOLVE -->|Errors in Contracts| S4["Fase 4: Contracts\n(TypeScript, Valibot, Domains)"]
+    RESOLVE -->|Errors in Behavior| S5["Fase 5: Behavior\n(GSAP, Vue reactivity, timers)"]
+    RESOLVE -->|Errors in Hygiene| S6["Fase 6: Hygiene\n(Oxlint, Stylelint, auditor:magic, auditor:o1)"]
+    RESOLVE -->|Errors in Polish| S7["Fase 7: Polish\n(Oxfmt, markdown, AGENTS.md, tests)"]
+    RESOLVE -->|"0 Errors and 0 Warnings"| CLEAN(["✨ Repository Clean (Ready for Commit)"])
+    
+    S1 --> FIX["Apply Phase Fixes\n(Official CLI Tool / Code Repair)"]
+    S2 --> FIX
+    S3 --> FIX
+    S4 --> FIX
+    S5 --> FIX
+    S6 --> FIX
+    S7 --> FIX
+    
+    FIX --> REAUDIT["Re-run: npm run auditor:lint / auditor"]
+    REAUDIT --> CHECK{"Passed Cleanly?"}
+    CHECK -->|Yes| CMD
+    CHECK -->|No| FIX
+```
+
+When `auditor:next` runs:
+
+1. It queries `scratch/audits/latest_audit.json`.
+2. It evaluates the 7 canonical phases in strict priority order (`setup` $\to$ `prune` $\to$ `dedup` $\to$ `contracts` $\to$ `behavior` $\to$ `hygiene` $\to$ `polish`).
+3. It locates the earliest phase with at least 1 unresolved `error` (or `warning` if errors are 0).
+4. It emits an active focus banner and displays **strictly the findings of that active phase**, hiding and postponing all downstream findings.
+
+---
+
+## 6. Command-Line Inspection (CLI)
+
+Developers and AI agents can also filter and inspect findings phase-by-phase using `auditor:findings`:
+
+```bash
+# Automatically focus the most critical active phase
+npm run auditor:next
+npm run auditor:findings next
+
 # Inspect only Phase 2 findings (Dead Code Pruning)
 npm run auditor:findings phase=prune
 
@@ -139,3 +204,31 @@ npm run auditor:findings phase=setup
 ```
 
 Both `phase=<phaseId>` and `fase=<phaseId>` prefixes are supported.
+
+---
+
+## 7. Dual Presentation Standards (`compact` vs. `human`)
+
+To maintain absolute consistency across the toolchain and prevent visual clutter during automated AI analysis, all remediation tools strictly enforce dual presentation modes:
+
+1. **AI-Friendly Compact Mode (Default: `npm run auditor:next`)**:
+   - **Zero Decorative Emojis**: Strictly bans loose emojis (`✨`, `🔒`, `🔍`, etc.) in plain text console output.
+   - **Canonical ASCII Bracketed Tokens**: Standardizes exclusively on uppercase tokens (`[OK]`, `[FOCUS]`, `[Notice]`, `[FAIL]`, `[Errors]`, `[Warnings]`).
+   - Clean, deterministic single-line verdicts for automated token efficiency:
+
+     ```text
+     [OK] All 7 remediation phases are clean (0 errors, 0 warnings).
+     ```
+
+2. **Interactive Human Mode (`npm run auditor:next:human` or `human` flag)**:
+   - **UnifiedTheme Box-Drawing**: Renders full 80-column double-bordered cards via `buildNoticeBox` / `boxen`.
+   - **Semantic Colors**: Green for clean phases, yellow for warnings, red for errors.
+   - Formatted monospace cards:
+
+     ```text
+     ╔═════════════════════════════════════════════════════════════════╗
+     ║ STRATEGIC REMEDIATION STATUS: ALL PHASES CLEAN                  ║
+     ║ All 7 remediation phases passed cleanly (0 errors, 0 warnings). ║
+     ║ The repository is fully verified and ready for commit.          ║
+     ╚═════════════════════════════════════════════════════════════════╝
+     ```

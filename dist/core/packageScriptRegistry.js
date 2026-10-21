@@ -43,6 +43,12 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "reporting"
 	},
 	{
+		name: "auditor:next:human",
+		command: "auditor-findings next human",
+		description: "Inspect most critical unresolved remediation phase in interactive human Box-Drawing mode",
+		category: "reporting"
+	},
+	{
 		name: "auditor:help",
 		command: "auditor --help",
 		description: "Catalog of help commands, options, and specialized remediation tools",
@@ -131,6 +137,12 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		command: "auditor-version bump",
 		description: "Atomic version increment in package.json and historical commit",
 		category: "versioning"
+	},
+	{
+		name: "auditor:next",
+		command: "auditor-findings next",
+		description: "Immediate focus on findings in the most critical unresolved remediation phase",
+		category: "reporting"
 	},
 	{
 		name: "auditor:findings",

@@ -9,8 +9,12 @@ import fs from 'node:fs';
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 
-import { runReport } from '../src/cli/report_findings.ts';
-import type { ConsolidatedAuditReport } from '../src/core/auditContract.ts';
+import {
+  runReport,
+  resolveActiveRemediationPhase,
+  renderActivePhaseFocusBanner
+} from '../src/cli/report_findings.ts';
+import type { ConsolidatedAuditReport, AuditFinding } from '../src/core/auditContract.ts';
 
 describe('report_findings CLI Tool', () => {
   let originalArgv: string[];
@@ -331,5 +335,256 @@ describe('report_findings CLI Tool', () => {
     const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
     expect(allLogs).toContain('suite_1, suite_2');
     expect(allLogs).toContain('CONSOLIDATED AUDIT WARNINGS & ERRORS REPORT');
+  });
+
+  describe('resolveActiveRemediationPhase', () => {
+    it('resolves setup phase when setup errors exist, even if downstream errors exist', () => {
+      const findings: AuditFinding[] = [
+        {
+          severity: 'error',
+          message: 'Config error',
+          file: 'audit.config.ts',
+          remediationPhase: 'setup'
+        },
+        { severity: 'error', message: 'Dead file', file: 'dead.ts', remediationPhase: 'prune' },
+        { severity: 'error', message: 'Linter error', file: 'lint.ts', remediationPhase: 'hygiene' }
+      ];
+
+      const res = resolveActiveRemediationPhase(findings);
+      expect(res).not.toBeNull();
+      expect(res!.phase).toBe('setup');
+      expect(res!.errors).toBe(1);
+      expect(res!.postponedCount).toBe(2);
+      expect(res!.totalErrorsInReport).toBe(3);
+    });
+
+    it('resolves prune phase when setup is clean and prune has errors', () => {
+      const findings: AuditFinding[] = [
+        {
+          severity: 'warning',
+          message: 'Setup warning',
+          file: 'audit.config.ts',
+          remediationPhase: 'setup'
+        },
+        { severity: 'error', message: 'Dead file 1', file: 'dead1.ts', remediationPhase: 'prune' },
+        { severity: 'error', message: 'Dead file 2', file: 'dead2.ts', remediationPhase: 'prune' },
+        {
+          severity: 'error',
+          message: 'Type error',
+          file: 'types.ts',
+          remediationPhase: 'contracts'
+        },
+        { severity: 'error', message: 'Linter error', file: 'lint.ts', remediationPhase: 'hygiene' }
+      ];
+
+      const res = resolveActiveRemediationPhase(findings);
+      expect(res).not.toBeNull();
+      expect(res!.phase).toBe('prune');
+      expect(res!.errors).toBe(2);
+      expect(res!.postponedCount).toBe(2); // contracts + hygiene
+    });
+
+    it('resolves earliest phase with warnings when totalErrors is zero', () => {
+      const findings: AuditFinding[] = [
+        {
+          severity: 'warning',
+          message: 'GSAP warning',
+          file: 'anim.ts',
+          remediationPhase: 'behavior'
+        },
+        {
+          severity: 'warning',
+          message: 'Magic number',
+          file: 'magic.ts',
+          remediationPhase: 'hygiene'
+        }
+      ];
+
+      const res = resolveActiveRemediationPhase(findings);
+      expect(res).not.toBeNull();
+      expect(res!.phase).toBe('behavior');
+      expect(res!.errors).toBe(0);
+      expect(res!.warnings).toBe(1);
+      expect(res!.postponedCount).toBe(1);
+    });
+
+    it('returns null when findings array is empty', () => {
+      const res = resolveActiveRemediationPhase([]);
+      expect(res).toBeNull();
+    });
+
+    it('renders clean active phase focus banner in compact and human modes', () => {
+      const resolution = {
+        phase: 'prune' as const,
+        errors: 3,
+        warnings: 1,
+        postponedCount: 15,
+        totalErrorsInReport: 5,
+        totalWarningsInReport: 2
+      };
+
+      const compactBanner = renderActivePhaseFocusBanner(resolution, false);
+      expect(compactBanner).toContain(
+        '[FOCUS] ACTIVE REMEDIATION PHASE 2/7: PHASE 2 · DEAD CODE PRUNING'
+      );
+      expect(compactBanner).toContain('Target: 3 error(s) and 1 warning(s).');
+      expect(compactBanner).toContain('Postponed: 15 downstream finding(s).');
+      expect(compactBanner).not.toContain('🔒');
+      expect(compactBanner).not.toContain('🧹');
+
+      const humanBanner = renderActivePhaseFocusBanner(resolution, true);
+      expect(humanBanner).toContain('ACTIVE REMEDIATION PHASE 2/7: 🧹 PHASE 2 · DEAD CODE PRUNING');
+      expect(humanBanner).toContain('Focus: 3 error(s) and 1 warning(s) in this phase.');
+      expect(humanBanner).toContain('Postponing 15 downstream finding(s)');
+    });
+  });
+
+  describe('runReport next subcommand & phase=next', () => {
+    it('automatically isolates active phase and filters out downstream findings', () => {
+      fsReadSpy.mockImplementationOnce(() =>
+        JSON.stringify({
+          ...mockReport,
+          allFindings: [
+            {
+              severity: 'error',
+              message: 'Unused export test',
+              file: 'src/dead.ts',
+              remediationPhase: 'prune',
+              suiteId: 'validate_fallow',
+              suiteName: 'Fallow Dead Code'
+            },
+            {
+              severity: 'error',
+              message: 'Forbidden any typecast',
+              file: 'src/utils/math.ts',
+              remediationPhase: 'contracts',
+              suiteId: 'validate_oxlint',
+              suiteName: 'Oxlint & Vite+'
+            }
+          ],
+          families: {
+            architecture: {
+              title: 'ESTÁNDARES ESTÁTICOS',
+              suites: [
+                {
+                  id: 'validate_fallow',
+                  name: 'Fallow Dead Code',
+                  description: 'Dead code',
+                  family: 'architecture',
+                  status: 'failed',
+                  durationMs: 15,
+                  metrics: {},
+                  findings: [
+                    {
+                      severity: 'error',
+                      message: 'Unused export test',
+                      file: 'src/dead.ts',
+                      remediationPhase: 'prune',
+                      suiteId: 'validate_fallow',
+                      suiteName: 'Fallow Dead Code'
+                    }
+                  ],
+                  summary: { errors: 1, warnings: 0, info: 0 }
+                },
+                {
+                  id: 'validate_oxlint',
+                  name: 'Oxlint & Vite+',
+                  description: 'Reglas de Oxlint',
+                  family: 'architecture',
+                  status: 'failed',
+                  durationMs: 15,
+                  metrics: {},
+                  findings: [
+                    {
+                      severity: 'error',
+                      message: 'Forbidden any typecast',
+                      file: 'src/utils/math.ts',
+                      remediationPhase: 'contracts',
+                      suiteId: 'validate_oxlint',
+                      suiteName: 'Oxlint & Vite+'
+                    }
+                  ],
+                  summary: { errors: 1, warnings: 0, info: 0 }
+                }
+              ]
+            }
+          }
+        })
+      );
+
+      process.argv = ['node', 'report_findings.ts', 'next', 'flat', 'allow-stale'];
+      runReport();
+
+      const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+      expect(allLogs).toContain(
+        '[FOCUS] ACTIVE REMEDIATION PHASE 2/7: PHASE 2 · DEAD CODE PRUNING'
+      );
+      expect(allLogs).toContain('Target: 1 error(s).');
+      expect(allLogs).toContain('Postponed: 1 downstream finding(s).');
+      expect(allLogs).toContain('Unused export test');
+      // Downstream contracts finding should be postponed and not rendered
+      expect(allLogs).not.toContain('Forbidden any typecast');
+    });
+
+    it('emits box-drawing banner in human mode when active phase has findings', () => {
+      fsReadSpy.mockImplementationOnce(() =>
+        JSON.stringify({
+          ...mockReport,
+          allFindings: [
+            {
+              severity: 'error',
+              message: 'Unused export test',
+              file: 'src/dead.ts',
+              remediationPhase: 'prune',
+              suiteId: 'validate_fallow',
+              suiteName: 'Fallow Dead Code'
+            }
+          ],
+          families: {
+            architecture: {
+              name: 'Architecture',
+              suites: [
+                {
+                  id: 'validate_fallow',
+                  name: 'Fallow Dead Code',
+                  findings: [
+                    {
+                      severity: 'error',
+                      message: 'Unused export test',
+                      file: 'src/dead.ts',
+                      remediationPhase: 'prune'
+                    }
+                  ],
+                  summary: { errors: 1, warnings: 0, info: 0 }
+                }
+              ]
+            }
+          }
+        })
+      );
+
+      process.argv = ['node', 'report_findings.ts', 'next', 'human', 'allow-stale'];
+      runReport();
+
+      const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+      expect(allLogs).toContain('ACTIVE REMEDIATION PHASE 2/7: 🧹 PHASE 2 · DEAD CODE PRUNING');
+      expect(allLogs).toContain('Focus: 1 error(s) in this phase.');
+    });
+
+    it('emits clean verdict when all phases have 0 findings', () => {
+      fsReadSpy.mockImplementationOnce(() =>
+        JSON.stringify({
+          ...mockReport,
+          allFindings: [],
+          families: {}
+        })
+      );
+
+      process.argv = ['node', 'report_findings.ts', 'phase=next', 'allow-stale'];
+      runReport();
+
+      const allLogs = consoleLogSpy.mock.calls.map((c: unknown[]) => String(c[0])).join('\n');
+      expect(allLogs).toContain('[OK] All 7 remediation phases are clean');
+    });
   });
 });

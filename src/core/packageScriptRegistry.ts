@@ -54,6 +54,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'reporting'
   },
   {
+    name: 'auditor:next:human',
+    command: 'auditor-findings next human',
+    description: 'Inspect most critical unresolved remediation phase in interactive human Box-Drawing mode',
+    category: 'reporting'
+  },
+  {
     name: 'auditor:help',
     command: 'auditor --help',
     description:
@@ -152,6 +158,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
   },
 
   // Reports and CLI Diagnostic Tools
+  {
+    name: 'auditor:next',
+    command: 'auditor-findings next',
+    description: 'Immediate focus on findings in the most critical unresolved remediation phase',
+    category: 'reporting'
+  },
   {
     name: 'auditor:findings',
     command: 'auditor-findings',
