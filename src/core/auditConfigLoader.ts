@@ -142,15 +142,20 @@ function resolveCurrentAuditorEntryUrl(): string | null {
   return null;
 }
 
-interface ResolvedConfigModuleUrl {
+export interface ResolvedConfigModuleUrl {
   readonly importUrl: string;
   readonly cleanupFilePath: string | null;
 }
 
-function resolveConfigModuleUrl(configPath: string, projectRoot: string): ResolvedConfigModuleUrl {
-  const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
+export function resolveConfigModuleUrl(
+  configPath: string,
+  projectRoot: string
+): ResolvedConfigModuleUrl {
+  const auditorRoot = path.resolve(import.meta.dirname, '..', '..');
+  const isInstalledInNodeModules = auditorRoot.split(path.sep).includes('node_modules');
   const isRemoteProject =
-    path.resolve(projectRoot) !== path.resolve(import.meta.dirname, '..', '..');
+    !isInstalledInNodeModules && path.resolve(projectRoot) !== auditorRoot;
+  const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
 
   if (isRemoteProject && auditorEntryUrl) {
     try {
@@ -162,7 +167,6 @@ function resolveConfigModuleUrl(configPath: string, projectRoot: string): Resolv
             /import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g,
             `import('${auditorEntryUrl}')`
           );
-        const auditorRoot = path.resolve(import.meta.dirname, '..', '..');
         const scratchDir = path.resolve(auditorRoot, 'scratch');
         if (!fs.existsSync(scratchDir)) {
           fs.mkdirSync(scratchDir, { recursive: true });

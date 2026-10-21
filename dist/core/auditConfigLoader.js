@@ -89,12 +89,13 @@ function resolveCurrentAuditorEntryUrl() {
 	return null;
 }
 function resolveConfigModuleUrl(configPath, projectRoot) {
+	const auditorRoot = path.resolve(import.meta.dirname, "..", "..");
+	const isRemoteProject = !auditorRoot.split(path.sep).includes("node_modules") && path.resolve(projectRoot) !== auditorRoot;
 	const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
-	if (path.resolve(projectRoot) !== path.resolve(import.meta.dirname, "..", "..") && auditorEntryUrl) try {
+	if (isRemoteProject && auditorEntryUrl) try {
 		const rawContent = fs.readFileSync(configPath, "utf-8");
 		if (rawContent.includes("@francogp/auditor")) {
 			const rewritten = rawContent.replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`).replace(/import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g, `import('${auditorEntryUrl}')`);
-			const auditorRoot = path.resolve(import.meta.dirname, "..", "..");
 			const scratchDir = path.resolve(auditorRoot, "scratch");
 			if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
 			const tempFilePath = path.resolve(scratchDir, `remote_config_${Date.now()}_${++dynamicImportCounter}.ts`);
@@ -192,4 +193,4 @@ function resetAuditConfig() {
 	delete process.env.AUDIT_ACTIVE_CONFIG_ROOT;
 }
 //#endregion
-export { MAX_INLINE_ENV_CONFIG_CHARS, getAuditConfig, loadAuditConfig, resetAuditConfig, sanitizePath, serializeAuditConfigToEnv, setAuditConfig, tryLoadConfigFromEnv, tryLoadJsonConfig };
+export { MAX_INLINE_ENV_CONFIG_CHARS, getAuditConfig, loadAuditConfig, resetAuditConfig, resolveConfigModuleUrl, sanitizePath, serializeAuditConfigToEnv, setAuditConfig, tryLoadConfigFromEnv, tryLoadJsonConfig };

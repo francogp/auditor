@@ -10,6 +10,7 @@ import {
   stripProjectCliArgs,
   resolvePackageBin
 } from '../src/cli/cliUtils.ts';
+import { resolveConfigModuleUrl } from '../src/core/auditConfigLoader.ts';
 
 describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   let originalCwd: string;
@@ -183,5 +184,30 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     const resolvedBin = resolvePackageBin('stylelint', { projectRoot: tempSandboxDir });
     expect(resolvedBin).toBeDefined();
     expect(fs.existsSync(resolvedBin!)).toBe(true);
+  });
+
+  it('resolveConfigModuleUrl resolves direct file URL when auditing local project', () => {
+    const configPath = path.resolve(originalCwd, '.auditor/audit.config.ts');
+    const res = resolveConfigModuleUrl(configPath, originalCwd);
+
+    expect(res.cleanupFilePath).toBeNull();
+    expect(res.importUrl).toContain('audit.config.ts');
+  });
+
+  it('resolveConfigModuleUrl creates rewritten scratch file when auditing remote project from auditor repo', () => {
+    const dummyConfig = path.join(tempSandboxDir, 'audit.config.ts');
+    fs.writeFileSync(
+      dummyConfig,
+      `import { defineAuditConfig } from '@francogp/auditor';\nexport default defineAuditConfig({ name: 'test' });`,
+      'utf-8'
+    );
+
+    const res = resolveConfigModuleUrl(dummyConfig, tempSandboxDir);
+    expect(res.cleanupFilePath).not.toBeNull();
+    expect(res.cleanupFilePath).toContain('remote_config_');
+    expect(fs.existsSync(res.cleanupFilePath!)).toBe(true);
+
+    // Clean up temporary scratch file
+    fs.unlinkSync(res.cleanupFilePath!);
   });
 });
