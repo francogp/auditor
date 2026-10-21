@@ -126,10 +126,23 @@ const COMMAND_INVOCATION_TYPES = [
 	"vp-direct",
 	"vp-dlx"
 ];
+const PLACEHOLDER_EXACT_NAMES = /* @__PURE__ */ new Set([
+	"xxx",
+	"target",
+	"name",
+	"script",
+	"script-name",
+	"command",
+	"cmd",
+	"bin",
+	"arg",
+	"package-name",
+	"paquete"
+]);
 function isPlaceholder(token) {
 	if (!token) return true;
 	const t = token.trim();
-	return t.startsWith("<") || t.endsWith(">") || t.startsWith("[") || t.endsWith("]") || t.startsWith("{") || t.endsWith("}") || t.startsWith("$") || t.includes("...") || t.includes("${") || t.includes("*") || t.includes("_or_") || t.startsWith("sim_") || t.endsWith(":") || t.includes(":*") || t === "xxx" || t === "target" || t === "name" || t === "script" || t === "script-name" || t === "command" || t === "cmd" || t === "bin" || t === "arg" || t === "package-name" || t === "paquete";
+	return t.startsWith("<") || t.endsWith(">") || t.startsWith("[") || t.endsWith("]") || t.startsWith("{") || t.endsWith("}") || t.startsWith("$") || t.includes("...") || t.includes("${") || t.includes("*") || t.includes("_or_") || t.startsWith("sim_") || t.endsWith(":") || t.includes(":*") || PLACEHOLDER_EXACT_NAMES.has(t);
 }
 function addPackageDependenciesToBins(deps, declaredBins) {
 	for (const dep of Object.keys(deps ?? {})) {

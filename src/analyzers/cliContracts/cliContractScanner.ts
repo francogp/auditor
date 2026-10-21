@@ -125,7 +125,7 @@ function collectDynamicCallbackParamUsages(
 function inspectCliImportFact(
   node: ts.ImportDeclaration,
   processAliases: Set<string>
-): boolean {
+): void {
   const spec = getStaticStringValue(node.moduleSpecifier);
   if (spec && PROCESS_MODULE_SPECIFIERS.has(spec)) {
     const clause = node.importClause;
@@ -134,11 +134,6 @@ function inspectCliImportFact(
       processAliases.add(clause.namedBindings.name.text);
     }
   }
-  return Boolean(
-    spec === 'citty' ||
-      spec?.endsWith('cittyHarness.ts') ||
-      spec?.endsWith('refactorCliHarness.ts')
-  );
 }
 
 function inspectCliVariableFact(
@@ -171,12 +166,30 @@ function inspectCliCallFact(
   const callee = unwrapCliExpression(node.expression);
   let isMainCall = false;
   let isCittyCall = false;
+  let builderName: string | null = null;
+
   if (ts.isIdentifier(callee)) {
     isMainCall = callee.text === 'isMainModule';
-    isCittyCall = CANONICAL_CITTY_BUILDERS.has(callee.text);
+    if (CANONICAL_CITTY_BUILDERS.has(callee.text)) {
+      builderName = callee.text;
+    }
   } else if (ts.isPropertyAccessExpression(callee)) {
-    isCittyCall = CANONICAL_CITTY_BUILDERS.has(callee.name.text);
+    if (CANONICAL_CITTY_BUILDERS.has(callee.name.text)) {
+      builderName = callee.name.text;
+    }
   }
+
+  if (builderName) {
+    if (builderName === 'parseCittyArgs') {
+      const firstArg = node.arguments[0] ? unwrapCliExpression(node.arguments[0]) : null;
+      isCittyCall = Boolean(
+        firstArg && (ts.isObjectLiteralExpression(firstArg) || ts.isIdentifier(firstArg))
+      );
+    } else {
+      isCittyCall = true;
+    }
+  }
+
   const dynamicCb = isDynamicProcessImportThen(node);
   if (dynamicCb) {
     collectDynamicCallbackParamUsages(dynamicCb, dynamicProcessParamNodes);
@@ -198,7 +211,7 @@ function collectCliFileFacts(
 
   const inspectNode = (node: ts.Node): void => {
     if (ts.isImportDeclaration(node)) {
-      if (inspectCliImportFact(node, processAliases)) hasCittyContract = true;
+      inspectCliImportFact(node, processAliases);
     } else if (ts.isVariableDeclaration(node)) {
       inspectCliVariableFact(node, processAliases, argvKeyConstants, shadowedProcessScopes);
     } else if (ts.isCallExpression(node)) {

@@ -29,13 +29,13 @@ import {
   BaseAuditor,
   collectRepositoryFiles,
   createRuleCapabilities,
-  createUniformRemediationPhases,
   FileScanAuditor,
   resolveFileScanRoots,
   SCANNABLE_EXTENSIONS,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { RemediationPhaseId } from '../../core/auditContract.ts';
 import { toPosixRelative } from '../../core/auditCoverage.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 import type { SharedAstContext } from '../../core/astContext.ts';
@@ -197,6 +197,16 @@ const RULE_REMEDIATIONS: Record<CliContractRuleId, string> = {
     '   ✅ Canonical: `{ name: "auditor:human", command: "auditor human", description: "...", category: "core" }`'
 };
 
+const CLI_CONTRACT_REMEDIATION_PHASES: Record<CliContractRuleId, RemediationPhaseId> = {
+  'cli-contracts-missing-citty-dependency': 'setup',
+  'cli-contracts-unregistered-script': 'setup',
+  'cli-contracts-direct-argv-access': 'contracts',
+  'cli-contracts-banned-parser-library': 'contracts',
+  'cli-contracts-homebrew-flag-parsing': 'contracts',
+  'cli-contracts-dynamic-eval-bypass': 'contracts',
+  'cli-contracts-missing-citty-contract': 'contracts'
+};
+
 export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
   private readonly cliViolationsByDoc = new WeakMap<
     AuditedDocument,
@@ -231,7 +241,7 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
       description: 'Enforces Citty CLI contracts and bans homebrew argv',
       family: 'architecture',
       ruleIds: CLI_CONTRACT_RULES,
-      ruleRemediationPhases: createUniformRemediationPhases(CLI_CONTRACT_RULES, 'contracts'),
+      ruleRemediationPhases: CLI_CONTRACT_REMEDIATION_PHASES,
       packageName: 'CLI',
       configKey: 'paths',
       defaultConfig: {},

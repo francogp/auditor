@@ -14,6 +14,8 @@
 import {
   defineCommand,
   parseArgs as cittyParseArgs,
+  runCommand,
+  runMain,
   type ArgDef,
   type ArgsDef,
   type CommandContext,
@@ -23,8 +25,20 @@ import {
 
 export type CittyArgsDef = ArgsDef; // type-ok: Canonical Citty args definition alias
 
+export const CONSOLE_FORMAT_VALUES = ['compact', 'human', 'verbose', 'json'] as const;
+export type ConsoleFormat = (typeof CONSOLE_FORMAT_VALUES)[number];
+
+export const KNOWN_BARE_MODE_FLAGS: ReadonlySet<string> = new Set([
+  'human',
+  'verbose',
+  'format=human',
+  'format=verbose'
+]); // runtime-set: O(1) bare mode flag lookup
+
 export {
   defineCommand,
+  runCommand,
+  runMain,
   type ArgDef,
   type ArgsDef,
   type CommandContext,
@@ -168,7 +182,7 @@ export function resolveHumanModeFromArgs(
   args?: {
     readonly human?: boolean;
     readonly verbose?: boolean;
-    readonly format?: string;
+    readonly format?: ConsoleFormat | string;
   },
   rawArgs?: readonly string[]
 ): boolean {
@@ -181,17 +195,7 @@ export function resolveHumanModeFromArgs(
     return true;
   }
   if (rawArgs) {
-    return rawArgs.some(
-      (a) =>
-        a === 'human' ||
-        a === '--human' ||
-        a === 'format=human' ||
-        a === '--format=human' ||
-        a === 'verbose' ||
-        a === '--verbose' ||
-        a === 'format=verbose' ||
-        a === '--format=verbose'
-    );
+    return rawArgs.some((a) => KNOWN_BARE_MODE_FLAGS.has(a) || KNOWN_BARE_MODE_FLAGS.has(a.replace(/^--/, '')));
   }
   return false;
 }

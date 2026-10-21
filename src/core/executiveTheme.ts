@@ -96,10 +96,12 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     durationMs,
     phaseBreakdown,
     fixableErrors = 0,
+    fixableWarnings = 0,
     latestAuditJsonPath = 'scratch/audits/latest_audit.json'
   } = params;
 
-  const fixableText = fixableErrors > 0 ? ` (${fixableErrors} auto-fixable)` : '';
+  const totalFixable = fixableErrors + fixableWarnings;
+  const fixableText = totalFixable > 0 ? ` (${totalFixable} auto-fixable)` : '';
   const suiteText = failedSuites > 0 ? ` in ${failedSuites} suite(s)` : '';
 
   const header = styleText(
@@ -119,9 +121,9 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
 
   // no-domain: Non-domain utility collection or data structure
   const nextActions: string[] = ['  Next Actions for AI:'];
-  if (fixableErrors > 0) {
+  if (totalFixable > 0) {
     nextActions.push(
-      `  1. Mandatory Auto-Fix: npm run auditor:fix (${fixableErrors} auto-fixable)`
+      `  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`
     );
   } else {
     nextActions.push(

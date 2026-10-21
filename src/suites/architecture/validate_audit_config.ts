@@ -136,6 +136,7 @@ export function buildTaskExpectedConfigTree(
   >();
 
   for (const task of tasks) {
+    // domain-ok: Core configuration keys
     if (
       !task.configKey ||
       task.configKey === 'paths' ||

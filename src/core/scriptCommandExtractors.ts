@@ -83,6 +83,7 @@ function inspectNpmFamilyTokens(
   let idx = 0;
   while (idx < words.length && words[idx]!.startsWith('-')) {
     const flag = words[idx]!;
+    // domain-ok: Script flag parsing
     if (flag === '--prefix' || flag === '-C' || flag === '--workspace' || flag === '-w') {
       idx += 2;
     } else {
@@ -130,6 +131,7 @@ export function inspectCommandTokens(
   rawText: string,
   out: ExtractedCommand[]
 ): void {
+  // domain-ok: Package manager binary names
   if (bin === 'npm' || bin === 'pnpm' || bin === 'bun' || bin === 'yarn') {
     inspectNpmFamilyTokens(bin, words, lineNum, rawText, out);
     return;
@@ -554,6 +556,7 @@ function isConsoleCall(node: ts.CallExpression): boolean {
   if (ts.isPropertyAccessExpression(expr)) {
     if (ts.isIdentifier(expr.expression) && expr.expression.text === 'console') {
       const method = expr.name.text;
+      // domain-ok: Console logging methods
       return method === 'log' || method === 'info' || method === 'warn' || method === 'error';
     }
   }
@@ -632,6 +635,7 @@ export function extractCommandsFromTypeScript(
     if (ts.isCallExpression(node)) {
       const callee = getCalleeName(node.expression);
       if (callee && PROCESS_RUNNER_NAMES.has(callee) && node.arguments.length > 0) {
+        // domain-ok: Child process runner names
         if (
           callee === 'spawn' ||
           callee === 'spawnSync' ||
@@ -666,6 +670,7 @@ export function extractCommandsFromTypeScript(
 function stripComments(line: string, ext: string): string {
   const lowerExt = ext.toLowerCase();
 
+  // domain-ok: Shell file extensions
   if (
     lowerExt === '.sh' ||
     lowerExt === '.bash' ||
@@ -687,6 +692,7 @@ function stripComments(line: string, ext: string): string {
     return line;
   }
 
+  // domain-ok: Script file extensions
   if (lowerExt === '.ts' || lowerExt === '.js' || lowerExt === '.mjs' || lowerExt === '.cjs') {
     const slashIndex = line.indexOf('//');
     if (slashIndex !== -1) return line.slice(0, slashIndex);
@@ -738,16 +744,19 @@ export function extractScriptCommands(content: string, filePath: string): Extrac
   }
 
   // 3. Shell scripts (.sh, .bash, .zsh)
+  // domain-ok: Shell script extensions
   if (ext === '.sh' || ext === '.bash' || ext === '.zsh') {
     return extractCommandsFromShell(content);
   }
 
   // 4. PowerShell & Batch (.ps1, .bat, .cmd)
+  // domain-ok: Windows script extensions
   if (ext === '.ps1' || ext === '.bat' || ext === '.cmd') {
     return extractCommandsFromPowerShell(content, ext);
   }
 
   // 5. TypeScript & JavaScript maintenance scripts (.ts, .js, .mjs, .cjs)
+  // domain-ok: JavaScript script extensions
   if (ext === '.ts' || ext === '.js' || ext === '.mjs' || ext === '.cjs') {
     return extractCommandsFromTypeScript(content, filePath);
   }

@@ -423,6 +423,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     if (method === 'sort' || method === 'reverse') {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
     }
+    // domain-ok: Array mutating methods
     if (
       method === 'push' ||
       method === 'pop' ||
@@ -454,6 +455,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
 
       if (!targetVar || !method) continue;
       if (locMatch.index > 0 && body[locMatch.index - 1] === '.') continue;
+      // domain-ok: Common Vue reactive wrapper variables
       if (targetVar === 'props' || targetVar === 'store' || targetVar === 'value') continue;
 
       const violationMessage = this.evalLocalIdentifierMutation(

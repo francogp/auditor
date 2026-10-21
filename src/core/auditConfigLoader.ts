@@ -149,9 +149,9 @@ export interface ResolvedConfigModuleUrl {
 
 export function resolveConfigModuleUrl(
   configPath: string,
-  projectRoot: string
+  projectRoot: string,
+  auditorRoot: string = path.resolve(import.meta.dirname, '..', '..')
 ): ResolvedConfigModuleUrl {
-  const auditorRoot = path.resolve(import.meta.dirname, '..', '..');
   const isInstalledInNodeModules = auditorRoot.split(path.sep).includes('node_modules');
   const isRemoteProject =
     !isInstalledInNodeModules && path.resolve(projectRoot) !== auditorRoot;

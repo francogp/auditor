@@ -145,6 +145,20 @@ export interface NpmCommandValidationEnv {
   readonly allowedNpx: ReadonlySet<string>;
 }
 
+const PLACEHOLDER_EXACT_NAMES: ReadonlySet<string> = new Set([
+  'xxx',
+  'target',
+  'name',
+  'script',
+  'script-name',
+  'command',
+  'cmd',
+  'bin',
+  'arg',
+  'package-name',
+  'paquete'
+]);
+
 export function isPlaceholder(token: string): boolean {
   if (!token) return true;
   const t = token.trim();
@@ -163,17 +177,7 @@ export function isPlaceholder(token: string): boolean {
     t.startsWith('sim_') ||
     t.endsWith(':') ||
     t.includes(':*') ||
-    t === 'xxx' ||
-    t === 'target' ||
-    t === 'name' ||
-    t === 'script' ||
-    t === 'script-name' ||
-    t === 'command' ||
-    t === 'cmd' ||
-    t === 'bin' ||
-    t === 'arg' ||
-    t === 'package-name' ||
-    t === 'paquete'
+    PLACEHOLDER_EXACT_NAMES.has(t)
   );
 }
 

@@ -76,6 +76,7 @@ function isInsideSearchMethod(node: ts.Node): boolean {
     const callee = cur.parent.expression;
     if (ts.isPropertyAccessExpression(callee)) {
       const name = callee.name.text;
+      // domain-ok: AST method names inspection
       if (name === 'includes' || name === 'indexOf' || name === 'search' || name === 'startsWith' || name === 'endsWith') {
         return true;
       }
@@ -162,6 +163,7 @@ function isMessageOrErrorContext(node: ts.Node): boolean {
   while (ts.isParenthesizedExpression(parent)) parent = parent.parent;
   if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name)) {
     const prop = parent.name.text;
+    // domain-ok: Diagnostic text properties
     if (prop === 'message' || prop === 'description' || prop === 'summary' || prop === 'title') {
       return true;
     }

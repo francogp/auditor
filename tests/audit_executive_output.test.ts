@@ -99,6 +99,23 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       expect(output).toContain('4. Consult rule guide: npm run auditor -- guide <ruleId>');
       expect(output).not.toContain('auditor:fix');
     });
+
+    it('emits mandatory auto-fix when fixableWarnings > 0 even if fixableErrors is zero', () => {
+      const output = renderExecutiveFailSummary({
+        totalSuites: 80,
+        failedSuites: 1,
+        totalErrors: 1,
+        totalWarnings: 2,
+        durationMs: 4000,
+        fixableErrors: 0,
+        fixableWarnings: 2,
+        phaseBreakdown: [{ phase: 'hygiene', errors: 1, warnings: 2 }]
+      });
+
+      expect(output).toContain('Next Actions for AI:');
+      expect(output).toContain('Mandatory Auto-Fix: npm run auditor:fix (2 auto-fixable)');
+      expect(output).not.toContain('npm run auditor:next');
+    });
   });
 
   describe('renderExecutiveSetupBlockingSummary', () => {

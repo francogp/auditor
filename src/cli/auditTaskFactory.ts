@@ -68,6 +68,7 @@ export function getPermissionsForTask(filename: string, fullPath?: string): stri
 
 /** Convert snake_case or kebab-case filename to Title Case */
 export function formatTaskTitle(filename: string): string {
+  // domain-ok: Task filename aliases
   if (
     filename === 'audit_project' ||
     filename === 'audit_project.ts' ||
@@ -75,6 +76,7 @@ export function formatTaskTitle(filename: string): string {
   ) {
     return 'Project Architecture & Style Rules';
   }
+  // domain-ok: Task filename aliases
   if (
     filename === 'validate_stylelint' ||
     filename === 'validate_stylelint.ts' ||
@@ -150,6 +152,7 @@ export function shouldSkipTaskByCapabilities(
     return resolveEffectiveSpeed(capabilities?.speed, { onlySpeed: options.onlySpeed }) === null;
   }
 
+  // domain-ok: Audit runner presets
   const hasExplicitSpeedOrPreset = Boolean(
     options.speed ||
     options.lintOnly ||

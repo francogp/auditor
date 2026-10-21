@@ -47,6 +47,7 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
       if (!Array.isArray(data.entries)) return false;
       return data.entries.some(
         (e) =>
+          // domain-ok: Plugin path variants
           e.path === 'node_modules/@francogp/auditor' ||
           e.path.endsWith('@francogp/auditor') ||
           e.path.includes('@francogp/auditor') ||

@@ -1,6 +1,9 @@
-import { ArgDef, ArgsDef, CommandContext, CommandDef, ParsedArgs, defineCommand } from "citty";
+import { ArgDef, ArgsDef, CommandContext, CommandDef, ParsedArgs, defineCommand, runCommand, runMain } from "citty";
 //#region src/core/cli/cittyHarness.d.ts
 export type CittyArgsDef = ArgsDef;
+export declare const CONSOLE_FORMAT_VALUES: readonly ["compact", "human", "verbose", "json"];
+export type ConsoleFormat = (typeof CONSOLE_FORMAT_VALUES)[number];
+export declare const KNOWN_BARE_MODE_FLAGS: ReadonlySet<string>;
 /**
  * Standard global CLI arguments shared across auditor commands.
  */
@@ -57,7 +60,7 @@ export declare function parseCittyArgs<T extends ArgsDef>(argsDef: T, rawArgs?: 
 export declare function resolveHumanModeFromArgs(args?: {
   readonly human?: boolean;
   readonly verbose?: boolean;
-  readonly format?: string;
+  readonly format?: ConsoleFormat | string;
 }, rawArgs?: readonly string[]): boolean;
 //#endregion
-export { type ArgDef, type ArgsDef, type CommandContext, type CommandDef, type ParsedArgs, defineCommand };
+export { type ArgDef, type ArgsDef, type CommandContext, type CommandDef, type ParsedArgs, defineCommand, runCommand, runMain };

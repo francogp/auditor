@@ -72,9 +72,23 @@ describe('CliContractsAuditor', () => {
     });
 
     it('detects homebrew flag parsing heuristics (cli-contracts-homebrew-flag-parsing)', () => {
-      const code = "const isDry = args.includes('--dry-run');";
-      const violations = scanFileForCliContractViolations('src/logic/flags.ts', code);
-      expect(violations.map((v) => v.ruleId)).toContain('cli-contracts-homebrew-flag-parsing');
+      const dryRunSnippet = "const isDry = args.includes('--dry-run');";
+      const dryRunViolations = scanFileForCliContractViolations(
+        'src/logic/flags.ts',
+        dryRunSnippet
+      );
+      expect(dryRunViolations.map((v) => v.ruleId)).toContain(
+        'cli-contracts-homebrew-flag-parsing'
+      );
+
+      const keyValueSnippet = "const isKeyValue = arg.includes('=');";
+      const keyValueViolations = scanFileForCliContractViolations(
+        'src/logic/keyval.ts',
+        keyValueSnippet
+      );
+      expect(keyValueViolations.map((v) => v.ruleId)).toContain(
+        'cli-contracts-homebrew-flag-parsing'
+      );
     });
 
     it('detects dynamic eval or fd 0 stdin bypasses (cli-contracts-dynamic-eval-bypass)', () => {

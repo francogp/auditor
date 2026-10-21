@@ -37,6 +37,7 @@ function isFollowedByLastSegmentAccess(call: ts.CallExpression): boolean {
   if (ts.isElementAccessExpression(parent)) return true;
   if (ts.isPropertyAccessExpression(parent)) {
     const name = parent.name.text;
+    // domain-ok: Array access methods
     return name === 'pop' || name === 'at' || name === 'slice' || name === 'shift';
   }
   return false;

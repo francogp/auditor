@@ -253,11 +253,13 @@ export function resolveTargetPreset(
 }
 
 function parseSpeedValue(raw: unknown): AuditExecutionSpeed | undefined {
+  // domain-ok: Execution speed tiers
   if (raw === 'light' || raw === 'heavy' || raw === 'full') return raw;
   return undefined;
 }
 
 function parsePhaseValue(raw: unknown): AuditExecutionPhase | undefined {
+  // domain-ok: Execution phases
   if (raw === 'setup' || raw === 'normal' || raw === 'post-run' || raw === 'post-build') return raw;
   return undefined;
 }
@@ -1290,6 +1292,7 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   const setupFindings = setupResults.flatMap((r) => r.findings ?? []);
   const hasLockfileMismatch = setupFindings.some(
     (f) =>
+      // domain-ok: Critical setup rules
       f.ruleId === 'package-lockfile-integrity' ||
       f.ruleId === 'dependency-below-minimum-installed' ||
       f.ruleId === 'dependency-exceeds-maximum-installed'
@@ -1973,6 +1976,7 @@ async function checkEarlyCliCommands(): Promise<void> {
     console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
     process.exit(0);
   }
+  // domain-ok: Dependencies CLI flag aliases
   if (cliTokens.some((a) => a === 'dependencies' || a === 'deps' || a === '--dependencies')) {
     const { runDependenciesReport, parseCliArgs } = await import('./report_dependencies.ts');
     const filtered = cliTokens.filter(

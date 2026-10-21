@@ -222,6 +222,21 @@ describe('ValidateFileEncodingAuditor', () => {
       expect(result.summary.warnings).toBe(0);
       expect(result.findings).toHaveLength(0);
     });
+
+    it('requires valid comment delimiter for mojibake-ok suppression', async () => {
+      const srcDir = path.join(tmpDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+
+      const rawCode = path.join(srcDir, 'broken.ts');
+      // mojibake-ok is inside literal string, not comment
+      fs.writeFileSync(rawCode, "const msg = 'PociÃ³n with mojibake-ok: in string';\n", 'utf8');
+
+      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
+      const result = await auditor.execute();
+
+      expect(result.summary.warnings).toBe(1);
+      expect(result.findings[0]?.ruleId).toBe('file-encoding-mojibake-detected');
+    });
   });
 
   describe('Binary Files & Exemptions Safety', () => {

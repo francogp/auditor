@@ -78,7 +78,8 @@ const DOMAIN_TYPES_RULES = [
 	"domain-naked-string-primitive",
 	"domain-untyped-collection",
 	"domain-ambiguous-union",
-	"domain-unbranded-id"
+	"domain-unbranded-id",
+	"domain-chained-literal-comparison"
 ];
 const P_SET_STRING = /\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]/g;
 const P_MAP_STRING = /\bnew\s+Map\s*(?:<[^>]+>\s*)?\(\s*\[\s*\[\s*['"`]/g;
@@ -233,14 +234,102 @@ function auditDomainCollectionsAst(doc, ast, rel, ruleFilter) {
 	visit(ast);
 	return findings;
 }
+function isRootOrExpression(node) {
+	let current = node;
+	while (current.parent && ts.isParenthesizedExpression(current.parent)) current = current.parent;
+	const parent = current.parent;
+	return !(parent && ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.BarBarToken);
+}
+function flattenOrChain(expr) {
+	const list = [];
+	function collect(e) {
+		const unwrapped = ts.isParenthesizedExpression(e) ? e.expression : e;
+		if (ts.isBinaryExpression(unwrapped) && unwrapped.operatorToken.kind === ts.SyntaxKind.BarBarToken) {
+			collect(unwrapped.left);
+			collect(unwrapped.right);
+		} else list.push(unwrapped);
+	}
+	collect(expr);
+	return list;
+}
+function extractVariableIdentifier(expr) {
+	if (ts.isIdentifier(expr)) return expr.text;
+	if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression)) return `${expr.expression.text}.${expr.name.text}`;
+	return null;
+}
+function extractLiteralEquality(expr) {
+	const unwrapped = ts.isParenthesizedExpression(expr) ? expr.expression : expr;
+	if (!ts.isBinaryExpression(unwrapped)) return null;
+	const op = unwrapped.operatorToken.kind;
+	if (op !== ts.SyntaxKind.EqualsEqualsEqualsToken && op !== ts.SyntaxKind.EqualsEqualsToken) return null;
+	let varExpr = null;
+	let litExpr = null;
+	if (ts.isStringLiteral(unwrapped.left) || ts.isNoSubstitutionTemplateLiteral(unwrapped.left)) {
+		litExpr = unwrapped.left;
+		varExpr = unwrapped.right;
+	} else if (ts.isStringLiteral(unwrapped.right) || ts.isNoSubstitutionTemplateLiteral(unwrapped.right)) {
+		litExpr = unwrapped.right;
+		varExpr = unwrapped.left;
+	}
+	if (!varExpr || !litExpr) return null;
+	const varName = extractVariableIdentifier(varExpr);
+	if (!varName) return null;
+	return {
+		varName,
+		literal: litExpr.text
+	};
+}
+function collectEqualitiesByVar(leaves) {
+	const equalitiesByVar = /* @__PURE__ */ new Map();
+	for (const leaf of leaves) {
+		const item = extractLiteralEquality(leaf);
+		if (item) {
+			const set = equalitiesByVar.get(item.varName) ?? /* @__PURE__ */ new Set();
+			set.add(item.literal);
+			equalitiesByVar.set(item.varName, set);
+		}
+	}
+	return equalitiesByVar;
+}
+function inspectChainedBinaryNode(node, doc, ast, rel, findings) {
+	const equalitiesByVar = collectEqualitiesByVar(flattenOrChain(node));
+	for (const [varName, literals] of equalitiesByVar) {
+		if (literals.size < 3) continue;
+		if (Array.from(literals).every((l) => l.length === 1)) continue;
+		if (doc.hasEscapeHatchForNode(node, "domain-chained-literal-comparison", ast)) continue;
+		const { line, column } = doc.getNodeLineAndColumn(node, ast);
+		const snippet = node.getText(ast).slice(0, 100).replace(/\n/g, "↵");
+		findings.push({
+			file: rel,
+			line,
+			col: column,
+			pattern: `Chained literal comparison on "${varName}" (${literals.size} options: ${Array.from(literals).map((l) => `"${l}"`).join(", ")})`,
+			snippet,
+			severity: "ERROR",
+			ruleId: "domain-chained-literal-comparison"
+		});
+	}
+}
+function auditChainedLiteralComparisonsAst(doc, ast, rel, ruleFilter) {
+	if (ruleFilter && ruleFilter !== "domain-chained-literal-comparison") return [];
+	const findings = [];
+	const visit = (node) => {
+		if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.BarBarToken && isRootOrExpression(node)) inspectChainedBinaryNode(node, doc, ast, rel, findings);
+		ts.forEachChild(node, visit);
+	};
+	visit(ast);
+	return findings;
+}
 function auditFileContent(filePath, content, ruleFilter) {
 	const rel = toRepoPath(filePath);
 	if (rel.endsWith("validate_domain_types.ts")) return [];
 	const findings = [];
 	const doc = new AuditedDocument(filePath, content, filePath);
 	const ast = doc.getAst();
-	if (ast) findings.push(...auditDomainCollectionsAst(doc, ast, rel, ruleFilter));
-	else {
+	if (ast) {
+		findings.push(...auditDomainCollectionsAst(doc, ast, rel, ruleFilter));
+		findings.push(...auditChainedLiteralComparisonsAst(doc, ast, rel, ruleFilter));
+	} else {
 		findings.push(...findMatches(content, rel, P_SET_STRING, "Set used as finite-domain storage/validator (use `as const` array + derived type)", "ERROR", "domain-untyped-collection", (match, line) => {
 			if (/\ballowedExtensions\s*:\s*new\s+Set/.test(line)) return false;
 			const NON_DOMAIN_SET_PATTERN = /\b\w*(?:FLAGS|DIRS|ROOTS|PATHS|COMMANDS|TAGS|ELEMENTS|SELECTORS|TOKENS|KEYWORDS|CHARS|GLOBS|FILES|EXTENSIONS|NAMES|KEYS|WORDS|ALIASES|SKILLS|SKIP|VARIANTS|CLASSES|BUILTINS|PACKAGES|ENTRIES|LINES|CHUNKS|ATTRIBUTES|PROPERTIES)\b/i;
@@ -342,13 +431,15 @@ var DomainTypesAuditor = class extends BaseAuditor {
 				"domain-naked-string-primitive": "Raw string in domain contracts",
 				"domain-untyped-collection": "Set, Map, or Array without as const",
 				"domain-ambiguous-union": "Union with empty string and null",
-				"domain-unbranded-id": "ID alias without nominal Brand"
+				"domain-unbranded-id": "ID alias without nominal Brand",
+				"domain-chained-literal-comparison": "Chained literal comparisons"
 			},
 			ruleRemediations: {
 				"domain-naked-string-primitive": "📖 REMEDIATION GUIDE: domain-naked-string-primitive\n1. Root Cause: Primitive \"string\" was used in a domain contract property (interface, DTO, type, or state) representing a finite set of categories, modes, or states. Naked strings undermine static type safety and allow invalid values at runtime.\n2. Diagnosis: Look up the reported property in the interface or type of the reported file.\n3. Canonical Solution: Model the property as a canonical string literal union or derive the type from an immutable array with \"as const\".\n4. Example:\n   ❌ Incorrect: interface Character { status: string; rarity: string; }\n   ✅ Correct:   export type CharacterStatus = \"active\" | \"resting\" | \"fallen\";\n                  interface Character { status: CharacterStatus; rarity: ItemRarity; }",
 				"domain-untyped-collection": "📖 REMEDIATION GUIDE: domain-untyped-collection\n1. Root Cause: A collection (Set, Map, or constant Array) was declared without specific domain typing or without \"as const\", allowing TypeScript to infer generic string[] or Set<string>.\n2. Diagnosis: Review the declaration of the reported array, Set, or Map.\n3. Canonical Solution: Add \"as const\" to the array or explicitly type the collection generic with canonical domain types.\n4. Example:\n   ❌ Incorrect: const VALID_MODES = [\"solo\", \"party\", \"guild\"];\n   ✅ Correct:   const VALID_MODES = [\"solo\", \"party\", \"guild\"] as const;\n                  export type GameMode = (typeof VALID_MODES)[number];",
 				"domain-ambiguous-union": "📖 REMEDIATION GUIDE: domain-ambiguous-union\n1. Root Cause: A type union simultaneously combines empty-string (\"\") along with null or undefined (e.g.: string | \"\" | null). This generates semantic ambiguity regarding which represents the legitimate empty state.\n2. Diagnosis: Review the type definition on the reported line.\n3. Canonical Solution: Unify representation of absence of value exclusively using null or undefined (or valid literal union), eradicating empty-string as sentinel.\n4. Example:\n   ❌ Incorrect: type FilterValue = CategoryId | \"\" | null;\n   ✅ Correct:   type FilterValue = CategoryId | null;",
-				"domain-unbranded-id": "📖 REMEDIATION GUIDE: domain-unbranded-id\n1. Root Cause: An identifier alias was declared as a simple synonym of primitive string (e.g. type HeroId = string). This enables accidental duck-typing, allowing a function to receive an ItemId where it expected a HeroId without compiler warning.\n2. Diagnosis: Look for type declaration \"type ...Id = string\".\n3. Canonical Solution: Use the utility type Brand<string, \"EntityId\"> to enforce strict nominal typing and distinguish identifiers across entities.\n4. Example:\n   ❌ Incorrect: export type HeroId = string;\n   ✅ Correct:   export type HeroId = Brand<string, \"HeroId\">;\n                  // Or: export type HeroId = string & { readonly __brand: unique symbol };"
+				"domain-unbranded-id": "📖 REMEDIATION GUIDE: domain-unbranded-id\n1. Root Cause: An identifier alias was declared as a simple synonym of primitive string (e.g. type HeroId = string). This enables accidental duck-typing, allowing a function to receive an ItemId where it expected a HeroId without compiler warning.\n2. Diagnosis: Look for type declaration \"type ...Id = string\".\n3. Canonical Solution: Use the utility type Brand<string, \"EntityId\"> to enforce strict nominal typing and distinguish identifiers across entities.\n4. Example:\n   ❌ Incorrect: export type HeroId = string;\n   ✅ Correct:   export type HeroId = Brand<string, \"HeroId\">;\n                  // Or: export type HeroId = string & { readonly __brand: unique symbol };",
+				"domain-chained-literal-comparison": "📖 REMEDIATION GUIDE: domain-chained-literal-comparison\n1. Root Cause: Chained string literal comparisons (x === \"a\" || x === \"b\" || x === \"c\") were used to validate membership in an ad-hoc finite domain or reimplement a type guard. Dispersed string comparisons drift out of sync, violate DRY, and create fragile O(N) branching.\n2. Diagnosis: Look at the reported boolean expression where three or more string literals are compared against the same variable.\n3. Canonical Solution: Declare an immutable array with \"as const\" (e.g. const VALID_ITEMS = [\"a\", \"b\", \"c\"] as const), derive its union type (type Item = (typeof VALID_ITEMS)[number]), and validate membership using a ReadonlySet (O(1)) or canonical type-guard function.\n4. Example:\n   ❌ Incorrect: if (mode === \"easy\" || mode === \"normal\" || mode === \"hard\") { ... }\n   ✅ Correct:   export const GAME_MODES = [\"easy\", \"normal\", \"hard\"] as const;\n                  export type GameMode = (typeof GAME_MODES)[number];\n                  const GAME_MODE_SET: ReadonlySet<string> = new Set(GAME_MODES);\n                  if (GAME_MODE_SET.has(mode)) { ... }"
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,

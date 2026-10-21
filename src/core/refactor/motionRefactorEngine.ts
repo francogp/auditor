@@ -79,6 +79,7 @@ function isGsapTweenCall(node: ts.CallExpression, sf: ts.SourceFile): boolean {
   }
 
   const callerText = caller.getText(sf).toLowerCase();
+  // domain-ok: GSAP caller heuristics
   return (
     callerText === 'gsap' ||
     callerText === 'tl' ||

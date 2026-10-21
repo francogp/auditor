@@ -17,8 +17,9 @@ function renderExecutivePassSummary(params) {
 	return `${styleText(isWarningPass ? ["bold", "yellow"] : ["bold", "green"], title)}\n${`  Errors: ${totalErrors} | Warnings: ${totalWarnings}${ratchetText}`}\n${styleText("dim", `  Report: ${latestAuditJsonPath}`)}\n`;
 }
 function renderExecutiveFailSummary(params) {
-	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
-	const fixableText = fixableErrors > 0 ? ` (${fixableErrors} auto-fixable)` : "";
+	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, fixableWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
+	const totalFixable = fixableErrors + fixableWarnings;
+	const fixableText = totalFixable > 0 ? ` (${totalFixable} auto-fixable)` : "";
 	const suiteText = failedSuites > 0 ? ` in ${failedSuites} suite(s)` : "";
 	const header = styleText(["bold", "red"], `[FAIL] AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
 	const status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
@@ -28,7 +29,7 @@ function renderExecutiveFailSummary(params) {
 		phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
 	}
 	const nextActions = ["  Next Actions for AI:"];
-	if (fixableErrors > 0) nextActions.push(`  1. Mandatory Auto-Fix: npm run auditor:fix (${fixableErrors} auto-fixable)`);
+	if (totalFixable > 0) nextActions.push(`  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`);
 	else nextActions.push("  1. Focus critical phase: npm run auditor:next", "  2. Inspect findings:   npm run auditor:findings", phaseBreakdown[0] ? `  3. Inspect by phase:   npm run auditor:findings -- phase=${phaseBreakdown[0].phase}` : "  3. Inspect by rule:    npm run auditor:by-rule", "  4. Consult rule guide: npm run auditor -- guide <ruleId>");
 	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
 	return `${header}\n${status}\n\n${phaseLines.join("\n")}\n\n${nextActions.join("\n")}\n\n${reportLine}\n`;

@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { CLI_CONTRACT_RULES } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScanner.js";
@@ -102,6 +102,15 @@ const RULE_REMEDIATIONS = {
 	"cli-contracts-missing-citty-dependency": "📖 REMEDIATION GUIDE: cli-contracts-missing-citty-dependency\n1. Root Cause: The project defines CLI tools or scripts but omits `citty` from `package.json` (`devDependencies` or `dependencies`).\n2. Diagnosis: Inspect `package.json` to verify if `\"citty\"` is declared under `\"devDependencies\"` or `\"dependencies\"`.\n3. Canonical Solution: Add `\"citty\": \"^0.2.2\"` to `devDependencies` in `package.json` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
 	"cli-contracts-unregistered-script": "📖 REMEDIATION GUIDE: cli-contracts-unregistered-script\n1. Root Cause: `CORE_PACKAGE_SCRIPT_REQUIREMENTS` in `src/core/packageScriptRegistry.ts` omits one or more mandatory `:human` package scripts (`auditor:human`, `auditor:lint:human`, `auditor:full:human`, `auditor:fix:human`, `auditor:findings:human`).\n2. Diagnosis: Check the missing script names listed in the violation message against `CORE_PACKAGE_SCRIPT_REQUIREMENTS`.\n3. Canonical Solution: Register all 5 `:human` script requirements in `src/core/packageScriptRegistry.ts` and run `npm run auditor:fix`.\n4. Example:\n   ❌ Missing: omitting `:human` scripts from `CORE_PACKAGE_SCRIPT_REQUIREMENTS`\n   ✅ Canonical: `{ name: \"auditor:human\", command: \"auditor human\", description: \"...\", category: \"core\" }`"
 };
+const CLI_CONTRACT_REMEDIATION_PHASES = {
+	"cli-contracts-missing-citty-dependency": "setup",
+	"cli-contracts-unregistered-script": "setup",
+	"cli-contracts-direct-argv-access": "contracts",
+	"cli-contracts-banned-parser-library": "contracts",
+	"cli-contracts-homebrew-flag-parsing": "contracts",
+	"cli-contracts-dynamic-eval-bypass": "contracts",
+	"cli-contracts-missing-citty-contract": "contracts"
+};
 var CliContractsAuditor = class extends FileScanAuditor {
 	cliViolationsByDoc = /* @__PURE__ */ new WeakMap();
 	constructor(options = {}) {
@@ -125,7 +134,7 @@ var CliContractsAuditor = class extends FileScanAuditor {
 			description: "Enforces Citty CLI contracts and bans homebrew argv",
 			family: "architecture",
 			ruleIds: CLI_CONTRACT_RULES,
-			ruleRemediationPhases: createUniformRemediationPhases(CLI_CONTRACT_RULES, "contracts"),
+			ruleRemediationPhases: CLI_CONTRACT_REMEDIATION_PHASES,
 			packageName: "CLI",
 			configKey: "paths",
 			defaultConfig: {},

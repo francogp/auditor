@@ -235,6 +235,7 @@ function evaluateDynamicConfigKey(
   configKey: string,
   config: AuditConfig
 ): SuiteGatingStatus | null {
+  // domain-ok: Core config keys
   if (configKey === 'core' || configKey === 'paths' || configKey === 'none') {
     return { enabled: true, configKey };
   }

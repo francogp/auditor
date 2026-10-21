@@ -88,7 +88,8 @@ export const DOMAIN_TYPES_RULES = [
   'domain-naked-string-primitive',
   'domain-untyped-collection',
   'domain-ambiguous-union',
-  'domain-unbranded-id'
+  'domain-unbranded-id',
+  'domain-chained-literal-comparison'
 ] as const;
 
 export type DomainTypesRuleId = (typeof DOMAIN_TYPES_RULES)[number];
@@ -364,6 +365,153 @@ function auditDomainCollectionsAst(
   return findings;
 }
 
+function isRootOrExpression(node: ts.BinaryExpression): boolean {
+  let current: ts.Node = node;
+  while (current.parent && ts.isParenthesizedExpression(current.parent)) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  return !(
+    parent &&
+    ts.isBinaryExpression(parent) &&
+    parent.operatorToken.kind === ts.SyntaxKind.BarBarToken
+  );
+}
+
+function flattenOrChain(expr: ts.Expression): ts.Expression[] {
+  const list: ts.Expression[] = [];
+  function collect(e: ts.Expression): void {
+    const unwrapped = ts.isParenthesizedExpression(e) ? e.expression : e;
+    if (
+      ts.isBinaryExpression(unwrapped) &&
+      unwrapped.operatorToken.kind === ts.SyntaxKind.BarBarToken
+    ) {
+      collect(unwrapped.left);
+      collect(unwrapped.right);
+    } else {
+      list.push(unwrapped);
+    }
+  }
+  collect(expr);
+  return list;
+}
+
+function extractVariableIdentifier(expr: ts.Expression): string | null {
+  if (ts.isIdentifier(expr)) {
+    return expr.text;
+  }
+  if (
+    ts.isPropertyAccessExpression(expr) &&
+    ts.isIdentifier(expr.expression)
+  ) {
+    return `${expr.expression.text}.${expr.name.text}`;
+  }
+  return null;
+}
+
+function extractLiteralEquality(
+  expr: ts.Expression
+): { varName: string; literal: string } | null {
+  const unwrapped = ts.isParenthesizedExpression(expr) ? expr.expression : expr;
+  if (!ts.isBinaryExpression(unwrapped)) return null;
+  const op = unwrapped.operatorToken.kind;
+  if (
+    op !== ts.SyntaxKind.EqualsEqualsEqualsToken &&
+    op !== ts.SyntaxKind.EqualsEqualsToken
+  ) {
+    return null;
+  }
+
+  let varExpr: ts.Expression | null = null;
+  let litExpr: ts.StringLiteralLike | null = null;
+
+  if (
+    ts.isStringLiteral(unwrapped.left) ||
+    ts.isNoSubstitutionTemplateLiteral(unwrapped.left)
+  ) {
+    litExpr = unwrapped.left;
+    varExpr = unwrapped.right;
+  } else if (
+    ts.isStringLiteral(unwrapped.right) ||
+    ts.isNoSubstitutionTemplateLiteral(unwrapped.right)
+  ) {
+    litExpr = unwrapped.right;
+    varExpr = unwrapped.left;
+  }
+
+  if (!varExpr || !litExpr) return null;
+  const varName = extractVariableIdentifier(varExpr);
+  if (!varName) return null;
+  return { varName, literal: litExpr.text };
+}
+
+function collectEqualitiesByVar(leaves: readonly ts.Expression[]): Map<string, Set<string>> {
+  const equalitiesByVar = new Map<string, Set<string>>();
+  for (const leaf of leaves) {
+    const item = extractLiteralEquality(leaf);
+    if (item) {
+      const set = equalitiesByVar.get(item.varName) ?? new Set<string>();
+      set.add(item.literal);
+      equalitiesByVar.set(item.varName, set);
+    }
+  }
+  return equalitiesByVar;
+}
+
+function inspectChainedBinaryNode(
+  node: ts.BinaryExpression,
+  doc: AuditedDocument,
+  ast: ts.SourceFile,
+  rel: string,
+  findings: Finding[]
+): void {
+  const leaves = flattenOrChain(node);
+  const equalitiesByVar = collectEqualitiesByVar(leaves);
+
+  for (const [varName, literals] of equalitiesByVar) {
+    if (literals.size < 3) continue;
+    // Exempt low-level character scanning / lexing (e.g. ch === '_' || ch === '$' || ch === '-')
+    if (Array.from(literals).every((l) => l.length === 1)) continue;
+    if (doc.hasEscapeHatchForNode(node, 'domain-chained-literal-comparison', ast)) continue;
+
+    const { line, column } = doc.getNodeLineAndColumn(node, ast);
+    const snippet = node.getText(ast).slice(0, 100).replace(/\n/g, '↵');
+    findings.push({
+      file: rel,
+      line,
+      col: column,
+      pattern: `Chained literal comparison on "${varName}" (${literals.size} options: ${Array.from(literals).map((l) => `"${l}"`).join(', ')})`,
+      snippet,
+      severity: 'ERROR',
+      ruleId: 'domain-chained-literal-comparison'
+    });
+  }
+}
+
+function auditChainedLiteralComparisonsAst(
+  doc: AuditedDocument,
+  ast: ts.SourceFile,
+  rel: string,
+  ruleFilter?: DomainTypesRuleId
+): Finding[] {
+  if (ruleFilter && ruleFilter !== 'domain-chained-literal-comparison') return [];
+  const findings: Finding[] = [];
+
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isBinaryExpression(node) &&
+      node.operatorToken.kind === ts.SyntaxKind.BarBarToken &&
+      isRootOrExpression(node)
+    ) {
+      inspectChainedBinaryNode(node, doc, ast, rel, findings);
+    }
+    ts.forEachChild(node, visit);
+  };
+
+  visit(ast);
+  return findings;
+}
+
 export function auditFileContent(
   filePath: string,
   content: string,
@@ -376,9 +524,10 @@ export function auditFileContent(
   const doc = new AuditedDocument(filePath, content, filePath);
   const ast = doc.getAst();
 
-  // 1. Sets & Maps used for finite domains (AST-grounded)
+  // 1. Sets & Maps used for finite domains and chained literal comparisons (AST-grounded)
   if (ast) {
     findings.push(...auditDomainCollectionsAst(doc, ast, rel, ruleFilter));
+    findings.push(...auditChainedLiteralComparisonsAst(doc, ast, rel, ruleFilter));
   } else {
     findings.push(
       ...findMatches(
@@ -796,7 +945,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
         'domain-naked-string-primitive': 'Raw string in domain contracts',
         'domain-untyped-collection': 'Set, Map, or Array without as const',
         'domain-ambiguous-union': 'Union with empty string and null',
-        'domain-unbranded-id': 'ID alias without nominal Brand'
+        'domain-unbranded-id': 'ID alias without nominal Brand',
+        'domain-chained-literal-comparison': 'Chained literal comparisons'
       },
       ruleRemediations: {
         'domain-naked-string-primitive':
@@ -833,7 +983,18 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
           '4. Example:\n' +
           '   ❌ Incorrect: export type HeroId = string;\n' +
           '   ✅ Correct:   export type HeroId = Brand<string, "HeroId">;\n' +
-          '                  // Or: export type HeroId = string & { readonly __brand: unique symbol };'
+          '                  // Or: export type HeroId = string & { readonly __brand: unique symbol };',
+        'domain-chained-literal-comparison':
+          '📖 REMEDIATION GUIDE: domain-chained-literal-comparison\n' +
+          '1. Root Cause: Chained string literal comparisons (x === "a" || x === "b" || x === "c") were used to validate membership in an ad-hoc finite domain or reimplement a type guard. Dispersed string comparisons drift out of sync, violate DRY, and create fragile O(N) branching.\n' +
+          '2. Diagnosis: Look at the reported boolean expression where three or more string literals are compared against the same variable.\n' +
+          '3. Canonical Solution: Declare an immutable array with "as const" (e.g. const VALID_ITEMS = ["a", "b", "c"] as const), derive its union type (type Item = (typeof VALID_ITEMS)[number]), and validate membership using a ReadonlySet (O(1)) or canonical type-guard function.\n' +
+          '4. Example:\n' +
+          '   ❌ Incorrect: if (mode === "easy" || mode === "normal" || mode === "hard") { ... }\n' +
+          '   ✅ Correct:   export const GAME_MODES = ["easy", "normal", "hard"] as const;\n' +
+          '                  export type GameMode = (typeof GAME_MODES)[number];\n' +
+          '                  const GAME_MODE_SET: ReadonlySet<string> = new Set(GAME_MODES);\n' +
+          '                  if (GAME_MODE_SET.has(mode)) { ... }'
       },
       coverage: {
         include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,

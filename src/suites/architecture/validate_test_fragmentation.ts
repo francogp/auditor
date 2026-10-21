@@ -27,7 +27,7 @@ import { FileScanAuditor, BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
-import { getProcessCliArgs } from '../../core/cli/cittyHarness.ts';
+import { getProcessCliArgs, parseCittyArgs } from '../../core/cli/cittyHarness.ts';
 
 enableCompileCache();
 
@@ -243,10 +243,13 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
     this.context.setMetric('Total Archivos Test', this.distribution.totalTestFiles);
     this.context.setMetric('Total Líneas Test', this.distribution.totalTestLines);
 
-    const isSummaryRequested = getProcessCliArgs().some(
-      (token) => token.includes('summary=true') || token === '--summary'
+    const parsedArgs = parseCittyArgs(
+      {
+        summary: { type: 'boolean', default: false }
+      },
+      getProcessCliArgs()
     );
-    if (isSummaryRequested) {
+    if (parsedArgs.summary) {
       this.printDistributionSummary();
     }
   }

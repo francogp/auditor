@@ -269,4 +269,123 @@ export const VALID_STATUSES = new Set([
       expect(findings[0]?.ruleId).toBe('domain-untyped-collection');
     });
   });
+
+  describe('domain-chained-literal-comparison', () => {
+    it('detects chained literal comparisons with >= 3 distinct literals for the same variable', async () => {
+      const filePath = path.join(tempDir, 'src/chainedLiteral.ts');
+      const code = `
+export function checkPhase(phase: string): boolean {
+  if (phase === 'setup' || phase === 'prune' || phase === 'dedup') {
+    return true;
+  }
+  return false;
+}
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
+      expect(findings[0]?.ruleId).toBe('domain-chained-literal-comparison');
+      expect(findings[0]?.pattern).toContain('Chained literal comparison on "phase"');
+    });
+
+    it('ignores comparisons with only 2 literals', async () => {
+      const filePath = path.join(tempDir, 'src/binaryLiteral.ts');
+      const code = `
+export function checkMode(mode: string): boolean {
+  if (mode === 'easy' || mode === 'hard') {
+    return true;
+  }
+  return false;
+}
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
+      expect(chained).toHaveLength(0);
+    });
+
+    it('ignores chained comparisons across different variables', async () => {
+      const filePath = path.join(tempDir, 'src/differentVars.ts');
+      const code = `
+export function checkDiverse(a: string, b: string, c: string): boolean {
+  if (a === 'start' || b === 'middle' || c === 'end') {
+    return true;
+  }
+  return false;
+}
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
+      expect(chained).toHaveLength(0);
+    });
+
+    it('respects // domain-ok: escape hatch on chained comparisons', async () => {
+      const filePath = path.join(tempDir, 'src/exemptChained.ts');
+      const code = `
+export function checkAllowed(val: string): boolean {
+  if (val === 'x' || val === 'y' || val === 'z') { // domain-ok: Ad-hoc parser
+    return true;
+  }
+  return false;
+}
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
+      expect(chained).toHaveLength(0);
+    });
+
+    it('exempts single-character lexical scanning chains', async () => {
+      const filePath = path.join(tempDir, 'src/singleCharScanner.ts');
+      const code = `
+export function isQuote(ch: string): boolean {
+  return ch === "'" || ch === '"' || ch === '\`';
+}
+      `.trim();
+
+      await fs.writeFile(filePath, code, 'utf-8');
+      const findings = await auditFile(filePath);
+      const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
+      expect(chained).toHaveLength(0);
+    });
+
+    it('respects // string-ok: and // no-domain: escape hatches on chained comparisons', async () => {
+      const filePathStringOk = path.join(tempDir, 'src/stringOkChained.ts');
+      const codeStringOk = `
+export function checkStringOk(val: string): boolean {
+  if (val === 'a' || val === 'b' || val === 'c') { // string-ok: Lexical token parser
+    return true;
+  }
+  return false;
+}
+      `.trim();
+      await fs.writeFile(filePathStringOk, codeStringOk, 'utf-8');
+      const findingsStringOk = await auditFile(filePathStringOk);
+      const chainedStringOk = findingsStringOk.filter(
+        (f) => f.ruleId === 'domain-chained-literal-comparison'
+      );
+      expect(chainedStringOk).toHaveLength(0);
+
+      const filePathNoDomain = path.join(tempDir, 'src/noDomainChained.ts');
+      const codeNoDomain = `
+export function checkNoDomain(val: string): boolean {
+  if (val === 'x' || val === 'y' || val === 'z') { // no-domain: External legacy input
+    return true;
+  }
+  return false;
+}
+      `.trim();
+      await fs.writeFile(filePathNoDomain, codeNoDomain, 'utf-8');
+      const findingsNoDomain = await auditFile(filePathNoDomain);
+      const chainedNoDomain = findingsNoDomain.filter(
+        (f) => f.ruleId === 'domain-chained-literal-comparison'
+      );
+      expect(chainedNoDomain).toHaveLength(0);
+    });
+  });
 });

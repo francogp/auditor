@@ -15,16 +15,10 @@ import {
   unwrapCliExpression
 } from '../cliContractHeuristics.ts';
 import type { CliContractDetector } from '../cliContractTypes.ts';
+import { KNOWN_BARE_MODE_FLAGS } from '../../../core/cli/cittyHarness.ts';
 
 const HOMEBREW_FLAG_MESSAGE =
   "Homebrew CLI flag or subcommand parsing detected (startsWith('--'), includes('--flag'), BOOLEAN_FLAGS, or manual args[0] extraction). Declare typed options and subCommands in 'defineCommand' (citty) or 'cittyHarness.ts'.";
-
-const KNOWN_BARE_MODE_FLAGS: ReadonlySet<string> = new Set([
-  'human',
-  'verbose',
-  'format=human',
-  'format=verbose'
-]); // runtime-set: O(1) lookup
 
 function isArgItemReceiver(expr: ts.Expression): boolean {
   const target = unwrapCliExpression(expr);
@@ -44,24 +38,26 @@ function isArgCollectionReceiver(expr: ts.Expression): boolean {
 }
 
 function isFlagStartsWithCall(node: ts.CallExpression): boolean {
-  if (!ts.isPropertyAccessExpression(node.expression)) return false;
-  if (node.expression.name.text !== 'startsWith') return false;
+  const callee = unwrapCliExpression(node.expression);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  if (callee.name.text !== 'startsWith') return false;
   const firstArg = getStaticStringValue(node.arguments[0]);
   if (!firstArg) return false;
   const isFlagPrefix =
     firstArg === '-' ||
     firstArg === '--' ||
     firstArg.startsWith('--') ||
-    firstArg === 'project=';
-  return isFlagPrefix && isArgItemReceiver(node.expression.expression);
+    firstArg.includes('=');
+  return isFlagPrefix && isArgItemReceiver(callee.expression);
 }
 
 function isFlagCollectionIncludesCall(node: ts.CallExpression): boolean {
-  if (!ts.isPropertyAccessExpression(node.expression)) return false;
-  const method = node.expression.name.text;
+  const callee = unwrapCliExpression(node.expression);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  const method = callee.name.text;
   if (method !== 'includes' && method !== 'has') return false;
 
-  const receiver = unwrapCliExpression(node.expression.expression);
+  const receiver = unwrapCliExpression(callee.expression);
   if (ts.isIdentifier(receiver) && receiver.text === 'BOOLEAN_FLAGS') {
     return true;
   }
@@ -73,6 +69,15 @@ function isFlagCollectionIncludesCall(node: ts.CallExpression): boolean {
   }
 
   return false;
+}
+
+function isFlagItemIncludesCall(node: ts.CallExpression): boolean {
+  const callee = unwrapCliExpression(node.expression);
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  if (callee.name.text !== 'includes') return false;
+  const firstArg = getStaticStringValue(node.arguments[0]);
+  if (!firstArg || !firstArg.includes('=')) return false;
+  return isArgItemReceiver(callee.expression);
 }
 
 function isFirstArgIndexAccess(expr: ts.Expression): boolean {
@@ -92,7 +97,11 @@ export const homebrewFlagDetector: CliContractDetector = (node, ctx) => {
   if (ctx.isAuthorizedHarness) return null;
 
   if (ts.isCallExpression(node)) {
-    if (isFlagStartsWithCall(node) || isFlagCollectionIncludesCall(node)) {
+    if (
+      isFlagStartsWithCall(node) ||
+      isFlagCollectionIncludesCall(node) ||
+      isFlagItemIncludesCall(node)
+    ) {
       return {
         ruleId: 'cli-contracts-homebrew-flag-parsing',
         node,

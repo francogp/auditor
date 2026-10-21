@@ -1,4 +1,4 @@
-import { defineCommand, parseArgs } from "citty";
+import { defineCommand, parseArgs, runCommand, runMain } from "citty";
 //#region src/core/cli/cittyHarness.ts
 /**
 * src/core/cli/cittyHarness.ts
@@ -12,6 +12,18 @@ import { defineCommand, parseArgs } from "citty";
 * All CLI binaries under `src/cli/` MUST use this harness instead of accessing
 * `process.argv` or `node:util.parseArgs` directly.
 */
+const CONSOLE_FORMAT_VALUES = [
+	"compact",
+	"human",
+	"verbose",
+	"json"
+];
+const KNOWN_BARE_MODE_FLAGS = /* @__PURE__ */ new Set([
+	"human",
+	"verbose",
+	"format=human",
+	"format=verbose"
+]);
 /**
 * Standard global CLI arguments shared across auditor commands.
 */
@@ -125,8 +137,8 @@ function parseCittyArgs(argsDef, rawArgs = getProcessCliArgs(), subCommandNames)
 */
 function resolveHumanModeFromArgs(args, rawArgs) {
 	if (args?.human === true || args?.verbose === true || args?.format === "human" || args?.format === "verbose") return true;
-	if (rawArgs) return rawArgs.some((a) => a === "human" || a === "--human" || a === "format=human" || a === "--format=human" || a === "verbose" || a === "--verbose" || a === "format=verbose" || a === "--format=verbose");
+	if (rawArgs) return rawArgs.some((a) => KNOWN_BARE_MODE_FLAGS.has(a) || KNOWN_BARE_MODE_FLAGS.has(a.replace(/^--/, "")));
 	return false;
 }
 //#endregion
-export { COMMON_CLI_ARGS, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs };
+export { COMMON_CLI_ARGS, CONSOLE_FORMAT_VALUES, KNOWN_BARE_MODE_FLAGS, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs, runCommand, runMain };

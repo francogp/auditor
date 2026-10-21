@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { getProcessCliArgs } from "../../core/cli/cittyHarness.js";
+import { getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
 import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -162,7 +162,10 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 		this.context.setMetric("Sobredimensionadas (>1200L)", this.distribution.oversized);
 		this.context.setMetric("Total Archivos Test", this.distribution.totalTestFiles);
 		this.context.setMetric("Total Líneas Test", this.distribution.totalTestLines);
-		if (getProcessCliArgs().some((token) => token.includes("summary=true") || token === "--summary")) this.printDistributionSummary();
+		if (parseCittyArgs({ summary: {
+			type: "boolean",
+			default: false
+		} }, getProcessCliArgs()).summary) this.printDistributionSummary();
 	}
 	printDistributionSummary() {
 		const d = this.distribution;

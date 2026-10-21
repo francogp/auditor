@@ -9,7 +9,7 @@ export interface ResolvedConfigModuleUrl {
   readonly importUrl: string;
   readonly cleanupFilePath: string | null;
 }
-export declare function resolveConfigModuleUrl(configPath: string, projectRoot: string): ResolvedConfigModuleUrl;
+export declare function resolveConfigModuleUrl(configPath: string, projectRoot: string, auditorRoot?: string): ResolvedConfigModuleUrl;
 export declare function loadAuditConfig(projectRoot?: string): Promise<AuditEngineConfig>;
 export declare function getAuditConfig(projectRoot?: string): AuditEngineConfig;
 export declare function setAuditConfig(config: AuditEngineConfig, projectRoot?: string): void;

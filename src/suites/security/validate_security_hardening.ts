@@ -289,6 +289,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       (m) => {
         const assigned = (m[1] ?? '').trim();
         // Safe container reset: empty string or empty template literal
+        // domain-ok: Empty string literals representation
         if (assigned === "''" || assigned === '""' || assigned === '``') return false;
         if (/^['"]\s*['"]$/.test(assigned)) return false;
         return !assigned.includes('DOMPurify.sanitize') && !assigned.includes('sanitizeHtml');

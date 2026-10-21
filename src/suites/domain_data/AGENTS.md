@@ -15,6 +15,7 @@ Architecture & Tooling Engineers.
 - **O(1) Efficiency**: Linear searches (`.includes()`, `find()`) in catalogs and cyclic object iterations are banned in favor of `Set.has()` and `Map.get()`.
 - **AST Architecture & Node-Level Escape Hatches**: `validate_domain_types.ts` and `validate_o1_data_structures.ts` operate strictly under TypeScript AST (`ast: true`), inspecting `SourceFile` nodes rather than line-based regexes. Multiline collections (`new Set([\n ...\n])`) and multiline method calls resolve cleanly via `AuditedDocument.hasEscapeHatchForNode`.
 - **3-Tier Canary Test Protocol**: Every domain and O(1) rule enforces a 3-tier canary suite (Active Negative Canary, Multiline/Preceding Escape Hatch Canary, and Clean Positive Canary).
+- **Chained Literal Comparison Governance (`domain-chained-literal-comparison`)**: Chained equality checks against $\ge 3$ string literals (`x === 'a' || x === 'b' || x === 'c'`) are prohibited; entities must be modeled as an immutable array with `as const` and validated via `ReadonlySet` ($O(1)$) or canonical type guards. Single-character token chains (lexical scanners) are exempt, and statement-level escapes (`// domain-ok:`, `// string-ok:`) are supported.
 
 ## Key Files
 

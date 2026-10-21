@@ -210,4 +210,28 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     // Clean up temporary scratch file
     fs.unlinkSync(res.cleanupFilePath!);
   });
+
+  it('resolveConfigModuleUrl resolves direct URL and bypasses rewriting when auditor is installed in node_modules', () => {
+    const dummyConfig = path.join(tempSandboxDir, 'audit.config.ts');
+    fs.writeFileSync(
+      dummyConfig,
+      `import { defineAuditConfig } from '@francogp/auditor';\nexport default defineAuditConfig({ name: 'test' });`,
+      'utf-8'
+    );
+
+    const simulatedNodeModulesAuditorRoot = path.join(
+      tempSandboxDir,
+      'node_modules',
+      '@francogp',
+      'auditor'
+    );
+
+    const res = resolveConfigModuleUrl(
+      dummyConfig,
+      tempSandboxDir,
+      simulatedNodeModulesAuditorRoot
+    );
+    expect(res.cleanupFilePath).toBeNull();
+    expect(res.importUrl).toContain('audit.config.ts');
+  });
 });

@@ -483,6 +483,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
   }
 
   private isObsoleteAuditorScript(name: string, command: string): boolean {
+    // domain-ok: Obsolete legacy script names
     if (
       name === 'audit' ||
       name === 'init-agent' ||

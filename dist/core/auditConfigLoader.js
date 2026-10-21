@@ -88,8 +88,7 @@ function resolveCurrentAuditorEntryUrl() {
 	} catch {}
 	return null;
 }
-function resolveConfigModuleUrl(configPath, projectRoot) {
-	const auditorRoot = path.resolve(import.meta.dirname, "..", "..");
+function resolveConfigModuleUrl(configPath, projectRoot, auditorRoot = path.resolve(import.meta.dirname, "..", "..")) {
 	const isRemoteProject = !auditorRoot.split(path.sep).includes("node_modules") && path.resolve(projectRoot) !== auditorRoot;
 	const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
 	if (isRemoteProject && auditorEntryUrl) try {

@@ -257,6 +257,20 @@ describe('report_findings CLI Tool', () => {
     expect(consoleLogSpy).toHaveBeenCalled();
   });
 
+  it('supports top=all and top=0 without capping findings to default limit', () => {
+    for (const topOption of ['top=all', 'top=0']) {
+      consoleLogSpy.mockClear();
+      process.argv = ['node', 'report_findings.ts', topOption, '--json', 'allow-stale'];
+      expect(() => runReport()).not.toThrow();
+      const jsonCall = consoleLogSpy.mock.calls.find((c: unknown[]) =>
+        String(c[0]).includes('"filteredTotal"')
+      );
+      expect(jsonCall).toBeDefined();
+      const parsed = JSON.parse(String(jsonCall![0]));
+      expect(parsed.findings.length).toBe(1);
+    }
+  });
+
   it('handles partial audits gracefully without throwing or exiting', () => {
     fsReadSpy.mockImplementationOnce(() =>
       JSON.stringify({

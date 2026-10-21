@@ -138,6 +138,7 @@ function isPrecisionOrSliceArg(node: ts.Node): boolean {
   if (!p || !ts.isCallExpression(p)) return false;
   if (ts.isPropertyAccessExpression(p.expression)) {
     const methodName = p.expression.name.text;
+    // domain-ok: Numeric format methods
     if (methodName === 'toFixed' || methodName === 'toPrecision' || methodName === 'slice') {
       return true;
     }

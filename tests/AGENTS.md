@@ -50,7 +50,9 @@ Architecture & Tooling Engineers.
 - [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture, anti-tampering configuration, and AI chat language clauses in root `AGENTS.md`.
 - [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
+- [`validate_cli_contracts.test.ts`](./validate_cli_contracts.test.ts): Tests for Citty CLI contract validation, banned parsers, homebrew flags, and positional arg normalization.
 - [`validate_critical_config.test.ts`](./validate_critical_config.test.ts): Exhaustive tests for the mandatory AuditorCriticalConfig contract across BaseAuditor, manifests, constructor validation, and ValidateAuditConfigAuditor enforcement.
+- [`validate_domain_types.test.ts`](./validate_domain_types.test.ts): Tests for nominal domain types, untyped collections, ambiguous unions, and chained literal comparisons.
 - [`validate_native_paths.test.ts`](./validate_native_paths.test.ts): Tests for Node.js native path and standard URL AST architecture suite.
 - [`validate_vite_plus_config.test.ts`](./validate_vite_plus_config.test.ts): Tests for Vite+ unified configuration and Domain-Type-First enforcement.
 - [`validate_oxlint.test.ts`](./validate_oxlint.test.ts): Tests for Vite+ Oxlint and code hygiene validator.

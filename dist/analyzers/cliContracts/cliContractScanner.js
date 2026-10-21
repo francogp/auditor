@@ -77,7 +77,6 @@ function inspectCliImportFact(node, processAliases) {
 		if (clause?.name) processAliases.add(clause.name.text);
 		if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) processAliases.add(clause.namedBindings.name.text);
 	}
-	return Boolean(spec === "citty" || spec?.endsWith("cittyHarness.ts") || spec?.endsWith("refactorCliHarness.ts"));
 }
 function inspectCliVariableFact(node, processAliases, argvKeyConstants, shadowedProcessScopes) {
 	if (!ts.isIdentifier(node.name)) return;
@@ -94,10 +93,19 @@ function inspectCliCallFact(node, dynamicProcessParamNodes) {
 	const callee = unwrapCliExpression(node.expression);
 	let isMainCall = false;
 	let isCittyCall = false;
+	let builderName = null;
 	if (ts.isIdentifier(callee)) {
 		isMainCall = callee.text === "isMainModule";
-		isCittyCall = CANONICAL_CITTY_BUILDERS.has(callee.text);
-	} else if (ts.isPropertyAccessExpression(callee)) isCittyCall = CANONICAL_CITTY_BUILDERS.has(callee.name.text);
+		if (CANONICAL_CITTY_BUILDERS.has(callee.text)) builderName = callee.text;
+	} else if (ts.isPropertyAccessExpression(callee)) {
+		if (CANONICAL_CITTY_BUILDERS.has(callee.name.text)) builderName = callee.name.text;
+	}
+	if (builderName) {
+		if (builderName === "parseCittyArgs") {
+			const firstArg = node.arguments[0] ? unwrapCliExpression(node.arguments[0]) : null;
+			isCittyCall = Boolean(firstArg && (ts.isObjectLiteralExpression(firstArg) || ts.isIdentifier(firstArg)));
+		} else isCittyCall = true;
+	}
 	const dynamicCb = isDynamicProcessImportThen(node);
 	if (dynamicCb) collectDynamicCallbackParamUsages(dynamicCb, dynamicProcessParamNodes);
 	return {
@@ -113,9 +121,8 @@ function collectCliFileFacts(sourceFile, relPath, rawText) {
 	let hasIsMainModuleCall = rawText.startsWith("#!");
 	let hasCittyContract = false;
 	const inspectNode = (node) => {
-		if (ts.isImportDeclaration(node)) {
-			if (inspectCliImportFact(node, processAliases)) hasCittyContract = true;
-		} else if (ts.isVariableDeclaration(node)) inspectCliVariableFact(node, processAliases, argvKeyConstants, shadowedProcessScopes);
+		if (ts.isImportDeclaration(node)) inspectCliImportFact(node, processAliases);
+		else if (ts.isVariableDeclaration(node)) inspectCliVariableFact(node, processAliases, argvKeyConstants, shadowedProcessScopes);
 		else if (ts.isCallExpression(node)) {
 			const callFlags = inspectCliCallFact(node, dynamicProcessParamNodes);
 			if (callFlags.isMainCall) hasIsMainModuleCall = true;

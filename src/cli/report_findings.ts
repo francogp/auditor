@@ -31,16 +31,20 @@ import {
   renderSampleFindings,
   renderFindingsByFileTree
 } from '../core/unifiedTheme.ts';
-import { isMainModule, bootstrapCliProject, isHumanConsoleMode, HUMAN_CONSOLE_FLAGS } from './cliUtils.ts';
+import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
 import {
   COMMON_CLI_ARGS,
+  CONSOLE_FORMAT_VALUES,
+  defineCommand,
   getProcessCliArgs,
   getProcessExecutedScript,
   parseCittyArgs,
-  resolveHumanModeFromArgs
+  resolveHumanModeFromArgs,
+  runMain,
+  type CittyArgsDef,
+  type ParsedArgs
 } from '../core/cli/cittyHarness.ts';
 
-const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
 const ERROR_WEIGHT_FACTOR = 1000;
@@ -49,15 +53,18 @@ type Finding = AuditFinding; // type-ok: Type contract declaration
 
 type AuditReport = ConsolidatedAuditReport; // type-ok: Type contract declaration
 
-export const SEVERITY_FILTERS = ['all', 'error', 'warning'] as const;
-export type SeverityFilter = (typeof SEVERITY_FILTERS)[number];
+const SEVERITY_FILTERS = ['all', 'error', 'warning'] as const;
+type SeverityFilter = (typeof SEVERITY_FILTERS)[number];
 
-export const REPORT_SCOPES = ['all', 'host', 'packages'] as const;
-export type ReportScope = (typeof REPORT_SCOPES)[number];
+const REPORT_SCOPES = ['all', 'host', 'packages'] as const;
+type ReportScope = (typeof REPORT_SCOPES)[number];
 
-export type PhaseFilter = RemediationPhaseId | 'all' | 'next';
+type PhaseFilter = RemediationPhaseId | 'all' | 'next';
 
-interface ReportOptions {
+/**
+ * Encapsulates search and filter criteria to eliminate Data Clumps.
+ */
+interface FindingFilterOptions {
   category: string;
   phase: PhaseFilter;
   severity: SeverityFilter;
@@ -67,11 +74,14 @@ interface ReportOptions {
   rulePattern: string;
   suitePattern: string;
   scope: ReportScope;
+  top: number | 'all';
+}
+
+interface ReportOptions extends FindingFilterOptions {
   breakdown: boolean;
   byFile: boolean;
   byRule: boolean;
   flat: boolean;
-  top: number | 'all';
   jsonOutput: boolean;
   summaryOnly: boolean;
   filesOnly: boolean;
@@ -81,32 +91,182 @@ interface ReportOptions {
   human: boolean;
 }
 
-const JSON_FLAGS = new Set(['json', '--json', 'json=true']);
-const SUMMARY_FLAGS = new Set(['summary', '--summary', 'summary=true']);
-const FILES_FLAGS = new Set(['files', '--files', 'files=true']);
-const BREAKDOWN_FLAGS = new Set(['breakdown', '--breakdown', 'breakdown=true', 'by-dir', 'dirs']);
-const BY_FILE_FLAGS = new Set([
-  'by-file',
-  '--by-file',
-  'by_file',
-  'group=file',
-  'group-by=file',
-  'byfile'
-]);
-const BY_RULE_FLAGS = new Set([
-  'by-rule',
-  '--by-rule',
-  'by_rule',
-  'rules',
-  '--rules',
-  'byrule',
-  'group=rule',
-  'group-by=rule'
-]);
-const FLAT_FLAGS = new Set(['flat', '--flat', 'all-samples', '--all-samples', 'raw', '--raw']);
-const STALE_FLAGS = new Set(['allow-stale', '--allow-stale', 'stale']);
-const PARTIAL_FLAGS = new Set(['allow-partial', '--allow-partial', 'partial']);
-const FIX_FLAGS = new Set(['fix', '--fix', 'fix-report', '--fix-report']);
+const REPORT_FINDINGS_ARGS = {
+  ...COMMON_CLI_ARGS,
+  phase: {
+    type: 'string',
+    description: 'Filter findings by strategic phase (setup, prune, dedup, contracts, behavior, hygiene, polish, next)'
+  },
+  fase: {
+    type: 'string',
+    description: 'Alias for phase'
+  },
+  category: {
+    type: 'string',
+    alias: 'c',
+    description: 'Filter findings by category',
+    default: 'all'
+  },
+  severity: {
+    type: 'string',
+    description: 'Filter findings by severity (error, warning, all)',
+    default: 'all'
+  },
+  search: {
+    type: 'string',
+    description: 'Search string inside finding message or context'
+  },
+  file: {
+    type: 'string',
+    alias: 'f',
+    description: 'Filter findings matching file path substring or pattern'
+  },
+  dir: {
+    type: 'string',
+    description: 'Filter findings matching directory path'
+  },
+  folder: {
+    type: 'string',
+    description: 'Alias for dir'
+  },
+  rule: {
+    type: 'string',
+    alias: 'r',
+    description: 'Filter findings matching rule identifier'
+  },
+  ruleid: {
+    type: 'string',
+    description: 'Alias for rule'
+  },
+  suite: {
+    type: 'string',
+    description: 'Filter findings by suite identifier'
+  },
+  task: {
+    type: 'string',
+    description: 'Alias for suite'
+  },
+  scope: {
+    type: 'string',
+    description: 'Target report scope (all, host, packages)',
+    default: 'all'
+  },
+  top: {
+    type: 'string',
+    description: 'Limit number of displayed findings (number or all)',
+    default: '20'
+  },
+  flat: {
+    type: 'boolean',
+    description: 'Emit un-truncated single-line finding dumps',
+    default: false
+  },
+  raw: {
+    type: 'boolean',
+    description: 'Alias for flat',
+    default: false
+  },
+  'by-file': {
+    type: 'boolean',
+    description: 'Display hierarchical finding tree grouped by file',
+    default: false
+  },
+  byfile: {
+    type: 'boolean',
+    description: 'Alias for by-file',
+    default: false
+  },
+  'by-rule': {
+    type: 'boolean',
+    description: 'Display finding table grouped by rule',
+    default: false
+  },
+  byrule: {
+    type: 'boolean',
+    description: 'Alias for by-rule',
+    default: false
+  },
+  rules: {
+    type: 'boolean',
+    description: 'Alias for by-rule',
+    default: false
+  },
+  next: {
+    type: 'boolean',
+    description: 'Focus sequentially on findings in the earliest active strategic phase',
+    default: false
+  },
+  errors: {
+    type: 'boolean',
+    description: 'Shortcut for severity=error',
+    default: false
+  },
+  error: {
+    type: 'boolean',
+    description: 'Alias for errors',
+    default: false
+  },
+  warnings: {
+    type: 'boolean',
+    description: 'Shortcut for severity=warning',
+    default: false
+  },
+  warning: {
+    type: 'boolean',
+    description: 'Alias for warnings',
+    default: false
+  },
+  breakdown: {
+    type: 'boolean',
+    description: 'Show directory breakdown',
+    default: false
+  },
+  summary: {
+    type: 'boolean',
+    description: 'Emit summary statistics only',
+    default: false
+  },
+  'summary-only': {
+    type: 'boolean',
+    description: 'Alias for summary',
+    default: false
+  },
+  files: {
+    type: 'boolean',
+    description: 'Emit list of affected files only',
+    default: false
+  },
+  'files-only': {
+    type: 'boolean',
+    description: 'Alias for files',
+    default: false
+  },
+  'allow-stale': {
+    type: 'boolean',
+    description: 'Allow reading stale audit reports',
+    default: false
+  },
+  stale: {
+    type: 'boolean',
+    description: 'Alias for allow-stale',
+    default: false
+  },
+  'allow-partial': {
+    type: 'boolean',
+    description: 'Allow inspecting partial audit runs',
+    default: false
+  },
+  partial: {
+    type: 'boolean',
+    description: 'Alias for allow-partial',
+    default: false
+  },
+  fix: {
+    type: 'boolean',
+    description: 'Inspect latest fix audit report',
+    default: false
+  }
+} as const satisfies CittyArgsDef;
 
 function isInvokedAsByFile(): boolean {
   const scriptArg = getProcessExecutedScript() ?? '';
@@ -126,156 +286,166 @@ function isInvokedAsNext(): boolean {
   return scriptName.includes('auditor-next');
 }
 
-function parseFlagArg(arg: string, opts: ReportOptions): boolean {
-  if (HUMAN_CONSOLE_FLAGS.has(arg)) {
-    opts.human = true;
-    return true;
-  }
-  if (JSON_FLAGS.has(arg)) {
-    opts.jsonOutput = true;
-    return true;
-  }
-  if (SUMMARY_FLAGS.has(arg)) {
-    opts.summaryOnly = true;
-    return true;
-  }
-  if (FILES_FLAGS.has(arg)) {
-    opts.filesOnly = true;
-    return true;
-  }
-  if (BREAKDOWN_FLAGS.has(arg)) {
-    opts.breakdown = true;
-    return true;
-  }
-  if (BY_FILE_FLAGS.has(arg)) {
-    opts.byFile = true;
-    return true;
-  }
-  if (BY_RULE_FLAGS.has(arg)) {
-    opts.byRule = true;
-    return true;
-  }
-  if (FLAT_FLAGS.has(arg)) {
-    opts.flat = true;
-    return true;
-  }
-  if (STALE_FLAGS.has(arg)) {
-    opts.allowStale = true;
-    return true;
-  }
-  if (PARTIAL_FLAGS.has(arg)) {
-    opts.allowPartial = true;
-    return true;
-  }
-  if (FIX_FLAGS.has(arg)) {
-    opts.inspectFix = true;
-    opts.allowPartial = true;
-    return true;
-  }
-  if (arg === 'next' || arg === '--next') {
+const SEVERITY_FILTER_SET: ReadonlySet<string> = new Set(SEVERITY_FILTERS); // runtime-set: O(1) severity filter lookup
+const REPORT_SCOPE_SET: ReadonlySet<string> = new Set(REPORT_SCOPES); // runtime-set: O(1) report scope lookup
+
+function parseSeverityFilter(raw: unknown): SeverityFilter | null {
+  if (typeof raw !== 'string') return null;
+  const lower = raw.toLowerCase();
+  return SEVERITY_FILTER_SET.has(lower) ? (lower as SeverityFilter) : null;
+}
+
+function parsePhaseFilter(raw: unknown): PhaseFilter | null {
+  if (typeof raw !== 'string') return null;
+  const lower = raw.toLowerCase();
+  if (lower === 'all' || lower === 'next') return lower;
+  return isRemediationPhaseId(lower) ? lower : null;
+}
+
+function parseScopeFilter(raw: unknown): ReportScope | null {
+  if (typeof raw !== 'string') return null;
+  const lower = raw.toLowerCase();
+  return REPORT_SCOPE_SET.has(lower) ? (lower as ReportScope) : null;
+}
+
+function parseTopOption(raw: unknown): number | 'all' {
+  if (raw === undefined || raw === null || raw === '') return DEFAULT_TOP_LIMIT;
+  const str = String(raw).trim().toLowerCase();
+  if (str === 'all' || str === '0') return 'all';
+  const num = Number(str);
+  return Number.isFinite(num) && num > 0 ? num : DEFAULT_TOP_LIMIT;
+}
+
+type ReportFindingsArgs = ParsedArgs<typeof REPORT_FINDINGS_ARGS>;
+
+function applyNamedFilterArgs(
+  parsed: ReportFindingsArgs,
+  opts: ReportOptions
+): void {
+  const phase = parsePhaseFilter(parsed.phase);
+  if (phase && phase !== 'all') {
+    opts.phase = phase;
+  } else if (parsed.next) {
     opts.phase = 'next';
-    return true;
   }
-  return false;
-}
 
-function parseScopeArg(arg: string, opts: ReportOptions): boolean {
-  if (arg === 'host' || arg === 'scope=host') {
-    opts.scope = 'host';
-    return true;
-  }
-  if (arg === 'packages' || arg === 'scope=packages' || arg === 'pkg') {
-    opts.scope = 'packages';
-    return true;
-  }
-  if (arg.startsWith('scope=')) {
-    const val = arg.slice(6).toLowerCase();
-    if (val === 'host' || val === 'packages' || val === 'all') {
-      opts.scope = val;
-    }
-    return true;
-  }
-  return false;
-}
-
-function parseSeverityArg(arg: string, opts: ReportOptions): boolean {
-  if (arg === 'errors' || arg === 'error' || arg === 'severity=error') {
+  const severity = parseSeverityFilter(parsed.severity);
+  if (severity && severity !== 'all') {
+    opts.severity = severity;
+  } else if (parsed.errors || parsed.error) {
     opts.severity = 'error';
-    return true;
-  }
-  if (arg === 'warnings' || arg === 'warning' || arg === 'severity=warning') {
+  } else if (parsed.warnings || parsed.warning) {
     opts.severity = 'warning';
-    return true;
   }
-  if (arg.startsWith('severity=')) {
-    const val = arg.slice(9).toLowerCase();
-    if (val === 'error' || val === 'warning' || val === 'all') {
-      opts.severity = val;
+
+  if (typeof parsed.category === 'string' && parsed.category !== 'all') {
+    opts.category = parsed.category.toLowerCase();
+  }
+  if (typeof parsed.search === 'string') {
+    opts.search = parsed.search;
+  }
+  if (typeof parsed.file === 'string') {
+    opts.filePattern = parsed.file;
+  }
+  if (typeof parsed.dir === 'string') {
+    opts.dirPattern = parsed.dir;
+  }
+  if (typeof parsed.rule === 'string') {
+    opts.rulePattern = parsed.rule;
+  }
+  if (typeof parsed.suite === 'string') {
+    opts.suitePattern = parsed.suite;
+  }
+  const scope = parseScopeFilter(parsed.scope);
+  if (scope && scope !== 'all') {
+    opts.scope = scope;
+  }
+}
+
+const POSITIONAL_FLAG_MAP: Readonly<Record<string, (opts: ReportOptions) => void>> = {
+  'by-file': (opts) => {
+    opts.byFile = true;
+  },
+  byfile: (opts) => {
+    opts.byFile = true;
+  },
+  'by-rule': (opts) => {
+    opts.byRule = true;
+  },
+  byrule: (opts) => {
+    opts.byRule = true;
+  },
+  rules: (opts) => {
+    opts.byRule = true;
+  },
+  flat: (opts) => {
+    opts.flat = true;
+  },
+  raw: (opts) => {
+    opts.flat = true;
+  },
+  summary: (opts) => {
+    opts.summaryOnly = true;
+  },
+  files: (opts) => {
+    opts.filesOnly = true;
+  },
+  fix: (opts) => {
+    opts.inspectFix = true;
+  },
+  breakdown: (opts) => {
+    opts.breakdown = true;
+  }
+};
+
+const EXCLUDED_BARE_TOKENS: ReadonlySet<string> = new Set([
+  ...CONSOLE_FORMAT_VALUES,
+  'help'
+]);
+
+function applyPositionalTokens(tokens: readonly string[], opts: ReportOptions): void {
+  for (const token of tokens) {
+    const lower = token.toLowerCase();
+    const flagHandler = POSITIONAL_FLAG_MAP[lower];
+    if (flagHandler) {
+      flagHandler(opts);
+      continue;
     }
-    return true;
-  }
-  return false;
-}
 
-function parseScopeAndSeverity(arg: string, opts: ReportOptions): boolean {
-  return parseScopeArg(arg, opts) || parseSeverityArg(arg, opts);
-}
-
-function parseFilterAndValue(arg: string, opts: ReportOptions): boolean {
-  if (arg.startsWith('dir=')) {
-    opts.dirPattern = arg.slice(4).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('folder=')) {
-    opts.dirPattern = arg.slice(7).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('phase=') || arg.startsWith('fase=')) {
-    const val = arg.slice(arg.indexOf('=') + 1).toLowerCase();
-    if (val === 'next') {
-      opts.phase = 'next';
-    } else if (isRemediationPhaseId(val)) {
-      opts.phase = val;
+    const phase = parsePhaseFilter(lower);
+    if (phase) {
+      opts.phase = phase;
+      continue;
     }
-    return true;
+
+    const severity = parseSeverityFilter(lower);
+    if (severity && severity !== 'all') {
+      opts.severity = severity;
+      continue;
+    }
+
+    if (!EXCLUDED_BARE_TOKENS.has(lower)) {
+      if (opts.category === 'all') {
+        opts.category = lower;
+      }
+    }
   }
-  if (arg.startsWith('category=')) {
-    opts.category = arg.slice(9).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('suite=') || arg.startsWith('task=')) {
-    const prefixLen = arg.startsWith('suite=') ? 6 : 5;
-    opts.suitePattern = arg.slice(prefixLen).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('search=')) {
-    opts.search = arg.slice(7).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('file=') || arg.startsWith('f=')) {
-    const prefixLen = arg.startsWith('file=') ? 5 : 2;
-    opts.filePattern = arg.slice(prefixLen).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('rule=') || arg.startsWith('ruleid=') || arg.startsWith('r=')) {
-    const prefixLen = arg.startsWith('ruleid=') ? 7 : (arg.startsWith('rule=') ? 5 : 2);
-    opts.rulePattern = arg.slice(prefixLen).toLowerCase();
-    return true;
-  }
-  if (arg.startsWith('top=')) {
-    const topVal = arg.slice(4).toLowerCase();
-    opts.top =
-      topVal === 'all' || topVal === '0'
-        ? 'all'
-        : parseInt(topVal, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-    return true;
-  }
-  return false;
 }
 
-function parseReportOptions(rawInputArgs: readonly string[] = getProcessCliArgs()): ReportOptions {
-  const parsedCitty = parseCittyArgs(COMMON_CLI_ARGS, rawInputArgs);
-  const isHuman = resolveHumanModeFromArgs(parsedCitty) || isHumanConsoleMode(undefined, rawInputArgs);
+function parseReportOptions(
+  inputArgs?: ReportFindingsArgs | readonly string[]
+): ReportOptions {
+  const isParsedObject =
+    inputArgs !== undefined &&
+    inputArgs !== null &&
+    !Array.isArray(inputArgs) &&
+    typeof inputArgs === 'object';
+  const rawInputArgs = Array.isArray(inputArgs) ? inputArgs : getProcessCliArgs();
+  const parsed = isParsedObject
+    ? (inputArgs as ReportFindingsArgs)
+    : parseCittyArgs(REPORT_FINDINGS_ARGS, rawInputArgs);
+
+  const isHuman = resolveHumanModeFromArgs(parsed) || isHumanConsoleMode(undefined, rawInputArgs);
   const opts: ReportOptions = {
     category: 'all',
     phase: isInvokedAsNext() ? 'next' : 'all',
@@ -286,48 +456,22 @@ function parseReportOptions(rawInputArgs: readonly string[] = getProcessCliArgs(
     rulePattern: '',
     suitePattern: '',
     scope: 'all',
-    breakdown: false,
-    byFile: isInvokedAsByFile(),
-    byRule: isInvokedAsByRule(),
-    flat: false,
-    top: DEFAULT_TOP_LIMIT,
-    jsonOutput: Boolean(parsedCitty.json),
-    summaryOnly: false,
-    filesOnly: false,
-    allowStale: false,
-    allowPartial: false,
-    inspectFix: false,
+    breakdown: Boolean(parsed.breakdown),
+    byFile: Boolean(parsed['by-file'] || parsed.byfile || isInvokedAsByFile()),
+    byRule: Boolean(parsed['by-rule'] || parsed.byrule || parsed.rules || isInvokedAsByRule()),
+    flat: Boolean(parsed.flat),
+    top: parseTopOption(parsed.top),
+    jsonOutput: Boolean(parsed.json) || parsed.format === 'json',
+    summaryOnly: Boolean(parsed.summary || parsed['summary-only']),
+    filesOnly: Boolean(parsed.files || parsed['files-only']),
+    allowStale: Boolean(parsed['allow-stale'] || parsed.stale),
+    allowPartial: Boolean(parsed['allow-partial'] || parsed.partial),
+    inspectFix: Boolean(parsed.fix),
     human: isHuman
   };
 
-  const handledEntries = new Set<string>(); // runtime-set: O(1) handled CLI token tracking
-  for (const rawEntry of rawInputArgs) {
-    if (
-      parseFlagArg(rawEntry, opts) ||
-      parseScopeAndSeverity(rawEntry, opts) ||
-      parseFilterAndValue(rawEntry, opts)
-    ) {
-      handledEntries.add(rawEntry);
-    }
-  }
-
-  for (const posEntry of parsedCitty._.map(String)) {
-    if (handledEntries.has(posEntry)) {
-      continue;
-    }
-    const lower = posEntry.toLowerCase();
-    if (lower === 'by-file' || lower === 'byfile') {
-      opts.byFile = true;
-    } else if (lower === 'by-rule' || lower === 'byrule' || lower === 'rules') {
-      opts.byRule = true;
-    } else if (lower === 'flat' || lower === 'raw') {
-      opts.flat = true;
-    } else if (lower === 'next') {
-      opts.phase = 'next';
-    } else if (lower !== 'human' && lower !== 'json' && lower !== 'help') {
-      opts.category = lower;
-    }
-  }
+  applyNamedFilterArgs(parsed, opts);
+  applyPositionalTokens(parsed._.map(String), opts);
 
   return opts;
 }
@@ -1315,8 +1459,8 @@ function renderDefaultReportView(
   renderFindingsDetailSample(matchingFindings, sortedCategories, allFindings, args);
 }
 
-export function runReport(): void {
-  const args = parseReportOptions();
+export function runReport(inputArgs?: ReportFindingsArgs | readonly string[]): void {
+  const args = parseReportOptions(inputArgs);
   const report = loadAuditReport(args.inspectFix);
   if (!report) process.exit(1);
 
@@ -1343,7 +1487,19 @@ export function runReport(): void {
   );
 }
 
+export const reportFindingsCommand = defineCommand({
+  meta: {
+    name: 'auditor-findings',
+    description: 'Inspect and query static analysis findings from latest audit report'
+  },
+  args: REPORT_FINDINGS_ARGS,
+  run() {
+    const normalizedArgs = parseCittyArgs(REPORT_FINDINGS_ARGS);
+    runReport(normalizedArgs);
+  }
+});
+
 if (isMainModule(import.meta.url)) {
   bootstrapCliProject();
-  runReport();
+  runMain(reportFindingsCommand);
 }
