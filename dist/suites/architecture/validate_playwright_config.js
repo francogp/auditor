@@ -44,10 +44,8 @@ const CANONICAL_PLAYWRIGHT_CONFIG_LINES = [
 ];
 const CANONICAL_PLAYWRIGHT_CONFIG_CONTENT = CANONICAL_PLAYWRIGHT_CONFIG_LINES.join("\n");
 function isPlaywrightProjectContext(projectRoot) {
-	try {
-		const pkg = getPackageJson(projectRoot);
-		if (pkg && (pkg.dependencies?.["@playwright/test"] || pkg.devDependencies?.["@playwright/test"] || pkg.dependencies?.["playwright"] || pkg.devDependencies?.["playwright"])) return true;
-	} catch {}
+	const pkg = getPackageJson(projectRoot);
+	if (pkg && (pkg.dependencies?.["@playwright/test"] || pkg.devDependencies?.["@playwright/test"] || pkg.dependencies?.["playwright"] || pkg.devDependencies?.["playwright"])) return true;
 	return fs.existsSync(path.join(projectRoot, "e2e")) || fs.existsSync(path.join(projectRoot, "tests/e2e"));
 }
 const PLAYWRIGHT_CONFIG_REQUIREMENT = {

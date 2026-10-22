@@ -104,7 +104,6 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
           '3. Canonical Solution:\n' +
           '   a) Remove state mutations from the computed getter.\n' +
           '   b) If mutations must execute on dependency changes, use an explicit `watch` or `watchEffect`.\n' +
-          '   c) If lazy initialization is strictly necessary and isolated, annotate with `// purity-ok: <reason>`.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Prohibited: `const fullName = computed(() => { accessCount.value++; return `${firstName.value} ${lastName.value}`; });`\n' +
           '   ✅ Canonical:  `const fullName = computed(() => `${firstName.value} ${lastName.value}`);`',
@@ -173,22 +172,20 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
     node: ts.Node,
     sourceFile: ts.SourceFile,
     relPath: string,
-    fullContent: string,
+    _fullContent: string,
     ruleId: ReactivePurityRuleId,
     message: string
   ): void {
     const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     const realLine = line + 1;
-    if (!this.hasPuritySuppression(fullContent, realLine - 1)) {
-      this.addViolation({
-        ruleId,
-        severity: 'error',
-        file: relPath,
-        line: realLine,
-        message,
-        context: node.getText(sourceFile)
-      });
-    }
+    this.addViolation({
+      ruleId,
+      severity: 'error',
+      file: relPath,
+      line: realLine,
+      message,
+      context: node.getText(sourceFile)
+    });
   }
 
   private inspectGetterBody(
@@ -238,7 +235,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
               relPath,
               fullContent,
               'computed-side-effect',
-              `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`
+              `Side-effect call detected inside 'computed()': '${child.getText(sourceFile)}'. Triggering persistence or mutations inside getters is prohibited.`
             );
           }
         }
@@ -248,14 +245,6 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
     };
 
     ts.forEachChild(bodyNode, walk);
-  }
-
-  private hasPuritySuppression(content: string, lineIndex: number): boolean {
-    const lines = content.split('\n');
-    const targetLine = lines[lineIndex] || '';
-    const prevLine = lineIndex > 0 ? lines[lineIndex - 1] || '' : '';
-    const suppressionRegex = /\/\/\s*purity-ok:\s*\S+/i;
-    return suppressionRegex.test(targetLine) || suppressionRegex.test(prevLine);
   }
 }
 

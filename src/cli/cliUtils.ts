@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { getAuditConfig, sanitizePath } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull, tryOrDefault } from '../core/safeUtils.ts';
 
 /**
  * Checks whether the current module is being executed directly as the CLI entrypoint.
@@ -18,15 +19,12 @@ export function isMainModule(metaUrl: string, binaryAliases?: readonly string[])
   const scriptArg = process.argv[1];
   if (!scriptArg) return false;
 
-  try {
+  return tryOrDefault(() => {
     const targetPath = path.resolve(fileURLToPath(metaUrl));
-    let realScript: string;
-    try {
-      realScript = path.resolve(fs.realpathSync(scriptArg));
-    } catch {
-      // catch-ok: Fallback to path.resolve if realpath fails
-      realScript = path.resolve(scriptArg);
-    }
+    const realScript = tryOrDefault(
+      () => path.resolve(fs.realpathSync(scriptArg)),
+      path.resolve(scriptArg)
+    );
     const isExact =
       process.platform === 'win32'
         ? realScript.toLowerCase() === targetPath.toLowerCase()
@@ -45,10 +43,7 @@ export function isMainModule(metaUrl: string, binaryAliases?: readonly string[])
       return true;
     }
     return false;
-  } catch {
-    // catch-ok: Fallback when targetPath cannot be parsed
-    return false;
-  }
+  }, false);
 }
 
 export const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES = 50 * 1024 * 1024;
@@ -264,18 +259,17 @@ export function resolveNodeModuleBin(projectRoot: string, relativeBinPath: strin
 function resolveBinFromPackageJson(pkgDir: string, packageName: string): string | null {
   const pkgJsonPath = path.join(pkgDir, 'package.json');
   if (!fs.existsSync(pkgJsonPath)) return null;
-  try {
-    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-    const relBin =
-      typeof pkg.bin === 'string'
-        ? pkg.bin
-        : pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : undefined);
-    if (typeof relBin === 'string') {
-      const binFile = path.resolve(pkgDir, relBin);
-      if (fs.existsSync(binFile)) return binFile;
-    }
-  } catch {
-    // catch-ok: ignore invalid json
+  const raw = safeReadFileSync(pkgJsonPath);
+  if (!raw) return null;
+  const pkg = safeJsonParse<{ bin?: string | Record<string, string> }>(raw);
+  if (!pkg) return null;
+  const relBin =
+    typeof pkg.bin === 'string'
+      ? pkg.bin
+      : pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : undefined);
+  if (typeof relBin === 'string') {
+    const binFile = path.resolve(pkgDir, relBin);
+    if (fs.existsSync(binFile)) return binFile;
   }
   return null;
 }
@@ -288,14 +282,12 @@ export function resolvePackageBin(
   options?: { projectRoot?: string; fallbackRelativeBin?: string }
 ): string | null {
   // Strategy A: try import.meta.resolve(`${packageName}/package.json`)
-  try {
+  const fromPkgJson = tryOrNull(() => {
     const pkgJsonUrl = import.meta.resolve(`${packageName}/package.json`);
     const pkgJsonPath = fileURLToPath(pkgJsonUrl);
-    const fromPkgJson = resolveBinFromPackageJson(path.dirname(pkgJsonPath), packageName);
-    if (fromPkgJson) return fromPkgJson;
-  } catch {
-    // catch-ok: Fallback to createRequire if package.json is not exported
-  }
+    return resolveBinFromPackageJson(path.dirname(pkgJsonPath), packageName);
+  });
+  if (fromPkgJson) return fromPkgJson;
 
   // Strategy B: try createRequire to resolve main entry then locate package.json
   const lookupPaths = Array.from(
@@ -307,7 +299,7 @@ export function resolvePackageBin(
   );
 
   const req = createRequire(import.meta.url);
-  try {
+  const fromMainDir = tryOrNull(() => {
     const mainPath = req.resolve(packageName, {
       paths: lookupPaths.length > 0 ? lookupPaths : undefined
     });
@@ -317,11 +309,9 @@ export function resolvePackageBin(
       if (parent === dir) break;
       dir = parent;
     }
-    const fromMainDir = resolveBinFromPackageJson(dir, packageName);
-    if (fromMainDir) return fromMainDir;
-  } catch {
-    // catch-ok: Fallback when createRequire fails
-  }
+    return resolveBinFromPackageJson(dir, packageName);
+  });
+  if (fromMainDir) return fromMainDir;
 
   // Strategy C: fallbackRelativeBin in projectRoot node_modules or AUDITOR_HOME_DIR
   if (options?.fallbackRelativeBin) {
@@ -364,7 +354,7 @@ export function executeCliToFile(
   outputFilePath: string,
   options?: ExecuteCliToFileOptions
 ): void {
-  const outFd = fs.openSync(outputFilePath, 'w'); // resource-ok: Primitive numeric file descriptor closed synchronously in finally
+  const outFd = fs.openSync(outputFilePath, 'w');
   try {
     spawnSync(command, args, {
       cwd: options?.cwd || process.cwd(),
@@ -395,16 +385,10 @@ export function executeCliAndReadJson<T>(
     return null;
   }
 
-  try {
-    const rawContent = fs.readFileSync(outputFilePath, 'utf-8');
-    if (rawContent.trim()) {
-      return JSON.parse(rawContent) as T; // type-ok: Parsed JSON from ephemeral tool output
-    }
-  } catch {
-    // catch-ok: If output is not JSON, it might be empty or syntax error
-    return null;
+  const rawContent = safeReadFileSync(outputFilePath);
+  if (rawContent && rawContent.trim()) {
+    return safeJsonParse<T>(rawContent) ?? null;
   }
-
   return null;
 }
 

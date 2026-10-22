@@ -12,6 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import yaml from 'yaml';
+import { safeReadFileSync, safeJsonParse } from '../../core/safeUtils.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -41,23 +42,13 @@ function isPluginRegisteredInAgents(projectRoot: string): boolean {
 
   const checkFile = (filePath: string): boolean => {
     if (!fs.existsSync(filePath)) return false;
-    try {
-      const raw = fs.readFileSync(filePath, 'utf8');
-      const data = JSON.parse(raw) as { entries?: Array<{ path: string }> };
-      if (!Array.isArray(data.entries)) return false;
-      return data.entries.some(
-        (e) =>
-          // domain-ok: Plugin path variants
-          e.path === 'node_modules/@francogp/auditor' ||
-          e.path.endsWith('@francogp/auditor') ||
-          e.path.includes('@francogp/auditor') ||
-          e.path === './packages/auditor' ||
-          e.path === 'packages/auditor'
-      );
-    } catch {
-      // catch-ok: malformed or unreadable file is treated as unregistered
-      return false;
-    }
+    const raw = safeReadFileSync(filePath);
+    if (!raw) return false;
+    const data = safeJsonParse<{ entries?: Array<{ path: string }> }>(raw);
+    if (!data || !Array.isArray(data.entries)) return false;
+    return data.entries.some(
+      (e: { path: string }) => e.path.includes('@francogp/auditor') || e.path.includes('packages/auditor')
+    );
   };
 
   return checkFile(pluginsJsonPath) && checkFile(skillsJsonPath);

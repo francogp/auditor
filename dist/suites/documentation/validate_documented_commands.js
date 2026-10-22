@@ -1,11 +1,13 @@
+import { safeReadFileSync } from "../../core/safeUtils.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile } from "../../core/auditCoverage.js";
+import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { COMMAND_INVOCATION_TYPES, VALID_NPM_BUILTINS, evaluateGenericCommandViolation, extractCommandsFromLine, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
 import path from "node:path";
-import fs from "node:fs";
 //#region src/suites/documentation/validate_documented_commands.ts
 /**
 * src/suites/documentation/validate_documented_commands.ts
@@ -161,15 +163,11 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 		};
 		const extractedFiles = [];
 		for (const absFile of mdFiles) {
-			const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
+			const relPosix = normalizePosixPath(path.relative(this.rootDir, absFile));
 			if (!isAuditableCodebaseFile(relPosix, customExemptGlobs) || this.gitIgnoreMatcher.isIgnored(absFile)) continue;
 			this.recordScanned(relPosix);
-			let content;
-			try {
-				content = fs.readFileSync(absFile, "utf8");
-			} catch {
-				continue;
-			}
+			const content = safeReadFileSync(absFile);
+			if (!content) continue;
 			const commands = extractDocumentedCommands(content);
 			extractedFiles.push({
 				relPosix,

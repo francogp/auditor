@@ -78,7 +78,7 @@ export function isAllowed(role: string): boolean {
       expect(findings[0]?.suggestedReplacement).toBe('ALLOWED_ROLES_LIST_SET.has(role)');
     });
 
-    it('honors // o1-ok: escape hatch', () => {
+    it('detects findings even when // o1-ok: is present (Zero-Ignore Mandate)', () => {
       const tsFile = path.join(tmpDir, 'escapeTest.ts');
       fs.writeFileSync(
         tsFile,
@@ -90,7 +90,7 @@ export function clone(obj: any): any {
       );
 
       const findings = O1RefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(0);
+      expect(findings.length).toBeGreaterThan(0);
     });
   });
 

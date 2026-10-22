@@ -43,7 +43,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Record<string, T>');
     });
 
-    it('Escape Canary: allows Record<string, T> with // open-record: comment', () => {
+    it('Zero-Ignore Mandate: flags Record<string, T> regardless of // open-record: comment', () => {
       const { reports, context } = createMockContext({
         text: 'type Dict = Record<string, number>; // open-record: Dynamic mapping'
       });
@@ -55,7 +55,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           params: [{ type: 'TSStringKeyword' }, { type: 'TSNumberKeyword' }]
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: permits open unknown dictionary Record<string, unknown>', () => {
@@ -95,7 +95,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('PROHIBITED');
     });
 
-    it('Escape Canary: allows new Set with // runtime-set: directive', () => {
+    it('Zero-Ignore Mandate: flags new Set regardless of // runtime-set: directive', () => {
       const { reports, context } = createMockContext({
         text: "const SET = new Set(['a', 'b']); // runtime-set: dynamic validation"
       });
@@ -110,7 +110,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows new Set with explicit domain type argument', () => {
@@ -150,7 +150,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('open string unions');
     });
 
-    it('Escape Canary: allows open union with // string-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags open union regardless of // string-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: "type Status = 'active' | string; // string-ok: external plugin status"
       });
@@ -162,7 +162,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSStringKeyword' }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows closed domain union', () => {
@@ -173,6 +173,44 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         types: [
           { type: 'TSLiteralType', literal: { value: 'active' } },
           { type: 'TSLiteralType', literal: { value: 'inactive' } }
+        ]
+      });
+      expect(reports.length).toBe(0);
+    });
+
+    it('Active Canary: flags open union mixing named domain type reference and string keyword (DomainType | string)', () => {
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+      visitor.TSUnionType?.({
+        type: 'TSUnionType',
+        types: [
+          { type: 'TSTypeReference', typeName: { name: 'RelaxationCode' } },
+          { type: 'TSStringKeyword' }
+        ]
+      });
+      expect(reports.length).toBe(1);
+      expect(reports[0]!.message).toContain('open string unions');
+    });
+
+    it('Active Canary: flags open union mixing template literal type and string keyword', () => {
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+      visitor.TSUnionType?.({
+        type: 'TSUnionType',
+        types: [{ type: 'TSTemplateLiteralType' }, { type: 'TSStringKeyword' }]
+      });
+      expect(reports.length).toBe(1);
+      expect(reports[0]!.message).toContain('open string unions');
+    });
+
+    it('Clean Canary: allows closed domain type references union (TypeA | TypeB)', () => {
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+      visitor.TSUnionType?.({
+        type: 'TSUnionType',
+        types: [
+          { type: 'TSTypeReference', typeName: { name: 'AdminId' } },
+          { type: 'TSTypeReference', typeName: { name: 'UserId' } }
         ]
       });
       expect(reports.length).toBe(0);
@@ -199,7 +237,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('without `as const`');
     });
 
-    it('Escape Canary: allows literal array with // string-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags literal array regardless of // string-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: "const colors = ['red', 'blue']; // string-ok: non-domain utility array"
       });
@@ -211,7 +249,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           elements: [{ type: 'Literal', value: 'red' }]
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows literal array with as const', () => {
@@ -249,7 +287,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Casting to unknown');
     });
 
-    it('Escape Canary: allows as unknown with // type-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags as unknown regardless of // type-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const x = y as unknown as T; // type-ok: complex third party generic'
       });
@@ -258,7 +296,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSAsExpression',
         typeAnnotation: { type: 'TSUnknownKeyword' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows direct concrete type cast', () => {
@@ -286,7 +324,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('new Date()');
     });
 
-    it('Escape Canary: allows new Date() with // date-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags new Date() regardless of // date-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const d = new Date(); // date-ok: legacy database driver'
       });
@@ -295,7 +333,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'NewExpression',
         callee: { type: 'Identifier', name: 'Date' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows Temporal.Now calls', () => {
@@ -328,7 +366,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain("Domain identifier 'UserId'");
     });
 
-    it('Escape Canary: allows type UserId = string with // infra-id-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags type SessionId = string regardless of // infra-id-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'type SessionId = string; // infra-id-ok: third party cookie session id'
       });
@@ -338,7 +376,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         id: { name: 'SessionId' },
         typeAnnotation: { type: 'TSStringKeyword' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: non-Id type aliases are permitted', () => {
@@ -381,7 +419,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('JSON.parse(JSON.stringify(...))');
     });
 
-    it('Escape Canary: allows JSON clone with // o1-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags JSON clone regardless of // o1-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const copy = JSON.parse(JSON.stringify(x)); // o1-ok: non-serializable strip'
       });
@@ -404,7 +442,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows structuredClone()', () => {
@@ -435,7 +473,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Redundant spread return');
     });
 
-    it('Escape Canary: allows return [...arr] with // o1-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags return [...arr] regardless of // o1-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'return [...arr]; // o1-ok: defensive mutation copy'
       });
@@ -447,7 +485,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           elements: [{ type: 'SpreadElement' }]
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows direct array return', () => {
@@ -478,7 +516,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Redundant literal annotation');
     });
 
-    it('Escape Canary: allows : true with // type-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags : true regardless of // type-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const FLAG: true = true; // type-ok: exact type discriminator'
       });
@@ -490,7 +528,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           literal: { value: true }
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows : boolean type annotation', () => {
@@ -524,7 +562,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Async callback in computed() is prohibited');
     });
 
-    it('Escape Canary: allows async computed with // reactivity-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags async computed regardless of // reactivity-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const val = computed(async () => ...); // reactivity-ok: experimental promise computed'
       });
@@ -539,7 +577,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows synchronous computed callback', () => {
@@ -580,7 +618,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Direct observation of props property in watch()');
     });
 
-    it('Escape Canary: allows naked prop watch with // reactivity-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags naked prop watch regardless of // reactivity-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'watch(props.isOpen, ...); // reactivity-ok: reactive ref passed from parent'
       });
@@ -596,7 +634,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows getter function watch(() => props.isOpen, ...)', () => {
@@ -633,7 +671,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports[0]!.message).toContain('Direct destructuring of reactive() is prohibited');
     });
 
-    it('Escape Canary: allows destructuring with // reactivity-ok: comment', () => {
+    it('Zero-Ignore Mandate: flags destructuring regardless of // reactivity-ok: comment', () => {
       const { reports, context } = createMockContext({
         text: 'const { count } = reactive({ count: 0 }); // reactivity-ok: one-shot snapshot'
       });
@@ -646,7 +684,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           callee: { type: 'Identifier', name: 'reactive' }
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports.length).toBe(1);
     });
 
     it('Clean Canary: allows non-destructured reactive state', () => {

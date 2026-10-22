@@ -23,9 +23,6 @@ import { enableCompileCache } from "node:module";
 *      Prohibits invoking heavy database data providers (e.g. `dataProvider.get...()`)
 *      directly inside `<template>` render expressions.
 *
-* Escape Hatches:
-*   `// sfc-ok: <reason>`, `// template-ok: <reason>`
-*
 * Usage:
 *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
 */
@@ -140,7 +137,6 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 		while ((match = optionsRegex.exec(content)) !== null) {
 			const line = this.getLineNumber(content, match.index);
 			const lineContent = this.getLineAt(content, line);
-			if (this.hasEscapeHatch(lineContent, ["sfc-ok"])) continue;
 			this.addViolation({
 				ruleId: "script-setup-required",
 				severity: "error",
@@ -152,18 +148,14 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 		}
 		const scriptMatches = [...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))];
 		if (scriptMatches.length > 0) {
-			if (!scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ""))) {
-				const firstScriptLine = this.getLineNumber(content, scriptMatches[0]?.index ?? 0);
-				const lineContent = this.getLineAt(content, firstScriptLine);
-				if (!this.hasEscapeHatch(lineContent, ["sfc-ok"]) && !this.hasEscapeHatch(content, ["sfc-ok"])) this.addViolation({
-					ruleId: "script-setup-required",
-					severity: "error",
-					file: relPath,
-					line: 1,
-					message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
-					context: scriptMatches[0][0].slice(0, 80)
-				});
-			}
+			if (!scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ""))) this.addViolation({
+				ruleId: "script-setup-required",
+				severity: "error",
+				file: relPath,
+				line: 1,
+				message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
+				context: scriptMatches[0][0].slice(0, 80)
+			});
 		}
 	}
 	auditScriptSetupExports(relPath, content) {
@@ -179,7 +171,6 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 				const fullIndex = scriptStartIndex + expMatch.index;
 				const line = this.getLineNumber(content, fullIndex);
 				const lineContent = this.getLineAt(content, line);
-				if (this.hasEscapeHatch(lineContent, ["sfc-ok"])) continue;
 				this.addViolation({
 					ruleId: "no-script-setup-exports",
 					severity: "error",
@@ -208,7 +199,6 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 			const lineText = lines[i];
 			if (TEMPLATE_QUOTE_ESCAPE_REGEX.test(lineText)) {
 				const line = this.getLineNumber(content, templateStartIndex) + i;
-				if (this.hasEscapeHatch(lineText, ["template-ok", "sfc-ok"])) continue;
 				this.addViolation({
 					ruleId: "vue-template-quote-escaping",
 					severity: "error",
@@ -289,7 +279,7 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 			const fullIndex = templateStartIndex + offsetInTemplate;
 			const line = this.getLineNumber(content, fullIndex);
 			const lineContent = this.getLineAt(content, line);
-			if (!this.hasEscapeHatch(lineContent, ["template-ok", "sfc-ok"])) this.addViolation({
+			this.addViolation({
 				ruleId: "vue-template-magic-calculation",
 				severity: "error",
 				file: relPath,
@@ -302,7 +292,7 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 	reportTemplateViolation(relPath, content, fullIndex, message) {
 		const line = this.getLineNumber(content, fullIndex);
 		const lineContent = this.getLineAt(content, line);
-		if (!this.hasEscapeHatch(lineContent, ["template-ok", "sfc-ok"])) this.addViolation({
+		this.addViolation({
 			ruleId: "no-data-provider-in-template",
 			severity: "error",
 			file: relPath,

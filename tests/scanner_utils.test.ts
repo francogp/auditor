@@ -11,7 +11,6 @@ import { describe, it, expect } from 'vite-plus/test';
 
 import {
   hasPrecedingComment,
-  hasLineSuppression,
   advancePastStringOrComment,
   scanBalancedBraces,
   scanBalancedParens,
@@ -91,33 +90,6 @@ describe('scannerUtils', () => {
     it('returns false when no matching directive exists', () => {
       const lines = ['// some regular comment', 'const a = 1;', 'gsap.to(el, { height: 10 });'];
       expect(hasPrecedingComment(lines, 2, directive)).toBe(false);
-    });
-  });
-
-  describe('hasLineSuppression', () => {
-    const directive = /<!--\s*ui-branching-ok:|\/\/\s*layout-ok:/i;
-
-    it('defaults to 3 lookback lines', () => {
-      const lines = [
-        '// layout-ok: allowed',
-        'const a = 1;',
-        'const b = 2;',
-        'gsap.to(el, { height: 10 });'
-      ];
-      // Target line 3 (distance is 3 lines) -> matches
-      expect(hasLineSuppression(lines, 3, directive)).toBe(true);
-
-      const tooFarLines = [
-        '// layout-ok: allowed',
-        'const a = 1;',
-        'const b = 2;',
-        'const c = 3;',
-        'gsap.to(el, { height: 10 });'
-      ];
-      // Target line 4 (distance is 4 lines) -> exceeds default 3 lookback lines
-      expect(hasLineSuppression(tooFarLines, 4, directive)).toBe(false);
-      // With custom lookbackLines = 5 -> matches
-      expect(hasLineSuppression(tooFarLines, 4, directive, 5)).toBe(true);
     });
   });
 

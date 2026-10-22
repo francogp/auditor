@@ -411,8 +411,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   getRuleLabel(ruleId: string): string;
   getFilesScanned(): number;
   addViolation(v: ViolationInput<TRuleId>): void;
-  isLineIgnored(line: string, customTokens?: readonly string[]): boolean;
-  protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean;
   isFixActive(): boolean;
   protected isFixModeRequested(): boolean;
   /**
@@ -440,7 +438,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   isViolationSuppressed(relPath: string): boolean;
   protected getLineNumber(content: string, charIndex: number): number;
   protected getLineAt(content: string, lineIndex: number): string;
-  protected scanRegexMatches(content: string, regex: RegExp, relPath: string, ruleId: TRuleId, escapeHatches: readonly string[], message: string, filter?: (lineContent: string, match: RegExpExecArray) => boolean, sourceForLines?: string, charOffset?: number): void;
+  protected scanRegexMatches(content: string, regex: RegExp, relPath: string, ruleId: TRuleId, message: string, filter?: (lineContent: string, match: RegExpExecArray) => boolean, sourceForLines?: string, charOffset?: number): void;
   abstract runAudit(astContext?: SharedAstContext): Promise<void> | void;
   execute(astContext?: SharedAstContext): Promise<StandardAuditResult>;
   finishAudit(): Promise<StandardAuditResult>;

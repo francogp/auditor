@@ -18,7 +18,7 @@ Architecture & Tooling Engineers.
   - Blocks permissive wildcard CORS headers (`Access-Control-Allow-Origin: *`) (`permissive-cors`).
   - Prevents unvalidated open redirects (`unvalidated-redirect`).
 - **Universal Empirical Individual Timing**: Multi-rule security audits measure each declared rule with microsecond accuracy using `this.runSubAuditorSync` or `await this.runSubAuditor`.
-- **Zero False-Positive Compromises**: Explicit escape hatches (`secret-ok`, `random-ok`, `regex-ok`, `v-html-ok`, `csrf-ok`, `eval-ok`, `cors-ok`, `redirect-ok`) must be accompanied by explicit technical justifications.
+- **Zero-Escape Mandate**: Security rules strictly prohibit bypass directives or escape hatches. All credentials, redirects, and HTML bindings must be hardened cleanly in source code.
 
 ## Key Files
 

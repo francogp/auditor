@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
@@ -69,7 +69,6 @@ function extractRuntimeImports(fullPath, astEngine) {
 	if (!content.includes("import ")) return [];
 	const sourceFile = astEngine.getSourceFile(fullPath, content);
 	if (!sourceFile.text.trim()) return [];
-	const fullLines = content.split("\n");
 	const results = [];
 	ts.forEachChild(sourceFile, (node) => {
 		if (ts.isImportDeclaration(node)) {
@@ -77,7 +76,6 @@ function extractRuntimeImports(fullPath, astEngine) {
 			if (!ts.isStringLiteral(moduleSpecifier)) return;
 			if (isImportTypeOnly(node)) return;
 			const lineNum = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
-			if ((fullLines[lineNum - 1] || "").includes("// bundle-leak-ok:")) return;
 			results.push({
 				moduleSpecifier: moduleSpecifier.text,
 				lineNum
@@ -219,7 +217,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 				"bundle-chunk-size": "Chunk exceeds size limit"
 			},
 			ruleRemediations: {
-				"bundle-runtime-leak": "📖 REMEDIATION GUIDE: bundle-runtime-leak\n1. Root Cause: Values (functions, objects, classes) were imported from test folders (`tests/`, `__tests__/`) or dev utilities (`scripts/`) into production code (`src/`). This leaks development dependencies and fixtures into final production bundles.\n2. Diagnosis: Locate the `import ... from \"...tests/...\"` statement in the reported production file.\n3. Canonical Solution:\n   a) If only types or interfaces are needed, use type-only imports: `import type { ... } from \"...\"`.\n   b) If common utilities are needed, move them to `src/utils/` or a shared domain package.\n   c) If intentional in an embedded test harness, annotate with `// bundle-leak-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Insecure: `import { mockUser } from \"../../tests/fixtures/user\";`\n   ✅ Secure:   `import type { UserProfile } from \"@/domain/types\";`",
+				"bundle-runtime-leak": "📖 REMEDIATION GUIDE: bundle-runtime-leak\n1. Root Cause: Values (functions, objects, classes) were imported from test folders (`tests/`, `__tests__/`) or dev utilities (`scripts/`) into production code (`src/`). This leaks development dependencies and fixtures into final production bundles.\n2. Diagnosis: Locate the `import ... from \"...tests/...\"` statement in the reported production file.\n3. Canonical Solution:\n   a) If only types or interfaces are needed, use type-only imports: `import type { ... } from \"...\"`.\n   b) If common utilities are needed, move them to `src/utils/` or a shared domain package.\n   c) Ensure production files never import runtime values or fixtures from test directories.\n4. Example / Auto-fix command:\n   ❌ Insecure: `import { mockUser } from \"../../tests/fixtures/user\";`\n   ✅ Secure:   `import type { UserProfile } from \"@/domain/types\";`",
 				"bundle-heavy-import": "📖 REMEDIATION GUIDE: bundle-heavy-import\n1. Root Cause: A heavy backend or Node.js library (e.g. `node:fs`, `jsdom`, `typescript`, `fallow`, `exceljs`) was imported directly into a UI component, view, or store.\n2. Diagnosis: Inspect the import statement in the reported component or store.\n3. Canonical Solution:\n   a) If the library is only needed for user-initiated actions, use dynamic imports (`await import(\"...\")`) inside the specific handler for code-splitting.\n   b) Move heavy processing to a Web Worker or backend API endpoint.\n   c) Use lightweight browser-optimized alternatives.\n4. Example / Auto-fix command:\n   ❌ Heavy static:  `import { HeavyParser } from \"heavy-parser\";` in component.\n   ✅ Code-splitting: `const { HeavyParser } = await import(\"heavy-parser\");` inside handler.",
 				"bundle-chunk-size": "📖 REMEDIATION GUIDE: bundle-chunk-size\n1. Root Cause: A compiled client chunk in `dist/` exceeds the maximum configured size limit in `.auditor/audit.config.ts` (`config.bundle.maxChunkSizeKB`). Giant chunks hurt First Contentful Paint (FCP) and mobile interaction speeds.\n2. Diagnosis: Check the chunk name and size reported in the finding.\n3. Canonical Solution:\n   a) Configure manual code-splitting (`manualChunks` in Vite / Rollup) to isolate vendor dependencies.\n   b) Apply lazy loading (`defineAsyncComponent`) for Vue Router routes and heavy views.\n   c) Inspect bundle sizes using `rollup-plugin-visualizer` and replace non-tree-shakeable packages.\n4. Example / Auto-fix command:\n   - Load routes with: `component: () => import(\"@/views/DashboardView.vue\")`"
 			},

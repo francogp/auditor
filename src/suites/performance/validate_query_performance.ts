@@ -171,7 +171,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditUnindexedForeignKeys(relPath: string, content: string): void {
-    if (content.includes('fk-index-ok')) return;
     if (!relPath.endsWith('.sql')) return;
 
     // Detect CREATE TABLE with foreign key references
@@ -198,7 +197,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditSelectStarInQueries(relPath: string, content: string): void {
-    if (content.includes('select-star-ok')) return;
     if (isPathExempt(relPath, this.exemptSelectStarPaths)) return;
     if (this.excludeMigrationsDir && this.migrationsDir) {
       if (isPathContained(this.migrationsDir, relPath, this.projectRoot)) return;
@@ -234,7 +232,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditUnpaginatedQueries(relPath: string, content: string): void {
-    if (content.includes('unpaginated-ok')) return;
     if (relPath.endsWith('.sql')) return;
 
     // Detect client/ORM queries returning collection without limit, range, or single-row modifier
@@ -263,7 +260,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditNPlusOnePatterns(relPath: string, content: string): void {
-    if (content.includes('n-plus-one-ok')) return;
     if (relPath.endsWith('.sql')) return;
 
     // Detect await db or await supabase inside iterative loops
@@ -285,8 +281,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditHeavyCountQueries(relPath: string, content: string): void {
-    if (content.includes('count-ok')) return;
-
     // Detect unbounded COUNT(*) without WHERE clause in SQL
     const countAllRegex = /SELECT\s+COUNT\(\*\)\s+FROM\s+\w+(?!\s+WHERE\b)/gi;
     let match: RegExpExecArray | null;
@@ -303,8 +297,6 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   private auditUnindexedOrderBy(relPath: string, content: string): void {
-    if (content.includes('offset-ok')) return;
-
     // Detect OFFSET >= 1000 in SQL or code
     const offsetRegex = /\bOFFSET\s+(\d{3,})\b/gi;
     let match: RegExpExecArray | null;

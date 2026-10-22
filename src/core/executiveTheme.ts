@@ -119,14 +119,13 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
   }
 
-  // no-domain: Non-domain utility collection or data structure
-  const nextActions: string[] = ['  Next Actions for AI:'];
+  const nextActionLines: string[] = ['  Next Actions for AI:'];
   if (totalFixable > 0) {
-    nextActions.push(
+    nextActionLines.push(
       `  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`
     );
   } else {
-    nextActions.push(
+    nextActionLines.push(
       '  1. Focus critical phase: npm run auditor:next',
       '  2. Inspect findings:   npm run auditor:findings',
       phaseBreakdown[0]
@@ -138,7 +137,7 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
 
   const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
 
-  return `${header}\n${status}\n\n${phaseLines.join('\n')}\n\n${nextActions.join('\n')}\n\n${reportLine}\n`;
+  return `${header}\n${status}\n\n${phaseLines.join('\n')}\n\n${nextActionLines.join('\n')}\n\n${reportLine}\n`;
 }
 
 export function renderExecutiveSetupBlockingSummary(
@@ -171,8 +170,7 @@ export function renderExecutiveSetupBlockingSummary(
     '  MANDATE: STRICTLY FORBIDDEN to modify application code or styles while setup phase is blocked.'
   );
 
-  // no-domain: Non-domain utility collection or data structure
-  const nextActions: string[] = [
+  const nextActionLines: string[] = [
     '  Next Actions for AI:',
     '  1. Inspect setup issues: npm run auditor:findings -- phase=setup',
     hasFixableErrors
@@ -182,7 +180,7 @@ export function renderExecutiveSetupBlockingSummary(
 
   const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
 
-  return `${header}\n${status}\n\n${suitesLines.join('\n')}\n\n${warning}\n\n${nextActions.join('\n')}\n\n${reportLine}\n`;
+  return `${header}\n${status}\n\n${suitesLines.join('\n')}\n\n${warning}\n\n${nextActionLines.join('\n')}\n\n${reportLine}\n`;
 }
 
 export function renderExecutiveFixSummary(params: ExecutiveFixSummaryParams): string {

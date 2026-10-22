@@ -28,6 +28,7 @@ import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
 import { stripComments } from '../../core/scannerUtils.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
+import { tryCatchSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -403,8 +404,8 @@ function rewriteCssReferencesInProject(
     codeFiles.push(indexHtml);
   }
   for (const filePath of codeFiles) {
-    try {
-      if (!fs.existsSync(filePath)) continue;
+    tryCatchSync(() => {
+      if (!fs.existsSync(filePath)) return;
       let content = fs.readFileSync(filePath, 'utf-8');
       let modified = false;
       for (const { oldBase, newBase } of renamedPairs) {
@@ -418,9 +419,7 @@ function rewriteCssReferencesInProject(
       if (modified) {
         fs.writeFileSync(filePath, content, 'utf-8');
       }
-    } catch {
-      // catch-ok: Ignore unreadable files during CSS -> SCSS reference rewrite
-    }
+    });
   }
 }
 
@@ -438,19 +437,19 @@ function auditRawCssFiles(
     }
     if (auditor.isFixActive()) {
       const targetScss = file.slice(0, -4) + '.scss';
-      try {
+      const renameResult = tryCatchSync(() => {
         if (!fs.existsSync(targetScss)) {
           fs.renameSync(file, targetScss);
         } else {
           fs.rmSync(file, { force: true });
         }
+      });
+      if (renameResult.ok) {
         renamedPairs.push({
           oldBase: path.basename(file),
           newBase: path.basename(targetScss)
         });
         continue;
-      } catch {
-        // catch-ok: Fall through to record violation if rename fails
       }
     }
     auditor.recordViolation(

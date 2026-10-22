@@ -23,13 +23,6 @@ const CLI_CONTRACT_DETECTORS = [
 	cittyContractDetector,
 	unregisteredScriptDetector
 ];
-const CLI_CONTRACT_ESCAPE_TOKENS = /* @__PURE__ */ new Set([
-	"cli",
-	"cli-contracts",
-	"argv",
-	"env",
-	"test"
-]);
 const AUTHORIZED_HARNESS_PATHS = /* @__PURE__ */ new Set(["src/core/cli/cittyHarness.ts", "src/cli/cliUtils.ts"]);
 function findEnclosingScope(node) {
 	let current = node.parent;
@@ -141,15 +134,10 @@ function collectCliFileFacts(sourceFile, relPath, rawText) {
 		dynamicProcessParamNodes
 	};
 }
-function hasCliEscapeOnLine(doc, oneBasedLine) {
-	for (const hatch of doc.getEscapeHatches()) if (CLI_CONTRACT_ESCAPE_TOKENS.has(hatch.ruleToken) && (hatch.line === oneBasedLine || hatch.line === oneBasedLine - 1)) return true;
-	return false;
-}
 function formatCliViolation(doc, sourceFile, finding) {
 	const startOffset = ts.isSourceFile(finding.node) ? 0 : finding.node.getStart(sourceFile);
 	const loc = sourceFile.getLineAndCharacterOfPosition(startOffset);
 	const lineNumber = loc.line + 1;
-	if (hasCliEscapeOnLine(doc, lineNumber)) return null;
 	return {
 		file: doc.relPath,
 		line: lineNumber,

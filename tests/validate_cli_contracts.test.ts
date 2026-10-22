@@ -116,13 +116,15 @@ describe('CliContractsAuditor', () => {
       expect(violations.map((v) => v.ruleId)).toContain('cli-contracts-unregistered-script');
     });
 
-    it('ignores occurrences inside strings and comments and respects cli-ok escape hatches', () => {
-      const code = [
-        '// process.argv.slice(2)',
-        'const text = "process.argv";',
-        'const allowed = process.argv.slice(2); // cli-ok: Authorized test harness'
-      ].join('\n');
+    it('ignores occurrences inside strings and comments', () => {
+      const code = ['// process.argv.slice(2)', 'const text = "process.argv";'].join('\n');
       expect(scanFileForCliContractViolations('src/logic/safe.ts', code)).toEqual([]);
+    });
+
+    it('detects violations even when inline comments are present (Zero-Ignore Mandate)', () => {
+      const code = 'const allowed = process.argv.slice(2); // cli-ok: Authorized test harness';
+      const violations = scanFileForCliContractViolations('src/logic/safe.ts', code);
+      expect(violations.map((v) => v.ruleId)).toContain('cli-contracts-direct-argv-access');
     });
   });
 

@@ -13,9 +13,6 @@
  *      Ensures all markdown tables are preceded by an empty line so CommonMark and GFM parsers
  *      render tables cleanly without merging into preceding paragraphs.
  *
- * Escape Hatches:
- *   `<!-- doc-ok -->`, `<!-- npm-ok -->`, `<!-- table-ok -->`
- *
  * Usage:
  *   npm run validate:markdown-syntax
  */
@@ -181,8 +178,6 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
         inFencedCodeBlock = !inFencedCodeBlock;
         continue;
       }
-
-      if (this.isLineIgnored(line, ['doc-ok', 'npm-ok', 'table-ok', 'markdown-ok'])) continue;
 
       if (inFencedCodeBlock) {
         this.runSubAuditorSync('npm-script-exclusivity-in-docs', () => {

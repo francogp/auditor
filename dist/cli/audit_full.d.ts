@@ -1,5 +1,6 @@
 import { AuditEngineConfig } from "../core/auditConfigTypes.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
+import { BaseAuditor } from "../core/auditorBase.js";
 import { ConsoleOutputMode } from "../core/streamingRunner.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
@@ -73,9 +74,17 @@ export interface FixableCountsResult {
  * In fix mode (isFixMode === true), any remaining error could not be resolved,
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
-export declare function computeFixableViolations(results: readonly StandardAuditResult[], isFixMode: boolean): FixableCountsResult;
+export declare const computeFixableViolations: typeof BaseAuditor.computeFixableViolations;
 export declare function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean>;
-export declare function createAuditBannerDetails(cliOptions: AuditFullCliOptions, isFixMode: boolean, isBuildMode: boolean, tasksCount: number, allAvailableCount: number, omittedCount: number): string[];
+export interface CreateAuditBannerDetailsOptions {
+  readonly cliOptions: AuditFullCliOptions;
+  readonly isFixMode?: boolean;
+  readonly isBuildMode?: boolean;
+  readonly tasksCount: number;
+  readonly allAvailableCount: number;
+  readonly omittedCount?: number;
+}
+export declare function createAuditBannerDetails(options: CreateAuditBannerDetailsOptions): string[];
 export declare const MAX_BANNER_SUBTITLE_WIDTH = 72;
 export declare function formatSubtitleDetails(details: readonly string[], maxLineWidth?: number): string;
 export declare function resolveFixOrderWeight(task: AuditTaskDefinition): number;

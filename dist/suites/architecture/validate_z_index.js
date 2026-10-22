@@ -1,6 +1,6 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "../../core/auditZLayers.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
@@ -184,7 +184,6 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
 				if (doc.isInsideComment(m.index)) continue;
 				const pos = doc.getLineAndColumn(m.index);
-				if (doc.hasEscapeHatch(pos.line, "z-index-hardcoded-literal")) continue;
 				const numMatch = m[0].match(/-?\d+/);
 				const val = numMatch ? parseInt(numMatch[0], 10) : 0;
 				const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
@@ -238,7 +237,6 @@ var ZIndexAuditor = class extends FileScanAuditor {
 					while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {
 						if (doc.isInsideComment(cMatch.index)) continue;
 						const pos = doc.getLineAndColumn(cMatch.index);
-						if (doc.hasEscapeHatch(pos.line, "z-index-isolated-constant")) continue;
 						this.addViolation({
 							ruleId: "z-index-isolated-constant",
 							severity: "error",

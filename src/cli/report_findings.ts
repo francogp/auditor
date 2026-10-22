@@ -23,7 +23,7 @@ import {
   REMEDIATION_PHASES
 } from '../core/remediationPhases.ts';
 import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
+import { toPosixRelative, isPathContained } from '../core/safePath.ts';
 import {
   renderBanner,
   buildNoticeBox,
@@ -516,8 +516,7 @@ function getDirectoryBucket(filePath?: string): string {
   const rel = getNormalizedRelPath(filePath);
   if (rel === 'General') return 'General';
   const first = rel.indexOf('/');
-  // path-ok: Table bucket category label with trailing slash
-  return first !== -1 ? `${rel.slice(0, first)}/` : rel;
+  return first !== -1 ? rel.slice(0, first) : rel;
 }
 
 function sortFindingsEntries<T extends { errors: number; warnings: number }>(
@@ -721,10 +720,23 @@ function matchesPathFilters(f: Finding, args: ReportOptions): boolean {
   if (args.scope === 'packages' && !relPath.startsWith('packages/')) return false;
 
   if (args.dirPattern) {
-    const cleanDir = toPosixRelative(process.cwd(), args.dirPattern).toLowerCase();
-    const lowerRel = relPath.toLowerCase();
-    // path-ok: CLI display filter matching directory prefix
-    if (lowerRel !== cleanDir && !lowerRel.startsWith(`${cleanDir}/`) && !lowerRel.includes(`/${cleanDir}/`)) {
+    const dirAbs = path.resolve(process.cwd(), args.dirPattern);
+    const fileAbs = path.resolve(process.cwd(), relPath);
+    const contained = isPathContained(dirAbs, fileAbs);
+    let matchedAncestor = false;
+    let curr = fileAbs;
+    const root = path.parse(curr).root;
+    const targetBase = path.basename(dirAbs).toLowerCase();
+    while (curr && curr !== root) {
+      if (path.basename(curr).toLowerCase() === targetBase) {
+        matchedAncestor = true;
+        break;
+      }
+      const parent = path.dirname(curr);
+      if (parent === curr) break;
+      curr = parent;
+    }
+    if (!contained && !matchedAncestor) {
       return false;
     }
   }

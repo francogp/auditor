@@ -20,6 +20,7 @@ import {
   parseAuditConfigFileAst,
   appendMissingSectionsToConfigFile
 } from './auditConfigAst.ts';
+import { tryCatchSync } from './safeUtils.ts';
 
 export interface UnacknowledgedDegradation {
   readonly policy: AcknowledgeableExemptionPolicy;
@@ -189,7 +190,7 @@ export function applyAcknowledgedDegradationsFix(
   }));
 
   if (configFilePath.endsWith('.json')) {
-    try {
+    tryCatchSync(() => {
       const code = fs.readFileSync(configFilePath, 'utf8');
       const json = JSON.parse(code) as Record<string, unknown>;
       const coverage = (json.coverage && typeof json.coverage === 'object'
@@ -201,9 +202,7 @@ export function applyAcknowledgedDegradationsFix(
       coverage.acknowledgedDegradations = [...existingAcks, ...newEntries];
       json.coverage = coverage;
       fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-    } catch {
-      // catch-ok
-    }
+    });
     return;
   }
 

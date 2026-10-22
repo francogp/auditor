@@ -8,7 +8,7 @@ import ts from "typescript";
 * hardcoded-slash-path: Windows drive / UNC literals used as paths and manual
 * backslash splitting or searching that break POSIX/Windows portability.
 */
-const SLASH_MESSAGE = "Separador o unidad de Windows hardcodeado ('C:\\\\', '\\\\\\\\host', split/lastIndexOf con contrabarra). Usa 'path.resolve()', 'path.sep', 'path.parse()' o 'path.win32' explícito.";
+const SLASH_MESSAGE = "Hardcoded Windows drive or separator ('C:\\\\', '\\\\\\\\host', backslash split/lastIndexOf). Use 'path.resolve()', 'path.sep', 'path.parse()', or explicit 'path.win32'.";
 const BACKSLASH_SEARCH_METHODS = /* @__PURE__ */ new Set([
 	"split",
 	"lastIndexOf",

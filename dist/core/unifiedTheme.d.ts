@@ -1,7 +1,7 @@
 import { AuditListFilter } from "./auditConfigTypes.js";
 import { RemediationPhaseId } from "./remediationPhases.js";
 import { AuditFinding, AuditTaskDefinition, FamilyMetadata, StandardAuditResult } from "./auditContract.js";
-import { TEXT_ALIGNMENTS, TextAlignment, getVisualWidth, padVisual, truncateVisual } from "./terminalVisuals.js";
+import { TEXT_ALIGNMENTS, TextAlignment, padVisual, stringWidth, truncateVisual } from "./terminalVisuals.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
 import { RenderByFileTreeOptions, formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";
@@ -102,4 +102,4 @@ export declare const TASK_NAME_COL_WIDTH = 38;
 export declare function renderAuditTaskRow(res: StandardAuditResult): string;
 export declare function renderConsolidatedFooter(suitesTotal: number, suitesPassed: number, totalErrors: number, totalWarnings: number, totalDurationMs: number, errorFindings?: AuditFinding[], suitesSkipped?: number): string;
 //#endregion
-export { DURATION_PAD_LENGTH, type ExecutiveFailPhaseBreakdown, type ExecutiveFailSummaryParams, type ExecutiveFixSummaryParams, type ExecutivePassSummaryParams, type ExecutiveSetupBlockingSummaryParams, type RenderByFileTreeOptions, TEXT_ALIGNMENTS, type TextAlignment, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, getVisualWidth, groupFindingsByFile, padVisual, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, truncateVisual };
+export { DURATION_PAD_LENGTH, type ExecutiveFailPhaseBreakdown, type ExecutiveFailSummaryParams, type ExecutiveFixSummaryParams, type ExecutivePassSummaryParams, type ExecutiveSetupBlockingSummaryParams, type RenderByFileTreeOptions, TEXT_ALIGNMENTS, type TextAlignment, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, groupFindingsByFile, padVisual, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, stringWidth, truncateVisual };

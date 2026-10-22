@@ -451,7 +451,7 @@ Remediating loose type assertions, double casts, naked strings, and unbranded en
 1. **Type Hygiene (`auditor-types`)**: Discovers `as any`, `as unknown as T`, and functions lacking explicit return types, replacing them with `as unknown` or strict return annotations (`npm run auditor:types discover`, `npm run auditor:types inspect <file>`).
 2. **Domain Hygiene (`auditor-domain`)**: Discovers mutable catalogs lacking `as const`, naked string parameters (`heroId: string`), and unbranded ID aliases, replacing them with literal tuples and nominal `Brand<string, 'T'>` (`npm run auditor:domain discover`, `npm run auditor:domain inspect <file>`).
 
-📘 **Detailed Guides**: See [types-refactoring-guide.md](./references/types-refactoring-guide.md) and [domain-refactoring-guide.md](./references/domain-refactoring-guide.md).
+📘 **Detailed Guides**: See [types-refactoring-guide.md](./references/types-refactoring-guide.md), [domain-refactoring-guide.md](./references/domain-refactoring-guide.md), and [zero-ignore-type-remediation.md](./references/zero-ignore-type-remediation.md).
 
 ---
 
@@ -459,6 +459,7 @@ Remediating loose type assertions, double casts, naked strings, and unbranded en
 
 | Reference Guide | Description |
 |---|---|
+| [`references/zero-ignore-type-remediation.md`](./references/zero-ignore-type-remediation.md) | Guide for zero escape hatches (// *-ok:) via canonical semantic types & ratchet. |
 | [`references/types-refactoring-guide.md`](./references/types-refactoring-guide.md) | Guide for automated type assertion, double cast, and return type refactoring. |
 | [`references/domain-refactoring-guide.md`](./references/domain-refactoring-guide.md) | Guide for automated domain catalogs, naked strings, and branded ID refactoring. |
 | [`references/magic-numbers-refactoring-guide.md`](./references/magic-numbers-refactoring-guide.md) | Guide for magic numbers, Super-Dirac clustering, and token governance. |
@@ -480,5 +481,6 @@ Remediating loose type assertions, double casts, naked strings, and unbranded en
 | [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts) | Reference configuration for Gaming applications (hybrid persistence, Web Workers). |
 | [`references/v8-migration-guide.md`](./references/v8-migration-guide.md) | Guía de modernización de aplicaciones anfitrionas a la versión 8 de `@francogp/auditor`. |
 | [`references/vite-plus-guide.md`](./references/vite-plus-guide.md) | Guía canónica de referencia de Vite+ (`vp`), comandos CLI, tutorial oficial y arquitectura de migración. |
+| [`references/citty-cli-governance-guide.md`](./references/citty-cli-governance-guide.md) | Canonical Citty CLI guide, isMainModule guard mandate, correct patterns, and anti-patterns. |
 | [`references/extensions/`](./references/extensions/) | Reference blueprints for host extension plugins. |
 | [`references/plugins/`](./references/plugins/) | Sample setup plugins for Docker database containers and local SSL certificates. |

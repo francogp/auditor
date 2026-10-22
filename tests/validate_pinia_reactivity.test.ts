@@ -101,7 +101,7 @@ describe('PiniaReactivityAuditor', () => {
       expect(violation).toBeDefined();
     });
 
-    it('allows action destructuring with // pinia-ok', () => {
+    it('flags store destructuring regardless of // pinia-ok comment (Zero-Ignore Mandate)', () => {
       const auditor = new TestablePiniaReactivityAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const goodCode = `
         import { useBillingProjectStore } from '@/stores/billingProjectStore';
@@ -109,7 +109,7 @@ describe('PiniaReactivityAuditor', () => {
       `;
 
       auditor.testScanFile('src/components/MyComponent.vue', goodCode);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
 
     it('detects direct store.$state mutation outside authorized files (no-direct-state-mutation-outside-actions)', () => {

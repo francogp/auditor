@@ -16,6 +16,9 @@ The goal is simple: invalid domain values should fail at compile time. If TypeSc
 
 ## Modular Reference Guides
 
+- [Canonical Semantic Data Types Manual](./references/canonical-data-types.md): Full catalog of `DisplayText`, `HexColor`, `AssetUri`, `IsoDateString`, `CssClassName`, `JsonObject`, `DomElementId`, `UserUuid`, and `OperationResult`.
+- [Rapid Type Migration Templates & Snippets](./references/rapid-type-migration-templates.md): Copy-pasteable recipes and search-and-replace patterns to quickly replace raw strings and open records.
+- [Anti-Pattern Guide: Diluted String Unions](./references/diluted-unions-guide.md): Deep-dive into the type subsumption fallacy, boundary vs core separation, and eliminating `DomainType | string`.
 - [Branding & Boundary Patterns Guide](./references/branding-patterns.md): Canonical recipes for Nominal Branded Types (`Brand<T, B>`), runtime boundary validation guards, DTOs, and tuple/record templates.
 
 ## Trigger Checklist
@@ -182,15 +185,14 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 - **Forbidden Pattern**: `userTier: 'PlatinumAdmin' | 'GoldTier'`, `function useItem(itemName: string)`
 - **Canonical Pattern**: `userTier: TierId`, `function useItem(itemId: ItemId)`
 
-## Mandatory Technical Justification on 100% of Escape Hatches
+## Permanent Eradication of Escape Hatches & Zero-Ignore Mandate
 
-- **Zero Naked Ignores Policy**: It is STRICTLY FORBIDDEN to use naked, generic, or unexplained escape hatch comments (e.g. `// domain-ok`, `// string-ok`, `// open-record`, `// any-ok`, `// uuid-ok`, `// infra-id-ok`).
-- **Mandatory Rationale Format**: Every suppression directive across the entire codebase MUST include a colon followed by a detailed, explicit technical justification:
-  - `// domain-ok: UI localized label display text`
-  - `// uuid-ok: Database user UUID record identifier`
-  - `// open-record: Generic key-value data dictionary container`
-- **Auditor Enforcement**: The rule `unjustified-escape-hatch` in `validate_audit_headers.ts` checks 100% of files and fails if any comment omits the technical explanation.
-- **Prose-Only Mandate**: The `// domain-ok: <reason>` directive is STRICTLY RESERVED for purely narrative prose (e.g. UI dialogue lines, prose quotes, audit status messages). It is STRICTLY FORBIDDEN to use it to silence type mismatches on entities, foreign keys, items, actions, or roles.
+- **Zero Escape Hatches Policy**: Static analysis escape hatches and ignore comments (`// domain-ok:`, `// string-ok:`, `// open-record:`, `// any-ok:`, `// uuid-ok:`, `// infra-id-ok:`, `// catch-ok:`) have been permanently eradicated from the architecture. Bypassing or silencing static analysis checks via comments is STRICTLY PROHIBITED.
+- **Canonical Textual Properties & Semantic Types**:
+  - Genuinely textual or narrative properties (`*Name`, `*Description`, `*Formula`, `*Prose`, `*Hint`, `*Text`) are recognized by the canonical textual whitelist.
+  - Custom project textual fields are declared cleanly in `.auditor/audit.config.ts` via `config.domain.textualFields: ['lore', 'dialogue', 'story']`.
+  - Specialized primitives must use canonical semantic types from `@francogp/auditor`: `DisplayText`, `LocalizedText`, `HexColor`, `AssetUri`, `IsoDateString`, `CssClassName`, `JsonObject`, `DomElementId`, `UserUuid`.
+- **Compile-Time Integrity**: Resolving static analysis findings requires modeling the domain correctly in TypeScript, never annotating code with escape comments.
 
 ## Pure Canonical Domain Types & Absolute Ban on `DomainId | string` Wildcards
 
@@ -328,7 +330,7 @@ Business logic functions must never accept `unknown` or rely on `payload as Reco
 ## Floating Promise & Architecture Rules (`noFloatingPromises`, `noLeakedGlobalState`, `noDynamicImportInHotPath`)
 
 - **Floating Promise Guard (`noFloatingPromises`)**: Async calls MUST be handled explicitly with `await`, `void`, or `.catch()` (e.g. `void saveStateAsync();`).
-- **Module Global State Guard (`noLeakedGlobalState`)**: Mutable `let`/`var` variables at top-level module scope are prohibited unless encapsulated in Pinia stores, classes, or marked `// singleton-ok`.
+- **Module Global State Guard (`noLeakedGlobalState`)**: Mutable `let`/`var` variables at top-level module scope are prohibited unless encapsulated in Pinia stores, classes, or initialized within lifecycle hooks.
 - **Hot-Path Import Guard (`noDynamicImportInHotPath`)**: Dynamic `import()` inside loops, Vue computed properties, or GSAP timelines is prohibited to avoid UI animation stutter.
 - **Auto-Fixer Command**: Mechanical rules can be auto-repaired across the codebase by running:
 
@@ -375,7 +377,7 @@ Do not use these for finite domains:
 - `type X = string`
 - `type X = KnownValue | string` (STRICTLY FORBIDDEN: NEVER combine a finite domain type with `| string`. Either a field belongs to a strict finite domain type, or it is truly open dynamic text. Unions like `ActionId | string` or `RoleId | string` are severe anti-patterns that erase compile-time type safety).
 - `type X = KnownValue | (string & {})`
-- Misusing `// domain-ok` escape hatches on lines containing wildcard uniones (e.g. `field?: DomainType | string; // domain-ok`). The `// domain-ok` annotation is ONLY permitted on fields that represent genuinely open, dynamic human or external text (such as usernames, messages, URLs, descriptions, or raw timestamps).
+- Bypassing static analysis with escape hatches or ignore directives (`// domain-ok:`, `// string-ok:`).
 - `string[]`, `Array<string>`, or `ReadonlyArray<string>` for finite constants.
 - `Record<string, T>` for known domain keys.
 - `Record<PropertyKey, T>` for known domain keys.
@@ -385,7 +387,7 @@ Do not use these for finite domains:
 - Type assertions such as `as DomainId`, `as unknown as Record<...>`, `(OBJ as Record<string, T>)[key]`, `(ARRAY as readonly string[]).includes(...)`, or `as any` to force values into domain contracts or bypass index/inclusion checks during lookup.
 - **Tuple Inclusion Cast Prohibition**: Casting tuple constants (e.g. `(USER_ROLES as readonly string[]).includes(val)`) in business logic to bypass TypeScript's tuple inclusion check is STRICTLY FORBIDDEN. Annotate parameters with the domain union type directly (e.g. `val: UserRole`) or encapsulate the check inside a dedicated `isDomainId` type guard.
 - **Ad-Hoc String Literal Union Prohibition**: Defining or casting string literal unions inline (e.g. `as 'read' | 'write'`, `: 'admin' | 'user'`, `as 'active' | 'inactive'`) instead of consuming canonical domain types (e.g. `UserRole`, `AccessLevel`) is STRICTLY FORBIDDEN. The `validate_domain_types` auditor flags all such occurrences as ERRORs. Whenever a finite domain union is needed, consume or define a named canonical domain type alias exported from shared domain contracts.
-- **Helper Cast Wrappers / Anti-Cheat Prohibition**: Creating helper functions, arrow getters, or composables (e.g. `const toEntity = (d: unknown) => d as unknown as entity // domain-ok`) solely to wrap and conceal double type assertions is STRICTLY FORBIDDEN. Refactor the underlying types using Discriminated Unions (e.g. `type Listing = { type: 'entity'; data: entity } | { type: 'item'; data: Item }`) so TypeScript infers types naturally without any casts.
+- **Helper Cast Wrappers / Anti-Cheat Prohibition**: Creating helper functions, arrow getters, or composables (e.g. `const toEntity = (d: unknown) => d as unknown as entity`) solely to wrap and conceal double type assertions is STRICTLY FORBIDDEN. Refactor the underlying types using Discriminated Unions (e.g. `type Listing = { type: 'entity'; data: entity } | { type: 'item'; data: Item }`) so TypeScript infers types naturally without any casts.
 - **Multi-Domain Dispatcher Cast Prohibition**: Creating centralized asset, data, or view resolvers that accept open `(category, id: string | number)` shapes without strict function overloads mapped to their domain unions (`ItemId`, `EntityId`, `RouteId`, `RoleId`).
 
 If code seems to need an inline cast (e.g., `(DATABASE as Record<string, T>)[key]`), it means the data boundary lacks a typed accessor helper or boundary guard. Instead of casting inline:

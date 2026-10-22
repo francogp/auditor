@@ -68,19 +68,15 @@ export const CANONICAL_PLAYWRIGHT_CONFIG_LINES = [
 export const CANONICAL_PLAYWRIGHT_CONFIG_CONTENT = CANONICAL_PLAYWRIGHT_CONFIG_LINES.join('\n');
 
 export function isPlaywrightProjectContext(projectRoot: string): boolean {
-  try {
-    const pkg = getPackageJson(projectRoot);
-    if (
-      pkg &&
-      (pkg.dependencies?.['@playwright/test'] ||
-        pkg.devDependencies?.['@playwright/test'] ||
-        pkg.dependencies?.['playwright'] ||
-        pkg.devDependencies?.['playwright'])
-    ) {
-      return true;
-    }
-  } catch {
-    // catch-ok
+  const pkg = getPackageJson(projectRoot);
+  if (
+    pkg &&
+    (pkg.dependencies?.['@playwright/test'] ||
+      pkg.devDependencies?.['@playwright/test'] ||
+      pkg.dependencies?.['playwright'] ||
+      pkg.devDependencies?.['playwright'])
+  ) {
+    return true;
   }
 
   return (

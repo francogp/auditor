@@ -17,6 +17,7 @@ import {
 } from '../core/auditContract.ts';
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from '../core/auditorBase.ts';
 import { getProcessExecutedScript } from '../core/cli/cittyHarness.ts';
+import { tryOrDefault, tryCatchSync } from '../core/safeUtils.ts';
 
 const DYNAMIC_IMPORT_TIMEOUT_MS = 2000 as const;
 
@@ -48,7 +49,7 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     gitIgnoreEntries: []
   };
 
-  try {
+  return tryOrDefault(() => {
     const content = fsSync.readFileSync(fullPath, 'utf-8');
     const iconMatch = content.match(/icon\s*:\s*['"]([^'"]+)['"]/);
     if (iconMatch?.[1]) {
@@ -102,18 +103,14 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
       configKey: configKeyMatch?.[1],
       defaultConfig: staticDefaultConfig
     };
-  } catch {
-    // catch-ok: Static metadata extraction fallback
-  }
-
-  return result;
+  }, result);
 }
 
 function extractMetadataFromAuditorInstance(
   val: new () => BaseAuditor,
   result: MutableExtractedAuditorMetadata
 ): void {
-  try {
+  tryCatchSync(() => {
     const instance = new val();
     if (instance?.capabilities && typeof instance.capabilities === 'object') {
       result.capabilities = instance.capabilities;
@@ -148,9 +145,7 @@ function extractMetadataFromAuditorInstance(
     if (instance?.criticalConfig) {
       result.criticalConfig = instance.criticalConfig;
     }
-  } catch {
-    // catch-ok: Sub-auditor constructor may require specific options
-  }
+  });
 }
 
 function extractMetadataFromFunction(val: unknown, result: MutableExtractedAuditorMetadata): void {

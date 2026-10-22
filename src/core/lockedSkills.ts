@@ -9,7 +9,7 @@
 import nodeFs from 'node:fs';
 import path from 'node:path';
 import { getAuditConfig } from './auditConfig.ts';
-import { toPosixRelative } from './auditCoverage.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from './safeUtils.ts';
 
 let lockedSkillsCache: Set<string> | null = null;
 let lockedSkillsCacheRoot: string | null = null;
@@ -29,28 +29,20 @@ export const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[] = [
 ];
 
 function parseLockedSkillsFile(skillsLockPath: string): string[] {
-  try {
-    if (!nodeFs.existsSync(skillsLockPath)) return [];
-    const raw = nodeFs.readFileSync(skillsLockPath, 'utf-8');
-    const data = JSON.parse(raw) as { skills?: Record<string, unknown> };
-    if (data?.skills && typeof data.skills === 'object') {
-      return Object.keys(data.skills).map((s) => s.toLowerCase()); // no-domain: Skill name case-insensitive key
-    }
-  } catch {
-    // catch-ok: Ignore missing or malformed skills-lock.json candidate
+  const raw = safeReadFileSync(skillsLockPath);
+  if (!raw) return [];
+  const data = safeJsonParse<{ skills?: Record<string, unknown> }>(raw);
+  if (data?.skills && typeof data.skills === 'object') {
+    return Object.keys(data.skills).map((s) => s.toLowerCase()); // no-domain: Skill name case-insensitive key
   }
   return [];
 }
 
 function resolveSkillsLockCandidates(projectRoot: string): string[] {
   const candidatePaths = [...SKILLS_LOCK_CANDIDATE_PATHS];
-  try {
-    const config = getAuditConfig(projectRoot);
-    if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) {
-      candidatePaths.unshift(config.paths.skillsLockFile);
-    }
-  } catch {
-    // catch-ok: Ignore config load failures during skill lock resolution
+  const config = tryOrNull(() => getAuditConfig(projectRoot));
+  if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) {
+    candidatePaths.unshift(config.paths.skillsLockFile);
   }
   const inheritedLock = 'node_modules/@francogp/auditor/skills-lock.json';
   if (nodeFs.existsSync(path.resolve(projectRoot, inheritedLock))) {
@@ -82,23 +74,24 @@ export function isLockedSkillPath(filePath: string, projectRoot = process.cwd())
   const locked = loadLockedSkills(projectRoot);
   if (locked.size === 0) return false;
 
-  const rel = toPosixRelative(projectRoot, filePath);
-  // path-ok: Segment inspection for locked skill path resolution
-  const segments = rel.toLowerCase().split('/').filter(Boolean);
+  let curr = path.resolve(projectRoot, filePath);
+  const root = path.parse(curr).root;
 
-  for (let i = 0; i < segments.length - 1; i++) {
-    const parent = segments[i];
-    const candidate = segments[i + 1];
-    if ((parent === 'skills' || parent === '.skills') && candidate && locked.has(candidate)) {
-      return true;
-    }
-    if (parent === '.agents' && candidate === 'skills' && i + 2 < segments.length) {
-      const skillName = segments[i + 2];
-      if (skillName && locked.has(skillName)) {
+  while (curr && curr !== root) {
+    const parentDir = path.dirname(curr);
+    if (parentDir === curr) break;
+    const skillName = path.basename(curr);
+    const parentName = path.basename(parentDir);
+    if (locked.has(skillName)) {
+      if (parentName === 'skills' || parentName === '.skills') {
+        return true;
+      }
+      const grandParentDir = path.dirname(parentDir);
+      if (parentName === 'skills' && path.basename(grandParentDir) === '.agents') {
         return true;
       }
     }
+    curr = parentDir;
   }
-
   return false;
 }

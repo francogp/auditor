@@ -10,7 +10,7 @@ const packageJsonDetector = createLineDetector({
 	ruleId: "auditor-manual-package-json",
 	ruleDescription: "Manual package.json reading",
 	checkLine(line) {
-		if ((line.includes("readFileSync(") && line.includes("package.json") || line.includes("JSON.parse(") && line.includes("package.json") && !line.includes("getPackageJson") || /readFileSync\([^)]*\)/.test(line) && line.includes("pkgPath")) && !line.includes("getPackageJson(")) return "Lectura manual de 'package.json' detectada. Usa la utilidad canónica 'getPackageJson(projectRoot)' de 'src/core/packageJson.ts'.";
+		if ((line.includes("readFileSync(") && line.includes("package.json") || line.includes("JSON.parse(") && line.includes("package.json") && !line.includes("getPackageJson") || /readFileSync\([^)]*\)/.test(line) && line.includes("pkgPath")) && !line.includes("getPackageJson(")) return "Manual reading of 'package.json' detected. Use canonical 'getPackageJson(projectRoot)' from 'src/core/packageJson.ts'.";
 		return null;
 	}
 });

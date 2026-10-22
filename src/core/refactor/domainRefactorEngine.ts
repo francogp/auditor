@@ -76,11 +76,6 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
     const findings: DomainFindingItem[] = [];
 
     forEachSourceScriptLine(filePath, (line, actualLine) => {
-      // Check escape hatches
-      if (line.includes('// domain-ok:') || line.includes('// domain-ignore:') || line.includes('// layout-ok:')) {
-        return;
-      }
-
       // 1. Detect unbranded ID type definitions without Brand wrapper
       const unbrandedMatch = UNBRANDED_ID_REGEX.exec(line);
       if (unbrandedMatch) {

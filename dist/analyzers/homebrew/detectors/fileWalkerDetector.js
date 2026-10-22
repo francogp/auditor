@@ -15,27 +15,16 @@ function extractFunctionBody(lines, startIdx) {
 	}
 	return bodyLines.join("\n");
 }
-function hasWalkerExemption(lines, idx) {
-	const line = lines[idx];
-	if (line.includes("// walker-ok") || line.includes("/* walker-ok */")) return true;
-	if (idx > 0) {
-		const prevLine = lines[idx - 1];
-		if (prevLine.includes("// walker-ok") || prevLine.includes("/* walker-ok */")) return true;
-	}
-	return false;
-}
 const fileWalkerDetector = {
 	id: "file-walker",
 	ruleId: "auditor-manual-file-walker",
 	ruleDescription: "Manual recursive directory walk",
 	detect(context) {
-		if (context.content.includes("// walker-ok: all")) return [];
 		if (context.isCore && !context.filePath.startsWith("src/core/refactor/")) return [];
 		const findings = [];
 		const lines = context.lines;
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (hasWalkerExemption(lines, i)) continue;
 			if (/\b(?:node|child)\s*:\s*(?:ts\.)?Node\b/.test(line) || /\bts\.forEachChild\b/.test(line) || /\.(?:walk|walkDecls|walkRules|walkComments|walkAtRules)\s*\(/.test(line)) continue;
 			if (/\b(?:collectFiles|collectRepositoryFiles|scanFilesSinglePass)\b/.test(line)) continue;
 			if (/\b(?:fs|nodeFs|fsSync)\.readdirSync\s*\([^)]*\{\s*recursive:\s*true/i.test(line)) {

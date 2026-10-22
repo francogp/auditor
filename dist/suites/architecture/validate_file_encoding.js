@@ -95,7 +95,7 @@ const KNOWN_BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
 	".so",
 	".dylib"
 ]);
-const MOJIBAKE_REGEX = /(?:Ã[¡-º]|Ã±|Ã‘|Â[¡¿°±]|â€[“”—’‘™•]|â€¦)/;
+const MOJIBAKE_REGEX = /(?:\u00C3[\u00A1-\u00BA]|\u00C3\u00B1|\u00C3\u0091|\u00C2[\u00A1\u00BF\u00B0\u00B1]|\u00E2\u20AC[\u201C\u201D\u2014\u2019\u2018\u2122\u2022]|\u00E2\u20AC\u00A6)/;
 const MIN_UTF16LE_NULL_ODD_THRESHOLD = 8;
 const BINARY_SUSPICIOUS_BYTE_RATIO_THRESHOLD = .15;
 function isLikelyUtf16LeWithoutBom(buffer) {
@@ -182,7 +182,6 @@ function inspectBufferEncoding(buffer, options = {}) {
 		const lines = decodedText.split("\n");
 		for (let i = 0; i < lines.length; i++) {
 			const line = lines[i];
-			if (/(?:\/\/|--|#|\/\*)\s*mojibake-ok:/.test(line)) continue;
 			const match = MOJIBAKE_REGEX.exec(line);
 			if (match && typeof match.index === "number") {
 				const lineNum = i + 1;

@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
@@ -59,7 +59,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				"uncompressed-video": "Video missing preload=\"none\" or webm"
 			},
 			ruleRemediations: {
-				"unoptimized-images": "📖 REMEDIATION GUIDE: unoptimized-images\n1. Root Cause: A legacy raster image (`.png`, `.jpg`, `.jpeg`) was included without modern compression (`.webp`, `.avif`) or the `decoding=\"async\"` attribute. Legacy formats increase transfer weight and hurt LCP (Largest Contentful Paint).\n2. Diagnosis: Locate the `<img>` tag in the reported template.\n3. Canonical Solution:\n   a) Convert the image to `.webp` or `.avif` format.\n   b) Add performance attributes: `loading=\"lazy\"` and `decoding=\"async\"`.\n   c) If the image is an immutable external asset or requires PNG for binary transparency, annotate `<!-- unoptimized-img-ok: <reason> -->`.\n4. Example / Auto-fix command:\n   ❌ Legacy:    `<img src=\"/hero.png\">`\n   ✅ Optimized: `<img src=\"/hero.webp\" loading=\"lazy\" decoding=\"async\" alt=\"Hero\">`",
+				"unoptimized-images": "📖 REMEDIATION GUIDE: unoptimized-images\n1. Root Cause: A legacy raster image (`.png`, `.jpg`, `.jpeg`) was included without modern compression (`.webp`, `.avif`) or the `decoding=\"async\"` attribute. Legacy formats increase transfer weight and hurt LCP (Largest Contentful Paint).\n2. Diagnosis: Locate the `<img>` tag in the reported template.\n3. Canonical Solution:\n   a) Convert the image to `.webp` or `.avif` format.\n   b) Add performance attributes: `loading=\"lazy\"` and `decoding=\"async\"`.\n4. Example / Auto-fix command:\n   ❌ Legacy:    `<img src=\"/hero.png\">`\n   ✅ Optimized: `<img src=\"/hero.webp\" loading=\"lazy\" decoding=\"async\" alt=\"Hero\">`",
 				"font-display-missing": "📖 REMEDIATION GUIDE: font-display-missing\n1. Root Cause: An `@font-face` rule lacks the `font-display: swap` or `font-display: optional` property. This blocks text rendering while the web font is downloading, causing Flash of Invisible Text (FOIT).\n2. Diagnosis: Inspect the `@font-face` declaration in the reported stylesheet.\n3. Canonical Solution: Add `font-display: swap;` inside the `@font-face` definition block.\n4. Example / Auto-fix command:\n   - CSS: `@font-face { font-family: \"CustomFont\"; src: url(...); font-display: swap; }`",
 				"inline-svg-bloat": "📖 REMEDIATION GUIDE: inline-svg-bloat\n1. Root Cause: A large inline SVG (> 2KB) was embedded directly inside the HTML/Vue template. Giant SVGs bloat JS/HTML bundle sizes and prevent browser HTTP caching.\n2. Diagnosis: Check the `<svg>` block in the component template.\n3. Canonical Solution:\n   a) Move the SVG to an external asset in `src/assets/` or `public/` and load it via `<img src=\"/icon.svg\" ...>`.\n   b) If CSS coloring is required, use a CSS mask: `mask: url(/icon.svg)` or an SVG sprite system.\n4. Example / Auto-fix command:\n   ❌ 15KB inline SVG in Vue template.\n   ✅ External image: `<img src=\"@/assets/illustration.svg\" alt=\"Illustration\">`",
 				"css-render-blocking": "📖 REMEDIATION GUIDE: css-render-blocking\n1. Root Cause: An external stylesheet or script tag was found in `<head>` that blocks browser rendering without `async`, `defer`, or non-critical media queries.\n2. Diagnosis: Locate the `<link rel=\"stylesheet\">` or `<script>` tag in `index.html`.\n3. Canonical Solution: Add `defer` or `async` to scripts, or load secondary fonts/styles using `media=\"print\" onload=\"this.media='all'\"`.\n4. Example / Auto-fix command:\n   ❌ Blocking:    `<script src=\"/analytics.js\"><\/script>`\n   ✅ Non-blocking: `<script src=\"/analytics.js\" async defer><\/script>`",
@@ -98,7 +98,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		});
 	}
 	auditUnoptimizedImages(relPath, content) {
-		if (content.includes("unoptimized-img-ok")) return;
 		const imgRegex = /<img\s+([^>]*)>/gi;
 		let match;
 		while ((match = imgRegex.exec(content)) !== null) {
@@ -122,7 +121,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditFontDisplayMissing(relPath, content) {
-		if (content.includes("font-display-ok")) return;
 		const fontFaceRegex = /@font-face\s*\{([^}]*)\}/gi;
 		let match;
 		while ((match = fontFaceRegex.exec(content)) !== null) {
@@ -140,7 +138,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditInlineSvgBloat(relPath, content) {
-		if (content.includes("svg-bloat-ok")) return;
 		if (isPathExempt(relPath, this.exemptSvgPaths)) return;
 		const maxSvgSize = getAuditConfig(this.projectRoot).webPerformance?.maxInlineSvgSize ?? 2048;
 		const svgRegex = /<svg[\s>][\s\S]*?<\/svg>/gi;
@@ -160,7 +157,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditCssRenderBlocking(relPath, content) {
-		if (content.includes("render-blocking-ok")) return;
 		const ext = path.extname(relPath).toLowerCase();
 		if (ext !== ".html" && ext !== ".htm" && ext !== ".vue") return;
 		const linkRegex = /<link\s+([^>]*)>/gi;
@@ -199,7 +195,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditExcessiveDomDepth(relPath, content) {
-		if (content.includes("dom-depth-ok")) return;
 		const ext = path.extname(relPath).toLowerCase();
 		if (ext !== ".html" && ext !== ".htm" && ext !== ".vue") return;
 		let targetContent = content;
@@ -261,7 +256,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditLayoutShiftDimensions(relPath, content) {
-		if (content.includes("layout-dimensions-ok")) return;
 		const exemptClasses = getAuditConfig(this.projectRoot).webPerformance?.exemptImgClasses ?? [];
 		const mediaRegex = /<(img|video)\s+([^>]*)>/gi;
 		let match;
@@ -291,7 +285,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditUncompressedVideo(relPath, content) {
-		if (content.includes("uncompressed-video-ok")) return;
 		const videoRegex = /<video\s+([^>]*)>([\s\S]*?)<\/video>/gi;
 		let match;
 		while ((match = videoRegex.exec(content)) !== null) {

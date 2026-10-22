@@ -85,7 +85,6 @@ function extractRuntimeImports(fullPath: string, astEngine: SharedAstContext): P
   const sourceFile = astEngine.getSourceFile(fullPath, content);
   if (!sourceFile.text.trim()) return [];
 
-  const fullLines = content.split('\n');
   const results: ParsedImport[] = [];
 
   ts.forEachChild(sourceFile, (node) => {
@@ -95,8 +94,6 @@ function extractRuntimeImports(fullPath: string, astEngine: SharedAstContext): P
       if (isImportTypeOnly(node)) return;
 
       const lineNum = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile)).line + 1;
-      const lineText = fullLines[lineNum - 1] || '';
-      if (lineText.includes('// bundle-leak-ok:')) return;
 
       results.push({
         moduleSpecifier: moduleSpecifier.text,
@@ -325,7 +322,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
           '3. Canonical Solution:\n' +
           '   a) If only types or interfaces are needed, use type-only imports: `import type { ... } from "..."`.\n' +
           '   b) If common utilities are needed, move them to `src/utils/` or a shared domain package.\n' +
-          '   c) If intentional in an embedded test harness, annotate with `// bundle-leak-ok: <reason>`.\n' +
+          '   c) Ensure production files never import runtime values or fixtures from test directories.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Insecure: `import { mockUser } from "../../tests/fixtures/user";`\n' +
           '   ✅ Secure:   `import type { UserProfile } from "@/domain/types";`',

@@ -59,7 +59,6 @@ describe('Public Package Exports (src/index.ts)', () => {
 
   it('exports safe path resolution and environment utilities', () => {
     expect(typeof AuditorPackage.safeResolve).toBe('function');
-    expect(typeof AuditorPackage.safeJoin).toBe('function');
     expect(typeof AuditorPackage.isInCodeRoots).toBe('function');
   });
 

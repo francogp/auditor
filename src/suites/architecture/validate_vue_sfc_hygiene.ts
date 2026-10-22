@@ -17,9 +17,6 @@
  *      Prohibits invoking heavy database data providers (e.g. `dataProvider.get...()`)
  *      directly inside `<template>` render expressions.
  *
- * Escape Hatches:
- *   `// sfc-ok: <reason>`, `// template-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
  */
@@ -277,10 +274,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       const line = this.getLineNumber(content, match.index);
       const lineContent = this.getLineAt(content, line);
 
-      if (this.hasEscapeHatch(lineContent, ['sfc-ok'])) {
-        continue;
-      }
-
       this.addViolation({
         ruleId: 'script-setup-required',
         severity: 'error',
@@ -298,21 +291,14 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     if (scriptMatches.length > 0) {
       const hasSetup = scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ''));
       if (!hasSetup) {
-        const firstScriptLine = this.getLineNumber(content, scriptMatches[0]?.index ?? 0);
-        const lineContent = this.getLineAt(content, firstScriptLine);
-        if (
-          !this.hasEscapeHatch(lineContent, ['sfc-ok']) &&
-          !this.hasEscapeHatch(content, ['sfc-ok'])
-        ) {
-          this.addViolation({
-            ruleId: 'script-setup-required',
-            severity: 'error',
-            file: relPath,
-            line: 1,
-            message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
-            context: scriptMatches[0]![0].slice(0, SCRIPT_TAG_CONTEXT_MAX_CHARS)
-          });
-        }
+        this.addViolation({
+          ruleId: 'script-setup-required',
+          severity: 'error',
+          file: relPath,
+          line: 1,
+          message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
+          context: scriptMatches[0]![0].slice(0, SCRIPT_TAG_CONTEXT_MAX_CHARS)
+        });
       }
     }
   }
@@ -339,10 +325,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         const fullIndex = scriptStartIndex + expMatch.index;
         const line = this.getLineNumber(content, fullIndex);
         const lineContent = this.getLineAt(content, line);
-
-        if (this.hasEscapeHatch(lineContent, ['sfc-ok'])) {
-          continue;
-        }
 
         this.addViolation({
           ruleId: 'no-script-setup-exports',
@@ -380,10 +362,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       // Detect unescaped double quotes inside attribute value
       if (TEMPLATE_QUOTE_ESCAPE_REGEX.test(lineText)) {
         const line = this.getLineNumber(content, templateStartIndex) + i;
-
-        if (this.hasEscapeHatch(lineText, ['template-ok', 'sfc-ok'])) {
-          continue;
-        }
 
         this.addViolation({
           ruleId: 'vue-template-quote-escaping',
@@ -512,16 +490,14 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       const line = this.getLineNumber(content, fullIndex);
       const lineContent = this.getLineAt(content, line);
 
-      if (!this.hasEscapeHatch(lineContent, ['template-ok', 'sfc-ok'])) {
-        this.addViolation({
-          ruleId: 'vue-template-magic-calculation',
-          severity: 'error',
-          file: relPath,
-          line,
-          message: `Magic calculation or comparison in Vue template ('${matchedSnippet}'). Move logic to a 'computed()' property in <script setup>.`,
-          context: lineContent.trim()
-        });
-      }
+      this.addViolation({
+        ruleId: 'vue-template-magic-calculation',
+        severity: 'error',
+        file: relPath,
+        line,
+        message: `Magic calculation or comparison in Vue template ('${matchedSnippet}'). Move logic to a 'computed()' property in <script setup>.`,
+        context: lineContent.trim()
+      });
     }
   }
 
@@ -534,16 +510,14 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     const line = this.getLineNumber(content, fullIndex);
     const lineContent = this.getLineAt(content, line);
 
-    if (!this.hasEscapeHatch(lineContent, ['template-ok', 'sfc-ok'])) {
-      this.addViolation({
-        ruleId: 'no-data-provider-in-template',
-        severity: 'error',
-        file: relPath,
-        line,
-        message,
-        context: lineContent.trim()
-      });
-    }
+    this.addViolation({
+      ruleId: 'no-data-provider-in-template',
+      severity: 'error',
+      file: relPath,
+      line,
+      message,
+      context: lineContent.trim()
+    });
   }
 }
 

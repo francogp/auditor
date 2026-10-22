@@ -17,7 +17,7 @@ export const braceCountingDetector = createLineDetector({
       /\b(?:parenDepth|braceDepth)\+\+/.test(line);
 
     if (hasManualDepthVar) {
-      return "Conteo manual de profundidad de llaves o paréntesis detectado. Usa helpers canónicos como 'findMatchingBrace()' o 'extractBlock()' de 'src/core/scannerUtils.ts'.";
+      return "Manual brace or parenthesis depth counting loop detected. Use canonical helpers such as 'findMatchingBrace()' or 'extractBlock()' from 'src/core/scannerUtils.ts'.";
     }
     return null;
   }

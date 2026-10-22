@@ -10,9 +10,6 @@
  *    Arbitrary raw string literal keys passed directly to storage without typed constants or domain keys.
  * 3. Storage Unhandled Quota Error (`persistence-client-unhandled-quota-error`):
  *    Storage mutations (.setItem) invoked outside try/catch blocks susceptible to QuotaExceededError crashes.
- *
- * Escape Hatch:
- *   // storage-ok: <justification>
  */
 
 import { enableCompileCache } from 'node:module';
@@ -259,14 +256,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
 
   private isIgnoredLine(lines: readonly string[], lineNum: number): boolean {
     const line = lines[lineNum - 1] ?? '';
-    const prevLine = lineNum >= 2 ? (lines[lineNum - 2] ?? '') : '';
-    const prevPrevLine = lineNum >= 3 ? (lines[lineNum - 3] ?? '') : '';
-    return (
-      isCommentLine(line.trim()) ||
-      this.hasStorageEscapeHatch(line) ||
-      this.hasStorageEscapeHatch(prevLine) ||
-      this.hasStorageEscapeHatch(prevPrevLine)
-    );
+    return isCommentLine(line.trim());
   }
 
   private isAuthorizedSaveFile(file: string): boolean {
@@ -274,10 +264,6 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
     return Array.from(this.authorizedSaveFiles).some(
       (auth) => normalized.endsWith(auth) || normalized.includes(auth)
     );
-  }
-
-  private hasStorageEscapeHatch(line: string): boolean {
-    return /\/\/\s*storage-ok:|\/\*\s*storage-ok:/i.test(line);
   }
 
   private isInsideTryCatch(content: string, position: number): boolean {

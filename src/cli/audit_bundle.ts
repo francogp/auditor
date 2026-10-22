@@ -23,6 +23,7 @@ import {
   type ChunkBudgetConfig
 } from '../core/auditConfig.ts';
 import { normalizePosixPath } from '../core/safePath.ts';
+import { tryOrUndefined, tryCatchSync, safeJsonParse, tryOrDefault } from '../core/safeUtils.ts';
 import { type SubAuditorStatus } from '../core/auditContract.ts';
 import {
   renderBanner,
@@ -98,11 +99,7 @@ export function parseVisualizerData(content: string): VisualizerData | null {
     content.match(/window\.data\s*=\s*(\{.*?\});<\/script>/s) ||
     content.match(/const\s+data\s*=\s*(\{.*?\});/s);
   if (!match || !match[1]) return null;
-  try {
-    return JSON.parse(match[1]) as VisualizerData;
-  } catch {
-    return null;
-  }
+  return safeJsonParse<VisualizerData>(match[1]) ?? null;
 }
 
 export function aggregateModuleSizes(
@@ -148,19 +145,18 @@ export function auditSingleChunk(
   const sizeBytes = stat.size;
   const sizeKB = (sizeBytes / BYTES_PER_KB).toFixed(1);
 
-  let gzipBytes: number | undefined;
-  let gzipKB: string | undefined;
-  let compressionRatio: string | undefined;
-
-  try {
+  const gzipInfo = tryOrUndefined(() => {
     const content = fs.readFileSync(fullPath);
-    gzipBytes = zlib.gzipSync(content).length;
-    gzipKB = (gzipBytes / BYTES_PER_KB).toFixed(1);
-    compressionRatio =
-      sizeBytes > 0 ? `${((1 - gzipBytes / sizeBytes) * 100).toFixed(1)}%` : '0.0%';
-  } catch {
-    // catch-ok: Non-fatal fallback if file read fails during chunk sizing
-  }
+    const bytes = zlib.gzipSync(content).length;
+    return {
+      bytes,
+      kb: (bytes / BYTES_PER_KB).toFixed(1),
+      ratio: sizeBytes > 0 ? `${((1 - bytes / sizeBytes) * 100).toFixed(1)}%` : '0.0%'
+    };
+  });
+  const gzipBytes = gzipInfo?.bytes;
+  const gzipKB = gzipInfo?.kb;
+  const compressionRatio = gzipInfo?.ratio;
 
   for (const budget of budgets) {
     const isMatch = budget.prefix
@@ -268,7 +264,7 @@ export interface DiscoveredChunk {
 
 export function discoverCompiledChunks(targetDir: string): readonly DiscoveredChunk[] {
   if (!fs.existsSync(targetDir)) return [];
-  try {
+  return tryOrDefault(() => {
     const entries = fs.readdirSync(targetDir, { withFileTypes: true, recursive: true });
     const chunks: DiscoveredChunk[] = [];
     for (const entry of entries) {
@@ -289,9 +285,7 @@ export function discoverCompiledChunks(targetDir: string): readonly DiscoveredCh
       }
     }
     return chunks;
-  } catch {
-    return [];
-  }
+  }, []);
 }
 
 interface CompiledChunksAuditResult {
@@ -532,16 +526,14 @@ export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs(
 
   // Save report to scratch/audits/architecture/latest_audit_bundle.json
   const scratchDir = path.resolve(projectRoot, 'scratch/audits/architecture');
-  try {
+  tryCatchSync(() => {
     fs.mkdirSync(scratchDir, { recursive: true });
     fs.writeFileSync(
       path.join(scratchDir, 'latest_audit_bundle.json'),
       JSON.stringify(result, null, 2),
       'utf8'
     );
-  } catch {
-    // catch-ok: Non-fatal scratch cache write
-  }
+  });
 
   if (!result.success) {
     console.error(`\n[FAIL] Bundle audit failed: ${result.totalErrors} error(s) detected.\n`);

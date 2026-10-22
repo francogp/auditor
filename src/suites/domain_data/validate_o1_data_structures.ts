@@ -59,13 +59,6 @@ export const P_OBJECT_SCAN_LOOKUP =
 export const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
 export const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
 
-// Escape hatch comments (strictly o1-specific, domain-ok is forbidden here)
-export const ESCAPE_HATCHES = ['// o1-ok:', '// linear-search-ok:'] as const;
-
-export function shouldIgnoreLine(line: string): boolean {
-  return ESCAPE_HATCHES.some((hatch) => line.includes(hatch));
-}
-
 export type O1RuleId =
   | 'o1-catalog-lookup'
   | 'o1-linear-membership'
@@ -180,6 +173,25 @@ function checkLinePatterns(params: {
   }
 }
 
+function forEachUncommentedLine(
+  content: string,
+  callback: (lineText: string, lineNumber: number) => void
+): void {
+  const lines = content.split('\n');
+  for (let index = 0; index < lines.length; index++) {
+    const lineText = lines[index]!;
+    const trimmed = lineText.trim();
+    if (
+      trimmed.startsWith('//') ||
+      trimmed.startsWith('*') ||
+      trimmed.startsWith('/*')
+    ) {
+      continue;
+    }
+    callback(lineText, index + 1);
+  }
+}
+
 function scanAstForO1Issues(
   doc: AuditedDocument,
   ast: ts.SourceFile,
@@ -193,34 +205,10 @@ function scanAstForO1Issues(
   }>,
   issues: O1Issue[]
 ): void {
-  // 1. Catalog lookups (via line check with doc escape hatch)
-  const lines = doc.rawContent.split('\n');
-  for (let index = 0; index < lines.length; index++) {
-    const lineText = lines[index]!;
-    const lineNumber = index + 1;
-    const trimmed = lineText.trim();
-    if (
-      doc.hasEscapeHatch(lineNumber, 'o1-catalog-lookup') ||
-      trimmed.startsWith('//') ||
-      trimmed.startsWith('*') ||
-      trimmed.startsWith('/*')
-    ) {
-      continue;
-    }
-    for (const catalog of catalogPatterns) {
-      if (normalizedPath.endsWith(catalog.definingFile)) continue;
-      catalog.pattern.lastIndex = 0;
-      if (catalog.pattern.test(lineText)) {
-        issues.push({
-          ruleId: 'o1-catalog-lookup',
-          message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
-          line: lineNumber,
-          context: trimmed,
-          isWarning: false
-        });
-      }
-    }
-  }
+  // 1. Catalog lookups
+  forEachUncommentedLine(doc.rawContent, (lineText, lineNumber) => {
+    checkLineCatalogLookups({ lineText, lineNumber, normalizedPath, catalogPatterns, issues });
+  });
 
   // 2. AST Visitor for structured rules
   const visit = (node: ts.Node) => {
@@ -267,8 +255,6 @@ function checkLinearMembership(
   const m = ARRAY_ID_REGEX.exec(leftText);
   if (!m || !m[1]) return;
 
-  if (doc.hasEscapeHatchForNode(node, 'o1-linear-membership', ast)) return;
-
   const { line } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'o1-linear-membership',
@@ -296,8 +282,6 @@ function checkObjectScan(
   const innerMethod = leftExpr.expression.name.text;
   if (innerObj !== 'Object') return;
   if (innerMethod !== 'keys' && innerMethod !== 'values' && innerMethod !== 'entries') return;
-
-  if (doc.hasEscapeHatchForNode(node, 'o1-object-scan', ast)) return;
 
   const { line } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
@@ -327,8 +311,6 @@ function checkJsonClone(
   if (!ts.isCallExpression(arg0) || !ts.isPropertyAccessExpression(arg0.expression)) return;
   if (arg0.expression.expression.getText(ast) !== 'JSON' || arg0.expression.name.text !== 'stringify') return;
 
-  if (doc.hasEscapeHatchForNode(node, 'o1-json-clone', ast)) return;
-
   const { line } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'o1-json-clone',
@@ -353,7 +335,6 @@ function checkRedundantSpreadReturn(
   if (!el || !ts.isSpreadElement(el)) return;
 
   const spreadTarget = el.expression.getText(ast);
-  if (doc.hasEscapeHatchForNode(node, 'o1-redundant-spread-return', ast)) return;
 
   const { line } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
@@ -386,25 +367,10 @@ export function scanFileForO1Issues(
   }
 
   const issues: O1Issue[] = [];
-  const lines = content.split('\n');
-
-  for (let index = 0; index < lines.length; index++) {
-    const lineText = lines[index]!;
-    const lineNumber = index + 1;
-
-    const trimmed = lineText.trim();
-    if (
-      shouldIgnoreLine(lineText) ||
-      trimmed.startsWith('//') ||
-      trimmed.startsWith('*') ||
-      trimmed.startsWith('/*')
-    ) {
-      continue;
-    }
-
+  forEachUncommentedLine(content, (lineText, lineNumber) => {
     checkLineCatalogLookups({ lineText, lineNumber, normalizedPath, catalogPatterns, issues });
     checkLinePatterns({ lineText, lineNumber, issues });
-  }
+  });
 
   return issues;
 }

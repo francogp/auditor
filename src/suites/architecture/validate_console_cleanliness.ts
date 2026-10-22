@@ -94,7 +94,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
           '3. Canonical Solution:\n' +
           '   a) If used for ad-hoc debugging: remove the call before committing.\n' +
           '   b) If used for production diagnostics: use a structured logger or canonical error channels (`console.error()` / `console.warn()`).\n' +
-          '   c) If this is a CLI tool or terminal renderer that intentionally writes to stdout: add the file to logging exemptions in `audit.config.ts` or annotate with `// console-ok: <reason>`.\n' +
+          '   c) If this is a CLI tool or terminal renderer that intentionally writes to stdout: add the path to `paths.cliRoots` in `audit.config.ts`.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Prohibited: `console.log("Data received:", data);`\n' +
           '   ✅ Canonical:  `logger.debug("Data received", { data });`'
@@ -132,7 +132,6 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       DEBUGGER_REGEX,
       relPath,
       'no-debugger-statement',
-      ['debugger-ok', 'console-ok'],
       'Forbidden debugger statement found. Remove all debug breakpoints before committing.',
       (lineContent) => {
         const trimmed = lineContent.trim();
@@ -150,8 +149,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       CONSOLE_LOG_REGEX,
       relPath,
       'no-console-log-in-src',
-      ['console-ok', 'log-ok'],
-      `Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting, logger service for structured tracing, or '// console-ok: <reason>'.`,
+      'Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.',
       (lineContent) => {
         const trimmed = lineContent.trim();
         return !trimmed.startsWith('//') && !trimmed.startsWith('*') && !trimmed.startsWith('/*');

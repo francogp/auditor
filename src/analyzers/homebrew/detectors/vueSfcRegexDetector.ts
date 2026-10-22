@@ -22,7 +22,7 @@ export const vueSfcRegexDetector = createLineDetector({
       /<\/(?:template|script|style)>/i.test(line);
 
     if (hasManualSfcRegex || hasManualTagSlice) {
-      return "Extracción artesanal de bloques Vue SFC (<template>, <script>, <style>). Usa 'parseVueSfc()' de 'src/core/vueSfcParser.ts' o 'AuditedDocument'.";
+      return "Ad-hoc extraction of Vue SFC blocks (<template>, <script>, <style>) detected. Use 'parseVueSfc()' from 'src/core/vueSfcParser.ts' or 'AuditedDocument'.";
     }
     return null;
   }

@@ -10,7 +10,7 @@ import ts from "typescript";
 * traversal-stripping regexes, drive/UNC regexes and `new RegExp('^' + base + '/')` —
 * instead of `path.relative()` + `path.isAbsolute()` (or `isPathContained()`).
 */
-const CONTAINMENT_MESSAGE = "Validación casera de contención de rutas (CWE-22). Resuelve con 'path.resolve()' y valida con 'const rel = path.relative(base, target); !rel.startsWith(\"..\") && !path.isAbsolute(rel)' (o 'isPathContained()').";
+const CONTAINMENT_MESSAGE = "Homebrew path containment check (CWE-22). Resolve with 'path.resolve()' and validate with 'const rel = path.relative(base, target); !rel.startsWith(\"..\") && !path.isAbsolute(rel)' (or 'isPathContained()').";
 const TRAVERSAL_LITERALS = /* @__PURE__ */ new Set([
 	"..",
 	".." + POSIX_SEP,

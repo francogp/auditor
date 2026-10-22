@@ -1,10 +1,10 @@
+import { safeReadFileSync } from "../core/safeUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { Z_LAYERS } from "../core/auditZLayers.js";
 import { isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { normalizeFilePath } from "./auditRuleTypes.js";
 import path from "node:path";
-import { existsSync, readFileSync } from "node:fs";
 //#region src/analyzers/zIndexRules.ts
 /**
 * packages/auditor/src/analyzers/zIndexRules.ts
@@ -52,12 +52,8 @@ function parseZLayersFromContent(content) {
 }
 function tryReadZLayersFile(relFile) {
 	const absPath = path.resolve(process.cwd(), relFile);
-	if (!existsSync(absPath)) return null;
-	try {
-		return parseZLayersFromContent(readFileSync(absPath, "utf-8"));
-	} catch {
-		return null;
-	}
+	const content = safeReadFileSync(absPath);
+	return content ? parseZLayersFromContent(content) : null;
 }
 function loadZLayers() {
 	const config = getAuditConfig();
@@ -81,17 +77,19 @@ function resolveZLayer(val) {
 		cssVarExpr: `var(--z-${entry.toLowerCase().replace(/_/g, "-")})`
 	};
 	let nearestKey = "";
+	let nearestVal = 0;
 	let minDiff = Z_LAYERS_DIFF_SENTINEL;
 	for (const [key, zVal] of Z_SORTED_ENTRIES) {
 		const diff = Math.abs(val - zVal);
 		if (diff < minDiff) {
 			minDiff = diff;
 			nearestKey = key;
+			nearestVal = zVal;
 		}
 	}
 	if (nearestKey) {
 		const key = nearestKey.toLowerCase().replace(/_/g, "-");
-		const offset = val - (ACTIVE_Z_LAYERS[nearestKey] ?? 0);
+		const offset = val - nearestVal;
 		return {
 			nearestKey,
 			offset,
@@ -121,12 +119,12 @@ const zIndexAudit = {
 	regex: /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi,
 	message: (match) => {
 		const numMatch = match.match(/-?\d+/);
-		if (!numMatch || !numMatch[0]) return `Z-Index hardcodeado detectado: '${match}'. Usa 'var(--z-layer)'.`;
+		if (!numMatch || !numMatch[0]) return `Hardcoded z-index detected: '${match}'. Use 'var(--z-layer)'.`;
 		const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(parseInt(numMatch[0], 10));
-		if (exactKey && cssVarExpr) return `Z-Index hardcodeado detectado: '${match}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
-		if (nearestKey && cssVarExpr) return `Z-Index relativo detectado: '${match}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
+		if (exactKey && cssVarExpr) return `Hardcoded z-index detected: '${match}'. Corresponds to Z_LAYERS.${exactKey}. Use '${cssVarExpr}'.`;
+		if (nearestKey && cssVarExpr) return `Relative z-index detected: '${match}'. Near Z_LAYERS.${nearestKey}. Use '${cssVarExpr}'.`;
 		const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
-		return `Z-Index hardcodeado fuera de estándar: '${match}'. Define una nueva capa ${zFile ? `en '${zFile}'` : "en la configuración de estilos"} o usa una existente.`;
+		return `Hardcoded non-standard z-index: '${match}'. Define a new layer ${zFile ? `in '${zFile}'` : "in styles configuration"} or use an existing one.`;
 	},
 	severity: "error",
 	check: (_content, _match, filePath) => {
@@ -141,7 +139,7 @@ const zIndexConstantDeclaration = {
 	regex: /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi,
 	message: (match) => {
 		const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
-		return `Declaración de constante de Z-Index aislada detectada: '${match}'. Está PROHIBIDO declarar constantes de Z-Index fuera de ${zFile ? `'${zFile}' (Z_LAYERS)` : "la configuración canónica de Z_LAYERS"}. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`;
+		return `Isolated z-index constant declaration detected: '${match}'. Declaring z-index constants outside of ${zFile ? `'${zFile}' (Z_LAYERS)` : "the canonical Z_LAYERS configuration"} is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`;
 	},
 	severity: "error",
 	check: (_content, _match, filePath) => {

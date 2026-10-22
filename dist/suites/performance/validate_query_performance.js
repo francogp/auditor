@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isPathContained } from "../../core/safePath.js";
@@ -104,7 +104,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		});
 	}
 	auditUnindexedForeignKeys(relPath, content) {
-		if (content.includes("fk-index-ok")) return;
 		if (!relPath.endsWith(".sql")) return;
 		const fkInlineRegex = /(\w+)\s+[\w()]+\s+REFERENCES\s+(\w+)\s*\((\w+)\)/gi;
 		let match;
@@ -123,7 +122,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditSelectStarInQueries(relPath, content) {
-		if (content.includes("select-star-ok")) return;
 		if (isPathExempt(relPath, this.exemptSelectStarPaths)) return;
 		if (this.excludeMigrationsDir && this.migrationsDir) {
 			if (isPathContained(this.migrationsDir, relPath, this.projectRoot)) return;
@@ -157,7 +155,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditUnpaginatedQueries(relPath, content) {
-		if (content.includes("unpaginated-ok")) return;
 		if (relPath.endsWith(".sql")) return;
 		const queryRegex = /(?:db|supabase)\.from\(['"][^'"]+['"]\)\.select\([^)]*\)/g;
 		let match;
@@ -178,7 +175,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditNPlusOnePatterns(relPath, content) {
-		if (content.includes("n-plus-one-ok")) return;
 		if (relPath.endsWith(".sql")) return;
 		const loopRegex = /(?:for\s*\([^)]*\)|while\s*\([^)]*\)|\.forEach\s*\([^)]*\))\s*\{([^}]*)\}/g;
 		let match;
@@ -197,7 +193,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditHeavyCountQueries(relPath, content) {
-		if (content.includes("count-ok")) return;
 		const countAllRegex = /SELECT\s+COUNT\(\*\)\s+FROM\s+\w+(?!\s+WHERE\b)/gi;
 		let match;
 		while ((match = countAllRegex.exec(content)) !== null) {
@@ -212,7 +207,6 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditUnindexedOrderBy(relPath, content) {
-		if (content.includes("offset-ok")) return;
 		const offsetRegex = /\bOFFSET\s+(\d{3,})\b/gi;
 		let match;
 		while ((match = offsetRegex.exec(content)) !== null) {

@@ -28,6 +28,7 @@ import {
 } from '../../suites/architecture/validate_magic_numbers.ts';
 
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
+import { tryOrNull, safeReadFileSync } from '../safeUtils.ts';
 import { MagicNumberHarness } from './magicNumberHarness.ts';
 import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 
@@ -155,7 +156,7 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
   }
 
   private indexTsConstants(absPath: string): void {
-    try {
+    tryOrNull(() => {
       const code = fs.readFileSync(absPath, 'utf8');
       const sf = ts.createSourceFile(absPath, code, ts.ScriptTarget.Latest, true);
 
@@ -170,30 +171,26 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
         ts.forEachChild(node, visit);
       };
       visit(sf);
-    } catch {
-      // catch-ok: ignore unreadable or malformed files during constant pre-indexing
-    }
+    });
   }
 
   private indexCssVariables(absPath: string): void {
-    try {
-      const code = fs.readFileSync(absPath, 'utf8');
-      const varRegex = /(--[a-zA-Z0-9_-]+)\s*:\s*([^;]+);/g;
-      let match: RegExpExecArray | null;
-      while ((match = varRegex.exec(code)) !== null) {
-        const varName = match[1]!;
-        const varValue = match[2]!.trim();
-        this.cssVariables.set(varValue, varName);
-        this.existingConstants.push({
-          symbol: varName,
-          value: varValue,
-          file: absPath,
-          isExported: true,
-          isCssVariable: true
-        });
-      }
-    } catch {
-      // catch-ok: ignore unreadable stylesheet files during css variable indexing
+    const code = safeReadFileSync(absPath);
+    if (!code) return;
+
+    const varRegex = /(--[a-zA-Z0-9_-]+)\s*:\s*([^;]+);/g;
+    let match: RegExpExecArray | null;
+    while ((match = varRegex.exec(code)) !== null) {
+      const varName = match[1]!;
+      const varValue = match[2]!.trim();
+      this.cssVariables.set(varValue, varName);
+      this.existingConstants.push({
+        symbol: varName,
+        value: varValue,
+        file: absPath,
+        isExported: true,
+        isCssVariable: true
+      });
     }
   }
 
@@ -249,43 +246,41 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
         if (!isAllowed) {
           const { line, character } = sf.getLineAndCharacterOfPosition(reportedNode.getStart(sf));
           const lineText = lines[line] ?? '';
-          if (!lineText.includes('// const-ok:')) {
-            const startOffset = reportedNode.getStart(sf) + offsetDelta;
-            const endOffset = reportedNode.getEnd() + offsetDelta;
-            const enclosingSymbol = this.findEnclosingSymbol(reportedNode);
-            const { role, candidateName } = this.inferSemanticRoleAndName(
-              reportedNode,
-              val,
-              enclosingSymbol
-            );
+          const startOffset = reportedNode.getStart(sf) + offsetDelta;
+          const endOffset = reportedNode.getEnd() + offsetDelta;
+          const enclosingSymbol = this.findEnclosingSymbol(reportedNode);
+          const { role, candidateName } = this.inferSemanticRoleAndName(
+            reportedNode,
+            val,
+            enclosingSymbol
+          );
 
-            // Check if matching constant already exists in project SSoT
-            const matching = this.existingConstants.find(
-              (c) => typeof c.value === 'number' && Math.abs(c.value - val) < 0.0001
-            );
+          // Check if matching constant already exists in project SSoT
+          const matching = this.existingConstants.find(
+            (c) => typeof c.value === 'number' && Math.abs(c.value - val) < 0.0001
+          );
 
-            const isZeroToken = Boolean(matching || (role !== 'unclassified' && candidateName));
+          const isZeroToken = Boolean(matching || (role !== 'unclassified' && candidateName));
 
-            results.push({
-              id: `M${counter++}`,
-              file,
-              kind,
-              line: line + 1,
-              column: character + 1,
-              startOffset,
-              endOffset,
-              rawValue: reportedNode.getText(sf),
-              numericValue: val,
-              lineSnippet: lineText.trim(),
-              enclosingSymbol,
-              semanticRole: role,
-              autoCandidateName: candidateName ?? (matching ? matching.symbol : undefined),
-              matchingExistingConstant: matching
-                ? { symbol: matching.symbol, moduleSpecifier: matching.file }
-                : undefined,
-              isZeroTokenResolvable: isZeroToken
-            });
-          }
+          results.push({
+            id: `M${counter++}`,
+            file,
+            kind,
+            line: line + 1,
+            column: character + 1,
+            startOffset,
+            endOffset,
+            rawValue: reportedNode.getText(sf),
+            numericValue: val,
+            lineSnippet: lineText.trim(),
+            enclosingSymbol,
+            semanticRole: role,
+            autoCandidateName: candidateName ?? (matching ? matching.symbol : undefined),
+            matchingExistingConstant: matching
+              ? { symbol: matching.symbol, moduleSpecifier: matching.file }
+              : undefined,
+            isZeroTokenResolvable: isZeroToken
+          });
         }
       }
       ts.forEachChild(node, visit);
@@ -312,7 +307,7 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
       if (numVal !== 0 && numVal !== -1 && numVal !== 1) {
         const lineIdx = scssContent.slice(0, zMatch.index).split('\n').length - 1;
         const lineText = lines[lineIdx] ?? '';
-        if (!lineText.includes('// z-ok:') && !lineText.includes('var(')) {
+        if (!lineText.includes('var(')) {
           const varMatch = this.cssVariables.get(rawVal);
           results.push({
             id: `SZ${counter++}`,
@@ -343,7 +338,7 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
       const hexVal = cMatch[0].toLowerCase();
       const lineIdx = scssContent.slice(0, cMatch.index).split('\n').length - 1;
       const lineText = lines[lineIdx] ?? '';
-      if (!lineText.includes('var(') && !lineText.includes('$') && !lineText.includes('color-ok:')) {
+      if (!lineText.includes('var(') && !lineText.includes('$')) {
         const varMatch = this.cssVariables.get(hexVal);
         results.push({
           id: `SC${counter++}`,

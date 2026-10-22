@@ -63,7 +63,7 @@ export function renderFindingsDetail(
     lines.push(
       styleText(
         'cyan',
-        `\n  ... y 🐛 ${formatNumber(findings.length - maxLimit)} más. Usa --output=<archivo> para volcado completo.`
+        `\n  ... and 🐛 ${formatNumber(findings.length - maxLimit)} more. Use --output=<file> for complete output.`
       )
     );
   }

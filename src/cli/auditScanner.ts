@@ -26,6 +26,7 @@ import {
   PackageScriptRegistry,
   CORE_PACKAGE_SCRIPT_REQUIREMENTS
 } from '../core/packageScriptRegistry.ts';
+import { tryOrNullAsync } from '../core/safeUtils.ts';
 export { isSimilarCodeSkipped } from '../suites/architecture/validate_similar_code.ts';
 
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
@@ -109,13 +110,11 @@ function inferFamilyFromRelPath(
   relPath: string,
   activeFamilies: readonly AuditFamily[]
 ): AuditFamily {
-  // path-ok: Segment decomposition to extract suite family folder
-  const segments = relPath.split('/');
-  const firstSegment = segments[0];
-  if (segments.length > 1 && firstSegment && activeFamilies.some((f) => f === firstSegment)) {
-    return firstSegment as AuditFamily;
-  }
-  return 'architecture';
+  const dir = path.dirname(relPath);
+  const matchedFamily = activeFamilies.find(
+    (family) => dir === family || dir.startsWith(`${family}/`) || dir.startsWith(`${family}\\`)
+  );
+  return matchedFamily ?? 'architecture';
 }
 
 function isIgnoredFileEntry(entry: string): boolean {
@@ -146,13 +145,8 @@ interface DirectoryScanParams {
 }
 
 async function scanSuiteDirectory(params: DirectoryScanParams): Promise<void> {
-  let entries: string[]; // no-domain: Non-domain utility collection or data structure
-  try {
-    entries = await fs.readdir(params.currentDir);
-  } catch {
-    // catch-ok: directory may not exist or not be accessible in custom options
-    return;
-  }
+  const entries = await tryOrNullAsync(() => fs.readdir(params.currentDir));
+  if (!entries) return;
 
   const isBuiltin = params.isBuiltin ?? true;
 

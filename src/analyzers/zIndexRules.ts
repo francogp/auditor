@@ -5,7 +5,7 @@
  */
 
 import path from 'node:path';
-import { existsSync, readFileSync } from 'node:fs';
+import { safeReadFileSync } from '../core/safeUtils.ts';
 import { getAuditConfig, isExemptFile, Z_LAYERS } from '../core/auditConfig.ts';
 import { type RuleDescriptor, type AuditRule, normalizeFilePath } from './auditRuleTypes.ts';
 
@@ -52,14 +52,8 @@ function parseZLayersFromContent(content: string): Record<string, number> | null
 
 function tryReadZLayersFile(relFile: string): Record<string, number> | null {
   const absPath = path.resolve(process.cwd(), relFile);
-  if (!existsSync(absPath)) return null;
-  try {
-    const content = readFileSync(absPath, 'utf-8');
-    return parseZLayersFromContent(content);
-  } catch {
-    // catch-ok: Fallback to default z-layers
-    return null;
-  }
+  const content = safeReadFileSync(absPath);
+  return content ? parseZLayersFromContent(content) : null;
 }
 
 function loadZLayers(): Record<string, number> {
@@ -102,18 +96,20 @@ export function resolveZLayer(val: number): ZLayerResolution {
   }
 
   let nearestKey = '';
+  let nearestVal = 0;
   let minDiff = Z_LAYERS_DIFF_SENTINEL;
   for (const [key, zVal] of Z_SORTED_ENTRIES) {
     const diff = Math.abs(val - zVal);
     if (diff < minDiff) {
       minDiff = diff;
       nearestKey = key;
+      nearestVal = zVal;
     }
   }
 
   if (nearestKey) {
     const key = nearestKey.toLowerCase().replace(/_/g, '-');
-    const offset = val - (ACTIVE_Z_LAYERS[nearestKey as keyof typeof ACTIVE_Z_LAYERS] ?? 0); // no-domain: Non-domain utility collection or data structure
+    const offset = val - nearestVal;
     const sign = offset >= 0 ? '+' : '-';
     return {
       nearestKey,
@@ -147,21 +143,21 @@ export const zIndexAudit: AuditRule = {
   message: (match: string) => {
     const numMatch = match.match(/-?\d+/);
     if (!numMatch || !numMatch[0])
-      return `Z-Index hardcodeado detectado: '${match}'. Usa 'var(--z-layer)'.`;
+      return `Hardcoded z-index detected: '${match}'. Use 'var(--z-layer)'.`;
     const val = parseInt(numMatch[0], 10);
     const { exactKey, nearestKey, cssVarExpr } = resolveZLayer(val);
 
     if (exactKey && cssVarExpr) {
-      return `Z-Index hardcodeado detectado: '${match}'. Corresponde a Z_LAYERS.${exactKey}. Usa '${cssVarExpr}'.`;
+      return `Hardcoded z-index detected: '${match}'. Corresponds to Z_LAYERS.${exactKey}. Use '${cssVarExpr}'.`;
     }
 
     if (nearestKey && cssVarExpr) {
-      return `Z-Index relativo detectado: '${match}'. Cerca de Z_LAYERS.${nearestKey}. Usa '${cssVarExpr}'.`;
+      return `Relative z-index detected: '${match}'. Near Z_LAYERS.${nearestKey}. Use '${cssVarExpr}'.`;
     }
 
     const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
-    const targetMsg = zFile ? `en '${zFile}'` : 'en la configuración de estilos';
-    return `Z-Index hardcodeado fuera de estándar: '${match}'. Define una nueva capa ${targetMsg} o usa una existente.`;
+    const targetMsg = zFile ? `in '${zFile}'` : 'in styles configuration';
+    return `Hardcoded non-standard z-index: '${match}'. Define a new layer ${targetMsg} or use an existing one.`;
   },
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
@@ -178,8 +174,8 @@ export const zIndexConstantDeclaration: AuditRule = {
   regex: /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi,
   message: (match: string) => {
     const zFile = getAuditConfig().styles?.zLayersTsFile ?? getAuditConfig().domain?.zLayersFile;
-    const targetDesc = zFile ? `'${zFile}' (Z_LAYERS)` : 'la configuración canónica de Z_LAYERS';
-    return `Declaración de constante de Z-Index aislada detectada: '${match}'. Está PROHIBIDO declarar constantes de Z-Index fuera de ${targetDesc}. Registra la capa en Z_LAYERS o consume 'Z_LAYERS.<CAPA>'.`;
+    const targetDesc = zFile ? `'${zFile}' (Z_LAYERS)` : 'the canonical Z_LAYERS configuration';
+    return `Isolated z-index constant declaration detected: '${match}'. Declaring z-index constants outside of ${targetDesc} is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`;
   },
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {

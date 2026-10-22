@@ -159,16 +159,14 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     const lineNum = line + 1;
     const lineContent = this.getLineAt(content, lineNum);
 
-    if (!this.hasEscapeHatch(lineContent, ['pinia-ok', 'store-ok'])) {
-      this.addViolation({
-        ruleId,
-        severity: 'error',
-        file: relPath,
-        line: lineNum,
-        message,
-        context: lineContent.trim()
-      });
-    }
+    this.addViolation({
+      ruleId,
+      severity: 'error',
+      file: relPath,
+      line: lineNum,
+      message,
+      context: lineContent.trim()
+    });
   }
 
   private checkStoreVariableDeclaration(

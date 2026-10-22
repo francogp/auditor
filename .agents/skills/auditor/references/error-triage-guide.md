@@ -118,6 +118,23 @@ npm run auditor guide
 
 ---
 
+### 7. `cli-contracts-*` / CLI Contracts & Citty Governance
+
+- **Family**: `architecture` | **Suite**: `validate_cli_contracts` (`phase: 'setup'`)
+- **Symptom**: A script under `src/cli/`, `scripts/`, or root binaries accesses `process.argv`, uses banned parsers, or performs manual flag parsing.
+- **Root Cause**:
+  1. Direct or indirect access to `process.argv` (`cli-contracts-direct-argv-access`).
+  2. Unauthorized CLI parser (`yargs`, `commander`, `minimist`, `node:util.parseArgs`) (`cli-contracts-banned-parser-library`).
+  3. Homebrew argument inspection like `.startsWith('--')` or `args[0]` (`cli-contracts-homebrew-flag-parsing`).
+  4. Missing declarative Citty contract (`cli-contracts-missing-citty-contract`).
+- **Remediation**:
+  1. Define command arguments declaratively using `defineCommand` from `citty`.
+  2. Consume options strictly via `run({ args })`.
+  3. **CRITICAL GUARD**: Always wrap `runMain(command)` with `if (isMainModule(import.meta.url))` to prevent catastrophic background execution storms during module imports.
+  4. For comprehensive before/after examples and anti-patterns, consult [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).
+
+---
+
 ## 📋 Sub-Auditor Authoring Contract (`ruleRemediations`)
 
 Every sub-auditor and host extension author MUST provide `ruleRemediations` in the `BaseAuditor` options:

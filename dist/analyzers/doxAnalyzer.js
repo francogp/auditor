@@ -1,8 +1,11 @@
+import { safeReadFileAsync, safeReaddirAsync } from "../core/safeUtils.js";
+import { normalizePosixPath } from "../core/reportUtils.js";
 import { isTestPath } from "../core/auditTestPredicates.js";
 import "../core/auditConfig.js";
+import "../core/safePath.js";
+import { collectRepositoryFiles } from "../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../core/gitignoreMatcher.js";
 import path from "node:path";
-import fs from "node:fs/promises";
 //#region src/analyzers/doxAnalyzer.ts
 /**
 * scripts/maintenance/analyzers/doxAnalyzer.ts
@@ -28,73 +31,69 @@ const CODE_EXTENSIONS = /* @__PURE__ */ new Set([
 	".scss",
 	".css"
 ]);
-function isPathIgnored(dir, ignoreDirs, gitIgnoreMatcher) {
-	const dirName = path.basename(dir);
-	if (ignoreDirs.has(dirName) || dirName.startsWith(".") && dirName !== ".") return true;
-	return gitIgnoreMatcher.isIgnored(dir);
-}
-function checkDirContainsCodeOrAgentsMd(entries) {
-	let hasCode = false;
-	let hasAgentsMd = false;
-	for (const entry of entries) if (entry.isFile()) {
-		if (entry.name === "AGENTS.md") hasAgentsMd = true;
-		const ext = path.extname(entry.name).toLowerCase();
-		if (CODE_EXTENSIONS.has(ext)) hasCode = true;
-	}
-	return {
-		hasCode,
-		hasAgentsMd
-	};
-}
 async function tryReadAgentsMd(dir) {
-	try {
-		return await fs.readFile(path.join(dir, "AGENTS.md"), "utf-8");
-	} catch {
-		return null;
-	}
+	return safeReadFileAsync(path.join(dir, "AGENTS.md"));
+}
+function normalizeDirPath(dir) {
+	const resolved = path.resolve(dir);
+	const drive = resolved.charAt(0);
+	if (process.platform === "win32" && resolved.length >= 2 && resolved.charAt(1) === ":" && drive) return drive.toLowerCase() + resolved.slice(1);
+	return resolved;
 }
 async function scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher) {
 	const doxDirs = [];
 	const doxFilesMap = /* @__PURE__ */ new Map();
-	async function traverse(dir) {
-		if (isPathIgnored(dir, ignoreDirs, gitIgnoreMatcher)) return;
-		let entries;
-		try {
-			entries = await fs.readdir(dir, { withFileTypes: true });
-		} catch {
-			return;
-		}
-		const relPath = path.relative(rootDir, dir);
-		const { hasCode, hasAgentsMd } = checkDirContainsCodeOrAgentsMd(entries);
-		if (relPath !== "" && relPath !== "src" && hasCode) doxDirs.push(dir);
-		if (hasAgentsMd) {
+	const dirCodeMap = /* @__PURE__ */ new Set();
+	const allFiles = collectRepositoryFiles(rootDir, rootDir, Array.from(ignoreDirs), /* @__PURE__ */ new Set([
+		".ts",
+		".vue",
+		".js",
+		".scss",
+		".css",
+		".md"
+	]));
+	for (const file of allFiles) {
+		if (gitIgnoreMatcher.isIgnored(file)) continue;
+		const baseName = path.basename(file);
+		const dir = path.dirname(file);
+		if (baseName === "AGENTS.md") {
 			const content = await tryReadAgentsMd(dir);
-			if (content !== null) doxFilesMap.set(dir, content);
+			if (content !== null) doxFilesMap.set(normalizeDirPath(dir), content);
+		} else {
+			const ext = path.extname(file);
+			if (CODE_EXTENSIONS.has(ext)) dirCodeMap.add(normalizeDirPath(dir));
 		}
-		for (const entry of entries) if (entry.isDirectory()) await traverse(path.join(dir, entry.name));
 	}
-	await traverse(rootDir);
+	const normRootDir = normalizeDirPath(rootDir);
+	for (const dir of dirCodeMap) {
+		const relPath = path.relative(normRootDir, dir);
+		if (relPath !== "" && relPath !== "src") doxDirs.push(dir);
+	}
 	return {
 		doxDirs,
 		doxFilesMap
 	};
 }
 function findNearestAncestorDoxDir(dir, rootDir, doxFilesMap) {
-	let current = path.dirname(dir);
-	while (current !== rootDir) {
+	const normRoot = normalizeDirPath(rootDir);
+	let current = normalizeDirPath(path.dirname(dir));
+	while (current !== normRoot) {
 		if (doxFilesMap.has(current)) return current;
-		current = path.dirname(current);
+		const next = normalizeDirPath(path.dirname(current));
+		if (next === current) break;
+		current = next;
 	}
-	return rootDir;
+	return normRoot;
 }
 function validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap) {
 	const violations = [];
+	const normRootDir = normalizeDirPath(rootDir);
 	for (const dir of doxDirs) {
 		const agentsPath = path.join(dir, "AGENTS.md");
-		if (!doxFilesMap.has(dir)) violations.push({
+		if (!doxFilesMap.has(normalizeDirPath(dir))) violations.push({
 			file: agentsPath,
 			line: 1,
-			message: `Missing required documentation file 'AGENTS.md' in directory '${path.relative(rootDir, dir)}'.`,
+			message: `Missing required documentation file 'AGENTS.md' in directory '${safeRelativePosix(normRootDir, dir)}'.`,
 			context: "AGENTS.md",
 			severity: "error",
 			fixable: false,
@@ -104,7 +103,7 @@ function validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap) {
 		});
 	}
 	const rootAgentsPath = path.join(rootDir, "AGENTS.md");
-	if (!doxFilesMap.has(rootDir)) violations.push({
+	if (!doxFilesMap.has(normRootDir)) violations.push({
 		file: rootAgentsPath,
 		line: 1,
 		message: `Missing root documentation file 'AGENTS.md'.`,
@@ -117,24 +116,40 @@ function validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap) {
 	});
 	return violations;
 }
+function extractChildDoxSection(content) {
+	const afterHeader = content.match(/(?:^|\n)## Child DOX Index[ \t]*(?:\r?\n)([\s\S]*)$/)?.[1];
+	if (!afterHeader) return "";
+	const nextSectionMatch = afterHeader.match(/\r?\n## /);
+	if (nextSectionMatch && nextSectionMatch.index !== void 0) return afterHeader.slice(0, nextSectionMatch.index);
+	return afterHeader;
+}
+function safeRelativePosix(from, to) {
+	const normFrom = normalizeDirPath(from);
+	const normTo = normalizeDirPath(to);
+	return normalizePosixPath(path.relative(normFrom, normTo));
+}
 function validateChildRegistration(rootDir, doxFilesMap) {
 	const violations = [];
+	const normRootDir = normalizeDirPath(rootDir);
 	for (const [dirPath] of doxFilesMap.entries()) {
-		if (dirPath === rootDir) continue;
+		if (dirPath === normRootDir) continue;
 		const agentsPath = path.join(dirPath, "AGENTS.md");
-		const parentDoxDir = findNearestAncestorDoxDir(dirPath, rootDir, doxFilesMap);
+		const parentDoxDir = findNearestAncestorDoxDir(dirPath, normRootDir, doxFilesMap);
 		if (!parentDoxDir) continue;
 		const parentContent = doxFilesMap.get(parentDoxDir);
 		if (!parentContent) continue;
-		const posixPath = path.relative(parentDoxDir, agentsPath).split(path.sep).join(path.posix.sep);
+		const posixPath = safeRelativePosix(parentDoxDir, agentsPath);
 		const cleanPath = posixPath.startsWith("./") ? posixPath.slice(2) : posixPath;
 		const dirOnlyPath = path.dirname(posixPath);
-		if (!(parentContent.includes(cleanPath) || parentContent.includes("./" + cleanPath) || parentContent.includes(encodeURI(cleanPath)) || parentContent.includes("./" + encodeURI(cleanPath)) || parentContent.includes("[" + dirOnlyPath + "/]") || parentContent.includes("(" + dirOnlyPath + "/") || parentContent.includes("./" + dirOnlyPath + "/"))) {
+		const targetLower = extractChildDoxSection(parentContent).toLowerCase();
+		const cleanLower = cleanPath.toLowerCase();
+		const dirOnlyLower = dirOnlyPath.toLowerCase();
+		if (!(targetLower.includes(cleanLower) || targetLower.includes("./" + cleanLower) || targetLower.includes(encodeURI(cleanLower)) || targetLower.includes("./" + encodeURI(cleanLower)) || targetLower.includes(dirOnlyLower + "/") || targetLower.includes("./" + dirOnlyLower + "/") || targetLower.includes("[" + dirOnlyLower + "/]") || targetLower.includes("[`" + dirOnlyLower + "/`]"))) {
 			const parentFile = path.join(parentDoxDir, "AGENTS.md");
 			violations.push({
 				file: parentFile,
 				line: 1,
-				message: `File '${path.relative(rootDir, agentsPath)}' is not registered in the DOX index of '${path.relative(rootDir, parentFile)}'.`,
+				message: `File '${safeRelativePosix(normRootDir, agentsPath)}' is not registered in the DOX index of '${safeRelativePosix(normRootDir, parentFile)}'.`,
 				context: cleanPath,
 				severity: "error",
 				fixable: false,
@@ -167,12 +182,8 @@ function isIndexableCodeFile(fileName, fullPath, gitIgnoreMatcher) {
 }
 async function checkDirUnindexedCodeFiles(dirPath, content, rootDir, gitIgnoreMatcher) {
 	const violations = [];
-	let entries;
-	try {
-		entries = await fs.readdir(dirPath, { withFileTypes: true });
-	} catch {
-		return [];
-	}
+	const entries = await safeReaddirAsync(dirPath);
+	if (!entries) return [];
 	for (const entry of entries) {
 		if (!entry.isFile()) continue;
 		const fullPath = path.join(dirPath, entry.name);

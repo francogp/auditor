@@ -10,6 +10,7 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 import { franc } from 'franc-min';
 import {
   extractContractSections,
@@ -428,7 +429,6 @@ export function extractProseFromComments(
         line.startsWith('ts-') ||
         line.startsWith('cspell:') ||
         line.startsWith('prettier-') ||
-        line.includes('-ok:') ||
         line.startsWith('import ') ||
         line.startsWith('export ') ||
         line.startsWith('const ') ||
@@ -604,14 +604,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
 
     this.recordScanned(relFile);
     const fullPath = path.resolve(this.rootDir, relFile);
-
-    let content: string;
-    try {
-      content = fsSync.readFileSync(fullPath, 'utf8');
-    } catch {
-      // catch-ok: Unreadable file
-      return;
-    }
+    const content = safeReadFileSync(fullPath);
+    if (content === null) return;
 
     const paragraphs = extractProseParagraphs(content);
     for (const para of paragraphs) {
@@ -635,13 +629,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       return;
     }
 
-    let content: string;
-    try {
-      content = fsSync.readFileSync(agentsMdPath, 'utf8');
-    } catch {
-      // catch-ok: Unreadable file
-      return;
-    }
+    const content = safeReadFileSync(agentsMdPath);
+    if (content === null) return;
 
     const canonicalSnippet = getCanonicalLanguageMandateSnippet(targetLanguage);
     const sections = extractContractSections(content);
@@ -692,12 +681,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     this.recordScanned(relFile);
 
     const fullPath = path.resolve(this.rootDir, relFile);
-    let content: string;
-    try {
-      content = fsSync.readFileSync(fullPath, 'utf8');
-    } catch {
-      return;
-    }
+    const content = safeReadFileSync(fullPath);
+    if (content === null) return;
 
     const ext = path.extname(relFile);
     const rawComments = extractCommentsFromSource(content, ext);
@@ -730,9 +715,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     const srcRoots = config.paths.srcRoots ?? [];
     this.redeclareCoverage({
       include: [
-        '**/*.md', // glob-ok: markdown scanner
-        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir)
-          .include
+        '**/*.md', // include: coverage pattern
+        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir).include
       ]
     });
 

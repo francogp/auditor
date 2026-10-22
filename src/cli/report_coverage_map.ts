@@ -186,14 +186,18 @@ function computeDirectorySummaries(
   >();
 
   for (const entry of files) {
-    // path-ok: Segment decomposition for coverage reporting buckets
-    const segments = entry.file.split('/');
-    const dirKey =
-      segments.length > 1
-        ? segments[0] === 'src' && segments.length > 2
-          ? `src/${segments[1]}`
-          : segments[0]!
-        : '.';
+    const parent = path.posix.dirname(entry.file);
+    let dirKey = '.';
+    if (parent !== '.') {
+      if (parent.startsWith('src/')) {
+        const afterSrc = parent.slice(4);
+        const nextSlash = afterSrc.indexOf('/');
+        dirKey = nextSlash === -1 ? parent : `src/${afterSrc.slice(0, nextSlash)}`;
+      } else {
+        const nextSlash = parent.indexOf('/');
+        dirKey = nextSlash === -1 ? parent : parent.slice(0, nextSlash);
+      }
+    }
 
     if (!dirMap.has(dirKey)) {
       dirMap.set(dirKey, { total: 0, covered: 0, degraded: 0, uncovered: 0, exempt: 0 });

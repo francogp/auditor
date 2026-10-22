@@ -1,6 +1,6 @@
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
-import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
@@ -130,11 +130,6 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 		let m;
 		while ((m = unscopedRegex.exec(content)) !== null) {
 			const selector = m[1];
-			const preceding = content.slice(Math.max(0, m.index - 200), m.index);
-			const lineEnd = content.indexOf("\n", m.index);
-			const currentLine = content.slice(m.index, lineEnd === -1 ? void 0 : lineEnd);
-			const nearby = preceding + "\n" + currentLine;
-			if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(nearby)) continue;
 			if (!isInsideAnyScopeRange(m.index, scopeRanges)) this.addViolationAtMatch({
 				ruleId: "gsap-unscoped-component-selectors",
 				filePath: relPath,
@@ -149,8 +144,7 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 		if (!/gsap\.context\s*\(/.test(content)) return;
 		const hasRevert = /\.revert\s*\(|\.kill\s*\(/.test(content);
 		const hasUnmountLifecycle = /onUnmounted|onScopeDispose|useEffect/.test(content);
-		const hasRevertOk = /\/\/\s*revert-ok:\s*\S+/i.test(content);
-		if ((!hasRevert || !hasUnmountLifecycle) && !hasRevertOk) this.addViolationAtMatch({
+		if (!hasRevert || !hasUnmountLifecycle) this.addViolationAtMatch({
 			ruleId: "gsap-missing-context-revert",
 			filePath: relPath,
 			content,
@@ -164,9 +158,7 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 		let pluginMatch;
 		while ((pluginMatch = pluginImportRegex.exec(content)) !== null) {
 			const pluginName = pluginMatch[1];
-			const hasRegister = new RegExp(`gsap\\.registerPlugin\\s*\\([^)]*\\b${pluginName}\\b`).test(content);
-			const hasPluginOk = /\/\/\s*plugin-ok:\s*\S+/i.test(content);
-			if (!hasRegister && !hasPluginOk) this.addViolationAtMatch({
+			if (!new RegExp(`gsap\\.registerPlugin\\s*\\([^)]*\\b${pluginName}\\b`).test(content)) this.addViolationAtMatch({
 				ruleId: "gsap-missing-plugin-registration",
 				filePath: relPath,
 				content,
@@ -182,9 +174,7 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 		while ((devtoolsMatch = devtoolsRegex.exec(content)) !== null) {
 			const toolName = devtoolsMatch[1];
 			const windowAround = content.slice(Math.max(0, devtoolsMatch.index - 150), Math.min(content.length, devtoolsMatch.index + 200));
-			const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(windowAround);
-			const hasDevtoolsOk = /\/\/\s*devtools-ok:\s*\S+/i.test(windowAround);
-			if (!hasDevGuard && !hasDevtoolsOk) this.addViolationAtMatch({
+			if (!/import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(windowAround)) this.addViolationAtMatch({
 				ruleId: "gsap-banned-devtools-production",
 				filePath: relPath,
 				content,

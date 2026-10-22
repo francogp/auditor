@@ -20,7 +20,7 @@
  * 12. watch-reactive-property-getter: Forbids naked prop references in watch().
  * 13. no-destructured-reactive: Forbids destructuring reactive() without toRefs().
  *
- * All rules natively respect explicit inline, preceding line, and trailing comment directives.
+ * All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
  */
 export interface OxlintAstNode {
   readonly type?: string;
@@ -70,10 +70,6 @@ export interface OxlintRuleContext {
   };
 }
 export declare const COMMON_NON_DOMAIN_SET_NAMES: Set<string>;
-/**
- * Checks whether an AST node or its surrounding code has an authorized escape directive.
- */
-export declare function hasOxlintEscapeComment(context: OxlintRuleContext, node: OxlintAstNode, validDirectives: readonly string[]): boolean;
 export declare const domainTypeOxlintPlugin: {
   meta: {
     name: string;

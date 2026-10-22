@@ -1,6 +1,6 @@
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
-import { toPosixRelative } from "./auditCoverage.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/lockedSkills.ts
@@ -26,20 +26,16 @@ const SKILLS_LOCK_CANDIDATE_PATHS = [
 	".agents/skills-lock.json"
 ];
 function parseLockedSkillsFile(skillsLockPath) {
-	try {
-		if (!fs.existsSync(skillsLockPath)) return [];
-		const raw = fs.readFileSync(skillsLockPath, "utf-8");
-		const data = JSON.parse(raw);
-		if (data?.skills && typeof data.skills === "object") return Object.keys(data.skills).map((s) => s.toLowerCase());
-	} catch {}
+	const raw = safeReadFileSync(skillsLockPath);
+	if (!raw) return [];
+	const data = safeJsonParse(raw);
+	if (data?.skills && typeof data.skills === "object") return Object.keys(data.skills).map((s) => s.toLowerCase());
 	return [];
 }
 function resolveSkillsLockCandidates(projectRoot) {
 	const candidatePaths = [...SKILLS_LOCK_CANDIDATE_PATHS];
-	try {
-		const config = getAuditConfig(projectRoot);
-		if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) candidatePaths.unshift(config.paths.skillsLockFile);
-	} catch {}
+	const config = tryOrNull(() => getAuditConfig(projectRoot));
+	if (config?.paths?.skillsLockFile && !candidatePaths.includes(config.paths.skillsLockFile)) candidatePaths.unshift(config.paths.skillsLockFile);
 	const inheritedLock = "node_modules/@francogp/auditor/skills-lock.json";
 	if (fs.existsSync(path.resolve(projectRoot, inheritedLock))) candidatePaths.push(inheritedLock);
 	return candidatePaths;
@@ -59,15 +55,19 @@ function loadLockedSkills(projectRoot = process.cwd()) {
 function isLockedSkillPath(filePath, projectRoot = process.cwd()) {
 	const locked = loadLockedSkills(projectRoot);
 	if (locked.size === 0) return false;
-	const segments = toPosixRelative(projectRoot, filePath).toLowerCase().split("/").filter(Boolean);
-	for (let i = 0; i < segments.length - 1; i++) {
-		const parent = segments[i];
-		const candidate = segments[i + 1];
-		if ((parent === "skills" || parent === ".skills") && candidate && locked.has(candidate)) return true;
-		if (parent === ".agents" && candidate === "skills" && i + 2 < segments.length) {
-			const skillName = segments[i + 2];
-			if (skillName && locked.has(skillName)) return true;
+	let curr = path.resolve(projectRoot, filePath);
+	const root = path.parse(curr).root;
+	while (curr && curr !== root) {
+		const parentDir = path.dirname(curr);
+		if (parentDir === curr) break;
+		const skillName = path.basename(curr);
+		const parentName = path.basename(parentDir);
+		if (locked.has(skillName)) {
+			if (parentName === "skills" || parentName === ".skills") return true;
+			const grandParentDir = path.dirname(parentDir);
+			if (parentName === "skills" && path.basename(grandParentDir) === ".agents") return true;
 		}
+		curr = parentDir;
 	}
 	return false;
 }

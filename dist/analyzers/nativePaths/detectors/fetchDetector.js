@@ -8,7 +8,7 @@ import ts from "typescript";
 * untrusted-url-fetch: `fetch(dynamicValue)` without `new URL()` parsing plus
 * hostname / origin / protocol validation in the same module (CWE-918 SSRF).
 */
-const FETCH_MESSAGE = "Llamada dinámica a 'fetch()' sin validar la URL ni su origen (CWE-918 SSRF). Construye 'new URL(endpoint, base)' y valida 'hostname'/'origin'/'protocol', o usa 'safeFetch()'.";
+const FETCH_MESSAGE = "Dynamic call to 'fetch()' without validating URL or its origin (CWE-918 SSRF). Construct 'new URL(endpoint, base)' and validate 'hostname'/'origin'/'protocol', or use 'safeFetch()'.";
 const SAFE_ARGUMENT_NAMES = /* @__PURE__ */ new Set(["safeDevUrl", "href"]);
 function isSafeFetchArgument(arg) {
 	const node = unwrapExpression(arg);

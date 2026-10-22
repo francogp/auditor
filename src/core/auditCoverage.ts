@@ -16,6 +16,7 @@ import {
   type CoverageLedger,
   type CoverageSource
 } from './auditContract.ts';
+import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from './safeUtils.ts';
 
 export type { CoverageLedger };
 
@@ -160,10 +161,9 @@ export function deriveCoverageFromRoots(
   const include: string[] = []; // string-ok: dynamic file glob patterns derived at runtime
   for (const root of effectiveRoots) {
     const cleanRoot = toPosixRelative(projectRoot, root);
-    // path-ok: Glob pattern directory prefix
-    const prefix = cleanRoot === '' || cleanRoot === '.' ? '' : `${cleanRoot}/`;
+    const isRootFolder = cleanRoot === '' || cleanRoot === '.';
     for (const ext of extensions) {
-      include.push(`${prefix}**/*${ext}`);
+      include.push(isRootFolder ? `**/*${ext}` : path.posix.join(cleanRoot, `**/*${ext}`));
     }
   }
   return { include, source: 'runtime' };
@@ -381,22 +381,17 @@ export async function readLatestCoverageLedgers(
   projectRoot: string
 ): Promise<{ runId: string | null; ledgers: CoverageLedger[] }> {
   const dir = path.resolve(projectRoot, COVERAGE_LEDGER_DIR);
-  let entries: string[];
-  try {
-    entries = await fs.readdir(dir);
-  } catch {
-    // catch-ok: no ledger directory
-    return { runId: null, ledgers: [] };
-  }
+  const entries = await tryOrDefaultAsync(async () => await fs.readdir(dir), []);
+  if (entries.length === 0) return { runId: null, ledgers: [] };
+
   const allLedgers: CoverageLedger[] = [];
   for (const entry of entries.filter((e) => e.endsWith('.json')).sort()) {
-    try {
-      const ledger = JSON.parse(
-        await fs.readFile(path.join(dir, entry), 'utf-8')
-      ) as CoverageLedger;
-      allLedgers.push(ledger);
-    } catch {
-      // catch-ok: corrupt or partial ledger file
+    const raw = await safeReadFileAsync(path.join(dir, entry));
+    if (raw) {
+      const ledger = safeJsonParse<CoverageLedger>(raw);
+      if (ledger) {
+        allLedgers.push(ledger);
+      }
     }
   }
   if (allLedgers.length === 0) return { runId: null, ledgers: [] };

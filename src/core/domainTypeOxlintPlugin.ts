@@ -19,7 +19,7 @@
  * 12. watch-reactive-property-getter: Forbids naked prop references in watch().
  * 13. no-destructured-reactive: Forbids destructuring reactive() without toRefs().
  *
- * All rules natively respect explicit inline, preceding line, and trailing comment directives.
+ * All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
  */
 
 export interface OxlintAstNode {
@@ -96,82 +96,6 @@ export const COMMON_NON_DOMAIN_SET_NAMES = new Set([
   'ALLOWED_EXTS'
 ]);
 
-function hasAttachedCommentDirective(
-  sourceCode: NonNullable<OxlintRuleContext['getSourceCode']> extends () => infer R ? NonNullable<R> : never,
-  node: OxlintAstNode,
-  validDirectives: readonly string[]
-): boolean {
-  const beforeComments = sourceCode.getCommentsBefore?.(node) ?? [];
-  const afterComments = sourceCode.getCommentsAfter?.(node) ?? [];
-  const attached = [...beforeComments, ...afterComments];
-  for (const c of attached) {
-    const text = typeof c === 'string' ? c : c.value ?? '';
-    for (const dir of validDirectives) {
-      if (text.includes(`${dir}:`) || text.includes(dir)) return true;
-    }
-  }
-  return false;
-}
-
-function hasSurroundingLineDirective(
-  fullText: string,
-  nodeRange: readonly [number, number],
-  validDirectives: readonly string[]
-): boolean {
-  const [start, end] = nodeRange;
-  const lineStart = fullText.lastIndexOf('\n', start) + 1;
-  let lineEnd = fullText.indexOf('\n', end);
-  if (lineEnd === -1) lineEnd = fullText.length;
-
-  const prevLineStart = lineStart > 1 ? fullText.lastIndexOf('\n', lineStart - 2) + 1 : 0;
-  const nextLineEnd =
-    lineEnd < fullText.length ? fullText.indexOf('\n', lineEnd + 1) : fullText.length;
-  const snippet = fullText.slice(prevLineStart, nextLineEnd === -1 ? fullText.length : nextLineEnd);
-
-  for (const dir of validDirectives) {
-    if (
-      snippet.includes(`// ${dir}:`) ||
-      snippet.includes(`/* ${dir}:`) ||
-      snippet.includes(`// ${dir}`)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Checks whether an AST node or its surrounding code has an authorized escape directive.
- */
-export function hasOxlintEscapeComment(
-  context: OxlintRuleContext,
-  node: OxlintAstNode,
-  validDirectives: readonly string[]
-): boolean {
-  const sourceCode = context.getSourceCode?.();
-  if (!sourceCode) return false;
-
-  // 1. Attached comment nodes
-  if (hasAttachedCommentDirective(sourceCode, node, validDirectives)) {
-    return true;
-  }
-
-  // 2. Text of the node itself
-  const nodeText = sourceCode.getText?.(node) ?? '';
-  for (const dir of validDirectives) {
-    if (nodeText.includes(`// ${dir}:`) || nodeText.includes(`/* ${dir}:`)) return true;
-  }
-
-  // 3. Surrounding line text scanning
-  const fullText = sourceCode.getText?.() ?? '';
-  const nodeRange = node.range;
-  if (fullText && nodeRange && Array.isArray(nodeRange) && nodeRange.length >= 2) {
-    return hasSurroundingLineDirective(fullText, [nodeRange[0]!, nodeRange[1]!], validDirectives);
-  }
-
-  return false;
-}
-
 export const domainTypeOxlintPlugin = {
   meta: {
     name: '@francogp/domain-type',
@@ -189,19 +113,25 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           TSUnionType(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['string-ok', 'domain-ok', 'no-domain'])) return;
             const types = node.types ?? [];
             const hasStringKeyword = types.some((t: OxlintAstNode) => t.type === 'TSStringKeyword');
-            const hasLiteralString = types.some(
-              (t: OxlintAstNode) =>
-                t.type === 'TSLiteralType' && typeof t.literal?.value === 'string'
-            );
+            if (!hasStringKeyword) return;
 
-            if (hasStringKeyword && hasLiteralString) {
+            const hasDilutedDomainType = types.some((t: OxlintAstNode) => {
+              if (t.type === 'TSLiteralType' && typeof t.literal?.value === 'string') return true;
+              if (t.type === 'TSTemplateLiteralType') return true;
+              if (t.type === 'TSTypeReference') {
+                const name = t.typeName?.name;
+                return typeof name === 'string' && name.length > 0;
+              }
+              return false;
+            });
+
+            if (hasDilutedDomainType) {
               context.report({
                 node,
                 message:
-                  'Using open string unions (| string) is STRICTLY PROHIBITED. Use canonical domain types or Branded Types.'
+                  'Using open string unions (| string) with domain types or literals is STRICTLY PROHIBITED. Use canonical domain types or Branded Types.'
               });
             }
           }
@@ -221,17 +151,6 @@ export const domainTypeOxlintPlugin = {
         return {
           TSTypeReference(node: OxlintAstNode) {
             if (node.typeName?.name !== 'Record') return;
-            if (
-              hasOxlintEscapeComment(context, node, [
-                'open-record',
-                'dto-ok',
-                'domain-ok',
-                'no-domain',
-                'infra-id-ok'
-              ])
-            ) {
-              return;
-            }
 
             const params = node.typeArguments?.params ?? node.typeParameters?.params ?? [];
             if (params.length === 0) return;
@@ -277,16 +196,6 @@ export const domainTypeOxlintPlugin = {
           NewExpression(node: OxlintAstNode) {
             const callee = node.callee;
             if (!callee || (callee.name !== 'Set' && callee.name !== 'Map')) return;
-            if (
-              hasOxlintEscapeComment(context, node, [
-                'runtime-set',
-                'runtime-map',
-                'domain-ok',
-                'no-domain'
-              ])
-            ) {
-              return;
-            }
 
             const typeParams = node.typeArguments?.params ?? node.typeParameters?.params ?? [];
             const hasUntypedParam = typeParams.some(
@@ -326,7 +235,6 @@ export const domainTypeOxlintPlugin = {
         return {
           VariableDeclarator(node: OxlintAstNode) {
             if (!node.init) return;
-            if (hasOxlintEscapeComment(context, node, ['string-ok', 'domain-ok', 'no-domain'])) return;
 
             let isConstAssertion = false;
             let arrayExpr: OxlintAstNode | undefined = node.init;
@@ -379,7 +287,6 @@ export const domainTypeOxlintPlugin = {
       },
       create(context: OxlintRuleContext) {
         const verifyNode = (node: OxlintAstNode): void => {
-          if (hasOxlintEscapeComment(context, node, ['type-ok', 'cast-ok', 'domain-ok'])) return;
           const typeAnn = node.typeAnnotation;
           if (
             typeAnn &&
@@ -411,7 +318,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           NewExpression(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['date-ok', 'temporal-ok', 'legacy-date-ok'])) return;
             const callee = node.callee;
             if (
               callee &&
@@ -425,7 +331,6 @@ export const domainTypeOxlintPlugin = {
             }
           },
           CallExpression(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['date-ok', 'temporal-ok', 'legacy-date-ok'])) return;
             const callee = node.callee;
             if (callee && (callee.type === 'MemberExpression' || callee.object)) {
               const obj = callee.object;
@@ -457,15 +362,14 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           TSTypeAliasDeclaration(node: OxlintAstNode) {
-            const name = node.id?.name;
-            if (!name || !/^[A-Z]\w*Id$/.test(name)) return;
-            if (hasOxlintEscapeComment(context, node, ['infra-id-ok', 'domain-ok', 'no-domain'])) return;
+            const typeName = node.id?.name;
+            if (!typeName || !/^[A-Z]\w*Id$/.test(typeName)) return;
 
             const typeAnn = node.typeAnnotation;
             if (typeAnn?.type === 'TSStringKeyword') {
               context.report({
                 node,
-                message: `Domain identifier '${name}' must not be a bare string. Use Brand<string, '${name}'> or a canonical union.`
+                message: `Domain identifier '${typeName}' must not be a bare string. Use Brand<string, '${typeName}'> or a canonical union.`
               });
             }
           }
@@ -487,7 +391,6 @@ export const domainTypeOxlintPlugin = {
             const callee = node.callee;
             if (!callee || (callee.name !== 'parse' && callee.property?.name !== 'parse')) return;
             if (callee.object?.name !== 'JSON') return;
-            if (hasOxlintEscapeComment(context, node, ['o1-ok', 'clone-ok'])) return;
 
             const args = node.arguments ?? [];
             if (args.length > 0) {
@@ -522,7 +425,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           ReturnStatement(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['o1-ok', 'spread-ok'])) return;
             const arg = node.argument;
             if (arg?.type === 'ArrayExpression') {
               const elements = arg.elements ?? [];
@@ -550,7 +452,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           TSTypeAnnotation(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['type-ok'])) return;
             const inner = node.typeAnnotation;
             if (!inner) return;
 
@@ -586,7 +487,6 @@ export const domainTypeOxlintPlugin = {
             if (!callee || (callee.name !== 'computed' && callee.property?.name !== 'computed')) {
               return;
             }
-            if (hasOxlintEscapeComment(context, node, ['reactivity-ok', 'sfc-ok'])) return;
 
             const args = node.arguments ?? [];
             if (args.length > 0) {
@@ -624,7 +524,6 @@ export const domainTypeOxlintPlugin = {
             if (!callee || (callee.name !== 'watch' && callee.property?.name !== 'watch')) {
               return;
             }
-            if (hasOxlintEscapeComment(context, node, ['reactivity-ok', 'sfc-ok'])) return;
 
             const args = node.arguments ?? [];
             if (args.length > 0) {
@@ -656,7 +555,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext) {
         return {
           VariableDeclarator(node: OxlintAstNode) {
-            if (hasOxlintEscapeComment(context, node, ['reactivity-ok', 'sfc-ok'])) return;
             if (node.id?.type === 'ObjectPattern') {
               const init = node.init;
               if (init?.type === 'CallExpression') {

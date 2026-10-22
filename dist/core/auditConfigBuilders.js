@@ -1,6 +1,7 @@
 import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES } from "./auditConfigTypes.js";
 import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy } from "./auditConfigAntiAbuse.js";
 import { DEFAULT_AUDIT_CONFIG, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import path from "node:path";
 //#region src/core/auditConfigBuilders.ts
 /**
@@ -319,8 +320,8 @@ function buildPackageDistributionConfig(raw) {
 function buildPackageScriptsConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.packageScripts;
 	const p = raw ?? {};
-	if (p.recommendedScripts !== void 0 && typeof p.recommendedScripts !== "boolean") throw new Error(`[AuditConfig] Error de tipo en 'packageScripts.recommendedScripts': se recibió '${String(p.recommendedScripts)}'. Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'essential' está estrictamente prohibido.`);
-	if (p.enforceBuildAudit !== void 0 && typeof p.enforceBuildAudit !== "boolean") throw new Error(`[AuditConfig] Error de tipo en 'packageScripts.enforceBuildAudit': se recibió '${String(p.enforceBuildAudit)}'. Debe ser un valor booleano estricto (true o false).`);
+	if (p.recommendedScripts !== void 0 && typeof p.recommendedScripts !== "boolean") throw new Error(`[AuditConfig] Type error in 'packageScripts.recommendedScripts': received '${String(p.recommendedScripts)}'. Must be a strict boolean value (true or false). Strings such as 'off' or 'essential' are strictly prohibited.`);
+	if (p.enforceBuildAudit !== void 0 && typeof p.enforceBuildAudit !== "boolean") throw new Error(`[AuditConfig] Type error in 'packageScripts.enforceBuildAudit': received '${String(p.enforceBuildAudit)}'. Must be a strict boolean value (true or false).`);
 	return {
 		...buildBaseSubsystemConfig(p, def?.enabled ?? true),
 		enforceBuildAudit: p.enforceBuildAudit ?? def?.enforceBuildAudit ?? true,
@@ -373,11 +374,8 @@ function resolveTestCoverageCollections(t, def) {
 	};
 }
 function normalizePathToPosixGlob(p) {
-	const norm = p.split(path.sep).join(path.posix.sep);
+	const norm = normalizePosixPath(p);
 	return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, "**");
-}
-function normalizeFileToPosix(f) {
-	return f.split(path.sep).join(path.posix.sep);
 }
 function buildTestCoverageConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.testCoverage;
@@ -386,10 +384,10 @@ function buildTestCoverageConfig(raw) {
 	const base = buildBaseSubsystemConfig(t, def?.enabled ?? true);
 	const collections = resolveTestCoverageCollections(t, def);
 	const combinedExemptGlobs = Array.from(/* @__PURE__ */ new Set([
-		...collections.exemptGlobs.map(normalizeFileToPosix),
-		...base.ignoreGlobs?.map(normalizeFileToPosix) ?? [],
+		...collections.exemptGlobs.map((f) => normalizePosixPath(f)),
+		...base.ignoreGlobs?.map((f) => normalizePosixPath(f)) ?? [],
 		...base.exemptPaths?.map(normalizePathToPosixGlob) ?? [],
-		...base.exemptFiles?.map(normalizeFileToPosix) ?? []
+		...base.exemptFiles?.map((f) => normalizePosixPath(f)) ?? []
 	]));
 	return {
 		...base,

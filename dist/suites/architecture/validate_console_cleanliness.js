@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isCliPath, isScriptPath } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
@@ -69,7 +69,7 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 			},
 			ruleRemediations: {
 				"no-debugger-statement": "📖 REMEDIATION GUIDE: no-debugger-statement\n1. Root Cause: A `debugger;` statement was found in source code. Debugger statements halt execution in browser and Node.js environments and must never ship to production.\n2. Diagnosis: Locate the line containing `debugger;`.\n3. Canonical Solution: Remove the `debugger;` statement. If temporarily debugging, remove breakpoints before committing.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `debugger;`\n   ✅ Clean:      Removed.",
-				"no-console-log-in-src": "📖 REMEDIATION GUIDE: no-console-log-in-src\n1. Root Cause: A direct call to `console.log()` was detected in production code (`src/`). It pollutes standard output, exposes sensitive data, and harms runtime performance.\n2. Diagnosis: Inspect the `console.log` call at the reported line.\n3. Canonical Solution:\n   a) If used for ad-hoc debugging: remove the call before committing.\n   b) If used for production diagnostics: use a structured logger or canonical error channels (`console.error()` / `console.warn()`).\n   c) If this is a CLI tool or terminal renderer that intentionally writes to stdout: add the file to logging exemptions in `audit.config.ts` or annotate with `// console-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `console.log(\"Data received:\", data);`\n   ✅ Canonical:  `logger.debug(\"Data received\", { data });`"
+				"no-console-log-in-src": "📖 REMEDIATION GUIDE: no-console-log-in-src\n1. Root Cause: A direct call to `console.log()` was detected in production code (`src/`). It pollutes standard output, exposes sensitive data, and harms runtime performance.\n2. Diagnosis: Inspect the `console.log` call at the reported line.\n3. Canonical Solution:\n   a) If used for ad-hoc debugging: remove the call before committing.\n   b) If used for production diagnostics: use a structured logger or canonical error channels (`console.error()` / `console.warn()`).\n   c) If this is a CLI tool or terminal renderer that intentionally writes to stdout: add the path to `paths.cliRoots` in `audit.config.ts`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `console.log(\"Data received:\", data);`\n   ✅ Canonical:  `logger.debug(\"Data received\", { data });`"
 			},
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".ts",
@@ -91,14 +91,14 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 		});
 	}
 	auditDebugger(relPath, content) {
-		this.scanRegexMatches(content, DEBUGGER_REGEX, relPath, "no-debugger-statement", ["debugger-ok", "console-ok"], "Forbidden debugger statement found. Remove all debug breakpoints before committing.", (lineContent) => {
+		this.scanRegexMatches(content, DEBUGGER_REGEX, relPath, "no-debugger-statement", "Forbidden debugger statement found. Remove all debug breakpoints before committing.", (lineContent) => {
 			const trimmed = lineContent.trim();
 			if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return false;
 			return !/['"`][^'"`]*\bdebugger\b[^'"`]*['"`]/.test(lineContent);
 		});
 	}
 	auditConsoleLog(relPath, content) {
-		this.scanRegexMatches(content, CONSOLE_LOG_REGEX, relPath, "no-console-log-in-src", ["console-ok", "log-ok"], `Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting, logger service for structured tracing, or '// console-ok: <reason>'.`, (lineContent) => {
+		this.scanRegexMatches(content, CONSOLE_LOG_REGEX, relPath, "no-console-log-in-src", "Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.", (lineContent) => {
 			const trimmed = lineContent.trim();
 			return !trimmed.startsWith("//") && !trimmed.startsWith("*") && !trimmed.startsWith("/*");
 		});

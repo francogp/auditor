@@ -95,7 +95,9 @@ export const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, Remediation
     }
   });
 
-const REMEDIATION_PHASE_SET: ReadonlySet<string> = new Set<string>(REMEDIATION_PHASE_IDS);
+import { createDomainSet } from './domainCollections.ts';
+
+const REMEDIATION_PHASE_SET: ReadonlySet<string> = createDomainSet(REMEDIATION_PHASE_IDS);
 
 export function isRemediationPhaseId(val: unknown): val is RemediationPhaseId {
   return typeof val === 'string' && REMEDIATION_PHASE_SET.has(val);

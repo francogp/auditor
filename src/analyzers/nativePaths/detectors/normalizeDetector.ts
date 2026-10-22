@@ -25,7 +25,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const NORMALIZE_MESSAGE =
-  "Normalización casera de separadores o segmentos de ruta. Usa 'path.normalize()', 'path.posix.normalize()' o la conversión nativa 'p.split(path.sep).join(path.posix.sep)' / 'p.replaceAll(path.win32.sep, path.posix.sep)'.";
+  "Homebrew normalization of separators or path segments. Use 'path.normalize()', 'path.posix.normalize()', or native conversion 'p.split(path.sep).join(path.posix.sep)' / 'p.replaceAll(path.win32.sep, path.posix.sep)'.";
 
 const DOT_SLASH_PATTERNS: ReadonlySet<string> = new Set([
   WIN_SEP + '.' + WIN_SEP + POSIX_SEP,

@@ -10,6 +10,7 @@ import fsSync from 'node:fs';
 import path from 'node:path';
 import childProcess, { type SpawnSyncReturns, type StdioOptions } from 'node:child_process';
 import { getPackageJson } from './packageJson.ts';
+import { tryOrNull } from './safeUtils.ts';
 
 export const VALID_NPM_BUILTINS: ReadonlySet<string> = new Set([
   'access',
@@ -216,15 +217,10 @@ function populateBinsFromPackageJson(
 }
 
 function populateInstalledBins(binDir: string, installedBins: Set<string>): void {
-  try {
-    if (fsSync.existsSync(binDir)) {
-      for (const entry of fsSync.readdirSync(binDir)) {
-        const cleanName = entry.replace(/\.(cmd|ps1|exe)$/i, '');
-        installedBins.add(cleanName);
-      }
-    }
-  } catch {
-    // catch-ok: Unreadable node_modules/.bin directory
+  const entries = tryOrNull(() => (fsSync.existsSync(binDir) ? fsSync.readdirSync(binDir) : [])) ?? [];
+  for (const entry of entries) {
+    const cleanName = entry.replace(/\.(cmd|ps1|exe)$/i, '');
+    installedBins.add(cleanName);
   }
   installedBins.add('node');
   installedBins.add('npm');

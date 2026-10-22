@@ -7,9 +7,10 @@
 
 ## Task Progress Checklist
 
-- [ ] **Phase 0: Mandatory Artifact Initialization**
-  - [ ] Write `<appDataDir>/brain/<conversation-id>/task.md` with complete checklist
-  - [ ] Note scratch directory path: `<appDataDir>/brain/<conversation-id>/scratch/`
+- [ ] **Phase 0: Pre-Flight Configuration Ratchet Gate & Artifact Initialization**
+  - [ ] Gate 0.0: Pre-Flight Configuration Ratchet Gate (`npm run auditor suite=validate_audit_config`; zero unauthorized relaxations)
+  - [ ] Step 0.1: Write `<appDataDir>/brain/<conversation-id>/task.md` with complete checklist
+  - [ ] Step 0.2: Note scratch directory path: `<appDataDir>/brain/<conversation-id>/scratch/`
 - [ ] **Phase 1: Test Gap Analysis & Zero-Commit Safety Backup**
   - [ ] `git status` & `git diff` review (Inspect changes, session artifacts, and `.auditor/audit-baseline.json`)
   - [ ] Test Gap Analysis (Audit non-trivial logic for unit tests in `tests/`)

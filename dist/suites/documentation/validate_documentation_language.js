@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
@@ -285,7 +286,7 @@ function extractProseFromComments(rawComments) {
 				paraStartLine = c.startLine + idx + 1;
 				continue;
 			}
-			if (line.startsWith("@") || line.startsWith("eslint-") || line.startsWith("stylelint-") || line.startsWith("ts-") || line.startsWith("cspell:") || line.startsWith("prettier-") || line.includes("-ok:") || line.startsWith("import ") || line.startsWith("export ") || line.startsWith("const ") || line.startsWith("let ") || line.startsWith("var ") || line.startsWith("function ") || line.startsWith("http://") || line.startsWith("https://") || line.startsWith("file://") || /^\w+:\/\//.test(line)) continue;
+			if (line.startsWith("@") || line.startsWith("eslint-") || line.startsWith("stylelint-") || line.startsWith("ts-") || line.startsWith("cspell:") || line.startsWith("prettier-") || line.startsWith("import ") || line.startsWith("export ") || line.startsWith("const ") || line.startsWith("let ") || line.startsWith("var ") || line.startsWith("function ") || line.startsWith("http://") || line.startsWith("https://") || line.startsWith("file://") || /^\w+:\/\//.test(line)) continue;
 			const cleaned = line.replace(/`[^`]+`/g, " ").replace(/https?:\/\/\S+/g, " ").replace(/<[^>]+>/g, " ").trim();
 			if (cleaned.length > 0) {
 				if (currentLines.length === 0) paraStartLine = c.startLine + idx;
@@ -383,12 +384,8 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 		if (isLanguageExemptPath(relFile, exemptions)) return;
 		this.recordScanned(relFile);
 		const fullPath = path.resolve(this.rootDir, relFile);
-		let content;
-		try {
-			content = fs.readFileSync(fullPath, "utf8");
-		} catch {
-			return;
-		}
+		const content = safeReadFileSync(fullPath);
+		if (content === null) return;
 		const paragraphs = extractProseParagraphs(content);
 		for (const para of paragraphs) this.auditParagraph(para, relFile, targetLanguage);
 	}
@@ -405,12 +402,8 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			});
 			return;
 		}
-		let content;
-		try {
-			content = fs.readFileSync(agentsMdPath, "utf8");
-		} catch {
-			return;
-		}
+		const content = safeReadFileSync(agentsMdPath);
+		if (content === null) return;
 		const canonicalSnippet = getCanonicalLanguageMandateSnippet(targetLanguage);
 		const matchingSections = extractContractSections(content).filter((section) => containsLanguageMandate(section, targetLanguage));
 		const lines = content.split("\n");
@@ -438,14 +431,9 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 		if (isLanguageExemptPath(relFile, exemptions)) return;
 		this.recordScanned(relFile);
 		const fullPath = path.resolve(this.rootDir, relFile);
-		let content;
-		try {
-			content = fs.readFileSync(fullPath, "utf8");
-		} catch {
-			return;
-		}
-		const ext = path.extname(relFile);
-		const paragraphs = extractProseFromComments(extractCommentsFromSource(content, ext));
+		const content = safeReadFileSync(fullPath);
+		if (content === null) return;
+		const paragraphs = extractProseFromComments(extractCommentsFromSource(content, path.extname(relFile)));
 		for (const para of paragraphs) {
 			const { isUnauthorized, detectedLang } = evaluateParagraphLanguage(para, targetLanguage);
 			if (!isUnauthorized) continue;

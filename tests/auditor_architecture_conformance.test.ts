@@ -310,7 +310,7 @@ describe('Auditor Architecture Conformance', () => {
 
   describe('Visual Column Alignment Tests', () => {
     it('status badges have identical visual character widths across all states', async () => {
-      const { formatStatusBadge, getVisualWidth } = await import('../src/core/unifiedTheme.ts');
+      const { formatStatusBadge, stringWidth } = await import('../src/core/unifiedTheme.ts');
 
       const passBadge = formatStatusBadge('passed');
       const failBadge = formatStatusBadge('failed');
@@ -319,14 +319,14 @@ describe('Auditor Architecture Conformance', () => {
 
       // Monospace terminal display width must be exactly 11 for all badges:
       // [ ❌ FAIL ] (width 11) === [ ⚠️ WARN ] (width 11) === [ ✅ PASS ] (width 11) === [ ℹ️ INFO ] (width 11)
-      expect(getVisualWidth(passBadge)).toBe(11);
-      expect(getVisualWidth(failBadge)).toBe(11);
-      expect(getVisualWidth(warnBadge)).toBe(11);
-      expect(getVisualWidth(infoBadge)).toBe(11);
+      expect(stringWidth(passBadge)).toBe(11);
+      expect(stringWidth(failBadge)).toBe(11);
+      expect(stringWidth(warnBadge)).toBe(11);
+      expect(stringWidth(infoBadge)).toBe(11);
     });
 
     it('renderAuditTaskRow aligns column separators consistently across rows and metric lengths', async () => {
-      const { renderAuditTaskRow, getVisualWidth } = await import('../src/core/unifiedTheme.ts');
+      const { renderAuditTaskRow, stringWidth } = await import('../src/core/unifiedTheme.ts');
 
       const rowFail = renderAuditTaskRow({
         id: 'suite1',
@@ -388,7 +388,7 @@ describe('Auditor Architecture Conformance', () => {
         findings: []
       });
 
-      const getColWidths = (row: string) => row.split('│').map((col) => getVisualWidth(col));
+      const getColWidths = (row: string) => row.split('│').map((col) => stringWidth(col));
 
       const expectedWidths = [14, 40, 12, 18, 9, 7];
       expect(getColWidths(rowFail)).toEqual(expectedWidths);

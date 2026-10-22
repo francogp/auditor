@@ -35,7 +35,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 

@@ -19,6 +19,7 @@ import { BaseAuditor,
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -667,7 +668,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     }
 
     this.runSubAuditorSync('fallow-config-workspace-diagnostic', () => {
-      try {
+      tryCatchSync(() => {
         const candidates = [
           path.resolve(this.projectRoot, 'node_modules/fallow/bin/fallow'),
           path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow')
@@ -682,14 +683,14 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
               timeout: 10000
             }
           );
-          const parsed = JSON.parse(stdout) as {
+          const parsed = safeJsonParse<{
             workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
-          };
-          validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
+          }>(stdout);
+          if (parsed?.workspace_diagnostics) {
+            validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
+          }
         }
-      } catch {
-        // catch-ok: Fallow execution might not be available in non-standard test sandboxes
-      }
+      });
     });
   }
 }

@@ -33,9 +33,6 @@ const t = `process.argv`;
 ### N06 normal-fs-read#1 expect=none
 const content = fs.readFileSync('package.json', 'utf-8');
 
-### N07 escape-hatch#1 expect=none
-const raw = process.argv.slice(2); // cli-ok: Canonical bootstrap entry
-
 ### N08 citty-cli-entrypoint#1 file=cli/refactor_motion.ts expect=none
 import { createRefactorCli, runCliMain } from '../core/cli/cittyHarness.ts';
 import { isMainModule } from './cliUtils.ts';

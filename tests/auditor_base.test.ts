@@ -713,7 +713,6 @@ describe('auditorBase infrastructure', () => {
           /CANARY_VIOLATION/g,
           relPath,
           'canary-forbidden',
-          ['// canary-ok:'],
           'Forbidden canary token detected'
         );
       }
@@ -721,7 +720,7 @@ describe('auditorBase infrastructure', () => {
       public override async runAudit(): Promise<void> {}
     }
 
-    it('Canary 1 (Active Violation): reports error when forbidden pattern has no escape hatch', () => {
+    it('Canary 1 (Active Violation): reports error when forbidden pattern is detected', () => {
       const auditor = new CanaryRegexAuditor();
       auditor.testScanRegex('const x = CANARY_VIOLATION;');
       expect(auditor.collectedViolations).toHaveLength(1);
@@ -729,22 +728,22 @@ describe('auditorBase infrastructure', () => {
       expect(auditor.collectedViolations[0]?.ruleId).toBe('canary-forbidden');
     });
 
-    it('Canary 2 (Same Line): suppresses violation when escape hatch is on the exact same line', () => {
+    it('Canary 2 (Zero-Ignore Mandate): reports error even when comment is on the exact same line', () => {
       const auditor = new CanaryRegexAuditor();
       auditor.testScanRegex('const x = CANARY_VIOLATION; // canary-ok: permitted same line');
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
 
-    it('Canary 3 (Previous Line): suppresses violation when escape hatch is on line - 1 (reformatted call)', () => {
+    it('Canary 3 (Zero-Ignore Mandate): reports error even when comment is on preceding line', () => {
       const auditor = new CanaryRegexAuditor();
       auditor.testScanRegex('// canary-ok: preceding line comment\nconst x = CANARY_VIOLATION;');
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
 
-    it('Canary 4 (Next Line): suppresses violation when escape hatch is on line + 1 (reformatted block)', () => {
+    it('Canary 4 (Zero-Ignore Mandate): reports error even when comment is on next line', () => {
       const auditor = new CanaryRegexAuditor();
       auditor.testScanRegex('const x = CANARY_VIOLATION;\n// canary-ok: next line comment');
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
 
     it('Canary 5 (Distant Escape Hatch): does NOT suppress violation when escape hatch is >= 2 lines away', () => {

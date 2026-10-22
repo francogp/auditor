@@ -158,7 +158,7 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     expect(findings[0]?.severity).toBe('error');
   });
 
-  it('honors inline escape hatches (any-ok, double-cast-ok, void-ok, array-ok, no-domain, open-record, type-ok)', async () => {
+  it('flags violations regardless of inline comments (Zero-Ignore Mandate)', async () => {
     const code = [
       'const a = val ' + 'as any; // any-ok: third party integration',
       'const b = val ' + 'as unknown ' + 'as string; // double-cast-ok: dynamic untyped buffer',
@@ -173,12 +173,12 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
     const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(0);
-    expect(result.status).toBe('passed');
+    expect(result.summary.errors).toBeGreaterThanOrEqual(4);
+    expect(result.status).toBe('failed');
   });
 
-  describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
-    it('Escape Canary: permits multiline double-cast when escape hatch is on preceding line', async () => {
+  describe('3-Tier Canary Verification (AST Parity)', () => {
+    it('flags multiline double-cast regardless of comments on preceding line', async () => {
       const code = `
 // double-cast-ok: Unsafe external payload decoding
 export const parsed = (
@@ -191,11 +191,11 @@ export const parsed = (
       const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
       const result = await auditor.execute();
 
-      expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBeGreaterThanOrEqual(1);
+      expect(result.status).toBe('failed');
     });
 
-    it('Escape Canary: permits multiline cast when escape hatch is on closing line', async () => {
+    it('flags multiline cast regardless of comments on closing line', async () => {
       const code = `
 export const parsed = (
   rawPayload
@@ -207,8 +207,8 @@ export const parsed = (
       const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
       const result = await auditor.execute();
 
-      expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBe(1);
+      expect(result.status).toBe('failed');
     });
 
     it('Active Canary: flags multiline cast when no escape hatch is present', async () => {

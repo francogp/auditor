@@ -1,3 +1,4 @@
+import { createDomainSet } from "./domainCollections.js";
 //#region src/core/remediationPhases.ts
 /**
 * src/core/remediationPhases.ts
@@ -74,7 +75,7 @@ const REMEDIATION_PHASES = Object.freeze({
 		rationale: "Final pass: automated formatting, documentation sync, and confirmation that test suites pass cleanly."
 	}
 });
-const REMEDIATION_PHASE_SET = new Set(REMEDIATION_PHASE_IDS);
+const REMEDIATION_PHASE_SET = createDomainSet(REMEDIATION_PHASE_IDS);
 function isRemediationPhaseId(val) {
 	return typeof val === "string" && REMEDIATION_PHASE_SET.has(val);
 }

@@ -235,8 +235,8 @@ function evaluateDynamicConfigKey(
   configKey: string,
   config: AuditConfig
 ): SuiteGatingStatus | null {
-  // domain-ok: Core config keys
-  if (configKey === 'core' || configKey === 'paths' || configKey === 'none') {
+  const rootConfigKeys: ReadonlySet<string> = new Set(['core', 'paths', 'none']);
+  if (rootConfigKeys.has(configKey)) {
     return { enabled: true, configKey };
   }
   const parts = configKey.split('.');

@@ -9,7 +9,7 @@ import { enableCompileCache } from "node:module";
 *
 * Enforces the project's Zero Error Suppression Mandate (AGENTS.md):
 *   1. No Empty Catch Blocks (`no-empty-catch`):
-*      Forbids empty `catch {}` or `catch (err) {}` blocks that swallow exceptions silently.
+*      Forbids empty catch blocks or catch-with-parameter blocks that swallow exceptions silently.
 *   2. No Silent Promise Catch (`no-silent-promise-catch`):
 *      Forbids `.catch(() => {})`, `.catch(() => null)`, `.catch(() => undefined)`
 *      that discard promise rejections without re-throwing or logging.
@@ -71,8 +71,8 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 				"strict-catch-narrowing": "Catch block without instanceof Error"
 			},
 			ruleRemediations: {
-				"no-empty-catch": "📖 REMEDIATION GUIDE: no-empty-catch\n1. Root Cause: An empty catch block or one that performs no action was found. Silencing exceptions masks critical defects and violates Loud Failure principles.\n2. Diagnosis: Locate the reported catch block at the specified file and line.\n3. Canonical Solution:\n   a) Propagate the error by throwing a typed exception (`throw error`).\n   b) Formally log or handle the error if performing controlled degradation.\n   c) If ignoring the error is strictly intentional and safe (e.g. attempting to read an optional file), annotate with `// catch-ok: <explicit technical justification>` inside the catch block.\n4. Example / Auto-fix command:\n   ❌ Incorrect: Empty catch block with no handling or justification\n   ✅ Correct:   Handle the error or annotate `// catch-ok: optional cleanup if resource already closed`",
-				"no-silent-promise-catch": "📖 REMEDIATION GUIDE: no-silent-promise-catch\n1. Root Cause: An empty `.catch()` handler was chained to a Promise without logging or re-throwing, leaving the promise silently swallowed.\n2. Diagnosis: Check the `.catch()` handler on the promise at the reported line.\n3. Canonical Solution:\n   a) Log the error or propagate it to the caller.\n   b) If omission is deliberate and safe, document `// catch-ok: <reason>` in the callback.\n4. Example / Auto-fix command:\n   ❌ Incorrect: Promise with empty catch discarding errors silently\n   ✅ Correct:   `fetchData().catch((err) => { logger.error(\"Failed to fetch data\", err); });`",
+				"no-empty-catch": "📖 REMEDIATION GUIDE: no-empty-catch\n1. Root Cause: An empty catch block or one that performs no action was found. Silencing exceptions masks critical defects and violates Loud Failure principles.\n2. Diagnosis: Locate the reported catch block at the specified file and line.\n3. Canonical Solution:\n   a) Propagate the error by throwing a typed exception (`throw error`).\n   b) Formally log or handle the error if performing controlled degradation.\n   c) If optional I/O fails safely (e.g. optional cache read), check existence before running or log a debug warning via structured logger.\n4. Example / Auto-fix command:\n   ❌ Incorrect: try { doWork(); } /* empty catch swallowing exceptions */\n   ✅ Correct:   const data = tryOrNull(() => doWork()); // or catch (e) { logger.warn(\"Failed\", { cause: e }); }",
+				"no-silent-promise-catch": "📖 REMEDIATION GUIDE: no-silent-promise-catch\n1. Root Cause: An empty `.catch()` handler was chained to a Promise without logging or re-throwing, leaving the promise silently swallowed.\n2. Diagnosis: Check the `.catch()` handler on the promise at the reported line.\n3. Canonical Solution:\n   a) Log the error or propagate it to the caller.\n   b) If handling a non-fatal rejection, handle with typed fallback and structured logging.\n4. Example / Auto-fix command:\n   ❌ Incorrect: Promise with empty catch discarding errors silently\n   ✅ Correct:   `fetchData().catch((err) => { logger.error(\"Failed to fetch data\", err); });`",
 				"no-silent-mock-fallbacks": "📖 REMEDIATION GUIDE: no-silent-mock-fallbacks\n1. Root Cause: Use of `v.fallback()` in Valibot schemas. Silent fallbacks mask data corruptions or API divergence instead of triggering early validation failures.\n2. Diagnosis: Look for `v.fallback(...)` calls in validation schemas.\n3. Canonical Solution: Remove `v.fallback()`. If an API field is optional, type it explicitly with `v.optional(...)` or `v.nullish(...)` and supply defaults in domain constructors.\n4. Example / Auto-fix command:\n   ❌ Incorrect: Using silent schema fallback\n   ✅ Correct:   `v.optional(v.string(), \"default\")`",
 				"strict-catch-narrowing": "📖 REMEDIATION GUIDE: strict-catch-narrowing\n1. Root Cause: In modern TypeScript with `useUnknownInCatchVariables: true`, catch error variables are `unknown`. Accessing properties like message or stack without checking `instanceof Error` triggers runtime crashes if non-Errors are thrown.\n2. Diagnosis: Locate unsafe error property accesses inside the catch block.\n3. Canonical Solution: Narrow the type via `e instanceof Error ? e.message : String(e)` or use a typed helper like `toErrorMessage(e)`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: Direct property access on unknown error without narrowing\n   ✅ Correct:   `const msg = e instanceof Error ? e.message : String(e);`"
 			},
@@ -105,24 +105,20 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditEmptyCatch(relPath, content) {
-		this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, lineContent) => {
+		this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, _lineContent) => {
 			const innerContent = match[1] ?? "";
-			if (stripComments(innerContent).trim().length === 0) {
-				if (this.hasEscapeHatch(lineContent, ["catch-ok", "error-ok"]) || this.hasEscapeHatch(match[0], ["catch-ok", "error-ok"]) || this.hasEscapeHatch(innerContent, ["catch-ok", "error-ok"])) return;
-				this.addViolation({
-					ruleId: "no-empty-catch",
-					severity: "error",
-					file: relPath,
-					line,
-					message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
-					context: match[0].slice(0, 100)
-				});
-			}
+			if (stripComments(innerContent).trim().length === 0) this.addViolation({
+				ruleId: "no-empty-catch",
+				severity: "error",
+				file: relPath,
+				line,
+				message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
+				context: match[0].slice(0, 100)
+			});
 		});
 	}
 	auditSilentPromiseCatch(relPath, content) {
-		this.forEachNonCommentMatch(content, SILENT_PROMISE_CATCH_REGEX, (match, line, lineContent) => {
-			if (this.hasEscapeHatch(lineContent, ["catch-ok", "error-ok"]) || this.hasEscapeHatch(match[0], ["catch-ok", "error-ok"])) return;
+		this.forEachNonCommentMatch(content, SILENT_PROMISE_CATCH_REGEX, (match, line, _lineContent) => {
 			this.addViolation({
 				ruleId: "no-silent-promise-catch",
 				severity: "error",
@@ -136,7 +132,6 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 	auditSchemaFallbacks(relPath, content) {
 		if (!relPath.includes("schema") && !relPath.includes("models") && !relPath.includes("storage")) return;
 		this.forEachNonCommentMatch(content, VALIBOT_FALLBACK_REGEX, (_match, line, lineContent) => {
-			if (this.hasEscapeHatch(lineContent, ["fallback-ok", "schema-ok"])) return;
 			this.addViolation({
 				ruleId: "no-silent-mock-fallbacks",
 				severity: "error",
@@ -156,8 +151,6 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 			if (new RegExp(`\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+any\\s*\\)\\.message`).test(blockBody)) {
 				if (!new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(blockBody)) {
 					const line = this.getLineNumber(content, match.index);
-					const lineContent = this.getLineAt(content, line);
-					if (this.hasEscapeHatch(lineContent, ["catch-ok", "error-ok"])) continue;
 					this.addViolation({
 						ruleId: "strict-catch-narrowing",
 						severity: "error",

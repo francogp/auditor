@@ -78,7 +78,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
           `   ✅ Clean:     Removed from source file.`,
         'boolean-trap-parameters':
           `📖 REMEDIATION GUIDE: boolean-trap-parameters\n` +
-          `1. Root Cause: A function declares multiple positional boolean parameters (e.g. fn(active: boolean, force: boolean, log: boolean)). At call sites, the meaning of each argument is ambiguous, unreadable, and error-prone.\n` +
+          `1. Root Cause: A function declares multiple positional boolean parameters (e.g. fn(paramA: flag, paramB: flag)). At call sites, the meaning of each argument is ambiguous, unreadable, and error-prone.\n` +
           `2. Diagnosis: Inspect the function signature at the reported line.\n` +
           `3. Canonical Solution: Refactor positional booleans into a typed options interface with named properties (e.g., options: UserActionOptions).\n` +
           `4. Example / Auto-fix command:\n` +
@@ -96,12 +96,12 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
           `   ✅ Flattened: if (!a || !b || !c) return; doWork();`,
         'redundant-else-after-return':
           `📖 REMEDIATION GUIDE: redundant-else-after-return\n` +
-          `1. Root Cause: An else or else if block immediately follows an if block whose body always terminates with return, throw, break, or continue.\n` +
-          `2. Diagnosis: Review the reported if (...) { return; } else { ... } construct.\n` +
+          `1. Root Cause: An else branch immediately follows a block whose body always terminates with return, throw, break, or continue.\n` +
+          `2. Diagnosis: Review the reported conditional construct.\n` +
           `3. Canonical Solution: Remove the else keyword and hoist the block body to the outer scope.\n` +
           `4. Example / Auto-fix command:\n` +
-          `   ❌ Redundant: if (!item) return null; else { return item.name; }\n` +
-          `   ✅ Concise:   if (!item) return null; return item.name;`,
+          `   ❌ Redundant: if (!item) { return null; } /* Anti-pattern */ else { useItem(); }\n` +
+          `   ✅ Concise:   if (!item) return null; useItem();`,
         'premature-abstraction-wrapper':
           `📖 REMEDIATION GUIDE: premature-abstraction-wrapper\n` +
           `1. Root Cause: A single-line wrapper function merely forwards arguments to another function without adding validation, transformation, typing, or behavior.\n` +
@@ -140,15 +140,13 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     const isTestFile = isTestPath(relPath);
 
     this.runSubAuditorSync('dead-code-accumulation', () => {
-      if (!isTestFile && !content.includes('dead-code-ok'))
-        this.auditDeadCodeAccumulation(relPath, sourceLines);
+      if (!isTestFile) this.auditDeadCodeAccumulation(relPath, sourceLines);
     });
     this.runSubAuditorSync('boolean-trap-parameters', () => {
-      if (!isTestFile && !content.includes('boolean-trap-ok'))
-        this.auditBooleanTrapParameters(relPath, content, sourceLines);
+      if (!isTestFile) this.auditBooleanTrapParameters(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('deep-nesting-control-flow', () => {
-      if (!isTestFile && !content.includes('nesting-ok')) {
+      if (!isTestFile) {
         const document =
           doc ?? new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
         const sf = sourceFile ?? document.getAst();
@@ -158,32 +156,25 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       }
     });
     this.runSubAuditorSync('redundant-else-after-return', () => {
-      if (!isTestFile && !content.includes('redundant-else-ok'))
-        this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
+      if (!isTestFile) this.auditRedundantElseAfterReturn(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('premature-abstraction-wrapper', () => {
-      if (!isTestFile && !content.includes('wrapper-ok'))
-        this.auditPrematureAbstractionWrapper(relPath, content, sourceLines);
+      if (!isTestFile) this.auditPrematureAbstractionWrapper(relPath, content, sourceLines);
     });
     this.runSubAuditorSync('massive-switch-branching', () => {
-      if (!isTestFile && !content.includes('switch-ok'))
-        this.auditMassiveSwitchBranching(relPath, content, sourceLines);
+      if (!isTestFile) this.auditMassiveSwitchBranching(relPath, content, sourceLines);
     });
   }
 
   private recordSimplificationFinding(
     relPath: string,
     content: string,
-    lines: readonly string[],
+    _lines: readonly string[],
     matchIndex: number,
-    tag: string,
     ruleId: CodeSimplificationRuleId,
     message: string
   ): void {
     const line = this.getLineNumber(content, matchIndex);
-    const lineText = lines[line - 1] ?? '';
-    const prevLineText = line > 1 ? (lines[line - 2] ?? '') : '';
-    if (lineText.includes(tag) || prevLineText.includes(tag)) return;
 
     this.addViolation({
       ruleId,
@@ -243,9 +234,8 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
           content,
           lines,
           match.index,
-          'boolean-trap-ok',
           'boolean-trap-parameters',
-          'Firma de función con múltiples parámetros booleanos posicionales; refactorizar hacia options object'
+          'Function signature contains multiple positional boolean parameters; refactor towards an options object'
         );
       }
     }
@@ -254,8 +244,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
   private computeNestingDepth(
     node: ts.Node,
     currentDepth: number,
-    parentIsLoop: boolean,
-    allowMatrixLoops: boolean
+    options: { parentIsLoop: boolean; allowMatrixLoops: boolean }
   ): number {
     const isElseIf =
       ts.isIfStatement(node) &&
@@ -264,7 +253,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       node.parent.elseStatement === node;
 
     const isLoop = this.isLoopAstNode(node);
-    const isMatrixChildLoop = allowMatrixLoops && isLoop && parentIsLoop;
+    const isMatrixChildLoop = options.allowMatrixLoops && isLoop && options.parentIsLoop;
     return isElseIf || isMatrixChildLoop ? currentDepth : currentDepth + 1;
   }
 
@@ -307,7 +296,7 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     node: ts.Node,
     sourceFile: ts.SourceFile,
     doc: AuditedDocument | undefined,
-    lines: readonly string[],
+    _lines: readonly string[],
     depth: number,
     maxDepth: number,
     reportedLines: Set<number>
@@ -320,22 +309,13 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
     if (reportedLines.has(line)) return;
     reportedLines.add(line);
 
-    const lineText = lines[line - 1] ?? '';
-    const prevLineText = line > 1 ? (lines[line - 2] ?? '') : '';
-    const hasHatch =
-      lineText.includes('nesting-ok') ||
-      prevLineText.includes('nesting-ok') ||
-      (doc ? doc.hasEscapeHatch(line, 'deep-nesting-control-flow') : false);
-
-    if (!hasHatch) {
-      this.addViolation({
-        ruleId: 'deep-nesting-control-flow',
-        severity: 'error',
-        message: `Deeply nested control flow (${depth} levels > ${maxDepth}); apply early return`,
-        file: relPath,
-        line
-      });
-    }
+    this.addViolation({
+      ruleId: 'deep-nesting-control-flow',
+      severity: 'error',
+      message: `Deeply nested control flow (${depth} levels > ${maxDepth}); apply early return`,
+      file: relPath,
+      line
+    });
   }
 
   private auditDeepNestingControlFlow(
@@ -356,12 +336,10 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       }
 
       if (this.isControlFlowAstNode(node)) {
-        const nextDepth = this.computeNestingDepth(
-          node,
-          currentDepth,
+        const nextDepth = this.computeNestingDepth(node, currentDepth, {
           parentIsLoop,
           allowMatrixLoops
-        );
+        });
         this.checkDeepNestingViolation(
           relPath,
           node,
@@ -396,9 +374,8 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         content,
         lines,
         match.index,
-        'redundant-else-ok',
         'redundant-else-after-return',
-        'Cláusula else redundante inmediatamente después de return o throw definitivo'
+        'Redundant else clause immediately following a definitive return or throw statement'
       );
     }
   }
@@ -430,9 +407,8 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
           content,
           lines,
           match.index,
-          'wrapper-ok',
           'premature-abstraction-wrapper',
-          `Función wrapper '${fnName}' innecesaria que solo reenvía parámetros idénticos a '${delegateName}'`
+          `Unnecessary wrapper function '${fnName}' that merely forwards identical parameters to '${delegateName}'`
         );
       }
     }
@@ -454,7 +430,6 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
           content,
           lines,
           match.index,
-          'switch-ok',
           'massive-switch-branching',
           `Estructura switch masiva (${caseMatches.length} casos > 10); refactorizar hacia tabla Map`
         );

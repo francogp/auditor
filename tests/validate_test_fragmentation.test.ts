@@ -87,7 +87,7 @@ describe('TestFragmentationAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
-    it('allows micro-test when marked with // test-fragmentation-ok', () => {
+    it('flags micro-test regardless of // test-fragmentation-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableTestFragmentationAuditor();
       const code = `
         // test-fragmentation-ok: Isolated test runner
@@ -95,7 +95,7 @@ describe('TestFragmentationAuditor', () => {
         describe('Tiny', () => { it('runs', () => expect(true).toBe(true)); });
       `;
       auditor.testScanFile('tests/unit/exempt.test.ts', code);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
 
     it('allows jsdom when mounting Vue components or accessing window', () => {

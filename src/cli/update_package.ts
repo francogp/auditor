@@ -23,6 +23,7 @@ import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { initAgentSkill } from './init_agent.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from '../core/safeUtils.ts';
 import { syncEnvScripts } from './sync_env_scripts.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
 
@@ -59,14 +60,13 @@ export function findHostProjectRoot(startDir: string = process.cwd(), stopAt?: s
 }
 
 export function readInstalledAuditorVersion(projectRoot: string): string {
-  try {
-    const pkgJsonPath = path.join(projectRoot, 'node_modules/@francogp/auditor/package.json');
-    if (fs.existsSync(pkgJsonPath)) {
-      const content = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-      return content.version || '(unknown)';
+  const pkgJsonPath = path.join(projectRoot, 'node_modules/@francogp/auditor/package.json');
+  if (fs.existsSync(pkgJsonPath)) {
+    const raw = safeReadFileSync(pkgJsonPath);
+    if (raw) {
+      const content = safeJsonParse<{ version?: string }>(raw);
+      return content?.version || '(unknown)';
     }
-  } catch {
-    // catch-ok: Fallback when package.json is missing or unreadable
   }
   return '(not installed)';
 }
@@ -119,18 +119,17 @@ export function extractTagsFromLsRemote(stdout: string): string[] {
 export function resolveLatestAuditorTag(
   repoUrl = 'https://github.com/francogp/auditor.git'
 ): string {
-  try {
+  const latestTag = tryOrNull(() => {
     const stdout = childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10000
     });
     const sortedTags = extractTagsFromLsRemote(stdout);
-    if (sortedTags.length > 0 && sortedTags[0]) {
-      return sortedTags[0];
-    }
-  } catch {
-    // catch-ok: Fallback to local default when offline or network unavailable
+    return sortedTags.length > 0 && sortedTags[0] ? sortedTags[0] : null;
+  });
+  if (latestTag) {
+    return latestTag;
   }
   const baseVersion = AUDITOR_VERSION.split('-')[0];
   return `v${baseVersion}`;

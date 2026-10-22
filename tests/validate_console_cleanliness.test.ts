@@ -77,15 +77,15 @@ describe('ConsoleCleanlinessAuditor', () => {
       expect(auditor.getCountsByRule().get('no-console-log-in-src') ?? 0).toBe(0);
     });
 
-    it('honors // console-ok and // debugger-ok escape hatches', () => {
+    it('flags violations regardless of // console-ok and // debugger-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableConsoleCleanlinessAuditor();
       const code = `
         debugger; // debugger-ok: testing breakpoint
         console.log("debug data"); // console-ok: debug script output
       `;
       auditor.testScanFile('src/utils/exempt.ts', code);
-      expect(auditor.getCountsByRule().get('no-debugger-statement') ?? 0).toBe(0);
-      expect(auditor.getCountsByRule().get('no-console-log-in-src') ?? 0).toBe(0);
+      expect(auditor.getCountsByRule().get('no-debugger-statement') ?? 0).toBeGreaterThanOrEqual(1);
+      expect(auditor.getCountsByRule().get('no-console-log-in-src') ?? 0).toBeGreaterThanOrEqual(1);
     });
 
     it('detects violations and fails with status failed and severity error', async () => {

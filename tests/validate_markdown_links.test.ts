@@ -86,9 +86,9 @@ describe('MarkdownLinkAuditor', () => {
         const { brokenLinks } = checkMarkdownLinksInContent(markdown, mdPath, sandbox);
         const broken = brokenLinks.find((b) => b.ruleId === 'markdown-broken-relative-link');
         expect(broken).toBeDefined();
-        expect(broken?.error).toContain('aparentemente fue localizado en: "src/core/service.ts"');
+        expect(broken?.error).toContain('was apparently located at: "src/core/service.ts"');
         expect(broken?.error).toContain(
-          'Verifica si corresponde corregir el enlace a: "../src/core/service.ts"'
+          'Check if the link should be updated to: "../src/core/service.ts"'
         );
       } finally {
         await fs.rm(sandbox, { recursive: true, force: true });

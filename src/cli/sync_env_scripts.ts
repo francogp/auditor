@@ -17,6 +17,7 @@ import {
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { tryCatchSync } from '../core/safeUtils.ts';
 
 export interface SyncEnvOptions {
   targetDir?: string;
@@ -37,11 +38,9 @@ function syncCanonicalScriptFile(
   if (!dryRun) {
     fs.copyFileSync(srcPath, destPath);
     if (file.endsWith('.sh')) {
-      try {
+      tryCatchSync(() => {
         fs.chmodSync(destPath, 0o755);
-      } catch {
-        // catch-ok: Ignore chmod failures on non-POSIX
-      }
+      });
     }
   }
   return true;

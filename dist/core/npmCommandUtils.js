@@ -1,3 +1,4 @@
+import { tryOrNull } from "./safeUtils.js";
 import { getPackageJson } from "./packageJson.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -165,12 +166,11 @@ function populateBinsFromPackageJson(rootDir, scripts, declaredBins) {
 	addPackageDependenciesToBins(pkg.devDependencies, declaredBins);
 }
 function populateInstalledBins(binDir, installedBins) {
-	try {
-		if (fs.existsSync(binDir)) for (const entry of fs.readdirSync(binDir)) {
-			const cleanName = entry.replace(/\.(cmd|ps1|exe)$/i, "");
-			installedBins.add(cleanName);
-		}
-	} catch {}
+	const entries = tryOrNull(() => fs.existsSync(binDir) ? fs.readdirSync(binDir) : []) ?? [];
+	for (const entry of entries) {
+		const cleanName = entry.replace(/\.(cmd|ps1|exe)$/i, "");
+		installedBins.add(cleanName);
+	}
 	installedBins.add("node");
 	installedBins.add("npm");
 	installedBins.add("npx");

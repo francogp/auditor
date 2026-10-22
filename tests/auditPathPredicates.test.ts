@@ -32,7 +32,7 @@ describe('auditPathPredicates', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok
+      /* non-fatal test cleanup */
     }
   });
 

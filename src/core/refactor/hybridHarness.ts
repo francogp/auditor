@@ -11,6 +11,7 @@ import MagicString from 'magic-string';
 import { Project, SourceFile } from 'ts-morph';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import { toPosixRelative } from '../safePath.ts';
+import { tryOrNull, tryOrNullAsync } from '../safeUtils.ts';
 import type { RefactorPlan } from './refactorContracts.ts';
 
 type AstGrepModule = typeof import('@ast-grep/napi');
@@ -19,12 +20,8 @@ let cachedAstGrep: AstGrepModule | null = null;
 
 async function getAstGrep(): Promise<AstGrepModule | null> {
   if (cachedAstGrep) return cachedAstGrep;
-  try {
-    cachedAstGrep = await import('@ast-grep/napi');
-    return cachedAstGrep;
-  } catch {
-    return null;
-  }
+  cachedAstGrep = await tryOrNullAsync(async () => await import('@ast-grep/napi'));
+  return cachedAstGrep;
 }
 
 export class HybridHarnessEngine {
@@ -140,11 +137,7 @@ export class HybridHarnessEngine {
     const moduleSpecifier = sourceFile.getRelativePathAsModuleSpecifierTo(sharedFile);
     this.ensureNamedImport(sourceFile, moduleSpecifier, plan.functionName);
 
-    try {
-      sourceFile.organizeImports();
-    } catch {
-      // catch-ok: organizeImports can fail harmlessly on incomplete syntax trees
-    }
+    tryOrNull(() => sourceFile.organizeImports());
 
     await sourceFile.save();
   }
@@ -193,7 +186,7 @@ export class HybridHarnessEngine {
   ): Promise<string> {
     const astGrep = await getAstGrep();
     if (astGrep) {
-      try {
+      const transformed = tryOrNull(() => {
         const rootNode = astGrep.parse(lang as AstGrepLang, sourceCode).root();
         const matches = rootNode.findAll(pattern);
 
@@ -208,8 +201,11 @@ export class HybridHarnessEngine {
           }
           return updated;
         }
-      } catch {
-        // catch-ok: fallback to direct pattern replacement on syntax/parse errors
+        return null;
+      });
+
+      if (transformed !== null) {
+        return transformed;
       }
     }
 

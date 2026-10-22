@@ -13,9 +13,6 @@
  *   3. No window.location Navigation in SPA (`no-window-location-navigation`):
  *      Prohibits hard navigation like `window.location.href = '/path'` or `window.location.assign('/path')`
  *      for internal SPA routing, destroying pinia state. (Exempts reload, replace, origin, and external URLs).
- *
- * Escape Hatch:
- *   // router-ok: <reason>, // sfc-ok: <reason>
  */
 
 import { enableCompileCache } from 'node:module';
@@ -115,7 +112,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
           '2. Diagnosis: Look for assignments to `window.location` at the reported line.\n' +
           '3. Canonical Solution:\n' +
           '   a) Use the router instance: `const router = useRouter(); router.push(target);`.\n' +
-          '   b) If intentionally navigating to an external third-party URL (OAuth/Stripe), annotate with `// router-ok: <reason>`.\n' +
+          '   b) For external third-party URLs (OAuth/Stripe), ensure the URL contains absolute protocol prefixes (`https://`).\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Hard reload: `window.location.href = "/dashboard";`\n' +
           '   ✅ SPA Router:  `router.push({ name: "Dashboard" });`'
@@ -138,7 +135,6 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       DEPRECATED_NEXT_GUARD_REGEX,
       relPath,
       'no-deprecated-router-next',
-      ['router-ok', 'sfc-ok'],
       `Deprecated 'next' argument in router navigation guard. Vue Router 4 mandates returning a boolean or route location object instead.`,
       undefined,
       content
@@ -149,7 +145,6 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       DEFINE_ASYNC_IN_ROUTER_REGEX,
       relPath,
       'no-define-async-component-in-router',
-      ['router-ok', 'sfc-ok'],
       `defineAsyncComponent used in router route definition. Use canonical dynamic import 'component: () => import(...)' instead.`,
       undefined,
       content
@@ -160,7 +155,6 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       WINDOW_LOCATION_NAV_REGEX,
       relPath,
       'no-window-location-navigation',
-      ['router-ok', 'sfc-ok'],
       `Direct SPA navigation with 'window.location'. Use useRouter().push(...) to preserve application state.`,
       undefined,
       content

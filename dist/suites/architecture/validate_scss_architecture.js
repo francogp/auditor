@@ -113,7 +113,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		return blocks;
 	}
 	auditRawCssInSfc(relPath, content) {
-		if (content.includes("raw-css-ok")) return;
 		if (!relPath.endsWith(".vue")) return;
 		const styleTagRegex = /<style\b([^>]*)>/gi;
 		let match;
@@ -132,7 +131,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditScssDeepSelectorAbuse(relPath, content, lineOffset = 1) {
-		if (content.includes("deep-selector-ok")) return;
 		const nestedDeepRegex = /:deep\([^)]*\)[^{};]*:deep\(/g;
 		let nestedMatch;
 		while ((nestedMatch = nestedDeepRegex.exec(content)) !== null) {
@@ -162,7 +160,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditNonStandardSpacingUnit(relPath, content, lineOffset = 1) {
-		if (content.includes("spacing-unit-ok")) return;
 		const config = getAuditConfig(this.projectRoot);
 		if (config.scssArchitecture?.allowPixelArtSpacing) return;
 		const allowedUnits = new Set(config.scssArchitecture?.allowedSpacingUnits ?? []);
@@ -183,7 +180,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditMissingThemeTokenUsage(relPath, content, lineOffset = 1, isScoped = false) {
-		if (content.includes("theme-token-ok")) return;
 		const config = getAuditConfig(this.projectRoot);
 		if (isScoped && config.scssArchitecture?.allowScopedColors) return;
 		const hardcodedColorRegex = /(?:color|background-color|background|border-color|fill|stroke)\s*:\s*([^;{}]*)/gi;
@@ -205,11 +201,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 			}
 		}
 	}
-	isLineNestingExempt(rawLines, index) {
-		const rawLine = rawLines[index] ?? "";
-		const prevRawLine = index > 0 ? rawLines[index - 1] ?? "" : "";
-		return rawLine.includes("scss-nesting-ok") || prevRawLine.includes("scss-nesting-ok");
-	}
 	processScssLineBraces(line, blockStack, maxAllowedDepth, onViolation) {
 		for (let c = 0; c < line.length; c++) {
 			const char = line[c];
@@ -224,24 +215,19 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		}
 	}
 	auditExcessiveScssNesting(relPath, content, lineOffset = 1, isScoped = false) {
-		if (content.includes("scss-nesting-ok")) return;
 		const config = getAuditConfig(this.projectRoot);
 		const maxAllowedDepth = isScoped ? config.scssArchitecture?.scopedMaxNestingDepth ?? 4 : config.scssArchitecture?.maxNestingDepth ?? 3;
 		const lines = stripCommentsAndStrings(content).split("\n");
-		const rawLines = content.split("\n");
 		const blockStack = [];
-		for (let i = 0; i < lines.length; i++) {
-			if (this.isLineNestingExempt(rawLines, i)) continue;
-			this.processScssLineBraces(lines[i], blockStack, maxAllowedDepth, (depth) => {
-				this.addViolation({
-					ruleId: "excessive-scss-nesting",
-					severity: "error",
-					message: `Excessive SCSS nesting (${depth} levels > ${maxAllowedDepth}); flatten selectors with BEM or semantic classes`,
-					file: relPath,
-					line: lineOffset + i
-				});
+		for (let i = 0; i < lines.length; i++) this.processScssLineBraces(lines[i], blockStack, maxAllowedDepth, (depth) => {
+			this.addViolation({
+				ruleId: "excessive-scss-nesting",
+				severity: "error",
+				message: `Excessive SCSS nesting (${depth} levels > ${maxAllowedDepth}); flatten selectors with BEM or semantic classes`,
+				file: relPath,
+				line: lineOffset + i
 			});
-		}
+		});
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateScssArchitectureAuditor());

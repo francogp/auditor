@@ -94,7 +94,7 @@ describe('TypographyLineHeightAuditor', () => {
     expect(auditor.collectedViolations).toHaveLength(0);
   });
 
-  it('honors the line-height-ok escape hatch comment', () => {
+  it('flags line-height overlap regardless of line-height-ok comment (Zero-Ignore Mandate)', () => {
     const auditor = new TestableTypographyLineHeightAuditor({
       roots: [],
       projectRoot: PROJECT_ROOT
@@ -107,7 +107,8 @@ describe('TypographyLineHeightAuditor', () => {
       }
     `;
     auditor.testScanFile('src/test.scss', ignoredScss);
-    expect(auditor.collectedViolations).toHaveLength(0);
+    expect(auditor.collectedViolations).toHaveLength(1);
+    expect(auditor.collectedViolations[0]?.ruleId).toBe('line-height-overlap');
   });
 
   it('runs audit on clean files and reports zero errors', async () => {

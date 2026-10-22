@@ -1,5 +1,6 @@
 import { AUDIT_CONFIG_FILE, AUDIT_CONFIG_JSON_FILE, LEGACY_ROOT_CONFIG_FILES } from "./auditConfigTypes.js";
 import { AUDITOR_VERSION } from "./version.js";
+import { tryCatchSync, tryOrNull, tryOrNullAsync, tryOrUndefinedAsync } from "./safeUtils.js";
 import { loadAuditConfig, resetAuditConfig } from "./auditConfigLoader.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import "./auditConfig.js";
@@ -44,23 +45,15 @@ const EMPTY_BOOTSTRAP_RESULT = {
 };
 function handleLegacyConfigMigration(projectRoot) {
 	if (!LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(projectRoot, f)))) return;
-	try {
+	tryCatchSync(() => {
 		migrateLegacyAuditConfig(projectRoot);
-	} catch {}
+	});
 }
 async function safeDiscoverAuditors(projectRoot) {
-	try {
-		return await discoverAuditors({ projectRoot });
-	} catch {
-		return [];
-	}
+	return discoverAuditors({ projectRoot }).catch(() => []);
 }
 function resolvePackageName(projectRoot) {
-	try {
-		const pkg = getPackageJson(projectRoot);
-		if (pkg?.name) return pkg.name;
-	} catch {}
-	return "Project";
+	return tryOrNull(() => getPackageJson(projectRoot))?.name ?? "Project";
 }
 function ensureVirginConfigScaffolded(projectRoot, tasks) {
 	const pkgName = resolvePackageName(projectRoot);
@@ -73,36 +66,29 @@ function ensureVirginConfigScaffolded(projectRoot, tasks) {
 }
 async function ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks) {
 	const injectedKeys = [];
-	try {
-		const rawConfig = (await loadAuditConfig(projectRoot))._rawConfig ?? {};
-		const missing = collectMissingSections(tasks, rawConfig);
-		if (missing.size === 0) return injectedKeys;
-		const targetPath = fs.existsSync(configPath) ? configPath : jsonConfigPath;
-		const sectionsToInsert = {};
-		for (const [rootKey, entry] of missing.entries()) {
-			sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
-			injectedKeys.push(rootKey);
-		}
-		appendMissingSectionsToConfigFile(targetPath, sectionsToInsert);
-		resetAuditConfig();
-	} catch {}
+	const activeConfig = await tryOrNullAsync(() => loadAuditConfig(projectRoot));
+	if (!activeConfig) return injectedKeys;
+	const rawConfig = activeConfig._rawConfig ?? {};
+	const missing = collectMissingSections(tasks, rawConfig);
+	if (missing.size === 0) return injectedKeys;
+	const targetPath = fs.existsSync(configPath) ? configPath : jsonConfigPath;
+	const sectionsToInsert = {};
+	for (const [rootKey, entry] of missing.entries()) {
+		sectionsToInsert[rootKey] = Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
+		injectedKeys.push(rootKey);
+	}
+	appendMissingSectionsToConfigFile(targetPath, sectionsToInsert);
+	resetAuditConfig();
 	return injectedKeys;
 }
 function ensureAgentSkillRegistered(projectRoot) {
-	try {
-		return initAgentSkill({ targetDir: projectRoot }).created;
-	} catch {
-		return false;
-	}
+	return tryOrNull(() => initAgentSkill({ targetDir: projectRoot }))?.created ?? false;
 }
 async function ensureGitIgnoreSynchronized(projectRoot) {
-	try {
+	return await tryOrNull(async () => {
 		const gitignorePath = path.resolve(projectRoot, ".gitignore");
 		const requirements = await collectAllGitIgnoreRequirements(projectRoot);
-		let activeConfig;
-		try {
-			activeConfig = await loadAuditConfig(projectRoot);
-		} catch {}
+		const activeConfig = await tryOrUndefinedAsync(() => loadAuditConfig(projectRoot));
 		const applicable = requirements.filter((req) => {
 			if (!req.isApplicable) return true;
 			return activeConfig ? req.isApplicable(activeConfig) : true;
@@ -112,9 +98,7 @@ async function ensureGitIgnoreSynchronized(projectRoot) {
 		if (missing.length === 0) return false;
 		appendGitIgnoreEntries(gitignorePath, missing.map((e) => e.pattern));
 		return true;
-	} catch {
-		return false;
-	}
+	}) ?? false;
 }
 async function ensureProjectBootstrapped(options = {}) {
 	const projectRoot = path.resolve(options.projectRoot ?? process.cwd());
@@ -133,17 +117,13 @@ async function ensureProjectBootstrapped(options = {}) {
 		configCreated = ensureVirginConfigScaffolded(projectRoot, tasks);
 		versionUpdated = true;
 	} else {
-		let activeConfig;
-		try {
-			activeConfig = await loadAuditConfig(projectRoot);
-		} catch {}
-		const rawConfig = activeConfig?._rawConfig ?? {};
+		const rawConfig = (await tryOrUndefinedAsync(() => loadAuditConfig(projectRoot)))?._rawConfig ?? {};
 		previousVersion = typeof rawConfig.auditorVersion === "string" ? rawConfig.auditorVersion : void 0;
 		const versionDiverged = previousVersion !== AUDITOR_VERSION;
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "9.9.3-build.20261021-130801")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.0.0-build.20261022-194620")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

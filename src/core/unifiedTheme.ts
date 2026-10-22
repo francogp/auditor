@@ -36,7 +36,7 @@ const BREAKDOWN_COUNT_COL_WIDTH = 9;
 import type { TextAlignment } from './terminalVisuals.ts';
 
 export {
-  getVisualWidth,
+  stringWidth,
   padVisual,
   truncateVisual,
   TEXT_ALIGNMENTS,

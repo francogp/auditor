@@ -10,12 +10,12 @@ Architecture & Tooling Engineers.
 
 - **Dynamic Detector Registration**: All homebrew checks derive from `HomebrewDetector` instances registered in `HomebrewDetectorRegistry`.
 - **Zero Hardcoded Heuristics in Core**: Rules and detectors must be modular, self-contained, and exportable.
-- **Escape Hatch Standard**: Detectors strictly honor inline and preceding-line comments (`// homebrew-ok: <reason>` or `// console-ok: <reason>`).
+- **Zero-Escape Policy**: No bypass directives or escape hatches are permitted. Detectors flag homebrew anti-patterns uniformly.
 
 ## Key Files
 
 - [`homebrewTypes.ts`](./homebrewTypes.ts): Domain types, rule IDs, and `HomebrewDetector` interface definitions.
-- [`homebrewRegistry.ts`](./homebrewRegistry.ts): Dynamic registry for detectors with line-based exemption handling.
+- [`homebrewRegistry.ts`](./homebrewRegistry.ts): Dynamic registry for detectors with modular execution.
 - [`index.ts`](./index.ts): Default registry initialization and built-in detector auto-registration.
 - [`detectors/`](./detectors/): Directory of 10 canonical homebrew detectors.
 

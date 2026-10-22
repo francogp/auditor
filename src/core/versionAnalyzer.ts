@@ -8,6 +8,7 @@
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tryOrNull } from './safeUtils.ts';
 
 export const MAJOR_DIFF_LINES_THRESHOLD = 1000 as const;
 export const MAJOR_CORE_LINES_THRESHOLD = 500 as const;
@@ -206,27 +207,23 @@ export function collectGitDiffMetrics(
 ): DiffMetrics {
   const changedFilesMap = new Map<string, ChangedFileDetail>();
 
-  try {
+  tryOrNull(() => {
     const diffOutput = execSync(`git diff ${baseRef} --numstat`, {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'ignore']
     });
     parseNumstatOutput(diffOutput, changedFilesMap);
-  } catch {
-    // catch-ok: In non-git directories or empty repos, fallback cleanly
-  }
+  });
 
-  try {
+  tryOrNull(() => {
     const statusOutput = execSync('git status --porcelain', {
       cwd,
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'ignore']
     });
     parsePorcelainOutput(statusOutput, cwd, changedFilesMap);
-  } catch {
-    // catch-ok: Fallback when git is unavailable
-  }
+  });
 
   const changedFiles = Array.from(changedFilesMap.values());
   const agg = aggregateSubsystemMetrics(changedFiles);

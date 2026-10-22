@@ -49,7 +49,7 @@ function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_PREVIEW)
 			lines.push(formatFindingEntry(item));
 		}
 	}
-	if (findings.length > maxLimit) lines.push(styleText("cyan", `\n  ... y 🐛 ${formatNumber(findings.length - maxLimit)} más. Usa --output=<archivo> para volcado completo.`));
+	if (findings.length > maxLimit) lines.push(styleText("cyan", `\n  ... and 🐛 ${formatNumber(findings.length - maxLimit)} more. Use --output=<file> for complete output.`));
 	return lines.join("\n");
 }
 function formatFileHeaderLine(fs) {

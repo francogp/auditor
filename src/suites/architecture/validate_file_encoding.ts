@@ -137,7 +137,8 @@ export const KNOWN_BINARY_EXTENSIONS = new Set<string>([
   '.dylib'
 ]);
 
-const MOJIBAKE_REGEX = /(?:Ã[¡-º]|Ã±|Ã‘|Â[¡¿°±]|â€[“”—’‘™•]|â€¦)/; // mojibake-ok: Regex definition for detecting mojibake
+const MOJIBAKE_REGEX =
+  /(?:\u00C3[\u00A1-\u00BA]|\u00C3\u00B1|\u00C3\u0091|\u00C2[\u00A1\u00BF\u00B0\u00B1]|\u00E2\u20AC[\u201C\u201D\u2014\u2019\u2018\u2122\u2022]|\u00E2\u20AC\u00A6)/;
 
 export type FileEncodingRepairAction =
   | 'strip-utf8-bom'
@@ -296,7 +297,6 @@ export function inspectBufferEncoding(
     const lines = decodedText.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      if (/(?:\/\/|--|#|\/\*)\s*mojibake-ok:/.test(line)) continue;
       const match = MOJIBAKE_REGEX.exec(line);
       if (match && typeof match.index === 'number') {
         const lineNum = i + 1;

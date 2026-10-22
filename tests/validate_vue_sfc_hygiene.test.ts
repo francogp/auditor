@@ -160,7 +160,7 @@ describe('VueSfcHygieneAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
-    it('allows exceptions with // sfc-ok and // template-ok escape hatches', () => {
+    it('detects violations even when // sfc-ok and <!-- template-ok --> comments are present (Zero-Ignore Mandate)', () => {
       const auditor = new TestableVueSfcHygieneAuditor();
       const sfc = `
         <template>
@@ -171,7 +171,7 @@ describe('VueSfcHygieneAuditor', () => {
         </script>
       `;
       auditor.testScanFile('src/components/Exempt.vue', sfc);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThan(0);
     });
 
     it('does not produce false positives for HTML comments, static classes or static text containing "db" or "supabase"', () => {

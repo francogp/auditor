@@ -4,7 +4,7 @@
  * Dedicated unit test suite for MarkdownSyntaxAuditor:
  * - Detects direct scripts in docs (npm-script-exclusivity-in-docs)
  * - Detects tables missing preceding blank lines (markdown-table-preceding-blank-line)
- * - Honors escape hatches (doc-ok, npm-ok, table-ok, markdown-ok)
+ * - Enforces Zero-Ignore policy
  * - Verifies clean execution (0 errors, passed status)
  */
 
@@ -98,7 +98,7 @@ describe('MarkdownSyntaxAuditor', () => {
       expect(violations).toHaveLength(0);
     });
 
-    it('honors escape hatches for direct commands (<!-- npm-ok --> / <!-- doc-ok -->)', () => {
+    it('flags direct commands regardless of <!-- npm-ok --> comment (Zero-Ignore Mandate)', () => {
       const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Setup Script',
@@ -108,7 +108,7 @@ describe('MarkdownSyntaxAuditor', () => {
       ].join('\n');
 
       auditor.testScanFile('docs/setup.md', content);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
   });
 
@@ -154,11 +154,11 @@ describe('MarkdownSyntaxAuditor', () => {
       expect(violations).toHaveLength(0);
     });
 
-    it('honors <!-- table-ok --> escape hatch', () => {
+    it('handles non-table lines with pipe characters cleanly', () => {
       const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
-        'Paragraph directly before table.',
-        '| Header 1 | Header 2 | <!-- table-ok: Embedded in tight card layout -->',
+        'Paragraph directly before code.',
+        '| Header 1 | Header 2 | with extra text trailing',
         '| -------- | -------- |',
         '| Cell 1   | Cell 2   |'
       ].join('\n');

@@ -15,9 +15,6 @@
  *   4. No Destructured Reactive (`no-destructured-reactive`):
  *      Prohibits destructuring reactive() objects directly without toRefs().
  *      (Note: defineProps destructuring is permitted under Vue 3.5+ native compiler transform).
- *
- * Escape Hatch:
- *   // reactivity-ok: <reason>, // sfc-ok: <reason>
  */
 
 import { enableCompileCache } from 'node:module';
@@ -43,13 +40,11 @@ export const VUE_REACTIVITY_RULES: readonly VueReactivityRuleId[] = [
 ] as const;
 
 const ASYNC_COMPUTED_REGEX = /\bcomputed\s*\(\s*(?:<[^>]+>\s*)?async\s*(?:\([^)]*\)|[\w$]+)\s*=>/g;
-// redos-ok: deterministic property accessor regex
-const WATCH_PROP_NAKED_REGEX = /\bwatch\s*\(\s*(props\.[\w$]+(?:\.[\w$]+)*)\s*,/g;
+const WATCH_PROP_NAKED_REGEX = /\bwatch\s*\(\s*(props\.[\w$][\w$.]*)\s*,/g;
 const DESTRUCTURED_REACTIVE_REGEX = /const\s+\{[^}]+\}\s*=\s*reactive\s*(?:<[^>]+>\s*)?\(/g;
 
-// redos-ok: deterministic property accessor regex
 const DIRECT_REACTIVE_MUTATION_REGEX =
-  /\b(?:(?:props|store)\.(?!value\b)[\w$]+(?:\.[\w$]+)*|[\w$]+\.value)\s*\??\.(?:sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
+  /\b(?:(?:props|store)\.(?!value\b)[\w$][\w$.]*|[\w$]+\.value)\s*\??\.(?:sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 const LOCAL_IDENTIFIER_MUTATION_REGEX =
   /\b([\w$]+)\s*\??\.(sort|reverse|splice|push|pop|shift|unshift)\s*\(/g;
 
@@ -191,7 +186,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       ASYNC_COMPUTED_REGEX,
       relPath,
       'no-async-in-computed',
-      ['reactivity-ok', 'sfc-ok'],
       'Asynchronous callback passed to computed(). computed cannot unwrap promises; use watchEffect or computedAsync from VueUse.',
       undefined,
       content
@@ -202,7 +196,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       WATCH_PROP_NAKED_REGEX,
       relPath,
       'watch-reactive-property-getter',
-      ['reactivity-ok', 'sfc-ok'],
       'Watching reactive property directly as value instead of a getter. Use watch(() => props.prop, ...) to preserve reactivity.',
       undefined,
       content
@@ -213,7 +206,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       DESTRUCTURED_REACTIVE_REGEX,
       relPath,
       'no-destructured-reactive',
-      ['reactivity-ok', 'sfc-ok'],
       'Destructuring reactive() object directly causes reactivity loss. Wrap with toRefs() before destructuring.',
       undefined,
       content
@@ -237,7 +229,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
 
     const isAsync = (arg0.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
     if (!isAsync) return;
-    if (doc.hasEscapeHatchForNode(node, 'no-async-in-computed', ast)) return;
 
     const { line } = doc.getNodeLineAndColumn(node, ast);
     this.addViolation({
@@ -267,7 +258,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
       root = root.expression;
     }
     if (!ts.isIdentifier(root) || root.text !== 'props') return;
-    if (doc.hasEscapeHatchForNode(node, 'watch-reactive-property-getter', ast)) return;
 
     const { line } = doc.getNodeLineAndColumn(node, ast);
     this.addViolation({
@@ -294,7 +284,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     let initCallee: ts.Expression = node.initializer.expression;
     while (ts.isParenthesizedExpression(initCallee)) initCallee = initCallee.expression;
     if (initCallee.getText(ast) !== 'reactive') return;
-    if (doc.hasEscapeHatchForNode(node, 'no-destructured-reactive', ast)) return;
 
     const { line } = doc.getNodeLineAndColumn(node, ast);
     this.addViolation({
@@ -353,8 +342,6 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
   ): void {
     const line = this.getLineNumber(fullContent, fullContent.indexOf(needle, startIdx));
     const lineContent = this.getLineAt(fullContent, line);
-
-    if (this.hasEscapeHatch(lineContent, ['reactivity-ok', 'sfc-ok'])) return;
 
     this.addViolation({
       ruleId: 'no-side-effects-in-computed',
@@ -423,14 +410,8 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     if (method === 'sort' || method === 'reverse') {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
     }
-    // domain-ok: Array mutating methods
-    if (
-      method === 'push' ||
-      method === 'pop' ||
-      method === 'shift' ||
-      method === 'unshift' ||
-      method === 'splice'
-    ) {
+    const arrayMutationMethods: ReadonlySet<string> = new Set(['push', 'pop', 'shift', 'unshift', 'splice']);
+    if (arrayMutationMethods.has(method)) {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first.`;
     }
 
@@ -455,8 +436,8 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
 
       if (!targetVar || !method) continue;
       if (locMatch.index > 0 && body[locMatch.index - 1] === '.') continue;
-      // domain-ok: Common Vue reactive wrapper variables
-      if (targetVar === 'props' || targetVar === 'store' || targetVar === 'value') continue;
+      const exemptTargets: ReadonlySet<string> = new Set(['props', 'store', 'value']);
+      if (exemptTargets.has(targetVar)) continue;
 
       const violationMessage = this.evalLocalIdentifierMutation(
         targetVar,

@@ -1,3 +1,4 @@
+import { tryOrNull, tryOrNullAsync } from "./safeUtils.js";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";
 import { styleText } from "node:util";
@@ -10,21 +11,20 @@ import { styleText } from "node:util";
 function polyfillPermissionModelFsync() {
 	const permission = process.permission;
 	if (!permission || typeof permission.has !== "function") return;
-	try {
+	tryOrNull(() => {
 		Reflect.set(fs, "fsyncSync", () => {});
 		const noopCallback = (_fd, callback) => {
 			if (typeof callback === "function") callback(null);
 		};
 		Reflect.set(fs, "fsync", noopCallback);
 		Reflect.set(fs$1, "fsync", async () => {});
-	} catch {}
-	try {
-		fs$1.open(process.execPath, "r").then((h) => {
-			const proto = Object.getPrototypeOf(h);
-			if (proto && typeof proto.sync === "function") proto.sync = async () => {};
-			return h.close();
-		}).catch(() => {});
-	} catch {}
+	});
+	tryOrNullAsync(async () => {
+		const handle = await fs$1.open(process.execPath, "r");
+		const proto = Object.getPrototypeOf(handle);
+		if (proto && typeof proto.sync === "function") proto.sync = async () => {};
+		await handle.close();
+	});
 }
 polyfillPermissionModelFsync();
 const DEFAULT_PERMISSIONS = [

@@ -82,10 +82,6 @@ const cleanTarget = targetPath.replace(/^\/+/, '');
 ### HN17 pokeborrador#sqliteEngine.ts:230 expect=none env=browser
 if (isNode) return `./node_modules/sql.js/dist/${file}`;
 
-### HN18 pokeborrador#tilesRegistry.ts:95-fallow-hatch expect=none env=browser
-// fallow-ignore-next-line security-sink
-const res = await fetch(manifestUrl);
-
 ### HB01 browser-url-rule-still-applies expect=homebrew-url-parsing env=browser
 const part = window.location.href.split('?')[1];
 

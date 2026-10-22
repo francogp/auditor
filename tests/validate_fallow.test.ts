@@ -582,7 +582,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
 
       // Attempting to resolve again throws Contract Violation
       expect(() => auditor.resolveCommandArgs(profile)).toThrow(
-        /\[Auditor Contract Violation\].*ya fue resuelto\/ejecutado/
+        /\[Auditor Contract Violation\].*was already resolved\/executed/
       );
     });
   });

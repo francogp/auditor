@@ -19,7 +19,7 @@ import { type loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../core/packageScriptRegistry.ts';
 import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
-import { toPosixRelative } from '../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath } from '../core/safePath.ts';
 import { DEFAULT_PERMISSIONS } from '../core/permissionGuard.ts';
 export { DEFAULT_PERMISSIONS };
 
@@ -68,23 +68,14 @@ export function getPermissionsForTask(filename: string, fullPath?: string): stri
 
 /** Convert snake_case or kebab-case filename to Title Case */
 export function formatTaskTitle(filename: string): string {
-  // domain-ok: Task filename aliases
-  if (
-    filename === 'audit_project' ||
-    filename === 'audit_project.ts' ||
-    filename === 'audit_project.js'
-  ) {
+  const baseName = path.basename(filename, path.extname(filename));
+  if (baseName === 'audit_project') {
     return 'Project Architecture & Style Rules';
   }
-  // domain-ok: Task filename aliases
-  if (
-    filename === 'validate_stylelint' ||
-    filename === 'validate_stylelint.ts' ||
-    filename === 'validate_stylelint.js'
-  ) {
+  if (baseName === 'validate_stylelint') {
     return 'CSS & SCSS Stylelint Hygiene';
   }
-  const base = path.basename(filename, path.extname(filename)).replace(/^(validate_|audit_)/, '');
+  const base = baseName.replace(/^(validate_|audit_)/, '');
   return base
     .split(/[_-]/)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -152,15 +143,13 @@ export function shouldSkipTaskByCapabilities(
     return resolveEffectiveSpeed(capabilities?.speed, { onlySpeed: options.onlySpeed }) === null;
   }
 
-  // domain-ok: Audit runner presets
+  const speedPresetNames: ReadonlySet<string> = new Set(['lint', 'full', 'precommit']);
   const hasExplicitSpeedOrPreset = Boolean(
     options.speed ||
     options.lintOnly ||
-    options.preset === 'lint' ||
     options.precommitOnly ||
-    options.preset === 'full' ||
-    options.preset === 'precommit' ||
-    options.includeHeavy === false
+    options.includeHeavy === false ||
+    (options.preset && speedPresetNames.has(options.preset))
   );
 
   if (!isTargeted || hasExplicitSpeedOrPreset) {
@@ -198,7 +187,7 @@ export function buildTaskCliArguments(
   const relScriptPath = toPosixRelative(process.cwd(), fullPath);
   const scriptArg =
     relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
-      ? path.resolve(fullPath).split(path.sep).join(path.posix.sep)
+      ? normalizePosixPath(fullPath)
       : relScriptPath;
   const taskPermissions = getPermissionsForTask(filename, fullPath);
   const taskArgs = [...taskPermissions, scriptArg, '--json'];
@@ -291,7 +280,7 @@ export async function createAuditTaskDefinition(
   const relScriptPath = toPosixRelative(process.cwd(), fullPath);
   const effectiveScriptPath =
     relScriptPath.startsWith('..') || path.isAbsolute(relScriptPath)
-      ? path.resolve(fullPath).split(path.sep).join(path.posix.sep)
+      ? normalizePosixPath(fullPath)
       : relScriptPath;
   const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
   const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : '🧩');

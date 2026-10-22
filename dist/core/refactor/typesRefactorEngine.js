@@ -36,7 +36,6 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 	static discoverInFile(filePath) {
 		const findings = [];
 		forEachSourceScriptLine(filePath, (line, actualLine) => {
-			if (line.includes("// type-ok:") || line.includes("// type-ignore:") || line.includes("// eslint-disable")) return;
 			DOUBLE_ASSERTION_REGEX.lastIndex = 0;
 			let doubleMatch;
 			if ((doubleMatch = DOUBLE_ASSERTION_REGEX.exec(line)) !== null) {

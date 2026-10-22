@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { styleText } from 'node:util';
+import { safeRmSync, tryOrNull } from '../safeUtils.ts';
 
 export interface WorktreeSession {
   readonly repoRoot: string;
@@ -84,38 +85,26 @@ export class WorktreeSandboxManager {
   private static forceClean(absRepo: string, worktreeDir: string): void {
     const targetNodeModules = path.join(worktreeDir, 'node_modules');
     if (fs.existsSync(targetNodeModules)) {
-      try {
-        fs.rmSync(targetNodeModules, { recursive: true, force: true });
-      } catch {
-        // catch-ok: best-effort cleanup of junction directory
-      }
+      safeRmSync(targetNodeModules, { recursive: true, force: true });
     }
 
-    try {
+    tryOrNull(() =>
       execSync(`git -C "${absRepo}" worktree remove --force "${worktreeDir}"`, {
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe']
-      });
-    } catch {
-      // catch-ok: git worktree might already be removed
-    }
+      })
+    );
 
     if (fs.existsSync(worktreeDir)) {
-      try {
-        fs.rmSync(worktreeDir, { recursive: true, force: true });
-      } catch {
-        // catch-ok: best-effort cleanup of worktree directory
-      }
+      safeRmSync(worktreeDir, { recursive: true, force: true });
     }
 
-    try {
+    tryOrNull(() =>
       execSync(`git -C "${absRepo}" worktree prune`, {
         encoding: 'utf8',
         stdio: ['pipe', 'pipe', 'pipe']
-      });
-    } catch {
-      // catch-ok: best-effort worktree prune
-    }
+      })
+    );
   }
 }
 

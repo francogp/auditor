@@ -25,7 +25,9 @@ import {
   isPathIgnored
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
+import { tryCatchSync } from '../../core/safeUtils.ts';
 import {
   parseLintResultsToFindings,
   extractJsonReportFilePaths,
@@ -93,7 +95,7 @@ function collectTopLevelHtmlTargets(
   filesToScan: string[],
   extraIgnorePatterns: readonly string[] = []
 ): void {
-  try {
+  tryCatchSync(() => {
     const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
     for (const entry of rootEntries) {
       if (entry.isFile() && entry.name.endsWith('.html')) {
@@ -103,9 +105,7 @@ function collectTopLevelHtmlTargets(
         }
       }
     }
-  } catch {
-    // catch-ok: ignore unreadable project root
-  }
+  });
 }
 
 export function collectHtmlTargets(
@@ -242,14 +242,14 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
 
     const localConfigPath = path.resolve(this.projectRoot, '.htmlvalidate.json');
     const hasLocalConfig = fs.existsSync(localConfigPath);
-    const coverageInclude: string[] = scannableRoots.map((r) => `${r}/**/*.{html,vue}`); // no-domain: Dynamic coverage glob patterns
-    coverageInclude.push('*.html');
+    const coverageIncludeGlobs: string[] = scannableRoots.map((r) => `${r}/**/*.{html,vue}`);
+    coverageIncludeGlobs.push('*.html');
     if (hasLocalConfig) {
-      coverageInclude.push('.htmlvalidate.json');
+      coverageIncludeGlobs.push('.htmlvalidate.json');
       this.recordScanned(localConfigPath);
     }
     this.redeclareCoverage({
-      include: coverageInclude,
+      include: coverageIncludeGlobs,
       source: 'runtime'
     });
 
@@ -272,7 +272,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     }
 
     const relFiles = filesToScan.map((f) =>
-      path.relative(this.projectRoot, f).split(path.sep).join(path.posix.sep)
+      normalizePosixPath(path.relative(this.projectRoot, f))
     );
     const totalChars = relFiles.reduce((acc, f) => acc + f.length + 1, 0);
     const effectiveTargets = totalChars < 6000 && relFiles.length > 0 ? relFiles : targets;

@@ -51,7 +51,7 @@ export function schedulePopup(): void {
       expect(clearT?.suggestedReplacement).toBe('timerId?.kill()');
     });
 
-    it('honors // timer-ok: and // layout-ok: escape hatches', () => {
+    it('detects findings even when escape comments are present (Zero-Ignore Mandate)', () => {
       const tsFile = path.join(tmpDir, 'escapeTest.ts');
       fs.writeFileSync(
         tsFile,
@@ -63,7 +63,7 @@ export function safeSchedule(): void {
       );
 
       const findings = MotionRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(0);
+      expect(findings.length).toBeGreaterThan(0);
     });
 
     it('discovers legacy ease names and layout properties in Vue SFC', () => {

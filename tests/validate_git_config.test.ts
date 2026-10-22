@@ -42,7 +42,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 

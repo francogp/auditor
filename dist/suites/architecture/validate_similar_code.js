@@ -1,4 +1,5 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
+import { safeJsonParse, tryOrNull } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
@@ -88,14 +89,16 @@ function ensureSimilarCodeCacheDir(_projectRoot) {
 }
 function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
 	ensureSimilarCodeCacheDir(projectRoot);
-	if (isFix && process.platform === "win32") try {
+	if (isFix && process.platform === "win32") {
 		const candidates = [path.resolve(projectRoot, "node_modules/@fallow-cli"), path.resolve(process.cwd(), "node_modules/@fallow-cli")];
-		for (const dir of candidates) if (fs.existsSync(dir)) childProcess.execSync(`powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`, {
-			stdio: "ignore",
-			timeout: WINDOWS_UNBLOCK_TIMEOUT_MS
+		tryOrNull(() => {
+			for (const dir of candidates) if (fs.existsSync(dir)) childProcess.execSync(`powershell.exe -NoProfile -Command "Get-ChildItem -Path '${dir}' -Recurse -Filter '*.exe' -ErrorAction SilentlyContinue | Unblock-File"`, {
+				stdio: "ignore",
+				timeout: WINDOWS_UNBLOCK_TIMEOUT_MS
+			});
 		});
-	} catch {}
-	try {
+	}
+	if (tryOrNull(() => {
 		const statusOut = childProcess.execSync(`node "${fallowBin}" similar-code status --format json`, {
 			cwd: projectRoot,
 			encoding: "utf8",
@@ -106,9 +109,9 @@ function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
 			],
 			timeout: 0
 		});
-		if (JSON.parse(statusOut).model_ready === true) return true;
-	} catch {}
-	process.stdout.write(styleText("cyan", "📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n"));
+		return safeJsonParse(statusOut)?.model_ready === true;
+	})) return true;
+	process.stdout.write(styleText("cyan", "📦 The local embeddings model for Fallow similar-code is not initialized. Downloading and initializing automatically...\n"));
 	try {
 		childProcess.execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
 			cwd: projectRoot,
@@ -122,7 +125,7 @@ function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
 		});
 		return true;
 	} catch (err) {
-		process.stderr.write(styleText("yellow", `⚠️ No se pudo inicializar el modelo de similar-code: ${err.message}. Se omitirá el análisis vectorial.\n`));
+		process.stderr.write(styleText("yellow", `⚠️ Could not initialize similar-code model: ${err.message}. Skipping vector analysis.\n`));
 		return false;
 	}
 }
@@ -201,7 +204,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 				"fallow-similar-code-failed": "Similar-code engine health"
 			},
 			ruleRemediations: {
-				"fallow-similar-code": "📖 REMEDIATION GUIDE: fallow-similar-code\n1. Root Cause: Fallow vector embedding engine detected two functions with semantic similarity exceeding the configured threshold (≥ 0.95). Both implement identical conceptual intent with divergent syntax or variable names.\n2. Diagnosis: Inspect the two functions reported (left and right) at the indicated files and lines.\n3. Canonical Solution:\n   a) Extract common logic into a shared utility function in `src/utils/` or within the corresponding domain service.\n   b) Refactor both call sites to invoke the unified canonical function.\n   c) If functions serve strictly disjoint domains and similarity is coincidental, annotate with `// similar-code-ok: <reason>` above the function signature.\n4. Example / Auto-fix command:\n   ❌ Semantic duplicate: `formatUserDate()` and `parseDisplayTimestamp()` performing identical transformations.\n   ✅ Unified:            Canonical shared `formatDate()` helper.",
+				"fallow-similar-code": "📖 REMEDIATION GUIDE: fallow-similar-code\n1. Root Cause: Fallow vector embedding engine detected two functions with semantic similarity exceeding the configured threshold (≥ 0.95). Both implement identical conceptual intent with divergent syntax or variable names.\n2. Diagnosis: Inspect the two functions reported (left and right) at the indicated files and lines.\n3. Canonical Solution:\n   a) Extract common logic into a shared utility function in `src/utils/` or within the corresponding domain service.\n   b) Refactor both call sites to invoke the unified canonical function.\n4. Example / Auto-fix command:\n   ❌ Semantic duplicate: `formatUserDate()` and `parseDisplayTimestamp()` performing identical transformations.\n   ✅ Unified:            Canonical shared `formatDate()` helper.",
 				"fallow-similar-code-failed": "📖 REMEDIATION GUIDE: fallow-similar-code-failed\n1. Root Cause: Fallow vector analysis engine failed to initialize, the native binary was missing, or Candle CPU model execution failed.\n2. Diagnosis: Check the console error output to determine if the binary is missing or if permissions/network errors occurred.\n3. Canonical Solution:\n   a) On Windows, run `npm run setup:windows` (or `npm run setup:linux` on Linux) to pre-create cache directories and verify binaries.\n   b) Verify `fallow` is installed in `node_modules/.bin/fallow`.\n   c) In CI environments without internet or in production builds, set `AUDITOR_ENV=production`.\n4. Example / Auto-fix command:\n   - Run `npm run setup:windows` or `npm run setup:linux`"
 			},
 			coverage: {

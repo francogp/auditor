@@ -84,8 +84,10 @@ export interface AuditDomainConfig extends BaseAuditSubsystemConfig {
   readonly fallbackIdPatterns?: readonly string[];
   readonly o1CatalogPatterns?: readonly O1CatalogPatternConfig[];
   readonly caseNormalizationExemptTokens?: readonly string[];
+  readonly exemptComparisonTokens?: readonly string[];
   readonly allowedStoreSetterPrefixes?: readonly string[];
   readonly allowedNumericConstantPrefixes?: readonly string[];
+  readonly textualFields?: readonly string[];
   readonly exemptPaths?: readonly string[];
   readonly exemptFiles?: readonly string[];
   readonly ignoreGlobs?: readonly string[];

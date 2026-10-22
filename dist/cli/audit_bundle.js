@@ -1,7 +1,8 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { assertAuditConfigComplete } from "../core/auditConfigValidators.js";
-import { getAuditConfig, loadAuditConfig } from "../core/auditConfigLoader.js";
+import { safeJsonParse, tryCatchSync, tryOrDefault, tryOrUndefined } from "../core/safeUtils.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
+import { getAuditConfig, loadAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import "../core/auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
@@ -34,11 +35,7 @@ const DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES = 500 * BYTES_PER_KB;
 function parseVisualizerData(content) {
 	const match = content.match(/window\.data\s*=\s*(\{.*?\});<\/script>/s) || content.match(/const\s+data\s*=\s*(\{.*?\});/s);
 	if (!match || !match[1]) return null;
-	try {
-		return JSON.parse(match[1]);
-	} catch {
-		return null;
-	}
+	return safeJsonParse(match[1]) ?? null;
 }
 function aggregateModuleSizes(data, heavyChunkThreshold = DEFAULT_HEAVY_CHUNK_THRESHOLD) {
 	const metaMap = new Map(Object.entries(data.nodeMetas || {}));
@@ -66,15 +63,18 @@ function aggregateModuleSizes(data, heavyChunkThreshold = DEFAULT_HEAVY_CHUNK_TH
 function auditSingleChunk(filename, fullPath, budgets, unbudgetedLimit = DEFAULT_UNBUDGETED_CHUNK_LIMIT) {
 	const sizeBytes = fs.statSync(fullPath).size;
 	const sizeKB = (sizeBytes / BYTES_PER_KB).toFixed(1);
-	let gzipBytes;
-	let gzipKB;
-	let compressionRatio;
-	try {
+	const gzipInfo = tryOrUndefined(() => {
 		const content = fs.readFileSync(fullPath);
-		gzipBytes = zlib.gzipSync(content).length;
-		gzipKB = (gzipBytes / BYTES_PER_KB).toFixed(1);
-		compressionRatio = sizeBytes > 0 ? `${((1 - gzipBytes / sizeBytes) * 100).toFixed(1)}%` : "0.0%";
-	} catch {}
+		const bytes = zlib.gzipSync(content).length;
+		return {
+			bytes,
+			kb: (bytes / BYTES_PER_KB).toFixed(1),
+			ratio: sizeBytes > 0 ? `${((1 - bytes / sizeBytes) * 100).toFixed(1)}%` : "0.0%"
+		};
+	});
+	const gzipBytes = gzipInfo?.bytes;
+	const gzipKB = gzipInfo?.kb;
+	const compressionRatio = gzipInfo?.ratio;
 	for (const budget of budgets) if (budget.prefix ? filename.startsWith(budget.prefix) : budget.matcher ? filename.includes(budget.matcher) || filename.startsWith(budget.matcher) : filename.startsWith(budget.name)) {
 		if (sizeBytes > budget.limitBytes) return {
 			filename,
@@ -149,7 +149,7 @@ function auditVisualizerStats(statsFilePath, dupeLimitBytes, topLimit) {
 }
 function discoverCompiledChunks(targetDir) {
 	if (!fs.existsSync(targetDir)) return [];
-	try {
+	return tryOrDefault(() => {
 		const entries = fs.readdirSync(targetDir, {
 			withFileTypes: true,
 			recursive: true
@@ -169,9 +169,7 @@ function discoverCompiledChunks(targetDir) {
 			}
 		}
 		return chunks;
-	} catch {
-		return [];
-	}
+	}, []);
 }
 function auditCompiledChunks(distDir, exemptPrefixes, budgets) {
 	const discovered = discoverCompiledChunks(distDir);
@@ -355,10 +353,10 @@ async function executeCli(rawArgs = getProcessCliArgs()) {
 		for (const v of result.duplicateViolations) console.error(`  [FAIL] ${v}`);
 	}
 	const scratchDir = path.resolve(projectRoot, "scratch/audits/architecture");
-	try {
+	tryCatchSync(() => {
 		fs.mkdirSync(scratchDir, { recursive: true });
 		fs.writeFileSync(path.join(scratchDir, "latest_audit_bundle.json"), JSON.stringify(result, null, 2), "utf8");
-	} catch {}
+	});
 	if (!result.success) {
 		console.error(`\n[FAIL] Bundle audit failed: ${result.totalErrors} error(s) detected.\n`);
 		process.exit(1);

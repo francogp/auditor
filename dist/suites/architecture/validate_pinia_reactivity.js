@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { isPathContained } from "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
@@ -98,7 +98,7 @@ var PiniaReactivityAuditor = class extends FileScanAuditor {
 		const { line } = sf.getLineAndCharacterOfPosition(node.getStart());
 		const lineNum = line + 1;
 		const lineContent = this.getLineAt(content, lineNum);
-		if (!this.hasEscapeHatch(lineContent, ["pinia-ok", "store-ok"])) this.addViolation({
+		this.addViolation({
 			ruleId,
 			severity: "error",
 			file: relPath,

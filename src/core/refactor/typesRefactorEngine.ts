@@ -71,11 +71,6 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
     const findings: TypesFindingItem[] = [];
 
     forEachSourceScriptLine(filePath, (line, actualLine) => {
-      // Check escape hatches
-      if (line.includes('// type-ok:') || line.includes('// type-ignore:') || line.includes('// eslint-disable')) {
-        return;
-      }
-
       // 1. Detect double assertions (e.g. as unknown as Foo, as any as Bar)
       DOUBLE_ASSERTION_REGEX.lastIndex = 0;
       let doubleMatch: RegExpExecArray | null;

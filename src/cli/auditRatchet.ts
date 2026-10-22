@@ -10,10 +10,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
 import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
 import type { ResolvedRatchetConfig } from '../core/auditConfig.ts';
 import { toPosixRelative } from '../core/safePath.ts';
+import { runGit } from '../core/configRatchet.ts';
 
 const BASELINE_SCHEMA_VERSION = 1 as const;
 const FINGERPRINT_HEX_LENGTH = 16 as const;
@@ -44,15 +44,6 @@ interface WarningRatchetOutcome {
   readonly newWarnings: readonly AuditFinding[];
   readonly resolvedCount: number;
   readonly baselineUpdated: boolean;
-}
-
-function runGit(projectRoot: string, args: readonly string[]): { ok: boolean; stdout: string } {
-  const proc = spawnSync('git', args, {
-    cwd: projectRoot,
-    encoding: 'utf-8',
-    stdio: ['ignore', 'pipe', 'pipe']
-  });
-  return { ok: proc.status === 0, stdout: proc.stdout ?? '' };
 }
 
 /** True when `ref` resolves to a commit in the repository at `projectRoot`. */

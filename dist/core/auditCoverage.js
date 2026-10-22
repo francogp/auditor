@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from "./safeUtils.js";
 import { COVERAGE_SOURCES } from "./auditContract.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -129,8 +130,8 @@ function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd())
 	const include = [];
 	for (const root of effectiveRoots) {
 		const cleanRoot = toPosixRelative(projectRoot, root);
-		const prefix = cleanRoot === "" || cleanRoot === "." ? "" : `${cleanRoot}/`;
-		for (const ext of extensions) include.push(`${prefix}**/*${ext}`);
+		const isRootFolder = cleanRoot === "" || cleanRoot === ".";
+		for (const ext of extensions) include.push(isRootFolder ? `**/*${ext}` : path.posix.join(cleanRoot, `**/*${ext}`));
 	}
 	return {
 		include,
@@ -266,20 +267,19 @@ async function readCoverageLedgers(projectRoot, runId) {
 /** Reads all ledgers from the latest run in scratch/audits/coverage. */
 async function readLatestCoverageLedgers(projectRoot) {
 	const dir = path.resolve(projectRoot, COVERAGE_LEDGER_DIR);
-	let entries;
-	try {
-		entries = await fs$1.readdir(dir);
-	} catch {
-		return {
-			runId: null,
-			ledgers: []
-		};
-	}
+	const entries = await tryOrDefaultAsync(async () => await fs$1.readdir(dir), []);
+	if (entries.length === 0) return {
+		runId: null,
+		ledgers: []
+	};
 	const allLedgers = [];
-	for (const entry of entries.filter((e) => e.endsWith(".json")).sort()) try {
-		const ledger = JSON.parse(await fs$1.readFile(path.join(dir, entry), "utf-8"));
-		allLedgers.push(ledger);
-	} catch {}
+	for (const entry of entries.filter((e) => e.endsWith(".json")).sort()) {
+		const raw = await safeReadFileAsync(path.join(dir, entry));
+		if (raw) {
+			const ledger = safeJsonParse(raw);
+			if (ledger) allLedgers.push(ledger);
+		}
+	}
 	if (allLedgers.length === 0) return {
 		runId: null,
 		ledgers: []

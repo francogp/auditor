@@ -1,6 +1,7 @@
-import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
+import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
 import "./auditConfig.js";
+import { createDomainSet } from "./domainCollections.js";
 import { toPosixRelative } from "./auditCoverage.js";
 import { isLockedSkillPath } from "./lockedSkills.js";
 import { enableCompileCache } from "node:module";
@@ -25,12 +26,6 @@ function safeResolve(...pathSegments) {
 	const rel = path.relative(root, resolved);
 	if (rel.startsWith("..") || path.isAbsolute(rel)) throw new Error(`Security Violation CWE-${CWE_PATH_TRAVERSAL_ID_TEXT}: Path '${resolved}' escapes project root '${root}'`);
 	return resolved;
-}
-/**
-* Joins path segments safely within project root boundary.
-*/
-function safeJoin(...pathSegments) {
-	return safeResolve(...pathSegments);
 }
 function assertNotLockedSkill(filePath) {
 	const resolved = safeResolve(filePath);
@@ -104,7 +99,7 @@ function isPathContained(parentDir, candidateChild, baseDir) {
 	const rel = path.relative(resolvedParent, resolvedChild);
 	return !rel.startsWith("..") && !path.isAbsolute(rel);
 }
-const SKIPPABLE_DIR_NAMES = /* @__PURE__ */ new Set([
+const SKIPPABLE_DIR_NAMES = createDomainSet([
 	"node_modules",
 	"dist",
 	"scratch"
@@ -153,4 +148,4 @@ function stripGlobSuffix(pattern) {
 	return clean;
 }
 //#endregion
-export { buildRepositoryFileIndex, isPathContained, isPathExempt, normalizePosixPath, safeDevUrl, safeFetch, safeJoin, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };
+export { buildRepositoryFileIndex, isPathContained, isPathExempt, normalizePosixPath, safeDevUrl, safeFetch, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };

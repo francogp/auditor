@@ -25,7 +25,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 
@@ -253,10 +253,10 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(findings[1]?.message).toContain('without preload="none" or optimized WebM source');
     });
 
-    it('honors all escape hatches and allows compliant modern alternatives', async () => {
+    it('flags violations regardless of escape comments (Zero-Ignore Mandate)', async () => {
       const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
 
-      const exemptSnippet = [
+      const snippet = [
         '<!-- unoptimized-img-ok -->',
         '<img src="/legacy.png" alt="legacy" />',
         '<!-- font-display-ok -->',
@@ -274,7 +274,15 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
         '<video src="/legacy.mov"></video>'
       ].join('\n');
 
-      auditor.testScanFile('src/views/Exempt.vue', exemptSnippet);
+      auditor.testScanFile('src/views/Exempt.vue', snippet);
+
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBeGreaterThanOrEqual(6);
+      expect(result.status).toBe('failed');
+    });
+
+    it('allows compliant modern alternatives', async () => {
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
 
       // Compliant alternatives: media="print", disabled, type="module", aspect-ratio, void tags, preload="metadata"
       const compliantSnippet = [

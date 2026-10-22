@@ -12,7 +12,7 @@ Repositories managing persistent schemas must adhere to five mandatory invariant
 
 All database schema migrations must fail loudly upon encountering any syntax, constraint, type mismatch, or transaction error:
 
-- Catching errors without re-throwing, swallowing migration failures, or applying `// catch-ok` bypass annotations to schema migrations is **strictly forbidden**.
+- Catching errors without re-throwing, swallowing migration failures, or applying bypass comments to schema migrations is **strictly forbidden**.
 - Any migration error must immediately abort the migration runner, rollback the transaction, and exit with a non-zero status.
 
 ### 1.2. In-Memory Step-by-Step Test Verification (< 2ms)

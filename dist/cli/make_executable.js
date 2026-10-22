@@ -1,3 +1,4 @@
+import { tryCatchSync } from "../core/safeUtils.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
@@ -10,6 +11,15 @@ import fs from "node:fs";
 * and purge orphaned distribution files in dist/ whose corresponding source files in src/ were deleted.
 * Native Node.js 26+ execution: works cross-platform on Windows, Linux, and macOS without relying on POSIX chmod.
 */
+function extractDistBaseName(fileName) {
+	let name = fileName;
+	while (true) {
+		const ext = path.extname(name);
+		if (!ext) break;
+		name = path.basename(name, ext);
+	}
+	return name;
+}
 function purgeOrphanedDistFiles(distDir = path.resolve(process.cwd(), "dist"), srcDir = path.resolve(process.cwd(), "src")) {
 	if (!fs.existsSync(distDir) || !fs.existsSync(srcDir)) return;
 	function traverseAndClean(currentDist, currentSrc) {
@@ -24,7 +34,7 @@ function purgeOrphanedDistFiles(distDir = path.resolve(process.cwd(), "dist"), s
 				});
 				else traverseAndClean(distPath, srcSubdir);
 			} else if (entry.isFile()) {
-				const baseName = entry.name.replace(/\.(d\.ts|d\.ts\.map|js|js\.map)$/, "");
+				const baseName = extractDistBaseName(entry.name);
 				if (baseName === "index") continue;
 				const candidateTs = path.join(currentSrc, `${baseName}.ts`);
 				const candidateIndexTs = path.join(currentSrc, baseName, "index.ts");
@@ -39,9 +49,9 @@ function makeCliBinariesExecutable(distDir = path.resolve(process.cwd(), "dist/c
 	const entries = fs.readdirSync(distDir);
 	for (const entry of entries) if (entry.endsWith(".js")) {
 		const fullPath = path.join(distDir, entry);
-		try {
+		tryCatchSync(() => {
 			fs.chmodSync(fullPath, 493);
-		} catch {}
+		});
 	}
 }
 if (isMainModule(import.meta.url)) {

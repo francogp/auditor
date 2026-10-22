@@ -169,7 +169,11 @@ function checkSimpleGating(spec, config) {
 	return config[section]?.[prop] === false;
 }
 function evaluateDynamicConfigKey(configKey, config) {
-	if (configKey === "core" || configKey === "paths" || configKey === "none") return {
+	if ((/* @__PURE__ */ new Set([
+		"core",
+		"paths",
+		"none"
+	])).has(configKey)) return {
 		enabled: true,
 		configKey
 	};

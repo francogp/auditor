@@ -79,14 +79,12 @@ function isGsapTweenCall(node: ts.CallExpression, sf: ts.SourceFile): boolean {
   }
 
   const callerText = caller.getText(sf).toLowerCase();
-  // domain-ok: GSAP caller heuristics
+  const exactCallerNames: ReadonlySet<string> = new Set(['gsap', 'tl', 'tween']);
   return (
-    callerText === 'gsap' ||
-    callerText === 'tl' ||
+    exactCallerNames.has(callerText) ||
     callerText.includes('timeline') ||
     callerText.endsWith('tl') ||
     callerText.startsWith('tl') ||
-    callerText === 'tween' ||
     callerText.endsWith('tween')
   );
 }
@@ -95,7 +93,7 @@ function inspectGsapTweenVarsObject(
   obj: ts.ObjectLiteralExpression,
   sf: ts.SourceFile,
   lineOffset: number,
-  fileLines: readonly string[],
+  _fileLines: readonly string[],
   findings: MotionFindingItem[]
 ): void {
   for (const prop of obj.properties) {
@@ -107,19 +105,16 @@ function inspectGsapTweenVarsObject(
       if (propName && LAYOUT_PROP_MAP[propName]) {
         const { line } = sf.getLineAndCharacterOfPosition(prop.getStart(sf));
         const actualLine = line + lineOffset + 1;
-        const lineText = fileLines[actualLine - 1] ?? '';
-        if (!lineText.includes('// layout-ok:')) {
-          const targetProp = LAYOUT_PROP_MAP[propName]!;
-          findings.push({
-            file: sf.fileName,
-            line: actualLine,
-            kind: 'layout-property',
-            ruleId: 'gsap-no-layout-properties',
-            originalSnippet: `${propName}:`,
-            suggestedReplacement: `${targetProp}:`,
-            explanation: `Layout properties (${propName}) trigger browser reflows; use GPU transform (${targetProp}) or add '// layout-ok: <reason>'.`
-          });
-        }
+        const targetProp = LAYOUT_PROP_MAP[propName]!;
+        findings.push({
+          file: sf.fileName,
+          line: actualLine,
+          kind: 'layout-property',
+          ruleId: 'gsap-no-layout-properties',
+          originalSnippet: `${propName}:`,
+          suggestedReplacement: `${targetProp}:`,
+          explanation: `Layout properties (${propName}) trigger browser reflows; use GPU transform (${targetProp}).`
+        });
       }
     }
   }
@@ -129,7 +124,7 @@ function inspectTimerCall(
   node: ts.CallExpression,
   sf: ts.SourceFile,
   lineOffset: number,
-  fileLines: readonly string[],
+  _fileLines: readonly string[],
   findings: MotionFindingItem[]
 ): void {
   let timerFnName: string | undefined;
@@ -155,10 +150,6 @@ function inspectTimerCall(
 
   const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
   const actualLine = line + lineOffset + 1;
-  const lineText = fileLines[actualLine - 1] ?? '';
-  if (lineText.includes('// timer-ok:')) {
-    return;
-  }
 
   if (timerFnName === 'setTimeout') {
     const callbackNode = node.arguments[0];
@@ -252,7 +243,7 @@ function inspectLegacyEaseAccess(
   node: ts.PropertyAccessExpression,
   sf: ts.SourceFile,
   lineOffset: number,
-  fileLines: readonly string[],
+  _fileLines: readonly string[],
   findings: MotionFindingItem[]
 ): void {
   if (ts.isIdentifier(node.expression) && ts.isIdentifier(node.name)) {
@@ -261,18 +252,15 @@ function inspectLegacyEaseAccess(
       const canonicalEase = LEGACY_EASE_MAP[text]!;
       const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
       const actualLine = line + lineOffset + 1;
-      const lineText = fileLines[actualLine - 1] ?? '';
-      if (!lineText.includes('// ease-ok:')) {
-        findings.push({
-          file: sf.fileName,
-          line: actualLine,
-          kind: 'legacy-ease',
-          ruleId: 'gsap-legacy-ease-names',
-          originalSnippet: text,
-          suggestedReplacement: canonicalEase,
-          explanation: `Modern GSAP v3 uses string eases (${canonicalEase}) rather than legacy object instances.`
-        });
-      }
+      findings.push({
+        file: sf.fileName,
+        line: actualLine,
+        kind: 'legacy-ease',
+        ruleId: 'gsap-legacy-ease-names',
+        originalSnippet: text,
+        suggestedReplacement: canonicalEase,
+        explanation: `Modern GSAP v3 uses string eases (${canonicalEase}) rather than legacy object instances.`
+      });
     }
   }
 }

@@ -21,7 +21,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const FILE_URL_MESSAGE =
-  "Conversión casera entre rutas y URLs 'file://'. Usa 'fileURLToPath()' y 'pathToFileURL()' de 'node:url' ('.pathname' queda percent-encoded y en Windows produce '/C:/...').";
+  "Homebrew conversion between paths and 'file://' URLs. Use 'fileURLToPath()' and 'pathToFileURL()' from 'node:url' ('.pathname' remains percent-encoded and produces '/C:/...' on Windows).";
 
 function startsWithFileScheme(expr: ts.Expression | undefined): boolean {
   if (!expr) return false;

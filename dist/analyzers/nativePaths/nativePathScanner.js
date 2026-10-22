@@ -31,16 +31,6 @@ const DETECTORS = [
 	envArgvDetector,
 	fetchDetector
 ];
-const ESCAPE_TOKENS = /* @__PURE__ */ new Set([
-	"path",
-	"url",
-	"env",
-	"cross-platform",
-	"security",
-	"string",
-	"no-domain",
-	"test"
-]);
 const URL_VALIDATION_PROPERTIES = /* @__PURE__ */ new Set([
 	"hostname",
 	"origin",
@@ -61,7 +51,6 @@ const NODE_BUILTIN_MODULES = /* @__PURE__ */ new Set([
 	"util"
 ]);
 const NODE_PROCESS_MEMBERS = /* @__PURE__ */ new Set(["cwd", "argv"]);
-const FALLOW_NEXT_LINE_DIRECTIVE = "fallow-ignore-next-line";
 function isNodeBuiltinSpecifier(node) {
 	if (!node || !ts.isStringLiteral(node)) return false;
 	return node.text.startsWith("node:") || NODE_BUILTIN_MODULES.has(node.text);
@@ -103,14 +92,6 @@ function collectFileFacts(sourceFile) {
 		isNodeContext
 	};
 }
-function buildEscapedLines(doc) {
-	const lines = /* @__PURE__ */ new Set();
-	for (const hatch of doc.getEscapeHatches()) if (ESCAPE_TOKENS.has(hatch.ruleToken)) lines.add(hatch.line);
-	doc.lines.forEach((text, index) => {
-		if (text.includes(FALLOW_NEXT_LINE_DIRECTIVE)) lines.add(index + 1);
-	});
-	return lines;
-}
 function toViolation(doc, sourceFile, finding) {
 	const pos = sourceFile.getLineAndCharacterOfPosition(finding.node.getStart(sourceFile));
 	const line = pos.line + 1;
@@ -138,7 +119,6 @@ function scanNativePathAst(doc) {
 		isNodeContext: facts.isNodeContext,
 		claimed: /* @__PURE__ */ new Set()
 	};
-	const escapedLines = buildEscapedLines(doc);
 	const seen = /* @__PURE__ */ new Set();
 	const violations = [];
 	const visit = (node) => {
@@ -149,7 +129,6 @@ function scanNativePathAst(doc) {
 			if (seen.has(key)) continue;
 			seen.add(key);
 			const violation = toViolation(doc, sourceFile, finding);
-			if (escapedLines.has(violation.line) || escapedLines.has(violation.line - 1)) continue;
 			violations.push(violation);
 		}
 		ts.forEachChild(node, visit);

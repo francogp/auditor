@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileSync } from "../../core/safeUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
@@ -26,14 +27,11 @@ function isPluginRegisteredInAgents(projectRoot) {
 	const skillsJsonPath = path.join(projectRoot, ".agents/skills.json");
 	const checkFile = (filePath) => {
 		if (!fs.existsSync(filePath)) return false;
-		try {
-			const raw = fs.readFileSync(filePath, "utf8");
-			const data = JSON.parse(raw);
-			if (!Array.isArray(data.entries)) return false;
-			return data.entries.some((e) => e.path === "node_modules/@francogp/auditor" || e.path.endsWith("@francogp/auditor") || e.path.includes("@francogp/auditor") || e.path === "./packages/auditor" || e.path === "packages/auditor");
-		} catch {
-			return false;
-		}
+		const raw = safeReadFileSync(filePath);
+		if (!raw) return false;
+		const data = safeJsonParse(raw);
+		if (!data || !Array.isArray(data.entries)) return false;
+		return data.entries.some((e) => e.path.includes("@francogp/auditor") || e.path.includes("packages/auditor"));
 	};
 	return checkFile(pluginsJsonPath) && checkFile(skillsJsonPath);
 }

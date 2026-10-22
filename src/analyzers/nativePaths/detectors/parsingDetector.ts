@@ -22,7 +22,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const PARSING_MESSAGE =
-  "Extracción casera de nombre, directorio o extensión de una ruta. Usa 'path.basename()', 'path.dirname()', 'path.extname()' o 'path.parse()' de 'node:path'.";
+  "Homebrew extraction of file name, directory, or extension from a path. Use 'path.basename()', 'path.dirname()', 'path.extname()', or 'path.parse()' from 'node:path'.";
 
 const EXTENSION_SEPARATOR = '.';
 
@@ -31,14 +31,15 @@ function firstArgValue(mc: MethodCall): string | undefined {
   return arg ? getStringValue(arg) : undefined;
 }
 
+const LAST_SEGMENT_ACCESS_METHODS: ReadonlySet<string> = new Set(['pop', 'at', 'slice', 'shift']);
+
 function isFollowedByLastSegmentAccess(call: ts.CallExpression): boolean {
   let parent = call.parent;
   while (ts.isParenthesizedExpression(parent) || ts.isNonNullExpression(parent)) parent = parent.parent;
   if (ts.isElementAccessExpression(parent)) return true;
   if (ts.isPropertyAccessExpression(parent)) {
     const name = parent.name.text;
-    // domain-ok: Array access methods
-    return name === 'pop' || name === 'at' || name === 'slice' || name === 'shift';
+    return LAST_SEGMENT_ACCESS_METHODS.has(name);
   }
   return false;
 }

@@ -5,6 +5,7 @@ import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
+import { safeRmSync } from '../../core/safeUtils.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 
@@ -150,7 +151,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Type coverage desactivado en config')) {
+    if (this.isSuiteGatingDisabled('Type coverage disabled in config')) {
       return;
     }
 
@@ -163,13 +164,7 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
     fs.mkdirSync(cacheDir, { recursive: true });
 
     const rawOutPath = path.resolve(scratchDir, 'type-coverage-raw.json');
-    if (fs.existsSync(rawOutPath)) {
-      try {
-        fs.unlinkSync(rawOutPath);
-      } catch {
-        // catch-ok: cleanup stale report
-      }
-    }
+    safeRmSync(rawOutPath, { force: true });
 
     const threshold = config.typeCoverage?.atLeast ?? DEFAULT_MIN_TYPE_COVERAGE_PERCENT;
     const report = this.executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold);
@@ -219,8 +214,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
 
     if (!resolvedBin) {
       throw new Error(
-        `[validate_type_coverage] El ejecutable de 'type-coverage' no fue encontrado en node_modules/.bin ni en el entorno local. ` +
-          `Asegúrate de que 'type-coverage' esté instalado en las dependencias del proyecto. El uso de npx está estrictamente prohibido.`
+        `[validate_type_coverage] The 'type-coverage' executable was not found in node_modules/.bin or local environment. ` +
+          `Ensure 'type-coverage' is installed in project dependencies. Using npx is strictly prohibited.`
       );
     }
 

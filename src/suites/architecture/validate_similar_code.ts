@@ -31,6 +31,7 @@ import {
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
+import { tryOrNull, safeJsonParse } from '../../core/safeUtils.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
   DEFAULT_SUBPROCESS_TIMEOUT_MS,
@@ -153,11 +154,11 @@ export function checkOrInitializeModel(
   ensureSimilarCodeCacheDir(projectRoot);
 
   if (isFix && process.platform === 'win32') {
-    try {
-      const candidates = [
-        path.resolve(projectRoot, 'node_modules/@fallow-cli'),
-        path.resolve(process.cwd(), 'node_modules/@fallow-cli')
-      ];
+    const candidates = [
+      path.resolve(projectRoot, 'node_modules/@fallow-cli'),
+      path.resolve(process.cwd(), 'node_modules/@fallow-cli')
+    ];
+    tryOrNull(() => {
       for (const dir of candidates) {
         if (fs.existsSync(dir)) {
           childProcess.execSync(
@@ -166,12 +167,10 @@ export function checkOrInitializeModel(
           );
         }
       }
-    } catch {
-      // catch-ok: non-fatal unblock attempt on Windows binaries
-    }
+    });
   }
 
-  try {
+  const statusReady = tryOrNull(() => {
     const statusOut = childProcess.execSync(
       `node "${fallowBin}" similar-code status --format json`,
       {
@@ -181,18 +180,18 @@ export function checkOrInitializeModel(
         timeout: DEFAULT_SUBPROCESS_TIMEOUT_MS
       }
     );
-    const parsed = JSON.parse(statusOut) as SimilarCodeStatusOutput;
-    if (parsed.model_ready === true) {
-      return true;
-    }
-  } catch {
-    // catch-ok: Model status query failed, attempt setup below
+    const parsed = safeJsonParse<SimilarCodeStatusOutput>(statusOut);
+    return parsed?.model_ready === true;
+  });
+
+  if (statusReady) {
+    return true;
   }
 
   process.stdout.write(
     styleText(
       'cyan',
-      '📦 El modelo de embeddings local para Fallow similar-code no está inicializado. Descargando e inicializando automáticamente...\n'
+      '📦 The local embeddings model for Fallow similar-code is not initialized. Downloading and initializing automatically...\n'
     )
   );
 
@@ -208,7 +207,7 @@ export function checkOrInitializeModel(
     process.stderr.write(
       styleText(
         'yellow',
-        `⚠️ No se pudo inicializar el modelo de similar-code: ${(err as Error).message}. Se omitirá el análisis vectorial.\n`
+        `⚠️ Could not initialize similar-code model: ${(err as Error).message}. Skipping vector analysis.\n`
       )
     );
     return false;
@@ -338,7 +337,6 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
           '3. Canonical Solution:\n' +
           '   a) Extract common logic into a shared utility function in `src/utils/` or within the corresponding domain service.\n' +
           '   b) Refactor both call sites to invoke the unified canonical function.\n' +
-          '   c) If functions serve strictly disjoint domains and similarity is coincidental, annotate with `// similar-code-ok: <reason>` above the function signature.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Semantic duplicate: `formatUserDate()` and `parseDisplayTimestamp()` performing identical transformations.\n' +
           '   ✅ Unified:            Canonical shared `formatDate()` helper.',
@@ -422,7 +420,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
 
       this.processRawOutputFile(rawOutputFile, ignoreSameFile);
     } catch (err) {
-      // catch-ok: Capturar errores de timeout o ejecución y reportar como error crítico bloqueante
+      // Capture timeout or execution errors and report as critical blocking violation
       const errorMsg = (err as Error).message || String(err);
       this.addViolation({
         ruleId: 'fallow-similar-code-failed',

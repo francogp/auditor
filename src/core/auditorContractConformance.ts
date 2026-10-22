@@ -21,6 +21,7 @@ import {
   AUDIT_FIX_CAPABILITIES
 } from './auditContract.ts';
 import { discoverAuditors } from '../cli/auditScanner.ts';
+import { tryOrNull, safeRmSync } from './safeUtils.ts';
 
 export interface DiscoveredAuditorTask extends AuditTaskDefinition {
   isExtension?: boolean;
@@ -176,23 +177,16 @@ export function instantiateAuditorClass(
   ];
 
   for (const attempt of attempts) {
-    try {
-      const instance = attempt();
-      if (instance && path.resolve(instance.projectRoot) === path.resolve(tempDir)) {
-        return instance;
-      }
-    } catch {
-      // catch-ok: probes canonical options object first, then zero-arg
+    const instance = tryOrNull(attempt);
+    if (instance && path.resolve(instance.projectRoot) === path.resolve(tempDir)) {
+      return instance;
     }
   }
 
   // Fallback to zero-arg attempt if valid
   for (const attempt of attempts) {
-    try {
-      return attempt();
-    } catch {
-      // catch-ok
-    }
+    const instance = tryOrNull(attempt);
+    if (instance) return instance;
   }
 
   throw new Error(
@@ -573,15 +567,11 @@ export function findDedicatedTestFile(
   if (testFileAbs) {
     combinedSources.push(fs.readFileSync(testFileAbs, 'utf-8'));
     const parentDir = path.dirname(testFileAbs);
-    try {
-      const siblings = fs.readdirSync(parentDir);
-      for (const sib of siblings) {
-        if (sib.startsWith(`${taskId}_`) && sib.endsWith('.test.ts')) {
-          combinedSources.push(fs.readFileSync(path.join(parentDir, sib), 'utf-8'));
-        }
+    const siblings = tryOrNull(() => fs.readdirSync(parentDir)) ?? [];
+    for (const sib of siblings) {
+      if (sib.startsWith(`${taskId}_`) && sib.endsWith('.test.ts')) {
+        combinedSources.push(fs.readFileSync(path.join(parentDir, sib), 'utf-8'));
       }
-    } catch {
-      // catch-ok: ignore unreadable directory
     }
   }
 
@@ -781,11 +771,7 @@ function registerConformanceSuite(hooks: ConformanceVitestHooks, projectRoot: st
 
   afterAllFn(() => {
     delete process.env.AUDIT_SUBPROCESS;
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {
-      // catch-ok: cleanup temporary test directory
-    }
+    safeRmSync(tempDir, { recursive: true, force: true });
   });
 
   describeFn('Auditor Contract & Testing Conformance', () => {

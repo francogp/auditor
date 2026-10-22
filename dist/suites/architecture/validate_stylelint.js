@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, CANONICAL_IGNORE_DIRS, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -58,9 +59,10 @@ function resolveStylelintConfigFile(projectRoot, configuredConfigFile) {
 		if (fs.existsSync(candidate)) return candidate;
 	}
 	const pkgJsonPath = path.resolve(projectRoot, "package.json");
-	if (fs.existsSync(pkgJsonPath)) try {
-		if (JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")).stylelint) return pkgJsonPath;
-	} catch {}
+	const pkgRaw = safeReadFileSync(pkgJsonPath);
+	if (pkgRaw) {
+		if (safeJsonParse(pkgRaw)?.stylelint) return pkgJsonPath;
+	}
 	const canonicalConfig = path.resolve(import.meta.dirname, "../../../.stylelintrc.json");
 	if (fs.existsSync(canonicalConfig)) return canonicalConfig;
 	return ".stylelintrc.json";
@@ -100,12 +102,12 @@ function buildStylelintConfig(configFile, customRules) {
 }
 function buildStylelintIgnoreGlobs(configIgnoreGlobs, stylelintIgnoreGlobs, exemptPaths, exemptFiles) {
 	const normExemptPaths = (exemptPaths ?? []).map((p) => {
-		const posixP = p.split(path.sep).join(path.posix.sep);
+		const posixP = normalizePosixPath(p);
 		return posixP.endsWith(path.posix.sep) ? `${posixP}**` : path.posix.join(posixP, "**");
 	});
-	const normExemptFiles = (exemptFiles ?? []).map((f) => f.split(path.sep).join(path.posix.sep));
-	const normIgnores = (configIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
-	const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
+	const normExemptFiles = (exemptFiles ?? []).map((f) => normalizePosixPath(f));
+	const normIgnores = (configIgnoreGlobs ?? []).map((g) => normalizePosixPath(g));
+	const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => normalizePosixPath(g));
 	return [
 		...Array.from(CANONICAL_IGNORE_DIRS).map((d) => `${d}/**`),
 		"dist/**",
@@ -145,13 +147,13 @@ function repairDeprecatedCssPropertiesInRoots(projectRoot, roots) {
 		const fullRoot = path.resolve(projectRoot, root);
 		if (!fs.existsSync(fullRoot)) continue;
 		const files = collectRepositoryFiles(fullRoot, projectRoot, [], DEPRECATED_CSS_SCANNABLE_EXTENSIONS);
-		for (const filePath of files) try {
+		for (const filePath of files) tryOrNull(() => {
 			const { modified, content } = repairDeprecatedWordBreak(fs.readFileSync(filePath, "utf8"));
 			if (modified) {
 				fs.writeFileSync(filePath, content, "utf8");
 				repairedCount++;
 			}
-		} catch {}
+		});
 	}
 	return repairedCount;
 }
@@ -245,7 +247,7 @@ function persistStylelintReport(projectRoot, suiteId, filesScanned, totals, resu
 	const reportDir = path.resolve(projectRoot, "scratch/audits/architecture");
 	fs.mkdirSync(reportDir, { recursive: true });
 	const reportFile = path.resolve(reportDir, `${suiteId}.json`);
-	try {
+	tryOrNull(() => {
 		fs.writeFileSync(reportFile, JSON.stringify({
 			summary: {
 				filesScanned,
@@ -259,7 +261,7 @@ function persistStylelintReport(projectRoot, suiteId, filesScanned, totals, resu
 				warnings: r.warnings
 			}))
 		}, null, 2), "utf-8");
-	} catch {}
+	});
 }
 var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 	lastLinterResult = null;

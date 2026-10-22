@@ -64,7 +64,6 @@ const EXCLUDED_EXTENSIONS = /* @__PURE__ */ new Set([
 	"png",
 	"webp"
 ]);
-const MAX_PREV_COMMENT_LINES = 2;
 function extractClassNamesFromSelector(selector) {
 	const classRegex = /(?:^|[^\w-])\.([a-z_-][\w-]*)/gi;
 	const classes = [];
@@ -129,12 +128,6 @@ function isClassExempt(className, globalUtilityClasses, dynamicPrefixes) {
 	if (Array.from(dynamicPrefixes).some((prefix) => className.startsWith(prefix))) return true;
 	return false;
 }
-function isRuleExemptByComments(rule, contentLines) {
-	if (rule.rawBlock.includes("css-ok") || rule.rawBlock.includes("dead-css-ok")) return true;
-	const lineIdx = rule.line - 1;
-	const endLineIdx = lineIdx + rule.rawBlock.split("\n").length;
-	return contentLines.slice(Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES), endLineIdx).some((l) => l.includes("css-ok") || l.includes("dead-css-ok"));
-}
 function auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic) {
 	let count = 0;
 	const classNames = extractClassNamesFromSelector(rule.selector);
@@ -154,12 +147,8 @@ function auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic) {
 }
 function auditComponentScopedCss(params) {
 	const { componentLogic, dynamicPrefixes } = extractComponentLogic(params.rawContent);
-	const contentLines = params.rawContent.split("\n");
 	let checkedCount = 0;
-	for (const rule of params.scopedRules) {
-		if (isRuleExemptByComments(rule, contentLines)) continue;
-		checkedCount += auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic);
-	}
+	for (const rule of params.scopedRules) checkedCount += auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic);
 	return checkedCount;
 }
 var DeadCssAuditor = class extends BaseAuditor {
@@ -191,7 +180,7 @@ var DeadCssAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "💀",
 			ruleDescriptions: { "dead-scoped-css": "Orphaned unused scoped class" },
-			ruleRemediations: { "dead-scoped-css": "📖 REMEDIATION GUIDE: dead-scoped-css\n1. Root Cause: A CSS class was declared within `<style scoped>` in a Vue component that is never used in `<template>` markup or `<script>` presentation logic. Dead CSS bloats bundle size and confuses maintainers.\n2. Diagnosis: Locate the reported CSS class within `<style scoped>` in the component.\n3. Canonical Solution:\n   a) If the HTML element was removed or refactored: delete the orphaned style rule.\n   b) If dynamically applied via string concatenation: use full static class names in templates (`:class=\"{ 'my-class': isActive }\"`) rather than dynamic fragments.\n   c) If transition-related or injected by an external library, annotate with `/* dead-css-ok: <reason> */` immediately before the rule.\n4. Example / Auto-fix command:\n   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n   ✅ Clean:          Removed from `<style scoped>` block." },
+			ruleRemediations: { "dead-scoped-css": "📖 REMEDIATION GUIDE: dead-scoped-css\n1. Root Cause: A CSS class was declared within `<style scoped>` in a Vue component that is never used in `<template>` markup or `<script>` presentation logic. Dead CSS bloats bundle size and confuses maintainers.\n2. Diagnosis: Locate the reported CSS class within `<style scoped>` in the component.\n3. Canonical Solution:\n   a) If the HTML element was removed or refactored: delete the orphaned style rule.\n   b) If dynamically applied via string concatenation: use full static class names in templates (`:class=\"{ 'my-class': isActive }\"`) rather than dynamic fragments.\n   c) If transition-related or injected by an external library, configure the style in global stylesheets or declare the selector dynamically via Vue `:class` bindings.\n4. Example / Auto-fix command:\n   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n   ✅ Clean:          Removed from `<style scoped>` block." },
 			coverage: { include: deriveCoverageFromRoots(compRoots, /* @__PURE__ */ new Set([".vue"]), projectRoot).include },
 			projectRoot
 		});

@@ -215,7 +215,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     expect(extractSortedLiteralsSignature('["z", "a"]')).toBe('a|z');
   });
 
-  it('honors escape hatches and comment lines across all rules', async () => {
+  it('flags violations regardless of inline comments across all rules (Zero-Ignore Mandate)', async () => {
     const fileA = [
       '// This is a comment: export const ROLES = ["admin", "editor"] as const;',
       'export const APP_ROLES = ["admin", "editor"] as const; // collision-ok: intentionally duplicated',
@@ -234,8 +234,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
     const result = await auditor.execute();
 
-    expect(result.summary.errors).toBe(0);
-    expect(result.status).toBe('passed');
+    expect(result.summary.errors).toBeGreaterThanOrEqual(1);
+    expect(result.status).toBe('failed');
   });
 
   it('discovers library domain types from package.json and node_modules .d.ts files', async () => {

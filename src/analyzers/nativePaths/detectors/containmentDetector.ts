@@ -35,7 +35,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const CONTAINMENT_MESSAGE =
-  "Validación casera de contención de rutas (CWE-22). Resuelve con 'path.resolve()' y valida con 'const rel = path.relative(base, target); !rel.startsWith(\"..\") && !path.isAbsolute(rel)' (o 'isPathContained()').";
+  "Homebrew path containment check (CWE-22). Resolve with 'path.resolve()' and validate with 'const rel = path.relative(base, target); !rel.startsWith(\"..\") && !path.isAbsolute(rel)' (or 'isPathContained()').";
 
 const TRAVERSAL_LITERALS: ReadonlySet<string> = new Set([
   PARENT_SEGMENT,

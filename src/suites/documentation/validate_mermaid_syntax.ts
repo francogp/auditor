@@ -269,10 +269,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     lineIndex: number,
     relPath: string,
     isFix: boolean
-  ): { fixedLine: string | null; isIgnored: boolean } {
-    if (this.isLineIgnored(line, ['mermaid-ok', 'doc-ok'])) {
-      return { fixedLine: null, isIgnored: true };
-    }
+  ): { fixedLine: string | null } {
     let fixedLine: string | null = null;
     if (isFix) {
       const fixed = this.fixMermaidLine(line);
@@ -284,13 +281,12 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
     this.runSubAuditorSync('mermaid-unquoted-special-chars', () => {
       this.checkSpecialCharacters(lineToCheck, lineIndex + 1, relPath);
     });
-    return { fixedLine, isIgnored: false };
+    return { fixedLine };
   }
 
   protected override async scanFile(relPath: string, content: string): Promise<void> {
     const lines = content.split('\n');
     let inMermaid = false;
-    let diagramIgnored = false;
     let mermaidStartLine = 0;
     const mermaidLines: string[] = [];
     let fileModified = false;
@@ -302,7 +298,6 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
 
       if (trimmed.startsWith('```mermaid')) {
         inMermaid = true;
-        diagramIgnored = this.isLineIgnored(line, ['mermaid-ok', 'doc-ok']);
         mermaidStartLine = i + 1;
         mermaidLines.length = 0;
         continue;
@@ -310,21 +305,17 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
 
       if (inMermaid && trimmed.startsWith('```')) {
         inMermaid = false;
-        if (!diagramIgnored) {
-          const diagramCode = mermaidLines
-            .map((l) => l.replace(/<!--[\s\S]*?-->/g, '').trimEnd())
-            .join('\n')
-            .trim();
-          await this.validateDiagramBlock(relPath, diagramCode, mermaidStartLine);
-        }
+        const diagramCode = mermaidLines
+          .map((l) => l.replace(/<!--[\s\S]*?-->/g, '').trimEnd())
+          .join('\n')
+          .trim();
+        await this.validateDiagramBlock(relPath, diagramCode, mermaidStartLine);
         continue;
       }
 
       if (inMermaid) {
         const result = this.processMermaidContentLine(line, i, relPath, isFix);
-        if (result.isIgnored) {
-          diagramIgnored = true;
-        } else if (result.fixedLine !== null) {
+        if (result.fixedLine !== null) {
           lines[i] = result.fixedLine;
           fileModified = true;
           mermaidLines.push(result.fixedLine);

@@ -34,6 +34,7 @@ Architecture & Tooling Engineers.
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
 - [`cli_permission_execution.test.ts`](./cli_permission_execution.test.ts): Tests for Node.js Permission Model flag propagation and PERM0002 suppression.
 - [`config_file_registry.test.ts`](./config_file_registry.test.ts): Tests for centralized `ConfigFileRegistry`, declarative sub-auditor configuration requirements, and auto-scaffolding in fix mode.
+- [`config_ratchet.test.ts`](./config_ratchet.test.ts): Tests for unidirectional config ratchet, relaxation code hashing, and branded types.
 - [`markdown_lint_config_remediations.test.ts`](./markdown_lint_config_remediations.test.ts): Tests for markdownlint configuration remediation and MD033 table line break auto-injection.
 - [`native_paths_ignores.test.ts`](./native_paths_ignores.test.ts): Tests for native path and URL analyzer ignore comments and escape hatches.
 - [`refactor_harness_compact.test.ts`](./refactor_harness_compact.test.ts): Tests for refactoring harness execution under compact console mode.
@@ -46,6 +47,7 @@ Architecture & Tooling Engineers.
 - [`streaming_row_colorization.test.ts`](./streaming_row_colorization.test.ts): Tests for streaming row colorization based on error vs warning presence.
 - [`stylelint_and_security_config_sync.test.ts`](./stylelint_and_security_config_sync.test.ts): Tests for stylelint and security configuration synchronization.
 - [`test_coverage_core.test.ts`](./test_coverage_core.test.ts): Tests for coverage metric calculation, unmapped file detection, and parsing.
+- [`transcript_authorization_verifier.test.ts`](./transcript_authorization_verifier.test.ts): Tests for Antigravity conversation transcript parsing, CI fallback, and tampering detection.
 - [`validate_accessibility.test.ts`](./validate_accessibility.test.ts): Tests for WCAG 2.2 accessibility verification via AST template checks and living specification standards.
 - [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture, anti-tampering configuration, and AI chat language clauses in root `AGENTS.md`.
 - [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.

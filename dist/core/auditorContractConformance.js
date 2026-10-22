@@ -1,3 +1,4 @@
+import { safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import "./auditConfig.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, getActiveFamilies } from "./auditContract.js";
@@ -95,13 +96,14 @@ function findAuditorClass(mod) {
 */
 function instantiateAuditorClass(Cls, tempDir) {
 	const attempts = [() => new Cls({ projectRoot: tempDir }), () => new Cls()];
-	for (const attempt of attempts) try {
-		const instance = attempt();
+	for (const attempt of attempts) {
+		const instance = tryOrNull(attempt);
 		if (instance && path.resolve(instance.projectRoot) === path.resolve(tempDir)) return instance;
-	} catch {}
-	for (const attempt of attempts) try {
-		return attempt();
-	} catch {}
+	}
+	for (const attempt of attempts) {
+		const instance = tryOrNull(attempt);
+		if (instance) return instance;
+	}
 	throw new Error(`[Auditor Contract Violation] No se pudo instanciar la clase ${Cls.name}. Debe soportar la firma canónica de opciones ({ projectRoot?: string }) o el constructor por defecto sin argumentos.`);
 }
 function validateBasicMetadata(auditor, taskId, errors) {
@@ -280,10 +282,8 @@ function findDedicatedTestFile(projectRoot, taskId, testRoots = ["tests"]) {
 	if (testFileAbs) {
 		combinedSources.push(fs.readFileSync(testFileAbs, "utf-8"));
 		const parentDir = path.dirname(testFileAbs);
-		try {
-			const siblings = fs.readdirSync(parentDir);
-			for (const sib of siblings) if (sib.startsWith(`${taskId}_`) && sib.endsWith(".test.ts")) combinedSources.push(fs.readFileSync(path.join(parentDir, sib), "utf-8"));
-		} catch {}
+		const siblings = tryOrNull(() => fs.readdirSync(parentDir)) ?? [];
+		for (const sib of siblings) if (sib.startsWith(`${taskId}_`) && sib.endsWith(".test.ts")) combinedSources.push(fs.readFileSync(path.join(parentDir, sib), "utf-8"));
 	}
 	return {
 		testFileAbs,
@@ -355,12 +355,10 @@ function registerConformanceSuite(hooks, projectRoot) {
 	});
 	afterAllFn(() => {
 		delete process.env.AUDIT_SUBPROCESS;
-		try {
-			fs.rmSync(tempDir, {
-				recursive: true,
-				force: true
-			});
-		} catch {}
+		safeRmSync(tempDir, {
+			recursive: true,
+			force: true
+		});
 	});
 	describeFn("Auditor Contract & Testing Conformance", () => {
 		itFn("discovers at least one auditor task to validate", () => {

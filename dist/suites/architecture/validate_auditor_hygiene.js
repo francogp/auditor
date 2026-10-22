@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
@@ -122,7 +122,7 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 			};
 			const findings = HomebrewDetectorRegistry.run(inspectionContext, disabledDetectors, (ruleId, durationMs) => {
 				this.markRuleEvaluated(ruleId);
-				this.recordRuleDuration(ruleId, durationMs);
+				this.reportRuleDuration(ruleId, durationMs);
 			});
 			if (findings.length === 0) cleanFilesCount++;
 			else for (const f of findings) this.addViolation({

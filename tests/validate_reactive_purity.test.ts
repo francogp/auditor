@@ -111,7 +111,7 @@ describe('ReactivePurityAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
-    it('allows mutation when marked with // purity-ok escape hatch', () => {
+    it('flags mutation regardless of // purity-ok comment (Zero-Ignore Mandate)', () => {
       const auditor = new TestableReactivePurityAuditor();
       const code = `
         import { ref, computed } from 'vue';
@@ -122,7 +122,7 @@ describe('ReactivePurityAuditor', () => {
         });
       `;
       auditor.testScanFile('src/composables/useMemo.ts', code);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
   });
 

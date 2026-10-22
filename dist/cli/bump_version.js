@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { AUDITOR_BUILD_DATE, AUDITOR_BUILD_ID, AUDITOR_VERSION } from "../core/version.js";
+import { safeJsonParse, safeReadFileSync, tryCatchSync, tryOrNull } from "../core/safeUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
@@ -55,13 +56,11 @@ export const AUDITOR_VERSION = '${newVersion}';
 export const AUDITOR_BUILD_ID = '${buildId}';
 export const AUDITOR_BUILD_DATE = '${buildDate}';
 `;
-	try {
+	return tryOrNull(() => {
 		fs.mkdirSync(path.dirname(targetVersionTs), { recursive: true });
 		fs.writeFileSync(targetVersionTs, versionTsContent, "utf-8");
 		return targetVersionTs;
-	} catch {
-		return null;
-	}
+	});
 }
 function resolveNormalizedSyncTargets(cwd, options, auditConfig) {
 	const normalizedTargets = (options.syncTargets ?? auditConfig?.version?.syncTargets ?? []).map((t) => typeof t === "string" ? { path: t } : t);
@@ -87,12 +86,17 @@ function syncJsonTarget(targetAbsPath, target, newVersion) {
 	const jsonField = target.jsonField ?? "version";
 	let jsonObj = {};
 	let startsWithV = false;
-	if (fs.existsSync(targetAbsPath)) try {
-		const rawContent = fs.readFileSync(targetAbsPath, "utf-8");
-		jsonObj = JSON.parse(rawContent);
-		const currentVal = jsonObj[jsonField];
-		if (typeof currentVal === "string" && currentVal.startsWith("v")) startsWithV = true;
-	} catch {}
+	if (fs.existsSync(targetAbsPath)) {
+		const rawContent = safeReadFileSync(targetAbsPath);
+		if (rawContent) {
+			const parsed = safeJsonParse(rawContent);
+			if (parsed) {
+				jsonObj = parsed;
+				const currentVal = jsonObj[jsonField];
+				if (typeof currentVal === "string" && currentVal.startsWith("v")) startsWithV = true;
+			}
+		}
+	}
 	const versionValue = target.prefixV ?? startsWithV ? newVersion.startsWith("v") ? newVersion : `v${newVersion}` : newVersion.startsWith("v") ? newVersion.slice(1) : newVersion;
 	jsonObj[jsonField] = versionValue;
 	fs.mkdirSync(path.dirname(targetAbsPath), { recursive: true });
@@ -104,11 +108,10 @@ function syncAdditionalTargets(cwd, normalizedTargets, pkgPath, targetVersionTs,
 		const targetAbsPath = path.resolve(cwd, target.path);
 		if (targetAbsPath === pkgPath || targetVersionTs && targetAbsPath === targetVersionTs) continue;
 		const isTs = target.type === "ts" || target.path.endsWith(".ts");
-		try {
+		if (tryCatchSync(() => {
 			if (isTs) syncTsTarget(targetAbsPath, target, newVersion, buildId, buildDate);
 			else syncJsonTarget(targetAbsPath, target, newVersion);
-			syncedFiles.push(targetAbsPath);
-		} catch {}
+		}).ok) syncedFiles.push(targetAbsPath);
 	}
 	return syncedFiles;
 }
@@ -140,10 +143,7 @@ function applyVersionBump(options = {}) {
 	if (!fs.existsSync(pkgPath)) throw new Error(`package.json not found in ${cwd}`);
 	const { buildId, buildDate } = generateBuildId(options.customNow);
 	const { newVersion, resolvedBump } = resolveNextVersionAndBump(cwd, options, buildId);
-	let auditConfig = null;
-	try {
-		auditConfig = getAuditConfig(cwd);
-	} catch {}
+	const auditConfig = tryOrNull(() => getAuditConfig(cwd));
 	const { previousVersion, isAuditorPackage } = updatePackageJsonVersion(pkgPath, newVersion);
 	const syncedVersionTs = syncAuditorVersionTs(cwd, options.versionTsPath, isAuditorPackage, newVersion, buildId, buildDate);
 	const additionalSynced = syncAdditionalTargets(cwd, resolveNormalizedSyncTargets(cwd, options, auditConfig), pkgPath, syncedVersionTs ?? "", newVersion, buildId, buildDate);

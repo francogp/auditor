@@ -7,20 +7,13 @@
 
 import stringWidth from 'string-width';
 
-/**
- * Calculates the visual monospace terminal display width of a string,
- * correctly handling ANSI escapes, wide emojis (❌, ✅, ⚠️, ℹ️), and single-width glyphs (…).
- */
-// wrapper-ok: Canonical framework export wrapper for stringWidth
-export function getVisualWidth(str: string): number {
-  return stringWidth(str);
-}
+export { default as stringWidth } from 'string-width';
 
-export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const; // lib-duplicate-ok: Monospace terminal visual alignment
+export const TEXT_ALIGNMENTS = ['left', 'right', 'center'] as const;
 export type TextAlignment = (typeof TEXT_ALIGNMENTS)[number];
 
 export function padVisual(str: string, targetWidth: number, align: TextAlignment = 'left'): string {
-  const currentWidth = getVisualWidth(str);
+  const currentWidth = stringWidth(str);
   const diff = targetWidth - currentWidth;
   if (diff <= 0) return str;
   if (align === 'right') {
@@ -35,12 +28,12 @@ export function padVisual(str: string, targetWidth: number, align: TextAlignment
 }
 
 export function truncateVisual(str: string, maxWidth: number): string {
-  if (getVisualWidth(str) <= maxWidth) return str;
+  if (stringWidth(str) <= maxWidth) return str;
   let result = '';
   const ellipsis = '…';
   const target = maxWidth - 1;
   for (const char of str) {
-    if (getVisualWidth(result + char) > target) break;
+    if (stringWidth(result + char) > target) break;
     result += char;
   }
   return result + ellipsis;

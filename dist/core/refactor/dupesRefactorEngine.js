@@ -1,3 +1,4 @@
+import { tryOrNull } from "../safeUtils.js";
 import { toPosixRelative } from "../auditCoverage.js";
 import "../safePath.js";
 import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
@@ -79,11 +80,8 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 	*/
 	triageCandidates(minOccurrences = 2) {
 		const dupes = runFallowJson("dupes", ["--min-occurrences", String(minOccurrences)], this.projectRoot);
-		let deadFiles = /* @__PURE__ */ new Set();
-		try {
-			const dead = runFallowJson("dead-code", ["--include-dupes"], this.projectRoot);
-			deadFiles = new Set(dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)));
-		} catch {}
+		const dead = tryOrNull(() => runFallowJson("dead-code", ["--include-dupes"], this.projectRoot));
+		const deadFiles = new Set(dead ? dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)) : []);
 		const effectiveMin = Math.max(2, minOccurrences);
 		const candidates = [];
 		for (const g of dupes.clone_groups) {

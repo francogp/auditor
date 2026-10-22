@@ -176,13 +176,13 @@ describe('O1DataStructuresAuditor', () => {
       expect(issue).toBeDefined();
     });
 
-    it('allows exceptions with o1-ok or linear-search-ok escape hatches', () => {
+    it('flags violations regardless of o1-ok or linear-search-ok comments (Zero-Ignore Mandate)', () => {
       const code = `
         const copy = JSON.parse(JSON.stringify(original)); // o1-ok: Benchmarking deep clone
         const hasId = TARIFF_IDS.includes(id); // linear-search-ok: Small array of 2 elements
       `;
       const issues = scanFileForO1Issues('src/logic/exempt.ts', code);
-      expect(issues).toHaveLength(0);
+      expect(issues.length).toBeGreaterThanOrEqual(2);
     });
 
     it('triggers all class-level scanning methods and skips ignored files and comments', async () => {
@@ -312,8 +312,8 @@ describe('O1DataStructuresAuditor', () => {
     });
   });
 
-  describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
-    it('Escape Canary: permits multiline JSON.parse(JSON.stringify) when escape hatch is on closing line', async () => {
+  describe('3-Tier Canary Verification (AST Parity)', () => {
+    it('flags multiline JSON.parse(JSON.stringify) regardless of comment on closing line', async () => {
       const code = `
 export const copy = JSON.parse(
   JSON.stringify(payload)
@@ -321,10 +321,10 @@ export const copy = JSON.parse(
       `.trim();
 
       const issues = scanFileForO1Issues('src/logic/canaryClosing.ts', code);
-      expect(issues).toHaveLength(0);
+      expect(issues.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('Escape Canary: permits multiline return [...items] when escape hatch is on preceding line', async () => {
+    it('flags multiline return [...items] regardless of comment on preceding line', async () => {
       const code = `
 // o1-ok: Defensive array cloning
 return [
@@ -333,7 +333,7 @@ return [
       `.trim();
 
       const issues = scanFileForO1Issues('src/logic/canaryPreceding.ts', code);
-      expect(issues).toHaveLength(0);
+      expect(issues.length).toBeGreaterThanOrEqual(1);
     });
 
     it('Active Canary: flags multiline return [...items] when no escape hatch is present', async () => {

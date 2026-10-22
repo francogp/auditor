@@ -26,6 +26,8 @@ import {
   type NpmCommandValidationEnv
 } from '../../core/npmCommandUtils.ts';
 import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
+import { tryOrNull } from '../../core/safeUtils.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 export type ScriptCommandsRuleId =
   | 'script-cmd-unregistered-npm'
@@ -77,7 +79,7 @@ interface ScannedScriptFile {
 }
 
 function isCandidateScriptPath(file: string, rootDir: string): boolean {
-  const relPosix = path.relative(rootDir, file).split(path.sep).join(path.posix.sep);
+  const relPosix = normalizePosixPath(path.relative(rootDir, file));
   const ext = path.extname(file).toLowerCase();
 
   if (SHELL_AND_BATCH_EXTENSIONS.has(ext)) {
@@ -104,15 +106,11 @@ function collectDockerfiles(rootDir: string): string[] {
   for (const d of CANDIDATE_DOCKER_DIRS) {
     const absDir = path.resolve(rootDir, d);
     if (!fsSync.existsSync(absDir)) continue;
-    try {
-      const entries = fsSync.readdirSync(absDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isFile() && isDockerfile(entry.name)) {
-          dockerfiles.push(path.resolve(absDir, entry.name));
-        }
+    const entries = tryOrNull(() => fsSync.readdirSync(absDir, { withFileTypes: true })) ?? [];
+    for (const entry of entries) {
+      if (entry.isFile() && isDockerfile(entry.name)) {
+        dockerfiles.push(path.resolve(absDir, entry.name));
       }
-    } catch {
-      // catch-ok: Unreadable directory
     }
   }
   return dockerfiles;
@@ -122,15 +120,11 @@ function collectWorkflowFiles(rootDir: string): string[] {
   const workflowFiles: string[] = [];
   const workflowsDir = path.resolve(rootDir, '.github', 'workflows');
   if (!fsSync.existsSync(workflowsDir)) return workflowFiles;
-  try {
-    const entries = fsSync.readdirSync(workflowsDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
-        workflowFiles.push(path.resolve(workflowsDir, entry.name));
-      }
+  const entries = tryOrNull(() => fsSync.readdirSync(workflowsDir, { withFileTypes: true })) ?? [];
+  for (const entry of entries) {
+    if (entry.isFile() && (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))) {
+      workflowFiles.push(path.resolve(workflowsDir, entry.name));
     }
-  } catch {
-    // catch-ok: Unreadable directory
   }
   return workflowFiles;
 }
@@ -269,7 +263,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
     const scannedFiles: ScannedScriptFile[] = [];
 
     for (const absFile of candidateFiles) {
-      const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
+      const relPosix = normalizePosixPath(path.relative(this.rootDir, absFile));
 
       if (this.gitIgnoreMatcher.isIgnored(absFile)) continue;
       if (this.isExempt(relPosix, customExemptGlobs, scriptExemptGlobs)) continue;

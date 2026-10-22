@@ -17,6 +17,7 @@ import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedT
 import { getAuditConfig } from '../core/auditConfig.ts';
 import { toPosixRelative } from '../core/safePath.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
   resolveCoverageArgs,
@@ -44,6 +45,13 @@ interface ComplexityFinding {
   layer: string;
 }
 
+function extractTopFolder(relativePosixPath: string): string {
+  const dir = path.posix.dirname(relativePosixPath);
+  if (dir === '.') return 'root';
+  const slashIdx = dir.indexOf('/');
+  return slashIdx === -1 ? dir : dir.slice(0, slashIdx);
+}
+
 function extractLayerFromPath(relPath: string): string {
   const config = getAuditConfig();
   const codeRoots = config.paths?.codeRoots ?? ['src', 'scripts'];
@@ -51,14 +59,10 @@ function extractLayerFromPath(relPath: string): string {
     const cleanRoot = toPosixRelative(process.cwd(), root);
     const relToRoot = path.posix.relative(cleanRoot, relPath);
     if (!relToRoot.startsWith('..') && !path.posix.isAbsolute(relToRoot)) {
-      // path-ok: Segment decomposition to extract architectural layer
-      const subSegments = relToRoot.split('/').filter(Boolean);
-      return subSegments[0] || 'root';
+      return extractTopFolder(relToRoot);
     }
   }
-  // path-ok: Segment decomposition to extract fallback architectural layer
-  const segments = relPath.split('/').filter(Boolean);
-  return segments.length > 1 && segments[0] ? segments[0] : 'root';
+  return extractTopFolder(relPath);
 }
 
 const DEFAULT_TOP_LIMIT = 20;
@@ -207,33 +211,35 @@ function ingestFallbackAuditFindings(findingsMap: Map<string, ComplexityFinding>
   const latestPath = path.resolve(process.cwd(), 'scratch/audits/latest_audit.json');
   if (!fs.existsSync(latestPath)) return;
 
-  try {
-    const auditData = JSON.parse(fs.readFileSync(latestPath, 'utf8'));
-    const compFindings = (auditData.allFindings || []).filter(
-      (f: { ruleId?: string }) => f.ruleId === 'fallow-refactoring-targets'
-    );
-    for (const cf of compFindings) {
-      const filePath = cf.file || '';
-      const relPath = toPosixRelative(process.cwd(), filePath);
-      const layer = extractLayerFromPath(relPath);
-      const line = cf.line || 1;
-      const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);
-      const key = `${relPath}:${line}:${name}`;
+  const raw = safeReadFileSync(latestPath);
+  if (!raw) return;
+  const auditData = safeJsonParse<{
+    allFindings?: Array<{ ruleId?: string; file?: string; line?: number; context?: string }>;
+  }>(raw);
+  if (!auditData) return;
 
-      findingsMap.set(key, {
-        name,
-        file: relPath,
-        line,
-        lines,
-        cog,
-        cyc,
-        total: cog + cyc,
-        exceeded: 'complexity',
-        layer
-      });
-    }
-  } catch {
-    // catch-ok: Ignore parse errors on audit fallback
+  const compFindings = (auditData.allFindings || []).filter(
+    (f) => f.ruleId === 'fallow-refactoring-targets'
+  );
+  for (const cf of compFindings) {
+    const filePath = cf.file || '';
+    const relPath = toPosixRelative(process.cwd(), filePath);
+    const layer = extractLayerFromPath(relPath);
+    const line = cf.line || 1;
+    const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);
+    const key = `${relPath}:${line}:${name}`;
+
+    findingsMap.set(key, {
+      name,
+      file: relPath,
+      line,
+      lines,
+      cog,
+      cyc,
+      total: cog + cyc,
+      exceeded: 'complexity',
+      layer
+    });
   }
 }
 

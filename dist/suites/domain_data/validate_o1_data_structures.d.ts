@@ -17,8 +17,6 @@ export declare const P_STATIC_ARRAY_INCLUDES: RegExp;
 export declare const P_OBJECT_SCAN_LOOKUP: RegExp;
 export declare const P_JSON_CLONE: RegExp;
 export declare const P_REDUNDANT_SPREAD_RETURN: RegExp;
-export declare const ESCAPE_HATCHES: readonly ["// o1-ok:", "// linear-search-ok:"];
-export declare function shouldIgnoreLine(line: string): boolean;
 export type O1RuleId = 'o1-catalog-lookup' | 'o1-linear-membership' | 'o1-object-scan' | 'o1-json-clone' | 'o1-redundant-spread-return';
 export declare const O1_RULES: readonly O1RuleId[];
 export interface O1Issue {

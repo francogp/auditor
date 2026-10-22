@@ -12,7 +12,6 @@ export declare class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId>
   getMatchLineInfo(content: string, lines: string[], offset: number): {
     lineNumber: number;
     lineContent: string;
-    isIgnored: boolean;
   };
   protected scanFile(relPath: string, content: string): void;
   private checkSingleIdCollisions;

@@ -11,7 +11,7 @@ const commentStrippingDetector = createLineDetector({
 	ruleId: "auditor-manual-comment-stripping",
 	ruleDescription: "Manual comment stripping",
 	checkLine(line) {
-		if (line.includes("replace(") && (line.includes("\\/\\*") || line.includes("\\/\\/")) && (line.includes("comment") || line.includes("''") || line.includes("\"\"") || line.includes("`"))) return "Regex casero para remover comentarios detectado. Usa la utilidad canónica 'stripComments(code)' o 'stripCommentsAndStrings(code)' de 'src/core/scannerUtils.ts'.";
+		if (line.includes("replace(") && (line.includes("\\/\\*") || line.includes("\\/\\/")) && (line.includes("comment") || line.includes("''") || line.includes("\"\"") || line.includes("`"))) return "Homebrew regex for comment stripping detected. Use canonical 'stripComments(code)' or 'stripCommentsAndStrings(code)' from 'src/core/scannerUtils.ts'.";
 		return null;
 	}
 });

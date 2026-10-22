@@ -1,3 +1,4 @@
+import { safeJsonParse } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
@@ -23,16 +24,16 @@ function printConsoleSummary(summary, verbose = true) {
 			console.log(styleText("yellow", `⚠️  WARNINGS (${summary.warnings.length}):`));
 			const limit = 30;
 			summary.warnings.slice(0, limit).forEach((w) => console.log(`   ${w}`));
-			if (summary.warnings.length > limit) console.log(styleText("cyan", `   ... y ${summary.warnings.length - limit} advertencias más (usa -o para ver todas)`));
+			if (summary.warnings.length > limit) console.log(styleText("cyan", `   ... and ${summary.warnings.length - limit} more warnings (use -o to see all)`));
 			console.log("");
 		}
 		if (summary.errors.length) {
 			console.log(styleText("red", `❌ ERRORS (${summary.errors.length}):`));
 			const limit = 30;
 			summary.errors.slice(0, limit).forEach((e) => console.log(`   ${e}`));
-			if (summary.errors.length > limit) console.log(styleText("cyan", `   ... y ${summary.errors.length - limit} errores más (usa -o para ver todos)`));
-			console.log("\n" + styleText("red", "Corrige estos errores para asegurar la integridad de los datos."));
-		} else console.log(styleText("green", "✅ Todos los componentes pasaron la validación con éxito!"));
+			if (summary.errors.length > limit) console.log(styleText("cyan", `   ... and ${summary.errors.length - limit} more errors (use -o to see all)`));
+			console.log("\n" + styleText("red", "Fix these errors to ensure data integrity."));
+		} else console.log(styleText("green", "✅ All components passed validation successfully!"));
 	}
 }
 async function writeReportFile(outputPathArg, summary) {
@@ -165,13 +166,11 @@ function parseLintResultsToFindings(input, options) {
 */
 function extractJsonReportFilePaths(rawJson, fallbackFindings) {
 	const result = [];
-	try {
-		const parsed = JSON.parse(rawJson);
-		if (Array.isArray(parsed)) {
-			for (const item of parsed) if (item && typeof item.filePath === "string") result.push(item.filePath);
-			return result;
-		}
-	} catch {}
+	const parsed = safeJsonParse(rawJson);
+	if (Array.isArray(parsed)) {
+		for (const item of parsed) if (item && typeof item.filePath === "string") result.push(item.filePath);
+		return result;
+	}
 	if (fallbackFindings) {
 		for (const f of fallbackFindings) if (f.file) result.push(f.file);
 	}

@@ -31,8 +31,8 @@ function isConstantNameExemptFromNumericSuffixCheck(constName, config = getAudit
 	return [...config.domain?.allowedNumericConstantPrefixes?.length ? config.domain.allowedNumericConstantPrefixes : DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, ...config.constants?.allowedNumericPrefixes ?? []].some((prefix) => constName.startsWith(prefix) || constName.includes(prefix));
 }
 const noAliasConstants = {
-	regex: /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*(?:[^\s=;][^=;\r\n]*)?\S)?\s*=\s*([A-Z0-9_]+(?:\.[A-Z0-9_]+)*)(?:\s+as\s+[^\s;]+(?:\s+[^\s;]+)*)?\s*(?:;\s*)?$/gm,
-	message: (match) => `Alias de constante detectado: '${match.trim()}'. Está PROHIBIDO inicializar una constante con otra constante o propiedad de constante existente para crear un alias duplicado/intermedio. Usa la constante canónica de origen de forma directa.`,
+	regex: /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*[^=;\r\n]+)?\s*=\s*([A-Z0-9_][A-Z0-9_.]*)(?:\s+as\s+[^;\r\n]+)?\s*(?:;\s*)?$/gm,
+	message: (match) => `Constant alias detected: '${match.trim()}'. Initializing a constant with another existing constant or constant property to create a duplicate intermediate alias is PROHIBITED. Use the canonical origin constant directly.`,
 	severity: "error",
 	check: (content, match, filePath) => {
 		if (!filePath) return false;
@@ -48,7 +48,7 @@ const noAliasConstants = {
 };
 const noLiteralSuffixInConstantName = {
 	regex: /\b([A-Z0-9_]+_(\d{2,}))\b/g,
-	message: (match) => `Constante con sufijo numérico crudo detectada: '${match}'. Está PROHIBIDO incluir literales numéricos al final de los nombres de constantes (ej: _100, _600, _10000). Usa nombres semánticos descriptivos.`,
+	message: (match) => `Constant with raw numeric suffix detected: '${match}'. Including numeric literals at the end of constant names (e.g. _100, _600, _10000) is PROHIBITED. Use semantic, descriptive names.`,
 	severity: "error",
 	check: (_content, match, filePath) => {
 		if (isTestOrNodeModules(filePath)) return false;

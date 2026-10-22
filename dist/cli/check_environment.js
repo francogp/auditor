@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
 import { runSetup } from "./setup_env.js";
@@ -41,13 +42,16 @@ function getAuditorEngines() {
 	}
 	while (dir !== path.dirname(dir)) {
 		const candidate = path.join(dir, "package.json");
-		if (fs.existsSync(candidate)) try {
-			const data = JSON.parse(fs.readFileSync(candidate, "utf8"));
-			if (data.name === "@francogp/auditor" && data.engines?.node && data.engines?.npm) return {
-				node: data.engines.node,
-				npm: data.engines.npm
-			};
-		} catch {}
+		if (fs.existsSync(candidate)) {
+			const raw = safeReadFileSync(candidate);
+			if (raw) {
+				const data = safeJsonParse(raw);
+				if (data?.name === "@francogp/auditor" && data.engines?.node && data.engines?.npm) return {
+					node: data.engines.node,
+					npm: data.engines.npm
+				};
+			}
+		}
 		dir = path.dirname(dir);
 	}
 	throw new Error(`[getAuditorEngines] Could not determine @francogp/auditor engine requirements from package.json (${auditorPackageJsonPath}). Hardcoded fallbacks are strictly prohibited.`);

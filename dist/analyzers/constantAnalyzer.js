@@ -1,3 +1,4 @@
+import { safeReadFileAsync } from "../core/safeUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isInCodeRoots, isScriptPath } from "../core/auditCodeRoots.js";
 import { isDataPath, isDemoPath, isExemptFile } from "../core/auditPathPredicates.js";
@@ -7,7 +8,6 @@ import { isPathContained } from "../core/safePath.js";
 import { isPathIgnored } from "../core/auditorBase.js";
 import { SharedAstContext } from "../core/astContext.js";
 import path from "node:path";
-import fs from "node:fs/promises";
 import ts from "typescript";
 //#region src/analyzers/constantAnalyzer.ts
 /**
@@ -163,12 +163,8 @@ function isConstantAuditCandidate(filePath, projectRoot, config) {
 	return true;
 }
 async function collectFileConstants(filePath, astEngine, effectiveIgnored, declarations) {
-	let content;
-	try {
-		content = await fs.readFile(filePath, "utf-8");
-	} catch {
-		return;
-	}
+	const content = await safeReadFileAsync(filePath);
+	if (!content) return;
 	if (!content.includes("const ")) return;
 	const constDecls = extractConstantsFromSource(astEngine.getSourceFile(filePath, content), filePath, effectiveIgnored);
 	for (const decl of constDecls) {
@@ -179,14 +175,9 @@ async function collectFileConstants(filePath, astEngine, effectiveIgnored, decla
 async function getCachedFileContent(filePath, fileContentCache) {
 	const cached = fileContentCache.get(filePath);
 	if (cached !== void 0) return cached;
-	try {
-		const content = await fs.readFile(filePath, "utf-8");
-		fileContentCache.set(filePath, content);
-		return content;
-	} catch {
-		fileContentCache.set(filePath, "");
-		return "";
-	}
+	const content = await safeReadFileAsync(filePath) ?? "";
+	fileContentCache.set(filePath, content);
+	return content;
 }
 async function checkIsCrossImported(constName, uniqueFiles, fileContentCache) {
 	if (uniqueFiles.length < 2) return false;

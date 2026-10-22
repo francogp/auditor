@@ -20,9 +20,6 @@ import path from "node:path";
 *      (e.g. `id="rename-modal-close-btn"`) to prevent DOM collisions and Playwright
 *      locator ambiguity.
 *
-* Escape Hatches:
-*   `<!-- id-ok -->`, `// id-ok`, `// template-ok`
-*
 * Usage:
 *   npm run validate:template-ids
 */
@@ -63,7 +60,6 @@ function scanTemplateStaticIds(ctx) {
 		const id = match[1];
 		if (!id) continue;
 		const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + match.index);
-		if (info.isIgnored) continue;
 		const occurrence = {
 			file: ctx.relPath,
 			line: info.lineNumber,
@@ -95,10 +91,8 @@ function scanTemplateFormControlIds(ctx) {
 		const tagFull = tagInfo.tag;
 		if (!(INHERENT_INTERACTIVE_TAGS.has(tagType) || INTERACTIVE_EVENT_REGEX.test(tagFull))) continue;
 		if (tagType === "input" && /\btype\s*=\s*["']hidden["']/i.test(tagFull)) continue;
-		if (/id-ok/i.test(tagFull)) continue;
 		const hasId = /\b(?:v-bind:id|:id|id)\s*=/i.test(tagFull);
 		const info = ctx.auditor.getMatchLineInfo(ctx.content, ctx.lines, ctx.templateStartOffset + formMatch.index);
-		if (info.isIgnored) continue;
 		if (!hasId) ctx.auditor.addViolation({
 			ruleId: "template-missing-input-id",
 			severity: "error",
@@ -159,11 +153,9 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 	}
 	getMatchLineInfo(content, lines, offset) {
 		const lineNumber = content.slice(0, offset).split("\n").length;
-		const lineContent = lines[lineNumber - 1] || "";
 		return {
 			lineNumber,
-			lineContent,
-			isIgnored: this.isLineIgnored(lineContent, ["id-ok", "template-ok"])
+			lineContent: lines[lineNumber - 1] || ""
 		};
 	}
 	scanFile(relPath, content) {

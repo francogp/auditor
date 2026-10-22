@@ -8,10 +8,6 @@ import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
  */
 export declare function safeResolve(...pathSegments: string[]): string;
 /**
- * Joins path segments safely within project root boundary.
- */
-export declare function safeJoin(...pathSegments: string[]): string;
-/**
  * Safely writes to a file with boundary validation and recursive directory creation.
  */
 export declare function safeWriteFileSync(filePath: string, content: string | Buffer): void;

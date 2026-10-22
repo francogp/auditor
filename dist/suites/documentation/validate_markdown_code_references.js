@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { tryOrDefault, tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
@@ -59,11 +60,7 @@ function getPersistenceDirs(config) {
 	return res;
 }
 function getRootMarkdownFiles(root) {
-	try {
-		return fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md")).map((entry) => entry.name);
-	} catch {
-		return [];
-	}
+	return tryOrDefault(() => fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith(".md")).map((entry) => entry.name), []);
 }
 function extractTopLevelRoots(dirs) {
 	return dirs.map((d) => normalizePosixPath(d).split("/")[0]).filter(Boolean);
@@ -241,9 +238,9 @@ function checkExactCase(startDir, relativePath) {
 	};
 }
 function addSkillsFromDir(targetDir, skillsSet) {
-	if (fs.existsSync(targetDir)) try {
+	if (fs.existsSync(targetDir)) tryOrNull(() => {
 		for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) if (entry.isDirectory() && !entry.name.startsWith(".")) skillsSet.add(entry.name);
-	} catch {}
+	});
 }
 function discoverRegisteredSkills(rootDir) {
 	const allSkills = /* @__PURE__ */ new Set();
@@ -494,11 +491,7 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 			const isSkillDoc = relPath.startsWith(".agents/skills/") || relPath.startsWith("skills/");
 			const fileDir = path.dirname(filePath);
 			let dirEntries = [];
-			if (relPath.endsWith("AGENTS.md")) try {
-				dirEntries = fs.readdirSync(fileDir);
-			} catch {
-				dirEntries = [];
-			}
+			if (relPath.endsWith("AGENTS.md")) dirEntries = tryOrDefault(() => fs.readdirSync(fileDir), []);
 			docs.push({
 				filePath,
 				relPath,

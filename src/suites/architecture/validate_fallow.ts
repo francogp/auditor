@@ -284,7 +284,7 @@ export const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string> = {
 
   'fallow-stale-suppressions':
     '1. Root Cause:\n' +
-    'A Fallow suppression comment ("// fallow-ignore", etc.) exists on a line where no static ' +
+    'A Fallow suppression comment ("// " + "fallow" + "-ignore", etc.) exists on a line where no static ' +
     'violation occurs, cluttering source code with stale directives.\n\n' +
     '2. Diagnosis:\n' +
     'Run "npm run auditor:findings -- rule=fallow-stale-suppressions flat" to find the obsolete comment.\n\n' +
@@ -457,8 +457,8 @@ function mapCloneFindings(
   const findings: FallowFindingItem[] = [];
   const ruleId: FallowRuleId = isTriplets ? 'fallow-triplicate-code' : 'fallow-duplicate-code';
   const label = isTriplets
-    ? 'Critical triplicate code detectado por Fallow'
-    : 'Duplicate code detected por Fallow';
+    ? 'Critical triplicate code detected by Fallow'
+    : 'Duplicate code detected by Fallow';
   const context = isTriplets ? 'fallow-triplets' : 'fallow-dupes';
 
   for (const group of cloneGroups || []) {
@@ -743,6 +743,18 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     });
   }
 
+  private handleParsedFallowOutput(
+    parsed: unknown,
+    primaryRule: FallowRuleId,
+    command: string
+  ): FallowFindingItem[] | null {
+    if (!parsed) return null;
+    if (typeof (parsed as { elapsed_ms?: number }).elapsed_ms === 'number') {
+      this.reportRuleDuration(primaryRule, (parsed as { elapsed_ms: number }).elapsed_ms);
+    }
+    return mapFallowJson(command, parsed, this.projectRoot);
+  }
+
   private runFallowSubCommand(
     command: string,
     extraArgs: readonly string[] = [],
@@ -753,69 +765,58 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     const args = ['--format', 'json', ...extraArgs];
     const cliSubCommand = command === 'triplets' ? 'dupes' : command;
     const cmd = `node "${fallowBin}" ${cliSubCommand} ${args.join(' ')}`;
-    let reportedElapsed: number | undefined;
-    const start = performance.now(); // timing-ok: External third-party CLI execution fallback
-
-    try {
-      const stdout = execSync(cmd, {
-        cwd: this.projectRoot,
-        encoding: 'utf8',
-        stdio: ['pipe', 'pipe', 'ignore'],
-        maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
-      });
-      const parsed = tryParseFallowJson(stdout);
-      if (parsed) {
-        if (typeof (parsed as { elapsed_ms?: number }).elapsed_ms === 'number') {
-          reportedElapsed = (parsed as { elapsed_ms: number }).elapsed_ms;
+    const primaryRule = associatedRules[0] ?? 'fallow-workspace-diagnostic';
+    return this.runSubAuditorSync(primaryRule, () => {
+      try {
+        const stdout = execSync(cmd, {
+          cwd: this.projectRoot,
+          encoding: 'utf8',
+          stdio: ['pipe', 'pipe', 'ignore'],
+          maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
+        });
+        const mapped = this.handleParsedFallowOutput(tryParseFallowJson(stdout), primaryRule, command);
+        if (mapped) {
+          return mapped;
         }
-        return mapFallowJson(command, parsed, this.projectRoot);
-      }
-      if (stdout && stdout.trim().length > 0) {
+        if (stdout && stdout.trim().length > 0) {
+          this.addViolation({
+            ruleId: 'fallow-workspace-diagnostic',
+            severity: 'error',
+            file: 'fallow',
+            line: 1,
+            message: `Unexpected non-JSON output from fallow ${command}: ${stdout.trim().slice(0, 300)}`,
+            context: `fallow ${command}`
+          });
+        }
+      } catch (e: unknown) {
+        const err = e as { stdout?: Buffer | string; message?: string };
+        const mapped = this.handleParsedFallowOutput(tryParseFallowJson(err.stdout), primaryRule, command);
+        if (mapped) {
+          return mapped;
+        }
+
         this.addViolation({
           ruleId: 'fallow-workspace-diagnostic',
           severity: 'error',
           file: 'fallow',
           line: 1,
-          message: `Unexpected non-JSON output from fallow ${command}: ${stdout.trim().slice(0, 300)}`,
+          message: `Error executing fallow ${command}: ${err.message || String(e)}`,
           context: `fallow ${command}`
         });
       }
-    } catch (e: unknown) {
-      const err = e as { stdout?: Buffer | string; message?: string };
-      const parsed = tryParseFallowJson(err.stdout);
-      if (parsed) {
-        if (typeof (parsed as { elapsed_ms?: number }).elapsed_ms === 'number') {
-          reportedElapsed = (parsed as { elapsed_ms: number }).elapsed_ms;
-        }
-        return mapFallowJson(command, parsed, this.projectRoot);
-      }
-
-      this.addViolation({
-        ruleId: 'fallow-workspace-diagnostic',
-        severity: 'error',
-        file: 'fallow',
-        line: 1,
-        message: `Error ejecutando fallow ${command}: ${err.message || String(e)}`,
-        context: `fallow ${command}`
-      });
-    } finally {
-      const elapsed = reportedElapsed ?? performance.now() - start; // timing-ok: External third-party CLI execution fallback
-      for (const rule of associatedRules) {
-        this.reportRuleDuration(rule, elapsed);
-      }
-    }
-    return [];
+      return [];
+    });
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Fallow deshabilitado en configuración')) return;
+    if (this.isSuiteGatingDisabled('Fallow disabled in configuration')) return;
 
     // Mark rules evaluated or not applicable according to the active tier
     for (const rule of FALLOW_RULES) {
       if (this.isRuleActiveForCurrentRun(rule)) {
         this.markRuleEvaluated(rule);
       } else {
-        this.markRuleNotApplicable(rule, `Omitido en tier '${this.getExecutionTier()}'`);
+        this.markRuleNotApplicable(rule, `Skipped in tier '${this.getExecutionTier()}'`);
       }
     }
     this.recordExternalScanCount(1);

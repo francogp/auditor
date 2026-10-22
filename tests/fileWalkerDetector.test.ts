@@ -70,9 +70,9 @@ describe('fileWalkerDetector', () => {
     expect(findings).toHaveLength(0);
   });
 
-  it('respects walker-ok escape hatch comments', () => {
+  it('does not ignore violations even with walker-ok comments (zero-escape policy)', () => {
     const code = 'function walkDirectory(dir: string) { // walker-ok: Allowed specialized check';
     const findings = fileWalkerDetector.detect(createContext(code));
-    expect(findings).toHaveLength(0);
+    expect(findings).toHaveLength(1);
   });
 });

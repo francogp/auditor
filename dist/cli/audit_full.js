@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { assertAuditConfigComplete } from "../core/auditConfigValidators.js";
 import { AUDITOR_VERSION } from "../core/version.js";
+import { safeJsonParse, safeReadFileAsync, safeRmSync } from "../core/safeUtils.js";
 import { buildRatchetConfig } from "../core/auditConfigBuilders.js";
 import { loadAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
@@ -9,7 +10,7 @@ import { getActiveFamilies, groupFindingsByFileMap, groupResultsByFamily, normal
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV } from "../core/auditCoverage.js";
-import { getVisualWidth } from "../core/terminalVisuals.js";
+import { stringWidth } from "../core/terminalVisuals.js";
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
 import { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "../core/executiveTheme.js";
@@ -26,9 +27,9 @@ import { initWarningBaseline, runWarningRatchet } from "./auditRatchet.js";
 import { findRuleGuide, renderFamilyGuideIndex, renderGlobalGuideIndex, renderRuleGuideCard, renderSuiteGuideCards } from "./guideRenderer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
+import { pathToFileURL } from "node:url";
 import os from "node:os";
 //#region src/cli/audit_full.ts
 /**
@@ -92,11 +93,22 @@ function resolveTargetPreset(values, positionals) {
 	if (values.speed === "light" || positionals.includes("lint")) return "lint";
 	if (values.md || positionals.includes("md")) return "md";
 }
+const AUDIT_SPEED_NAMES = /* @__PURE__ */ new Set([
+	"light",
+	"heavy",
+	"full"
+]);
+const AUDIT_PHASE_NAMES = /* @__PURE__ */ new Set([
+	"setup",
+	"normal",
+	"post-run",
+	"post-build"
+]);
 function parseSpeedValue(raw) {
-	if (raw === "light" || raw === "heavy" || raw === "full") return raw;
+	if (typeof raw === "string" && AUDIT_SPEED_NAMES.has(raw)) return raw;
 }
 function parsePhaseValue(raw) {
-	if (raw === "setup" || raw === "normal" || raw === "post-run" || raw === "post-build") return raw;
+	if (typeof raw === "string" && AUDIT_PHASE_NAMES.has(raw)) return raw;
 }
 function resolveConsoleMode(values, positionals) {
 	if (isHumanConsoleMode({
@@ -313,26 +325,32 @@ async function executeTaskInProcess(task, sharedAstContext, onSubLine) {
 				durationMs
 			};
 		}
-	} catch {}
+	} catch (err) {
+		if (process.env.DEBUG === "true") console.warn(`[AuditFull] in-process execution failed for ${task.id}: ${err.message}`);
+	}
 	return null;
 }
 async function tryReadTaskResult(taskJsonPath, stdout, durationMs) {
-	try {
-		const fileContent = await fs.readFile(taskJsonPath, "utf-8");
-		const parsed = JSON.parse(fileContent);
-		if (parsed.durationMs === void 0 || parsed.durationMs === 0) parsed.durationMs = durationMs;
-		return parsed;
-	} catch {}
-	if (stdout) try {
+	const fileContent = await safeReadFileAsync(taskJsonPath);
+	if (fileContent) {
+		const parsed = safeJsonParse(fileContent);
+		if (parsed) {
+			if (parsed.durationMs === void 0 || parsed.durationMs === 0) parsed.durationMs = durationMs;
+			return parsed;
+		}
+	}
+	if (stdout) {
 		const raw = stdout.trim();
 		const firstBrace = raw.indexOf("{");
 		const lastBrace = raw.lastIndexOf("}");
 		if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-			const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1));
-			if (parsed.durationMs === void 0 || parsed.durationMs === 0) parsed.durationMs = durationMs;
-			return parsed;
+			const parsed = safeJsonParse(raw.substring(firstBrace, lastBrace + 1));
+			if (parsed) {
+				if (parsed.durationMs === void 0 || parsed.durationMs === 0) parsed.durationMs = durationMs;
+				return parsed;
+			}
 		}
-	} catch {}
+	}
 	return null;
 }
 function extractSubprocessErrorMessage(proc, timeoutMs = DEFAULT_SUBPROCESS_TIMEOUT_MS, task) {
@@ -663,9 +681,7 @@ function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
 * In fix mode (isFixMode === true), any remaining error could not be resolved,
 * so fixableErrors and autoFixRecommended are always 0/false.
 */
-function computeFixableViolations(results, isFixMode) {
-	return BaseAuditor.computeFixableViolations(results, isFixMode);
-}
+const computeFixableViolations = BaseAuditor.computeFixableViolations;
 async function persistAuditReportsToDisk(params) {
 	const prefix = params.isFixMode ? "latest_fix_" : "latest_";
 	const byFilePrefix = params.isFixMode ? "by_file_fix.json" : "by_file.json";
@@ -751,7 +767,12 @@ async function renderAndPersistMasterReport(ctx) {
 	const sortedCategories = computeAuditCategoryCounts(displayResults);
 	const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
 	const setupFindings = setupResults.flatMap((r) => r.findings ?? []);
-	const hasLockfileMismatch = setupFindings.some((f) => f.ruleId === "package-lockfile-integrity" || f.ruleId === "dependency-below-minimum-installed" || f.ruleId === "dependency-exceeds-maximum-installed");
+	const lockfileMismatchRules = /* @__PURE__ */ new Set([
+		"package-lockfile-integrity",
+		"dependency-below-minimum-installed",
+		"dependency-exceeds-maximum-installed"
+	]);
+	const hasLockfileMismatch = setupFindings.some((f) => Boolean(f.ruleId && lockfileMismatchRules.has(f.ruleId)));
 	const hasEngineMismatch = setupFindings.some((f) => f.ruleId === "environment-runtime-mismatch" || f.ruleId === "environment-engines-below-floor");
 	const hasFixableErrors = setupFindings.some((f) => f.fixable && f.severity === "error");
 	const hasSimilarCodeSetupFailure = results.some((r) => r.findings?.some((f) => f.ruleId === "fallow-similar-code-failed" && (f.context === "manual-setup-required" || f.context === "model-not-ready")));
@@ -1000,7 +1021,8 @@ function handleIntrospectionCommands(cliOptions, allAvailableTasks, activeFamili
 	if (targetUid) handleInfoCommand(targetUid, allAvailableTasks);
 	return false;
 }
-function createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksCount, allAvailableCount, omittedCount) {
+function createAuditBannerDetails(options) {
+	const { cliOptions, isFixMode = false, isBuildMode = false, tasksCount, allAvailableCount, omittedCount = 0 } = options;
 	const subtitleDetails = [`v${AUDITOR_VERSION}`, isFixMode ? `Auto-fixable suites: ${tasksCount} suites` : `Auto-discovered: ${tasksCount}/${allAvailableCount} suites`];
 	if (isFixMode) subtitleDetails.push("Mode: AUTO-FIX 🛠️");
 	else if (isBuildMode) subtitleDetails.push("Mode: POST-BUILD 🏗️");
@@ -1027,7 +1049,7 @@ function formatSubtitleDetails(details, maxLineWidth = 72) {
 	let currentLine = "";
 	for (const item of details) {
 		const candidate = currentLine ? `${currentLine}  |  ${item}` : item;
-		if (getVisualWidth(candidate) <= maxLineWidth) currentLine = candidate;
+		if (stringWidth(candidate) <= maxLineWidth) currentLine = candidate;
 		else {
 			if (currentLine) lines.push(currentLine);
 			currentLine = item;
@@ -1046,9 +1068,7 @@ async function runTaskExecution(task, ctx, subLines) {
 		};
 	}
 	const taskJsonPath = path.join(ctx.scratchAuditsDir, task.family, `${task.id}.json`);
-	try {
-		await fs.rm(taskJsonPath, { force: true });
-	} catch {}
+	safeRmSync(taskJsonPath);
 	const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
 	const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
 	return {
@@ -1118,9 +1138,14 @@ async function checkEarlyCliCommands() {
 		console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
 		process.exit(0);
 	}
-	if (cliTokens.some((a) => a === "dependencies" || a === "deps" || a === "--dependencies")) {
+	const dependencyTokens = /* @__PURE__ */ new Set([
+		"dependencies",
+		"deps",
+		"--dependencies"
+	]);
+	if (cliTokens.some((a) => dependencyTokens.has(a))) {
 		const { runDependenciesReport, parseCliArgs } = await import("./report_dependencies.js");
-		const options = parseCliArgs(cliTokens.filter((a) => a !== "dependencies" && a !== "deps" && a !== "--dependencies"));
+		const options = parseCliArgs(cliTokens.filter((a) => !dependencyTokens.has(a)));
 		const exitCode = runDependenciesReport(process.cwd(), options).outdatedCount > 0 && !options.noFail && !options.commandsOnly && !options.json ? 1 : 0;
 		process.exit(exitCode);
 	}
@@ -1145,14 +1170,22 @@ async function setupCoverageRunEnvironment(runMode, workerTasks) {
 	});
 	await fs.mkdir(coverageLedgerDir, { recursive: true });
 }
-function displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds) {
+function displayMasterBanner(options) {
+	const { config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds } = options;
 	if (cliOptions.consoleMode === "compact") return;
-	const subtitleDetails = createAuditBannerDetails(cliOptions, isFixMode, isBuildMode, tasksToRun.length, allAvailableTasks.length, omittedSuiteIds.length);
+	const subtitleDetails = createAuditBannerDetails({
+		cliOptions,
+		isFixMode,
+		isBuildMode,
+		tasksCount: tasksToRun.length,
+		allAvailableCount: allAvailableTasks.length,
+		omittedCount: omittedSuiteIds.length
+	});
 	let bannerTitle = config.name ? `${config.name.toUpperCase()} - GLOBAL AUDIT & VALIDATION SUITE` : "GLOBAL AUDIT & VALIDATION SUITE";
 	if (isFixMode) bannerTitle = "[ 🛠️ AUTOMATIC REPAIR MODE ]";
 	else if (isBuildMode) bannerTitle = "[ 🏗️ POST-BUILD / COMPILED ARTIFACTS MODE ]";
 	else if (cliOptions.targetPreset === "critical") bannerTitle = "[ 🚨 EXCLUSIVE CRITICAL MODE ]";
-	else if (config.name && getVisualWidth(bannerTitle) > 72) bannerTitle = `${config.name.toUpperCase()}\nGLOBAL AUDIT & VALIDATION SUITE`;
+	else if (config.name && stringWidth(bannerTitle) > 72) bannerTitle = `${config.name.toUpperCase()}\nGLOBAL AUDIT & VALIDATION SUITE`;
 	const formattedSubtitle = formatSubtitleDetails(subtitleDetails);
 	console.log(renderBanner(bannerTitle, formattedSubtitle));
 }
@@ -1284,7 +1317,15 @@ async function runMasterAudit() {
 	const workerTasks = tasksToRun.filter((t) => t.capabilities?.phase !== "post-run");
 	const postRunTasks = tasksToRun.filter((t) => t.capabilities?.phase === "post-run");
 	await setupCoverageRunEnvironment(runMode, workerTasks);
-	displayMasterBanner(config, cliOptions, isFixMode, isBuildMode, tasksToRun, allAvailableTasks, omittedSuiteIds);
+	displayMasterBanner({
+		config,
+		cliOptions,
+		isFixMode,
+		isBuildMode,
+		tasksToRun,
+		allAvailableTasks,
+		omittedSuiteIds
+	});
 	if (tasksToRun.length === 0) {
 		console.log(styleText("yellow", "⚠️ No auditors found matching specified filters."));
 		process.exit(0);

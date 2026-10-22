@@ -1169,49 +1169,49 @@ const RULE_DESCRIPTIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
 
 const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
   'vite-plus-config-core':
-    'Causa Raíz:\n' +
-    'El archivo vite.config.ts no existe en la raíz del proyecto, le faltan bloques fundamentales de la plataforma Vite+ (como test o staged), conviven archivos de configuración legados obsoletos (.eslintrc.*, vitest.config.*, .prettierrc.*) que rompen la unificación del toolchain, o se detectaron plugins de compresión estática caseros (scripts/maintenance/vite-plugin-precompress*.ts) o librerías de terceros obsoletas (vite-plugin-compression).\n\n' +
-    'Diagnóstico:\n' +
-    'Comprueba si existen archivos de configuración redundantes de herramientas aisladas, plugins de compresión caseros en scripts/, o si la sección "test" / "staged" está ausente en vite.config.ts.\n\n' +
-    'Solución Canónica:\n' +
-    '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor generará la configuración unificada canónica, purgará los archivos legados redundantes y migrará la compresión hacia "vitePrecompressPlugin" oficial de @francogp/auditor.\n' +
-    '2. Asegura que los comandos de compilación y pruebas invoquen el binario "vp" ("vp test", "vp build", "vp dev").',
+    'Root Cause:\n' +
+    'The vite.config.ts file does not exist in project root, misses core Vite+ blocks (such as test or staged), coexists with obsolete legacy configs (.eslintrc.*, vitest.config.*, .prettierrc.*) breaking unified toolchains, or contains homebrew static precompress plugins or obsolete 3rd party plugins (vite-plugin-compression).\n\n' +
+    'Diagnosis:\n' +
+    'Check if isolated legacy configs exist, homebrew compression plugins exist under scripts/, or the "test" / "staged" section is absent in vite.config.ts.\n\n' +
+    'Canonical Solution:\n' +
+    '1. Run "npm run auditor:fix" or "auditor fix". The auditor generates canonical configuration, purges redundant legacy files, and migrates compression to official "vitePrecompressPlugin" from @francogp/auditor.\n' +
+    '2. Ensure build and test commands invoke the "vp" binary ("vp test", "vp build", "vp dev").',
   'vite-plus-config-lint':
-    'Causa Raíz:\n' +
-    'La sección "lint" en vite.config.ts no cumple con el baseline obligatorio anti-castración (Anti-Castration Mandate), tiene reglas desactivadas (en "off" o null), o carece de plugins de dominio requeridos.\n' +
-    'Por mandato de arquitectura estricta, las reglas de TypeScript estricto, pureza de immutabilidad y control de flujo no pueden degradarse para ocultar defectos de código.\n\n' +
-    'Diagnóstico:\n' +
-    'El mensaje de error indica qué regla de Oxlint o @typescript-eslint falta o tiene un valor inferior a "error".\n\n' +
-    'Solución Canónica:\n' +
-    '1. Ejecuta "npm run auditor:fix" o "auditor fix". El auditor inyectará y re-sincronizará el catálogo completo de reglas canónicas en vite.config.ts.\n' +
-    '2. Corrige los defectos reales en el código fuente señalados por el linter.',
+    'Root Cause:\n' +
+    'The "lint" section in vite.config.ts violates the mandatory Anti-Castration Mandate baseline, has disabled rules ("off" or null), or lacks required domain plugins.\n' +
+    'Under strict architecture governance, strict TypeScript, immutability, and control-flow rules cannot be degraded to hide code defects.\n\n' +
+    'Diagnosis:\n' +
+    'The violation message specifies which Oxlint or @typescript-eslint rule is missing or downgraded below "error".\n\n' +
+    'Canonical Solution:\n' +
+    '1. Run "npm run auditor:fix" or "auditor fix". The auditor injects and re-synchronizes the full canonical rule catalog in vite.config.ts.\n' +
+    '2. Fix genuine code defects flagged by the linter in source code.',
   'vite-plus-config-fmt':
-    'Causa Raíz:\n' +
-    'La sección "fmt" está ausente en vite.config.ts o no declara las opciones mandatorias "sortImports: true" y "sortPackageJson: true".\n' +
-    'Oxfmt exige ordenamiento determinista de importaciones y claves de package.json para evitar conflictos en git diffs.\n\n' +
-    'Diagnóstico:\n' +
-    'Revisa el objeto "fmt" en vite.config.ts.\n\n' +
-    'Solución Canónica:\n' +
-    '1. Ejecuta "npm run auditor:fix" para reparar la configuración automáticamente.\n' +
-    '2. O bien añade en vite.config.ts:\n' +
+    'Root Cause:\n' +
+    'The "fmt" section is missing from vite.config.ts or does not declare mandatory "sortImports: true" and "sortPackageJson: true".\n' +
+    'Oxfmt requires deterministic sorting of imports and package.json keys to eliminate git diff merge conflicts.\n\n' +
+    'Diagnosis:\n' +
+    'Inspect the "fmt" object in vite.config.ts.\n\n' +
+    'Canonical Solution:\n' +
+    '1. Run "npm run auditor:fix" to repair configuration automatically.\n' +
+    '2. Or add to vite.config.ts:\n' +
     '   fmt: { sortImports: true, sortPackageJson: true }',
   'vite-plus-config-pack':
-    'Causa Raíz:\n' +
-    'El paquete está configurado como biblioteca pública o paquete compartible, pero carece de la sección "pack" en vite.config.ts con los validadores publint y Are The Types Wrong (attw).\n' +
-    'Sin esta verificación, pueden publicarse paquetes con exports rotos o tipos .d.ts incompatibles con ESM/CJS.\n\n' +
-    'Diagnóstico:\n' +
-    'Revisa si el paquete define exports o binarios y carece del bloque pack en vite.config.ts.\n\n' +
-    'Solución Canónica:\n' +
-    '1. Ejecuta "npm run auditor:fix" para inyectar la sección pack canónica.\n' +
-    '2. Configura: pack: { publint: true, attw: { profile: "esm-only" } }.',
+    'Root Cause:\n' +
+    'The package is configured as a public library or shareable package but lacks the "pack" section in vite.config.ts with publint and Are The Types Wrong (attw) validators.\n' +
+    'Without this verification, packages may publish broken exports or .d.ts types incompatible with ESM/CJS.\n\n' +
+    'Diagnosis:\n' +
+    'Check if the package defines exports or binaries and lacks the pack block in vite.config.ts.\n\n' +
+    'Canonical Solution:\n' +
+    '1. Run "npm run auditor:fix" to inject canonical pack section.\n' +
+    '2. Configure: pack: { publint: true, attw: { profile: "esm-only" } }.',
   'vite-plus-config-ts':
-    'Causa Raíz:\n' +
-    'Existe una discrepancia entre las rutas gobernadas en .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs) y la configuración de "test.include" e "ignorePatterns" en vite.config.ts.\n' +
-    'audit.config.ts actúa como la Fuente Única de Verdad (SSoT) del proyecto y debe reflejarse fielmente en el runner de pruebas y el linter.\n\n' +
-    'Diagnóstico:\n' +
-    'Comprueba si agregaste nuevos directorios de pruebas en audit.config.ts sin sincronizarlos en vite.config.ts.\n\n' +
-    'Solución Canónica:\n' +
-    'Ejecuta "npm run auditor:fix" o "auditor fix". El auditor sincronizará automáticamente los patrones de test y exclusión.'
+    'Root Cause:\n' +
+    'Discrepancy detected between paths governed in .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs) and "test.include" / "ignorePatterns" in vite.config.ts.\n' +
+    'audit.config.ts acts as the Single Source of Truth (SSoT) and must be faithfully reflected in test runners and linters.\n\n' +
+    'Diagnosis:\n' +
+    'Check if new test directories were added to audit.config.ts without synchronizing vite.config.ts.\n\n' +
+    'Canonical Solution:\n' +
+    'Run "npm run auditor:fix" or "auditor fix". The auditor automatically synchronizes test and ignore patterns.'
 };
 
 export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRuleId> {

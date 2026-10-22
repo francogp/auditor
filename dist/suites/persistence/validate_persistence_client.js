@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
@@ -21,9 +21,6 @@ import { enableCompileCache } from "node:module";
 *    Arbitrary raw string literal keys passed directly to storage without typed constants or domain keys.
 * 3. Storage Unhandled Quota Error (`persistence-client-unhandled-quota-error`):
 *    Storage mutations (.setItem) invoked outside try/catch blocks susceptible to QuotaExceededError crashes.
-*
-* Escape Hatch:
-*   // storage-ok: <justification>
 */
 enableCompileCache();
 const PERSISTENCE_CLIENT_RULES = [
@@ -184,16 +181,11 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 	}
 	isIgnoredLine(lines, lineNum) {
 		const line = lines[lineNum - 1] ?? "";
-		const prevLine = lineNum >= 2 ? lines[lineNum - 2] ?? "" : "";
-		const prevPrevLine = lineNum >= 3 ? lines[lineNum - 3] ?? "" : "";
-		return isCommentLine(line.trim()) || this.hasStorageEscapeHatch(line) || this.hasStorageEscapeHatch(prevLine) || this.hasStorageEscapeHatch(prevPrevLine);
+		return isCommentLine(line.trim());
 	}
 	isAuthorizedSaveFile(file) {
 		const normalized = normalizePosixPath(file);
 		return Array.from(this.authorizedSaveFiles).some((auth) => normalized.endsWith(auth) || normalized.includes(auth));
-	}
-	hasStorageEscapeHatch(line) {
-		return /\/\/\s*storage-ok:|\/\*\s*storage-ok:/i.test(line);
 	}
 	isInsideTryCatch(content, position) {
 		const preceding = content.slice(0, position);

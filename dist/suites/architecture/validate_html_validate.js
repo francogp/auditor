@@ -1,6 +1,8 @@
+import { tryCatchSync } from "../../core/safeUtils.js";
+import { extractJsonReportFilePaths, normalizePosixPath, parseLintResultsToFindings } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { extractJsonReportFilePaths, parseLintResultsToFindings } from "../../core/reportUtils.js";
 import "../../core/auditConfig.js";
+import "../../core/safePath.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -56,7 +58,7 @@ function collectRootHtmlTargets(projectRoot, root, targets, filesToScan, extraIg
 	}
 }
 function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan, extraIgnorePatterns = []) {
-	try {
+	tryCatchSync(() => {
 		const rootEntries = fs.readdirSync(projectRoot, { withFileTypes: true });
 		for (const entry of rootEntries) if (entry.isFile() && entry.name.endsWith(".html")) {
 			if (!isPathIgnored(entry.name, extraIgnorePatterns, [], projectRoot)) {
@@ -64,7 +66,7 @@ function collectTopLevelHtmlTargets(projectRoot, targets, filesToScan, extraIgno
 				filesToScan.push(path.join(projectRoot, entry.name));
 			}
 		}
-	} catch {}
+	});
 }
 function collectHtmlTargets(projectRoot, roots, extraIgnorePatterns = []) {
 	const targets = [];
@@ -152,14 +154,14 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		])).filter((r) => fs.existsSync(path.resolve(this.projectRoot, r)));
 		const localConfigPath = path.resolve(this.projectRoot, ".htmlvalidate.json");
 		const hasLocalConfig = fs.existsSync(localConfigPath);
-		const coverageInclude = scannableRoots.map((r) => `${r}/**/*.{html,vue}`);
-		coverageInclude.push("*.html");
+		const coverageIncludeGlobs = scannableRoots.map((r) => `${r}/**/*.{html,vue}`);
+		coverageIncludeGlobs.push("*.html");
 		if (hasLocalConfig) {
-			coverageInclude.push(".htmlvalidate.json");
+			coverageIncludeGlobs.push(".htmlvalidate.json");
 			this.recordScanned(localConfigPath);
 		}
 		this.redeclareCoverage({
-			include: coverageInclude,
+			include: coverageIncludeGlobs,
 			source: "runtime"
 		});
 		const { targets, filesToScan } = collectHtmlTargets(this.projectRoot, scannableRoots, this.extraIgnorePatterns);
@@ -168,7 +170,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			return;
 		}
 		for (const f of filesToScan) this.recordScanned(f);
-		const relFiles = filesToScan.map((f) => path.relative(this.projectRoot, f).split(path.sep).join(path.posix.sep));
+		const relFiles = filesToScan.map((f) => normalizePosixPath(path.relative(this.projectRoot, f)));
 		const effectiveTargets = relFiles.reduce((acc, f) => acc + f.length + 1, 0) < 6e3 && relFiles.length > 0 ? relFiles : targets;
 		const args = [
 			"-c",

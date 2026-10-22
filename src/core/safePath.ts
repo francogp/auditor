@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import { getAuditConfig, sanitizePath } from './auditConfig.ts';
 import { isLockedSkillPath } from './lockedSkills.ts';
+import { createDomainSet } from './domainCollections.ts';
 
 enableCompileCache();
 
@@ -31,14 +32,6 @@ export function safeResolve(...pathSegments: string[]): string {
     );
   }
   return resolved;
-}
-
-/**
- * Joins path segments safely within project root boundary.
- */
-// wrapper-ok: Canonical framework export wrapper for safeResolve
-export function safeJoin(...pathSegments: string[]): string {
-  return safeResolve(...pathSegments);
 }
 
 function assertNotLockedSkill(filePath: string): string {
@@ -108,7 +101,6 @@ export async function safeFetch(
   if (!isAllowed) {
     throw new Error(`Security Violation CWE-SSRF: Host '${host}' is not in allowed hosts list`);
   }
-  // fallow-ignore-next-line security-sink
   return fetch(parsed.toString(), options);
 }
 
@@ -161,7 +153,7 @@ export function isPathContained(
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
 
-const SKIPPABLE_DIR_NAMES: ReadonlySet<string> = new Set(['node_modules', 'dist', 'scratch']);
+const SKIPPABLE_DIR_NAMES = createDomainSet(['node_modules', 'dist', 'scratch'] as const);
 
 function isSkippableDirectory(dirName: string): boolean {
   if (SKIPPABLE_DIR_NAMES.has(dirName)) return true;

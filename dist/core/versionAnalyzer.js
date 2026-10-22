@@ -1,3 +1,4 @@
+import { tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
@@ -135,7 +136,7 @@ function aggregateSubsystemMetrics(changedFiles) {
 */
 function collectGitDiffMetrics(cwd = process.cwd(), baseRef = "HEAD") {
 	const changedFilesMap = /* @__PURE__ */ new Map();
-	try {
+	tryOrNull(() => {
 		parseNumstatOutput(execSync(`git diff ${baseRef} --numstat`, {
 			cwd,
 			encoding: "utf-8",
@@ -145,8 +146,8 @@ function collectGitDiffMetrics(cwd = process.cwd(), baseRef = "HEAD") {
 				"ignore"
 			]
 		}), changedFilesMap);
-	} catch {}
-	try {
+	});
+	tryOrNull(() => {
 		parsePorcelainOutput(execSync("git status --porcelain", {
 			cwd,
 			encoding: "utf-8",
@@ -156,7 +157,7 @@ function collectGitDiffMetrics(cwd = process.cwd(), baseRef = "HEAD") {
 				"ignore"
 			]
 		}), cwd, changedFilesMap);
-	} catch {}
+	});
 	const changedFiles = Array.from(changedFilesMap.values());
 	const agg = aggregateSubsystemMetrics(changedFiles);
 	return {

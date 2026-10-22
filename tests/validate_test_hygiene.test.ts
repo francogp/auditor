@@ -7,7 +7,7 @@
  * - Force-clicks in E2E (no-playwright-force-click)
  * - Timeout inflation > 30000ms (no-test-timeout-inflation)
  * - Polling sleeps in E2E (no-playwright-polling-waits)
- * - Honors escape hatches (mock-ok, locator-ok, force-ok, timeout-ok, wait-ok)
+ * - Flags violations regardless of comment directives (Zero-Ignore Mandate)
  * - Verifies clean execution (0 errors, passed status)
  */
 
@@ -140,7 +140,7 @@ describe('TestHygieneAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
-    it('allows exceptions with valid escape hatches', () => {
+    it('flags violations regardless of escape comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableTestHygieneAuditor();
       const code = `
         vi.mock('@/logic/db/supabase', () => ({})); // mock-ok: Isolated mock
@@ -150,7 +150,7 @@ describe('TestHygieneAuditor', () => {
       `;
       auditor.testScanFile('tests/integration/escaped.test.ts', code);
       auditor.testScanFile('tests/e2e/escaped.spec.ts', code);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThanOrEqual(4);
     });
   });
 

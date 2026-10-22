@@ -1,3 +1,4 @@
+import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -435,7 +436,7 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 		}
 		if (modified && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 		this.runSubAuditorSync("fallow-config-workspace-diagnostic", () => {
-			try {
+			tryCatchSync(() => {
 				const fallowBin = [path.resolve(this.projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
 				if (fallowBin) {
 					const stdout = execSync(`node "${fallowBin}" list --workspaces --format json --root "${this.projectRoot}"`, {
@@ -447,9 +448,10 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 						],
 						timeout: 1e4
 					});
-					validateFallowWorkspaceDiagnostics(JSON.parse(stdout).workspace_diagnostics, this);
+					const parsed = safeJsonParse(stdout);
+					if (parsed?.workspace_diagnostics) validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
 				}
-			} catch {}
+			});
 		});
 	}
 };

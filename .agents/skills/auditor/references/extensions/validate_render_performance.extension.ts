@@ -13,9 +13,6 @@
  *   4. Prohibits CPU JavaScript modifiers in continuous GSAP animation loops ('modifiers: { ... }'),
  *      requiring hardware-accelerated GPU transforms with modular translation.
  *
- * Escape Hatches:
- *   // render-ok, // blend-ok
- *
  * Usage in .auditor/audit.config.ts:
  *   extensions: ['../scripts/auditors/architecture/validate_render_performance.ts']
  */
@@ -136,7 +133,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     this.runSubAuditorSync('render-banned-mix-blend-mode', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         if (isWeatherStyle || line.includes('weather-overlay') || line.includes('rain-layer')) {
           const mixBlendMatch = /mix-blend-mode\s*:\s*(?!normal\b)([a-z-]+)/i.exec(line);
           if (mixBlendMatch) {
@@ -158,7 +154,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       if (!isWeatherStyle) return;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         const filterMatch = /filter\s*:\s*[^;]*(?:drop-shadow|blur)\s*\(/i.exec(line);
         if (filterMatch) {
           this.addViolation({
@@ -178,7 +173,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       if (!isWeatherStyle) return;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         const insetMatch = /inset\s*:\s*-\s*([0-9]+)px/i.exec(line);
         if (insetMatch) {
           const px = parseInt(insetMatch[1]!, 10);
@@ -201,7 +195,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       if (!isAtmosphereAnim) return;
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        if (this.isLineIgnored(line, ['render-ok', 'blend-ok'])) continue;
         if (/\bmodifiers\s*:\s*\{/.test(line)) {
           this.addViolation({
             ruleId: 'render-gsap-cpu-modifier',

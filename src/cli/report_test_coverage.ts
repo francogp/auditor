@@ -8,6 +8,7 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { spawnSync, execSync } from 'node:child_process';
 import { styleText } from 'node:util';
 import {
@@ -18,7 +19,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
+import { toPosixRelative, isPathContained } from '../core/safePath.ts';
+import { tryCatchSync } from '../core/safeUtils.ts';
 import {
   analyzeTestCoverage,
   resolveCoverageFile,
@@ -158,9 +160,9 @@ ${styleText('bold', 'OPTIONS:')}
 function loadFallowComplexityMap(projectRoot: string): Map<string, number> {
   const complexityMap = new Map<string, number>();
 
-  try {
+  tryCatchSync(() => {
     const fallowBin = resolvePackageBin('fallow', { projectRoot });
-    if (!fallowBin) return complexityMap;
+    if (!fallowBin) return;
 
     const cmd = `node "${fallowBin}" health --format json`;
     const stdout = execSync(cmd, {
@@ -186,9 +188,7 @@ function loadFallowComplexityMap(projectRoot: string): Map<string, number> {
         complexityMap.set(relPath, current + Math.max(cog, cyc));
       }
     }
-  } catch {
-    // catch-ok: non-fatal if fallow is unavailable or fails to produce health json
-  }
+  });
 
   return complexityMap;
 }
@@ -436,8 +436,11 @@ function renderFilteredFilesView(
     );
   }
   if (args.dirFilter) {
-    // path-ok: CLI display filter matching directory prefix
-    filtered = filtered.filter((f) => f.relPath.startsWith(args.dirFilter!));
+    const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+    filtered = filtered.filter((f) => {
+      const fileAbs = path.resolve(process.cwd(), f.relPath);
+      return isPathContained(filterAbs, fileAbs) || f.relPath === args.dirFilter;
+    });
   }
   console.log(renderFilesTable(filtered, args.topLimit));
   if (filtered.length > args.topLimit) {
@@ -475,8 +478,11 @@ ${styleText('bold', 'FILE DISTRIBUTION:')}
 
   let dirs = report.directories;
   if (args.dirFilter) {
-    // path-ok: CLI display filter matching directory prefix
-    dirs = dirs.filter((d) => d.directory.startsWith(args.dirFilter!));
+    const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+    dirs = dirs.filter((d) => {
+      const dirAbs = path.resolve(process.cwd(), d.directory);
+      return isPathContained(filterAbs, dirAbs) || d.directory === args.dirFilter;
+    });
   }
   console.log(styleText('bold', 'BREAKDOWN BY DIRECTORY / SUBSYSTEM:\n'));
   console.log(renderDirectoriesTable(dirs, report.overall));

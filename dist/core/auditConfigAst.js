@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileSync, tryCatchSync } from "./safeUtils.js";
 import fs from "node:fs";
 import ts from "typescript";
 import { Project, SyntaxKind } from "ts-morph";
@@ -99,12 +100,13 @@ function deepMergeMissingJson(target, missing) {
 	return modified;
 }
 function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
-	try {
-		const code = fs.readFileSync(configFilePath, "utf8");
-		const json = JSON.parse(code);
-		if (!json || typeof json !== "object") return;
-		if (deepMergeMissingJson(json, sectionsToInsert)) fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
-	} catch {}
+	const code = safeReadFileSync(configFilePath);
+	if (!code) return;
+	const json = safeJsonParse(code);
+	if (!json || typeof json !== "object") return;
+	if (deepMergeMissingJson(json, sectionsToInsert)) tryCatchSync(() => {
+		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
+	});
 }
 function valueToTsMorphInitializer(val) {
 	if (typeof val === "string") return `'${val.replaceAll("'", "\\'")}'`;

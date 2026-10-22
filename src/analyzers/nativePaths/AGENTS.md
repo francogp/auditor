@@ -11,7 +11,7 @@ Architecture & Tooling Engineers.
 - **AST-First Traversal**: Code inspections across `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, and Vue SFC `<script>` blocks must execute strictly via the TypeScript Compiler API (`doc.getAst()`). Regex-based line scanning of source code is strictly prohibited.
 - **Node Context Gating (`isNodeContext`)**: Rules requiring Node.js APIs (`node:path`, `node:url`) only fire on files that import `node:*` modules or access Node globals (`process.cwd`, `__dirname`, `__filename`). Browser-only UI code is protected from false positives.
 - **Pure Detection Contract**: Each detector in `detectors/` receives AST nodes and returns structured `NativePathViolation` objects or `null`.
-- **Inline Escape Hatch Standard**: Detectors strictly honor inline and preceding-line comments (`// path-ok: <reason>`, `// url-ok: <reason>`, `// env-ok: <reason>`, or `// native-path-ok: <reason>`).
+- **Zero-Escape Mandate**: All filesystem operations and path resolutions must use canonical `node:path` and `node:url` APIs without bypass directives.
 
 ## Key Files
 

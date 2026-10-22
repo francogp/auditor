@@ -13,6 +13,7 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
+import { safeReadFileAsync, safeJsonParse, tryOrNullAsync } from '../../core/safeUtils.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -66,7 +67,9 @@ const UNIVERSAL_SIGNATURE_EXEMPTIONS = [
   'error|warning',
   'error|suggestion|warning',
   'error|info|warning',
+  'error|off|warn',
   'asc|desc',
+  'center|left|right',
   'delete|get|patch|post|put',
   'delete|get|post|put'
 ] as const;
@@ -86,14 +89,6 @@ function getMatchCoordinates(
   const col = matchIndex - lastNl;
   const line = lines[lineNum - 1] ?? '';
   return { lineNum, col, line };
-}
-
-function hasEscapeHatch(line: string): boolean {
-  return (
-    line.includes('// domain-ok:') ||
-    line.includes('// lib-duplicate-ok:') ||
-    line.includes('// collision-ok:')
-  );
 }
 
 export function extractSortedLiterals(matchStr: string): string[] | null {
@@ -133,7 +128,7 @@ function forEachValidDomainMatch(
   let match: RegExpExecArray | null;
   while ((match = regex.exec(content)) !== null) {
     const { lineNum, col, line } = getMatchCoordinates(content, match.index, lines);
-    if (isCommentLine(line) || hasEscapeHatch(line)) continue;
+    if (isCommentLine(line)) continue;
     callback(match, lineNum, col, line);
   }
 }
@@ -142,7 +137,7 @@ export function detectRepeatedStringUnions(
   files: Array<{ file: string; content: string }>
 ): Map<string, CanonicalFinding[]> {
   const P_GENERIC_STRING_UNION =
-    /(?:\bas\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
+    /(?:\bas\s+|:\s*|\btype\s+[A-Za-z]\w*\s*=\s*)(?:\(\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)\s*\)?/g;
   const unionOccurrences = new Map<string, CanonicalFinding[]>();
 
   for (const { file, content } of files) {
@@ -152,7 +147,7 @@ export function detectRepeatedStringUnions(
 
     while ((match = P_GENERIC_STRING_UNION.exec(content)) !== null) {
       const { lineNum, col, line } = getMatchCoordinates(content, match.index, lines);
-      if (isCommentLine(line) || hasEscapeHatch(line)) continue;
+      if (isCommentLine(line)) continue;
 
       const signatureKey = extractSortedLiteralsSignature(match[0]);
       if (!signatureKey) continue;
@@ -183,7 +178,7 @@ export function detectRepeatedStringUnions(
 }
 
 const P_EXPORT_TYPE_UNION =
-  /export\s+type\s+(\w+)\s*=\s*\(?((?:['"][\w-]+['"]\s*\|\s*)+['"][\w-]+['"])\)?/g;
+  /export\s+type\s+(\w+)\s*=\s*\(?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)\)?/g;
 
 function parseDtsDomainTypes(
   content: string,
@@ -211,21 +206,17 @@ async function scanDepEntries(
   dep: string,
   targetMap: Map<string, LibraryDomainTypeInfo>
 ): Promise<void> {
-  let entries: Array<{ name: string; isDirectory(): boolean; parentPath?: string }>;
-  try {
-    entries = await fs.readdir(depDir, { recursive: true, withFileTypes: true });
-  } catch {
-    return;
-  }
+  const entries = await tryOrNullAsync(() =>
+    fs.readdir(depDir, { recursive: true, withFileTypes: true })
+  );
+  if (!entries) return;
 
   for (const ent of entries) {
     if (ent.isDirectory() || !ent.name.endsWith('.d.ts')) continue;
     const full = path.join(ent.parentPath ?? depDir, ent.name);
-    try {
-      const content = await fs.readFile(full, 'utf8');
+    const content = await safeReadFileAsync(full);
+    if (content) {
       parseDtsDomainTypes(content, dep, targetMap);
-    } catch {
-      // catch-ok: unreadable file
     }
   }
 }
@@ -237,23 +228,19 @@ export async function extractLibraryDomainTypes(
   const nodeModulesDir = path.join(root, 'node_modules');
   const pkgJsonPath = path.join(root, 'package.json');
 
-  let pkgJson: { dependencies?: Record<string, string> };
-  try {
-    const raw = await fs.readFile(pkgJsonPath, 'utf8');
-    pkgJson = JSON.parse(raw) as { dependencies?: Record<string, string> };
-  } catch {
-    return libraryTypes;
-  }
+  const raw = await safeReadFileAsync(pkgJsonPath);
+  const pkgJson = raw ? safeJsonParse<{ dependencies?: Record<string, string> }>(raw) : null;
+  if (!pkgJson) return libraryTypes;
 
   const allDeps = Object.keys(pkgJson.dependencies || {});
 
   for (const dep of allDeps) {
     const depDir = path.join(nodeModulesDir, dep);
-    try {
+    const depExists = await tryOrNullAsync(async () => {
       await fs.access(depDir);
-    } catch {
-      continue;
-    }
+      return true;
+    });
+    if (!depExists) continue;
 
     await scanDepEntries(depDir, dep, libraryTypes);
   }
@@ -270,12 +257,10 @@ export function detectLibraryDomainTypeDuplicates(
 
   const P_LITERAL_ARRAY_DECL =
     /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-  // redos-ok: deterministic token parsing regex with pipe delimiters
   const P_TYPE_UNION_DECL =
-    /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
-  // redos-ok: deterministic token parsing regex with pipe delimiters
+    /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*|\|\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)/g;
   const P_PROP_UNION_DECL =
-    /\b(\w+)\??:\s*(?:\(\s*|\|\s*)?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])/g;
+    /\b(\w+)\??:\s*(?:\(\s*|\|\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)/g;
 
   const reportIfLibraryDuplicate = (
     sigKey: string | null,
@@ -358,9 +343,8 @@ export function extractProjectCanonicalDomains(
 
   const P_CANONICAL_ARRAY =
     /\bexport\s+const\s+(\w+)\s*(?::[^=]+)?=\s*\[\s*['"`]([\s\S]*?)\]\s+as\s+const/g;
-  // redos-ok: deterministic token parsing regex with pipe delimiters
   const P_CANONICAL_TYPE =
-    /\bexport\s+type\s+(\w+)\s*=\s*\(?((?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`])\)?/g;
+    /\bexport\s+type\s+(\w+)\s*=\s*\(?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)\)?/g;
 
   const config = getAuditConfig(projectRoot);
   const typesRoots = config.paths.typesRoots ?? [];
@@ -388,7 +372,7 @@ export function extractProjectCanonicalDomains(
       return { literals: domain.literals, signature: domain.signature, isContract };
     };
 
-    forEachValidDomainMatch(content, P_CANONICAL_ARRAY, lines, (match, lineNum, col, line) => {
+    forEachValidDomainMatch(content, P_CANONICAL_ARRAY, lines, (match, lineNum, col, _line) => {
       const name = match[1]!;
       if (['ROUTES', 'CONFIG', 'ITEMS', 'OPTIONS', 'STYLES', 'THEMES', 'MODALS'].includes(name))
         return;
@@ -399,7 +383,7 @@ export function extractProjectCanonicalDomains(
 
       const existing = bySignature.get(signature);
       if (existing) {
-        if (existing.file !== file && !hasEscapeHatch(line) && !hasEscapeHatch(existing.file)) {
+        if (existing.file !== file) {
           collisions.push({
             file,
             line: lineNum,
@@ -454,9 +438,8 @@ export function extractProjectCanonicalDomains(
 
 const P_ANY_LITERAL_ARRAY =
   /\b(?:(?:export\s+)?const|let|var)\s+([\w$]+)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
-// redos-ok: deterministic token parsing regex with pipe delimiters
 const P_ANY_TYPE_UNION =
-  /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(?:['"`][\w-]+['"`]\s*\|\s*)+['"`][\w-]+['"`]\s*\)?/g;
+  /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)\s*\)?/g;
 
 interface DomainCandidate {
   lineNum: number;
@@ -475,7 +458,7 @@ function parseDomainCandidate(
   bySignature: Map<string, CanonicalDomainInfo>
 ): DomainCandidate | null {
   const { lineNum, col, line } = getMatchCoordinates(rawContent, m.index, fileLines);
-  if (isCommentLine(line.trim()) || hasEscapeHatch(line)) return null;
+  if (isCommentLine(line.trim())) return null;
 
   const name = m[1]!;
   const literals = extractSortedLiterals(m[0]);
@@ -719,11 +702,9 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
       const rel = toPosixRelative(this.projectRoot, fp);
       if (isTestFileForCodeAudit(rel, this.projectRoot)) continue;
       this.recordScanned(rel);
-      try {
-        const content = await fs.readFile(fp, 'utf8');
+      const content = await safeReadFileAsync(fp);
+      if (content) {
         scannedFiles.push({ file: rel, content });
-      } catch {
-        // catch-ok: unreadable file
       }
     }
 

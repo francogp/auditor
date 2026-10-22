@@ -26,6 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 import {
   CANONICAL_IGNORE_DIRS,
   SCANNABLE_EXTENSIONS,
@@ -87,7 +88,9 @@ function createEmptyCounts(): Record<NativePathRuleId, number> {
  * Full repository audit runner for native paths and security integrity.
  */
 export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResult {
-  assertSafePathComponent(targetDir);
+  if (!path.isAbsolute(targetDir)) {
+    assertSafePathComponent(targetDir);
+  }
   const config = getAuditConfig(targetDir);
   const extraIgnorePatterns = [
     ...(config.paths?.ignoreGlobs ?? []),
@@ -106,13 +109,12 @@ export function auditNativePaths(targetDir = process.cwd()): NativePathAuditResu
 
   for (const file of allFiles) {
     const relPath = toPosixRelative(targetDir, file);
-    try {
-      for (const v of scanFileForNativePathViolations(relPath, fs.readFileSync(file, 'utf-8'))) {
+    const content = safeReadFileSync(file);
+    if (content !== null) {
+      for (const v of scanFileForNativePathViolations(relPath, content)) {
         violations.push(v);
         countsByRule[v.ruleId] += 1;
       }
-    } catch {
-      // catch-ok: Ignore read errors on locked files
     }
   }
 
@@ -138,88 +140,88 @@ const RULE_DESCRIPTIONS: Record<NativePathRuleId, string> = {
 
 const RULE_REMEDIATIONS: Record<NativePathRuleId, string> = {
   'unsafe-path-concat':
-    '📖 GUÍA DE REMEDIACIÓN: unsafe-path-concat\n' +
-    '1. Causa Raíz: Una ruta de archivo se construyó uniendo texto (operador `+`, `+=`, template literal o `[...].join(separador)`). El separador queda fijo, se rompe entre Windows y POSIX y no se normalizan segmentos `..` (CWE-22).\n' +
-    '2. Diagnóstico: Ubica la expresión señalada: un origen de ruta (`__dirname`, `import.meta.dirname`, `process.cwd()`, variables `*Dir`/`*Path`/`*File`) combinado con un separador literal o `path.sep`.\n' +
-    '3. Solución Canónica: Pasa cada segmento como argumento separado a `path.join()` o `path.resolve()` de `node:path`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: unir directorio, barra y nombre de archivo como texto\n' +
-    '   ✅ Canónico: `const fullPath = path.join(baseDir, fileName);`',
+    '📖 REMEDIATION GUIDE: unsafe-path-concat\n' +
+    '1. Root Cause: A filesystem path was assembled by string concatenation (`+`, `+=`, template literal, or `[...].join(separator)`). The separator is hardcoded, breaking between Windows and POSIX, and `..` segments are not normalized (CWE-22).\n' +
+    '2. Diagnosis: Locate the reported expression: a path source (`__dirname`, `import.meta.dirname`, `process.cwd()`, or `*Dir`/`*Path`/`*File` variables) combined with a literal separator or `path.sep`.\n' +
+    '3. Canonical Solution: Pass each segment as a separate argument to `path.join()` or `path.resolve()` from `node:path`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Joining directory, slash, and file name as raw text\n' +
+    '   ✅ Canonical: `const fullPath = path.join(baseDir, fileName);`',
   'unsanitized-env-argv-path':
-    '📖 GUÍA DE REMEDIACIÓN: unsanitized-env-argv-path\n' +
-    '1. Causa Raíz: Un valor de `process.argv` o `process.env` se pasa directo a `fs.*` o `path.join/resolve` sin verificar que permanezca dentro del directorio autorizado (CWE-22).\n' +
-    '2. Diagnóstico: Ubica la llamada al sink de filesystem o path que recibe el argumento crudo.\n' +
-    '3. Solución Canónica:\n' +
-    '   a) Asigna el valor a una variable, resuélvelo con `path.resolve(base, valor)` y valida contención con `path.relative()` + `path.isAbsolute()` (o `assertSafePathComponent()`).\n' +
-    '   b) Si es un script CLI con ruta ya validada, anota `// path-ok: <justificación>`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Inseguro: pasar el argumento de proceso directamente a la lectura de archivos\n' +
-    '   ✅ Seguro:   `const target = path.resolve(root, input); assertSafePathComponent(target);`',
+    '📖 REMEDIATION GUIDE: unsanitized-env-argv-path\n' +
+    '1. Root Cause: A value from `process.argv` or `process.env` is passed directly to `fs.*` or `path.join/resolve` without verifying that it remains within the authorized directory boundary (CWE-22).\n' +
+    '2. Diagnosis: Locate the filesystem or path sink call receiving the raw process argument.\n' +
+    '3. Canonical Solution:\n' +
+    '   a) Assign the value to a variable, resolve it with `path.resolve(base, value)`, and validate containment with `path.relative()` + `path.isAbsolute()` (or `assertSafePathComponent()`).\n' +
+    '   b) If in a CLI script where path is already validated, annotate `// path-ok: <justification>`.\n' +
+    '4. Example:\n' +
+    '   ❌ Insecure: Passing process arguments directly to file read calls\n' +
+    '   ✅ Secure:   `const target = path.resolve(root, input); assertSafePathComponent(target);`',
   'untrusted-url-fetch':
-    '📖 GUÍA DE REMEDIACIÓN: untrusted-url-fetch\n' +
-    '1. Causa Raíz: Se invoca `fetch()` con un valor dinámico sin parsearlo con `new URL()` ni validar protocolo u origen (CWE-918 SSRF).\n' +
-    '2. Diagnóstico: Inspecciona la llamada a `fetch()` señalada y el origen del argumento.\n' +
-    '3. Solución Canónica:\n' +
-    '   a) Construye la URL con `new URL(endpoint, baseUrl)`.\n' +
-    '   b) Valida `protocol` y `hostname`/`origin` contra una lista permitida, o usa `safeFetch()`.\n' +
-    '   c) Si es una llamada interna con URL fija, anota `// url-ok: <justificación>`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Inseguro: invocar fetch con un string recibido sin validar\n' +
-    '   ✅ Seguro:   `fetch(new URL(userPath, baseUrl));`',
+    '📖 REMEDIATION GUIDE: untrusted-url-fetch\n' +
+    '1. Root Cause: `fetch()` is invoked with a dynamic value without parsing via `new URL()` or validating protocol and origin (CWE-918 SSRF).\n' +
+    '2. Diagnosis: Inspect the reported `fetch()` call and the origin of its argument.\n' +
+    '3. Canonical Solution:\n' +
+    '   a) Construct the URL using `new URL(endpoint, baseUrl)`.\n' +
+    '   b) Validate `protocol` and `hostname`/`origin` against an allowlist, or use `safeFetch()`.\n' +
+    '   c) If an internal call with fixed URL, annotate `// url-ok: <justification>`.\n' +
+    '4. Example:\n' +
+    '   ❌ Insecure: Invoking fetch with an unvalidated incoming string\n' +
+    '   ✅ Secure:   `fetch(new URL(userPath, baseUrl));`',
   'hardcoded-slash-path':
-    '📖 GUÍA DE REMEDIACIÓN: hardcoded-slash-path\n' +
-    '1. Causa Raíz: Se usó una letra de unidad o ruta UNC de Windows como ruta, o se dividió/buscó una ruta por contrabarra. Rompe la ejecución en Linux/macOS y CI.\n' +
-    '2. Diagnóstico: Busca el literal de unidad/UNC o la llamada `split`/`lastIndexOf`/`indexOf` con contrabarra en la línea del reporte.\n' +
-    '3. Solución Canónica:\n' +
-    '   a) Resuelve rutas relativas al proyecto con `path.resolve()`.\n' +
-    '   b) Para segmentos usa `path.parse()`, `path.basename()` o `split(path.sep)`.\n' +
-    '   c) Si el código es explícitamente Windows, usa `path.win32.*` (que acepta literales Windows).\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Incorrecto: rutas con prefijo rígido de unidad o división por contrabarra\n' +
-    '   ✅ Correcto:   `const p = path.resolve(process.cwd(), "data");`',
+    '📖 REMEDIATION GUIDE: hardcoded-slash-path\n' +
+    '1. Root Cause: A Windows drive letter or UNC path was hardcoded, or a path was split/searched by backslash. This breaks execution across Linux/macOS and CI.\n' +
+    '2. Diagnosis: Locate the hardcoded drive/UNC literal or the `split`/`lastIndexOf`/`indexOf` backslash call.\n' +
+    '3. Canonical Solution:\n' +
+    '   a) Resolve paths relative to project root with `path.resolve()`.\n' +
+    '   b) For segments use `path.parse()`, `path.basename()`, or `split(path.sep)`.\n' +
+    '   c) If explicitly Windows code, use `path.win32.*`.\n' +
+    '4. Example:\n' +
+    '   ❌ Incorrect: Rigid drive-letter prefix or backslash split\n' +
+    '   ✅ Correct:   `const p = path.resolve(process.cwd(), "data");`',
   'homebrew-path-manipulation':
-    '📖 GUÍA DE REMEDIACIÓN: homebrew-path-manipulation\n' +
-    '1. Causa Raíz: Se normalizó una ruta a mano (intercambio de separadores con regex o `split/join` literales, deduplicación de barras, recorte de barra final, limpieza con clases de caracteres). En POSIX la contrabarra es un carácter válido de nombre de archivo, así que reemplazarla corrompe rutas.\n' +
-    '2. Diagnóstico: Ubica la llamada `replace`/`replaceAll` o la cadena `split(...).join(...)` señalada.\n' +
-    '3. Solución Canónica:\n' +
-    '   a) Para rutas del SO actual: `p.split(path.sep).join(path.posix.sep)`.\n' +
-    '   b) Para entrada estilo Windows de cualquier origen: `p.replaceAll(path.win32.sep, path.posix.sep)`.\n' +
-    '   c) Para segmentos redundantes: `path.normalize()` / `path.posix.normalize()`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: reemplazar contrabarras por barras con una expresión regular\n' +
-    '   ✅ Canónico: `const posixRel = path.relative(root, file).split(path.sep).join(path.posix.sep);`',
+    '📖 REMEDIATION GUIDE: homebrew-path-manipulation\n' +
+    '1. Root Cause: A path was manipulated manually (swapping separators via regex or literal `split/join`, deduplicating slashes, trimming trailing slashes). On POSIX backslash is a valid filename character, so replacing it corrupts valid filenames.\n' +
+    '2. Diagnosis: Locate the reported `replace`/`replaceAll` call or `split(...).join(...)` chain.\n' +
+    '3. Canonical Solution:\n' +
+    '   a) For current OS paths: `p.split(path.sep).join(path.posix.sep)`.\n' +
+    '   b) For Windows-style input from any source: `p.replaceAll(path.win32.sep, path.posix.sep)`.\n' +
+    '   c) For redundant segments: `path.normalize()` / `path.posix.normalize()`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Replacing backslashes with slashes using regex\n' +
+    '   ✅ Canonical: `const posixRel = path.relative(root, file).split(path.sep).join(path.posix.sep);`',
   'homebrew-path-parsing':
-    '📖 GUÍA DE REMEDIACIÓN: homebrew-path-parsing\n' +
-    '1. Causa Raíz: Se extrajo nombre, directorio o extensión de una ruta con `split`, `lastIndexOf`, `pop()` o regex. Falla con separadores mixtos, archivos ocultos (`.env`) y nombres con varios puntos.\n' +
-    '2. Diagnóstico: Ubica la llamada de string señalada sobre una variable de ruta o nombre de archivo.\n' +
-    '3. Solución Canónica: Usa `path.basename()`, `path.dirname()`, `path.extname()` o `path.parse()` de `node:path`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: tomar el último segmento dividiendo por barra\n' +
-    '   ✅ Canónico: `const { name, ext, dir } = path.parse(filePath);`',
+    '📖 REMEDIATION GUIDE: homebrew-path-parsing\n' +
+    '1. Root Cause: Name, directory, or extension was extracted from a path using `split`, `lastIndexOf`, `pop()`, or regex. Fails with mixed separators, hidden files (`.env`), and multi-dot names.\n' +
+    '2. Diagnosis: Locate the string operation performed on a path or filename variable.\n' +
+    '3. Canonical Solution: Use `path.basename()`, `path.dirname()`, `path.extname()`, or `path.parse()` from `node:path`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Extracting the last segment by splitting on slash\n' +
+    '   ✅ Canonical: `const { name, ext, dir } = path.parse(filePath);`',
   'homebrew-path-containment':
-    '📖 GUÍA DE REMEDIACIÓN: homebrew-path-containment\n' +
-    '1. Causa Raíz: La protección contra directory traversal (CWE-22) se implementó a mano: buscar `..` en el texto, comparar prefijos con `startsWith(base)` (confunde `/base` con `/base2`), omitir `path.isAbsolute()` (en Windows otra unidad devuelve ruta absoluta) o regex que borran `../` (eludibles con encoding).\n' +
-    '2. Diagnóstico: Ubica la comprobación señalada y la ruta que intenta proteger.\n' +
-    '3. Solución Canónica: Resuelve con `path.resolve(base, input)` y valida con `const rel = path.relative(base, target); const inside = !rel.startsWith("..") && !path.isAbsolute(rel);` o usa `isPathContained()`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: rechazar entradas que contengan dos puntos o comparar prefijos de texto\n' +
-    '   ✅ Canónico: `if (!isPathContained(rootDir, target)) throw new Error("Acceso denegado");`',
+    '📖 REMEDIATION GUIDE: homebrew-path-containment\n' +
+    '1. Root Cause: Directory traversal protection (CWE-22) was homebrewed: checking `..` in string, prefix comparison with `startsWith(base)` (confuses `/base` with `/base2`), or regex stripping `../`.\n' +
+    '2. Diagnosis: Locate the check and the target path being protected.\n' +
+    '3. Canonical Solution: Resolve with `path.resolve(base, input)` and validate with `const rel = path.relative(base, target); const inside = !rel.startsWith("..") && !path.isAbsolute(rel);` or use `isPathContained()`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Rejecting inputs containing two dots or comparing raw string prefixes\n' +
+    '   ✅ Canonical: `if (!isPathContained(rootDir, target)) throw new Error("Access denied");`',
   'homebrew-file-url':
-    '📖 GUÍA DE REMEDIACIÓN: homebrew-file-url\n' +
-    '1. Causa Raíz: Se convirtió entre rutas y URLs `file://` a mano (quitar o anteponer el esquema, o leer `.pathname` de `new URL(..., import.meta.url)`). `.pathname` queda percent-encoded (espacios como `%20`) y en Windows produce `/C:/...`.\n' +
-    '2. Diagnóstico: Ubica el literal `file://` o el acceso a `.pathname` señalado.\n' +
-    '3. Solución Canónica: Usa `fileURLToPath()` y `pathToFileURL()` de `node:url`, o `import.meta.dirname` / `import.meta.filename`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: quitar el esquema del string de la URL del módulo\n' +
-    '   ✅ Canónico: `const local = fileURLToPath(new URL("./data.json", import.meta.url));`',
+    '📖 REMEDIATION GUIDE: homebrew-file-url\n' +
+    '1. Root Cause: Converted between paths and `file://` URLs by hand (stripping or prepending scheme, or reading `.pathname` from `new URL(..., import.meta.url)`). `.pathname` remains percent-encoded and produces `/C:/...` on Windows.\n' +
+    '2. Diagnosis: Locate the `file://` literal or `.pathname` access.\n' +
+    '3. Canonical Solution: Use `fileURLToPath()` and `pathToFileURL()` from `node:url`, or `import.meta.dirname` / `import.meta.filename`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Stripping scheme from module URL string\n' +
+    '   ✅ Canonical: `const local = fileURLToPath(new URL("./data.json", import.meta.url));`',
   'homebrew-url-parsing':
-    '📖 GUÍA DE REMEDIACIÓN: homebrew-url-parsing\n' +
-    '1. Causa Raíz: Se parseó o construyó una URL a mano: dividir por `?`, `#`, `&` o `=`, regex de query o de esquema, `path.join()` sobre URLs, concatenación dentro de `new URL()` o la API legacy `url.parse()` (deprecada).\n' +
-    '2. Diagnóstico: Ubica la operación de string, regex o llamada señalada sobre la URL.\n' +
-    '3. Solución Canónica: Usa `new URL(relativo, base)`, `url.searchParams`, `URLSearchParams`, `url.pathname` y `url.hash`.\n' +
-    '4. Ejemplo:\n' +
-    '   ❌ Frágil: dividir la URL por el signo de interrogación para leer parámetros\n' +
-    '   ✅ Canónico: `const id = new URL(requestUrl).searchParams.get("id");`'
+    '📖 REMEDIATION GUIDE: homebrew-url-parsing\n' +
+    '1. Root Cause: Manually parsed or constructed a URL: splitting by `?`, `#`, `&` or `=`, query/scheme regexes, `path.join()` on URLs, or deprecated `url.parse()`.\n' +
+    '2. Diagnosis: Locate the string operation or regex performed on the URL.\n' +
+    '3. Canonical Solution: Use `new URL(relative, base)`, `url.searchParams`, `URLSearchParams`, `url.pathname`, and `url.hash`.\n' +
+    '4. Example:\n' +
+    '   ❌ Fragile:   Splitting URL by question mark to read parameters\n' +
+    '   ✅ Canonical: `const id = new URL(requestUrl).searchParams.get("id");`'
 };
 
 export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {

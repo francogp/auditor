@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import { styleText } from 'node:util';
+import { tryOrNull, tryOrNullAsync } from './safeUtils.ts';
 
 /**
  * Polyfills fs.fsync / fs.fsyncSync / FileHandle.prototype.sync as safe no-ops under Node.js --permission model.
@@ -13,33 +14,23 @@ export function polyfillPermissionModelFsync(): void {
     return;
   }
 
-  try {
+  tryOrNull(() => {
     Reflect.set(fs, 'fsyncSync', () => {});
     const noopCallback = (_fd: number, callback?: (err: Error | null) => void): void => {
       if (typeof callback === 'function') callback(null);
     };
     Reflect.set(fs, 'fsync', noopCallback);
     Reflect.set(fsPromises, 'fsync', async () => {});
-  } catch {
-    // catch-ok: fallback if properties are non-configurable
-  }
+  });
 
-  try {
-    fsPromises
-      .open(process.execPath, 'r')
-      .then((h) => {
-        const proto = Object.getPrototypeOf(h);
-        if (proto && typeof proto.sync === 'function') {
-          proto.sync = async () => {};
-        }
-        return h.close();
-      })
-      .catch(() => {
-        // catch-ok: fallback if execPath cannot be opened
-      });
-  } catch {
-    // catch-ok
-  }
+  void tryOrNullAsync(async () => {
+    const handle = await fsPromises.open(process.execPath, 'r');
+    const proto = Object.getPrototypeOf(handle);
+    if (proto && typeof proto.sync === 'function') {
+      proto.sync = async () => {};
+    }
+    await handle.close();
+  });
 }
 
 // Automatically initialize polyfill on module load

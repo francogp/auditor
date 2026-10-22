@@ -71,7 +71,7 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 				"computed-side-effect": "Prohibited side-effect in computed"
 			},
 			ruleRemediations: {
-				"computed-state-mutation": "📖 REMEDIATION GUIDE: computed-state-mutation\n1. Root Cause: A state mutation assignment (`ref.value =`, `state.x =`, `store.x =`) was detected inside a `computed()` getter. In Vue 3, computed properties must be pure derivations without side effects. Mutating state inside a getter destabilizes reactive dependencies and triggers infinite re-render loops.\n2. Diagnosis: Inspect the reported computed block and locate the assignment operator (`=`, `+=`, `-=`).\n3. Canonical Solution:\n   a) Remove state mutations from the computed getter.\n   b) If mutations must execute on dependency changes, use an explicit `watch` or `watchEffect`.\n   c) If lazy initialization is strictly necessary and isolated, annotate with `// purity-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const fullName = computed(() => { accessCount.value++; return `${firstName.value} ${lastName.value}`; });`\n   ✅ Canonical:  `const fullName = computed(() => `${firstName.value} ${lastName.value}`);`",
+				"computed-state-mutation": "📖 REMEDIATION GUIDE: computed-state-mutation\n1. Root Cause: A state mutation assignment (`ref.value =`, `state.x =`, `store.x =`) was detected inside a `computed()` getter. In Vue 3, computed properties must be pure derivations without side effects. Mutating state inside a getter destabilizes reactive dependencies and triggers infinite re-render loops.\n2. Diagnosis: Inspect the reported computed block and locate the assignment operator (`=`, `+=`, `-=`).\n3. Canonical Solution:\n   a) Remove state mutations from the computed getter.\n   b) If mutations must execute on dependency changes, use an explicit `watch` or `watchEffect`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const fullName = computed(() => { accessCount.value++; return `${firstName.value} ${lastName.value}`; });`\n   ✅ Canonical:  `const fullName = computed(() => `${firstName.value} ${lastName.value}`);`",
 				"computed-side-effect": "📖 REMEDIATION GUIDE: computed-side-effect\n1. Root Cause: A side-effect method call (e.g., `.save()`, `scheduleSave()`, `authStore.logout()`, `window.location`) was detected inside a `computed()` getter. Computed getters are lazily evaluated by Vue and should remain free of side-effects.\n2. Diagnosis: Look for persistence, navigation, or asynchronous calls inside `computed(() => ...)`.\n3. Canonical Solution: Move side effects to an event handler, store action, or a `watch()` observing the computed property.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const total = computed(() => { const r = calc(); scheduleSave(); return r; });`\n   ✅ Canonical:  `const total = computed(() => calc()); watch(total, () => scheduleSave());`"
 			},
 			roots: targetRoots,
@@ -110,10 +110,10 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 			this.activeTargetRule = void 0;
 		});
 	}
-	reportComputedViolation(node, sourceFile, relPath, fullContent, ruleId, message) {
+	reportComputedViolation(node, sourceFile, relPath, _fullContent, ruleId, message) {
 		const { line } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
 		const realLine = line + 1;
-		if (!this.hasPuritySuppression(fullContent, realLine - 1)) this.addViolation({
+		this.addViolation({
 			ruleId,
 			severity: "error",
 			file: relPath,
@@ -136,19 +136,12 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 			if (!this.activeTargetRule || this.activeTargetRule === "computed-side-effect") {
 				if (ts.isCallExpression(child)) {
 					const callText = child.expression.getText(sourceFile);
-					if (IMPURE_CALL_PATTERNS.some((pat) => callText.includes(pat))) this.reportComputedViolation(child, sourceFile, relPath, fullContent, "computed-side-effect", `Llamada con efectos secundarios dentro de 'computed()': '${child.getText(sourceFile)}'. Queda prohibido disparar persistencia en getters.`);
+					if (IMPURE_CALL_PATTERNS.some((pat) => callText.includes(pat))) this.reportComputedViolation(child, sourceFile, relPath, fullContent, "computed-side-effect", `Side-effect call detected inside 'computed()': '${child.getText(sourceFile)}'. Triggering persistence or mutations inside getters is prohibited.`);
 				}
 			}
 			ts.forEachChild(child, walk);
 		};
 		ts.forEachChild(bodyNode, walk);
-	}
-	hasPuritySuppression(content, lineIndex) {
-		const lines = content.split("\n");
-		const targetLine = lines[lineIndex] || "";
-		const prevLine = lineIndex > 0 ? lines[lineIndex - 1] || "" : "";
-		const suppressionRegex = /\/\/\s*purity-ok:\s*\S+/i;
-		return suppressionRegex.test(targetLine) || suppressionRegex.test(prevLine);
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ReactivePurityAuditor());

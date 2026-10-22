@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileSync } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/auditProjectIdentity.ts
@@ -11,14 +12,13 @@ import fs from "node:fs";
 */
 function isSelfProviderProject(projectRoot) {
 	const hostPkgPath = path.join(projectRoot, "package.json");
-	if (!fs.existsSync(hostPkgPath)) return false;
-	try {
-		if (JSON.parse(fs.readFileSync(hostPkgPath, "utf8")).name === "@francogp/auditor") {
-			const hasPluginJson = fs.existsSync(path.join(projectRoot, "plugin.json"));
-			const hasSkillMd = fs.existsSync(path.join(projectRoot, ".agents/skills/auditor/SKILL.md")) || fs.existsSync(path.join(projectRoot, "skills/auditor/SKILL.md")) || fs.existsSync(path.join(projectRoot, "skills/auditor-framework/SKILL.md"));
-			return hasPluginJson && hasSkillMd;
-		}
-	} catch {}
+	const content = safeReadFileSync(hostPkgPath);
+	if (!content) return false;
+	if (safeJsonParse(content)?.name === "@francogp/auditor") {
+		const hasPluginJson = fs.existsSync(path.join(projectRoot, "plugin.json"));
+		const hasSkillMd = fs.existsSync(path.join(projectRoot, ".agents/skills/auditor/SKILL.md")) || fs.existsSync(path.join(projectRoot, "skills/auditor/SKILL.md")) || fs.existsSync(path.join(projectRoot, "skills/auditor-framework/SKILL.md"));
+		return hasPluginJson && hasSkillMd;
+	}
 	return false;
 }
 //#endregion

@@ -13,6 +13,7 @@ import nodeFs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
+import { safeStatSync } from './safeUtils.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -83,6 +84,7 @@ import {
   validateCoverageDeclaration,
   writeCoverageLedger
 } from './auditCoverage.ts';
+import { normalizePosixPath } from './reportUtils.ts';
 import {
   renderBanner,
   renderAuditTaskRow,
@@ -217,8 +219,9 @@ export function getEffectiveScannableRoots(config = getAuditConfig()): readonly 
  * Validates that a path component is safe against path traversal.
  */
 export function assertSafePathComponent(component: string): void {
-  // path-ok: Component sanitization verifying no parent directory traversal
-  if (component.includes('..')) {
+  const resolved = path.resolve(process.cwd(), component);
+  const rel = path.relative(process.cwd(), resolved);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new Error(`Path traversal attempt detected in path component: ${component}`);
   }
 }
@@ -321,7 +324,7 @@ function matchesDirectorySegments(
 }
 
 export function matchesSinglePattern(normalized: string, pattern: string): boolean {
-  const normPattern = pattern.split(path.sep).join(path.posix.sep).toLowerCase();
+  const normPattern = normalizePosixPath(pattern).toLowerCase();
   if (path.posix.matchesGlob(normalized, normPattern)) {
     return true;
   }
@@ -366,7 +369,7 @@ export function isPathIgnored(
     ? path.relative(projectRoot, relPath)
     : relPath;
 
-  const normalized = effectiveRelPath.split(path.sep).join(path.posix.sep).toLowerCase();
+  const normalized = normalizePosixPath(effectiveRelPath).toLowerCase();
   const segments = normalized.split('/');
   const unignoreSet = unignoreDirs instanceof Set ? unignoreDirs : new Set(unignoreDirs);
 
@@ -402,7 +405,7 @@ function collectSingleFile(
   allowedExtensions: ReadonlySet<string>,
   unignoreDirs: ReadonlySet<string> | readonly string[]
 ): string[] {
-  const relPath = path.relative(projectRoot, filePath).split(path.sep).join(path.posix.sep);
+  const relPath = normalizePosixPath(path.relative(projectRoot, filePath));
   if (!isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
     const ext = path.extname(filePath).toLowerCase();
     if (allowedExtensions.size === 0 || allowedExtensions.has(ext)) {
@@ -421,7 +424,7 @@ function processDirentEntry(
   unignoreDirs: ReadonlySet<string> | readonly string[]
 ): string[] {
   const fullPath = path.resolve(dir, entry.name);
-  const relPath = path.relative(projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+  const relPath = normalizePosixPath(path.relative(projectRoot, fullPath));
   if (isPathIgnored(relPath, extraIgnorePatterns, unignoreDirs, projectRoot)) {
     return [];
   }
@@ -572,8 +575,11 @@ async function persistAuditJsonReport(
         await fs.writeFile(outPath, jsonString, 'utf-8');
       }
     }
-  } catch {
-    // catch-ok: Ignorar errores de escritura si el comando se ejecuta en modo solo lectura (--allow-fs-read)
+  } catch (err: unknown) {
+    // Gracefully handle write permissions when running in read-only sandbox mode (--allow-fs-read)
+    if (process.env.DEBUG === 'true') {
+      console.warn(`[AuditorBase] Could not persist audit json: ${(err as Error).message}`);
+    }
   }
 
   return targetJsonPath;
@@ -1036,13 +1042,13 @@ export function resolveFileScanRoots(
 ): { effectiveRoot: string; targetRoots: readonly string[] } {
   const effectiveRoot = options.projectRoot ?? process.cwd();
   const config = getAuditConfig(effectiveRoot);
-  let resolvedDefault: readonly string[] | undefined; // type-ok: Dynamic path roots collection
+  let resolvedDefaultRoots: readonly string[] | undefined;
   if (typeof defaultRootsResolver === 'function') {
-    resolvedDefault = defaultRootsResolver(config);
+    resolvedDefaultRoots = defaultRootsResolver(config);
   } else if (Array.isArray(defaultRootsResolver)) {
-    resolvedDefault = defaultRootsResolver;
+    resolvedDefaultRoots = defaultRootsResolver;
   }
-  const targetRoots = options.roots ?? resolvedDefault ?? config.paths?.srcRoots ?? ['src'];
+  const targetRoots = options.roots ?? resolvedDefaultRoots ?? config.paths?.srcRoots ?? ['src'];
   return { effectiveRoot, targetRoots };
 }
 
@@ -1980,8 +1986,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const previousTier = this.executedCommandTiers.get(profile.command);
     if (previousTier !== undefined) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${this.id}]: El comando '${profile.command}' ya fue resuelto/ejecutado con perfil '${previousTier}'. ` +
-          `Ejecutar o resolver múltiples variantes de velocidad del MISMO comando en la misma corrida está estrictamente prohibido.`
+        `[Auditor Contract Violation] Auditor [${this.id}]: Command '${profile.command}' was already resolved/executed with profile '${previousTier}'. ` +
+          `Executing or resolving multiple speed variants of the SAME command in the same run is strictly prohibited.`
       );
     }
     this.executedCommandTiers.set(profile.command, tier);
@@ -2559,29 +2565,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
   }
 
-  public isLineIgnored(line: string, customTokens: readonly string[] = []): boolean {
-    const baseTokens = [
-      'domain-ok',
-      'string-ok',
-      'test-ok',
-      'fallow-ignore-next-line',
-      ...customTokens
-    ];
-    const pattern = new RegExp(`(?:--|\\/\\/|<!--)\\s*(?:${baseTokens.join('|')})\\b`, 'i');
-    return pattern.test(line);
-  }
-
-  protected hasEscapeHatch(line: string, hatches: readonly string[]): boolean {
-    return hatches.some((h) => {
-      const cleanH = h.replace(/^(?:\/\/|\/\*|<!--)\s*/, '').trim();
-      return (
-        line.includes(`// ${cleanH}`) ||
-        line.includes(`/* ${cleanH}`) ||
-        line.includes(`<!-- ${cleanH}`)
-      );
-    });
-  }
-
   public isFixActive(): boolean {
     return this.fixMode || this.isFixModeRequested();
   }
@@ -2775,7 +2758,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     regex: RegExp,
     relPath: string,
     ruleId: TRuleId,
-    escapeHatches: readonly string[],
     message: string,
     filter?: (lineContent: string, match: RegExpExecArray) => boolean,
     sourceForLines: string = content,
@@ -2790,15 +2772,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
         const line = this.getLineNumber(sourceForLines, charOffset + match.index);
         const lineContent = this.getLineAt(sourceForLines, line);
         if (filter && !filter(lineContent, match)) continue;
-        const prevLine = line > 1 ? this.getLineAt(sourceForLines, line - 1) : '';
-        const nextLine = this.getLineAt(sourceForLines, line + 1);
-        if (
-          this.hasEscapeHatch(lineContent, escapeHatches) ||
-          this.hasEscapeHatch(prevLine, escapeHatches) ||
-          this.hasEscapeHatch(nextLine, escapeHatches)
-        ) {
-          continue;
-        }
         this.addViolation({
           ruleId,
           severity: 'error',
@@ -2820,12 +2793,9 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     await this.context.checkFiles();
     for (const rf of this.requiredFiles) {
       const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
-      try {
-        if (nodeFs.existsSync(abs) && !nodeFs.statSync(abs).isDirectory()) {
-          this.recordScanned(toPosixRelative(this.projectRoot, rf));
-        }
-      } catch {
-        // catch-ok: ignore missing files
+      const stats = safeStatSync(abs);
+      if (stats && !stats.isDirectory()) {
+        this.recordScanned(toPosixRelative(this.projectRoot, rf));
       }
     }
     let effectiveAst = astContext;
@@ -3043,8 +3013,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     for (const file of files) {
       const relPath = path.isAbsolute(file)
-        ? path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep)
-        : file.split(path.sep).join(path.posix.sep);
+        ? normalizePosixPath(path.relative(this.projectRoot, file))
+        : normalizePosixPath(file);
 
       if (isPathExempt(relPath, exempts)) continue;
 
@@ -3358,9 +3328,6 @@ export abstract class FileScanAuditor<
         }
 
         const pos = doc.getLineAndColumn(matchIdx);
-        if (doc.hasEscapeHatch(pos.line, options.ruleId)) {
-          continue;
-        }
 
         if (onMatch) {
           const shouldContinue = onMatch(m, pos);
@@ -3449,7 +3416,7 @@ export abstract class FileScanAuditor<
     effectiveAst: SharedAstContext | undefined,
     catalog: readonly TRuleId[]
   ): Promise<void> {
-    const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
+    const relPath = normalizePosixPath(path.relative(this.projectRoot, file));
     let content: string;
     try {
       content = nodeFs.readFileSync(file, 'utf-8');

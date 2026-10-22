@@ -296,7 +296,7 @@ describe('ValidateMagicNumbersAuditor', () => {
       expect(result.status).toBe('passed');
     });
 
-    it('accepts line-level escape hatch comment // const-ok:', async () => {
+    it('flags magic numbers regardless of // const-ok: comment (Zero-Ignore Mandate)', async () => {
       const escapeComment = '// ' + 'const-ok: standard polynomial rolling hash constants';
       await fs.writeFile(
         path.join(srcDir, 'algorithm.ts'),
@@ -307,8 +307,8 @@ describe('ValidateMagicNumbersAuditor', () => {
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
       const result = await auditor.execute();
-      expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.status).toBe('failed');
     });
 
     it('accepts constants declared inside Vue SFC <script> and <script setup>', async () => {

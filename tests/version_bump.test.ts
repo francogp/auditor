@@ -31,7 +31,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup
+      /* non-fatal test cleanup */
     }
   });
 

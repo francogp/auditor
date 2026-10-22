@@ -23,6 +23,7 @@ import {
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { getPackageJson, writePackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath, isPathContained } from '../../core/safePath.ts';
+import { tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -99,10 +100,10 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     const effectiveProjectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveProjectRoot);
     const scriptAndCliDirs = resolveScriptAndCliDirs(config);
-    const coverageInclude = [
+    const coverageIncludeGlobs = [
       '**/*.{mjs,cjs}',
       ...scriptAndCliDirs.map((d) => `${d}/**/*.{js,jsx}`)
-    ]; // no-domain: Non-domain utility collection or data structure
+    ];
 
     super({
       usesThirdPartyTool: false,
@@ -180,7 +181,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
           'npm run auditor:fix'
       },
       coverage: {
-        include: coverageInclude
+        include: coverageIncludeGlobs
       },
       ...options
     });
@@ -314,23 +315,21 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     }
 
     // 3. Also check top-level root directory entries for .mjs and .cjs
-    try {
-      if (fs.existsSync(this.projectRoot)) {
-        const rootEntries = fs.readdirSync(this.projectRoot, { withFileTypes: true });
-        for (const entry of rootEntries) {
-          if (!entry.isFile()) continue;
-          const ext = path.extname(entry.name).toLowerCase();
-          if (moduleExtensions.has(ext)) {
-            const absPath = path.resolve(this.projectRoot, entry.name);
-            const relPath = toPosixRelative(this.projectRoot, absPath);
-            if (!isPathIgnored(relPath)) {
-              collected.add(absPath);
-            }
-          }
+    const rootEntries = tryOrNull(() =>
+      fs.existsSync(this.projectRoot)
+        ? fs.readdirSync(this.projectRoot, { withFileTypes: true })
+        : []
+    ) ?? [];
+    for (const entry of rootEntries) {
+      if (!entry.isFile()) continue;
+      const ext = path.extname(entry.name).toLowerCase();
+      if (moduleExtensions.has(ext)) {
+        const absPath = path.resolve(this.projectRoot, entry.name);
+        const relPath = toPosixRelative(this.projectRoot, absPath);
+        if (!isPathIgnored(relPath)) {
+          collected.add(absPath);
         }
       }
-    } catch {
-      // catch-ok: Ignore root readdir failures
     }
 
     return Array.from(collected);
@@ -401,8 +400,8 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     );
 
     for (const filePath of allCodeFiles) {
-      try {
-        if (!fs.existsSync(filePath)) continue;
+      tryOrNull(() => {
+        if (!fs.existsSync(filePath)) return;
         let content = fs.readFileSync(filePath, 'utf-8');
         let modified = false;
 
@@ -421,9 +420,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         if (modified) {
           fs.writeFileSync(filePath, content, 'utf-8');
         }
-      } catch {
-        // catch-ok: Ignore unreadable or locked files during import rewrite
-      }
+      });
     }
   }
 

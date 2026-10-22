@@ -186,5 +186,6 @@ Architecture & Tooling Engineers.
 
 ## Child DOX Index
 
+- [`.auditor/AGENTS.md`](./.auditor/AGENTS.md): Auditor local configuration, custom extensions, and workspace rules.
 - [`src/AGENTS.md`](./src/AGENTS.md): Framework source code index (core, CLI, analyzers, suites, plugin).
 - [`tests/AGENTS.md`](./tests/AGENTS.md): Vitest unit test suites and hermetic verification tests.

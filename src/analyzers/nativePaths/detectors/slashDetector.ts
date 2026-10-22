@@ -21,7 +21,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const SLASH_MESSAGE =
-  "Separador o unidad de Windows hardcodeado ('C:\\\\', '\\\\\\\\host', split/lastIndexOf con contrabarra). Usa 'path.resolve()', 'path.sep', 'path.parse()' o 'path.win32' explícito.";
+  "Hardcoded Windows drive or separator ('C:\\\\', '\\\\\\\\host', backslash split/lastIndexOf). Use 'path.resolve()', 'path.sep', 'path.parse()', or explicit 'path.win32'.";
 
 const BACKSLASH_SEARCH_METHODS: ReadonlySet<string> = new Set(['split', 'lastIndexOf', 'indexOf']); // runtime-set: O(1) lookup
 

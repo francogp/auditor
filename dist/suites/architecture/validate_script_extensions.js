@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
 import { isPathContained } from "../../core/safePath.js";
@@ -74,7 +75,7 @@ function resolveScriptAndCliDirs(config) {
 var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveProjectRoot = options.projectRoot ?? process.cwd();
-		const coverageInclude = ["**/*.{mjs,cjs}", ...resolveScriptAndCliDirs(getAuditConfig(effectiveProjectRoot)).map((d) => `${d}/**/*.{js,jsx}`)];
+		const coverageIncludeGlobs = ["**/*.{mjs,cjs}", ...resolveScriptAndCliDirs(getAuditConfig(effectiveProjectRoot)).map((d) => `${d}/**/*.{js,jsx}`)];
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -116,7 +117,7 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 				"banned-cjs-extension": "1. Root Cause:\nA file with the \".cjs\" extension was detected.\nThe project standardizes on modern ECMAScript Modules (ESM). CommonJS modules (.cjs) introduce dual-package hazards, defeat static tree-shaking, and violate language consistency.\n\n2. Diagnosis:\nReview the reported .cjs file, which often contains \"require()\" or \"module.exports\".\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\". The auditor will migrate the extension to .ts.\n2. Replace \"require()\" or \"module.exports\" with standard ESM syntax (\"import\" and \"export\").\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
 				"banned-raw-js-script": "1. Root Cause:\nAn untyped plain JavaScript script (\".js\" or \".jsx\") was detected in a tooling or script directory (scripts/, src/cli/, etc.).\nAll operational scripts and CLI utilities must be strictly typed TypeScript (.ts / .tsx) for maintainability and safety.\n\n2. Diagnosis:\nInspect the reported script file.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to automatically rename the script to .ts and update package.json invocations.\n2. Add type annotations to function parameters and return values.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix"
 			},
-			coverage: { include: coverageInclude },
+			coverage: { include: coverageIncludeGlobs },
 			...options
 		});
 	}
@@ -217,20 +218,16 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 			const jsFiles = this.context.collectFiles(scriptAndCliDirs, /* @__PURE__ */ new Set([".js", ".jsx"]));
 			for (const f of jsFiles) collected.add(f);
 		}
-		try {
-			if (fs.existsSync(this.projectRoot)) {
-				const rootEntries = fs.readdirSync(this.projectRoot, { withFileTypes: true });
-				for (const entry of rootEntries) {
-					if (!entry.isFile()) continue;
-					const ext = path.extname(entry.name).toLowerCase();
-					if (moduleExtensions.has(ext)) {
-						const absPath = path.resolve(this.projectRoot, entry.name);
-						const relPath = toPosixRelative(this.projectRoot, absPath);
-						if (!isPathIgnored(relPath)) collected.add(absPath);
-					}
-				}
+		const rootEntries = tryOrNull(() => fs.existsSync(this.projectRoot) ? fs.readdirSync(this.projectRoot, { withFileTypes: true }) : []) ?? [];
+		for (const entry of rootEntries) {
+			if (!entry.isFile()) continue;
+			const ext = path.extname(entry.name).toLowerCase();
+			if (moduleExtensions.has(ext)) {
+				const absPath = path.resolve(this.projectRoot, entry.name);
+				const relPath = toPosixRelative(this.projectRoot, absPath);
+				if (!isPathIgnored(relPath)) collected.add(absPath);
 			}
-		} catch {}
+		}
 		return Array.from(collected);
 	}
 	async executeFixes(violations) {
@@ -275,8 +272,8 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 			".mjs",
 			".cjs"
 		]));
-		for (const filePath of allCodeFiles) try {
-			if (!fs.existsSync(filePath)) continue;
+		for (const filePath of allCodeFiles) tryOrNull(() => {
+			if (!fs.existsSync(filePath)) return;
 			let content = fs.readFileSync(filePath, "utf-8");
 			let modified = false;
 			for (const plan of plans) {
@@ -288,7 +285,7 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 				}
 			}
 			if (modified) fs.writeFileSync(filePath, content, "utf-8");
-		} catch {}
+		});
 	}
 	rewritePackageJsonScripts(plans) {
 		const pkg = getPackageJson(this.projectRoot, true);

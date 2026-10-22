@@ -1,6 +1,6 @@
+import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { matchesAnyRoot } from "./auditRootMatcher.js";
-import { normalizePosixPath } from "./reportUtils.js";
 //#region src/core/auditTestPredicates.ts
 /**
 * packages/auditor/src/core/auditTestPredicates.ts

@@ -23,7 +23,7 @@ describe('ValidateFileEncodingAuditor', () => {
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     } catch {
-      // catch-ok
+      /* non-fatal test cleanup */
     }
   });
 
@@ -204,7 +204,7 @@ describe('ValidateFileEncodingAuditor', () => {
       );
     });
 
-    it('respects SQL -- mojibake-ok: suppression comment in .sql files', async () => {
+    it('flags mojibake regardless of SQL -- mojibake-ok: comments (Zero-Ignore Mandate)', async () => {
       const srcDir = path.join(tmpDir, 'src');
       fs.mkdirSync(srcDir, { recursive: true });
 
@@ -218,9 +218,8 @@ describe('ValidateFileEncodingAuditor', () => {
       const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
       const result = await auditor.execute();
 
-      expect(result.status).toBe('passed');
-      expect(result.summary.warnings).toBe(0);
-      expect(result.findings).toHaveLength(0);
+      expect(result.summary.warnings).toBeGreaterThan(0);
+      expect(result.findings.length).toBeGreaterThan(0);
     });
 
     it('requires valid comment delimiter for mojibake-ok suppression', async () => {

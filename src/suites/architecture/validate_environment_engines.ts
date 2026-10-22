@@ -27,6 +27,7 @@ import {
 } from '../../cli/check_environment.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
+import { tryOrNull, safeRmSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -58,13 +59,9 @@ export function detectNpmVersion(): string {
   if (match?.[1]) {
     return match[1];
   }
-  try {
-    const res = runNpmCommandSync(['--version'], { encoding: 'utf8' });
-    if (res.status === 0 && res.stdout) {
-      return res.stdout.trim();
-    }
-  } catch {
-    // catch-ok: fallback when npm CLI is inaccessible directly
+  const res = tryOrNull(() => runNpmCommandSync(['--version'], { encoding: 'utf8' }));
+  if (res && res.status === 0 && res.stdout) {
+    return res.stdout.trim();
   }
   return '0.0.0';
 }
@@ -89,11 +86,7 @@ export function syncNodeVersion(projectRoot: string, targetNodeEngine: string): 
   }
   const legacyNvmrc = path.resolve(projectRoot, '.nvmrc');
   if (fs.existsSync(legacyNvmrc)) {
-    try {
-      fs.rmSync(legacyNvmrc, { force: true });
-    } catch {
-      // catch-ok
-    }
+    safeRmSync(legacyNvmrc);
   }
   return updated;
 }

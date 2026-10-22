@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -30,6 +31,7 @@ import {
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -72,7 +74,7 @@ export interface AuditHeadersResult {
 
 export { CANONICAL_IGNORE_DIRS, isPathIgnored };
 
-const FALLOW_IGNORE_FILE_REGEX = /^\s*\/\/\s*fallow-ignore-file\b/i;
+const FALLOW_IGNORE_REGEX = /(?:\/\/|\/\*|<!--)\s*fallow-ignore(?:-file|-next-line)?\b/i;
 const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(?:nocheck|ignore|expect-error)\b/i;
 const ESLINT_DISABLE_BLOCK_REGEX =
   /^\s*\/\*\s*(?:eslint|oxlint)-disable\b(?!\s*-(?:next-line|line)\b)/i;
@@ -92,13 +94,13 @@ function checkLineForIllegalHeaders(
 ): HeaderViolation | null {
   const trimmed = rawLine.trim();
 
-  // 1. Check for // fallow-ignore-file starting the comment line
-  if (FALLOW_IGNORE_FILE_REGEX.test(rawLine)) {
+  // 1. Check for fallow suppression directives
+  if (FALLOW_IGNORE_REGEX.test(rawLine)) {
     return {
       file: filePath,
       line: lineNum,
       ruleId: 'file-level-fallow-ignore',
-      message: `Illegal 'fallow-ignore-file' header detected. Silencing audits for entire files is STRICTLY PROHIBITED. Resolve the issue in source code or exclude the directory in global configuration.`,
+      message: `Illegal 'fallow-ignore' directive detected. Silencing audits with fallow-ignore is STRICTLY PROHIBITED. Resolve the issue in source code or configure fallow cleanly.`,
       context: trimmed,
       severity: 'error'
     };
@@ -178,23 +180,14 @@ function checkLineForIllegalHeaders(
     };
   }
 
-  // 7. Check for ANY unjustified escape hatch without mandatory ': <motivo>'
+  // 7. Check for banned legacy escape hatches or unjustified ignores
   const unjustifiedMatch = rawLine.match(UNJUSTIFIED_ESCAPE_HATCH_REGEX);
   if (unjustifiedMatch) {
     return {
       file: filePath,
       line: lineNum,
       ruleId: 'unjustified-escape-hatch',
-      message: `[JUSTIFIED ESCAPES & IGNORES GUIDE] Escape hatch '// ${unjustifiedMatch[1]}' missing mandatory technical justification.
-   📚 CANONICAL FORMAT REQUIRED: '// ${unjustifiedMatch[1]}: <detailed technical reason>'
-   💡 VALID EXAMPLES:
-      - // domain-ok: Dynamic UI text, chat messages, or narrative strings
-      - // uuid-ok: Database UUID or unique session identifier
-      - // infra-id-ok: DOM element identifier or network socket ID
-      - // open-record: Dynamic JSON key-value dictionary
-      - // runtime-set: Fast O(1) set for identifier validation
-      - // spanish-ok: User-facing UI label in Spanish
-   ⚠️ PROHIBITION: Never use generic ignores or use escapes to mask type errors in domain entities.`,
+      message: `[ZERO-ESCAPE MANDATE] Escape hatch '// ${unjustifiedMatch[1]}' detected. Escape hatches and ignore comments are permanently eradicated. Static analysis violations must be resolved legitimately in source code or through typed domain configurations.`,
       context: trimmed,
       severity: 'error'
     };
@@ -272,12 +265,12 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
       ruleRemediations: {
         'file-level-fallow-ignore':
           '📖 REMEDIATION GUIDE: file-level-fallow-ignore\n' +
-          '1. Root Cause: A global suppression directive /* fallow-ignore-file */ was found in the file header, masking technical debt or dead code across the whole module.\n' +
-          '2. Diagnosis: Look for comments at the beginning of the file containing fallow-ignore-file.\n' +
-          '3. Canonical Solution: Remove the global directive. If a justified exception exists, scope it to the specific line or refactor the code legitimately.\n' +
+          '1. Root Cause: A fallow bypass comment was declared, masking static violations.\n' +
+          '2. Diagnosis: Check the reported file for fallow suppression comments.\n' +
+          '3. Canonical Solution: Remove the directive. Resolve violations in source code or configure fallow cleanly.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Banned:  /* fallow-ignore-file */\n' +
-          '   ✅ Clean:   Resolve violations or scope with technical justification.',
+          '   ❌ Banned:  Bypass directives masking analysis findings\n' +
+          '   ✅ Clean:   Resolve violations legitimately without bypass directives.',
         'file-level-eslint-disable':
           '📖 REMEDIATION GUIDE: file-level-eslint-disable\n' +
           '1. Root Cause: An un-scoped /* eslint-disable */ or /* oxlint-disable */ directive was declared for the entire file or template.\n' +
@@ -311,19 +304,19 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
           '   Use system z-index variables or correct the selector.',
         'header-auditor-escape':
           '📖 REMEDIATION GUIDE: header-auditor-escape\n' +
-          '1. Root Cause: An auditor escape hatch was placed in the file header instead of directly on the affected code line.\n' +
-          '2. Diagnosis: Check for comments like // layout-ok: in file headers or imports.\n' +
-          '3. Canonical Solution: Move the escape hatch immediately before the statement requiring it, or remove it if no longer needed.\n' +
+          '1. Root Cause: An auditor escape hatch was placed in the file header.\n' +
+          '2. Diagnosis: Check for legacy escape hatch comments in file headers or imports.\n' +
+          '3. Canonical Solution: Remove the escape hatch entirely. Escape hatches are permanently eradicated from the architecture; solve the issue legitimately in source code.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   Place the comment directly before the code line: // layout-ok: <justification>',
+          '   Delete the legacy escape comment and refactor code to satisfy architectural rules cleanly.',
         'unjustified-escape-hatch':
           '📖 REMEDIATION GUIDE: unjustified-escape-hatch\n' +
-          '1. Root Cause: An escape hatch was used without the required technical justification after a colon.\n' +
-          '2. Diagnosis: Identify exception comments that lack an explanation (// layout-ok: <explanation>).\n' +
-          '3. Canonical Solution: Add a clear technical reason explaining the architectural necessity for the escape.\n' +
+          '1. Root Cause: An escape hatch was used without technical justification or used to mask domain type defects.\n' +
+          '2. Diagnosis: Check the escape hatch reported without valid explanation.\n' +
+          '3. Canonical Solution: DO NOT USE ESCAPE HATCHES. Replace with canonical semantic types from @francogp/auditor:\n' +
+          '   - DisplayText, LocalizedText, HexColor, AssetUri, IsoDateString, CssClassName, JsonObject, DomElementId, UserUuid\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Banned:  // layout-ok\n' +
-          '   ✅ Valid:   // layout-ok: Container width animation required by non-transformable responsive layout'
+          '   Use canonical semantic data types instead of // *-ok: comments.'
       }
     });
   }
@@ -335,16 +328,16 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
   protected override scanFile(relPath: string, content: string): void {
     const lines = content.split(/\r?\n/);
 
-    // 1. fallow-ignore-file
+    // 1. fallow-ignore
     this.runSubAuditorSync('file-level-fallow-ignore', () => {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
-        if (FALLOW_IGNORE_FILE_REGEX.test(line)) {
+        if (FALLOW_IGNORE_REGEX.test(line)) {
           const v = {
             file: relPath,
             line: i + 1,
             ruleId: 'file-level-fallow-ignore' as const,
-            message: `Illegal 'fallow-ignore-file' header detected. Silencing audits for entire files is STRICTLY PROHIBITED. Resolve the issue in source code or exclude the directory in global configuration.`,
+            message: `Illegal 'fallow-ignore' directive detected. Silencing audits with fallow-ignore is STRICTLY PROHIBITED. Resolve the issue in source code or configure fallow cleanly.`,
             context: line.trim(),
             severity: 'error' as const
           };
@@ -470,9 +463,7 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
             file: relPath,
             line: i + 1,
             ruleId: 'unjustified-escape-hatch' as const,
-            message: `[JUSTIFIED ESCAPES & IGNORES GUIDE] Escape hatch '// ${unjustifiedMatch[1]}' missing mandatory technical justification.
-    📚 CANONICAL FORMAT REQUIRED: '// ${unjustifiedMatch[1]}: <detailed technical reason>'
-    ⚠️ PROHIBITION: Never use generic ignores or use escapes to mask type errors in domain entities.`,
+            message: `[ZERO-ESCAPE MANDATE] Escape hatch '// ${unjustifiedMatch[1]}' detected. Escape hatches and ignore directives are permanently eradicated. Resolve static analysis defects legitimately in source code.`,
             context: line.trim(),
             severity: 'error' as const
           };
@@ -495,13 +486,11 @@ export function auditAuditHeaders(targetDir = process.cwd()): AuditHeadersResult
   const auditor = new AuditHeadersAuditor({ projectRoot: targetDir, roots: rootsToScan });
   const files = auditor['context'].collectFiles(rootsToScan);
   for (const file of files) {
-    const relPath = path.relative(targetDir, file).split(path.sep).join(path.posix.sep);
-    try {
-      const content = fs.readFileSync(file, 'utf-8');
+    const relPath = normalizePosixPath(path.relative(targetDir, file));
+    const content = safeReadFileSync(file);
+    if (content !== null) {
       auditor['recordScanned'](relPath);
       auditor['scanFile'](relPath, content);
-    } catch {
-      // catch-ok: Ignore read errors
     }
   }
 

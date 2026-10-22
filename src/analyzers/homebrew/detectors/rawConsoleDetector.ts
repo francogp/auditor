@@ -13,13 +13,12 @@ export const rawConsoleDetector = createLineDetector({
   ruleDescription: 'Direct call to console.log',
   checkLine(line, _trimmed, _lineNum, context) {
     if (context.filePath.includes('/cli/') || context.filePath.startsWith('src/cli/')) return null;
-    if (line.includes('// console-ok:')) return null;
 
     const match = /\bconsole\.(?:log|info)\s*\(/.exec(line);
     if (match) {
       if (isInsideStringLiteral(line, match.index)) return null;
 
-      return "Llamada directa a 'console.log()' en subauditor o extensión. Usa 'this.addViolation()', 'this.context.setMetric()' o 'unifiedTheme' para tablas terminales.";
+      return "Direct call to 'console.log()' in sub-auditor or extension. Use 'this.addViolation()', 'this.context.setMetric()' or 'unifiedTheme' for terminal tables.";
     }
     return null;
   }

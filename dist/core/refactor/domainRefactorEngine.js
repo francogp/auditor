@@ -39,7 +39,6 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 	static discoverInFile(filePath) {
 		const findings = [];
 		forEachSourceScriptLine(filePath, (line, actualLine) => {
-			if (line.includes("// domain-ok:") || line.includes("// domain-ignore:") || line.includes("// layout-ok:")) return;
 			const unbrandedMatch = UNBRANDED_ID_REGEX.exec(line);
 			if (unbrandedMatch) {
 				const typeName = unbrandedMatch[1];

@@ -161,7 +161,7 @@ function goToProfile() {
   });
 
   describe('Suppression & False Positive Resistance', () => {
-    it('honors // router-ok: escape hatch', () => {
+    it('detects deprecated router next even when // router-ok: is present (Zero-Ignore Mandate)', () => {
       const auditor = new TestableVueRouterAuditor();
       const code = `
 router.beforeEach((to, from, next) => { // router-ok: Legacy 3rd-party auth SDK requires next
@@ -169,7 +169,7 @@ router.beforeEach((to, from, next) => { // router-ok: Legacy 3rd-party auth SDK 
 });
 `;
       auditor.testScanFile('src/router/legacy.ts', code);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThan(0);
     });
 
     it('does not flag window.location.reload() or window.location.hostname', () => {

@@ -55,12 +55,6 @@ export interface DocumentReplacement {
   readonly ruleId?: string;
   readonly description?: string;
 }
-export interface EscapeHatchMatch {
-  readonly line: number;
-  readonly rawText: string;
-  readonly ruleToken: string;
-  readonly reason?: string;
-}
 export declare class AuditedDocument {
   readonly filePath: string;
   readonly relPath: string;
@@ -71,8 +65,6 @@ export declare class AuditedDocument {
   private cachedAst?;
   private cachedLexicalRanges?;
   private cachedVueBlocks?;
-  private cachedEscapeHatches?;
-  private readonly fileDisabledRules;
   private readonly replacements;
   constructor(filePath: string, rawContent: string, relPath?: string, astContext?: SharedAstContext);
   /**
@@ -103,33 +95,6 @@ export declare class AuditedDocument {
    * Advances past any comment or string starting at offset. Returns offset if not at a comment or string.
    */
   advancePastCommentOrString(offset: number): number;
-  /**
-   * Returns pre-indexed escape hatches and file disable directives.
-   */
-  getEscapeHatches(): readonly EscapeHatchMatch[];
-  /**
-   * Resolves accepted escape hatch rule tokens including common domain, o1, and reactivity aliases.
-   */
-  resolveAcceptedRuleTokens(ruleLower: string): Set<string>;
-  private isLineOnlyComments;
-  private hasIndexedEscapeHatchInRange;
-  private hasNodeDirectCommentsHatch;
-  private getAuthorizedRuleTokens;
-  /**
-   * Determines whether an escape hatch suppresses the specified rule at the given line or offset.
-   */
-  hasEscapeHatch(lineOrOffset: number, ruleId: string): boolean;
-  /**
-   * Determines whether an AST node or its enclosing statement has an authorized escape hatch.
-   * Checks:
-   * 1. Line range of the node from (startLine - 2) to (endLine + 1).
-   * 2. Leading and trailing comment ranges from TypeScript AST if sourceFile is provided.
-   */
-  hasEscapeHatchForNode(node: ts.Node, ruleId: string, sourceFile?: ts.SourceFile): boolean;
-  /**
-   * Convenience helper to check escape hatch at a specific character offset.
-   */
-  hasEscapeHatchAtOffset(offset: number, ruleId: string): boolean;
   /**
    * Extracts Vue Single-File Component blocks (<script>, <template>, <style>).
    */

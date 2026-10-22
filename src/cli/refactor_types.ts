@@ -65,7 +65,37 @@ const typesCliDef: RefactorCliDefinition<TypesFindingItem, TypesRefactorPlan> = 
     explanation: f.explanation
   }),
   createPlan: (id, findings) => TypesRefactorEngine.createPlan(id, findings),
-  applyPlan: (dir, plan) => TypesRefactorEngine.applyPlan(dir, plan)
+  applyPlan: (dir, plan) => TypesRefactorEngine.applyPlan(dir, plan),
+  extendedHelp: `
+================================================================================
+CANONICAL TYPE ASSERTION & HYGIENE QUICK-REFERENCE (@francogp/auditor)
+================================================================================
+When remediating "as any", double assertions, or missing return types, NEVER
+silence with "// type-ok:". Use these canonical safe practices:
+
+  Defective Pattern         Canonical Solution           Import Source
+  -----------------------   --------------------------   ------------------
+  expr as any               (expr as unknown)            TypeScript native
+  expr as any as Target     Type narrowing / guard       TypeScript native
+  fn() { ... } (untyped)    fn(): ReturnContract { ... } Explicit domain contract
+  data: Record<string,any>  data: JsonObject             @francogp/auditor
+  payload: any              payload: JsonValue           @francogp/auditor
+  result: any               result: OperationResult<T,E> @francogp/auditor
+
+MIGRATION BEST PRACTICES:
+  1. Safe JSON Objects:
+     import type { JsonObject, JsonValue } from '@francogp/auditor';
+     function parsePayload(raw: string): JsonValue { ... }
+
+  2. Operation Results over Loose Any:
+     import type { OperationResult } from '@francogp/auditor';
+     function executeTask(): OperationResult<UserUuid, Error> { ... }
+
+See comprehensive guide:
+  .agents/skills/domain-type-first/references/canonical-data-types.md
+  .agents/skills/auditor/references/zero-ignore-type-remediation.md
+================================================================================
+`
 };
 
 export async function runRefactorTypesCli(argv?: readonly string[]): Promise<void> {

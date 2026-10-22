@@ -19,7 +19,6 @@ import {
 } from '../src/core/auditorBase.ts';
 import {
   safeResolve,
-  safeJoin,
   safeWriteFileSync,
   safeWriteFile,
   safeReadFile,
@@ -47,23 +46,23 @@ describe('safePath Core Security Utility', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup
+      /* non-fatal test cleanup */
     }
     vi.restoreAllMocks();
   });
 
-  describe('safeResolve & safeJoin (CWE-22 Traversal Prevention)', () => {
+  describe('safeResolve (CWE-22 Traversal Prevention)', () => {
     it('resolves valid subpaths within the project root', () => {
       const res = safeResolve('src', 'components', 'Button.vue');
       expect(res).toBe(path.resolve(tempDir, 'src', 'components', 'Button.vue'));
 
-      const joined = safeJoin('dist', 'assets', 'index.js');
+      const joined = safeResolve('dist', 'assets', 'index.js');
       expect(joined).toBe(path.resolve(tempDir, 'dist', 'assets', 'index.js'));
     });
 
     it('throws security error when path attempts directory traversal escaping project root', () => {
       expect(() => safeResolve('..', 'secret.txt')).toThrow(/Security Violation CWE-22/);
-      expect(() => safeJoin('sub', '..', '..', 'etc', 'passwd')).toThrow(
+      expect(() => safeResolve('sub', '..', '..', 'etc', 'passwd')).toThrow(
         /Security Violation CWE-22/
       );
     });

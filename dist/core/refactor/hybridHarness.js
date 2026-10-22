@@ -1,3 +1,4 @@
+import { tryOrNull, tryOrNullAsync } from "../safeUtils.js";
 import { toPosixRelative } from "../auditCoverage.js";
 import "../safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
@@ -15,12 +16,8 @@ import MagicString from "magic-string";
 let cachedAstGrep = null;
 async function getAstGrep() {
 	if (cachedAstGrep) return cachedAstGrep;
-	try {
-		cachedAstGrep = await import("@ast-grep/napi");
-		return cachedAstGrep;
-	} catch {
-		return null;
-	}
+	cachedAstGrep = await tryOrNullAsync(async () => await import("@ast-grep/napi"));
+	return cachedAstGrep;
 }
 var HybridHarnessEngine = class HybridHarnessEngine {
 	static async execute(projectRoot, plan) {
@@ -74,9 +71,7 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 		sourceFile.replaceWithText(updatedText);
 		const moduleSpecifier = sourceFile.getRelativePathAsModuleSpecifierTo(sharedFile);
 		this.ensureNamedImport(sourceFile, moduleSpecifier, plan.functionName);
-		try {
-			sourceFile.organizeImports();
-		} catch {}
+		tryOrNull(() => sourceFile.organizeImports());
 		await sourceFile.save();
 	}
 	static expandMetavariables(rewrite, match) {
@@ -100,15 +95,19 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 	}
 	static async applyAstGrepPatternRewrite(lang, sourceCode, pattern, rewrite) {
 		const astGrep = await getAstGrep();
-		if (astGrep) try {
-			const matches = astGrep.parse(lang, sourceCode).root().findAll(pattern);
-			if (matches.length > 0) {
-				const edits = matches.map((m) => m.replace(HybridHarnessEngine.expandMetavariables(rewrite, m))).sort((a, b) => b.startPos - a.startPos);
-				let updated = sourceCode;
-				for (const edit of edits) updated = updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
-				return updated;
-			}
-		} catch {}
+		if (astGrep) {
+			const transformed = tryOrNull(() => {
+				const matches = astGrep.parse(lang, sourceCode).root().findAll(pattern);
+				if (matches.length > 0) {
+					const edits = matches.map((m) => m.replace(HybridHarnessEngine.expandMetavariables(rewrite, m))).sort((a, b) => b.startPos - a.startPos);
+					let updated = sourceCode;
+					for (const edit of edits) updated = updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
+					return updated;
+				}
+				return null;
+			});
+			if (transformed !== null) return transformed;
+		}
 		return sourceCode.replace(pattern, rewrite);
 	}
 };

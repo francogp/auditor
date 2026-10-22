@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from './safeUtils.ts';
 
 export interface ProjectVersionInfo {
   readonly pkgName: string;
@@ -69,17 +70,14 @@ function resolveInstalledAuditorVersions(rootDir: string, pkg: PackageJsonShape)
 
   let fullVersion: string | null = null;
   const installedPkgPath = path.join(rootDir, 'node_modules', '@francogp', 'auditor', 'package.json');
-  if (fs.existsSync(installedPkgPath)) {
-    try {
-      const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, 'utf-8')) as PackageJsonShape;
-      if (installedPkg.version) {
-        fullVersion = installedPkg.version;
-        if (!semver) {
-          semver = extractBaseSemver(installedPkg.version);
-        }
+  const installedRaw = safeReadFileSync(installedPkgPath);
+  if (installedRaw) {
+    const installedPkg = safeJsonParse<PackageJsonShape>(installedRaw);
+    if (installedPkg?.version) {
+      fullVersion = installedPkg.version;
+      if (!semver) {
+        semver = extractBaseSemver(installedPkg.version);
       }
-    } catch {
-      // catch-ok: ignore unreadable node_modules package.json
     }
   }
 
@@ -283,7 +281,7 @@ export function syncDocumentationVersionReferences(cwd: string): string[] {
     if (!fs.existsSync(absPath)) {
       continue;
     }
-    try {
+    tryOrNull(() => {
       const rawContent = fs.readFileSync(absPath, 'utf-8');
       const { updatedContent } = scanAndFixMarkdownProjectVersions(
         relPath,
@@ -294,9 +292,7 @@ export function syncDocumentationVersionReferences(cwd: string): string[] {
         fs.writeFileSync(absPath, updatedContent, 'utf-8');
         modifiedFiles.push(absPath);
       }
-    } catch {
-      // catch-ok: non-fatal if markdown file is not writable
-    }
+    });
   }
   return modifiedFiles;
 }

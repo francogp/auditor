@@ -19,9 +19,6 @@
  *   5. No Playwright Polling Waits (`no-playwright-polling-waits`):
  *      In `scripts/e2e/`, forbids artificial sleep timers (`page.waitForTimeout()`).
  *
- * Escape Hatches:
- *   `// test-ok`, `// mock-ok`, `// locator-ok`, `// force-ok`, `// timeout-ok`, `// wait-ok`
- *
  * Usage:
  *   npm run validate:test-hygiene
  */
@@ -230,8 +227,6 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       const lineNumber = content.slice(0, match.index).split('\n').length;
       const lineContent = lines[lineNumber - 1] || '';
 
-      if (this.isLineIgnored(lineContent, ['mock-ok'])) continue;
-
       const forbiddenTargets = getForbiddenIntegrationMockTargets();
       for (const forbidden of forbiddenTargets) {
         if (target === forbidden || target.endsWith(forbidden.replace(/^@\//, '/'))) {
@@ -254,13 +249,12 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
     content: string,
     ruleId: TestHygieneRuleId,
     regex: RegExp,
-    ignoreTags: string[],
     messageFn: (line: string, match: RegExpExecArray) => string
   ): void {
     const lines = content.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const lineContent = lines[i];
-      if (!lineContent || this.isLineIgnored(lineContent, ignoreTags)) continue;
+      if (!lineContent) continue;
       const match = regex.exec(lineContent);
       if (match) {
         this.addViolation({
@@ -283,7 +277,6 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       content,
       'playwright-id-locators-only',
       PLAYWRIGHT_TEXT_LOCATOR_REGEX,
-      ['locator-ok'],
       () =>
         `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`
     );
@@ -295,7 +288,6 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       content,
       'no-playwright-force-click',
       FORCE_CLICK_REGEX,
-      ['force-ok'],
       () =>
         `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`
     );
@@ -307,7 +299,6 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       content,
       'no-playwright-polling-waits',
       WAIT_FOR_TIMEOUT_REGEX,
-      ['wait-ok'],
       () =>
         `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`
     );
@@ -319,7 +310,6 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
       content,
       'no-test-timeout-inflation',
       TIMEOUT_INFLATION_REGEX,
-      ['timeout-ok'],
       (_line, match) => {
         const timeoutMs = match[1] || match[2] || 'unknown';
         return `Test timeout inflation detected (${timeoutMs}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`;

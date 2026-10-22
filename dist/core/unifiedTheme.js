@@ -1,6 +1,6 @@
 import { getRemediationPhaseMetadata } from "./remediationPhases.js";
 import { FAMILY_METADATA, normalizeSpeeds } from "./auditContract.js";
-import { TEXT_ALIGNMENTS, getVisualWidth, padVisual, truncateVisual } from "./terminalVisuals.js";
+import { TEXT_ALIGNMENTS, padVisual, stringWidth, truncateVisual } from "./terminalVisuals.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
 import { formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";
@@ -627,4 +627,4 @@ function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalW
 	})}\n`;
 }
 //#endregion
-export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, getVisualWidth, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, themeStyles, truncateVisual };
+export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, stringWidth, themeStyles, truncateVisual };

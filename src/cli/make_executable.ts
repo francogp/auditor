@@ -10,6 +10,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { isMainModule } from './cliUtils.ts';
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from '../core/cli/cittyHarness.ts';
+import { tryCatchSync } from '../core/safeUtils.ts';
+
+function extractDistBaseName(fileName: string): string {
+  let name = fileName;
+  while (true) {
+    const ext = path.extname(name);
+    if (!ext) break;
+    name = path.basename(name, ext);
+  }
+  return name;
+}
 
 export function purgeOrphanedDistFiles(
   distDir = path.resolve(process.cwd(), 'dist'),
@@ -31,8 +42,7 @@ export function purgeOrphanedDistFiles(
           traverseAndClean(distPath, srcSubdir);
         }
       } else if (entry.isFile()) {
-        // path-ok: Strips compiled TypeScript artifact extensions (.d.ts, .js.map) to find source file
-        const baseName = entry.name.replace(/\.(d\.ts|d\.ts\.map|js|js\.map)$/, '');
+        const baseName = extractDistBaseName(entry.name);
         if (baseName === 'index') continue;
 
         const candidateTs = path.join(currentSrc, `${baseName}.ts`);
@@ -56,11 +66,9 @@ export function makeCliBinariesExecutable(distDir = path.resolve(process.cwd(), 
   for (const entry of entries) {
     if (entry.endsWith('.js')) {
       const fullPath = path.join(distDir, entry);
-      try {
+      tryCatchSync(() => {
         fs.chmodSync(fullPath, 0o755);
-      } catch {
-        // catch-ok: Safe fallback on filesystems or OS environments where chmod is not supported
-      }
+      });
     }
   }
 }

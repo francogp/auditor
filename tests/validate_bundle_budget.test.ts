@@ -98,7 +98,7 @@ describe('BundleBudgetAuditor', () => {
       expect(sizeViolation?.severity).toBe('error');
     });
 
-    it('honors // bundle-leak-ok escape hatch', async () => {
+    it('flags runtime leak regardless of // bundle-leak-ok comments (Zero-Ignore Mandate)', async () => {
       const srcDir = path.join(tempDir, 'src');
       await fs.mkdir(srcDir, { recursive: true });
       await fs.writeFile(
@@ -111,7 +111,7 @@ describe('BundleBudgetAuditor', () => {
       const result = await auditor.execute();
 
       const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
-      expect(leak).toBeUndefined();
+      expect(leak).toBeDefined();
     });
   });
 

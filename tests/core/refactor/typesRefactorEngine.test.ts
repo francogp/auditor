@@ -76,7 +76,7 @@ export function computeTotal(a: number, b: number) {
       expect(returnFindings[0]?.suggestedReplacement).toContain('): void');
     });
 
-    it('honors // type-ok: escape hatch', () => {
+    it('detects findings even when // type-ok: is present (Zero-Ignore Mandate)', () => {
       const tsFile = path.join(tmpDir, 'escapeSample.ts');
       fs.writeFileSync(
         tsFile,
@@ -88,7 +88,7 @@ export function parse(raw: unknown): any {
       );
 
       const findings = TypesRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(0);
+      expect(findings.length).toBeGreaterThan(0);
     });
   });
 

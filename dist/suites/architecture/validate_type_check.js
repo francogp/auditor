@@ -1,3 +1,6 @@
+import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
+import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -29,13 +32,14 @@ function createFindingFromMatch(groups, cwd) {
 	const lineStr = groups.line ?? groups.line2 ?? "1";
 	const code = groups.code ?? "TS";
 	const msg = groups.msg ?? "TypeScript compiler error";
+	const resolvedPath = path.isAbsolute(rawFile) ? path.relative(cwd, rawFile) : rawFile;
 	return {
 		suiteId: "validate_type_check",
 		suiteName: "TypeScript & Vue Type Validator",
 		ruleId: "ts-compiler-error",
 		ruleDescription: "TypeScript: Compilation or type error",
 		severity: "error",
-		file: (path.isAbsolute(rawFile) ? path.relative(cwd, rawFile) : rawFile).split(path.sep).join(path.posix.sep),
+		file: normalizePosixPath(resolvedPath),
 		line: Number.parseInt(lineStr, DECIMAL_RADIX) || DEFAULT_ERROR_LINE,
 		context: code,
 		message: msg
@@ -62,10 +66,8 @@ function parseTypeScriptDiagnostics(output, cwd = process.cwd()) {
 	return findings;
 }
 function recordTsConfigFiles(projectRoot, recordScanned) {
-	try {
-		const rootFiles = fs.readdirSync(projectRoot);
-		for (const f of rootFiles) if (f.startsWith("tsconfig") && f.endsWith(".json")) recordScanned(path.join(projectRoot, f));
-	} catch {}
+	const rootFiles = tryOrNull(() => fs.readdirSync(projectRoot)) ?? [];
+	for (const f of rootFiles) if (f.startsWith("tsconfig") && f.endsWith(".json")) recordScanned(path.join(projectRoot, f));
 }
 function resolveTypeCheckBinary(projectRoot) {
 	const vueTscPath = path.resolve(projectRoot, "node_modules/vue-tsc/bin/vue-tsc.js");
@@ -156,12 +158,8 @@ var TypeCheckAuditor = class extends BaseAuditor {
 				full: standardArgs
 			}
 		});
-		if (resolvedArgs.includes("--incremental")) try {
-			fs.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true });
-		} catch {}
-		else if (fs.existsSync(tsBuildInfoPath)) try {
-			fs.unlinkSync(tsBuildInfoPath);
-		} catch {}
+		if (resolvedArgs.includes("--incremental")) tryOrNull(() => fs.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true }));
+		else if (fs.existsSync(tsBuildInfoPath)) safeRmSync(tsBuildInfoPath, { force: true });
 		const proc = spawnSync(cmd, resolvedArgs, {
 			cwd: this.projectRoot,
 			encoding: "utf-8",
@@ -170,7 +168,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 		});
 		const combinedOutput = `${proc.stdout || ""}\n${proc.stderr || ""}`;
 		const findings = parseTypeScriptDiagnostics(combinedOutput, this.projectRoot);
-		if (findings.length === 0 && (proc.error || proc.status !== 0)) throw new Error(`[validate_type_check] El compilador terminó con estado ${String(proc.status)} pero no se pudo interpretar ningún diagnóstico (falso verde evitado). Salida: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ""}`);
+		if (findings.length === 0 && (proc.error || proc.status !== 0)) throw new Error(`[validate_type_check] The compiler exited with status ${String(proc.status)} but no diagnostics could be parsed (false-pass prevented). Output: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ""}`);
 		this.importAuditFindings(findings, "ts-compiler-error", "TS");
 		this.recordExternalScanCount(1);
 		this.context.setMetric("total_type_errors", findings.length);

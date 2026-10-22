@@ -31,7 +31,7 @@ describe('ValidateValibotParityAuditor', () => {
     try {
       fs.rmSync(TEST_DIR, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 

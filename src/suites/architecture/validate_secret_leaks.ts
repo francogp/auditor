@@ -23,6 +23,7 @@ import {
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
+import { tryOrNullAsync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -174,8 +175,8 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       loc?: { start?: { line?: number; column?: number } };
     }> = [];
 
-    try {
-      const result = await lintSource({
+    const result = await tryOrNullAsync(() =>
+      lintSource({
         source: {
           filePath: relPath,
           content,
@@ -186,10 +187,10 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
           config: this.secretLintConfig,
           maskSecrets
         }
-      });
+      })
+    );
+    if (result) {
       messages = result.messages as typeof messages;
-    } catch {
-      // catch-ok: Ignore unparseable or binary files during secret scanning
     }
 
     this.runSubAuditorSync('secret-leak-detected', () => {

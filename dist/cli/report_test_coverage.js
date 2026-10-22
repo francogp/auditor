@@ -1,16 +1,18 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { AUDITOR_VERSION } from "../core/version.js";
+import { tryCatchSync } from "../core/safeUtils.js";
+import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { buildTestCoverageConfig } from "../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
-import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
+import { isPathContained } from "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, isHumanConsoleMode, isMainModule, resolvePackageBin } from "./cliUtils.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../core/testCoverageCore.js";
+import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import { execSync, spawnSync } from "node:child_process";
@@ -145,9 +147,9 @@ ${styleText("bold", "OPTIONS:")}
 }
 function loadFallowComplexityMap(projectRoot) {
 	const complexityMap = /* @__PURE__ */ new Map();
-	try {
+	tryCatchSync(() => {
 		const fallowBin = resolvePackageBin("fallow", { projectRoot });
-		if (!fallowBin) return complexityMap;
+		if (!fallowBin) return;
 		const cmd = `node "${fallowBin}" health --format json`;
 		const stdout = execSync(cmd, {
 			cwd: projectRoot,
@@ -168,7 +170,7 @@ function loadFallowComplexityMap(projectRoot) {
 			const current = complexityMap.get(relPath) ?? 0;
 			complexityMap.set(relPath, current + Math.max(cog, cyc));
 		}
-	} catch {}
+	});
 	return complexityMap;
 }
 function formatPct(pct) {
@@ -372,7 +374,13 @@ function renderFilteredFilesView(files, args, effectiveThreshold) {
 		filtered = filtered.filter((f) => f.statements.pct < effectiveThreshold);
 		console.log(styleText("bold", `\n[Warning] FILES BELOW THRESHOLD (${effectiveThreshold}%) (${filtered.length}):\n`));
 	}
-	if (args.dirFilter) filtered = filtered.filter((f) => f.relPath.startsWith(args.dirFilter));
+	if (args.dirFilter) {
+		const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+		filtered = filtered.filter((f) => {
+			const fileAbs = path.resolve(process.cwd(), f.relPath);
+			return isPathContained(filterAbs, fileAbs) || f.relPath === args.dirFilter;
+		});
+	}
 	console.log(renderFilesTable(filtered, args.topLimit));
 	if (filtered.length > args.topLimit) console.log(styleText("dim", `   ... and ${filtered.length - args.topLimit} more files (use --top=${filtered.length} to view all).`));
 	console.log();
@@ -395,7 +403,13 @@ ${styleText("bold", "FILE DISTRIBUTION:")}
   [WARN] Untracked:           ${b.untracked > 0 ? styleText(["bold", "yellow"], String(b.untracked)) : styleText("green", "0")}
 `);
 	let dirs = report.directories;
-	if (args.dirFilter) dirs = dirs.filter((d) => d.directory.startsWith(args.dirFilter));
+	if (args.dirFilter) {
+		const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+		dirs = dirs.filter((d) => {
+			const dirAbs = path.resolve(process.cwd(), d.directory);
+			return isPathContained(filterAbs, dirAbs) || d.directory === args.dirFilter;
+		});
+	}
 	console.log(styleText("bold", "BREAKDOWN BY DIRECTORY / SUBSYSTEM:\n"));
 	console.log(renderDirectoriesTable(dirs, report.overall));
 	console.log();

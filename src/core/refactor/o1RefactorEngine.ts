@@ -75,11 +75,6 @@ export class O1RefactorEngine extends BaseRefactorEngine<
     const findings: O1FindingItem[] = [];
 
     forEachSourceScriptLine(filePath, (line, actualLine) => {
-      // Escape hatches
-      if (line.includes('// o1-ok:') || line.includes('// linear-search-ok:')) {
-        return;
-      }
-
       // 1. JSON.parse(JSON.stringify(x)) -> structuredClone(x)
       JSON_CLONE_REGEX.lastIndex = 0;
       let jsonMatch: RegExpExecArray | null;

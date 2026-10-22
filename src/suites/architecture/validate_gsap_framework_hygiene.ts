@@ -228,11 +228,6 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     let m: RegExpExecArray | null;
     while ((m = unscopedRegex.exec(content)) !== null) {
       const selector = m[1];
-      const preceding = content.slice(Math.max(0, m.index - 200), m.index);
-      const lineEnd = content.indexOf('\n', m.index);
-      const currentLine = content.slice(m.index, lineEnd === -1 ? undefined : lineEnd);
-      const nearby = preceding + '\n' + currentLine;
-      if (/\/\/\s*(?:scope-ok|selector-ok):\s*\S+/i.test(nearby)) continue;
 
       const isScoped = isInsideAnyScopeRange(m.index, scopeRanges);
       if (!isScoped) {
@@ -253,9 +248,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
 
     const hasRevert = /\.revert\s*\(|\.kill\s*\(/.test(content);
     const hasUnmountLifecycle = /onUnmounted|onScopeDispose|useEffect/.test(content);
-    const hasRevertOk = /\/\/\s*revert-ok:\s*\S+/i.test(content);
 
-    if ((!hasRevert || !hasUnmountLifecycle) && !hasRevertOk) {
+    if (!hasRevert || !hasUnmountLifecycle) {
       this.addViolationAtMatch({
         ruleId: 'gsap-missing-context-revert',
         filePath: relPath,
@@ -277,9 +271,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       const hasRegister = new RegExp(`gsap\\.registerPlugin\\s*\\([^)]*\\b${pluginName}\\b`).test(
         content
       );
-      const hasPluginOk = /\/\/\s*plugin-ok:\s*\S+/i.test(content);
 
-      if (!hasRegister && !hasPluginOk) {
+      if (!hasRegister) {
         this.addViolationAtMatch({
           ruleId: 'gsap-missing-plugin-registration',
           filePath: relPath,
@@ -304,9 +297,8 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(
         windowAround
       );
-      const hasDevtoolsOk = /\/\/\s*devtools-ok:\s*\S+/i.test(windowAround);
 
-      if (!hasDevGuard && !hasDevtoolsOk) {
+      if (!hasDevGuard) {
         this.addViolationAtMatch({
           ruleId: 'gsap-banned-devtools-production',
           filePath: relPath,

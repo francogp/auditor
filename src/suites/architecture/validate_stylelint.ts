@@ -32,6 +32,7 @@ import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditCont
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
 import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
 
 enableCompileCache();
@@ -79,14 +80,11 @@ export function resolveStylelintConfigFile(
   }
 
   const pkgJsonPath = path.resolve(projectRoot, 'package.json');
-  if (fs.existsSync(pkgJsonPath)) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-      if (pkg.stylelint) {
-        return pkgJsonPath;
-      }
-    } catch {
-      // catch-ok: Fall back to canonical auditor configuration
+  const pkgRaw = safeReadFileSync(pkgJsonPath);
+  if (pkgRaw) {
+    const pkg = safeJsonParse<{ stylelint?: unknown }>(pkgRaw);
+    if (pkg?.stylelint) {
+      return pkgJsonPath;
     }
   }
 
@@ -146,12 +144,12 @@ export function buildStylelintIgnoreGlobs(
   exemptFiles?: readonly string[]
 ): string[] {
   const normExemptPaths = (exemptPaths ?? []).map((p) => {
-    const posixP = p.split(path.sep).join(path.posix.sep);
+    const posixP = normalizePosixPath(p);
     return posixP.endsWith(path.posix.sep) ? `${posixP}**` : path.posix.join(posixP, '**');
   });
-  const normExemptFiles = (exemptFiles ?? []).map((f) => f.split(path.sep).join(path.posix.sep));
-  const normIgnores = (configIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
-  const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => g.split(path.sep).join(path.posix.sep));
+  const normExemptFiles = (exemptFiles ?? []).map((f) => normalizePosixPath(f));
+  const normIgnores = (configIgnoreGlobs ?? []).map((g) => normalizePosixPath(g));
+  const normStylelintIgnores = (stylelintIgnoreGlobs ?? []).map((g) => normalizePosixPath(g));
 
   return [
     ...Array.from(CANONICAL_IGNORE_DIRS).map((d) => `${d}/**`),
@@ -209,16 +207,14 @@ export function repairDeprecatedCssPropertiesInRoots(
       DEPRECATED_CSS_SCANNABLE_EXTENSIONS
     );
     for (const filePath of files) {
-      try {
+      tryOrNull(() => {
         const raw = fs.readFileSync(filePath, 'utf8');
         const { modified, content } = repairDeprecatedWordBreak(raw);
         if (modified) {
           fs.writeFileSync(filePath, content, 'utf8');
           repairedCount++;
         }
-      } catch {
-        // catch-ok: Ignore unreadable files during repair pass
-      }
+      });
     }
   }
   return repairedCount;
@@ -346,7 +342,7 @@ export function persistStylelintReport(
   const reportDir = path.resolve(projectRoot, 'scratch/audits/architecture');
   fs.mkdirSync(reportDir, { recursive: true });
   const reportFile = path.resolve(reportDir, `${suiteId}.json`);
-  try {
+  tryOrNull(() => {
     fs.writeFileSync(
       reportFile,
       JSON.stringify(
@@ -368,9 +364,7 @@ export function persistStylelintReport(
       ),
       'utf-8'
     );
-  } catch {
-    // catch-ok: Scratch report persistence is non-fatal
-  }
+  });
 }
 
 export interface StylelintAuditorOptions {

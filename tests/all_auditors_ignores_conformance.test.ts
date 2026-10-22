@@ -36,7 +36,7 @@ describe('Universal Ignores & Exemptions Conformance (All Sub-Auditors)', () => 
     try {
       await fs.promises.rm(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok
+      /* non-fatal test cleanup */
     }
   });
 

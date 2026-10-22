@@ -39,14 +39,6 @@ const CLI_CONTRACT_DETECTORS: readonly CliContractDetector[] = [
   unregisteredScriptDetector
 ];
 
-const CLI_CONTRACT_ESCAPE_TOKENS: ReadonlySet<string> = new Set([
-  'cli',
-  'cli-contracts',
-  'argv',
-  'env',
-  'test'
-]); // runtime-set: O(1) escape hatch token lookup
-
 const AUTHORIZED_HARNESS_PATHS: ReadonlySet<string> = new Set([
   'src/core/cli/cittyHarness.ts',
   'src/cli/cliUtils.ts'
@@ -236,18 +228,6 @@ function collectCliFileFacts(
   };
 }
 
-function hasCliEscapeOnLine(doc: AuditedDocument, oneBasedLine: number): boolean {
-  for (const hatch of doc.getEscapeHatches()) {
-    if (
-      CLI_CONTRACT_ESCAPE_TOKENS.has(hatch.ruleToken) &&
-      (hatch.line === oneBasedLine || hatch.line === oneBasedLine - 1)
-    ) {
-      return true;
-    }
-  }
-  return false;
-}
-
 function formatCliViolation(
   doc: AuditedDocument,
   sourceFile: ts.SourceFile,
@@ -256,7 +236,6 @@ function formatCliViolation(
   const startOffset = ts.isSourceFile(finding.node) ? 0 : finding.node.getStart(sourceFile);
   const loc = sourceFile.getLineAndCharacterOfPosition(startOffset);
   const lineNumber = loc.line + 1;
-  if (hasCliEscapeOnLine(doc, lineNumber)) return null;
   return {
     file: doc.relPath,
     line: lineNumber,

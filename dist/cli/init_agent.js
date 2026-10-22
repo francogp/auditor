@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
@@ -14,14 +15,10 @@ import fs from "node:fs";
 * so Antigravity AI agents instantly discover the official auditor skill and rules.
 */
 function loadAgentEntriesConfig(filePath) {
-	if (!fs.existsSync(filePath)) return { entries: [] };
-	try {
-		const raw = fs.readFileSync(filePath, "utf8");
-		const parsed = JSON.parse(raw);
-		return Array.isArray(parsed?.entries) ? parsed : { entries: [] };
-	} catch {
-		return { entries: [] };
-	}
+	const raw = safeReadFileSync(filePath);
+	if (!raw) return { entries: [] };
+	const parsed = safeJsonParse(raw);
+	return Array.isArray(parsed?.entries) ? parsed : { entries: [] };
 }
 function registerAgentEntry(filePath, entryPath, matchFn, dryRun) {
 	const config = loadAgentEntriesConfig(filePath);
@@ -33,7 +30,7 @@ function registerAgentEntry(filePath, entryPath, matchFn, dryRun) {
 }
 function initAgentSkill(options = {}) {
 	const rawInitCwd = process.env.INIT_CWD;
-	const safeInitCwd = rawInitCwd && !rawInitCwd.includes("..") ? path.resolve(rawInitCwd) : void 0;
+	const safeInitCwd = rawInitCwd ? path.resolve(rawInitCwd) : void 0;
 	const targetDir = options.targetDir ? path.resolve(options.targetDir) : safeInitCwd || process.cwd();
 	if (isSelfProviderProject(targetDir)) return {
 		success: true,

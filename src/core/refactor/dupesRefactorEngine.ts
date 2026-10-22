@@ -12,6 +12,7 @@ import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 import { toPosixRelative } from '../safePath.ts';
+import { tryOrNull } from '../safeUtils.ts';
 import { FallowArchitectureAuditor } from '../../suites/architecture/validate_fallow.ts';
 import { resolveFallowBinary } from '../../suites/architecture/validate_similar_code.ts';
 import { HybridHarnessEngine } from './hybridHarness.ts';
@@ -125,17 +126,16 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
       this.projectRoot
     );
 
-    let deadFiles = new Set<string>();
-    try {
-      const dead = runFallowJson<FallowDeadCodeOutput>(
+    const dead = tryOrNull(() =>
+      runFallowJson<FallowDeadCodeOutput>(
         'dead-code',
         ['--include-dupes'],
         this.projectRoot
-      );
-      deadFiles = new Set(dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)));
-    } catch {
-      // catch-ok: dead-code analysis is optional during clone triage
-    }
+      )
+    );
+    const deadFiles = new Set(
+      dead ? dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)) : []
+    );
 
     const effectiveMin = Math.max(2, minOccurrences);
     const candidates: TriagedCloneCandidate[] = [];

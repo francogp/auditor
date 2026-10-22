@@ -1,6 +1,6 @@
 import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
-import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
 import "../../core/safePath.js";
@@ -22,7 +22,7 @@ import { execSync } from "node:child_process";
 */
 enableCompileCache();
 function printTerminal(msg) {
-	console.log(msg);
+	process.stdout.write(`${msg}\n`);
 }
 const AUDIT_EXTENSIONS = /* @__PURE__ */ new Set([
 	".vue",
@@ -515,20 +515,20 @@ function filterAndGroupViolations(rawViolations, ctx) {
 	};
 }
 function renderHumanSummaryView(typeGroups, topFiles, topLimit) {
-	printTerminal(styleText("bold", "\n--- 📊 RESUMEN DE AUDITORÍA DE CÓDIGO ---"));
-	printTerminal("\nPor tipo de regla:");
+	printTerminal(styleText("bold", "\n--- 📊 CODE AUDIT SUMMARY ---"));
+	printTerminal("\nBy rule category:");
 	Object.entries(typeGroups).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
 		printTerminal(`  - ${cat}: ${count}`);
 	});
-	printTerminal(`\nTop ${topLimit} archivos con más problemas:`);
+	printTerminal(`\nTop ${topLimit} files with most issues:`);
 	topFiles.forEach((f) => {
-		printTerminal(`  - ${f.file}: ${f.total} violaciones (${f.errors} ❌, ${f.warnings} ⚠️)`);
+		printTerminal(`  - ${f.file}: ${f.total} violations (${f.errors} ❌, ${f.warnings} ⚠️)`);
 	});
 }
 function renderHumanFileViolations(file, violations) {
 	const fileErrors = violations.filter((v) => v.severity === "error").length;
 	const fileWarns = violations.filter((v) => v.severity === "warning").length;
-	printTerminal(`\n📁 ${styleText("bold", file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`);
+	printTerminal(`\n📁 ${styleText("bold", file)} (${violations.length} notices: ${fileErrors} ❌, ${fileWarns} ⚠️)`);
 	for (const v of violations.slice(0, MAX_VIOLATIONS_PER_FILE_IN_TERMINAL)) {
 		const icon = v.severity === "error" ? "❌ ERROR" : "⚠️ WARN ";
 		const color = v.severity === "error" ? "red" : "yellow";
@@ -537,25 +537,25 @@ function renderHumanFileViolations(file, violations) {
 		const snippetStr = snippet ? ` ("${snippet}")` : "";
 		printTerminal(`  ${lineStr} ${styleText(color, icon)} [${getViolationCategory(v)}] ${v.message}${snippetStr}`);
 	}
-	if (violations.length > MAX_VIOLATIONS_PER_FILE_IN_TERMINAL) printTerminal(styleText("cyan", `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`));
+	if (violations.length > MAX_VIOLATIONS_PER_FILE_IN_TERMINAL) printTerminal(styleText("cyan", `  ... and ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} more notice(s) in this file.`));
 }
 function renderHumanDetailView(fileGroups) {
-	printTerminal(styleText("bold", "\n--- 🔎 DETALLE DE VIOLACIONES POR ARCHIVO ---"));
+	printTerminal(styleText("bold", "\n--- 🔎 VIOLATIONS DETAIL BY FILE ---"));
 	const entries = Object.entries(fileGroups);
 	const filesToShow = entries.slice(0, MAX_FILES_TO_SHOW_IN_TERMINAL);
 	for (const [file, violations] of filesToShow) renderHumanFileViolations(file, violations);
 	if (entries.length > MAX_FILES_TO_SHOW_IN_TERMINAL) {
-		printTerminal(styleText("cyan", `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`));
-		printTerminal(styleText("cyan", `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`));
+		printTerminal(styleText("cyan", `\n[INFO] Showing ${MAX_FILES_TO_SHOW_IN_TERMINAL} of ${entries.length} files with findings to prevent terminal saturation.`));
+		printTerminal(styleText("cyan", `👉 Use "npm run auditor:errors" to filter only errors or consult scratch/audits/latest_audit.json for complete output.`));
 	}
 }
 function renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount, warningsCount, topLimit, values, archJsonPath) {
 	if (values.summary) renderHumanSummaryView(typeGroups, topFiles, topLimit);
 	else renderHumanDetailView(fileGroups);
 	printTerminal(styleText("bold", "\n======================================================"));
-	printTerminal(`📊 TOTAL: ${errorsCount === 0 ? styleText("green", "0 Errores") : styleText("red", `${errorsCount} Errores`)} | ${styleText("yellow", `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`);
+	printTerminal(`📊 TOTAL: ${errorsCount === 0 ? styleText("green", "0 Errors") : styleText("red", `${errorsCount} Errors`)} | ${styleText("yellow", `${warningsCount} Warnings`)} | ${Object.keys(fileGroups).length} Files`);
 	printTerminal("======================================================");
-	printTerminal(styleText("dim", `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`));
+	printTerminal(styleText("dim", `💾 Detailed report saved to: ${path.relative(process.cwd(), archJsonPath)}\n`));
 }
 async function exportProjectReportOutput(values, jsonReport, all, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, logProgress) {
 	if (!values.output) return;
@@ -698,21 +698,21 @@ function getProjectArchitectureRuleDescriptions() {
 }
 function getProjectArchitectureRuleRemediations() {
 	return {
-		viewport: "Configura o respeta las etiquetas de viewport estándar y responsive.",
-		hardcodedTimezone: "Evita zonas horarias hardcodeadas; utiliza la configuración regional canónica.",
-		nodePrefix: "Usa el prefijo \"node:\" al importar módulos nativos (ej. \"node:fs\", \"node:path\").",
-		esmExtensions: "Asegura extensiones explícitas (.ts, .js) en imports relativos bajo ESM.",
-		timersPromises: "Usa \"node:timers/promises\" (setTimeout) en lugar de callbacks para esperas asíncronas.",
-		explicitResource: "Gestiona recursos y handles explícitamente cerrando descriptores de archivo o conexiones.",
-		zeroTimerLogic: "Evita setTimeout(..., 0) en lógica de UI; usa la API de animación o nextTick() canónico.",
-		jsonStringifyInWatch: "Evita JSON.stringify en watchers reactivos de Vue para no degradar el rendimiento.",
-		intersectionObserverRoot: "Provee un contenedor raíz explícito en observadores de intersección.",
-		functionCallsInTemplates: "Evita invocar funciones pesadas directamente en plantillas de Vue; usa computeds.",
-		forbiddenFallbacks: "Elimina fallbacks no autorizados y propaga errores de forma determinista.",
-		noDomainIdFallbacks: "No asignes IDs ficticios o fallbacks vacíos a entidades del dominio.",
-		noInlineTypeImports: "Usa \"import type { ... }\" a nivel de declaración en lugar de imports inline mezclados.",
-		noRawJsonImportsOutsideData: "Centraliza la carga de JSON en capas de datos autorizadas en lugar de componentes.",
-		noSassAtImport: "Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass."
+		viewport: "Configure and respect standard responsive viewport tags.",
+		hardcodedTimezone: "Avoid hardcoded timezones; use canonical regional configuration.",
+		nodePrefix: "Use \"node:\" prefix when importing built-in modules (e.g. \"node:fs\", \"node:path\").",
+		esmExtensions: "Ensure explicit extensions (.ts, .js) in relative imports under ESM.",
+		timersPromises: "Use \"node:timers/promises\" (setTimeout) instead of callbacks for asynchronous delays.",
+		explicitResource: "Manage handles and resources explicitly by closing file descriptors or connections.",
+		zeroTimerLogic: "Avoid setTimeout(..., 0) in UI logic; use animation APIs or canonical nextTick().",
+		jsonStringifyInWatch: "Avoid JSON.stringify in reactive Vue watchers to prevent performance degradation.",
+		intersectionObserverRoot: "Provide an explicit root container for intersection observers.",
+		functionCallsInTemplates: "Avoid invoking expensive functions directly inside Vue templates; use computed properties.",
+		forbiddenFallbacks: "Remove unauthorized fallbacks and propagate errors deterministically.",
+		noDomainIdFallbacks: "Do not assign synthetic IDs or empty fallbacks to domain entities.",
+		noInlineTypeImports: "Use declaration-level \"import type { ... }\" instead of mixed inline type imports.",
+		noRawJsonImportsOutsideData: "Centralize JSON data loading in authorized data layers instead of components.",
+		noSassAtImport: "Migrate obsolete @import directives to @use or @forward in SCSS/Sass stylesheets."
 	};
 }
 function getProjectArchitectureRuleRemediationPhases() {

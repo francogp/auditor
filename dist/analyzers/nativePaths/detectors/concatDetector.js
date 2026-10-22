@@ -8,7 +8,20 @@ import ts from "typescript";
 * unsafe-path-concat: filesystem paths assembled with `+`, `+=`, template literals
 * or `[...].join(separator)` instead of `path.join()` / `path.resolve()`.
 */
-const CONCAT_MESSAGE = "Ruta construida manualmente con concatenación, template literal o '[...].join(separador)'. Usa 'path.join()' o 'path.resolve()' de 'node:path' pasando cada segmento como argumento.";
+const CONCAT_MESSAGE = "Manually constructed path via string concatenation, template literal, or '[...].join(separator)'. Use 'path.join()' or 'path.resolve()' from 'node:path' passing each segment as an argument.";
+const SEARCH_METHOD_NAMES = /* @__PURE__ */ new Set([
+	"includes",
+	"indexOf",
+	"search",
+	"startsWith",
+	"endsWith"
+]);
+const DIAGNOSTIC_TEXT_PROPS = /* @__PURE__ */ new Set([
+	"message",
+	"description",
+	"summary",
+	"title"
+]);
 function isUrlOperand(expr) {
 	const name = getExpressionName(expr);
 	return name !== void 0 && isUrlLikeName(name);
@@ -33,7 +46,7 @@ function isInsideSearchMethod(node) {
 		const callee = cur.parent.expression;
 		if (ts.isPropertyAccessExpression(callee)) {
 			const name = callee.name.text;
-			if (name === "includes" || name === "indexOf" || name === "search" || name === "startsWith" || name === "endsWith") return true;
+			if (SEARCH_METHOD_NAMES.has(name)) return true;
 		}
 	}
 	return false;
@@ -99,7 +112,7 @@ function isMessageOrErrorContext(node) {
 	while (ts.isParenthesizedExpression(parent)) parent = parent.parent;
 	if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name)) {
 		const prop = parent.name.text;
-		if (prop === "message" || prop === "description" || prop === "summary" || prop === "title") return true;
+		if (DIAGNOSTIC_TEXT_PROPS.has(prop)) return true;
 	}
 	if (ts.isNewExpression(parent) && isErrorConstructor(parent.expression)) return true;
 	return false;

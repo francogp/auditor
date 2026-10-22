@@ -28,6 +28,7 @@ import {
   type AuditEngineConfig,
   type AuditVersionTargetConfig
 } from '../core/auditConfig.ts';
+import { safeReadFileSync, safeJsonParse, tryCatchSync, tryOrNull } from '../core/safeUtils.ts';
 import { syncDocumentationVersionReferences } from '../core/markdownVersionValidator.ts';
 import { isMainModule } from './cliUtils.ts';
 import {
@@ -110,14 +111,11 @@ export const AUDITOR_BUILD_ID = '${buildId}';
 export const AUDITOR_BUILD_DATE = '${buildDate}';
 `;
 
-  try {
+  return tryOrNull(() => {
     fs.mkdirSync(path.dirname(targetVersionTs), { recursive: true });
     fs.writeFileSync(targetVersionTs, versionTsContent, 'utf-8');
     return targetVersionTs;
-  } catch {
-    // catch-ok: If versionTs cannot be written (e.g. read-only dir), package.json remains updated
-    return null;
-  }
+  });
 }
 
 function resolveNormalizedSyncTargets(
@@ -174,15 +172,16 @@ function syncJsonTarget(
   let startsWithV = false;
 
   if (fs.existsSync(targetAbsPath)) {
-    try {
-      const rawContent = fs.readFileSync(targetAbsPath, 'utf-8');
-      jsonObj = JSON.parse(rawContent) as Record<string, unknown>; // open-record: Generic parsed JSON object dictionary
-      const currentVal = jsonObj[jsonField];
-      if (typeof currentVal === 'string' && currentVal.startsWith('v')) {
-        startsWithV = true;
+    const rawContent = safeReadFileSync(targetAbsPath);
+    if (rawContent) {
+      const parsed = safeJsonParse<Record<string, unknown>>(rawContent);
+      if (parsed) {
+        jsonObj = parsed;
+        const currentVal = jsonObj[jsonField];
+        if (typeof currentVal === 'string' && currentVal.startsWith('v')) {
+          startsWithV = true;
+        }
       }
-    } catch {
-      // catch-ok: Overwrite with fresh JSON if existing was invalid
     }
   }
 
@@ -217,15 +216,15 @@ function syncAdditionalTargets(
     }
 
     const isTs = target.type === 'ts' || target.path.endsWith('.ts');
-    try {
+    const result = tryCatchSync(() => {
       if (isTs) {
         syncTsTarget(targetAbsPath, target, newVersion, buildId, buildDate);
       } else {
         syncJsonTarget(targetAbsPath, target, newVersion);
       }
+    });
+    if (result.ok) {
       syncedFiles.push(targetAbsPath);
-    } catch {
-      // catch-ok: non-fatal if target file cannot be written
     }
   }
   return syncedFiles;
@@ -275,12 +274,7 @@ export function applyVersionBump(options: ApplyBumpOptions = {}): ApplyBumpResul
   const { newVersion, resolvedBump } = resolveNextVersionAndBump(cwd, options, buildId);
 
   // Load auditConfig safely if available
-  let auditConfig: AuditEngineConfig | null = null;
-  try {
-    auditConfig = getAuditConfig(cwd);
-  } catch {
-    // catch-ok: Fallback when audit.config.ts is absent in temp directory
-  }
+  const auditConfig: AuditEngineConfig | null = tryOrNull(() => getAuditConfig(cwd));
 
   const { previousVersion, isAuditorPackage } = updatePackageJsonVersion(pkgPath, newVersion);
   const syncedVersionTs = syncAuditorVersionTs(

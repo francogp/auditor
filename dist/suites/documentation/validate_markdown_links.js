@@ -1,3 +1,4 @@
+import { tryOrDefault } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -75,21 +76,18 @@ function isExternalOrAnchorLink(rawUrl) {
 }
 function resolveLocalMarkdownTarget(docFile, rawUrl) {
 	if (isExternalOrAnchorLink(rawUrl) || path.isAbsolute(rawUrl) || path.win32.isAbsolute(rawUrl) || rawUrl.startsWith("file://")) return null;
-	const [rawPath] = rawUrl.split("#");
-	let decodedPath = rawPath ?? "";
-	try {
-		decodedPath = decodeURIComponent(decodedPath);
-	} catch {}
+	const cleanUrl = rawUrl.split(/[?#]/)[0] ?? "";
+	const decodedPath = tryOrDefault(() => decodeURIComponent(cleanUrl), cleanUrl);
 	return decodedPath.length > 0 ? path.resolve(path.dirname(docFile), decodedPath) : docFile;
 }
 function formatCandidateMatchError(resolvedRelPath, candidateMatches, sourceDir, rootDir) {
 	if (candidateMatches.length === 0) return `Target path does not exist on disk: "${resolvedRelPath}"`;
 	const suggestions = candidateMatches.map((cand) => {
 		let rel = toPosixRelative(sourceDir, cand);
-		if (!rel.startsWith(".")) rel = "./" + rel;
+		if (!rel.startsWith(".")) rel = `./${rel}`;
 		return rel;
 	});
-	return `Target path does not exist on disk: "${resolvedRelPath}", pero aparentemente fue localizado en: "${candidateMatches.map((cand) => toPosixRelative(rootDir, cand)).join(", ")}". Verifica si corresponde corregir el enlace a: "${suggestions.join("\" o \"")}"`;
+	return `Target path does not exist on disk: "${resolvedRelPath}", but was apparently located at: "${candidateMatches.map((cand) => toPosixRelative(rootDir, cand)).join(", ")}". Check if the link should be updated to: "${suggestions.join("\" or \"")}"`;
 }
 function checkTargetExistence(params) {
 	const resolvedTarget = resolveLocalMarkdownTarget(params.filePath, params.rawUrl);

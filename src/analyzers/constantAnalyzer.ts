@@ -4,10 +4,10 @@
  * Scans codebase files for duplicate constant declarations across modules using TypeScript AST.
  */
 
-import fs from 'node:fs/promises';
 import path from 'node:path';
 import ts from 'typescript';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
+import { safeReadFileAsync } from '../core/safeUtils.ts';
 import { SharedAstContext } from '../core/astContext.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
 import { isPathContained, toPosixRelative } from '../core/safePath.ts';
@@ -234,12 +234,8 @@ async function collectFileConstants(
   effectiveIgnored: ReadonlySet<string>,
   declarations: Map<string, ConstDecl[]>
 ): Promise<void> {
-  let content: string;
-  try {
-    content = await fs.readFile(filePath, 'utf-8');
-  } catch {
-    return;
-  }
+  const content = await safeReadFileAsync(filePath);
+  if (!content) return;
 
   // Fast string pre-filter to skip files with no const declarations
   if (!content.includes('const ')) return;
@@ -261,15 +257,9 @@ async function getCachedFileContent(
 ): Promise<string> {
   const cached = fileContentCache.get(filePath);
   if (cached !== undefined) return cached;
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    fileContentCache.set(filePath, content);
-    return content;
-  } catch {
-    // catch-ok: optional file read for import cross-check
-    fileContentCache.set(filePath, '');
-    return '';
-  }
+  const content = (await safeReadFileAsync(filePath)) ?? '';
+  fileContentCache.set(filePath, content);
+  return content;
 }
 
 async function checkIsCrossImported(

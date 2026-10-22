@@ -353,7 +353,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       expect(violations[0]?.message).toContain('learning_proposal.md?');
     });
 
-    it('honors line escape hatch <!-- mermaid-ok -->', async () => {
+    it('flags unquoted special characters regardless of <!-- mermaid-ok --> comment (Zero-Ignore Mandate)', async () => {
       const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
       const content = [
         '# Document',
@@ -364,7 +364,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       ].join('\n');
 
       await auditor.testScanFile('docs/spec.md', content);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations).toHaveLength(1);
     });
   });
 

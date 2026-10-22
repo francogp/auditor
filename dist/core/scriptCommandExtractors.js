@@ -1,3 +1,6 @@
+import { safeJsonParse } from "./safeUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
+import "./safePath.js";
 import { NPM_RUN_REGEX, NPX_REGEX, cleanTarget, extractCommandsFromLine, isPlaceholder } from "./npmCommandUtils.js";
 import path from "node:path";
 import ts from "typescript";
@@ -79,7 +82,12 @@ function inspectNpxFamilyTokens(words, lineNum, rawText, out) {
 	pushCleanCommand(words[idx], "npx", lineNum, rawText, out);
 }
 function inspectCommandTokens(bin, words, lineNum, rawText, out) {
-	if (bin === "npm" || bin === "pnpm" || bin === "bun" || bin === "yarn") {
+	if ((/* @__PURE__ */ new Set([
+		"npm",
+		"pnpm",
+		"bun",
+		"yarn"
+	])).has(bin)) {
 		inspectNpmFamilyTokens(bin, words, lineNum, rawText, out);
 		return;
 	}
@@ -177,13 +185,11 @@ function extractCommandsFromYaml(content) {
 }
 function parseExecJsonRun(body, startLine, rawLines, out) {
 	if (!body.startsWith("[") || !body.endsWith("]")) return false;
-	try {
-		const parsed = JSON.parse(body);
-		if (Array.isArray(parsed) && parsed.length > 0) {
-			inspectCommandTokens(String(parsed[0]), parsed.slice(1).map(String), startLine, rawLines[startLine - 1]?.trim() || body, out);
-			return true;
-		}
-	} catch {}
+	const parsed = safeJsonParse(body);
+	if (Array.isArray(parsed) && parsed.length > 0) {
+		inspectCommandTokens(String(parsed[0]), parsed.slice(1).map(String), startLine, rawLines[startLine - 1]?.trim() || body, out);
+		return true;
+	}
 	return false;
 }
 function parseHeredocRun(lines, idx, body, out) {
@@ -336,7 +342,12 @@ function isConsoleCall(node) {
 	if (ts.isPropertyAccessExpression(expr)) {
 		if (ts.isIdentifier(expr.expression) && expr.expression.text === "console") {
 			const method = expr.name.text;
-			return method === "log" || method === "info" || method === "warn" || method === "error";
+			return (/* @__PURE__ */ new Set([
+				"log",
+				"info",
+				"warn",
+				"error"
+			])).has(method);
 		}
 	}
 	return false;
@@ -384,7 +395,12 @@ function extractCommandsFromTypeScript(content, filePath) {
 		if (ts.isCallExpression(node)) {
 			const callee = getCalleeName(node.expression);
 			if (callee && PROCESS_RUNNER_NAMES.has(callee) && node.arguments.length > 0) {
-				if (callee === "spawn" || callee === "spawnSync" || callee === "execFile" || callee === "execFileSync") handleSpawnCall(node, sf, rawLines, commands);
+				if ((/* @__PURE__ */ new Set([
+					"spawn",
+					"spawnSync",
+					"execFile",
+					"execFileSync"
+				])).has(callee)) handleSpawnCall(node, sf, rawLines, commands);
 				else handleExecCall(node, sf, rawLines, commands);
 			} else if (isConsoleCall(node)) {
 				handleHelpOrDiagnosticLogs(node, sf, rawLines, commands);
@@ -404,7 +420,15 @@ function extractCommandsFromTypeScript(content, filePath) {
 }
 function stripComments(line, ext) {
 	const lowerExt = ext.toLowerCase();
-	if (lowerExt === ".sh" || lowerExt === ".bash" || lowerExt === ".zsh" || lowerExt === ".ps1" || lowerExt === ".yml" || lowerExt === ".yaml" || lowerExt.includes("dockerfile") || lowerExt === "containerfile") {
+	if ((/* @__PURE__ */ new Set([
+		".sh",
+		".bash",
+		".zsh",
+		".ps1",
+		".yml",
+		".yaml",
+		"containerfile"
+	])).has(lowerExt) || lowerExt.includes("dockerfile")) {
 		const hashIndex = line.indexOf("#");
 		if (hashIndex !== -1) return line.slice(0, hashIndex);
 		return line;
@@ -439,7 +463,7 @@ function extractCommandsLexically(content, ext) {
 * dispatching to the appropriate AST or structured parser based on file type.
 */
 function extractScriptCommands(content, filePath) {
-	const normPath = filePath.split(path.sep).join(path.posix.sep);
+	const normPath = normalizePosixPath(filePath);
 	const ext = path.extname(normPath).toLowerCase();
 	const baseName = path.basename(normPath).toLowerCase();
 	if (baseName === "dockerfile" || baseName.startsWith("dockerfile.") || baseName === "containerfile" || normPath.endsWith(".dockerfile")) return extractCommandsFromDockerfile(content);

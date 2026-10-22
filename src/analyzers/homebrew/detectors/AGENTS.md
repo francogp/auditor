@@ -9,7 +9,7 @@ Architecture & Tooling Engineers.
 ## Local Contracts
 
 - **Single Responsibility Detectors**: Each detector implements `HomebrewDetector` targeting a single rule ID.
-- **Escape Hatch Support**: Detectors must respect both inline (`// homebrew-ok:`, `// console-ok:`) and previous-line annotations.
+- **Zero-Escape Mandate**: No bypass comments or escape hatches are accepted; detectors flag homebrew patterns deterministically.
 - **Pure Heuristics**: Detectors analyze provided lines and context without performing disk I/O.
 
 ## Key Files

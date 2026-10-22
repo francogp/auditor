@@ -30,7 +30,10 @@ import {
 } from '../pathHeuristics.ts';
 
 const CONCAT_MESSAGE =
-  "Ruta construida manualmente con concatenación, template literal o '[...].join(separador)'. Usa 'path.join()' o 'path.resolve()' de 'node:path' pasando cada segmento como argumento.";
+  "Manually constructed path via string concatenation, template literal, or '[...].join(separator)'. Use 'path.join()' or 'path.resolve()' from 'node:path' passing each segment as an argument.";
+
+const SEARCH_METHOD_NAMES: ReadonlySet<string> = new Set(['includes', 'indexOf', 'search', 'startsWith', 'endsWith']);
+const DIAGNOSTIC_TEXT_PROPS: ReadonlySet<string> = new Set(['message', 'description', 'summary', 'title']);
 
 function isUrlOperand(expr: ts.Expression): boolean {
   const name = getExpressionName(expr);
@@ -76,8 +79,7 @@ function isInsideSearchMethod(node: ts.Node): boolean {
     const callee = cur.parent.expression;
     if (ts.isPropertyAccessExpression(callee)) {
       const name = callee.name.text;
-      // domain-ok: AST method names inspection
-      if (name === 'includes' || name === 'indexOf' || name === 'search' || name === 'startsWith' || name === 'endsWith') {
+      if (SEARCH_METHOD_NAMES.has(name)) {
         return true;
       }
     }
@@ -163,8 +165,7 @@ function isMessageOrErrorContext(node: ts.Node): boolean {
   while (ts.isParenthesizedExpression(parent)) parent = parent.parent;
   if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name)) {
     const prop = parent.name.text;
-    // domain-ok: Diagnostic text properties
-    if (prop === 'message' || prop === 'description' || prop === 'summary' || prop === 'title') {
+    if (DIAGNOSTIC_TEXT_PROPS.has(prop)) {
       return true;
     }
   }

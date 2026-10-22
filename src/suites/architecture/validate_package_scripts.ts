@@ -483,19 +483,19 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
   }
 
   private isObsoleteAuditorScript(name: string, command: string): boolean {
-    // domain-ok: Obsolete legacy script names
-    if (
-      name === 'audit' ||
-      name === 'init-agent' ||
-      name === 'sync:env' ||
-      name === 'env:setup' ||
-      name === 'env:check' ||
-      name === 'audit:family:documentation' ||
-      name === 'auditor:sync-env' ||
-      name === 'auditor:precommit' ||
-      name === 'auditor:build' ||
-      name === 'build:prod'
-    ) {
+    const obsoleteScriptNames: ReadonlySet<string> = new Set([
+      'audit',
+      'init-agent',
+      'sync:env',
+      'env:setup',
+      'env:check',
+      'audit:family:documentation',
+      'auditor:sync-env',
+      'auditor:precommit',
+      'auditor:build',
+      'build:prod'
+    ]);
+    if (obsoleteScriptNames.has(name)) {
       return true;
     }
     if (name.startsWith('audit:')) {
@@ -587,13 +587,12 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     if (!isSelfPackage) return command;
 
     if (command === 'auditor' || command.startsWith('auditor ')) {
-      // no-domain: Runtime CLI permission flags derived from canonical engine baseline
-      const basePerms = [
+      const basePermFlags = [
         '--disable-warning=PERM0002',
         ...DEFAULT_PERMISSIONS.filter((p) => p !== '--allow-addons')
       ];
       const extraPerms = req.permissions ?? [];
-      const flags = Array.from(new Set([...basePerms, ...extraPerms])).join(' ');
+      const flags = Array.from(new Set([...basePermFlags, ...extraPerms])).join(' ');
       const runner = `node ${flags} src/cli/audit_full.ts`;
       if (command === 'auditor') return runner;
       return `${runner} ${command.slice('auditor '.length)}`;

@@ -14,7 +14,7 @@ const inefficientFileScanDetector = {
 			const lineNum = i + 1;
 			if (trimmed.startsWith("//") || trimmed.startsWith("/*") || trimmed.startsWith("*")) continue;
 			const isConfigObjectPattern = /^\s*files\s*:\s*\[/.test(trimmed) || line.includes("overrideConfig");
-			if (/['"]\*\*\/\*\.(?:md|vue|html|ts|js)['"]/.test(trimmed) && !isConfigObjectPattern && !line.includes("// glob-ok:") && !line.includes("coverage") && !line.includes("include:") && !line.includes("targetArgs") && !context.filePath.includes("inefficientFileScanDetector")) findings.push({
+			if (/['"]\*\*\/\*\.(?:md|vue|html|ts|js)['"]/.test(trimmed) && !isConfigObjectPattern && !line.includes("coverage") && !line.includes("include:") && !line.includes("targetArgs") && !context.filePath.includes("inefficientFileScanDetector")) findings.push({
 				ruleId: "auditor-inefficient-file-scan",
 				line: lineNum,
 				message: "Blind global wildcard ('**/*.ext') detected in external tool call. Pass files discovered by auditor or use scoped targetArgs.",
@@ -30,7 +30,7 @@ const inefficientFileScanDetector = {
 					if (char === "{") ruleLoopBraceDepth++;
 					if (char === "}") ruleLoopBraceDepth--;
 				}
-				if (/for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(line) && !line.includes("// nesting-ok:")) findings.push({
+				if (/for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(line)) findings.push({
 					ruleId: "auditor-inefficient-file-scan",
 					line: lineNum,
 					message: "Nested loop of rule over files detected. Invert the loop (traverse each file once in RAM) or use 'this.scanFilesSinglePass()'.",

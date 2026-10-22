@@ -1,3 +1,6 @@
+import { tryCatchSync } from "./safeUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
+import "./safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -75,9 +78,9 @@ var SharedAstContext = class {
 	* Batch pre-parses and caches an array of files into the AST repository.
 	*/
 	preParseFiles(filePaths) {
-		for (const file of filePaths) try {
+		for (const file of filePaths) tryCatchSync(() => {
 			this.getSourceFile(file);
-		} catch {}
+		});
 	}
 	/**
 	* Returns the count of unique AST SourceFiles currently in memory cache.
@@ -93,8 +96,21 @@ var SharedAstContext = class {
 		this.extractedScripts.clear();
 	}
 	normalizePath(p) {
-		return path.resolve(p).split(path.sep).join(path.posix.sep);
+		return normalizePosixPath(p);
 	}
 };
+/**
+* Creates a synthetic, empty ts.SourceFile for use with ts.Printer when printing generated AST nodes.
+*/
+function createSyntheticSourceFile(fileName = "synthetic.ts") {
+	return ts.createSourceFile(fileName, "", ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+}
+/**
+* Helper to print an AST node using a synthetic source file.
+*/
+function printAstNode(node, printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed }), hint = ts.EmitHint.Unspecified) {
+	const dummy = createSyntheticSourceFile();
+	return printer.printNode(hint, node, dummy);
+}
 //#endregion
-export { SharedAstContext };
+export { SharedAstContext, createSyntheticSourceFile, printAstNode };

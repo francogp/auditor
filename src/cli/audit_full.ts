@@ -61,7 +61,7 @@ import {
   COVERAGE_EXPECTED_SUITES_ENV
 } from '../core/auditCoverage.ts';
 import {
-  getVisualWidth,
+  stringWidth,
   renderBanner,
   renderConsolidatedFooter,
   renderMarkdownReport,
@@ -98,6 +98,7 @@ import {
   isNodeInternalWarning,
   TaskStreamCoordinator
 } from '../core/streamingRunner.ts';
+import { safeJsonParse, safeRmSync, safeReadFileAsync } from '../core/safeUtils.ts';
 import {
   renderExecutivePassSummary,
   renderExecutiveFailSummary,
@@ -252,15 +253,20 @@ export function resolveTargetPreset(
   return undefined;
 }
 
+const AUDIT_SPEED_NAMES: ReadonlySet<string> = new Set(['light', 'heavy', 'full']);
+const AUDIT_PHASE_NAMES: ReadonlySet<string> = new Set(['setup', 'normal', 'post-run', 'post-build']);
+
 function parseSpeedValue(raw: unknown): AuditExecutionSpeed | undefined {
-  // domain-ok: Execution speed tiers
-  if (raw === 'light' || raw === 'heavy' || raw === 'full') return raw;
+  if (typeof raw === 'string' && AUDIT_SPEED_NAMES.has(raw)) {
+    return raw as AuditExecutionSpeed;
+  }
   return undefined;
 }
 
 function parsePhaseValue(raw: unknown): AuditExecutionPhase | undefined {
-  // domain-ok: Execution phases
-  if (raw === 'setup' || raw === 'normal' || raw === 'post-run' || raw === 'post-build') return raw;
+  if (typeof raw === 'string' && AUDIT_PHASE_NAMES.has(raw)) {
+    return raw as AuditExecutionPhase;
+  }
   return undefined;
 }
 
@@ -447,8 +453,10 @@ async function executeTaskInProcess(
       result.durationMs = durationMs;
       return { result, durationMs };
     }
-  } catch {
-    // catch-ok: Fallback to streaming execution if in-process execution fails
+  } catch (err: unknown) {
+    if (process.env.DEBUG === 'true') {
+      console.warn(`[AuditFull] in-process execution failed for ${task.id}: ${(err as Error).message}`);
+    }
   }
   return null;
 }
@@ -458,31 +466,29 @@ async function tryReadTaskResult(
   stdout: string,
   durationMs: number
 ): Promise<StandardAuditResult | null> {
-  try {
-    const fileContent = await fs.readFile(taskJsonPath, 'utf-8');
-    const parsed = JSON.parse(fileContent) as StandardAuditResult;
-    if (parsed.durationMs === undefined || parsed.durationMs === 0) {
-      parsed.durationMs = durationMs;
+  const fileContent = await safeReadFileAsync(taskJsonPath);
+  if (fileContent) {
+    const parsed = safeJsonParse<StandardAuditResult>(fileContent);
+    if (parsed) {
+      if (parsed.durationMs === undefined || parsed.durationMs === 0) {
+        parsed.durationMs = durationMs;
+      }
+      return parsed;
     }
-    return parsed;
-  } catch {
-    // catch-ok: fallback to parsing JSON from stdout
   }
 
   if (stdout) {
-    try {
-      const raw = stdout.trim();
-      const firstBrace = raw.indexOf('{');
-      const lastBrace = raw.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        const parsed = JSON.parse(raw.substring(firstBrace, lastBrace + 1)) as StandardAuditResult;
+    const raw = stdout.trim();
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      const parsed = safeJsonParse<StandardAuditResult>(raw.substring(firstBrace, lastBrace + 1));
+      if (parsed) {
         if (parsed.durationMs === undefined || parsed.durationMs === 0) {
           parsed.durationMs = durationMs;
         }
         return parsed;
       }
-    } catch {
-      // catch-ok: stdout does not contain valid JSON payload
     }
   }
 
@@ -1131,12 +1137,7 @@ export interface FixableCountsResult {
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
 // wrapper-ok: facade delegator exported for orchestrator consumers
-export function computeFixableViolations(
-  results: readonly StandardAuditResult[],
-  isFixMode: boolean
-): FixableCountsResult {
-  return BaseAuditor.computeFixableViolations(results, isFixMode);
-}
+export const computeFixableViolations = BaseAuditor.computeFixableViolations;
 
 interface PersistAuditReportsParams {
   readonly scratchAuditsDir: string;
@@ -1290,12 +1291,13 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   const tieredGroups = computeTieredAuditCategoryCounts(displayResults);
 
   const setupFindings = setupResults.flatMap((r) => r.findings ?? []);
-  const hasLockfileMismatch = setupFindings.some(
-    (f) =>
-      // domain-ok: Critical setup rules
-      f.ruleId === 'package-lockfile-integrity' ||
-      f.ruleId === 'dependency-below-minimum-installed' ||
-      f.ruleId === 'dependency-exceeds-maximum-installed'
+  const lockfileMismatchRules: ReadonlySet<string> = new Set([
+    'package-lockfile-integrity',
+    'dependency-below-minimum-installed',
+    'dependency-exceeds-maximum-installed'
+  ]);
+  const hasLockfileMismatch = setupFindings.some((f) =>
+    Boolean(f.ruleId && lockfileMismatchRules.has(f.ruleId))
   );
   const hasEngineMismatch = setupFindings.some(
     (f) =>
@@ -1780,15 +1782,24 @@ function handleIntrospectionCommands(
   return false;
 }
 
-// boolean-trap-ok: CLI master banner formatting params
-export function createAuditBannerDetails(
-  cliOptions: AuditFullCliOptions,
-  isFixMode: boolean,
-  isBuildMode: boolean,
-  tasksCount: number,
-  allAvailableCount: number,
-  omittedCount: number
-): string[] {
+export interface CreateAuditBannerDetailsOptions {
+  readonly cliOptions: AuditFullCliOptions;
+  readonly isFixMode?: boolean;
+  readonly isBuildMode?: boolean;
+  readonly tasksCount: number;
+  readonly allAvailableCount: number;
+  readonly omittedCount?: number;
+}
+
+export function createAuditBannerDetails(options: CreateAuditBannerDetailsOptions): string[] {
+  const {
+    cliOptions,
+    isFixMode = false,
+    isBuildMode = false,
+    tasksCount,
+    allAvailableCount,
+    omittedCount = 0
+  } = options;
   const subtitleDetails: string[] = [
     `v${AUDITOR_VERSION}`,
     isFixMode
@@ -1837,7 +1848,7 @@ export function formatSubtitleDetails(
 
   for (const item of details) {
     const candidate = currentLine ? `${currentLine}  |  ${item}` : item;
-    if (getVisualWidth(candidate) <= maxLineWidth) {
+    if (stringWidth(candidate) <= maxLineWidth) {
       currentLine = candidate;
     } else {
       if (currentLine) {
@@ -1880,11 +1891,7 @@ async function runTaskExecution(
   }
 
   const taskJsonPath = path.join(ctx.scratchAuditsDir, task.family, `${task.id}.json`);
-  try {
-    await fs.rm(taskJsonPath, { force: true });
-  } catch {
-    // catch-ok: ignore if stale task json does not exist
-  }
+  safeRmSync(taskJsonPath);
 
   const proc = await executeAuditorStreaming(task, taskArgs, (subLine) => subLines.push(subLine));
   const parsed = await parseSubprocessOutput(task, proc, ctx.scratchAuditsDir);
@@ -1976,12 +1983,10 @@ async function checkEarlyCliCommands(): Promise<void> {
     console.log(`@francogp/auditor v${AUDITOR_VERSION}`);
     process.exit(0);
   }
-  // domain-ok: Dependencies CLI flag aliases
-  if (cliTokens.some((a) => a === 'dependencies' || a === 'deps' || a === '--dependencies')) {
+  const dependencyTokens: ReadonlySet<string> = new Set(['dependencies', 'deps', '--dependencies']);
+  if (cliTokens.some((a) => dependencyTokens.has(a))) {
     const { runDependenciesReport, parseCliArgs } = await import('./report_dependencies.ts');
-    const filtered = cliTokens.filter(
-      (a) => a !== 'dependencies' && a !== 'deps' && a !== '--dependencies'
-    );
+    const filtered = cliTokens.filter((a) => !dependencyTokens.has(a));
     const options = parseCliArgs(filtered);
     const report = runDependenciesReport(process.cwd(), options);
     const exitCode =
@@ -2026,27 +2031,38 @@ async function setupCoverageRunEnvironment(
   await fs.mkdir(coverageLedgerDir, { recursive: true });
 }
 
-// boolean-trap-ok: CLI master banner formatting params
-function displayMasterBanner(
-  config: AuditEngineConfig,
-  cliOptions: AuditFullCliOptions,
-  isFixMode: boolean,
-  isBuildMode: boolean,
-  tasksToRun: readonly AuditTaskDefinition[],
-  allAvailableTasks: readonly AuditTaskDefinition[],
-  omittedSuiteIds: readonly string[]
-): void {
-  if (cliOptions.consoleMode === 'compact') {
-    return;
-  }
-  const subtitleDetails = createAuditBannerDetails(
+interface DisplayMasterBannerOptions {
+  readonly config: AuditEngineConfig;
+  readonly cliOptions: AuditFullCliOptions;
+  readonly isFixMode: boolean;
+  readonly isBuildMode: boolean;
+  readonly tasksToRun: readonly AuditTaskDefinition[];
+  readonly allAvailableTasks: readonly AuditTaskDefinition[];
+  readonly omittedSuiteIds: readonly string[];
+}
+
+function displayMasterBanner(options: DisplayMasterBannerOptions): void {
+  const {
+    config,
     cliOptions,
     isFixMode,
     isBuildMode,
-    tasksToRun.length,
-    allAvailableTasks.length,
-    omittedSuiteIds.length
-  );
+    tasksToRun,
+    allAvailableTasks,
+    omittedSuiteIds
+  } = options;
+
+  if (cliOptions.consoleMode === 'compact') {
+    return;
+  }
+  const subtitleDetails = createAuditBannerDetails({
+    cliOptions,
+    isFixMode,
+    isBuildMode,
+    tasksCount: tasksToRun.length,
+    allAvailableCount: allAvailableTasks.length,
+    omittedCount: omittedSuiteIds.length
+  });
 
   let bannerTitle = config.name
     ? `${config.name.toUpperCase()} - GLOBAL AUDIT & VALIDATION SUITE`
@@ -2057,7 +2073,7 @@ function displayMasterBanner(
     bannerTitle = '[ 🏗️ POST-BUILD / COMPILED ARTIFACTS MODE ]';
   } else if (cliOptions.targetPreset === 'critical') {
     bannerTitle = '[ 🚨 EXCLUSIVE CRITICAL MODE ]';
-  } else if (config.name && getVisualWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
+  } else if (config.name && stringWidth(bannerTitle) > MAX_BANNER_SUBTITLE_WIDTH) {
     bannerTitle = `${config.name.toUpperCase()}\nGLOBAL AUDIT & VALIDATION SUITE`;
   }
   const formattedSubtitle = formatSubtitleDetails(subtitleDetails);
@@ -2251,7 +2267,7 @@ export async function runMasterAudit(): Promise<void> {
   const postRunTasks = tasksToRun.filter((t) => t.capabilities?.phase === 'post-run');
 
   await setupCoverageRunEnvironment(runMode, workerTasks);
-  displayMasterBanner(
+  displayMasterBanner({
     config,
     cliOptions,
     isFixMode,
@@ -2259,7 +2275,7 @@ export async function runMasterAudit(): Promise<void> {
     tasksToRun,
     allAvailableTasks,
     omittedSuiteIds
-  );
+  });
 
   if (tasksToRun.length === 0) {
     console.log(

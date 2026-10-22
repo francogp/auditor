@@ -19,6 +19,8 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
+import { tryOrNull, safeRmSync } from '../../core/safeUtils.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -41,7 +43,7 @@ function createFindingFromMatch(groups: Record<string, string>, cwd: string): Au
   const msg = groups.msg ?? 'TypeScript compiler error';
 
   const resolvedPath = path.isAbsolute(rawFile) ? path.relative(cwd, rawFile) : rawFile;
-  const cleanFile = resolvedPath.split(path.sep).join(path.posix.sep);
+  const cleanFile = normalizePosixPath(resolvedPath);
 
   return {
     suiteId: 'validate_type_check',
@@ -92,15 +94,11 @@ export function parseTypeScriptDiagnostics(
 }
 
 function recordTsConfigFiles(projectRoot: string, recordScanned: (p: string) => void): void {
-  try {
-    const rootFiles = fsSync.readdirSync(projectRoot);
-    for (const f of rootFiles) {
-      if (f.startsWith('tsconfig') && f.endsWith('.json')) {
-        recordScanned(path.join(projectRoot, f));
-      }
+  const rootFiles = tryOrNull(() => fsSync.readdirSync(projectRoot)) ?? [];
+  for (const f of rootFiles) {
+    if (f.startsWith('tsconfig') && f.endsWith('.json')) {
+      recordScanned(path.join(projectRoot, f));
     }
-  } catch {
-    // catch-ok: ignore unreadable project root
   }
 }
 
@@ -214,17 +212,9 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
     });
 
     if (resolvedArgs.includes('--incremental')) {
-      try {
-        fsSync.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true });
-      } catch {
-        // catch-ok: ignore directory creation failures
-      }
+      tryOrNull(() => fsSync.mkdirSync(path.dirname(tsBuildInfoPath), { recursive: true }));
     } else if (fsSync.existsSync(tsBuildInfoPath)) {
-      try {
-        fsSync.unlinkSync(tsBuildInfoPath);
-      } catch {
-        // catch-ok: ignore failure deleting stale tsbuildinfo
-      }
+      safeRmSync(tsBuildInfoPath, { force: true });
     }
 
     const proc = spawnSync(cmd, resolvedArgs, {
@@ -239,8 +229,8 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
 
     if (findings.length === 0 && (proc.error || proc.status !== 0)) {
       throw new Error(
-        `[validate_type_check] El compilador terminó con estado ${String(proc.status)} pero no se pudo interpretar ningún diagnóstico (falso verde evitado). ` +
-          `Salida: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ''}`
+        `[validate_type_check] The compiler exited with status ${String(proc.status)} but no diagnostics could be parsed (false-pass prevented). ` +
+          `Output: ${combinedOutput.trim().slice(0, 500)}${proc.error ? ` | error: ${proc.error.message}` : ''}`
       );
     }
 

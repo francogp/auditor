@@ -3,7 +3,9 @@ import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, RemediationPhaseId, Remediat
 //#region src/core/auditContract.d.ts
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "performance", "security", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
-export type AuditFamily = BuiltinAuditFamily | (string & {});
+export type AuditFamily = BuiltinAuditFamily | (string & {
+  readonly __brand?: 'AuditFamily';
+});
 export interface FamilyMetadata {
   key: string;
   title: string;
@@ -540,5 +542,72 @@ export interface FixableViolationsSummary {
  * Respects the Post-Fix Invariant: when isFixMode is true, fixableErrors is strictly 0.
  */
 export declare function computeResultsFixableViolations(results: readonly StandardAuditResult[], isFixMode?: boolean): FixableViolationsSummary;
+/**
+ * Nominal branding helper for compile-time domain safety.
+ */
+export type Brand<T, B extends string> = T & {
+  readonly __brand: B;
+};
+/**
+ * Open, human-readable display text, UI labels, narratives, or user-facing strings.
+ * Use instead of raw `string` in component props, UI interfaces, and message models.
+ */
+export type DisplayText = Brand<string, 'DisplayText'>;
+/**
+ * Localized multi-language string dictionary or translated message token.
+ */
+export type LocalizedText = Brand<string, 'LocalizedText'>;
+/**
+ * Strict CSS hexadecimal color code string (e.g. '#fff', '#1e293b', '#38bdf880').
+ */
+export type HexColor = Brand<string, 'HexColor'>;
+/**
+ * Static asset relative URI, public URL, or SVG icon identifier.
+ */
+export type AssetUri = Brand<string, 'AssetUri'>;
+/**
+ * ISO 8601 extended date-time string (e.g. '2026-10-21T18:30:00.000Z').
+ */
+export type IsoDateString = Brand<string, 'IsoDateString'>;
+/**
+ * CSS class name, BEM block/element/modifier token, or Tailwind/scoped style token.
+ */
+export type CssClassName = Brand<string, 'CssClassName'>;
+/**
+ * DOM element identifier string or testing locator selector ID (e.g. 'submit-btn').
+ */
+export type DomElementId = Brand<string, 'DomElementId'>;
+/**
+ * Canonical RFC 4122 UUID string (e.g. user IDs, session IDs, database records).
+ */
+export type UserUuid = Brand<string, 'UserUuid'>;
+/**
+ * JSON primitive scalar values.
+ */
+export type JsonPrimitive = string | number | boolean | null;
+/**
+ * Recursive JSON value representation.
+ */
+export type JsonValue = JsonPrimitive | JsonObject | JsonArray;
+/**
+ * Generic dynamic JSON key-value dictionary container for serialization boundaries.
+ * Use at external JSON API, file storage, or IPC boundaries instead of raw open `Record<string, unknown>`.
+ */
+export type JsonObject = {
+  [key: string]: JsonValue;
+};
+/**
+ * Generic JSON array.
+ */
+export type JsonArray = JsonValue[];
+/**
+ * Canonical operation result container for loud, explicit error handling without silent catches.
+ */
+export type OperationResult<T, E = string> = {
+  readonly ok: boolean;
+  readonly value?: T;
+  readonly error?: E;
+  readonly message?: string;
+};
 //#endregion
 export { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId };

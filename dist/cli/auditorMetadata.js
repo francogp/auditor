@@ -1,3 +1,4 @@
+import { tryCatchSync, tryOrDefault } from "../core/safeUtils.js";
 import "../core/auditContract.js";
 import { getProcessExecutedScript } from "../core/cli/cittyHarness.js";
 import { BaseAuditor, DEFAULT_AUDITOR_CAPABILITIES } from "../core/auditorBase.js";
@@ -16,7 +17,7 @@ function extractStaticMetadataFromFile(fullPath) {
 		capabilities: DEFAULT_AUDITOR_CAPABILITIES,
 		gitIgnoreEntries: []
 	};
-	try {
+	return tryOrDefault(() => {
 		const content = fs.readFileSync(fullPath, "utf-8");
 		const iconMatch = content.match(/icon\s*:\s*['"]([^'"]+)['"]/);
 		if (iconMatch?.[1]) result.icon = iconMatch[1];
@@ -27,10 +28,13 @@ function extractStaticMetadataFromFile(fullPath) {
 		if (hasLight) speeds.push("light");
 		if (hasHeavy) speeds.push("heavy");
 		if (hasFull) speeds.push("full");
+		const speed = speeds.length > 1 ? speeds : speeds[0] ?? "light";
+		const phase = content.includes("phase: 'post-build'") ? "post-build" : content.includes("phase: 'post-run'") ? "post-run" : "normal";
+		const fix = content.includes("fix: 'priority'") ? "priority" : content.includes("fix: 'normal'") ? "normal" : "none";
 		result.capabilities = {
-			speed: speeds.length > 1 ? speeds : speeds[0] ?? "light",
-			phase: content.includes("phase: 'post-build'") ? "post-build" : content.includes("phase: 'post-run'") ? "post-run" : "normal",
-			fix: content.includes("fix: 'priority'") ? "priority" : content.includes("fix: 'normal'") ? "normal" : "none",
+			speed,
+			phase,
+			fix,
 			md: content.includes("md: true"),
 			ast: content.includes("ast: true") || content.includes("requiresAst: true") || content.includes("AST_RULE_CAPABILITIES"),
 			changedOnly: content.includes("changedOnly: true"),
@@ -47,11 +51,10 @@ function extractStaticMetadataFromFile(fullPath) {
 			configKey: configKeyMatch?.[1],
 			defaultConfig: staticDefaultConfig
 		};
-	} catch {}
-	return result;
+	}, result);
 }
 function extractMetadataFromAuditorInstance(val, result) {
-	try {
+	tryCatchSync(() => {
 		const instance = new val();
 		if (instance?.capabilities && typeof instance.capabilities === "object") result.capabilities = instance.capabilities;
 		if (instance?.ruleCapabilities && typeof instance.ruleCapabilities === "object") result.ruleCapabilities = instance.ruleCapabilities;
@@ -74,7 +77,7 @@ function extractMetadataFromAuditorInstance(val, result) {
 			result.defaultConfig = instance.defaultConfig;
 		}
 		if (instance?.criticalConfig) result.criticalConfig = instance.criticalConfig;
-	} catch {}
+	});
 }
 function extractMetadataFromFunction(val, result) {
 	if (typeof val !== "function") return;

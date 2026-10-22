@@ -84,6 +84,8 @@ Architecture & Tooling Engineers.
 - **Node-Level AST Escape Hatch Evaluation (`AuditedDocument.hasEscapeHatchForNode`)**: `AuditedDocument` provides `hasEscapeHatchForNode(node, ruleId, sourceFile?)` to evaluate authorized directives across multiline AST statements and expressions. It inspects both the enclosing statement line span `[startLine - 2, endLine + 1]` across indexed comments and AST direct comment ranges (`getLeadingCommentRanges`, `getTrailingCommentRanges`), eliminating false positives on multiline constructors, generics, and callbacks.
 - **Canonical Vite+ Configuration Synchronization (`vitePlusConfigSync.ts`)**: Reconciles `vite.config.ts` from `.auditor/audit.config.ts` via TypeScript AST manipulation. It synchronizes custom lint rules, path overrides (`lint.overrides`), and automatically forwards exempted roots and globs (`coverage.acknowledgedDegradations`, `coverage.exemptGlobs`, `paths.scriptsRoots`, `paths.demoRoots`, `paths.dataRoots`, `coverage.exclude`) to `lint.ignorePatterns`.
 - **Oxlint Dual-Engine Plugin & 3-Tier Canary Verification (`domainTypeOxlintPlugin.ts`)**: Powers the `@francogp/domain-type` Oxlint JS plugin with 7 core rules (`no-record-string-key`, `no-untyped-string-set-map`, `no-naked-string-union`, `no-json-clone`, `no-redundant-spread-return`, `no-async-in-computed`, `watch-reactive-property-getter`). All rules inspect comment directives (`hasOxlintEscapeComment`) and are backed by the mandatory 3-Tier Canary Test Matrix (Active Negative Canary, Escape Hatch Canary, and Clean Positive Canary).
+- **Public API Utilities & Speculative Smell Exemption (`safeUtils.ts`, `domainCollections.ts`)**: Generic helpers exported through the public package root (`src/index.ts`) such as `tryCatchAsync`, `tryCatchSync`, and `createDomainMap` serve as foundational convenience APIs for downstream consumer host projects and external sub-auditor plugins. They are covered by dedicated unit test suites (`safe_utils.test.ts`, `domain_collections.test.ts`) and MUST NOT be removed or flagged as speculative dead code merely because their callers reside outside the internal core runtime.
+- **Coverage Degradation Auto-Fix Exclusion Policy**: Audit suites reporting unacknowledged test coverage degradations (`auditConfigDegradations.ts`, `validate_test_coverage.ts`) intentionally DO NOT provide automated code repairs (`fix: 'none'`). Coverage regressions require explicit human or test author verification; automating degradation exemptions risks concealing genuine regressions.
 
 ## Key Files
 
@@ -113,6 +115,8 @@ Architecture & Tooling Engineers.
 - [`auditedDocument.ts`](./auditedDocument.ts): Central AuditedDocument engine providing O(log N) line lookup, lexical indexing, Vue SFC blocks, and auto-fix coordination.
 - [`cli/`](./cli/AGENTS.md): Declarative Citty CLI harness and argument normalization engine.
 - [`configFileRegistry.ts`](./configFileRegistry.ts): Centralized registry for dynamic configuration file requirements and auto-fix scaffolding declared across sub-auditors and extensions.
+- [`configRatchet.ts`](./configRatchet.ts): Unidirectional online config ratchet against origin/main ensuring rules can only harden automatically, blocking relaxations without verified Antigravity user authorization.
+- [`domainCollections.ts`](./domainCollections.ts): Set and Map helpers enforcing O(1) lookups and ReadonlySet immutability.
 - [`domainTypeOxlintPlugin.ts`](./domainTypeOxlintPlugin.ts): Official Oxlint plugin for `@francogp/domain-type` architectural enforcement.
 - [`durationFormatter.ts`](./durationFormatter.ts): Universal duration formatting utilities with Spanish thousands separators, decimal comma handling, and standard space before milliseconds.
 - [`exemptionPolicies.ts`](./exemptionPolicies.ts): Standardized file classification and complexity exemption policy definitions.
@@ -131,11 +135,13 @@ Architecture & Tooling Engineers.
 - [`remediationPhases.ts`](./remediationPhases.ts): Canonical definition and metadata for the 7 strategic error remediation phases and resolution sequence.
 - [`reportUtils.ts`](./reportUtils.ts): Utilities for serializing audit results and summaries to `scratch/audits/`.
 - [`safePath.ts`](./safePath.ts): Cross-platform path normalization and traversal prevention.
+- [`safeUtils.ts`](./safeUtils.ts): Defensive execution helpers, error wrappers, and safe string utilities.
 - [`scannerUtils.ts`](./scannerUtils.ts): Lexical scanning utilities for advancing past string literals, comments, and multiline Vue SFC suppressions.
 - [`scriptCommandExtractors.ts`](./scriptCommandExtractors.ts): AST and syntax-aware command extractors for Shell, YAML workflows, Dockerfiles, PowerShell/Batch, and TypeScript scripts.
 - [`streamingRunner.ts`](./streamingRunner.ts): Streaming auditor execution engine.
 - [`suiteGating.ts`](./suiteGating.ts): Single Source of Truth for suite enablement evaluation and CLI list filter options.
 - [`terminalVisuals.ts`](./terminalVisuals.ts): Visual width calculation, text alignment, and ANSI color formatting helpers.
+- [`transcriptAuthorizationVerifier.ts`](./transcriptAuthorizationVerifier.ts): Antigravity conversation transcript verifier detecting USER_EXPLICIT relaxation authorization and model tool tampering.
 - [`testCoverageCore.ts`](./testCoverageCore.ts): Centralized Istanbul/C8 coverage analysis engine and metric calculations.
 - [`unifiedTheme.ts`](./unifiedTheme.ts): Box-Drawing terminal rendering engine.
 - [`version.ts`](./version.ts): Runtime Single Source of Truth for framework version, build ID, and timestamp metadata.

@@ -288,7 +288,18 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		return modified;
 	}
 	isObsoleteAuditorScript(name, command) {
-		if (name === "audit" || name === "init-agent" || name === "sync:env" || name === "env:setup" || name === "env:check" || name === "audit:family:documentation" || name === "auditor:sync-env" || name === "auditor:precommit" || name === "auditor:build" || name === "build:prod") return true;
+		if ((/* @__PURE__ */ new Set([
+			"audit",
+			"init-agent",
+			"sync:env",
+			"env:setup",
+			"env:check",
+			"audit:family:documentation",
+			"auditor:sync-env",
+			"auditor:precommit",
+			"auditor:build",
+			"build:prod"
+		])).has(name)) return true;
 		if (name.startsWith("audit:")) return true;
 		if (name.startsWith("validate:") && (command.includes("auditor") || command.includes("scripts/auditors") || command.includes("src/suites"))) return true;
 		return false;
@@ -344,9 +355,9 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		const command = req.command;
 		if (!isSelfPackage) return command;
 		if (command === "auditor" || command.startsWith("auditor ")) {
-			const basePerms = ["--disable-warning=PERM0002", ...DEFAULT_PERMISSIONS.filter((p) => p !== "--allow-addons")];
+			const basePermFlags = ["--disable-warning=PERM0002", ...DEFAULT_PERMISSIONS.filter((p) => p !== "--allow-addons")];
 			const extraPerms = req.permissions ?? [];
-			const runner = `node ${Array.from(/* @__PURE__ */ new Set([...basePerms, ...extraPerms])).join(" ")} src/cli/audit_full.ts`;
+			const runner = `node ${Array.from(/* @__PURE__ */ new Set([...basePermFlags, ...extraPerms])).join(" ")} src/cli/audit_full.ts`;
 			if (command === "auditor") return runner;
 			return `${runner} ${command.slice(8)}`;
 		}

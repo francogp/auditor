@@ -73,12 +73,11 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"])
 		});
 	}
-	checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook) {
+	checkEventListenerLeak(node, sf, relPath, options) {
 		const expr = node.expression;
 		if (!ts.isPropertyAccessExpression(expr) || expr.name.text !== "addEventListener") return;
 		const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
-		if (checkLineEscape(line)) return;
-		if (!hasOnceOption(node) && !hasRemoveEventListener && !hasUnmountHook) this.addViolation({
+		if (!hasOnceOption(node) && !options.hasRemoveEventListener && !options.hasUnmountHook) this.addViolation({
 			ruleId: "dom-event-leak",
 			severity: "error",
 			file: relPath,
@@ -87,11 +86,11 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			context: node.getText(sf)
 		});
 	}
-	checkIntervalLeak(node, sf, relPath, checkLineEscape, hasClearInterval) {
+	checkIntervalLeak(node, sf, relPath, hasClearInterval) {
 		const expr = node.expression;
 		if (!ts.isIdentifier(expr) || expr.text !== "setInterval") return;
 		const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
-		if (checkLineEscape(line) || hasClearInterval) return;
+		if (hasClearInterval) return;
 		this.addViolation({
 			ruleId: "interval-leak",
 			severity: "error",
@@ -105,24 +104,22 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 		if (!content.includes("addEventListener") && !content.includes("setInterval")) return;
 		const sf = sourceFile ?? this.context.getAst(relPath, content);
 		if (!sf.text.trim()) return;
-		const fullLines = content.split("\n");
 		const hasUnmountHook = content.includes("onUnmounted") || content.includes("onBeforeUnmount") || content.includes("onScopeDispose");
 		const hasRemoveEventListener = content.includes("removeEventListener");
 		const hasClearInterval = content.includes("clearInterval");
-		const checkLineEscape = (lineNum) => {
-			const lineText = fullLines[lineNum - 1] || "";
-			return lineText.includes("leak-ok") || lineText.includes("reactive-leak-ok");
-		};
 		this.runSubAuditorSync("dom-event-leak", () => {
 			const visitEvents = (node) => {
-				if (ts.isCallExpression(node)) this.checkEventListenerLeak(node, sf, relPath, checkLineEscape, hasRemoveEventListener, hasUnmountHook);
+				if (ts.isCallExpression(node)) this.checkEventListenerLeak(node, sf, relPath, {
+					hasRemoveEventListener,
+					hasUnmountHook
+				});
 				ts.forEachChild(node, visitEvents);
 			};
 			visitEvents(sf);
 		});
 		this.runSubAuditorSync("interval-leak", () => {
 			const visitIntervals = (node) => {
-				if (ts.isCallExpression(node)) this.checkIntervalLeak(node, sf, relPath, checkLineEscape, hasClearInterval);
+				if (ts.isCallExpression(node)) this.checkIntervalLeak(node, sf, relPath, hasClearInterval);
 				ts.forEachChild(node, visitIntervals);
 			};
 			visitIntervals(sf);

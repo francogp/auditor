@@ -24,11 +24,11 @@ export const predicatesDetector = createLineDetector({
       line.includes("endsWith('/auditor')") || line.includes('endsWith("/auditor")');
 
     if (hasHomebrewTestCheck) {
-      return "Comprobación manual de rutas de prueba detectada (.includes('.test.') / '.spec.'). Usa la utilidad canónica 'isTestPath(filePath)' de 'src/core/auditTestPredicates.ts'.";
+      return "Manual test path checking detected (.includes('.test.') / '.spec.'). Use canonical 'isTestPath(filePath)' from 'src/core/auditTestPredicates.ts'.";
     }
 
     if (hasHomebrewSelfRepoCheck) {
-      return "Comprobación manual de identidad del repositorio (@francogp/auditor) detectada. Usa la utilidad canónica 'isSelfProviderProject(projectRoot)' de 'src/core/auditProjectIdentity.ts'.";
+      return "Manual repository identity check (@francogp/auditor) detected. Use canonical 'isSelfProviderProject(projectRoot)' from 'src/core/auditProjectIdentity.ts'.";
     }
 
     return null;

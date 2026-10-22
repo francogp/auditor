@@ -239,9 +239,13 @@ All sub-auditors, host extensions, and CLI tools are governed by `validate_cli_c
 | Helper | Module | Purpose |
 |:---|:---|:---|
 | `BaseAuditor.runCliIfMain(importMetaUrl, auditor)` | `@francogp/auditor` | Canonical CLI entrypoint for sub-auditors and host extensions; parses `human`, `--fix`, `--json`, and `--help` via Citty. |
+| `isMainModule(importMetaUrl)` | `@francogp/auditor` | Canonical entrypoint predicate; prevents `runMain(command)` from executing during module imports. |
 | `createAuditorCli(options)` | `src/core/cli/cittyHarness.ts` | Builds a declarative Citty `CommandDef` merging `COMMON_CLI_ARGS` (`human`, `pretty`, `json`, `project`, `fix`, `help`, `version`). |
 | `parseCittyArgs(argsDef, rawArgs)` | `src/core/cli/cittyHarness.ts` | Synchronously normalizes bare `key=value` and positional `human`/`help` tokens and parses them through Citty's parser. |
 | `createRefactorCli(spec)` | `src/core/refactor/refactorCliHarness.ts` | Declarative Citty CLI harness for `BaseRefactorEngine` tools (`discover`, `inspect`, `apply`, `human`, `help`). |
+
+> [!TIP]
+> 📘 **CLI Script Authoring & Citty Best Practices**: For complete guidelines on writing host maintenance and testing scripts with `defineCommand`, subcommands, typed args, and avoiding background execution storms, see [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).
 
 ---
 

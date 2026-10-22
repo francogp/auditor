@@ -19,7 +19,7 @@ export const packageJsonDetector = createLineDetector({
       (/readFileSync\([^)]*\)/.test(line) && line.includes('pkgPath'));
 
     if (readsManualPkg && !line.includes('getPackageJson(')) {
-      return "Lectura manual de 'package.json' detectada. Usa la utilidad canónica 'getPackageJson(projectRoot)' de 'src/core/packageJson.ts'.";
+      return "Manual reading of 'package.json' detected. Use canonical 'getPackageJson(projectRoot)' from 'src/core/packageJson.ts'.";
     }
     return null;
   }

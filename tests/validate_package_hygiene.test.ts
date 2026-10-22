@@ -27,7 +27,7 @@ describe('ValidatePackageHygieneAuditor & parseKnipIssues', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 

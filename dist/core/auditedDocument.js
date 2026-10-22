@@ -10,11 +10,9 @@ import ts from "typescript";
 * Provides a high-performance, immutable abstraction for scanned source files:
 * 1. O(log N) line and column resolution via binary search over pre-computed line offsets.
 * 2. Lexical indexing for comments (line, block, HTML) and strings with O(log K) range lookup.
-* 3. Pre-computed escape hatch indexer supporting rule-specific directives (// <rule>-ok:),
-*    file-level suppressions (// auditor-disable <rule>), and common short aliases.
-* 4. Canonical Vue Single-File Component (SFC) extraction for <script>, <template>, and <style>.
-* 5. Transparent TypeScript AST generation with line-offset preservation for SFC scripts.
-* 6. Deterministic auto-fix replacement register applying non-overlapping transformations from end-to-start.
+* 3. Canonical Vue Single-File Component (SFC) extraction for <script>, <template>, and <style>.
+* 4. Transparent TypeScript AST generation with line-offset preservation for SFC scripts.
+* 5. Deterministic auto-fix replacement register applying non-overlapping transformations from end-to-start.
 */
 /** Binary search to find line index from character offset */
 function binarySearchLineIndex(lineOffsets, offset) {
@@ -142,8 +140,6 @@ var AuditedDocument = class {
 	cachedAst;
 	cachedLexicalRanges;
 	cachedVueBlocks;
-	cachedEscapeHatches;
-	fileDisabledRules = /* @__PURE__ */ new Set();
 	replacements = [];
 	constructor(filePath, rawContent, relPath, astContext) {
 		this.filePath = filePath;
@@ -222,158 +218,6 @@ var AuditedDocument = class {
 		const range = binarySearchLexicalRange(this.getLexicalRanges(), offset);
 		if (range && range.start === offset) return range.end;
 		return offset;
-	}
-	/**
-	* Returns pre-indexed escape hatches and file disable directives.
-	*/
-	getEscapeHatches() {
-		if (this.cachedEscapeHatches) return this.cachedEscapeHatches;
-		const matches = [];
-		const disableRegex = /(?:\/\/|\/\*)\s*auditor-disable\s+([\w,-]+)/gi;
-		let m;
-		while ((m = disableRegex.exec(this.rawContent)) !== null) {
-			const tokens = (m[1] ?? "").split(",").map((t) => t.trim().toLowerCase());
-			for (const tok of tokens) if (tok) this.fileDisabledRules.add(tok);
-		}
-		const hatchRegex = /(?:\/\/|\/\*)\s*(?:([\w-]+)-ok\b|(?:auditor-ignore|audit-ignore)(?::|\s+)([\w-]+)|([\w-]+):)\s*:?\s*([^\n*]*)/gi;
-		while ((m = hatchRegex.exec(this.rawContent)) !== null) {
-			const ruleToken = (m[1] ?? m[2] ?? m[3] ?? "").trim().toLowerCase();
-			const reason = m[4]?.trim();
-			const line = this.getLineAndColumn(m.index).line;
-			matches.push({
-				line,
-				rawText: m[0],
-				ruleToken,
-				reason: reason || void 0
-			});
-		}
-		this.cachedEscapeHatches = matches;
-		return matches;
-	}
-	/**
-	* Resolves accepted escape hatch rule tokens including common domain, o1, and reactivity aliases.
-	*/
-	resolveAcceptedRuleTokens(ruleLower) {
-		const acceptedTokens = /* @__PURE__ */ new Set([ruleLower]);
-		if (ruleLower.includes("layout")) {
-			acceptedTokens.add("layout");
-			acceptedTokens.add("gpu");
-			acceptedTokens.add("shimmer");
-		}
-		if (ruleLower.includes("timer") || ruleLower.includes("delay")) {
-			acceptedTokens.add("timer");
-			acceptedTokens.add("delay");
-		}
-		if (ruleLower.includes("storage") || ruleLower.includes("persistence")) acceptedTokens.add("storage");
-		if (ruleLower.includes("path")) acceptedTokens.add("path");
-		if (ruleLower.includes("type") || ruleLower.includes("assertion")) {
-			acceptedTokens.add("type");
-			acceptedTokens.add("cast");
-			acceptedTokens.add("double-cast");
-			acceptedTokens.add("any");
-			acceptedTokens.add("literal");
-			acceptedTokens.add("promise");
-			acceptedTokens.add("void");
-			acceptedTokens.add("array");
-			acceptedTokens.add("no-domain");
-			acceptedTokens.add("open-record");
-		}
-		if (ruleLower.includes("catch")) acceptedTokens.add("catch");
-		if (ruleLower.includes("domain")) {
-			acceptedTokens.add("domain");
-			acceptedTokens.add("no-domain");
-			acceptedTokens.add("runtime-set");
-			acceptedTokens.add("runtime-map");
-			acceptedTokens.add("open-record");
-			acceptedTokens.add("infra-id");
-			acceptedTokens.add("string");
-			acceptedTokens.add("dto");
-		}
-		if (ruleLower.includes("o1") || ruleLower.includes("linear")) {
-			acceptedTokens.add("o1");
-			acceptedTokens.add("linear-search");
-			acceptedTokens.add("clone");
-			acceptedTokens.add("spread");
-		}
-		if (ruleLower.includes("reactiv") || ruleLower.includes("computed") || ruleLower.includes("watch")) {
-			acceptedTokens.add("reactivity");
-			acceptedTokens.add("sfc");
-		}
-		const parts = ruleLower.split("-");
-		if (parts.length > 1) {
-			acceptedTokens.add(parts.slice(1).join("-"));
-			acceptedTokens.add(parts[parts.length - 1]);
-		}
-		return acceptedTokens;
-	}
-	isLineOnlyComments(lineNum) {
-		return (this.lines[lineNum - 1] ?? "").replace(/\/\/.*$/, "").replace(/\/\*.*?\*\//g, "").trim().length === 0;
-	}
-	hasIndexedEscapeHatchInRange(startLine, endLine, acceptedTokens) {
-		for (const hatch of this.cachedEscapeHatches ?? []) {
-			if (hatch.line < startLine - 2 || hatch.line > endLine + 1) continue;
-			if (!acceptedTokens.has(hatch.ruleToken)) continue;
-			if (hatch.line < startLine || hatch.line > endLine) {
-				if (!this.isLineOnlyComments(hatch.line)) continue;
-			}
-			return true;
-		}
-		return false;
-	}
-	hasNodeDirectCommentsHatch(node, enclosing, sf, acceptedTokens) {
-		const text = sf.text;
-		const leading = [...ts.getLeadingCommentRanges(text, node.pos) ?? [], ...ts.getLeadingCommentRanges(text, enclosing.pos) ?? []];
-		const trailing = [...ts.getTrailingCommentRanges(text, node.end) ?? [], ...ts.getTrailingCommentRanges(text, enclosing.end) ?? []];
-		for (const comment of [...leading, ...trailing]) {
-			const commentText = text.slice(comment.pos, comment.end);
-			for (const token of acceptedTokens) if (commentText.includes(`// ${token}:`) || commentText.includes(`/* ${token}:`) || commentText.includes(`// ${token}-ok`) || commentText.includes(`/* ${token}-ok`) || commentText.includes(`// ${token}`)) return true;
-		}
-		return false;
-	}
-	getAuthorizedRuleTokens(ruleId) {
-		this.getEscapeHatches();
-		const ruleLower = ruleId.toLowerCase();
-		if (this.fileDisabledRules.has("all") || this.fileDisabledRules.has(ruleLower)) return null;
-		return this.resolveAcceptedRuleTokens(ruleLower);
-	}
-	/**
-	* Determines whether an escape hatch suppresses the specified rule at the given line or offset.
-	*/
-	hasEscapeHatch(lineOrOffset, ruleId) {
-		const targetLine = lineOrOffset > this.lines.length && lineOrOffset <= this.rawContent.length ? this.getLineAndColumn(lineOrOffset).line : lineOrOffset;
-		const acceptedTokens = this.getAuthorizedRuleTokens(ruleId);
-		if (!acceptedTokens) return true;
-		return this.hasIndexedEscapeHatchInRange(targetLine, targetLine, acceptedTokens);
-	}
-	/**
-	* Determines whether an AST node or its enclosing statement has an authorized escape hatch.
-	* Checks:
-	* 1. Line range of the node from (startLine - 2) to (endLine + 1).
-	* 2. Leading and trailing comment ranges from TypeScript AST if sourceFile is provided.
-	*/
-	hasEscapeHatchForNode(node, ruleId, sourceFile) {
-		const sf = sourceFile ?? this.getAst();
-		if (!sf) return false;
-		let enclosing = node;
-		while (enclosing.parent && !ts.isSourceFile(enclosing.parent)) {
-			enclosing = enclosing.parent;
-			if (ts.isStatement(enclosing)) break;
-		}
-		const startPos = Math.min(node.getStart(sf), enclosing.getStart(sf));
-		const endPos = Math.max(node.getEnd(), enclosing.getEnd());
-		const startLine = sf.getLineAndCharacterOfPosition(startPos).line + 1;
-		const endLine = sf.getLineAndCharacterOfPosition(endPos).line + 1;
-		const acceptedTokens = this.getAuthorizedRuleTokens(ruleId);
-		if (!acceptedTokens) return true;
-		if (this.hasIndexedEscapeHatchInRange(startLine, endLine, acceptedTokens)) return true;
-		return this.hasNodeDirectCommentsHatch(node, enclosing, sf, acceptedTokens);
-	}
-	/**
-	* Convenience helper to check escape hatch at a specific character offset.
-	*/
-	hasEscapeHatchAtOffset(offset, ruleId) {
-		const { line } = this.getLineAndColumn(offset);
-		return this.hasEscapeHatch(line, ruleId);
 	}
 	/**
 	* Extracts Vue Single-File Component blocks (<script>, <template>, <style>).

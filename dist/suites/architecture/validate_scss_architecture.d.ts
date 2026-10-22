@@ -14,7 +14,6 @@ export declare class ValidateScssArchitectureAuditor extends FileScanAuditor<Scs
   private auditScssDeepSelectorAbuse;
   private auditNonStandardSpacingUnit;
   private auditMissingThemeTokenUsage;
-  private isLineNestingExempt;
   private processScssLineBraces;
   private auditExcessiveScssNesting;
 }

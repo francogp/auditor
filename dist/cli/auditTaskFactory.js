@@ -1,3 +1,4 @@
+import { normalizePosixPath } from "../core/reportUtils.js";
 import "../core/auditConfig.js";
 import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
@@ -29,9 +30,10 @@ function getPermissionsForTask(filename, fullPath) {
 }
 /** Convert snake_case or kebab-case filename to Title Case */
 function formatTaskTitle(filename) {
-	if (filename === "audit_project" || filename === "audit_project.ts" || filename === "audit_project.js") return "Project Architecture & Style Rules";
-	if (filename === "validate_stylelint" || filename === "validate_stylelint.ts" || filename === "validate_stylelint.js") return "CSS & SCSS Stylelint Hygiene";
-	return path.basename(filename, path.extname(filename)).replace(/^(validate_|audit_)/, "").split(/[_-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+	const baseName = path.basename(filename, path.extname(filename));
+	if (baseName === "audit_project") return "Project Architecture & Style Rules";
+	if (baseName === "validate_stylelint") return "CSS & SCSS Stylelint Hygiene";
+	return baseName.replace(/^(validate_|audit_)/, "").split(/[_-]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
 }
 function shouldSkipTaskByFilters(id, filename, family, isFast, options, targetSuiteIds) {
 	if (options.skipSimilar && (id === "validate_similar_code" || filename.includes("validate_similar_code"))) return true;
@@ -50,7 +52,12 @@ function shouldSkipTaskByCapabilities(capabilities, options) {
 	const isTargeted = Boolean(options.withBuild || options.task || options.suites);
 	if (!isTargeted && capabilities?.phase === "post-build") return true;
 	if (options.onlySpeed) return resolveEffectiveSpeed(capabilities?.speed, { onlySpeed: options.onlySpeed }) === null;
-	const hasExplicitSpeedOrPreset = Boolean(options.speed || options.lintOnly || options.preset === "lint" || options.precommitOnly || options.preset === "full" || options.preset === "precommit" || options.includeHeavy === false);
+	const speedPresetNames = /* @__PURE__ */ new Set([
+		"lint",
+		"full",
+		"precommit"
+	]);
+	const hasExplicitSpeedOrPreset = Boolean(options.speed || options.lintOnly || options.precommitOnly || options.includeHeavy === false || options.preset && speedPresetNames.has(options.preset));
 	if (!isTargeted || hasExplicitSpeedOrPreset) {
 		let maxSpeed = "heavy";
 		if (options.speed) maxSpeed = options.speed;
@@ -62,7 +69,7 @@ function shouldSkipTaskByCapabilities(capabilities, options) {
 }
 function buildTaskCliArguments(filename, fullPath, id, isBuiltin, options) {
 	const relScriptPath = toPosixRelative(process.cwd(), fullPath);
-	const scriptArg = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).split(path.sep).join(path.posix.sep) : relScriptPath;
+	const scriptArg = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? normalizePosixPath(fullPath) : relScriptPath;
 	const taskArgs = [
 		...getPermissionsForTask(filename, fullPath),
 		scriptArg,
@@ -109,7 +116,7 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
 	if (shouldSkipTaskByCapabilities(capabilities, options)) return null;
 	const taskArgs = buildTaskCliArguments(filename, fullPath, id, isBuiltin, options);
 	const relScriptPath = toPosixRelative(process.cwd(), fullPath);
-	const effectiveScriptPath = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? path.resolve(fullPath).split(path.sep).join(path.posix.sep) : relScriptPath;
+	const effectiveScriptPath = relScriptPath.startsWith("..") || path.isAbsolute(relScriptPath) ? normalizePosixPath(fullPath) : relScriptPath;
 	const familyMeta = resolveFamilyMetadata(family, config.customFamilies);
 	const effectiveIcon = metadata.icon ?? (isBuiltin ? familyMeta.icon : "🧩");
 	return {

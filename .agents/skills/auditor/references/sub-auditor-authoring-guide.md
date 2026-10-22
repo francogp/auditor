@@ -102,7 +102,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
         'my-feature-forbidden-token':
           '1. Root Cause: A prohibited token was detected in the source file.\n' +
           '2. Diagnosis: Locate the reported file and line.\n' +
-          '3. Canonical Solution: Replace it with the canonical function or constant, or add "// my-feature-ok: <reason>" if justified.\n' +
+          '3. Canonical Solution: Replace it with the canonical function or constant.\n' +
           '4. Example / Command: npm run auditor',
         'my-feature-missing-attribute':
           '1. Root Cause: A mandatory attribute is missing on the analyzed element.\n' +
@@ -129,9 +129,6 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
         const lineNum = i + 1;
-
-        // Check escape hatches: // domain-ok, // my-feature-ok, or multiline comments
-        if (this.isLineIgnored(line, ['my-feature-ok']) || hasLineSuppression(line, 'my-feature-forbidden-token', lines, i)) continue;
 
         if (line.includes('bannedToken')) {
           this.addViolation({
@@ -583,30 +580,6 @@ this.runSubAuditorSync('my-rule', () => {
 ```
 
 Wrapping the visitor traversal guarantees that `markRuleEvaluated` is invoked and the execution time of scanning that file is accurately registered in the ledger, even when no violations exist.
-
-### 6.2.3. Escape Hatch Inspection on Adjacent Lines (`line - 1`, `line`, `line + 1`)
-
-Modern code formatters like `oxfmt` (as well as Prettier and Biome) frequently reformat and wrap code statements across multiple lines. When an expression or block is reformatted:
-
-- A trailing comment like `if (cond) { // console-ok: debug` might be pushed into the next line inside the block (`line + 1`).
-- A multi-line function call may place the suppress comment on the line preceding the violation (`line - 1`).
-
-**Framework Implementation**:
-In `@francogp/auditor`, `BaseAuditor.scanRegexMatches` and AST document helpers automatically inspect `line - 1`, `line`, and `line + 1` for matching escape hatches (`// <name>-ok:`):
-
-```typescript
-const prevLine = line > 1 ? this.getLineAt(sourceForLines, line - 1) : '';
-const nextLine = this.getLineAt(sourceForLines, line + 1);
-if (
-  this.hasEscapeHatch(lineContent, escapeHatches) ||
-  this.hasEscapeHatch(prevLine, escapeHatches) ||
-  this.hasEscapeHatch(nextLine, escapeHatches)
-) {
-  continue; // Suppressed legitimately across adjacent formatted lines
-}
-```
-
-When authoring custom line or AST escape hatch detectors, sub-auditors must maintain this 3-line adjacent tolerance window to ensure robust compatibility with auto-formatting tools.
 
 ### 6.3. Deconstruction Pattern for External Multi-Rule Tools (Oxlint, Stylelint, Knip, TypeCoverage)
 
@@ -1578,3 +1551,33 @@ Every sub-auditor, host extension, refactoring engine, and CLI reporter across `
 
 - **Standalone CLI Reporters (`src/cli/report_*.ts`)**:
   Consume `parseCittyArgs`, `COMMON_CLI_ARGS`, `getProcessCliArgs`, and `resolveHumanModeFromArgs` from `src/core/cli/cittyHarness.ts`.
+
+- **General CLI Scripts & Maintenance Tools (`scripts/**/*.ts`)**:
+  Always define the command declaratively with `defineCommand` and guard execution strictly with `isMainModule(import.meta.url)`:
+
+  ```typescript
+  import { isMainModule } from '@francogp/auditor';
+  import { defineCommand, runMain } from 'citty';
+
+  export const command = defineCommand({
+    meta: {
+      name: 'maintenance-task',
+      description: 'Performs scheduled database or environment maintenance'
+    },
+    args: {
+      dryRun: { type: 'boolean', alias: 'd', default: false },
+      user: { type: 'string', alias: 'u', description: 'Target user ID' }
+    },
+    async run({ args }) {
+      await executeMaintenance(args);
+    }
+  });
+
+  // Mandatory Guard: Prevents immediate execution when imported by tests or other tools
+  if (isMainModule(import.meta.url)) {
+    runMain(command);
+  }
+  ```
+
+> [!IMPORTANT]
+> 📘 **Full Citty & CLI Contracts Guide**: For exhaustive examples, subcommand routing, typed arguments catalog, and anti-patterns (such as unconditional `runMain` causing process storms and memory crashes), see [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).

@@ -31,41 +31,6 @@ const COMMON_NON_DOMAIN_SET_NAMES = /* @__PURE__ */ new Set([
 	"PROPERTIES",
 	"ALLOWED_EXTS"
 ]);
-function hasAttachedCommentDirective(sourceCode, node, validDirectives) {
-	const beforeComments = sourceCode.getCommentsBefore?.(node) ?? [];
-	const afterComments = sourceCode.getCommentsAfter?.(node) ?? [];
-	const attached = [...beforeComments, ...afterComments];
-	for (const c of attached) {
-		const text = typeof c === "string" ? c : c.value ?? "";
-		for (const dir of validDirectives) if (text.includes(`${dir}:`) || text.includes(dir)) return true;
-	}
-	return false;
-}
-function hasSurroundingLineDirective(fullText, nodeRange, validDirectives) {
-	const [start, end] = nodeRange;
-	const lineStart = fullText.lastIndexOf("\n", start) + 1;
-	let lineEnd = fullText.indexOf("\n", end);
-	if (lineEnd === -1) lineEnd = fullText.length;
-	const prevLineStart = lineStart > 1 ? fullText.lastIndexOf("\n", lineStart - 2) + 1 : 0;
-	const nextLineEnd = lineEnd < fullText.length ? fullText.indexOf("\n", lineEnd + 1) : fullText.length;
-	const snippet = fullText.slice(prevLineStart, nextLineEnd === -1 ? fullText.length : nextLineEnd);
-	for (const dir of validDirectives) if (snippet.includes(`// ${dir}:`) || snippet.includes(`/* ${dir}:`) || snippet.includes(`// ${dir}`)) return true;
-	return false;
-}
-/**
-* Checks whether an AST node or its surrounding code has an authorized escape directive.
-*/
-function hasOxlintEscapeComment(context, node, validDirectives) {
-	const sourceCode = context.getSourceCode?.();
-	if (!sourceCode) return false;
-	if (hasAttachedCommentDirective(sourceCode, node, validDirectives)) return true;
-	const nodeText = sourceCode.getText?.(node) ?? "";
-	for (const dir of validDirectives) if (nodeText.includes(`// ${dir}:`) || nodeText.includes(`/* ${dir}:`)) return true;
-	const fullText = sourceCode.getText?.() ?? "";
-	const nodeRange = node.range;
-	if (fullText && nodeRange && Array.isArray(nodeRange) && nodeRange.length >= 2) return hasSurroundingLineDirective(fullText, [nodeRange[0], nodeRange[1]], validDirectives);
-	return false;
-}
 const domainTypeOxlintPlugin = {
 	meta: {
 		name: "@francogp/domain-type",
@@ -79,17 +44,19 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { TSUnionType(node) {
-					if (hasOxlintEscapeComment(context, node, [
-						"string-ok",
-						"domain-ok",
-						"no-domain"
-					])) return;
 					const types = node.types ?? [];
-					const hasStringKeyword = types.some((t) => t.type === "TSStringKeyword");
-					const hasLiteralString = types.some((t) => t.type === "TSLiteralType" && typeof t.literal?.value === "string");
-					if (hasStringKeyword && hasLiteralString) context.report({
+					if (!types.some((t) => t.type === "TSStringKeyword")) return;
+					if (types.some((t) => {
+						if (t.type === "TSLiteralType" && typeof t.literal?.value === "string") return true;
+						if (t.type === "TSTemplateLiteralType") return true;
+						if (t.type === "TSTypeReference") {
+							const name = t.typeName?.name;
+							return typeof name === "string" && name.length > 0;
+						}
+						return false;
+					})) context.report({
 						node,
-						message: "Using open string unions (| string) is STRICTLY PROHIBITED. Use canonical domain types or Branded Types."
+						message: "Using open string unions (| string) with domain types or literals is STRICTLY PROHIBITED. Use canonical domain types or Branded Types."
 					});
 				} };
 			}
@@ -102,13 +69,6 @@ const domainTypeOxlintPlugin = {
 			create(context) {
 				return { TSTypeReference(node) {
 					if (node.typeName?.name !== "Record") return;
-					if (hasOxlintEscapeComment(context, node, [
-						"open-record",
-						"dto-ok",
-						"domain-ok",
-						"no-domain",
-						"infra-id-ok"
-					])) return;
 					const params = node.typeArguments?.params ?? node.typeParameters?.params ?? [];
 					if (params.length === 0) return;
 					const firstParam = params[0];
@@ -132,12 +92,6 @@ const domainTypeOxlintPlugin = {
 				return { NewExpression(node) {
 					const callee = node.callee;
 					if (!callee || callee.name !== "Set" && callee.name !== "Map") return;
-					if (hasOxlintEscapeComment(context, node, [
-						"runtime-set",
-						"runtime-map",
-						"domain-ok",
-						"no-domain"
-					])) return;
 					const typeParams = node.typeArguments?.params ?? node.typeParameters?.params ?? [];
 					const hasUntypedParam = typeParams.some((p) => p.type === "TSStringKeyword");
 					const args = node.arguments ?? [];
@@ -161,11 +115,6 @@ const domainTypeOxlintPlugin = {
 			create(context) {
 				return { VariableDeclarator(node) {
 					if (!node.init) return;
-					if (hasOxlintEscapeComment(context, node, [
-						"string-ok",
-						"domain-ok",
-						"no-domain"
-					])) return;
 					let isConstAssertion = false;
 					let arrayExpr = node.init;
 					if (node.init.type === "TSAsExpression") {
@@ -192,11 +141,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				const verifyNode = (node) => {
-					if (hasOxlintEscapeComment(context, node, [
-						"type-ok",
-						"cast-ok",
-						"domain-ok"
-					])) return;
 					const typeAnn = node.typeAnnotation;
 					if (typeAnn && (typeAnn.type === "TSUnknownKeyword" || typeAnn.type === "TSTypeReference" && typeAnn.typeName?.name === "unknown")) context.report({
 						node,
@@ -217,11 +161,6 @@ const domainTypeOxlintPlugin = {
 			create(context) {
 				return {
 					NewExpression(node) {
-						if (hasOxlintEscapeComment(context, node, [
-							"date-ok",
-							"temporal-ok",
-							"legacy-date-ok"
-						])) return;
 						const callee = node.callee;
 						if (callee && (callee.name === "Date" || callee.type === "Identifier" && callee.name === "Date")) context.report({
 							node,
@@ -229,11 +168,6 @@ const domainTypeOxlintPlugin = {
 						});
 					},
 					CallExpression(node) {
-						if (hasOxlintEscapeComment(context, node, [
-							"date-ok",
-							"temporal-ok",
-							"legacy-date-ok"
-						])) return;
 						const callee = node.callee;
 						if (callee && (callee.type === "MemberExpression" || callee.object)) {
 							const obj = callee.object;
@@ -254,16 +188,11 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { TSTypeAliasDeclaration(node) {
-					const name = node.id?.name;
-					if (!name || !/^[A-Z]\w*Id$/.test(name)) return;
-					if (hasOxlintEscapeComment(context, node, [
-						"infra-id-ok",
-						"domain-ok",
-						"no-domain"
-					])) return;
+					const typeName = node.id?.name;
+					if (!typeName || !/^[A-Z]\w*Id$/.test(typeName)) return;
 					if (node.typeAnnotation?.type === "TSStringKeyword") context.report({
 						node,
-						message: `Domain identifier '${name}' must not be a bare string. Use Brand<string, '${name}'> or a canonical union.`
+						message: `Domain identifier '${typeName}' must not be a bare string. Use Brand<string, '${typeName}'> or a canonical union.`
 					});
 				} };
 			}
@@ -278,7 +207,6 @@ const domainTypeOxlintPlugin = {
 					const callee = node.callee;
 					if (!callee || callee.name !== "parse" && callee.property?.name !== "parse") return;
 					if (callee.object?.name !== "JSON") return;
-					if (hasOxlintEscapeComment(context, node, ["o1-ok", "clone-ok"])) return;
 					const args = node.arguments ?? [];
 					if (args.length > 0) {
 						const firstArg = args[0];
@@ -300,7 +228,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { ReturnStatement(node) {
-					if (hasOxlintEscapeComment(context, node, ["o1-ok", "spread-ok"])) return;
 					const arg = node.argument;
 					if (arg?.type === "ArrayExpression") {
 						const elements = arg.elements ?? [];
@@ -319,7 +246,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { TSTypeAnnotation(node) {
-					if (hasOxlintEscapeComment(context, node, ["type-ok"])) return;
 					const inner = node.typeAnnotation;
 					if (!inner) return;
 					if (inner.type === "TSLiteralType" && typeof inner.literal?.value === "boolean" || inner.type === "TSTrueKeyword" || inner.type === "TSFalseKeyword") context.report({
@@ -338,7 +264,6 @@ const domainTypeOxlintPlugin = {
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (!callee || callee.name !== "computed" && callee.property?.name !== "computed") return;
-					if (hasOxlintEscapeComment(context, node, ["reactivity-ok", "sfc-ok"])) return;
 					const args = node.arguments ?? [];
 					if (args.length > 0) {
 						const callback = args[0];
@@ -361,7 +286,6 @@ const domainTypeOxlintPlugin = {
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (!callee || callee.name !== "watch" && callee.property?.name !== "watch") return;
-					if (hasOxlintEscapeComment(context, node, ["reactivity-ok", "sfc-ok"])) return;
 					const args = node.arguments ?? [];
 					if (args.length > 0) {
 						const target = args[0];
@@ -383,7 +307,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { VariableDeclarator(node) {
-					if (hasOxlintEscapeComment(context, node, ["reactivity-ok", "sfc-ok"])) return;
 					if (node.id?.type === "ObjectPattern") {
 						const init = node.init;
 						if (init?.type === "CallExpression") {
@@ -400,4 +323,4 @@ const domainTypeOxlintPlugin = {
 	}
 };
 //#endregion
-export { COMMON_NON_DOMAIN_SET_NAMES, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin, hasOxlintEscapeComment };
+export { COMMON_NON_DOMAIN_SET_NAMES, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };

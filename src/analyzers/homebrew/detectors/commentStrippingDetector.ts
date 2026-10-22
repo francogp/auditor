@@ -21,7 +21,7 @@ export const commentStrippingDetector = createLineDetector({
         line.includes('`'));
 
     if (hasManualCommentRegex) {
-      return "Regex casero para remover comentarios detectado. Usa la utilidad canónica 'stripComments(code)' o 'stripCommentsAndStrings(code)' de 'src/core/scannerUtils.ts'.";
+      return "Homebrew regex for comment stripping detected. Use canonical 'stripComments(code)' or 'stripCommentsAndStrings(code)' from 'src/core/scannerUtils.ts'.";
     }
     return null;
   }

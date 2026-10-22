@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url';
 import { isMainModule } from './cliUtils.ts';
 import { runSetup } from './setup_env.ts';
 import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
+import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
 
 export interface SemverVersion {
   major: number;
@@ -61,16 +62,15 @@ export function getAuditorEngines(): AuditorEngineSpecs {
   while (dir !== path.dirname(dir)) {
     const candidate = path.join(dir, 'package.json');
     if (fs.existsSync(candidate)) {
-      try {
-        const data = JSON.parse(fs.readFileSync(candidate, 'utf8')) as {
+      const raw = safeReadFileSync(candidate);
+      if (raw) {
+        const data = safeJsonParse<{
           name?: string;
           engines?: { node?: string; npm?: string };
-        };
-        if (data.name === '@francogp/auditor' && data.engines?.node && data.engines?.npm) {
+        }>(raw);
+        if (data?.name === '@francogp/auditor' && data.engines?.node && data.engines?.npm) {
           return { node: data.engines.node, npm: data.engines.npm };
         }
-      } catch {
-        // catch-ok: continue search
       }
     }
     dir = path.dirname(dir);

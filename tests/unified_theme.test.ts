@@ -30,7 +30,7 @@ import {
   renderAutoFixCompletionBanner,
   renderSampleFindings,
   renderFamilyHeader,
-  getVisualWidth,
+  stringWidth,
   padVisual,
   truncateVisual,
   formatDuration,
@@ -88,10 +88,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     });
   });
 
-  describe('getVisualWidth & visual helpers', () => {
+  describe('stringWidth & visual helpers', () => {
     it('calculates visual width accounting for emojis and wide characters', () => {
-      expect(getVisualWidth('hello')).toBe(5);
-      expect(getVisualWidth('🛡️')).toBeGreaterThanOrEqual(1);
+      expect(stringWidth('hello')).toBe(5);
+      expect(stringWidth('🛡️')).toBeGreaterThanOrEqual(1);
     });
 
     it('pads and truncates strings visually', () => {
@@ -276,10 +276,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const banner = renderAutoFixCompletionBanner();
       const lines = banner.split('\n');
       expect(lines.length).toBeGreaterThan(0);
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       expect(expectedWidth).toBeLessThanOrEqual(80);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
   });
@@ -448,10 +448,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const banner = renderAutoFixNoticeBanner(3, 2);
       const lines = banner.split('\n');
       expect(lines.length).toBeGreaterThan(0);
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       expect(expectedWidth).toBeLessThanOrEqual(80);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
 
@@ -459,10 +459,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const banner = renderSimilarCodeWarningBanner();
       const lines = banner.split('\n');
       expect(lines.length).toBeGreaterThan(0);
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       expect(expectedWidth).toBeLessThanOrEqual(80);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
 
@@ -472,9 +472,9 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         '⚠️  Incidencias detectadas  |  👉 Ejecutar fix'
       );
       const lines = bannerWithEmojis.split('\n');
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
 
@@ -494,9 +494,9 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         const banner = renderBanner(testCase.title, testCase.subtitle);
         const lines = banner.split('\n');
         expect(lines.length).toBeGreaterThanOrEqual(3);
-        const topBorderWidth = getVisualWidth(lines[0]!);
+        const topBorderWidth = stringWidth(lines[0]!);
         for (let i = 0; i < lines.length; i++) {
-          const lineWidth = getVisualWidth(lines[i]!);
+          const lineWidth = stringWidth(lines[i]!);
           expect(lineWidth).toBe(topBorderWidth);
         }
       }
@@ -509,8 +509,8 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
         'Subtitulo extendido con informacion relevante'
       );
 
-      const shortWidth = getVisualWidth(shortBanner.split('\n')[0]!);
-      const longWidth = getVisualWidth(longBanner.split('\n')[0]!);
+      const shortWidth = stringWidth(shortBanner.split('\n')[0]!);
+      const longWidth = stringWidth(longBanner.split('\n')[0]!);
 
       expect(shortWidth).toBeLessThan(longWidth);
       expect(longWidth).toBeLessThanOrEqual(80);
@@ -519,10 +519,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
     it('renderConsolidatedFooter lines are all identical in visual width', () => {
       const footer = renderConsolidatedFooter(10, 10, 0, 0, 1500, undefined, 0);
       const lines = footer.trim().split('\n');
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       expect(expectedWidth).toBeLessThanOrEqual(80);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
 
@@ -550,10 +550,10 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       };
       const card = renderAuditorDetailCard(task);
       const lines = card.trim().split('\n');
-      const expectedWidth = getVisualWidth(lines[0]!);
+      const expectedWidth = stringWidth(lines[0]!);
       expect(expectedWidth).toBeLessThanOrEqual(80);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBe(expectedWidth);
+        expect(stringWidth(line)).toBe(expectedWidth);
       }
     });
 
@@ -570,7 +570,7 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       const lines = formatted.split('\n');
       expect(lines.length).toBeGreaterThan(1);
       for (const line of lines) {
-        expect(getVisualWidth(line)).toBeLessThanOrEqual(72);
+        expect(stringWidth(line)).toBeLessThanOrEqual(72);
       }
       expect(formatted).toContain('v1.0.0');
       expect(formatted).toContain('Similar-Code: OMITIDO ⏭️');

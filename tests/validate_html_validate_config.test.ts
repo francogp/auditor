@@ -38,7 +38,7 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
     try {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     } catch {
-      // catch-ok
+      /* non-fatal test cleanup */
     }
   });
 

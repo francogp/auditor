@@ -67,7 +67,6 @@ const VUE_TRANSITION_SUFFIXES = [
 ] as const;
 
 const EXCLUDED_EXTENSIONS = new Set(['scss', 'css', 'vue', 'png', 'webp']);
-const MAX_PREV_COMMENT_LINES = 2;
 
 export interface ParsedScopedCssRule {
   readonly line: number;
@@ -171,21 +170,6 @@ function isClassExempt(
   return false;
 }
 
-function isRuleExemptByComments(
-  rule: ParsedScopedCssRule,
-  contentLines: readonly string[]
-): boolean {
-  if (rule.rawBlock.includes('css-ok') || rule.rawBlock.includes('dead-css-ok')) return true;
-  const lineIdx = rule.line - 1;
-  const blockLineCount = rule.rawBlock.split('\n').length;
-  const endLineIdx = lineIdx + blockLineCount;
-  const surroundingLines = contentLines.slice(
-    Math.max(0, lineIdx - MAX_PREV_COMMENT_LINES),
-    endLineIdx
-  );
-  return surroundingLines.some((l) => l.includes('css-ok') || l.includes('dead-css-ok'));
-}
-
 function auditSingleRuleClasses(
   rule: ParsedScopedCssRule,
   params: {
@@ -230,11 +214,9 @@ function auditComponentScopedCss(params: {
   auditor: DeadCssAuditor;
 }): number {
   const { componentLogic, dynamicPrefixes } = extractComponentLogic(params.rawContent);
-  const contentLines = params.rawContent.split('\n');
   let checkedCount = 0;
 
   for (const rule of params.scopedRules) {
-    if (isRuleExemptByComments(rule, contentLines)) continue;
     checkedCount += auditSingleRuleClasses(rule, params, dynamicPrefixes, componentLogic);
   }
 
@@ -285,7 +267,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
           '3. Canonical Solution:\n' +
           '   a) If the HTML element was removed or refactored: delete the orphaned style rule.\n' +
           '   b) If dynamically applied via string concatenation: use full static class names in templates (`:class="{ \'my-class\': isActive }"`) rather than dynamic fragments.\n' +
-          '   c) If transition-related or injected by an external library, annotate with `/* dead-css-ok: <reason> */` immediately before the rule.\n' +
+          '   c) If transition-related or injected by an external library, configure the style in global stylesheets or declare the selector dynamically via Vue `:class` bindings.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Orphaned class: `.btn-old-badge { font-size: 10px; }` (unused in template)\n' +
           '   ✅ Clean:          Removed from `<style scoped>` block.'

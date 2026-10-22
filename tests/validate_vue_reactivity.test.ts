@@ -191,7 +191,7 @@ const { count, name } = reactive({ count: 0, name: 'Ash' });
   });
 
   describe('Suppression & False Positive Resistance', () => {
-    it('honors // reactivity-ok: escape hatch', () => {
+    it('detects side effects in computed even when // reactivity-ok: is present (Zero-Ignore Mandate)', () => {
       const auditor = new TestableVueReactivityAuditor();
       const sfc = `<script setup lang="ts">
 import { computed } from 'vue';
@@ -202,7 +202,7 @@ const sorted = computed(() => {
 </script>`;
 
       auditor.testScanFile('src/components/Suppressed.vue', sfc);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThan(0);
     });
 
     it('does not flag defineProps destructuring as no-destructured-reactive', () => {
@@ -250,7 +250,7 @@ const sorted = computed(() => {
   });
 
   describe('3-Tier Canary Verification (AST & Escape Hatch Parity)', () => {
-    it('Escape Canary: permits multiline computed(async () => ...) when escape hatch is on closing line', () => {
+    it('detects multiline computed(async () => ...) even when escape comment is on closing line (Zero-Ignore Mandate)', () => {
       const auditor = new TestableVueReactivityAuditor();
       const sfc = `<script setup lang="ts">
 import { computed } from 'vue';
@@ -262,10 +262,10 @@ export const data = computed(
 </script>`;
 
       auditor.testScanFile('src/components/CanaryClosing.vue', sfc);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThan(0);
     });
 
-    it('Escape Canary: permits multiline watch(props.foo, ...) when escape hatch is on preceding line', () => {
+    it('detects multiline watch(props.foo, ...) even when escape comment is on preceding line (Zero-Ignore Mandate)', () => {
       const auditor = new TestableVueReactivityAuditor();
       const sfc = `<script setup lang="ts">
 import { watch } from 'vue';
@@ -279,7 +279,7 @@ watch(
 </script>`;
 
       auditor.testScanFile('src/components/CanaryPreceding.vue', sfc);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      expect(auditor.collectedViolations.length).toBeGreaterThan(0);
     });
 
     it('Active Canary: flags multiline computed(async () => ...) when no escape hatch is present', () => {

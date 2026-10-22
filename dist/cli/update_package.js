@@ -1,5 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { AUDITOR_VERSION } from "../core/version.js";
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "../core/safeUtils.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
@@ -34,10 +35,11 @@ function findHostProjectRoot(startDir = process.cwd(), stopAt) {
 	return path.resolve(startDir);
 }
 function readInstalledAuditorVersion(projectRoot) {
-	try {
-		const pkgJsonPath = path.join(projectRoot, "node_modules/@francogp/auditor/package.json");
-		if (fs.existsSync(pkgJsonPath)) return JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8")).version || "(unknown)";
-	} catch {}
+	const pkgJsonPath = path.join(projectRoot, "node_modules/@francogp/auditor/package.json");
+	if (fs.existsSync(pkgJsonPath)) {
+		const raw = safeReadFileSync(pkgJsonPath);
+		if (raw) return safeJsonParse(raw)?.version || "(unknown)";
+	}
 	return "(not installed)";
 }
 function parseTagSemver(tagStr) {
@@ -76,7 +78,7 @@ function extractTagsFromLsRemote(stdout) {
 	return Array.from(tags).sort(compareTagsDescending);
 }
 function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.git") {
-	try {
+	const latestTag = tryOrNull(() => {
 		const sortedTags = extractTagsFromLsRemote(childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
 			encoding: "utf-8",
 			stdio: [
@@ -86,8 +88,9 @@ function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.
 			],
 			timeout: 1e4
 		}));
-		if (sortedTags.length > 0 && sortedTags[0]) return sortedTags[0];
-	} catch {}
+		return sortedTags.length > 0 && sortedTags[0] ? sortedTags[0] : null;
+	});
+	if (latestTag) return latestTag;
 	return `v${AUDITOR_VERSION.split("-")[0]}`;
 }
 function updateAuditorPackage(options = {}) {

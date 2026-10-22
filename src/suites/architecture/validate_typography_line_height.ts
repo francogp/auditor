@@ -8,9 +8,6 @@
  *   descriptions, and multiline labels that declare 'line-height: 1' or 'line-height: 0'.
  *   Fonts with line-height <= 1 collide and overlap vertically when text wraps.
  *
- * Escape Hatch:
- *   // line-height-ok or /* line-height-ok *\/ disables the check for intentional fixtures.
- *
  * Usage:
  *   npm run validate:line-height
  */
@@ -84,24 +81,14 @@ function isEmojiFontContext(lines: readonly string[], currentIndex: number): boo
 
 interface SelectorFrame {
   selector: string;
-  isIgnored: boolean;
 }
 
-function updateSelectorStack(
-  trimmed: string,
-  lineIgnored: boolean,
-  selectorStack: SelectorFrame[]
-): void {
+function updateSelectorStack(trimmed: string, selectorStack: SelectorFrame[]): void {
   if (trimmed.includes('{')) {
     const selectorPart = trimmed.slice(0, trimmed.indexOf('{')).trim();
     if (selectorPart) {
-      selectorStack.push({ selector: selectorPart, isIgnored: lineIgnored });
+      selectorStack.push({ selector: selectorPart });
     }
-  }
-
-  const currentFrame = selectorStack[selectorStack.length - 1];
-  if (currentFrame && lineIgnored) {
-    currentFrame.isIgnored = true;
   }
 }
 
@@ -114,15 +101,7 @@ function popSelectorStack(trimmed: string, selectorStack: SelectorFrame[]): void
   }
 }
 
-function isLineHeightOverlapCandidate(
-  trimmed: string,
-  lineIgnored: boolean,
-  selectorStack: readonly SelectorFrame[]
-): RegExpMatchArray | null {
-  const currentFrame = selectorStack[selectorStack.length - 1];
-  if (lineIgnored || (currentFrame && currentFrame.isIgnored)) {
-    return null;
-  }
+function isLineHeightOverlapCandidate(trimmed: string): RegExpMatchArray | null {
   return trimmed.match(/\bline-height\s*:\s*(0|1|0px|1px|1em|1rem)\s*(?:!important\s*)?;/i);
 }
 
@@ -176,7 +155,7 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
           'Locate the `line-height` declaration in the reported line of the stylesheet or Vue component.\n\n' +
           '3. Canonical Solution:\n' +
           '1. Use proportional line-height values suitable for multiline text: minimum `line-height: 1.25` for headings and `line-height: 1.5` for body text and paragraphs.\n' +
-          '2. If `line-height: 1` is strictly intentional for single-line emoji icons or non-text containers, annotate `/* line-height-ok: <justification> */` or apply the appropriate icon/emoji class.\n\n' +
+          '2. For single-line icons or non-text containers, use specific dedicated icon classes or CSS flexbox/grid alignment.\n\n' +
           '4. Example / Auto-fix command:\n' +
           '// ❌ Incorrect: collapsed line-height in multiline text\n' +
           'p { font-size: 16px; line-height: 1; }\n\n' +
@@ -200,14 +179,9 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
     if (!line) return;
     const trimmed = line.trim();
 
-    const lineIgnored =
-      this.isLineIgnored(line, ['line-height-ok', 'css-ok']) ||
-      line.includes('/* line-height-ok */') ||
-      line.includes('// line-height-ok');
+    updateSelectorStack(trimmed, selectorStack);
 
-    updateSelectorStack(trimmed, lineIgnored, selectorStack);
-
-    const lineHeightMatch = isLineHeightOverlapCandidate(trimmed, lineIgnored, selectorStack);
+    const lineHeightMatch = isLineHeightOverlapCandidate(trimmed);
     if (lineHeightMatch) {
       this.totalRulesChecked++;
       const currentSelector = selectorStack.map((f) => f.selector).join(' ') || '(global scope)';

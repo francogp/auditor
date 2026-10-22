@@ -48,7 +48,7 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok
+      /* non-fatal test cleanup */
     }
   });
 

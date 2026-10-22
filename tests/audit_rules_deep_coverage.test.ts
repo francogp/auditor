@@ -132,7 +132,7 @@ describe('Audit Rules Deep Coverage', () => {
   });
 
   describe('explicitResource rule', () => {
-    it('detects unmanaged resource creation and respects resource-ok comments', () => {
+    it('detects unmanaged resource creation even with resource-ok comments (Zero-Ignore Mandate)', () => {
       const codeUnmanaged = 'const db = new DatabaseSync("app.db");';
       const codeManaged = 'const db = new DatabaseSync("app.db"); // resource-ok: test fixture';
       const codeCommented = '// const db = new DatabaseSync("app.db");';
@@ -142,7 +142,7 @@ describe('Audit Rules Deep Coverage', () => {
       }) as unknown as RegExpExecArray;
 
       expect(explicitResource.check?.(codeUnmanaged, match, 'scripts/seed.ts')).toBe(true);
-      expect(explicitResource.check?.(codeManaged, match, 'scripts/seed.ts')).toBe(false);
+      expect(explicitResource.check?.(codeManaged, match, 'scripts/seed.ts')).toBe(true);
       expect(explicitResource.check?.(codeCommented, match, 'scripts/seed.ts')).toBe(false);
       expect(explicitResource.check?.(codeUnmanaged, match, 'src/views/Home.vue')).toBe(false);
 
@@ -239,7 +239,7 @@ function getFilteredUsers(list) {
   });
 
   describe('forbiddenTypeCasts rule', () => {
-    it('detects type casts and honors escape hatches', () => {
+    it('detects type casts even when escape hatches are present (Zero-Ignore Mandate)', () => {
       const match = Object.assign(['as any'], { index: 13 }) as unknown as RegExpExecArray;
 
       expect(forbiddenTypeCasts.check?.('const x = val as any;', match, 'src/domain/calc.ts')).toBe(
@@ -251,7 +251,7 @@ function getFilteredUsers(list) {
           match,
           'src/domain/calc.ts'
         )
-      ).toBe(false);
+      ).toBe(true);
       expect(
         forbiddenTypeCasts.check?.('// const x = val as any;', match, 'src/domain/calc.ts')
       ).toBe(false);
@@ -260,7 +260,7 @@ function getFilteredUsers(list) {
   });
 
   describe('noLiteralBooleanType rule', () => {
-    it('detects literal boolean annotations and auto-fixes them to : boolean', () => {
+    it('detects literal boolean annotations even when boolean-ok is present', () => {
       const match = Object.assign(['const isReady: true'], {
         index: 0
       }) as unknown as RegExpExecArray;
@@ -274,7 +274,7 @@ function getFilteredUsers(list) {
           match,
           'src/types/flag.ts'
         )
-      ).toBe(false);
+      ).toBe(true);
 
       expect(noLiteralBooleanType.fix?.('const isReady: true = true;')).toBe(
         'const isReady: boolean = true;'
@@ -283,7 +283,7 @@ function getFilteredUsers(list) {
   });
 
   describe('noInlineAnonymousObjectType rule', () => {
-    it('flags inline anonymous object types in function parameters', () => {
+    it('flags inline anonymous object types in function parameters even with comments', () => {
       const match = Object.assign(['(user: { id: string; name: string })'], {
         index: 10
       }) as unknown as RegExpExecArray;
@@ -301,12 +301,12 @@ function getFilteredUsers(list) {
           match,
           'src/api/user.ts'
         )
-      ).toBe(false);
+      ).toBe(true);
     });
   });
 
   describe('noFloatingPromises rule', () => {
-    it('flags floating async promises and auto-fixes them with void prefix', () => {
+    it('flags floating async promises even with promise-ok comments', () => {
       const match = Object.assign(['saveDataAsync();'], { index: 0 }) as unknown as RegExpExecArray;
 
       expect(noFloatingPromises.check?.('saveDataAsync();', match, 'src/services/data.ts')).toBe(
@@ -318,14 +318,14 @@ function getFilteredUsers(list) {
           match,
           'src/services/data.ts'
         )
-      ).toBe(false);
+      ).toBe(true);
 
       expect(noFloatingPromises.fix?.('saveDataAsync();')).toBe('void saveDataAsync();');
     });
   });
 
   describe('noLeakedGlobalState rule', () => {
-    it('flags module-level mutable let variables', () => {
+    it('flags module-level mutable let variables even with singleton-ok comments', () => {
       const match = Object.assign(['let count = 0'], { index: 0 }) as unknown as RegExpExecArray;
 
       expect(noLeakedGlobalState.check?.('let count = 0;', match, 'src/state/global.ts')).toBe(
@@ -337,7 +337,7 @@ function getFilteredUsers(list) {
           match,
           'src/state/global.ts'
         )
-      ).toBe(false);
+      ).toBe(true);
     });
   });
 
@@ -369,6 +369,9 @@ function getFilteredUsers(list) {
         strictDomainParamTypes.check?.(codeNormal, matchWildcard, 'src/services/battle.ts')
       ).toBe(true);
       expect(
+        strictDomainParamTypes.check?.(codeEscaped, matchDomainId, 'src/services/battle.ts')
+      ).toBe(true);
+      expect(
         strictDomainParamTypes.check?.(codeNormal, matchInstanceUid, 'src/services/battle.ts')
       ).toBe(false);
       expect(
@@ -376,9 +379,6 @@ function getFilteredUsers(list) {
       ).toBe(false);
       expect(
         strictDomainParamTypes.check?.(codeNormal, matchRpcInfraId, 'src/services/battle.ts')
-      ).toBe(false);
-      expect(
-        strictDomainParamTypes.check?.(codeEscaped, matchDomainId, 'src/services/battle.ts')
       ).toBe(false);
       expect(
         strictDomainParamTypes.check?.(codeNormal, matchDomainId, 'src/services/database.ts')
@@ -395,7 +395,7 @@ function getFilteredUsers(list) {
   });
 
   describe('noInlineLiteralUnions rule', () => {
-    it('flags inline literal unions in source code and respects domain-ok comments', () => {
+    it('flags inline literal unions in source code regardless of domain-ok comments', () => {
       const match = Object.assign([": 'admin' | 'user'"], {
         index: 10
       }) as unknown as RegExpExecArray;
@@ -403,7 +403,7 @@ function getFilteredUsers(list) {
       const codeEscaped = "type Role = 'admin' | 'user'; // domain-ok: UI selector only";
 
       expect(noInlineLiteralUnions.check?.(codeNormal, match, 'src/domain/role.ts')).toBe(true);
-      expect(noInlineLiteralUnions.check?.(codeEscaped, match, 'src/domain/role.ts')).toBe(false);
+      expect(noInlineLiteralUnions.check?.(codeEscaped, match, 'src/domain/role.ts')).toBe(true);
       expect(noInlineLiteralUnions.check?.(codeNormal, match, 'tests/role.test.ts')).toBe(false);
     });
   });
@@ -450,13 +450,13 @@ function getFilteredUsers(list) {
       expect(regex.test("const id = pokemonId || ''")).toBe(true);
     });
 
-    it('evaluates check on noDomainIdFallbacks with escape hatches and infra whitelist', () => {
+    it('evaluates check on noDomainIdFallbacks regardless of escape comments', () => {
       const match = Object.assign(["pokemonId || ''"], { index: 10 }) as unknown as RegExpExecArray;
       const codeNormal = "const id = pokemonId || '';";
       const codeEscaped = "const id = pokemonId || ''; // text-ok: display label fallback";
 
       expect(noDomainIdFallbacks.check?.(codeNormal, match, 'src/domain/order.ts')).toBe(true);
-      expect(noDomainIdFallbacks.check?.(codeEscaped, match, 'src/domain/order.ts')).toBe(false);
+      expect(noDomainIdFallbacks.check?.(codeEscaped, match, 'src/domain/order.ts')).toBe(true);
     });
   });
 });

@@ -16,7 +16,6 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   FileScanAuditor,
-  hasLineSuppression,
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
   resolveFileScanRoots,
@@ -133,13 +132,6 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
         const lineNum = i + 1;
-
-        if (
-          this.isLineIgnored(line, ['my-feature-ok']) ||
-          hasLineSuppression(line, 'my-feature-forbidden-pattern', lines, i)
-        ) {
-          continue;
-        }
 
         if (line.includes('forbiddenToken')) {
           this.addViolation({

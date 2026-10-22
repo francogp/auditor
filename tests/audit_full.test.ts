@@ -477,13 +477,27 @@ describe('audit_full CLI orchestration helpers', () => {
     const baseCli = parseAuditFullCliArgs(activeFamilies, []);
 
     it('renders auto-fix mode banner details', () => {
-      const details = createAuditBannerDetails(baseCli, true, false, 5, 20, 0);
+      const details = createAuditBannerDetails({
+        cliOptions: baseCli,
+        isFixMode: true,
+        isBuildMode: false,
+        tasksCount: 5,
+        allAvailableCount: 20,
+        omittedCount: 0
+      });
       expect(details.some((d) => d.includes('Auto-fixable suites: 5 suites'))).toBe(true);
       expect(details.some((d) => d.includes('Mode: AUTO-FIX 🛠️'))).toBe(true);
     });
 
     it('renders post-build mode banner details', () => {
-      const details = createAuditBannerDetails(baseCli, false, true, 1, 20, 0);
+      const details = createAuditBannerDetails({
+        cliOptions: baseCli,
+        isFixMode: false,
+        isBuildMode: true,
+        tasksCount: 1,
+        allAvailableCount: 20,
+        omittedCount: 0
+      });
       expect(details.some((d) => d.includes('Mode: POST-BUILD 🏗️'))).toBe(true);
     });
 
@@ -492,7 +506,14 @@ describe('audit_full CLI orchestration helpers', () => {
         'preset=lint',
         'family=architecture'
       ]);
-      const details = createAuditBannerDetails(customCli, false, false, 4, 10, 6);
+      const details = createAuditBannerDetails({
+        cliOptions: customCli,
+        isFixMode: false,
+        isBuildMode: false,
+        tasksCount: 4,
+        allAvailableCount: 10,
+        omittedCount: 6
+      });
       expect(details.some((d) => d.includes('Auto-discovered: 4/10 suites'))).toBe(true);
       expect(details.some((d) => d.includes('Speed: LIGHT'))).toBe(true);
       expect(details.some((d) => d.includes('Family: ARCHITECTURE'))).toBe(true);
@@ -503,7 +524,14 @@ describe('audit_full CLI orchestration helpers', () => {
       const remoteCli = parseAuditFullCliArgs(activeFamilies, ['--project=../PokeBorrador']);
       expect(remoteCli.project).toBe('../PokeBorrador');
 
-      const details = createAuditBannerDetails(remoteCli, false, false, 50, 50, 0);
+      const details = createAuditBannerDetails({
+        cliOptions: remoteCli,
+        isFixMode: false,
+        isBuildMode: false,
+        tasksCount: 50,
+        allAvailableCount: 50,
+        omittedCount: 0
+      });
       expect(details.some((d) => d.includes('🎯 Remote: PokeBorrador'))).toBe(true);
     });
   });

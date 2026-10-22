@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
 import { isMainModule } from './cliUtils.ts';
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import {
@@ -28,15 +29,10 @@ interface AgentEntriesConfig {
 }
 
 function loadAgentEntriesConfig(filePath: string): AgentEntriesConfig {
-  if (!fs.existsSync(filePath)) return { entries: [] };
-  try {
-    const raw = fs.readFileSync(filePath, 'utf8');
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed?.entries) ? parsed : { entries: [] };
-  } catch {
-    // catch-ok: fallback to empty entries on parse error
-    return { entries: [] };
-  }
+  const raw = safeReadFileSync(filePath);
+  if (!raw) return { entries: [] };
+  const parsed = safeJsonParse<AgentEntriesConfig>(raw);
+  return Array.isArray(parsed?.entries) ? parsed : { entries: [] };
 }
 
 function registerAgentEntry(
@@ -64,9 +60,7 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
   created: boolean;
 } {
   const rawInitCwd = process.env.INIT_CWD;
-  const safeInitCwd =
-    // path-ok: Guard verifying INIT_CWD does not contain parent traversal segments
-    rawInitCwd && !rawInitCwd.includes('..') ? path.resolve(rawInitCwd) : undefined;
+  const safeInitCwd = rawInitCwd ? path.resolve(rawInitCwd) : undefined;
   const targetDir = options.targetDir
     ? path.resolve(options.targetDir)
     : safeInitCwd || process.cwd();

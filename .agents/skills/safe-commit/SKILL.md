@@ -34,6 +34,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **One command per turn** | Issue one tool call, read its output, then decide the next step. Never batch. |
 | **Read before continuing** | "I ran it" ≠ "I verified the result." Read every output before proceeding. |
 | **No optional phases** | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN. |
+| **Config Ratchet Pre-Flight Integrity Gate (`validate_audit_config`)** | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor suite=validate_audit_config`. The online configuration ratchet automatically compares local configuration against `ratchet.productionRef` (default `origin/main`). If ANY rule relaxation or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight. |
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
 | **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
@@ -54,7 +55,9 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 
 ```mermaid
 graph TD
-    A0["Phase 0\nCreate task.md"] --> A1["Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision"]
+    PRE["Gate 0.0\nPre-Flight Config Ratchet\nnpm run auditor suite=validate_audit_config"] -->|"Ratchet Relaxation / Setup Error 🛑"| STOP_PRE{"🛑 HALT SAFE-COMMIT\nUnauthorized config relaxation (RELAX code required)"}
+    PRE -->|"Passed (Exit 0) ✅"| A0["Phase 0\nCreate task.md"]
+    A0 --> A1["Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision"]
     A1 --> LOOP
 
     subgraph LOOP ["🔁 Phase 2 — Active Repair Loop (Workspace)"]
@@ -74,6 +77,8 @@ graph TD
     STOP1 -->|Approved| A4["Phase 4\nSingle Atomic Certified Commit\n+ Pre-commit npm run auditor:md\n+ Tag & Push"]
     A3 -->|"Zero Lessons & Zero Updates (Skip Stop)"| A4
 
+    style PRE fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
+    style STOP_PRE fill:#533483,stroke:#fff,stroke-width:2px,color:#fff
     style LOOP fill:#1a1a2e,stroke:#e94560,stroke-width:2px,color:#fff
     style T fill:#1f4068,stroke:#00b4d8,stroke-width:2px,color:#fff
     style B fill:#e94560,stroke:#fff,stroke-width:2px,color:#fff
@@ -84,10 +89,28 @@ graph TD
 
 ---
 
-## Phase 0: Mandatory Artifact Initialization
+## Phase 0: Pre-Flight Configuration Ratchet Gate & Artifact Initialization
 
 > [!CAUTION]
-> This is the absolute first action — before `git status`, before any npm command, before anything.
+> **GATE 0.0 PRE-FLIGHT RATCHET BLOCKING**: Before creating `task.md`, before running any script, and before touching anything, the agent MUST run the configuration ratchet gate (`validate_audit_config`). If any unauthorized rule relaxation or config tampering exists, safe-commit MUST NOT START.
+
+**Step 0.0** — Pre-Flight Configuration Ratchet Gate (Blocking Pre-Condition)
+
+1. Execute the canonical setup suite evaluating the online configuration ratchet:
+
+   ```bash
+   npm run auditor suite=validate_audit_config
+   ```
+
+2. **Evaluation & Immediate Blocking Mandate**:
+   - **Passed (Exit 0 ✅)**: The configuration ratchet compared local configuration against `ratchet.productionRef` (default `origin/main`), confirmed zero rule relaxations, verified `.gitignore`, and validated all setup constraints. Proceed immediately to Step 0.1.
+   - **🛑 FORBIDDEN & IMMEDIATE PRE-FLIGHT HALT**: If `validate_audit_config` fails with `audit-config-ratchet-relaxation` (or any setup error in `phase: 'setup'`):
+     - **DO NOT PROCEED TO STEP 0.1**.
+     - **DO NOT CREATE `task.md`**.
+     - **DO NOT RUN TESTS, BUILDS, OR VERSION BUMPS**.
+     - The configuration ratchet detected that a rule or threshold was weakened or altered compared to `origin/main` without verified Antigravity user authorization.
+     - Halt immediately. Display the Red Boxen Alert with the detected relaxation, the specific path, and the required authorization code (`RELAX-<8hex>`).
+     - Instruct the user that they must explicitly approve the relaxation code in chat to proceed, or revert the configuration modifications back to `origin/main`.
 
 **Step 0.1** — Initialize `task.md` (Strict Overwrite)
 

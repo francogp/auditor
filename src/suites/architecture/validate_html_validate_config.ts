@@ -31,6 +31,7 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import { tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -106,14 +107,10 @@ export const HTML_VALIDATE_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Html
   };
 
 export function isVueProjectContext(projectRoot: string): boolean {
-  try {
-    const pkg = getPackageJson(projectRoot);
-    if (pkg) {
-      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
-      if (deps.vue || deps['@vitejs/plugin-vue']) return true;
-    }
-  } catch {
-    // catch-ok: fallback to scanning filesystem
+  const pkg = tryOrNull(() => getPackageJson(projectRoot));
+  if (pkg) {
+    const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+    if (deps.vue || deps['@vitejs/plugin-vue']) return true;
   }
 
   const config = getAuditConfig(projectRoot);
@@ -126,13 +123,11 @@ export function isVueProjectContext(projectRoot: string): boolean {
   for (const r of uiRoots) {
     const fullDir = path.resolve(projectRoot, r);
     if (fs.existsSync(fullDir)) {
-      try {
-        const vueFiles = collectRepositoryFiles(fullDir, projectRoot, [], new Set(['.vue']));
-        if (vueFiles.length > 0) {
-          return true;
-        }
-      } catch {
-        // catch-ok: ignore directory read failure
+      const vueFiles = tryOrNull(() =>
+        collectRepositoryFiles(fullDir, projectRoot, [], new Set(['.vue']))
+      );
+      if (vueFiles && vueFiles.length > 0) {
+        return true;
       }
     }
   }

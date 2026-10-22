@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { tryCatchSync } from "../core/safeUtils.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import path from "node:path";
@@ -18,9 +19,9 @@ function syncCanonicalScriptFile(file, packageRootDir, targetDir, dryRun) {
 	if (!fs.existsSync(srcPath)) return false;
 	if (!dryRun) {
 		fs.copyFileSync(srcPath, destPath);
-		if (file.endsWith(".sh")) try {
+		if (file.endsWith(".sh")) tryCatchSync(() => {
 			fs.chmodSync(destPath, 493);
-		} catch {}
+		});
 	}
 	return true;
 }

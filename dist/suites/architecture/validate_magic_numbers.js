@@ -121,7 +121,11 @@ function isPrecisionOrSliceArg(node) {
 	if (!p || !ts.isCallExpression(p)) return false;
 	if (ts.isPropertyAccessExpression(p.expression)) {
 		const methodName = p.expression.name.text;
-		if (methodName === "toFixed" || methodName === "toPrecision" || methodName === "slice") return true;
+		if ((/* @__PURE__ */ new Set([
+			"toFixed",
+			"toPrecision",
+			"slice"
+		])).has(methodName)) return true;
 	}
 	return false;
 }
@@ -246,18 +250,16 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 					const actualLine = line + 1;
 					const actualCol = character + 1;
 					const lineText = lines[actualLine - 1] ?? "";
-					if (!lineText.includes("// const-ok:")) {
-						const message = isTimerDelay ? `Naked numeric timer delay: ${val}. Declare an explicit constant for this duration ('const RETRY_DELAY_MS = ${val}').` : `Undeclared magic number: ${val}. Declare an explicit constant for this value ('const NAME = ${val}').`;
-						this.addViolation({
-							ruleId: "magic-number-naked",
-							severity: "error",
-							filePath: relPath,
-							line: actualLine,
-							column: actualCol,
-							message,
-							context: lineText.trim() || String(val)
-						});
-					}
+					const message = isTimerDelay ? `Naked numeric timer delay: ${val}. Declare an explicit constant for this duration ('const RETRY_DELAY_MS = ${val}').` : `Undeclared magic number: ${val}. Declare an explicit constant for this value ('const NAME = ${val}').`;
+					this.addViolation({
+						ruleId: "magic-number-naked",
+						severity: "error",
+						filePath: relPath,
+						line: actualLine,
+						column: actualCol,
+						message,
+						context: lineText.trim() || String(val)
+					});
 				}
 			}
 			ts.forEachChild(node, visit);

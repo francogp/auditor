@@ -1,3 +1,4 @@
+import { safeReadFileSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
@@ -21,9 +22,6 @@ import fs from "node:fs";
 *   3. Ephemeral Source Directory References in Code (`ephemeral-no-source-temp-references`):
 *      Forbids source code, scripts, or tests from targeting or referencing ephemeral paths
 *      inside source trees instead of `scratch/`.
-*
-* Escape Hatches:
-*   `// scratch-ok`, `// temp-ok`, `-- scratch-ok`
 *
 * Usage:
 *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_ephemeral_storage_isolation.ts
@@ -80,7 +78,6 @@ function isSelfReferentialFile(relPath) {
 function scanLinesForEphemeralRefs(lines, relPath, auditor) {
 	for (let i = 0; i < lines.length; i++) {
 		const line = lines[i] || "";
-		if (auditor.isLineIgnored(line, ["scratch-ok", "temp-ok"])) continue;
 		if (FORBIDDEN_CODE_REF_REGEX.test(line)) auditor.addViolation({
 			ruleId: "ephemeral-no-source-temp-references",
 			severity: "error",
@@ -94,8 +91,7 @@ function scanLinesForEphemeralRefs(lines, relPath, auditor) {
 var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 	allowedDatabaseDirs;
 	allowedDatabaseFiles;
-	constructor(optionsOrRoot) {
-		const options = typeof optionsOrRoot === "string" ? { projectRoot: optionsOrRoot } : optionsOrRoot ?? {};
+	constructor(options = {}) {
 		const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 		super({
 			usesThirdPartyTool: false,
@@ -128,7 +124,7 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			ruleRemediations: {
 				"ephemeral-no-source-temp-dirs": "📖 REMEDIATION GUIDE: ephemeral-no-source-temp-dirs\n1. Root Cause: A temporary folder (`temp`, `tmp`, `.temp`, `.tmp`, `scratch`, `ephemeral`) was detected inside source code trees (`src/`, `scripts/`, `tests/`, `database/`). Ephemeral storage must strictly reside inside `scratch/`.\n2. Diagnosis: Locate the reported ephemeral folder inside the source tree.\n3. Canonical Solution:\n   a) Delete the temporary directory from source code.\n   b) Update generating scripts or tests to write to `scratch/<module>/` or use the ephemeral sandbox utility.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `database/tmp/` or `src/services/temp/`\n   ✅ Canonical:  `scratch/test-db/` or `scratch/temp-exports/`",
 				"ephemeral-no-gitignore-source-temp": "📖 REMEDIATION GUIDE: ephemeral-no-gitignore-source-temp\n1. Root Cause: The `.gitignore` file ignores temporary directories inside sources (e.g. `src/**/temp/`, `database/tmp/`). This masks source pollution instead of funneling artifacts to `scratch/`.\n2. Diagnosis: Inspect `.gitignore` at the reported line.\n3. Canonical Solution: Remove patterns ignoring source-level temporaries and ensure `.gitignore` contains the global isolation rule `scratch/`.\n4. Example / Auto-fix command:\n   ❌ Incorrect: `src/temp/` or `tests/tmp/` in `.gitignore`\n   ✅ Canonical: `scratch/` in `.gitignore`",
-				"ephemeral-no-source-temp-references": "📖 REMEDIATION GUIDE: ephemeral-no-source-temp-references\n1. Root Cause: Source code contains path literals or resolutions (`path.join`, `path.resolve`) targeting temporary directories inside `src/`, `scripts/`, `tests/`, or `database/`.\n2. Diagnosis: Locate the temporary path reference at the reported line.\n3. Canonical Solution:\n   a) Redirect paths to target `path.resolve(projectRoot, 'scratch', ...)`.\n   b) If strictly required in a specific test fixture, annotate with `// scratch-ok: <reason>`.\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const dbPath = path.resolve(__dirname, 'temp', 'test.db');`\n   ✅ Canonical:  `const dbPath = path.resolve(process.cwd(), 'scratch', 'test.db');`"
+				"ephemeral-no-source-temp-references": "📖 REMEDIATION GUIDE: ephemeral-no-source-temp-references\n1. Root Cause: Source code contains path literals or resolutions (`path.join`, `path.resolve`) targeting temporary directories inside `src/`, `scripts/`, `tests/`, or `database/`.\n2. Diagnosis: Locate the temporary path reference at the reported line.\n3. Canonical Solution:\n   a) Redirect paths to target `path.resolve(projectRoot, 'scratch', ...)`.\n   b) For test fixtures, allocate temporary folders via `os.tmpdir()` (`fs.mkdtempSync`).\n4. Example / Auto-fix command:\n   ❌ Prohibited: `const dbPath = path.resolve(__dirname, 'temp', 'test.db');`\n   ✅ Canonical:  `const dbPath = path.resolve(process.cwd(), 'scratch', 'test.db');`"
 			},
 			coverage: {
 				include: [".gitignore", ...effectiveRoots.map((r) => `${r}/**/*.{ts,vue,js,sql,sh}`)],
@@ -216,22 +212,22 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 	scanGitignoreRules() {
 		const gitignorePath = path.resolve(this.projectRoot, ".gitignore");
 		if (!fs.existsSync(gitignorePath)) return;
-		try {
-			this.recordScanned(".gitignore");
-			const lines = fs.readFileSync(gitignorePath, "utf-8").split("\n");
-			for (let i = 0; i < lines.length; i++) {
-				const line = lines[i]?.trim() || "";
-				if (!line || line.startsWith("#")) continue;
-				if (GITIGNORE_FORBIDDEN_REGEX.test(line) && !this.isLineIgnored(line, ["scratch-ok", "temp-ok"])) this.addViolation({
-					ruleId: "ephemeral-no-gitignore-source-temp",
-					severity: "error",
-					file: ".gitignore",
-					line: i + 1,
-					message: `Ignoring temporary folders inside source directories in .gitignore is forbidden ('${line}'). Ephemeral assets must reside in 'scratch/', not inside source code trees.`,
-					context: line
-				});
-			}
-		} catch {}
+		this.recordScanned(".gitignore");
+		const content = safeReadFileSync(gitignorePath);
+		if (!content) return;
+		const lines = content.split("\n");
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i]?.trim() || "";
+			if (!line || line.startsWith("#")) continue;
+			if (GITIGNORE_FORBIDDEN_REGEX.test(line)) this.addViolation({
+				ruleId: "ephemeral-no-gitignore-source-temp",
+				severity: "error",
+				file: ".gitignore",
+				line: i + 1,
+				message: `Ignoring temporary folders inside source directories in .gitignore is forbidden ('${line}'). Ephemeral assets must reside in 'scratch/', not inside source code trees.`,
+				context: line
+			});
+		}
 	}
 	scanSourceCodeReferences() {
 		const existingRoots = this.roots.filter((r) => fs.existsSync(path.resolve(this.projectRoot, r)));
@@ -250,10 +246,8 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			const relPath = path.relative(this.projectRoot, filePath).split(path.sep).join(path.posix.sep);
 			if (isSelfReferentialFile(relPath)) continue;
 			this.recordScanned(relPath);
-			try {
-				const content = fs.readFileSync(filePath, "utf-8");
-				if (content.includes("/temp") || content.includes("/tmp")) scanLinesForEphemeralRefs(content.split("\n"), relPath, this);
-			} catch {}
+			const content = safeReadFileSync(filePath);
+			if (content && (content.includes("/temp") || content.includes("/tmp"))) scanLinesForEphemeralRefs(content.split("\n"), relPath, this);
 		}
 	}
 };

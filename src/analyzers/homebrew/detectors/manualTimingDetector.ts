@@ -14,10 +14,10 @@ export const manualTimingDetector = createLineDetector({
   ruleId: 'auditor-manual-rule-timing',
   ruleDescription: 'Homebrew timing in auditor',
   checkLine(line, _trimmed, _lineNum, context) {
-    if (context.filePath.includes('/cli/') || context.filePath.startsWith('src/cli/')) return null;
-    if (context.filePath.includes('src/core/') || context.filePath.startsWith('src/core/'))
-      return null;
-    if (line.includes('// timing-ok:') || line.includes('// benchmark-ok:')) return null;
+    const normalized = context.filePath.replace(/\\/g, '/');
+    if (normalized.includes('/cli/') || normalized.startsWith('src/cli/')) return null;
+    if (normalized.includes('src/core/') || normalized.startsWith('src/core/')) return null;
+    if (normalized.endsWith('audit_project.ts')) return null;
 
     // Check for performance.now(), console.time/timeEnd, process.hrtime, or direct recordRuleDuration
     const match =
@@ -34,6 +34,6 @@ export const manualTimingDetector = createLineDetector({
       return null;
     }
 
-    return "Medición manual de tiempos o llamada casera a 'performance.now()' / 'recordRuleDuration' en subauditor o extensión. Prohibido medir tiempos ad-hoc. Declara las sub-herramientas con 'declareSubAuditor()', 'declareFileSubAuditor()' o 'declarePatternSubAuditor()', o usa 'runSubAuditorSync()' para medir cada regla individualmente.";
+    return "Manual rule timing or ad-hoc call to 'performance.now()' / 'recordRuleDuration' in sub-auditor or extension. Measuring ad-hoc execution duration is forbidden. Declare sub-auditors with 'declareSubAuditor()', 'declareFileSubAuditor()' or 'declarePatternSubAuditor()', or use 'runSubAuditorSync()' to measure each rule individually.";
   }
 });

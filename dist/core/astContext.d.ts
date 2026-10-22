@@ -35,4 +35,12 @@ export declare class SharedAstContext {
   clear(): void;
   private normalizePath;
 }
+/**
+ * Creates a synthetic, empty ts.SourceFile for use with ts.Printer when printing generated AST nodes.
+ */
+export declare function createSyntheticSourceFile(fileName?: string): ts.SourceFile;
+/**
+ * Helper to print an AST node using a synthetic source file.
+ */
+export declare function printAstNode(node: ts.Node, printer?: ts.Printer, hint?: ts.EmitHint): string;
 //#endregion

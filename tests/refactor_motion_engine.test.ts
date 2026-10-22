@@ -101,7 +101,7 @@ describe('MotionRefactorEngine (AST-driven)', () => {
     expect(easeFindings[0]?.suggestedReplacement).toBe("'power1.out'");
   });
 
-  it('respects layout-ok and timer-ok escape hatches', async () => {
+  it('flags layout and timer issues regardless of comments (Zero-Ignore Mandate)', async () => {
     const tsPath = path.join(tempDir, 'escaped.ts');
     await fs.writeFile(
       tsPath,
@@ -118,7 +118,7 @@ describe('MotionRefactorEngine (AST-driven)', () => {
     );
 
     const findings = MotionRefactorEngine.discoverInFile(tsPath);
-    expect(findings).toEqual([]);
+    expect(findings.length).toBeGreaterThanOrEqual(2);
   });
 
   it('detects banned UI timers and clearTimeout in scripts and Vue SFCs', async () => {

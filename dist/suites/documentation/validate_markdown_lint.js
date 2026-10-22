@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
 import { loadLockedSkills } from "../../core/lockedSkills.js";
@@ -185,7 +185,8 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 		if (isFixMode && hasConfigFile) this.repairMarkdownLintConfig(configPath);
 		const binPath = resolveNodeModuleBin(this.projectRoot, "markdownlint-cli/markdownlint.js");
 		const relMdFiles = mdFiles.map((f) => toPosixRelative(this.projectRoot, f));
-		const args = [...relMdFiles.reduce((acc, f) => acc + f.length + 1, 0) < 6e3 && relMdFiles.length > 0 ? relMdFiles : ["**/*.md", "--dot"]];
+		if (relMdFiles.length === 0) return;
+		const args = [...relMdFiles];
 		for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) args.push("--ignore", pattern);
 		args.push("--json");
 		if (isFixMode) args.push("--fix");

@@ -116,37 +116,24 @@ function extractTweenConfigObjects(
 ): TweenConfigObject[] {
   const configs: TweenConfigObject[] = [];
   const limit = maxIndex !== undefined ? Math.min(content.length, maxIndex) : content.length;
-  let parenDepth = 1;
+  const parenResult = scanBalancedParens(content, openParenIndex + 1, limit, 1, '</script>');
+  const argRegionEnd = parenResult.depth === 0 ? parenResult.end - 1 : limit;
+
   let i = openParenIndex + 1;
 
-  while (i < limit && parenDepth > 0) {
-    const ch = content[i];
-
-    if (ch === '<' && content.startsWith('</script>', i)) {
+  while (i < argRegionEnd) {
+    if (content[i] === '<' && content.startsWith('</script>', i)) {
       break;
     }
 
-    const skipped = advancePastStringOrComment(content, i, limit);
+    const skipped = advancePastStringOrComment(content, i, argRegionEnd);
     if (skipped !== i) {
       i = skipped;
       continue;
     }
 
-    if (ch === '(') {
-      parenDepth++; // homebrew-ok: GSAP tween call argument paren balancing
-      i++;
-      continue;
-    }
-
-    if (ch === ')') {
-      parenDepth--;
-      i++;
-      if (parenDepth === 0) break;
-      continue;
-    }
-
-    if (ch === '{' && parenDepth === 1) {
-      const balanced = extractBalancedBraces(content, i, limit);
+    if (content[i] === '{') {
+      const balanced = extractBalancedBraces(content, i, argRegionEnd);
       if (balanced) {
         configs.push({
           startOffset: i,
@@ -162,9 +149,6 @@ function extractTweenConfigObjects(
 
   return configs;
 }
-
-const TWEEN_CALL_ESCAPE_WINDOW_OFFSET = 400;
-const MATCH_ESCAPE_WINDOW_OFFSET = 800;
 
 export const GSAP_LAYOUT_PROPERTIES = [
   'backgroundPosition',
@@ -217,10 +201,10 @@ function readTopLevelProperty(
 
 function findTopLevelLayoutProperty(cfgText: string): { index: number; propName: string } | null {
   const limit = cfgText.length;
-  let braceDepth = 0; // homebrew-ok: GSAP top-level property lexical depth tracking
-  let parenDepth = 0; // homebrew-ok: GSAP top-level property lexical depth tracking
-  let bracketDepth = 0;
-  let i = 0;
+  const firstBrace = cfgText.indexOf('{');
+  if (firstBrace === -1) return null;
+
+  let i = firstBrace + 1;
 
   while (i < limit) {
     const skipped = advancePastStringOrComment(cfgText, i, limit);
@@ -230,25 +214,23 @@ function findTopLevelLayoutProperty(cfgText: string): { index: number; propName:
     }
 
     const ch = cfgText[i];
+    if (ch === '}') {
+      break;
+    }
+
     if (ch === '{') {
-      braceDepth++; // homebrew-ok: GSAP top-level property lexical depth tracking
-    } else if (ch === '}') {
-      braceDepth--;
-    } else if (ch === '(') {
-      parenDepth++; // homebrew-ok: GSAP top-level property lexical depth tracking
-    } else if (ch === ')') {
-      parenDepth--;
-    } else if (ch === '[') {
-      bracketDepth++;
-    } else if (ch === ']') {
-      bracketDepth--;
-    } else if (
-      braceDepth === 1 &&
-      parenDepth === 0 &&
-      bracketDepth === 0 &&
-      ch &&
-      /[a-z_$]/i.test(ch)
-    ) {
+      const nested = scanBalancedBraces(cfgText, i + 1, limit, 1);
+      i = nested.end;
+      continue;
+    }
+
+    if (ch === '(') {
+      const nested = scanBalancedParens(cfgText, i + 1, limit, 1);
+      i = nested.end;
+      continue;
+    }
+
+    if (ch && /[a-z_$]/i.test(ch)) {
       const { nextIndex, match } = readTopLevelProperty(cfgText, i, limit);
       if (match) return match;
       i = nextIndex;
@@ -727,7 +709,6 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         if (isCommentLine(trimmedLine)) continue;
         const textBefore = lineText.slice(0, column - 1);
         if (textBefore.includes('//')) continue;
-        if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText)) continue;
         this.addViolation({
           ruleId: 'gsap-banned-ui-timers',
           message: `ANIMATION/UI timer detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Prohibited in UI. Use gsap.delayedCall or deterministic promises.`,
@@ -743,7 +724,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
   private forEachTweenConfig(
     content: string,
     scriptRanges: readonly { start: number; end: number }[],
-    callback: (cfg: TweenConfigObject, mIndex: number, isAuthorized: boolean) => void
+    callback: (cfg: TweenConfigObject, mIndex: number) => void
   ): void {
     if (
       !content.includes('gsap') &&
@@ -761,20 +742,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       while ((m = gsapTweenRegex.exec(content)) !== null) {
         if (m.index >= range.end) break;
         const openParenIdx = m.index + m[0].length - 1;
-        const parenResult = scanBalancedParens(content, openParenIdx + 1, range.end);
-        const tweenEnd = parenResult.depth === 0 ? parenResult.end : range.end;
-
-        const precedingLineStart = content.lastIndexOf('\n', m.index);
-        const prevLineStart =
-          precedingLineStart > 0 ? content.lastIndexOf('\n', precedingLineStart - 1) + 1 : 0;
-        const tweenSpanText = content.slice(prevLineStart, tweenEnd);
-        const isTweenAuthorized = /\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(
-          tweenSpanText
-        );
 
         const configObjects = extractTweenConfigObjects(content, openParenIdx, range.end);
         for (const cfg of configObjects) {
-          callback(cfg, m.index, isTweenAuthorized);
+          callback(cfg, m.index);
         }
       }
     }
@@ -785,31 +756,19 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     content: string,
     scriptRanges: readonly { start: number; end: number }[]
   ): void {
-    this.forEachTweenConfig(content, scriptRanges, (cfg, mIndex, isAuthorized) => {
+    this.forEachTweenConfig(content, scriptRanges, (cfg) => {
       const foundLayout = findTopLevelLayoutProperty(cfg.text);
-      if (foundLayout && !isAuthorized) {
+      if (foundLayout) {
         const matchIdx = cfg.startOffset + foundLayout.index;
-        const tweenCallStart = mIndex;
-        const windowStart = Math.max(
-          0,
-          Math.min(
-            tweenCallStart - TWEEN_CALL_ESCAPE_WINDOW_OFFSET,
-            matchIdx - MATCH_ESCAPE_WINDOW_OFFSET
-          )
-        );
-        const lineEnd = content.indexOf('\n', matchIdx);
-        const nearby = content.slice(windowStart, lineEnd === -1 ? content.length : lineEnd);
-        if (!/\/\/\s*(?:layout-ok|shimmer-ok|gpu-ok):\s*\S+/i.test(nearby)) {
-          const { line, column } = getLineAndColumnAt(content, matchIdx);
-          this.addViolation({
-            ruleId: 'gsap-no-layout-properties',
-            message: `Animation of CSS layout properties in GSAP detected: '${foundLayout.propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin (or document with '// layout-ok: <justification>' if structural reflow is required).`,
-            filePath: relPath,
-            line,
-            column,
-            severity: 'error'
-          });
-        }
+        const { line, column } = getLineAndColumnAt(content, matchIdx);
+        this.addViolation({
+          ruleId: 'gsap-no-layout-properties',
+          message: `Animation of CSS layout properties in GSAP detected: '${foundLayout.propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
+          filePath: relPath,
+          line,
+          column,
+          severity: 'error'
+        });
       }
     });
   }
@@ -890,8 +849,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       const valStr = m.slice(1).find(Boolean);
       if (!valStr || parseFloat(valStr) === 0) continue;
 
-      const { line, column, lineText } = getLineAndColumnAt(content, m.index);
-      if (/\/\/\s*(?:timer-ok|delay-ok):\s*\S+/i.test(lineText)) continue;
+      const { line, column } = getLineAndColumnAt(content, m.index);
 
       this.addViolation({
         ruleId: 'gsap-named-timer-constants',
@@ -949,9 +907,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     while ((m = hfListenerRegex.exec(content)) !== null) {
       const listenerChunk = content.slice(m.index, m.index + GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS);
       if (/\bgsap\.(?:to|from|fromTo)\s*\(/.test(listenerChunk)) {
-        if (!/\/\/\s*(?:quickto-ok|listener-ok):\s*\S+/i.test(listenerChunk)) {
-          const { line, column } = getLineAndColumnAt(content, m.index);
-          this.addViolation({
+        const { line, column } = getLineAndColumnAt(content, m.index);
+        this.addViolation({
             ruleId: 'gsap-high-frequency-tween-creation',
             message:
               "Tween creation with 'gsap.to()' inside continuous listener. In 'mousemove', etc. use 'gsap.quickTo()'.",
@@ -964,6 +921,5 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       }
     }
   }
-}
 
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGsapAnimationsAuditor());

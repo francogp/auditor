@@ -71,7 +71,7 @@ export function calculate(a: number, b: number): number {
       expect(violations[1]?.ruleId).toBe('banned-style-suppression');
     });
 
-    it('detects // fallow-ignore-file headers anywhere in file', () => {
+    it('detects file-level fallow suppression headers anywhere in file', () => {
       const code = [
         '// ' + 'fallow-ignore-file security-sink',
         'import fs from "node:fs";',

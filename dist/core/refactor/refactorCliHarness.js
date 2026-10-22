@@ -65,6 +65,7 @@ Usage via project npm scripts:
    Prefix with '--' to pass through npm:
    npm run ${scriptAlias} -- --project <path>
 `);
+	if (def.extendedHelp) console.log(def.extendedHelp);
 }
 function handleDiscoverCommand(def, projectRoot, engine, isHuman = false) {
 	const files = engine ? engine.getScannableFiles() : scanProjectSourceFiles(projectRoot);

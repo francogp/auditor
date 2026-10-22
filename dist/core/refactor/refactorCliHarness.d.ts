@@ -27,6 +27,7 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
     readonly filesChanged: number;
     readonly changesApplied: number;
   };
+  readonly extendedHelp?: string;
 }
 declare const REFACTOR_HARNESS_ARGS: {
   readonly file: {

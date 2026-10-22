@@ -237,7 +237,7 @@ describe('ValidatePersistenceClientAuditor', () => {
     expect(saveViolations[0]?.severity).toBe('error');
   });
 
-  it('fulfills point 4: honors storage-ok escape hatch comment', async () => {
+  it('fulfills point 4: flags uncoordinated save regardless of storage-ok comment (Zero-Ignore Mandate)', async () => {
     class TestableAuditor extends ValidatePersistenceClientAuditor {
       public async testScan(file: string, content: string): Promise<void> {
         this.scanFile(file, content);
@@ -252,12 +252,11 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/utils/debugStorage.ts', escapedCode);
     const result = await auditor.finishAudit();
 
-    expect(result.summary.errors).toBe(0);
-    expect(result.findings).toHaveLength(0);
-    expect(result.status).toBe('passed');
+    expect(result.summary.errors).toBeGreaterThanOrEqual(1);
+    expect(result.status).toBe('failed');
   });
 
-  it('honors storage-ok escape hatch placed on preceding line', async () => {
+  it('flags uncoordinated save regardless of storage-ok comment on preceding line (Zero-Ignore Mandate)', async () => {
     class TestableAuditor extends ValidatePersistenceClientAuditor {
       public async testScan(file: string, content: string): Promise<void> {
         this.scanFile(file, content);
@@ -273,9 +272,8 @@ describe('ValidatePersistenceClientAuditor', () => {
     await auditor.testScan('src/utils/debugStorage2.ts', escapedCode);
     const result = await auditor.finishAudit();
 
-    expect(result.summary.errors).toBe(0);
-    expect(result.findings).toHaveLength(0);
-    expect(result.status).toBe('passed');
+    expect(result.summary.errors).toBeGreaterThanOrEqual(1);
+    expect(result.status).toBe('failed');
   });
 
   it('correctly flags unhandled quota error when code has retry or entry variables without try/catch', async () => {

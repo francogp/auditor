@@ -85,7 +85,7 @@ export function getHero(heroId: string, category: string): void {
       expect(naked[1]?.suggestedReplacement).toBe('category: Category');
     });
 
-    it('honors // domain-ok: escape hatch', () => {
+    it('detects domain finding even when // domain-ok: is present (Zero-Ignore Mandate)', () => {
       const tsFile = path.join(tmpDir, 'escapeSample.ts');
       fs.writeFileSync(
         tsFile,
@@ -95,7 +95,7 @@ export const THEMES = ['dark', 'light']; // domain-ok: external third-party them
       );
 
       const findings = DomainRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(0);
+      expect(findings.length).toBeGreaterThan(0);
     });
   });
 

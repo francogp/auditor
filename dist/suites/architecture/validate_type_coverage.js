@@ -1,3 +1,4 @@
+import { safeRmSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -106,7 +107,7 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Type coverage desactivado en config")) return;
+		if (this.isSuiteGatingDisabled("Type coverage disabled in config")) return;
 		this.recordExternalScanCount(1);
 		const config = getAuditConfig(this.projectRoot);
 		const scratchDir = path.resolve(this.projectRoot, "scratch/audits/architecture");
@@ -114,9 +115,7 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 		fs.mkdirSync(scratchDir, { recursive: true });
 		fs.mkdirSync(cacheDir, { recursive: true });
 		const rawOutPath = path.resolve(scratchDir, "type-coverage-raw.json");
-		if (fs.existsSync(rawOutPath)) try {
-			fs.unlinkSync(rawOutPath);
-		} catch {}
+		safeRmSync(rawOutPath, { force: true });
 		const threshold = config.typeCoverage?.atLeast ?? 95;
 		const report = this.executeTypeCoverageCli(config, cacheDir, rawOutPath, threshold);
 		if (!report) {
@@ -150,7 +149,7 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 			projectRoot: this.projectRoot,
 			fallbackRelativeBin: "bin/type-coverage"
 		});
-		if (!resolvedBin) throw new Error("[validate_type_coverage] El ejecutable de 'type-coverage' no fue encontrado en node_modules/.bin ni en el entorno local. Asegúrate de que 'type-coverage' esté instalado en las dependencias del proyecto. El uso de npx está estrictamente prohibido.");
+		if (!resolvedBin) throw new Error("[validate_type_coverage] The 'type-coverage' executable was not found in node_modules/.bin or local environment. Ensure 'type-coverage' is installed in project dependencies. Using npx is strictly prohibited.");
 		const command = process.execPath;
 		const finalArgs = [resolvedBin, ...cliFlags];
 		return executeCliAndReadJson(command, finalArgs, rawOutPath, {

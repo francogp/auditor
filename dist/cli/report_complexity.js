@@ -1,6 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
@@ -22,15 +23,20 @@ const MAX_RECOMMENDED_CYCLOMATIC = 25;
 const MAX_FILE_PATH_DISPLAY_LENGTH = 27;
 const FILE_PATH_TAIL_CHARS = 24;
 const MAX_RECOMMENDATION_CHARS = 48;
+function extractTopFolder(relativePosixPath) {
+	const dir = path.posix.dirname(relativePosixPath);
+	if (dir === ".") return "root";
+	const slashIdx = dir.indexOf("/");
+	return slashIdx === -1 ? dir : dir.slice(0, slashIdx);
+}
 function extractLayerFromPath(relPath) {
 	const codeRoots = getAuditConfig().paths?.codeRoots ?? ["src", "scripts"];
 	for (const root of codeRoots) {
 		const cleanRoot = toPosixRelative(process.cwd(), root);
 		const relToRoot = path.posix.relative(cleanRoot, relPath);
-		if (!relToRoot.startsWith("..") && !path.posix.isAbsolute(relToRoot)) return relToRoot.split("/").filter(Boolean)[0] || "root";
+		if (!relToRoot.startsWith("..") && !path.posix.isAbsolute(relToRoot)) return extractTopFolder(relToRoot);
 	}
-	const segments = relPath.split("/").filter(Boolean);
-	return segments.length > 1 && segments[0] ? segments[0] : "root";
+	return extractTopFolder(relPath);
 }
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
@@ -143,28 +149,30 @@ function ingestFallbackAuditFindings(findingsMap) {
 	if (findingsMap.size > 0) return;
 	const latestPath = path.resolve(process.cwd(), "scratch/audits/latest_audit.json");
 	if (!fs.existsSync(latestPath)) return;
-	try {
-		const compFindings = (JSON.parse(fs.readFileSync(latestPath, "utf8")).allFindings || []).filter((f) => f.ruleId === "fallow-refactoring-targets");
-		for (const cf of compFindings) {
-			const filePath = cf.file || "";
-			const relPath = toPosixRelative(process.cwd(), filePath);
-			const layer = extractLayerFromPath(relPath);
-			const line = cf.line || 1;
-			const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);
-			const key = `${relPath}:${line}:${name}`;
-			findingsMap.set(key, {
-				name,
-				file: relPath,
-				line,
-				lines,
-				cog,
-				cyc,
-				total: cog + cyc,
-				exceeded: "complexity",
-				layer
-			});
-		}
-	} catch {}
+	const raw = safeReadFileSync(latestPath);
+	if (!raw) return;
+	const auditData = safeJsonParse(raw);
+	if (!auditData) return;
+	const compFindings = (auditData.allFindings || []).filter((f) => f.ruleId === "fallow-refactoring-targets");
+	for (const cf of compFindings) {
+		const filePath = cf.file || "";
+		const relPath = toPosixRelative(process.cwd(), filePath);
+		const layer = extractLayerFromPath(relPath);
+		const line = cf.line || 1;
+		const { name, cog, cyc, lines } = parseAuditFindingContext(cf.context);
+		const key = `${relPath}:${line}:${name}`;
+		findingsMap.set(key, {
+			name,
+			file: relPath,
+			line,
+			lines,
+			cog,
+			cyc,
+			total: cog + cyc,
+			exceeded: "complexity",
+			layer
+		});
+	}
 }
 function sortComplexityFindings(findings) {
 	return findings.sort((a, b) => {

@@ -14,6 +14,7 @@ import {
 } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import { CANONICAL_INFRA_ID_WHITELIST } from '../domain_data/validate_domain_types.ts';
 
 export {
   AUDIT_SEVERITIES,
@@ -136,7 +137,7 @@ export const viewport: AuditRule = {
   aliases: ['viewport', 'dvh', 'dvw', 'vh', 'vw'],
   regex: /\b\d+(?:\.\d+)?(vw|vh)\b/gi,
   message: (match: string) =>
-    `Unidad legacy detectada: '${match}'. Usa '${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}' para soporte mobile dinámico.`,
+    `Legacy viewport unit detected: '${match}'. Use '${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}' for dynamic mobile viewport support.`,
   fix: (match: string) => `${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}` // string-ok: Internal string formatting or DOM token identifier
 };
 
@@ -229,17 +230,19 @@ export const noDomainIdFallbacks: AuditRule = {
   message:
     "SILENT FALLBACK ON DOMAIN ID / NAME DETECTED. Using silent fallbacks (such as || '', ?? '', or swapping id with name) is strictly prohibited for domain identifiers. A strict validation function throwing an explicit error (Fail Loud) must be used if the ID is missing or invalid.",
   severity: 'error', // string-ok: Internal string formatting or DOM token identifier
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+  check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
     if (!isDomainAuditTarget(filePath, config)) return false;
 
-    // Respect standard escape hatches for pure display localization / text
-    const { line } = getLineAtMatch(content, match.index ?? 0);
-    if (/\/\/\s*(?:text-ok|domain-ok|string-ok|no-domain)/.test(line)) return false;
+    const matchText = match[0] || '';
+    // Exclude boolean conditions like !name || !condition
+    if (/!\s*(?:name|description|title)\b/.test(matchText)) return false;
 
-    const infraWhitelist = config.domain?.infraIdWhitelist ?? [];
+    const infraWhitelist = [
+      ...CANONICAL_INFRA_ID_WHITELIST,
+      ...(config.domain?.infraIdWhitelist ?? [])
+    ];
     if (infraWhitelist.length > 0) {
-      const matchText = match[0] || '';
       if (infraWhitelist.some((id) => new RegExp(`\\b${id}\\b`).test(matchText))) {
         return false;
       }
@@ -366,14 +369,13 @@ export const timersPromises: AuditRule = {
 };
 
 export const explicitResource: AuditRule = {
-  regex: /const (\w+) = (new DatabaseSync|fs\.openSync)/g,
+  regex: /const (\w+) = (new DatabaseSync)/g,
   message: `Resource detected without 'using'. Use Explicit Resource Management (Node ${RULES_TARGET_NODE_VERSION_LABEL}+).`,
   fix: (match: string) => match.replace('const', 'using'),
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath || !isScriptPath(filePath)) return false;
-    const { line, trimmed } = getLineAtMatch(content, match.index ?? 0);
+    const { trimmed } = getLineAtMatch(content, match.index ?? 0);
     if (isCommentLine(trimmed)) return false;
-    if (/\/\/\s*(?:resource-ok|fs-ok):\s*\S+/i.test(line)) return false;
     return true;
   }
 };
@@ -477,7 +479,7 @@ export const forbiddenFallbacks: AuditRule = {
   regex:
     /\b\w*Provider\.\w+\([^)]*\)\s*(?:\|\||\?\?)|\b([\w$]+)\.(?:\w*[iI]d|name)\s*(?:\|\||\?\?)\s*\1\.(?:name|description|title|id)\b|\b(?:\w+\??\.)*\w*[uU]id\s*(?:\|\||\?\?)\s*(?:\w+\??\.)*\w*[uU]id\b/g,
   message: (match: string) =>
-    `Patrón de fallback silencioso o búsqueda prohibida detectado: '${match}'. En (/domain-type-first Zero-Fallback Mandate), está ESTRICTAMENTE PROHIBIDO encadenar fallbacks en IDs de dominio o usar descripciones como fallback de ID. Se debe fallar ruidosamente con throw new Error().`,
+    `Silent fallback or forbidden lookup pattern detected: '${match}'. Under (/domain-type-first Zero-Fallback Mandate), chaining fallbacks on domain IDs or using descriptions as ID fallback is STRICTLY PROHIBITED. Fail loud with throw new Error().`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -501,16 +503,15 @@ export const forbiddenTypeCasts: AuditRule = {
     'g'
   ),
   message: (match: string) =>
-    `Casteo arbitrario o tipo 'any' prohibido detectado: '${match}'. Viola las directivas de integridad de tipos (/domain-type-first y Regla 7 de AGENTS.md). Define e importa la interfaz o unión de tipos explícita.`,
+    `Arbitrary cast or prohibited 'any' type detected: '${match}'. Violates type integrity directives (/domain-type-first and AGENTS.md Rule 7). Define and import an explicit interface or union type.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
     if (isExemptFile(filePath)) return false;
     if (!isInCodeRoots(filePath)) return false;
 
-    const { line, trimmed } = getLineAtMatch(content, match.index ?? 0);
+    const { trimmed } = getLineAtMatch(content, match.index ?? 0);
     if (isCommentLine(trimmed)) return false;
-    if (/\/\/\s*(?:type-ok|domain-ok|any-ok):\s*\S+/i.test(line)) return false;
 
     return true;
   },
@@ -520,8 +521,7 @@ export const forbiddenTypeCasts: AuditRule = {
 function checkTypeScriptRuleMatch(
   content: string,
   match: RegExpExecArray,
-  filePath?: string,
-  extraBypasses: string[] = []
+  filePath?: string
 ): boolean {
   if (!filePath) return false;
   const norm = normalizeFilePath(filePath);
@@ -531,14 +531,8 @@ function checkTypeScriptRuleMatch(
   );
   if (!isInCodeRoots) return false;
 
-  const { line, trimmed } = getLineAtMatch(content, match.index);
+  const { trimmed } = getLineAtMatch(content, match.index);
   if (isCommentLine(trimmed)) return false;
-  if (
-    line.includes('// domain-ok: Open dynamic text or non-domain string payload') ||
-    line.includes('// no-domain: Non-domain utility collection or data structure') ||
-    extraBypasses.some((b) => line.includes(b))
-  )
-    return false;
 
   return true;
 }
@@ -546,7 +540,6 @@ function checkTypeScriptRuleMatch(
 function createTypeScriptRule(config: {
   regex: RegExp;
   message: string | ((match: string) => string);
-  bypassAnnotations: string[];
   fixable?: boolean;
   fix?: (content: string) => string;
 }): AuditRule {
@@ -555,7 +548,7 @@ function createTypeScriptRule(config: {
     message: config.message,
     severity: 'error',
     check: (content: string, match: RegExpExecArray, filePath?: string) =>
-      checkTypeScriptRuleMatch(content, match, filePath, config.bypassAnnotations),
+      checkTypeScriptRuleMatch(content, match, filePath),
     fixable: config.fixable ?? false,
     ...(config.fix ? { fix: config.fix } : {})
   };
@@ -565,27 +558,23 @@ export const noLiteralBooleanType: AuditRule = createTypeScriptRule({
   regex:
     /\b(?:(?:export\s+)?const|let|var)\s+[A-Z_a-z]\w*\s*:\s*(?:true|false)\b|\b(?:export\s+)?type\s+[A-Z_a-z]\w*\s*=\s*(?:true|false)\s*;|^\s*(?:readonly\s+)?[A-Z_a-z]\w*\??:\s*(?:true|false)\s*;|\(\s*[A-Z_a-z]\w*\??:\s*(?:true|false)\b/gm,
   message: (match: string) =>
-    `Tipo de dato booleano literal detectado: '${match.trim()}'. Queda prohibido declarar tipos de datos con literales booleanos (: true / : false) en lugar del tipo de dato canónico 'boolean'. Usa ': boolean'.`,
-  bypassAnnotations: ['// boolean-ok: Explicit boolean flag annotation'],
+    `Literal boolean type detected: '${match.trim()}'. Declaring types with boolean literals (: true / : false) instead of canonical 'boolean' is prohibited. Use ': boolean'.`,
   fixable: true,
   fix: (content: string) => content.replace(/:\s*(?:true|false)\b/g, ': boolean')
 });
 
 export const noInlineAnonymousObjectType: AuditRule = createTypeScriptRule({
-  // redos-ok: deterministic parameter signature regex
   regex:
-    /\(\s*(?:[A-Z_a-z]\w*\s*,\s*)*[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*(?:;|,)\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g,
+    /\(\s*[A-Za-z0-9_$,\s]*\b[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*[,;]\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g,
   message: (match: string) =>
-    `Tipo de objeto anónimo inline detectado en parámetro: '${match.trim()}'. Está PROHIBIDO usar estructuras de objeto anónimas inline en firmas de función (estilo Java). Define e importa una interface o tipo nombrado (ej. UserPayload).`,
-  bypassAnnotations: ['// type-ok: Type contract declaration', 'withDefaults']
+    `Inline anonymous object type detected in parameter: '${match.trim()}'. Using inline anonymous object shapes in function signatures is PROHIBITED. Define and import a named interface or type (e.g. UserPayload).`
 });
 
 export const noFloatingPromises: AuditRule = createTypeScriptRule({
   regex:
     /^\s*(?!(?:await|void|return|const|let|var)\s)(?:[A-Z_a-z]\w*\.)?[a-z]\w*Async\s*\([^)]*\)\s*;/gm,
   message: (match: string) =>
-    `Promesa flotante detectada: '${match.trim()}'. Toda llamada a función asíncrona debe ser manejada explícitamente con await, void o .catch().`,
-  bypassAnnotations: ['// promise-ok: Background promise handler'],
+    `Floating promise detected: '${match.trim()}'. Every async function call must be explicitly handled with await, void, or .catch().`,
   fixable: true,
   fix: (content: string) => content.replace(/^\s*([a-z]\w*Async\s*\([^)]*\)\s*;)/gm, 'void $1')
 });
@@ -593,8 +582,7 @@ export const noFloatingPromises: AuditRule = createTypeScriptRule({
 export const noLeakedGlobalState: AuditRule = createTypeScriptRule({
   regex: /^(?:export\s+)?let\s+[a-z]\w*\s*=/gm,
   message: (match: string) =>
-    `Variable mutable global detectada a nivel de módulo: '${match.trim()}'. Encapsula el estado dentro de un Pinia store, clase o marca // singleton-ok: Singleton instance state container.`,
-  bypassAnnotations: ['// singleton-ok:']
+    `Global mutable variable detected at module scope: '${match.trim()}'. Encapsulate state within a Pinia store or class.`
 });
 
 const BASE_INFRA_AND_UUID_IDENTIFIERS: ReadonlySet<string> = new Set<string>([
@@ -659,16 +647,16 @@ export const strictDomainParamTypes: AuditRule = {
   regex: /\b(\w{2,}[iI]d)\s*\??:\s*(?:string\b(?!\s*\[\])|[A-Z]\w*\s*\|\s*string\b)/g,
   message: (match: string) =>
     match.includes('|')
-      ? `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' combina un tipo de dominio con '| string'.
-   📚 REGLA: (/domain-type-first) está ESTRICTAMENTE PROHIBIDO combinar uniones finitas con '| string'.
-   💡 SOLUCIÓN: Usa exclusivamente la unión canónica pura.`
-      : `[TUTORIAL DOMAIN-TYPE-FIRST] Parámetro o propiedad '${match}' tipado con 'string' plano.
-   📚 REGLA: Los IDs de dominio de catálogo DEBEN ser tipados con su unión canónica de dominio.
-   💡 INSTANCIAS vs CATÁLOGO:
-      - Si representa una instancia dinámica / UUID (ej. ID generado), nómbralo como '*Uid' (ej. 'targetUid', 'instanceUid') para ser reconocido automáticamente.
-      - Si es un UUID o identificador de infraestructura externo no estándar (DOM, WebSocket), debe justificarse explícitamente mediante '// uuid-ok: <motivo técnico>' o '// infra-id-ok: <motivo técnico>'.`,
+      ? `[DOMAIN-TYPE-FIRST MANDATE] Parameter or property '${match}' combines a domain type with '| string'.
+   RULE: Under (/domain-type-first) combining finite domain unions with '| string' is STRICTLY PROHIBITED.
+   SOLUTION: Use the pure canonical union exclusively.`
+      : `[DOMAIN-TYPE-FIRST MANDATE] Parameter or property '${match}' typed with naked 'string'.
+   RULE: Catalog domain IDs MUST be typed with their canonical domain union.
+   INSTANCES vs CATALOG:
+      - If it represents a dynamic instance / UUID (e.g. generated ID), name it '*Uid' (e.g. 'targetUid', 'instanceUid') to be automatically recognized.
+      - If it is an external infrastructure UUID (DOM, WebSocket), justify explicitly via '// uuid-ok: <technical reason>' or '// infra-id-ok: <technical reason>'.`,
   severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+  check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
     if (!isDomainAuditTarget(filePath, config)) return false;
     if (isAllowedDatabaseFile(filePath!, config)) return false;
@@ -699,17 +687,6 @@ export const strictDomainParamTypes: AuditRule = {
       return false;
     }
 
-    const matchIndex = match.index ?? 0;
-    const lineStart = content.lastIndexOf('\n', matchIndex) + 1;
-    const lineEnd = content.indexOf('\n', matchIndex);
-    const line = content.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-
-    // Require specific detailed ignore comments with reason: "// uuid-ok: <reason>", "// infra-id-ok: <reason>", or "// domain-ok: <reason>"
-    const justifiedIgnoreRegex = /\/\/\s*(?:uuid-ok|infra-id-ok|domain-ok):\s*\S+/i;
-    if (justifiedIgnoreRegex.test(line)) {
-      return false;
-    }
-
     return true;
   },
   fixable: false
@@ -719,9 +696,9 @@ export const noInlineTypeImports: AuditRule = {
   id: 'noInlineTypeImports',
   name: 'No Inline Type Imports',
   regex: /:\s*import\(['"][^'"]+['"]\)\.\w+/g,
-  message: (match: string) => `[TUTORIAL CLEAN IMPORTS] Uso de import de tipo inline '${match}'.
-   📚 REGLA: Se prohíbe importar tipos inline en parámetros o propiedades dentro del código fuente (.ts/.vue).
-   💡 SOLUCIÓN: Agrega 'import type { ... } from '...'' explícitamente en la cabecera del archivo y usa el nombre del tipo directamente en la firma para mantener legible el código y claro el árbol de dependencias. (Solo archivos ambientales .d.ts están exentos).`,
+  message: (match: string) => `[CLEAN IMPORTS MANDATE] Usage of inline type import '${match}' detected.
+   RULE: Importing types inline in parameters or properties inside source code (.ts/.vue) is prohibited.
+   SOLUTION: Add explicit 'import type { ... } from "..."' in the file header and use the named type directly in the signature to keep code readable and dependency trees clear. (Only ambient .d.ts files are exempt).`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!isAuditableCodeFile(filePath)) return false;
@@ -738,19 +715,14 @@ export const noInlineLiteralUnions: AuditRule = {
   regex: /:\s*(?:'[^']+'|"[^"]+")(?:\s*\|\s*(?:'[^']+'|"[^"]+"))+/g,
   message: (
     match: string
-  ) => `[TUTORIAL DOMAIN-TYPE-FIRST] Unión literal de strings inline detectada: '${match.slice(1).trim()}'.
-   📚 REGLA: (/domain-type-first) está PROHIBIDO declarar uniones de literales inline ad-hoc dispersas en contratos, componentes o funciones.
-   💡 SOLUCIÓN: Centraliza el catálogo en constantes mediante un array 'as const' y deriva el tipo canónico con '(typeof ARRAY)[number]' (ej. 'export const FOOS = [...] as const; export type Foo = (typeof FOOS)[number];').`,
+  ) => `[DOMAIN-TYPE-FIRST MANDATE] Inline string literal union detected: '${match.slice(1).trim()}'.
+   RULE: Under (/domain-type-first) declaring ad-hoc inline literal unions scattered across contracts, components, or functions is PROHIBITED.
+   SOLUTION: Centralize catalog constants via an 'as const' array and derive the canonical type with '(typeof ARRAY)[number]' (e.g. 'export const FOOS = [...] as const; export type Foo = (typeof FOOS)[number];').`,
   severity: 'error',
-  check: (content: string, match: RegExpExecArray, filePath?: string) => {
+  check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!filePath || isTestPath(filePath)) return false;
     const config = getAuditConfig();
     if (!isInCodeRoots(filePath, config) || isExemptFile(filePath, config)) return false;
-
-    const { line } = getLineAtMatch(content, match.index ?? 0);
-    if (/\/\/\s*(?:domain-ok|type-ok|string-ok):\s*\S+/i.test(line)) {
-      return false;
-    }
 
     return true;
   },
@@ -763,7 +735,7 @@ export const noRawJsonImportsOutsideData: AuditRule = {
   category: 'Bundle Optimization',
   regex: /\bimport\s[^;]+\sfrom\s+['"][^'"]+\.json['"]/g,
   message: (match: string) =>
-    `Importación estática de JSON fuera de src/data/ o scripts/: '${match}'. Centraliza catálogos en src/data/ o usa importación dinámica para prevenir empaquetado redundante.`,
+    `Static JSON import outside src/data/ or scripts/: '${match}'. Centralize catalogs in src/data/ or use dynamic import to prevent redundant bundling.`,
   severity: 'error',
   fixable: false,
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
@@ -779,7 +751,7 @@ export const noSassAtImport: AuditRule = {
   category: 'SASS Migrator',
   regex: /@import\s+(?:url\(\s*['"]?([^'")\s]+)['"]?\s*\)|['"]([^'"]+)['"])\s*;?/g,
   message: (match: string) =>
-    `Regla obsoleta '@import' detectada en Sass: '${match}'. Dart Sass requiere migrar a '@use' o '@forward'.`,
+    `Deprecated '@import' directive detected in Sass: '${match}'. Dart Sass requires migrating to '@use' or '@forward'.`,
   severity: 'error',
   fixable: true,
   fix: (match: string) => {

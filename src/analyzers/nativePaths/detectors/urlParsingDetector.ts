@@ -26,7 +26,7 @@ import {
 } from '../pathHeuristics.ts';
 
 const URL_PARSING_MESSAGE =
-  "Parseo o construcción casera de URLs / query strings. Usa 'new URL(relativo, base)', 'url.searchParams', 'URLSearchParams' y 'url.pathname' / 'url.hash' nativos.";
+  "Homebrew parsing or manual assembly of URLs / query strings. Use native 'new URL(relative, base)', 'url.searchParams', 'URLSearchParams', and 'url.pathname' / 'url.hash'.";
 
 const URL_DELIMITERS: ReadonlySet<string> = new Set(['?', '#', '&', '=']); // runtime-set: O(1) lookup
 const QUERY_CLASS_TOKENS = ['[?&]', '[&?]', '[\\?&]', '[&\\?]'] as const;

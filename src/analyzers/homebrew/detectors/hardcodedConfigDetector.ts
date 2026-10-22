@@ -12,15 +12,13 @@ export const hardcodedConfigDetector = createLineDetector({
   ruleId: 'auditor-hardcoded-config',
   ruleDescription: 'Hardcoded paths or configs',
   checkLine(_line, trimmed) {
-    if (trimmed.includes('hardcoded-config-ok') || trimmed.includes('homebrew-ok')) return null;
-
     // 1. Literal candidate directory arrays: e.g. ['migrations', 'supabase/migrations'] or ['src', 'app']
     const hasCandidateArray =
       /\[\s*['"`](?:migrations|supabase\/migrations|database\/migrations|src['"`]\s*,\s*['"`]app)['"`]/i.test(
         trimmed
       );
     if (hasCandidateArray) {
-      return "Array de rutas candidatas hardcodeadas detectado. Resuelve las rutas dinámicamente desde 'config.paths' o 'audit.config.ts'.";
+      return "Hardcoded candidate directory array detected. Resolve paths dynamically from 'config.paths' or 'audit.config.ts'.";
     }
 
     // 2. Hardcoded fallback directory arrays in nullish coalescing or unshift: e.g. unshift('supabase/migrations') or ?? ['migrations']
@@ -29,7 +27,7 @@ export const hardcodedConfigDetector = createLineDetector({
         trimmed
       );
     if (hasCandidatePush) {
-      return "Ruta de directorio fallback hardcodeada detectada. Usa únicamente la ruta configurada en 'config.paths.migrationsDir'.";
+      return "Hardcoded fallback directory path detected. Exclusively use the configured path from 'config.paths.migrationsDir'.";
     }
 
     // 3. Candidate files array or magic file literals: e.g. ['visuals.ts', 'zLayers.ts'] or CANDIDATE_FILES = [...]
@@ -38,7 +36,7 @@ export const hardcodedConfigDetector = createLineDetector({
         trimmed
       );
     if (hasCandidateFiles) {
-      return 'Lista fija de archivos candidatos hardcodeada detectada. Resuelve las rutas desde la configuración.';
+      return 'Hardcoded candidate files list detected. Resolve paths dynamically from configuration.';
     }
 
     // 4. Hardcoded folder checking like file.includes('/types/') or relPath.includes('migrations') without consulting config
@@ -46,15 +44,15 @@ export const hardcodedConfigDetector = createLineDetector({
       /(?:file|relPath|filePath|path)\.(?:includes|startsWith)\s*\(\s*['"`](?:\/?(?:types|data|migrations|supabase|fixtures)\/|migrations|supabase\/migrations|database\/migrations)['"`]\s*\)/i.test(
         trimmed
       );
-    if (hasHardcodedPathExemption && !trimmed.includes('// path-ok:')) {
-      return "Comprobación de ruta o directorio hardcodeada detectada en el sub-auditor ('/types/', '/data/', '/migrations/'). Resuelve las rutas dinámicamente desde 'config.paths' o utilidades canónicas.";
+    if (hasHardcodedPathExemption) {
+      return "Hardcoded path or directory check detected in sub-auditor ('/types/', '/data/', '/migrations/'). Resolve paths dynamically from 'config.paths' or canonical utilities.";
     }
 
     // 5. Fallback path arrays on config.paths: e.g. config.paths.srcRoots ?? ['src']
     const hasFallbackRootsArray =
       /(?:config|cfg|paths)\.(?:paths\.)?\w+Roots\s*\?\?\s*\[\s*['"`]/i.test(trimmed);
     if (hasFallbackRootsArray) {
-      return "Array de rutas fallback hardcodeadas detectado. Resuelve las rutas directamente desde 'config.paths' sin fallback hardcodeado.";
+      return "Hardcoded fallback roots array detected. Resolve paths directly from 'config.paths' without hardcoded fallbacks.";
     }
 
     return null;

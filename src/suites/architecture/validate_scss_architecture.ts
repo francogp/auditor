@@ -166,7 +166,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
   }
 
   private auditRawCssInSfc(relPath: string, content: string): void {
-    if (content.includes('raw-css-ok')) return;
     if (!relPath.endsWith('.vue')) return;
 
     // Detect <style> without lang="scss"
@@ -193,8 +192,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     content: string,
     lineOffset: number = 1
   ): void {
-    if (content.includes('deep-selector-ok')) return;
-
     // 1. Detect nested :deep() e.g. :deep(...) :deep(...)
     const nestedDeepRegex = /:deep\([^)]*\)[^{};]*:deep\(/g;
     let nestedMatch: RegExpExecArray | null;
@@ -233,7 +230,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     content: string,
     lineOffset: number = 1
   ): void {
-    if (content.includes('spacing-unit-ok')) return;
     const config = getAuditConfig(this.projectRoot);
     if (config.scssArchitecture?.allowPixelArtSpacing) return;
 
@@ -265,7 +261,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     lineOffset: number = 1,
     isScoped: boolean = false
   ): void {
-    if (content.includes('theme-token-ok')) return;
     const config = getAuditConfig(this.projectRoot);
     if (isScoped && config.scssArchitecture?.allowScopedColors) return;
 
@@ -300,12 +295,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     }
   }
 
-  private isLineNestingExempt(rawLines: readonly string[], index: number): boolean {
-    const rawLine = rawLines[index] ?? '';
-    const prevRawLine = index > 0 ? (rawLines[index - 1] ?? '') : '';
-    return rawLine.includes('scss-nesting-ok') || prevRawLine.includes('scss-nesting-ok');
-  }
-
   private processScssLineBraces(
     line: string,
     blockStack: Array<'selector' | 'atrule'>,
@@ -337,8 +326,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     lineOffset: number = 1,
     isScoped: boolean = false
   ): void {
-    if (content.includes('scss-nesting-ok')) return;
-
     const config = getAuditConfig(this.projectRoot);
     const maxAllowedDepth = isScoped
       ? (config.scssArchitecture?.scopedMaxNestingDepth ?? 4)
@@ -346,12 +333,9 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
     const cleanContent = stripCommentsAndStrings(content);
     const lines = cleanContent.split('\n');
-    const rawLines = content.split('\n');
     const blockStack: Array<'selector' | 'atrule'> = [];
 
     for (let i = 0; i < lines.length; i++) {
-      if (this.isLineNestingExempt(rawLines, i)) continue;
-
       this.processScssLineBraces(lines[i]!, blockStack, maxAllowedDepth, (depth) => {
         this.addViolation({
           ruleId: 'excessive-scss-nesting',

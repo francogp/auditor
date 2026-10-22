@@ -150,12 +150,11 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(finding?.severity).toBe('error');
     });
 
-    it('does not flag JSON module default exports or end-of-line escape hatches as redundant aliases', async () => {
+    it('does not flag JSON module default exports as redundant aliases', async () => {
       const jsonImportFile = path.join(srcDir, 'dataCatalog.ts');
       const content = [
         "import dbJson from './data.json' with { type: 'json' };",
-        'export const DATA_CATALOG = dbJson;',
-        'export const OTHER_ALIAS = SOURCE_CONST; // const-ok: intentional passthrough'
+        'export const DATA_CATALOG = dbJson;'
       ].join('\n');
       await fs.writeFile(jsonImportFile, content, 'utf-8');
 
@@ -166,6 +165,23 @@ describe('ValidateConstantHygieneAuditor', () => {
         (f) => f.ruleId === 'constant-no-alias' && f.file?.includes('dataCatalog.ts')
       );
       expect(aliasFindings).toHaveLength(0);
+    });
+
+    it('flags constant aliases regardless of const-ok comments (Zero-Ignore Mandate)', async () => {
+      const aliasFile = path.join(srcDir, 'aliasFile.ts');
+      const content = [
+        'export const SOURCE_CONST = 100;',
+        'export const OTHER_ALIAS = SOURCE_CONST; // const-ok: intentional passthrough'
+      ].join('\n');
+      await fs.writeFile(aliasFile, content, 'utf-8');
+
+      const auditor = new ValidateConstantHygieneAuditor({ roots: [srcDir], projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const aliasFindings = result.findings.filter(
+        (f) => f.ruleId === 'constant-no-alias' && f.file?.includes('aliasFile.ts')
+      );
+      expect(aliasFindings).toHaveLength(1);
     });
   });
 });

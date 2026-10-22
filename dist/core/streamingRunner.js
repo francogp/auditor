@@ -1,3 +1,4 @@
+import { tryOrNull } from "./safeUtils.js";
 import "./auditContract.js";
 import { formatDurationMs } from "./durationFormatter.js";
 import "./unifiedTheme.js";
@@ -142,15 +143,11 @@ function executeAuditorStreaming(task, args, onSubProgress) {
 		let timer;
 		if (timeoutLimit > 0) timer = setTimeout(() => {
 			timedOut = true;
-			onSubProgress?.(`Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`);
-			try {
-				child.kill("SIGTERM");
-				setTimeout(() => {
-					try {
-						child.kill("SIGKILL");
-					} catch {}
-				}, SIGKILL_ESCALATION_DELAY_MS);
-			} catch {}
+			onSubProgress?.(`Execution timeout exceeded (${timeoutLimit}ms) running auditor '${task.name}' (${task.id}).`);
+			tryOrNull(() => child.kill("SIGTERM"));
+			setTimeout(() => {
+				tryOrNull(() => child.kill("SIGKILL"));
+			}, SIGKILL_ESCALATION_DELAY_MS);
 		}, timeoutLimit);
 		function processStderrChunk(chunk) {
 			stderrBuffer += chunk;

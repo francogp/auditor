@@ -25,7 +25,7 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup temporary test directory
+      /* non-fatal test cleanup */
     }
   });
 
@@ -41,22 +41,18 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       expect(auditor.ruleDescriptions['hardcoded-secrets']).toBe(
         'Hardcoded secret or token in code'
       );
-      expect(auditor.ruleDescriptions['insecure-random']).toBe(
-        'Math.random() for sensitive values'
-      );
-      expect(auditor.ruleDescriptions['vulnerable-regex-redos']).toBe(
-        'Regular expression vulnerable to ReDoS'
-      );
+      expect(auditor.ruleDescriptions['insecure-random']).toBe('Weak random for sensitive values');
+      expect(auditor.ruleDescriptions['vulnerable-regex-redos']).toBe('Regex vulnerable to ReDoS');
       expect(auditor.ruleDescriptions['raw-html-injection']).toBe(
         'HTML injection via v-html or innerHTML'
       );
       expect(auditor.ruleDescriptions['missing-csrf-token']).toBe('POST form missing CSRF token');
       expect(auditor.ruleDescriptions['eval-or-function-constructor']).toBe(
-        'Use of eval() or dynamic new Function()'
+        'Eval or Function constructor'
       );
       expect(auditor.ruleDescriptions['permissive-cors']).toBe("Permissive CORS with origin '*'");
       expect(auditor.ruleDescriptions['unvalidated-redirect']).toBe(
-        'Open redirect without path validation'
+        'Open redirect without validation'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);

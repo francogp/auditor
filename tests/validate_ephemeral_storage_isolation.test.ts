@@ -41,7 +41,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
     });
 
     it('initializes cleanly with projectRoot sandbox', () => {
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_ephemeral_storage_isolation');
       expect(auditor.family).toBe('architecture');
       expect(auditor.name).toBe('Ephemeral Storage & Scratch Isolation Validator');
@@ -52,7 +52,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
     it('detects forbidden temp directory inside src/', async () => {
       await fs.mkdir(path.join(tempDir, 'src', 'logic', 'temp'), { recursive: true });
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -65,7 +65,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
     it('detects forbidden tmp_ prefix directory inside scripts/', async () => {
       await fs.mkdir(path.join(tempDir, 'scripts', 'tmp_fixtures'), { recursive: true });
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -77,7 +77,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
     it('detects forbidden temp_supabase directory inside supabase/', async () => {
       await fs.mkdir(path.join(tempDir, 'supabase', 'temp_supabase'), { recursive: true });
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -91,7 +91,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'scripts', 'auditors'), { recursive: true });
       await fs.mkdir(path.join(tempDir, 'supabase', 'migrations'), { recursive: true });
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -107,7 +107,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'database', 'schemas'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'database', 'AGENTS.md'), '# Database\n');
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -121,7 +121,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'database', 'unknown_folder'), { recursive: true });
       await fs.writeFile(path.join(tempDir, 'database', 'stray_file.txt'), 'content');
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -144,7 +144,7 @@ supabase/temp_supabase/
         `.trim()
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -164,7 +164,7 @@ src/temp/
         `.trim()
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -184,7 +184,7 @@ dist/
         `.trim()
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -203,7 +203,7 @@ dist/
         `const tempDir = path.resolve('supabase/temp_supabase');`
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -220,7 +220,7 @@ dist/
         `const cloneDir = path.resolve(BASE_DIR, '..', 'scratch', 'supabase_clone');`
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
@@ -230,7 +230,7 @@ dist/
       expect(result.summary.errors).toBe(0);
     });
 
-    it('permits code with // scratch-ok escape hatch', async () => {
+    it('flags ephemeral code reference regardless of // scratch-ok comment (Zero-Ignore Mandate)', async () => {
       const srcDir = path.join(tempDir, 'src');
       await fs.mkdir(srcDir, { recursive: true });
       await fs.writeFile(
@@ -238,13 +238,13 @@ dist/
         `const path = 'src/temp/old.json'; // scratch-ok`
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
       );
-      expect(violations.length).toBe(0);
+      expect(violations.length).toBeGreaterThanOrEqual(1);
     });
 
     it('ignores forbidden temp directory names if the directory is globally ignored in paths.ignoredDirs', async () => {
@@ -262,7 +262,7 @@ dist/
         tempDir
       );
 
-      const auditor = new EphemeralStorageIsolationAuditor(tempDir);
+      const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
       const result = await auditor.execute();
 
       const violations = result.findings.filter(

@@ -19,6 +19,7 @@ const FORBIDDEN_PRODUCTION_ROOTS = [
 	"src/api",
 	"src/server"
 ];
+const FORBIDDEN_ROOT_PATTERNS = FORBIDDEN_PRODUCTION_ROOTS.map((root) => new RegExp(`(^|/|\\*\\*/)${root.replaceAll("/", "\\/")}(/|$)`, "i"));
 const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 const MIN_COVERAGE_REASON_LENGTH = 15;
 const BLOCKED_WILDCARD_LITERALS = [
@@ -36,7 +37,9 @@ const BLOCKED_WILDCARD_PATTERNS = [
 const UNIVERSAL_COVERAGE_REGEX = /^(?:\*\*?\/?)+(?:\*(?:\.\*)?)?$/;
 const NARROW_EXTENSION_REGEX = /^\*\*\/\*\.\w+$/;
 function normalizeRootPath(p) {
-	return p.replaceAll(path.win32.sep, path.posix.sep).split("/").filter((seg) => Boolean(seg) && seg !== ".").join("/");
+	const converted = p.replaceAll(path.win32.sep, path.posix.sep);
+	const resolved = path.posix.resolve("/", converted);
+	return resolved === "/" ? "" : resolved.slice(1);
 }
 function getExemptRootsForPolicy(policy, paths) {
 	switch (policy) {
@@ -60,34 +63,34 @@ function isBlanketCoverageGlob(glob) {
 */
 function assertNarrowCoverageGlob(field, rawGlob, protectedRoots) {
 	const glob = (rawGlob ?? "").trim();
-	if (isBlanketCoverageGlob(glob)) throw new Error(`[AuditConfig Anti-Abuse] '${field}' contiene un glob global o inválido: '${rawGlob}'. Usa globs POSIX relativos y acotados (ej: 'dist/**', 'LICENSE').`);
+	if (isBlanketCoverageGlob(glob)) throw new Error(`[AuditConfig Anti-Abuse] '${field}' contains a global or invalid blanket glob: '${rawGlob}'. Use scoped, relative POSIX globs (e.g. 'dist/**', 'LICENSE').`);
 	for (const root of protectedRoots) {
 		const cleanRoot = normalizeRootPath(root);
 		if (!cleanRoot) continue;
-		if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) throw new Error(`[AuditConfig Anti-Abuse] '${field}' no puede eximir una raíz de código completa ('${rawGlob}' cubre '${cleanRoot}').`);
+		if (glob === cleanRoot || new RegExp(`^${RegExp.escape(cleanRoot)}/(?:\\*\\*/?)*\\*?(?:\\.\\*|\\.\\w+)?$`).test(glob)) throw new Error(`[AuditConfig Anti-Abuse] '${field}' cannot exempt an entire code root ('${rawGlob}' covers '${cleanRoot}').`);
 	}
 }
 function assertCoverageReason(field, glob, reason) {
-	if (typeof reason !== "string" || reason.trim().length < 15) throw new Error(`[AuditConfig Anti-Abuse] '${field}' para '${glob}' requiere un 'reason' de al menos 15 caracteres.`);
+	if (typeof reason !== "string" || reason.trim().length < 15) throw new Error(`[AuditConfig Anti-Abuse] '${field}' for '${glob}' requires a 'reason' of at least 15 characters.`);
 }
 function isUniversalWildcard(glob) {
 	return BLOCKED_WILDCARD_LITERALS.some((literal) => literal === glob) || BLOCKED_WILDCARD_PATTERNS.some((re) => re.test(glob));
 }
-function isProtectedProductionRoot(normalizedLower, prodRoot) {
-	return normalizedLower === prodRoot || normalizedLower.startsWith(`${prodRoot}/`) || normalizedLower.includes(`/${prodRoot}/`) || normalizedLower.startsWith(`**/${prodRoot}`);
-}
 function assertNoUniversalWildcard(rawGlob, glob) {
-	if (isUniversalWildcard(glob)) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene un comodín global no permitido: '${rawGlob}'.\nEstá ESTRICTAMENTE PROHIBIDO usar comodines globales ('*', '**', 'src/**', 'scripts/**') para evadir el mandato de números mágicos.`);
+	if (isUniversalWildcard(glob)) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contains a prohibited global wildcard: '${rawGlob}'.\nUsing global wildcards ('*', '**', 'src/**', 'scripts/**') to evade the magic numbers mandate is STRICTLY PROHIBITED.`);
 }
-function assertNoProtectedProductionRoots(rawGlob, normalizedLower) {
-	for (const prodRoot of FORBIDDEN_PRODUCTION_ROOTS) if (isProtectedProductionRoot(normalizedLower, prodRoot)) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contiene una ruta de lógica de producción protegida: '${rawGlob}'.\nEstá ESTRICTAMENTE PROHIBIDO eximir directorios de producción (como '${prodRoot}').\nLas excepciones de números mágicos solo están permitidas para scripts de semillas, fixtures o demostraciones aisladas (ej: 'scripts/database/seeds/**', 'ui-demo/**').`);
+function assertNoProtectedProductionRoots(rawGlob, targetPattern) {
+	for (let i = 0; i < FORBIDDEN_PRODUCTION_ROOTS.length; i++) if (FORBIDDEN_ROOT_PATTERNS[i].test(targetPattern)) {
+		const prodRoot = FORBIDDEN_PRODUCTION_ROOTS[i];
+		throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' contains a protected production logic path: '${rawGlob}'.\nExempting production directories (such as '${prodRoot}') is STRICTLY PROHIBITED.\nMagic number exceptions are only permitted for seed scripts, fixtures, or isolated demos (e.g. 'scripts/database/seeds/**', 'ui-demo/**').`);
+	}
 }
 function validateConstantsExemptGlobs(globs) {
-	if (globs.length > 15) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' excede el límite máximo de 15 patrones (${globs.length} configurados).\nNo abuses de las excepciones. Si tienes tantas incidencias, extrae constantes nominadas descriptivas o usa fábricas de prueba.`);
+	if (globs.length > 15) throw new Error(`[AuditConfig Anti-Abuse] 'constants.exemptGlobs' exceeds the maximum limit of 15 patterns (${globs.length} configured).\nDo not abuse exemptions. If you have this many violations, extract descriptive named constants or use test factories.`);
 	for (const rawGlob of globs) {
 		const glob = rawGlob.trim().replaceAll(path.win32.sep, path.posix.sep);
 		assertNoUniversalWildcard(rawGlob, glob);
-		assertNoProtectedProductionRoots(rawGlob, glob.toLowerCase().replace(/^\/+/, ""));
+		assertNoProtectedProductionRoots(rawGlob, glob.toLowerCase());
 	}
 }
 //#endregion

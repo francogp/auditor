@@ -11,7 +11,7 @@ import type { NativePathDetector } from '../nativePathTypes.ts';
 import { isFsSinkCall, isPathBuilderCall, unwrapExpression } from '../pathHeuristics.ts';
 
 const ENV_ARGV_MESSAGE =
-  "'process.env' o 'process.argv' pasado directamente a una función de path/filesystem sin validar contención (CWE-22). Resuelve con 'path.resolve()' y valida con 'path.relative()' + 'path.isAbsolute()' (o 'assertSafePathComponent()') antes de usarlo.";
+  "'process.env' or 'process.argv' passed directly to a path/filesystem function without containment validation (CWE-22). Resolve with 'path.resolve()' and validate with 'path.relative()' + '!path.isAbsolute()' (or 'assertSafePathComponent()') before using.";
 
 function isProcessMember(expr: ts.Expression, member: 'env' | 'argv'): boolean {
   const node = unwrapExpression(expr);

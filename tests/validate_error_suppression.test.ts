@@ -97,26 +97,30 @@ describe('ErrorSuppressionAuditor', () => {
       expect(auditor.getCountsByRule().get('strict-catch-narrowing')).toBe(1);
     });
 
-    it('honors escape hatches for all rules', () => {
+    it('flags violations regardless of escape comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableErrorSuppressionAuditor();
       const code = `
         try {
           clean();
-        } catch (err) { // catch-ok: expected noop for cleanup
+        } catch (err) { /* non-fatal test cleanup */
         }
 
         fetch('/ping').catch(() => {}); // error-ok: optional ping
 
         try {
           work();
-        } catch (err) { // catch-ok: trusted library error
+        } catch (err) { /* non-fatal test cleanup */
           console.error(err.message);
         }
       `;
       auditor.testScanFile('src/utils/exempt.ts', code);
-      expect(auditor.getCountsByRule().get('no-empty-catch') ?? 0).toBe(0);
-      expect(auditor.getCountsByRule().get('no-silent-promise-catch') ?? 0).toBe(0);
-      expect(auditor.getCountsByRule().get('strict-catch-narrowing') ?? 0).toBe(0);
+      expect(auditor.getCountsByRule().get('no-empty-catch') ?? 0).toBeGreaterThanOrEqual(1);
+      expect(auditor.getCountsByRule().get('no-silent-promise-catch') ?? 0).toBeGreaterThanOrEqual(
+        1
+      );
+      expect(auditor.getCountsByRule().get('strict-catch-narrowing') ?? 0).toBeGreaterThanOrEqual(
+        1
+      );
     });
 
     it('detects violations and fails with status failed and severity error', async () => {

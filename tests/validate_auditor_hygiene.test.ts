@@ -368,19 +368,18 @@ export class MissingPolicyAuditor extends BaseAuditor {
       expect(finding?.context).toBe('missing-third-party-tool-policy');
     });
 
-    it('respects inline // homebrew-ok: exemption annotations', async () => {
+    it('does not ignore violations with inline // homebrew-ok: exemption (zero-escape policy)', async () => {
       const auditorsDir = path.join(tempDir, 'scripts', 'auditors');
       await fs.mkdir(auditorsDir, { recursive: true });
 
-      const snippet =
-        'const norm = file.split(' + "'\\\\').join('/'); // homebrew-ok: benchmark test";
+      const snippet = "console.log('uncoordinated debug output'); // homebrew-ok: benchmark test";
       await fs.writeFile(path.join(auditorsDir, 'exempt_file.ts'), snippet, 'utf8');
 
       const auditor = new AuditorHygieneAuditor(tempDir);
       const result = await auditor.execute();
 
-      expect(result.summary.errors).toBe(0);
-      expect(result.status).toBe('passed');
+      expect(result.summary.errors).toBeGreaterThan(0);
+      expect(result.status).toBe('failed');
     });
 
     it('scans self-provider repo suites and analyzers while skipping ignored patterns', async () => {
@@ -602,7 +601,7 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
       expect(result.findings).toHaveLength(0);
     });
 
-    it('respects inline // homebrew-ok: exemption on a step log line', async () => {
+    it('flags manual step log line regardless of inline // homebrew-ok: comment (Zero-Ignore Mandate)', async () => {
       const result = await audit('exempt_step.ts', [
         "export class ExemptStepAuditor extends BaseAuditor<'fsm-state-missing'> {",
         '  public override async runAudit(): Promise<void> {',
@@ -612,7 +611,7 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
         '}'
       ]);
 
-      expect(findingsFor(result, 'auditor-manual-step-logging')).toHaveLength(0);
+      expect(findingsFor(result, 'auditor-manual-step-logging')).toHaveLength(1);
     });
   });
 
@@ -792,7 +791,7 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
       expect(result.status).toBe('passed');
     });
 
-    it('respects inline // homebrew-ok: exemption on the violation line', async () => {
+    it('flags unmeasured rule emission regardless of inline // homebrew-ok: comment (Zero-Ignore Mandate)', async () => {
       const result = await audit('exempt_unmeasured.ts', [
         "export class ExemptUnmeasuredAuditor extends BaseAuditor<'rule-a'> {",
         '  public override async runAudit(): Promise<void> {',
@@ -801,7 +800,7 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
         '}'
       ]);
 
-      expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(0);
+      expect(findingsFor(result, 'auditor-unmeasured-rule')).toHaveLength(1);
     });
   });
 

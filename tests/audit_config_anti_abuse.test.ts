@@ -111,37 +111,37 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
 
     it('rejects blanket or universal wildcards', () => {
       expect(() => assertNarrowCoverageGlob('coverage.exemptGlobs', '*', protectedRoots)).toThrow(
-        /glob global o inválido/
+        /global or invalid blanket glob/
       );
       expect(() => assertNarrowCoverageGlob('coverage.exemptGlobs', '**', protectedRoots)).toThrow(
-        /glob global o inválido/
+        /global or invalid blanket glob/
       );
       expect(() =>
         assertNarrowCoverageGlob('coverage.exemptGlobs', '**/*', protectedRoots)
-      ).toThrow(/glob global o inválido/);
+      ).toThrow(/global or invalid blanket glob/);
       expect(() => assertNarrowCoverageGlob('coverage.exemptGlobs', '*.*', protectedRoots)).toThrow(
-        /glob global o inválido/
+        /global or invalid blanket glob/
       );
     });
 
     it('rejects absolute paths or backslashes', () => {
       expect(() =>
         assertNarrowCoverageGlob('coverage.exemptGlobs', '/etc/passwd', protectedRoots)
-      ).toThrow(/glob global o inválido/);
+      ).toThrow(/global or invalid blanket glob/);
       expect(() =>
         assertNarrowCoverageGlob('coverage.exemptGlobs', 'src\\**', protectedRoots)
-      ).toThrow(/glob global o inválido/);
+      ).toThrow(/global or invalid blanket glob/);
     });
 
     it('rejects globs that cover an entire protected code root', () => {
       expect(() =>
         assertNarrowCoverageGlob('coverage.exemptGlobs', 'src/**', protectedRoots)
-      ).toThrow(/no puede eximir una raíz de código completa/);
+      ).toThrow(/cannot exempt an entire code root/);
       expect(() =>
         assertNarrowCoverageGlob('coverage.exemptGlobs', 'scripts/**', protectedRoots)
-      ).toThrow(/no puede eximir una raíz de código completa/);
+      ).toThrow(/cannot exempt an entire code root/);
       expect(() => assertNarrowCoverageGlob('coverage.exemptGlobs', 'src', protectedRoots)).toThrow(
-        /no puede eximir una raíz de código completa/
+        /cannot exempt an entire code root/
       );
     });
   });
@@ -157,16 +157,16 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
 
     it('rejects missing or empty reasons', () => {
       expect(() => assertCoverageReason('coverage.exemptGlobs', 'dist/**', undefined)).toThrow(
-        /requiere un 'reason'/
+        /requires a 'reason'/
       );
       expect(() => assertCoverageReason('coverage.exemptGlobs', 'dist/**', '')).toThrow(
-        /requiere un 'reason'/
+        /requires a 'reason'/
       );
     });
 
     it('rejects reasons shorter than MIN_COVERAGE_REASON_LENGTH', () => {
       expect(() => assertCoverageReason('coverage.exemptGlobs', 'dist/**', 'too short')).toThrow(
-        /al menos 15 caracteres/
+        /at least 15 characters/
       );
     });
   });
@@ -182,19 +182,21 @@ describe('AuditConfig Anti-Abuse Assertions & Constraints', () => {
         { length: MAX_CONSTANTS_EXEMPT_GLOBS + 1 },
         (_, i) => `fixture-${i}/**`
       );
-      expect(() => validateConstantsExemptGlobs(excessiveGlobs)).toThrow(/excede el límite máximo/);
+      expect(() => validateConstantsExemptGlobs(excessiveGlobs)).toThrow(
+        /exceeds the maximum limit/
+      );
     });
 
     it('rejects universal wildcards in constants.exemptGlobs', () => {
-      expect(() => validateConstantsExemptGlobs(['*'])).toThrow(/comodín global no permitido/);
-      expect(() => validateConstantsExemptGlobs(['**'])).toThrow(/comodín global no permitido/);
-      expect(() => validateConstantsExemptGlobs(['src/**'])).toThrow(/comodín global no permitido/);
+      expect(() => validateConstantsExemptGlobs(['*'])).toThrow(/prohibited global wildcard/);
+      expect(() => validateConstantsExemptGlobs(['**'])).toThrow(/prohibited global wildcard/);
+      expect(() => validateConstantsExemptGlobs(['src/**'])).toThrow(/prohibited global wildcard/);
     });
 
     it('rejects exempting forbidden production roots', () => {
       for (const prodRoot of FORBIDDEN_PRODUCTION_ROOTS) {
         expect(() => validateConstantsExemptGlobs([`${prodRoot}/**`])).toThrow(
-          /contiene una ruta de lógica de producción protegida/
+          /protected production logic path/
         );
       }
     });

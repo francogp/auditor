@@ -69,7 +69,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
           '3. Canonical Solution:\n' +
           '   a) Convert the image to `.webp` or `.avif` format.\n' +
           '   b) Add performance attributes: `loading="lazy"` and `decoding="async"`.\n' +
-          '   c) If the image is an immutable external asset or requires PNG for binary transparency, annotate `<!-- unoptimized-img-ok: <reason> -->`.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Legacy:    `<img src="/hero.png">`\n' +
           '   ✅ Optimized: `<img src="/hero.webp" loading="lazy" decoding="async" alt="Hero">`',
@@ -158,7 +157,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditUnoptimizedImages(relPath: string, content: string): void {
-    if (content.includes('unoptimized-img-ok')) return;
     const imgRegex = /<img\s+([^>]*)>/gi;
     let match: RegExpExecArray | null;
     while ((match = imgRegex.exec(content)) !== null) {
@@ -183,7 +181,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditFontDisplayMissing(relPath: string, content: string): void {
-    if (content.includes('font-display-ok')) return;
     const fontFaceRegex = /@font-face\s*\{([^}]*)\}/gi;
     let match: RegExpExecArray | null;
     while ((match = fontFaceRegex.exec(content)) !== null) {
@@ -203,7 +200,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditInlineSvgBloat(relPath: string, content: string): void {
-    if (content.includes('svg-bloat-ok')) return;
     if (isPathExempt(relPath, this.exemptSvgPaths)) return;
     const config = getAuditConfig(this.projectRoot);
     const maxSvgSize = config.webPerformance?.maxInlineSvgSize ?? 2048;
@@ -228,7 +224,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditCssRenderBlocking(relPath: string, content: string): void {
-    if (content.includes('render-blocking-ok')) return;
     const ext = path.extname(relPath).toLowerCase();
     if (ext !== '.html' && ext !== '.htm' && ext !== '.vue') return;
 
@@ -279,7 +274,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditExcessiveDomDepth(relPath: string, content: string): void {
-    if (content.includes('dom-depth-ok')) return;
     const ext = path.extname(relPath).toLowerCase();
     if (ext !== '.html' && ext !== '.htm' && ext !== '.vue') return;
 
@@ -361,7 +355,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditLayoutShiftDimensions(relPath: string, content: string): void {
-    if (content.includes('layout-dimensions-ok')) return;
     const config = getAuditConfig(this.projectRoot);
     const exemptClasses = config.webPerformance?.exemptImgClasses ?? [];
 
@@ -403,7 +396,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   }
 
   private auditUncompressedVideo(relPath: string, content: string): void {
-    if (content.includes('uncompressed-video-ok')) return;
     const videoRegex = /<video\s+([^>]*)>([\s\S]*?)<\/video>/gi;
     let match: RegExpExecArray | null;
     while ((match = videoRegex.exec(content)) !== null) {

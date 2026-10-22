@@ -10,6 +10,5 @@ export declare class ReactivePurityAuditor extends FileScanAuditor<ReactivePurit
   protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void;
   private reportComputedViolation;
   private inspectGetterBody;
-  private hasPuritySuppression;
 }
 //#endregion

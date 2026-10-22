@@ -157,7 +157,7 @@ const FALLOW_RULE_REMEDIATIONS = {
 	"fallow-unused-dependencies": "1. Root Cause:\nA package declared in package.json \"dependencies\" or \"devDependencies\" is neither imported nor referenced in any repository source file.\n\n2. Diagnosis:\nRun \"npm run auditor:dependencies\" or \"npm run auditor:findings -- rule=fallow-unused-dependencies flat\".\n\n3. Canonical Solution:\n1. Uninstall the unneeded package via \"npm rm <package-name>\".\n2. If the package is strictly an indirect runtime requirement (e.g. testing engine or dynamic plugin), declare it in the dependency exemptions section in .fallowrc.json.\n\n4. Example / Auto-fix command:\n  npm run auditor:dependencies",
 	"fallow-circular-dependencies": "1. Root Cause:\nTwo or more modules form a circular dependency loop (A imports B and B imports A), which can trigger undefined imports at startup, initialization errors, and memory leaks.\n\n2. Diagnosis:\nRun \"npm run auditor:fallow:circular\" to trace the exact circular dependency cycle.\n\n3. Canonical Solution:\n1. Break the cycle by extracting shared types, interfaces, or constants into a common neutral file.\n2. Invert dependencies via dependency injection, callbacks, or event dispatchers.\n3. Use \"import type { ... }\" if cross-dependencies are solely for TypeScript type definitions.\n\n4. Example / Auto-fix command:\n  npm run auditor:fallow:circular",
 	"fallow-boundary-violations": "1. Root Cause:\nA module imports code from another architectural tier, violating layer boundaries defined in .fallowrc.json (for example, client UI code importing server DB models directly).\n\n2. Diagnosis:\nRun \"npm run auditor:findings -- rule=fallow-boundary-violations flat\" to view offending imports and violated boundaries.\n\n3. Canonical Solution:\n1. Replace direct imports with public API contracts or domain DTOs provided by the target layer.\n2. Encapsulate logic in authorized service intermediaries to maintain architectural decoupling.\n\n4. Example / Auto-fix command:\n  npm run auditor:findings -- rule=fallow-boundary-violations",
-	"fallow-stale-suppressions": "1. Root Cause:\nA Fallow suppression comment (\"// fallow-ignore\", etc.) exists on a line where no static violation occurs, cluttering source code with stale directives.\n\n2. Diagnosis:\nRun \"npm run auditor:findings -- rule=fallow-stale-suppressions flat\" to find the obsolete comment.\n\n3. Canonical Solution:\n1. Remove the obsolete suppression comment to maintain code cleanliness.\n\n4. Example / Auto-fix command:\n  npm run auditor:fallow category=suppressions",
+	"fallow-stale-suppressions": "1. Root Cause:\nA Fallow suppression comment (\"// \" + \"fallow\" + \"-ignore\", etc.) exists on a line where no static violation occurs, cluttering source code with stale directives.\n\n2. Diagnosis:\nRun \"npm run auditor:findings -- rule=fallow-stale-suppressions flat\" to find the obsolete comment.\n\n3. Canonical Solution:\n1. Remove the obsolete suppression comment to maintain code cleanliness.\n\n4. Example / Auto-fix command:\n  npm run auditor:fallow category=suppressions",
 	"fallow-workspace-diagnostic": "1. Root Cause:\nFallow detected a structural workspace configuration defect, such as tsconfig.json errors, unresolvable paths, or syntax issues in .fallowrc.json.\n\n2. Diagnosis:\nReview the diagnostic violation message and run \"npm run auditor:tsconfig\" and \"npm run auditor:fallow-config\".\n\n3. Canonical Solution:\n1. Correct compiler options or include paths in tsconfig.json.\n2. Verify that .fallowrc.json is valid JSON conforming to the configuration schema.\n\n4. Example / Auto-fix command:\n  npm run auditor:tsconfig\n  npm run auditor:fallow-config",
 	"fallow-security-cwe": "1. Root Cause:\nFallow identified a code pattern susceptible to a security vulnerability cataloged in CWE (Common Weakness Enumeration), such as path traversal (CWE-22), injection, or unsafe input handling.\n\n2. Diagnosis:\nRun \"npm run auditor:fallow:security\" to inspect the CWE identifier and vulnerability risk vector.\n\n3. Canonical Solution:\n1. For user input validation, implement strict typed schemas with Valibot or domain types.\n2. For path containment (CWE-22), always use \"path.resolve()\" + \"path.relative()\" from node:path.\n3. Sanitize and escape arguments before interpolating into commands or queries.\n\n4. Example / Auto-fix command:\n  npm run auditor:fallow:security"
 };
@@ -205,7 +205,7 @@ const FALLOW_TRIPLETS_CONFIG = [
 function mapCloneFindings(cloneGroups, isTriplets, projectRoot) {
 	const findings = [];
 	const ruleId = isTriplets ? "fallow-triplicate-code" : "fallow-duplicate-code";
-	const label = isTriplets ? "Critical triplicate code detectado por Fallow" : "Duplicate code detected por Fallow";
+	const label = isTriplets ? "Critical triplicate code detected by Fallow" : "Duplicate code detected by Fallow";
 	const context = isTriplets ? "fallow-triplets" : "fallow-dupes";
 	for (const group of cloneGroups || []) {
 		const tokens = group.token_count ?? group.duplicated_tokens ?? 0;
@@ -416,6 +416,11 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			projectRoot
 		});
 	}
+	handleParsedFallowOutput(parsed, primaryRule, command) {
+		if (!parsed) return null;
+		if (typeof parsed.elapsed_ms === "number") this.reportRuleDuration(primaryRule, parsed.elapsed_ms);
+		return mapFallowJson(command, parsed, this.projectRoot);
+	}
 	runFallowSubCommand(command, extraArgs = [], associatedRules = []) {
 		const fallowBin = resolveFallowBinary(this.projectRoot);
 		if (!fallowBin) return [];
@@ -425,57 +430,49 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			...extraArgs
 		];
 		const cmd = `node "${fallowBin}" ${command === "triplets" ? "dupes" : command} ${args.join(" ")}`;
-		let reportedElapsed;
-		const start = performance.now();
-		try {
-			const stdout = execSync(cmd, {
-				cwd: this.projectRoot,
-				encoding: "utf8",
-				stdio: [
-					"pipe",
-					"pipe",
-					"ignore"
-				],
-				maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
-			});
-			const parsed = tryParseFallowJson(stdout);
-			if (parsed) {
-				if (typeof parsed.elapsed_ms === "number") reportedElapsed = parsed.elapsed_ms;
-				return mapFallowJson(command, parsed, this.projectRoot);
+		const primaryRule = associatedRules[0] ?? "fallow-workspace-diagnostic";
+		return this.runSubAuditorSync(primaryRule, () => {
+			try {
+				const stdout = execSync(cmd, {
+					cwd: this.projectRoot,
+					encoding: "utf8",
+					stdio: [
+						"pipe",
+						"pipe",
+						"ignore"
+					],
+					maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
+				});
+				const mapped = this.handleParsedFallowOutput(tryParseFallowJson(stdout), primaryRule, command);
+				if (mapped) return mapped;
+				if (stdout && stdout.trim().length > 0) this.addViolation({
+					ruleId: "fallow-workspace-diagnostic",
+					severity: "error",
+					file: "fallow",
+					line: 1,
+					message: `Unexpected non-JSON output from fallow ${command}: ${stdout.trim().slice(0, 300)}`,
+					context: `fallow ${command}`
+				});
+			} catch (e) {
+				const err = e;
+				const mapped = this.handleParsedFallowOutput(tryParseFallowJson(err.stdout), primaryRule, command);
+				if (mapped) return mapped;
+				this.addViolation({
+					ruleId: "fallow-workspace-diagnostic",
+					severity: "error",
+					file: "fallow",
+					line: 1,
+					message: `Error executing fallow ${command}: ${err.message || String(e)}`,
+					context: `fallow ${command}`
+				});
 			}
-			if (stdout && stdout.trim().length > 0) this.addViolation({
-				ruleId: "fallow-workspace-diagnostic",
-				severity: "error",
-				file: "fallow",
-				line: 1,
-				message: `Unexpected non-JSON output from fallow ${command}: ${stdout.trim().slice(0, 300)}`,
-				context: `fallow ${command}`
-			});
-		} catch (e) {
-			const err = e;
-			const parsed = tryParseFallowJson(err.stdout);
-			if (parsed) {
-				if (typeof parsed.elapsed_ms === "number") reportedElapsed = parsed.elapsed_ms;
-				return mapFallowJson(command, parsed, this.projectRoot);
-			}
-			this.addViolation({
-				ruleId: "fallow-workspace-diagnostic",
-				severity: "error",
-				file: "fallow",
-				line: 1,
-				message: `Error ejecutando fallow ${command}: ${err.message || String(e)}`,
-				context: `fallow ${command}`
-			});
-		} finally {
-			const elapsed = reportedElapsed ?? performance.now() - start;
-			for (const rule of associatedRules) this.reportRuleDuration(rule, elapsed);
-		}
-		return [];
+			return [];
+		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Fallow deshabilitado en configuración")) return;
+		if (this.isSuiteGatingDisabled("Fallow disabled in configuration")) return;
 		for (const rule of FALLOW_RULES) if (this.isRuleActiveForCurrentRun(rule)) this.markRuleEvaluated(rule);
-		else this.markRuleNotApplicable(rule, `Omitido en tier '${this.getExecutionTier()}'`);
+		else this.markRuleNotApplicable(rule, `Skipped in tier '${this.getExecutionTier()}'`);
 		this.recordExternalScanCount(1);
 		const config = getAuditConfig(this.projectRoot);
 		const allFindings = [];

@@ -12,6 +12,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
+import { tryCatchSync } from './safeUtils.ts';
+import { normalizePosixPath } from './safePath.ts';
 
 enableCompileCache();
 
@@ -101,11 +103,9 @@ export class SharedAstContext {
    */
   public preParseFiles(filePaths: readonly string[]): void {
     for (const file of filePaths) {
-      try {
+      tryCatchSync(() => {
         this.getSourceFile(file);
-      } catch {
-        // catch-ok: Ignore read/syntax errors on inaccessible files
-      }
+      });
     }
   }
 
@@ -125,6 +125,31 @@ export class SharedAstContext {
   }
 
   private normalizePath(p: string): string {
-    return path.resolve(p).split(path.sep).join(path.posix.sep);
+    return normalizePosixPath(p);
   }
+}
+
+/**
+ * Creates a synthetic, empty ts.SourceFile for use with ts.Printer when printing generated AST nodes.
+ */
+export function createSyntheticSourceFile(fileName = 'synthetic.ts'): ts.SourceFile {
+  return ts.createSourceFile(
+    fileName,
+    '',
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.TS
+  );
+}
+
+/**
+ * Helper to print an AST node using a synthetic source file.
+ */
+export function printAstNode(
+  node: ts.Node,
+  printer: ts.Printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed }),
+  hint: ts.EmitHint = ts.EmitHint.Unspecified
+): string {
+  const dummy = createSyntheticSourceFile();
+  return printer.printNode(hint, node, dummy);
 }

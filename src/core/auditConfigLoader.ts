@@ -16,6 +16,13 @@ import {
 import { assertNoLegacyRootConfig } from './auditConfigValidators.ts';
 import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import { defineAuditConfig } from './auditConfigBuilders.ts';
+import {
+  safeReadFileSync,
+  safeJsonParse,
+  safeRmSync,
+  tryOrNull,
+  tryCatchSync
+} from './safeUtils.ts';
 
 export const MAX_INLINE_ENV_CONFIG_CHARS = 16384;
 
@@ -58,7 +65,7 @@ export function serializeAuditConfigToEnv(
   config: AuditEngineConfig,
   projectRoot: string = process.cwd()
 ): void {
-  try {
+  tryCatchSync(() => {
     process.env.AUDIT_ACTIVE_CONFIG_ROOT = projectRoot;
     const serialized = JSON.stringify(config, (_key, value) => {
       if (value instanceof Set) {
@@ -67,24 +74,18 @@ export function serializeAuditConfigToEnv(
       return value;
     });
 
-    try {
-      const cacheDir = path.resolve(projectRoot, 'scratch', 'cache');
-      if (!fs.existsSync(cacheDir)) {
-        fs.mkdirSync(cacheDir, { recursive: true });
-      }
-      const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
-      fs.writeFileSync(ephemeralConfigFile, serialized, 'utf-8');
-      process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
-    } catch {
-      // catch-ok: Fallback to process.env.AUDIT_CONFIG_DATA if scratch directory is read-only
+    const cacheDir = path.resolve(projectRoot, 'scratch', 'cache');
+    if (!fs.existsSync(cacheDir)) {
+      fs.mkdirSync(cacheDir, { recursive: true });
     }
+    const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
+    fs.writeFileSync(ephemeralConfigFile, serialized, 'utf-8');
+    process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
 
     if (serialized.length < MAX_INLINE_ENV_CONFIG_CHARS) {
       process.env.AUDIT_CONFIG_DATA = serialized;
     }
-  } catch {
-    // catch-ok: Configuration serialization failure should not crash execution
-  }
+  });
 }
 
 export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | null {
@@ -97,27 +98,25 @@ export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | n
   if (rawEnvFile) {
     const envFilePath = sanitizePath(rawEnvFile);
     if (fs.existsSync(envFilePath)) {
-      try {
-        const content = fs.readFileSync(envFilePath, 'utf-8');
-        const parsed = JSON.parse(content) as DeepPartial<AuditEngineConfig> & { name: string };
-        cachedConfig = defineAuditConfig(parsed);
-        cachedProjectRoot = projectRoot;
-        return cachedConfig;
-      } catch {
-        // catch-ok: Fall back to inline env variable on file read or parse failure
+      const raw = safeReadFileSync(envFilePath);
+      if (raw) {
+        const parsed = safeJsonParse<DeepPartial<AuditEngineConfig> & { name: string }>(raw);
+        if (parsed) {
+          cachedConfig = defineAuditConfig(parsed);
+          cachedProjectRoot = projectRoot;
+          return cachedConfig;
+        }
       }
     }
   }
 
   const rawData = process.env.AUDIT_CONFIG_DATA;
   if (rawData) {
-    try {
-      const parsed = JSON.parse(rawData) as DeepPartial<AuditEngineConfig> & { name: string };
+    const parsed = safeJsonParse<DeepPartial<AuditEngineConfig> & { name: string }>(rawData);
+    if (parsed) {
       cachedConfig = defineAuditConfig(parsed);
       cachedProjectRoot = projectRoot;
       return cachedConfig;
-    } catch {
-      // catch-ok: Fall back on JSON parse error
     }
   }
 
@@ -127,7 +126,7 @@ export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | n
 let dynamicImportCounter: number = 0; // singleton-ok: Singleton instance state container
 
 function resolveCurrentAuditorEntryUrl(): string | null {
-  try {
+  return tryOrNull(() => {
     const isTs = import.meta.url.endsWith('.ts');
     const auditorRoot = path.resolve(import.meta.dirname, '..', '..');
     const entryFile = isTs
@@ -136,10 +135,8 @@ function resolveCurrentAuditorEntryUrl(): string | null {
     if (fs.existsSync(entryFile)) {
       return pathToFileURL(entryFile).href;
     }
-  } catch {
-    // catch-ok: Fallback when entry cannot be resolved
-  }
-  return null;
+    return null;
+  });
 }
 
 export interface ResolvedConfigModuleUrl {
@@ -158,31 +155,29 @@ export function resolveConfigModuleUrl(
   const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
 
   if (isRemoteProject && auditorEntryUrl) {
-    try {
+    const rewrittenConfig = tryOrNull(() => {
       const rawContent = fs.readFileSync(configPath, 'utf-8');
-      if (rawContent.includes('@francogp/auditor')) {
-        const rewritten = rawContent
-          .replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`)
-          .replace(
-            /import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g,
-            `import('${auditorEntryUrl}')`
-          );
-        const scratchDir = path.resolve(auditorRoot, 'scratch');
-        if (!fs.existsSync(scratchDir)) {
-          fs.mkdirSync(scratchDir, { recursive: true });
-        }
-        const tempFilePath = path.resolve(
-          scratchDir,
-          `remote_config_${Date.now()}_${++dynamicImportCounter}.ts`
+      if (!rawContent.includes('@francogp/auditor')) return null;
+      const rewritten = rawContent
+        .replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`)
+        .replace(
+          /import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g,
+          `import('${auditorEntryUrl}')`
         );
-        fs.writeFileSync(tempFilePath, rewritten, 'utf-8');
-        const tempUrl = pathToFileURL(tempFilePath);
-        tempUrl.searchParams.set('t', `${performance.now()}_${dynamicImportCounter}`);
-        return { importUrl: tempUrl.href, cleanupFilePath: tempFilePath };
+      const scratchDir = path.resolve(auditorRoot, 'scratch');
+      if (!fs.existsSync(scratchDir)) {
+        fs.mkdirSync(scratchDir, { recursive: true });
       }
-    } catch {
-      // catch-ok: Fall back to direct fileUrl
-    }
+      const tempFilePath = path.resolve(
+        scratchDir,
+        `remote_config_${Date.now()}_${++dynamicImportCounter}.ts`
+      );
+      fs.writeFileSync(tempFilePath, rewritten, 'utf-8');
+      const tempUrl = pathToFileURL(tempFilePath);
+      tempUrl.searchParams.set('t', `${performance.now()}_${dynamicImportCounter}`);
+      return { importUrl: tempUrl.href, cleanupFilePath: tempFilePath };
+    });
+    if (rewrittenConfig) return rewrittenConfig;
   }
 
   const fileUrl = pathToFileURL(configPath);
@@ -230,12 +225,8 @@ export async function loadAuditConfig(
       serializeAuditConfigToEnv(cachedConfig, projectRoot);
       return cachedConfig;
     } finally {
-      if (cleanupFilePath && fs.existsSync(cleanupFilePath)) {
-        try {
-          fs.unlinkSync(cleanupFilePath);
-        } catch {
-          // catch-ok: ephemeral file cleanup
-        }
+      if (cleanupFilePath) {
+        safeRmSync(cleanupFilePath);
       }
     }
   }
@@ -297,12 +288,8 @@ export function resetAuditConfig(): void {
   const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
   if (rawEnvFile) {
     const cleanEnvFile = sanitizePath(rawEnvFile);
-    if (fs.existsSync(cleanEnvFile)) {
-      try {
-        fs.unlinkSync(cleanEnvFile);
-      } catch {
-        // catch-ok: Best effort cleanup
-      }
+    if (cleanEnvFile) {
+      safeRmSync(cleanEnvFile);
     }
   }
   delete process.env.AUDIT_CONFIG_DATA;

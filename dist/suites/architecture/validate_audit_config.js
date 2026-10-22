@@ -1,17 +1,20 @@
 import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../core/auditConfigTypes.js";
 import { AUDITOR_VERSION } from "../../core/version.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { createSyntheticSourceFile } from "../../core/astContext.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
-import { applyAcknowledgedDegradationsFix, detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
+import { detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
+import { auditConfigRatchet } from "../../core/configRatchet.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -59,7 +62,12 @@ function deepMergeDefaultsObject(target, defaults) {
 function buildTaskExpectedConfigTree(tasks) {
 	const byRoot = /* @__PURE__ */ new Map();
 	for (const task of tasks) {
-		if (!task.configKey || task.configKey === "paths" || task.configKey === "core" || task.configKey === "none") continue;
+		const rootConfigKeys = /* @__PURE__ */ new Set([
+			"paths",
+			"core",
+			"none"
+		]);
+		if (!task.configKey || rootConfigKeys.has(task.configKey)) continue;
 		if (!task.defaultConfig || typeof task.defaultConfig !== "object" || Object.keys(task.defaultConfig).length === 0) continue;
 		const parts = task.configKey.split(".");
 		const rootKey = parts[0];
@@ -123,7 +131,7 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineAuditConfig"))])), ts.factory.createStringLiteral("@francogp/auditor", true));
 	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
 	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-	const dummySource = ts.createSourceFile("audit.config.ts", "", ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+	const dummySource = createSyntheticSourceFile("audit.config.ts");
 	return `${printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource)}\n\n${printer.printNode(ts.EmitHint.Unspecified, exportDecl, dummySource).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n")}\n`;
 }
 function computeMissingConfigDiff(expected, current, isRootLevel = true) {
@@ -191,7 +199,8 @@ const AUDIT_CONFIG_RULES = [
 	"audit-config-missing-section",
 	"audit-config-unknown-field",
 	"audit-config-critical-violation",
-	"audit-config-unacknowledged-degradation"
+	"audit-config-unacknowledged-degradation",
+	"audit-config-ratchet-relaxation"
 ];
 const PATH_ROOT_KEYS = [
 	"srcRoots",
@@ -222,17 +231,7 @@ const AUDIT_CONFIG_REQUIREMENT = {
 			const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
 			if (fs.existsSync(migratedPath)) return fs.readFileSync(migratedPath, "utf-8");
 		}
-		let pkgName = ctx.packageName || "Project";
-		try {
-			const pkg = getPackageJson(ctx.projectRoot);
-			if (pkg?.name) pkgName = pkg.name;
-		} catch {}
-		let tasks = [];
-		try {
-			const { discoverAuditors } = await import("../../cli/auditScanner.js");
-			tasks = await discoverAuditors({ projectRoot: ctx.projectRoot });
-		} catch {}
-		return createDefaultAuditConfigContent(pkgName, tasks);
+		return createDefaultAuditConfigContent(tryOrNull(() => getPackageJson(ctx.projectRoot))?.name ?? ctx.packageName ?? "Project", await import("../../cli/auditScanner.js").then((m) => m.discoverAuditors({ projectRoot: ctx.projectRoot })).catch(() => []));
 	},
 	customMissingMessage: (ctx, file) => {
 		const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f)));
@@ -269,8 +268,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-missing-section",
 				"audit-config-missing-file",
 				"audit-config-missing-gitignore-entry",
-				"audit-config-critical-violation",
-				"audit-config-unacknowledged-degradation"
+				"audit-config-critical-violation"
 			],
 			configFiles: [AUDIT_CONFIG_REQUIREMENT],
 			fix: options.fix,
@@ -293,7 +291,8 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-missing-section": "Missing section in audit.config",
 				"audit-config-unknown-field": "Unrecognized field in config",
 				"audit-config-critical-violation": "Critical configuration violation",
-				"audit-config-unacknowledged-degradation": "Undocumented coverage degradation"
+				"audit-config-unacknowledged-degradation": "Undocumented coverage degradation",
+				"audit-config-ratchet-relaxation": "Unauthorized rule relaxation (ratchet)"
 			},
 			ruleRemediations: {
 				"audit-config-missing-path": "📖 REMEDIATION GUIDE: audit-config-missing-path\n1. Root Cause: A directory path declared in `config.paths` does not exist on the project filesystem.\n2. Diagnosis: Compare the paths defined in `.auditor/audit.config.ts` against actual folders in your repository.\n3. Canonical Solution: If the directory was renamed or moved, update `.auditor/audit.config.ts`. If optional or not yet created, create the empty directory or remove it from configuration.\n4. Example / Auto-fix command:\n   Update `.auditor/audit.config.ts` with correct paths.",
@@ -303,7 +302,8 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-missing-section": "📖 REMEDIATION GUIDE: audit-config-missing-section\n1. Root Cause: An active sub-auditor requires a specific configuration section in `.auditor/audit.config.ts` that is currently missing.\n2. Diagnosis: Identify the missing configuration section mentioned in the report.\n3. Canonical Solution: Run `npm run auditor:fix` to automatically inject the missing section with canonical default values via TypeScript AST.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"audit-config-unknown-field": "📖 REMEDIATION GUIDE: audit-config-unknown-field\n1. Root Cause: An unrecognized property or key was found in `.auditor/audit.config.ts` (obsolete or misspelled key).\n2. Diagnosis: Review the field name reported in `.auditor/audit.config.ts` for typographical errors.\n3. Canonical Solution: Remove obsolete keys or rename them to the canonical modern schema.\n4. Example / Auto-fix command:\n   Remove unknown property from `.auditor/audit.config.ts`.",
 				"audit-config-critical-violation": "📖 REMEDIATION GUIDE: audit-config-critical-violation\n1. Root Cause: Configuration violates an immutable framework policy (e.g. omitting mandatory strict values or setting prohibited overrides).\n2. Diagnosis: Read the technical explanation in the violation message.\n3. Canonical Solution: Run `npm run auditor:fix` to restore the immutable required baseline, or update the configuration accordingly.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"audit-config-unacknowledged-degradation": "📖 REMEDIATION GUIDE: audit-config-unacknowledged-degradation\n1. Root Cause: Paths declared in `config.paths` contain files whose silenced rules are not documented in `coverage.acknowledgedDegradations`.\n2. Diagnosis: Check unacknowledged degradation paths reported by the auditor.\n3. Canonical Solution: Run `npm run auditor:fix` to register acknowledged degradation policies with canonical globs and rationales, or declare them manually.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
+				"audit-config-unacknowledged-degradation": "📖 REMEDIATION GUIDE: audit-config-unacknowledged-degradation\n1. Root Cause: Paths declared in `config.paths` contain files whose silenced rules are not documented in `coverage.acknowledgedDegradations`.\n2. Diagnosis: Check unacknowledged degradation paths reported by the auditor.\n3. Canonical Solution: Declare acknowledged degradation policies with canonical globs and rationales in `coverage.acknowledgedDegradations`, or remove the silenced rules from source code.\n4. Example / Auto-fix command:\n   Review and declare in `coverage.acknowledgedDegradations` manually if strictly justified.",
+				"audit-config-ratchet-relaxation": "📖 REMEDIATION GUIDE: audit-config-ratchet-relaxation\n1. Root Cause: Configuration rules or exemptions were relaxed relative to online origin/main without explicit user authorization.\n2. Diagnosis: Check the generated RELAX-<8hex> code and the list of relaxed rules, added exemptions, lowered floors, or raised ceilings.\n3. Canonical Solution: Hardening rules is permitted with zero friction. To accept a relaxation genuinely requested by the human programmer, confirm the RELAX-<8hex> code directly in Antigravity chat.\n4. Example / Auto-fix command:\n   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat."
 			},
 			coverage: { include: [path.posix.join(AUDITOR_DIR, "**"), ".gitignore"] },
 			projectRoot
@@ -321,10 +321,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		const config = await loadAuditConfig(this.projectRoot);
 		const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(".auditor", "audit-baseline.json");
 		if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) this.recordScanned(baselineFile);
-		let tasks = [];
-		try {
-			tasks = await discoverAuditors({ projectRoot: this.projectRoot });
-		} catch {}
+		const tasks = await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
 		await this.runSubAuditor("audit-config-missing-section", async () => {
 			await this.verifyRequiredSections(config, tasks);
 		});
@@ -347,6 +344,20 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		});
 		await this.runSubAuditor("audit-config-missing-gitignore-entry", async () => {
 			await this.verifyGitIgnore(config);
+		});
+		this.runSubAuditorSync("audit-config-ratchet-relaxation", () => {
+			this.verifyConfigRatchet(config);
+		});
+	}
+	verifyConfigRatchet(config) {
+		const ratchetRes = auditConfigRatchet(this.projectRoot, config._rawConfig ?? config);
+		if (!ratchetRes.passed) for (const rel of ratchetRes.relaxations) this.addViolation({
+			ruleId: "audit-config-ratchet-relaxation",
+			severity: "error",
+			file: rel.file,
+			line: 1,
+			message: `[Config Ratchet] Unauthorized rule relaxation detected in ${rel.path}: ${rel.description}. Authorization code: '${ratchetRes.relaxationCode}'. Confirm in Antigravity chat to proceed.`,
+			context: rel.path
 		});
 	}
 	verifyUnknownFields(config, tasks) {
@@ -644,18 +655,13 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 	verifyUnacknowledgedDegradations(config) {
 		const missing = detectUnacknowledgedDegradations(config, this.projectRoot);
 		if (missing.length === 0) return;
-		if (this.isFixActive()) {
-			applyAcknowledgedDegradationsFix(this.projectRoot, missing);
-			return;
-		}
 		for (const item of missing) this.addViolation({
 			ruleId: "audit-config-unacknowledged-degradation",
 			severity: "error",
 			file: AUDIT_CONFIG_FILE,
 			line: 1,
-			message: `Configuration error in ${AUDIT_CONFIG_FILE}: Path '${item.rootOrFile}' contains ${item.filesCount} code file(s) with silenced rules under policy '${item.policy}', but no matching entry exists in coverage.acknowledgedDegradations. Run "auditor fix" to document automatically.`,
-			context: `coverage.acknowledgedDegradations.${item.policy}`,
-			fixable: true
+			message: `Configuration error in ${AUDIT_CONFIG_FILE}: Path '${item.rootOrFile}' contains ${item.filesCount} code file(s) with silenced rules under policy '${item.policy}', but no matching entry exists in coverage.acknowledgedDegradations. Resolve the silenced rules in source code or declare the degradation manually.`,
+			context: `coverage.acknowledgedDegradations.${item.policy}`
 		});
 	}
 	checkPathExists(relPath, ruleId, description) {
@@ -725,20 +731,19 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		return [];
 	}
 	checkExtensionStaticContract(targetFile, relTarget, normalized) {
-		try {
-			const fileContent = fs.readFileSync(targetFile, "utf-8");
-			if (!(fileContent.includes("ruleRemediationPhases") || fileContent.includes("remediationPhase"))) {
-				this.addViolation({
-					ruleId: "audit-config-invalid-extension",
-					severity: "error",
-					file: AUDIT_CONFIG_FILE,
-					line: 1,
-					message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add "remediationPhase: 'contracts'" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '${relTarget}'.`,
-					context: normalized
-				});
-				return false;
-			}
-		} catch {}
+		const fileContent = tryOrNull(() => fs.readFileSync(targetFile, "utf-8"));
+		if (!fileContent) return true;
+		if (!(fileContent.includes("ruleRemediationPhases") || fileContent.includes("remediationPhase"))) {
+			this.addViolation({
+				ruleId: "audit-config-invalid-extension",
+				severity: "error",
+				file: AUDIT_CONFIG_FILE,
+				line: 1,
+				message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add "remediationPhase: 'contracts'" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '${relTarget}'.`,
+				context: normalized
+			});
+			return false;
+		}
 		return true;
 	}
 	instantiateAuditorClass(AuditorClass) {

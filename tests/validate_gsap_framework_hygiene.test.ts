@@ -208,8 +208,8 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
     });
   });
 
-  describe('Escape Hatches & Suppressions', () => {
-    it('honors // scope-ok: line suppression for component selector', () => {
+  describe('Escape Hatches & Suppressions (Zero-Ignore Policy)', () => {
+    it('flags component selector regardless of // scope-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapFrameworkHygieneAuditor();
       auditor.testScanFile(
         'src/components/SuppressedSelector.vue',
@@ -222,10 +222,10 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-unscoped-component-selectors'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
-    it('honors // scope-ok: suppression placed on preceding line', () => {
+    it('flags component selector regardless of preceding comment (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapFrameworkHygieneAuditor();
       auditor.testScanFile(
         'src/components/SuppressedPrecedingSelector.vue',
@@ -239,7 +239,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-unscoped-component-selectors'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
     it('detects unscoped selector on timeline instances', () => {

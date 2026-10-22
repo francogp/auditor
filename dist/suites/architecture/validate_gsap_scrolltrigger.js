@@ -97,19 +97,17 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 			this.checkContainerAnimationEase(relPath, content);
 		});
 	}
-	isLineSuppressed(content, index, pattern) {
+	isLineInComment(content, index) {
 		const lineStart = content.lastIndexOf("\n", index) + 1;
 		const lineEnd = content.indexOf("\n", index);
-		const lineText = content.slice(lineStart, lineEnd === -1 ? void 0 : lineEnd);
-		const trimmed = lineText.trim();
-		if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return true;
-		return pattern.test(lineText);
+		const trimmed = content.slice(lineStart, lineEnd === -1 ? void 0 : lineEnd).trim();
+		return trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*");
 	}
 	checkTimelineChild(relPath, content) {
 		const timelineChildRegex = /(?:\b(?:tl|timeline|\w*Timeline)|\))\s*\.\s*(?:to|from|fromTo)\s*\([^){]*\{[^)}]*(?:\}[^){]*\{[^)}]*)*(?:\)[^}]*)?\bscrollTrigger\s*:/g;
 		let m;
 		while ((m = timelineChildRegex.exec(content)) !== null) {
-			if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i)) continue;
+			if (this.isLineInComment(content, m.index)) continue;
 			this.addViolationAtMatch({
 				ruleId: "gsap-scrolltrigger-in-timeline-child",
 				filePath: relPath,
@@ -126,7 +124,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 		while ((m = stBlockRegex.exec(content)) !== null) {
 			const blockBody = m[1] ?? "";
 			const matchIndex = m.index;
-			if (this.isLineSuppressed(content, matchIndex, /\/\/\s*(?:scrolltrigger-ok|st-ok):\s*\S+/i)) continue;
+			if (this.isLineInComment(content, matchIndex)) continue;
 			callback(blockBody, matchIndex);
 		}
 	}
@@ -146,9 +144,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 		this.scanScrollTriggerBlocks(content, (blockBody, matchIndex) => {
 			if (/\bmarkers\s*:\s*true\b/i.test(blockBody)) {
 				const surroundingWindow = content.slice(Math.max(0, matchIndex - 100), Math.min(content.length, matchIndex + 200));
-				const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(surroundingWindow);
-				const hasMarkersOk = /\/\/\s*markers-ok:\s*\S+/i.test(surroundingWindow);
-				if (!hasDevGuard && !hasMarkersOk) this.addViolationAtMatch({
+				if (!/import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(surroundingWindow)) this.addViolationAtMatch({
 					ruleId: "gsap-scrolltrigger-markers-production",
 					filePath: relPath,
 					content,
@@ -163,7 +159,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 		const pinnedAnimationRegex = /\b(?:gsap|tl|timeline)\s*\.\s*(?:to|from|fromTo)\s*\([^,]+,\s*\{[^}]*\bpin\s*:\s*true[^}]*(?:\bx|\by|\bscale|\brotation)\s*:/g;
 		let m;
 		while ((m = pinnedAnimationRegex.exec(content)) !== null) {
-			if (this.isLineSuppressed(content, m.index, /\/\/\s*(?:scrolltrigger-ok|st-ok|pin-ok):\s*\S+/i)) continue;
+			if (this.isLineInComment(content, m.index)) continue;
 			this.addViolationAtMatch({
 				ruleId: "gsap-scrolltrigger-animating-pinned-element",
 				filePath: relPath,

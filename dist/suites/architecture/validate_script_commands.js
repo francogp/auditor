@@ -1,5 +1,8 @@
+import { tryOrNull } from "../../core/safeUtils.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { evaluateGenericCommandViolation, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
@@ -47,7 +50,7 @@ const SCRIPTS_DIR_EXTENSIONS = /* @__PURE__ */ new Set([
 	".cjs"
 ]);
 function isCandidateScriptPath(file, rootDir) {
-	const relPosix = path.relative(rootDir, file).split(path.sep).join(path.posix.sep);
+	const relPosix = normalizePosixPath(path.relative(rootDir, file));
 	const ext = path.extname(file).toLowerCase();
 	if (SHELL_AND_BATCH_EXTENSIONS.has(ext)) return !relPosix.startsWith("src/") && !relPosix.startsWith("tests/");
 	return relPosix.startsWith("scripts/") || relPosix.includes("/scripts/");
@@ -66,10 +69,8 @@ function collectDockerfiles(rootDir) {
 	for (const d of CANDIDATE_DOCKER_DIRS) {
 		const absDir = path.resolve(rootDir, d);
 		if (!fs.existsSync(absDir)) continue;
-		try {
-			const entries = fs.readdirSync(absDir, { withFileTypes: true });
-			for (const entry of entries) if (entry.isFile() && isDockerfile(entry.name)) dockerfiles.push(path.resolve(absDir, entry.name));
-		} catch {}
+		const entries = tryOrNull(() => fs.readdirSync(absDir, { withFileTypes: true })) ?? [];
+		for (const entry of entries) if (entry.isFile() && isDockerfile(entry.name)) dockerfiles.push(path.resolve(absDir, entry.name));
 	}
 	return dockerfiles;
 }
@@ -77,10 +78,8 @@ function collectWorkflowFiles(rootDir) {
 	const workflowFiles = [];
 	const workflowsDir = path.resolve(rootDir, ".github", "workflows");
 	if (!fs.existsSync(workflowsDir)) return workflowFiles;
-	try {
-		const entries = fs.readdirSync(workflowsDir, { withFileTypes: true });
-		for (const entry of entries) if (entry.isFile() && (entry.name.endsWith(".yml") || entry.name.endsWith(".yaml"))) workflowFiles.push(path.resolve(workflowsDir, entry.name));
-	} catch {}
+	const entries = tryOrNull(() => fs.readdirSync(workflowsDir, { withFileTypes: true })) ?? [];
+	for (const entry of entries) if (entry.isFile() && (entry.name.endsWith(".yml") || entry.name.endsWith(".yaml"))) workflowFiles.push(path.resolve(workflowsDir, entry.name));
 	return workflowFiles;
 }
 var ValidateScriptCommandsAuditor = class extends BaseAuditor {
@@ -167,7 +166,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 	readScannedFiles(candidateFiles, customExemptGlobs, scriptExemptGlobs) {
 		const scannedFiles = [];
 		for (const absFile of candidateFiles) {
-			const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
+			const relPosix = normalizePosixPath(path.relative(this.rootDir, absFile));
 			if (this.gitIgnoreMatcher.isIgnored(absFile)) continue;
 			if (this.isExempt(relPosix, customExemptGlobs, scriptExemptGlobs)) continue;
 			this.recordScanned(relPosix);

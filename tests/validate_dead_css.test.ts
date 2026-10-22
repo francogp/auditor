@@ -66,7 +66,7 @@ describe('DeadCssAuditor', () => {
       expect(deadClass?.context).toContain('completely-unused-class');
     });
 
-    it('honors // css-ok: and // dead-css-ok: escape hatches', async () => {
+    it('flags dead CSS regardless of // dead-css-ok comments (Zero-Ignore Mandate)', async () => {
       const compDir = path.join(tempDir, 'src', 'components');
       await fs.mkdir(compDir, { recursive: true });
 
@@ -84,7 +84,7 @@ describe('DeadCssAuditor', () => {
       const result = await auditor.execute();
 
       const deadClass = result.findings.find((f) => f.ruleId === 'dead-scoped-css');
-      expect(deadClass).toBeUndefined();
+      expect(deadClass).toBeDefined();
     });
 
     it('recognizes dynamic class prefixes from script and template', async () => {

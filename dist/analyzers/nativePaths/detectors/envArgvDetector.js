@@ -8,7 +8,7 @@ import ts from "typescript";
 * unsanitized-env-argv-path: raw `process.env.*` / `process.argv[n]` passed straight
 * into filesystem or `path.join/resolve` sinks without CWE-22 containment validation.
 */
-const ENV_ARGV_MESSAGE = "'process.env' o 'process.argv' pasado directamente a una función de path/filesystem sin validar contención (CWE-22). Resuelve con 'path.resolve()' y valida con 'path.relative()' + 'path.isAbsolute()' (o 'assertSafePathComponent()') antes de usarlo.";
+const ENV_ARGV_MESSAGE = "'process.env' or 'process.argv' passed directly to a path/filesystem function without containment validation (CWE-22). Resolve with 'path.resolve()' and validate with 'path.relative()' + '!path.isAbsolute()' (or 'assertSafePathComponent()') before using.";
 function isProcessMember(expr, member) {
 	const node = unwrapExpression(expr);
 	return ts.isPropertyAccessExpression(node) && node.name.text === member && ts.isIdentifier(node.expression) && node.expression.text === "process";

@@ -129,9 +129,6 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 				if (norm.includes("node_modules") || isTestPath(norm)) continue;
 				const preceding = content.slice(0, m.index);
 				const lineText = preceding.split("\n").pop() ?? "";
-				const nextNl = content.indexOf("\n", m.index);
-				const fullLine = lineText + content.slice(m.index, nextNl === -1 ? void 0 : nextNl);
-				if (fullLine.includes("// value-ok:") || fullLine.includes("// const-ok:") || fullLine.includes("// json-ok:") || fullLine.includes("// alias-ok:")) continue;
 				if (new RegExp(`import\\s+${targetName}\\s+from\\s+['"][^'"]*\\.json['"]`).test(content) || /(?:json|dbjson)$/i.test(targetName)) continue;
 				const line = preceding.split("\n").length;
 				const column = lineText.length + 1;

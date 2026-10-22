@@ -7,7 +7,7 @@
  * - Tables with RLS enabled missing CREATE POLICY (sql-rls-policy-grant-integrity)
  * - Database payload properties in camelCase (db-payload-snake-case)
  * - Uncoordinated localStorage save bypasses (storage-uncoordinated-save-bypass)
- * - Honors escape hatches (sql-ok, plpgsql-ok, rls-ok, db-ok, storage-ok)
+ * - Zero-Ignore Mandate: strict enforcement on all SQL patterns and payload shapes
  * - Verifies clean execution (0 errors, passed status)
  */
 

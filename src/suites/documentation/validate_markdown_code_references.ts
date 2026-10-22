@@ -26,6 +26,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import { tryOrDefault, tryOrNull } from '../../core/safeUtils.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
@@ -94,15 +95,14 @@ function getPersistenceDirs(config: ReturnType<typeof getAuditConfig>): string[]
 }
 
 function getRootMarkdownFiles(root: string): string[] {
-  try {
-    return fs
-      .readdirSync(root, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
-      .map((entry) => entry.name);
-  } catch {
-    // catch-ok: ignore unreadable projectRoot
-    return [];
-  }
+  return tryOrDefault(
+    () =>
+      fs
+        .readdirSync(root, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.md'))
+        .map((entry) => entry.name),
+    []
+  );
 }
 
 function extractTopLevelRoots(dirs: readonly string[]): string[] {
@@ -320,15 +320,13 @@ export function checkExactCase(
 
 function addSkillsFromDir(targetDir: string, skillsSet: Set<string>): void {
   if (fs.existsSync(targetDir)) {
-    try {
+    tryOrNull(() => {
       for (const entry of fs.readdirSync(targetDir, { withFileTypes: true })) {
         if (entry.isDirectory() && !entry.name.startsWith('.')) {
           skillsSet.add(entry.name);
         }
       }
-    } catch {
-      // catch-ok: unreadable directory
-    }
+    });
   }
 }
 
@@ -810,12 +808,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       const fileDir = path.dirname(filePath);
       let dirEntries: string[] = [];
       if (relPath.endsWith('AGENTS.md')) {
-        try {
-          dirEntries = fs.readdirSync(fileDir);
-        } catch {
-          // catch-ok
-          dirEntries = [];
-        }
+        dirEntries = tryOrDefault(() => fs.readdirSync(fileDir), []);
       }
       docs.push({ filePath, relPath, rawContent, rawLines, lines, isSkillDoc, fileDir, dirEntries });
     }

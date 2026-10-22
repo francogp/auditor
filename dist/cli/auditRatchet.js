@@ -1,8 +1,8 @@
 import { toPosixRelative } from "../core/auditCoverage.js";
 import "../core/safePath.js";
+import { runGit } from "../core/configRatchet.js";
 import path from "node:path";
 import fs from "node:fs";
-import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 //#region src/cli/auditRatchet.ts
 /**
@@ -17,21 +17,6 @@ const BASELINE_SCHEMA_VERSION = 1;
 const FINGERPRINT_HEX_LENGTH = 16;
 const FINGERPRINT_PATTERN = /^[0-9a-f]{16}$/u;
 const RATCHET_SOURCES = ["production", "local-bootstrap"];
-function runGit(projectRoot, args) {
-	const proc = spawnSync("git", args, {
-		cwd: projectRoot,
-		encoding: "utf-8",
-		stdio: [
-			"ignore",
-			"pipe",
-			"pipe"
-		]
-	});
-	return {
-		ok: proc.status === 0,
-		stdout: proc.stdout ?? ""
-	};
-}
 /** True when `ref` resolves to a commit in the repository at `projectRoot`. */
 function resolveGitCommit(projectRoot, ref) {
 	return runGit(projectRoot, [

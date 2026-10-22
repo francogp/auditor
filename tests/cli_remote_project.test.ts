@@ -43,7 +43,7 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     try {
       fs.rmSync(tempSandboxDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: Best-effort temp dir cleanup
+      /* non-fatal test cleanup */
     }
   });
 

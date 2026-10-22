@@ -1,3 +1,4 @@
+import { tryOrNull } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -81,16 +82,14 @@ const HTML_VALIDATE_CONFIG_REQUIREMENT = {
 	customMissingMessage: (_ctx, file) => `Missing HTML-Validate configuration file '${file}'. Run "npm run auditor:fix" or "auditor fix" to create it automatically.`
 };
 function isVueProjectContext(projectRoot) {
-	try {
-		const pkg = getPackageJson(projectRoot);
-		if (pkg) {
-			const deps = {
-				...pkg.dependencies,
-				...pkg.devDependencies
-			};
-			if (deps.vue || deps["@vitejs/plugin-vue"]) return true;
-		}
-	} catch {}
+	const pkg = tryOrNull(() => getPackageJson(projectRoot));
+	if (pkg) {
+		const deps = {
+			...pkg.dependencies,
+			...pkg.devDependencies
+		};
+		if (deps.vue || deps["@vitejs/plugin-vue"]) return true;
+	}
 	const config = getAuditConfig(projectRoot);
 	const uiRoots = [
 		...config.paths.componentsRoots ?? [],
@@ -99,9 +98,10 @@ function isVueProjectContext(projectRoot) {
 	];
 	for (const r of uiRoots) {
 		const fullDir = path.resolve(projectRoot, r);
-		if (fs.existsSync(fullDir)) try {
-			if (collectRepositoryFiles(fullDir, projectRoot, [], /* @__PURE__ */ new Set([".vue"])).length > 0) return true;
-		} catch {}
+		if (fs.existsSync(fullDir)) {
+			const vueFiles = tryOrNull(() => collectRepositoryFiles(fullDir, projectRoot, [], /* @__PURE__ */ new Set([".vue"])));
+			if (vueFiles && vueFiles.length > 0) return true;
+		}
 	}
 	return false;
 }

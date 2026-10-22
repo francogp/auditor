@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 //#region src/core/markdownVersionValidator.ts
@@ -33,13 +34,14 @@ function resolveInstalledAuditorVersions(rootDir, pkg) {
 	}
 	let fullVersion = null;
 	const installedPkgPath = path.join(rootDir, "node_modules", "@francogp", "auditor", "package.json");
-	if (fs.existsSync(installedPkgPath)) try {
-		const installedPkg = JSON.parse(fs.readFileSync(installedPkgPath, "utf-8"));
-		if (installedPkg.version) {
+	const installedRaw = safeReadFileSync(installedPkgPath);
+	if (installedRaw) {
+		const installedPkg = safeJsonParse(installedRaw);
+		if (installedPkg?.version) {
 			fullVersion = installedPkg.version;
 			if (!semver) semver = extractBaseSemver(installedPkg.version);
 		}
-	} catch {}
+	}
 	return {
 		semver,
 		fullVersion
@@ -173,14 +175,14 @@ function syncDocumentationVersionReferences(cwd) {
 	for (const relPath of candidateRelPaths) {
 		const absPath = path.join(cwd, relPath);
 		if (!fs.existsSync(absPath)) continue;
-		try {
+		tryOrNull(() => {
 			const rawContent = fs.readFileSync(absPath, "utf-8");
 			const { updatedContent } = scanAndFixMarkdownProjectVersions(relPath, rawContent.split("\n"), info);
 			if (updatedContent !== null && updatedContent !== rawContent) {
 				fs.writeFileSync(absPath, updatedContent, "utf-8");
 				modifiedFiles.push(absPath);
 			}
-		} catch {}
+		});
 	}
 	return modifiedFiles;
 }

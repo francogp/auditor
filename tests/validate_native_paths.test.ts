@@ -155,13 +155,13 @@ describe('NativePathsAuditor', () => {
       expect(violations.map((v) => [v.ruleId, v.line])).toEqual([['unsafe-path-concat', 3]]);
     });
 
-    it('respects escape hatches for path and url operations', () => {
+    it('detects violations even when inline escape comments are present (Zero-Ignore Mandate)', () => {
       const code = `
         const p = \`\${a}/\${b}\`; // path-ok: Explicitly approved mock path format
         const res = await fetch(url); // url-ok: Internal verified endpoint
       `;
       const violations = scanFileForNativePathViolations('src/logic/escaped.ts', code);
-      expect(violations).toHaveLength(0);
+      expect(violations.length).toBeGreaterThanOrEqual(1);
     });
   });
 

@@ -41,7 +41,6 @@ export const inefficientFileScanDetector: HomebrewDetector = {
       if (
         /['"]\*\*\/\*\.(?:md|vue|html|ts|js)['"]/.test(trimmed) &&
         !isConfigObjectPattern &&
-        !line.includes('// glob-ok:') &&
         !line.includes('coverage') &&
         !line.includes('include:') &&
         !line.includes('targetArgs') &&
@@ -79,8 +78,7 @@ export const inefficientFileScanDetector: HomebrewDetector = {
         if (
           /for\s*\(\s*(?:const|let|var)\s+\w+\s+of\s+(?:filePaths|files|allFiles|candidateFiles)\s*\)/.test(
             line
-          ) &&
-          !line.includes('// nesting-ok:')
+          )
         ) {
           findings.push({
             ruleId: 'auditor-inefficient-file-scan',

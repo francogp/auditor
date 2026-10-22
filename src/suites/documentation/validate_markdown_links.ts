@@ -20,6 +20,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import { tryOrDefault } from '../../core/safeUtils.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -182,13 +183,8 @@ function resolveLocalMarkdownTarget(docFile: string, rawUrl: string): string | n
   ) {
     return null;
   }
-  const [rawPath] = rawUrl.split('#'); // url-ok: Markdown link fragment separator
-  let decodedPath = rawPath ?? '';
-  try {
-    decodedPath = decodeURIComponent(decodedPath);
-  } catch {
-    // catch-ok
-  }
+  const cleanUrl = rawUrl.split(/[?#]/)[0] ?? '';
+  const decodedPath = tryOrDefault(() => decodeURIComponent(cleanUrl), cleanUrl);
   return decodedPath.length > 0 ? path.resolve(path.dirname(docFile), decodedPath) : docFile;
 }
 
@@ -203,12 +199,11 @@ function formatCandidateMatchError(
   }
   const suggestions = candidateMatches.map((cand) => {
     let rel = toPosixRelative(sourceDir, cand);
-    // path-ok: Markdown relative link display decoration for remediation suggestions
-    if (!rel.startsWith('.')) rel = './' + rel;
+    if (!rel.startsWith('.')) rel = `./${rel}`;
     return rel;
   });
   const foundIn = candidateMatches.map((cand) => toPosixRelative(rootDir, cand)).join(', ');
-  return `Target path does not exist on disk: "${resolvedRelPath}", pero aparentemente fue localizado en: "${foundIn}". Verifica si corresponde corregir el enlace a: "${suggestions.join('" o "')}"`;
+  return `Target path does not exist on disk: "${resolvedRelPath}", but was apparently located at: "${foundIn}". Check if the link should be updated to: "${suggestions.join('" or "')}"`;
 }
 
 function checkTargetExistence(params: {

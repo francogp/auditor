@@ -9,13 +9,14 @@
  * 3. Every `npx <bin>` references a binary installed in node_modules/.bin or declared in package.json.
  */
 
-import fsSync from 'node:fs';
 import path from 'node:path';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 import {
   loadPackageScriptsAndBins,
   extractCommandsFromLine,
@@ -270,7 +271,7 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
 
     const extractedFiles: ExtractedDocFile[] = [];
     for (const absFile of mdFiles) {
-      const relPosix = path.relative(this.rootDir, absFile).split(path.sep).join(path.posix.sep);
+      const relPosix = normalizePosixPath(path.relative(this.rootDir, absFile));
       if (
         !isAuditableCodebaseFile(relPosix, customExemptGlobs) ||
         this.gitIgnoreMatcher.isIgnored(absFile)
@@ -278,12 +279,8 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
         continue;
       }
       this.recordScanned(relPosix);
-      let content: string;
-      try {
-        content = fsSync.readFileSync(absFile, 'utf8');
-      } catch {
-        continue;
-      }
+      const content = safeReadFileSync(absFile);
+      if (!content) continue;
       const commands = extractDocumentedCommands(content);
       extractedFiles.push({ relPosix, commands });
     }

@@ -69,6 +69,7 @@ import {
   ACKNOWLEDGEABLE_EXEMPTION_POLICIES,
   AUDITOR_DIR
 } from './auditConfigTypes.ts';
+import { normalizePosixPath } from './reportUtils.ts';
 import {
   assertNarrowCoverageGlob,
   assertCoverageReason,
@@ -541,14 +542,14 @@ export function buildPackageScriptsConfig(
   const p = raw ?? {};
   if (p.recommendedScripts !== undefined && typeof p.recommendedScripts !== 'boolean') {
     throw new Error(
-      `[AuditConfig] Error de tipo en 'packageScripts.recommendedScripts': se recibió '${String(p.recommendedScripts)}'. ` +
-        `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'essential' está estrictamente prohibido.`
+      `[AuditConfig] Type error in 'packageScripts.recommendedScripts': received '${String(p.recommendedScripts)}'. ` +
+        `Must be a strict boolean value (true or false). Strings such as 'off' or 'essential' are strictly prohibited.`
     );
   }
   if (p.enforceBuildAudit !== undefined && typeof p.enforceBuildAudit !== 'boolean') {
     throw new Error(
-      `[AuditConfig] Error de tipo en 'packageScripts.enforceBuildAudit': se recibió '${String(p.enforceBuildAudit)}'. ` +
-        `Debe ser un valor booleano estricto (true o false).`
+      `[AuditConfig] Type error in 'packageScripts.enforceBuildAudit': received '${String(p.enforceBuildAudit)}'. ` +
+        `Must be a strict boolean value (true or false).`
     );
   }
   const base = buildBaseSubsystemConfig<AuditPackageScriptsConfig>(p, def?.enabled ?? true);
@@ -655,12 +656,8 @@ function resolveTestCoverageCollections(
 }
 
 function normalizePathToPosixGlob(p: string): string {
-  const norm = p.split(path.sep).join(path.posix.sep);
+  const norm = normalizePosixPath(p);
   return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, '**');
-}
-
-function normalizeFileToPosix(f: string): string {
-  return f.split(path.sep).join(path.posix.sep);
 }
 
 export function buildTestCoverageConfig(
@@ -672,10 +669,10 @@ export function buildTestCoverageConfig(
   const base = buildBaseSubsystemConfig<AuditTestCoverageConfig>(t, def?.enabled ?? true);
   const collections = resolveTestCoverageCollections(t, def);
   const combinedExemptGlobs = Array.from(new Set([
-    ...collections.exemptGlobs.map(normalizeFileToPosix),
-    ...(base.ignoreGlobs?.map(normalizeFileToPosix) ?? []),
+    ...collections.exemptGlobs.map((f) => normalizePosixPath(f)),
+    ...(base.ignoreGlobs?.map((f) => normalizePosixPath(f)) ?? []),
     ...(base.exemptPaths?.map(normalizePathToPosixGlob) ?? []),
-    ...(base.exemptFiles?.map(normalizeFileToPosix) ?? [])
+    ...(base.exemptFiles?.map((f) => normalizePosixPath(f)) ?? [])
   ]));
   return {
     ...base,

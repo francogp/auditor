@@ -1,5 +1,5 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import "../../core/auditConfig.js";
 import "../../core/safePath.js";
@@ -38,10 +38,6 @@ const P_STATIC_ARRAY_INCLUDES = /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|
 const P_OBJECT_SCAN_LOOKUP = /\bObject\.(?:keys|values|entries)\s*\([^)]+\)\.(?:find|findLast)\s*\(/g;
 const P_JSON_CLONE = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(/g;
 const P_REDUNDANT_SPREAD_RETURN = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
-const ESCAPE_HATCHES = ["// o1-ok:", "// linear-search-ok:"];
-function shouldIgnoreLine(line) {
-	return ESCAPE_HATCHES.some((hatch) => line.includes(hatch));
-}
 const O1_RULES = [
 	"o1-catalog-lookup",
 	"o1-linear-membership",
@@ -106,25 +102,25 @@ function checkLinePatterns(params) {
 		});
 	}
 }
-function scanAstForO1Issues(doc, ast, _filePath, normalizedPath, catalogPatterns, issues) {
-	const lines = doc.rawContent.split("\n");
+function forEachUncommentedLine(content, callback) {
+	const lines = content.split("\n");
 	for (let index = 0; index < lines.length; index++) {
 		const lineText = lines[index];
-		const lineNumber = index + 1;
 		const trimmed = lineText.trim();
-		if (doc.hasEscapeHatch(lineNumber, "o1-catalog-lookup") || trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
-		for (const catalog of catalogPatterns) {
-			if (normalizedPath.endsWith(catalog.definingFile)) continue;
-			catalog.pattern.lastIndex = 0;
-			if (catalog.pattern.test(lineText)) issues.push({
-				ruleId: "o1-catalog-lookup",
-				message: `Linear O(N) search on '${catalog.name}'. Use O(1) alternative: ${catalog.alternative}`,
-				line: lineNumber,
-				context: trimmed,
-				isWarning: false
-			});
-		}
+		if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+		callback(lineText, index + 1);
 	}
+}
+function scanAstForO1Issues(doc, ast, _filePath, normalizedPath, catalogPatterns, issues) {
+	forEachUncommentedLine(doc.rawContent, (lineText, lineNumber) => {
+		checkLineCatalogLookups({
+			lineText,
+			lineNumber,
+			normalizedPath,
+			catalogPatterns,
+			issues
+		});
+	});
 	const visit = (node) => {
 		const { lineText } = doc.getNodeLineAndColumn(node, ast);
 		const trimmed = lineText.trim();
@@ -153,7 +149,6 @@ function checkLinearMembership(node, ast, doc, issues) {
 	const leftText = info.target.getText(ast);
 	const m = /\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER))\b/.exec(leftText);
 	if (!m || !m[1]) return;
-	if (doc.hasEscapeHatchForNode(node, "o1-linear-membership", ast)) return;
 	const { line } = doc.getNodeLineAndColumn(node, ast);
 	issues.push({
 		ruleId: "o1-linear-membership",
@@ -173,7 +168,6 @@ function checkObjectScan(node, ast, doc, issues) {
 	const innerMethod = leftExpr.expression.name.text;
 	if (innerObj !== "Object") return;
 	if (innerMethod !== "keys" && innerMethod !== "values" && innerMethod !== "entries") return;
-	if (doc.hasEscapeHatchForNode(node, "o1-object-scan", ast)) return;
 	const { line } = doc.getNodeLineAndColumn(node, ast);
 	issues.push({
 		ruleId: "o1-object-scan",
@@ -191,7 +185,6 @@ function checkJsonClone(node, ast, doc, issues) {
 	while (ts.isParenthesizedExpression(arg0) || ts.isAsExpression(arg0)) arg0 = arg0.expression;
 	if (!ts.isCallExpression(arg0) || !ts.isPropertyAccessExpression(arg0.expression)) return;
 	if (arg0.expression.expression.getText(ast) !== "JSON" || arg0.expression.name.text !== "stringify") return;
-	if (doc.hasEscapeHatchForNode(node, "o1-json-clone", ast)) return;
 	const { line } = doc.getNodeLineAndColumn(node, ast);
 	issues.push({
 		ruleId: "o1-json-clone",
@@ -207,7 +200,6 @@ function checkRedundantSpreadReturn(node, ast, doc, issues) {
 	const el = node.expression.elements[0];
 	if (!el || !ts.isSpreadElement(el)) return;
 	const spreadTarget = el.expression.getText(ast);
-	if (doc.hasEscapeHatchForNode(node, "o1-redundant-spread-return", ast)) return;
 	const { line } = doc.getNodeLineAndColumn(node, ast);
 	issues.push({
 		ruleId: "o1-redundant-spread-return",
@@ -227,12 +219,7 @@ function scanFileForO1Issues(filePath, content, catalogPatterns = getResolvedO1C
 		return issues;
 	}
 	const issues = [];
-	const lines = content.split("\n");
-	for (let index = 0; index < lines.length; index++) {
-		const lineText = lines[index];
-		const lineNumber = index + 1;
-		const trimmed = lineText.trim();
-		if (shouldIgnoreLine(lineText) || trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
+	forEachUncommentedLine(content, (lineText, lineNumber) => {
 		checkLineCatalogLookups({
 			lineText,
 			lineNumber,
@@ -245,7 +232,7 @@ function scanFileForO1Issues(filePath, content, catalogPatterns = getResolvedO1C
 			lineNumber,
 			issues
 		});
-	}
+	});
 	return issues;
 }
 var O1DataStructuresAuditor = class extends FileScanAuditor {
@@ -319,4 +306,4 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());
 //#endregion
-export { DEFAULT_O1_CATALOG_PATTERNS, ESCAPE_HATCHES, O1DataStructuresAuditor, O1DataStructuresAuditor as ValidateO1DataStructuresAuditor, O1_RULES, P_JSON_CLONE, P_OBJECT_SCAN_LOOKUP, P_REDUNDANT_SPREAD_RETURN, P_STATIC_ARRAY_INCLUDES, getResolvedO1CatalogPatterns, scanFileForO1Issues, shouldIgnoreLine };
+export { DEFAULT_O1_CATALOG_PATTERNS, O1DataStructuresAuditor, O1DataStructuresAuditor as ValidateO1DataStructuresAuditor, O1_RULES, P_JSON_CLONE, P_OBJECT_SCAN_LOOKUP, P_REDUNDANT_SPREAD_RETURN, P_STATIC_ARRAY_INCLUDES, getResolvedO1CatalogPatterns, scanFileForO1Issues };

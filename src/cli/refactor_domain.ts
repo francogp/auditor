@@ -65,7 +65,44 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
     explanation: f.explanation
   }),
   createPlan: (id, findings) => DomainRefactorEngine.createPlan(id, findings),
-  applyPlan: (dir, plan) => DomainRefactorEngine.applyPlan(dir, plan)
+  applyPlan: (dir, plan) => DomainRefactorEngine.applyPlan(dir, plan),
+  extendedHelp: `
+================================================================================
+CANONICAL DOMAIN TYPES QUICK-REFERENCE (@francogp/auditor)
+================================================================================
+When remediating naked strings, raw identifiers, or untyped collections, NEVER
+invent ad-hoc escape hatches (// domain-ok:). Use these official semantic types:
+
+  Primitive Defect          Canonical Auditor Type       Import Source
+  -----------------------   --------------------------   ------------------
+  title, label, desc: string DisplayText                 @francogp/auditor
+  lang, localeKey: string   LocalizedText                @francogp/auditor
+  color, hex: string        HexColor                     @francogp/auditor
+  url, path, icon: string   AssetUri                     @francogp/auditor
+  timestamp, date: string   IsoDateString                @francogp/auditor
+  domId, elementId: string  DomElementId                 @francogp/auditor
+  className, cls: string    CssClassName                 @francogp/auditor
+  uuid, userId: string      UserUuid                     @francogp/auditor
+  meta: Record<string,any>  JsonObject                   @francogp/auditor
+  type MyId = string        Brand<string, 'MyId'>        @francogp/auditor
+
+MIGRATION TEMPLATES:
+  1. Branded Nominal IDs:
+     import type { Brand } from '@francogp/auditor';
+     export type OrderId = Brand<string, 'OrderId'>;
+
+  2. Strict Catalogs & Domain Unions:
+     export const ORDER_STATUSES = ['pending', 'shipped', 'delivered'] as const;
+     export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+  3. O(1) Domain Lookup Sets:
+     export const ORDER_STATUS_SET: ReadonlySet<OrderStatus> = new Set<OrderStatus>(ORDER_STATUSES);
+
+See comprehensive guide:
+  .agents/skills/domain-type-first/references/canonical-data-types.md
+  .agents/skills/domain-type-first/references/rapid-type-migration-templates.md
+================================================================================
+`
 };
 
 export async function runRefactorDomainCli(argv?: readonly string[]): Promise<void> {

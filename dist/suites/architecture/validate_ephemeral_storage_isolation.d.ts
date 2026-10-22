@@ -13,7 +13,7 @@ export interface EphemeralStorageIsolationAuditorOptions {
 export declare class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStorageRuleId> {
   private readonly allowedDatabaseDirs;
   private readonly allowedDatabaseFiles;
-  constructor(optionsOrRoot?: EphemeralStorageIsolationAuditorOptions | string);
+  constructor(options?: EphemeralStorageIsolationAuditorOptions);
   runAudit(): void;
   private scanSourceDirectoriesOnDisk;
   private checkDatabaseDirectoryEntry;

@@ -139,16 +139,6 @@ const fix = (match: string) => match.replace(/(['"])(\.\.?\/[^'"]+)(?<!\.[jt]s)(
 ### N47 string-with-code expect=none
 const s = "fs.readFileSync(a + '/' + b) and p.replace(/\\\\/g, '/')";
 
-### N48 escape-hatch-same-line expect=none
-const p = __dirname + '/file.txt'; // path-ok: legacy fixture loader
-
-### N49 escape-hatch-prev-line expect=none
-// path-ok: legacy fixture loader
-const p = __dirname + '/file.txt';
-
-### N50 escape-hatch-url expect=none
-const res = await fetch(url); // url-ok: Internal verified endpoint
-
 ### N51 safe-fetch expect=none
 const res = await fetch('https://api.example.com/data');
 

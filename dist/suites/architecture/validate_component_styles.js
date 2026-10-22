@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { tryCatchSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
@@ -236,8 +237,8 @@ function rewriteCssReferencesInProject(projectRoot, roots, renamedPairs, auditor
 	]));
 	const indexHtml = path.resolve(projectRoot, "index.html");
 	if (fs.existsSync(indexHtml) && !codeFiles.includes(indexHtml)) codeFiles.push(indexHtml);
-	for (const filePath of codeFiles) try {
-		if (!fs.existsSync(filePath)) continue;
+	for (const filePath of codeFiles) tryCatchSync(() => {
+		if (!fs.existsSync(filePath)) return;
 		let content = fs.readFileSync(filePath, "utf-8");
 		let modified = false;
 		for (const { oldBase, newBase } of renamedPairs) {
@@ -249,7 +250,7 @@ function rewriteCssReferencesInProject(projectRoot, roots, renamedPairs, auditor
 			}
 		}
 		if (modified) fs.writeFileSync(filePath, content, "utf-8");
-	} catch {}
+	});
 }
 function auditRawCssFiles(cssFiles, projectRoot, exemptCssFiles, auditor) {
 	const renamedPairs = [];
@@ -258,15 +259,16 @@ function auditRawCssFiles(cssFiles, projectRoot, exemptCssFiles, auditor) {
 		if (isExemptCssFile(relPath, exemptCssFiles)) continue;
 		if (auditor.isFixActive()) {
 			const targetScss = file.slice(0, -4) + ".scss";
-			try {
+			if (tryCatchSync(() => {
 				if (!fs.existsSync(targetScss)) fs.renameSync(file, targetScss);
 				else fs.rmSync(file, { force: true });
+			}).ok) {
 				renamedPairs.push({
 					oldBase: path.basename(file),
 					newBase: path.basename(targetScss)
 				});
 				continue;
-			} catch {}
+			}
 		}
 		auditor.recordViolation({
 			file: relPath,

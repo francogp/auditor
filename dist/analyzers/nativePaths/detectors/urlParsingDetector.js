@@ -9,7 +9,7 @@ import ts from "typescript";
 * (`split('?' | '#' | '&')`, query regexes, scheme stripping, `path.join(baseUrl, …)`,
 * concatenation inside `new URL()`, legacy `url.parse()`) instead of `URL` / `URLSearchParams`.
 */
-const URL_PARSING_MESSAGE = "Parseo o construcción casera de URLs / query strings. Usa 'new URL(relativo, base)', 'url.searchParams', 'URLSearchParams' y 'url.pathname' / 'url.hash' nativos.";
+const URL_PARSING_MESSAGE = "Homebrew parsing or manual assembly of URLs / query strings. Use native 'new URL(relative, base)', 'url.searchParams', 'URLSearchParams', and 'url.pathname' / 'url.hash'.";
 const URL_DELIMITERS = /* @__PURE__ */ new Set([
 	"?",
 	"#",

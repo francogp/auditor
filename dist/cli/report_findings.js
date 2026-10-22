@@ -6,7 +6,7 @@ import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, isRemediationPhaseId } from 
 import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { COMMON_CLI_ARGS, CONSOLE_FORMAT_VALUES, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs, runMain } from "../core/cli/cittyHarness.js";
 import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
+import { isPathContained } from "../core/safePath.js";
 import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
 import { buildNoticeBox, renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
@@ -381,7 +381,7 @@ function getDirectoryBucket(filePath) {
 	const rel = getNormalizedRelPath(filePath);
 	if (rel === "General") return "General";
 	const first = rel.indexOf("/");
-	return first !== -1 ? `${rel.slice(0, first)}/` : rel;
+	return first !== -1 ? rel.slice(0, first) : rel;
 }
 function sortFindingsEntries(entries) {
 	return entries.sort((a, b) => {
@@ -479,9 +479,23 @@ function matchesPathFilters(f, args) {
 	if (args.scope === "host" && relPath.startsWith("packages/")) return false;
 	if (args.scope === "packages" && !relPath.startsWith("packages/")) return false;
 	if (args.dirPattern) {
-		const cleanDir = toPosixRelative(process.cwd(), args.dirPattern).toLowerCase();
-		const lowerRel = relPath.toLowerCase();
-		if (lowerRel !== cleanDir && !lowerRel.startsWith(`${cleanDir}/`) && !lowerRel.includes(`/${cleanDir}/`)) return false;
+		const dirAbs = path.resolve(process.cwd(), args.dirPattern);
+		const fileAbs = path.resolve(process.cwd(), relPath);
+		const contained = isPathContained(dirAbs, fileAbs);
+		let matchedAncestor = false;
+		let curr = fileAbs;
+		const root = path.parse(curr).root;
+		const targetBase = path.basename(dirAbs).toLowerCase();
+		while (curr && curr !== root) {
+			if (path.basename(curr).toLowerCase() === targetBase) {
+				matchedAncestor = true;
+				break;
+			}
+			const parent = path.dirname(curr);
+			if (parent === curr) break;
+			curr = parent;
+		}
+		if (!contained && !matchedAncestor) return false;
 	}
 	if (args.filePattern) {
 		if (!f.file) return false;

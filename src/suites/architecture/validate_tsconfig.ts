@@ -22,6 +22,7 @@ import {
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import { safeReadFileSync, tryOrNull } from '../../core/safeUtils.ts';
 
 import ts from 'typescript';
 
@@ -257,21 +258,16 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     this.recordScanned(relPath);
 
     const extraTsconfigs: string[] = []; // no-domain: Discovered secondary tsconfig.*.json filenames
-    try {
-      for (const entry of fs.readdirSync(this.projectRoot)) {
-        if (/^tsconfig\..+\.json$/.test(entry)) {
-          this.recordScanned(entry);
-          extraTsconfigs.push(entry);
-        }
+    const entries = tryOrNull(() => fs.readdirSync(this.projectRoot)) ?? [];
+    for (const entry of entries) {
+      if (/^tsconfig\..+\.json$/.test(entry)) {
+        this.recordScanned(entry);
+        extraTsconfigs.push(entry);
       }
-    } catch {
-      // catch-ok
     }
 
-    let rawContent: string;
-    try {
-      rawContent = fs.readFileSync(resolvedPath, 'utf8');
-    } catch {
+    const rawContent = safeReadFileSync(resolvedPath);
+    if (!rawContent) {
       this.markRuleNotApplicable('tsconfig-syntax', 'Could not read file');
       this.markRuleNotApplicable('tsconfig-missing-strict-compiler-option', 'Could not read file');
       this.markRuleNotApplicable('tsconfig-banned-option', 'Could not read file');

@@ -40,7 +40,10 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-unacknowledged-degradation']).toBe(
       'Undocumented coverage degradation'
     );
-    expect(Object.keys(manifest.rules).length).toBe(8);
+    expect(manifest.rules['audit-config-ratchet-relaxation']).toBe(
+      'Unauthorized rule relaxation (ratchet)'
+    );
+    expect(Object.keys(manifest.rules).length).toBe(9);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {

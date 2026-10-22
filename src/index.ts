@@ -76,3 +76,5 @@ export * from './core/refactor/refactorContracts.ts';
 export * from './core/refactor/refactorFileScanner.ts';
 export * from './core/refactor/typesRefactorEngine.ts';
 export * from './core/refactor/worktreeSandbox.ts';
+export * from './core/safeUtils.ts';
+export * from './core/domainCollections.ts';

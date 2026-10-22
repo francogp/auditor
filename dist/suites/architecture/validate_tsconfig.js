@@ -1,3 +1,4 @@
+import { safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -151,16 +152,13 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 		const relPath = path.relative(this.projectRoot, resolvedPath) || TSCONFIG_REQUIREMENT.file;
 		this.recordScanned(relPath);
 		const extraTsconfigs = [];
-		try {
-			for (const entry of fs.readdirSync(this.projectRoot)) if (/^tsconfig\..+\.json$/.test(entry)) {
-				this.recordScanned(entry);
-				extraTsconfigs.push(entry);
-			}
-		} catch {}
-		let rawContent;
-		try {
-			rawContent = fs.readFileSync(resolvedPath, "utf8");
-		} catch {
+		const entries = tryOrNull(() => fs.readdirSync(this.projectRoot)) ?? [];
+		for (const entry of entries) if (/^tsconfig\..+\.json$/.test(entry)) {
+			this.recordScanned(entry);
+			extraTsconfigs.push(entry);
+		}
+		const rawContent = safeReadFileSync(resolvedPath);
+		if (!rawContent) {
 			this.markRuleNotApplicable("tsconfig-syntax", "Could not read file");
 			this.markRuleNotApplicable("tsconfig-missing-strict-compiler-option", "Could not read file");
 			this.markRuleNotApplicable("tsconfig-banned-option", "Could not read file");

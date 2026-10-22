@@ -26,7 +26,6 @@ export declare class ValidatePersistenceClientAuditor extends FileScanAuditor<Pe
   private scanQuotaError;
   private isIgnoredLine;
   private isAuthorizedSaveFile;
-  private hasStorageEscapeHatch;
   private isInsideTryCatch;
 }
 //#endregion

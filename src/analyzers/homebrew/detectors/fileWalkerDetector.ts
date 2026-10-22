@@ -38,22 +38,11 @@ function extractFunctionBody(lines: readonly string[], startIdx: number): string
   return bodyLines.join('\n');
 }
 
-function hasWalkerExemption(lines: readonly string[], idx: number): boolean {
-  const line = lines[idx]!;
-  if (line.includes('// walker-ok') || line.includes('/* walker-ok */')) return true;
-  if (idx > 0) {
-    const prevLine = lines[idx - 1]!;
-    if (prevLine.includes('// walker-ok') || prevLine.includes('/* walker-ok */')) return true;
-  }
-  return false;
-}
-
 export const fileWalkerDetector: HomebrewDetector = {
   id: 'file-walker',
   ruleId: 'auditor-manual-file-walker',
   ruleDescription: 'Manual recursive directory walk',
   detect(context: HomebrewInspectionContext): HomebrewFinding[] {
-    if (context.content.includes('// walker-ok: all')) return [];
     if (context.isCore && !context.filePath.startsWith('src/core/refactor/')) return [];
 
     const findings: HomebrewFinding[] = [];
@@ -61,9 +50,6 @@ export const fileWalkerDetector: HomebrewDetector = {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
-      if (hasWalkerExemption(lines, i)) {
-        continue;
-      }
 
       // Skip AST node walkers, PostCSS walking, and visitor methods
       if (

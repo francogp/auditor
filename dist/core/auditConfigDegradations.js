@@ -1,4 +1,5 @@
 import { AUDIT_CONFIG_FILE } from "./auditConfigTypes.js";
+import { tryCatchSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import "./auditConfig.js";
 import "./safePath.js";
@@ -120,14 +121,14 @@ function applyAcknowledgedDegradationsFix(projectRoot, missing) {
 		reason: m.reason
 	}));
 	if (configFilePath.endsWith(".json")) {
-		try {
+		tryCatchSync(() => {
 			const code = fs.readFileSync(configFilePath, "utf8");
 			const json = JSON.parse(code);
 			const coverage = json.coverage && typeof json.coverage === "object" ? json.coverage : {};
 			coverage.acknowledgedDegradations = [...Array.isArray(coverage.acknowledgedDegradations) ? coverage.acknowledgedDegradations : [], ...newEntries];
 			json.coverage = coverage;
 			fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
-		} catch {}
+		});
 		return;
 	}
 	const parsed = parseAuditConfigFileAst(configFilePath);

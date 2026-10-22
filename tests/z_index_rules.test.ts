@@ -104,7 +104,7 @@ describe('zIndexRules Analyzer', () => {
         typeof zIndexAudit.message === 'function'
           ? zIndexAudit.message('z-index: none')
           : zIndexAudit.message;
-      expect(msgNoNum).toContain('Z-Index hardcodeado detectado');
+      expect(msgNoNum).toContain('Hardcoded z-index detected');
     });
 
     it('check returns false when styles.zLayersEnabled is false', () => {
@@ -155,7 +155,7 @@ describe('zIndexRules Analyzer', () => {
         typeof zIndexConstantDeclaration.message === 'function'
           ? zIndexConstantDeclaration.message('const Z_INDEX_X = 1;')
           : zIndexConstantDeclaration.message;
-      expect(msg).toContain('PROHIBIDO declarar constantes de Z-Index');
+      expect(msg).toContain('Isolated z-index constant declaration detected');
       expect(msg).toContain('Z_LAYERS');
     });
 

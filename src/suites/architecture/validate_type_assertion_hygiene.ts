@@ -74,7 +74,6 @@ function reportLooseArrayCast(
   ast: ts.SourceFile,
   issues: TypeAssertionIssue[]
 ): void {
-  if (doc.hasEscapeHatchForNode(node, 'type-assertion-loose-array', ast)) return;
   const { line, column } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'type-assertion-loose-array',
@@ -93,29 +92,25 @@ function checkAsExpression(
 ): void {
   const typeNode = node.type;
   if (typeNode.kind === ts.SyntaxKind.AnyKeyword) {
-    if (!doc.hasEscapeHatchForNode(node, 'type-assertion-zero-any', ast)) {
+    const { line, column } = doc.getNodeLineAndColumn(node, ast);
+    issues.push({
+      ruleId: 'type-assertion-zero-any',
+      line,
+      column,
+      message: 'Type assertion `as any` degrades type safety — derive domain type or specify precise union',
+      context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
+    });
+  } else if (ts.isArrayTypeNode(typeNode)) {
+    const el = typeNode.elementType;
+    if (el.kind === ts.SyntaxKind.AnyKeyword || el.kind === ts.SyntaxKind.UnknownKeyword) {
       const { line, column } = doc.getNodeLineAndColumn(node, ast);
       issues.push({
         ruleId: 'type-assertion-zero-any',
         line,
         column,
-        message: 'Type assertion `as any` degrades type safety — derive domain type or specify precise union',
+        message: 'Array typecast `as any[]` or `as unknown[]` degrades type safety',
         context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
       });
-    }
-  } else if (ts.isArrayTypeNode(typeNode)) {
-    const el = typeNode.elementType;
-    if (el.kind === ts.SyntaxKind.AnyKeyword || el.kind === ts.SyntaxKind.UnknownKeyword) {
-      if (!doc.hasEscapeHatchForNode(node, 'type-assertion-zero-any', ast)) {
-        const { line, column } = doc.getNodeLineAndColumn(node, ast);
-        issues.push({
-          ruleId: 'type-assertion-zero-any',
-          line,
-          column,
-          message: 'Array typecast `as any[]` or `as unknown[]` degrades type safety',
-          context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
-        });
-      }
     } else if (el.kind === ts.SyntaxKind.StringKeyword) {
       reportLooseArrayCast(node, doc, ast, issues);
     }
@@ -128,16 +123,14 @@ function checkAsExpression(
   if (ts.isAsExpression(inner)) {
     const innerType = inner.type;
     if (innerType.kind === ts.SyntaxKind.UnknownKeyword || innerType.kind === ts.SyntaxKind.AnyKeyword) {
-      if (!doc.hasEscapeHatchForNode(node, 'type-assertion-double-cast', ast)) {
-        const { line, column } = doc.getNodeLineAndColumn(node, ast);
-        issues.push({
-          ruleId: 'type-assertion-double-cast',
-          line,
-          column,
-          message: 'Double type assertion `as unknown as ...` bypasses type checker',
-          context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
-        });
-      }
+      const { line, column } = doc.getNodeLineAndColumn(node, ast);
+      issues.push({
+        ruleId: 'type-assertion-double-cast',
+        line,
+        column,
+        message: 'Double type assertion `as unknown as ...` bypasses type checker',
+        context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
+      });
     }
   }
 }
@@ -171,7 +164,6 @@ function checkBooleanLiteralAnnotation(
   }
   if (!isBoolLit) return;
 
-  if (doc.hasEscapeHatchForNode(node, 'type-assertion-boolean-literal', ast)) return;
   const { line, column } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'type-assertion-boolean-literal',
@@ -200,7 +192,6 @@ function checkFloatingPromise(
   }
   if (!fnName.endsWith('Async')) return;
 
-  if (doc.hasEscapeHatchForNode(node, 'type-assertion-floating-promise', ast)) return;
   const { line, column } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'type-assertion-floating-promise',
@@ -256,7 +247,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
           '3. Canonical Solution:\n' +
           '   a) Replace it with the real strict type or corresponding interface.\n' +
           '   b) If the data comes from an external source (API, JSON, localStorage), use `unknown` and validate at runtime via Valibot schemas or type guards.\n' +
-          '   c) If this is an untyped third-party library, type it formally in `types/` or annotate with `// type-assertion-zero-any-ok: <reason>`.\n' +
+          '   c) If this is an untyped third-party library, declare an ambient module type definition in `src/types/`.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Insecure: `const user = payload as any;`\n' +
           '   ✅ Secure:   `const user: UserProfile = v.parse(UserProfileSchema, payload);`',
@@ -367,20 +358,13 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
   private scanRegexFallback(content: string, rel: string): void {
     const lines = content.split('\n');
 
-    const shouldReportCast = (_match: RegExpExecArray, line: string): boolean =>
-      !line.includes('// domain-ok:') &&
-      !line.includes('// any-ok:') &&
-      !line.includes('// type-ok:') &&
-      !line.includes('// no-domain:') &&
-      !line.includes('// open-record:');
-
     this.scanPattern(
       content,
       lines,
       rel,
       P_TYPECAST_INLINE_ANY,
       'type-assertion-zero-any',
-      shouldReportCast,
+      () => true,
       'Type assertion `as any` degrades type safety — derive domain type or specify precise union'
     );
 
@@ -390,7 +374,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_TYPECAST_ARRAY_ANY_UNKNOWN,
       'type-assertion-zero-any',
-      shouldReportCast,
+      () => true,
       'Array typecast `as any[]` or `as unknown[]` degrades type safety'
     );
 
@@ -401,15 +385,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_TYPECAST_UNKNOWN,
       'type-assertion-double-cast',
-      (_match, line) => {
-        if (
-          line.includes('// domain-ok:') ||
-          line.includes('// cast-ok:') ||
-          line.includes('// double-cast-ok:')
-        )
-          return false;
-        return true;
-      },
+      () => true,
       'Double type assertion `as unknown as ...` bypasses type checker'
     );
 
@@ -419,10 +395,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_DOUBLE_CAST_DOMAIN_ID,
       'type-assertion-double-cast',
-      (_match, line) => {
-        if (line.includes('// domain-ok:') || line.includes('// cast-ok:')) return false;
-        return true;
-      },
+      () => true,
       'Double type assertion `as unknown as [Domain]Id` bypasses type checking'
     );
 
@@ -433,10 +406,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_BOOLEAN_LITERAL_TYPE_ANNOTATION,
       'type-assertion-boolean-literal',
-      (_match, line) => {
-        if (line.includes('// domain-ok:') || line.includes('// literal-ok:')) return false;
-        return true;
-      },
+      () => true,
       'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state'
     );
 
@@ -447,10 +417,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_FLOATING_PROMISE,
       'type-assertion-floating-promise',
-      (_match, line) => {
-        if (line.includes('// promise-ok:') || line.includes('// void-ok:')) return false;
-        return true;
-      },
+      () => true,
       'Floating Promise call `...Async()` without await or void — unhandled async execution'
     );
 
@@ -461,17 +428,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       rel,
       P_TYPECAST_READONLY_STRING_ARRAY,
       'type-assertion-loose-array',
-      (_match, line) => {
-        if (
-          line.includes('// domain-ok:') ||
-          line.includes('// array-ok:') ||
-          line.includes('// no-domain:') ||
-          line.includes('// type-ok:') ||
-          line.includes('// open-record:')
-        )
-          return false;
-        return true;
-      },
+      () => true,
       'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`'
     );
   }

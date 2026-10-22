@@ -181,15 +181,6 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
 
         const preceding = content.slice(0, m.index);
         const lineText = preceding.split('\n').pop() ?? '';
-        const nextNl = content.indexOf('\n', m.index);
-        const fullLine = lineText + content.slice(m.index, nextNl === -1 ? undefined : nextNl);
-        if (
-          fullLine.includes('// value-ok:') ||
-          fullLine.includes('// const-ok:') ||
-          fullLine.includes('// json-ok:') ||
-          fullLine.includes('// alias-ok:')
-        )
-          continue;
 
         // Skip if targetName is imported from a .json file or is a json data import
         const isJsonImport =

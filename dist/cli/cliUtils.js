@@ -1,5 +1,6 @@
-import { getAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
+import { safeJsonParse, safeReadFileSync, tryOrDefault, tryOrNull } from "../core/safeUtils.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
+import { getAuditConfig, sanitizePath } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -18,23 +19,16 @@ import { spawnSync } from "node:child_process";
 function isMainModule(metaUrl, binaryAliases) {
 	const scriptArg = process.argv[1];
 	if (!scriptArg) return false;
-	try {
+	return tryOrDefault(() => {
 		const targetPath = path.resolve(fileURLToPath(metaUrl));
-		let realScript;
-		try {
-			realScript = path.resolve(fs.realpathSync(scriptArg));
-		} catch {
-			realScript = path.resolve(scriptArg);
-		}
+		const realScript = tryOrDefault(() => path.resolve(fs.realpathSync(scriptArg)), path.resolve(scriptArg));
 		if (process.platform === "win32" ? realScript.toLowerCase() === targetPath.toLowerCase() : realScript === targetPath) return true;
 		const targetBase = path.basename(targetPath, path.extname(targetPath));
 		const scriptBase = path.basename(realScript, path.extname(realScript));
 		if (targetBase.toLowerCase() === scriptBase.toLowerCase()) return true;
 		if (binaryAliases && binaryAliases.some((alias) => scriptBase.toLowerCase() === alias.toLowerCase())) return true;
 		return false;
-	} catch {
-		return false;
-	}
+	}, false);
 }
 const DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES = 52428800;
 const DEFAULT_SUBPROCESS_TIMEOUT_MS = 0;
@@ -177,33 +171,34 @@ function resolveNodeModuleBin(projectRoot, relativeBinPath) {
 function resolveBinFromPackageJson(pkgDir, packageName) {
 	const pkgJsonPath = path.join(pkgDir, "package.json");
 	if (!fs.existsSync(pkgJsonPath)) return null;
-	try {
-		const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-		const relBin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : void 0);
-		if (typeof relBin === "string") {
-			const binFile = path.resolve(pkgDir, relBin);
-			if (fs.existsSync(binFile)) return binFile;
-		}
-	} catch {}
+	const raw = safeReadFileSync(pkgJsonPath);
+	if (!raw) return null;
+	const pkg = safeJsonParse(raw);
+	if (!pkg) return null;
+	const relBin = typeof pkg.bin === "string" ? pkg.bin : pkg.bin?.[packageName] || (pkg.bin ? Object.values(pkg.bin)[0] : void 0);
+	if (typeof relBin === "string") {
+		const binFile = path.resolve(pkgDir, relBin);
+		if (fs.existsSync(binFile)) return binFile;
+	}
 	return null;
 }
 /**
 * Resolves the executable binary file of a package, inspecting package.json or createRequire.
 */
 function resolvePackageBin(packageName, options) {
-	try {
+	const fromPkgJson = tryOrNull(() => {
 		const pkgJsonUrl = import.meta.resolve(`${packageName}/package.json`);
 		const pkgJsonPath = fileURLToPath(pkgJsonUrl);
-		const fromPkgJson = resolveBinFromPackageJson(path.dirname(pkgJsonPath), packageName);
-		if (fromPkgJson) return fromPkgJson;
-	} catch {}
+		return resolveBinFromPackageJson(path.dirname(pkgJsonPath), packageName);
+	});
+	if (fromPkgJson) return fromPkgJson;
 	const lookupPaths = Array.from(new Set([
 		options?.projectRoot,
 		process.env.AUDITOR_HOME_DIR,
 		process.cwd()
 	].filter((p) => Boolean(p))));
 	const req = createRequire(import.meta.url);
-	try {
+	const fromMainDir = tryOrNull(() => {
 		const mainPath = req.resolve(packageName, { paths: lookupPaths.length > 0 ? lookupPaths : void 0 });
 		let dir = path.dirname(mainPath);
 		while (dir && !fs.existsSync(path.join(dir, "package.json"))) {
@@ -211,9 +206,9 @@ function resolvePackageBin(packageName, options) {
 			if (parent === dir) break;
 			dir = parent;
 		}
-		const fromMainDir = resolveBinFromPackageJson(dir, packageName);
-		if (fromMainDir) return fromMainDir;
-	} catch {}
+		return resolveBinFromPackageJson(dir, packageName);
+	});
+	if (fromMainDir) return fromMainDir;
 	if (options?.fallbackRelativeBin) {
 		if (options.projectRoot) {
 			const candidate = resolveNodeModuleBin(options.projectRoot, path.join(packageName, options.fallbackRelativeBin));
@@ -257,12 +252,8 @@ function executeCliToFile(command, args, outputFilePath, options) {
 function executeCliAndReadJson(command, args, outputFilePath, options) {
 	executeCliToFile(command, args, outputFilePath, options);
 	if (!fs.existsSync(outputFilePath)) return null;
-	try {
-		const rawContent = fs.readFileSync(outputFilePath, "utf-8");
-		if (rawContent.trim()) return JSON.parse(rawContent);
-	} catch {
-		return null;
-	}
+	const rawContent = safeReadFileSync(outputFilePath);
+	if (rawContent && rawContent.trim()) return safeJsonParse(rawContent) ?? null;
 	return null;
 }
 /**

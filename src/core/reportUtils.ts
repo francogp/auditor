@@ -8,6 +8,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import type { AuditFinding } from './auditContract.ts';
+import { safeJsonParse } from './safeUtils.ts';
 
 export interface ValidationSummary {
   title: string;
@@ -47,7 +48,7 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
         console.log(
           styleText(
             'cyan',
-            `   ... y ${summary.warnings.length - limit} advertencias más (usa -o para ver todas)`
+            `   ... and ${summary.warnings.length - limit} more warnings (use -o to see all)`
           )
         );
       }
@@ -62,15 +63,15 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
         console.log(
           styleText(
             'cyan',
-            `   ... y ${summary.errors.length - limit} errores más (usa -o para ver todos)`
+            `   ... and ${summary.errors.length - limit} more errors (use -o to see all)`
           )
         );
       }
       console.log(
-        '\n' + styleText('red', 'Corrige estos errores para asegurar la integridad de los datos.')
+        '\n' + styleText('red', 'Fix these errors to ensure data integrity.')
       );
     } else {
-      console.log(styleText('green', '✅ Todos los componentes pasaron la validación con éxito!'));
+      console.log(styleText('green', '✅ All components passed validation successfully!'));
     }
   }
 }
@@ -294,18 +295,14 @@ export function extractJsonReportFilePaths(
   fallbackFindings?: readonly { file?: string }[]
 ): string[] {
   const result: string[] = []; // no-domain: Non-domain utility collection or data structure
-  try {
-    const parsed = JSON.parse(rawJson);
-    if (Array.isArray(parsed)) {
-      for (const item of parsed) {
-        if (item && typeof item.filePath === 'string') {
-          result.push(item.filePath);
-        }
+  const parsed = safeJsonParse<unknown[]>(rawJson);
+  if (Array.isArray(parsed)) {
+    for (const item of parsed) {
+      if (item && typeof (item as { filePath?: unknown }).filePath === 'string') {
+        result.push((item as { filePath: string }).filePath);
       }
-      return result;
     }
-  } catch {
-    // catch-ok: fallback to finding files if JSON is malformed
+    return result;
   }
   if (fallbackFindings) {
     for (const f of fallbackFindings) {

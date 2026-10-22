@@ -40,17 +40,6 @@ const DETECTORS: readonly NativePathDetector[] = [
   fetchDetector
 ];
 
-const ESCAPE_TOKENS: ReadonlySet<string> = new Set([
-  'path',
-  'url',
-  'env',
-  'cross-platform',
-  'security',
-  'string',
-  'no-domain',
-  'test'
-]); // runtime-set: O(1) escape hatch token lookup
-
 const URL_VALIDATION_PROPERTIES: ReadonlySet<string> = new Set(['hostname', 'origin', 'protocol']); // runtime-set: O(1) lookup
 const NODE_BUILTIN_MODULES: ReadonlySet<string> = new Set([
   'fs',
@@ -67,7 +56,6 @@ const NODE_BUILTIN_MODULES: ReadonlySet<string> = new Set([
   'util'
 ]); // runtime-set: O(1) builtin specifier lookup
 const NODE_PROCESS_MEMBERS: ReadonlySet<string> = new Set(['cwd', 'argv']); // runtime-set: O(1) lookup
-const FALLOW_NEXT_LINE_DIRECTIVE = 'fallow-ignore-next-line';
 
 interface FileFacts {
   readonly pathOriginNames: Set<string>;
@@ -121,17 +109,6 @@ function collectFileFacts(sourceFile: ts.SourceFile): FileFacts {
   return { pathOriginNames, hasUrlValidation: hasUrlConstruction && hasUrlPropertyCheck, isNodeContext };
 }
 
-function buildEscapedLines(doc: AuditedDocument): Set<number> {
-  const lines = new Set<number>();
-  for (const hatch of doc.getEscapeHatches()) {
-    if (ESCAPE_TOKENS.has(hatch.ruleToken)) lines.add(hatch.line);
-  }
-  doc.lines.forEach((text, index) => {
-    if (text.includes(FALLOW_NEXT_LINE_DIRECTIVE)) lines.add(index + 1);
-  });
-  return lines;
-}
-
 function toViolation(doc: AuditedDocument, sourceFile: ts.SourceFile, finding: NativePathFinding): NativePathViolation {
   const pos = sourceFile.getLineAndCharacterOfPosition(finding.node.getStart(sourceFile));
   const line = pos.line + 1;
@@ -161,7 +138,6 @@ export function scanNativePathAst(doc: AuditedDocument): NativePathViolation[] {
     isNodeContext: facts.isNodeContext,
     claimed: new Set<ts.Node>()
   };
-  const escapedLines = buildEscapedLines(doc);
   const seen = new Set<string>();
   const violations: NativePathViolation[] = [];
 
@@ -173,7 +149,6 @@ export function scanNativePathAst(doc: AuditedDocument): NativePathViolation[] {
       if (seen.has(key)) continue;
       seen.add(key);
       const violation = toViolation(doc, sourceFile, finding);
-      if (escapedLines.has(violation.line) || escapedLines.has(violation.line - 1)) continue;
       violations.push(violation);
     }
     ts.forEachChild(node, visit);

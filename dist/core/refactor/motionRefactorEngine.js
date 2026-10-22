@@ -71,38 +71,39 @@ function isGsapTweenCall(node, sf) {
 		else break;
 	}
 	const callerText = caller.getText(sf).toLowerCase();
-	return callerText === "gsap" || callerText === "tl" || callerText.includes("timeline") || callerText.endsWith("tl") || callerText.startsWith("tl") || callerText === "tween" || callerText.endsWith("tween");
+	return (/* @__PURE__ */ new Set([
+		"gsap",
+		"tl",
+		"tween"
+	])).has(callerText) || callerText.includes("timeline") || callerText.endsWith("tl") || callerText.startsWith("tl") || callerText.endsWith("tween");
 }
-function inspectGsapTweenVarsObject(obj, sf, lineOffset, fileLines, findings) {
+function inspectGsapTweenVarsObject(obj, sf, lineOffset, _fileLines, findings) {
 	for (const prop of obj.properties) if (ts.isPropertyAssignment(prop)) {
 		let propName;
 		if (ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)) propName = prop.name.text;
 		if (propName && LAYOUT_PROP_MAP[propName]) {
 			const { line } = sf.getLineAndCharacterOfPosition(prop.getStart(sf));
 			const actualLine = line + lineOffset + 1;
-			if (!(fileLines[actualLine - 1] ?? "").includes("// layout-ok:")) {
-				const targetProp = LAYOUT_PROP_MAP[propName];
-				findings.push({
-					file: sf.fileName,
-					line: actualLine,
-					kind: "layout-property",
-					ruleId: "gsap-no-layout-properties",
-					originalSnippet: `${propName}:`,
-					suggestedReplacement: `${targetProp}:`,
-					explanation: `Layout properties (${propName}) trigger browser reflows; use GPU transform (${targetProp}) or add '// layout-ok: <reason>'.`
-				});
-			}
+			const targetProp = LAYOUT_PROP_MAP[propName];
+			findings.push({
+				file: sf.fileName,
+				line: actualLine,
+				kind: "layout-property",
+				ruleId: "gsap-no-layout-properties",
+				originalSnippet: `${propName}:`,
+				suggestedReplacement: `${targetProp}:`,
+				explanation: `Layout properties (${propName}) trigger browser reflows; use GPU transform (${targetProp}).`
+			});
 		}
 	}
 }
-function inspectTimerCall(node, sf, lineOffset, fileLines, findings) {
+function inspectTimerCall(node, sf, lineOffset, _fileLines, findings) {
 	let timerFnName;
 	if (ts.isIdentifier(node.expression)) timerFnName = node.expression.text;
 	else if (ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && (node.expression.expression.text === "window" || node.expression.expression.text === "globalThis") && ts.isIdentifier(node.expression.name)) timerFnName = node.expression.name.text;
 	if (timerFnName !== "setTimeout" && timerFnName !== "setInterval" && timerFnName !== "clearTimeout" && timerFnName !== "clearInterval") return;
 	const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
 	const actualLine = line + lineOffset + 1;
-	if ((fileLines[actualLine - 1] ?? "").includes("// timer-ok:")) return;
 	if (timerFnName === "setTimeout") {
 		const callbackNode = node.arguments[0];
 		const delayNode = node.arguments[1];
@@ -161,14 +162,14 @@ function inspectCallExpression(node, sf, lineOffset, fileLines, findings) {
 	inspectTimerCall(node, sf, lineOffset, fileLines, findings);
 	inspectGsapCall(node, sf, lineOffset, fileLines, findings);
 }
-function inspectLegacyEaseAccess(node, sf, lineOffset, fileLines, findings) {
+function inspectLegacyEaseAccess(node, sf, lineOffset, _fileLines, findings) {
 	if (ts.isIdentifier(node.expression) && ts.isIdentifier(node.name)) {
 		const text = `${node.expression.text}.${node.name.text}`;
 		if (LEGACY_EASE_MAP[text]) {
 			const canonicalEase = LEGACY_EASE_MAP[text];
 			const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
 			const actualLine = line + lineOffset + 1;
-			if (!(fileLines[actualLine - 1] ?? "").includes("// ease-ok:")) findings.push({
+			findings.push({
 				file: sf.fileName,
 				line: actualLine,
 				kind: "legacy-ease",

@@ -1,6 +1,7 @@
 import { AUDIT_CONFIG_JSON_FILE } from "./auditConfigTypes.js";
 import { assertNoLegacyRootConfig } from "./auditConfigValidators.js";
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { safeJsonParse, safeReadFileSync, safeRmSync, tryCatchSync, tryOrNull } from "./safeUtils.js";
 import { defineAuditConfig } from "./auditConfigBuilders.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -39,21 +40,19 @@ function tryLoadJsonConfig(jsonConfigPath, projectRoot, logWarning = false) {
 	}
 }
 function serializeAuditConfigToEnv(config, projectRoot = process.cwd()) {
-	try {
+	tryCatchSync(() => {
 		process.env.AUDIT_ACTIVE_CONFIG_ROOT = projectRoot;
 		const serialized = JSON.stringify(config, (_key, value) => {
 			if (value instanceof Set) return Array.from(value);
 			return value;
 		});
-		try {
-			const cacheDir = path.resolve(projectRoot, "scratch", "cache");
-			if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
-			const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
-			fs.writeFileSync(ephemeralConfigFile, serialized, "utf-8");
-			process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
-		} catch {}
+		const cacheDir = path.resolve(projectRoot, "scratch", "cache");
+		if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+		const ephemeralConfigFile = path.resolve(cacheDir, `active_audit_config_${process.pid}.json`);
+		fs.writeFileSync(ephemeralConfigFile, serialized, "utf-8");
+		process.env.AUDIT_ACTIVE_CONFIG_FILE = ephemeralConfigFile;
 		if (serialized.length < 16384) process.env.AUDIT_CONFIG_DATA = serialized;
-	} catch {}
+	});
 }
 function tryLoadConfigFromEnv(projectRoot) {
 	const activeRoot = process.env.AUDIT_ACTIVE_CONFIG_ROOT || process.cwd();
@@ -61,39 +60,46 @@ function tryLoadConfigFromEnv(projectRoot) {
 	const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
 	if (rawEnvFile) {
 		const envFilePath = sanitizePath(rawEnvFile);
-		if (fs.existsSync(envFilePath)) try {
-			const content = fs.readFileSync(envFilePath, "utf-8");
-			const parsed = JSON.parse(content);
+		if (fs.existsSync(envFilePath)) {
+			const raw = safeReadFileSync(envFilePath);
+			if (raw) {
+				const parsed = safeJsonParse(raw);
+				if (parsed) {
+					cachedConfig = defineAuditConfig(parsed);
+					cachedProjectRoot = projectRoot;
+					return cachedConfig;
+				}
+			}
+		}
+	}
+	const rawData = process.env.AUDIT_CONFIG_DATA;
+	if (rawData) {
+		const parsed = safeJsonParse(rawData);
+		if (parsed) {
 			cachedConfig = defineAuditConfig(parsed);
 			cachedProjectRoot = projectRoot;
 			return cachedConfig;
-		} catch {}
+		}
 	}
-	const rawData = process.env.AUDIT_CONFIG_DATA;
-	if (rawData) try {
-		const parsed = JSON.parse(rawData);
-		cachedConfig = defineAuditConfig(parsed);
-		cachedProjectRoot = projectRoot;
-		return cachedConfig;
-	} catch {}
 	return null;
 }
 let dynamicImportCounter = 0;
 function resolveCurrentAuditorEntryUrl() {
-	try {
+	return tryOrNull(() => {
 		const isTs = import.meta.url.endsWith(".ts");
 		const auditorRoot = path.resolve(import.meta.dirname, "..", "..");
 		const entryFile = isTs ? path.resolve(auditorRoot, "src", "index.ts") : path.resolve(auditorRoot, "dist", "index.js");
 		if (fs.existsSync(entryFile)) return pathToFileURL(entryFile).href;
-	} catch {}
-	return null;
+		return null;
+	});
 }
 function resolveConfigModuleUrl(configPath, projectRoot, auditorRoot = path.resolve(import.meta.dirname, "..", "..")) {
 	const isRemoteProject = !auditorRoot.split(path.sep).includes("node_modules") && path.resolve(projectRoot) !== auditorRoot;
 	const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
-	if (isRemoteProject && auditorEntryUrl) try {
-		const rawContent = fs.readFileSync(configPath, "utf-8");
-		if (rawContent.includes("@francogp/auditor")) {
+	if (isRemoteProject && auditorEntryUrl) {
+		const rewrittenConfig = tryOrNull(() => {
+			const rawContent = fs.readFileSync(configPath, "utf-8");
+			if (!rawContent.includes("@francogp/auditor")) return null;
 			const rewritten = rawContent.replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`).replace(/import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g, `import('${auditorEntryUrl}')`);
 			const scratchDir = path.resolve(auditorRoot, "scratch");
 			if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
@@ -105,8 +111,9 @@ function resolveConfigModuleUrl(configPath, projectRoot, auditorRoot = path.reso
 				importUrl: tempUrl.href,
 				cleanupFilePath: tempFilePath
 			};
-		}
-	} catch {}
+		});
+		if (rewrittenConfig) return rewrittenConfig;
+	}
 	const fileUrl = pathToFileURL(configPath);
 	fileUrl.searchParams.set("t", `${performance.now()}_${++dynamicImportCounter}`);
 	return {
@@ -136,9 +143,7 @@ async function loadAuditConfig(projectRoot = process.cwd()) {
 			serializeAuditConfigToEnv(cachedConfig, projectRoot);
 			return cachedConfig;
 		} finally {
-			if (cleanupFilePath && fs.existsSync(cleanupFilePath)) try {
-				fs.unlinkSync(cleanupFilePath);
-			} catch {}
+			if (cleanupFilePath) safeRmSync(cleanupFilePath);
 		}
 	}
 	const loaded = tryLoadJsonConfig(jsonConfigPath, projectRoot, true);
@@ -183,9 +188,7 @@ function resetAuditConfig() {
 	const rawEnvFile = process.env.AUDIT_ACTIVE_CONFIG_FILE;
 	if (rawEnvFile) {
 		const cleanEnvFile = sanitizePath(rawEnvFile);
-		if (fs.existsSync(cleanEnvFile)) try {
-			fs.unlinkSync(cleanEnvFile);
-		} catch {}
+		if (cleanEnvFile) safeRmSync(cleanEnvFile);
 	}
 	delete process.env.AUDIT_CONFIG_DATA;
 	delete process.env.AUDIT_ACTIVE_CONFIG_FILE;

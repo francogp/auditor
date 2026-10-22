@@ -9,7 +9,7 @@ import ts from "typescript";
 * `'file://' + p`, `new URL(..., import.meta.url).pathname`) instead of
 * `fileURLToPath()` / `pathToFileURL()` from `node:url`.
 */
-const FILE_URL_MESSAGE = "Conversión casera entre rutas y URLs 'file://'. Usa 'fileURLToPath()' y 'pathToFileURL()' de 'node:url' ('.pathname' queda percent-encoded y en Windows produce '/C:/...').";
+const FILE_URL_MESSAGE = "Homebrew conversion between paths and 'file://' URLs. Use 'fileURLToPath()' and 'pathToFileURL()' from 'node:url' ('.pathname' remains percent-encoded and produces '/C:/...' on Windows).";
 function startsWithFileScheme(expr) {
 	if (!expr) return false;
 	if (ts.isRegularExpressionLiteral(expr)) return expr.text.includes("file:");

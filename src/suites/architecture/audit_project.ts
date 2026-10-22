@@ -37,8 +37,7 @@ import { normalizePosixPath } from '../../core/safePath.ts';
 enableCompileCache();
 
 function printTerminal(msg: string): void {
-  // console-ok: CLI standalone human terminal printer
-  console.log(msg);
+  process.stdout.write(`${msg}\n`);
 }
 
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
@@ -730,17 +729,17 @@ function renderHumanSummaryView(
   topFiles: Array<{ file: string; errors: number; warnings: number; total: number }>,
   topLimit: number
 ): void {
-  printTerminal(styleText('bold', '\n--- 📊 RESUMEN DE AUDITORÍA DE CÓDIGO ---'));
-  printTerminal('\nPor tipo de regla:');
+  printTerminal(styleText('bold', '\n--- 📊 CODE AUDIT SUMMARY ---'));
+  printTerminal('\nBy rule category:');
   Object.entries(typeGroups)
     .sort((a, b) => b[1] - a[1])
     .forEach(([cat, count]) => {
       printTerminal(`  - ${cat}: ${count}`);
     });
 
-  printTerminal(`\nTop ${topLimit} archivos con más problemas:`);
+  printTerminal(`\nTop ${topLimit} files with most issues:`);
   topFiles.forEach((f) => {
-    printTerminal(`  - ${f.file}: ${f.total} violaciones (${f.errors} ❌, ${f.warnings} ⚠️)`);
+    printTerminal(`  - ${f.file}: ${f.total} violations (${f.errors} ❌, ${f.warnings} ⚠️)`);
   });
 }
 
@@ -748,7 +747,7 @@ function renderHumanFileViolations(file: string, violations: Violation[]): void 
   const fileErrors = violations.filter((v) => v.severity === 'error').length;
   const fileWarns = violations.filter((v) => v.severity === 'warning').length;
   printTerminal(
-    `\n📁 ${styleText('bold', file)} (${violations.length} avisos: ${fileErrors} ❌, ${fileWarns} ⚠️)`
+    `\n📁 ${styleText('bold', file)} (${violations.length} notices: ${fileErrors} ❌, ${fileWarns} ⚠️)`
   );
 
   for (const v of violations.slice(0, MAX_VIOLATIONS_PER_FILE_IN_TERMINAL)) {
@@ -765,14 +764,14 @@ function renderHumanFileViolations(file: string, violations: Violation[]): void 
     printTerminal(
       styleText(
         'cyan',
-        `  ... y ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} aviso(s) más en este archivo.`
+        `  ... and ${violations.length - MAX_VIOLATIONS_PER_FILE_IN_TERMINAL} more notice(s) in this file.`
       )
     );
   }
 }
 
 function renderHumanDetailView(fileGroups: Record<string, Violation[]>): void {
-  printTerminal(styleText('bold', '\n--- 🔎 DETALLE DE VIOLACIONES POR ARCHIVO ---'));
+  printTerminal(styleText('bold', '\n--- 🔎 VIOLATIONS DETAIL BY FILE ---'));
   const entries = Object.entries(fileGroups);
   const filesToShow = entries.slice(0, MAX_FILES_TO_SHOW_IN_TERMINAL);
 
@@ -784,13 +783,13 @@ function renderHumanDetailView(fileGroups: Record<string, Violation[]>): void {
     printTerminal(
       styleText(
         'cyan',
-        `\n[INFO] Se muestran ${MAX_FILES_TO_SHOW_IN_TERMINAL} de ${entries.length} archivos con avisos para evitar saturar la terminal.`
+        `\n[INFO] Showing ${MAX_FILES_TO_SHOW_IN_TERMINAL} of ${entries.length} files with findings to prevent terminal saturation.`
       )
     );
     printTerminal(
       styleText(
         'cyan',
-        `👉 Usa "npm run auditor errors-only" para filtrar solo errores o consulta scratch/audits/latest_audit.json para el volcado completo.`
+        `👉 Use "npm run auditor:errors" to filter only errors or consult scratch/audits/latest_audit.json for complete output.`
       )
     );
   }
@@ -814,13 +813,13 @@ function renderHumanTerminalReport(
 
   printTerminal(styleText('bold', '\n======================================================'));
   printTerminal(
-    `📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errores') : styleText('red', `${errorsCount} Errores`)} | ${styleText('yellow', `${warningsCount} Advertencias`)} | ${Object.keys(fileGroups).length} Archivos`
+    `📊 TOTAL: ${errorsCount === 0 ? styleText('green', '0 Errors') : styleText('red', `${errorsCount} Errors`)} | ${styleText('yellow', `${warningsCount} Warnings`)} | ${Object.keys(fileGroups).length} Files`
   );
   printTerminal('======================================================');
   printTerminal(
     styleText(
       'dim',
-      `💾 Reporte detallado guardado en: ${path.relative(process.cwd(), archJsonPath)}\n`
+      `💾 Detailed report saved to: ${path.relative(process.cwd(), archJsonPath)}\n`
     )
   );
 }
@@ -1060,31 +1059,31 @@ export function getProjectArchitectureRuleDescriptions(): Record<string, string>
 
 export function getProjectArchitectureRuleRemediations(): Record<string, string> {
   const remediations: Record<string, string> = {
-    viewport: 'Configura o respeta las etiquetas de viewport estándar y responsive.',
+    viewport: 'Configure and respect standard responsive viewport tags.',
     hardcodedTimezone:
-      'Evita zonas horarias hardcodeadas; utiliza la configuración regional canónica.',
-    nodePrefix: 'Usa el prefijo "node:" al importar módulos nativos (ej. "node:fs", "node:path").',
-    esmExtensions: 'Asegura extensiones explícitas (.ts, .js) en imports relativos bajo ESM.',
+      'Avoid hardcoded timezones; use canonical regional configuration.',
+    nodePrefix: 'Use "node:" prefix when importing built-in modules (e.g. "node:fs", "node:path").',
+    esmExtensions: 'Ensure explicit extensions (.ts, .js) in relative imports under ESM.',
     timersPromises:
-      'Usa "node:timers/promises" (setTimeout) en lugar de callbacks para esperas asíncronas.',
+      'Use "node:timers/promises" (setTimeout) instead of callbacks for asynchronous delays.',
     explicitResource:
-      'Gestiona recursos y handles explícitamente cerrando descriptores de archivo o conexiones.',
+      'Manage handles and resources explicitly by closing file descriptors or connections.',
     zeroTimerLogic:
-      'Evita setTimeout(..., 0) en lógica de UI; usa la API de animación o nextTick() canónico.',
+      'Avoid setTimeout(..., 0) in UI logic; use animation APIs or canonical nextTick().',
     jsonStringifyInWatch:
-      'Evita JSON.stringify en watchers reactivos de Vue para no degradar el rendimiento.',
+      'Avoid JSON.stringify in reactive Vue watchers to prevent performance degradation.',
     intersectionObserverRoot:
-      'Provee un contenedor raíz explícito en observadores de intersección.',
+      'Provide an explicit root container for intersection observers.',
     functionCallsInTemplates:
-      'Evita invocar funciones pesadas directamente en plantillas de Vue; usa computeds.',
-    forbiddenFallbacks: 'Elimina fallbacks no autorizados y propaga errores de forma determinista.',
-    noDomainIdFallbacks: 'No asignes IDs ficticios o fallbacks vacíos a entidades del dominio.',
+      'Avoid invoking expensive functions directly inside Vue templates; use computed properties.',
+    forbiddenFallbacks: 'Remove unauthorized fallbacks and propagate errors deterministically.',
+    noDomainIdFallbacks: 'Do not assign synthetic IDs or empty fallbacks to domain entities.',
     noInlineTypeImports:
-      'Usa "import type { ... }" a nivel de declaración en lugar de imports inline mezclados.',
+      'Use declaration-level "import type { ... }" instead of mixed inline type imports.',
     noRawJsonImportsOutsideData:
-      'Centraliza la carga de JSON en capas de datos autorizadas en lugar de componentes.',
+      'Centralize JSON data loading in authorized data layers instead of components.',
     noSassAtImport:
-      'Migra directivas @import obsoletas a @use o @forward en hojas de estilo SCSS/Sass.'
+      'Migrate obsolete @import directives to @use or @forward in SCSS/Sass stylesheets.'
   };
 
   return remediations;

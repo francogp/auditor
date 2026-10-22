@@ -166,7 +166,7 @@ describe('DomainTypesAuditor', () => {
     expect(findings[0]?.severity).toBe('error');
   });
 
-  it('honors open-record, runtime-set, and string-ok escape hatches', async () => {
+  it('flags violations regardless of open-record, runtime-set, and string-ok comments (Zero-Ignore Mandate)', async () => {
     const filePath = path.join(tempDir, 'src/annotatedEscapes.ts');
     const code = [
       'const data: Record<string, string> = {}; // open-record: Open dynamic dictionary',
@@ -176,10 +176,25 @@ describe('DomainTypesAuditor', () => {
 
     await fs.writeFile(filePath, code, 'utf-8');
     const findings = await auditFile(filePath);
-    expect(findings).toHaveLength(0);
+    expect(findings.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('discriminates function parameters from interface properties and allows nullable props / infra IDs', async () => {
+  it('flags function parameters mixing domain types with loose | string (e.g. relaxationCode: RelaxationCode | string)', async () => {
+    const filePath = path.join(tempDir, 'src/dilutedParams.ts');
+    const code = [
+      'export function verifyAuth(relaxationCode: RelaxationCode | string): boolean { return true; }',
+      'export function setStatus(status: UserStatus | string): void {}'
+    ].join('\n');
+
+    await fs.writeFile(filePath, code, 'utf-8');
+    const findings = await auditFile(filePath);
+    const paramFindings = findings.filter((f) =>
+      f.pattern.includes('Function parameter mixes domain type with loose `| string`')
+    );
+    expect(paramFindings).toHaveLength(2);
+  });
+
+  it('discriminates function parameters from interface properties and flags nullable domain ID parameters', async () => {
     const filePath = path.join(tempDir, 'src/nullableIdTests.ts');
     const code = [
       'export interface ActiveBattleSerialized {',
@@ -199,7 +214,7 @@ describe('DomainTypesAuditor', () => {
     const nullableParamFindings = findings.filter((f) =>
       f.pattern.includes('Domain ID parameter is nullable')
     );
-    expect(nullableParamFindings).toHaveLength(1);
+    expect(nullableParamFindings).toHaveLength(2);
     expect(nullableParamFindings[0]?.line).toBe(9);
   });
 
@@ -221,8 +236,8 @@ describe('DomainTypesAuditor', () => {
     expect(result.status).toBe('skipped');
   });
 
-  describe('Multiline Escape Hatch Canaries (PokeBorrador Reproduction & Safety)', () => {
-    it('Escape Canary: permits multiline new Set with // runtime-set: on closing line', async () => {
+  describe('Multiline Zero-Ignore Canaries (PokeBorrador Reproduction & Safety)', () => {
+    it('flags multiline new Set regardless of comment on closing line', async () => {
       const filePath = path.join(tempDir, 'src/multilineTrailingEscape.ts');
       const code = `
 export const VALID_STATUSES = new Set([
@@ -234,10 +249,10 @@ export const VALID_STATUSES = new Set([
 
       await fs.writeFile(filePath, code, 'utf-8');
       const findings = await auditFile(filePath);
-      expect(findings).toHaveLength(0);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('Escape Canary: permits multiline new Set with // runtime-set: on preceding line', async () => {
+    it('flags multiline new Set regardless of comment on preceding line', async () => {
       const filePath = path.join(tempDir, 'src/multilinePrecedingEscape.ts');
       const code = `
 // runtime-set: Fast O(1) dynamic membership validation
@@ -250,7 +265,7 @@ export const VALID_STATUSES = new Set([
 
       await fs.writeFile(filePath, code, 'utf-8');
       const findings = await auditFile(filePath);
-      expect(findings).toHaveLength(0);
+      expect(findings.length).toBeGreaterThanOrEqual(1);
     });
 
     it('Active Canary: flags multiline new Set when no escape hatch is present', async () => {
@@ -323,11 +338,11 @@ export function checkDiverse(a: string, b: string, c: string): boolean {
       expect(chained).toHaveLength(0);
     });
 
-    it('respects // domain-ok: escape hatch on chained comparisons', async () => {
+    it('flags chained comparisons regardless of // domain-ok: comment (Zero-Ignore Mandate)', async () => {
       const filePath = path.join(tempDir, 'src/exemptChained.ts');
       const code = `
 export function checkAllowed(val: string): boolean {
-  if (val === 'x' || val === 'y' || val === 'z') { // domain-ok: Ad-hoc parser
+  if (val === 'setup' || val === 'prune' || val === 'dedup') { // domain-ok: Ad-hoc parser
     return true;
   }
   return false;
@@ -337,7 +352,7 @@ export function checkAllowed(val: string): boolean {
       await fs.writeFile(filePath, code, 'utf-8');
       const findings = await auditFile(filePath);
       const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
-      expect(chained).toHaveLength(0);
+      expect(chained.length).toBeGreaterThanOrEqual(1);
     });
 
     it('exempts single-character lexical scanning chains', async () => {
@@ -354,11 +369,11 @@ export function isQuote(ch: string): boolean {
       expect(chained).toHaveLength(0);
     });
 
-    it('respects // string-ok: and // no-domain: escape hatches on chained comparisons', async () => {
+    it('flags chained comparisons regardless of // string-ok: and // no-domain: comments (Zero-Ignore Mandate)', async () => {
       const filePathStringOk = path.join(tempDir, 'src/stringOkChained.ts');
       const codeStringOk = `
 export function checkStringOk(val: string): boolean {
-  if (val === 'a' || val === 'b' || val === 'c') { // string-ok: Lexical token parser
+  if (val === 'alpha' || val === 'beta' || val === 'gamma') { // string-ok: Lexical token parser
     return true;
   }
   return false;
@@ -369,12 +384,12 @@ export function checkStringOk(val: string): boolean {
       const chainedStringOk = findingsStringOk.filter(
         (f) => f.ruleId === 'domain-chained-literal-comparison'
       );
-      expect(chainedStringOk).toHaveLength(0);
+      expect(chainedStringOk.length).toBeGreaterThanOrEqual(1);
 
       const filePathNoDomain = path.join(tempDir, 'src/noDomainChained.ts');
       const codeNoDomain = `
 export function checkNoDomain(val: string): boolean {
-  if (val === 'x' || val === 'y' || val === 'z') { // no-domain: External legacy input
+  if (val === 'alpha' || val === 'beta' || val === 'gamma') { // no-domain: External legacy input
     return true;
   }
   return false;
@@ -385,7 +400,70 @@ export function checkNoDomain(val: string): boolean {
       const chainedNoDomain = findingsNoDomain.filter(
         (f) => f.ruleId === 'domain-chained-literal-comparison'
       );
-      expect(chainedNoDomain).toHaveLength(0);
+      expect(chainedNoDomain.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('accepts new Set<DomainType>() and new Map<DomainKey, V>() without escape hatches', async () => {
+      const setTestFile = path.join(tempDir, 'src/domainSet.ts');
+      const setCode = `
+export type GameStatus = 'active' | 'paused' | 'stopped';
+export const STATUS_SET: ReadonlySet<GameStatus> = new Set<GameStatus>(['active', 'paused']);
+export const MAP_ITEMS = new Map<GameStatus, number>([['active', 1]]);
+      `.trim();
+      await fs.writeFile(setTestFile, setCode, 'utf-8');
+      const findings = await auditFile(setTestFile);
+      const untyped = findings.filter((f) => f.ruleId === 'domain-untyped-collection');
+      expect(untyped).toHaveLength(0);
+    });
+
+    it('accepts DisplayText, HexColor, AssetUri, and JsonObject in contracts without // domain-ok:', async () => {
+      const contractTestFile = path.join(tempDir, 'src/data/contract.ts');
+      await fs.mkdir(path.dirname(contractTestFile), { recursive: true });
+      const contractCode = `
+import type { DisplayText, HexColor, AssetUri, JsonObject, DomElementId, UserUuid } from '@francogp/auditor';
+
+export interface CardModel {
+  title: DisplayText;
+  themeColor: HexColor;
+  iconUri: AssetUri;
+  meta: JsonObject;
+  targetDomId: DomElementId;
+  authorId: UserUuid;
+}
+      `.trim();
+      await fs.writeFile(contractTestFile, contractCode, 'utf-8');
+      const findings = await auditFile(contractTestFile);
+      const naked = findings.filter((f) => f.ruleId === 'domain-naked-string-primitive');
+      expect(naked).toHaveLength(0);
+    });
+
+    it('accepts function-local empty array accumulators without // no-domain:', async () => {
+      const accTestFile = path.join(tempDir, 'src/accumulator.ts');
+      const accCode = `
+import type { DisplayText } from '@francogp/auditor';
+
+export function formatLines(): DisplayText[] {
+  const lines: DisplayText[] = [];
+  return lines;
+}
+      `.trim();
+      await fs.writeFile(accTestFile, accCode, 'utf-8');
+      const findings = await auditFile(accTestFile);
+      const untyped = findings.filter((f) => f.ruleId === 'domain-untyped-collection');
+      expect(untyped).toHaveLength(0);
+    });
+
+    it('exempts low-level single character scanning and lexing in chained comparisons', async () => {
+      const lexerTestFile = path.join(tempDir, 'src/lexer.ts');
+      const lexerCode = `
+export function isQuoteOrDelimiter(char: string): boolean {
+  return char === '"' || char === "'" || char === '\`';
+}
+      `.trim();
+      await fs.writeFile(lexerTestFile, lexerCode, 'utf-8');
+      const findings = await auditFile(lexerTestFile);
+      const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
+      expect(chained).toHaveLength(0);
     });
   });
 });

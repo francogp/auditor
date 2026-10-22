@@ -9,6 +9,7 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import { safeReadFileSync, safeRmSync, tryOrNull } from './safeUtils.ts';
 
 import { Project, SyntaxKind, QuoteKind, type SourceFile } from 'ts-morph';
 import { getAuditConfig, type AuditConfig } from './auditConfig.ts';
@@ -68,8 +69,8 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
     const candidatePath = path.resolve(projectRoot, candidate);
     if (!fs.existsSync(candidatePath)) continue;
 
-    try {
-      const raw = fs.readFileSync(candidatePath, 'utf-8');
+    const raw = safeReadFileSync(candidatePath);
+    if (raw) {
       let extracted: string[] = []; // no-domain: Dynamic legacy ESLint ignore glob list
       if (candidate.endsWith('.json')) {
         const parsed = JSON.parse(raw) as Record<string, unknown>;
@@ -86,8 +87,6 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
         (candidateGlob) => !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob)
       );
       if (globs.length > 0) return globs;
-    } catch {
-      // catch-ok: fallback when reading legacy config fails
     }
   }
   return [];
@@ -199,27 +198,23 @@ function findLegacyTestBlock(projectRoot: string): string | null {
   const candidates = ['vitest.config.ts', 'vitest.config.js', 'vitest.config.mjs'] as const;
   for (const vitestCandidate of candidates) {
     const candidatePath = path.resolve(projectRoot, vitestCandidate);
-    if (fs.existsSync(candidatePath)) {
-      try {
-        const vitestRaw = fs.readFileSync(candidatePath, 'utf-8');
-        const extracted = extractAstPropertyBlock(vitestRaw, 'test');
-        if (extracted) return extracted;
-      } catch {
-        // catch-ok
-      }
+    const vitestRaw = safeReadFileSync(candidatePath);
+    if (vitestRaw) {
+      const extracted = extractAstPropertyBlock(vitestRaw, 'test');
+      if (extracted) return extracted;
     }
   }
 
-  try {
-    const gitHeadRaw = childProcess.execSync('git show HEAD:vitest.config.ts', {
+  const gitHeadRaw = tryOrNull(() =>
+    childProcess.execSync('git show HEAD:vitest.config.ts', {
       cwd: projectRoot,
       stdio: ['pipe', 'pipe', 'ignore'],
       encoding: 'utf-8'
-    });
+    })
+  );
+  if (gitHeadRaw) {
     const extracted = extractAstPropertyBlock(gitHeadRaw, 'test');
     if (extracted) return extracted;
-  } catch {
-    // catch-ok
   }
 
   return null;
@@ -296,11 +291,8 @@ export function cleanLegacyConfigFiles(projectRoot: string): readonly string[] {
 
     const fullPath = path.resolve(projectRoot, legacy);
     if (fs.existsSync(fullPath)) {
-      try {
-        fs.rmSync(fullPath, { force: true });
+      if (safeRmSync(fullPath, { force: true })) {
         removed.push(legacy);
-      } catch {
-        // catch-ok: error deleting legacy config file
       }
     }
   }
@@ -441,7 +433,7 @@ export function migrateHomebrewCompressionInViteConfig(viteConfigContent: string
 function removeDeletedFileFromSiblingAgentsMd(deletedFilePath: string): void {
   const siblingAgentsPath = path.join(path.dirname(deletedFilePath), 'AGENTS.md');
   if (!fs.existsSync(siblingAgentsPath)) return;
-  try {
+  tryOrNull(() => {
     const baseName = path.basename(deletedFilePath);
     const content = fs.readFileSync(siblingAgentsPath, 'utf8');
     const lines = content.split(/\r?\n/);
@@ -453,9 +445,7 @@ function removeDeletedFileFromSiblingAgentsMd(deletedFilePath: string): void {
     if (filtered.length !== lines.length) {
       fs.writeFileSync(siblingAgentsPath, filtered.join('\n'), 'utf8');
     }
-  } catch {
-    // catch-ok
-  }
+  });
 }
 
 /**
@@ -468,12 +458,9 @@ export function cleanHomebrewCompressionFiles(projectRoot: string): string[] {
   for (const rel of files) {
     const fullPath = path.resolve(projectRoot, rel);
     if (fs.existsSync(fullPath)) {
-      try {
-        fs.rmSync(fullPath, { force: true });
+      if (safeRmSync(fullPath, { force: true })) {
         removeDeletedFileFromSiblingAgentsMd(fullPath);
         removed.push(rel);
-      } catch {
-        // catch-ok
       }
     }
   }
@@ -499,16 +486,14 @@ export function rewriteImportsToVitePlus(
         entry.isFile() &&
         (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))
       ) {
-        try {
+        tryOrNull(() => {
           const raw = fs.readFileSync(fullPath, 'utf-8');
           const updated = rewriteModuleSpecifiersToVitePlusAst(raw, fullPath);
           if (updated !== raw) {
             fs.writeFileSync(fullPath, updated, 'utf-8');
             rewrittenCount++;
           }
-        } catch {
-          // catch-ok: file read/write error
-        }
+        });
       }
     }
   }
@@ -531,11 +516,7 @@ export function migrateNodeVersion(projectRoot: string): boolean {
       fs.writeFileSync(nodeVersionPath, `${nvmrcContent}\n`, 'utf-8');
       migrated = true;
     }
-    try {
-      fs.rmSync(legacyNvmrc, { force: true });
-    } catch {
-      // catch-ok: error deleting legacy .nvmrc
-    }
+    safeRmSync(legacyNvmrc, { force: true });
   } else if (!fs.existsSync(nodeVersionPath)) {
     const pkg = getPackageJson(projectRoot, true);
     const nodeEngine = pkg?.engines?.node;
@@ -803,15 +784,13 @@ export function repairVitePlusProject(projectRoot: string): {
   const removedConfigs = cleanLegacyConfigFiles(projectRoot);
   const viteConfigPath = path.resolve(projectRoot, 'vite.config.ts');
   if (fs.existsSync(viteConfigPath)) {
-    try {
+    tryOrNull(() => {
       const raw = fs.readFileSync(viteConfigPath, 'utf-8');
       const { content, modified } = migrateHomebrewCompressionInViteConfig(raw);
       if (modified) {
         fs.writeFileSync(viteConfigPath, content, 'utf-8');
       }
-    } catch {
-      // catch-ok
-    }
+    });
   }
   const removedHomebrew = cleanHomebrewCompressionFiles(projectRoot);
 

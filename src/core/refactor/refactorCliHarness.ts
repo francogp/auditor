@@ -50,6 +50,7 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   readonly toDiracItem: (finding: TFinding) => DiracInspectionItem;
   readonly createPlan: (planId: string, findings: readonly TFinding[]) => TPlan;
   readonly applyPlan: (targetDir: string, plan: TPlan) => { readonly filesChanged: number; readonly changesApplied: number };
+  readonly extendedHelp?: string;
 }
 
 const MAX_DISPLAY_FILE_PATH_LENGTH = 44;
@@ -110,6 +111,9 @@ Usage via project npm scripts:
    Prefix with '--' to pass through npm:
    npm run ${scriptAlias} -- --project <path>
 `);
+  if (def.extendedHelp) {
+    console.log(def.extendedHelp);
+  }
 }
 
 function handleDiscoverCommand<TFinding, TPlan>(

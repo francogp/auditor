@@ -60,7 +60,7 @@ describe('Official Locked Skills Isolation', () => {
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {
-      // catch-ok: cleanup
+      /* non-fatal test cleanup */
     }
   });
 

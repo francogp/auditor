@@ -10,11 +10,8 @@ const tsAstDetector = createLineDetector({
 	id: "ts-ast",
 	ruleId: "auditor-manual-ts-ast",
 	ruleDescription: "Isolated TypeScript AST creation",
-	checkLine(line, trimmed, lineNum, context) {
-		if (trimmed.includes("ast-ok") || trimmed.includes("homebrew-ok")) return null;
-		const prevLine = lineNum > 1 ? context.lines[lineNum - 2]?.trim() : "";
-		if (prevLine && (prevLine.includes("ast-ok") || prevLine.includes("homebrew-ok"))) return null;
-		if (line.includes("ts.createSourceFile(")) return "Llamada directa a 'ts.createSourceFile()'. Usa 'this.context.getAst()', 'SharedAstContext', 'FileScanAuditor' o 'AuditedDocument.getScriptAst()' para cachear y unificar el AST.";
+	checkLine(line, _trimmed, _lineNum, _context) {
+		if (line.includes("ts.createSourceFile(")) return "Direct call to 'ts.createSourceFile()'. Use 'this.context.getAst()', 'SharedAstContext', 'FileScanAuditor' or 'AuditedDocument.getScriptAst()' to cache and unify the AST.";
 		return null;
 	}
 });

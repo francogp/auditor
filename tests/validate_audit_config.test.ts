@@ -131,7 +131,8 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-missing-section',
       'audit-config-unknown-field',
       'audit-config-critical-violation',
-      'audit-config-unacknowledged-degradation'
+      'audit-config-unacknowledged-degradation',
+      'audit-config-ratchet-relaxation'
     ]);
   });
 
@@ -614,7 +615,7 @@ export class InvalidAuditor extends BaseAuditor {
         styles: { zLayersEnabled: false },
         packageScripts: { recommendedScripts: 'off' as unknown as boolean }
       });
-    }).toThrow(/Error de tipo en 'packageScripts\.recommendedScripts'/);
+    }).toThrow(/Type error in 'packageScripts\.recommendedScripts'/);
   });
 
   it('throws a loud error when accessibility.rules contains non-boolean values', () => {
@@ -1021,7 +1022,7 @@ export default defineAuditConfig({
     expect(finding?.message).toContain("Path 'scripts' contains 1 code file(s)");
   });
 
-  it('automatically repairs unacknowledged coverage degradations in fix mode', async () => {
+  it('prohibits automatic repair of unacknowledged coverage degradations in fix mode (must be manually documented)', async () => {
     const configContent = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
 export default defineAuditConfig({
@@ -1043,24 +1044,17 @@ export default defineAuditConfig({
 
     const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
     const fixResult = await fixAuditor.execute();
-    const fixErrors = fixResult.findings.filter((f) => f.severity === 'error');
-    expect(fixErrors).toHaveLength(0);
+    const fixErrors = fixResult.findings.filter(
+      (f) => f.ruleId === 'audit-config-unacknowledged-degradation'
+    );
+    // In accordance with the Anti-Bypass Mandate, fix mode must NOT inject acknowledged degradations automatically
+    expect(fixErrors.length).toBeGreaterThan(0);
 
     const updatedConfig = await fs.readFile(
       path.join(tempDir, '.auditor', 'audit.config.ts'),
       'utf-8'
     );
-    expect(updatedConfig).toContain('acknowledgedDegradations');
-    expect(updatedConfig).toContain('scripts/**');
-
-    // Second pass should pass cleanly with zero errors
-    resetAuditConfig();
-    const verifyAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const verifyResult = await verifyAuditor.execute();
-    const degradationFindings = verifyResult.findings.filter(
-      (f) => f.ruleId === 'audit-config-unacknowledged-degradation'
-    );
-    expect(degradationFindings).toHaveLength(0);
+    expect(updatedConfig).not.toContain('acknowledgedDegradations');
   });
 });
 

@@ -1,3 +1,4 @@
+import { tryOrNullAsync } from "../core/safeUtils.js";
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { getActiveFamilies } from "../core/auditContract.js";
@@ -43,10 +44,8 @@ function resolveTargetSuiteIds(options, combinedPresets) {
 	return targetSuiteIds;
 }
 function inferFamilyFromRelPath(relPath, activeFamilies) {
-	const segments = relPath.split("/");
-	const firstSegment = segments[0];
-	if (segments.length > 1 && firstSegment && activeFamilies.some((f) => f === firstSegment)) return firstSegment;
-	return "architecture";
+	const dir = path.dirname(relPath);
+	return activeFamilies.find((family) => dir === family || dir.startsWith(`${family}/`) || dir.startsWith(`${family}\\`)) ?? "architecture";
 }
 function isIgnoredFileEntry(entry) {
 	if (entry.startsWith("_")) return true;
@@ -55,12 +54,8 @@ function isIgnoredFileEntry(entry) {
 	return entry.includes(".spec.") || entry.includes(".test.") || entry.startsWith("report_") || entry === "audit_rules.ts" || entry === "audit_rules.js" || entry.endsWith("Plugin.ts") || entry.endsWith("Plugin.js");
 }
 async function scanSuiteDirectory(params) {
-	let entries;
-	try {
-		entries = await fs$1.readdir(params.currentDir);
-	} catch {
-		return;
-	}
+	const entries = await tryOrNullAsync(() => fs$1.readdir(params.currentDir));
+	if (!entries) return;
 	const isBuiltin = params.isBuiltin ?? true;
 	for (const entry of entries) {
 		const fullPath = path.join(params.currentDir, entry);

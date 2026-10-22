@@ -1,3 +1,4 @@
+import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { compareVersions, getAuditorEngines, parseSemver } from "../../cli/check_environment.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
@@ -25,10 +26,8 @@ const ENVIRONMENT_ENGINES_RULES = [
 function detectNpmVersion() {
 	const match = (process.env.npm_config_user_agent || "").match(/npm\/([0-9.]+)/);
 	if (match?.[1]) return match[1];
-	try {
-		const res = runNpmCommandSync(["--version"], { encoding: "utf8" });
-		if (res.status === 0 && res.stdout) return res.stdout.trim();
-	} catch {}
+	const res = tryOrNull(() => runNpmCommandSync(["--version"], { encoding: "utf8" }));
+	if (res && res.status === 0 && res.stdout) return res.stdout.trim();
 	return "0.0.0";
 }
 function extractBaseNodeVersion(engineStr) {
@@ -47,9 +46,7 @@ function syncNodeVersion(projectRoot, targetNodeEngine) {
 		updated = true;
 	}
 	const legacyNvmrc = path.resolve(projectRoot, ".nvmrc");
-	if (fs.existsSync(legacyNvmrc)) try {
-		fs.rmSync(legacyNvmrc, { force: true });
-	} catch {}
+	if (fs.existsSync(legacyNvmrc)) safeRmSync(legacyNvmrc);
 	return updated;
 }
 var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {

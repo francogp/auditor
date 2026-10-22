@@ -192,8 +192,8 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
     });
   });
 
-  describe('Escape Hatches & Suppressions', () => {
-    it('honors // scrolltrigger-ok: suppression', () => {
+  describe('Escape Hatches & Suppressions (Zero-Ignore Policy)', () => {
+    it('flags scrolltrigger in timeline child regardless of // scrolltrigger-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapScrollTriggerAuditor();
       auditor.testScanFile(
         'src/features/suppressedST.ts',
@@ -203,7 +203,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-in-timeline-child'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
     it('allows markers: true when guarded by import.meta.env.DEV', () => {

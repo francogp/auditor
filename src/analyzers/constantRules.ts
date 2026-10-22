@@ -44,9 +44,9 @@ export function isConstantNameExemptFromNumericSuffixCheck(
 export const noAliasConstants: AuditRule = {
   // redos-ok: deterministic property accessor regex
   regex:
-    /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*(?:[^\s=;][^=;\r\n]*)?\S)?\s*=\s*([A-Z0-9_]+(?:\.[A-Z0-9_]+)*)(?:\s+as\s+[^\s;]+(?:\s+[^\s;]+)*)?\s*(?:;\s*)?$/gm,
+    /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*[^=;\r\n]+)?\s*=\s*([A-Z0-9_][A-Z0-9_.]*)(?:\s+as\s+[^;\r\n]+)?\s*(?:;\s*)?$/gm,
   message: (match: string) =>
-    `Alias de constante detectado: '${match.trim()}'. Está PROHIBIDO inicializar una constante con otra constante o propiedad de constante existente para crear un alias duplicado/intermedio. Usa la constante canónica de origen de forma directa.`,
+    `Constant alias detected: '${match.trim()}'. Initializing a constant with another existing constant or constant property to create a duplicate intermediate alias is PROHIBITED. Use the canonical origin constant directly.`,
   severity: 'error',
   check: (content: string, match: RegExpExecArray, filePath?: string) => {
     if (!filePath) return false;
@@ -66,7 +66,7 @@ export const noAliasConstants: AuditRule = {
 export const noLiteralSuffixInConstantName: AuditRule = {
   regex: /\b([A-Z0-9_]+_(\d{2,}))\b/g,
   message: (match: string) =>
-    `Constante con sufijo numérico crudo detectada: '${match}'. Está PROHIBIDO incluir literales numéricos al final de los nombres de constantes (ej: _100, _600, _10000). Usa nombres semánticos descriptivos.`,
+    `Constant with raw numeric suffix detected: '${match}'. Including numeric literals at the end of constant names (e.g. _100, _600, _10000) is PROHIBITED. Use semantic, descriptive names.`,
   severity: 'error',
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     if (isTestOrNodeModules(filePath)) return false;

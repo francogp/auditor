@@ -40,10 +40,12 @@ import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import { AUDITOR_VERSION } from '../../core/version.ts';
 import {
-  detectUnacknowledgedDegradations,
-  applyAcknowledgedDegradationsFix
+  detectUnacknowledgedDegradations
 } from '../../core/auditConfigDegradations.ts';
+import { auditConfigRatchet } from '../../core/configRatchet.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { createSyntheticSourceFile } from '../../core/astContext.ts';
+import { tryOrNull } from '../../core/safeUtils.ts';
 import ts from 'typescript';
 import { SyntaxKind } from 'ts-morph';
 
@@ -136,13 +138,8 @@ export function buildTaskExpectedConfigTree(
   >();
 
   for (const task of tasks) {
-    // domain-ok: Core configuration keys
-    if (
-      !task.configKey ||
-      task.configKey === 'paths' ||
-      task.configKey === 'core' ||
-      task.configKey === 'none'
-    ) {
+    const rootConfigKeys: ReadonlySet<string> = new Set(['paths', 'core', 'none']);
+    if (!task.configKey || rootConfigKeys.has(task.configKey)) {
       continue;
     }
     if (
@@ -268,14 +265,7 @@ export function createDefaultAuditConfigContent(
   );
 
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  // homebrew-ok: synthetic AST source file for ts.createPrinter
-  const dummySource = ts.createSourceFile(
-    'audit.config.ts',
-    '',
-    ts.ScriptTarget.Latest,
-    false,
-    ts.ScriptKind.TS
-  );
+  const dummySource = createSyntheticSourceFile('audit.config.ts');
   const importCode = printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource);
   const exportCode = printer
     .printNode(ts.EmitHint.Unspecified, exportDecl, dummySource)
@@ -432,7 +422,8 @@ export type AuditConfigRuleId =
   | 'audit-config-missing-section'
   | 'audit-config-unknown-field'
   | 'audit-config-critical-violation'
-  | 'audit-config-unacknowledged-degradation';
+  | 'audit-config-unacknowledged-degradation'
+  | 'audit-config-ratchet-relaxation';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -442,7 +433,8 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-section',
   'audit-config-unknown-field',
   'audit-config-critical-violation',
-  'audit-config-unacknowledged-degradation'
+  'audit-config-unacknowledged-degradation',
+  'audit-config-ratchet-relaxation'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -485,20 +477,11 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
         return fs.readFileSync(migratedPath, 'utf-8');
       }
     }
-    let pkgName = ctx.packageName || 'Project';
-    try {
-      const pkg = getPackageJson(ctx.projectRoot);
-      if (pkg?.name) pkgName = pkg.name;
-    } catch {
-      // catch-ok: fallback to 'Project'
-    }
-    let tasks: AuditTaskDefinition[] = [];
-    try {
-      const { discoverAuditors } = await import('../../cli/auditScanner.ts');
-      tasks = await discoverAuditors({ projectRoot: ctx.projectRoot });
-    } catch {
-      // catch-ok: fallback when running isolated
-    }
+    const pkg = tryOrNull(() => getPackageJson(ctx.projectRoot));
+    const pkgName = pkg?.name ?? ctx.packageName ?? 'Project';
+    const tasks = await import('../../cli/auditScanner.ts')
+      .then((m) => m.discoverAuditors({ projectRoot: ctx.projectRoot }))
+      .catch(() => []);
     return createDefaultAuditConfigContent(pkgName, tasks);
   },
   customMissingMessage: (ctx, file) => {
@@ -552,8 +535,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-section',
         'audit-config-missing-file',
         'audit-config-missing-gitignore-entry',
-        'audit-config-critical-violation',
-        'audit-config-unacknowledged-degradation'
+        'audit-config-critical-violation'
       ],
       configFiles: [AUDIT_CONFIG_REQUIREMENT],
       fix: options.fix,
@@ -576,7 +558,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-section': 'Missing section in audit.config',
         'audit-config-unknown-field': 'Unrecognized field in config',
         'audit-config-critical-violation': 'Critical configuration violation',
-        'audit-config-unacknowledged-degradation': 'Undocumented coverage degradation'
+        'audit-config-unacknowledged-degradation': 'Undocumented coverage degradation',
+        'audit-config-ratchet-relaxation': 'Unauthorized rule relaxation (ratchet)'
       },
       ruleRemediations: {
         'audit-config-missing-path':
@@ -632,9 +615,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           '📖 REMEDIATION GUIDE: audit-config-unacknowledged-degradation\n' +
           '1. Root Cause: Paths declared in `config.paths` contain files whose silenced rules are not documented in `coverage.acknowledgedDegradations`.\n' +
           '2. Diagnosis: Check unacknowledged degradation paths reported by the auditor.\n' +
-          '3. Canonical Solution: Run `npm run auditor:fix` to register acknowledged degradation policies with canonical globs and rationales, or declare them manually.\n' +
+          '3. Canonical Solution: Declare acknowledged degradation policies with canonical globs and rationales in `coverage.acknowledgedDegradations`, or remove the silenced rules from source code.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   Review and declare in `coverage.acknowledgedDegradations` manually if strictly justified.',
+        'audit-config-ratchet-relaxation':
+          '📖 REMEDIATION GUIDE: audit-config-ratchet-relaxation\n' +
+          '1. Root Cause: Configuration rules or exemptions were relaxed relative to online origin/main without explicit user authorization.\n' +
+          '2. Diagnosis: Check the generated RELAX-<8hex> code and the list of relaxed rules, added exemptions, lowered floors, or raised ceilings.\n' +
+          '3. Canonical Solution: Hardening rules is permitted with zero friction. To accept a relaxation genuinely requested by the human programmer, confirm the RELAX-<8hex> code directly in Antigravity chat.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat.'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
@@ -664,12 +654,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       this.recordScanned(baselineFile);
     }
 
-    let tasks: AuditTaskDefinition[] = [];
-    try {
-      tasks = await discoverAuditors({ projectRoot: this.projectRoot });
-    } catch {
-      // catch-ok: fallback when running in isolated test environments without suite discovery
-    }
+    const tasks = await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
 
     await this.runSubAuditor('audit-config-missing-section', async () => {
       await this.verifyRequiredSections(config, tasks);
@@ -700,6 +685,29 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     await this.runSubAuditor('audit-config-missing-gitignore-entry', async () => {
       await this.verifyGitIgnore(config);
     });
+
+    this.runSubAuditorSync('audit-config-ratchet-relaxation', () => {
+      this.verifyConfigRatchet(config);
+    });
+  }
+
+  private verifyConfigRatchet(config: AuditEngineConfig): void {
+    const ratchetRes = auditConfigRatchet(
+      this.projectRoot,
+      (config._rawConfig ?? config) as Record<string, unknown>
+    );
+    if (!ratchetRes.passed) {
+      for (const rel of ratchetRes.relaxations) {
+        this.addViolation({
+          ruleId: 'audit-config-ratchet-relaxation',
+          severity: 'error',
+          file: rel.file,
+          line: 1,
+          message: `[Config Ratchet] Unauthorized rule relaxation detected in ${rel.path}: ${rel.description}. Authorization code: '${ratchetRes.relaxationCode}'. Confirm in Antigravity chat to proceed.`,
+          context: rel.path
+        });
+      }
+    }
   }
 
   private verifyUnknownFields(
@@ -1233,20 +1241,14 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const missing = detectUnacknowledgedDegradations(config, this.projectRoot);
     if (missing.length === 0) return;
 
-    if (this.isFixActive()) {
-      applyAcknowledgedDegradationsFix(this.projectRoot, missing);
-      return;
-    }
-
     for (const item of missing) {
       this.addViolation({
         ruleId: 'audit-config-unacknowledged-degradation',
         severity: 'error',
         file: AUDIT_CONFIG_FILE,
         line: 1,
-        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Path '${item.rootOrFile}' contains ${item.filesCount} code file(s) with silenced rules under policy '${item.policy}', but no matching entry exists in coverage.acknowledgedDegradations. Run "auditor fix" to document automatically.`,
-        context: `coverage.acknowledgedDegradations.${item.policy}`,
-        fixable: true
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Path '${item.rootOrFile}' contains ${item.filesCount} code file(s) with silenced rules under policy '${item.policy}', but no matching entry exists in coverage.acknowledgedDegradations. Resolve the silenced rules in source code or declare the degradation manually.`,
+        context: `coverage.acknowledgedDegradations.${item.policy}`
       });
     }
   }
@@ -1426,23 +1428,20 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   }
 
   private checkExtensionStaticContract(targetFile: string, relTarget: string, normalized: string): boolean {
-    try {
-      const fileContent = fs.readFileSync(targetFile, 'utf-8');
-      const hasContract =
-        fileContent.includes('ruleRemediationPhases') || fileContent.includes('remediationPhase');
-      if (!hasContract) {
-        this.addViolation({
-          ruleId: 'audit-config-invalid-extension',
-          severity: 'error',
-          file: AUDIT_CONFIG_FILE,
-          line: 1,
-          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add "remediationPhase: 'contracts'" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '${relTarget}'.`,
-          context: normalized
-        });
-        return false;
-      }
-    } catch {
-      // catch-ok: continue to dynamic verification
+    const fileContent = tryOrNull(() => fs.readFileSync(targetFile, 'utf-8'));
+    if (!fileContent) return true;
+    const hasContract =
+      fileContent.includes('ruleRemediationPhases') || fileContent.includes('remediationPhase');
+    if (!hasContract) {
+      this.addViolation({
+        ruleId: 'audit-config-invalid-extension',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add "remediationPhase: 'contracts'" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '${relTarget}'.`,
+        context: normalized
+      });
+      return false;
     }
     return true;
   }

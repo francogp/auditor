@@ -13,9 +13,6 @@
  *      (e.g. `id="rename-modal-close-btn"`) to prevent DOM collisions and Playwright
  *      locator ambiguity.
  *
- * Escape Hatches:
- *   `<!-- id-ok -->`, `// id-ok`, `// template-ok`
- *
  * Usage:
  *   npm run validate:template-ids
  */
@@ -106,7 +103,6 @@ function scanTemplateStaticIds(ctx: TemplateScanContext): void {
       ctx.lines,
       ctx.templateStartOffset + match.index
     );
-    if (info.isIgnored) continue;
 
     const occurrence: IdOccurrence = {
       file: ctx.relPath,
@@ -155,11 +151,6 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
       continue;
     }
 
-    // Escape hatch check: id-ok
-    if (/id-ok/i.test(tagFull)) {
-      continue;
-    }
-
     // Match static id, dynamic :id, or v-bind:id
     const hasId = /\b(?:v-bind:id|:id|id)\s*=/i.test(tagFull);
 
@@ -168,7 +159,6 @@ function scanTemplateFormControlIds(ctx: TemplateScanContext): void {
       ctx.lines,
       ctx.templateStartOffset + formMatch.index
     );
-    if (info.isIgnored) continue;
 
     if (!hasId) {
       ctx.auditor.addViolation({
@@ -269,11 +259,10 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
     content: string,
     lines: string[],
     offset: number
-  ): { lineNumber: number; lineContent: string; isIgnored: boolean } {
+  ): { lineNumber: number; lineContent: string } {
     const lineNumber = content.slice(0, offset).split('\n').length;
     const lineContent = lines[lineNumber - 1] || '';
-    const isIgnored = this.isLineIgnored(lineContent, ['id-ok', 'template-ok']);
-    return { lineNumber, lineContent, isIgnored };
+    return { lineNumber, lineContent };
   }
 
   protected override scanFile(relPath: string, content: string): void {

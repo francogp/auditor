@@ -21,7 +21,7 @@ Architecture & Tooling Engineers.
 ## Work Guidance
 
 - Resolve scannable roots and extensions dynamically from `config.paths`.
-- Support escape hatches (`unoptimized-img-ok`, `select-star-ok`, `unpaginated-ok`, `n-plus-one-ok`, `count-ok`, `offset-ok`) with explicit technical justifications.
+- Zero-Escape Mandate: All queries and asset budgets are verified without bypass comments. Resolve performance bottlenecks directly in queries or config.
 - Inherit from `FileScanAuditor` for automatic file collection, coverage recording, and hermetic `testScanFile` verification.
 
 ## Verification

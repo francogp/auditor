@@ -166,7 +166,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
         disabledDetectors,
         (ruleId, durationMs) => {
           this.markRuleEvaluated(ruleId);
-          this.recordRuleDuration(ruleId, durationMs); // timing-ok: record detector empirical duration from registry callback
+          this.reportRuleDuration(ruleId, durationMs);
         }
       );
 

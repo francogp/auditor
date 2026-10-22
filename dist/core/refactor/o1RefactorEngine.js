@@ -36,7 +36,6 @@ var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 	static discoverInFile(filePath) {
 		const findings = [];
 		forEachSourceScriptLine(filePath, (line, actualLine) => {
-			if (line.includes("// o1-ok:") || line.includes("// linear-search-ok:")) return;
 			JSON_CLONE_REGEX.lastIndex = 0;
 			let jsonMatch;
 			while ((jsonMatch = JSON_CLONE_REGEX.exec(line)) !== null) {

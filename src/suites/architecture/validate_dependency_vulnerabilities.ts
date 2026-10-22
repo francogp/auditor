@@ -21,6 +21,7 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import type { NpmAuditSeverityLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
+import { safeReadFileSync, safeJsonParse, tryCatchSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -258,31 +259,23 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     const lockfilePath = path.resolve(this.projectRoot, lockfileRelative);
     let lockfileHash = '';
     if (fs.existsSync(lockfilePath)) {
-      try {
-        lockfileHash = crypto
-          .createHash('sha256')
-          .update(fs.readFileSync(lockfilePath, 'utf-8'))
-          .digest('hex');
-      } catch {
-        // catch-ok: fallback to unhashed execution
+      const rawLock = safeReadFileSync(lockfilePath);
+      if (rawLock) {
+        lockfileHash = crypto.createHash('sha256').update(rawLock).digest('hex');
       }
     }
 
     if (tier !== 'full' && lockfileHash && fs.existsSync(cacheFile)) {
-      try {
-        const cached = JSON.parse(fs.readFileSync(cacheFile, 'utf-8')) as {
-          hash: string;
-          findings: AuditFinding[];
-        };
-        if (cached.hash === lockfileHash && Array.isArray(cached.findings)) {
+      const rawCache = safeReadFileSync(cacheFile);
+      if (rawCache) {
+        const cached = safeJsonParse<{ hash: string; findings: AuditFinding[] }>(rawCache);
+        if (cached?.hash === lockfileHash && Array.isArray(cached.findings)) {
           this.context.logProgress(
             '⚡ Reusing cached vulnerability report (unchanged package-lock.json)'
           );
           this.applyAuditFindings(cached.findings);
           return;
         }
-      } catch {
-        // catch-ok: corrupt cache, fallback to live audit
       }
     }
 
@@ -312,16 +305,14 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
 
     const findings = parseNpmAuditReport(report, allowList, failOn);
     if (lockfileHash) {
-      try {
+      tryCatchSync(() => {
         fs.mkdirSync(cacheDir, { recursive: true });
         fs.writeFileSync(
           cacheFile,
           JSON.stringify({ hash: lockfileHash, findings }, null, 2),
           'utf-8'
         );
-      } catch {
-        // catch-ok: write failure in restricted filesystem
-      }
+      });
     }
 
     this.applyAuditFindings(findings);

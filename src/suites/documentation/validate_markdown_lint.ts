@@ -274,10 +274,8 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'markdownlint-cli/markdownlint.js');
     const relMdFiles = mdFiles.map((f) => toPosixRelative(this.projectRoot, f));
-    const totalChars = relMdFiles.reduce((acc, f) => acc + f.length + 1, 0);
-    const targetArgs =
-      totalChars < 6000 && relMdFiles.length > 0 ? relMdFiles : ['**/*.md', '--dot']; // glob-ok: fallback when argument list exceeds shell limit
-    const args: string[] = [...targetArgs]; // no-domain: Non-domain utility collection or data structure
+    if (relMdFiles.length === 0) return;
+    const args: string[] = [...relMdFiles];
 
     for (const pattern of getMarkdownIgnoreGlobs(this.projectRoot)) {
       args.push('--ignore', pattern);

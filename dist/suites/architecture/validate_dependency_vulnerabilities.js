@@ -1,3 +1,4 @@
+import { safeJsonParse, safeReadFileSync, tryCatchSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -175,17 +176,21 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 		const cacheFile = path.join(cacheDir, "npm_audit_cache.json");
 		const lockfilePath = path.resolve(this.projectRoot, lockfileRelative);
 		let lockfileHash = "";
-		if (fs.existsSync(lockfilePath)) try {
-			lockfileHash = crypto.createHash("sha256").update(fs.readFileSync(lockfilePath, "utf-8")).digest("hex");
-		} catch {}
-		if (tier !== "full" && lockfileHash && fs.existsSync(cacheFile)) try {
-			const cached = JSON.parse(fs.readFileSync(cacheFile, "utf-8"));
-			if (cached.hash === lockfileHash && Array.isArray(cached.findings)) {
-				this.context.logProgress("⚡ Reusing cached vulnerability report (unchanged package-lock.json)");
-				this.applyAuditFindings(cached.findings);
-				return;
+		if (fs.existsSync(lockfilePath)) {
+			const rawLock = safeReadFileSync(lockfilePath);
+			if (rawLock) lockfileHash = crypto.createHash("sha256").update(rawLock).digest("hex");
+		}
+		if (tier !== "full" && lockfileHash && fs.existsSync(cacheFile)) {
+			const rawCache = safeReadFileSync(cacheFile);
+			if (rawCache) {
+				const cached = safeJsonParse(rawCache);
+				if (cached?.hash === lockfileHash && Array.isArray(cached.findings)) {
+					this.context.logProgress("⚡ Reusing cached vulnerability report (unchanged package-lock.json)");
+					this.applyAuditFindings(cached.findings);
+					return;
+				}
 			}
-		} catch {}
+		}
 		const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
 		if (error || !stdout) {
 			this.context.logProgress("⚠️  Could not connect to npm registry for audit (offline mode)");
@@ -201,13 +206,13 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			throw new Error(`[validate_dependency_vulnerabilities] Failed to parse JSON output from 'npm audit'. Received output: ${stdout.trim().slice(0, 300)}`);
 		}
 		const findings = parseNpmAuditReport(report, allowList, failOn);
-		if (lockfileHash) try {
+		if (lockfileHash) tryCatchSync(() => {
 			fs.mkdirSync(cacheDir, { recursive: true });
 			fs.writeFileSync(cacheFile, JSON.stringify({
 				hash: lockfileHash,
 				findings
 			}, null, 2), "utf-8");
-		} catch {}
+		});
 		this.applyAuditFindings(findings);
 	}
 	applyAuditFindings(findings) {

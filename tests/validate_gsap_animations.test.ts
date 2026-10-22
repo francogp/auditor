@@ -322,8 +322,8 @@ describe('ValidateGsapAnimationsAuditor', () => {
     });
   });
 
-  describe('Escape Hatches & Line Suppressions', () => {
-    it('honors // timer-ok: line suppression for UI timers', () => {
+  describe('Escape Hatches & Line Suppressions (Zero-Ignore Policy)', () => {
+    it('flags UI timers regardless of // timer-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       auditor.testScanFile(
         'src/components/SuppressedTimer.vue',
@@ -335,7 +335,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-banned-ui-timers'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
     it('strictly detects CSS transitions and rejects suppression attempts with anti-sabotage alert', () => {
@@ -356,7 +356,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       expect(violations[0]?.message).toContain('MANDATORY MIGRATION TO GSAP');
     });
 
-    it('honors // layout-ok: line suppression for backgroundPosition', () => {
+    it('flags backgroundPosition layout animation regardless of // layout-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       auditor.testScanFile(
         'src/utils/suppressedLayout.ts',
@@ -367,10 +367,10 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
-    it('honors // delay-ok: suppression for delayedCall numeric arguments', () => {
+    it('flags delayedCall numbers regardless of // delay-ok comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       auditor.testScanFile(
         'src/features/suppressedDelay.ts',
@@ -380,7 +380,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-named-timer-constants'
       );
-      expect(violations).toHaveLength(0);
+      expect(violations).toHaveLength(1);
     });
 
     it('allows delayedCall(0, ...) as an idiomatic deferred microtask without error', () => {
@@ -456,9 +456,9 @@ const inlineComment = true; // No need for clearInterval here
       expect(layoutViolations).toHaveLength(0);
     });
 
-    it('honors // layout-ok: escape hatch placed above long multi-line gsap.fromTo tween', () => {
+    it('flags layout properties in long multi-line gsap.fromTo tween regardless of comments (Zero-Ignore Mandate)', () => {
       const auditor = new TestableGsapAnimationsAuditor();
-      const code = `
+      const code = `<script setup lang="ts">
         // layout-ok: accordion height animation requires layout measurement
         gsap.fromTo(accordionRef.value, {
           opacity: 0,
@@ -471,22 +471,22 @@ const inlineComment = true; // No need for clearInterval here
           height: 'auto',
           duration: 0.4
         });
-      `;
+      </script>`;
       auditor.testScanFile('src/components/Accordion.vue', code);
       const layoutViolations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(layoutViolations).toHaveLength(0);
+      expect(layoutViolations.length).toBeGreaterThanOrEqual(1);
     });
 
-    it('honors statement-level layout-ok authorization across huge multi-kilobyte fromTo tween configs', () => {
+    it('flags layout properties across huge multi-kilobyte fromTo tween configs regardless of comments', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       // Generate large dummy padding properties (> 1200 chars) to exceed legacy window limit
       const dummyProps = Array.from(
         { length: 40 },
         (_, idx) => `// comment padding line ${idx}\n          rotation: ${idx},`
       ).join('\n');
-      const code = `
+      const code = `<script setup lang="ts">
         // layout-ok: extensive accordion animation with multiline justification
         gsap.fromTo(accordionRef.value, {
           opacity: 0,
@@ -499,12 +499,12 @@ const inlineComment = true; // No need for clearInterval here
           height: 'auto',
           duration: 0.5
         });
-      `;
+      </script>`;
       auditor.testScanFile('src/components/HugeAccordion.vue', code);
       const layoutViolations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(layoutViolations).toHaveLength(0);
+      expect(layoutViolations.length).toBeGreaterThanOrEqual(1);
     });
   });
 });

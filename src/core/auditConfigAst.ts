@@ -9,6 +9,7 @@
 import fs from 'node:fs';
 import ts from 'typescript';
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
+import { safeReadFileSync, safeJsonParse, tryCatchSync } from './safeUtils.ts';
 
 export function dtoValueToTsExpression(value: unknown): ts.Expression {
   if (typeof value === 'string') {
@@ -176,16 +177,15 @@ export function appendMissingSectionsToJsonFile(
   configFilePath: string,
   sectionsToInsert: Record<string, Record<string, unknown>> // open-record: Dictionary of configuration sections
 ): void {
-  try {
-    const code = fs.readFileSync(configFilePath, 'utf8');
-    const json = JSON.parse(code);
-    if (!json || typeof json !== 'object') return;
-    const modified = deepMergeMissingJson(json as Record<string, unknown>, sectionsToInsert);
-    if (modified) {
+  const code = safeReadFileSync(configFilePath);
+  if (!code) return;
+  const json = safeJsonParse<Record<string, unknown>>(code);
+  if (!json || typeof json !== 'object') return;
+  const modified = deepMergeMissingJson(json, sectionsToInsert);
+  if (modified) {
+    tryCatchSync(() => {
       fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-    }
-  } catch {
-    // catch-ok: ignore unparseable json config files
+    });
   }
 }
 

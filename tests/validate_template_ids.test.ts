@@ -5,7 +5,7 @@
  * - Duplicate static ID within the same template (template-duplicate-static-id)
  * - Shared static ID across different components (template-shared-static-id)
  * - Missing input ID on form controls (template-missing-input-id)
- * - Honors escape hatches (id-ok)
+ * - Flags violations regardless of comment directives (Zero-Ignore Mandate)
  * - Verifies clean execution (0 errors, passed status)
  */
 
@@ -140,17 +140,18 @@ describe('TemplateIdAuditor', () => {
       expect(violation?.severity).toBe('error');
     });
 
-    it('allows form controls without id when marked with <!-- id-ok -->', () => {
+    it('flags form controls without id regardless of <!-- id-ok --> comment (Zero-Ignore Mandate)', () => {
       const auditor = new TestableTemplateIdAuditor();
       const sfc = `
         <template>
           <div>
-            <input type="hidden" name="csrf"> <!-- id-ok: Hidden CSRF token -->
+            <input type="text" name="name"> <!-- id-ok: Anonymous field -->
           </div>
         </template>
       `;
-      auditor.testScanFile('src/components/Csrf.vue', sfc);
-      expect(auditor.collectedViolations).toHaveLength(0);
+      auditor.testScanFile('src/components/Form.vue', sfc);
+      expect(auditor.collectedViolations).toHaveLength(1);
+      expect(auditor.collectedViolations[0]?.ruleId).toBe('template-missing-input-id');
     });
   });
 

@@ -11,7 +11,7 @@ import type { NativePathDetector } from '../nativePathTypes.ts';
 import { getExpressionName, isUrlConstruction, unwrapExpression } from '../pathHeuristics.ts';
 
 const FETCH_MESSAGE =
-  "Llamada dinámica a 'fetch()' sin validar la URL ni su origen (CWE-918 SSRF). Construye 'new URL(endpoint, base)' y valida 'hostname'/'origin'/'protocol', o usa 'safeFetch()'.";
+  "Dynamic call to 'fetch()' without validating URL or its origin (CWE-918 SSRF). Construct 'new URL(endpoint, base)' and validate 'hostname'/'origin'/'protocol', or use 'safeFetch()'.";
 
 const SAFE_ARGUMENT_NAMES: ReadonlySet<string> = new Set(['safeDevUrl', 'href']); // runtime-set: O(1) lookup
 

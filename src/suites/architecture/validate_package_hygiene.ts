@@ -13,7 +13,8 @@ import type { AuditConfig } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
+import { safeReadFileSync, safeJsonParse, safeRmSync, tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -51,7 +52,7 @@ export function extractReferencedScriptDependencies(projectRoot: string): Set<st
   const pkg = getPackageJson(projectRoot);
   if (!pkg) return referenced;
 
-  try {
+  tryOrNull(() => {
     const scripts = pkg.scripts ? Object.values(pkg.scripts).join(' ') : '';
     const allDeps = [
       ...Object.keys(pkg.dependencies ?? {}),
@@ -72,9 +73,7 @@ export function extractReferencedScriptDependencies(projectRoot: string): Set<st
         referenced.add(dep);
       }
     }
-  } catch {
-    // catch-ok: Ignore parse errors
-  }
+  });
   return referenced;
 }
 
@@ -309,12 +308,8 @@ export function verifyLockfileIntegrity(
   }
 
   // 4. Floating git dependencies prohibition in package.json
-  let pkgJson: Record<string, unknown> = {};
-  try {
-    pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
-  } catch {
-    // catch-ok: Ignore parse errors
-  }
+  const pkgRaw = safeReadFileSync(pkgJsonPath);
+  const pkgJson = (pkgRaw ? safeJsonParse<Record<string, unknown>>(pkgRaw) : null) ?? {};
 
   const packages = (lockfileJson.packages as Record<string, unknown>) || {};
   const rootPackage = (packages[''] as Record<string, unknown>) || {};
@@ -340,18 +335,13 @@ export function verifyLockfileIntegrity(
 }
 
 function resolveAuditorSemverTag(): string {
-  try {
-    const selfPkgPath = path.resolve(import.meta.dirname, '../../../package.json');
-    if (fs.existsSync(selfPkgPath)) {
-      const selfPkg = JSON.parse(fs.readFileSync(selfPkgPath, 'utf-8')) as {
-        version?: string;
-      };
-      if (selfPkg.version) {
-        return selfPkg.version.split('-')[0]!;
-      }
+  const selfPkgPath = path.resolve(import.meta.dirname, '../../../package.json');
+  const selfPkgRaw = safeReadFileSync(selfPkgPath);
+  if (selfPkgRaw) {
+    const selfPkg = safeJsonParse<{ version?: string }>(selfPkgRaw);
+    if (selfPkg?.version) {
+      return selfPkg.version.split('-')[0]!;
     }
-  } catch {
-    // catch-ok: fallback
   }
   return '0.0.0';
 }
@@ -454,7 +444,7 @@ function verifyLockfileRootDepsSync(
 }
 
 function toPosixGlobPattern(targetPath: string): string {
-  const norm = targetPath.split(path.sep).join(path.posix.sep);
+  const norm = normalizePosixPath(targetPath);
   return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, '**');
 }
 
@@ -572,13 +562,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const rawOutPath = path.resolve(scratchDir, 'knip-raw.json');
     const cachePath = path.resolve(cacheDir, 'knip');
 
-    if (fs.existsSync(rawOutPath)) {
-      try {
-        fs.unlinkSync(rawOutPath);
-      } catch {
-        // catch-ok: Best effort cleanup of stale raw report
-      }
-    }
+    safeRmSync(rawOutPath, { force: true });
 
     const ephemeralConfigPath = this.buildEphemeralKnipConfig(config, scratchDir);
     const report = this.executeKnip(ephemeralConfigPath, cachePath, rawOutPath);
@@ -640,16 +624,14 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
     const deps: string[] = []; // no-domain: Dynamic list of coverage packages
     const viteConfigPath = path.resolve(this.projectRoot, 'vite.config.ts');
     if (!fs.existsSync(viteConfigPath)) return deps;
-    try {
-      const viteContent = fs.readFileSync(viteConfigPath, 'utf-8');
+    const viteContent = safeReadFileSync(viteConfigPath);
+    if (viteContent) {
       if (viteContent.includes("'v8'") || viteContent.includes('"v8"')) {
         deps.push('@vitest/coverage-v8');
       }
       if (viteContent.includes("'istanbul'") || viteContent.includes('"istanbul"')) {
         deps.push('@vitest/coverage-istanbul');
       }
-    } catch {
-      // catch-ok: best effort read
     }
     return deps;
   }
@@ -657,14 +639,13 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
   private hasVitePlusDependencyOrConfig(): boolean {
     if (fs.existsSync(path.resolve(this.projectRoot, 'vite.config.ts'))) return true;
     const pkgJsonPath = path.resolve(this.projectRoot, 'package.json');
-    if (!fs.existsSync(pkgJsonPath)) return false;
-    try {
-      const pkgRaw = fs.readFileSync(pkgJsonPath, 'utf-8');
-      const parsed = JSON.parse(pkgRaw);
-      return Boolean(parsed.dependencies?.['vite-plus'] || parsed.devDependencies?.['vite-plus']);
-    } catch {
-      return false;
-    }
+    const pkgRaw = safeReadFileSync(pkgJsonPath);
+    if (!pkgRaw) return false;
+    const parsed = safeJsonParse<{
+      dependencies?: Record<string, string>;
+      devDependencies?: Record<string, string>;
+    }>(pkgRaw);
+    return Boolean(parsed?.dependencies?.['vite-plus'] || parsed?.devDependencies?.['vite-plus']);
   }
 
   private buildEphemeralKnipConfig(config: AuditConfig, scratchDir: string): string {
@@ -717,10 +698,10 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         'skills/**',
         '.agents/**',
         '**/*.d.ts',
-        ...(config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), d.split(path.sep).join(path.posix.sep)]) ?? []),
-        ...(config.paths.ignoredPatterns?.map((p) => p.split(path.sep).join(path.posix.sep)) ?? []),
-        ...(config.paths.ignoreGlobs?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? []),
-        ...(this.extraIgnorePatterns?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? []),
+        ...(config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), normalizePosixPath(d)]) ?? []),
+        ...(config.paths.ignoredPatterns?.map((p) => normalizePosixPath(p)) ?? []),
+        ...(config.paths.ignoreGlobs?.map((g) => normalizePosixPath(g)) ?? []),
+        ...(this.extraIgnorePatterns?.map((g) => normalizePosixPath(g)) ?? []),
         ...(this.exemptPaths?.map(toPosixGlobPattern) ?? [])
       ],
       ignoreDependencies: allIgnoredDeps,

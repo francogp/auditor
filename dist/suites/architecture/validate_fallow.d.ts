@@ -136,6 +136,7 @@ export interface FallowArchitectureAuditorOptions {
 }
 export declare class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
   constructor(options?: FallowArchitectureAuditorOptions);
+  private handleParsedFallowOutput;
   private runFallowSubCommand;
   runAudit(): Promise<void>;
 }

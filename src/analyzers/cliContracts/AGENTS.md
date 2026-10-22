@@ -10,11 +10,11 @@ Architecture & Tooling Engineers.
 
 - **100% AST-Driven Analysis**: All CLI contract detectors inspect TypeScript AST nodes (`ts.SourceFile`) without regular expressions on code syntax.
 - **Zero Spanish Output**: All rule descriptions, violation messages, and diagnostic strings are strictly authored in English (`en`).
-- **Authorized Escape Hatches**: Supports `cli-ok: <reason>`, `argv-ok: <reason>`, `env-ok: <reason>`, and `test-ok: <reason>` with a minimum 5-character justification.
+- **Zero-Escape Mandate**: All CLI tools, sub-auditors, and reporting scripts must declare canonical `citty` commands without bypass directives or escape hatches.
 
 ## Key Files
 
-- [`cliContractHeuristics.ts`](./cliContractHeuristics.ts): Pure AST predicates, escape-hatch evaluators, and Citty builder sets.
+- [`cliContractHeuristics.ts`](./cliContractHeuristics.ts): Pure AST predicates and Citty builder sets.
 - [`cliContractScanner.ts`](./cliContractScanner.ts): Single-pass AST visitor coordinating all CLI contract detectors.
 - [`cliContractTypes.ts`](./cliContractTypes.ts): Domain types, rule ID tuple (`CLI_CONTRACT_RULES`), and detector interfaces.
 - [`detectors/`](./detectors/AGENTS.md): Specialized per-rule AST detector modules.

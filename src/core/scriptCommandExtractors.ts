@@ -20,6 +20,8 @@ import {
   type ExtractedCommand,
   type CommandInvocationType
 } from './npmCommandUtils.ts';
+import { safeJsonParse } from './safeUtils.ts';
+import { normalizePosixPath } from './safePath.ts';
 
 const SHELL_PREFIX_RUNNERS: ReadonlySet<string> = new Set([
   // runtime-set: Fast O(1) membership lookup set
@@ -131,8 +133,8 @@ export function inspectCommandTokens(
   rawText: string,
   out: ExtractedCommand[]
 ): void {
-  // domain-ok: Package manager binary names
-  if (bin === 'npm' || bin === 'pnpm' || bin === 'bun' || bin === 'yarn') {
+  const packageManagerBins: ReadonlySet<string> = new Set(['npm', 'pnpm', 'bun', 'yarn']);
+  if (packageManagerBins.has(bin)) {
     inspectNpmFamilyTokens(bin, words, lineNum, rawText, out);
     return;
   }
@@ -322,16 +324,12 @@ function parseExecJsonRun(
   out: ExtractedCommand[]
 ): boolean {
   if (!body.startsWith('[') || !body.endsWith(']')) return false;
-  try {
-    const parsed: unknown = JSON.parse(body);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      const bin = String(parsed[0]);
-      const args = parsed.slice(1).map(String);
-      inspectCommandTokens(bin, args, startLine, rawLines[startLine - 1]?.trim() || body, out);
-      return true;
-    }
-  } catch {
-    // catch-ok: Not valid JSON, fallback to shell parsing
+  const parsed = safeJsonParse<unknown>(body);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    const bin = String(parsed[0]);
+    const args = parsed.slice(1).map(String);
+    inspectCommandTokens(bin, args, startLine, rawLines[startLine - 1]?.trim() || body, out);
+    return true;
   }
   return false;
 }
@@ -556,8 +554,8 @@ function isConsoleCall(node: ts.CallExpression): boolean {
   if (ts.isPropertyAccessExpression(expr)) {
     if (ts.isIdentifier(expr.expression) && expr.expression.text === 'console') {
       const method = expr.name.text;
-      // domain-ok: Console logging methods
-      return method === 'log' || method === 'info' || method === 'warn' || method === 'error';
+      const consoleMethods: ReadonlySet<string> = new Set(['log', 'info', 'warn', 'error']);
+      return consoleMethods.has(method);
     }
   }
   return false;
@@ -635,13 +633,8 @@ export function extractCommandsFromTypeScript(
     if (ts.isCallExpression(node)) {
       const callee = getCalleeName(node.expression);
       if (callee && PROCESS_RUNNER_NAMES.has(callee) && node.arguments.length > 0) {
-        // domain-ok: Child process runner names
-        if (
-          callee === 'spawn' ||
-          callee === 'spawnSync' ||
-          callee === 'execFile' ||
-          callee === 'execFileSync'
-        ) {
+        const spawnFamilyRunners: ReadonlySet<string> = new Set(['spawn', 'spawnSync', 'execFile', 'execFileSync']);
+        if (spawnFamilyRunners.has(callee)) {
           handleSpawnCall(node, sf, rawLines, commands);
         } else {
           handleExecCall(node, sf, rawLines, commands);
@@ -670,17 +663,8 @@ export function extractCommandsFromTypeScript(
 function stripComments(line: string, ext: string): string {
   const lowerExt = ext.toLowerCase();
 
-  // domain-ok: Shell file extensions
-  if (
-    lowerExt === '.sh' ||
-    lowerExt === '.bash' ||
-    lowerExt === '.zsh' ||
-    lowerExt === '.ps1' ||
-    lowerExt === '.yml' ||
-    lowerExt === '.yaml' ||
-    lowerExt.includes('dockerfile') ||
-    lowerExt === 'containerfile'
-  ) {
+  const hashCommentExts: ReadonlySet<string> = new Set(['.sh', '.bash', '.zsh', '.ps1', '.yml', '.yaml', 'containerfile']);
+  if (hashCommentExts.has(lowerExt) || lowerExt.includes('dockerfile')) {
     const hashIndex = line.indexOf('#');
     if (hashIndex !== -1) return line.slice(0, hashIndex);
     return line;
@@ -724,7 +708,7 @@ function extractCommandsLexically(content: string, ext: string): ExtractedComman
  * dispatching to the appropriate AST or structured parser based on file type.
  */
 export function extractScriptCommands(content: string, filePath: string): ExtractedCommand[] {
-  const normPath = filePath.split(path.sep).join(path.posix.sep);
+  const normPath = normalizePosixPath(filePath);
   const ext = path.extname(normPath).toLowerCase();
   const baseName = path.basename(normPath).toLowerCase();
 

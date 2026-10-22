@@ -1,3 +1,4 @@
+import { tryOrNullAsync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, matchesSinglePattern } from "../../core/auditorBase.js";
@@ -108,20 +109,19 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 		const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
 		const ext = path.extname(relPath) || ".txt";
 		let messages = [];
-		try {
-			messages = (await lintSource({
-				source: {
-					filePath: relPath,
-					content,
-					ext,
-					contentType: "text"
-				},
-				options: {
-					config: this.secretLintConfig,
-					maskSecrets
-				}
-			})).messages;
-		} catch {}
+		const result = await tryOrNullAsync(() => lintSource({
+			source: {
+				filePath: relPath,
+				content,
+				ext,
+				contentType: "text"
+			},
+			options: {
+				config: this.secretLintConfig,
+				maskSecrets
+			}
+		}));
+		if (result) messages = result.messages;
 		this.runSubAuditorSync("secret-leak-detected", () => {
 			const regularMessages = messages.filter((msg) => msg.messageId !== "PrivateKey" && !msg.ruleId.includes("privatekey"));
 			for (const msg of regularMessages) {

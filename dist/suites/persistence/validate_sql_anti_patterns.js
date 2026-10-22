@@ -1,5 +1,6 @@
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
@@ -28,9 +29,6 @@ import fs from "node:fs";
 *   5. Uncoordinated Save Storage Bypass (`storage-uncoordinated-save-bypass`):
 *      Detects direct `localStorage.setItem` calls mutating state outside the authorized
 *      persistence architecture.
-*
-* Escape Hatches:
-*   `-- sql-ok`, `// sql-ok`, `-- plpgsql-ok`, `-- rls-ok`, `// db-ok`, `// storage-ok`
 *
 * Usage:
 *   npm run validate:sql-anti-patterns
@@ -181,7 +179,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			for (let i = 0; i < lines.length; i++) {
 				const lineText = lines[i];
 				if (!lineText) continue;
-				if (positionalRegex.test(lineText) && !this.isLineIgnored(lineText, ["sql-ok"])) this.addViolation({
+				if (positionalRegex.test(lineText)) this.addViolation({
 					ruleId: "sql-no-positional-arrays",
 					severity: "error",
 					file: relPath,
@@ -201,7 +199,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			"database",
 			"migrations"
 		]);
-		if (fs.existsSync(migrationsDir)) candidateRoots.add(path.relative(this.projectRoot, migrationsDir).split(path.sep).join(path.posix.sep) || this.configuredMigrationsDir);
+		if (fs.existsSync(migrationsDir)) candidateRoots.add(normalizePosixPath(path.relative(this.projectRoot, migrationsDir)) || this.configuredMigrationsDir);
 		const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
 		for (const sub of allowedDbDirs) {
 			const cleanSub = normalizePosixPath(sub);
@@ -215,16 +213,16 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 		const rootsToScan = this.resolveMigrationScanDirs(migrationsDir, config);
 		const sqlFiles = this.context.collectFiles(rootsToScan, /* @__PURE__ */ new Set([".sql"]));
 		for (const fullPath of sqlFiles) {
-			const relPath = path.relative(this.projectRoot, fullPath).split(path.sep).join(path.posix.sep);
+			const relPath = normalizePosixPath(path.relative(this.projectRoot, fullPath));
 			if (this.context.isPathIgnored(relPath)) continue;
-			try {
-				const content = fs.readFileSync(fullPath, "utf-8");
+			const content = safeReadFileSync(fullPath);
+			if (content !== null) {
 				this.recordScanned(relPath);
 				sqlMigrations.push({
 					relPath,
 					content
 				});
-			} catch {}
+			}
 		}
 		return sqlMigrations;
 	}
@@ -235,12 +233,10 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			return;
 		}
 		for (const file of srcFiles) {
-			const relPath = path.relative(this.projectRoot, file).split(path.sep).join(path.posix.sep);
+			const relPath = normalizePosixPath(path.relative(this.projectRoot, file));
 			this.recordScanned(relPath);
-			try {
-				const content = fs.readFileSync(file, "utf-8");
-				this.scanTypeScriptFile(relPath, content);
-			} catch {}
+			const content = safeReadFileSync(file);
+			if (content !== null) this.scanTypeScriptFile(relPath, content);
 		}
 	}
 	checkPlpgsqlLoops(executionBody, context) {
@@ -253,7 +249,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			const absolutePos = context.blockOffset + context.beginIndex + loopMatch.index;
 			const line = context.content.slice(0, absolutePos).split("\n").length;
 			const lineContent = context.content.split("\n")[line - 1] || "";
-			if (!this.isLineIgnored(lineContent, ["plpgsql-ok", "sql-ok"])) this.addViolation({
+			this.addViolation({
 				ruleId: "sql-plpgsql-declared-variables",
 				severity: "error",
 				file: context.relPath,
@@ -297,7 +293,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 				const tableName = rawTable.toLowerCase();
 				const line = content.slice(0, match.index).split("\n").length;
 				const lineContent = content.split("\n")[line - 1] || "";
-				if (!this.isLineIgnored(lineContent, ["rls-ok"])) rlsTables.set(tableName, {
+				rlsTables.set(tableName, {
 					relPath,
 					line,
 					lineContent: lineContent.trim()
@@ -394,15 +390,12 @@ function scanDbPayloadKeys(params) {
 	while ((writeMatch = dbWriteRegex.exec(params.content)) !== null) {
 		const rawPayload = writeMatch[1];
 		const matchOffset = writeMatch.index;
-		const lineNumber = params.content.slice(0, matchOffset).split("\n").length;
-		const lineText = params.lines[lineNumber - 1] || "";
-		if (params.auditor.isLineIgnored(lineText, ["db-ok"])) continue;
 		const topLevelKeys = extractTopLevelKeys(rawPayload);
 		for (const { key, index: keyOffset } of topLevelKeys) if (CAMEL_CASE_KEY_REGEX.test(key) && key !== "toString" && key !== "valueOf") {
 			const propOffset = matchOffset + keyOffset;
 			const propLine = params.content.slice(0, propOffset).split("\n").length;
 			const propLineText = params.lines[propLine - 1] || "";
-			if (!params.auditor.isLineIgnored(propLineText, ["db-ok"])) params.auditor.addViolation({
+			params.auditor.addViolation({
 				ruleId: "db-payload-snake-case",
 				severity: "error",
 				file: params.relPath,

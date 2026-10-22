@@ -1,6 +1,6 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";

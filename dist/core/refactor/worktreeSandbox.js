@@ -1,3 +1,4 @@
+import { safeRmSync, tryOrNull } from "../safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -71,38 +72,30 @@ var WorktreeSandboxManager = class {
 	}
 	static forceClean(absRepo, worktreeDir) {
 		const targetNodeModules = path.join(worktreeDir, "node_modules");
-		if (fs.existsSync(targetNodeModules)) try {
-			fs.rmSync(targetNodeModules, {
-				recursive: true,
-				force: true
-			});
-		} catch {}
-		try {
-			execSync(`git -C "${absRepo}" worktree remove --force "${worktreeDir}"`, {
-				encoding: "utf8",
-				stdio: [
-					"pipe",
-					"pipe",
-					"pipe"
-				]
-			});
-		} catch {}
-		if (fs.existsSync(worktreeDir)) try {
-			fs.rmSync(worktreeDir, {
-				recursive: true,
-				force: true
-			});
-		} catch {}
-		try {
-			execSync(`git -C "${absRepo}" worktree prune`, {
-				encoding: "utf8",
-				stdio: [
-					"pipe",
-					"pipe",
-					"pipe"
-				]
-			});
-		} catch {}
+		if (fs.existsSync(targetNodeModules)) safeRmSync(targetNodeModules, {
+			recursive: true,
+			force: true
+		});
+		tryOrNull(() => execSync(`git -C "${absRepo}" worktree remove --force "${worktreeDir}"`, {
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"pipe"
+			]
+		}));
+		if (fs.existsSync(worktreeDir)) safeRmSync(worktreeDir, {
+			recursive: true,
+			force: true
+		});
+		tryOrNull(() => execSync(`git -C "${absRepo}" worktree prune`, {
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"pipe"
+			]
+		}));
 	}
 };
 /**

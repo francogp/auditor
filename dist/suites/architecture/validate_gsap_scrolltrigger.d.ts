@@ -5,7 +5,7 @@ export declare const GSAP_SCROLLTRIGGER_RULES: readonly GsapScrollTriggerRuleId[
 export declare class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScrollTriggerRuleId> {
   constructor(options?: FileScanRootsOptions);
   protected scanFile(relPath: string, content: string): void;
-  private isLineSuppressed;
+  private isLineInComment;
   private checkTimelineChild;
   private scanScrollTriggerBlocks;
   private checkScrubAndToggle;

@@ -13,6 +13,7 @@ import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
 import { formatDurationMs } from './unifiedTheme.ts';
 import { type AuditTaskDefinition, type SubAuditorReport } from './auditContract.ts';
+import { tryOrNull } from './safeUtils.ts';
 
 export interface TaskStreamProgressParams {
   taskName: string;
@@ -245,20 +246,12 @@ export function executeAuditorStreaming(
       timer = setTimeout(() => {
         timedOut = true;
         onSubProgress?.(
-          `Timeout excedido (${timeoutLimit}ms) al ejecutar el auditor '${task.name}' (${task.id}).`
+          `Execution timeout exceeded (${timeoutLimit}ms) running auditor '${task.name}' (${task.id}).`
         );
-        try {
-          child.kill('SIGTERM');
-          setTimeout(() => {
-            try {
-              child.kill('SIGKILL');
-            } catch {
-              /* catch-ok: ignore kill failure on already exited child */
-            }
-          }, SIGKILL_ESCALATION_DELAY_MS);
-        } catch {
-          /* catch-ok: ignore kill failure on already exited child */
-        }
+        tryOrNull(() => child.kill('SIGTERM'));
+        setTimeout(() => {
+          tryOrNull(() => child.kill('SIGKILL'));
+        }, SIGKILL_ESCALATION_DELAY_MS);
       }, timeoutLimit);
     }
 

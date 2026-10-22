@@ -9,19 +9,25 @@ import ts from "typescript";
 * `split('/')`, `lastIndexOf('/'|'.')`, `split('.').pop()` or regexes
 * instead of `path.basename()`, `path.dirname()`, `path.extname()` or `path.parse()`.
 */
-const PARSING_MESSAGE = "Extracción casera de nombre, directorio o extensión de una ruta. Usa 'path.basename()', 'path.dirname()', 'path.extname()' o 'path.parse()' de 'node:path'.";
+const PARSING_MESSAGE = "Homebrew extraction of file name, directory, or extension from a path. Use 'path.basename()', 'path.dirname()', 'path.extname()', or 'path.parse()' from 'node:path'.";
 const EXTENSION_SEPARATOR = ".";
 function firstArgValue(mc) {
 	const arg = mc.call.arguments[0];
 	return arg ? getStringValue(arg) : void 0;
 }
+const LAST_SEGMENT_ACCESS_METHODS = /* @__PURE__ */ new Set([
+	"pop",
+	"at",
+	"slice",
+	"shift"
+]);
 function isFollowedByLastSegmentAccess(call) {
 	let parent = call.parent;
 	while (ts.isParenthesizedExpression(parent) || ts.isNonNullExpression(parent)) parent = parent.parent;
 	if (ts.isElementAccessExpression(parent)) return true;
 	if (ts.isPropertyAccessExpression(parent)) {
 		const name = parent.name.text;
-		return name === "pop" || name === "at" || name === "slice" || name === "shift";
+		return LAST_SEGMENT_ACCESS_METHODS.has(name);
 	}
 	return false;
 }

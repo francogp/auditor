@@ -1,4 +1,6 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
+import { safeJsonParse, safeReadFileSync, safeRmSync, tryOrNull } from "../../core/safeUtils.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { toPosixRelative } from "../../core/auditCoverage.js";
@@ -22,7 +24,7 @@ function extractReferencedScriptDependencies(projectRoot) {
 	const referenced = /* @__PURE__ */ new Set();
 	const pkg = getPackageJson(projectRoot);
 	if (!pkg) return referenced;
-	try {
+	tryOrNull(() => {
 		const scripts = pkg.scripts ? Object.values(pkg.scripts).join(" ") : "";
 		const allDeps = [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})];
 		for (const dep of allDeps) {
@@ -33,7 +35,7 @@ function extractReferencedScriptDependencies(projectRoot) {
 			const escapedRoot = rootBin.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 			if (new RegExp(`(?:^|[\\s"'\`;&|])(?:${escapedDep}|${escapedClean}|${escapedRoot})(?:[\\s"'\`;&|]|$)`, "i").test(scripts)) referenced.add(dep);
 		}
-	} catch {}
+	});
 	return referenced;
 }
 function parseUnusedDeps(fileIssue, relFile, scriptReferencedDeps) {
@@ -208,10 +210,8 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 		context: "insecure-http-resolved",
 		message: "package-lock.json contains insecure package resolutions via unencrypted http://."
 	});
-	let pkgJson = {};
-	try {
-		pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-	} catch {}
+	const pkgRaw = safeReadFileSync(pkgJsonPath);
+	const pkgJson = (pkgRaw ? safeJsonParse(pkgRaw) : null) ?? {};
 	const rootPackage = (lockfileJson.packages || {})[""] || {};
 	auditFloatingGitDependencies(pkgJson, rootPackage, lockfileJson, pkgJsonPath, lockfilePath, isFixMode, findings);
 	verifyLockfileRootDepsSync(rootPackage, {
@@ -221,13 +221,12 @@ function verifyLockfileIntegrity(projectRoot, isFixMode = false) {
 	return findings;
 }
 function resolveAuditorSemverTag() {
-	try {
-		const selfPkgPath = path.resolve(import.meta.dirname, "../../../package.json");
-		if (fs.existsSync(selfPkgPath)) {
-			const selfPkg = JSON.parse(fs.readFileSync(selfPkgPath, "utf-8"));
-			if (selfPkg.version) return selfPkg.version.split("-")[0];
-		}
-	} catch {}
+	const selfPkgPath = path.resolve(import.meta.dirname, "../../../package.json");
+	const selfPkgRaw = safeReadFileSync(selfPkgPath);
+	if (selfPkgRaw) {
+		const selfPkg = safeJsonParse(selfPkgRaw);
+		if (selfPkg?.version) return selfPkg.version.split("-")[0];
+	}
 	return "0.0.0";
 }
 function auditFloatingGitDependencies(pkgJson, rootPackage, lockfileJson, pkgJsonPath, lockfilePath, isFixMode, findings) {
@@ -299,7 +298,7 @@ function verifyLockfileRootDepsSync(rootPackage, allDeclaredDeps, findings) {
 	}
 }
 function toPosixGlobPattern(targetPath) {
-	const norm = targetPath.split(path.sep).join(path.posix.sep);
+	const norm = normalizePosixPath(targetPath);
 	return norm.endsWith(path.posix.sep) ? `${norm}**` : path.posix.join(norm, "**");
 }
 var ValidatePackageHygieneAuditor = class extends BaseAuditor {
@@ -374,9 +373,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		fs.mkdirSync(cacheDir, { recursive: true });
 		const rawOutPath = path.resolve(scratchDir, "knip-raw.json");
 		const cachePath = path.resolve(cacheDir, "knip");
-		if (fs.existsSync(rawOutPath)) try {
-			fs.unlinkSync(rawOutPath);
-		} catch {}
+		safeRmSync(rawOutPath, { force: true });
 		const ephemeralConfigPath = this.buildEphemeralKnipConfig(config, scratchDir);
 		const report = this.executeKnip(ephemeralConfigPath, cachePath, rawOutPath);
 		if (!report) {
@@ -420,24 +417,20 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		const deps = [];
 		const viteConfigPath = path.resolve(this.projectRoot, "vite.config.ts");
 		if (!fs.existsSync(viteConfigPath)) return deps;
-		try {
-			const viteContent = fs.readFileSync(viteConfigPath, "utf-8");
+		const viteContent = safeReadFileSync(viteConfigPath);
+		if (viteContent) {
 			if (viteContent.includes("'v8'") || viteContent.includes("\"v8\"")) deps.push("@vitest/coverage-v8");
 			if (viteContent.includes("'istanbul'") || viteContent.includes("\"istanbul\"")) deps.push("@vitest/coverage-istanbul");
-		} catch {}
+		}
 		return deps;
 	}
 	hasVitePlusDependencyOrConfig() {
 		if (fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts"))) return true;
 		const pkgJsonPath = path.resolve(this.projectRoot, "package.json");
-		if (!fs.existsSync(pkgJsonPath)) return false;
-		try {
-			const pkgRaw = fs.readFileSync(pkgJsonPath, "utf-8");
-			const parsed = JSON.parse(pkgRaw);
-			return Boolean(parsed.dependencies?.["vite-plus"] || parsed.devDependencies?.["vite-plus"]);
-		} catch {
-			return false;
-		}
+		const pkgRaw = safeReadFileSync(pkgJsonPath);
+		if (!pkgRaw) return false;
+		const parsed = safeJsonParse(pkgRaw);
+		return Boolean(parsed?.dependencies?.["vite-plus"] || parsed?.devDependencies?.["vite-plus"]);
 	}
 	buildEphemeralKnipConfig(config, scratchDir) {
 		const customIgnoredDeps = config.packageHygiene?.ignoreDependencies ?? [];
@@ -485,10 +478,10 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 				"skills/**",
 				".agents/**",
 				"**/*.d.ts",
-				...config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), d.split(path.sep).join(path.posix.sep)]) ?? [],
-				...config.paths.ignoredPatterns?.map((p) => p.split(path.sep).join(path.posix.sep)) ?? [],
-				...config.paths.ignoreGlobs?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? [],
-				...this.extraIgnorePatterns?.map((g) => g.split(path.sep).join(path.posix.sep)) ?? [],
+				...config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), normalizePosixPath(d)]) ?? [],
+				...config.paths.ignoredPatterns?.map((p) => normalizePosixPath(p)) ?? [],
+				...config.paths.ignoreGlobs?.map((g) => normalizePosixPath(g)) ?? [],
+				...this.extraIgnorePatterns?.map((g) => normalizePosixPath(g)) ?? [],
 				...this.exemptPaths?.map(toPosixGlobPattern) ?? []
 			],
 			ignoreDependencies: allIgnoredDeps,

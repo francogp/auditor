@@ -271,7 +271,6 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       while ((m = HARDCODED_Z_INDEX_REGEX.exec(doc.rawContent)) !== null) {
         if (doc.isInsideComment(m.index)) continue;
         const pos = doc.getLineAndColumn(m.index);
-        if (doc.hasEscapeHatch(pos.line, 'z-index-hardcoded-literal')) continue;
 
         const numMatch = m[0].match(/-?\d+/);
         const val = numMatch ? parseInt(numMatch[0], 10) : 0;
@@ -340,7 +339,6 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
           while ((cMatch = ISOLATED_Z_INDEX_CONST_REGEX.exec(doc.rawContent)) !== null) {
             if (doc.isInsideComment(cMatch.index)) continue;
             const pos = doc.getLineAndColumn(cMatch.index);
-            if (doc.hasEscapeHatch(pos.line, 'z-index-isolated-constant')) continue;
 
             this.addViolation({
               ruleId: 'z-index-isolated-constant',
