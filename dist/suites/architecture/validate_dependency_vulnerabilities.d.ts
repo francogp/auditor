@@ -1,7 +1,6 @@
 import { NpmAuditSeverityLevel } from "../../core/auditConfigTypes.js";
 import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_dependency_vulnerabilities.d.ts
 export declare const DEPENDENCY_VULNERABILITIES_RULES: readonly ["dependency-cve-critical", "dependency-cve-high", "dependency-cve-moderate"];
 export type DependencyVulnerabilitiesRuleId = (typeof DEPENDENCY_VULNERABILITIES_RULES)[number];
 export interface NpmAuditVulnItem {
@@ -37,4 +36,3 @@ export declare class ValidateDependencyVulnerabilitiesAuditor extends BaseAudito
   runAudit(): Promise<void>;
   private applyAuditFindings;
 }
-//#endregion

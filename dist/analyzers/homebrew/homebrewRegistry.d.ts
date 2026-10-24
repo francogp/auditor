@@ -1,5 +1,4 @@
 import { AuditorHomebrewRuleId, HomebrewDetector, HomebrewFinding, HomebrewInspectionContext } from "./homebrewTypes.js";
-//#region src/analyzers/homebrew/homebrewRegistry.d.ts
 export declare class HomebrewDetectorRegistry {
   private static readonly detectors;
   static register(detector: HomebrewDetector): void;
@@ -12,4 +11,3 @@ export declare class HomebrewDetectorRegistry {
   static getRuleRemediations(): Record<AuditorHomebrewRuleId, string>;
   static run(context: HomebrewInspectionContext, disabledDetectors?: readonly string[], onDetectorDuration?: (ruleId: AuditorHomebrewRuleId, durationMs: number) => void): HomebrewFinding[];
 }
-//#endregion

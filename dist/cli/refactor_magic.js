@@ -7,7 +7,7 @@ import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/cli/refactor_magic.ts
+// src/cli/refactor_magic.ts
 /**
 * src/cli/refactor_magic.ts
 *
@@ -170,5 +170,4 @@ if (isMainModule(import.meta.url, ["auditor-magic", "refactor_magic"])) runRefac
 	console.error("\n[Error] Fatal error in auditor-magic:", err);
 	process.exit(1);
 });
-//#endregion
 export { runRefactorMagicCli };

@@ -1,12 +1,16 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeRmSync, tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
-//#region src/suites/architecture/validate_type_check.ts
+// src/suites/architecture/validate_type_check.ts
 /**
 * scripts/auditors/architecture/validate_type_check.ts
 *
@@ -92,6 +96,8 @@ function resolveTypeCheckBinary(projectRoot) {
 var TypeCheckAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
+		const config = getAuditConfig(projectRoot);
+		const targetRoots = [...config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots];
 		super({
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
@@ -122,13 +128,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			ruleDescriptions: { "ts-compiler-error": "Compilation or type error" },
 			ruleRemediations: { "ts-compiler-error": "📖 REMEDIATION GUIDE: ts-compiler-error\n1. Root Cause: The TypeScript compiler (`tsc` or `vue-tsc`) detected a type mismatch, incompatible interface, missing property, or static syntax failure (diagnostic code TSxxxx).\n2. Diagnosis: Inspect the file, line number, and TS error code emitted (e.g., TS2322 type incompatibility, TS2339 missing property, TS2345 invalid argument).\n3. Canonical Solution:\n   a) Correct the type signature or interface contract at the source to satisfy the compiler.\n   b) If properties are missing in an object literal, provide them according to the expected type or make them optional (`?`) if permitted by domain.\n   c) Never use `// @ts-ignore` or blind casts like `as any`. Model domain types rigorously.\n4. Example / Auto-fix command:\n   ❌ TS2322: `const id: number = \"123\";`\n   ✅ Correct: `const id: string = \"123\";`" },
 			coverage: {
-				include: [
-					"src/**/*.ts",
-					"src/**/*.vue",
-					"scripts/**/*.ts",
-					"tests/**/*.ts",
-					"tsconfig*.json"
-				],
+				include: [...deriveCoverageFromRoots(targetRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), projectRoot).include, "tsconfig*.json"],
 				source: "declared-only"
 			},
 			projectRoot
@@ -175,5 +175,4 @@ var TypeCheckAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new TypeCheckAuditor());
-//#endregion
 export { TYPE_CHECK_RULES, TypeCheckAuditor, parseTypeScriptDiagnostics };

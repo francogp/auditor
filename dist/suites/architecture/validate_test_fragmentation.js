@@ -1,12 +1,12 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
-import "../../core/safePath.js";
 import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_test_fragmentation.ts
+// src/suites/architecture/validate_test_fragmentation.ts
 /**
 * scripts/auditors/architecture/validate_test_fragmentation.ts
 *
@@ -200,5 +200,4 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new TestFragmentationAuditor());
-//#endregion
 export { DISTRIBUTION_OVERSIZED_MIN_LINES, DISTRIBUTION_SMALL_MAX_LINES, DISTRIBUTION_TARGET_MAX_LINES, MIN_TEST_FILE_LINES, TEST_FRAGMENTATION_RULES, TEST_FRAGMENTATION_WHITELIST, TestFragmentationAuditor };

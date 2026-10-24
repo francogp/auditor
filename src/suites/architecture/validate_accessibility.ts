@@ -4,6 +4,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
@@ -130,6 +131,12 @@ export function mapA11yRuleId(eslintRuleId: string): AccessibilityRuleId {
 export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const scannableRoots = [
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots)
+    ];
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -221,7 +228,12 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           '   ✅ Accessible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`'
       },
       projectRoot: effectiveRoot,
-      coverage: { include: [INDEX_HTML_FILE, 'src/**/*.vue'] }
+      coverage: {
+        include: [
+          INDEX_HTML_FILE,
+          ...deriveCoverageFromRoots(scannableRoots, new Set(['.vue']), effectiveRoot).include
+        ]
+      }
     });
   }
 

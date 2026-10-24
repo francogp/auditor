@@ -2,7 +2,7 @@ import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilit
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_editorconfig.ts
+// src/suites/architecture/validate_editorconfig.ts
 /**
 * src/suites/architecture/validate_editorconfig.ts
 *
@@ -189,5 +189,4 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateEditorconfigAuditor());
-//#endregion
 export { CANONICAL_EDITORCONFIG_CONTENT, CANONICAL_EDITORCONFIG_LINES, EDITORCONFIG_REQUIREMENT, EDITORCONFIG_RULES, ValidateEditorconfigAuditor };

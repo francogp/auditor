@@ -4,7 +4,7 @@ import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
-//#region src/cli/setup_env.ts
+// src/cli/setup_env.ts
 /**
 * src/cli/setup_env.ts
 *
@@ -72,5 +72,4 @@ if (isMainModule(import.meta.url)) {
 	const code = runSetup();
 	process.exit(code);
 }
-//#endregion
 export { runSetup };

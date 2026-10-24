@@ -17,6 +17,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
 
@@ -129,9 +130,56 @@ export interface AuditorTestsAuditorOptions {
   readonly projectRoot?: string;
 }
 
+function deriveAuditorTestsCoverage(projectRoot: string): { include: string[]; exclude: string[] } {
+  const config = getAuditConfig(projectRoot);
+  const testRoots = config.paths?.testRoots?.length
+    ? config.paths.testRoots
+    : DEFAULT_AUDIT_CONFIG.paths.testRoots;
+  const isSelfRepo = isSelfProviderProject(projectRoot);
+  const defaultSrcRoot = DEFAULT_AUDIT_CONFIG.paths.srcRoots[0] ?? 'src';
+  const srcRoot = (config.paths?.srcRoots && config.paths.srcRoots[0]) || defaultSrcRoot;
+  const suitesDir = path.posix.join(srcRoot, 'suites');
+  const hasCoreSuites = fs.existsSync(path.join(projectRoot, suitesDir));
+
+  const defaultAuditorRoots = DEFAULT_AUDIT_CONFIG.auditorHygiene?.roots ?? ['scripts/auditors'];
+  const auditorRoots = isSelfRepo && hasCoreSuites
+    ? [suitesDir]
+    : (config.auditorHygiene?.roots?.length ? config.auditorHygiene.roots : defaultAuditorRoots);
+
+  const include = [
+    ...auditorRoots.map((r: string) => `${r}/**/*.ts`),
+    ...testRoots.flatMap((tr: string) => [
+      path.posix.join(tr, '**', 'validate_*.test.ts'),
+      path.posix.join(tr, 'audit_project.test.ts')
+    ])
+  ];
+
+  const exclude = isSelfRepo && hasCoreSuites
+    ? [
+        path.posix.join(suitesDir, 'architecture', 'audit_rules.ts'),
+        path.posix.join(suitesDir, 'architecture', 'stylelintSassTrapsPlugin.ts'),
+        ...testRoots.map((tr: string) => path.posix.join(tr, 'validate_critical_config.test.ts'))
+      ]
+    : [
+        ...auditorRoots.flatMap((r: string) => [
+          `${r}/**/_*`,
+          `${r}/**/report_*`,
+          `${r}/**/*Plugin.ts`,
+          `${r}/**/audit_rules.ts`
+        ]),
+        ...testRoots.flatMap((tr: string) => [
+          path.posix.join(tr, 'integration', '**'),
+          path.posix.join(tr, 'e2e', '**')
+        ])
+      ];
+
+  return { include, exclude };
+}
+
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   constructor(options: AuditorTestsAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const { include, exclude } = deriveAuditorTestsCoverage(projectRoot);
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -158,12 +206,8 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       ruleDescriptions: AUDITOR_TEST_DESCRIPTIONS,
       ruleRemediations: AUDITOR_TEST_REMEDIATIONS,
       coverage: {
-        include: ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts'],
-        exclude: [
-          'src/suites/architecture/audit_rules.ts',
-          'src/suites/architecture/stylelintSassTrapsPlugin.ts',
-          'tests/validate_critical_config.test.ts'
-        ]
+        include,
+        exclude
       },
       projectRoot
     });
@@ -174,27 +218,7 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    const hasCoreSuites = fs.existsSync(path.join(this.projectRoot, 'src/suites'));
-    const isSelfRepo = isSelfProviderProject(this.projectRoot);
-    const include =
-      isSelfRepo && hasCoreSuites
-        ? ['src/suites/**/*.ts', 'tests/validate_*.test.ts', 'tests/audit_project.test.ts']
-        : ['scripts/auditors/**/*.ts', 'tests/**/validate_*.test.ts', 'tests/**/audit_*.test.ts'];
-    const exclude =
-      isSelfRepo && hasCoreSuites
-        ? [
-            'src/suites/architecture/audit_rules.ts',
-            'src/suites/architecture/stylelintSassTrapsPlugin.ts',
-            'tests/validate_critical_config.test.ts'
-          ]
-        : [
-            'scripts/auditors/**/_*',
-            'scripts/auditors/**/report_*',
-            'scripts/auditors/**/*Plugin.ts',
-            'scripts/auditors/**/audit_rules.ts',
-            'tests/integration/**',
-            'tests/e2e/**'
-          ];
+    const { include, exclude } = deriveAuditorTestsCoverage(this.projectRoot);
     this.redeclareCoverage({
       include,
       exclude,

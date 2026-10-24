@@ -38,7 +38,6 @@ const EXEMPT_MARKDOWN_FILENAMES: ReadonlySet<string> = new Set([
 
 const HISTORICAL_OR_EXEMPT_LINE_PATTERNS: readonly RegExp[] = [
   /\b(?:since\s+version|from\s+version|prior\s+to|legacy|deprecated|migrating\s+from|upgraded?\s+from|salto|jump)\b/i,
-  /\bauditor(?::update|-update)\b.*v\d+\.\d+\.\d+/i,
   /\?\?\s*['"]\d+\.\d+\.\d+['"]/
 ];
 
@@ -124,6 +123,27 @@ function isHistoricalOrExemptLine(line: string): boolean {
   return HISTORICAL_OR_EXEMPT_LINE_PATTERNS.some((re) => re.test(line));
 }
 
+function replacePrefixedSemver(
+  text: string,
+  regex: RegExp,
+  expectedSemver: string,
+  lineNum: number,
+  matches: OutdatedVersionMatch[]
+): string {
+  return text.replace(regex, (fullMatch, prefix: string, ver: string) => {
+    if (ver !== expectedSemver) {
+      matches.push({
+        lineNum,
+        found: `v${ver}`,
+        expected: `v${expectedSemver}`,
+        context: fullMatch
+      });
+      return `${prefix}${expectedSemver}`;
+    }
+    return fullMatch;
+  });
+}
+
 function inspectLineAndReplace(
   line: string,
   lineNum: number,
@@ -140,18 +160,7 @@ function inspectLineAndReplace(
   if (info.expectedAuditorSemver) {
     const expectedSemver = info.expectedAuditorSemver;
     const ghRefRegex = /(github:francogp\/auditor#v)(\d+\.\d+\.\d+)/g;
-    updatedLine = updatedLine.replace(ghRefRegex, (fullMatch, prefix: string, ver: string) => {
-      if (ver !== expectedSemver) {
-        matches.push({
-          lineNum,
-          found: `v${ver}`,
-          expected: `v${expectedSemver}`,
-          context: fullMatch
-        });
-        return `${prefix}${expectedSemver}`;
-      }
-      return fullMatch;
-    });
+    updatedLine = replacePrefixedSemver(updatedLine, ghRefRegex, expectedSemver, lineNum, matches);
 
     // 2. Release tag example `#vX.Y.Z` on lines mentioning @francogp/auditor or release tag
     if (updatedLine.includes('@francogp/auditor') || /release\s+tag/i.test(updatedLine)) {
@@ -200,9 +209,12 @@ function inspectLineAndReplace(
         return fullMatch;
       }
     );
+    // 4. auditor-update [v]X.Y.Z or npm run auditor:update -- [v]X.Y.Z
+    const updaterCmdRegex = /(auditor[-:]update(?:\s+--)?\s+v?)(\d+\.\d+\.\d+)/g;
+    updatedLine = replacePrefixedSemver(updatedLine, updaterCmdRegex, expectedSemver, lineNum, matches);
   }
 
-  // 4. Explicit project package version reference: <pkgName>@X.Y.Z or <pkgName> vX.Y.Z
+  // 5. Explicit project package version reference: <pkgName>@X.Y.Z or <pkgName> vX.Y.Z
   if (info.pkgName.length > 0) {
     const escapedPkg = info.pkgName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const pkgVerRegex = new RegExp(`(${escapedPkg}(?:@|\\s+v))(\\d+\\.\\d+\\.\\d+)`, 'g');

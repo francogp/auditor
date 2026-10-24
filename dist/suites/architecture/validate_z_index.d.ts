@@ -1,6 +1,5 @@
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import { fixZIndexLiteral } from "../../analyzers/zIndexRules.js";
-//#region src/suites/architecture/validate_z_index.d.ts
 export declare const Z_INDEX_RULES: readonly ["z-index-missing-var", "z-index-mismatch", "z-index-read-error", "z-index-hardcoded-literal", "z-index-isolated-constant"];
 export type ZIndexRuleId = (typeof Z_INDEX_RULES)[number];
 export interface ZIndexAuditViolation {
@@ -26,5 +25,4 @@ export declare class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
   constructor(options?: ZIndexAuditorOptions);
   runAudit(): Promise<void>;
 }
-//#endregion
 export { fixZIndexLiteral as fixZIndexLiteralMatch };

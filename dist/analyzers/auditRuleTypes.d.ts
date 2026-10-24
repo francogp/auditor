@@ -1,4 +1,3 @@
-//#region src/analyzers/auditRuleTypes.d.ts
 /**
  * packages/auditor/src/analyzers/auditRuleTypes.ts
  *
@@ -48,4 +47,3 @@ export declare function getLineAtMatch(content: string, matchIndex: number): {
 };
 export declare function isCommentLine(trimmed: string): boolean;
 export declare function isTestOrNodeModules(filePath?: string): boolean;
-//#endregion

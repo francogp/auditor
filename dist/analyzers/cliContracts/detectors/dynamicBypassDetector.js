@@ -1,6 +1,6 @@
 import { unwrapCliExpression } from "../cliContractHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/dynamicBypassDetector.ts
+// src/analyzers/cliContracts/detectors/dynamicBypassDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/dynamicBypassDetector.ts
 *
@@ -38,5 +38,4 @@ const dynamicBypassDetector = (node, ctx) => {
 	};
 	return null;
 };
-//#endregion
 export { dynamicBypassDetector };

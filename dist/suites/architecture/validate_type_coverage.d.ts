@@ -1,6 +1,5 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_type_coverage.d.ts
 export declare const DEFAULT_MIN_TYPE_COVERAGE_PERCENT: 95;
 export declare const TYPE_COVERAGE_RULES: readonly ["type-coverage-below-threshold", "type-coverage-untyped-identifier"];
 export type TypeCoverageRuleId = (typeof TYPE_COVERAGE_RULES)[number];
@@ -31,4 +30,3 @@ export declare class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverag
   private executeTypeCoverageCli;
   private applyCoverageMetricsAndFindings;
 }
-//#endregion

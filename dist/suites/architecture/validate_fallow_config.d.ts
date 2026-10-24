@@ -1,6 +1,6 @@
+import { CanonicalRuleSeverityLevel } from "../../core/auditConfigTypes.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_fallow_config.d.ts
 export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic';
 export declare const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[];
 export declare function getBannedEntryGlobs(projectRoot?: string): readonly string[];
@@ -35,6 +35,12 @@ export interface FallowConfigSchema {
   health?: {
     maxCrap?: number;
   };
+  audit?: {
+    worsened?: CanonicalRuleSeverityLevel;
+  };
+  mutation?: {
+    runnerConfig?: Record<string, unknown>;
+  };
 }
 export declare function createDefaultFallowConfigContent(): string;
 export interface FallowWorkspaceDiagnosticItem {
@@ -50,7 +56,7 @@ export interface ValidateFallowConfigOptions {
 }
 export declare const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfigRuleId>;
 export declare class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
+  static readonly cachePaths: readonly [".fallow"];
   constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

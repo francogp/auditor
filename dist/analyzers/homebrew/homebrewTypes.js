@@ -1,4 +1,4 @@
-//#region src/analyzers/homebrew/homebrewTypes.ts
+// src/analyzers/homebrew/homebrewTypes.ts
 const AUDITOR_HOMEBREW_RULES = [
 	"auditor-manual-package-json",
 	"auditor-manual-vue-sfc-regex",
@@ -60,5 +60,4 @@ function isInsideStringLiteral(line, index) {
 	const backticks = (before.match(/`/g) || []).length % 2 === 1;
 	return singleQuotes || doubleQuotes || backticks;
 }
-//#endregion
 export { AUDITOR_HOMEBREW_RULES, createLineDetector, isInsideStringLiteral };

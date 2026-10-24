@@ -15,12 +15,11 @@
 
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
-import path from 'node:path';
 import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, getEffectiveIgnoreGlobs, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { deriveCoverageFromRoots, toPosixRelative } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { matchesAnyRoot } from '../../core/auditRootMatcher.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
@@ -31,7 +30,6 @@ import ts from 'typescript';
 enableCompileCache();
 
 // ─── Config ──────────────────────────────────────────────────────────────────
-const ROOT = process.cwd();
 const EXTENSIONS = new Set(['.ts', '.vue']); // runtime-set: Fast O(1) membership lookup set
 export const DEFAULT_TEST_PATH_MARKERS = ['.test.', '.spec.'] as const;
 export const DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS = 80 as const;
@@ -262,18 +260,14 @@ export interface Finding {
 type MatchFilter = (match: RegExpExecArray, line: string, file: string) => boolean;
 type SeverityPicker = (match: RegExpExecArray, line: string, file: string) => FindingSeverity;
 
-function toRepoPath(filePath: string): string {
-  return normalizePosixPath(path.relative(ROOT, filePath));
-}
-
-function isTestFile(file: string): boolean {
-  const config = getAuditConfig();
+function isTestFile(file: string, projectRoot?: string): boolean {
+  const config = getAuditConfig(projectRoot);
   if (config.paths.includeTestsInCodeAudit) return false;
   return isTestPath(file);
 }
 
-function isContractFile(file: string): boolean {
-  const config = getAuditConfig();
+function isContractFile(file: string, projectRoot?: string): boolean {
+  const config = getAuditConfig(projectRoot);
   const contractRoots = [...(config.paths.typesRoots ?? []), ...(config.paths.dataRoots ?? [])];
   const norm = normalizePosixPath(file);
   return matchesAnyRoot(norm, contractRoots) || file.endsWith('.d.ts');
@@ -623,9 +617,10 @@ function auditChainedLiteralComparisonsAst(
 export function auditFileContent(
   filePath: string,
   content: string,
-  ruleFilter?: DomainTypesRuleId
+  ruleFilter?: DomainTypesRuleId,
+  projectRoot = process.cwd()
 ): Finding[] {
-  const rel = toRepoPath(filePath);
+  const rel = toPosixRelative(projectRoot, filePath);
   if (rel.endsWith('validate_domain_types.ts')) return [];
   const findings: Finding[] = [];
 
@@ -1020,6 +1015,17 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
           ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
           : (config.paths.codeRoots ?? [])
     );
+
+    const config = getAuditConfig(effectiveRoot);
+    const domainIgnores = Array.from(
+      getEffectiveIgnoreGlobs(effectiveRoot, {
+        extraGlobs: [
+          ...(config.domain?.ignoreGlobs ?? []),
+          ...(config.domain?.exemptPaths ?? [])
+        ]
+      })
+    );
+
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -1113,12 +1119,12 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
           '                  if (GAME_MODE_SET.has(mode)) { ... }'
       },
       coverage: {
-        include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,
-        exclude: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**']
+        include: deriveCoverageFromRoots(targetRoots, EXTENSIONS, effectiveRoot).include,
+        exclude: domainIgnores
       },
       roots: targetRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: ['scripts/auditors/**', 'scripts/lib/**', 'coverage/**', 'packages/**'],
+      extraIgnorePatterns: domainIgnores,
       projectRoot: effectiveRoot
     });
   }
@@ -1135,7 +1141,10 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
 
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('Domain disabled in config')) {
-      this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
+      this.redeclareCoverage({
+        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
+        source: 'declared-only'
+      });
       return;
     }
 
@@ -1148,9 +1157,10 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     }
 
     for (const filePath of filePaths) {
-      this.recordScanned(toRepoPath(filePath));
+      const relPath = toPosixRelative(this.projectRoot, filePath);
+      this.recordScanned(relPath);
       const content = await fs.readFile(filePath, 'utf8');
-      const fileFindings = auditFileContent(filePath, content);
+      const fileFindings = auditFileContent(filePath, content, undefined, this.projectRoot);
       for (const finding of fileFindings) {
         findingsByRule.get(finding.ruleId)?.push(finding);
       }

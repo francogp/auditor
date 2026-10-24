@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/braceCountingDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/braceCountingDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * instead of using canonical block helpers in src/core/scannerUtils.ts.
  */
 export declare const braceCountingDetector: HomebrewDetector;
-//#endregion

@@ -4,7 +4,7 @@ import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { executeFallowJsonCommand, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { styleText } from "node:util";
-//#region src/cli/report_flags.ts
+// src/cli/report_flags.ts
 /**
 * src/cli/report_flags.ts
 *
@@ -169,5 +169,4 @@ if (isMainModule(import.meta.url)) {
 	});
 	process.exit(exitCode);
 }
-//#endregion
 export { runFlagsReport };

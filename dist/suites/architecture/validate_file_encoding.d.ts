@@ -1,6 +1,5 @@
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
 import { AuditorOptions, FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_file_encoding.d.ts
 export declare const FILE_ENCODING_RULES: readonly ["file-encoding-invalid-charset", "file-encoding-unwanted-bom", "file-encoding-mojibake-detected"];
 export type FileEncodingRuleId = (typeof FILE_ENCODING_RULES)[number];
 export declare const FILE_ENCODING_RULE_DESCRIPTIONS: Record<FileEncodingRuleId, string>;
@@ -32,4 +31,3 @@ export declare class ValidateFileEncodingAuditor extends FileScanAuditor<FileEnc
   runAudit(): Promise<void>;
   private applyRepair;
 }
-//#endregion

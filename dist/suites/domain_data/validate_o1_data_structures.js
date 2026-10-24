@@ -1,13 +1,13 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import "../../core/auditConfig.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
-//#region src/suites/domain_data/validate_o1_data_structures.ts
+// src/suites/domain_data/validate_o1_data_structures.ts
 /**
 * scripts/auditors/domain_data/validate_o1_data_structures.ts
 *
@@ -24,8 +24,8 @@ import ts from "typescript";
 */
 enableCompileCache();
 const DEFAULT_O1_CATALOG_PATTERNS = [];
-function getResolvedO1CatalogPatterns() {
-	const configured = getAuditConfig().domain?.o1CatalogPatterns;
+function getResolvedO1CatalogPatterns(projectRoot) {
+	const configured = getAuditConfig(projectRoot).domain?.o1CatalogPatterns;
 	if (configured && configured.length > 0) return configured.map((c) => ({
 		name: c.name,
 		pattern: typeof c.pattern === "string" ? new RegExp(c.pattern, "g") : c.pattern,
@@ -288,7 +288,7 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 		const config = getAuditConfig(this.projectRoot);
 		if (isTestPath(relPath) && !config.paths.includeTestsInCodeAudit) return;
 		if (relPath.endsWith("validate_o1_data_structures.ts")) return;
-		const issues = scanFileForO1Issues(relPath, content, getResolvedO1CatalogPatterns());
+		const issues = scanFileForO1Issues(relPath, content, getResolvedO1CatalogPatterns(this.projectRoot));
 		for (const ruleId of O1_RULES) {
 			const ruleIssues = issues.filter((i) => i.ruleId === ruleId);
 			this.runSubAuditorSync(ruleId, () => {
@@ -305,5 +305,4 @@ var O1DataStructuresAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new O1DataStructuresAuditor());
-//#endregion
 export { DEFAULT_O1_CATALOG_PATTERNS, O1DataStructuresAuditor, O1DataStructuresAuditor as ValidateO1DataStructuresAuditor, O1_RULES, P_JSON_CLONE, P_OBJECT_SCAN_LOOKUP, P_REDUNDANT_SPREAD_RETURN, P_STATIC_ARRAY_INCLUDES, getResolvedO1CatalogPatterns, scanFileForO1Issues };

@@ -1,6 +1,5 @@
 import { AuditFamily, AuditorConfigFileRequirement, AuditorPackageScriptRequirement, GitIgnoreRequirement } from "../core/auditContract.js";
 import { BaseAuditor } from "../core/auditorBase.js";
-//#region src/plugin/defineAuditorExtension.d.ts
 export interface AuditorExtensionDefinition {
   readonly id: string;
   readonly name: string;
@@ -18,4 +17,3 @@ export interface AuditorExtensionDefinition {
   readonly configFiles?: readonly AuditorConfigFileRequirement[];
 }
 export declare function defineAuditorExtension(definition: AuditorExtensionDefinition): AuditorExtensionDefinition;
-//#endregion

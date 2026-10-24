@@ -1,6 +1,5 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_package_hygiene.d.ts
 export declare const PACKAGE_HYGIENE_RULES: readonly ["package-unused-dependency", "package-unlisted-dependency", "package-unused-binary", "package-lockfile-integrity"];
 export type PackageHygieneRuleId = (typeof PACKAGE_HYGIENE_RULES)[number];
 export interface KnipIssueItem {
@@ -48,4 +47,3 @@ export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHy
  * Parsed with the TypeScript JSONC reader (no regex) so comments and trailing commas are tolerated.
  */
 export declare function tsconfigHasReferences(projectRoot: string): boolean;
-//#endregion

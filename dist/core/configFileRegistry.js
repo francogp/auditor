@@ -1,4 +1,4 @@
-//#region src/core/configFileRegistry.ts
+// src/core/configFileRegistry.ts
 var ConfigFileRegistry = class {
 	static requirements = /* @__PURE__ */ new Map();
 	/**
@@ -33,5 +33,4 @@ var ConfigFileRegistry = class {
 		this.requirements.clear();
 	}
 };
-//#endregion
 export { ConfigFileRegistry };

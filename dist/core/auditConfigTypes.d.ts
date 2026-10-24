@@ -1,4 +1,3 @@
-//#region src/core/auditConfigTypes.d.ts
 /**
  * packages/auditor/src/core/auditConfigTypes.ts
  *
@@ -208,6 +207,9 @@ export interface AuditConstantsConfig extends BaseAuditSubsystemConfig {
 }
 export interface AuditSecurityConfig extends BaseAuditSubsystemConfig {}
 export type DocumentationLanguage = 'en' | 'es';
+export interface AuditDoxConfig extends BaseAuditSubsystemConfig {
+  readonly ignoreGlobs?: readonly string[];
+}
 export interface AuditDocumentationConfig extends BaseAuditSubsystemConfig {
   readonly language: DocumentationLanguage;
   readonly chatLanguage: DocumentationLanguage;
@@ -430,7 +432,9 @@ export interface AuditScssArchitectureConfig extends BaseAuditSubsystemConfig {
   readonly allowedSpacingUnits?: readonly string[];
   readonly allowScopedColors?: boolean;
 }
-export type OxlintCategorySeverity = 'error' | 'warn' | 'off';
+export declare const CANONICAL_RULE_SEVERITY_LEVELS: readonly ["error", "warn", "off"];
+export type CanonicalRuleSeverityLevel = (typeof CANONICAL_RULE_SEVERITY_LEVELS)[number];
+export type OxlintCategorySeverity = CanonicalRuleSeverityLevel;
 export interface OxlintCategoriesConfig {
   readonly correctness?: OxlintCategorySeverity;
   readonly suspicious?: OxlintCategorySeverity;
@@ -532,6 +536,7 @@ export interface AuditEngineConfig {
   readonly constants?: AuditConstantsConfig;
   readonly security?: AuditSecurityConfig;
   readonly documentation?: AuditDocumentationConfig;
+  readonly dox?: AuditDoxConfig;
   readonly pinia?: AuditPiniaConfig;
   readonly fallow?: AuditFallowConfig;
   readonly e2e?: AuditE2eConfig;
@@ -561,4 +566,3 @@ export interface AuditEngineConfig {
   readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
 }
 export type AuditConfig = AuditEngineConfig;
-//#endregion

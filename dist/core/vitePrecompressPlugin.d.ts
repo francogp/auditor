@@ -1,6 +1,5 @@
 import { AuditVitePlusPrecompressConfig } from "./auditConfigTypes.js";
 import { Plugin } from "vite-plus";
-//#region src/core/vitePrecompressPlugin.d.ts
 export declare const COMPRESSIBLE_EXTENSIONS: readonly [".js", ".mjs", ".cjs", ".css", ".html", ".wasm", ".svg", ".json", ".ico", ".txt", ".webmanifest"];
 export type CompressibleExtension = (typeof COMPRESSIBLE_EXTENSIONS)[number];
 export declare function isCompressibleExtension(ext: string): ext is CompressibleExtension;
@@ -22,4 +21,3 @@ export declare function buildCaddyConfigSnippet(): string;
  * Canonical Vite Plugin for zero-dependency Brotli & Gzip static precompression.
  */
 export declare function vitePrecompressPlugin(userOptions?: VitePrecompressOptions): Plugin;
-//#endregion

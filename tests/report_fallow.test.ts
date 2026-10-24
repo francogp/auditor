@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 
-import { runFallowReportCli } from '../src/cli/report_fallow.ts';
+import { runFallowReportCli, setFallowCommandRunner } from '../src/cli/report_fallow.ts';
 
 describe('report_fallow CLI Tool', () => {
   let originalArgv: string[];
@@ -15,9 +15,88 @@ describe('report_fallow CLI Tool', () => {
   beforeEach(() => {
     originalArgv = [...process.argv];
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    setFallowCommandRunner(<T>(command: string, extraArgs: string[] = []): T | null => {
+      let result: Record<string, unknown> = {};
+      if (command === 'dupes') {
+        result = {
+          clone_groups: [
+            {
+              token_count: 50,
+              duplicated_tokens: 50,
+              instances: [
+                { path: 'src/core/a.ts', line: 10, start_line: 10 },
+                { path: 'src/core/b.ts', line: 20, start_line: 20 }
+              ]
+            }
+          ]
+        };
+      } else if (command === 'dead-code') {
+        result = {
+          unused_files: [{ path: 'src/unused.ts' }],
+          unused_exports: [{ path: 'src/foo.ts', line: 10, export_name: 'testExport' }],
+          unused_dependencies: [{ package_name: 'unused-dep' }],
+          circular_dependencies: [{ files: ['src/a.ts', 'src/b.ts'] }],
+          boundary_violations: [
+            {
+              from_path: 'src/domain/a.ts',
+              to_path: 'src/infra/b.ts',
+              from_zone: 'domain',
+              to_zone: 'infra',
+              line: 5
+            }
+          ]
+        };
+      } else if (command === 'health') {
+        if (extraArgs.includes('--coverage-gaps')) {
+          result = {
+            coverage_gaps: [
+              {
+                path: 'src/untested.ts',
+                line: 10,
+                export_name: 'untestedFn',
+                actions: [{ note: 'Missing test' }]
+              }
+            ]
+          };
+        } else {
+          result = {
+            summary: { average_maintainability: 85, maintainability_index: 85 },
+            findings: [{ rule: 'complexity', path: 'src/a.ts', line: 10 }],
+            large_functions: [{ path: 'src/a.ts', line: 10, loc: 70 }],
+            targets: [{ path: 'src/a.ts' }],
+            hotspots: [{ path: 'src/a.ts' }]
+          };
+        }
+      } else if (command === 'security') {
+        result = {
+          security_findings: [
+            {
+              path: 'src/core/eval.ts',
+              line: 12,
+              cwe: 95,
+              kind: 'EvalUsage',
+              evidence: 'eval(userInput)'
+            }
+          ]
+        };
+      } else if (command === 'suppressions') {
+        result = {
+          total: 1,
+          suppressions: [
+            {
+              line: 10,
+              kind: 'unused-export'
+            }
+          ]
+        };
+      }
+      return result as T;
+    });
   });
 
   afterEach(() => {
+    setFallowCommandRunner(null);
     process.argv = originalArgv;
     vi.restoreAllMocks();
   });

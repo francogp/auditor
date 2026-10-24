@@ -2,7 +2,7 @@ import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilit
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_docker_config.ts
+// src/suites/architecture/validate_docker_config.ts
 /**
 * src/suites/architecture/validate_docker_config.ts
 *
@@ -170,5 +170,4 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDockerConfigAuditor());
-//#endregion
 export { CANONICAL_DOCKERIGNORE_CONTENT, CANONICAL_DOCKERIGNORE_LINES, DOCKER_CONFIG_REQUIREMENT, DOCKER_CONFIG_RULES, DOCKER_FILE_CANDIDATES, MANDATORY_DOCKER_IGNORE_PATTERNS, ValidateDockerConfigAuditor, isDockerProjectContext };

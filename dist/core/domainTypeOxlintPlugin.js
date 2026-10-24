@@ -1,4 +1,4 @@
-//#region src/core/domainTypeOxlintPlugin.ts
+// src/core/domainTypeOxlintPlugin.ts
 const COMMON_NON_DOMAIN_SET_NAMES = /* @__PURE__ */ new Set([
 	"FLAGS",
 	"DIRS",
@@ -322,5 +322,4 @@ const domainTypeOxlintPlugin = {
 		}
 	}
 };
-//#endregion
 export { COMMON_NON_DOMAIN_SET_NAMES, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };

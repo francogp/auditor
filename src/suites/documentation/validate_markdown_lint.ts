@@ -20,8 +20,8 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  loadLockedSkills,
   getEffectiveUnignoreDirs,
+  getEffectiveIgnoreGlobs,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
@@ -50,30 +50,19 @@ export const DEFAULT_MARKDOWN_IGNORE_GLOBS = [
 
 export function getMarkdownIgnoreGlobs(projectRoot?: string): readonly string[] {
   const config = getAuditConfig(projectRoot);
-  const globs: string[] = [...DEFAULT_MARKDOWN_IGNORE_GLOBS];
-  if (config.paths?.ignoreGlobs) {
-    globs.push(...config.paths.ignoreGlobs);
-  }
+  const extraGlobs: string[] = [];
   if (config.paths?.e2eRoots) {
     for (const r of config.paths.e2eRoots) {
-      globs.push(`${r}/results/**`);
-    }
-  }
-  if (config.paths?.ignoredDirs) {
-    for (const d of config.paths.ignoredDirs) {
-      globs.push(`${d}/**`);
+      extraGlobs.push(`${r}/results/**`);
     }
   }
   if (config.persistence?.supabaseDir) {
-    globs.push(`${config.persistence.supabaseDir}/**`);
+    extraGlobs.push(`${config.persistence.supabaseDir}/**`);
   }
-  const lockedSkills = loadLockedSkills(projectRoot);
-  for (const s of lockedSkills) {
-    globs.push(`.agents/skills/${s}/**`);
-    globs.push(`skills/${s}/**`);
-    globs.push(`.skills/${s}/**`);
-  }
-  return Array.from(new Set(globs));
+  return getEffectiveIgnoreGlobs(projectRoot, {
+    includeLockedSkills: true,
+    extraGlobs
+  });
 }
 
 export interface RawMarkdownLintIssue {

@@ -1,6 +1,6 @@
 import path from "node:path";
 import "ts-morph";
-//#region src/core/refactor/classHierarchyHoister.ts
+// src/core/refactor/classHierarchyHoister.ts
 /**
 * src/core/refactor/classHierarchyHoister.ts
 *
@@ -50,5 +50,4 @@ var ClassHierarchyHoister = class {
 		return true;
 	}
 };
-//#endregion
 export { ClassHierarchyHoister };

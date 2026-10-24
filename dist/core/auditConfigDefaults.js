@@ -1,6 +1,6 @@
 import "./auditConfigTypes.js";
 import { AUDITOR_VERSION } from "./version.js";
-//#region src/core/auditConfigDefaults.ts
+// src/core/auditConfigDefaults.ts
 /**
 * packages/auditor/src/core/auditConfigDefaults.ts
 *
@@ -179,11 +179,15 @@ const DEFAULT_AUDIT_CONFIG = {
 	documentation: {
 		enabled: true,
 		knownValidAbstractPaths: [],
-		skillsRoots: [],
+		skillsRoots: [".agents/skills"],
 		allowedNpxBinaries: [],
 		language: "en",
 		chatLanguage: "es",
 		languageExemptions: []
+	},
+	dox: {
+		enabled: true,
+		ignoreGlobs: [".agents/**"]
 	},
 	fallow: {
 		enabled: true,
@@ -425,5 +429,4 @@ function collectDeclaredSubsystems(config) {
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-//#endregion
 export { DEFAULT_AUDIT_CONFIG, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, collectDeclaredSubsystems };

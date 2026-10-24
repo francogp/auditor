@@ -3,7 +3,7 @@ import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/
 import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/cli/make_executable.ts
+// src/cli/make_executable.ts
 /**
 * src/cli/make_executable.ts
 *
@@ -59,5 +59,4 @@ if (isMainModule(import.meta.url)) {
 	purgeOrphanedDistFiles();
 	makeCliBinariesExecutable();
 }
-//#endregion
 export { makeCliBinariesExecutable, purgeOrphanedDistFiles };

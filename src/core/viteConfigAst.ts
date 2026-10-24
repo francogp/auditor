@@ -7,6 +7,7 @@
  */
 import ts from 'typescript';
 import type { AuditConfig } from './auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import { isPathContained, normalizePosixPath } from './safePath.ts';
 
 function normalizePosixRoot(rawRoot: string): string {
@@ -678,23 +679,23 @@ export function buildFmtAstObject(
 }
 
 export function resolveVitestRoots(auditConfig: AuditConfig): readonly string[] {
-  const rawTestRoots = auditConfig.paths?.testRoots ?? ['tests'];
-  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
+  const e2eRootsList = auditConfig.paths?.e2eRoots ?? (DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ['e2e']);
   const normalizedE2eRoots = e2eRootsList.map(normalizePosixRoot);
   const vitestRoots = rawTestRoots.filter((r) => {
     const normR = normalizePosixRoot(r);
     return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== 'e2e';
   });
-  return vitestRoots.length > 0 ? vitestRoots : ['tests'];
+  return vitestRoots.length > 0 ? vitestRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots;
 }
 
 export function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression {
   const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-  const rawTestRoots = auditConfig.paths?.testRoots ?? ['tests'];
-  const e2eRootsList = auditConfig.paths?.e2eRoots ?? ['e2e'];
+  const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
+  const e2eRootsList = auditConfig.paths?.e2eRoots ?? (DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ['e2e']);
   const testRoots = resolveVitestRoots(auditConfig);
-  const srcRoots = auditConfig.paths?.srcRoots ?? ['src'];
-  const cliRoots = auditConfig.paths?.cliRoots ?? ['src/cli'];
+  const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+  const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
 
   const testData = {
     environment: 'node',

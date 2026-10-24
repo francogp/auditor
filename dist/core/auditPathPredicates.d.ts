@@ -4,7 +4,6 @@ import { matchesAnyRoot } from "./auditRootMatcher.js";
 import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
-//#region src/core/auditPathPredicates.d.ts
 /**
  * packages/auditor/src/core/auditPathPredicates.ts
  *
@@ -24,5 +23,4 @@ export declare function isDemoPath(filePath: string, config?: AuditEngineConfig)
  * Checks whether a file path belongs to an explicitly exempt file in paths.exemptFiles.
  */
 export declare function isExemptFile(filePath: string, config?: AuditEngineConfig): boolean;
-//#endregion
 export { Z_LAYERS, getEffectiveZLayers, isCliPath, isInCodeRoots, isScriptPath, isSelfProviderProject, isSrcPath, isTestFileForCodeAudit, isTestPath, matchesAnyRoot, resolveZLayersScssPath };

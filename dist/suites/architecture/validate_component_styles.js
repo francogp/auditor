@@ -1,9 +1,9 @@
 import { tryCatchSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -11,7 +11,7 @@ import { getEffectiveGlobalUtilityClasses } from "./validate_dead_css.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_component_styles.ts
+// src/suites/architecture/validate_component_styles.ts
 /**
 * scripts/auditors/architecture/validate_component_styles.ts
 *
@@ -493,5 +493,4 @@ function auditComponentStyles(rootDir) {
 	};
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ComponentStylesAuditor());
-//#endregion
 export { COMPONENT_STYLE_RULES, COMPONENT_STYLE_VIOLATION_TYPES, ComponentStylesAuditor, auditComponentStyles };

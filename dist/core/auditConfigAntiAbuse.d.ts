@@ -1,5 +1,4 @@
 import { AuditEngineConfig } from "./auditConfigTypes.js";
-//#region src/core/auditConfigAntiAbuse.d.ts
 export declare const FORBIDDEN_PRODUCTION_ROOTS: readonly string[];
 export declare const MAX_CONSTANTS_EXEMPT_GLOBS = 15;
 export declare const MIN_COVERAGE_REASON_LENGTH = 15;
@@ -12,4 +11,3 @@ export declare function filterOutExemptRoots(roots: readonly string[], exemptRoo
 export declare function assertNarrowCoverageGlob(field: string, rawGlob: string, protectedRoots: readonly string[]): void;
 export declare function assertCoverageReason(field: string, glob: string, reason: string | undefined): void;
 export declare function validateConstantsExemptGlobs(globs: readonly string[]): void;
-//#endregion

@@ -690,6 +690,16 @@ export function computeTieredAuditCategoryCounts(
   return groups;
 }
 
+export function formatSetupBlockingRemediationHint(
+  setupErrors: number,
+  hasFixableErrors = false
+): string {
+  const fixHint = hasFixableErrors
+    ? " (e.g. 'npm run auditor:fix')"
+    : " manually (see error details above; no automatic fix available)";
+  return `   Resolve the ${setupErrors} configuration error(s) first${fixHint} to unblock full project analysis.\n`;
+}
+
 interface FindingsSummaryBlockingContext {
   isSetupBlocking: boolean;
   setupErrors: number;
@@ -757,13 +767,18 @@ function printFindingsSummary(
     console.log(
       styleText(
         ['yellow', 'bold'],
-        `\n⚠️  ATTENTION: Reporting of ${formatNumber(blockingContext.postponedAppErrors)} application error(s) was postponed to prevent induced false positives.`
+        blockingContext.postponedAppErrors > 0
+          ? `\n⚠️  ATTENTION: Reporting of ${formatNumber(blockingContext.postponedAppErrors)} application error(s) was postponed to prevent induced false positives.`
+          : '\n⚠️  ATTENTION: Downstream application code checks are halted until setup errors are resolved.'
       )
     );
     console.log(
       styleText(
         'dim',
-        `   Resolve the ${blockingContext.setupErrors} configuration error(s) first (e.g. 'npm run auditor:fix') to unblock full project analysis.\n`
+        formatSetupBlockingRemediationHint(
+          blockingContext.setupErrors,
+          Boolean(blockingContext.hasFixableErrors)
+        )
       )
     );
   } else {

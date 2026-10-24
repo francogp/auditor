@@ -1,5 +1,5 @@
 import ts from "typescript";
-//#region src/analyzers/cliContracts/cliContractHeuristics.ts
+// src/analyzers/cliContracts/cliContractHeuristics.ts
 /**
 * src/analyzers/cliContracts/cliContractHeuristics.ts
 *
@@ -98,5 +98,4 @@ function getStaticStringValue(node) {
 	if (!node) return void 0;
 	if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) return node.text;
 }
-//#endregion
 export { BANNED_CLI_PACKAGES, CANONICAL_CITTY_BUILDERS, CLI_ARG_COLLECTION_NAMES, CLI_ARG_ITEM_NAMES, GLOBAL_HOST_OBJECTS, PROCESS_MODULE_SPECIFIERS, UTIL_MODULE_SPECIFIERS, getStaticStringValue, isProcessObjectExpression, unwrapCliExpression };

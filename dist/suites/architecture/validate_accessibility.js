@@ -1,13 +1,14 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_accessibility.ts
+// src/suites/architecture/validate_accessibility.ts
 enableCompileCache();
 const INDEX_HTML_FILE = "index.html";
 const VUE_EXTENSIONS = /* @__PURE__ */ new Set([".vue"]);
@@ -117,6 +118,12 @@ function mapA11yRuleId(eslintRuleId) {
 var ValidateAccessibilityAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
+		const config = getAuditConfig(effectiveRoot);
+		const scannableRoots = [
+			...config.paths.componentsRoots ?? [],
+			...config.paths.viewsRoots ?? [],
+			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
+		];
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -158,7 +165,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				"a11y-viewport-zoom-lock": "📖 REMEDIATION GUIDE: a11y-viewport-zoom-lock\n1. Root Cause: The `<meta name=\"viewport\">` tag in `index.html` disables user zooming (`user-scalable=no` or `maximum-scale=1.0`), preventing low-vision users from magnifying content (WCAG 1.4.4 Resize Text).\n2. Diagnosis: Inspect `index.html` at the viewport meta tag.\n3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Allow standard responsive zoom.\n4. Example / Auto-fix command:\n   ❌ Locked:     `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">`\n   ✅ Accessible: `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">`"
 			},
 			projectRoot: effectiveRoot,
-			coverage: { include: [INDEX_HTML_FILE, "src/**/*.vue"] }
+			coverage: { include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, /* @__PURE__ */ new Set([".vue"]), effectiveRoot).include] }
 		});
 	}
 	async runAudit() {
@@ -357,5 +364,4 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAccessibilityAuditor());
-//#endregion
 export { ACCESSIBILITY_RULES, ValidateAccessibilityAuditor, mapA11yRuleId };

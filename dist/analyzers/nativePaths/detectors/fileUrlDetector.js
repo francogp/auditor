@@ -1,7 +1,7 @@
 import { flattenPlusChain, getStringValue, isOutermostPlus, isUrlConstruction, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { asMethodCall, isImportMetaUrl } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/fileUrlDetector.ts
+// src/analyzers/nativePaths/detectors/fileUrlDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/fileUrlDetector.ts
 *
@@ -37,5 +37,4 @@ const fileUrlDetector = (node) => {
 		message: FILE_URL_MESSAGE
 	} : null;
 };
-//#endregion
 export { fileUrlDetector };

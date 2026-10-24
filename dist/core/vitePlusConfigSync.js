@@ -1,8 +1,7 @@
 import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
+import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
-import { toPosixRelative } from "./auditCoverage.js";
-import "./safePath.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
 import { CANONICAL_LINT_RULES_MAP, buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
@@ -10,7 +9,8 @@ import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
 import { Project, QuoteKind, SyntaxKind } from "ts-morph";
-//#region src/core/vitePlusConfigSync.ts
+import semver from "semver";
+// src/core/vitePlusConfigSync.ts
 /**
 * packages/auditor/src/core/vitePlusConfigSync.ts
 *
@@ -449,6 +449,121 @@ function updateVitePlusScripts(scripts) {
 	}
 	return modified;
 }
+const OBSOLETE_OVERRIDES = ["braces", "micromatch"];
+function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
+	let modified = false;
+	const vitePlusFloor = minVersions["vite-plus"] ?? "^1.4.0";
+	const vitePlusCaret = normalizeToCaretRange(vitePlusFloor);
+	if (!nextDeps?.["vite-plus"] && !nextDevDeps["vite-plus"]) {
+		nextDevDeps["vite-plus"] = vitePlusCaret;
+		modified = true;
+	} else if (nextDevDeps["vite-plus"]) {
+		const declaredMin = semver.minVersion(nextDevDeps["vite-plus"]);
+		const reqMin = semver.minVersion(vitePlusCaret);
+		if (declaredMin && reqMin && semver.lt(declaredMin, reqMin)) {
+			nextDevDeps["vite-plus"] = vitePlusCaret;
+			modified = true;
+		} else if (semver.valid(nextDevDeps["vite-plus"])) {
+			nextDevDeps["vite-plus"] = `^${nextDevDeps["vite-plus"]}`;
+			modified = true;
+		}
+	}
+	return modified;
+}
+function syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps) {
+	if (nextOverrides.vite) {
+		if (nextOverrides.vite !== "$vite") {
+			if (nextOverrides.vite.includes("@voidzero-dev/vite-plus-core") || semver.valid(nextOverrides.vite)) {
+				nextOverrides.vite = "$vite";
+				return true;
+			}
+		}
+	} else if (canonicalOverrides.vite === "$vite" || nextDevDeps.vite || nextDeps?.vite) {
+		nextOverrides.vite = "$vite";
+		return true;
+	}
+	return false;
+}
+function syncVitestOverride(nextOverrides, canonicalOverrides) {
+	if (nextOverrides.vitest) {
+		if (nextOverrides.vitest !== "$vitest") {
+			if (semver.valid(nextOverrides.vitest) || nextOverrides.vitest.includes("vitest")) {
+				nextOverrides.vitest = "$vitest";
+				return true;
+			}
+		}
+	} else if (canonicalOverrides.vitest === "$vitest") {
+		nextOverrides.vitest = "$vitest";
+		return true;
+	}
+	return false;
+}
+function syncSecurityOverrides(nextOverrides, canonicalOverrides) {
+	let modified = false;
+	for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) {
+		if (ovKey === "vite" || ovKey === "vitest") continue;
+		const currentVal = nextOverrides[ovKey];
+		if (currentVal) {
+			const declaredMin = semver.minVersion(currentVal);
+			const reqMin = semver.minVersion(ovVal);
+			if (declaredMin && reqMin && semver.lt(declaredMin, reqMin)) {
+				nextOverrides[ovKey] = ovVal;
+				modified = true;
+			} else if (semver.valid(currentVal)) {
+				nextOverrides[ovKey] = `^${currentVal}`;
+				modified = true;
+			}
+		} else {
+			nextOverrides[ovKey] = ovVal;
+			modified = true;
+		}
+	}
+	return modified;
+}
+function syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps) {
+	let modified = false;
+	if (syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
+	if (syncVitestOverride(nextOverrides, canonicalOverrides)) modified = true;
+	for (const obsKey of OBSOLETE_OVERRIDES) if (nextOverrides[obsKey]) {
+		delete nextOverrides[obsKey];
+		modified = true;
+	}
+	if (syncSecurityOverrides(nextOverrides, canonicalOverrides)) modified = true;
+	return modified;
+}
+function syncVitestDevDeps(nextDevDeps, nextScripts, minVersions) {
+	let modified = false;
+	const vitestFloor = minVersions["@vitest/coverage-v8"] ?? minVersions.vitest ?? "^5.0.5";
+	const vitestCaret = normalizeToCaretRange(vitestFloor);
+	const reqVitestMin = semver.minVersion(vitestCaret);
+	if (nextScripts["test:coverage"] && !nextDevDeps["@vitest/coverage-v8"]) {
+		nextDevDeps["@vitest/coverage-v8"] = vitestCaret;
+		modified = true;
+	}
+	if ("vitest" in nextDevDeps || "@vitest/coverage-v8" in nextDevDeps || "@vue/test-utils" in nextDevDeps) {
+		if (nextDevDeps.vitest) {
+			const declMin = semver.minVersion(nextDevDeps.vitest);
+			if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+				nextDevDeps.vitest = vitestCaret;
+				modified = true;
+			} else if (semver.valid(nextDevDeps.vitest)) {
+				nextDevDeps.vitest = `^${nextDevDeps.vitest}`;
+				modified = true;
+			}
+		}
+		if (nextDevDeps["@vitest/coverage-v8"]) {
+			const declMin = semver.minVersion(nextDevDeps["@vitest/coverage-v8"]);
+			if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+				nextDevDeps["@vitest/coverage-v8"] = vitestCaret;
+				modified = true;
+			} else if (semver.valid(nextDevDeps["@vitest/coverage-v8"])) {
+				nextDevDeps["@vitest/coverage-v8"] = `^${nextDevDeps["@vitest/coverage-v8"]}`;
+				modified = true;
+			}
+		}
+	}
+	return modified;
+}
 function syncPackageJsonForVitePlus(projectRoot) {
 	const pkg = getPackageJson(projectRoot, true);
 	if (!pkg) return false;
@@ -459,32 +574,11 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	const nextOverrides = { ...pkg.overrides ?? {} };
 	const minVersions = getAuditorMinimumVersions();
 	const canonicalOverrides = getAuditorCanonicalOverrides();
-	if (!nextDeps?.["vite-plus"] && !nextDevDeps["vite-plus"]) {
-		const vitePlusFloor = minVersions["vite-plus"] ?? "^1.3.0";
-		nextDevDeps["vite-plus"] = normalizeToCaretRange(vitePlusFloor);
-		modified = true;
-	}
+	if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) modified = true;
 	if (removeLegacyDependencies(nextDeps, nextDevDeps)) modified = true;
-	for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) if (nextOverrides[ovKey] !== ovVal) {
-		nextOverrides[ovKey] = ovVal;
-		modified = true;
-	}
+	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
 	if (updateVitePlusScripts(nextScripts)) modified = true;
-	const pinnedVitestVersion = canonicalOverrides.vitest;
-	if (pinnedVitestVersion) {
-		if (nextScripts["test:coverage"] && !nextDevDeps["@vitest/coverage-v8"]) {
-			nextDevDeps["@vitest/coverage-v8"] = pinnedVitestVersion;
-			modified = true;
-		}
-		if (("vitest" in nextDevDeps || "@vitest/coverage-v8" in nextDevDeps || "@vue/test-utils" in nextDevDeps) && nextDevDeps.vitest !== pinnedVitestVersion) {
-			nextDevDeps.vitest = pinnedVitestVersion;
-			modified = true;
-		}
-		if ("@vitest/coverage-v8" in nextDevDeps && nextDevDeps["@vitest/coverage-v8"] !== pinnedVitestVersion) {
-			nextDevDeps["@vitest/coverage-v8"] = pinnedVitestVersion;
-			modified = true;
-		}
-	}
+	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions)) modified = true;
 	if (modified) writePackageJson(projectRoot, {
 		...pkg,
 		...nextDeps ? { dependencies: nextDeps } : {},
@@ -565,5 +659,4 @@ function repairVitePlusProject(projectRoot) {
 		vscodeSync
 	};
 }
-//#endregion
 export { BANNED_COMPRESSION_MODULES, LEGACY_CONFIG_FILES, STRICT_RULE_CHECKS, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, extractAstPropertyBlock as extractObjectPropertyBlock, findHomebrewCompressionFiles, findLegacyEslintIgnores, getVitePlusDefaultExcludeGlobs, migrateHomebrewCompressionInViteConfig, migrateNodeVersion, migrateViteCommandsToVp, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, rewriteImportsToVitePlus, syncPackageJsonForVitePlus, syncVSCodeSettings, syncViteConfigWithAuditConfig };

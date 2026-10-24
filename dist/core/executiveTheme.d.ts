@@ -1,6 +1,5 @@
 import { RemediationPhaseId } from "./remediationPhases.js";
 import { StandardAuditResult } from "./auditContract.js";
-//#region src/core/executiveTheme.d.ts
 export interface ExecutivePassSummaryParams {
   totalSuites: number;
   passedSuites: number;
@@ -49,4 +48,3 @@ export declare function renderExecutiveFailSummary(params: ExecutiveFailSummaryP
 export declare function renderExecutiveSetupBlockingSummary(params: ExecutiveSetupBlockingSummaryParams): string;
 export declare function renderExecutiveFixSummary(params: ExecutiveFixSummaryParams): string;
 export declare function extractPhaseBreakdown(results: readonly StandardAuditResult[]): ExecutiveFailPhaseBreakdown[];
-//#endregion

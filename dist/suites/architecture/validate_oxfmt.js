@@ -5,7 +5,7 @@ import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_oxfmt.ts
+// src/suites/architecture/validate_oxfmt.ts
 /**
 * src/suites/architecture/validate_oxfmt.ts
 *
@@ -136,5 +136,4 @@ var OxfmtAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxfmtAuditor());
-//#endregion
 export { OXFMT_RULES, OxfmtAuditor };

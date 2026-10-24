@@ -1,7 +1,7 @@
 import { flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, isPathFragment, isUrlConstruction, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { REGEX_CONSUMER_METHODS, asMethodCall, getNodePathFunction, isPathish, isUrlish } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/urlParsingDetector.ts
+// src/analyzers/nativePaths/detectors/urlParsingDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/urlParsingDetector.ts
 *
@@ -85,5 +85,4 @@ const urlParsingDetector = (node, ctx) => {
 		message: URL_PARSING_MESSAGE
 	} : null;
 };
-//#endregion
 export { urlParsingDetector };

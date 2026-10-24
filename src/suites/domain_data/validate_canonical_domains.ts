@@ -15,7 +15,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { safeReadFileAsync, safeJsonParse, tryOrNullAsync } from '../../core/safeUtils.ts';
 import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -594,6 +594,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
     const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = options.roots ?? config.paths.srcRoots ?? [];
+    const effectiveIgnores = Array.from(getEffectiveIgnoreGlobs(projectRoot));
 
     super({
       usesThirdPartyTool: false,
@@ -672,18 +673,21 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
       },
       coverage: {
         include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
-        exclude: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**']
+        exclude: effectiveIgnores
       },
       roots: effectiveRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**'],
+      extraIgnorePatterns: effectiveIgnores,
       projectRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('Dominio desactivado en config')) {
-      this.redeclareCoverage({ include: ['src/**/*.ts'], source: 'declared-only' });
+      this.redeclareCoverage({
+        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
+        source: 'declared-only'
+      });
       return;
     }
 

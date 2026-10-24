@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";
-//#region src/core/refactor/worktreeSandbox.ts
+// src/core/refactor/worktreeSandbox.ts
 /**
 * src/core/refactor/worktreeSandbox.ts
 *
@@ -102,12 +102,13 @@ var WorktreeSandboxManager = class {
 * Executes a mutation function safely inside an ephemeral Git worktree,
 * runs typechecking/compilation verification, and applies to host only on success.
 */
-async function executeInWorktreeWithVerification(projectRoot, applyFn) {
+async function executeInWorktreeWithVerification(projectRoot, applyFn, options = {}) {
+	const verifyCommand = options.verifyCommand || "npm run typecheck";
 	const session = WorktreeSandboxManager.createSession(projectRoot);
 	try {
 		await applyFn(session.worktreeDir);
 		try {
-			execSync("npm run typecheck", {
+			execSync(verifyCommand, {
 				cwd: session.worktreeDir,
 				stdio: "inherit"
 			});
@@ -122,7 +123,7 @@ async function executeInWorktreeWithVerification(projectRoot, applyFn) {
 /**
 * Loads a refactor plan JSON file and executes it with optional worktree sandboxing.
 */
-async function applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, applyFn, commandHelpHint) {
+async function applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, applyFn, commandHelpHint, options = {}) {
 	if (!rawPlanPath || !fs.existsSync(rawPlanPath)) {
 		console.error(styleText("red", `❌ Error: Debes especificar un archivo de plan: ${commandHelpHint}`));
 		process.exit(1);
@@ -133,7 +134,7 @@ async function applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, u
 		try {
 			await executeInWorktreeWithVerification(projectRoot, async (dir) => {
 				await applyFn(dir, plan);
-			});
+			}, options);
 			console.log(styleText("green", "✅ Verificación exitosa en Worktree y cambios aplicados al repositorio."));
 		} catch (err) {
 			console.error(styleText("red", `❌ Falló la verificación en el worktree: ${err.message}`));
@@ -144,5 +145,4 @@ async function applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, u
 		await applyFn(projectRoot, plan);
 	}
 }
-//#endregion
 export { WorktreeSandboxManager, applyPlanFileWithWorktreeVerification, executeInWorktreeWithVerification };

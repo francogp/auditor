@@ -3,7 +3,7 @@ import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_vue_sfc_hygiene.ts
+// src/suites/architecture/validate_vue_sfc_hygiene.ts
 /**
 * scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
 *
@@ -303,5 +303,4 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new VueSfcHygieneAuditor());
-//#endregion
 export { DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX, SCRIPT_TAG_CONTEXT_MAX_CHARS, VUE_SFC_HYGIENE_RULES, VueSfcHygieneAuditor };

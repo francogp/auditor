@@ -3,7 +3,7 @@ import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.j
 import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/refactor/domainRefactorEngine.ts
+// src/core/refactor/domainRefactorEngine.ts
 /**
 * src/core/refactor/domainRefactorEngine.ts
 *
@@ -178,5 +178,4 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 		};
 	}
 };
-//#endregion
 export { DomainRefactorEngine };

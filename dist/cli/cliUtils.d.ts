@@ -1,4 +1,3 @@
-//#region src/cli/cliUtils.d.ts
 /**
  * src/cli/cliUtils.ts
  *
@@ -88,4 +87,3 @@ export interface FallowExecutionResult<T> {
  * Executes a Fallow sub-command with JSON formatting, returning parsed object payload and exit code.
  */
 export declare function executeFallowJsonCommand<T = Record<string, unknown>>(fallowBin: string, subCommandArgs: readonly string[], projectRoot?: string): FallowExecutionResult<T>;
-//#endregion

@@ -1,14 +1,13 @@
 import { safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
+import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, getActiveFamilies } from "./auditContract.js";
-import { toPosixRelative } from "./auditCoverage.js";
-import "./safePath.js";
 import { BaseAuditor } from "./auditorBase.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/auditorContractConformance.ts
+// src/core/auditorContractConformance.ts
 /**
 * src/core/auditorContractConformance.ts
 *
@@ -413,5 +412,4 @@ function runAuditorContractConformanceTests(options = {}) {
 		}
 	})();
 }
-//#endregion
 export { checkCleanVerification, checkConstructionVerification, checkFixVerification, checkViolationVerification, findAuditorClass, findDedicatedTestFile, instantiateAuditorClass, isEligibleExtensionAuditorFile, runAuditorContractConformanceTests, scanAllAuditorTasks, scanExtensionAuditors, validateAuditorConstruction, validateAuditorTestFileContent };

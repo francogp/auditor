@@ -1,11 +1,10 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { toPosixRelative } from "../core/safePath.js";
 import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
@@ -15,7 +14,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";
-//#region src/cli/report_fallow.ts
+// src/cli/report_fallow.ts
 /**
 * src/cli/report_fallow.ts
 */
@@ -84,7 +83,12 @@ function parseCommandLineArgs() {
 		positionals
 	};
 }
+let customFallowRunner = null;
+function setFallowCommandRunner(runner) {
+	customFallowRunner = runner;
+}
 function runFallowCommand(command, extraArgs = []) {
+	if (customFallowRunner) return customFallowRunner(command, extraArgs);
 	try {
 		const effectiveExtra = [...extraArgs];
 		if (command.startsWith("health")) {
@@ -933,6 +937,16 @@ function reportViz(json, human = false) {
 	const defaultHtml = path.resolve(process.cwd(), "fallow-viz.html");
 	if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
 	try {
+		if (customFallowRunner) {
+			fs.writeFileSync(targetHtml, "<html><body>Mock Viz</body></html>", "utf-8");
+			if (json) console.log(JSON.stringify({
+				success: true,
+				outputPath: "scratch/fallow_map.html",
+				message: "Mock viz generated"
+			}, null, 2));
+			else console.log("[Fallow] Visual map generated at: scratch/fallow_map.html");
+			return;
+		}
 		const cmd = `node "${fallowBin}" viz --no-open --out "${targetHtml}"`;
 		const stdout = execSync(cmd, {
 			cwd: process.cwd(),
@@ -1022,5 +1036,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runFallowReportCli();
 }
-//#endregion
-export { runFallowReportCli };
+export { runFallowReportCli, setFallowCommandRunner };

@@ -1,4 +1,3 @@
-//#region src/core/packageJson.d.ts
 /**
  * src/core/packageJson.ts
  *
@@ -42,4 +41,3 @@ export declare function clearPackageJsonCache(): void;
  * Writes updated package.json to disk and refreshes the in-memory cache.
  */
 export declare function writePackageJson(projectRoot: string, data: PackageJsonDTO): void;
-//#endregion

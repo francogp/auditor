@@ -35,6 +35,7 @@ import {
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { RemediationPhaseId } from '../../core/auditContract.ts';
 import { toPosixRelative } from '../../core/auditCoverage.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
@@ -92,7 +93,7 @@ export function auditCliContracts(targetDir = process.cwd()): CliContractsAuditR
     ...(auditCfg.paths?.ignoreGlobs ?? []),
     ...(auditCfg.paths?.ignoredPatterns ?? [])
   ];
-  const configuredRoots = auditCfg.paths?.codeRoots ?? ['src'];
+  const configuredRoots = auditCfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
   const candidateFiles: string[] = [];
   for (const rootRel of configuredRoots) {
     const absRoot = path.resolve(targetDir, rootRel);
@@ -216,7 +217,7 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
   public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (cfg) => cfg.paths?.codeRoots ?? ['src']
+      (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots
     );
     super({
       fix: options.fix,

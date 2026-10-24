@@ -1,6 +1,6 @@
 import stylelint from "stylelint";
 import valueParser from "postcss-value-parser";
-//#region src/suites/architecture/stylelintSassTrapsPlugin.ts
+// src/suites/architecture/stylelintSassTrapsPlugin.ts
 /**
 * packages/auditor/src/suites/architecture/stylelintSassTrapsPlugin.ts
 *
@@ -69,5 +69,4 @@ const sassTrapsRule = Object.assign(ruleFunction, {
 	}
 });
 const sassTrapsPlugin = stylelint.createPlugin(SASS_TRAPS_RULE_NAME, sassTrapsRule);
-//#endregion
 export { SASS_COLLISION_FUNCTION_MAP, SASS_TRAPS_RULE_NAME, sassTrapsMessages, sassTrapsPlugin, sassTrapsRule };

@@ -4,8 +4,8 @@ import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { createSyntheticSourceFile } from "../../core/astContext.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
@@ -21,7 +21,7 @@ import fs from "node:fs";
 import { pathToFileURL } from "node:url";
 import ts from "typescript";
 import { SyntaxKind } from "ts-morph";
-//#region src/suites/architecture/validate_audit_config.ts
+// src/suites/architecture/validate_audit_config.ts
 /**
 * packages/auditor/src/suites/architecture/validate_audit_config.ts
 *
@@ -117,9 +117,9 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 		auditorVersion: AUDITOR_VERSION,
 		paths: {
 			enabled: true,
-			srcRoots: ["src"],
-			testRoots: ["tests"],
-			scriptsRoots: ["scripts"]
+			srcRoots: DEFAULT_AUDIT_CONFIG.paths.srcRoots,
+			testRoots: DEFAULT_AUDIT_CONFIG.paths.testRoots,
+			scriptsRoots: DEFAULT_AUDIT_CONFIG.paths.scriptsRoots
 		},
 		documentation: {
 			enabled: true,
@@ -305,7 +305,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 				"audit-config-unacknowledged-degradation": "📖 REMEDIATION GUIDE: audit-config-unacknowledged-degradation\n1. Root Cause: Paths declared in `config.paths` contain files whose silenced rules are not documented in `coverage.acknowledgedDegradations`.\n2. Diagnosis: Check unacknowledged degradation paths reported by the auditor.\n3. Canonical Solution: Declare acknowledged degradation policies with canonical globs and rationales in `coverage.acknowledgedDegradations`, or remove the silenced rules from source code.\n4. Example / Auto-fix command:\n   Review and declare in `coverage.acknowledgedDegradations` manually if strictly justified.",
 				"audit-config-ratchet-relaxation": "📖 REMEDIATION GUIDE: audit-config-ratchet-relaxation\n1. Root Cause: Configuration rules or exemptions were relaxed relative to online origin/main without explicit user authorization.\n2. Diagnosis: Check the generated RELAX-<8hex> code and the list of relaxed rules, added exemptions, lowered floors, or raised ceilings.\n3. Canonical Solution: Hardening rules is permitted with zero friction. To accept a relaxation genuinely requested by the human programmer, confirm the RELAX-<8hex> code directly in Antigravity chat.\n4. Example / Auto-fix command:\n   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat."
 			},
-			coverage: { include: [path.posix.join(AUDITOR_DIR, "**"), ".gitignore"] },
+			coverage: { include: [path.posix.join(AUDITOR_DIR, "*.{ts,json}"), ".gitignore"] },
 			projectRoot
 		});
 	}
@@ -830,5 +830,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 	}
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
-//#endregion
 export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, dtoValueToTsExpression, enforceCriticalConfigurations, extractMissingConfigPaths, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInConfigFile, syncAuditorVersionInTsFile };

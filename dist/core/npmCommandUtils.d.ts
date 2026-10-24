@@ -1,5 +1,4 @@
 import { SpawnSyncReturns, StdioOptions } from "node:child_process";
-//#region src/core/npmCommandUtils.d.ts
 export declare const VALID_NPM_BUILTINS: ReadonlySet<string>;
 export declare const VALID_VP_BUILTINS: ReadonlySet<string>;
 export declare const COMMAND_INVOCATION_TYPES: readonly ["npm-run", "npm-direct", "npx", "vp-run", "vp-direct", "vp-dlx"];
@@ -67,4 +66,3 @@ export interface RunNpmCommandOptions {
  * Automatically resolves 'npm.cmd' and 'shell: true' on Windows.
  */
 export declare function runNpmCommandSync(args: readonly string[], options?: RunNpmCommandOptions): SpawnSyncReturns<string>;
-//#endregion

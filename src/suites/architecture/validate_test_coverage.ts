@@ -8,8 +8,10 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
@@ -31,9 +33,12 @@ export const DEFAULT_COVERAGE_THRESHOLD = 80;
 export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId> {
   public constructor(options: ValidateTestCoverageOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
+      cachePaths: ['coverage', '.vitest-cache', 'test-results'],
       id: 'validate_test_coverage',
       name: 'Test Execution Coverage Auditor',
       description: 'Governance of actual unit test coverage',
@@ -87,7 +92,8 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
           '   `npm run test:coverage`'
       },
       coverage: {
-        include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
+        include: deriveCoverageFromRoots(codeRoots, new Set(['.ts', '.vue']), effectiveRoot)
+          .include,
         source: 'declared-only'
       },
       ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {

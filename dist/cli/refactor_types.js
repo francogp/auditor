@@ -3,7 +3,7 @@ import { isMainModule } from "./cliUtils.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { TypesRefactorEngine } from "../core/refactor/typesRefactorEngine.js";
 import { styleText } from "node:util";
-//#region src/cli/refactor_types.ts
+// src/cli/refactor_types.ts
 /**
 * src/cli/refactor_types.ts
 *
@@ -117,5 +117,4 @@ if (isMainModule(import.meta.url, ["auditor-types", "refactor_types"])) runRefac
 	console.error(styleText("red", `\n[Error] Fatal error in auditor-types: ${err.message}`));
 	process.exit(1);
 });
-//#endregion
 export { runRefactorTypesCli };

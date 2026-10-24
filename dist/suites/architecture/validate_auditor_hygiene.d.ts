@@ -1,6 +1,5 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId } from "../../analyzers/homebrew/homebrewTypes.js";
-//#region src/suites/architecture/validate_auditor_hygiene.d.ts
 export declare class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
   constructor(options?: string | {
     projectRoot?: string;
@@ -8,5 +7,4 @@ export declare class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRu
   private collectTargetFiles;
   runAudit(): Promise<void>;
 }
-//#endregion
 export { AUDITOR_HOMEBREW_RULES, type AuditorHomebrewRuleId };

@@ -7,7 +7,7 @@ import { BaseAuditor, FileScanAuditor, createUniformRemediationPhases, createUni
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import ts from "typescript";
-//#region src/suites/architecture/validate_code_simplification.ts
+// src/suites/architecture/validate_code_simplification.ts
 enableCompileCache();
 const CODE_SIMPLIFICATION_RULES = [
 	"dead-code-accumulation",
@@ -220,5 +220,4 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateCodeSimplificationAuditor());
-//#endregion
 export { CODE_SIMPLIFICATION_CAPABILITIES, CODE_SIMPLIFICATION_RULES, ValidateCodeSimplificationAuditor };

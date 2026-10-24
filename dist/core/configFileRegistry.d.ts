@@ -1,5 +1,4 @@
 import { AuditorConfigFileRequirement } from "./auditContract.js";
-//#region src/core/configFileRegistry.d.ts
 export declare class ConfigFileRegistry {
   private static readonly requirements;
   /**
@@ -23,4 +22,3 @@ export declare class ConfigFileRegistry {
    */
   static reset(): void;
 }
-//#endregion

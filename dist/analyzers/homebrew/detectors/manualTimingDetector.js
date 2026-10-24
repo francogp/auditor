@@ -1,5 +1,5 @@
 import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/manualTimingDetector.ts
+// src/analyzers/homebrew/detectors/manualTimingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/manualTimingDetector.ts
 *
@@ -25,5 +25,4 @@ const manualTimingDetector = createLineDetector({
 		return "Manual rule timing or ad-hoc call to 'performance.now()' / 'recordRuleDuration' in sub-auditor or extension. Measuring ad-hoc execution duration is forbidden. Declare sub-auditors with 'declareSubAuditor()', 'declareFileSubAuditor()' or 'declarePatternSubAuditor()', or use 'runSubAuditorSync()' to measure each rule individually.";
 	}
 });
-//#endregion
 export { manualTimingDetector };

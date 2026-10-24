@@ -1,7 +1,7 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
-//#region src/core/refactor/o1RefactorEngine.ts
+// src/core/refactor/o1RefactorEngine.ts
 /**
 * src/core/refactor/o1RefactorEngine.ts
 *
@@ -178,5 +178,4 @@ var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 		return executePlanFileReplacements(baseDir, plan.targetFiles, [jsonTextItems, spreadTextItems], [(content, relFile, fullPath, bDir) => this.applyHoistReplacements(content, relFile, fullPath, bDir, plan.membershipHoists)]);
 	}
 };
-//#endregion
 export { O1RefactorEngine };

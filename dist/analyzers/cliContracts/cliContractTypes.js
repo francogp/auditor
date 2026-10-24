@@ -1,4 +1,4 @@
-//#region src/analyzers/cliContracts/cliContractTypes.ts
+// src/analyzers/cliContracts/cliContractTypes.ts
 const CLI_CONTRACT_RULES = [
 	"cli-contracts-direct-argv-access",
 	"cli-contracts-banned-parser-library",
@@ -8,5 +8,4 @@ const CLI_CONTRACT_RULES = [
 	"cli-contracts-missing-citty-dependency",
 	"cli-contracts-unregistered-script"
 ];
-//#endregion
 export { CLI_CONTRACT_RULES };

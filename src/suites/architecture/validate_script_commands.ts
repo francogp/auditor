@@ -18,6 +18,7 @@ import path from 'node:path';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import {
   loadPackageScriptsAndBins,
@@ -27,7 +28,7 @@ import {
 } from '../../core/npmCommandUtils.ts';
 import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+import { isPathContained, normalizePosixPath } from '../../core/safePath.ts';
 
 export type ScriptCommandsRuleId =
   | 'script-cmd-unregistered-npm'
@@ -78,7 +79,11 @@ interface ScannedScriptFile {
   readonly commands: readonly ExtractedCommand[];
 }
 
-function isCandidateScriptPath(file: string, rootDir: string): boolean {
+function isCandidateScriptPath(
+  file: string,
+  rootDir: string,
+  scriptsRoots: readonly string[]
+): boolean {
   const relPosix = normalizePosixPath(path.relative(rootDir, file));
   const ext = path.extname(file).toLowerCase();
 
@@ -86,7 +91,7 @@ function isCandidateScriptPath(file: string, rootDir: string): boolean {
     return !relPosix.startsWith('src/') && !relPosix.startsWith('tests/');
   }
 
-  return relPosix.startsWith('scripts/') || relPosix.includes('/scripts/');
+  return scriptsRoots.some((r) => isPathContained(r, file, rootDir));
 }
 
 function isDockerfile(fileName: string): boolean {
@@ -132,9 +137,16 @@ function collectWorkflowFiles(rootDir: string): string[] {
 export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRuleId> {
   private readonly rootDir: string;
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
+  private readonly scriptsRoots: readonly string[];
 
   constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
+    const config = getAuditConfig(root);
+    const scriptsRoots = config.paths?.scriptsRoots?.length
+      ? config.paths.scriptsRoots
+      : DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
+    const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
+
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -211,13 +223,14 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
           '**/*.dockerfile',
           '**/Containerfile',
           '.github/workflows/**/*.{yml,yaml}',
-          'scripts/**/*.{ts,js}'
+          ...scriptsGlobs
         ]
       },
       projectRoot: root
     });
     this.rootDir = root;
     this.gitIgnoreMatcher = new GitIgnoreMatcher(root);
+    this.scriptsRoots = scriptsRoots;
   }
 
   public override async runAudit(): Promise<void> {
@@ -335,7 +348,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
 
     const scannableFiles = this.context.collectFiles(['.'], SCRIPTS_DIR_EXTENSIONS);
     for (const file of scannableFiles) {
-      if (isCandidateScriptPath(file, this.rootDir)) {
+      if (isCandidateScriptPath(file, this.rootDir, this.scriptsRoots)) {
         collected.add(file);
       }
     }

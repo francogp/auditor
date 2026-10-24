@@ -30,6 +30,7 @@ import {
 } from '../../core/auditorBase.ts';
 import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
@@ -417,6 +418,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       ),
       fixableRuleIds: [...STYLELINT_RULES],
       gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
+      cachePaths: ['.stylelintcache'],
       id: options?.id || 'validate_stylelint',
       name: options?.name || 'Stylelint & SCSS Hygiene Validator',
       description: 'Audits CSS/SCSS quality, syntax, and patterns with Stylelint',
@@ -533,7 +535,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
 
-    const roots = this.roots.length > 0 ? this.roots : ['src'];
+    const roots =
+      this.roots.length > 0
+        ? this.roots
+        : (config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
     this.redeclareCoverage({
       include: [
         ...deriveCoverageFromRoots(

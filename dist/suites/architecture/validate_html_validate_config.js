@@ -1,14 +1,13 @@
 import { tryOrNull } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_html_validate_config.ts
+// src/suites/architecture/validate_html_validate_config.ts
 /**
 * src/suites/architecture/validate_html_validate_config.ts
 *
@@ -322,5 +321,4 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateHtmlValidateConfigAuditor());
-//#endregion
 export { CANONICAL_HTML_VALIDATE_CONFIG, CANONICAL_HTML_VALIDATE_CONFIG_CONTENT, HTML_VALIDATE_CONFIG_REQUIREMENT, HTML_VALIDATE_CONFIG_RULES, MANDATORY_STRICT_HTML_RULES, ValidateHtmlValidateConfigAuditor, isVueProjectContext };

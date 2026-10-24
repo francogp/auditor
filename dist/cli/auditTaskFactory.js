@@ -1,14 +1,13 @@
 import { normalizePosixPath } from "../core/reportUtils.js";
+import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { resolveEffectiveSpeed, resolveFamilyMetadata } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "../core/packageScriptRegistry.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
 import { extractAuditorMetadataFromFile } from "./auditorMetadata.js";
 import path from "node:path";
-//#region src/cli/auditTaskFactory.ts
+// src/cli/auditTaskFactory.ts
 /**
 * packages/auditor/src/cli/auditTaskFactory.ts
 *
@@ -144,5 +143,4 @@ async function createAuditTaskDefinition(fullPath, filename, family, config, opt
 		ruleRemediations: resolveTaskRuleRemediations(metadata)
 	};
 }
-//#endregion
 export { DEFAULT_PERMISSIONS, buildTaskCliArguments, createAuditTaskDefinition, formatTaskTitle, getPermissionsForTask, getTimeoutForTask, shouldSkipTaskByCapabilities, shouldSkipTaskByFilters };

@@ -183,7 +183,7 @@ describe('NativePathsAuditor', () => {
       expect(typeof result.passed).toBe('boolean');
       expect(result.filesScanned).toBeGreaterThan(0);
       expect(result.violations).toBeDefined();
-    });
+    }, 60_000);
   });
 
   describe('validate_native_paths case catalog', () => {

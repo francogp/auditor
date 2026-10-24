@@ -1,5 +1,4 @@
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/performance/validate_web_performance.d.ts
 export declare const WEB_PERFORMANCE_RULES: readonly ["unoptimized-images", "font-display-missing", "inline-svg-bloat", "css-render-blocking", "excessive-dom-depth", "layout-shift-dimensions", "uncompressed-video"];
 export type WebPerformanceRuleId = (typeof WEB_PERFORMANCE_RULES)[number];
 export declare class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanceRuleId> {
@@ -18,4 +17,3 @@ export declare class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPe
   private auditLayoutShiftDimensions;
   private auditUncompressedVideo;
 }
-//#endregion

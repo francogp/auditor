@@ -1,10 +1,12 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveIgnoreDirs } from "../../core/auditorBase.js";
+import { getEffectiveIgnoreDirs } from "../../core/canonicalIgnoreRegistry.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { checkDoxIntegrity } from "../../analyzers/doxAnalyzer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-//#region src/suites/documentation/validate_dox_integrity.ts
+// src/suites/documentation/validate_dox_integrity.ts
 /**
 * scripts/auditors/documentation/validate_dox_integrity.ts
 *
@@ -52,8 +54,8 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 			description: "Validates AGENTS.md hierarchy, structure, and integrity",
 			family: "documentation",
 			packageName: "DOX",
-			configKey: "documentation.enabled",
-			defaultConfig: { enabled: true },
+			configKey: "dox.enabled",
+			defaultConfig: DEFAULT_AUDIT_CONFIG.dox ?? { enabled: true },
 			criticalConfig: {},
 			icon: "📚",
 			ruleIds: DOX_RULES,
@@ -83,7 +85,7 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 		const agentsFiles = this.context.collectFiles(["."], /* @__PURE__ */ new Set([".md"]));
 		for (const f of agentsFiles) if (path.basename(f) === "AGENTS.md") this.recordScanned(f);
 		if (this.filesScannedCount === 0) this.recordScanned("AGENTS.md");
-		const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
+		const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs(this.rootDir), this.extraIgnorePatterns);
 		for (const ruleId of DOX_RULES) this.runSubAuditorSync(ruleId, () => {
 			const ruleViolations = rawViolations.filter((v) => (v.ruleId || "dox-missing-agents-md") === ruleId);
 			for (const v of ruleViolations) this.addViolation({
@@ -99,5 +101,4 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DoxIntegrityAuditor());
-//#endregion
 export { DOX_RULES, DoxIntegrityAuditor };

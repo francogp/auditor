@@ -9,7 +9,8 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { JSDOM } from 'jsdom';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions,
+  getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -155,8 +156,7 @@ export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxR
       },
       roots: targetRoots,
       allowedExtensions: new Set(['.md']),
-      unignoreDirs: ['.agents', 'skills', 'docs'],
-      extraIgnorePatterns: ['scratch/**', 'dist/**', 'dev-dist/**', 'test-results/**'],
+      extraIgnorePatterns: Array.from(getEffectiveIgnoreGlobs(effectiveRoot)),
       projectRoot: effectiveRoot
     });
   }

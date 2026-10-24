@@ -1,3 +1,1 @@
-//#region src/cli/report_test_coverage.d.ts
-export declare function runTestCoverageReport(): Promise<void>;
-//#endregion
+export declare function runTestCoverageReport(projectRoot?: string): Promise<void>;

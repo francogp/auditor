@@ -9,7 +9,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
-//#region src/suites/architecture/validate_audit_coverage.ts
+// src/suites/architecture/validate_audit_coverage.ts
 /**
 * src/suites/architecture/validate_audit_coverage.ts
 *
@@ -285,5 +285,4 @@ var AuditCoverageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AuditCoverageAuditor());
-//#endregion
 export { AUDIT_COVERAGE_RULES, AUDIT_COVERAGE_SUITE_ID, AuditCoverageAuditor, analyzeAuditCoverage, isCoveredBy, listTrackedFiles };

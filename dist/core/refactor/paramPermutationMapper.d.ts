@@ -1,4 +1,3 @@
-//#region src/core/refactor/paramPermutationMapper.d.ts
 /**
  * src/core/refactor/paramPermutationMapper.ts
  *
@@ -40,4 +39,3 @@ export declare class ParamPermutationMapper {
    */
   static inferMappingFromAliases(canonicalParams: readonly string[], instanceVariables: readonly string[], knownAliases?: Readonly<Record<string, readonly string[]>>): Readonly<Record<string, string>>;
 }
-//#endregion

@@ -1,14 +1,15 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeRmSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_type_coverage.ts
+// src/suites/architecture/validate_type_coverage.ts
 enableCompileCache();
 const DEFAULT_MIN_TYPE_COVERAGE_PERCENT = 95;
 const TYPE_COVERAGE_RULES = ["type-coverage-below-threshold", "type-coverage-untyped-identifier"];
@@ -56,6 +57,7 @@ const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
+		const codeRoots = getAuditConfig(effectiveRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
@@ -96,11 +98,7 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 				"type-coverage-untyped-identifier": "📖 REMEDIATION GUIDE: type-coverage-untyped-identifier\n1. Root Cause: A specific identifier, property, parameter, or variable resolved to type `any` (explicit or implicitly inferred by the compiler).\n2. Diagnosis: Locate the identifier and location (line:col) indicated in the report.\n3. Canonical Solution: Assign an explicit type annotation (`: string`, `: Record<string, unknown>`, `: TDomainEntity`) or properly type the function producing it.\n4. Example / Auto-fix command:\n   ❌ Untyped: `function handle(event) { ... }` (event is implicit any)\n   ✅ Typed:   `function handle(event: MouseEvent): void { ... }`"
 			},
 			coverage: {
-				include: [
-					"src/**/*.ts",
-					"src/**/*.vue",
-					"scripts/**/*.ts"
-				],
+				include: deriveCoverageFromRoots(codeRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), effectiveRoot).include,
 				source: "declared-only"
 			},
 			projectRoot: effectiveRoot
@@ -180,5 +178,4 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTypeCoverageAuditor());
-//#endregion
 export { DEFAULT_MIN_TYPE_COVERAGE_PERCENT, DEFAULT_TYPE_COVERAGE_THRESHOLD, TYPE_COVERAGE_RULES, ValidateTypeCoverageAuditor, parseTypeCoverageReport };

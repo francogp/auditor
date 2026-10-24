@@ -1,4 +1,3 @@
-//#region src/core/remediationPhases.d.ts
 /**
  * src/core/remediationPhases.ts
  *
@@ -20,4 +19,3 @@ export interface RemediationPhaseMetadata {
 export declare const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, RemediationPhaseMetadata>>;
 export declare function isRemediationPhaseId(val: unknown): val is RemediationPhaseId;
 export declare function getRemediationPhaseMetadata(phaseId: RemediationPhaseId): RemediationPhaseMetadata;
-//#endregion

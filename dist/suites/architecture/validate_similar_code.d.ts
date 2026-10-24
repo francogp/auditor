@@ -1,6 +1,5 @@
 import { AuditorCapabilities } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_similar_code.d.ts
 export declare const SIMILAR_CODE_RULES: readonly ["fallow-similar-code", "fallow-similar-code-failed"];
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 export declare const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCapabilities>;
@@ -47,4 +46,3 @@ export declare class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeR
   private processRawOutputFile;
   runAudit(): Promise<void>;
 }
-//#endregion

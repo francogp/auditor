@@ -1,9 +1,8 @@
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
-import "./auditConfig.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/lockedSkills.ts
+// src/core/lockedSkills.ts
 /**
 * src/core/lockedSkills.ts
 *
@@ -71,5 +70,4 @@ function isLockedSkillPath(filePath, projectRoot = process.cwd()) {
 	}
 	return false;
 }
-//#endregion
 export { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills };

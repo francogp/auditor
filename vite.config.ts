@@ -49,7 +49,12 @@ export default defineConfig({
             'scratch/**',
             'tmp/**',
             '.agents/**',
-            'tests/**'
+            'tests/**',
+            'skills-lock.json',
+            'update-linux.sh',
+            'update-windows.ps1',
+            'tests/fixtures/**',
+            'tests/canaries/**'
         ],
         rules: {
             'unicode-bom': 'error',
@@ -223,12 +228,17 @@ export default defineConfig({
             'scratch/**',
             'tmp/**',
             '.agents/**',
-            'package-lock.json'
+            'package-lock.json',
+            'skills-lock.json',
+            'tests/fixtures/**',
+            'tests/canaries/**',
+            'update-linux.sh',
+            'update-windows.ps1'
         ]
     },
     test: {
         globals: true,
-        pool: 'forks',
+        pool: 'threads',
         environment: 'node',
         include: ['tests/**/*.{test,spec}.ts'],
         testTimeout: 30000,

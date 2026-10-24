@@ -14,19 +14,15 @@ import { ValidateTestCoverageAuditor } from '../src/suites/architecture/validate
 
 describe('ValidateTestCoverageAuditor', () => {
   let tmpDir: string;
-  let originalCwd: string;
 
   beforeEach(() => {
     process.env.AUDIT_SUBPROCESS = 'true';
-    originalCwd = process.cwd();
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-test-cov-suite-'));
-    process.chdir(tmpDir);
     resetAuditConfig();
   });
 
   afterEach(() => {
     delete process.env.AUDIT_SUBPROCESS;
-    process.chdir(originalCwd);
     resetAuditConfig();
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });

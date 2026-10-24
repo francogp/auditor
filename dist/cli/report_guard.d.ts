@@ -1,4 +1,3 @@
-//#region src/cli/report_guard.d.ts
 /**
  * src/cli/report_guard.ts
  *
@@ -35,4 +34,3 @@ export interface GuardOptions {
   readonly human?: boolean;
 }
 export declare function runGuardReport(projectRoot?: string, files?: readonly string[], options?: GuardOptions): number;
-//#endregion

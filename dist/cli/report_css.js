@@ -5,7 +5,7 @@ import { isMainModule } from "./cliUtils.js";
 import { StylelintAuditor } from "../suites/architecture/validate_stylelint.js";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/cli/report_css.ts
+// src/cli/report_css.ts
 /**
 * packages/auditor/src/cli/report_css.ts
 *
@@ -160,5 +160,4 @@ async function runCssReport(projectRoot = process.cwd()) {
 	renderCssFindingsTable(filteredFindings, category, isHuman);
 }
 if (isMainModule(import.meta.url)) await runCssReport();
-//#endregion
 export { runCssReport };

@@ -2,7 +2,7 @@ import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";
 import MagicString from "magic-string";
-//#region src/core/refactor/magicNumberHarness.ts
+// src/core/refactor/magicNumberHarness.ts
 /**
 * src/core/refactor/magicNumberHarness.ts
 *
@@ -89,5 +89,4 @@ var MagicNumberHarness = class {
 		} else if (relFile.endsWith(".ts") || relFile.endsWith(".tsx") || relFile.endsWith(".js")) s.prepend(`${declText}\n\n`);
 	}
 };
-//#endregion
 export { ConstantHygieneGate, FORBIDDEN_GENERIC_NAMES_LIST, MagicNumberHarness };

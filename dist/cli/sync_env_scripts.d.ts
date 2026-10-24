@@ -1,4 +1,3 @@
-//#region src/cli/sync_env_scripts.d.ts
 /**
  * src/cli/sync_env_scripts.ts
  *
@@ -15,4 +14,3 @@ export declare function syncEnvScripts(options?: SyncEnvOptions): {
   filesUpdated: string[];
   message: string;
 };
-//#endregion

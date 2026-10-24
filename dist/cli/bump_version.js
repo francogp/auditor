@@ -11,7 +11,7 @@ import { syncDocumentationVersionReferences } from "../core/markdownVersionValid
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
-//#region src/cli/bump_version.ts
+// src/cli/bump_version.ts
 /**
 * src/cli/bump_version.ts
 *
@@ -304,7 +304,7 @@ function resolveBumpTypeFromParsed(explicitType, positionalType) {
 	}
 	return "auto";
 }
-function handleBumpCommand(parsed, positionalType, isJson) {
+function handleBumpCommand(parsed, positionalType, isJson, cwd) {
 	const targetVersion = typeof parsed["target-version"] === "string" && parsed["target-version"] || typeof parsed.target === "string" && parsed.target || void 0;
 	const bumpType = resolveBumpTypeFromParsed(typeof parsed.type === "string" ? parsed.type : void 0, positionalType);
 	const noSyncPublic = parsed["sync-public"] === false || Boolean(parsed["no-sync-public"]);
@@ -313,17 +313,19 @@ function handleBumpCommand(parsed, positionalType, isJson) {
 		bumpType,
 		targetVersion,
 		autoSyncPublicVersionJson: noSyncPublic ? false : void 0,
-		syncTargets
+		syncTargets,
+		cwd
 	});
 	if (isJson) console.log(JSON.stringify(result, null, 2));
 	else {
 		console.log(styleText("green", `[OK] Version updated successfully:`));
 		console.log(`  ${result.previousVersion} → ${styleText(["bold", "cyan"], result.newVersion)} (Bump: ${result.bumpType.toUpperCase()})`);
-		const relFiles = result.syncedFiles.map((f) => path.relative(process.cwd(), f) || f);
+		const effectiveCwd = cwd ?? process.cwd();
+		const relFiles = result.syncedFiles.map((f) => path.relative(effectiveCwd, f) || f);
 		console.log(`  Synchronized files: ${relFiles.join(", ")}\n`);
 	}
 }
-function runBumpCli(rawArgs = getProcessCliArgs()) {
+function runBumpCli(rawArgs = getProcessCliArgs(), cwd = process.cwd()) {
 	const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs);
 	const posList = parsed._.map(String);
 	const firstPos = posList[0]?.toLowerCase();
@@ -346,7 +348,7 @@ function runBumpCli(rawArgs = getProcessCliArgs()) {
 	}
 	if (parsed.bump || firstPos === "bump") {
 		try {
-			handleBumpCommand(parsed, firstPos === "bump" ? posList[1] : posList[0], isJson);
+			handleBumpCommand(parsed, firstPos === "bump" ? posList[1] : posList[0], isJson, cwd);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			console.error(styleText("red", `[Error] ${message}`));
@@ -358,5 +360,4 @@ function runBumpCli(rawArgs = getProcessCliArgs()) {
 	printHelp();
 }
 if (isMainModule(import.meta.url)) runBumpCli();
-//#endregion
 export { CLI_BUMP_TYPES, applyVersionBump, isCliBumpType, runBumpCli };

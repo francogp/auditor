@@ -48,7 +48,9 @@ import {
   FileScanAuditor,
   hasLineSuppression,
   createUniformRuleCapabilities,
-  createUniformRemediationPhases
+  createUniformRemediationPhases,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
 } from '@francogp/auditor';
 
 enableCompileCache();
@@ -62,14 +64,17 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-missing-attribute'
 ];
 
-export interface MyFeatureAuditorOptions {
-  readonly projectRoot?: string;
-  readonly roots?: readonly string[];
+export interface MyFeatureAuditorOptions extends FileScanRootsOptions {
   readonly exemptPaths?: readonly (string | RegExp)[];
 }
 
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   constructor(options: MyFeatureAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
+
     super({
       id: 'validate_my_feature',
       name: 'My Feature Validator',
@@ -112,12 +117,12 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_FEATURE_RULES, 'behavior'),
-      roots: options.roots ?? ['src'],
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.ts']),
       // Dynamic Exemption Architecture: automatically skips documents matching strings or RegExps.
       // Prohibits hardcoding ignores or candidate file arrays in code.
       exemptPaths: options.exemptPaths,
-      projectRoot: options.projectRoot
+      projectRoot: effectiveRoot
     });
   }
 
@@ -306,7 +311,14 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
 import path from 'node:path';
 import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, SharedAstContext, createRuleCapabilities } from '@francogp/auditor';
+import {
+  BaseAuditor,
+  SharedAstContext,
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 enableCompileCache();
 
@@ -316,7 +328,12 @@ export const MY_AST_RULES = [
 export type MyAstRuleId = (typeof MY_AST_RULES)[number];
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
-  constructor() {
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
+
     super({
       id: 'validate_my_ast_rule',
       name: 'My AST Rule Validator',
@@ -337,11 +354,13 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       },
       ruleRemediations: {
         'my-ast-forbidden-call':
-          'Se detectó una llamada prohibida por la arquitectura en el código TypeScript.\n' +
-          '1. Localiza la invocación infractora reportada.\n' +
-          '2. Reemplázala por la alternativa canónica recomendada.'
+          '1. Root Cause: Se detectó una llamada prohibida por la arquitectura en el código TypeScript.\n' +
+          '2. Diagnosis: Inspecciona el archivo y la invocación señalada en el informe de auditoría.\n' +
+          '3. Canonical Solution: Reemplázala por la alternativa canónica recomendada.\n' +
+          '4. Example / Command: npm run auditor'
       },
-      ruleCapabilities: createRuleCapabilities(MY_AST_RULES, {
+      ruleRemediationPhases: createUniformRemediationPhases(MY_AST_RULES, 'contracts'),
+      ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
         speed: 'light',
         phase: 'normal',
         fix: 'none',
@@ -351,14 +370,15 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
         critical: false
       }),
       requiresAst: true,
-      roots: ['src'],
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue'])
     });
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     const astEngine = astContext ?? new SharedAstContext();
-    const relFiles = await this.context.collectFiles(['src'], new Set(['.ts', '.vue']));
+    const relFiles = await this.context.collectFiles(this.roots, new Set(['.ts', '.vue']));
 
     this.runSubAuditorSync('my-ast-forbidden-call', () => {
       for (const relFile of relFiles) {
@@ -487,19 +507,21 @@ To eliminate false passes, unmeasured rules, synthetic time divisions, and dupli
    });
    ```
 
-3. **In `FileScanAuditor.scanFile` Loops**:
-   When scanning files, wrap the evaluation of each rule inside `runSubAuditorSync`:
+3. **In `FileScanAuditor.scanFile` Loops (Non-Code Textual Formats Only)**:
+   > [!IMPORTANT]
+   > Per the **AST Traversing Mandate & Zero Regex Code Inspection Mandate**, line splitting (`content.split(/\r?\n/)`) and regex inspection are **strictly prohibited** for source code files (`.ts`, `.tsx`, `.js`, `.vue`). For all code files, you must use AST inspection (`SharedAstContext`, `ts.forEachChild`, or [`ast_auditor_template.ts`](../assets/templates/ast_auditor_template.ts)).
+   > Line iteration inside `scanFile` is permitted strictly for non-code textual formats (such as Markdown `.md`, YAML, or configuration files):
 
    ```typescript
    protected override scanFile(relPath: string, content: string): void {
      const lines = content.split(/\r?\n/);
 
-     this.runSubAuditorSync('rule-one', () => {
-       // Evaluate rule one across lines...
+     this.runSubAuditorSync('doc-rule-one', () => {
+       // Evaluate non-code textual rule one across lines...
      });
 
-     this.runSubAuditorSync('rule-two', () => {
-       // Evaluate rule two across lines...
+     this.runSubAuditorSync('doc-rule-two', () => {
+       // Evaluate non-code textual rule two across lines...
      });
    }
    ```
@@ -1581,3 +1603,391 @@ Every sub-auditor, host extension, refactoring engine, and CLI reporter across `
 
 > [!IMPORTANT]
 > 📘 **Full Citty & CLI Contracts Guide**: For exhaustive examples, subcommand routing, typed arguments catalog, and anti-patterns (such as unconditional `runMain` causing process storms and memory crashes), see [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).
+
+---
+
+## 25. Sub-Auditor Cache & Temporary Paths Contract (`cachePaths`)
+
+Every sub-auditor or host extension that executes an underlying tool or generates transient cache files outside the canonical `scratch/` directory MUST declare those paths in its constructor options using `cachePaths: readonly string[]`.
+
+### 1. The `cachePaths` Lifecycle & Mechanics
+
+```mermaid
+flowchart TD
+    A["Auditor constructor (options.cachePaths)"] --> B["registerDynamicCachePath (canonicalIgnoreRegistry)"]
+    A --> C["GitIgnoreRegistry.register (GitIgnoreRequirement)"]
+    B --> D["Excluded from all code scanners & analyzers"]
+    C --> E["validate_audit_config (audit-config-missing-gitignore-entry)"]
+    E --> F["auditor fix: Auto-injected into .gitignore"]
+```
+
+1. **Automatic `.gitignore` Governance**:
+   When declared, `BaseAuditor` and `auditorMetadata` automatically register each cache entry into `GitIgnoreRegistry`.
+   `validate_audit_config` checks `.gitignore` against these requirements. In `--fix` mode (`npm run auditor:fix` / `auditor fix`), missing entries are automatically appended to `.gitignore`.
+2. **Universal Code Scan Exclusion**:
+   Declared paths are registered into `canonicalIgnoreRegistry`. Functions like `getEffectiveIgnoreDirs()` and `getEffectiveIgnoreGlobs()` automatically incorporate them, preventing all downstream linters, AST inspectors, and DOX analyzers from falsely scanning or indexing tool cache artifacts.
+
+### 2. Implementation Example
+
+```typescript
+export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
+  // Static declaration for fast discovery during auditScanner inspection
+  public static readonly cachePaths = ['.fallow'] as const;
+
+  constructor(options: ValidateFallowConfigOptions = {}) {
+    super({
+      id: 'validate_fallow_config',
+      name: 'Fallow Configuration Validator',
+      // ...
+      cachePaths: ValidateFallowConfigAuditor.cachePaths,
+      // ...
+    });
+  }
+}
+```
+
+---
+
+## 26. Zero Hardcoded Paths Mandate & Canonical Ignore Integration
+
+Developers and AI agents are **STRICTLY AND CATEGORICALLY PROHIBITED** from hardcoding directory names (e.g. `'docs'`, `'skills'`, `'.agents/skills'`, `'.auditor'`, `'scripts'`), file names, or manual exclusion arrays (`['coverage/**', 'dist/**', 'scratch/**', '.agents/**']`) inside sub-auditors and extensions.
+
+### 1. Permitted Exceptions Baseline
+
+The ONLY permitted fixed directory exceptions are:
+
+1. `node_modules` (Node.js native runtime package manager directory).
+2. `scratch` (ephemeral auditor output and diagnostic workspace).
+3. VCS & Cache artifacts (`.git`, `dist`, `.vitest-cache`, `.fallow`, `coverage`, `tmp`).
+4. Official agent skills dynamically listed in `skills-lock.json`.
+
+All other paths must be derived dynamically from `audit.config.ts`.
+
+### 2. Canonical Helpers Catalog
+
+| Helper Function | Origin | Purpose |
+| :--- | :--- | :--- |
+| `getAuditConfig(projectRoot)` | `@francogp/auditor` | Resolves typed SSoT config (`paths.codeRoots`, `paths.srcRoots`, `documentation.skillsRoots`, etc.). |
+| `getEffectiveIgnoreGlobs(projectRoot, options)` | `@francogp/auditor` | Returns deduplicated `${dir}/**` glob array of all ignore directories + custom globs + tool caches. |
+| `getEffectiveUnignoreDirs(projectRoot)` | `@francogp/auditor` | Dynamically derives unignore directories from `paths.unignoreDirs`, `documentation.unignoreDirs`, or `documentation.skillsRoots`. |
+| `getEffectiveIgnoreDirs(projectRoot)` | `@francogp/auditor` | Returns immutable `ReadonlySet<string>` of canonical ignore dirs merged with `paths.ignoredDirs` and dynamic tool caches. |
+
+### 3. Isolated Subsystem Ignore Governance & Universal Ignore Resolution
+
+1. **Binary Rule**: If a directory belongs to a tool or sub-auditor (`.fallow`, `.oxlintcache`, `.stylelintcache`), the sub-auditor MUST declare it via `cachePaths`. If it belongs to no specific sub-auditor (`.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `dist`, `coverage`), it lives in `ALWAYS_IGNORE_DIRS`.
+2. **Section Isolation**: Each sub-auditor isolates its custom ignores in its own section (e.g. `dox: { enabled: true, ignoreGlobs: ['.agents/**'] }`), ensuring that other sub-auditors scan `.agents/**` normally.
+3. **Universal Resolution**: `BaseAuditor` resolves ignores through:
+   $$\text{UNION}(\text{ALWAYS\_IGNORE\_DIRS}, \text{DynamicCaches}, \text{LockedSkills}, \text{paths.ignoreGlobs}, \text{subsystem.ignoreGlobs})$$
+4. **Scaffolding vs. Auto-Fix Invariant**: Suggested defaults in `defaultConfig` are only injected when generating a new configuration file (`createDefaultAuditConfigContent`). In auto-fix (`auditor fix`), the engine NEVER re-injects optional ignores that the user intentionally removed from their configuration.
+
+---
+
+## 27. Complete Canonical Implementation Examples
+
+### 27.1. AST-Driven Sub-Auditor for Source Code (`BaseAuditor` with TypeScript AST)
+
+Use this pattern whenever analyzing `.ts`, `.tsx`, `.js`, or `.vue` files. It strictly adheres to the **AST Traversing Mandate & Zero Regex Code Inspection Mandate**, explicit 7-field rule capabilities, and dynamic ignore resolution:
+
+```typescript
+import path from 'node:path';
+import ts from 'typescript';
+import { enableCompileCache } from 'node:module';
+import {
+  BaseAuditor,
+  SharedAstContext,
+  getEffectiveIgnoreGlobs,
+  resolveFileScanRoots,
+  deriveCoverageFromRoots,
+  type AuditorRuleCapabilities,
+  type RemediationPhaseId,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
+
+enableCompileCache();
+
+export type SecurityAstRuleId =
+  | 'security-no-eval'
+  | 'security-require-exported-guard';
+
+export const SECURITY_AST_RULES: readonly SecurityAstRuleId[] = [
+  'security-no-eval',
+  'security-require-exported-guard'
+] as const;
+
+export class ValidateSecurityAstAuditor extends BaseAuditor<SecurityAstRuleId> {
+  // Sub-Auditor Cache & Temporary Paths Contract:
+  public static readonly cachePaths = ['.security_ast_cache'] as const;
+
+  private readonly targetRoots: readonly string[];
+
+  constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
+    const allowedExtensions = new Set(['.ts', '.vue']);
+
+    super({
+      // Explicit 7-Field Orthogonal Rule Capabilities (Zero Fallbacks Mandate)
+      ruleCapabilities: {
+        'security-no-eval': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: false,
+          critical: true
+        },
+        'security-require-exported-guard': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: false,
+          critical: false
+        }
+      },
+      id: 'validate_security_ast',
+      name: 'Security AST Validator',
+      description: 'Enforces secure code patterns via AST inspections across TypeScript and Vue SFCs',
+      icon: '🛡️',
+      family: 'architecture',
+      ruleIds: SECURITY_AST_RULES,
+      packageName: 'Security',
+      configKey: 'paths.srcRoots',
+      defaultConfig: {
+        srcRoots: ['src']
+      },
+      criticalConfig: {},
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      cachePaths: ValidateSecurityAstAuditor.cachePaths,
+      ruleDescriptions: {
+        'security-no-eval': 'Prohibits direct usage of eval in TypeScript source code',
+        'security-require-exported-guard': 'Requires exported guard functions across authentication modules'
+      },
+      ruleRemediations: {
+        'security-no-eval':
+          '1. Root Cause: Usage of eval executes arbitrary strings, introducing severe injection vulnerabilities.\n' +
+          '2. Diagnosis: Inspect the reported AST node and identify the eval call.\n' +
+          '3. Canonical Solution: Replace dynamic string evaluation with structured data parsing (e.g. JSON.parse or Valibot).\n' +
+          '4. Example / Command: npm run auditor',
+        'security-require-exported-guard':
+          '1. Root Cause: Auth modules must export an explicit guard function contract.\n' +
+          '2. Diagnosis: Check module exports for the required guard declaration.\n' +
+          '3. Canonical Solution: Export a typed guard function satisfying the security contract.\n' +
+          '4. Example / Command: npm run auditor'
+      },
+      ruleRemediationPhases: {
+        'security-no-eval': 'behavior',
+        'security-require-exported-guard': 'contracts'
+      },
+      requiresAst: true,
+      roots: targetRoots,
+      allowedExtensions,
+      // Dynamic SSoT ignore globs derived without hardcoding
+      coverage: {
+        ...deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+        exclude: getEffectiveIgnoreGlobs(effectiveRoot)
+      },
+      projectRoot: effectiveRoot
+    });
+
+    this.targetRoots = targetRoots;
+  }
+
+  public override async runAudit(astContext?: SharedAstContext): Promise<void> {
+    const astEngine = astContext ?? new SharedAstContext(this.projectRoot);
+    const relFiles = await this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
+    const targetFiles = relFiles.filter(
+      (f) => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts')
+    );
+
+    for (const relFile of targetFiles) {
+      const absPath = path.resolve(this.projectRoot, relFile);
+      this.recordScanned(relFile);
+
+      // Fast cached O(1) AST with automatic Vue SFC script extraction & line offset adjustment
+      const sourceFile = astEngine.getSourceFile(absPath);
+
+      // Rule 1: Security eval detection (timing & coverage wrapped around the traversal)
+      this.runSubAuditorSync('security-no-eval', () => {
+        const visit = (node: ts.Node): void => {
+          if (ts.isIdentifier(node) && node.text === 'eval') {
+            const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+            this.addFinding({
+              ruleId: 'security-no-eval',
+              file: relFile,
+              line: line + 1,
+              column: character + 1,
+              message: `Forbidden direct 'eval' invocation detected in AST.`
+            });
+          }
+          ts.forEachChild(node, visit);
+        };
+        visit(sourceFile);
+      });
+
+      // Rule 2: Guard export check
+      this.runSubAuditorSync('security-require-exported-guard', () => {
+        if (relFile.includes('/auth/')) {
+          let hasExportedGuard = false;
+          for (const statement of sourceFile.statements) {
+            if (
+              ts.isFunctionDeclaration(statement) &&
+              statement.name?.text.endsWith('Guard') &&
+              statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+            ) {
+              hasExportedGuard = true;
+              break;
+            }
+          }
+          if (!hasExportedGuard) {
+            this.addFinding({
+              ruleId: 'security-require-exported-guard',
+              file: relFile,
+              line: 1,
+              column: 1,
+              message: `Auth file '${relFile}' must export a function ending in 'Guard'.`
+            });
+          }
+        }
+      });
+    }
+
+    this.context.setMetric('Security AST Files Scanned', targetFiles.length);
+  }
+}
+
+// Canonical CLI Entrypoint
+await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecurityAstAuditor());
+```
+
+---
+
+### 27.2. File-Scan Sub-Auditor for Non-Code Textual Formats (`FileScanAuditor`)
+
+Use this pattern ONLY for non-code text files (`.md`, `.txt`, `.json` non-structural files). Regex and line splitting are strictly forbidden on source code:
+
+```typescript
+import { enableCompileCache } from 'node:module';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  getEffectiveIgnoreGlobs,
+  getEffectiveUnignoreDirs,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
+
+enableCompileCache();
+
+export type TextRuleId = 'docs-trailing-whitespace' | 'docs-missing-eof-newline';
+
+export const TEXT_RULES: readonly TextRuleId[] = [
+  'docs-trailing-whitespace',
+  'docs-missing-eof-newline'
+] as const;
+
+export class ValidateDocsTextAuditor extends FileScanAuditor<TextRuleId> {
+  public static readonly cachePaths = ['.docs_cache'] as const;
+
+  constructor(options: FileScanRootsOptions = {}) {
+    super({
+      ruleCapabilities: {
+        'docs-trailing-whitespace': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'direct',
+          md: true,
+          ast: false,
+          changedOnly: true,
+          critical: false
+        },
+        'docs-missing-eof-newline': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'direct',
+          md: true,
+          ast: false,
+          changedOnly: true,
+          critical: false
+        }
+      },
+      id: 'validate_docs_text',
+      name: 'Documentation Text Hygiene Validator',
+      description: 'Enforces formatting hygiene across Markdown and plaintext documentation',
+      icon: '📝',
+      family: 'documentation',
+      ruleIds: TEXT_RULES,
+      packageName: 'Docs',
+      configKey: 'documentation.docsRoots',
+      defaultConfig: {
+        docsRoots: ['docs']
+      },
+      criticalConfig: {},
+      requiredPermissions: [],
+      usesThirdPartyTool: false,
+      cachePaths: ValidateDocsTextAuditor.cachePaths,
+      ruleDescriptions: {
+        'docs-trailing-whitespace': 'Trailing whitespace at end of lines in documentation',
+        'docs-missing-eof-newline': 'Missing newline at end of file'
+      },
+      ruleRemediations: {
+        'docs-trailing-whitespace':
+          '1. Root Cause: Lines have extra trailing spaces.\n' +
+          '2. Diagnosis: Inspect the end of reported lines.\n' +
+          '3. Canonical Solution: Trim trailing spaces or run auditor fix.\n' +
+          '4. Example / Command: npm run auditor:fix',
+        'docs-missing-eof-newline':
+          '1. Root Cause: File terminates abruptly without a trailing newline.\n' +
+          '2. Diagnosis: Check the last byte of the file.\n' +
+          '3. Canonical Solution: Add a newline character at EOF.\n' +
+          '4. Example / Command: npm run auditor:fix'
+      },
+      ruleRemediationPhases: {
+        'docs-trailing-whitespace': 'hygiene',
+        'docs-missing-eof-newline': 'polish'
+      },
+      allowedExtensions: new Set(['.md', '.txt']),
+      resolveConfigRoots: (config) => config.documentation?.docsRoots,
+      options
+    });
+  }
+
+  protected override async scanFile(relPath: string, content: string): Promise<void> {
+    // Permitted: Line-splitting on non-code documentation formats (.md, .txt)
+    const lines = content.split(/\r?\n/);
+
+    this.runSubAuditorSync('docs-trailing-whitespace', () => {
+      lines.forEach((line, index) => {
+        if (/\s+$/.test(line)) {
+          this.addFinding({
+            ruleId: 'docs-trailing-whitespace',
+            file: relPath,
+            line: index + 1,
+            column: line.length,
+            message: `Line has trailing whitespace.`
+          });
+        }
+      });
+    });
+
+    this.runSubAuditorSync('docs-missing-eof-newline', () => {
+      if (!content.endsWith('\n')) {
+        this.addFinding({
+          ruleId: 'docs-missing-eof-newline',
+          file: relPath,
+          line: lines.length,
+          column: 1,
+          message: `File does not end with a newline.`
+        });
+      }
+    });
+  }
+}
+
+// Canonical CLI Entrypoint
+await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDocsTextAuditor());
+```

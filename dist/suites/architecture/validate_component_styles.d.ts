@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_component_styles.d.ts
 export declare const COMPONENT_STYLE_RULES: readonly ["broken-style-link", "missing-style-tag", "banned-style-inherited", "orphaned-scss", "ad-hoc-button-styles", "banned-plain-css-style", "banned-raw-css-file"];
 export type ComponentStyleRuleId = (typeof COMPONENT_STYLE_RULES)[number];
 export declare const COMPONENT_STYLE_VIOLATION_TYPES: readonly ["broken_style_link", "missing_style_tag", "banned_style_inherited", "orphaned_scss", "ad_hoc_button_styles", "banned_plain_css_style", "banned_raw_css_file"];
@@ -35,4 +34,3 @@ export declare class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRu
   runAudit(): void;
 }
 export declare function auditComponentStyles(rootDir?: string): ComponentStyleAuditResult;
-//#endregion

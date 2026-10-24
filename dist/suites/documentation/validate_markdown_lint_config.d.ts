@@ -1,6 +1,5 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/documentation/validate_markdown_lint_config.d.ts
 export declare const MARKDOWNLINT_CONFIG_RULES: readonly ["markdownlint-config-missing", "markdownlint-config-syntax", "markdownlint-config-missing-strict-rule"];
 export type MarkdownLintConfigRuleId = (typeof MARKDOWNLINT_CONFIG_RULES)[number];
 export interface MarkdownLintConfigShape {
@@ -28,4 +27,3 @@ export declare class ValidateMarkdownLintConfigAuditor extends BaseAuditor<Markd
   }), maybeProjectRoot?: string);
   runAudit(): Promise<void>;
 }
-//#endregion

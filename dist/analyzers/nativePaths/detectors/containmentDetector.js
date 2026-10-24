@@ -1,7 +1,7 @@
 import { POSIX_SEP, WIN_SEP, collectStringFragments, flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, hasTraversalToken, isDriveLetterRegex, isPathFragment, isRegExpConstruction, isSeparatorOnly, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { REGEX_CONSUMER_METHODS, asMethodCall, getNodePathFunction, isPathish, isSepConstant, isUrlish } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/containmentDetector.ts
+// src/analyzers/nativePaths/detectors/containmentDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/containmentDetector.ts
 *
@@ -119,5 +119,4 @@ const containmentDetector = (node, ctx) => {
 		message: CONTAINMENT_MESSAGE
 	} : null;
 };
-//#endregion
 export { containmentDetector };

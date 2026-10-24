@@ -1,7 +1,10 @@
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { safeStatSync } from "./safeUtils.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "./auditTestPredicates.js";
+import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
+import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
@@ -10,9 +13,9 @@ import "./permissionGuard.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
-import { CoverageRecorder, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isDeclaredByCoverage, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
+import { ALWAYS_IGNORE_DIRS, CANONICAL_IGNORE_DIRS, SuiteIgnoreRegistry, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
+import { CoverageRecorder, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isDeclaredByCoverage, resolveActiveCoverageRunId, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { formatDurationMs } from "./durationFormatter.js";
-import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import { renderFindingsDetail } from "./fileTreeRenderer.js";
 import { renderAuditTaskRow, renderBanner, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
 import { isMainModule } from "../cli/cliUtils.js";
@@ -24,7 +27,7 @@ import fs from "node:fs";
 import fs$1 from "node:fs/promises";
 import { styleText } from "node:util";
 import ts from "typescript";
-//#region src/core/auditorBase.ts
+// src/core/auditorBase.ts
 /**
 * scripts/lib/auditorBase.ts
 *
@@ -35,60 +38,6 @@ import ts from "typescript";
 *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
 */
 enableCompileCache();
-/** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
-const ALWAYS_IGNORE_DIRS = /* @__PURE__ */ new Set([
-	"node_modules",
-	".git",
-	".tsbuildinfo",
-	".vitest-cache",
-	".fallow",
-	".vscode",
-	".github",
-	".gemini",
-	"dist",
-	"dev-dist",
-	"build",
-	"coverage",
-	"results",
-	"test-results",
-	"scratch",
-	"tmp",
-	"volumes"
-]);
-/** Additional directories ignored during code scanning (documentation/skills and static assets) */
-const CODE_ONLY_IGNORE_DIRS = /* @__PURE__ */ new Set([
-	".agents",
-	"skills",
-	"public",
-	"packages",
-	"docs"
-]);
-/** Canonical ignore directories for application code auditors (union of ALWAYS + CODE_ONLY) */
-const CANONICAL_IGNORE_DIRS = /* @__PURE__ */ new Set([...ALWAYS_IGNORE_DIRS, ...CODE_ONLY_IGNORE_DIRS]);
-/** Returns the effective set of ignore directories combining canonical defaults with audit.config.ts paths.ignoredDirs */
-function getEffectiveIgnoreDirs(projectRoot = process.cwd()) {
-	const custom = getAuditConfig(projectRoot).paths?.ignoredDirs ?? [];
-	return /* @__PURE__ */ new Set([...CANONICAL_IGNORE_DIRS, ...custom]);
-}
-/** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
-function getEffectiveUnignoreDirs(projectRoot = process.cwd()) {
-	const config = getAuditConfig(projectRoot);
-	const customPaths = config.paths?.unignoreDirs;
-	if (customPaths && customPaths.length > 0) return customPaths;
-	const customDocs = config.documentation?.unignoreDirs;
-	if (customDocs && customDocs.length > 0) return customDocs;
-	const derived = /* @__PURE__ */ new Set();
-	if (config.documentation?.skillsRoots && config.documentation.skillsRoots.length > 0) for (const r of config.documentation.skillsRoots) {
-		const topSegment = toPosixRelative(process.cwd(), r).split("/")[0];
-		if (topSegment) derived.add(topSegment);
-	}
-	if (derived.size > 0) return Array.from(derived);
-	return [
-		".agents",
-		"skills",
-		"docs"
-	];
-}
 const SCANNABLE_EXTENSIONS = /* @__PURE__ */ new Set([
 	".ts",
 	".js",
@@ -109,14 +58,10 @@ function resolvePersistenceExtraRoots(config) {
 	return extra;
 }
 function resolveDeclaredPathRoots(paths) {
-	if (!paths) return [
-		"src",
-		"scripts",
-		"tests"
-	];
+	if (!paths) return [...DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...DEFAULT_AUDIT_CONFIG.paths.testRoots];
 	return [
-		...paths.codeRoots ?? ["src", "scripts"],
-		...paths.testRoots ?? ["tests"],
+		...paths.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots,
+		...paths.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots,
 		...paths.integrationRoots ?? [],
 		...paths.e2eRoots ?? [],
 		...paths.demoRoots ?? [],
@@ -165,9 +110,9 @@ function matchesDirectorySegments(normalized, segments, unignoreSet, configIgnor
 			hasUnignoredAncestor = true;
 			continue;
 		}
-		if (ALWAYS_IGNORE_DIRS.has(seg)) return true;
+		if (ALWAYS_IGNORE_DIRS.has(seg) || getDynamicCachePaths().has(seg)) return true;
 		if (!hasUnignoredAncestor) {
-			if (CODE_ONLY_IGNORE_DIRS.has(seg) || hasConfigIgnored && configIgnoredDirs.some((d) => d === seg || normalized === d || normalized.startsWith(d + "/") || normalized.includes("/" + d + "/"))) return true;
+			if (hasConfigIgnored && configIgnoredDirs.some((d) => d === seg || normalized === d || normalized.startsWith(d + "/") || normalized.includes("/" + d + "/"))) return true;
 		}
 	}
 	return false;
@@ -573,7 +518,7 @@ function resolveFileScanRoots(options = {}, defaultRootsResolver) {
 	else if (Array.isArray(defaultRootsResolver)) resolvedDefaultRoots = defaultRootsResolver;
 	return {
 		effectiveRoot,
-		targetRoots: options.roots ?? resolvedDefaultRoots ?? config.paths?.srcRoots ?? ["src"]
+		targetRoots: options.roots ?? resolvedDefaultRoots ?? config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
 	};
 }
 /**
@@ -751,11 +696,8 @@ function extractStringList(candidate) {
 }
 function resolveSubsystemIgnoresAndExemptions(options, config) {
 	const section = resolveSubsystemConfig(config, options.configKey);
-	if (!section || typeof section !== "object") return {
-		extraIgnorePatterns: options.extraIgnorePatterns ?? [],
-		exemptPaths: options.exemptPaths ?? []
-	};
-	const sectionObj = section;
+	const effectiveSection = section && typeof section === "object" ? section : options.defaultConfig;
+	const sectionObj = effectiveSection && typeof effectiveSection === "object" ? effectiveSection : {};
 	const ignoreGlobs = extractStringList(sectionObj.ignoreGlobs);
 	const exemptPaths = [...extractStringList(sectionObj.exemptPaths), ...extractStringList(sectionObj.exemptFiles)];
 	return {
@@ -782,6 +724,7 @@ var BaseAuditor = class BaseAuditor {
 	capabilities;
 	ruleCapabilities;
 	gitIgnoreEntries;
+	cachePaths;
 	configFiles;
 	scripts;
 	requiredPermissions;
@@ -1001,8 +944,8 @@ var BaseAuditor = class BaseAuditor {
 	resolveEffectiveCoverage(options, effectiveProjectRoot) {
 		if (options.coverage) return options.coverage;
 		if (options.roots !== void 0) {
-			const targetRoots = options.roots.length > 0 ? options.roots : getEffectiveScannableRoots();
-			return deriveCoverageFromRoots(targetRoots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS);
+			const targetRoots = options.roots.length > 0 ? options.roots : getEffectiveScannableRoots(getAuditConfig(effectiveProjectRoot));
+			return deriveCoverageFromRoots(targetRoots, options.allowedExtensions ?? SCANNABLE_EXTENSIONS, effectiveProjectRoot);
 		}
 		if (options.requiredFiles && options.requiredFiles.length > 0) return deriveCoverageFromRequiredFiles(options.requiredFiles, effectiveProjectRoot, options.allowedExtensions);
 	}
@@ -1016,8 +959,25 @@ var BaseAuditor = class BaseAuditor {
 	}
 	registerAuditorDependencies(options, effectiveScripts) {
 		if (options.gitIgnoreEntries && options.gitIgnoreEntries.length > 0) GitIgnoreRegistry.registerMany(options.gitIgnoreEntries);
+		if (options.cachePaths && options.cachePaths.length > 0) for (const cp of options.cachePaths) {
+			registerDynamicCachePath(cp);
+			const trimmed = cp.endsWith("/") ? cp.slice(0, -1) : cp;
+			const normPattern = cp.endsWith("/") || !cp.includes(".") ? `${trimmed}/` : cp;
+			GitIgnoreRegistry.register({
+				id: `${options.id}-${cp}`,
+				pattern: normPattern,
+				reason: `Cache or temporary artifacts generated by [${options.id}]`,
+				isApplicable: (config) => evaluateSuiteStatus(options.id, config, options.configKey).enabled !== false
+			});
+		}
 		if (options.configFiles && options.configFiles.length > 0) ConfigFileRegistry.registerMany(options.configFiles);
 		if (effectiveScripts && effectiveScripts.length > 0) PackageScriptRegistry.registerMany(effectiveScripts, options.id);
+		if (options.defaultIgnoredDirs && options.defaultIgnoredDirs.length > 0 || options.defaultIgnoreGlobs && options.defaultIgnoreGlobs.length > 0) SuiteIgnoreRegistry.register({
+			suiteId: options.id,
+			ignoredDirs: options.defaultIgnoredDirs,
+			ignoreGlobs: options.defaultIgnoreGlobs,
+			reason: `Suggested ignore patterns declared by [${options.id}]`
+		});
 	}
 	initExecutionContext(coverageDeclaration) {
 		return setupAuditor({
@@ -1073,6 +1033,7 @@ var BaseAuditor = class BaseAuditor {
 		this.usesThirdPartyTool = options.usesThirdPartyTool;
 		this.thirdPartyToolPolicy = options.thirdPartyToolPolicy;
 		this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
+		this.cachePaths = options.cachePaths ?? [];
 		this.configFiles = options.configFiles ?? [];
 		this.scripts = effectiveScripts;
 		this.requiredPermissions = options.requiredPermissions ?? [];
@@ -1083,9 +1044,10 @@ var BaseAuditor = class BaseAuditor {
 		this.ruleRemediations = options.ruleRemediations;
 		this.ruleRemediationPhases = resolveRulePhases(options);
 		this.explicitSubAuditors = options.subAuditors;
-		this.roots = options.roots ?? getEffectiveScannableRoots();
+		const config = getAuditConfig(effectiveProjectRoot);
+		this.roots = options.roots ?? getEffectiveScannableRoots(config);
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-		const { extraIgnorePatterns, exemptPaths } = resolveSubsystemIgnoresAndExemptions(options, getAuditConfig(effectiveProjectRoot));
+		const { extraIgnorePatterns, exemptPaths } = resolveSubsystemIgnoresAndExemptions(options, config);
 		this.extraIgnorePatterns = extraIgnorePatterns;
 		this.exemptPaths = exemptPaths;
 		this.unignoreDirs = options.unignoreDirs ?? (options.family === "documentation" ? getEffectiveUnignoreDirs(effectiveProjectRoot) : []);
@@ -1780,9 +1742,10 @@ var FileScanAuditor = class extends BaseAuditor {
 	*/
 	scanFile(_relPath, _content, _sourceFile, _doc) {}
 	constructor(options) {
+		const config = getAuditConfig(options.projectRoot);
 		super(options.coverage || options.roots !== void 0 ? options : {
 			...options,
-			roots: getEffectiveScannableRoots()
+			roots: getEffectiveScannableRoots(config)
 		});
 	}
 	/**
@@ -1924,5 +1887,4 @@ var FileScanAuditor = class extends BaseAuditor {
 		for (const file of files) await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
 	}
 };
-//#endregion
-export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, CODE_ONLY_IGNORE_DIRS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveIgnoreDirs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };
+export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, SuiteIgnoreRegistry, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, registerDynamicCachePath, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };

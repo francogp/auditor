@@ -1,6 +1,6 @@
 import path from "node:path";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/pathLiteralHeuristics.ts
+// src/analyzers/nativePaths/pathLiteralHeuristics.ts
 /**
 * src/analyzers/nativePaths/pathLiteralHeuristics.ts
 *
@@ -170,5 +170,4 @@ function isInsideRegExpConstruction(node) {
 function isUrlConstruction(node) {
 	return ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "URL";
 }
-//#endregion
 export { POSIX_SEP, WIN_SEP, collectStringFragments, flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, hasFileExtensionTail, hasTraversalToken, isDriveLetterRegex, isDriveOrUncLiteral, isInsideRegExpConstruction, isOutermostPlus, isPathFragment, isRegExpConstruction, isSeparatorOnly, isUrlConstruction, startsWithUrlScheme, unwrapExpression };

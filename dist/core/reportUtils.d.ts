@@ -1,5 +1,4 @@
 import { AuditFinding } from "./auditContract.js";
-//#region src/core/reportUtils.d.ts
 export interface ValidationSummary {
   title: string;
   scannedMetrics: Record<string, number>;
@@ -65,4 +64,3 @@ export declare function parseLintResultsToFindings(input: string | object[], opt
 export declare function extractJsonReportFilePaths(rawJson: string, fallbackFindings?: readonly {
   file?: string;
 }[]): string[];
-//#endregion

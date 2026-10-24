@@ -1,7 +1,7 @@
 import { FAMILY_METADATA, groupResultsByFamily } from "./auditContract.js";
 import { formatDurationMs, formatNumber } from "./durationFormatter.js";
 import path from "node:path";
-//#region src/core/markdownReport.ts
+// src/core/markdownReport.ts
 /**
 * packages/auditor/src/core/markdownReport.ts
 *
@@ -65,5 +65,4 @@ function renderMarkdownReport(results, suitesPassed, totalDurationMs) {
 	md += renderMarkdownFindingsTable(results.flatMap((r) => r.findings));
 	return md;
 }
-//#endregion
 export { renderMarkdownReport };

@@ -1,16 +1,15 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
 import { renderBanner, renderBoxTable, renderSimilarCodeWarningBanner } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { checkOrInitializeModel, resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import path from "node:path";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";
-//#region src/cli/report_similar_code.ts
+// src/cli/report_similar_code.ts
 /**
 * packages/auditor/src/cli/report_similar_code.ts
 *
@@ -154,5 +153,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runSimilarCodeReport();
 }
-//#endregion
 export { runSimilarCodeReport };

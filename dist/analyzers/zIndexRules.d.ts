@@ -1,6 +1,5 @@
 import { AuditRule, RuleDescriptor } from "./auditRuleTypes.js";
 import { Z_LAYERS } from "../core/auditZLayers.js";
-//#region src/analyzers/zIndexRules.d.ts
 export declare const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor;
 export declare const CANONICAL_DEFAULT_Z_LAYERS: Record<string, number>;
 export declare const ACTIVE_Z_LAYERS: Record<string, number>;
@@ -18,5 +17,4 @@ export declare function resolveZLayer(val: number): ZLayerResolution;
 export declare function fixZIndexLiteral(match: string): string;
 export declare const zIndexAudit: AuditRule;
 export declare const zIndexConstantDeclaration: AuditRule;
-//#endregion
 export { Z_LAYERS };

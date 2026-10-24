@@ -2,7 +2,7 @@ import { safeJsonParse, safeReadFileSync, safeStatSync, tryOrNull } from "./safe
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
-//#region src/core/transcriptAuthorizationVerifier.ts
+// src/core/transcriptAuthorizationVerifier.ts
 /**
 * src/core/transcriptAuthorizationVerifier.ts
 *
@@ -125,5 +125,4 @@ function verifyTranscriptAuthorization(relaxationCode, options = {}) {
 		reason: `Relaxation code '${cleanCode}' was not found in any USER_EXPLICIT transcript step`
 	};
 }
-//#endregion
 export { discoverTranscriptFiles, isRelaxationCode, verifyTranscriptAuthorization };

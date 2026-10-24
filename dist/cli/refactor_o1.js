@@ -3,7 +3,7 @@ import { isMainModule } from "./cliUtils.js";
 import { O1RefactorEngine } from "../core/refactor/o1RefactorEngine.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { styleText } from "node:util";
-//#region src/cli/refactor_o1.ts
+// src/cli/refactor_o1.ts
 /**
 * src/cli/refactor_o1.ts
 *
@@ -87,5 +87,4 @@ if (isMainModule(import.meta.url, ["auditor-o1", "refactor_o1"])) runRefactorO1C
 	console.error(styleText("red", `\n[Error] Fatal error in auditor-o1: ${err.message}`));
 	process.exit(1);
 });
-//#endregion
 export { runRefactorO1Cli };

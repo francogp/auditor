@@ -1,14 +1,15 @@
 import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { isDeclaredByCoverage, toPosixRelative } from "../../core/auditCoverage.js";
-import { loadLockedSkills } from "../../core/lockedSkills.js";
+import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
+import { isDeclaredByCoverage } from "../../core/auditCoverage.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveUnignoreDirs } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/documentation/validate_markdown_lint.ts
+// src/suites/documentation/validate_markdown_lint.ts
 /**
 * scripts/auditors/documentation/validate_markdown_lint.ts
 *
@@ -38,18 +39,13 @@ const DEFAULT_MARKDOWN_IGNORE_GLOBS = [
 ];
 function getMarkdownIgnoreGlobs(projectRoot) {
 	const config = getAuditConfig(projectRoot);
-	const globs = [...DEFAULT_MARKDOWN_IGNORE_GLOBS];
-	if (config.paths?.ignoreGlobs) globs.push(...config.paths.ignoreGlobs);
-	if (config.paths?.e2eRoots) for (const r of config.paths.e2eRoots) globs.push(`${r}/results/**`);
-	if (config.paths?.ignoredDirs) for (const d of config.paths.ignoredDirs) globs.push(`${d}/**`);
-	if (config.persistence?.supabaseDir) globs.push(`${config.persistence.supabaseDir}/**`);
-	const lockedSkills = loadLockedSkills(projectRoot);
-	for (const s of lockedSkills) {
-		globs.push(`.agents/skills/${s}/**`);
-		globs.push(`skills/${s}/**`);
-		globs.push(`.skills/${s}/**`);
-	}
-	return Array.from(new Set(globs));
+	const extraGlobs = [];
+	if (config.paths?.e2eRoots) for (const r of config.paths.e2eRoots) extraGlobs.push(`${r}/results/**`);
+	if (config.persistence?.supabaseDir) extraGlobs.push(`${config.persistence.supabaseDir}/**`);
+	return getEffectiveIgnoreGlobs(projectRoot, {
+		includeLockedSkills: true,
+		extraGlobs
+	});
 }
 const MARKDOWNLINT_FIXABLE_RULE_LIST = [
 	"MD004",
@@ -230,5 +226,4 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownLintAuditor());
-//#endregion
 export { DEFAULT_MARKDOWN_IGNORE_GLOBS, MARKDOWNLINT_FIXABLE_RULES, MARKDOWNLINT_FIXABLE_RULE_LIST, MARKDOWN_LINT_RULES, MarkdownLintAuditor, getMarkdownIgnoreGlobs, parseMarkdownLintIssues };

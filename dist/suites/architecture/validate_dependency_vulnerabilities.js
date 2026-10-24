@@ -7,7 +7,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import crypto from "node:crypto";
-//#region src/suites/architecture/validate_dependency_vulnerabilities.ts
+// src/suites/architecture/validate_dependency_vulnerabilities.ts
 /**
 * src/suites/architecture/validate_dependency_vulnerabilities.ts
 *
@@ -230,5 +230,4 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDependencyVulnerabilitiesAuditor());
-//#endregion
 export { DEPENDENCY_VULNERABILITIES_RULES, ValidateDependencyVulnerabilitiesAuditor, parseNpmAuditReport, runNpmAudit };

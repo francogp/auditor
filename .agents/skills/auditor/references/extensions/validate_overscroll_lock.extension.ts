@@ -20,8 +20,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   BaseAuditor,
+  FileScanAuditor,
   createUniformRuleCapabilities,
   getAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
   type FileScanRootsOptions
 } from '@francogp/auditor';
 
@@ -31,9 +33,14 @@ export const OVERSCROLL_LOCK_RULES: readonly OverscrollLockRuleId[] = [
   'overscroll-behavior-lock'
 ] as const;
 
-export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
+export class OverscrollLockAuditor extends FileScanAuditor<OverscrollLockRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const defaultRoots = config.paths.stylesRoots?.length
+      ? config.paths.stylesRoots
+      : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
+
     super({
       id: 'validate_overscroll_lock',
       name: 'Mobile Overscroll Behavior Lock Validator',
@@ -51,16 +58,16 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
       }),
       ruleIds: OVERSCROLL_LOCK_RULES,
       packageName: 'Mobile',
-      configKey: 'styles.baseScssFile',
+      configKey: 'styles.overscrollLock',
       defaultConfig: {
-        baseScssFile: 'src/styles/base.scss'
+        enabled: true
       },
       criticalConfig: {},
       requiredPermissions: [],
       remediationPhase: 'polish',
       usesThirdPartyTool: false,
       ruleDescriptions: {
-        'overscroll-behavior-lock': 'Missing overscroll-behavior in base stylesheet'
+        'overscroll-behavior-lock': 'Missing overscroll-behavior'
       },
       ruleRemediations: {
         'overscroll-behavior-lock':
@@ -69,7 +76,7 @@ export class OverscrollLockAuditor extends BaseAuditor<OverscrollLockRuleId> {
           '3. Canonical Solution: Add "overscroll-behavior: none !important;" on the html, body selector to prevent accidental mobile pull-to-refresh gestures.\n' +
           '4. Example / Command: npm run auditor'
       },
-      roots: options.roots ?? ['src/styles'],
+      roots: options.roots ?? defaultRoots,
       allowedExtensions: new Set(['.scss', '.css']),
       projectRoot
     });

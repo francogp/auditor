@@ -1,5 +1,5 @@
 import fs from "node:fs";
-//#region src/core/safeUtils.ts
+// src/core/safeUtils.ts
 /**
 * packages/auditor/src/core/safeUtils.ts
 *
@@ -169,5 +169,4 @@ async function safeReaddirAsync(dirPath) {
 		return null;
 	}
 }
-//#endregion
 export { safeJsonParse, safeReadFileAsync, safeReadFileSync, safeReaddirAsync, safeRmSync, safeStatSync, tryCatchAsync, tryCatchSync, tryOrDefault, tryOrDefaultAsync, tryOrNull, tryOrNullAsync, tryOrUndefined, tryOrUndefinedAsync };

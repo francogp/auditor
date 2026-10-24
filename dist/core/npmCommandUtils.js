@@ -3,7 +3,7 @@ import { getPackageJson } from "./packageJson.js";
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
-//#region src/core/npmCommandUtils.ts
+// src/core/npmCommandUtils.ts
 /**
 * src/core/npmCommandUtils.ts
 *
@@ -353,5 +353,4 @@ function runNpmCommandSync(args, options = {}) {
 		env: options.env ?? process.env
 	});
 }
-//#endregion
 export { COMMAND_INVOCATION_TYPES, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS, KNOWN_OPTIONAL_ENVIRONMENT_HOOKS_SET, NPM_DIRECT_REGEX, NPM_RUN_REGEX, NPX_REGEX, VALID_NPM_BUILTINS, VALID_VP_BUILTINS, VP_DIRECT_REGEX, VP_DLX_REGEX, VP_RUN_REGEX, cleanTarget, evaluateGenericCommandViolation, extractCommandsFromLine, getNpmCommand, isPlaceholder, loadPackageScriptsAndBins, runNpmCommandSync };

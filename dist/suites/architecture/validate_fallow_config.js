@@ -1,14 +1,14 @@
+import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
 import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
-//#region src/suites/architecture/validate_fallow_config.ts
+// src/suites/architecture/validate_fallow_config.ts
 /**
 * scripts/auditors/architecture/validate_fallow_config.ts
 *
@@ -68,11 +68,31 @@ function createDefaultFallowConfigContent() {
 		health: { maxCrap: 0 }
 	}, null, 2) + "\n";
 }
+const VALID_SEVERITIES = new Set(CANONICAL_RULE_SEVERITY_LEVELS);
 function loadFallowConfig(configPath, auditor) {
 	if (!fs.existsSync(configPath)) return null;
 	try {
 		const raw = fs.readFileSync(configPath, "utf-8");
-		return JSON.parse(raw);
+		const parsed = JSON.parse(raw);
+		if (parsed.audit?.worsened) {
+			if (!VALID_SEVERITIES.has(parsed.audit.worsened)) auditor.addViolation({
+				ruleId: "fallow-config-syntax",
+				severity: "error",
+				file: ".fallowrc.json",
+				line: 1,
+				message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
+				context: ".fallowrc.json"
+			});
+		}
+		if (parsed.mutation?.runnerConfig && (typeof parsed.mutation.runnerConfig !== "object" || Array.isArray(parsed.mutation.runnerConfig))) auditor.addViolation({
+			ruleId: "fallow-config-syntax",
+			severity: "error",
+			file: ".fallowrc.json",
+			line: 1,
+			message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be an object.`,
+			context: ".fallowrc.json"
+		});
+		return parsed;
 	} catch (err) {
 		auditor.addViolation({
 			ruleId: "fallow-config-syntax",
@@ -316,7 +336,8 @@ const FALLOW_CONFIG_REQUIREMENT = {
 	ruleId: "fallow-config-missing",
 	generateDefaultContent: () => createDefaultFallowConfigContent()
 };
-var ValidateFallowConfigAuditor = class extends BaseAuditor {
+var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends BaseAuditor {
+	static cachePaths = [".fallow"];
 	constructor(targetPathOrOptions) {
 		let projectRoot;
 		let configPath;
@@ -369,6 +390,7 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 				"fallow-duplicate-entry"
 			],
 			configFiles: [configRequirement],
+			cachePaths: ValidateFallowConfigAuditor.cachePaths,
 			fix,
 			id: "validate_fallow_config",
 			name: "Fallow Configuration & Exports Hygiene Validator",
@@ -456,5 +478,4 @@ var ValidateFallowConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateFallowConfigAuditor());
-//#endregion
 export { BANNED_ENTRY_GLOBS, FALLOW_CONFIG_REQUIREMENT, FALLOW_CONFIG_RULES, ValidateFallowConfigAuditor, createDefaultFallowConfigContent, escapeRegExp, getBannedEntryGlobs, isSymbolExportedInContent, validateFallowWorkspaceDiagnostics };

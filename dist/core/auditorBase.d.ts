@@ -3,21 +3,11 @@ import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.j
 import { AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { SharedAstContext } from "./astContext.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
-import { CoverageRecorder } from "./auditCoverage.js";
 import { isPathExempt } from "./reportUtils.js";
+import { CoverageRecorder } from "./auditCoverage.js";
+import { ALWAYS_IGNORE_DIRS, CANONICAL_IGNORE_DIRS, EffectiveIgnoreGlobsOptions, SuiteIgnoreRegistry, SuiteIgnoreRequirement, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
-//#region src/core/auditorBase.d.ts
-/** Directories that must ALWAYS be ignored across all tools, runners, and auditors (compilation, VCS, scratch, test artifacts) */
-export declare const ALWAYS_IGNORE_DIRS: ReadonlySet<string>;
-/** Additional directories ignored during code scanning (documentation/skills and static assets) */
-export declare const CODE_ONLY_IGNORE_DIRS: ReadonlySet<string>;
-/** Canonical ignore directories for application code auditors (union of ALWAYS + CODE_ONLY) */
-export declare const CANONICAL_IGNORE_DIRS: ReadonlySet<string>;
-/** Returns the effective set of ignore directories combining canonical defaults with audit.config.ts paths.ignoredDirs */
-export declare function getEffectiveIgnoreDirs(projectRoot?: string): ReadonlySet<string>;
-/** Returns the effective set of unignore directories combining audit.config.ts paths.unignoreDirs, documentation.unignoreDirs, and derived skillsRoots */
-export declare function getEffectiveUnignoreDirs(projectRoot?: string): readonly string[];
 export declare const SCANNABLE_EXTENSIONS: ReadonlySet<string>;
 export declare const CANONICAL_SCANNABLE_ROOTS: readonly ["scripts", "src", "tests"];
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
@@ -133,6 +123,24 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly fixableRuleIds?: readonly TRuleId[];
   readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
+  /**
+   * Custom cache or temporary directories/files produced by this suite or underlying tool
+   * when `scratch/` cannot be utilized (e.g. `['.fallow', '.oxlintcache']`).
+   * Automatically registered into gitIgnoreEntries (for auto-injection into .gitignore)
+   * and added to canonical ignore patterns so analyzers do not scan them.
+   */
+  readonly cachePaths?: readonly string[];
+  /**
+   * Suggested directory ignore defaults declared by this suite or extension (e.g. `['.agents']`).
+   * Automatically collected by the configuration scaffolding engine and injected into
+   * `paths.ignoredDirs` when generating new audit.config.ts files.
+   */
+  readonly defaultIgnoredDirs?: readonly string[];
+  /**
+   * Suggested glob ignore patterns declared by this suite or extension.
+   * Automatically collected and injected into `paths.ignoreGlobs`.
+   */
+  readonly defaultIgnoreGlobs?: readonly string[];
   readonly configFiles?: readonly AuditorConfigFileRequirement<TRuleId>[];
   readonly scripts?: readonly AuditorPackageScriptRequirement[];
   readonly ruleIds: readonly TRuleId[];
@@ -220,6 +228,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly capabilities: AuditorCapabilities;
   readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
+  readonly cachePaths: readonly string[];
   readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
   readonly scripts: readonly AuditorPackageScriptRequirement[];
   readonly requiredPermissions: readonly string[];
@@ -548,5 +557,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   private scanSingleDiscoveredFile;
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-//#endregion
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, isPathExempt, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };
+export { ALWAYS_IGNORE_DIRS, AuditedDocument, CANONICAL_IGNORE_DIRS, type DocumentReplacement, type EffectiveIgnoreGlobsOptions, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, SKILLS_LOCK_CANDIDATE_PATHS, SuiteIgnoreRegistry, type SuiteIgnoreRequirement, clearLockedSkillsCache, deriveCanonicalAuditorScript, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, isLockedSkillPath, isPathExempt, loadLockedSkills, normalizeSpeeds, registerDynamicCachePath, resolveEffectiveSpeed };

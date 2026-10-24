@@ -1,6 +1,6 @@
 import { getStaticStringValue, unwrapCliExpression } from "../cliContractHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/unregisteredScriptDetector.ts
+// src/analyzers/cliContracts/detectors/unregisteredScriptDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/unregisteredScriptDetector.ts
 *
@@ -43,5 +43,4 @@ const unregisteredScriptDetector = (node) => {
 		message: `CORE_PACKAGE_SCRIPT_REQUIREMENTS is missing mandatory ':human' package scripts: ${missing.join(", ")}. Register all ':human' scripts so 'auditor fix' injects them into consumer host projects.`
 	};
 };
-//#endregion
 export { unregisteredScriptDetector };

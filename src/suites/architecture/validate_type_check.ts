@@ -18,6 +18,9 @@ import { spawnSync } from 'node:child_process';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { tryOrNull, safeRmSync } from '../../core/safeUtils.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
@@ -130,6 +133,11 @@ export interface TypeCheckAuditorOptions {
 export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
   constructor(options: TypeCheckAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const targetRoots = [
+      ...(config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
+      ...(config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots)
+    ];
     super({
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
@@ -175,10 +183,7 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
       },
       coverage: {
         include: [
-          'src/**/*.ts',
-          'src/**/*.vue',
-          'scripts/**/*.ts',
-          'tests/**/*.ts',
+          ...deriveCoverageFromRoots(targetRoots, new Set(['.ts', '.vue']), projectRoot).include,
           'tsconfig*.json'
         ],
         source: 'declared-only'

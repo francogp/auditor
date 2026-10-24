@@ -1,4 +1,3 @@
-//#region src/core/auditZLayers.d.ts
 /**
  * packages/auditor/src/core/auditZLayers.ts
  *
@@ -18,4 +17,3 @@ export declare const Z_LAYERS: Readonly<Record<string, number>>;
  * or falls back to the default Z_LAYERS.
  */
 export declare function getEffectiveZLayers(projectRoot?: string): Record<string, number>;
-//#endregion

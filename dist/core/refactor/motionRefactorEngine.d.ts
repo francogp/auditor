@@ -2,7 +2,6 @@ import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { MotionFindingItem, MotionRefactorPlan } from "./refactorContracts.js";
 import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validate_gsap_animations.js";
-//#region src/core/refactor/motionRefactorEngine.d.ts
 export declare class MotionRefactorEngine extends BaseRefactorEngine<MotionFindingItem, MotionRefactorPlan, ValidateGsapAnimationsAuditor> {
   readonly toolId = "auditor-motion";
   readonly configSectionKey: "animation";
@@ -34,4 +33,3 @@ export declare class MotionRefactorEngine extends BaseRefactorEngine<MotionFindi
     readonly changesApplied: number;
   };
 }
-//#endregion

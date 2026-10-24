@@ -1,5 +1,5 @@
 import { defineCommand, parseArgs, runCommand, runMain } from "citty";
-//#region src/core/cli/cittyHarness.ts
+// src/core/cli/cittyHarness.ts
 /**
 * src/core/cli/cittyHarness.ts
 *
@@ -140,5 +140,4 @@ function resolveHumanModeFromArgs(args, rawArgs) {
 	if (rawArgs) return rawArgs.some((a) => KNOWN_BARE_MODE_FLAGS.has(a) || KNOWN_BARE_MODE_FLAGS.has(a.replace(/^--/, "")));
 	return false;
 }
-//#endregion
 export { COMMON_CLI_ARGS, CONSOLE_FORMAT_VALUES, KNOWN_BARE_MODE_FLAGS, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs, runCommand, runMain };

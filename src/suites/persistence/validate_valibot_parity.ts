@@ -29,6 +29,7 @@ import ts from 'typescript';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import type {
   ValibotNestedParityTarget,
@@ -287,6 +288,14 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       ...(t.serializerFile ? [t.serializerFile] : []),
       ...(t.initialStateFile ? [t.initialStateFile] : [])
     ]);
+    const typesRoots = (config.paths.typesRoots ?? DEFAULT_AUDIT_CONFIG.paths.typesRoots) ?? [];
+    const logicRoots = (config.paths.logicRoots ?? DEFAULT_AUDIT_CONFIG.paths.logicRoots) ?? [];
+    const storesRoots = (config.paths.storesRoots ?? DEFAULT_AUDIT_CONFIG.paths.storesRoots) ?? [];
+    const fallbackGlobs = [
+      ...typesRoots.map((r: string) => `${r}/**/*.ts`),
+      ...logicRoots.map((r: string) => `${r}/**/*.ts`),
+      ...storesRoots.map((r: string) => `${r}/**/*.ts`)
+    ];
 
     super({
       usesThirdPartyTool: false,
@@ -371,10 +380,7 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
           '   ✅ Canonical: `v.nullish(v.string())`'
       },
       coverage: {
-        include:
-          targetFiles.length > 0
-            ? targetFiles
-            : ['src/types/**/*.ts', 'src/logic/**/*.ts', 'src/stores/**/*.ts']
+        include: targetFiles.length > 0 ? targetFiles : fallbackGlobs
       },
       projectRoot: options.projectRoot
     });

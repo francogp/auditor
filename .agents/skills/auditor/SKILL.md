@@ -120,9 +120,15 @@ graph TD
 - `ruleDescriptions`: Concise English explanation for each rule ID. Composed `${packageName}: ${ruleDescription}` MUST be `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) without newlines.
 - Positive health phrasing for active checks (e.g. `'Similar-code engine health'`), reserving error phrasing for violation messages.
 
-### 13. Single Source of Truth Directory Ignores & Dynamic Path Exemptions (`isPathIgnored`, `isPathExempt`)
+### 13. Single Source of Truth Directory Ignores & Canonical Registry (`CanonicalIgnoreRegistry`, `isPathIgnored`)
 
-- Sub-auditors MUST NEVER declare local ignore arrays or hardcoded candidate paths. Use `isPathIgnored(relPath)` unifying `CANONICAL_IGNORE_DIRS` + `config.paths.ignoredDirs` + `ignoredPatterns` + `ignoreGlobs`.
+- **Canonical Ignore Registry (`CanonicalIgnoreRegistry`)**: Centralized Single Source of Truth (`src/core/canonicalIgnoreRegistry.ts`) for universal directory ignores (`ALWAYS_IGNORE_DIRS`), binary extensions (`CANONICAL_BINARY_EXTENSIONS`), dynamic caches, and configuration unignore resolution.
+- **Binary Governance for Ignored Paths**:
+  1. **Universal Directories Without Auditor**: `.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `dist`, `coverage` belong strictly to `ALWAYS_IGNORE_DIRS`. Hardcoding application code roots in `ALWAYS_IGNORE_DIRS` is strictly prohibited.
+  2. **Tool-Specific Caches (`cachePaths`)**: Caches created by specific tools outside `scratch/` (e.g. `.fallow`, `.oxlintcache`, `.stylelintcache`) MUST be declared by their governing sub-auditor in its constructor options via `cachePaths: readonly string[]`. `BaseAuditor` automatically registers these into `dynamicCachePaths` and `GitIgnoreRegistry`.
+  3. **Section-Isolated Ignores (`subsystem.ignoreGlobs`)**: Each sub-auditor isolates its custom ignores in its own configuration section in `.auditor/audit.config.ts` (e.g. `dox: { enabled: true, ignoreGlobs: ['.agents/**'] }`), ensuring all other sub-auditors scan `.agents/**` normally.
+  4. **Universal Resolution Formula**: `BaseAuditor` resolves ignores via $\text{UNION}(\text{ALWAYS\_IGNORE\_DIRS}, \text{DynamicCaches}, \text{LockedSkills}, \text{paths.ignoreGlobs}, \text{subsystem.ignoreGlobs})$.
+  5. **Scaffold vs Auto-Fix Invariant**: Suggested defaults (`defaultConfig`) are written only when scaffolding a new configuration (`createDefaultAuditConfigContent`); in auto-fix (`auditor fix`), the engine NEVER re-injects optional ignores deleted by the user.
 - `FileScanAuditor` natively accepts `exemptPaths` in constructor options and evaluates `isPathExempt(relPath, this.exemptPaths)`, cleanly ignoring configured files or patterns.
 
 ### 14. Universal Ephemeral Scratch (`scratch/`) & Build Output (`dist/`) Isolation
@@ -134,11 +140,11 @@ graph TD
 
 - Generic suites in `src/suites/<family>/` and host extensions in `.auditor/audit.config.ts` are discovered dynamically. Never hardcode static suite arrays.
 
-### 16. Pure Configuration-Driven Resolution & Anti-Hardcoding Mandate (`auditor-hardcoded-config`)
+### 16. Pure Configuration-Driven Resolution, Zero Hardcoded Paths & Single Options Object
 
-- `@francogp/auditor` MUST remain 100% domain-agnostic. No hardcoded host directories, domain entity IDs, fallback filenames (e.g. `['visuals.ts', 'constants.ts']`), or business rules in core suites or host extensions.
-- All candidate paths, target directories, and exemption patterns MUST resolve dynamically from `.auditor/audit.config.ts`.
-- Enforced at build and audit time by `validate_auditor_hygiene` (`auditor-hardcoded-config`), which flags hardcoded candidate arrays and fallback path lists with `severity: 'error'`.
+- **Zero Hardcoded Paths Mandate**: `@francogp/auditor` MUST remain 100% domain-agnostic with ZERO hardcoded paths, candidate file arrays, or literal fallback lists (`?? ['src']`, `?? ['scripts']`). Roots resolve dynamically via `resolveFileScanRoots(options, selector)` from `config.paths` or `DEFAULT_AUDIT_CONFIG.paths`. Probed by `tests/all_auditors_zero_hardcoded_paths.test.ts`.
+- **Single Options Object Mandate**: Sub-auditor constructors strictly accept a single typed options object (`options: FileScanRootsOptions = {}` or extended interface). Positional constructor parameters are strictly prohibited.
+- **Anti-Hardcoding Hygiene (`auditor-hardcoded-config`)**: Enforced at build and audit time by `validate_auditor_hygiene`, which flags hardcoded candidate arrays and fallback path lists with `severity: 'error'`.
 
 ### 17. Active by Default Subsystem Mandate ("All Defaults ON")
 
@@ -333,7 +339,8 @@ Pre-formatted, production-ready templates conforming to all project standards:
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
-- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v9.0.0`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v10.1.0`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+  - **Read-Only Version Checks vs. Prohibited Diagnostic Updating**: When analyzing dependencies, inspecting versions, or conducting read-only investigations, AI agents and developers are **STRICTLY PROHIBITED** from executing `auditor-update` or `npm run auditor:update`. To inspect current package or framework versions, use `npm run auditor:version` or `auditor --version`. To check if an update is available without modifying any files or running npm install, use `npm run auditor:update -- --check` (or `auditor-update --check`). Safe CLI usage manual can be viewed with `auditor-update --help`.
 - **Migration-First, Delete-Last Gate**: When migrating host configurations to unified Vite+ (`vite.config.ts`), `cleanLegacyConfigFiles` will NEVER delete legacy configuration files (`vitest.config.ts`, `eslint.config.js`, `tsdown.config.ts`) unless `vite.config.ts` actively contains verified `test:`, `lint:` and `pack:` blocks.
 - **Deployment Builds (`AUDITOR_ENV=production`)**: In production deployments, Docker containers, or CI pipelines, run `npm run build:deploy` (`auditor-build-deploy`) under `AUDITOR_ENV=production` to cleanly skip Candle CPU vector duplication and test coverage checks without failing builds on uncommitted coverage files.
 

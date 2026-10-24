@@ -1,7 +1,7 @@
 import { unwrapExpression } from "../pathLiteralHeuristics.js";
 import { isFsSinkCall, isPathBuilderCall } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/envArgvDetector.ts
+// src/analyzers/nativePaths/detectors/envArgvDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/envArgvDetector.ts
 *
@@ -31,5 +31,4 @@ const envArgvDetector = (node) => {
 		message: ENV_ARGV_MESSAGE
 	} : null;
 };
-//#endregion
 export { envArgvDetector };

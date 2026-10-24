@@ -1,7 +1,6 @@
 import { BaseAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
-import { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
-//#region src/suites/documentation/validate_markdown_links.d.ts
+import { resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
 export type MarkdownLinkRuleId = 'markdown-broken-relative-link' | 'markdown-absolute-path' | 'markdown-stale-environment-path' | 'markdown-gitignored-target' | 'markdown-broken-workspace-package';
 export declare const MARKDOWN_LINK_RULES: readonly MarkdownLinkRuleId[];
 export interface BrokenMarkdownLink {
@@ -66,5 +65,4 @@ export declare class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId>
   constructor(options?: FileScanRootsOptions);
   runAudit(): Promise<void>;
 }
-//#endregion
-export { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks };
+export { resolveMarkdownScanDirectories, stripCodeBlocks };

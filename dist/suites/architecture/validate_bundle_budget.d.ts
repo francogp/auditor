@@ -1,7 +1,6 @@
 import { GitIgnoreRequirement } from "../../core/auditContract.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_bundle_budget.d.ts
 export declare const BUNDLE_BUDGET_RULES: readonly ["bundle-runtime-leak", "bundle-heavy-import", "bundle-chunk-size"];
 export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];
 export declare const DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI: readonly {
@@ -20,4 +19,3 @@ export declare class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId>
   constructor(options?: BundleBudgetAuditorOptions);
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-//#endregion

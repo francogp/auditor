@@ -2,9 +2,8 @@ import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { safeJsonParse, safeReadFileSync, safeRmSync, tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import { getPackageJson } from "../../core/packageJson.js";
@@ -12,7 +11,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/suites/architecture/validate_package_hygiene.ts
+// src/suites/architecture/validate_package_hygiene.ts
 enableCompileCache();
 const PACKAGE_HYGIENE_RULES = [
 	"package-unused-dependency",
@@ -529,5 +528,4 @@ function tsconfigHasReferences(projectRoot) {
 	return Array.isArray(references) && references.length > 0;
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePackageHygieneAuditor());
-//#endregion
 export { PACKAGE_HYGIENE_RULES, ValidatePackageHygieneAuditor, extractOwnPackageBinaries, extractReferencedScriptDependencies, parseKnipIssues, tsconfigHasReferences, verifyLockfileIntegrity };

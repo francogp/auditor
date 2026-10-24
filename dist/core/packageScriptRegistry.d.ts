@@ -1,5 +1,4 @@
 import { AuditorPackageScriptRequirement } from "./auditContract.js";
-//#region src/core/packageScriptRegistry.d.ts
 export declare const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequirement[];
 export declare class PackageScriptRegistry {
   private static readonly requirements;
@@ -34,4 +33,3 @@ export declare class PackageScriptRegistry {
  * dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.
  */
 export declare function buildCanonicalRunnerCommand(requirement: AuditorPackageScriptRequirement): string;
-//#endregion

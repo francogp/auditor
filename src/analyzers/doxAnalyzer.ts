@@ -8,7 +8,7 @@ import path from 'node:path';
 import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 import { safeReadFileAsync, safeReaddirAsync } from '../core/safeUtils.ts';
 import { collectRepositoryFiles } from '../core/auditorBase.ts';
-import { isTestPath } from '../core/auditConfig.ts';
+import { isTestPath, getAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreMatcher } from '../core/gitignoreMatcher.ts';
 import { normalizePosixPath } from '../core/safePath.ts';
 
@@ -42,16 +42,18 @@ function normalizeDirPath(dir: string): string {
 async function scanDoxHierarchy(
   rootDir: string,
   ignoreDirs: ReadonlySet<string>,
-  gitIgnoreMatcher: GitIgnoreMatcher
+  gitIgnoreMatcher: GitIgnoreMatcher,
+  extraIgnorePatterns: readonly string[] = []
 ): Promise<DoxHierarchyScan> {
   const doxDirs: string[] = [];
   const doxFilesMap = new Map<string, string>();
   const dirCodeMap = new Set<string>();
 
+  const combinedIgnores = [...Array.from(ignoreDirs), ...extraIgnorePatterns];
   const allFiles = collectRepositoryFiles(
     rootDir,
     rootDir,
-    Array.from(ignoreDirs),
+    combinedIgnores,
     new Set(['.ts', '.vue', '.js', '.scss', '.css', '.md'])
   );
 
@@ -74,9 +76,12 @@ async function scanDoxHierarchy(
   }
 
   const normRootDir = normalizeDirPath(rootDir);
+  const config = getAuditConfig(rootDir);
+  const primaryRoots = new Set(config.paths?.srcRoots ?? []);
+
   for (const dir of dirCodeMap) {
-    const relPath = path.relative(normRootDir, dir);
-    if (relPath !== '' && relPath !== 'src') {
+    const relPath = normalizePosixPath(path.relative(normRootDir, dir));
+    if (relPath !== '' && !primaryRoots.has(relPath)) {
       doxDirs.push(dir);
     }
   }
@@ -585,10 +590,16 @@ export function validateDoxSectionStructure(
 
 export async function checkDoxIntegrity(
   rootDir: string,
-  ignoreDirs: ReadonlySet<string>
+  ignoreDirs: ReadonlySet<string>,
+  extraIgnorePatterns: readonly string[] = []
 ): Promise<Violation[]> {
   const gitIgnoreMatcher = new GitIgnoreMatcher(rootDir);
-  const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher);
+  const { doxDirs, doxFilesMap } = await scanDoxHierarchy(
+    rootDir,
+    ignoreDirs,
+    gitIgnoreMatcher,
+    extraIgnorePatterns
+  );
 
   const violations: Violation[] = [
     ...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),

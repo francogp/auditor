@@ -1,4 +1,3 @@
-//#region src/core/gitignoreMatcher.d.ts
 /**
  * scripts/lib/gitignoreMatcher.ts
  *
@@ -37,4 +36,3 @@ export declare function findMissingGitIgnoreRequirements<T extends {
  * Appends missing gitignore entry patterns to the specified .gitignore file.
  */
 export declare function appendGitIgnoreEntries(gitignorePath: string, patterns: readonly string[]): void;
-//#endregion

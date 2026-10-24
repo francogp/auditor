@@ -1,5 +1,5 @@
 import { scanRuleMeasurement } from "./ruleMeasurementScan.js";
-//#region src/analyzers/homebrew/detectors/unmeasuredRuleDetector.ts
+// src/analyzers/homebrew/detectors/unmeasuredRuleDetector.ts
 const unmeasuredRuleDetector = {
 	id: "unmeasured-rule",
 	ruleId: "auditor-unmeasured-rule",
@@ -23,5 +23,4 @@ const unmeasuredRuleDetector = {
 		return findings;
 	}
 };
-//#endregion
 export { unmeasuredRuleDetector };

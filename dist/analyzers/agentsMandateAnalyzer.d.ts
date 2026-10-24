@@ -1,5 +1,4 @@
 import { DocumentationLanguage } from "../core/auditConfigTypes.js";
-//#region src/analyzers/agentsMandateAnalyzer.d.ts
 /**
  * Splits markdown content into structural contract sections / paragraph chunks,
  * properly respecting bullet lists and whitespace.
@@ -24,4 +23,3 @@ export declare function injectOrUpdateMandateInAgentsMd(options: InjectMandateOp
  * Finds the 1-indexed line number of the `## Local Contracts` header in AGENTS.md content.
  */
 export declare function findLocalContractsHeaderLine(content: string): number;
-//#endregion

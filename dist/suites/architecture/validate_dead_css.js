@@ -1,14 +1,14 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_dead_css.ts
+// src/suites/architecture/validate_dead_css.ts
 /**
 * packages/auditor/src/suites/architecture/validate_dead_css.ts
 *
@@ -228,5 +228,4 @@ var DeadCssAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DeadCssAuditor());
-//#endregion
 export { DEAD_CSS_RULES, DEFAULT_GLOBAL_UTILITY_CLASSES, DeadCssAuditor, extractClassNamesFromSelector, extractScopedRulesFromVueContent, getEffectiveGlobalUtilityClasses };

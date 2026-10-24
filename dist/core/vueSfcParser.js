@@ -1,5 +1,5 @@
 import { enableCompileCache } from "node:module";
-//#region src/core/vueSfcParser.ts
+// src/core/vueSfcParser.ts
 /**
 * src/core/vueSfcParser.ts
 *
@@ -95,5 +95,4 @@ function extractSfcScriptContent(sfcContent) {
 function extractVueScriptOrRaw(relPath, content) {
 	return relPath.endsWith(".vue") ? extractSfcScriptContent(content) : content;
 }
-//#endregion
 export { VUE_SFC_BLOCK_TAGS, extractSfcScriptContent, extractVueScriptOrRaw, parseVueSfcBlocks as parseVueSfc, parseVueSfcBlocks };

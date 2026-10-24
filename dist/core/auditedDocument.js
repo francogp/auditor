@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/core/auditedDocument.ts
+// src/core/auditedDocument.ts
 /**
 * packages/auditor/src/core/auditedDocument.ts
 *
@@ -333,5 +333,4 @@ var AuditedDocument = class {
 		return true;
 	}
 };
-//#endregion
 export { AuditedDocument };

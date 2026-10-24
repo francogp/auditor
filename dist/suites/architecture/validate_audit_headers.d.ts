@@ -1,6 +1,6 @@
 import { FindingSeverity } from "../../core/auditContract.js";
-import { CANONICAL_IGNORE_DIRS, FileScanAuditor, isPathIgnored } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_audit_headers.d.ts
+import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
+import { FileScanAuditor, isPathIgnored } from "../../core/auditorBase.js";
 export declare const MAX_HEADER_LINES_CHECK = 10;
 export type HeaderRuleId = 'file-level-fallow-ignore' | 'file-level-eslint-disable' | 'banned-ts-suppression' | 'banned-magic-suppression' | 'banned-style-suppression' | 'header-auditor-escape' | 'unjustified-escape-hatch';
 export declare const HEADER_RULES: readonly HeaderRuleId[];
@@ -39,5 +39,4 @@ export declare class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
  * Legacy procedural audit runner preserved for testing and external consumers.
  */
 export declare function auditAuditHeaders(targetDir?: string): AuditHeadersResult;
-//#endregion
 export { CANONICAL_IGNORE_DIRS, isPathIgnored };

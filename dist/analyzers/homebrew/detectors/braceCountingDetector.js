@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/braceCountingDetector.ts
+// src/analyzers/homebrew/detectors/braceCountingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/braceCountingDetector.ts
 *
@@ -15,5 +15,4 @@ const braceCountingDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { braceCountingDetector };

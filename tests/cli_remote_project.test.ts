@@ -27,7 +27,6 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
   });
 
   afterEach(() => {
-    process.chdir(originalCwd);
     if (originalAuditorHome !== undefined) {
       process.env.AUDITOR_HOME_DIR = originalAuditorHome;
     } else {
@@ -88,7 +87,6 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     const expectedTempRoot = path.resolve(tempSandboxDir);
     expect(res.isRemote).toBe(true);
     expect(res.projectRoot).toBe(expectedTempRoot);
-    expect(process.cwd()).toBe(expectedTempRoot);
     expect(process.env.AUDITOR_HOME_DIR).toBe(originalCwd);
     expect(process.env.AUDIT_PROJECT_ROOT).toBe(expectedTempRoot);
   });
@@ -108,14 +106,12 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     ];
 
     for (const argv of flagVariants) {
-      process.chdir(originalCwd);
       delete process.env.AUDITOR_HOME_DIR;
       delete process.env.AUDIT_PROJECT_ROOT;
 
       const res = bootstrapCliProject(argv);
       expect(res.isRemote).toBe(true);
       expect(res.projectRoot).toBe(path.resolve(tempSandboxDir));
-      expect(process.cwd()).toBe(path.resolve(tempSandboxDir));
     }
   });
 

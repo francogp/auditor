@@ -1,5 +1,4 @@
 import { AuditEngineConfig } from "./auditConfigTypes.js";
-//#region src/core/auditCodeRoots.d.ts
 /**
  * packages/auditor/src/core/auditCodeRoots.ts
  *
@@ -22,4 +21,3 @@ export declare function isSrcPath(filePath: string, config?: AuditEngineConfig):
  * Checks whether a file path belongs to cliRoots.
  */
 export declare function isCliPath(filePath: string, config?: AuditEngineConfig): boolean;
-//#endregion

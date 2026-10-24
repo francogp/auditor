@@ -1,7 +1,6 @@
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import ts from "typescript";
-//#region src/suites/architecture/validate_magic_numbers.d.ts
 export declare const MAGIC_NUMBERS_RULES: readonly ["magic-number-naked"];
 export type MagicNumbersRuleId = (typeof MAGIC_NUMBERS_RULES)[number];
 export declare function resolveSignedNumericLiteral(node: ts.NumericLiteral): {
@@ -15,5 +14,4 @@ export declare class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNu
   private inspectAst;
   protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void;
 }
-//#endregion
 export { ValidateMagicNumbersAuditor as MagicNumbersAuditor };

@@ -1,6 +1,5 @@
 import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseAuditor } from "../auditorBase.js";
-//#region src/core/refactor/baseRefactorEngine.d.ts
 export interface ScannedFileFindings<TFinding> {
   readonly file: string;
   readonly fullPath: string;
@@ -61,4 +60,3 @@ export declare abstract class BaseRefactorEngine<TFinding = unknown, TPlan = unk
     readonly modifiedFiles: readonly string[];
   };
 }
-//#endregion

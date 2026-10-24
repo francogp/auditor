@@ -4,7 +4,7 @@ import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { stripCommentsAndStrings } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_scss_architecture.ts
+// src/suites/architecture/validate_scss_architecture.ts
 enableCompileCache();
 const SCSS_ARCHITECTURE_RULES = [
 	"raw-css-in-sfc",
@@ -231,5 +231,4 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateScssArchitectureAuditor());
-//#endregion
 export { SCSS_ARCHITECTURE_RULES, ValidateScssArchitectureAuditor };

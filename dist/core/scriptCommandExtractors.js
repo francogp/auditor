@@ -6,7 +6,7 @@ import path from "node:path";
 import ts from "typescript";
 import { parse } from "unbash";
 import { parseDocument, visit } from "yaml";
-//#region src/core/scriptCommandExtractors.ts
+// src/core/scriptCommandExtractors.ts
 /**
 * src/core/scriptCommandExtractors.ts
 *
@@ -473,5 +473,4 @@ function extractScriptCommands(content, filePath) {
 	if (ext === ".ts" || ext === ".js" || ext === ".mjs" || ext === ".cjs") return extractCommandsFromTypeScript(content, filePath);
 	return extractCommandsLexically(content, ext);
 }
-//#endregion
 export { extractCommandsFromDockerfile, extractCommandsFromPowerShell, extractCommandsFromShell, extractCommandsFromTypeScript, extractCommandsFromYaml, extractScriptCommands, inspectCommandTokens };

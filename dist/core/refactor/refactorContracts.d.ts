@@ -1,4 +1,3 @@
-//#region src/core/refactor/refactorContracts.d.ts
 /**
  * src/core/refactor/refactorContracts.ts
  *
@@ -251,4 +250,3 @@ export interface DomainRefactorPlan {
     readonly replacementParameter: string;
   }[];
 }
-//#endregion

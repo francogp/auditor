@@ -1,14 +1,15 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/persistence/validate_sql_anti_patterns.ts
+// src/suites/persistence/validate_sql_anti_patterns.ts
 /**
 * scripts/auditors/persistence/validate_sql_anti_patterns.ts
 *
@@ -73,8 +74,14 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(effectiveRoot);
-		const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || "migrations";
-		const srcRoots = config.paths.srcRoots || ["src"];
+		const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
+		const srcRoots = config.paths.srcRoots || DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+		const allowedDbDirs = (config.persistence?.allowedDatabaseDirs ?? []).map((d) => config.persistence?.supabaseDir ? path.posix.join(config.persistence.supabaseDir, d) : d);
+		const sqlRoots = Array.from(/* @__PURE__ */ new Set([
+			migrationsDirRel,
+			...allowedDbDirs,
+			...srcRoots
+		]));
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -112,15 +119,10 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			},
 			coverage: { include: [
 				`${migrationsDirRel}/**/*.sql`,
-				"database/**/*.sql",
-				"migrations/**/*.sql",
+				...allowedDbDirs.map((dir) => `${dir}/**/*.sql`),
 				...deriveCoverageFromRoots(srcRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), effectiveRoot).include
 			] },
-			roots: [
-				migrationsDirRel,
-				"database",
-				...srcRoots
-			],
+			roots: sqlRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([
 				".sql",
 				".ts",
@@ -138,17 +140,17 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			this.context.setMetric("Engine", "none (omitted)");
 			return;
 		}
-		const currentSrcRoots = config.paths.srcRoots || ["src"];
+		const currentSrcRoots = config.paths.srcRoots || DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+		const currentAllowedDbDirs = (config.persistence?.allowedDatabaseDirs ?? []).map((d) => config.persistence?.supabaseDir ? path.posix.join(config.persistence.supabaseDir, d) : d);
 		this.redeclareCoverage({ include: [
 			`${this.configuredMigrationsDir}/**/*.sql`,
-			"database/**/*.sql",
-			"migrations/**/*.sql",
+			...currentAllowedDbDirs.map((dir) => `${dir}/**/*.sql`),
 			...deriveCoverageFromRoots(currentSrcRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), this.projectRoot).include
 		] });
 		const migrationsDir = path.resolve(this.projectRoot, this.configuredMigrationsDir);
 		const sqlMigrations = this.collectSqlMigrations(migrationsDir, config);
 		this.runSubAuditorSync("db-payload-snake-case", () => {
-			this.scanSourceFiles(config.paths.srcRoots || ["src"]);
+			this.scanSourceFiles(currentSrcRoots);
 		});
 		this.runSubAuditorSync("sql-no-positional-arrays", () => {
 			if (sqlMigrations.length === 0) {
@@ -194,17 +196,17 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 		for (const { relPath, content } of sqlMigrations) this.scanPlpgsqlUndeclaredVariables(relPath, content);
 	}
 	resolveMigrationScanDirs(migrationsDir, config) {
-		const candidateRoots = /* @__PURE__ */ new Set([
-			this.configuredMigrationsDir,
-			"database",
-			"migrations"
-		]);
+		const candidateRoots = /* @__PURE__ */ new Set([this.configuredMigrationsDir]);
 		if (fs.existsSync(migrationsDir)) candidateRoots.add(normalizePosixPath(path.relative(this.projectRoot, migrationsDir)) || this.configuredMigrationsDir);
 		const allowedDbDirs = config.persistence?.allowedDatabaseDirs ?? [];
+		const supabaseDir = config.persistence?.supabaseDir;
 		for (const sub of allowedDbDirs) {
 			const cleanSub = normalizePosixPath(sub);
 			candidateRoots.add(cleanSub);
-			if (!cleanSub.startsWith("database/")) candidateRoots.add(path.posix.join("database", cleanSub));
+			if (supabaseDir) {
+				const relToSupabase = path.relative(supabaseDir, cleanSub);
+				if (relToSupabase.startsWith("..") || path.isAbsolute(relToSupabase)) candidateRoots.add(path.posix.join(supabaseDir, cleanSub));
+			}
 		}
 		return Array.from(candidateRoots);
 	}
@@ -407,5 +409,4 @@ function scanDbPayloadKeys(params) {
 	}
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new SqlAntiPatternsAuditor());
-//#endregion
 export { POSITIONAL_JSON_MUTATION_REGEX, SQL_ANTI_PATTERN_RULES, SQL_LOOP_HEADER_MAX_CHARS, SqlAntiPatternsAuditor, getPositionalJsonMutationRegex };

@@ -1,7 +1,6 @@
 import { RemediationPhaseId } from "../core/remediationPhases.js";
 import { AuditFinding } from "../core/auditContract.js";
 import { ParsedArgs } from "../core/cli/cittyHarness.js";
-//#region src/cli/report_findings.d.ts
 type Finding = AuditFinding;
 declare const REPORT_FINDINGS_ARGS: {
   readonly phase: {
@@ -427,5 +426,4 @@ export declare const reportFindingsCommand: import("citty").CommandDef<{
     readonly default: false;
   };
 }>;
-//#endregion
 export {};

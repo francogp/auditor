@@ -1,6 +1,6 @@
 import { BANNED_CLI_PACKAGES, UTIL_MODULE_SPECIFIERS, getStaticStringValue, unwrapCliExpression } from "../cliContractHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/bannedParserDetector.ts
+// src/analyzers/cliContracts/detectors/bannedParserDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/bannedParserDetector.ts
 *
@@ -56,5 +56,4 @@ const bannedParserDetector = (node, ctx) => {
 	}
 	return null;
 };
-//#endregion
 export { bannedParserDetector };

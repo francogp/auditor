@@ -1,9 +1,8 @@
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+import { describe, it, expect, beforeAll, beforeEach, afterEach } from 'vite-plus/test';
 
 import { collectAllPackageScriptRequirements } from '../src/cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../src/cli/migrateAuditConfig.ts';
@@ -61,44 +60,23 @@ const BASE_TEST_CONFIG_SECTIONS = `
   scssArchitecture: { enabled: false },
   animation: { enabled: false },
   types: { enabled: false },
+  dox: { enabled: false },
   encoding: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {
   let tempDir: string;
+  let baselinePackageJson: string;
 
-  beforeEach(async () => {
-    process.env.AUDIT_SUBPROCESS = 'true';
-    resetAuditConfig();
-    GitIgnoreRegistry.reset();
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-config-test-'));
-    // Git sandbox whose origin/main resolves, satisfying the default ratchet production ref
-    const git = (...args: string[]): void => {
-      execFileSync('git', args, { cwd: tempDir, stdio: 'ignore' });
-    };
-    git('init', '-q');
-    git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'init');
-    git('update-ref', 'refs/remotes/origin/main', 'HEAD');
-
-    // Baseline valid .gitignore with standard tool caches so path tests isolate cleanly
-    await fs.writeFile(
-      path.join(tempDir, '.gitignore'),
-      'node_modules/\nscratch/\n.oxlintcache\n.stylelintcache\ndist/\n*.log\n',
-      'utf-8'
-    );
-
-    // Baseline valid package.json with standard build and auditor scripts
+  beforeAll(async () => {
     const baselineScripts: Record<string, string> = {
       build: 'npm run auditor:full && vite build && npm run auditor:post-build'
     };
-    const allReqs = await collectAllPackageScriptRequirements(tempDir);
+    const allReqs = await collectAllPackageScriptRequirements(process.cwd());
     for (const req of allReqs) {
       baselineScripts[req.name] = req.command;
     }
-    resetAuditConfig();
-
-    await fs.writeFile(
-      path.join(tempDir, 'package.json'),
+    baselinePackageJson =
       JSON.stringify(
         {
           name: 'test-app',
@@ -106,9 +84,23 @@ describe('ValidateAuditConfigAuditor', () => {
         },
         null,
         2
-      ) + '\n',
+      ) + '\n';
+  });
+
+  beforeEach(async () => {
+    process.env.AUDIT_SUBPROCESS = 'true';
+    resetAuditConfig();
+    GitIgnoreRegistry.reset();
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'audit-config-test-'));
+
+    // Baseline valid .gitignore with standard tool caches so path tests isolate cleanly
+    await fs.writeFile(
+      path.join(tempDir, '.gitignore'),
+      'node_modules/\nscratch/\n.oxlintcache\n.stylelintcache\n.fallow/\ndist/\ndev-dist/\ncoverage/\n.vitest-cache/\ntest-results/\n.tsbuildinfo\n*.log\n',
       'utf-8'
     );
+
+    await fs.writeFile(path.join(tempDir, 'package.json'), baselinePackageJson, 'utf-8');
   });
 
   afterEach(async () => {

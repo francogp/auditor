@@ -6,7 +6,7 @@ import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-//#region src/core/configRatchet.ts
+// src/core/configRatchet.ts
 /**
 * src/core/configRatchet.ts
 *
@@ -40,7 +40,9 @@ function runGit(projectRoot, args) {
 	};
 }
 function resolveProductionRef(projectRoot, configuredRef = "origin/main", skipNetwork = false) {
-	if (!skipNetwork) {
+	const isGitRepo = runGit(projectRoot, ["rev-parse", "--is-inside-work-tree"]);
+	if (!isGitRepo.ok || isGitRepo.stdout.trim() !== "true") return null;
+	if (!skipNetwork && !process.env.AUDIT_SUBPROCESS && !process.env.VITEST) {
 		const branchName = configuredRef.replace(/^origin\//, "");
 		const remoteCheck = runGit(projectRoot, [
 			"ls-remote",
@@ -315,5 +317,4 @@ function auditConfigRatchet(projectRoot, localConfig, options = {}) {
 		message: `Unauthorized rule relaxation detected relative to '${effectiveRef}'.\nTo authorize this relaxation, confirm code '${relaxationCode}' in the Antigravity chat.`
 	};
 }
-//#endregion
 export { auditConfigRatchet, computeRelaxationCode, inspectAuditConfigChanges, inspectLinterConfigChanges, readGitFile, resolveProductionRef, runGit };

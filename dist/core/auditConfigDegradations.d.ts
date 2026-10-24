@@ -1,5 +1,4 @@
 import { AcknowledgeableExemptionPolicy, AuditEngineConfig } from "./auditConfigTypes.js";
-//#region src/core/auditConfigDegradations.d.ts
 export interface UnacknowledgedDegradation {
   readonly policy: AcknowledgeableExemptionPolicy;
   readonly rootOrFile: string;
@@ -10,4 +9,3 @@ export interface UnacknowledgedDegradation {
 export declare function collectRelativeCodeFiles(projectRoot: string, rootRelPath: string, maxFiles?: number): string[];
 export declare function detectUnacknowledgedDegradations(config: AuditEngineConfig, projectRoot: string): UnacknowledgedDegradation[];
 export declare function applyAcknowledgedDegradationsFix(projectRoot: string, missing: readonly UnacknowledgedDegradation[]): void;
-//#endregion

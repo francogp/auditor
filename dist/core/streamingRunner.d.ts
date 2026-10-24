@@ -1,5 +1,4 @@
 import { AuditTaskDefinition, SubAuditorReport } from "./auditContract.js";
-//#region src/core/streamingRunner.d.ts
 export interface TaskStreamProgressParams {
   taskName: string;
   taskId: string;
@@ -44,4 +43,3 @@ export interface ExecutedTaskOutput {
   durationMs: number;
 }
 export declare function executeAuditorStreaming(task: AuditTaskDefinition, args: string[], onSubProgress?: (line: string) => void): Promise<ExecutedTaskOutput>;
-//#endregion

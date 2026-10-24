@@ -1,6 +1,6 @@
 import { formatDurationMs, formatNumber } from "./durationFormatter.js";
 import { styleText } from "node:util";
-//#region src/core/executiveTheme.ts
+// src/core/executiveTheme.ts
 /**
 * src/core/executiveTheme.ts
 *
@@ -37,7 +37,8 @@ function renderExecutiveFailSummary(params) {
 function renderExecutiveSetupBlockingSummary(params) {
 	const { totalSuites, setupErrors, postponedAppErrors, durationMs, blockingSuites, hasFixableErrors, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
 	const header = styleText(["bold", "red"], `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
-	const status = `  Status: ${formatNumber(setupErrors)} setup error(s) (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)`;
+	const postponedSuffix = postponedAppErrors > 0 ? ` (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)` : "";
+	const status = `  Status: ${formatNumber(setupErrors)} setup error(s)${postponedSuffix}`;
 	const suitesLines = ["  Blocking Suites:"];
 	for (const s of blockingSuites) suitesLines.push(`  • ${s}`);
 	const warning = styleText(["bold", "yellow"], "  MANDATE: STRICTLY FORBIDDEN to modify application code or styles while setup phase is blocked.");
@@ -86,5 +87,4 @@ function extractPhaseBreakdown(results) {
 		return b.errors - a.errors;
 	});
 }
-//#endregion
 export { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary };

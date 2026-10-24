@@ -1,4 +1,3 @@
-//#region src/cli/report_flags.d.ts
 /**
  * src/cli/report_flags.ts
  *
@@ -37,4 +36,3 @@ export interface FlagsOptions {
   readonly human?: boolean;
 }
 export declare function runFlagsReport(projectRoot?: string, options?: FlagsOptions): number;
-//#endregion

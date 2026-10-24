@@ -1,5 +1,4 @@
 import { AuditAccessibilityConfig, AuditAgentPluginConfig, AuditAnimationConfig, AuditAuditorHygieneConfig, AuditBundleConfig, AuditCodeSimplificationConfig, AuditConstantsConfig, AuditCoverageConfig, AuditDependencyVulnerabilitiesConfig, AuditDocumentationConfig, AuditDomainConfig, AuditE2eConfig, AuditEngineConfig, AuditEnvironmentConfig, AuditFallowConfig, AuditFallowSimilarCodeConfig, AuditGitIgnoreConfig, AuditHtmlValidateConfig, AuditOxfmtConfig, AuditOxlintConfig, AuditPackageDistributionConfig, AuditPackageHygieneConfig, AuditPackageScriptsConfig, AuditPersistenceConfig, AuditPiniaConfig, AuditQueryPerformanceConfig, AuditRatchetConfig, AuditScriptCommandsConfig, AuditScriptExtensionsConfig, AuditScssArchitectureConfig, AuditSecretLeaksConfig, AuditSecurityConfig, AuditSecurityHardeningConfig, AuditStylelintConfig, AuditStylesConfig, AuditTemplatesConfig, AuditTestCoverageConfig, AuditTypeCoverageConfig, AuditValibotConfig, AuditVersionConfig, AuditVitePlusConfig, AuditWebPerformanceConfig, BaseAuditSubsystemConfig, DeepPartial, ResolvedRatchetConfig, ResolvedTestCoverageConfig } from "./auditConfigTypes.js";
-//#region src/core/auditConfigBuilders.d.ts
 export declare function buildPathsConfig(raw?: DeepPartial<AuditEngineConfig['paths']>): AuditEngineConfig['paths'];
 export declare function buildPersistenceConfig(raw?: DeepPartial<AuditPersistenceConfig>): AuditPersistenceConfig;
 export declare function buildDomainConfig(raw?: DeepPartial<AuditDomainConfig>): AuditDomainConfig;
@@ -49,4 +48,3 @@ export declare function buildScssArchitectureConfig(raw?: DeepPartial<AuditScssA
 export declare function defineAuditConfig(config: DeepPartial<AuditEngineConfig> & {
   name: string;
 }): AuditEngineConfig;
-//#endregion

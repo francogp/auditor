@@ -1,4 +1,4 @@
-//#region src/analyzers/homebrew/detectors/thirdPartyToolContractDetector.ts
+// src/analyzers/homebrew/detectors/thirdPartyToolContractDetector.ts
 const THIRD_PARTY_TOOL_TRIGGER_PATTERNS = [
 	/\bexecuteNodeCli\s*\(/,
 	/\bresolvePackageBin\s*\(/,
@@ -48,5 +48,4 @@ const thirdPartyToolContractDetector = {
 		return [];
 	}
 };
-//#endregion
 export { thirdPartyToolContractDetector };

@@ -6,7 +6,7 @@ import { defineAuditConfig } from "./auditConfigBuilders.js";
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
-//#region src/core/auditConfigLoader.ts
+// src/core/auditConfigLoader.ts
 /**
 * packages/auditor/src/core/auditConfigLoader.ts
 *
@@ -194,5 +194,4 @@ function resetAuditConfig() {
 	delete process.env.AUDIT_ACTIVE_CONFIG_FILE;
 	delete process.env.AUDIT_ACTIVE_CONFIG_ROOT;
 }
-//#endregion
 export { MAX_INLINE_ENV_CONFIG_CHARS, getAuditConfig, loadAuditConfig, resetAuditConfig, resolveConfigModuleUrl, sanitizePath, serializeAuditConfigToEnv, setAuditConfig, tryLoadConfigFromEnv, tryLoadJsonConfig };

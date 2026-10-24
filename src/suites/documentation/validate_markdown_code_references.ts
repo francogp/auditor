@@ -27,11 +27,19 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { tryOrDefault, tryOrNull } from '../../core/safeUtils.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  getEffectiveUnignoreDirs,
+  getEffectiveIgnoreGlobs,
+  isPathIgnored,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 import {
   resolveProjectVersionInfo,
@@ -76,15 +84,6 @@ interface ViolationEmitter {
   }): void;
 }
 
-export const DEFAULT_SCAN_DIRECTORIES = [
-  '.agents/skills',
-  'AGENTS.md',
-  'README.md',
-  'docs',
-  'src',
-  'tests',
-  'scripts'
-] as const;
 
 function getPersistenceDirs(config: ReturnType<typeof getAuditConfig>): string[] {
   if (config.persistence?.engine === 'none') return [];
@@ -140,11 +139,34 @@ export function resolveMarkdownScanDirectories(
   const config = getAuditConfig(projectRoot);
   const effectiveRoot = projectRoot || process.cwd();
 
+  const defaultSkillsRoots = (DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []).filter((r) =>
+    fs.existsSync(path.join(effectiveRoot, r))
+  );
+  const skillsRoots = config.documentation?.skillsRoots?.length
+    ? config.documentation.skillsRoots
+    : defaultSkillsRoots;
+  const skillsTopSegments = new Set(
+    skillsRoots.map((r) => normalizePosixPath(r).split('/')[0]).filter(Boolean)
+  );
+
+  const topLevelDirs: string[] = tryOrDefault(() => {
+    const dirs: string[] = [];
+    const entries = fs.readdirSync(effectiveRoot, { withFileTypes: true });
+    for (const entry of entries) {
+      if (
+        entry.isDirectory() &&
+        !skillsTopSegments.has(entry.name) &&
+        !isPathIgnored(entry.name, [], [], effectiveRoot)
+      ) {
+        dirs.push(entry.name);
+      }
+    }
+    return dirs;
+  }, []);
+
   const candidates: string[] = [
-    '.agents/skills',
-    'AGENTS.md',
-    'README.md',
-    'docs',
+    ...skillsRoots,
+    ...topLevelDirs,
     ...resolveConfiguredPathCandidates(config.paths),
     ...resolveAdditionalDomainCandidates(config.paths),
     ...getPersistenceDirs(config),
@@ -154,14 +176,7 @@ export function resolveMarkdownScanDirectories(
   return Array.from(new Set(candidates));
 }
 
-export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS = [
-  'scripts/tests',
-  'scripts/.cache/',
-  'scripts/setup/plugins/',
-  'scripts/setup/plugins/01_deploy_env.sh',
-  'scripts/setup/plugins/01_deploy_env.ps1',
-  'scripts/auditors/'
-] as const;
+export const DEFAULT_KNOWN_VALID_ABSTRACT_PATHS: readonly string[] = [];
 
 export function getKnownValidAbstractPaths(projectRoot?: string): ReadonlySet<string> {
   const config = getAuditConfig(projectRoot);
@@ -332,19 +347,16 @@ function addSkillsFromDir(targetDir: string, skillsSet: Set<string>): void {
 
 function discoverRegisteredSkills(rootDir: string): Set<string> {
   const allSkills = new Set<string>();
-  addSkillsFromDir(path.join(rootDir, '.agents/skills'), allSkills);
-  addSkillsFromDir(path.join(rootDir, 'skills'), allSkills);
-  addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/.agents/skills'), allSkills);
-  addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/skills'), allSkills);
-  addSkillsFromDir(path.resolve(import.meta.dirname, '../../../.agents/skills'), allSkills);
-  addSkillsFromDir(path.resolve(import.meta.dirname, '../../../skills'), allSkills);
-
   const config = getAuditConfig(rootDir);
   if (config.documentation?.skillsRoots) {
     for (const r of config.documentation.skillsRoots) {
       addSkillsFromDir(path.resolve(rootDir, r), allSkills);
     }
   }
+
+  // Package distribution fallback (when auditor is installed inside node_modules)
+  addSkillsFromDir(path.join(rootDir, 'node_modules/@francogp/auditor/.agents/skills'), allSkills);
+  addSkillsFromDir(path.resolve(import.meta.dirname, '../../../.agents/skills'), allSkills);
 
   return allSkills;
 }
@@ -611,12 +623,17 @@ interface ParsedMarkdownDoc {
   dirEntries: string[];
 }
 
+export interface MarkdownCodeReferencesOptions extends FileScanRootsOptions {
+  readonly knownValidAbstractPaths?: readonly string[];
+}
+
 export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeReferenceRuleId> {
   private readonly rootDir: string;
   private readonly scanRoots: readonly string[];
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
+  private readonly customAbstractPaths?: ReadonlySet<string>;
 
-  constructor(options: FileScanRootsOptions = {}) {
+  constructor(options: MarkdownCodeReferencesOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
     super({
@@ -711,17 +728,16 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       },
       roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
-      extraIgnorePatterns: [
-        'coverage/**',
-        ...(getAuditConfig(effectiveRoot).paths.ignoreGlobs ?? []),
-        ...(getAuditConfig(effectiveRoot).paths.ignoredPatterns ?? [])
-      ],
-      unignoreDirs: ['.agents'],
+      extraIgnorePatterns: getEffectiveIgnoreGlobs(effectiveRoot),
+      unignoreDirs: getEffectiveUnignoreDirs(effectiveRoot),
       projectRoot: effectiveRoot
     });
     this.rootDir = effectiveRoot;
     this.scanRoots = effectiveScanRoots;
     this.gitIgnoreMatcher = new GitIgnoreMatcher(this.rootDir);
+    this.customAbstractPaths = options.knownValidAbstractPaths
+      ? new Set(options.knownValidAbstractPaths)
+      : undefined;
   }
 
   private scanMarkdownDocReferences(
@@ -782,7 +798,10 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
   }
 
   public override async runAudit(): Promise<void> {
-    const knownValidAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
+    const configAbstractPaths = getKnownValidAbstractPaths(this.rootDir);
+    const knownValidAbstractPaths = this.customAbstractPaths
+      ? new Set([...configAbstractPaths, ...this.customAbstractPaths])
+      : configAbstractPaths;
     const allSkills = discoverRegisteredSkills(this.rootDir);
 
     const mdFiles = this.collectMarkdownFiles();

@@ -4,7 +4,7 @@ import { isTestPath } from "./auditTestPredicates.js";
 import { isCliPath, isScriptPath } from "./auditCodeRoots.js";
 import { isDataPath, isDemoPath, isExemptFile } from "./auditPathPredicates.js";
 import "./auditConfig.js";
-//#region src/core/exemptionPolicies.ts
+// src/core/exemptionPolicies.ts
 /**
 * src/core/exemptionPolicies.ts
 *
@@ -72,5 +72,4 @@ const EXEMPTION_POLICIES = [
 function getMatchingExemptionPolicies(relPosixPath, config = getAuditConfig()) {
 	return EXEMPTION_POLICIES.filter((policy) => policy.matches(relPosixPath, config));
 }
-//#endregion
 export { EXEMPTION_POLICIES, EXEMPTION_POLICY_IDS, EXEMPTION_POLICY_KINDS, STRUCTURAL_EXEMPTION_POLICIES, getMatchingExemptionPolicies, isCodeFile };

@@ -567,6 +567,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       ),
       fixableRuleIds: ['oxlint-violation'],
       gitIgnoreEntries: OxlintAuditor.gitIgnoreEntries,
+      cachePaths: ['.oxlintcache'],
       id: 'validate_oxlint',
       name: 'Oxlint & Vite+ Code Hygiene Validator',
       description: 'Style and syntax rules with Oxlint',

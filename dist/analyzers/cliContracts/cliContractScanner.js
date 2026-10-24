@@ -7,7 +7,7 @@ import { homebrewFlagDetector } from "./detectors/homebrewFlagDetector.js";
 import { unregisteredScriptDetector } from "./detectors/unregisteredScriptDetector.js";
 import path from "node:path";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/cliContractScanner.ts
+// src/analyzers/cliContracts/cliContractScanner.ts
 /**
 * src/analyzers/cliContracts/cliContractScanner.ts
 *
@@ -186,5 +186,4 @@ function scanCliContractAst(doc) {
 	traverseCliAst(sourceFile);
 	return cliViolations;
 }
-//#endregion
 export { scanCliContractAst };

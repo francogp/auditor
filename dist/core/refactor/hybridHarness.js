@@ -1,12 +1,11 @@
 import { tryOrNull, tryOrNullAsync } from "../safeUtils.js";
-import { toPosixRelative } from "../auditCoverage.js";
-import "../safePath.js";
+import { toPosixRelative } from "../safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";
 import { Project } from "ts-morph";
 import MagicString from "magic-string";
-//#region src/core/refactor/hybridHarness.ts
+// src/core/refactor/hybridHarness.ts
 /**
 * src/core/refactor/hybridHarness.ts
 *
@@ -111,5 +110,4 @@ var HybridHarnessEngine = class HybridHarnessEngine {
 		return sourceCode.replace(pattern, rewrite);
 	}
 };
-//#endregion
 export { HybridHarnessEngine };

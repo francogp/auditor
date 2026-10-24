@@ -1,6 +1,5 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_editorconfig.d.ts
 export declare const EDITORCONFIG_RULES: readonly ["editorconfig-missing", "editorconfig-missing-setting"];
 export type EditorConfigRuleId = (typeof EDITORCONFIG_RULES)[number];
 export declare const CANONICAL_EDITORCONFIG_LINES: readonly ["# EditorConfig helps maintain consistent coding styles for multiple developers", "# https://editorconfig.org", "", "root = true", "", "[*]", "charset = utf-8", "end_of_line = lf", "indent_style = space", "indent_size = 2", "insert_final_newline = true", "trim_trailing_whitespace = true", "", "[*.md]", "trim_trailing_whitespace = false", ""];
@@ -14,4 +13,3 @@ export declare class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfi
   }), maybeProjectRoot?: string);
   runAudit(): Promise<void>;
 }
-//#endregion

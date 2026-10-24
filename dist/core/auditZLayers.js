@@ -1,7 +1,7 @@
 import { getAuditConfig } from "./auditConfigLoader.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/auditZLayers.ts
+// src/core/auditZLayers.ts
 /**
 * packages/auditor/src/core/auditZLayers.ts
 *
@@ -80,5 +80,4 @@ function getEffectiveZLayers(projectRoot = process.cwd()) {
 	}
 	return Z_LAYERS;
 }
-//#endregion
 export { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath };

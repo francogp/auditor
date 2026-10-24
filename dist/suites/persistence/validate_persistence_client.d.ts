@@ -1,5 +1,4 @@
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/persistence/validate_persistence_client.d.ts
 export declare const PERSISTENCE_CLIENT_RULES: readonly ["persistence-client-uncoordinated-save", "persistence-client-untyped-key", "persistence-client-unhandled-quota-error"];
 export type PersistenceClientRuleId = (typeof PERSISTENCE_CLIENT_RULES)[number];
 export interface ValidatePersistenceClientOptions {
@@ -28,4 +27,3 @@ export declare class ValidatePersistenceClientAuditor extends FileScanAuditor<Pe
   private isAuthorizedSaveFile;
   private isInsideTryCatch;
 }
-//#endregion

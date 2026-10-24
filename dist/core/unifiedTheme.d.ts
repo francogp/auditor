@@ -6,7 +6,6 @@ import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } f
 import { RenderByFileTreeOptions, formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";
 import { ExecutiveFailPhaseBreakdown, ExecutiveFailSummaryParams, ExecutiveFixSummaryParams, ExecutivePassSummaryParams, ExecutiveSetupBlockingSummaryParams, extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "./executiveTheme.js";
-//#region src/core/unifiedTheme.d.ts
 export interface TableColumn<T = Record<string, unknown>> {
   header: string;
   width: number;
@@ -101,5 +100,4 @@ export type CountBadgeColor = (typeof COUNT_BADGE_COLORS)[number];
 export declare const TASK_NAME_COL_WIDTH = 38;
 export declare function renderAuditTaskRow(res: StandardAuditResult): string;
 export declare function renderConsolidatedFooter(suitesTotal: number, suitesPassed: number, totalErrors: number, totalWarnings: number, totalDurationMs: number, errorFindings?: AuditFinding[], suitesSkipped?: number): string;
-//#endregion
 export { DURATION_PAD_LENGTH, type ExecutiveFailPhaseBreakdown, type ExecutiveFailSummaryParams, type ExecutiveFixSummaryParams, type ExecutivePassSummaryParams, type ExecutiveSetupBlockingSummaryParams, type RenderByFileTreeOptions, TEXT_ALIGNMENTS, type TextAlignment, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, groupFindingsByFile, padVisual, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, stringWidth, truncateVisual };

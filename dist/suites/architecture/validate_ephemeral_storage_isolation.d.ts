@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_ephemeral_storage_isolation.d.ts
 export type EphemeralStorageRuleId = 'ephemeral-no-source-temp-dirs' | 'ephemeral-no-gitignore-source-temp' | 'ephemeral-no-source-temp-references';
 export declare const EPHEMERAL_STORAGE_RULES: readonly EphemeralStorageRuleId[];
 export declare const CANONICAL_SOURCE_ROOTS: readonly ["src", "scripts", "tests", "supabase", "data", "database"];
@@ -22,4 +21,3 @@ export declare class EphemeralStorageIsolationAuditor extends BaseAuditor<Epheme
   private scanGitignoreRules;
   private scanSourceCodeReferences;
 }
-//#endregion

@@ -1,10 +1,11 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/suites/architecture/validate_tsconfig.ts
+// src/suites/architecture/validate_tsconfig.ts
 /**
 * src/suites/architecture/validate_tsconfig.ts
 *
@@ -41,7 +42,7 @@ const CANONICAL_TSCONFIG = {
 		esModuleInterop: true,
 		resolveJsonModule: true
 	},
-	include: ["src/**/*", "tests/**/*"],
+	include: [...DEFAULT_AUDIT_CONFIG.paths.srcRoots.map((r) => `${r}/**/*`), ...DEFAULT_AUDIT_CONFIG.paths.testRoots.map((r) => `${r}/**/*`)],
 	exclude: [
 		"node_modules",
 		"dist",
@@ -71,14 +72,13 @@ const TSCONFIG_REQUIREMENT = {
 	generateDefaultContent: () => JSON.stringify(CANONICAL_TSCONFIG, null, 2) + "\n"
 };
 var ValidateTsconfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...TSCONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
@@ -126,9 +126,10 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 				"tsconfig-missing-source-include": "📖 REMEDIATION GUIDE: tsconfig-missing-source-include\n1. Root Cause: The `include` array in `tsconfig.json` does not cover primary source directories (`src/**/*`).\n2. Diagnosis: Check the `include` glob patterns in `tsconfig.json`.\n3. Canonical Solution: Add `\"src/**/*\"` to `include` in `tsconfig.json` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: ["tsconfig*.json"] },
+			cachePaths: [".tsbuildinfo"],
 			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			fix: options.fix,
+			...options
 		});
 	}
 	async runAudit() {
@@ -355,5 +356,4 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTsconfigAuditor());
-//#endregion
 export { BANNED_COMPILER_OPTIONS, CANONICAL_TSCONFIG, MANDATORY_STRICT_OPTIONS, TSCONFIG_REQUIREMENT, TSCONFIG_RULES, VALID_MODULE_RESOLUTIONS, VALID_TARGETS, ValidateTsconfigAuditor };

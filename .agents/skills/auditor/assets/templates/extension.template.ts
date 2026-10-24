@@ -22,6 +22,7 @@
 import {
   BaseAuditor,
   createUniformRuleCapabilities,
+  resolveFileScanRoots,
   type FileScanRootsOptions,
   type RemediationPhaseId
 } from '@francogp/auditor';
@@ -35,6 +36,12 @@ export const MY_CUSTOM_RULES: readonly MyCustomRuleId[] = [
 
 export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
   public constructor(options: FileScanRootsOptions = {}) {
+    // Dynamic Zero Hardcoded Paths resolution from audit.config.ts or constructor options
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
+
     super({
       id: 'validate_my_custom',
       name: 'My Custom Project Rules Validator',
@@ -59,6 +66,8 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       criticalConfig: {},
       // Mandatory: Node.js Permission Model flags required by this extension (pass [] for standard suites)
       requiredPermissions: [],
+      // Optional: Custom tool cache paths outside scratch/ (auto-injected into .gitignore and ignored by scanners):
+      // cachePaths: ['.mycustomcache'],
       // Mandatory strategic remediation phase (e.g. 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish')
       remediationPhase: 'contracts' as RemediationPhaseId,
       usesThirdPartyTool: false,
@@ -66,20 +75,21 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
         'my-custom-rule-a': 'Violation of custom project architectural rule A',
         'my-custom-rule-b': 'Violation of custom project architectural rule B'
       },
+      // Mandatory 4-section diagnostic & remediation guide contract
       ruleRemediations: {
         'my-custom-rule-a':
-          'Causa Raíz: Custom rule A detected an architectural deviation from the documented contract.\n' +
-          'Diagnóstico: Check the reported file to verify compliance with expected domain interfaces.\n' +
-          'Solución Canónica: Update the module definition to align with project architecture standards.\n' +
-          'Ejemplo / Comando: Consult AGENTS.md for domain boundary requirements.',
+          '1. Root Cause: Custom rule A detected an architectural deviation from the documented contract.\n' +
+          '2. Diagnosis: Check the reported file to verify compliance with expected domain interfaces.\n' +
+          '3. Canonical Solution: Update the module definition to align with project architecture standards.\n' +
+          '4. Example / Command: Consult AGENTS.md for domain boundary requirements.',
         'my-custom-rule-b':
-          'Causa Raíz: Custom rule B detected inconsistent domain types or untyped structures.\n' +
-          'Diagnóstico: Review derived types in the affected module.\n' +
-          'Solución Canónica: Use canonical domain type models instead of raw strings or primitives.\n' +
-          'Ejemplo / Comando: npm run auditor:domain'
+          '1. Root Cause: Custom rule B detected inconsistent domain types or untyped structures.\n' +
+          '2. Diagnosis: Review derived types in the affected module.\n' +
+          '3. Canonical Solution: Use canonical domain type models instead of raw strings or primitives.\n' +
+          '4. Example / Command: npm run auditor:domain'
       },
-      roots: options.roots ?? ['src'],
-      projectRoot: options.projectRoot
+      roots: targetRoots,
+      projectRoot: effectiveRoot
     });
   }
 

@@ -1,5 +1,4 @@
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_error_suppression.d.ts
 export type ErrorSuppressionRuleId = 'no-empty-catch' | 'no-silent-promise-catch' | 'no-silent-mock-fallbacks' | 'strict-catch-narrowing';
 export declare const ERROR_SUPPRESSION_RULES: readonly ErrorSuppressionRuleId[];
 export declare class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
@@ -11,4 +10,3 @@ export declare class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppre
   private auditSchemaFallbacks;
   private auditCatchNarrowing;
 }
-//#endregion

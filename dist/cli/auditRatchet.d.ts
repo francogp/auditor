@@ -1,6 +1,5 @@
 import { ResolvedRatchetConfig } from "../core/auditConfigTypes.js";
 import { AuditFinding, StandardAuditResult } from "../core/auditContract.js";
-//#region src/cli/auditRatchet.d.ts
 export declare const RATCHET_SOURCES: readonly ["production", "local-bootstrap"];
 export type RatchetSource = (typeof RATCHET_SOURCES)[number];
 interface WarningRatchetOutcome {
@@ -21,5 +20,4 @@ export declare function describeBaselineDefect(projectRoot: string, baselineFile
 export declare function runWarningRatchet(projectRoot: string, ratchet: ResolvedRatchetConfig, results: readonly StandardAuditResult[], allowShrink: boolean): WarningRatchetOutcome;
 /** Writes the first baseline. Refused when the production ref already carries one. */
 export declare function initWarningBaseline(projectRoot: string, ratchet: ResolvedRatchetConfig, results: readonly StandardAuditResult[]): number;
-//#endregion
 export {};

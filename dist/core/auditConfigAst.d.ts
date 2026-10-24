@@ -1,6 +1,5 @@
 import ts from "typescript";
 import { ObjectLiteralExpression, SourceFile } from "ts-morph";
-//#region src/core/auditConfigAst.d.ts
 export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
 export declare function printTsExpression(expr: ts.Expression): string;
 export declare function formatSectionObjectLiteral(value: unknown): string;
@@ -19,4 +18,3 @@ export declare function mutateAuditConfigFileAst(configFilePath: string, mutator
 export declare function syncAuditorVersionInTsFile(configFilePath: string, version: string): boolean;
 export declare function appendMissingSectionsToTsFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
-//#endregion

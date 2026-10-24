@@ -1,4 +1,3 @@
-//#region src/core/refactor/worktreeSandbox.d.ts
 /**
  * src/core/refactor/worktreeSandbox.ts
  *
@@ -20,13 +19,15 @@ export declare class WorktreeSandboxManager {
   static createSession(repoRoot: string, sessionName?: string): WorktreeSession;
   private static forceClean;
 }
+export interface WorktreeVerificationOptions {
+  verifyCommand?: string;
+}
 /**
  * Executes a mutation function safely inside an ephemeral Git worktree,
  * runs typechecking/compilation verification, and applies to host only on success.
  */
-export declare function executeInWorktreeWithVerification(projectRoot: string, applyFn: (targetDir: string) => Promise<void>): Promise<void>;
+export declare function executeInWorktreeWithVerification(projectRoot: string, applyFn: (targetDir: string) => Promise<void>, options?: WorktreeVerificationOptions): Promise<void>;
 /**
  * Loads a refactor plan JSON file and executes it with optional worktree sandboxing.
  */
-export declare function applyPlanFileWithWorktreeVerification<TPlan>(projectRoot: string, rawPlanPath: string | undefined, useWorktree: boolean, applyFn: (targetDir: string, plan: TPlan) => Promise<void>, commandHelpHint: string): Promise<void>;
-//#endregion
+export declare function applyPlanFileWithWorktreeVerification<TPlan>(projectRoot: string, rawPlanPath: string | undefined, useWorktree: boolean, applyFn: (targetDir: string, plan: TPlan) => Promise<void>, commandHelpHint: string, options?: WorktreeVerificationOptions): Promise<void>;

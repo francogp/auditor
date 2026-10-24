@@ -1,6 +1,6 @@
 import { AUDIT_LIST_FILTERS } from "./auditConfigTypes.js";
 import { isProductionEnvironment } from "./auditorEnvironment.js";
-//#region src/core/suiteGating.ts
+// src/core/suiteGating.ts
 function isSimilarEnvSkipped() {
 	const v = process.env.AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS ?? process.env.AUDIT_SKIP_SIMILAR;
 	return v === "1" || v === "true";
@@ -213,5 +213,4 @@ function evaluateSuiteStatus(suiteId, config, declaredConfigKey) {
 		configKey: declaredConfigKey ?? spec?.configKey
 	};
 }
-//#endregion
 export { AUDIT_LIST_FILTERS, evaluateSuiteStatus };

@@ -1,9 +1,10 @@
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { JSDOM } from "jsdom";
-//#region src/suites/documentation/validate_mermaid_syntax.ts
+// src/suites/documentation/validate_mermaid_syntax.ts
 /**
 * @file validate_mermaid_syntax.ts
 * @description Sub-auditor that validates syntax and escapes in Mermaid diagrams within Markdown files
@@ -105,17 +106,7 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 			},
 			roots: targetRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".md"]),
-			unignoreDirs: [
-				".agents",
-				"skills",
-				"docs"
-			],
-			extraIgnorePatterns: [
-				"scratch/**",
-				"dist/**",
-				"dev-dist/**",
-				"test-results/**"
-			],
+			extraIgnorePatterns: Array.from(getEffectiveIgnoreGlobs(effectiveRoot)),
 			projectRoot: effectiveRoot
 		});
 	}
@@ -242,5 +233,4 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateMermaidSyntaxAuditor());
-//#endregion
 export { MERMAID_SYNTAX_RULES, ValidateMermaidSyntaxAuditor, validate, validateMermaid };

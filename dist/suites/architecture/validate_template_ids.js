@@ -4,7 +4,7 @@ import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformReme
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-//#region src/suites/architecture/validate_template_ids.ts
+// src/suites/architecture/validate_template_ids.ts
 /**
 * scripts/auditors/architecture/validate_template_ids.ts
 *
@@ -202,5 +202,4 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new TemplateIdAuditor());
-//#endregion
 export { TEMPLATE_ID_RULES, TemplateIdAuditor };

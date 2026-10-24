@@ -1,5 +1,5 @@
 import fs from "node:fs";
-//#region src/analyzers/agentsMandateAnalyzer.ts
+// src/analyzers/agentsMandateAnalyzer.ts
 /**
 * src/analyzers/agentsMandateAnalyzer.ts
 *
@@ -72,5 +72,4 @@ function findLocalContractsHeaderLine(content) {
 	const index = content.split("\n").findIndex((line) => line.trim().startsWith("## Local Contracts"));
 	return index !== -1 ? index + 1 : 1;
 }
-//#endregion
 export { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage };

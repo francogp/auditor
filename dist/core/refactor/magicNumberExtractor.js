@@ -7,7 +7,7 @@ import { MagicNumberHarness } from "./magicNumberHarness.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/core/refactor/magicNumberExtractor.ts
+// src/core/refactor/magicNumberExtractor.ts
 /**
 * src/core/refactor/magicNumberExtractor.ts
 *
@@ -446,5 +446,4 @@ var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine
 		};
 	}
 };
-//#endregion
 export { MagicNumberExtractor };

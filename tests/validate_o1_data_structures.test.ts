@@ -95,17 +95,11 @@ describe('O1DataStructuresAuditor', () => {
 
       // Force config reload
       resetAuditConfig();
-      const origCwd = process.cwd();
-      try {
-        process.chdir(tempDir);
-        const resolved = getResolvedO1CatalogPatterns();
-        expect(resolved.length).toBe(1);
-        expect(resolved[0]?.pattern instanceof RegExp).toBe(true);
-        expect(resolved[0]?.name).toBe('SERVERS');
-      } finally {
-        process.chdir(origCwd);
-        resetAuditConfig();
-      }
+      const resolved = getResolvedO1CatalogPatterns(tempDir);
+      expect(resolved.length).toBe(1);
+      expect(resolved[0]?.pattern instanceof RegExp).toBe(true);
+      expect(resolved[0]?.name).toBe('SERVERS');
+      resetAuditConfig();
     });
   });
 

@@ -11,7 +11,7 @@ import { slashDetector } from "./detectors/slashDetector.js";
 import { envArgvDetector } from "./detectors/envArgvDetector.js";
 import { fetchDetector } from "./detectors/fetchDetector.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/nativePathScanner.ts
+// src/analyzers/nativePaths/nativePathScanner.ts
 /**
 * src/analyzers/nativePaths/nativePathScanner.ts
 *
@@ -136,5 +136,4 @@ function scanNativePathAst(doc) {
 	visit(sourceFile);
 	return violations;
 }
-//#endregion
 export { scanNativePathAst };

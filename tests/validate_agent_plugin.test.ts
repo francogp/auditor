@@ -241,5 +241,61 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(violation).toBeDefined();
       expect(violation?.message).toContain("Missing 'name' field in frontmatter");
     });
+
+    it('detects invalid JSON syntax in a skill secondary asset', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const skillDir = path.join(tempDir, '.agents/skills/json-broken-skill');
+      await fs.mkdir(path.join(skillDir, 'evals'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillDir, 'SKILL.md'),
+        '---\nname: json-broken-skill\ndescription: Valid description\n---\n# Skill\n',
+        'utf8'
+      );
+      // Malformed JSON (trailing comma, unquoted key)
+      await fs.writeFile(path.join(skillDir, 'evals', 'evals.json'), '{ "broken": , }', 'utf8');
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-asset-syntax');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.file).toContain('evals.json');
+      expect(violation?.message).toContain('JSON syntax error');
+    });
+
+    it('detects invalid TypeScript syntax in a skill template asset', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const skillDir = path.join(tempDir, '.agents/skills/ts-broken-skill');
+      await fs.mkdir(path.join(skillDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillDir, 'SKILL.md'),
+        '---\nname: ts-broken-skill\ndescription: Valid description\n---\n# Skill\n',
+        'utf8'
+      );
+      // Malformed TypeScript syntax
+      await fs.writeFile(
+        path.join(skillDir, 'templates', 'broken.ts'),
+        'export const a = ;;; const',
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-asset-syntax');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.file).toContain('broken.ts');
+      expect(violation?.message).toContain('TypeScript syntax error');
+    });
   });
 });

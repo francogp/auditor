@@ -1,6 +1,5 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_html_validate_config.d.ts
 export type HtmlValidateConfigRuleId = 'html-validate-config-missing' | 'html-validate-config-syntax' | 'html-validate-config-missing-strict-rule' | 'html-validate-config-missing-plugin' | 'html-validate-config-missing-transform' | 'html-validate-config-missing-doctype-style';
 export declare const HTML_VALIDATE_CONFIG_RULES: readonly HtmlValidateConfigRuleId[];
 export declare const MANDATORY_STRICT_HTML_RULES: readonly ["no-deprecated-attr", "deprecated", "element-permitted-content", "element-required-attributes", "attribute-allowed-values"];
@@ -42,4 +41,3 @@ export declare class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlV
   }), maybeProjectRoot?: string);
   runAudit(): Promise<void>;
 }
-//#endregion

@@ -7,7 +7,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
-//#region src/cli/cliUtils.ts
+// src/cli/cliUtils.ts
 /**
 * src/cli/cliUtils.ts
 *
@@ -83,7 +83,7 @@ function bootstrapCliProject(argv = process.argv) {
 	const currentResolved = path.resolve(process.cwd());
 	const targetResolved = path.resolve(resolved);
 	const isRemote = path.resolve(auditorHomeDir) !== targetResolved;
-	if (currentResolved !== targetResolved) process.chdir(targetResolved);
+	if (currentResolved !== targetResolved) tryOrNull(() => process.chdir(targetResolved));
 	if (argv === process.argv && process.argv.length >= 2) {
 		const stripped = stripProjectCliArgs(process.argv.slice(2));
 		process.argv = [
@@ -286,5 +286,4 @@ function executeFallowJsonCommand(fallowBin, subCommandArgs, projectRoot = proce
 		rawOutput: (proc.stderr || proc.stdout || "").trim()
 	};
 }
-//#endregion
 export { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, DEFAULT_SUBPROCESS_TIMEOUT_MS, HUMAN_CONSOLE_FLAGS, bootstrapCliProject, executeCliAndReadJson, executeCliToFile, executeFallowJsonCommand, executeNodeCli, isHumanConsoleMode, isMainModule, resolveCoverageArgs, resolveNodeModuleBin, resolvePackageBin, stripProjectCliArgs };

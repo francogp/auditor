@@ -1,5 +1,4 @@
 import ts from "typescript";
-//#region src/core/astContext.d.ts
 export interface ExtractedScript {
   readonly scriptContent: string;
   readonly offsetLine: number;
@@ -43,4 +42,3 @@ export declare function createSyntheticSourceFile(fileName?: string): ts.SourceF
  * Helper to print an AST node using a synthetic source file.
  */
 export declare function printAstNode(node: ts.Node, printer?: ts.Printer, hint?: ts.EmitHint): string;
-//#endregion

@@ -1,14 +1,15 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
-import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { scanBalancedBraces } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/persistence/validate_persistence_client.ts
+// src/suites/persistence/validate_persistence_client.ts
 /**
 * packages/auditor/src/suites/persistence/validate_persistence_client.ts
 *
@@ -40,6 +41,10 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 		const codeRoots = typeof options === "object" && options?.roots ? options.roots : cfg.paths.codeRoots ?? [];
 		const customAuthorized = typeof options === "object" && options?.authorizedSaveFiles ? options.authorizedSaveFiles : cfg.persistence?.authorizedSaveFiles ?? [];
 		const customPrefixes = typeof options === "object" && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
+		const extraGlobs = [...cfg.persistence?.ignoreGlobs ?? [], ...cfg.persistence?.exemptPaths ?? []];
+		if (cfg.paths?.migrationsDir) extraGlobs.push(`${cfg.paths.migrationsDir}/**`);
+		if (cfg.persistence?.allowedDatabaseDirs) for (const d of cfg.persistence.allowedDatabaseDirs) extraGlobs.push(`${d}/**`);
+		const persistenceIgnores = Array.from(getEffectiveIgnoreGlobs(rootPath, { extraGlobs }));
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -75,23 +80,11 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
-				exclude: [
-					"coverage/**",
-					"dist/**",
-					"scratch/**",
-					".agents/**"
-				]
+				exclude: persistenceIgnores
 			},
 			roots: codeRoots,
 			allowedExtensions: EXTENSIONS,
-			extraIgnorePatterns: [
-				"coverage/**",
-				"dist/**",
-				"scratch/**",
-				".agents/**",
-				"migrations/**",
-				"database/**"
-			],
+			extraIgnorePatterns: persistenceIgnores,
 			projectRoot: rootPath
 		});
 		this.authorizedSaveFiles = new Set(customAuthorized);
@@ -199,5 +192,4 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ValidatePersistenceClientAuditor());
-//#endregion
 export { PERSISTENCE_CLIENT_RULES, ValidatePersistenceClientAuditor };

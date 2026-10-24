@@ -1,5 +1,4 @@
 import fs from "node:fs";
-//#region src/core/safeUtils.d.ts
 export type SafeOperationStatus = 'success' | 'failure';
 export interface SafeOperationSuccess<T> {
   readonly status: 'success';
@@ -77,4 +76,3 @@ export declare function safeReadFileAsync(filePath: string, options?: SafeReadOp
  * Safely reads directory entries asynchronously. Returns null if reading fails.
  */
 export declare function safeReaddirAsync(dirPath: string): Promise<fs.Dirent[] | null>;
-//#endregion

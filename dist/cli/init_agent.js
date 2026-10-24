@@ -6,7 +6,7 @@ import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/
 import { isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/cli/init_agent.ts
+// src/cli/init_agent.ts
 /**
 * src/cli/init_agent.ts
 *
@@ -89,5 +89,4 @@ if (isMainModule(import.meta.url)) {
 		}
 	}
 }
-//#endregion
 export { initAgentSkill };

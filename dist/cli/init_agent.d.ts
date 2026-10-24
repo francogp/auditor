@@ -1,4 +1,3 @@
-//#region src/cli/init_agent.d.ts
 /**
  * src/cli/init_agent.ts
  *
@@ -15,4 +14,3 @@ export declare function initAgentSkill(options?: InitAgentOptions): {
   message: string;
   created: boolean;
 };
-//#endregion

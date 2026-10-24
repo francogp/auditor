@@ -1,15 +1,16 @@
 import { safeJsonParse, safeReadFileAsync, tryOrNullAsync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs/promises";
-//#region src/suites/domain_data/validate_canonical_domains.ts
+// src/suites/domain_data/validate_canonical_domains.ts
 /**
 * packages/auditor/src/suites/domain_data/validate_canonical_domains.ts
 *
@@ -368,6 +369,7 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot || process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const effectiveRoots = options.roots ?? config.paths.srcRoots ?? [];
+		const effectiveIgnores = Array.from(getEffectiveIgnoreGlobs(projectRoot));
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -405,28 +407,18 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(effectiveRoots, EXTENSIONS).include,
-				exclude: [
-					"coverage/**",
-					"dist/**",
-					"scratch/**",
-					".agents/**"
-				]
+				exclude: effectiveIgnores
 			},
 			roots: effectiveRoots,
 			allowedExtensions: EXTENSIONS,
-			extraIgnorePatterns: [
-				"coverage/**",
-				"dist/**",
-				"scratch/**",
-				".agents/**"
-			],
+			extraIgnorePatterns: effectiveIgnores,
 			projectRoot
 		});
 	}
 	async runAudit() {
 		if (this.isSuiteGatingDisabled("Dominio desactivado en config")) {
 			this.redeclareCoverage({
-				include: ["src/**/*.ts"],
+				include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
 				source: "declared-only"
 			});
 			return;
@@ -489,5 +481,4 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateCanonicalDomainsAuditor());
-//#endregion
 export { CANONICAL_DOMAIN_RULES, MAX_CANONICAL_DOMAIN_LITERAL_LENGTH, MAX_COMPACT_DOMAIN_LITERALS_THRESHOLD, ValidateCanonicalDomainsAuditor, detectLibraryDomainTypeDuplicates, detectProjectDomainDuplicatesAndSubsets, detectRepeatedStringUnions, extractLibraryDomainTypes, extractProjectCanonicalDomains, extractSortedLiterals, extractSortedLiteralsSignature };

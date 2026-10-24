@@ -226,9 +226,9 @@ export function createDefaultAuditConfigContent(
     auditorVersion: AUDITOR_VERSION,
     paths: {
       enabled: true,
-      srcRoots: ['src'],
-      testRoots: ['tests'],
-      scriptsRoots: ['scripts']
+      srcRoots: DEFAULT_AUDIT_CONFIG.paths.srcRoots,
+      testRoots: DEFAULT_AUDIT_CONFIG.paths.testRoots,
+      scriptsRoots: DEFAULT_AUDIT_CONFIG.paths.scriptsRoots
     },
     documentation: {
       enabled: true,
@@ -627,7 +627,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           '   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat.'
       },
       coverage: {
-        include: [path.posix.join(AUDITOR_DIR, '**'), '.gitignore']
+        include: [path.posix.join(AUDITOR_DIR, '*.{ts,json}'), '.gitignore']
       },
       projectRoot
     });

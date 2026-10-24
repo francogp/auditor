@@ -1,5 +1,4 @@
 import { ArgDef, ArgsDef, CommandContext, CommandDef, ParsedArgs, defineCommand, runCommand, runMain } from "citty";
-//#region src/core/cli/cittyHarness.d.ts
 export type CittyArgsDef = ArgsDef;
 export declare const CONSOLE_FORMAT_VALUES: readonly ["compact", "human", "verbose", "json"];
 export type ConsoleFormat = (typeof CONSOLE_FORMAT_VALUES)[number];
@@ -62,5 +61,4 @@ export declare function resolveHumanModeFromArgs(args?: {
   readonly verbose?: boolean;
   readonly format?: ConsoleFormat | string;
 }, rawArgs?: readonly string[]): boolean;
-//#endregion
 export { type ArgDef, type ArgsDef, type CommandContext, type CommandDef, type ParsedArgs, defineCommand, runCommand, runMain };

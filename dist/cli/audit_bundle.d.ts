@@ -1,6 +1,5 @@
 import { ChunkBudgetConfig } from "../core/auditConfigTypes.js";
 import { SubAuditorStatus } from "../core/auditContract.js";
-//#region src/cli/audit_bundle.d.ts
 export interface ModuleMeta {
   readonly id: string;
 }
@@ -58,4 +57,3 @@ export declare function discoverCompiledChunks(targetDir: string): readonly Disc
 export declare function resolveDistDir(projectRoot: string, configuredDistDir?: string): string;
 export declare function runBundleAudit(projectRoot?: string): Promise<BundleAuditSummary>;
 export declare function executeCli(rawArgs?: readonly string[]): Promise<void>;
-//#endregion

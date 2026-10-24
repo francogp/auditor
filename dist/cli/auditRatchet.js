@@ -1,10 +1,9 @@
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
+import { toPosixRelative } from "../core/safePath.js";
 import { runGit } from "../core/configRatchet.js";
 import path from "node:path";
 import fs from "node:fs";
 import { createHash } from "node:crypto";
-//#region src/cli/auditRatchet.ts
+// src/cli/auditRatchet.ts
 /**
 * src/cli/auditRatchet.ts
 *
@@ -172,5 +171,4 @@ function initWarningBaseline(projectRoot, ratchet, results) {
 	fs.writeFileSync(absolute, serializeBaseline(current), "utf-8");
 	return current.length;
 }
-//#endregion
 export { RATCHET_SOURCES, describeBaselineDefect, initWarningBaseline, resolveGitCommit, runWarningRatchet };

@@ -1,6 +1,5 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/documentation/validate_markdown_lint.d.ts
 export type MarkdownLintRuleId = 'markdownlint-issue';
 export declare const MARKDOWN_LINT_RULES: readonly MarkdownLintRuleId[];
 export declare const DEFAULT_MARKDOWN_IGNORE_GLOBS: readonly ["node_modules/**", ".git/**", "dist/**", "dev-dist/**", "scratch/**", "test-results/**"];
@@ -33,4 +32,3 @@ export declare class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId>
    */
   repairMarkdownLintConfig(configPath: string): void;
 }
-//#endregion

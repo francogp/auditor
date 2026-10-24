@@ -21,7 +21,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions,
+  getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -105,7 +106,7 @@ export class MarkdownSyntaxAuditor extends FileScanAuditor<MarkdownSyntaxRuleId>
       },
       roots: targetRoots,
       allowedExtensions: new Set(['.md']),
-      extraIgnorePatterns: ['scratch/**', 'dist/**', 'dev-dist/**', 'test-results/**'],
+      extraIgnorePatterns: Array.from(getEffectiveIgnoreGlobs(effectiveRoot)),
       projectRoot: effectiveRoot
     });
   }

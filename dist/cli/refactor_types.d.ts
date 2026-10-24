@@ -1,4 +1,3 @@
-//#region src/cli/refactor_types.d.ts
 /**
  * src/cli/refactor_types.ts
  *
@@ -7,4 +6,3 @@
  * for `as any`, double assertions, and explicit function return contracts.
  */
 export declare function runRefactorTypesCli(argv?: readonly string[]): Promise<void>;
-//#endregion

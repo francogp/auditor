@@ -8,7 +8,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { getAuditConfig, sanitizePath } from './auditConfig.ts';
+import { getAuditConfig, sanitizePath } from './auditConfigLoader.ts';
 import { isLockedSkillPath } from './lockedSkills.ts';
 import { createDomainSet } from './domainCollections.ts';
 
@@ -18,13 +18,19 @@ const CWE_PATH_TRAVERSAL_ID_TEXT = '22';
 
 export { sanitizePath };
 
+function getTargetRoot(): string {
+  const customRoot = process.env.AUDIT_PROJECT_ROOT;
+  const target = customRoot ? sanitizePath(customRoot) : process.cwd();
+  return path.resolve(target);
+}
+
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
  * Prevents directory traversal attacks (CWE-22).
  */
 export function safeResolve(...pathSegments: string[]): string {
-  const root = path.resolve(process.cwd());
-  const resolved = path.resolve(...pathSegments.filter(Boolean));
+  const root = getTargetRoot();
+  const resolved = path.resolve(root, ...pathSegments.filter(Boolean));
   const rel = path.relative(root, resolved);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw new Error(
@@ -36,7 +42,7 @@ export function safeResolve(...pathSegments: string[]): string {
 
 function assertNotLockedSkill(filePath: string): string {
   const resolved = safeResolve(filePath);
-  const root = path.resolve(process.cwd());
+  const root = getTargetRoot();
   if (isLockedSkillPath(resolved, root)) {
     throw new Error(
       `Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`
@@ -121,8 +127,18 @@ export function safeDevUrl(
   return url.pathname + url.search;
 }
 
-import { toPosixRelative } from './auditCoverage.ts';
-export { toPosixRelative };
+/**
+ * Converts an absolute or relative path into a POSIX path relative to the project root.
+ */
+export function toPosixRelative(projectRoot: string, filePath: string): string {
+  if (!filePath) return '';
+  const rel = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
+  const posix = rel.replaceAll(path.win32.sep, path.posix.sep);
+  const withoutLeadingDot = posix.startsWith('./') ? posix.slice(2) : posix;
+  return withoutLeadingDot.endsWith('/') && withoutLeadingDot.length > 1
+    ? withoutLeadingDot.slice(0, -1)
+    : withoutLeadingDot;
+}
 import { normalizePosixPath } from './reportUtils.ts';
 export { normalizePosixPath };
 
@@ -130,8 +146,12 @@ export { normalizePosixPath };
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
  */
-export function toPosixPath(filePath: string, baseDir: string = process.cwd()): string {
-  return toPosixRelative(baseDir, filePath);
+export function toPosixPath(
+  filePath: string,
+  baseDir?: string
+): string {
+  const root = baseDir ?? getTargetRoot();
+  return toPosixRelative(root, filePath);
 }
 
 /**

@@ -1,5 +1,5 @@
 import path from "node:path";
-//#region src/core/auditConfigAntiAbuse.ts
+// src/core/auditConfigAntiAbuse.ts
 /**
 * packages/auditor/src/core/auditConfigAntiAbuse.ts
 *
@@ -93,5 +93,4 @@ function validateConstantsExemptGlobs(globs) {
 		assertNoProtectedProductionRoots(rawGlob, glob.toLowerCase());
 	}
 }
-//#endregion
 export { FORBIDDEN_PRODUCTION_ROOTS, MAX_CONSTANTS_EXEMPT_GLOBS, MIN_COVERAGE_REASON_LENGTH, assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy, normalizeRootPath, validateConstantsExemptGlobs };

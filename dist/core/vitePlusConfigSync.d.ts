@@ -1,6 +1,5 @@
 import { AuditConfig } from "./auditConfigTypes.js";
 import { extractAstPropertyBlock } from "./viteConfigAst.js";
-//#region src/core/vitePlusConfigSync.d.ts
 export declare const LEGACY_CONFIG_FILES: readonly ["eslint.config.js", "eslint.config.mjs", "eslint.config.ts", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml", "vitest.config.ts", "vitest.config.js", "vitest.config.mjs", "tsdown.config.ts", "tsdown.config.js", "tsconfig.build.json", ".oxlintrc.json", ".oxfmtrc.json"];
 export type VitePlusSyncTarget = 'lint' | 'fmt';
 export declare const STRICT_RULE_CHECKS: string[];
@@ -58,5 +57,4 @@ export declare function repairVitePlusProject(projectRoot: string): {
   packageJsonUpdated: boolean;
   vscodeSync: boolean;
 };
-//#endregion
 export { extractAstPropertyBlock as extractObjectPropertyBlock };

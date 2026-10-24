@@ -1,8 +1,9 @@
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { describe, it, expect } from 'vite-plus/test';
+import { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test';
 
 import {
   WorktreeSandboxManager,
@@ -11,10 +12,26 @@ import {
 } from '../../../src/core/refactor/worktreeSandbox.ts';
 
 describe('WorktreeSandboxManager', () => {
+  let miniRepoDir: string;
+
+  beforeAll(() => {
+    miniRepoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mini-wt-repo-'));
+    execSync('git init -q', { cwd: miniRepoDir });
+    fs.writeFileSync(path.join(miniRepoDir, 'README.md'), '# Test Mini Repo');
+    execSync('git add README.md', { cwd: miniRepoDir });
+    execSync('git -c user.name=t -c user.email=t@t.com commit -q -m init', {
+      cwd: miniRepoDir
+    });
+  });
+
+  afterAll(() => {
+    fs.rmSync(miniRepoDir, { recursive: true, force: true });
+  });
+
   it('creates an ephemeral worktree session and cleans it up properly', () => {
-    const session = WorktreeSandboxManager.createSession(process.cwd(), `test-wt-${Date.now()}`);
+    const session = WorktreeSandboxManager.createSession(miniRepoDir, `test-wt-${Date.now()}`);
     expect(fs.existsSync(session.worktreeDir)).toBe(true);
-    expect(session.repoRoot).toBe(path.resolve(process.cwd()));
+    expect(session.repoRoot).toBe(path.resolve(miniRepoDir));
 
     // Verify reset executes cleanly without throwing
     expect(() => session.reset()).not.toThrow();
@@ -26,11 +43,11 @@ describe('WorktreeSandboxManager', () => {
 
   it('handles forceClean gracefully when session directory pre-exists', () => {
     const sessionName = `test-wt-collision-${Date.now()}`;
-    const session1 = WorktreeSandboxManager.createSession(process.cwd(), sessionName);
+    const session1 = WorktreeSandboxManager.createSession(miniRepoDir, sessionName);
     expect(fs.existsSync(session1.worktreeDir)).toBe(true);
 
     // Creating again with same name triggers forceClean
-    const session2 = WorktreeSandboxManager.createSession(process.cwd(), sessionName);
+    const session2 = WorktreeSandboxManager.createSession(miniRepoDir, sessionName);
     expect(fs.existsSync(session2.worktreeDir)).toBe(true);
 
     session2.cleanup();
@@ -41,17 +58,21 @@ describe('WorktreeSandboxManager', () => {
     let appliedInSandbox = false;
     let appliedInHost = false;
 
-    await executeInWorktreeWithVerification(process.cwd(), async (targetDir) => {
-      if (targetDir.includes('scratch')) {
-        appliedInSandbox = true;
-      } else {
-        appliedInHost = true;
-      }
-    });
+    await executeInWorktreeWithVerification(
+      miniRepoDir,
+      async (targetDir) => {
+        if (targetDir.includes('scratch')) {
+          appliedInSandbox = true;
+        } else {
+          appliedInHost = true;
+        }
+      },
+      { verifyCommand: 'node -v' }
+    );
 
     expect(appliedInSandbox).toBe(true);
     expect(appliedInHost).toBe(true);
-  }, 60000);
+  }, 10000);
 
   it('propagates verification failure and cleans up worktree sandbox', async () => {
     const errorAction = async (targetDir: string): Promise<void> => {
@@ -60,9 +81,17 @@ describe('WorktreeSandboxManager', () => {
       }
     };
 
-    await expect(executeInWorktreeWithVerification(process.cwd(), errorAction)).rejects.toThrow(
-      'Simulated verification failure in sandbox'
-    );
+    await expect(
+      executeInWorktreeWithVerification(miniRepoDir, errorAction, { verifyCommand: 'node -v' })
+    ).rejects.toThrow('Simulated verification failure in sandbox');
+  });
+
+  it('propagates command verification failure in worktree sandbox', async () => {
+    await expect(
+      executeInWorktreeWithVerification(miniRepoDir, async () => {}, {
+        verifyCommand: 'node -e "process.exit(1)"'
+      })
+    ).rejects.toThrow('TypeScript verification failed in worktree sandbox');
   });
 
   it('applies plan directly without worktree when useWorktree is false', async () => {
@@ -71,7 +100,7 @@ describe('WorktreeSandboxManager', () => {
     let executedDir = '';
 
     await applyPlanFileWithWorktreeVerification(
-      process.cwd(),
+      miniRepoDir,
       planFile,
       false,
       async (dir, plan: { action: string }) => {
@@ -81,7 +110,7 @@ describe('WorktreeSandboxManager', () => {
       'test-hint'
     );
 
-    expect(executedDir).toBe(process.cwd());
+    expect(executedDir).toBe(miniRepoDir);
     fs.rmSync(planFile, { force: true });
   });
 
@@ -92,7 +121,7 @@ describe('WorktreeSandboxManager', () => {
     let hostRun = false;
 
     await applyPlanFileWithWorktreeVerification(
-      process.cwd(),
+      miniRepoDir,
       planFile,
       true,
       async (dir, plan: { action: string }) => {
@@ -103,11 +132,12 @@ describe('WorktreeSandboxManager', () => {
         }
         expect(plan.action).toBe('test-wt');
       },
-      'test-hint'
+      'test-hint',
+      { verifyCommand: 'node -v' }
     );
 
     expect(worktreeRun).toBe(true);
     expect(hostRun).toBe(true);
     fs.rmSync(planFile, { force: true });
-  }, 60000);
+  }, 10000);
 });

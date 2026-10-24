@@ -18,8 +18,10 @@
 
 import {
   BaseAuditor,
+  getAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
   type AuditorConfigFileRequirement,
-  type AuditorOptions
+  type FileScanRootsOptions
 } from '@francogp/auditor';
 
 export type HostDomainRuleId =
@@ -46,7 +48,15 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
     }
   ];
 
-  constructor(projectRoot: string = process.cwd()) {
+  private readonly domainRoots: readonly string[];
+
+  constructor(options: FileScanRootsOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const domainRoots = options.roots ?? (config.paths.logicRoots?.length
+      ? config.paths.logicRoots
+      : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots));
+
     super({
       id: 'validate_host_domain',
       name: 'Host Domain Invariants & Parity Validator',
@@ -55,16 +65,19 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       family: 'domain_data',
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
+      fixableRuleIds: ['host-missing-config'],
       ruleCapabilities: {
         'host-catalog-sync': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
         'host-schema-invariants': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
         'host-state-consistency': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
         'host-missing-config': { speed: 'heavy', phase: 'normal', fix: 'priority', md: false, ast: false, changedOnly: false, critical: false }
       },
+      configKey: 'domain.hostDomain',
       defaultConfig: {
         enabled: true
       },
       criticalConfig: {},
+      requiredPermissions: [],
       remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       configFiles: HostDomainCompositeAuditor.configFiles,
@@ -76,33 +89,38 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       },
       ruleRemediations: {
         'host-catalog-sync':
-          'El catálogo local no coincide con el registro maestro.\n' +
-          '1. Compara las claves entre el catálogo y la definición canónica.\n' +
-          '2. Sincroniza las entradas faltantes o extra.',
+          '1. Root Cause: El catálogo local no coincide con el registro maestro.\n' +
+          '2. Diagnosis: Compara las claves entre el catálogo y la definición canónica en los archivos de datos.\n' +
+          '3. Canonical Solution: Sincroniza las entradas faltantes o extra para asegurar paridad 1 a 1.\n' +
+          '4. Example / Command: npm run auditor',
         'host-schema-invariants':
-          'Se detectó un esquema de datos que incumple las invariantes de validación.\n' +
-          '1. Inspecciona los tipos y restricciones en el esquema.\n' +
-          '2. Corrige las discrepancias con Valibot o los tipos canónicos.',
+          '1. Root Cause: Se detectó un esquema de datos que incumple las invariantes de validación.\n' +
+          '2. Diagnosis: Inspecciona los tipos y restricciones en el esquema reportado.\n' +
+          '3. Canonical Solution: Corrige las discrepancias con Valibot o los tipos canónicos.\n' +
+          '4. Example / Command: npm run auditor',
         'host-state-consistency':
-          'Una máquina de estados o transición presenta una ruta inválida o no alcanzable.\n' +
-          '1. Verifica las transiciones definidas en la máquina.\n' +
-          '2. Añade los estados o manejadores faltantes.',
+          '1. Root Cause: Una máquina de estados o transición presenta una ruta inválida o no alcanzable.\n' +
+          '2. Diagnosis: Verifica las transiciones definidas en la máquina frente a los eventos declarados.\n' +
+          '3. Canonical Solution: Añade los estados o manejadores faltantes o poda transiciones obsoletas.\n' +
+          '4. Example / Command: npm run auditor',
         'host-missing-config':
-          'Falta un archivo de configuración requerido para el dominio.\n' +
-          '1. Ejecuta "auditor fix" para auto-generarlo si está registrado.\n' +
-          '2. O créalo manualmente según la especificación del dominio.'
+          '1. Root Cause: Falta un archivo de configuración requerido para el dominio (.host-domain.json).\n' +
+          '2. Diagnosis: Verifica si el archivo de configuración existe en la raíz del proyecto.\n' +
+          '3. Canonical Solution: Ejecuta "auditor fix" o "npm run auditor:fix" para auto-generarlo, o créalo según la especificación.\n' +
+          '4. Example / Command: npm run auditor:fix'
       },
       coverage: {
-        include: ['src/domain/**/*.{ts,json}'],
+        include: domainRoots.map((r) => `${r}/**/*.{ts,json}`),
         source: 'runtime'
       },
       projectRoot
     });
+    this.domainRoots = domainRoots;
   }
 
   public override async runAudit(): Promise<void> {
     // 1. Load shared domain resources once (zero redundant disk I/O)
-    const domainFiles = this.context.collectFiles(['src/domain'], new Set(['.ts', '.json']));
+    const domainFiles = this.context.collectFiles(this.domainRoots, new Set(['.ts', '.json']));
     for (const f of domainFiles) {
       this.recordScanned(f);
     }

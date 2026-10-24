@@ -1,14 +1,15 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { tryCatchSync } from "../../core/safeUtils.js";
 import { extractJsonReportFilePaths, normalizePosixPath, parseLintResultsToFindings } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_html_validate.ts
+// src/suites/architecture/validate_html_validate.ts
 /**
 * packages/auditor/src/suites/architecture/validate_html_validate.ts
 *
@@ -95,6 +96,13 @@ function readAndParseHtmlValidateOutput(reportFile, combinedOutput, projectRoot)
 }
 var HtmlValidateAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
+		const config = getAuditConfig(projectRoot);
+		const targetRoots = Array.from(/* @__PURE__ */ new Set([
+			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots,
+			...config.paths.codeRoots ?? [],
+			...config.paths.demoRoots ?? []
+		]));
 		super({
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
@@ -128,8 +136,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			ruleRemediations: { "html-validate-issue": "1. Root Cause:\nViolation of WHATWG HTML Living Standard rules or accessibility and semantic markup best practices in .html files or Vue component templates (.vue).\nhtml-validate detects obsolete elements (<center>, <font>, <marquee>), disallowed nesting (e.g. <p> inside <p>, <div> inside <span>, or interactive <a> inside <a>), invalid attributes, or duplicate IDs in the same DOM tree.\n\n2. Diagnosis:\n1. Run \"npm run auditor:findings rule=html-validate-issue\" to inspect the exact file, line, and HTML5 rule that failed.\n2. Identify whether the violation is a deprecated tag, illegal nesting, or an unsupported attribute.\n\n3. Canonical Solution:\n1. Replace obsolete elements with semantic HTML5 elements (<header>, <nav>, <main>, <section>, <article>, <div>) and style via CSS classes or design system utilities.\n2. Fix illegal nesting. In HTML5, <p> can only contain phrasing (inline) elements; a block <div> or list <ul> inside a <p> forces implicit closure of the paragraph and corrupts the DOM tree.\n3. Avoid nesting interactive elements within other interactive elements (e.g. <button> inside an <a>).\n4. Run \"npm run auditor:fix\" to automatically fix supported formatting issues or trivial attributes.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: obsolete tag and illegal nesting in HTML5\n<center>\n  <p>Text with inner block: <div>Disallowed content</div></p>\n</center>\n\n// ✅ Correct: standard semantic elements with styling classes\n<div class=\"text-center\">\n  <p>Text with inline element: <span class=\"highlight\">Valid content</span></p>\n</div>" },
 			coverage: {
 				include: [
-					"src/**/*.{html,vue}",
-					"ui-demo/**/*.{html,vue}",
+					...targetRoots.map((r) => `${r}/**/*.{html,vue}`),
 					"*.html",
 					".htmlvalidate.json"
 				],
@@ -147,8 +154,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 		const reportFile = path.resolve(this.projectRoot, "scratch/audits/architecture/html-validate-raw.json");
 		fs.mkdirSync(path.dirname(reportFile), { recursive: true });
 		const scannableRoots = Array.from(/* @__PURE__ */ new Set([
-			"src",
-			...config.paths.srcRoots ?? [],
+			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots,
 			...config.paths.codeRoots ?? [],
 			...config.paths.demoRoots ?? []
 		])).filter((r) => fs.existsSync(path.resolve(this.projectRoot, r)));
@@ -200,5 +206,4 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new HtmlValidateAuditor());
-//#endregion
 export { HTML_VALIDATE_RULES, HtmlValidateAuditor, collectHtmlTargets, parseHtmlValidateResults, readAndParseHtmlValidateOutput };

@@ -67,7 +67,12 @@ await this.scanFilesSinglePass(files, [
 Specialized base class for scanning individual files. Handles automatic directory collection, gitignore filtering, test file exemptions, AST context resolution, and coverage ledger tracking.
 
 ```typescript
-import { FileScanAuditor, createUniformRuleCapabilities, type FileScanRootsOptions } from '@francogp/auditor';
+import {
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export const MY_RULES = ['my-rule-id'] as const;
 export type MyRuleId = (typeof MY_RULES)[number];
@@ -78,6 +83,11 @@ export interface MyAuditorOptions extends FileScanRootsOptions {
 
 export class MyAuditor extends FileScanAuditor<MyRuleId> {
   constructor(options: MyAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.srcRoots
+    );
+
     super({
       id: 'validate_my_rules',
       name: 'My Custom Invariants',
@@ -86,8 +96,8 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       packageName: 'Custom',
       icon: '🛡️',
       configKey: 'paths',
-      projectRoot: options.projectRoot,
-      roots: options.roots ?? ['src'],
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue']),
       // Dynamic Exemption: automatically bypasses configured files or patterns
       exemptPaths: options.exemptPaths,
@@ -101,6 +111,7 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
         changedOnly: false,
         critical: false
       }),
+      remediationPhase: 'contracts',
       ruleDescriptions: {
         'my-rule-id': 'Custom project invariant rule'
       },
@@ -392,13 +403,25 @@ npm run auditor:fix
 Enforces color palette governance and prohibits raw hex colors in UI component templates:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile, type FileScanRootsOptions } from '@francogp/auditor';
+import {
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  isExemptFile,
+  resolveFileScanRoots,
+  DEFAULT_AUDIT_CONFIG,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export const UI_COLOR_RULES = ['ui-banned-raw-hex-color'] as const;
 export type UiColorRuleId = (typeof UI_COLOR_RULES)[number];
 
 export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.componentsRoots ?? DEFAULT_AUDIT_CONFIG.paths.componentsRoots
+    );
+
     super({
       id: 'validate_ui_color_palette',
       name: 'UI Color Palette Hygiene',
@@ -407,8 +430,13 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       packageName: 'Palette',
       icon: '🎨',
       configKey: 'paths',
-      projectRoot: options.projectRoot,
-      roots: options.roots ?? ['src/components'],
+      defaultConfig: {},
+      criticalConfig: {},
+      usesThirdPartyTool: false,
+      requiredPermissions: [],
+      remediationPhase: 'hygiene',
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       allowedExtensions: new Set(['.vue', '.scss']),
       ruleIds: UI_COLOR_RULES,
       ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
@@ -425,9 +453,14 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       },
       ruleRemediations: {
         'ui-banned-raw-hex-color':
-          'Se usó un color hexadecimal literal en lugar de un token de diseño.\n' +
-          '1. Reemplaza el valor hex por la variable/token de color del sistema de diseño.\n' +
-          '2. Si el color no existe, agrégalo primero a la hoja de tokens.'
+          '1. Causa Raíz: Se utilizó un color hexadecimal literal (#fff, #1a1a1a) directamente en el componente o estilo en lugar de tokens semánticos del sistema de diseño.\n' +
+          '2. Diagnóstico: Inspecciona la línea señalada en el reporte para identificar el valor hexadecimal no regulado.\n' +
+          '3. Solución Canónica: Sustituye el valor literal por la variable CSS o token de diseño canónico correspondiente (por ejemplo: var(--color-background-primary)).\n' +
+          '4. Ejemplo / Auto-fix:\n' +
+          '   // Antes:\n' +
+          '   color: #3b82f6;\n' +
+          '   // Después:\n' +
+          '   color: var(--color-primary-500);'
       }
     });
   }
@@ -461,13 +494,25 @@ Verifies that all exported functions in domain services have explicit return typ
 
 ```typescript
 import ts from 'typescript';
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, isExemptFile, type FileScanRootsOptions } from '@francogp/auditor';
+import {
+  FileScanAuditor,
+  createUniformRuleCapabilities,
+  isExemptFile,
+  resolveFileScanRoots,
+  DEFAULT_AUDIT_CONFIG,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 
 export const SERVICE_RETURN_RULES = ['service-missing-explicit-return-type'] as const;
 export type ServiceReturnRuleId = (typeof SERVICE_RETURN_RULES)[number];
 
 export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.logicRoots ?? config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
+    );
+
     super({
       id: 'validate_service_types',
       name: 'Service Explicit Return Types',
@@ -476,8 +521,13 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       packageName: 'Services',
       icon: '📐',
       configKey: 'paths',
-      projectRoot: options.projectRoot,
-      roots: options.roots ?? ['src/services'],
+      defaultConfig: {},
+      criticalConfig: {},
+      usesThirdPartyTool: false,
+      requiredPermissions: [],
+      remediationPhase: 'contracts',
+      projectRoot: effectiveRoot,
+      roots: targetRoots,
       allowedExtensions: new Set(['.ts']),
       requiresAst: true, // Enables automatic TypeScript AST provision
       ruleIds: SERVICE_RETURN_RULES,
@@ -495,9 +545,14 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       },
       ruleRemediations: {
         'service-missing-explicit-return-type':
-          'Una función exportada de servicio no declara su tipo de retorno.\n' +
-          '1. Agrega la anotación de tipo de retorno explícita a la función indicada.\n' +
-          '2. Prefiere tipos de dominio canónicos en lugar de inferencia implícita.'
+          '1. Causa Raíz: Una función exportada de servicio no declara su tipo de retorno de forma explícita.\n' +
+          '2. Diagnóstico: Revisa la firma de la función indicada en el reporte y verifica la ausencia del tipo devuelto.\n' +
+          '3. Solución Canónica: Agrega la anotación de tipo de retorno explícita a la función usando tipos de dominio canónicos.\n' +
+          '4. Ejemplo / Auto-fix:\n' +
+          '   // Antes:\n' +
+          '   export function calculateBalance(account: Account) { return account.total; }\n' +
+          '   // Después:\n' +
+          '   export function calculateBalance(account: Account): Money { return account.total; }'
       }
     });
   }

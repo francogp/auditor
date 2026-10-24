@@ -93,10 +93,24 @@ function parseCommandLineArgs() {
   };
 }
 
+export type FallowCommandRunner = <T = Record<string, unknown>>(
+  command: string,
+  extraArgs?: string[]
+) => T | null;
+
+let customFallowRunner: FallowCommandRunner | null = null;
+
+export function setFallowCommandRunner(runner: FallowCommandRunner | null): void {
+  customFallowRunner = runner;
+}
+
 function runFallowCommand<T = Record<string, unknown>>(
   command: string,
   extraArgs: string[] = []
 ): T | null {
+  if (customFallowRunner) {
+    return customFallowRunner<T>(command, extraArgs);
+  }
   // open-record: Generic key-value data dictionary container
   try {
     const effectiveExtra = [...extraArgs];
@@ -1361,6 +1375,22 @@ function reportViz(json: boolean, human = false): void {
   }
 
   try {
+    if (customFallowRunner) {
+      fs.writeFileSync(targetHtml, '<html><body>Mock Viz</body></html>', 'utf-8');
+      if (json) {
+        console.log(
+          JSON.stringify(
+            { success: true, outputPath: 'scratch/fallow_map.html', message: 'Mock viz generated' },
+            null,
+            2
+          )
+        );
+      } else {
+        console.log('[Fallow] Visual map generated at: scratch/fallow_map.html');
+      }
+      return;
+    }
+
     const cmd = `node "${fallowBin}" viz --no-open --out "${targetHtml}"`;
     const stdout = execSync(cmd, {
       cwd: process.cwd(),

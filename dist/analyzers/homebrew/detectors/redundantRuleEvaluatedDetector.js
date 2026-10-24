@@ -1,5 +1,5 @@
 import { scanRuleMeasurement } from "./ruleMeasurementScan.js";
-//#region src/analyzers/homebrew/detectors/redundantRuleEvaluatedDetector.ts
+// src/analyzers/homebrew/detectors/redundantRuleEvaluatedDetector.ts
 const redundantRuleEvaluatedDetector = {
 	id: "redundant-rule-evaluated",
 	ruleId: "auditor-redundant-rule-evaluated",
@@ -20,5 +20,4 @@ const redundantRuleEvaluatedDetector = {
 		return findings;
 	}
 };
-//#endregion
 export { redundantRuleEvaluatedDetector };

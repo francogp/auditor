@@ -1,3 +1,4 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -6,7 +7,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/suites/persistence/validate_valibot_parity.ts
+// src/suites/persistence/validate_valibot_parity.ts
 /**
 * src/suites/persistence/validate_valibot_parity.ts
 *
@@ -179,12 +180,21 @@ function extractInitialStateKeys(sourceFile, functionName = "createInitialGameSt
 }
 var ValidateValibotParityAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
-		const targetFiles = (getAuditConfig(options.projectRoot).valibot?.targets ?? []).flatMap((t) => [
+		const config = getAuditConfig(options.projectRoot);
+		const targetFiles = (config.valibot?.targets ?? []).flatMap((t) => [
 			t.typesFile,
 			t.schemaFile,
 			...t.serializerFile ? [t.serializerFile] : [],
 			...t.initialStateFile ? [t.initialStateFile] : []
 		]);
+		const typesRoots = config.paths.typesRoots ?? DEFAULT_AUDIT_CONFIG.paths.typesRoots ?? [];
+		const logicRoots = config.paths.logicRoots ?? DEFAULT_AUDIT_CONFIG.paths.logicRoots ?? [];
+		const storesRoots = config.paths.storesRoots ?? DEFAULT_AUDIT_CONFIG.paths.storesRoots ?? [];
+		const fallbackGlobs = [
+			...typesRoots.map((r) => `${r}/**/*.ts`),
+			...logicRoots.map((r) => `${r}/**/*.ts`),
+			...storesRoots.map((r) => `${r}/**/*.ts`)
+		];
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -227,11 +237,7 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 				"valibot-domain-type-violation": "📖 REMEDIATION GUIDE: valibot-domain-type-violation\n1. Root Cause: `v.unknown()` or `v.any()` was used inside a domain validation schema. This degrades strict typing and allows unstructured data to corrupt state.\n2. Diagnosis: Locate the `v.unknown()` call in the schema file.\n3. Canonical Solution: Replace `v.unknown()` with the specific schema for the data type (e.g.: `v.string()`, `v.record(v.string(), v.number())` or a nested schema).\n4. Example:\n   ❌ Loose:  `metadata: v.unknown()`\n   ✅ Strict: `metadata: v.record(v.string(), v.string())`",
 				"valibot-redundant-nullability": "📖 REMEDIATION GUIDE: valibot-redundant-nullability\n1. Root Cause: Redundantly composed `v.optional(v.nullable(...))` to accept `null | undefined`. Valibot canonical API provides the built-in `v.nullish(...)` function.\n2. Diagnosis: Locate `v.optional(v.nullable(...))` expression in the schema.\n3. Canonical Solution: Replace the redundant composition with `v.nullish(...)`.\n4. Example:\n   ❌ Redundant: `v.optional(v.nullable(v.string()))`\n   ✅ Canonical: `v.nullish(v.string())`"
 			},
-			coverage: { include: targetFiles.length > 0 ? targetFiles : [
-				"src/types/**/*.ts",
-				"src/logic/**/*.ts",
-				"src/stores/**/*.ts"
-			] },
+			coverage: { include: targetFiles.length > 0 ? targetFiles : fallbackGlobs },
 			projectRoot: options.projectRoot
 		});
 	}
@@ -426,5 +432,4 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateValibotParityAuditor());
-//#endregion
 export { VALIBOT_PARITY_RULES, ValidateValibotParityAuditor, extractEphemeralKeys, extractInitialStateKeys, extractInterfaceKeys, extractObjectLiteralKeys, extractSchemaKeys, extractSerializerKeys };

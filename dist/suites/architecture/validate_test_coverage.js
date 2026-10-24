@@ -1,14 +1,15 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { buildTestCoverageConfig } from "../../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../../core/testCoverageCore.js";
 import { enableCompileCache } from "node:module";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_test_coverage.ts
+// src/suites/architecture/validate_test_coverage.ts
 /**
 * @file validate_test_coverage.ts
 * @description Architecture sub-auditor verifying that repository test execution coverage
@@ -24,9 +25,15 @@ const DEFAULT_COVERAGE_THRESHOLD = 80;
 var ValidateTestCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
+		const codeRoots = getAuditConfig(effectiveRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
+			cachePaths: [
+				"coverage",
+				".vitest-cache",
+				"test-results"
+			],
 			id: "validate_test_coverage",
 			name: "Test Execution Coverage Auditor",
 			description: "Governance of actual unit test coverage",
@@ -54,11 +61,7 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 				"test-coverage-untracked-files": "📖 REMEDIATION GUIDE: test-coverage-untracked-files\n1. Root Cause: Source files in `src/` were never imported or executed during test suite runs (orphaned untested modules).\n2. Diagnosis: Inspect the list of untracked files via `npm run auditor:findings rule=test-coverage-untracked-files flat`.\n3. Canonical Solution:\n   a) Create unit test files in `tests/` for each untracked source file.\n   b) If a file is a pure barrel re-export or type definition without runtime logic, add to `testCoverage.exemptGlobs` in `.auditor/audit.config.ts`.\n4. Example / Auto-fix command:\n   `npm run test:coverage`"
 			},
 			coverage: {
-				include: [
-					"src/**/*.ts",
-					"src/**/*.vue",
-					"scripts/**/*.ts"
-				],
+				include: deriveCoverageFromRoots(codeRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), effectiveRoot).include,
 				source: "declared-only"
 			},
 			ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
@@ -137,5 +140,4 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTestCoverageAuditor());
-//#endregion
 export { DEFAULT_COVERAGE_THRESHOLD, TEST_COVERAGE_RULES, ValidateTestCoverageAuditor };

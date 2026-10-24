@@ -1,5 +1,4 @@
 import ts from "typescript";
-//#region src/analyzers/nativePaths/pathLiteralHeuristics.d.ts
 export declare const POSIX_SEP: "\\" | "/";
 export declare const WIN_SEP: "\\" | "/";
 export declare function getStringValue(expr: ts.Node): string | undefined;
@@ -40,4 +39,3 @@ export declare function collectStringFragments(node: ts.Node, out?: string[]): s
 export declare function isRegExpConstruction(node: ts.Node): node is ts.NewExpression | ts.CallExpression;
 export declare function isInsideRegExpConstruction(node: ts.Node): boolean;
 export declare function isUrlConstruction(node: ts.Node): node is ts.NewExpression;
-//#endregion

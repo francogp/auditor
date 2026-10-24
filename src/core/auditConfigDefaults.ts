@@ -187,11 +187,15 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   documentation: {
     enabled: true,
     knownValidAbstractPaths: [],
-    skillsRoots: [],
+    skillsRoots: ['.agents/skills'],
     allowedNpxBinaries: [],
     language: 'en',
     chatLanguage: 'es',
     languageExemptions: []
+  },
+  dox: {
+    enabled: true,
+    ignoreGlobs: ['.agents/**']
   },
   fallow: {
     enabled: true,

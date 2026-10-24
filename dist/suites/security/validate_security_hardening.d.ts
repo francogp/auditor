@@ -1,5 +1,4 @@
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/security/validate_security_hardening.d.ts
 export declare const SECURITY_HARDENING_RULES: readonly ["hardcoded-secrets", "insecure-random", "vulnerable-regex-redos", "raw-html-injection", "missing-csrf-token", "eval-or-function-constructor", "permissive-cors", "unvalidated-redirect"];
 export type SecurityHardeningRuleId = (typeof SECURITY_HARDENING_RULES)[number];
 export declare class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHardeningRuleId> {
@@ -19,4 +18,3 @@ export declare class ValidateSecurityHardeningAuditor extends FileScanAuditor<Se
   private auditPermissiveCors;
   private auditUnvalidatedRedirect;
 }
-//#endregion

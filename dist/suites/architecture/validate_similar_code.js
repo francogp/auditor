@@ -1,11 +1,12 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeJsonParse, tryOrNull } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { getProcessCliArgs } from "../../core/cli/cittyHarness.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -15,7 +16,7 @@ import fs from "node:fs";
 import { styleText } from "node:util";
 import childProcess from "node:child_process";
 import os from "node:os";
-//#region src/suites/architecture/validate_similar_code.ts
+// src/suites/architecture/validate_similar_code.ts
 /**
 * packages/auditor/src/suites/architecture/validate_similar_code.ts
 *
@@ -111,6 +112,7 @@ function checkOrInitializeModel(fallowBin, projectRoot, isFix = false) {
 		});
 		return safeJsonParse(statusOut)?.model_ready === true;
 	})) return true;
+	if (process.env.VITEST || process.env.AUDIT_SUBPROCESS) return false;
 	process.stdout.write(styleText("cyan", "📦 The local embeddings model for Fallow similar-code is not initialized. Downloading and initializing automatically...\n"));
 	try {
 		childProcess.execSync(`node "${fallowBin}" similar-code setup --local --yes`, {
@@ -175,6 +177,7 @@ function evaluateSimilarCodeCandidates(candidates, options, auditor) {
 var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
+		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
@@ -208,11 +211,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 				"fallow-similar-code-failed": "📖 REMEDIATION GUIDE: fallow-similar-code-failed\n1. Root Cause: Fallow vector analysis engine failed to initialize, the native binary was missing, or Candle CPU model execution failed.\n2. Diagnosis: Check the console error output to determine if the binary is missing or if permissions/network errors occurred.\n3. Canonical Solution:\n   a) On Windows, run `npm run setup:windows` (or `npm run setup:linux` on Linux) to pre-create cache directories and verify binaries.\n   b) Verify `fallow` is installed in `node_modules/.bin/fallow`.\n   c) In CI environments without internet or in production builds, set `AUDITOR_ENV=production`.\n4. Example / Auto-fix command:\n   - Run `npm run setup:windows` or `npm run setup:linux`"
 			},
 			coverage: {
-				include: [
-					"src/**/*.ts",
-					"src/**/*.vue",
-					"scripts/**/*.ts"
-				],
+				include: deriveCoverageFromRoots(codeRoots, /* @__PURE__ */ new Set([".ts", ".vue"]), projectRoot).include,
 				source: "declared-only"
 			},
 			projectRoot
@@ -355,5 +354,4 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSimilarCodeAuditor());
-//#endregion
 export { DEFAULT_SIMILAR_CODE_THRESHOLD, SIMILAR_CODE_RULES, SIMILAR_CODE_RULE_CAPABILITIES, ValidateSimilarCodeAuditor, WINDOWS_UNBLOCK_TIMEOUT_MS, checkOrInitializeModel, ensureSimilarCodeCacheDir, evaluateSimilarCodeCandidates, isFastPresetActive, isSimilarCodeSkipped, resolveFallowBinary, resolveFallowUserCacheDir };

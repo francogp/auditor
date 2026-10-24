@@ -3,7 +3,7 @@ import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, g
 import { DEFAULT_AUDIT_CONFIG, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import path from "node:path";
-//#region src/core/auditConfigBuilders.ts
+// src/core/auditConfigBuilders.ts
 /**
 * packages/auditor/src/core/auditConfigBuilders.ts
 *
@@ -733,5 +733,4 @@ function defineAuditConfig(config) {
 		_rawConfig: rawConfig
 	};
 }
-//#endregion
 export { buildAccessibilityConfig, buildAgentAndSecurityConfig, buildAuditorHygieneConfig, buildBaseSubsystemConfig, buildBundleConfig, buildCodeSimplificationConfig, buildConstantsAndDocConfig, buildCoverageConfig, buildDependencyVulnerabilitiesConfig, buildDomainConfig, buildEnvironmentConfig, buildFallowConfig, buildFallowSimilarCodeConfig, buildGitIgnoreConfig, buildHtmlValidateConfig, buildOxfmtConfig, buildOxlintConfig, buildPackageDistributionConfig, buildPackageHygieneConfig, buildPackageScriptsConfig, buildPathsConfig, buildPersistenceConfig, buildQueryPerformanceConfig, buildRatchetConfig, buildScriptCommandsConfig, buildScriptExtensionsConfig, buildScssArchitectureConfig, buildSecretLeaksConfig, buildSecurityHardeningConfig, buildStylesConfig, buildTemplatesConfig, buildTestCoverageConfig, buildTypeCoverageConfig, buildValibotConfig, buildVersionConfig, buildVitePlusConfig, buildWebPerformanceConfig, defineAuditConfig };

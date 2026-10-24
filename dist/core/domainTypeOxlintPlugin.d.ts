@@ -1,4 +1,3 @@
-//#region src/core/domainTypeOxlintPlugin.d.ts
 /**
  * @francogp/domain-type Oxlint JS Plugin (Node.js 26+ Native)
  *
@@ -223,5 +222,4 @@ export declare const domainTypeOxlintPlugin: {
     };
   };
 };
-//#endregion
 export { domainTypeOxlintPlugin as default };

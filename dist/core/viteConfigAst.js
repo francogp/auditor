@@ -1,7 +1,8 @@
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained } from "./safePath.js";
 import ts from "typescript";
-//#region src/core/viteConfigAst.ts
+// src/core/viteConfigAst.ts
 /**
 * packages/auditor/src/core/viteConfigAst.ts
 *
@@ -436,21 +437,21 @@ function buildFmtAstObject(auditConfig, fmtIgnores) {
 	return valueToAstExpression(fmtData);
 }
 function resolveVitestRoots(auditConfig) {
-	const rawTestRoots = auditConfig.paths?.testRoots ?? ["tests"];
-	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
+	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
+	const normalizedE2eRoots = (auditConfig.paths?.e2eRoots ?? DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ["e2e"]).map(normalizePosixRoot);
 	const vitestRoots = rawTestRoots.filter((r) => {
 		const normR = normalizePosixRoot(r);
 		return !normalizedE2eRoots.some((e2e) => isPathUnderRoot(normR, e2e)) && normR !== "e2e";
 	});
-	return vitestRoots.length > 0 ? vitestRoots : ["tests"];
+	return vitestRoots.length > 0 ? vitestRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots;
 }
 function buildTestAstObject(auditConfig) {
 	const coverageThreshold = auditConfig.testCoverage?.threshold ?? 80;
-	const rawTestRoots = auditConfig.paths?.testRoots ?? ["tests"];
-	const e2eRootsList = auditConfig.paths?.e2eRoots ?? ["e2e"];
+	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
+	const e2eRootsList = auditConfig.paths?.e2eRoots ?? DEFAULT_AUDIT_CONFIG.paths.e2eRoots ?? ["e2e"];
 	const testRoots = resolveVitestRoots(auditConfig);
-	const srcRoots = auditConfig.paths?.srcRoots ?? ["src"];
-	const cliRoots = auditConfig.paths?.cliRoots ?? ["src/cli"];
+	const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+	const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
 	return valueToAstExpression({
 		environment: "node",
 		include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`),
@@ -928,5 +929,4 @@ function rewriteModuleSpecifiersToVitePlusAst(content, fileName) {
 	for (const r of replacements) updated = updated.slice(0, r.start) + r.text + updated.slice(r.end);
 	return updated;
 }
-//#endregion
 export { CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };

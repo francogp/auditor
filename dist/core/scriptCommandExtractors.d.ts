@@ -1,5 +1,4 @@
 import { ExtractedCommand } from "./npmCommandUtils.js";
-//#region src/core/scriptCommandExtractors.d.ts
 export declare function inspectCommandTokens(bin: string, words: readonly string[], lineNum: number, rawText: string, out: ExtractedCommand[]): void;
 /**
  * Extracts npm and npx commands from shell scripts (.sh, .bash, .zsh) using unbash AST.
@@ -28,4 +27,3 @@ export declare function extractCommandsFromTypeScript(content: string, filePath:
  * dispatching to the appropriate AST or structured parser based on file type.
  */
 export declare function extractScriptCommands(content: string, filePath: string): ExtractedCommand[];
-//#endregion

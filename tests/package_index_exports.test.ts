@@ -37,6 +37,16 @@ describe('Public Package Exports (src/index.ts)', () => {
     expect(parsed.styles[0]?.content.trim()).toContain('div { color: red; }');
   });
 
+  it('exports lexical scanner utilities for extensions and explicitly omits deprecated suppression helpers', () => {
+    // Zero-Ignore Mandate: deprecated line-suppression helpers are completely eradicated
+    expect((AuditorPackage as Record<string, unknown>).hasLineSuppression).toBeUndefined();
+    expect(typeof AuditorPackage.hasPrecedingComment).toBe('function');
+    expect(typeof AuditorPackage.stripComments).toBe('function');
+    expect(typeof AuditorPackage.stripCommentsAndStrings).toBe('function');
+    expect(typeof AuditorPackage.scanBalancedBraces).toBe('function');
+    expect(typeof AuditorPackage.scanBalancedParens).toBe('function');
+  });
+
   it('exports extension definition helper and homebrew analyzers', () => {
     expect(typeof AuditorPackage.defineAuditorExtension).toBe('function');
     expect(AuditorPackage.HomebrewDetectorRegistry).toBeDefined();

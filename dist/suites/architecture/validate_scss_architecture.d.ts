@@ -1,5 +1,4 @@
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_scss_architecture.d.ts
 export declare const SCSS_ARCHITECTURE_RULES: readonly ["raw-css-in-sfc", "scss-deep-selector-abuse", "non-standard-spacing-unit", "missing-theme-token-usage", "excessive-scss-nesting"];
 export type ScssArchitectureRuleId = (typeof SCSS_ARCHITECTURE_RULES)[number];
 export declare class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
@@ -17,4 +16,3 @@ export declare class ValidateScssArchitectureAuditor extends FileScanAuditor<Scs
   private processScssLineBraces;
   private auditExcessiveScssNesting;
 }
-//#endregion

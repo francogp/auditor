@@ -1,4 +1,3 @@
-//#region src/cli/update_package.d.ts
 /**
  * src/cli/update_package.ts
  *
@@ -10,6 +9,7 @@ export interface UpdateAuditorOptions {
   silent?: boolean;
   stopAt?: string;
   targetVersion?: string;
+  checkOnly?: boolean;
 }
 export interface UpdateAuditorResult {
   success: boolean;
@@ -17,6 +17,7 @@ export interface UpdateAuditorResult {
   previousVersion: string;
   newVersion: string;
   updated: boolean;
+  updateAvailable?: boolean;
   error?: string;
 }
 export declare function findHostProjectRoot(startDir?: string, stopAt?: string): string;
@@ -32,5 +33,5 @@ export declare function extractTagsFromLsRemote(stdout: string): string[];
 export declare function resolveLatestAuditorTag(repoUrl?: string): string;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;
+export declare function renderUpdateHelp(): string;
 export declare function runCli(): void;
-//#endregion

@@ -1,7 +1,7 @@
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { stripComments } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_error_suppression.ts
+// src/suites/architecture/validate_error_suppression.ts
 /**
 * scripts/auditors/architecture/validate_error_suppression.ts
 *
@@ -38,7 +38,7 @@ const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\
 const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 var ErrorSuppressionAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, ["src", "scripts"]);
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths.codeRoots);
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -165,5 +165,4 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ErrorSuppressionAuditor());
-//#endregion
 export { ERROR_SUPPRESSION_RULES, ErrorSuppressionAuditor };

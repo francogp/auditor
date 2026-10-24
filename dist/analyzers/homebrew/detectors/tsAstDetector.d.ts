@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/tsAstDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/tsAstDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * instead of leveraging SharedAstContext, this.context.getAst(), or AuditedDocument.getScriptAst().
  */
 export declare const tsAstDetector: HomebrewDetector;
-//#endregion

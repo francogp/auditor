@@ -420,7 +420,8 @@ function renderHotspotsView(hotspots: readonly CoverageHotspot[], topLimit: numb
 function renderFilteredFilesView(
   files: readonly FileCoverageResult[],
   args: CliArgs,
-  effectiveThreshold: number
+  effectiveThreshold: number,
+  projectRoot: string = process.env.AUDIT_PROJECT_ROOT || process.cwd()
 ): void {
   let filtered = files;
   if (args.zeroOnly) {
@@ -436,9 +437,9 @@ function renderFilteredFilesView(
     );
   }
   if (args.dirFilter) {
-    const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+    const filterAbs = path.resolve(projectRoot, args.dirFilter);
     filtered = filtered.filter((f) => {
-      const fileAbs = path.resolve(process.cwd(), f.relPath);
+      const fileAbs = path.resolve(projectRoot, f.relPath);
       return isPathContained(filterAbs, fileAbs) || f.relPath === args.dirFilter;
     });
   }
@@ -457,7 +458,8 @@ function renderFilteredFilesView(
 function renderGlobalCoverageSummary(
   report: TestCoverageReport,
   args: CliArgs,
-  effectiveThreshold: number
+  effectiveThreshold: number,
+  projectRoot: string = process.env.AUDIT_PROJECT_ROOT || process.cwd()
 ): void {
   const o = report.overall;
   const b = report.buckets;
@@ -478,9 +480,9 @@ ${styleText('bold', 'FILE DISTRIBUTION:')}
 
   let dirs = report.directories;
   if (args.dirFilter) {
-    const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+    const filterAbs = path.resolve(projectRoot, args.dirFilter);
     dirs = dirs.filter((d) => {
-      const dirAbs = path.resolve(process.cwd(), d.directory);
+      const dirAbs = path.resolve(projectRoot, d.directory);
       return isPathContained(filterAbs, dirAbs) || d.directory === args.dirFilter;
     });
   }
@@ -540,7 +542,8 @@ function loadCoveragePayloadOrExit(
 function renderSpecificCoverageView(
   report: ReturnType<typeof analyzeTestCoverage>,
   args: ReturnType<typeof parseCommandLineArgs>,
-  effectiveThreshold: number
+  effectiveThreshold: number,
+  projectRoot: string = process.env.AUDIT_PROJECT_ROOT || process.cwd()
 ): boolean {
   if (args.fileFilter) {
     renderFileDrillDown(report, args.fileFilter);
@@ -555,7 +558,7 @@ function renderSpecificCoverageView(
     return true;
   }
   if (args.belowOnly || args.zeroOnly) {
-    renderFilteredFilesView(report.files, args, effectiveThreshold);
+    renderFilteredFilesView(report.files, args, effectiveThreshold, projectRoot);
     return true;
   }
   return false;
@@ -638,15 +641,16 @@ function renderTestCoverageCompact(
   }
 }
 
-export async function runTestCoverageReport(): Promise<void> {
+export async function runTestCoverageReport(
+  projectRoot: string = process.env.AUDIT_PROJECT_ROOT || process.cwd()
+): Promise<void> {
   const args = parseCommandLineArgs();
   if (args.help) {
     printUsage();
     return;
   }
 
-  const projectRoot = process.cwd();
-  const config = getAuditConfig();
+  const config = getAuditConfig(projectRoot);
   const resolvedConfig = buildTestCoverageConfig(config.testCoverage);
   const effectiveThreshold = args.threshold ?? resolvedConfig.threshold;
 
@@ -685,8 +689,8 @@ export async function runTestCoverageReport(): Promise<void> {
     )
   );
 
-  if (!renderSpecificCoverageView(report, args, effectiveThreshold)) {
-    renderGlobalCoverageSummary(report, args, effectiveThreshold);
+  if (!renderSpecificCoverageView(report, args, effectiveThreshold, projectRoot)) {
+    renderGlobalCoverageSummary(report, args, effectiveThreshold, projectRoot);
   }
 
   if (args.check) {

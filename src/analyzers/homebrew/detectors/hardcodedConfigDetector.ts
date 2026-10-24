@@ -48,11 +48,35 @@ export const hardcodedConfigDetector = createLineDetector({
       return "Hardcoded path or directory check detected in sub-auditor ('/types/', '/data/', '/migrations/'). Resolve paths dynamically from 'config.paths' or canonical utilities.";
     }
 
-    // 5. Fallback path arrays on config.paths: e.g. config.paths.srcRoots ?? ['src']
+    // 5. Fallback path arrays on config.paths: e.g. config.paths.srcRoots ?? ['src'] or || ['src'] or : ['tests']
     const hasFallbackRootsArray =
-      /(?:config|cfg|paths)\.(?:paths\.)?\w+Roots\s*\?\?\s*\[\s*['"`]/i.test(trimmed);
+      /(?:config|cfg|paths|auditCfg)\??\.(?:paths\??\.)?\w+Roots\s*(?:\?\?|\|\|)\s*\[\s*['"`]/i.test(trimmed) ||
+      /:\s*\[\s*['"`](?:src|tests|scripts|\.agents|database)['"`]\s*\]/i.test(trimmed);
     if (hasFallbackRootsArray) {
-      return "Hardcoded fallback roots array detected. Resolve paths directly from 'config.paths' without hardcoded fallbacks.";
+      return "Hardcoded fallback roots array detected. Resolve paths directly from 'config.paths' or 'DEFAULT_AUDIT_CONFIG.paths' without hardcoded array literals.";
+    }
+
+    // 6. Passing array literals to resolveFileScanRoots instead of resolver callbacks: e.g. resolveFileScanRoots(options, ['src'])
+    const hasLiteralFileScanRoots =
+      /resolveFileScanRoots\s*\([^,]+,\s*\[\s*['"`]/i.test(trimmed);
+    if (hasLiteralFileScanRoots) {
+      return "Literal array passed to 'resolveFileScanRoots'. Use a dynamic resolver callback '(config) => config.paths....' instead.";
+    }
+
+    // 7. Static coverage include with hardcoded directory patterns: e.g. include: ['src/**', 'tests/**']
+    const hasHardcodedCoverageInclude =
+      /include\s*:\s*\[\s*['"`](?:src|tests|scripts|\.agents|database)\/[^\]]*\]/i.test(trimmed);
+    if (hasHardcodedCoverageInclude) {
+      return "Hardcoded directory pattern in coverage include array. Use 'deriveCoverageFromRoots(roots, extensions, projectRoot)' instead.";
+    }
+
+    // 8. Literal path arrays containing hardcoded folder prefixes: e.g. ['.agents/plugins.json', '.agents/skills.json']
+    const hasHardcodedPathArray =
+      /\[\s*['"`]\.agents\//i.test(trimmed) &&
+      !trimmed.startsWith('//') &&
+      !trimmed.startsWith('*');
+    if (hasHardcodedPathArray) {
+      return "Hardcoded directory literal in array detected. Derive paths dynamically from 'config.documentation.skillsRoots' or configuration.";
     }
 
     return null;

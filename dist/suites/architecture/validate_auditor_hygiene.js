@@ -1,10 +1,10 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import "../../core/safePath.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { HomebrewDetectorRegistry } from "../../analyzers/homebrew/homebrewRegistry.js";
 import { AUDITOR_HOMEBREW_RULES } from "../../analyzers/homebrew/homebrewTypes.js";
@@ -12,7 +12,7 @@ import "../../analyzers/homebrew/index.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_auditor_hygiene.ts
+// src/suites/architecture/validate_auditor_hygiene.ts
 /**
 * src/suites/architecture/validate_auditor_hygiene.ts
 *
@@ -141,5 +141,4 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AuditorHygieneAuditor());
-//#endregion
 export { AUDITOR_HOMEBREW_RULES, AuditorHygieneAuditor };

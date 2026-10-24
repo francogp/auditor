@@ -1,4 +1,4 @@
-//#region src/core/refactor/paramPermutationMapper.ts
+// src/core/refactor/paramPermutationMapper.ts
 var ParamPermutationMapper = class {
 	/**
 	* Computes the index permutation array from canonical parameter names to instance argument order.
@@ -53,5 +53,4 @@ var ParamPermutationMapper = class {
 		return mapping;
 	}
 };
-//#endregion
 export { ParamPermutationMapper };

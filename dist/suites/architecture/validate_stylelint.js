@@ -1,15 +1,17 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, CANONICAL_IGNORE_DIRS, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { SASS_TRAPS_RULE_NAME, sassTrapsPlugin } from "./stylelintSassTrapsPlugin.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import stylelint from "stylelint";
-//#region src/suites/architecture/validate_stylelint.ts
+// src/suites/architecture/validate_stylelint.ts
 /**
 * packages/auditor/src/suites/architecture/validate_stylelint.ts
 *
@@ -295,6 +297,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 			}, [...STYLELINT_RULES]),
 			fixableRuleIds: [...STYLELINT_RULES],
 			gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
+			cachePaths: [".stylelintcache"],
 			id: options?.id || "validate_stylelint",
 			name: options?.name || "Stylelint & SCSS Hygiene Validator",
 			description: "Audits CSS/SCSS quality, syntax, and patterns with Stylelint",
@@ -358,7 +361,7 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 		if (this.isSuiteGatingDisabled("Stylelint desactivado en config")) return;
 		const config = getAuditConfig(this.projectRoot);
 		const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
-		const roots = this.roots.length > 0 ? this.roots : ["src"];
+		const roots = this.roots.length > 0 ? this.roots : config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
 		this.redeclareCoverage({
 			include: [
 				...deriveCoverageFromRoots(roots, /* @__PURE__ */ new Set([
@@ -445,5 +448,4 @@ var StylelintAuditor = class StylelintAuditor extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new StylelintAuditor());
-//#endregion
 export { STYLELINT_BUILTIN_FIXABLE_RULES, STYLELINT_ORDER_FIXABLE_RULES, STYLELINT_RULES, StylelintAuditor, StylelintAuditor as ValidateStylelintAuditor, buildStylelintConfig, buildStylelintIgnoreGlobs, categorizeStylelintRule, isStylelintRuleFixable, persistStylelintReport, processStylelintResults, repairDeprecatedCssPropertiesInRoots, repairDeprecatedWordBreak, resolveStylelintConfigFile };

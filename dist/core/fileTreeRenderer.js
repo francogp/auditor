@@ -1,11 +1,10 @@
+import { toPosixRelative } from "./safePath.js";
 import "./auditContract.js";
-import { toPosixRelative } from "./auditCoverage.js";
 import { padVisual } from "./terminalVisuals.js";
 import { formatNumber } from "./durationFormatter.js";
-import "./safePath.js";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/core/fileTreeRenderer.ts
+// src/core/fileTreeRenderer.ts
 /**
 * packages/auditor/src/core/fileTreeRenderer.ts
 *
@@ -110,5 +109,4 @@ function renderSampleErrors(errorFindings) {
 	if (errorFindings.length > 5) lines.push(styleText("dim", `    ... y ${formatNumber(errorFindings.length - 5)} error(es) más (ver reporte JSON completo).`));
 	return lines;
 }
-//#endregion
 export { formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors };

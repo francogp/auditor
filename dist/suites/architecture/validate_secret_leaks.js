@@ -6,7 +6,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import { lintSource } from "@secretlint/core";
 import { rules } from "@secretlint/secretlint-rule-preset-recommend";
-//#region src/suites/architecture/validate_secret_leaks.ts
+// src/suites/architecture/validate_secret_leaks.ts
 /**
 * src/suites/architecture/validate_secret_leaks.ts
 *
@@ -155,5 +155,4 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecretLeaksAuditor());
-//#endregion
 export { SECRET_LEAKS_RULES, SECRET_SCAN_EXTENSIONS, ValidateSecretLeaksAuditor, mapSecretLintMessageToFinding };

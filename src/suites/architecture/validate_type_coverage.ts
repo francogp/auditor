@@ -3,7 +3,9 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { safeRmSync } from '../../core/safeUtils.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
@@ -90,6 +92,8 @@ export const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(effectiveRoot);
+    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
@@ -143,7 +147,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
           '   ✅ Typed:   `function handle(event: MouseEvent): void { ... }`'
       },
       coverage: {
-        include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
+        include: deriveCoverageFromRoots(codeRoots, new Set(['.ts', '.vue']), effectiveRoot)
+          .include,
         source: 'declared-only'
       },
       projectRoot: effectiveRoot

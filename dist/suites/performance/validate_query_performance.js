@@ -1,11 +1,11 @@
 import { isPathExempt, normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { isPathContained } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { isPathContained } from "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/performance/validate_query_performance.ts
+// src/suites/performance/validate_query_performance.ts
 enableCompileCache();
 const QUERY_PERFORMANCE_RULES = [
 	"unindexed-foreign-keys",
@@ -225,5 +225,4 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateQueryPerformanceAuditor());
-//#endregion
 export { QUERY_PERFORMANCE_RULES, ValidateQueryPerformanceAuditor };

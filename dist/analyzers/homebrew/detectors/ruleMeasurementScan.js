@@ -1,6 +1,6 @@
 import { SharedAstContext } from "../../../core/astContext.js";
 import ts from "typescript";
-//#region src/analyzers/homebrew/detectors/ruleMeasurementScan.ts
+// src/analyzers/homebrew/detectors/ruleMeasurementScan.ts
 /**
 * src/analyzers/homebrew/detectors/ruleMeasurementScan.ts
 *
@@ -117,5 +117,4 @@ function scanRuleMeasurement(context) {
 	scanCache.set(context, scan);
 	return scan;
 }
-//#endregion
 export { scanRuleMeasurement };

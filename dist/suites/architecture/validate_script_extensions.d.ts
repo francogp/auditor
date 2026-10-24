@@ -1,6 +1,5 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_script_extensions.d.ts
 export declare const SCRIPT_EXTENSIONS_RULES: readonly ["banned-mjs-extension", "banned-cjs-extension", "banned-raw-js-script"];
 export type ScriptExtensionsRuleId = (typeof SCRIPT_EXTENSIONS_RULES)[number];
 export interface ScriptViolationInfo {
@@ -21,4 +20,3 @@ export declare class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptE
   private rewriteImportReferences;
   private rewritePackageJsonScripts;
 }
-//#endregion

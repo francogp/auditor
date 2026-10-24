@@ -6,7 +6,7 @@ import { evaluateProjectDependencies } from "../core/auditorMinimums.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/cli/report_dependencies.ts
+// src/cli/report_dependencies.ts
 /**
 * src/cli/report_dependencies.ts
 *
@@ -168,5 +168,4 @@ if (isMainModule(import.meta.url)) {
 	const options = parseCliArgs();
 	if (runDependenciesReport(bootstrap.projectRoot, options).outdatedCount > 0 && !options.noFail && !options.commandsOnly && !options.json) process.exitCode = 1;
 }
-//#endregion
 export { parseCliArgs, runDependenciesReport };

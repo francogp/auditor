@@ -57,11 +57,16 @@ export const CANONICAL_SOURCE_ROOTS = [
 export function getEffectiveSourceRoots(projectRoot?: string): readonly string[] {
   const config = getAuditConfig(projectRoot);
   const scannable = getEffectiveScannableRoots(config);
-  const additional = [
-    ...(config.paths.dataRoots ?? []),
-    config.persistence.supabaseDir ?? 'supabase',
-    'database'
-  ];
+  const effectiveProjectRoot = projectRoot ?? process.cwd();
+  const additional: string[] = [...(config.paths.dataRoots ?? [])];
+  if (config.persistence.engine !== 'none') {
+    if (config.persistence.supabaseDir) {
+      additional.push(config.persistence.supabaseDir);
+    }
+    if (fs.existsSync(path.join(effectiveProjectRoot, 'database'))) {
+      additional.push('database');
+    }
+  }
   return Array.from(new Set([...scannable, ...additional]));
 }
 
@@ -233,16 +238,17 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
     }
   }
 
-  private checkDatabaseDirectoryEntry(entry: fs.Dirent): void {
+  private checkDatabaseDirectoryEntry(entry: fs.Dirent, dbDir: string): void {
+    const entryRelPath = path.posix.join(dbDir, entry.name);
     if (entry.isDirectory()) {
       if (!this.allowedDatabaseDirs.has(entry.name)) {
         this.addViolation({
           ruleId: 'ephemeral-no-source-temp-dirs',
           severity: 'error',
-          file: `database/${entry.name}`,
+          file: entryRelPath,
           line: 1,
-          message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
-          context: `database/${entry.name}`
+          message: `Forbidden directory '${entryRelPath}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/${dbDir}/'.`,
+          context: entryRelPath
         });
       }
     } else if (
@@ -253,10 +259,10 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
       this.addViolation({
         ruleId: 'ephemeral-no-source-temp-dirs',
         severity: 'error',
-        file: `database/${entry.name}`,
+        file: entryRelPath,
         line: 1,
-        message: `Forbidden file 'database/${entry.name}' detected under database root. Ephemeral files must reside in 'scratch/database/'.`,
-        context: `database/${entry.name}`
+        message: `Forbidden file '${entryRelPath}' detected under database root. Ephemeral files must reside in 'scratch/${dbDir}/'.`,
+        context: entryRelPath
       });
     }
   }
@@ -306,7 +312,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
 
     if (rootName === 'database' && relToRoot === 'database') {
       for (const entry of entries) {
-        this.checkDatabaseDirectoryEntry(entry);
+        this.checkDatabaseDirectoryEntry(entry, 'database');
       }
     }
 

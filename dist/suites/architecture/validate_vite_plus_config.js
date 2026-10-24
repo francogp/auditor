@@ -1,15 +1,14 @@
 import "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_vite_plus_config.ts
+// src/suites/architecture/validate_vite_plus_config.ts
 enableCompileCache();
 const VITE_PLUS_CONFIG_RULES = [
 	"vite-plus-config-core",
@@ -1055,6 +1054,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			}, [...VITE_PLUS_CONFIG_RULES]),
 			fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
 			configFiles: [configRequirement],
+			cachePaths: ["dist", "dev-dist"],
 			fix: options.fix,
 			id: "validate_vite_plus_config",
 			name: "Vite+ Unified Configuration Validator",
@@ -1230,5 +1230,4 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateVitePlusConfigAuditor());
-//#endregion
 export { VITE_PLUS_CONFIG_REQUIREMENT, VITE_PLUS_CONFIG_RULES, ValidateVitePlusConfigAuditor, auditVitePlusConfigContent };

@@ -1,13 +1,12 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import "stylelint-declaration-strict-value";
-//#region src/suites/architecture/validate_stylelint_config.ts
+// src/suites/architecture/validate_stylelint_config.ts
 /**
 * src/suites/architecture/validate_stylelint_config.ts
 *
@@ -418,5 +417,4 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateStylelintConfigAuditor());
-//#endregion
 export { AUDITOR_STYLELINT_EXTENDS_PATH, CANONICAL_IGNORE_AT_RULES, CANONICAL_IGNORE_VALUES, CANONICAL_ORDER_CONFIG, CANONICAL_STRICT_VALUE_CONFIG, CANONICAL_STYLELINT_CONFIG_CONTENT, REQUIRED_ORDER_PLUGIN, REQUIRED_ORDER_RULE, REQUIRED_STRICT_PROPERTIES, REQUIRED_STRICT_VALUE_RULE, REQUIRED_STYLELINT_PLUGIN, STYLELINT_CONFIG_REQUIREMENT, STYLELINT_CONFIG_RULES, ValidateStylelintConfigAuditor as StylelintConfigAuditor, ValidateStylelintConfigAuditor, buildProjectStrictValueConfig, extendsAuditorConfig, getMergedIgnoreAtRules, getMergedIgnoreValues, getMergedStrictProperties, validateOrderHasBlockPartitioning };

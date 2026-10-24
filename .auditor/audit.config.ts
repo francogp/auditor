@@ -48,6 +48,26 @@ export default defineAuditConfig({
         reason: 'Windows environment initialization bootstrap PowerShell script'
       },
       {
+        glob: 'skills-lock.json',
+        reason: 'Deterministic lockfile for immutable upstream third-party agent skills'
+      },
+      {
+        glob: 'update-linux.sh',
+        reason: 'Linux and macOS environment update shell script'
+      },
+      {
+        glob: 'update-windows.ps1',
+        reason: 'Windows environment update PowerShell script'
+      },
+      {
+        glob: 'tests/fixtures/**',
+        reason: 'Test fixture case files for CLI contracts and native paths test suites'
+      },
+      {
+        glob: 'tests/canaries/**',
+        reason: 'Negative test canary files for static analysis and error suppression verification'
+      },
+      {
         glob: 'tsconfig.json',
         reason: 'TypeScript compiler configuration for root development and testing'
       },
@@ -159,8 +179,13 @@ export default defineAuditConfig({
     enabled: true,
     language: 'en',
     chatLanguage: 'es',
+    knownValidAbstractPaths: ['scripts/auditors/'],
     allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright'],
     languageExemptions: ['docs/**']
+  },
+  dox: {
+    enabled: true,
+    ignoreGlobs: ['.agents/**']
   },
   fallow: {
     enabled: true,

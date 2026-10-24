@@ -2,7 +2,6 @@ import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { TypesFindingItem, TypesRefactorPlan } from "./refactorContracts.js";
 import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
-//#region src/core/refactor/typesRefactorEngine.d.ts
 export declare class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan, ValidateTypeAssertionHygieneAuditor> {
   readonly toolId = "auditor-types";
   readonly configSectionKey: "types";
@@ -32,4 +31,3 @@ export declare class TypesRefactorEngine extends BaseRefactorEngine<TypesFinding
     readonly changesApplied: number;
   };
 }
-//#endregion

@@ -2,7 +2,6 @@ import { RuleDescriptor, Violation } from "./auditRuleTypes.js";
 import { SharedAstContext } from "../core/astContext.js";
 import "../suites/architecture/audit_rules.js";
 import ts from "typescript";
-//#region src/analyzers/constantAnalyzer.d.ts
 export declare const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor;
 export declare const DEFAULT_IGNORED_CONSTANT_NAMES: readonly ["ID", "NAME", "TYPE", "KEY", "INDEX", "COUNT", "DEFAULT", "SIZE", "MAX", "MIN", "VAL", "VALUE", "ITEM", "STATE", "MODE", "TAG", "URL", "PATH", "ERR", "ERROR", "MSG", "DATA", "INFO", "OPTIONS", "CONFIG", "RESULT", "RES", "REQ", "STATUS", "LEVEL", "STEP", "DELTA", "WIDTH", "HEIGHT", "X", "Y", "Z", "I", "J", "K", "TEST", "MOCK", "STUB", "DUMMY", "VERSION", "DESC", "TITLE", "LABEL", "ICON", "COLOR", "THEME", "STYLE", "PROPS", "EMITS", "MAP", "LIST", "ITEMS", "ACTIONS", "TYPES", "KEYS", "VALUES", "ROLES", "MODALS", "VIEWS", "COMPONENTS", "STORE", "SCHEMA", "KEY_CODES", "REF", "COMPOSABLE", "PROVIDE", "INJECT", "SLOTS", "SLOT"];
 export declare function getEffectiveIgnoredConstantNames(projectRoot?: string): ReadonlySet<string>;
@@ -20,5 +19,4 @@ interface ConstDecl {
 export declare function extractConstantsFromSource(sourceFile: ts.SourceFile, filePath: string, ignoredNames?: ReadonlySet<string>): ConstDecl[];
 export type DuplicateConstantFilter = 'identical' | 'divergent';
 export declare function detectDuplicateConstants(files: string[], astContext?: SharedAstContext, projectRoot?: string, filter?: DuplicateConstantFilter): Promise<Violation[]>;
-//#endregion
 export {};

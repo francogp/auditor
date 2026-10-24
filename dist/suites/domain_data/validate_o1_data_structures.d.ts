@@ -1,13 +1,12 @@
 import { SharedAstContext } from "../../core/astContext.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
-//#region src/suites/domain_data/validate_o1_data_structures.d.ts
 export declare const DEFAULT_O1_CATALOG_PATTERNS: Array<{
   name: string;
   pattern: RegExp;
   alternative: string;
   definingFile: string;
 }>;
-export declare function getResolvedO1CatalogPatterns(): Array<{
+export declare function getResolvedO1CatalogPatterns(projectRoot?: string): Array<{
   name: string;
   pattern: RegExp;
   alternative: string;
@@ -37,5 +36,4 @@ export declare class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
   runAudit(astContext?: SharedAstContext): Promise<void>;
   protected scanFile(relPath: string, content: string): void;
 }
-//#endregion
 export { O1DataStructuresAuditor as ValidateO1DataStructuresAuditor };

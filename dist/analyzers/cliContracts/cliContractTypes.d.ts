@@ -1,6 +1,5 @@
 import { FindingSeverity } from "../../core/auditContract.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/cliContractTypes.d.ts
 export declare const CLI_CONTRACT_RULES: readonly ["cli-contracts-direct-argv-access", "cli-contracts-banned-parser-library", "cli-contracts-homebrew-flag-parsing", "cli-contracts-dynamic-eval-bypass", "cli-contracts-missing-citty-contract", "cli-contracts-missing-citty-dependency", "cli-contracts-unregistered-script"];
 export type CliContractRuleId = (typeof CLI_CONTRACT_RULES)[number];
 export interface CliContractViolation {
@@ -33,4 +32,3 @@ export interface CliContractScanContext {
   readonly claimed: Set<ts.Node>;
 }
 export type CliContractDetector = (node: ts.Node, ctx: CliContractScanContext) => CliContractFinding | null;
-//#endregion

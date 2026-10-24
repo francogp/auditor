@@ -1,4 +1,4 @@
-//#region src/core/packageScriptRegistry.ts
+// src/core/packageScriptRegistry.ts
 const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 	{
 		name: "auditor",
@@ -302,6 +302,13 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		isApplicable: (config) => config.fallow?.enabled !== false
 	},
 	{
+		name: "auditor:fallow:boundaries",
+		command: "auditor-fallow category=boundaries",
+		description: "Architectural boundary violations detection via Fallow",
+		category: "fallow",
+		isApplicable: (config) => config.fallow?.enabled !== false
+	},
+	{
 		name: "auditor:fallow:suppressions",
 		command: "auditor-fallow category=suppressions",
 		description: "Active fallow-ignore suppression markers audit",
@@ -458,5 +465,4 @@ function buildCanonicalRunnerCommand(requirement) {
 	}
 	return cmd;
 }
-//#endregion
 export { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry, buildCanonicalRunnerCommand };

@@ -32,6 +32,7 @@ export interface UpdateAuditorOptions {
   silent?: boolean;
   stopAt?: string;
   targetVersion?: string;
+  checkOnly?: boolean;
 }
 
 export interface UpdateAuditorResult {
@@ -40,6 +41,7 @@ export interface UpdateAuditorResult {
   previousVersion: string;
   newVersion: string;
   updated: boolean;
+  updateAvailable?: boolean;
   error?: string;
 }
 
@@ -186,10 +188,28 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
       : `v${options.targetVersion}`
     : resolveLatestAuditorTag();
 
+  const previousVersion = readInstalledAuditorVersion(projectRoot);
+
+  if (options.checkOnly) {
+    const cleanTarget = targetTag.replace(/^v/, '');
+    const cleanPrev = previousVersion.replace(/^v/, '');
+    const updateAvailable =
+      previousVersion === '(not installed)' ||
+      previousVersion === '(unknown)' ||
+      cleanPrev !== cleanTarget;
+
+    return {
+      success: true,
+      projectRoot,
+      previousVersion,
+      newVersion: targetTag,
+      updated: false,
+      updateAvailable
+    };
+  }
+
   const npmArgs = ['install', '-D', `github:francogp/auditor#${targetTag}`];
   ensureNpmrcAllowGit(projectRoot);
-
-  const previousVersion = readInstalledAuditorVersion(projectRoot);
 
   if (!options.silent) {
     console.log(
@@ -308,25 +328,142 @@ export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boole
   }
 }
 
+export function renderUpdateHelp(): string {
+  return [
+    renderBanner('@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER', 'Diagnostic & Hermetic Update CLI'),
+    '',
+    styleText('bold', 'USAGE:'),
+    '  auditor-update [targetVersion] [options]',
+    '  npm run auditor:update -- [targetVersion] [options]',
+    '',
+    styleText('bold', 'ARGUMENTS:'),
+    '  targetVersion                Optional target version or tag (e.g. 10.0.0, v10.0.0). Defaults to latest upstream tag.',
+    '',
+    styleText('bold', 'OPTIONS:'),
+    '  -c, --check, --dry-run       Check for available updates without modifying files (read-only mode)',
+    '  -s, --silent                 Suppress progress output during installation',
+    '  -h, --help                   Display this help manual and exit safely',
+    '  --human                      Render interactive Box-Drawing summary table',
+    '',
+    styleText('bold', 'READ-ONLY VERSION INSPECTION:'),
+    '  To check currently installed or framework version without updating:',
+    '  • npm run auditor:version',
+    '  • auditor --version',
+    ''
+  ].join('\n');
+}
+
 const UPDATE_PACKAGE_ARGS = {
   ...COMMON_CLI_ARGS,
-  silent: { type: 'boolean', alias: 's', default: false, description: 'Suppress console progress output' }
+  check: {
+    type: 'boolean',
+    alias: 'c',
+    default: false,
+    description: 'Check for available updates without applying changes (read-only)'
+  },
+  dryRun: {
+    type: 'boolean',
+    default: false,
+    description: 'Alias for --check'
+  },
+  silent: {
+    type: 'boolean',
+    alias: 's',
+    default: false,
+    description: 'Suppress console progress output'
+  }
 } as const satisfies CittyArgsDef;
 
+const HELP_COMMAND_TOKENS: ReadonlySet<string> = new Set(['help', '--help', '-h']);
+
 export function runCli(): void {
-  const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, getProcessCliArgs());
-  const targetVersion = parsed._.map(String)[0];
+  const rawArgs = getProcessCliArgs();
+  const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, rawArgs);
+
+  const rawFirstArg = parsed._.map(String)[0]?.trim();
+  const isHelpRequested = Boolean(
+    parsed.help || (rawFirstArg && HELP_COMMAND_TOKENS.has(rawFirstArg))
+  );
+
+  if (isHelpRequested) {
+    console.log(renderUpdateHelp());
+    process.exit(0);
+  }
+
+  const isCheckMode = Boolean(parsed.check || parsed.dryRun);
+  const targetVersion =
+    rawFirstArg && !rawFirstArg.startsWith('-') && rawFirstArg !== 'help'
+      ? rawFirstArg
+      : undefined;
   const silent = Boolean(parsed.silent);
-  const result = updateAuditorPackage({ targetVersion, silent });
+  const isHuman = resolveHumanModeFromArgs(parsed);
+
+  const result = updateAuditorPackage({
+    targetVersion,
+    silent,
+    checkOnly: isCheckMode
+  });
 
   if (!result.success) {
     console.error(
-      styleText('red', `\n[Error] Failed to update @francogp/auditor: ${result.error}`)
+      styleText(
+        'red',
+        `\n[Error] Failed to ${isCheckMode ? 'check' : 'update'} @francogp/auditor: ${result.error}`
+      )
     );
     process.exit(1);
   }
 
-  const isHuman = resolveHumanModeFromArgs(parsed);
+  if (isCheckMode) {
+    if (!isHuman) {
+      const status = result.updateAvailable ? 'UPDATE-AVAILABLE' : 'UP-TO-DATE';
+      console.log(
+        `[Check] Package: @francogp/auditor | Installed: ${result.previousVersion} | Latest: ${result.newVersion} | Status: ${status}`
+      );
+      process.exit(0);
+    }
+
+    interface CheckTableRow {
+      readonly param: string;
+      readonly val: string;
+    }
+
+    const columns: TableColumn<CheckTableRow>[] = [
+      { header: 'PARAMETER', width: 26, render: (r: CheckTableRow) => r.param },
+      { header: 'VALUE / STATUS', width: 48, render: (r: CheckTableRow) => r.val }
+    ];
+
+    const statusVal = result.updateAvailable
+      ? 'UPDATE AVAILABLE'
+      : 'UP TO DATE (NO ACTION REQUIRED)';
+
+    const rows: CheckTableRow[] = [
+      { param: 'Package', val: '@francogp/auditor' },
+      { param: 'Installed Version', val: result.previousVersion },
+      { param: 'Latest Available', val: result.newVersion },
+      { param: 'Status', val: statusVal }
+    ];
+
+    console.log('\n' + renderBoxTable(columns, rows));
+    if (result.updateAvailable) {
+      console.log(
+        styleText(
+          'yellow',
+          `\n[Notice] A newer version of @francogp/auditor is available (v${result.previousVersion} -> ${result.newVersion}).\n` +
+            '         Run "npm run auditor:update" to upgrade.\n'
+        )
+      );
+    } else {
+      console.log(
+        styleText(
+          'green',
+          `\n[OK] @francogp/auditor is already up to date (v${result.previousVersion}).\n`
+        )
+      );
+    }
+    process.exit(0);
+  }
+
   if (!isHuman) {
     const status = result.updated ? 'UPDATED' : 'UP-TO-DATE';
     console.log(

@@ -1,5 +1,4 @@
 import { Project, SourceFile } from "ts-morph";
-//#region src/core/refactor/classHierarchyHoister.d.ts
 export interface HoistingTarget {
   readonly baseClassName: string;
   readonly baseClassFile: string;
@@ -17,4 +16,3 @@ export declare class ClassHierarchyHoister {
    */
   static hoistMethod(baseClassFile: SourceFile, baseClassName: string, methodSignature: string, methodBody: string, isProtected?: boolean): boolean;
 }
-//#endregion

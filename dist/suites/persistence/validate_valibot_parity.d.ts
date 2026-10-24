@@ -1,7 +1,6 @@
 import { SharedAstContext } from "../../core/astContext.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import ts from "typescript";
-//#region src/suites/persistence/validate_valibot_parity.d.ts
 export type ValibotParityRuleId = 'valibot-schema-missing-field' | 'valibot-serializer-missing-field' | 'valibot-initial-state-missing-field' | 'valibot-nested-missing-field' | 'valibot-domain-type-violation' | 'valibot-redundant-nullability';
 export declare const VALIBOT_PARITY_RULES: readonly ValibotParityRuleId[];
 /**
@@ -57,4 +56,3 @@ export declare class ValidateValibotParityAuditor extends BaseAuditor<ValibotPar
   private checkUnknownUsage;
   private checkRedundantNullability;
 }
-//#endregion

@@ -43,19 +43,17 @@ class TestSkillAuditor extends BaseAuditor<string> {
 
 describe('Official Locked Skills Isolation', () => {
   let tempDir: string;
-  let originalCwd: string;
 
   beforeEach(() => {
     process.env.AUDIT_SUBPROCESS = 'true';
-    originalCwd = process.cwd();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-locked-skills-test-'));
-    process.chdir(tempDir);
+    process.env.AUDIT_PROJECT_ROOT = tempDir;
     clearLockedSkillsCache();
   });
 
   afterEach(() => {
     delete process.env.AUDIT_SUBPROCESS;
-    process.chdir(originalCwd);
+    delete process.env.AUDIT_PROJECT_ROOT;
     clearLockedSkillsCache();
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });

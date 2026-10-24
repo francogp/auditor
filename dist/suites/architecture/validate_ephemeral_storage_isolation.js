@@ -5,7 +5,7 @@ import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, ge
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_ephemeral_storage_isolation.ts
+// src/suites/architecture/validate_ephemeral_storage_isolation.ts
 /**
 * scripts/auditors/architecture/validate_ephemeral_storage_isolation.ts
 *
@@ -44,11 +44,12 @@ const CANONICAL_SOURCE_ROOTS = [
 function getEffectiveSourceRoots(projectRoot) {
 	const config = getAuditConfig(projectRoot);
 	const scannable = getEffectiveScannableRoots(config);
-	const additional = [
-		...config.paths.dataRoots ?? [],
-		config.persistence.supabaseDir ?? "supabase",
-		"database"
-	];
+	const effectiveProjectRoot = projectRoot ?? process.cwd();
+	const additional = [...config.paths.dataRoots ?? []];
+	if (config.persistence.engine !== "none") {
+		if (config.persistence.supabaseDir) additional.push(config.persistence.supabaseDir);
+		if (fs.existsSync(path.join(effectiveProjectRoot, "database"))) additional.push("database");
+	}
 	return Array.from(/* @__PURE__ */ new Set([...scannable, ...additional]));
 }
 const FORBIDDEN_DIR_NAMES = /* @__PURE__ */ new Set([
@@ -164,23 +165,24 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			this.walkAndCheckDirectory(rootDir, root);
 		}
 	}
-	checkDatabaseDirectoryEntry(entry) {
+	checkDatabaseDirectoryEntry(entry, dbDir) {
+		const entryRelPath = path.posix.join(dbDir, entry.name);
 		if (entry.isDirectory()) {
 			if (!this.allowedDatabaseDirs.has(entry.name)) this.addViolation({
 				ruleId: "ephemeral-no-source-temp-dirs",
 				severity: "error",
-				file: `database/${entry.name}`,
+				file: entryRelPath,
 				line: 1,
-				message: `Forbidden directory 'database/${entry.name}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/database/'.`,
-				context: `database/${entry.name}`
+				message: `Forbidden directory '${entryRelPath}' detected. All temporary databases, test exports, and scratch artifacts must reside strictly inside 'scratch/${dbDir}/'.`,
+				context: entryRelPath
 			});
 		} else if (entry.isFile() && !entry.name.startsWith(".") && !this.allowedDatabaseFiles.has(entry.name)) this.addViolation({
 			ruleId: "ephemeral-no-source-temp-dirs",
 			severity: "error",
-			file: `database/${entry.name}`,
+			file: entryRelPath,
 			line: 1,
-			message: `Forbidden file 'database/${entry.name}' detected under database root. Ephemeral files must reside in 'scratch/database/'.`,
-			context: `database/${entry.name}`
+			message: `Forbidden file '${entryRelPath}' detected under database root. Ephemeral files must reside in 'scratch/${dbDir}/'.`,
+			context: entryRelPath
 		});
 	}
 	checkSubDirectory(entry, currentDir, rootName) {
@@ -206,7 +208,7 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			return;
 		}
 		const relToRoot = path.relative(this.projectRoot, currentDir).split(path.sep).join(path.posix.sep);
-		if (rootName === "database" && relToRoot === "database") for (const entry of entries) this.checkDatabaseDirectoryEntry(entry);
+		if (rootName === "database" && relToRoot === "database") for (const entry of entries) this.checkDatabaseDirectoryEntry(entry, "database");
 		for (const entry of entries) this.checkSubDirectory(entry, currentDir, rootName);
 	}
 	scanGitignoreRules() {
@@ -252,5 +254,4 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new EphemeralStorageIsolationAuditor());
-//#endregion
 export { CANONICAL_SOURCE_ROOTS, EPHEMERAL_STORAGE_RULES, EphemeralStorageIsolationAuditor, getEffectiveSourceRoots };

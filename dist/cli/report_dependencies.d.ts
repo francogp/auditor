@@ -1,5 +1,4 @@
 import { ProjectDependenciesReport } from "../core/auditorMinimums.js";
-//#region src/cli/report_dependencies.d.ts
 export interface DependencyReportCliOptions {
   readonly project?: string;
   readonly json: boolean;
@@ -10,4 +9,3 @@ export interface DependencyReportCliOptions {
 }
 export declare function parseCliArgs(rawArgs?: readonly string[]): DependencyReportCliOptions;
 export declare function runDependenciesReport(projectRoot?: string, options?: DependencyReportCliOptions): ProjectDependenciesReport;
-//#endregion

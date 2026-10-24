@@ -1,4 +1,4 @@
-//#region src/analyzers/homebrew/detectors/inefficientFileScanDetector.ts
+// src/analyzers/homebrew/detectors/inefficientFileScanDetector.ts
 const inefficientFileScanDetector = {
 	id: "inefficient-file-scan",
 	ruleId: "auditor-inefficient-file-scan",
@@ -43,5 +43,4 @@ const inefficientFileScanDetector = {
 		return findings;
 	}
 };
-//#endregion
 export { inefficientFileScanDetector };

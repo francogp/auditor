@@ -26,10 +26,11 @@ import {
   createUniformRemediationPhases,
   collectRepositoryFiles,
   createRuleCapabilities,
+  getEffectiveUnignoreDirs,
+  getEffectiveIgnoreGlobs,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import { buildRepositoryFileIndex, toPosixRelative } from '../../core/safePath.ts';
 import {
   resolveMarkdownScanDirectories,
@@ -97,7 +98,6 @@ export interface MarkdownLinkAuditOptions {
 const DEFAULT_ROOT = path.resolve(import.meta.dirname, '../../..');
 
 export {
-  DEFAULT_SCAN_DIRECTORIES,
   resolveMarkdownScanDirectories
 } from './validate_markdown_code_references.ts';
 
@@ -156,7 +156,7 @@ export function collectMarkdownFiles(
     rootDir,
     extraIgnorePatterns,
     new Set(['.md']),
-    new Set(['.agents'])
+    new Set(getEffectiveUnignoreDirs(rootDir))
   );
 }
 
@@ -535,7 +535,6 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
-    const config = getAuditConfig(effectiveRoot);
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -617,12 +616,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
       },
       roots: effectiveScanRoots,
       allowedExtensions: new Set(['.md']),
-      extraIgnorePatterns: [
-        ...DEFAULT_MARKDOWN_IGNORE_PATTERNS,
-        ...(config.paths.ignoreGlobs ?? []),
-        ...(config.paths.ignoredPatterns ?? [])
-      ],
-      unignoreDirs: ['.agents'],
+      extraIgnorePatterns: getEffectiveIgnoreGlobs(effectiveRoot),
       projectRoot: effectiveRoot
     });
     this.scanRoots = effectiveScanRoots;

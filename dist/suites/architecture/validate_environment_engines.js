@@ -6,7 +6,7 @@ import { runNpmCommandSync } from "../../core/npmCommandUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_environment_engines.ts
+// src/suites/architecture/validate_environment_engines.ts
 /**
 * src/suites/architecture/validate_environment_engines.ts
 *
@@ -236,5 +236,4 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateEnvironmentEnginesAuditor());
-//#endregion
 export { ENVIRONMENT_ENGINES_RULES, ValidateEnvironmentEnginesAuditor, detectNpmVersion, extractBaseNodeVersion, syncNodeVersion };

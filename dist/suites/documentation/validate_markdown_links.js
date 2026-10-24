@@ -1,15 +1,13 @@
 import { tryOrDefault } from "../../core/safeUtils.js";
-import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import { buildRepositoryFileIndex } from "../../core/safePath.js";
+import { buildRepositoryFileIndex, toPosixRelative } from "../../core/safePath.js";
+import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
-import { DEFAULT_SCAN_DIRECTORIES, resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
+import { resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/documentation/validate_markdown_links.ts
+// src/suites/documentation/validate_markdown_links.ts
 /**
 * scripts/auditors/documentation/validate_markdown_links.ts
 *
@@ -67,7 +65,7 @@ function collectMarkdownFiles(targetPath, rootDir, extraIgnorePatterns = DEFAULT
 	const fullPath = path.isAbsolute(targetPath) ? targetPath : path.join(rootDir, targetPath);
 	if (!fs.existsSync(fullPath)) return [];
 	if (fs.statSync(fullPath).isFile()) return fullPath.endsWith(".md") ? [fullPath] : [];
-	return collectRepositoryFiles(fullPath, rootDir, extraIgnorePatterns, /* @__PURE__ */ new Set([".md"]), /* @__PURE__ */ new Set([".agents"]));
+	return collectRepositoryFiles(fullPath, rootDir, extraIgnorePatterns, /* @__PURE__ */ new Set([".md"]), new Set(getEffectiveUnignoreDirs(rootDir)));
 }
 /** Regex detecting personal machine absolute paths (e.g. /home/user, /Users/user, C:\Users\user) */
 const STALE_ENV_PATH_REGEX = /file:\/\/\/(?:home|Users|[a-zA-Z]:)|(?:^|(?<![\w.]))\/(?:home|Users)\/[\w-]+|[a-zA-Z]:[\\/]Users[\\/][\w-]+/;
@@ -296,7 +294,6 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot || process.cwd();
 		const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
-		const config = getAuditConfig(effectiveRoot);
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -337,12 +334,7 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 			coverage: { include: ["**/*.md"] },
 			roots: effectiveScanRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".md"]),
-			extraIgnorePatterns: [
-				...DEFAULT_MARKDOWN_IGNORE_PATTERNS,
-				...config.paths.ignoreGlobs ?? [],
-				...config.paths.ignoredPatterns ?? []
-			],
-			unignoreDirs: [".agents"],
+			extraIgnorePatterns: getEffectiveIgnoreGlobs(effectiveRoot),
 			projectRoot: effectiveRoot
 		});
 		this.scanRoots = effectiveScanRoots;
@@ -471,5 +463,4 @@ var MarkdownLinkAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new MarkdownLinkAuditor());
-//#endregion
-export { DEFAULT_MARKDOWN_IGNORE_PATTERNS, DEFAULT_SCAN_DIRECTORIES, MARKDOWN_LINK_RULES, MarkdownLinkAuditor, auditMarkdownLinks, checkMarkdownLinksInContent, clearGitIgnoredPathsCache, clearRepoFileIndexCache, collectMarkdownFiles, extractMarkdownLinks, getGitIgnoreMatcher, resolveMarkdownScanDirectories, stripCodeBlocks };
+export { DEFAULT_MARKDOWN_IGNORE_PATTERNS, MARKDOWN_LINK_RULES, MarkdownLinkAuditor, auditMarkdownLinks, checkMarkdownLinksInContent, clearGitIgnoredPathsCache, clearRepoFileIndexCache, collectMarkdownFiles, extractMarkdownLinks, getGitIgnoreMatcher, resolveMarkdownScanDirectories, stripCodeBlocks };

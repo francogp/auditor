@@ -31,7 +31,7 @@ describe('ValidateTsconfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_tsconfig');
       expect(auditor.family).toBe('architecture');
@@ -45,7 +45,7 @@ describe('ValidateTsconfigAuditor', () => {
       const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
       fs.writeFileSync(tsconfigPath, JSON.stringify(CANONICAL_TSCONFIG, null, 2), 'utf8');
 
-      const auditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const result = await auditor.execute();
 
       expect(result.status).toBe('passed');
@@ -61,14 +61,14 @@ describe('ValidateTsconfigAuditor', () => {
       expect(fs.existsSync(tsconfigPath)).toBe(false);
 
       // Check mode
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('tsconfig-missing');
 
       // Fix mode
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
@@ -83,7 +83,7 @@ describe('ValidateTsconfigAuditor', () => {
       const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
       fs.writeFileSync(tsconfigPath, '{ compilerOptions: { unclosed: }', 'utf8');
 
-      const auditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const result = await auditor.execute();
       expect(result.status).toBe('failed');
       expect(result.findings.some((f) => f.ruleId === 'tsconfig-syntax')).toBe(true);
@@ -104,7 +104,7 @@ describe('ValidateTsconfigAuditor', () => {
       fs.writeFileSync(tsconfigPath, JSON.stringify(degraded, null, 2), 'utf8');
 
       // Check mode
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       const strictViolations = checkResult.findings.filter(
@@ -113,7 +113,7 @@ describe('ValidateTsconfigAuditor', () => {
       expect(strictViolations.length).toBe(5);
 
       // Fix mode
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.summary.errors).toBe(0);
 
@@ -140,7 +140,7 @@ describe('ValidateTsconfigAuditor', () => {
       };
       fs.writeFileSync(tsconfigPath, JSON.stringify(nonBundler, null, 2), 'utf8');
 
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       expect(
@@ -151,7 +151,7 @@ describe('ValidateTsconfigAuditor', () => {
         )
       ).toBe(true);
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       await fixAuditor.execute();
 
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
@@ -176,7 +176,7 @@ describe('ValidateTsconfigAuditor', () => {
       };
       fs.writeFileSync(tsconfigPath, JSON.stringify(banned, null, 2), 'utf8');
 
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       const bannedViolations = checkResult.findings.filter(
@@ -184,7 +184,7 @@ describe('ValidateTsconfigAuditor', () => {
       );
       expect(bannedViolations.length).toBe(2);
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       await fixAuditor.execute();
 
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
@@ -208,14 +208,14 @@ describe('ValidateTsconfigAuditor', () => {
       };
       fs.writeFileSync(tsconfigPath, JSON.stringify(missingSrc, null, 2), 'utf8');
 
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.findings.some((f) => f.ruleId === 'tsconfig-missing-source-include')).toBe(
         true
       );
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       await fixAuditor.execute();
 
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf8')) as TsConfigShape;
@@ -232,7 +232,7 @@ describe('ValidateTsconfigAuditor', () => {
       fs.writeFileSync(tsconfigPath, JSON.stringify(rootCfg, null, 2), 'utf8');
       fs.writeFileSync(tsconfigAppPath, JSON.stringify(CANONICAL_TSCONFIG, null, 2), 'utf8');
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
@@ -257,7 +257,7 @@ describe('ValidateTsconfigAuditor', () => {
       };
       fs.writeFileSync(tsconfigPath, JSON.stringify(outdatedTarget, null, 2), 'utf8');
 
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       const targetViolations = checkResult.findings.filter(
@@ -267,7 +267,7 @@ describe('ValidateTsconfigAuditor', () => {
       );
       expect(targetViolations.length).toBe(1);
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
@@ -295,14 +295,14 @@ describe('ValidateTsconfigAuditor', () => {
       };
       fs.writeFileSync(tsconfigPath, JSON.stringify(outdatedViteTsconfig, null, 2), 'utf8');
 
-      const checkAuditor = new ValidateTsconfigAuditor(undefined, tmpDir);
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const checkResult = await checkAuditor.execute();
       expect(checkResult.status).toBe('failed');
       expect(
         checkResult.findings.some((f) => f.ruleId === 'tsconfig-missing-strict-compiler-option')
       ).toBe(true);
 
-      const fixAuditor = new ValidateTsconfigAuditor({ fix: true }, tmpDir);
+      const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir, fix: true });
       const fixResult = await fixAuditor.execute();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);

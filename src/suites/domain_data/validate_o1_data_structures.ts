@@ -33,13 +33,13 @@ export const DEFAULT_O1_CATALOG_PATTERNS: Array<{
   definingFile: string;
 }> = [];
 
-export function getResolvedO1CatalogPatterns(): Array<{
+export function getResolvedO1CatalogPatterns(projectRoot?: string): Array<{
   name: string;
   pattern: RegExp;
   alternative: string;
   definingFile: string;
 }> {
-  const config = getAuditConfig();
+  const config = getAuditConfig(projectRoot);
   const configured = config.domain?.o1CatalogPatterns;
   if (configured && configured.length > 0) {
     return configured.map((c) => ({
@@ -480,7 +480,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
       return;
     }
 
-    const catalogPatterns = getResolvedO1CatalogPatterns();
+    const catalogPatterns = getResolvedO1CatalogPatterns(this.projectRoot);
     const issues = scanFileForO1Issues(relPath, content, catalogPatterns);
 
     for (const ruleId of O1_RULES) {

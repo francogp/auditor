@@ -9,7 +9,7 @@ import { describeBaselineDefect, resolveGitCommit } from "../../cli/auditRatchet
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_package_scripts.ts
+// src/suites/architecture/validate_package_scripts.ts
 /**
 * src/suites/architecture/validate_package_scripts.ts
 *
@@ -460,5 +460,4 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePackageScriptsAuditor());
-//#endregion
 export { PACKAGE_SCRIPTS_RULES, ValidatePackageScriptsAuditor as PackageScriptsAuditor, ValidatePackageScriptsAuditor };

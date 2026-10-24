@@ -1,15 +1,16 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { isPathContained } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { evaluateGenericCommandViolation, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
 import { extractScriptCommands } from "../../core/scriptCommandExtractors.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_script_commands.ts
+// src/suites/architecture/validate_script_commands.ts
 /**
 * src/suites/architecture/validate_script_commands.ts
 *
@@ -49,11 +50,11 @@ const SCRIPTS_DIR_EXTENSIONS = /* @__PURE__ */ new Set([
 	".mjs",
 	".cjs"
 ]);
-function isCandidateScriptPath(file, rootDir) {
+function isCandidateScriptPath(file, rootDir, scriptsRoots) {
 	const relPosix = normalizePosixPath(path.relative(rootDir, file));
 	const ext = path.extname(file).toLowerCase();
 	if (SHELL_AND_BATCH_EXTENSIONS.has(ext)) return !relPosix.startsWith("src/") && !relPosix.startsWith("tests/");
-	return relPosix.startsWith("scripts/") || relPosix.includes("/scripts/");
+	return scriptsRoots.some((r) => isPathContained(r, file, rootDir));
 }
 function isDockerfile(fileName) {
 	const lower = fileName.toLowerCase();
@@ -85,8 +86,12 @@ function collectWorkflowFiles(rootDir) {
 var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 	rootDir;
 	gitIgnoreMatcher;
+	scriptsRoots;
 	constructor(options = {}) {
 		const root = options.projectRoot || process.cwd();
+		const config = getAuditConfig(root);
+		const scriptsRoots = config.paths?.scriptsRoots?.length ? config.paths.scriptsRoots : DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
+		const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -131,12 +136,13 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 				"**/*.dockerfile",
 				"**/Containerfile",
 				".github/workflows/**/*.{yml,yaml}",
-				"scripts/**/*.{ts,js}"
+				...scriptsGlobs
 			] },
 			projectRoot: root
 		});
 		this.rootDir = root;
 		this.gitIgnoreMatcher = new GitIgnoreMatcher(root);
+		this.scriptsRoots = scriptsRoots;
 	}
 	async runAudit() {
 		const config = getAuditConfig(this.rootDir);
@@ -209,12 +215,11 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 	collectScriptFiles() {
 		const collected = /* @__PURE__ */ new Set();
 		const scannableFiles = this.context.collectFiles(["."], SCRIPTS_DIR_EXTENSIONS);
-		for (const file of scannableFiles) if (isCandidateScriptPath(file, this.rootDir)) collected.add(file);
+		for (const file of scannableFiles) if (isCandidateScriptPath(file, this.rootDir, this.scriptsRoots)) collected.add(file);
 		for (const file of collectDockerfiles(this.rootDir)) collected.add(file);
 		for (const file of collectWorkflowFiles(this.rootDir)) collected.add(file);
 		return Array.from(collected);
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateScriptCommandsAuditor());
-//#endregion
 export { SCRIPT_COMMANDS_RULES, ValidateScriptCommandsAuditor as ScriptCommandsAuditor, ValidateScriptCommandsAuditor };

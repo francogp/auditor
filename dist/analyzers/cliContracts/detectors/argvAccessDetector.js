@@ -1,6 +1,6 @@
 import { PROCESS_MODULE_SPECIFIERS, getStaticStringValue, isProcessObjectExpression, unwrapCliExpression } from "../cliContractHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/argvAccessDetector.ts
+// src/analyzers/cliContracts/detectors/argvAccessDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/argvAccessDetector.ts
 *
@@ -62,5 +62,4 @@ const argvAccessDetector = (node, ctx) => {
 	};
 	return null;
 };
-//#endregion
 export { argvAccessDetector };

@@ -1,7 +1,6 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_html_validate.d.ts
 export type HtmlValidateRuleId = 'html-validate-issue';
 export declare const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[];
 export type RawHtmlValidateMessage = RawLintMessage;
@@ -25,4 +24,3 @@ export declare class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId>
   });
   runAudit(): Promise<void>;
 }
-//#endregion

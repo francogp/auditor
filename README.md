@@ -27,6 +27,12 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 ## 1. Key Features & Architectural Architecture
 
 - **Built-In Generic Architectural Suites**: Comprehensive static verification across 6 canonical families (`architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, `documentation/`).
+- **Zero Hardcoded Paths Mandate**: Complete eradication of literal path fallbacks (`?? ['src']`, `?? ['scripts']`) across all sub-auditors and extensions. Scan roots are resolved dynamically from `config.paths`, `DEFAULT_AUDIT_CONFIG.paths`, or constructor options using `resolveFileScanRoots(options, selector)`. Probed across 100% of suites via `tests/all_auditors_zero_hardcoded_paths.test.ts`.
+- **Single Options Object Mandate**: Positional constructor arguments are strictly prohibited across all sub-auditors, extensions, and refactoring engines. Constructors accept a single typed options object (`options: FileScanRootsOptions = {}` or extended interface) ensuring full backward compatibility and zero positional parameter fragility.
+- **Unified Canonical Ignore Registry (`CanonicalIgnoreRegistry`)**: Centralized single source of truth for directory and file exclusion patterns (`src/core/canonicalIgnoreRegistry.ts`), eradicating scattered ignore definitions across sub-auditors and tools.
+- **Node.js 26+ Native Path Utilities**: Strict enforcement of native Node.js path manipulation (`isPathContained`, `stripGlobSuffix`, `toPosixRelative`), eradicating fragile regex and third-party path dependencies.
+- **Strategic Remediation Order (`ruleRemediationPhases` & `npm run auditor:next`)**: Every rule is mapped to one of the 7 canonical strategic phases (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`), enabling targeted iterative remediation.
+- **Diagnostic Remediation Guides (`ruleRemediations`)**: 100% of declared rules include structured 4-section remediation guides (`1. Root Cause / Causa Raíz`, `2. Diagnosis / Diagnóstico`, `3. Canonical Solution / Solución Canónica`, `4. Example / Ejemplo o auto-fix`), accessible on demand via `auditor guide <ruleId>`.
 - **Capability-Driven Auto-Coordination (`AuditorRuleCapabilities`)**: Sub-auditors declare explicit 7-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'normal' | 'post-run' | 'post-build'`, `fix: 'none' | 'normal' | 'priority'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with 100% mandatory completeness and zero fallbacks. `BaseAuditor` derives suite-level `AuditorCapabilities` automatically from `ruleCapabilities`. No hardcoded suite lists in runners or scanners.
 - **3-Tier Speed Engine (`light` `🐇`, `heavy` `🐢`, `full` `🐘`) & `TieredCommandProfile`**: Supports cumulative ceiling mode (`speed=light|heavy|full`, default `speed=heavy`) and exact isolation mode (`only-speed=light|heavy|full`). Multi-profile suites (such as `validate_oxlint`) declare `speed: ['light', 'full']` so fast modes run syntax-only (`🐇` ~2s) while `speed=full` (`🐘`) enables deep type-aware rules.
 - **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced by `validate_auditor_hygiene` (`auditor-inefficient-file-scan`).
@@ -80,10 +86,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.0.0`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.1.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.0.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.1.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -93,7 +99,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.0.0"
+    "@francogp/auditor": "github:francogp/auditor#v10.1.0"
   }
 }
 ```
@@ -128,20 +134,38 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v9.0.0
+npm run auditor:update -- v10.1.0
 # or directly:
-auditor-update v9.0.0
+auditor-update v10.1.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
 
+To inspect whether an update is available without making changes (safe read-only inspection), pass `--check` (`-c`):
+
+```bash
+npm run auditor:update -- --check
+# or directly:
+auditor-update --check
+```
+
+To display help and available options safely, pass `--help` (`-h` or `help`):
+
+```bash
+npm run auditor:update -- --help
+# or directly:
+auditor-update --help
+```
+
 > Dependency changes use `npm install` to regenerate `package-lock.json`; commit it together with `package.json`. Setup scripts install with `npm ci` and, if it fails because the lockfile is out of sync, fall back to `npm install` and print a warning that the lockfile was modified.
 
-### Mandatory Minimum Library Versions (`validate_dependency_minimums`)
+### Mandatory Minimum Library Versions & Caret Ranges (`validate_dependency_minimums`)
 
 The auditor exposes a conditional version floor for shared libraries (`typescript`, `vite-plus`, `vue`, `vue-router`, `pinia`, `gsap`, `valibot`, `sass`, `html-validate`, `markdownlint-cli`, `fallow`, `@playwright/test`) through the **optional `peerDependencies`** of `@francogp/auditor/package.json` (single source of truth, no hardcoded versions).
 
-- If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D vite-plus@^1.2.0`).
+- If your project declares one of these libraries (`dependencies`, `devDependencies`, `optionalDependencies`), both the declared range and the version locked in `package-lock.json` must be at least the auditor floor; otherwise the audit fails with the exact command (e.g. `npm install -D vite-plus@^1.4.0`).
+- **Zero Pinned Versions Mandate (`dependency-exact-version-pinned`)**: Under modern npm standards, dependencies MUST declare minimum ranges using caret (`^`) or greater-than operators (e.g. `"^1.4.0"`). Pinned exact version numbers without range operators (e.g. `"1.4.0"`) are strictly flagged by `validate_dependency_minimums` and automatically repaired to caret ranges via `auditor fix`.
+- **Dynamic Vite+ Overrides (`"$vite"`, `"$vitest"`)**: To prevent transitive version collisions and fatal `EOVERRIDE` conflicts when upgrading Vite+, the auditor synchronizes package overrides using dynamic references (`"vite": "$vite"`, `"vitest": "$vitest"`), cleanly binding transitive plugins directly to the version declared in `devDependencies`.
 - Libraries you do not use are never required (peers are optional, so npm does not install them).
 - To raise a floor for every consumer, edit the auditor `peerDependencies` and release a new tag.
 
@@ -175,7 +199,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.0.0-build.20261022-194620',
+  auditorVersion: '10.1.0-build.20261024-181300',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -232,7 +256,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.0.0"`), or install via `npm install -D github:francogp/auditor#v10.0.0 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.1.0"`), or install via `npm install -D github:francogp/auditor#v10.1.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -677,7 +701,7 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (config) => config.paths?.srcRoots ?? ['src']
+      (config) => config.paths?.srcRoots
     );
     const allowedExtensions = new Set(['.vue', '.ts']);
 
@@ -955,6 +979,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor:fallow:suppressions` | `src/cli/report_fallow.ts`        | Displays Box-Drawing table of all `// fallow-ignore` code suppressions, rules, and mandatory justifications.                                                                                                                                              |
 | `auditor:fallow:flags`        | `src/cli/report_fallow.ts`        | Discovers and reports active feature flags across the codebase.                                                                                                                                                                                           |
 | `auditor:fallow:viz`          | `src/cli/report_fallow.ts`        | Generates interactive architecture and dependency HTML map in `scratch/fallow_map.html`.                                                                                                                                                                  |
+| `auditor:fallow:boundaries`   | `src/cli/report_fallow.ts`        | Audits and reports architectural boundary violations detected by Fallow across layer boundaries.                                                                                                                                                          |
 | `auditor-complexity`          | `src/cli/report_complexity.ts`    | Fallow refactoring targets and code complexity analysis report.                                                                                                                                                                                           |
 | `auditor-dupes`               | `src/cli/refactor_dupes.ts`       | Interactive clone discovery, Dirac micro-context extraction, and safe worktree refactoring CLI (`auditor-dupes`, `npm run auditor:dupes`).                                                                                                                |
 | `auditor-magic`               | `src/cli/refactor_magic.ts`       | Interactive magic numbers discovery, Value-Clustering Super-Dirac compression, and AST span refactoring CLI (`auditor-magic`, `npm run auditor:magic`).                                                                                                   |
@@ -965,7 +990,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-similar`             | `src/cli/report_similar_code.ts`  | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                             |
 | `auditor-review`              | `src/cli/report_review.ts`        | Graph-grounded architectural review brief for changed code.                                                                                                                                                                                               |
 | `auditor-css`                 | `src/cli/report_css.ts`           | Stylelint and stylesheet hygiene analysis report.                                                                                                                                                                                                         |
-| `auditor-update`              | `src/cli/update_package.ts`       | Pulls upstream updates from GitHub, verifies build stamps, and updates skills.                                                                                                                                                                            |
+| `auditor-update`              | `src/cli/update_package.ts`       | Pulls upstream updates from GitHub, verifies build stamps, and updates skills. Supports `--check` for read-only status and `--help` for manual.                                                                                                           |
 | `auditor-version`             | `src/cli/bump_version.ts`         | Inspects version/build stamps, analyzes diff metrics (`analyze`), and applies SemVer bumps (`bump`).                                                                                                                                                      |
 | `auditor-guard`               | `src/cli/report_guard.ts`         | Pre-flight architectural boundary and policy inspector for target files (`auditor:guard <files>`).                                                                                                                                                        |
 | `auditor-flags`               | `src/cli/report_flags.ts`         | Feature flag usage and retirement candidates governance tool (`auditor:flags [--retirement]`).                                                                                                                                                            |

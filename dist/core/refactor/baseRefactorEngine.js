@@ -1,9 +1,9 @@
 import { getAuditConfig } from "../auditConfigLoader.js";
-import "../auditConfig.js";
 import { isPathContained, stripGlobSuffix } from "../safePath.js";
+import "../auditConfig.js";
 import "../auditorBase.js";
 import path from "node:path";
-//#region src/core/refactor/baseRefactorEngine.ts
+// src/core/refactor/baseRefactorEngine.ts
 /**
 * src/core/refactor/baseRefactorEngine.ts
 *
@@ -117,5 +117,4 @@ var BaseRefactorEngine = class {
 		return results;
 	}
 };
-//#endregion
 export { BaseRefactorEngine };

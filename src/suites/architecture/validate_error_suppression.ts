@@ -56,7 +56,10 @@ const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, ['src', 'scripts']);
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (cfg) => cfg.paths.codeRoots
+    );
 
     super({
       usesThirdPartyTool: false,

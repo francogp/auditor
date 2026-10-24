@@ -14,7 +14,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
@@ -70,6 +70,22 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       typeof options === 'object' && options?.saveKeyPrefixes
         ? options.saveKeyPrefixes
         : (cfg.persistence?.saveKeyPrefixes ?? []);
+
+    const extraGlobs: string[] = [
+      ...(cfg.persistence?.ignoreGlobs ?? []),
+      ...(cfg.persistence?.exemptPaths ?? [])
+    ];
+    if (cfg.paths?.migrationsDir) {
+      extraGlobs.push(`${cfg.paths.migrationsDir}/**`);
+    }
+    if (cfg.persistence?.allowedDatabaseDirs) {
+      for (const d of cfg.persistence.allowedDatabaseDirs) {
+        extraGlobs.push(`${d}/**`);
+      }
+    }
+    const persistenceIgnores = Array.from(
+      getEffectiveIgnoreGlobs(rootPath, { extraGlobs })
+    );
 
     super({
       usesThirdPartyTool: false,
@@ -127,18 +143,11 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
-        exclude: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**']
+        exclude: persistenceIgnores
       },
       roots: codeRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: [
-        'coverage/**',
-        'dist/**',
-        'scratch/**',
-        '.agents/**',
-        'migrations/**',
-        'database/**'
-      ],
+      extraIgnorePatterns: persistenceIgnores,
       projectRoot: rootPath
     });
 

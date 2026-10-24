@@ -62,6 +62,7 @@ describe('validate_dependency_minimums', () => {
     expect(DEPENDENCY_MINIMUMS_RULES).toEqual([
       'dependency-below-minimum-range',
       'dependency-below-minimum-installed',
+      'dependency-exact-version-pinned',
       'dependency-exceeds-maximum-range',
       'dependency-exceeds-maximum-installed'
     ]);
@@ -152,6 +153,27 @@ describe('validate_dependency_minimums', () => {
     expect(finding).toBeDefined();
     expect(finding?.severity).toBe('error');
     expect(finding?.message).toContain('exceeds allowed maximum');
+  });
+
+  it('fails when a declared library uses an exact pinned version (no range operator)', async () => {
+    await writeProject({ 'html-validate': htmlValidateMin }, { 'html-validate': htmlValidateMin });
+    const result = await run();
+    expect(result.status).toBe('failed');
+    const finding = result.findings.find((f) => f.ruleId === 'dependency-exact-version-pinned');
+    expect(finding).toBeDefined();
+    expect(finding?.severity).toBe('error');
+    expect(finding?.fixable).toBe(true);
+    expect(finding?.message).toContain('declares exact pinned version');
+  });
+
+  it('auto-repairs exact pinned version to caret range in fix mode', async () => {
+    await writeProject({ 'html-validate': htmlValidateMin });
+    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir, fix: true });
+    const result = await auditor.execute();
+    expect(result.status).toBe('passed');
+    const content = await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8');
+    const parsed = JSON.parse(content);
+    expect(parsed.devDependencies['html-validate']).toBe(`^${htmlValidateMin}`);
   });
 
   it('findDeclaredDependency locates libraries across sections', () => {

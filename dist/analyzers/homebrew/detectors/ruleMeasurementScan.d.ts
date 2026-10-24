@@ -1,5 +1,4 @@
 import { HomebrewInspectionContext } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/ruleMeasurementScan.d.ts
 export interface RuleSite {
   readonly ruleId: string;
   readonly line: number;
@@ -18,5 +17,4 @@ export type EvaluationWrapperMethod = (typeof EVALUATION_WRAPPER_METHOD_NAMES)[n
 declare const REPORTING_METHOD_NAMES: readonly ["reportRuleDuration", "recordRuleDuration", "markRuleNotApplicable"];
 export type ReportingMethod = (typeof REPORTING_METHOD_NAMES)[number];
 export declare function scanRuleMeasurement(context: HomebrewInspectionContext): RuleMeasurementScan;
-//#endregion
 export {};

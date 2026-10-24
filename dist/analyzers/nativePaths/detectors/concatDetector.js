@@ -1,7 +1,7 @@
 import { flattenPlusChain, getStringValue, getTemplateTexts, hasFileExtensionTail, isInsideRegExpConstruction, isOutermostPlus, isPathFragment, isSeparatorOnly, isUrlConstruction, startsWithUrlScheme, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { asMethodCall, getExpressionName, isPathCollectionName, isPathish, isSepConstant, isUrlLikeName } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/concatDetector.ts
+// src/analyzers/nativePaths/detectors/concatDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/concatDetector.ts
 *
@@ -152,5 +152,4 @@ const concatDetector = (node, ctx) => {
 		message: CONCAT_MESSAGE
 	} : null;
 };
-//#endregion
 export { concatDetector };

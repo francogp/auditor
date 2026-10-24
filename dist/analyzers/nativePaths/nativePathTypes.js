@@ -1,4 +1,4 @@
-//#region src/analyzers/nativePaths/nativePathTypes.ts
+// src/analyzers/nativePaths/nativePathTypes.ts
 const NATIVE_PATH_RULES = [
 	"unsafe-path-concat",
 	"unsanitized-env-argv-path",
@@ -20,5 +20,4 @@ const NODE_ONLY_RULES = /* @__PURE__ */ new Set([
 	"homebrew-path-containment",
 	"homebrew-file-url"
 ]);
-//#endregion
 export { NATIVE_PATH_RULES, NODE_ONLY_RULES };

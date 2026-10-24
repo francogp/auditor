@@ -1,4 +1,4 @@
-//#region src/core/domainCollections.ts
+// src/core/domainCollections.ts
 var CanonicalDomainSet = class extends Set {
 	has(value) {
 		return super.has(value);
@@ -17,5 +17,4 @@ function createDomainSet(items) {
 function createDomainMap(entries) {
 	return new Map(entries);
 }
-//#endregion
 export { createDomainMap, createDomainSet };

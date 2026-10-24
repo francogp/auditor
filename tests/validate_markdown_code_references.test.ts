@@ -206,7 +206,11 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     `;
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
-    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
+    const auditor = new MarkdownCodeReferencesAuditor({
+      roots: ['.'],
+      projectRoot: tempDir,
+      knownValidAbstractPaths: ['scripts/.cache/']
+    });
     const result = await auditor.execute();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -345,7 +349,6 @@ Refer to @/domain-type-first and @/auditor.
     expect(dirs).toContain('tests');
     expect(dirs).toContain('packages');
     expect(dirs).toContain('src');
-    expect(dirs).toContain('docs');
   });
 
   it('detects outdated project and @francogp/auditor version references in markdown and fenced code blocks', async () => {
@@ -388,7 +391,7 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     const outdatedFindings = result.findings.filter(
       (f) => f.ruleId === 'markdown-outdated-project-version'
     );
-    expect(outdatedFindings).toHaveLength(4);
+    expect(outdatedFindings).toHaveLength(5);
     expect(outdatedFindings.every((f) => f.severity === 'error' && f.fixable === true)).toBe(true);
   });
 
@@ -412,6 +415,8 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
       'Install `@francogp/auditor` pinned to a release tag (e.g. `#v8.5.0`):',
       '```bash',
       'npm install -D github:francogp/auditor#v8.5.0 --allow-git=all',
+      'npm run auditor:update -- v7.1.0',
+      'auditor-update v7.1.0',
       '```',
       '```ts',
       "  auditorVersion: '7.1.2-build.20261012-231518',",
@@ -433,6 +438,8 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     const updated = await fs.readFile(readmePath, 'utf-8');
     expect(updated).toContain('(e.g. `#v8.7.1`)');
     expect(updated).toContain('github:francogp/auditor#v8.7.1');
+    expect(updated).toContain('npm run auditor:update -- v8.7.1');
+    expect(updated).toContain('auditor-update v8.7.1');
     expect(updated).toContain("auditorVersion: '8.7.1-build.20261016-103644'");
     expect(updated).toContain('Since version 7.1.6, this is automatic.');
   });

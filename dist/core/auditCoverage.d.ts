@@ -1,5 +1,5 @@
 import { AuditorCoverageDeclaration, CoverageLedger, CoverageSource } from "./auditContract.js";
-//#region src/core/auditCoverage.d.ts
+import { toPosixRelative } from "./safePath.js";
 export declare const COVERAGE_LEDGER_DIR = "scratch/audits/coverage";
 export declare const COVERAGE_RUN_ID_ENV = "AUDIT_COVERAGE_RUN_ID";
 /** 'full' only when audit_full runs every discovered suite (coverage is meaningless on partial runs). */
@@ -8,12 +8,8 @@ export declare const COVERAGE_RUN_MODE_ENV = "AUDIT_COVERAGE_RUN_MODE";
 export declare const COVERAGE_EXPECTED_SUITES_ENV = "AUDIT_COVERAGE_EXPECTED_SUITES";
 /** Returns the run identifier of the orchestrated full run, if any. Ledgers are only written inside such runs. */
 export declare function resolveActiveCoverageRunId(): string | undefined;
-/** Converts an absolute or relative path into a POSIX path relative to the project root. */
-export declare function toPosixRelative(projectRoot: string, filePath: string): string;
 export declare function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean;
-export declare const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[];
-export declare const FAST_NON_AUDITABLE_EXTENSIONS: ReadonlySet<string>;
-/** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
+/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
 export declare function isAuditableCodebaseFile(relPosixPath: string, customExemptGlobs?: readonly string[]): boolean;
 /** Whether a file falls inside the static coverage declaration of a suite. */
 export declare function isDeclaredByCoverage(relPosixPath: string, declaration: AuditorCoverageDeclaration): boolean;
@@ -65,5 +61,4 @@ export declare function readLatestCoverageLedgers(projectRoot: string): Promise<
   runId: string | null;
   ledgers: CoverageLedger[];
 }>;
-//#endregion
-export type { CoverageLedger };
+export { type CoverageLedger, toPosixRelative };

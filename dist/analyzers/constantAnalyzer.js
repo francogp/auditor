@@ -1,15 +1,14 @@
 import { safeReadFileAsync } from "../core/safeUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { isPathContained, toPosixRelative } from "../core/safePath.js";
 import { isInCodeRoots, isScriptPath } from "../core/auditCodeRoots.js";
 import { isDataPath, isDemoPath, isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import { isPathContained } from "../core/safePath.js";
 import { isPathIgnored } from "../core/auditorBase.js";
 import { SharedAstContext } from "../core/astContext.js";
 import path from "node:path";
 import ts from "typescript";
-//#region src/analyzers/constantAnalyzer.ts
+// src/analyzers/constantAnalyzer.ts
 /**
 * scripts/maintenance/analyzers/constantAnalyzer.ts
 *
@@ -235,5 +234,4 @@ async function detectDuplicateConstants(files, astContext, projectRoot = process
 	}
 	return violations;
 }
-//#endregion
 export { CONSTANT_ANALYZER_DESCRIPTOR, DEFAULT_IGNORED_CONSTANT_NAMES, IGNORED_CONSTANT_NAMES, detectDuplicateConstants, extractConstantsFromSource, getEffectiveIgnoredConstantNames };

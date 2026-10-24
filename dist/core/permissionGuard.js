@@ -2,7 +2,7 @@ import { tryOrNull, tryOrNullAsync } from "./safeUtils.js";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";
 import { styleText } from "node:util";
-//#region src/core/permissionGuard.ts
+// src/core/permissionGuard.ts
 /**
 * Polyfills fs.fsync / fs.fsyncSync / FileHandle.prototype.sync as safe no-ops under Node.js --permission model.
 * Under Node.js permission model, fsync is unconditionally disabled with ERR_ACCESS_DENIED,
@@ -59,5 +59,4 @@ function assertRequiredPermissions(requirements) {
 		process.exit(1);
 	}
 }
-//#endregion
 export { DEFAULT_PERMISSIONS, assertRequiredPermissions, checkRequiredPermissions, polyfillPermissionModelFsync };

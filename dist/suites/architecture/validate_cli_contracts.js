@@ -1,6 +1,8 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
+import "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
@@ -9,7 +11,7 @@ import { scanCliContractAst } from "../../analyzers/cliContracts/cliContractScan
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_cli_contracts.ts
+// src/suites/architecture/validate_cli_contracts.ts
 /**
 * src/suites/architecture/validate_cli_contracts.ts
 *
@@ -55,7 +57,7 @@ function auditCliContracts(targetDir = process.cwd()) {
 	assertSafePathComponent(targetDir);
 	const auditCfg = getAuditConfig(targetDir);
 	const ignoredGlobs = [...auditCfg.paths?.ignoreGlobs ?? [], ...auditCfg.paths?.ignoredPatterns ?? []];
-	const configuredRoots = auditCfg.paths?.codeRoots ?? ["src"];
+	const configuredRoots = auditCfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 	const candidateFiles = [];
 	for (const rootRel of configuredRoots) {
 		const absRoot = path.resolve(targetDir, rootRel);
@@ -114,7 +116,7 @@ const CLI_CONTRACT_REMEDIATION_PHASES = {
 var CliContractsAuditor = class extends FileScanAuditor {
 	cliViolationsByDoc = /* @__PURE__ */ new WeakMap();
 	constructor(options = {}) {
-		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths?.codeRoots ?? ["src"]);
+		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots);
 		super({
 			fix: options.fix,
 			usesThirdPartyTool: false,
@@ -203,5 +205,4 @@ var CliContractsAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new CliContractsAuditor());
-//#endregion
 export { CLI_CONTRACT_EXTENSIONS, CLI_CONTRACT_RULES, CliContractsAuditor, auditCliContracts, scanFileForCliContractViolations };

@@ -31,7 +31,7 @@ import fs from "node:fs/promises";
 import { styleText } from "node:util";
 import { pathToFileURL } from "node:url";
 import os from "node:os";
-//#region src/cli/audit_full.ts
+// src/cli/audit_full.ts
 /**
 * scripts/maintenance/audit_full.ts
 *
@@ -460,6 +460,9 @@ function computeTieredAuditCategoryCounts(results) {
 	}
 	return groups;
 }
+function formatSetupBlockingRemediationHint(setupErrors, hasFixableErrors = false) {
+	return `   Resolve the ${setupErrors} configuration error(s) first${hasFixableErrors ? " (e.g. 'npm run auditor:fix')" : " manually (see error details above; no automatic fix available)"} to unblock full project analysis.\n`;
+}
 function printFindingsSummary(results, sortedCategories, blockingContext, tieredGroups) {
 	if (sortedCategories.length === 0) {
 		console.log("\n" + styleText(["bold", "green"], `✨ 100% of suites passed (${results.length}/${results.length}) with zero errors or warnings.`));
@@ -476,8 +479,8 @@ function printFindingsSummary(results, sortedCategories, blockingContext, tiered
 		else console.log(renderFindingsBreakdownTable(sortedCategories, "ISSUE TYPE / SETUP RULE"));
 		const setupErrors = sortedCategories.flatMap(([, data]) => data.findings.filter((f) => f.severity === "error"));
 		if (setupErrors.length > 0) console.log(renderSampleFindings(setupErrors, 5));
-		console.log(styleText(["yellow", "bold"], `\n⚠️  ATTENTION: Reporting of ${formatNumber(blockingContext.postponedAppErrors)} application error(s) was postponed to prevent induced false positives.`));
-		console.log(styleText("dim", `   Resolve the ${blockingContext.setupErrors} configuration error(s) first (e.g. 'npm run auditor:fix') to unblock full project analysis.\n`));
+		console.log(styleText(["yellow", "bold"], blockingContext.postponedAppErrors > 0 ? `\n⚠️  ATTENTION: Reporting of ${formatNumber(blockingContext.postponedAppErrors)} application error(s) was postponed to prevent induced false positives.` : "\n⚠️  ATTENTION: Downstream application code checks are halted until setup errors are resolved."));
+		console.log(styleText("dim", formatSetupBlockingRemediationHint(blockingContext.setupErrors, Boolean(blockingContext.hasFixableErrors))));
 	} else {
 		console.log("\n" + styleText("bold", "📊 BREAKDOWN BY ISSUE TYPE & SEVERITY (STRATEGIC RESOLUTION ORDER):\n"));
 		if (tieredGroups && tieredGroups.length > 0) console.log(renderTieredFindingsBreakdownTable(tieredGroups, "ISSUE TYPE / RULE"));
@@ -1362,5 +1365,4 @@ if (isMainModule(import.meta.url)) runMasterAudit().catch((err) => {
 	console.error(styleText("red", `\n💥 Fatal error in audit_full: ${err.stack || err.message}`));
 	process.exit(1);
 });
-//#endregion
-export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, computeTieredAuditCategoryCounts, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, renderAndPersistMasterReport, resolveConcurrencyLimit, resolveConsoleMode, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };
+export { MAX_BANNER_SUBTITLE_WIDTH, buildTaskArgs, computeAuditCategoryCounts, computeFixableViolations, computeTieredAuditCategoryCounts, createAuditBannerDetails, determineRunMode, extractSubprocessErrorMessage, formatSetupBlockingRemediationHint, formatSubtitleDetails, isRatchetScope, parseAuditFullCliArgs, renderAndPersistMasterReport, resolveConcurrencyLimit, resolveConsoleMode, resolveFixOrderWeight, resolveFormattedRules, resolveSkipSimilar, resolveTargetFamily, resolveTargetPreset, resolveTargetSuites, runMasterAudit, sortTasksByOrder };

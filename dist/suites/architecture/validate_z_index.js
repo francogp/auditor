@@ -2,18 +2,18 @@ import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "../../core/auditZLayers.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { fixZIndexLiteral, resolveZLayer } from "../../analyzers/zIndexRules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import { writeFileSync } from "node:fs";
 import fs$1 from "node:fs/promises";
-//#region src/suites/architecture/validate_z_index.ts
+// src/suites/architecture/validate_z_index.ts
 /**
 * scripts/auditors/architecture/validate_z_index.ts
 *
@@ -342,5 +342,4 @@ var ZIndexAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ZIndexAuditor());
-//#endregion
 export { HARDCODED_Z_INDEX_REGEX, ISOLATED_Z_INDEX_CONST_REGEX, ZIndexAuditor, Z_INDEX_RULES, auditZIndexParity, fixZIndexLiteral as fixZIndexLiteralMatch };

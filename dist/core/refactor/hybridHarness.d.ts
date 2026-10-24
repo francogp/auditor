@@ -1,5 +1,4 @@
 import { RefactorPlan } from "./refactorContracts.js";
-//#region src/core/refactor/hybridHarness.d.ts
 export declare class HybridHarnessEngine {
   static execute(projectRoot: string, plan: RefactorPlan): Promise<void>;
   private static ensureSharedModule;
@@ -9,4 +8,3 @@ export declare class HybridHarnessEngine {
   private static ensureNamedImport;
   private static applyAstGrepPatternRewrite;
 }
-//#endregion

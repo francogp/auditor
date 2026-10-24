@@ -1,19 +1,18 @@
 import { tryOrNullAsync } from "../core/safeUtils.js";
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
+import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { getActiveFamilies } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { GitIgnoreRegistry } from "../core/gitIgnoreRegistry.js";
 import { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry } from "../core/packageScriptRegistry.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
 import { isSimilarCodeSkipped } from "../suites/architecture/validate_similar_code.js";
 import { extractAuditorMetadataFromFile, extractStaticMetadataFromFile } from "./auditorMetadata.js";
 import { buildTaskCliArguments, createAuditTaskDefinition, formatTaskTitle, getPermissionsForTask, getTimeoutForTask, shouldSkipTaskByCapabilities, shouldSkipTaskByFilters } from "./auditTaskFactory.js";
 import path from "node:path";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";
-//#region src/cli/auditScanner.ts
+// src/cli/auditScanner.ts
 /**
 * packages/auditor/src/cli/auditScanner.ts
 *
@@ -182,5 +181,4 @@ async function collectAllPackageScriptRequirements(projectRoot = process.cwd(), 
 	});
 	return collected;
 }
-//#endregion
 export { AUDIT_PRESETS, DEFAULT_PERMISSIONS, buildTaskCliArguments, collectAllGitIgnoreRequirements, collectAllPackageScriptRequirements, createAuditTaskDefinition, discoverAuditors, extractAuditorMetadataFromFile, extractCapabilitiesFromFile, extractGitIgnoreRequirementsFromFile, extractStaticMetadataFromFile, formatTaskTitle, getPermissionsForTask, getTimeoutForTask, isSimilarCodeSkipped, shouldSkipTaskByCapabilities, shouldSkipTaskByFilters };

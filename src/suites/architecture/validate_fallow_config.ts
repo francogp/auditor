@@ -20,6 +20,7 @@ import { getAuditConfig } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
+import { type CanonicalRuleSeverityLevel, CANONICAL_RULE_SEVERITY_LEVELS } from '../../core/auditConfigTypes.ts';
 
 enableCompileCache();
 
@@ -110,6 +111,12 @@ export interface FallowConfigSchema {
   health?: {
     maxCrap?: number;
   };
+  audit?: {
+    worsened?: CanonicalRuleSeverityLevel;
+  };
+  mutation?: {
+    runnerConfig?: Record<string, unknown>;
+  };
 }
 
 export function createDefaultFallowConfigContent(): string {
@@ -134,6 +141,8 @@ export function createDefaultFallowConfigContent(): string {
   );
 }
 
+const VALID_SEVERITIES: ReadonlySet<string> = new Set<string>(CANONICAL_RULE_SEVERITY_LEVELS);
+
 function loadFallowConfig(
   configPath: string,
   auditor: ValidateFallowConfigAuditor
@@ -144,7 +153,33 @@ function loadFallowConfig(
 
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
-    return JSON.parse(raw) as FallowConfigSchema;
+    const parsed = JSON.parse(raw) as FallowConfigSchema;
+
+    if (parsed.audit?.worsened) {
+      if (!VALID_SEVERITIES.has(parsed.audit.worsened)) {
+        auditor.addViolation({
+          ruleId: 'fallow-config-syntax',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: 1,
+          message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
+          context: '.fallowrc.json'
+        });
+      }
+    }
+
+    if (parsed.mutation?.runnerConfig && (typeof parsed.mutation.runnerConfig !== 'object' || Array.isArray(parsed.mutation.runnerConfig))) {
+      auditor.addViolation({
+        ruleId: 'fallow-config-syntax',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: 1,
+        message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be an object.`,
+        context: '.fallowrc.json'
+      });
+    }
+
+    return parsed;
   } catch (err) {
     auditor.addViolation({
       ruleId: 'fallow-config-syntax',
@@ -471,6 +506,8 @@ export const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfi
 };
 
 export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
+  public static readonly cachePaths = ['.fallow'] as const;
+
   constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions) {
     let projectRoot: string;
     let configPath: string;
@@ -535,6 +572,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-duplicate-entry'
       ],
       configFiles: [configRequirement],
+      cachePaths: ValidateFallowConfigAuditor.cachePaths,
       fix,
       id: 'validate_fallow_config',
       name: 'Fallow Configuration & Exports Hygiene Validator',

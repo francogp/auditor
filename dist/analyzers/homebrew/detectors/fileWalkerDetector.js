@@ -1,4 +1,4 @@
-//#region src/analyzers/homebrew/detectors/fileWalkerDetector.ts
+// src/analyzers/homebrew/detectors/fileWalkerDetector.ts
 function extractFunctionBody(lines, startIdx) {
 	let braceDepth = 0;
 	let started = false;
@@ -71,5 +71,4 @@ const fileWalkerDetector = {
 		return findings;
 	}
 };
-//#endregion
 export { fileWalkerDetector };

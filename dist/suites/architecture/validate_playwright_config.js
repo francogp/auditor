@@ -5,7 +5,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/suites/architecture/validate_playwright_config.ts
+// src/suites/architecture/validate_playwright_config.ts
 /**
 * src/suites/architecture/validate_playwright_config.ts
 *
@@ -236,5 +236,4 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidatePlaywrightConfigAuditor());
-//#endregion
 export { CANONICAL_PLAYWRIGHT_CONFIG_CONTENT, CANONICAL_PLAYWRIGHT_CONFIG_LINES, PLAYWRIGHT_CONFIG_REQUIREMENT, PLAYWRIGHT_CONFIG_RULES, ValidatePlaywrightConfigAuditor, isPlaywrightProjectContext };

@@ -33,16 +33,14 @@ import {
 
 describe('safePath Core Security Utility', () => {
   let tempDir: string;
-  let originalCwd: string;
 
   beforeEach(() => {
-    originalCwd = process.cwd();
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-safepath-test-'));
-    process.chdir(tempDir);
+    process.env.AUDIT_PROJECT_ROOT = tempDir;
   });
 
   afterEach(() => {
-    process.chdir(originalCwd);
+    delete process.env.AUDIT_PROJECT_ROOT;
     try {
       fs.rmSync(tempDir, { recursive: true, force: true });
     } catch {

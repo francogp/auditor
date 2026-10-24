@@ -2,7 +2,7 @@ import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_gsap_scrolltrigger.ts
+// src/suites/architecture/validate_gsap_scrolltrigger.ts
 /**
 * src/suites/architecture/validate_gsap_scrolltrigger.ts
 *
@@ -193,5 +193,4 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGsapScrollTriggerAuditor());
-//#endregion
 export { GSAP_SCROLLTRIGGER_RULES, ValidateGsapScrollTriggerAuditor };

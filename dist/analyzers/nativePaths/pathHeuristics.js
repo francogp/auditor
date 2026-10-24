@@ -1,6 +1,6 @@
 import { POSIX_SEP, WIN_SEP, collectStringFragments, flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, hasFileExtensionTail, hasTraversalToken, isDriveLetterRegex, isDriveOrUncLiteral, isInsideRegExpConstruction, isOutermostPlus, isPathFragment, isRegExpConstruction, isSeparatorOnly, isUrlConstruction, startsWithUrlScheme, unwrapExpression } from "./pathLiteralHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/pathHeuristics.ts
+// src/analyzers/nativePaths/pathHeuristics.ts
 /**
 * src/analyzers/nativePaths/pathHeuristics.ts
 *
@@ -344,5 +344,4 @@ function isInsideWin32Call(node) {
 	}
 	return false;
 }
-//#endregion
 export { FILE_SCHEME, PARENT_SEGMENT, POSIX_SEP, REGEX_CONSUMER_METHODS, WIN_SEP, asMethodCall, collectStringFragments, flattenPlusChain, getExpressionName, getNodePathFunction, getRegexInfo, getStringValue, getTemplateTexts, hasFileExtensionTail, hasTraversalToken, isDriveLetterRegex, isDriveOrUncLiteral, isFilenameish, isFsSinkCall, isImportMetaUrl, isInsideRegExpConstruction, isInsideWin32Call, isOutermostPlus, isPathBuilderCall, isPathCollectionName, isPathFragment, isPathLikeName, isPathOriginChain, isPathish, isRegExpConstruction, isSepConstant, isSeparatorOnly, isUrlConstruction, isUrlLikeName, isUrlish, startsWithUrlScheme, unwrapExpression };

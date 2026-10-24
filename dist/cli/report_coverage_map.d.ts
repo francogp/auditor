@@ -1,5 +1,4 @@
 import { ExemptionPolicy } from "../core/exemptionPolicies.js";
-//#region src/cli/report_coverage_map.d.ts
 export type FileCoverageStatus = 'covered' | 'degraded' | 'uncovered' | 'exempt';
 export interface FileCoverageEntry {
   file: string;
@@ -42,4 +41,3 @@ export declare function generateCoverageMap(options?: CoverageMapCliOptions): Pr
 export declare function renderDirectorySummaryTable(result: CoverageMapResult): string;
 export declare function renderFilesTable(files: readonly FileCoverageEntry[]): string;
 export declare function runCoverageMapReport(options?: CoverageMapCliOptions): Promise<void>;
-//#endregion

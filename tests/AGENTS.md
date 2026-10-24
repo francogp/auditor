@@ -15,12 +15,17 @@ Architecture & Tooling Engineers.
 - **Idempotent Injection & Anti-Duplication Pruning Tests**: `tests/validate_agents_config_mandate.test.ts` and `tests/validate_documentation_language.test.ts` rigorously test and prove that auto-repair operations in `AGENTS.md` never duplicate mandates or whitespace across repeated fix runs.
 - **Mandatory Universal Canary Testing Across All Scenarios Mandate**: Whenever testing any sub-auditor, rule, CLI command, or architectural checker, test suites MUST include dedicated canary tests (`describe('Canary Tests & Auto-Repair', ...)`) systematically exercising all operational scenarios: missing files/configurations, syntax errors and corrupted content, anti-castration enforcement of strict baselines, automated `--fix` scaffolding and repair idempotency, clean path compliance (0 errors, status passed), and clean conditional skips (status skipped). Writing tests that omit canary coverage across positive, negative, and auto-fix failure modes is strictly prohibited.
 - **Single Test File Per Source Module**: New tests for a source module MUST be added to that module's existing test file instead of a new file, otherwise `validate_test_fragmentation` fails.
+- **Zero Hardcoded Paths & Dynamic Root Resolution Verification**: `tests/all_auditors_zero_hardcoded_paths.test.ts` dynamically scans 100% of discovered sub-auditor classes in the repository to guarantee that constructor root resolution derives dynamically from `config.paths`, `DEFAULT_AUDIT_CONFIG.paths`, or `options: FileScanRootsOptions` without hardcoded fallback arrays (`?? ['src']`, `?? ['scripts']`).
+- **Single Options Object Constructor Enforcement**: All sub-auditors and extensions must accept a single typed options object (`options: FileScanRootsOptions = {}`); positional arguments or constructors without options are strictly rejected by contract verification tests (`all_auditors_contract_conformance.test.ts`).
+- **Worker Threads Hermeticity & `process.chdir()` Ban**: Vitest executes under `pool: 'threads'`. Worker threads strictly prohibit global working directory mutation (`process.chdir()`). All test suites and test helpers MUST parameterize target directory roots (`projectRoot`) or evaluate `process.env.AUDIT_PROJECT_ROOT` without calling `process.chdir()`.
+- **Heavy Setup & Discovery Hoisting in Test Suites**: Multi-suite discoveries (`discoverAuditors()`), script requirements collections, or git repository initializations MUST NOT execute inside `beforeEach`. They must be hoisted to `beforeAll` or scoped strictly to the individual test cases requiring them to prevent multi-second suite stalls.
 
 ## Key Files
 
 - [`agents_mandate_analyzer.test.ts`](./agents_mandate_analyzer.test.ts): Tests for AGENTS.md mandate parsing, language validation, and in-place injection helper.
 - [`all_auditors_contract_conformance.test.ts`](./all_auditors_contract_conformance.test.ts): Dynamic 5-point contract conformance test across all discovered suites.
 - [`all_auditors_ignores_conformance.test.ts`](./all_auditors_ignores_conformance.test.ts): Tests asserting uniform escape hatch and ignore directives across all sub-auditors.
+- [`all_auditors_zero_hardcoded_paths.test.ts`](./all_auditors_zero_hardcoded_paths.test.ts): Dynamic meta-test asserting zero hardcoded path fallbacks across 100% of discovered sub-auditor suites.
 - [`audit_executive_output.test.ts`](./audit_executive_output.test.ts): Tests for compact AI-friendly console theme output and summary rendering.
 - [`auditor_architecture_conformance.test.ts`](./auditor_architecture_conformance.test.ts): Meta-test verifying 100% companion test coverage and rule descriptors.
 - [`auditor_base.test.ts`](./auditor_base.test.ts): Tests for `BaseAuditor` and `FileScanAuditor` base class lifecycle.
@@ -31,6 +36,7 @@ Architecture & Tooling Engineers.
 - [`audit_build.test.ts`](./audit_build.test.ts): Tests for post-build compiled artifact audit runner (`auditor-post-build`, `phase=post-build`).
 - [`audit_bundle.test.ts`](./audit_bundle.test.ts): Tests for `audit_bundle.ts` treemap parsing and budget enforcement.
 - [`audit_ratchet.test.ts`](./audit_ratchet.test.ts): Git-sandbox tests for the warning ratchet (fingerprint stability, new-warning detection, shrink-only baseline, tamper rejection).
+- [`canonical_ignore_registry.test.ts`](./canonical_ignore_registry.test.ts): Tests for canonical ignore registry, dynamic cache registration, and ignore predicates.
 - [`audit_metadata_contract.test.ts`](./audit_metadata_contract.test.ts): Verification of `AuditRunMetadata` serialization and freshness.
 - [`cli_permission_execution.test.ts`](./cli_permission_execution.test.ts): Tests for Node.js Permission Model flag propagation and PERM0002 suppression.
 - [`config_file_registry.test.ts`](./config_file_registry.test.ts): Tests for centralized `ConfigFileRegistry`, declarative sub-auditor configuration requirements, and auto-scaffolding in fix mode.

@@ -12,7 +12,7 @@ import { getMatchingExemptionPolicies } from "../core/exemptionPolicies.js";
 import { isCoveredBy, listTrackedFiles } from "../suites/architecture/validate_audit_coverage.js";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/cli/report_coverage_map.ts
+// src/cli/report_coverage_map.ts
 /**
 * src/cli/report_coverage_map.ts
 *
@@ -376,5 +376,4 @@ if (isMainModule(import.meta.url)) runCoverageMapReport().catch((err) => {
 	console.error(styleText("red", `\n[Error] auditor:coverage-map failed: ${err.message}`));
 	process.exit(1);
 });
-//#endregion
 export { generateCoverageMap, parseCoverageMapCliArgs, renderDirectorySummaryTable, renderFilesTable, runCoverageMapReport };

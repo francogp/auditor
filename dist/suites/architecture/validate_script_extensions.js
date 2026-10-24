@@ -1,15 +1,14 @@
 import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { isPathContained, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import { isPathContained } from "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 import { getPackageJson, writePackageJson } from "../../core/packageJson.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_script_extensions.ts
+// src/suites/architecture/validate_script_extensions.ts
 /**
 * src/suites/architecture/validate_script_extensions.ts
 *
@@ -309,5 +308,4 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateScriptExtensionsAuditor());
-//#endregion
 export { SCRIPT_EXTENSIONS_RULES, ValidateScriptExtensionsAuditor, isCanonicalConfigExempt, isExemptScriptFile, resolveScriptAndCliDirs };

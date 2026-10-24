@@ -14,7 +14,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { BaseAuditor } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import type {
   FindingSeverity,
@@ -26,6 +28,7 @@ import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
 } from '../../core/auditConfigTypes.ts';
+import type { AuditFindingAttribution } from 'fallow/types';
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import { resolveFallowBinary } from './validate_similar_code.ts';
 
@@ -181,7 +184,11 @@ export const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string> = {
     '3. Configuration in .auditor/audit.config.ts: Fallow assesses targets according to "config.fallow.maxTargetPriority" ("critical" >= 30, "high" >= 20). ' +
     'In monolithic systems or authorized coordinators, gating can be tuned via "fallow.enforceTargets: false" ' +
     'or raising the threshold upon explicit consultation with the human developer.\n' +
-    '4. Disassembling node_modules or hot-patching third-party libraries to silence this check is STRICTLY PROHIBITED.\n\n' +
+    '4. Disassembling node_modules or hot-patching third-party libraries to silence this check is STRICTLY PROHIBITED.\n' +
+    '5. Worsened Metrics & Branch Lifecycle: If Fallow reports attribution "worsened", an existing complexity hotspot ' +
+    'inherited from parent branches had its metrics degraded by recent changes. Review the specific worsened metrics ' +
+    '(cyclomatic complexity, LOC, or fan-out) and revert or refactor only the newly introduced branches to restore ' +
+    'metrics to at least their pre-branch baseline.\n\n' +
     '4. Example / Auto-fix command:\n' +
     '  Diagnostics:        npm run auditor:complexity\n' +
     '  Deduplication:      npm run auditor:dupes\n' +
@@ -388,6 +395,8 @@ export interface FallowComplexityFinding {
   readonly exceeded?: string;
   readonly rule_id?: string;
   readonly message?: string;
+  readonly attribution?: AuditFindingAttribution;
+  readonly worsened_metrics?: readonly string[];
 }
 
 export interface FallowTarget {
@@ -701,6 +710,8 @@ export interface FallowArchitectureAuditorOptions {
 export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
   constructor(options: FallowArchitectureAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
@@ -736,7 +747,8 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       ruleRemediations: FALLOW_RULE_REMEDIATIONS,
       ruleRemediationPhases: FALLOW_RULE_REMEDIATION_PHASES,
       coverage: {
-        include: ['src/**/*.{ts,js,vue}'],
+        include: deriveCoverageFromRoots(codeRoots, new Set(['.ts', '.js', '.vue']), projectRoot)
+          .include,
         source: 'declared-only'
       },
       projectRoot

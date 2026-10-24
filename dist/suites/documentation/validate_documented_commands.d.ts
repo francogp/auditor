@@ -1,6 +1,5 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { COMMAND_INVOCATION_TYPES, CommandInvocationType, ExtractedCommand, NpmCommandValidationEnv, VALID_NPM_BUILTINS, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
-//#region src/suites/documentation/validate_documented_commands.d.ts
 export type DocumentedCommandsRuleId = 'documented-cmd-unregistered-npm' | 'documented-cmd-invalid-npm-syntax' | 'documented-cmd-unregistered-npx';
 export declare const DOCUMENTED_COMMANDS_RULES: readonly DocumentedCommandsRuleId[];
 export declare function extractDocumentedCommands(content: string): ExtractedCommand[];
@@ -21,5 +20,4 @@ export declare class ValidateDocumentedCommandsAuditor extends BaseAuditor<Docum
   });
   runAudit(): Promise<void>;
 }
-//#endregion
 export { COMMAND_INVOCATION_TYPES as DOCUMENTED_COMMAND_TYPES, type CommandInvocationType as DocumentedCommandType, type ExtractedCommand, VALID_NPM_BUILTINS, loadPackageScriptsAndBins };

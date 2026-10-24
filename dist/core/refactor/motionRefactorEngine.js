@@ -5,7 +5,7 @@ import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validat
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/core/refactor/motionRefactorEngine.ts
+// src/core/refactor/motionRefactorEngine.ts
 /**
 * src/core/refactor/motionRefactorEngine.ts
 *
@@ -354,5 +354,4 @@ var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine
 		return executePlanFileReplacements(baseDir, plan.targetFiles, [easeTextItems, timerTextItems], [(content, relFile, fullPath, bDir) => this.applyPropertyReplacements(content, relFile, fullPath, bDir, plan.propertyReplacements), (content, relFile, fullPath, bDir) => this.applyImportInjections(content, relFile, fullPath, bDir, plan.importInjections)]);
 	}
 };
-//#endregion
 export { MotionRefactorEngine };

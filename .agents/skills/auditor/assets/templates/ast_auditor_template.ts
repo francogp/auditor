@@ -18,10 +18,11 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   SharedAstContext,
-  createUniformRuleCapabilities,
-  createUniformRemediationPhases,
+  getEffectiveIgnoreGlobs,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
+  type AuditorRuleCapabilities,
+  type RemediationPhaseId,
   type FileScanRootsOptions
 } from '@francogp/auditor';
 
@@ -39,6 +40,10 @@ export const MY_AST_RULES: readonly MyAstRuleId[] = [
 export type MyAstAuditorOptions = FileScanRootsOptions;
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
+  // Sub-Auditor Cache & Temporary Paths Contract:
+  // Declare custom cache/temp folders so auditor registers them and auto-injects them to .gitignore
+  public static readonly cachePaths = ['.my_ast_cache'] as const;
+
   private readonly targetRoots: readonly string[];
 
   constructor(options: MyAstAuditorOptions = {}) {
@@ -49,16 +54,27 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     const allowedExtensions = new Set(['.ts', '.vue']);
 
     super({
-      // Mandatory: Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate)
-      ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: true,
-        changedOnly: false,
-        critical: false
-      }),
+      // Mandatory: Explicit 7-Field Orthogonal Rule Capabilities (Zero Fallbacks Mandate)
+      ruleCapabilities: {
+        'my-ast-forbidden-pattern': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: false,
+          critical: false
+        },
+        'my-ast-missing-contract': {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: false,
+          critical: false
+        }
+      },
       id: 'validate_my_ast',
       name: 'My AST Validator',
       description: 'Validates AST contracts across TypeScript and Vue SFCs',
@@ -78,9 +94,11 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       // Mandatory: Node.js Permission Model flags required by this suite (pass [] for standard suites)
       requiredPermissions: [],
       usesThirdPartyTool: false,
+      // Mandatory sub-auditor cache paths contract:
+      cachePaths: MyAstAuditor.cachePaths,
       ruleDescriptions: {
-        'my-ast-forbidden-pattern': 'Forbidden syntactic pattern in AST',
-        'my-ast-missing-contract': 'Missing required declaration contract'
+        'my-ast-forbidden-pattern': 'Forbidden syntactic pattern in AST (e.g. direct eval or forbidden token)',
+        'my-ast-missing-contract': 'Missing required declaration contract in exported functions'
       },
       // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):
       ruleRemediations: {
@@ -96,11 +114,18 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
           '4. Example / Command: npm run auditor'
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
-      ruleRemediationPhases: createUniformRemediationPhases(MY_AST_RULES, 'hygiene'),
+      ruleRemediationPhases: {
+        'my-ast-forbidden-pattern': 'hygiene',
+        'my-ast-missing-contract': 'contracts'
+      },
       requiresAst: true,
       roots: targetRoots,
       allowedExtensions,
-      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      // Dynamic SSoT ignore globs derived without hardcoding
+      coverage: {
+        ...deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+        exclude: getEffectiveIgnoreGlobs(effectiveRoot)
+      },
       projectRoot: effectiveRoot
     });
 
@@ -123,19 +148,46 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       // Cached O(1) AST retrieval with Vue script extraction & line offset support
       const sourceFile = astEngine.getSourceFile(absPath);
 
-      // Rule 1: Forbidden pattern in AST (automatically timed and marked evaluated)
+      // Rule 1: Forbidden pattern in AST (inspected via TypeScript Compiler API AST traversal)
       this.runSubAuditorSync('my-ast-forbidden-pattern', () => {
         const visit = (node: ts.Node): void => {
-          // Implement AST inspection logic:
-          // if (ts.isIdentifier(node) && node.text === 'forbidden') { ... }
+          // Canonical AST traversal: detect forbidden Identifier or CallExpression
+          if (ts.isIdentifier(node) && node.text === 'eval') {
+            const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
+            this.addFinding({
+              ruleId: 'my-ast-forbidden-pattern',
+              file: relFile,
+              line: line + 1,
+              column: character + 1,
+              message: `Prohibited identifier '${node.text}' found in AST.`
+            });
+          }
           ts.forEachChild(node, visit);
         };
         visit(sourceFile);
       });
 
-      // Rule 2: Missing contract in AST (automatically timed and marked evaluated)
+      // Rule 2: Missing contract in AST (checks exported declarations)
       this.runSubAuditorSync('my-ast-missing-contract', () => {
-        // Implement missing contract inspection logic
+        let hasExportedContract = false;
+        for (const statement of sourceFile.statements) {
+          if (
+            ts.isFunctionDeclaration(statement) &&
+            statement.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)
+          ) {
+            hasExportedContract = true;
+            break;
+          }
+        }
+        if (!hasExportedContract && !relFile.endsWith('.vue')) {
+          this.addFinding({
+            ruleId: 'my-ast-missing-contract',
+            file: relFile,
+            line: 1,
+            column: 1,
+            message: `File '${relFile}' does not export any function contract.`
+          });
+        }
       });
     }
 

@@ -2,7 +2,7 @@ import { safeJsonParse, safeReadFileSync, tryCatchSync } from "./safeUtils.js";
 import fs from "node:fs";
 import ts from "typescript";
 import { Project, SyntaxKind } from "ts-morph";
-//#region src/core/auditConfigAst.ts
+// src/core/auditConfigAst.ts
 /**
 * src/core/auditConfigAst.ts
 *
@@ -202,5 +202,4 @@ function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 	}
 	appendMissingSectionsToTsFile(configFilePath, sectionsToInsert);
 }
-//#endregion
 export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, deepMergeMissingJson, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, formatValueWithIndent, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile };

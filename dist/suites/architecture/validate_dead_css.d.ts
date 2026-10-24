@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_dead_css.d.ts
 export type DeadCssRuleId = 'dead-scoped-css';
 export declare const DEAD_CSS_RULES: readonly DeadCssRuleId[];
 export declare const DEFAULT_GLOBAL_UTILITY_CLASSES: Set<string>;
@@ -18,4 +17,3 @@ export declare class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
   constructor(options?: DeadCssAuditorOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

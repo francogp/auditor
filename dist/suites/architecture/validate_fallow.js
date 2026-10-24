@@ -1,15 +1,16 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { resolveFallowBinary } from "./validate_similar_code.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
-//#region src/suites/architecture/validate_fallow.ts
+// src/suites/architecture/validate_fallow.ts
 /**
 * packages/auditor/src/suites/architecture/validate_fallow.ts
 *
@@ -149,7 +150,7 @@ const FALLOW_RULE_DESCRIPTIONS = {
 	"fallow-security-cwe": "CWE security vulnerabilities"
 };
 const FALLOW_RULE_REMEDIATIONS = {
-	"fallow-refactoring-targets": "1. Root Cause:\nThe Fallow architecture analysis engine computes refactoring priority by combining cyclomatic complexity, cognitive complexity, file size (LOC), afferent/efferent coupling, and the count of dependent modules that amplify changes. A score above the configured threshold (\"fallow.maxTargetPriority\", default \"high\" = 20, or \"critical\" = 30) indicates a high-risk architectural hotspot.\n\n2. Diagnosis:\n1. Run \"npm run auditor:findings -- rule=fallow-refactoring-targets flat\" to view affected files, exact priority score, and specific functions identified by Fallow.\n2. Run \"npm run auditor:complexity\" to break down cyclomatic and cognitive complexity function by function.\n3. Run \"npm run auditor:fallow\" to view overall dependency graph health.\n\n3. Canonical Solution:\n1. Functional Decomposition: Extract high cognitive complexity functions into pure helper functions, reducing nesting depth, branch conditions, and in-place mutations.\n2. Modularize High-Impact Files: If the report indicates \"Split high-impact file (N LOC), M dependents amplify every change\", split the file into smaller, cohesive, decoupled subsystems.\n3. Configuration in .auditor/audit.config.ts: Fallow assesses targets according to \"config.fallow.maxTargetPriority\" (\"critical\" >= 30, \"high\" >= 20). In monolithic systems or authorized coordinators, gating can be tuned via \"fallow.enforceTargets: false\" or raising the threshold upon explicit consultation with the human developer.\n4. Disassembling node_modules or hot-patching third-party libraries to silence this check is STRICTLY PROHIBITED.\n\n4. Example / Auto-fix command:\n  Diagnostics:        npm run auditor:complexity\n  Deduplication:      npm run auditor:dupes\n  Target inspection:  npm run auditor:findings -- rule=fallow-refactoring-targets flat",
+	"fallow-refactoring-targets": "1. Root Cause:\nThe Fallow architecture analysis engine computes refactoring priority by combining cyclomatic complexity, cognitive complexity, file size (LOC), afferent/efferent coupling, and the count of dependent modules that amplify changes. A score above the configured threshold (\"fallow.maxTargetPriority\", default \"high\" = 20, or \"critical\" = 30) indicates a high-risk architectural hotspot.\n\n2. Diagnosis:\n1. Run \"npm run auditor:findings -- rule=fallow-refactoring-targets flat\" to view affected files, exact priority score, and specific functions identified by Fallow.\n2. Run \"npm run auditor:complexity\" to break down cyclomatic and cognitive complexity function by function.\n3. Run \"npm run auditor:fallow\" to view overall dependency graph health.\n\n3. Canonical Solution:\n1. Functional Decomposition: Extract high cognitive complexity functions into pure helper functions, reducing nesting depth, branch conditions, and in-place mutations.\n2. Modularize High-Impact Files: If the report indicates \"Split high-impact file (N LOC), M dependents amplify every change\", split the file into smaller, cohesive, decoupled subsystems.\n3. Configuration in .auditor/audit.config.ts: Fallow assesses targets according to \"config.fallow.maxTargetPriority\" (\"critical\" >= 30, \"high\" >= 20). In monolithic systems or authorized coordinators, gating can be tuned via \"fallow.enforceTargets: false\" or raising the threshold upon explicit consultation with the human developer.\n4. Disassembling node_modules or hot-patching third-party libraries to silence this check is STRICTLY PROHIBITED.\n5. Worsened Metrics & Branch Lifecycle: If Fallow reports attribution \"worsened\", an existing complexity hotspot inherited from parent branches had its metrics degraded by recent changes. Review the specific worsened metrics (cyclomatic complexity, LOC, or fan-out) and revert or refactor only the newly introduced branches to restore metrics to at least their pre-branch baseline.\n\n4. Example / Auto-fix command:\n  Diagnostics:        npm run auditor:complexity\n  Deduplication:      npm run auditor:dupes\n  Target inspection:  npm run auditor:findings -- rule=fallow-refactoring-targets flat",
 	"fallow-duplicate-code": "1. Root Cause:\nTwo structurally identical code fragments or syntactic clones exceeding Fallow token and line thresholds were detected, violating the DRY principle.\n\n2. Diagnosis:\nRun \"npm run auditor:dupes\" to inspect the consolidated table of duplicate blocks by file, or \"npm run auditor:fallow:dupes\" for a detailed clone view.\n\n3. Canonical Solution:\n1. Extract duplicated logic into a shared utility function, composable, or pure helper.\n2. Use the official refactoring tool: \"npm run auditor:dupes inspect <fingerprint>\" to generate a plan and apply it with \"npm run auditor:dupes apply <plan.json>\".\n\n4. Example / Auto-fix command:\n  Discovery:   npm run auditor:dupes\n  Inspection:  npm run auditor:dupes inspect <fingerprint>",
 	"fallow-triplicate-code": "1. Root Cause:\nA triplicate code block (present across 3 or more locations in the repository) was detected. Triplication represents severe technical debt and multiplies bug divergence risks.\n\n2. Diagnosis:\nRun \"npm run auditor:dupes\" to inspect fingerprints and files participating in the triplicate clone.\n\n3. Canonical Solution:\n1. Unify triplicate code into a Single Source of Truth (SSoT) in a shared common module.\n2. Run \"npm run auditor:dupes inspect <fingerprint>\" and apply refactoring with \"npm run auditor:dupes apply <plan.json> --worktree\" to verify safely in an isolated tree.\n\n4. Example / Auto-fix command:\n  Triplicate discovery:  npm run auditor:dupes\n  Detailed inspection:   npm run auditor:dupes inspect <fingerprint>",
 	"fallow-unused-exports": "1. Root Cause:\nA function, class, interface, type, or constant declared with \"export\" has no consumers or references in any other file across the repository or package entrypoints.\n\n2. Diagnosis:\nRun \"npm run auditor:fallow:exports\" or \"npm run auditor:findings -- rule=fallow-unused-exports flat\" to identify the unused export symbol and line number.\n\n3. Canonical Solution:\n1. If the symbol is consumed only within the file, remove the \"export\" keyword.\n2. If the symbol is dead or obsolete code, delete it completely.\n3. If the symbol is part of the public API exported by a library package, ensure the file is declared in package.json \"exports\" or configured as an entrypoint in .fallowrc.json.\n\n4. Example / Auto-fix command:\n  npm run auditor:fallow:exports",
@@ -375,6 +376,7 @@ function tryParseFallowJson(raw) {
 var FallowArchitectureAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
+		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
@@ -410,7 +412,11 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			ruleRemediations: FALLOW_RULE_REMEDIATIONS,
 			ruleRemediationPhases: FALLOW_RULE_REMEDIATION_PHASES,
 			coverage: {
-				include: ["src/**/*.{ts,js,vue}"],
+				include: deriveCoverageFromRoots(codeRoots, /* @__PURE__ */ new Set([
+					".ts",
+					".js",
+					".vue"
+				]), projectRoot).include,
 				source: "declared-only"
 			},
 			projectRoot
@@ -543,5 +549,4 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new FallowArchitectureAuditor());
-//#endregion
 export { FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };

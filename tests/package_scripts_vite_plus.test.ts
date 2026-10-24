@@ -169,4 +169,68 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     expect(updatedPkg.scripts.preview).toBe('vp preview');
     expect(updatedPkg.scripts['ui-demo']).toBe('vp dev --open /ui-demo/index.html');
   });
+
+  it('C-SCR-07: syncPackageJsonForVitePlus preserves dynamic $vite overrides and higher security versions without downgrading', () => {
+    const pkgWithCustomOverrides = {
+      name: 'test-overrides-consumer',
+      version: '1.0.0',
+      devDependencies: {
+        'vite-plus': '^1.4.0',
+        vitest: '^5.0.5'
+      },
+      overrides: {
+        vite: '$vite',
+        vitest: '$vitest',
+        'js-yaml': '^5.5.0',
+        katex: '^0.19.1',
+        'smol-toml': '^1.9.1',
+        braces: '^3.0.3',
+        micromatch: '^4.0.8'
+      }
+    };
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(pkgWithCustomOverrides, null, 2),
+      'utf-8'
+    );
+
+    const modified = syncPackageJsonForVitePlus(tempDir);
+    expect(modified).toBe(true); // Should remove obsolete braces and micromatch
+
+    const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+    expect(updatedPkg.overrides.vite).toBe('$vite');
+    expect(updatedPkg.overrides.vitest).toBe('$vitest');
+    expect(updatedPkg.overrides['js-yaml']).toBe('^5.5.0');
+    expect(updatedPkg.overrides.braces).toBeUndefined();
+    expect(updatedPkg.overrides.micromatch).toBeUndefined();
+  });
+
+  it('C-SCR-08: syncPackageJsonForVitePlus migrates hardcoded exact vite override to $vite and normalizes exact devDependencies', () => {
+    const pkgWithHardcodedVite = {
+      name: 'test-hardcoded-consumer',
+      version: '1.0.0',
+      devDependencies: {
+        'vite-plus': '1.4.0',
+        vitest: '5.0.5'
+      },
+      overrides: {
+        vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0',
+        vitest: '5.0.4'
+      }
+    };
+    fs.writeFileSync(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify(pkgWithHardcodedVite, null, 2),
+      'utf-8'
+    );
+
+    const modified = syncPackageJsonForVitePlus(tempDir);
+    expect(modified).toBe(true);
+
+    const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+    expect(updatedPkg.overrides.vite).toBe('$vite');
+    expect(updatedPkg.overrides.vitest).toBe('$vitest');
+    expect(updatedPkg.devDependencies['vite-plus']).toBe('^1.4.0');
+    expect(updatedPkg.devDependencies.vitest).toBe('^5.0.5');
+  });
 });

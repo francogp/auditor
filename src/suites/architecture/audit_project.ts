@@ -6,6 +6,7 @@
  * Final Safe Version: Context-aware GPU checking.
  */
 
+import nodeFs from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
@@ -23,6 +24,7 @@ import {
   isPathIgnored,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import type { RemediationPhaseId } from '../../core/auditContract.ts';
 import {
   type AuditRule,
@@ -31,7 +33,8 @@ import {
   matchesRule,
   auditRulesConfig as config
 } from './audit_rules.ts';
-import { loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
+import { getAuditConfig, loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -42,15 +45,19 @@ function printTerminal(msg: string): void {
 
 const AUDIT_EXTENSIONS = new Set(['.vue', '.scss', '.css', '.ts', '.js', '.md']); // runtime-set: Fast O(1) membership lookup set
 
-async function getFilesToAudit(dir: string): Promise<string[]> {
+async function getFilesToAudit(dir: string, roots?: readonly string[]): Promise<string[]> {
   const files: string[] = []; // no-domain: Non-domain utility collection or data structure
-  const pattern = `**/*{${Array.from(AUDIT_EXTENSIONS).join(',')}}`;
-
-  for await (const entry of fs.glob(pattern, {
-    cwd: dir,
-    exclude: (p: string) => isPathIgnored(p)
-  })) {
-    files.push(path.resolve(dir, entry));
+  const effectiveRoots = roots && roots.length > 0 ? roots : ['.'];
+  for (const root of effectiveRoots) {
+    const fullRoot = path.resolve(dir, root);
+    if (!nodeFs.existsSync(fullRoot)) continue;
+    const pattern = `**/*{${Array.from(AUDIT_EXTENSIONS).join(',')}}`;
+    for await (const entry of fs.glob(pattern, {
+      cwd: fullRoot,
+      exclude: (p: string) => isPathIgnored(root === '.' ? p : path.join(root, p))
+    })) {
+      files.push(path.resolve(fullRoot, entry));
+    }
   }
   return files;
 }
@@ -1109,11 +1116,21 @@ export function getProjectArchitectureRuleRemediationPhases(): Record<string, Re
 
 export interface AuditProjectOptions {
   readonly projectRoot?: string;
+  readonly roots?: readonly string[];
 }
 
 export class ProjectArchitectureAuditor extends BaseAuditor<string> {
+  private readonly effectiveRoots: readonly string[];
+
   constructor(options: AuditProjectOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const cfg = getAuditConfig(projectRoot);
+    const defaultCodeRoots = DEFAULT_AUDIT_CONFIG.paths?.codeRoots ?? [];
+    const defaultTestRoots = DEFAULT_AUDIT_CONFIG.paths?.testRoots ?? [];
+    const resolvedRoots =
+      options.roots && options.roots.length > 0
+        ? options.roots
+        : [...(cfg.paths?.codeRoots ?? defaultCodeRoots), ...(cfg.paths?.testRoots ?? defaultTestRoots)];
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
     const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
@@ -1156,16 +1173,21 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       criticalConfig: {},
       icon: '🏛️',
       coverage: {
-        include: ['**/*.{vue,scss,css,ts,js,md}'],
+        ...deriveCoverageFromRoots(
+          resolvedRoots,
+          AUDIT_EXTENSIONS,
+          projectRoot
+        ),
         exclude: [path.posix.join(AUDITOR_DIR, '**')]
       },
       projectRoot
     });
+    this.effectiveRoots = resolvedRoots;
   }
 
   public override async runAudit(): Promise<void> {
     activeProjectRuleTimings.clear();
-    const files = await getFilesToAudit(this.projectRoot);
+    const files = await getFilesToAudit(this.projectRoot, this.effectiveRoots);
     for (const f of files) {
       this.recordScanned(f);
     }

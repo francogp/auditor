@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/predicatesDetector.ts
+// src/analyzers/homebrew/detectors/predicatesDetector.ts
 /**
 * src/analyzers/homebrew/detectors/predicatesDetector.ts
 *
@@ -18,5 +18,4 @@ const predicatesDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { predicatesDetector };

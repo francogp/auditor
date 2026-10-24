@@ -232,6 +232,10 @@ export interface AuditSecurityConfig extends BaseAuditSubsystemConfig {}
 
 export type DocumentationLanguage = 'en' | 'es';
 
+export interface AuditDoxConfig extends BaseAuditSubsystemConfig {
+  readonly ignoreGlobs?: readonly string[];
+}
+
 export interface AuditDocumentationConfig extends BaseAuditSubsystemConfig {
   readonly language: DocumentationLanguage;
   readonly chatLanguage: DocumentationLanguage;
@@ -512,7 +516,9 @@ export interface AuditScssArchitectureConfig extends BaseAuditSubsystemConfig {
   readonly allowScopedColors?: boolean;
 }
 
-export type OxlintCategorySeverity = 'error' | 'warn' | 'off'; // lib-duplicate-ok: Vite+ Oxlint category severity levels
+export const CANONICAL_RULE_SEVERITY_LEVELS = ['error', 'warn', 'off'] as const;
+export type CanonicalRuleSeverityLevel = (typeof CANONICAL_RULE_SEVERITY_LEVELS)[number];
+export type OxlintCategorySeverity = CanonicalRuleSeverityLevel;
 
 export interface OxlintCategoriesConfig {
   readonly correctness?: OxlintCategorySeverity;
@@ -642,6 +648,7 @@ export interface AuditEngineConfig {
   readonly constants?: AuditConstantsConfig;
   readonly security?: AuditSecurityConfig;
   readonly documentation?: AuditDocumentationConfig;
+  readonly dox?: AuditDoxConfig;
   readonly pinia?: AuditPiniaConfig;
   readonly fallow?: AuditFallowConfig;
   readonly e2e?: AuditE2eConfig;

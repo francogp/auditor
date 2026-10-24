@@ -13,7 +13,6 @@ import { runTestCoverageReport } from '../src/cli/report_test_coverage.ts';
 
 describe('report_test_coverage CLI Tool', () => {
   let originalArgv: string[];
-  let originalCwd: string;
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let processExitSpy: ReturnType<typeof vi.spyOn>;
@@ -21,7 +20,6 @@ describe('report_test_coverage CLI Tool', () => {
 
   beforeEach(() => {
     originalArgv = [...process.argv];
-    originalCwd = process.cwd();
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     processExitSpy = vi.spyOn(process, 'exit').mockImplementation(((code?: number) => {
@@ -29,7 +27,7 @@ describe('report_test_coverage CLI Tool', () => {
     }) as never);
 
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-test-cli-'));
-    process.chdir(tmpDir);
+    process.env.AUDIT_PROJECT_ROOT = tmpDir;
 
     // Setup mock coverage and audit config in tmpDir
     const auditorDir = path.join(tmpDir, '.auditor');
@@ -75,7 +73,7 @@ describe('report_test_coverage CLI Tool', () => {
   });
 
   afterEach(() => {
-    process.chdir(originalCwd);
+    delete process.env.AUDIT_PROJECT_ROOT;
     process.argv = originalArgv;
     vi.restoreAllMocks();
     fs.rmSync(tmpDir, { recursive: true, force: true });

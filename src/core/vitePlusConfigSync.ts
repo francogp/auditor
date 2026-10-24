@@ -9,6 +9,7 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+import semver from 'semver';
 import { safeReadFileSync, safeRmSync, tryOrNull } from './safeUtils.ts';
 
 import { Project, SyntaxKind, QuoteKind, type SourceFile } from 'ts-morph';
@@ -621,6 +622,170 @@ function updateVitePlusScripts(scripts: Record<string, string>): boolean {
   return modified;
 }
 
+const OBSOLETE_OVERRIDES = ['braces', 'micromatch'] as const;
+
+function syncVitePlusDevDep(
+  nextDeps: Record<string, string> | undefined,
+  nextDevDeps: Record<string, string>,
+  minVersions: Record<string, string>
+): boolean {
+  let modified = false;
+  const vitePlusFloor = minVersions['vite-plus'] ?? '^1.4.0';
+  const vitePlusCaret = normalizeToCaretRange(vitePlusFloor);
+  if (!nextDeps?.['vite-plus'] && !nextDevDeps['vite-plus']) {
+    nextDevDeps['vite-plus'] = vitePlusCaret;
+    modified = true;
+  } else if (nextDevDeps['vite-plus']) {
+    const declaredMin = semver.minVersion(nextDevDeps['vite-plus']);
+    const reqMin = semver.minVersion(vitePlusCaret);
+    if (declaredMin && reqMin && semver.lt(declaredMin, reqMin)) {
+      nextDevDeps['vite-plus'] = vitePlusCaret;
+      modified = true;
+    } else if (semver.valid(nextDevDeps['vite-plus'])) {
+      nextDevDeps['vite-plus'] = `^${nextDevDeps['vite-plus']}`;
+      modified = true;
+    }
+  }
+  return modified;
+}
+
+function syncViteOverride(
+  nextOverrides: Record<string, string>,
+  canonicalOverrides: Record<string, string>,
+  nextDevDeps: Record<string, string>,
+  nextDeps: Record<string, string> | undefined
+): boolean {
+  if (nextOverrides.vite) {
+    if (nextOverrides.vite !== '$vite') {
+      if (
+        nextOverrides.vite.includes('@voidzero-dev/vite-plus-core') ||
+        semver.valid(nextOverrides.vite)
+      ) {
+        nextOverrides.vite = '$vite';
+        return true;
+      }
+    }
+  } else if (canonicalOverrides.vite === '$vite' || nextDevDeps.vite || nextDeps?.vite) {
+    nextOverrides.vite = '$vite';
+    return true;
+  }
+  return false;
+}
+
+function syncVitestOverride(
+  nextOverrides: Record<string, string>,
+  canonicalOverrides: Record<string, string>
+): boolean {
+  if (nextOverrides.vitest) {
+    if (nextOverrides.vitest !== '$vitest') {
+      if (semver.valid(nextOverrides.vitest) || nextOverrides.vitest.includes('vitest')) {
+        nextOverrides.vitest = '$vitest';
+        return true;
+      }
+    }
+  } else if (canonicalOverrides.vitest === '$vitest') {
+    nextOverrides.vitest = '$vitest';
+    return true;
+  }
+  return false;
+}
+
+function syncSecurityOverrides(
+  nextOverrides: Record<string, string>,
+  canonicalOverrides: Record<string, string>
+): boolean {
+  let modified = false;
+  for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) {
+    if (ovKey === 'vite' || ovKey === 'vitest') continue;
+    const currentVal = nextOverrides[ovKey];
+    if (currentVal) {
+      const declaredMin = semver.minVersion(currentVal);
+      const reqMin = semver.minVersion(ovVal);
+      if (declaredMin && reqMin && semver.lt(declaredMin, reqMin)) {
+        nextOverrides[ovKey] = ovVal;
+        modified = true;
+      } else if (semver.valid(currentVal)) {
+        nextOverrides[ovKey] = `^${currentVal}`;
+        modified = true;
+      }
+    } else {
+      nextOverrides[ovKey] = ovVal;
+      modified = true;
+    }
+  }
+  return modified;
+}
+
+function syncPackageJsonOverrides(
+  nextOverrides: Record<string, string>,
+  canonicalOverrides: Record<string, string>,
+  nextDevDeps: Record<string, string>,
+  nextDeps: Record<string, string> | undefined
+): boolean {
+  let modified = false;
+  if (syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) {
+    modified = true;
+  }
+  if (syncVitestOverride(nextOverrides, canonicalOverrides)) {
+    modified = true;
+  }
+  for (const obsKey of OBSOLETE_OVERRIDES) {
+    if (nextOverrides[obsKey]) {
+      delete nextOverrides[obsKey];
+      modified = true;
+    }
+  }
+  if (syncSecurityOverrides(nextOverrides, canonicalOverrides)) {
+    modified = true;
+  }
+  return modified;
+}
+
+function syncVitestDevDeps(
+  nextDevDeps: Record<string, string>,
+  nextScripts: Record<string, string>,
+  minVersions: Record<string, string>
+): boolean {
+  let modified = false;
+  const vitestFloor = minVersions['@vitest/coverage-v8'] ?? minVersions.vitest ?? '^5.0.5';
+  const vitestCaret = normalizeToCaretRange(vitestFloor);
+  const reqVitestMin = semver.minVersion(vitestCaret);
+
+  if (nextScripts['test:coverage'] && !nextDevDeps['@vitest/coverage-v8']) {
+    nextDevDeps['@vitest/coverage-v8'] = vitestCaret;
+    modified = true;
+  }
+
+  const hasVitestPeerConsumer =
+    'vitest' in nextDevDeps ||
+    '@vitest/coverage-v8' in nextDevDeps ||
+    '@vue/test-utils' in nextDevDeps;
+
+  if (hasVitestPeerConsumer) {
+    if (nextDevDeps.vitest) {
+      const declMin = semver.minVersion(nextDevDeps.vitest);
+      if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+        nextDevDeps.vitest = vitestCaret;
+        modified = true;
+      } else if (semver.valid(nextDevDeps.vitest)) {
+        nextDevDeps.vitest = `^${nextDevDeps.vitest}`;
+        modified = true;
+      }
+    }
+    if (nextDevDeps['@vitest/coverage-v8']) {
+      const declMin = semver.minVersion(nextDevDeps['@vitest/coverage-v8']);
+      if (declMin && reqVitestMin && semver.lt(declMin, reqVitestMin)) {
+        nextDevDeps['@vitest/coverage-v8'] = vitestCaret;
+        modified = true;
+      } else if (semver.valid(nextDevDeps['@vitest/coverage-v8'])) {
+        nextDevDeps['@vitest/coverage-v8'] = `^${nextDevDeps['@vitest/coverage-v8']}`;
+        modified = true;
+      }
+    }
+  }
+  return modified;
+}
+
 export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
   const pkg = getPackageJson(projectRoot, true);
   if (!pkg) return false;
@@ -634,54 +799,20 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
   const minVersions = getAuditorMinimumVersions();
   const canonicalOverrides = getAuditorCanonicalOverrides();
 
-  // 1. Add vite-plus if not present using canonical normalized caret range
-  if (!nextDeps?.['vite-plus'] && !nextDevDeps['vite-plus']) {
-    const vitePlusFloor = minVersions['vite-plus'] ?? '^1.3.0';
-    nextDevDeps['vite-plus'] = normalizeToCaretRange(vitePlusFloor);
+  if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) {
     modified = true;
   }
-
-  // 2. Remove legacy ESLint packages
   if (removeLegacyDependencies(nextDeps, nextDevDeps)) {
     modified = true;
   }
-
-  // 3. Synchronize canonical Vite+ overrides (vite -> @voidzero-dev/vite-plus-core, vitest -> bundled version)
-  for (const [ovKey, ovVal] of Object.entries(canonicalOverrides)) {
-    if (nextOverrides[ovKey] !== ovVal) {
-      nextOverrides[ovKey] = ovVal;
-      modified = true;
-    }
+  if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) {
+    modified = true;
   }
-
-  // 4. Update npm scripts if they reference obsolete eslint and ensure canonical Vite+ scripts
   if (updateVitePlusScripts(nextScripts)) {
     modified = true;
   }
-
-  // 5. Per official Vite+ rules ("When Vitest Is Directly Required"), if @vitest/coverage-v8,
-  // @vue/test-utils, vitest, or test:coverage is present, keep vitest and @vitest/coverage-v8 pinned.
-  const pinnedVitestVersion = canonicalOverrides.vitest;
-  if (pinnedVitestVersion) {
-    if (nextScripts['test:coverage'] && !nextDevDeps['@vitest/coverage-v8']) {
-      nextDevDeps['@vitest/coverage-v8'] = pinnedVitestVersion;
-      modified = true;
-    }
-    const hasVitestPeerConsumer =
-      'vitest' in nextDevDeps ||
-      '@vitest/coverage-v8' in nextDevDeps ||
-      '@vue/test-utils' in nextDevDeps;
-    if (hasVitestPeerConsumer && nextDevDeps.vitest !== pinnedVitestVersion) {
-      nextDevDeps.vitest = pinnedVitestVersion;
-      modified = true;
-    }
-    if (
-      '@vitest/coverage-v8' in nextDevDeps &&
-      nextDevDeps['@vitest/coverage-v8'] !== pinnedVitestVersion
-    ) {
-      nextDevDeps['@vitest/coverage-v8'] = pinnedVitestVersion;
-      modified = true;
-    }
+  if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions)) {
+    modified = true;
   }
 
   if (modified) {

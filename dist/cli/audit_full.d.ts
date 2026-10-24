@@ -4,7 +4,6 @@ import { BaseAuditor } from "../core/auditorBase.js";
 import { ConsoleOutputMode } from "../core/streamingRunner.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
-//#region src/cli/audit_full.d.ts
 export interface AuditFullCliOptions {
   values: Record<string, unknown>;
   positionals: string[];
@@ -61,6 +60,7 @@ export declare function computeAuditCategoryCounts(results: readonly StandardAud
   findings: AuditFinding[];
 }]>;
 export declare function computeTieredAuditCategoryCounts(results: readonly StandardAuditResult[]): TieredFindingsPhaseGroup[];
+export declare function formatSetupBlockingRemediationHint(setupErrors: number, hasFixableErrors?: boolean): string;
 /** Ratchet applies only to the canonical full run: every default suite, no filters, no build/fix mode. */
 export declare function isRatchetScope(cliOptions: AuditFullCliOptions, isFullAudit: boolean): boolean;
 export interface FixableCountsResult {
@@ -90,4 +90,3 @@ export declare function formatSubtitleDetails(details: readonly string[], maxLin
 export declare function resolveFixOrderWeight(task: AuditTaskDefinition): number;
 export declare function sortTasksByOrder(tasks: AuditTaskDefinition[], isFixMode?: boolean): void;
 export declare function runMasterAudit(): Promise<void>;
-//#endregion

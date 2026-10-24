@@ -1,4 +1,3 @@
-//#region src/core/auditBootstrap.d.ts
 /**
  * src/core/auditBootstrap.ts
  *
@@ -32,4 +31,3 @@ export interface BootstrapOptions {
   readonly force?: boolean;
 }
 export declare function ensureProjectBootstrapped(options?: BootstrapOptions): Promise<BootstrapResult>;
-//#endregion

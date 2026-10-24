@@ -1,6 +1,5 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_type_check.d.ts
 export type TypeCheckRuleId = 'ts-compiler-error';
 export declare const TYPE_CHECK_RULES: readonly TypeCheckRuleId[];
 /**
@@ -14,4 +13,3 @@ export declare class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
   constructor(options?: TypeCheckAuditorOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

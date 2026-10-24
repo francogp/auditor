@@ -25,6 +25,7 @@ import {
   isPathIgnored
 } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import type { AuditFinding } from '../../core/auditContract.ts';
 import { tryCatchSync } from '../../core/safeUtils.ts';
@@ -150,6 +151,15 @@ export function readAndParseHtmlValidateOutput(
 
 export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const targetRoots = Array.from(
+      new Set([
+        ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots),
+        ...(config.paths.codeRoots ?? []),
+        ...(config.paths.demoRoots ?? [])
+      ])
+    );
     super({
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
@@ -210,7 +220,11 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
           '</div>'
       },
       coverage: {
-        include: ['src/**/*.{html,vue}', 'ui-demo/**/*.{html,vue}', '*.html', '.htmlvalidate.json'],
+        include: [
+          ...targetRoots.map((r) => `${r}/**/*.{html,vue}`),
+          '*.html',
+          '.htmlvalidate.json'
+        ],
         source: 'runtime'
       },
       projectRoot: options.projectRoot
@@ -233,8 +247,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
 
     const scannableRoots = Array.from(
       new Set([
-        'src',
-        ...(config.paths.srcRoots ?? []),
+        ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots),
         ...(config.paths.codeRoots ?? []),
         ...(config.paths.demoRoots ?? [])
       ])

@@ -3,7 +3,7 @@ import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/
 import "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
-//#region src/cli/build_deploy.ts
+// src/cli/build_deploy.ts
 /**
 * src/cli/build_deploy.ts
 *
@@ -31,5 +31,4 @@ if (isMainModule(import.meta.url)) {
 	const exitCode = runBuildDeploy(getProcessCliArgs());
 	process.exit(exitCode);
 }
-//#endregion
 export { runBuildDeploy };

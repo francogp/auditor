@@ -15,7 +15,7 @@ import { unmeasuredRuleDetector } from "./detectors/unmeasuredRuleDetector.js";
 import { redundantRuleEvaluatedDetector } from "./detectors/redundantRuleEvaluatedDetector.js";
 import { thirdPartyToolContractDetector } from "./detectors/thirdPartyToolContractDetector.js";
 import { inefficientFileScanDetector } from "./detectors/inefficientFileScanDetector.js";
-//#region src/analyzers/homebrew/index.ts
+// src/analyzers/homebrew/index.ts
 /**
 * src/analyzers/homebrew/index.ts
 *
@@ -36,5 +36,4 @@ HomebrewDetectorRegistry.register(unmeasuredRuleDetector);
 HomebrewDetectorRegistry.register(redundantRuleEvaluatedDetector);
 HomebrewDetectorRegistry.register(thirdPartyToolContractDetector);
 HomebrewDetectorRegistry.register(inefficientFileScanDetector);
-//#endregion
 export { AUDITOR_HOMEBREW_RULES, HomebrewDetectorRegistry, braceCountingDetector, commentStrippingDetector, createLineDetector, fileWalkerDetector, hardcodedConfigDetector, inefficientFileScanDetector, isInsideStringLiteral, manualStepLoggingDetector, manualTimingDetector, packageJsonDetector, predicatesDetector, rawConsoleDetector, redundantRuleEvaluatedDetector, thirdPartyToolContractDetector, tsAstDetector, unmeasuredRuleDetector, vueSfcRegexDetector };

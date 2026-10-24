@@ -75,7 +75,6 @@ describe('ValidateNpmrcConfigAuditor', () => {
 
       const content = fs.readFileSync(configPath, 'utf8');
       expect(content).toContain('engine-strict=true');
-      expect(content).toContain('save-exact=true');
       expect(content).toContain('package-lock=true');
     });
 
@@ -95,8 +94,8 @@ describe('ValidateNpmrcConfigAuditor', () => {
       const violations = checkResult.findings.filter(
         (f) => f.ruleId === 'npmrc-config-missing-setting'
       );
-      // engine-strict is false (1), save-exact missing (1), package-lock missing (1) => 3
-      expect(violations.length).toBe(3);
+      // engine-strict is false (1), package-lock missing (1) => 2
+      expect(violations.length).toBe(2);
 
       // Fix mode
       const fixAuditor = new ValidateNpmrcConfigAuditor({ fix: true }, tmpDir);
@@ -106,7 +105,6 @@ describe('ValidateNpmrcConfigAuditor', () => {
       const repaired = fs.readFileSync(configPath, 'utf8');
       expect(repaired).toContain('@myorg:registry=https://custom.registry.com/');
       expect(repaired).toContain('engine-strict=true');
-      expect(repaired).toContain('save-exact=true');
       expect(repaired).toContain('package-lock=true');
     });
   });

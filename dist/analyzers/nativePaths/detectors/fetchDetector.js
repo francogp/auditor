@@ -1,7 +1,7 @@
 import { isUrlConstruction, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { getExpressionName } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/fetchDetector.ts
+// src/analyzers/nativePaths/detectors/fetchDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/fetchDetector.ts
 *
@@ -30,5 +30,4 @@ const fetchDetector = (node, ctx) => {
 		message: FETCH_MESSAGE
 	};
 };
-//#endregion
 export { fetchDetector };

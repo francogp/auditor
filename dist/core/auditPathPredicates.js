@@ -4,7 +4,7 @@ import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { isCliPath, isInCodeRoots, isScriptPath, isSrcPath } from "./auditCodeRoots.js";
 import { isSelfProviderProject } from "./auditProjectIdentity.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
-//#region src/core/auditPathPredicates.ts
+// src/core/auditPathPredicates.ts
 /**
 * packages/auditor/src/core/auditPathPredicates.ts
 *
@@ -41,5 +41,4 @@ function isExemptFile(filePath, config = getAuditConfig()) {
 		return norm === clean || norm.endsWith("/" + clean);
 	});
 }
-//#endregion
 export { Z_LAYERS, getEffectiveZLayers, isCliPath, isDataPath, isDemoPath, isExemptFile, isInCodeRoots, isScriptPath, isSelfProviderProject, isSrcPath, isTestFileForCodeAudit, isTestPath, matchesAnyRoot, resolveZLayersScssPath };

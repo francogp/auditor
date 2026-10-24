@@ -23,6 +23,7 @@ import {
   FileScanAuditor,
   createUniformRuleCapabilities,
   getAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
   normalizePosixPath,
   type FileScanRootsOptions
 } from '@francogp/auditor';
@@ -57,7 +58,10 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
   constructor(options: ValidateRenderPerformanceOptions = {}) {
     const config = getAuditConfig(options.projectRoot);
     const effectiveRoots =
-      options.roots ?? config.paths.stylesRoots ?? config.paths.srcRoots ?? ['src'];
+      options.roots ??
+      config.paths.stylesRoots ??
+      config.paths.srcRoots ??
+      DEFAULT_AUDIT_CONFIG.paths.srcRoots;
     super({
       id: 'validate_render_performance',
       name: 'Render & GPU Performance Hygiene Validator',
@@ -75,9 +79,9 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       }),
       ruleIds: RENDER_PERFORMANCE_RULES,
       packageName: 'GPU',
-      configKey: 'styles.heavyEffectPaths',
+      configKey: 'performance.renderPerformance',
       defaultConfig: {
-        heavyEffectPaths: []
+        enabled: true
       },
       criticalConfig: {},
       requiredPermissions: [],

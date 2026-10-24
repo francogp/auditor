@@ -2,7 +2,7 @@ import { tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
-//#region src/core/versionAnalyzer.ts
+// src/core/versionAnalyzer.ts
 /**
 * src/core/versionAnalyzer.ts
 *
@@ -241,5 +241,4 @@ function analyzeVersionBump(options = {}) {
 		metrics
 	};
 }
-//#endregion
 export { GIT_STATUS_FLAGS, MAJOR_CORE_LINES_THRESHOLD, MAJOR_DIFF_LINES_THRESHOLD, MINOR_DIFF_LINES_THRESHOLD, VERSION_BUMP_TYPES, analyzeVersionBump, calculateNextBaseVersion, collectGitDiffMetrics, generateBuildId, parseBaseSemver };

@@ -4,7 +4,7 @@ import { formatDurationMs } from "./durationFormatter.js";
 import "./unifiedTheme.js";
 import { styleText } from "node:util";
 import { spawn } from "node:child_process";
-//#region src/core/streamingRunner.ts
+// src/core/streamingRunner.ts
 /**
 * scripts/lib/streamingRunner.ts
 *
@@ -191,5 +191,4 @@ function executeAuditorStreaming(task, args, onSubProgress) {
 		});
 	});
 }
-//#endregion
 export { STREAM_LINE_SEVERITY_COLORS, TaskStreamCoordinator, colorizeStreamSubLine, executeAuditorStreaming, isNodeInternalWarning };

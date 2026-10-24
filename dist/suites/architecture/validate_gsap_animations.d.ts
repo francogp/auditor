@@ -1,5 +1,4 @@
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_gsap_animations.d.ts
 export type GsapAnimationRuleId = 'gsap-banned-css-animations' | 'gsap-banned-ui-timers' | 'gsap-no-layout-properties' | 'gsap-named-timer-constants' | 'gsap-empty-vue-transitions' | 'gsap-no-important-transforms' | 'gsap-no-important-filters' | 'gsap-gpu-layer-promotion' | 'gsap-timeline-constructor-duration' | 'gsap-kebab-case-properties' | 'gsap-raw-transform-string' | 'gsap-simultaneous-origin-conflict' | 'gsap-legacy-ease-names' | 'gsap-high-frequency-tween-creation';
 export declare const GSAP_ANIMATION_RULES: readonly GsapAnimationRuleId[];
 export declare const CONTEXT_WINDOW_SPAN_CHARS = 500;
@@ -33,4 +32,3 @@ export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapA
   private scanLegacyEaseNames;
   private scanHighFrequencyTweens;
 }
-//#endregion

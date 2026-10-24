@@ -5,7 +5,7 @@ import { isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { normalizeFilePath } from "./auditRuleTypes.js";
 import path from "node:path";
-//#region src/analyzers/zIndexRules.ts
+// src/analyzers/zIndexRules.ts
 /**
 * packages/auditor/src/analyzers/zIndexRules.ts
 *
@@ -153,5 +153,4 @@ const zIndexConstantDeclaration = {
 	},
 	fixable: false
 };
-//#endregion
 export { ACTIVE_Z_LAYERS, CANONICAL_DEFAULT_Z_LAYERS, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, fixZIndexLiteral, resolveZLayer, zIndexAudit, zIndexConstantDeclaration };

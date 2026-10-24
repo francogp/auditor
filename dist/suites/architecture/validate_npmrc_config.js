@@ -2,7 +2,7 @@ import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilit
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_npmrc_config.ts
+// src/suites/architecture/validate_npmrc_config.ts
 /**
 * src/suites/architecture/validate_npmrc_config.ts
 *
@@ -12,7 +12,6 @@ import fs from "node:fs";
 *   1. Guarantees .npmrc exists on disk; auto-scaffolds in --fix mode.
 *   2. Guarantees mandatory reproducibility directives:
 *      - engine-strict=true (enforces package.json engines)
-*      - save-exact=true (pins exact dependency versions)
 *      - package-lock=true (ensures deterministic tree resolution)
 *   3. Preserves existing private tokens, custom registries, and comments without destruction.
 */
@@ -21,25 +20,17 @@ const NPMRC_CONFIG_RULES = ["npmrc-config-missing", "npmrc-config-missing-settin
 const CANONICAL_NPMRC_LINES = [
 	"# Estandares de reproducibilidad de paquetes (francogp/auditor)",
 	"engine-strict=true",
-	"save-exact=true",
 	"package-lock=true",
 	""
 ];
 const CANONICAL_NPMRC_CONTENT = CANONICAL_NPMRC_LINES.join("\n");
-const MANDATORY_NPMRC_SETTINGS = [
-	{
-		key: "engine-strict",
-		expected: "true"
-	},
-	{
-		key: "save-exact",
-		expected: "true"
-	},
-	{
-		key: "package-lock",
-		expected: "true"
-	}
-];
+const MANDATORY_NPMRC_SETTINGS = [{
+	key: "engine-strict",
+	expected: "true"
+}, {
+	key: "package-lock",
+	expected: "true"
+}];
 const NPMRC_CONFIG_REQUIREMENT = {
 	id: "npmrc-config",
 	file: ".npmrc",
@@ -90,7 +81,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 			},
 			ruleRemediations: {
 				"npmrc-config-missing": "📖 REMEDIATION GUIDE: npmrc-config-missing\n1. Root Cause: The `.npmrc` file does not exist in the project root.\n2. Diagnosis: Check project root for `.npmrc`.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to auto-scaffold canonical reproducibility directives.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"npmrc-config-missing-setting": "📖 REMEDIATION GUIDE: npmrc-config-missing-setting\n1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, save-exact=true, package-lock=true).\n2. Diagnosis: Inspect existing `.npmrc` directives against mandatory settings.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to append or correct directives while preserving registries and tokens.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
+				"npmrc-config-missing-setting": "📖 REMEDIATION GUIDE: npmrc-config-missing-setting\n1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, package-lock=true).\n2. Diagnosis: Inspect existing `.npmrc` directives against mandatory settings.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to append or correct directives while preserving registries and tokens.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".npmrc"] },
 			projectRoot,
@@ -171,5 +162,4 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateNpmrcConfigAuditor());
-//#endregion
 export { CANONICAL_NPMRC_CONTENT, CANONICAL_NPMRC_LINES, MANDATORY_NPMRC_SETTINGS, NPMRC_CONFIG_REQUIREMENT, NPMRC_CONFIG_RULES, ValidateNpmrcConfigAuditor };

@@ -1,5 +1,5 @@
 import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/rawConsoleDetector.ts
+// src/analyzers/homebrew/detectors/rawConsoleDetector.ts
 /**
 * src/analyzers/homebrew/detectors/rawConsoleDetector.ts
 *
@@ -20,5 +20,4 @@ const rawConsoleDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { rawConsoleDetector };

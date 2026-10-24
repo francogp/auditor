@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/vueSfcRegexDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/vueSfcRegexDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * (<template>, <script>, <style>) instead of using canonical parseVueSfc() or AuditedDocument.
  */
 export declare const vueSfcRegexDetector: HomebrewDetector;
-//#endregion

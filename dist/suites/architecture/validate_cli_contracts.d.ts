@@ -1,7 +1,6 @@
 import { CLI_CONTRACT_RULES, CliContractRuleId, CliContractViolation } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_cli_contracts.d.ts
 export interface CliContractsAuditResult {
   readonly filesScanned: number;
   readonly violations: readonly CliContractViolation[];
@@ -25,5 +24,4 @@ export declare class CliContractsAuditor extends FileScanAuditor<CliContractRule
   private checkCittyDependency;
   private getGroupedCliViolations;
 }
-//#endregion
 export { CLI_CONTRACT_RULES, type CliContractRuleId, type CliContractViolation };

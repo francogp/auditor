@@ -1,7 +1,6 @@
 import { AuditTaskDefinition } from "./auditContract.js";
 import { BaseAuditor } from "./auditorBase.js";
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
-//#region src/core/auditorContractConformance.d.ts
 export interface DiscoveredAuditorTask extends AuditTaskDefinition {
   isExtension?: boolean;
 }
@@ -62,4 +61,3 @@ export interface AuditorContractConformanceOptions {
  * Operates with zero top-level static Vitest runtime imports so consumer packages never crash when Vitest is absent.
  */
 export declare function runAuditorContractConformanceTests(options?: AuditorContractConformanceOptions): void | Promise<void>;
-//#endregion

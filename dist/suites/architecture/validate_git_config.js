@@ -4,7 +4,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import { spawnSync } from "node:child_process";
-//#region src/suites/architecture/validate_git_config.ts
+// src/suites/architecture/validate_git_config.ts
 /**
 * src/suites/architecture/validate_git_config.ts
 *
@@ -147,5 +147,4 @@ var ValidateGitConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGitConfigAuditor());
-//#endregion
 export { GIT_CONFIG_RULES, REQUIRED_GIT_CONFIGS, ValidateGitConfigAuditor, getLocalGitConfig, setLocalGitConfig };

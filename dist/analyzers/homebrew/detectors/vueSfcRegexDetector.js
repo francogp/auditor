@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/vueSfcRegexDetector.ts
+// src/analyzers/homebrew/detectors/vueSfcRegexDetector.ts
 /**
 * src/analyzers/homebrew/detectors/vueSfcRegexDetector.ts
 *
@@ -17,5 +17,4 @@ const vueSfcRegexDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { vueSfcRegexDetector };

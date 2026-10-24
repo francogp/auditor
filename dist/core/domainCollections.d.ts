@@ -1,4 +1,3 @@
-//#region src/core/domainCollections.d.ts
 /**
  * packages/auditor/src/core/domainCollections.ts
  *
@@ -18,4 +17,3 @@ export declare function createDomainSet<const T extends readonly string[]>(items
  * Creates an immutable ReadonlyMap from an array of typed key-value pairs.
  */
 export declare function createDomainMap<const T extends readonly (readonly [string, unknown])[]>(entries: T): ReadonlyMap<T[number][0], T[number][1]>;
-//#endregion

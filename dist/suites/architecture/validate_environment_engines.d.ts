@@ -1,6 +1,5 @@
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 import { SemverVersion } from "../../cli/check_environment.js";
-//#region src/suites/architecture/validate_environment_engines.d.ts
 export declare const ENVIRONMENT_ENGINES_RULES: readonly ["environment-engines-missing", "environment-engines-below-floor", "environment-runtime-mismatch"];
 export type EnvironmentEnginesRuleId = (typeof ENVIRONMENT_ENGINES_RULES)[number];
 export interface EnvironmentEnginesConfig {
@@ -26,4 +25,3 @@ export declare class ValidateEnvironmentEnginesAuditor extends BaseAuditor<Envir
   private repairEnginesInPackageJson;
   runAudit(): Promise<void>;
 }
-//#endregion

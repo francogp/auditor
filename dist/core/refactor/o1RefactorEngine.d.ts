@@ -2,7 +2,6 @@ import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { O1FindingItem, O1RefactorPlan } from "./refactorContracts.js";
 import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
-//#region src/core/refactor/o1RefactorEngine.d.ts
 export declare class O1RefactorEngine extends BaseRefactorEngine<O1FindingItem, O1RefactorPlan, O1DataStructuresAuditor> {
   readonly toolId = "auditor-o1";
   readonly configSectionKey: "domain";
@@ -33,4 +32,3 @@ export declare class O1RefactorEngine extends BaseRefactorEngine<O1FindingItem, 
     readonly changesApplied: number;
   };
 }
-//#endregion

@@ -1,7 +1,7 @@
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/markdownVersionValidator.ts
+// src/core/markdownVersionValidator.ts
 /**
 * src/core/markdownVersionValidator.ts
 *
@@ -9,11 +9,7 @@ import fs from "node:fs";
 * @francogp/auditor version references across Markdown documentation.
 */
 const EXEMPT_MARKDOWN_FILENAMES = /* @__PURE__ */ new Set(["changelog.md", "v8-migration-guide.md"]);
-const HISTORICAL_OR_EXEMPT_LINE_PATTERNS = [
-	/\b(?:since\s+version|from\s+version|prior\s+to|legacy|deprecated|migrating\s+from|upgraded?\s+from|salto|jump)\b/i,
-	/\bauditor(?::update|-update)\b.*v\d+\.\d+\.\d+/i,
-	/\?\?\s*['"]\d+\.\d+\.\d+['"]/
-];
+const HISTORICAL_OR_EXEMPT_LINE_PATTERNS = [/\b(?:since\s+version|from\s+version|prior\s+to|legacy|deprecated|migrating\s+from|upgraded?\s+from|salto|jump)\b/i, /\?\?\s*['"]\d+\.\d+\.\d+['"]/];
 function extractBaseSemver(versionStr) {
 	const match = /^v?(\d+\.\d+\.\d+)/.exec(versionStr.trim());
 	return match ? match[1] : null;
@@ -77,23 +73,26 @@ function isExemptMarkdownFile(relPath) {
 function isHistoricalOrExemptLine(line) {
 	return HISTORICAL_OR_EXEMPT_LINE_PATTERNS.some((re) => re.test(line));
 }
+function replacePrefixedSemver(text, regex, expectedSemver, lineNum, matches) {
+	return text.replace(regex, (fullMatch, prefix, ver) => {
+		if (ver !== expectedSemver) {
+			matches.push({
+				lineNum,
+				found: `v${ver}`,
+				expected: `v${expectedSemver}`,
+				context: fullMatch
+			});
+			return `${prefix}${expectedSemver}`;
+		}
+		return fullMatch;
+	});
+}
 function inspectLineAndReplace(line, lineNum, info, matches) {
 	if (isHistoricalOrExemptLine(line)) return line;
 	let updatedLine = line;
 	if (info.expectedAuditorSemver) {
 		const expectedSemver = info.expectedAuditorSemver;
-		updatedLine = updatedLine.replace(/(github:francogp\/auditor#v)(\d+\.\d+\.\d+)/g, (fullMatch, prefix, ver) => {
-			if (ver !== expectedSemver) {
-				matches.push({
-					lineNum,
-					found: `v${ver}`,
-					expected: `v${expectedSemver}`,
-					context: fullMatch
-				});
-				return `${prefix}${expectedSemver}`;
-			}
-			return fullMatch;
-		});
+		updatedLine = replacePrefixedSemver(updatedLine, /(github:francogp\/auditor#v)(\d+\.\d+\.\d+)/g, expectedSemver, lineNum, matches);
 		if (updatedLine.includes("@francogp/auditor") || /release\s+tag/i.test(updatedLine)) updatedLine = updatedLine.replace(/(`#v)(\d+\.\d+\.\d+)(`)/g, (fullMatch, prefix, ver, suffix) => {
 			if (ver !== expectedSemver) {
 				matches.push({
@@ -119,6 +118,7 @@ function inspectLineAndReplace(line, lineNum, info, matches) {
 			}
 			return fullMatch;
 		});
+		updatedLine = replacePrefixedSemver(updatedLine, /(auditor[-:]update(?:\s+--)?\s+v?)(\d+\.\d+\.\d+)/g, expectedSemver, lineNum, matches);
 	}
 	if (info.pkgName.length > 0) {
 		const escapedPkg = info.pkgName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -186,5 +186,4 @@ function syncDocumentationVersionReferences(cwd) {
 	}
 	return modifiedFiles;
 }
-//#endregion
 export { resolveProjectVersionInfo, scanAndFixMarkdownProjectVersions, syncDocumentationVersionReferences };

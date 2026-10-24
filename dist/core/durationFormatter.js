@@ -1,4 +1,4 @@
-//#region src/core/durationFormatter.ts
+// src/core/durationFormatter.ts
 /**
 * packages/auditor/src/core/durationFormatter.ts
 *
@@ -32,5 +32,4 @@ function formatDurationMs(ms) {
 function formatDuration(ms) {
 	return formatDurationMs(ms).padStart(10);
 }
-//#endregion
 export { DURATION_PAD_LENGTH, MIN_CANONICAL_DURATION_MS, formatDuration, formatDurationMs, formatNumber };

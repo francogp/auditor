@@ -2,18 +2,18 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { isPositionInsideFunctionParams, stripComments } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
-import path from "node:path";
 import fs from "node:fs/promises";
 import ts from "typescript";
-//#region src/suites/domain_data/validate_domain_types.ts
+// src/suites/domain_data/validate_domain_types.ts
 /**
 * packages/auditor/src/suites/domain_data/validate_domain_types.ts
 *
@@ -29,7 +29,6 @@ import ts from "typescript";
 *   5. Nominal compile-time safety for domain IDs via Brand<string, "IdName">.
 */
 enableCompileCache();
-const ROOT = process.cwd();
 const EXTENSIONS = /* @__PURE__ */ new Set([".ts", ".vue"]);
 const DEFAULT_TEST_PATH_MARKERS = [".test.", ".spec."];
 const DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS = 80;
@@ -182,15 +181,12 @@ const P_UNBRANDED_DOMAIN_ID_ALIAS = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=\s*str
 const P_PARAM_WILDCARD_STRING_UNION = /\b([a-z_]\w*)\s*\??:\s*([A-Z]\w*)\s*\|\s*string\b/g;
 const P_PARAM_DOMAIN_ID_NULLABLE = /\b(\w{2,}[iI]d)\s*:\s*[A-Z]\w*Id\s*\|\s*(?:null|undefined)\b|\b(\w{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*[A-Z]\w*Id\b/g;
 const P_DOMAIN_TYPE_NULLABLE = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=[^;\n]*\|\s*(?:null|undefined)\b/g;
-function toRepoPath(filePath) {
-	return normalizePosixPath(path.relative(ROOT, filePath));
-}
-function isTestFile(file) {
-	if (getAuditConfig().paths.includeTestsInCodeAudit) return false;
+function isTestFile(file, projectRoot) {
+	if (getAuditConfig(projectRoot).paths.includeTestsInCodeAudit) return false;
 	return isTestPath(file);
 }
-function isContractFile(file) {
-	const config = getAuditConfig();
+function isContractFile(file, projectRoot) {
+	const config = getAuditConfig(projectRoot);
 	const contractRoots = [...config.paths.typesRoots ?? [], ...config.paths.dataRoots ?? []];
 	const norm = normalizePosixPath(file);
 	return matchesAnyRoot(norm, contractRoots) || file.endsWith(".d.ts");
@@ -400,8 +396,8 @@ function auditChainedLiteralComparisonsAst(doc, ast, rel, ruleFilter) {
 	visit(ast);
 	return findings;
 }
-function auditFileContent(filePath, content, ruleFilter) {
-	const rel = toRepoPath(filePath);
+function auditFileContent(filePath, content, ruleFilter, projectRoot = process.cwd()) {
+	const rel = toPosixRelative(projectRoot, filePath);
 	if (rel.endsWith("validate_domain_types.ts")) return [];
 	const findings = [];
 	const doc = new AuditedDocument(filePath, content, filePath);
@@ -492,6 +488,8 @@ async function auditFile(filePath, ruleFilter) {
 var DomainTypesAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.includeTestsInCodeAudit ? [...config.paths.codeRoots ?? [], ...config.paths.testRoots ?? []] : config.paths.codeRoots ?? []);
+		const config = getAuditConfig(effectiveRoot);
+		const domainIgnores = Array.from(getEffectiveIgnoreGlobs(effectiveRoot, { extraGlobs: [...config.domain?.ignoreGlobs ?? [], ...config.domain?.exemptPaths ?? []] }));
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -530,22 +528,12 @@ var DomainTypesAuditor = class extends BaseAuditor {
 				"domain-chained-literal-comparison": "📖 REMEDIATION GUIDE: domain-chained-literal-comparison\n1. Root Cause: Chained string literal comparisons (x === \"a\" || x === \"b\" || x === \"c\") were used to validate membership in an ad-hoc finite domain or reimplement a type guard. Dispersed string comparisons drift out of sync, violate DRY, and create fragile O(N) branching.\n2. Diagnosis: Look at the reported boolean expression where three or more string literals are compared against the same variable.\n3. Canonical Solution: Declare an immutable array with \"as const\" (e.g. const VALID_ITEMS = [\"a\", \"b\", \"c\"] as const), derive its union type (type Item = (typeof VALID_ITEMS)[number]), and validate membership using a ReadonlySet (O(1)) or canonical type-guard function.\n4. Example:\n   ❌ Incorrect: if (mode === \"easy\" || mode === \"normal\" || mode === \"hard\") { ... }\n   ✅ Correct:   export const GAME_MODES = [\"easy\", \"normal\", \"hard\"] as const;\n                  export type GameMode = (typeof GAME_MODES)[number];\n                  const GAME_MODE_SET: ReadonlySet<string> = new Set(GAME_MODES);\n                  if (GAME_MODE_SET.has(mode)) { ... }"
 			},
 			coverage: {
-				include: deriveCoverageFromRoots(targetRoots, EXTENSIONS).include,
-				exclude: [
-					"scripts/auditors/**",
-					"scripts/lib/**",
-					"coverage/**",
-					"packages/**"
-				]
+				include: deriveCoverageFromRoots(targetRoots, EXTENSIONS, effectiveRoot).include,
+				exclude: domainIgnores
 			},
 			roots: targetRoots,
 			allowedExtensions: EXTENSIONS,
-			extraIgnorePatterns: [
-				"scripts/auditors/**",
-				"scripts/lib/**",
-				"coverage/**",
-				"packages/**"
-			],
+			extraIgnorePatterns: domainIgnores,
 			projectRoot: effectiveRoot
 		});
 	}
@@ -557,7 +545,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 	async runAudit() {
 		if (this.isSuiteGatingDisabled("Domain disabled in config")) {
 			this.redeclareCoverage({
-				include: ["src/**/*.ts"],
+				include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
 				source: "declared-only"
 			});
 			return;
@@ -567,8 +555,9 @@ var DomainTypesAuditor = class extends BaseAuditor {
 		const findingsByRule = /* @__PURE__ */ new Map();
 		for (const rule of DOMAIN_TYPES_RULES) findingsByRule.set(rule, []);
 		for (const filePath of filePaths) {
-			this.recordScanned(toRepoPath(filePath));
-			const fileFindings = auditFileContent(filePath, await fs.readFile(filePath, "utf8"));
+			const relPath = toPosixRelative(this.projectRoot, filePath);
+			this.recordScanned(relPath);
+			const fileFindings = auditFileContent(filePath, await fs.readFile(filePath, "utf8"), void 0, this.projectRoot);
 			for (const finding of fileFindings) findingsByRule.get(finding.ruleId)?.push(finding);
 		}
 		let totalIssues = 0;
@@ -592,5 +581,4 @@ var DomainTypesAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DomainTypesAuditor());
-//#endregion
 export { CANONICAL_INFRA_ID_WHITELIST, CANONICAL_TEXTUAL_PROPERTY_NAMES, DEFAULT_TEST_PATH_MARKERS, DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS, DOMAIN_TYPES_RULES, DomainTypesAuditor, DomainTypesAuditor as ValidateDomainTypesAuditor, auditFile, auditFileContent, isTextualProperty };

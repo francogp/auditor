@@ -1,8 +1,7 @@
-import { toPosixRelative } from "./auditCoverage.js";
-import { isPathContained } from "./safePath.js";
+import { isPathContained, toPosixRelative } from "./safePath.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/gitignoreMatcher.ts
+// src/core/gitignoreMatcher.ts
 /**
 * scripts/lib/gitignoreMatcher.ts
 *
@@ -149,5 +148,4 @@ function appendGitIgnoreEntries(gitignorePath, patterns) {
 	const separator = existingContent.length === 0 || existingContent.endsWith("\n\n") ? "" : "\n";
 	fs.writeFileSync(gitignorePath, existingContent + separator + additionLines.join("\n"), "utf8");
 }
-//#endregion
 export { GitIgnoreMatcher, appendGitIgnoreEntries, findMissingGitIgnoreRequirements };

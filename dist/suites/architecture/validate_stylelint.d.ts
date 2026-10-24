@@ -1,7 +1,6 @@
 import { FindingSeverity, GitIgnoreRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import stylelint, { LintResult, LinterResult } from "stylelint";
-//#region src/suites/architecture/validate_stylelint.d.ts
 export declare const STYLELINT_RULES: readonly ["stylelint-issue", "css-duplicate-selectors", "css-duplicate-properties", "css-empty-blocks", "css-order-violation", "scss-syntax-issue", "scss-sass-collision-casing", "scss-strict-values"];
 export type StylelintRuleId = (typeof STYLELINT_RULES)[number];
 export declare function resolveStylelintConfigFile(projectRoot: string, configuredConfigFile?: string): string;
@@ -48,5 +47,4 @@ export declare class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   getLastLinterResult(): LinterResult | null;
   runAudit(): Promise<void>;
 }
-//#endregion
 export { StylelintAuditor as ValidateStylelintAuditor };

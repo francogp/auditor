@@ -1,7 +1,7 @@
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_vue_router.ts
+// src/suites/architecture/validate_vue_router.ts
 /**
 * packages/auditor/src/suites/architecture/validate_vue_router.ts
 *
@@ -86,5 +86,4 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateVueRouterAuditor());
-//#endregion
 export { VUE_ROUTER_RULES, ValidateVueRouterAuditor };

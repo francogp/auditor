@@ -1,7 +1,7 @@
 import { WIN_SEP, getStringValue, isDriveOrUncLiteral, isInsideRegExpConstruction } from "../pathLiteralHeuristics.js";
 import { asMethodCall, isFsSinkCall, isInsideWin32Call, isPathBuilderCall, isPathLikeName } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/slashDetector.ts
+// src/analyzers/nativePaths/detectors/slashDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/slashDetector.ts
 *
@@ -58,5 +58,4 @@ const slashDetector = (node, ctx) => {
 		message: SLASH_MESSAGE
 	} : null;
 };
-//#endregion
 export { slashDetector };

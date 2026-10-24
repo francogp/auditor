@@ -1,6 +1,5 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
-import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_tsconfig.d.ts
+import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const TSCONFIG_RULES: readonly ["tsconfig-missing", "tsconfig-syntax", "tsconfig-missing-strict-compiler-option", "tsconfig-banned-option", "tsconfig-missing-source-include"];
 export type TsConfigRuleId = (typeof TSCONFIG_RULES)[number];
 export interface TsCompilerOptionsShape {
@@ -37,12 +36,12 @@ export declare const VALID_MODULE_RESOLUTIONS: readonly ["bundler", "node16", "n
 export declare const VALID_TARGETS: readonly ["es2025", "esnext"];
 export declare const BANNED_COMPILER_OPTIONS: readonly ["suppressImplicitAnyIndexErrors"];
 export declare const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId>;
+export interface ValidateTsconfigOptions {
+  readonly projectRoot?: string;
+  readonly fix?: boolean;
+  readonly configFile?: string;
+}
 export declare class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
-  constructor(rootsOrOptions?: readonly string[] | (Partial<AuditorOptions<TsConfigRuleId>> & {
-    projectRoot?: string;
-    fix?: boolean;
-    configFile?: string;
-  }), maybeProjectRoot?: string);
+  constructor(options?: ValidateTsconfigOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

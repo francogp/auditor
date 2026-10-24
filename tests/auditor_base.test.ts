@@ -17,7 +17,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { deriveCoverageFromRequiredFiles, toPosixRelative } from '../src/core/auditCoverage.ts';
 import {
   ALWAYS_IGNORE_DIRS,
-  CODE_ONLY_IGNORE_DIRS,
   CANONICAL_IGNORE_DIRS,
   isPathIgnored,
   collectRepositoryFiles,
@@ -28,28 +27,27 @@ import {
 
 describe('auditorBase infrastructure', () => {
   describe('SSoT Ignore Sets Integrity', () => {
-    it('defines ALWAYS_IGNORE_DIRS with build artifacts, logs, and caches', () => {
+    it('defines ALWAYS_IGNORE_DIRS with universal infrastructure, logs, and scratch', () => {
       expect(ALWAYS_IGNORE_DIRS.has('node_modules')).toBe(true);
       expect(ALWAYS_IGNORE_DIRS.has('.git')).toBe(true);
-      expect(ALWAYS_IGNORE_DIRS.has('dist')).toBe(true);
-      expect(ALWAYS_IGNORE_DIRS.has('coverage')).toBe(true);
       expect(ALWAYS_IGNORE_DIRS.has('scratch')).toBe(true);
       expect(ALWAYS_IGNORE_DIRS.has('tmp')).toBe(true);
       expect(ALWAYS_IGNORE_DIRS.has('volumes')).toBe(true);
+      // Tool-specific caches are declared by their respective suites via cachePaths, not ALWAYS_IGNORE_DIRS
+      expect(ALWAYS_IGNORE_DIRS.has('dist')).toBe(false);
+      expect(ALWAYS_IGNORE_DIRS.has('coverage')).toBe(false);
+      expect(ALWAYS_IGNORE_DIRS.has('.fallow')).toBe(false);
+      expect(ALWAYS_IGNORE_DIRS.has('.oxlintcache')).toBe(false);
+      expect(ALWAYS_IGNORE_DIRS.has('.stylelintcache')).toBe(false);
+      expect(ALWAYS_IGNORE_DIRS.has('.tsbuildinfo')).toBe(false);
     });
 
-    it('defines CODE_ONLY_IGNORE_DIRS for agents and static assets', () => {
-      expect(CODE_ONLY_IGNORE_DIRS.has('.agents')).toBe(true);
-      expect(CODE_ONLY_IGNORE_DIRS.has('public')).toBe(true);
-    });
-
-    it('unifies all sets into CANONICAL_IGNORE_DIRS', () => {
+    it('unifies canonical sets into CANONICAL_IGNORE_DIRS', () => {
       for (const dir of ALWAYS_IGNORE_DIRS) {
         expect(CANONICAL_IGNORE_DIRS.has(dir)).toBe(true);
       }
-      for (const dir of CODE_ONLY_IGNORE_DIRS) {
-        expect(CANONICAL_IGNORE_DIRS.has(dir)).toBe(true);
-      }
+      expect(CANONICAL_IGNORE_DIRS.has('public')).toBe(false);
+      expect(CANONICAL_IGNORE_DIRS.has('packages')).toBe(false);
     });
   });
 
@@ -60,20 +58,6 @@ describe('auditorBase infrastructure', () => {
       expect(isPathIgnored('coverage/lcov.info')).toBe(true);
       expect(isPathIgnored('scratch/temp.json')).toBe(true);
       expect(isPathIgnored('tmp/build.json')).toBe(true);
-    });
-
-    it('ignores .agents and public by default for standard code auditors', () => {
-      expect(isPathIgnored('.agents/skills/fallow/SKILL.md')).toBe(true);
-      expect(isPathIgnored('public/favicon.ico')).toBe(true);
-    });
-
-    it('allows documentation auditors to unignore specific directories via unignoreDirs', () => {
-      const unignores = ['.agents'];
-      expect(isPathIgnored('.agents/skills/auditor/SKILL.md', [], unignores)).toBe(false);
-
-      // But still strictly ignores node_modules and scratch
-      expect(isPathIgnored('node_modules/foo/.agents/index.md', [], unignores)).toBe(true);
-      expect(isPathIgnored('scratch/docs.md', [], unignores)).toBe(true);
     });
 
     it('supports glob wildcard extraIgnorePatterns', () => {
@@ -118,10 +102,10 @@ describe('auditorBase infrastructure', () => {
       const codeFiles = collectRepositoryFiles(
         tempDir,
         tempDir,
-        [],
+        ['.agents/**'],
         new Set(['.ts', '.js', '.md'])
       );
-      // node_modules and .agents should be ignored by default
+      // node_modules is always ignored, .agents ignored via configured pattern
       const relPaths = codeFiles.map((f) => toPosixRelative(tempDir, f));
       expect(relPaths).toContain('src/main.ts');
       expect(relPaths).toContain('AGENTS.md');

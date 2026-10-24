@@ -1,11 +1,10 @@
-import { toPosixRelative } from "../auditCoverage.js";
-import "../safePath.js";
+import { toPosixRelative } from "../safePath.js";
 import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
 import crypto from "node:crypto";
-//#region src/core/refactor/microContextExtractor.ts
+// src/core/refactor/microContextExtractor.ts
 /**
 * src/core/refactor/microContextExtractor.ts
 *
@@ -126,5 +125,4 @@ var MicroContextExtractor = class {
 		};
 	}
 };
-//#endregion
 export { MIN_DIRAC_TOKEN_THRESHOLD, MicroContextExtractor };

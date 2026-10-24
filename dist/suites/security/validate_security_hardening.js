@@ -4,7 +4,7 @@ import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/security/validate_security_hardening.ts
+// src/suites/security/validate_security_hardening.ts
 enableCompileCache();
 const SECURITY_HARDENING_RULES = [
 	"hardcoded-secrets",
@@ -153,5 +153,4 @@ var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecurityHardeningAuditor());
-//#endregion
 export { SECURITY_HARDENING_RULES, ValidateSecurityHardeningAuditor };

@@ -4,11 +4,10 @@ import { tryCatchSync } from "../core/safeUtils.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { buildTestCoverageConfig } from "../core/auditConfigBuilders.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { isPathContained, toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import { isPathContained } from "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, isHumanConsoleMode, isMainModule, resolvePackageBin } from "./cliUtils.js";
 import { analyzeTestCoverage, resolveCoverageFile } from "../core/testCoverageCore.js";
@@ -16,7 +15,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import { execSync, spawnSync } from "node:child_process";
-//#region src/cli/report_test_coverage.ts
+// src/cli/report_test_coverage.ts
 /**
 * @file report_test_coverage.ts
 * @description AUDITOR TEST COVERAGE CLI (Node.js 26+)
@@ -365,7 +364,7 @@ function renderHotspotsView(hotspots, topLimit) {
 	if (hotspots.length > topLimit) console.log(styleText("dim", `   ... and ${hotspots.length - topLimit} more hotspots.`));
 	console.log();
 }
-function renderFilteredFilesView(files, args, effectiveThreshold) {
+function renderFilteredFilesView(files, args, effectiveThreshold, projectRoot = process.env.AUDIT_PROJECT_ROOT || process.cwd()) {
 	let filtered = files;
 	if (args.zeroOnly) {
 		filtered = filtered.filter((f) => f.statements.pct === 0);
@@ -375,9 +374,9 @@ function renderFilteredFilesView(files, args, effectiveThreshold) {
 		console.log(styleText("bold", `\n[Warning] FILES BELOW THRESHOLD (${effectiveThreshold}%) (${filtered.length}):\n`));
 	}
 	if (args.dirFilter) {
-		const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+		const filterAbs = path.resolve(projectRoot, args.dirFilter);
 		filtered = filtered.filter((f) => {
-			const fileAbs = path.resolve(process.cwd(), f.relPath);
+			const fileAbs = path.resolve(projectRoot, f.relPath);
 			return isPathContained(filterAbs, fileAbs) || f.relPath === args.dirFilter;
 		});
 	}
@@ -385,7 +384,7 @@ function renderFilteredFilesView(files, args, effectiveThreshold) {
 	if (filtered.length > args.topLimit) console.log(styleText("dim", `   ... and ${filtered.length - args.topLimit} more files (use --top=${filtered.length} to view all).`));
 	console.log();
 }
-function renderGlobalCoverageSummary(report, args, effectiveThreshold) {
+function renderGlobalCoverageSummary(report, args, effectiveThreshold, projectRoot = process.env.AUDIT_PROJECT_ROOT || process.cwd()) {
 	const o = report.overall;
 	const b = report.buckets;
 	console.log(`
@@ -404,9 +403,9 @@ ${styleText("bold", "FILE DISTRIBUTION:")}
 `);
 	let dirs = report.directories;
 	if (args.dirFilter) {
-		const filterAbs = path.resolve(process.cwd(), args.dirFilter);
+		const filterAbs = path.resolve(projectRoot, args.dirFilter);
 		dirs = dirs.filter((d) => {
-			const dirAbs = path.resolve(process.cwd(), d.directory);
+			const dirAbs = path.resolve(projectRoot, d.directory);
 			return isPathContained(filterAbs, dirAbs) || d.directory === args.dirFilter;
 		});
 	}
@@ -442,7 +441,7 @@ function loadCoveragePayloadOrExit(projectRoot, configPath) {
 	}
 	return JSON.parse(fs.readFileSync(coverageFile, "utf8"));
 }
-function renderSpecificCoverageView(report, args, effectiveThreshold) {
+function renderSpecificCoverageView(report, args, effectiveThreshold, projectRoot = process.env.AUDIT_PROJECT_ROOT || process.cwd()) {
 	if (args.fileFilter) {
 		renderFileDrillDown(report, args.fileFilter);
 		return true;
@@ -456,7 +455,7 @@ function renderSpecificCoverageView(report, args, effectiveThreshold) {
 		return true;
 	}
 	if (args.belowOnly || args.zeroOnly) {
-		renderFilteredFilesView(report.files, args, effectiveThreshold);
+		renderFilteredFilesView(report.files, args, effectiveThreshold, projectRoot);
 		return true;
 	}
 	return false;
@@ -499,14 +498,13 @@ function renderTestCoverageCompact(report, args, effectiveThreshold) {
 	console.log(`[Coverage] Files: ${report.files.length} | Untracked: ${report.untrackedFiles.length} | Excellent: ${report.buckets.excellent} | Acceptable: ${report.buckets.acceptable} | Low: ${report.buckets.low} | Untested: ${report.buckets.untested}`);
 	for (const d of report.directories) console.log(`  [Dir] ${d.directory}: ${d.statements.pct}% stmts, ${d.lines.pct}% lines (${d.fileCount} files)`);
 }
-async function runTestCoverageReport() {
+async function runTestCoverageReport(projectRoot = process.env.AUDIT_PROJECT_ROOT || process.cwd()) {
 	const args = parseCommandLineArgs();
 	if (args.help) {
 		printUsage();
 		return;
 	}
-	const projectRoot = process.cwd();
-	const config = getAuditConfig();
+	const config = getAuditConfig(projectRoot);
 	const resolvedConfig = buildTestCoverageConfig(config.testCoverage);
 	const effectiveThreshold = args.threshold ?? resolvedConfig.threshold;
 	runTestRunnerIfRequested(args.run, resolvedConfig.runCommand, projectRoot);
@@ -527,12 +525,11 @@ async function runTestCoverageReport() {
 		return;
 	}
 	console.log(renderBanner("TEST COVERAGE REPORT", `v${AUDITOR_VERSION}  |  Vitest & Istanbul Analytics`));
-	if (!renderSpecificCoverageView(report, args, effectiveThreshold)) renderGlobalCoverageSummary(report, args, effectiveThreshold);
+	if (!renderSpecificCoverageView(report, args, effectiveThreshold, projectRoot)) renderGlobalCoverageSummary(report, args, effectiveThreshold, projectRoot);
 	if (args.check) evaluateCoverageQualityGate(report, effectiveThreshold);
 }
 if (isMainModule(import.meta.url)) runTestCoverageReport().catch((err) => {
 	console.error(styleText("red", `\n[Error] auditor-test-coverage failed: ${err.message}`));
 	process.exit(1);
 });
-//#endregion
 export { runTestCoverageReport };

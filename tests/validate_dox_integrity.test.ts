@@ -281,5 +281,16 @@ TODO: Add verification
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('declares isolated section configKey and defaultConfig with .agents ignore pattern without hardcoded defaultIgnoredDirs', () => {
+      const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
+      expect(auditor.configKey).toBe('dox.enabled');
+      expect(auditor.defaultConfig).toEqual({
+        enabled: true,
+        ignoreGlobs: ['.agents/**']
+      });
+      expect(Object.hasOwn(DoxIntegrityAuditor, 'defaultIgnoredDirs')).toBe(false);
+      expect(auditor.extraIgnorePatterns).toContain('.agents/**');
+    });
   });
 });

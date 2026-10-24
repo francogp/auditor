@@ -1,7 +1,6 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import "../../core/astContext.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
@@ -9,7 +8,7 @@ import { detectDuplicateConstants } from "../../analyzers/constantAnalyzer.js";
 import { badConstantNames, noAliasConstants, noLiteralSuffixInConstantName } from "../../analyzers/constantRules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-//#region src/suites/architecture/validate_constant_hygiene.ts
+// src/suites/architecture/validate_constant_hygiene.ts
 /**
 * src/suites/architecture/validate_constant_hygiene.ts
 *
@@ -195,5 +194,4 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ValidateConstantHygieneAuditor());
-//#endregion
 export { CONSTANT_HYGIENE_RULES, ValidateConstantHygieneAuditor as ConstantHygieneAuditor, ValidateConstantHygieneAuditor };

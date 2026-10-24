@@ -35,7 +35,7 @@ A global installation is optional. To install the global `vp` CLI when it is not
 
 Open a new terminal after installation. Follow https://viteplus.dev/guide/upgrade to select the target release or preview and check `vp toolchain --global` before scaffolding.
 
-Without a global installation, use a supported Node.js runtime from the compatibility guide. For the 1.2.0 release, run `pnpm dlx --package=vite-plus@1.2.0 vp create` or `npx --package=vite-plus@1.2.0 vp create`. Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npx before the vp command.
+Without a global installation, use a supported Node.js runtime from the compatibility guide. For the 1.2.0 release, run `pnpm dlx --package=vite-plus@1.2.0 vp create` or `npm exec --package=vite-plus@1.2.0 -- vp create`. Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
 
 Run `vp install`, `vp check`, and `vp test`, then `vp build` for applications or `vp pack` for libraries. Without a global CLI, install with the project's package manager and run the local CLI through it, such as `pnpm exec vp check` or `npm exec -- vp check`. Explain how to use `vp dev` for the dev server and `vp run <task>` for project scripts or tasks. Report the setup changes, validation results, and any remaining work. Do not commit or push unless I ask.
 
@@ -58,9 +58,9 @@ For a project that does not use Vite+ yet, check the prerequisites for the tools
 Use the CLI from the target Vite+ 1.0 release or its preview build. Use a supported Node.js runtime from the compatibility guide. A global installation is optional:
 
 - With a global vp installation, follow https://viteplus.dev/guide/upgrade to select the target release and check `vp toolchain --global`. Run `vp help` and `vp help migrate`, then `vp migrate --no-interactive` from the workspace root.
-- Without a global installation, run the target CLI through the package manager from the workspace root. For the 1.2.0 release, use `pnpm dlx --package=vite-plus@1.2.0 vp migrate --no-interactive` or `npx --package=vite-plus@1.2.0 vp migrate --no-interactive`. First run the same command with `help migrate` instead of `migrate --no-interactive` to read its help. These commands fetch the target CLI without replacing the old project dependencies first.
+- Without a global installation, run the target CLI through the package manager from the workspace root. For the 1.2.0 release, use `pnpm dlx --package=vite-plus@1.2.0 vp migrate --no-interactive` or `npm exec --package=vite-plus@1.2.0 -- vp migrate --no-interactive`. First run the same command with `help migrate` instead of `migrate --no-interactive` to read its help. These commands fetch the target CLI without replacing the old project dependencies first.
 
-Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npx before the vp command.
+Replace 1.2.0 with the intended release version. For a preview, use the version from its PR and pass `--registry=https://registry-bridge.viteplus.dev` to pnpm or npm before the vp command.
 
 Do not run migration with an old project's node_modules/.bin/vp. Migrate monorepos from the workspace root so shared manifests, catalogs, overrides, and lockfiles remain consistent.
 
@@ -296,14 +296,16 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    });
    ```
 
-2. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core:
+2. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core using npm's dynamic reference syntax (`"$vite"` and `"$vitest"`):
 
    ```json
    "overrides": {
-     "vite": "npm:@voidzero-dev/vite-plus-core@1.2.0",
-     "vitest": "5.0.4"
+     "vite": "$vite",
+     "vitest": "$vitest"
    }
    ```
+
+   This binds transitive references directly to whatever version is declared in `devDependencies`, preventing version drift, hardcoded version conflicts, and fatal npm `EOVERRIDE` crashes during upgrades.
 
 ### 8.2 Eradication of Obsolete `environmentMatchGlobs`
 

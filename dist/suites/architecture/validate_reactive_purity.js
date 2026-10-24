@@ -1,7 +1,7 @@
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
-//#region src/suites/architecture/validate_reactive_purity.ts
+// src/suites/architecture/validate_reactive_purity.ts
 /**
 * scripts/auditors/architecture/validate_reactive_purity.ts
 *
@@ -145,5 +145,4 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ReactivePurityAuditor());
-//#endregion
 export { REACTIVE_PURITY_RULES, ReactivePurityAuditor };

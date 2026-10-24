@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/tsAstDetector.ts
+// src/analyzers/homebrew/detectors/tsAstDetector.ts
 /**
 * src/analyzers/homebrew/detectors/tsAstDetector.ts
 *
@@ -15,5 +15,4 @@ const tsAstDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { tsAstDetector };

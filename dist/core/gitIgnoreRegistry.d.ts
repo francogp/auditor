@@ -1,5 +1,4 @@
 import { GitIgnoreRequirement } from "./auditContract.js";
-//#region src/core/gitIgnoreRegistry.d.ts
 export declare const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[];
 export declare class GitIgnoreRegistry {
   private static readonly requirements;
@@ -20,4 +19,3 @@ export declare class GitIgnoreRegistry {
    */
   static reset(): void;
 }
-//#endregion

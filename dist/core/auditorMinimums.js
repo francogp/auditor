@@ -3,7 +3,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import semver from "semver";
-//#region src/core/auditorMinimums.ts
+// src/core/auditorMinimums.ts
 /**
 * src/core/auditorMinimums.ts
 *
@@ -137,5 +137,4 @@ function evaluateProjectDependencies(projectRoot = process.cwd()) {
 		devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(" ")}` : void 0
 	};
 }
-//#endregion
 export { AUDITOR_MAXIMUM_VERSIONS, evaluateProjectDependencies, findDeclaredDependency, getAuditorCanonicalOverrides, getAuditorMaximumVersions, getAuditorMinimumVersions, normalizeToCaretRange };

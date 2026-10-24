@@ -17,8 +17,12 @@ import {
   BaseAuditor,
   createRuleCapabilities,
   createUniformRemediationPhases,
+  resolveFileScanRoots,
+  deriveCoverageFromRoots,
+  DEFAULT_AUDIT_CONFIG,
   type AuditorConfigFileRequirement,
   type AuditorPackageScriptRequirement,
+  type FileScanRootsOptions,
   type GitIgnoreRequirement
 } from '@francogp/auditor';
 
@@ -35,8 +39,8 @@ export const MY_COMPOSITE_RULES: readonly MyCompositeRuleId[] = [
   'composite-missing-config'
 ] as const;
 
-export interface MyCompositeAuditorOptions {
-  readonly projectRoot?: string;
+export interface MyCompositeAuditorOptions extends FileScanRootsOptions {
+  // Bespoke configuration options can be added here
 }
 
 export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
@@ -62,6 +66,12 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [];
 
   constructor(options: MyCompositeAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths?.dataRoots ?? DEFAULT_AUDIT_CONFIG.paths.dataRoots
+    );
+    const allowedExtensions = new Set(['.ts', '.json']);
+
     super({
       // Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate):
       // Tip: For tools with fast/deep CLI flags (e.g. TieredCommandProfile), you can pass
@@ -81,6 +91,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       ),
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
+      // Optional custom cache or temporary paths outside scratch/ (auto-injected into .gitignore and ignored by scanners):
+      // cachePaths: ['.mytoolcache'],
       // Optional declarative configuration files verified and auto-created with --fix:
       configFiles: MyCompositeAuditor.configFiles,
       id: 'validate_my_composite',
@@ -129,17 +141,16 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_COMPOSITE_RULES, 'contracts'),
-      coverage: {
-        include: ['src/data/**/*.{ts,json}'],
-        source: 'runtime'
-      },
-      projectRoot: options.projectRoot
+      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      roots: targetRoots,
+      allowedExtensions,
+      projectRoot: effectiveRoot
     });
   }
 
   public override async runAudit(): Promise<void> {
     // Option A: Inspect centralized files and record scanned telemetry
-    const files = await this.context.collectFiles(['src/data'], new Set(['.ts', '.json']));
+    const files = await this.context.collectFiles(this.roots, new Set(['.ts', '.json']));
     for (const file of files) {
       this.recordScanned(file);
     }

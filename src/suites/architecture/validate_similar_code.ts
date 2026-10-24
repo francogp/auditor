@@ -21,6 +21,7 @@ import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import type { AuditorCapabilities } from '../../core/auditContract.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { getProcessCliArgs } from '../../core/cli/cittyHarness.ts';
@@ -30,6 +31,7 @@ import {
   AUDIT_CONFIG_FILE,
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { tryOrNull, safeJsonParse } from '../../core/safeUtils.ts';
 import {
@@ -188,6 +190,10 @@ export function checkOrInitializeModel(
     return true;
   }
 
+  if (process.env.VITEST || process.env.AUDIT_SUBPROCESS) {
+    return false;
+  }
+
   process.stdout.write(
     styleText(
       'cyan',
@@ -300,6 +306,8 @@ export function evaluateSimilarCodeCandidates(
 export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
   constructor(options: { projectRoot?: string } = {}) {
     const projectRoot = options.projectRoot || process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 
     super({
       usesThirdPartyTool: true,
@@ -352,7 +360,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
           '   - Run `npm run setup:windows` or `npm run setup:linux`'
       },
       coverage: {
-        include: ['src/**/*.ts', 'src/**/*.vue', 'scripts/**/*.ts'],
+        include: deriveCoverageFromRoots(codeRoots, new Set(['.ts', '.vue']), projectRoot).include,
         source: 'declared-only'
       },
       projectRoot

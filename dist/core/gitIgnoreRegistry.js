@@ -1,4 +1,4 @@
-//#region src/core/gitIgnoreRegistry.ts
+// src/core/gitIgnoreRegistry.ts
 const CORE_GITIGNORE_REQUIREMENTS = [
 	{
 		id: "node_modules",
@@ -54,5 +54,4 @@ var GitIgnoreRegistry = class {
 		for (const req of CORE_GITIGNORE_REQUIREMENTS) this.requirements.set(req.id, req);
 	}
 };
-//#endregion
 export { CORE_GITIGNORE_REQUIREMENTS, GitIgnoreRegistry };

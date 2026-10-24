@@ -1,9 +1,13 @@
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from "./safeUtils.js";
+import { getAuditConfig } from "./auditConfigLoader.js";
+import { toPosixRelative } from "./safePath.js";
 import { COVERAGE_SOURCES } from "./auditContract.js";
+import { CANONICAL_BINARY_EXTENSIONS } from "./canonicalIgnoreRegistry.js";
 import path from "node:path";
 import fs from "node:fs";
 import fs$1 from "node:fs/promises";
-//#region src/core/auditCoverage.ts
+// src/core/auditCoverage.ts
 /**
 * src/core/auditCoverage.ts
 *
@@ -23,13 +27,6 @@ function resolveActiveCoverageRunId() {
 	const runId = process.env[COVERAGE_RUN_ID_ENV];
 	return runId && runId.trim().length > 0 ? runId : void 0;
 }
-/** Converts an absolute or relative path into a POSIX path relative to the project root. */
-function toPosixRelative(projectRoot, filePath) {
-	if (!filePath) return "";
-	const posix = (path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath).replaceAll(path.win32.sep, path.posix.sep);
-	const withoutLeadingDot = posix.startsWith("./") ? posix.slice(2) : posix;
-	return withoutLeadingDot.endsWith("/") && withoutLeadingDot.length > 1 ? withoutLeadingDot.slice(0, -1) : withoutLeadingDot;
-}
 function matchesAnyGlob(relPosixPath, globs) {
 	return globs.some((glob) => {
 		if (path.posix.matchesGlob(relPosixPath, glob)) return true;
@@ -40,78 +37,10 @@ function matchesAnyGlob(relPosixPath, globs) {
 		return false;
 	});
 }
-const DEFAULT_NON_AUDITABLE_GLOBS = Object.freeze([
-	"package-lock.json",
-	"pnpm-lock.yaml",
-	"yarn.lock",
-	"bun.lockb",
-	"skills-lock.json",
-	"**/*skills-lock.json",
-	"**/.gitkeep",
-	"**/.gitignore",
-	"**/.gitattributes",
-	".nvmrc",
-	".node-version",
-	".npmrc",
-	".replit",
-	".prettierrc*",
-	".prettierignore",
-	".markdownlintignore",
-	"**/*.tsbuildinfo",
-	"**/*.{png,jpg,jpeg,gif,webp,ico,bmp,tiff,avif}",
-	"**/*.{mp3,ogg,wav,flac,mp4,webm,avi,mov}",
-	"**/*.{woff,woff2,ttf,eot,otf}",
-	"**/*.{db,sqlite,sqlite3,wasm,zip,tar,tar.gz,tgz}",
-	"**/fixtures/**",
-	"**/canaries/**",
-	"**/*.canary",
-	"**/backups/**",
-	"setup-linux.sh",
-	"setup-windows.ps1",
-	"update-linux.sh",
-	"update-windows.ps1",
-	"scripts/setup/plugins/**",
-	".env.example",
-	"**/*.sample",
-	"LICENSE*"
-]);
-const FAST_NON_AUDITABLE_EXTENSIONS = /* @__PURE__ */ new Set([
-	".png",
-	".jpg",
-	".jpeg",
-	".gif",
-	".webp",
-	".ico",
-	".bmp",
-	".tiff",
-	".avif",
-	".mp3",
-	".ogg",
-	".wav",
-	".flac",
-	".mp4",
-	".webm",
-	".avi",
-	".mov",
-	".woff",
-	".woff2",
-	".ttf",
-	".eot",
-	".otf",
-	".db",
-	".sqlite",
-	".sqlite3",
-	".wasm",
-	".zip",
-	".tar",
-	".gz",
-	".tgz"
-]);
-/** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
+/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
 function isAuditableCodebaseFile(relPosixPath, customExemptGlobs = []) {
 	const ext = path.posix.extname(relPosixPath).toLowerCase();
-	if (ext && FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
-	if (matchesAnyGlob(relPosixPath, DEFAULT_NON_AUDITABLE_GLOBS)) return false;
+	if (ext && CANONICAL_BINARY_EXTENSIONS.has(ext)) return false;
 	if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;
 	return true;
 }
@@ -122,11 +51,8 @@ function isDeclaredByCoverage(relPosixPath, declaration) {
 }
 /** Derives a coverage declaration from scan roots + extensions (used by FileScanAuditor). */
 function deriveCoverageFromRoots(roots, extensions, projectRoot = process.cwd()) {
-	const effectiveRoots = roots.length > 0 ? roots : [
-		"src",
-		"scripts",
-		"tests"
-	];
+	const config = getAuditConfig(projectRoot);
+	const effectiveRoots = roots.length > 0 ? roots : [...config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots];
 	const include = [];
 	for (const root of effectiveRoots) {
 		const cleanRoot = toPosixRelative(projectRoot, root);
@@ -290,5 +216,4 @@ async function readLatestCoverageLedgers(projectRoot) {
 		ledgers: allLedgers.filter((l) => l.runId === latestRunId)
 	};
 }
-//#endregion
-export { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, CoverageRecorder, DEFAULT_NON_AUDITABLE_GLOBS, FAST_NON_AUDITABLE_EXTENSIONS, clearCoverageLedgers, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isAuditableCodebaseFile, isDeclaredByCoverage, matchesAnyGlob, readCoverageLedgers, readLatestCoverageLedgers, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger };
+export { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV, CoverageRecorder, clearCoverageLedgers, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isAuditableCodebaseFile, isDeclaredByCoverage, matchesAnyGlob, readCoverageLedgers, readLatestCoverageLedgers, resolveActiveCoverageRunId, toPosixRelative, validateCoverageDeclaration, writeCoverageLedger };

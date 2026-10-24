@@ -1,4 +1,3 @@
-//#region src/core/refactor/refactorFileScanner.d.ts
 /**
  * src/core/refactor/refactorFileScanner.ts
  *
@@ -48,4 +47,3 @@ export declare function executePlanFileReplacements(baseDir: string, targetFiles
   readonly filesChanged: number;
   readonly changesApplied: number;
 };
-//#endregion

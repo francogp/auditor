@@ -1,12 +1,12 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import { isPathContained } from "../../core/safePath.js";
+import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import ts from "typescript";
-//#region src/suites/architecture/validate_pinia_reactivity.ts
+// src/suites/architecture/validate_pinia_reactivity.ts
 /**
 * scripts/auditors/architecture/validate_pinia_reactivity.ts
 *
@@ -145,5 +145,4 @@ var PiniaReactivityAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new PiniaReactivityAuditor());
-//#endregion
 export { AUTHORIZED_STATE_MUTATION_FILES, DEFAULT_AUTHORIZED_STATE_MUTATION_FILES, PINIA_REACTIVITY_RULES, PiniaReactivityAuditor, getAuthorizedStateMutationFiles };

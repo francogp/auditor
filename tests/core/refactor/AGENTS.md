@@ -10,6 +10,9 @@ Architecture & Tooling Engineers.
 
 - **Hermetic Testing**: All tests must run in isolated Vitest environments without mutating host git trees.
 - **Negative and Violation Paths**: Every refactoring test suite must verify error conditions and clean pass paths.
+- **Ephemeral Worktree Isolation & Fast Verification**: Tests verifying `WorktreeSandboxManager` or `executeInWorktreeWithVerification` MUST operate on dedicated ephemeral mini-repositories (`fs.mkdtempSync`) with fast verification commands (`verifyCommand: 'node -v'`), NEVER targeting the live repository root or running full compilation checks (`tsc --noEmit`).
+
+## Key Files
 
 - [`classHierarchyHoister.test.ts`](./classHierarchyHoister.test.ts): Unit tests for class hierarchy discovery and method hoisting.
 - [`hybridHarness.test.ts`](./hybridHarness.test.ts): Unit tests for unified hybrid harness AST execution.

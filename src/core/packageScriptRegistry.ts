@@ -327,6 +327,13 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     isApplicable: (config) => config.fallow?.enabled !== false
   },
   {
+    name: 'auditor:fallow:boundaries',
+    command: 'auditor-fallow category=boundaries',
+    description: 'Architectural boundary violations detection via Fallow',
+    category: 'fallow',
+    isApplicable: (config) => config.fallow?.enabled !== false
+  },
+  {
     name: 'auditor:fallow:suppressions',
     command: 'auditor-fallow category=suppressions',
     description: 'Active fallow-ignore suppression markers audit',

@@ -1,13 +1,13 @@
 import { isPathExempt } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createUniformRemediationPhases, createUniformRuleCapabilities, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-//#region src/suites/performance/validate_web_performance.ts
+// src/suites/performance/validate_web_performance.ts
 enableCompileCache();
 const WEB_PERFORMANCE_RULES = [
 	"unoptimized-images",
@@ -316,5 +316,4 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateWebPerformanceAuditor());
-//#endregion
 export { ValidateWebPerformanceAuditor, WEB_PERFORMANCE_RULES };

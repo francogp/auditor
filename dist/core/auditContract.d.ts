@@ -1,6 +1,5 @@
 import { AuditEngineConfig, CustomAuditFamilyConfig } from "./auditConfigTypes.js";
 import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, RemediationPhaseId, RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId } from "./remediationPhases.js";
-//#region src/core/auditContract.d.ts
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "performance", "security", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];
 export type AuditFamily = BuiltinAuditFamily | (string & {
@@ -609,5 +608,4 @@ export type OperationResult<T, E = string> = {
   readonly error?: E;
   readonly message?: string;
 };
-//#endregion
 export { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId };

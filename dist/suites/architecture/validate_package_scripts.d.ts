@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_package_scripts.d.ts
 export declare const PACKAGE_SCRIPTS_RULES: readonly ["package-scripts-missing-file", "package-scripts-build-missing-audit", "package-scripts-removed-commit-gate", "package-scripts-invalid-production-ref", "package-scripts-invalid-ratchet-baseline", "package-scripts-missing-recommended", "package-scripts-obsolete"];
 export type PackageScriptsRuleId = (typeof PACKAGE_SCRIPTS_RULES)[number];
 export interface ValidatePackageScriptsOptions {
@@ -28,5 +27,4 @@ export declare class ValidatePackageScriptsAuditor extends BaseAuditor<PackageSc
   private verifyProductionRef;
   private verifyRatchetBaseline;
 }
-//#endregion
 export { ValidatePackageScriptsAuditor as PackageScriptsAuditor };

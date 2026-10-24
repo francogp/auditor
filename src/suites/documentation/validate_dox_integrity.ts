@@ -24,6 +24,7 @@ import {
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { loadAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { checkDoxIntegrity } from '../../analyzers/doxAnalyzer.ts';
 
 enableCompileCache();
@@ -72,8 +73,8 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       description: 'Validates AGENTS.md hierarchy, structure, and integrity',
       family: 'documentation',
       packageName: 'DOX',
-      configKey: 'documentation.enabled',
-      defaultConfig: { enabled: true },
+      configKey: 'dox.enabled',
+      defaultConfig: DEFAULT_AUDIT_CONFIG.dox ?? { enabled: true },
       criticalConfig: {},
       icon: '📚',
       ruleIds: DOX_RULES,
@@ -151,7 +152,11 @@ export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
       this.recordScanned('AGENTS.md');
     }
 
-    const rawViolations = await checkDoxIntegrity(this.rootDir, getEffectiveIgnoreDirs());
+    const rawViolations = await checkDoxIntegrity(
+      this.rootDir,
+      getEffectiveIgnoreDirs(this.rootDir),
+      this.extraIgnorePatterns
+    );
 
     for (const ruleId of DOX_RULES) {
       this.runSubAuditorSync(ruleId, () => {

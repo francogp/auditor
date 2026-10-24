@@ -14,7 +14,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import childProcess from "node:child_process";
-//#region src/cli/update_package.ts
+// src/cli/update_package.ts
 /**
 * src/cli/update_package.ts
 *
@@ -128,13 +128,25 @@ function updateAuditorPackage(options = {}) {
 		error: "Package @francogp/auditor is not declared in dependencies or devDependencies."
 	};
 	const targetTag = options.targetVersion ? options.targetVersion.startsWith("v") ? options.targetVersion : `v${options.targetVersion}` : resolveLatestAuditorTag();
+	const previousVersion = readInstalledAuditorVersion(projectRoot);
+	if (options.checkOnly) {
+		const cleanTarget = targetTag.replace(/^v/, "");
+		const cleanPrev = previousVersion.replace(/^v/, "");
+		return {
+			success: true,
+			projectRoot,
+			previousVersion,
+			newVersion: targetTag,
+			updated: false,
+			updateAvailable: previousVersion === "(not installed)" || previousVersion === "(unknown)" || cleanPrev !== cleanTarget
+		};
+	}
 	const npmArgs = [
 		"install",
 		"-D",
 		`github:francogp/auditor#${targetTag}`
 	];
 	ensureNpmrcAllowGit(projectRoot);
-	const previousVersion = readInstalledAuditorVersion(projectRoot);
 	if (!options.silent) {
 		console.log(renderBanner("@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER", `Directory: ${projectRoot}  |  Current Version: ${previousVersion}  |  Target: ${targetTag}`));
 		console.log(styleText("cyan", `[Update] Running native update via npm ${npmArgs.join(" ")}...\n`));
@@ -215,8 +227,43 @@ function runAuditorFixAutoRemediation(projectRoot, silent) {
 		return false;
 	}
 }
+function renderUpdateHelp() {
+	return [
+		renderBanner("@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER", "Diagnostic & Hermetic Update CLI"),
+		"",
+		styleText("bold", "USAGE:"),
+		"  auditor-update [targetVersion] [options]",
+		"  npm run auditor:update -- [targetVersion] [options]",
+		"",
+		styleText("bold", "ARGUMENTS:"),
+		"  targetVersion                Optional target version or tag (e.g. 10.0.0, v10.0.0). Defaults to latest upstream tag.",
+		"",
+		styleText("bold", "OPTIONS:"),
+		"  -c, --check, --dry-run       Check for available updates without modifying files (read-only mode)",
+		"  -s, --silent                 Suppress progress output during installation",
+		"  -h, --help                   Display this help manual and exit safely",
+		"  --human                      Render interactive Box-Drawing summary table",
+		"",
+		styleText("bold", "READ-ONLY VERSION INSPECTION:"),
+		"  To check currently installed or framework version without updating:",
+		"  • npm run auditor:version",
+		"  • auditor --version",
+		""
+	].join("\n");
+}
 const UPDATE_PACKAGE_ARGS = {
 	...COMMON_CLI_ARGS,
+	check: {
+		type: "boolean",
+		alias: "c",
+		default: false,
+		description: "Check for available updates without applying changes (read-only)"
+	},
+	dryRun: {
+		type: "boolean",
+		default: false,
+		description: "Alias for --check"
+	},
 	silent: {
 		type: "boolean",
 		alias: "s",
@@ -224,18 +271,73 @@ const UPDATE_PACKAGE_ARGS = {
 		description: "Suppress console progress output"
 	}
 };
+const HELP_COMMAND_TOKENS = /* @__PURE__ */ new Set([
+	"help",
+	"--help",
+	"-h"
+]);
 function runCli() {
-	const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, getProcessCliArgs());
-	const targetVersion = parsed._.map(String)[0];
+	const rawArgs = getProcessCliArgs();
+	const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, rawArgs);
+	const rawFirstArg = parsed._.map(String)[0]?.trim();
+	if (Boolean(parsed.help || rawFirstArg && HELP_COMMAND_TOKENS.has(rawFirstArg))) {
+		console.log(renderUpdateHelp());
+		process.exit(0);
+	}
+	const isCheckMode = Boolean(parsed.check || parsed.dryRun);
+	const targetVersion = rawFirstArg && !rawFirstArg.startsWith("-") && rawFirstArg !== "help" ? rawFirstArg : void 0;
+	const silent = Boolean(parsed.silent);
+	const isHuman = resolveHumanModeFromArgs(parsed);
 	const result = updateAuditorPackage({
 		targetVersion,
-		silent: Boolean(parsed.silent)
+		silent,
+		checkOnly: isCheckMode
 	});
 	if (!result.success) {
-		console.error(styleText("red", `\n[Error] Failed to update @francogp/auditor: ${result.error}`));
+		console.error(styleText("red", `\n[Error] Failed to ${isCheckMode ? "check" : "update"} @francogp/auditor: ${result.error}`));
 		process.exit(1);
 	}
-	if (!resolveHumanModeFromArgs(parsed)) {
+	if (isCheckMode) {
+		if (!isHuman) {
+			const status = result.updateAvailable ? "UPDATE-AVAILABLE" : "UP-TO-DATE";
+			console.log(`[Check] Package: @francogp/auditor | Installed: ${result.previousVersion} | Latest: ${result.newVersion} | Status: ${status}`);
+			process.exit(0);
+		}
+		const columns = [{
+			header: "PARAMETER",
+			width: 26,
+			render: (r) => r.param
+		}, {
+			header: "VALUE / STATUS",
+			width: 48,
+			render: (r) => r.val
+		}];
+		const statusVal = result.updateAvailable ? "UPDATE AVAILABLE" : "UP TO DATE (NO ACTION REQUIRED)";
+		const rows = [
+			{
+				param: "Package",
+				val: "@francogp/auditor"
+			},
+			{
+				param: "Installed Version",
+				val: result.previousVersion
+			},
+			{
+				param: "Latest Available",
+				val: result.newVersion
+			},
+			{
+				param: "Status",
+				val: statusVal
+			}
+		];
+		console.log("\n" + renderBoxTable(columns, rows));
+		if (result.updateAvailable) console.log(styleText("yellow", `\n[Notice] A newer version of @francogp/auditor is available (v${result.previousVersion} -> ${result.newVersion}).\n         Run "npm run auditor:update" to upgrade.
+`));
+		else console.log(styleText("green", `\n[OK] @francogp/auditor is already up to date (v${result.previousVersion}).\n`));
+		process.exit(0);
+	}
+	if (!isHuman) {
 		const status = result.updated ? "UPDATED" : "UP-TO-DATE";
 		console.log(`[Update] Package: @francogp/auditor | Previous: ${result.previousVersion} | Installed: ${result.newVersion} | Status: ${status}`);
 		process.exit(0);
@@ -277,5 +379,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runCli();
 }
-//#endregion
-export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, readInstalledAuditorVersion, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };
+export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, readInstalledAuditorVersion, renderUpdateHelp, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };

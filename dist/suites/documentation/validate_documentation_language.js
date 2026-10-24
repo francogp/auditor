@@ -2,16 +2,17 @@ import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
-import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import "../../core/safePath.js";
+import "../../core/auditConfig.js";
+import { getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { extractContractSections, findLocalContractsHeaderLine, injectOrUpdateMandateInAgentsMd, matchesMandateLanguage } from "../../analyzers/agentsMandateAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
 import { franc } from "franc-min";
-//#region src/suites/documentation/validate_documentation_language.ts
+// src/suites/documentation/validate_documentation_language.ts
 /**
 * packages/auditor/src/suites/documentation/validate_documentation_language.ts
 *
@@ -352,11 +353,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 				"code-comment-unauthorized-language": "📖 REMEDIATION GUIDE: code-comment-unauthorized-language\n1. Root Cause: A source code comment (in .ts, .js, .vue files, etc.) was detected in an unauthorized language per `config.documentation.language`.\n2. Diagnosis: Review the reported line in the source code file.\n3. Canonical Solution:\n   a) Translate the comment into the canonical repository language (e.g., technical English).\n   b) If the comment was superfluous or redundant, delete it according to clean-code principles.\n4. Example:\n   ❌ Spanish comment: `comment in Spanish`\n   ✅ English comment:  `// Verify whether the token remains active`"
 			},
 			coverage: { include: ["**/*.md", ...dynamicCodeCoverage] },
-			unignoreDirs: [
-				".agents",
-				"skills",
-				"docs"
-			],
+			unignoreDirs: Array.from(getEffectiveUnignoreDirs(projectRoot)),
 			projectRoot
 		});
 		this.rootDir = projectRoot;
@@ -476,5 +473,4 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DocumentationLanguageAuditor());
-//#endregion
 export { CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN, CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES, DOCUMENTATION_LANGUAGE_RULES, DocumentationLanguageAuditor, containsLanguageMandate, evaluateParagraphLanguage, extractCommentsFromSource, extractProseFromComments, extractProseParagraphs, getCanonicalLanguageMandateSnippet, isLanguageExemptPath };

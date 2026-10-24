@@ -1,4 +1,4 @@
-//#region src/core/auditorEnvironment.ts
+// src/core/auditorEnvironment.ts
 /**
 * packages/auditor/src/core/auditorEnvironment.ts
 *
@@ -13,5 +13,4 @@
 function isProductionEnvironment() {
 	return process.env.AUDITOR_ENV === "production";
 }
-//#endregion
 export { isProductionEnvironment };

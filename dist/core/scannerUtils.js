@@ -1,4 +1,4 @@
-//#region src/core/scannerUtils.ts
+// src/core/scannerUtils.ts
 /**
 * packages/auditor/src/core/scannerUtils.ts
 *
@@ -220,5 +220,4 @@ function hasPrecedingComment(lines, lineIndex, directiveRegex, options) {
 	}
 	return false;
 }
-//#endregion
 export { DEFAULT_COMMENT_LOOKBACK_LINES, DEFAULT_FUNCTION_PARAMS_MAX_DISTANCE, advancePastStringOrComment, hasPrecedingComment, isPositionInsideFunctionParams, scanBalancedBraces, scanBalancedParens, stripComments, stripCommentsAndStrings };

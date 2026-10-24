@@ -1,4 +1,3 @@
-//#region src/cli/refactor_magic.d.ts
 /**
  * src/cli/refactor_magic.ts
  *
@@ -6,4 +5,3 @@
  * Provides interactive discovery, Super-Dirac batch inspection, and safe worktree application.
  */
 export declare function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void>;
-//#endregion

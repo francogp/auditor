@@ -132,7 +132,7 @@ export function bootstrapCliProject(argv: readonly string[] = process.argv): Cli
   const isRemote = path.resolve(auditorHomeDir) !== targetResolved;
 
   if (currentResolved !== targetResolved) {
-    process.chdir(targetResolved);
+    tryOrNull(() => process.chdir(targetResolved));
   }
 
   if (argv === process.argv && process.argv.length >= 2) {

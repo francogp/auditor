@@ -6,7 +6,7 @@ import { runSetup } from "./setup_env.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-//#region src/cli/check_environment.ts
+// src/cli/check_environment.ts
 /**
 * src/cli/check_environment.ts
 *
@@ -151,5 +151,4 @@ function checkEnvironment(targetDir = process.cwd(), autoRemediate = true) {
 if (isMainModule(import.meta.url)) {
 	if (!checkEnvironment()) process.exit(1);
 }
-//#endregion
 export { checkEnvironment, compareVersions, getAuditorEngines, parseSemver };

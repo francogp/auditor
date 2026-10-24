@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/npmrcAllowGit.ts
+// src/core/npmrcAllowGit.ts
 const NPMRC_ALLOW_GIT_LINE = "allow-git=all";
 /**
 * npm 12+ blocks git dependencies by default (`allow-git=none`). Persists `allow-git=all` in the
@@ -18,5 +18,4 @@ function ensureNpmrcAllowGit(projectRoot) {
 	].join("\n"), "utf-8");
 	return true;
 }
-//#endregion
 export { ensureNpmrcAllowGit };

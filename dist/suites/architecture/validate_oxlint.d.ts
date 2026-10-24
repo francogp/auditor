@@ -1,7 +1,6 @@
 import { AuditFinding, GitIgnoreRequirement } from "../../core/auditContract.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_oxlint.d.ts
 export declare const OXLINT_RULES: readonly ["oxlint-violation"];
 export type OxlintRuleId = (typeof OXLINT_RULES)[number];
 export type RawOxlintMessage = RawLintMessage;
@@ -45,4 +44,3 @@ export declare class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   constructor(options?: OxlintAuditorOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

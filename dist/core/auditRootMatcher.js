@@ -1,4 +1,4 @@
-//#region src/core/auditRootMatcher.ts
+// src/core/auditRootMatcher.ts
 /**
 * packages/auditor/src/core/auditRootMatcher.ts
 *
@@ -14,5 +14,4 @@ function matchesAnyRoot(normalizedPath, roots) {
 		return cleanRoot !== "" && (normalizedPath === cleanRoot || normalizedPath.startsWith(cleanRoot + "/") || normalizedPath.includes("/" + cleanRoot + "/"));
 	});
 }
-//#endregion
 export { matchesAnyRoot };

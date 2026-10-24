@@ -1,7 +1,6 @@
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditTaskDefinition, AuditorRuleCapabilities } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
-//#region src/cli/auditTaskFactory.d.ts
 export interface DiscoveryOptions {
   baseDir?: string;
   projectRoot?: string;
@@ -32,5 +31,4 @@ export declare function shouldSkipTaskByFilters(id: string, filename: string, fa
 export declare function shouldSkipTaskByCapabilities(capabilities: Partial<AuditorRuleCapabilities> | undefined, options: DiscoveryOptions): boolean;
 export declare function buildTaskCliArguments(filename: string, fullPath: string, id: string, isBuiltin: boolean, options: DiscoveryOptions): string[];
 export declare function createAuditTaskDefinition(fullPath: string, filename: string, family: AuditFamily, config: Awaited<ReturnType<typeof loadAuditConfig>>, options: DiscoveryOptions, isBuiltin: boolean, targetSuiteIds: Set<string> | null): Promise<AuditTaskDefinition | null>;
-//#endregion
 export { DEFAULT_PERMISSIONS };

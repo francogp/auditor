@@ -1,5 +1,4 @@
 import { FallowCloneGroup, MicroContextPacket } from "./refactorContracts.js";
-//#region src/core/refactor/microContextExtractor.d.ts
 export declare const MIN_DIRAC_TOKEN_THRESHOLD = 100;
 export declare class MicroContextExtractor {
   /**
@@ -16,4 +15,3 @@ export declare class MicroContextExtractor {
    */
   private analyzeDataflow;
 }
-//#endregion

@@ -2,7 +2,6 @@ import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { DomainFindingItem, DomainRefactorPlan } from "./refactorContracts.js";
 import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
-//#region src/core/refactor/domainRefactorEngine.d.ts
 export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan, DomainTypesAuditor> {
   readonly toolId = "auditor-domain";
   readonly configSectionKey: "domain";
@@ -29,4 +28,3 @@ export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindi
     readonly changesApplied: number;
   };
 }
-//#endregion

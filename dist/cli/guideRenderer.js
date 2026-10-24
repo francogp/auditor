@@ -1,7 +1,7 @@
 import { themeStyles } from "../core/unifiedTheme.js";
 import { styleText } from "node:util";
 import boxen from "boxen";
-//#region src/cli/guideRenderer.ts
+// src/cli/guideRenderer.ts
 /**
 * src/cli/guideRenderer.ts
 *
@@ -97,5 +97,4 @@ function renderGlobalGuideIndex(allTasks) {
 	lines.push(dim(`Total documented rules available in this repository: ${totalRules}\n`));
 	return lines.join("\n");
 }
-//#endregion
 export { findRuleGuide, renderFamilyGuideIndex, renderGlobalGuideIndex, renderRuleGuideCard, renderSuiteGuideCards };

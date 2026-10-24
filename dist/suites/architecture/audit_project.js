@@ -1,18 +1,21 @@
 import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
-import { loadAuditConfig } from "../../core/auditConfigLoader.js";
+import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";
 import { matchesRule } from "../../analyzers/auditRuleTypes.js";
 import { auditRulesConfig } from "./audit_rules.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-import fs from "node:fs/promises";
+import fs from "node:fs";
+import fs$1 from "node:fs/promises";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";
-//#region src/suites/architecture/audit_project.ts
+// src/suites/architecture/audit_project.ts
 /**
 * scripts/audit_project.ts
 *
@@ -32,13 +35,18 @@ const AUDIT_EXTENSIONS = /* @__PURE__ */ new Set([
 	".js",
 	".md"
 ]);
-async function getFilesToAudit(dir) {
+async function getFilesToAudit(dir, roots) {
 	const files = [];
-	const pattern = `**/*{${Array.from(AUDIT_EXTENSIONS).join(",")}}`;
-	for await (const entry of fs.glob(pattern, {
-		cwd: dir,
-		exclude: (p) => isPathIgnored(p)
-	})) files.push(path.resolve(dir, entry));
+	const effectiveRoots = roots && roots.length > 0 ? roots : ["."];
+	for (const root of effectiveRoots) {
+		const fullRoot = path.resolve(dir, root);
+		if (!fs.existsSync(fullRoot)) continue;
+		const pattern = `**/*{${Array.from(AUDIT_EXTENSIONS).join(",")}}`;
+		for await (const entry of fs$1.glob(pattern, {
+			cwd: fullRoot,
+			exclude: (p) => isPathIgnored(root === "." ? p : path.join(root, p))
+		})) files.push(path.resolve(fullRoot, entry));
+	}
 	return files;
 }
 function prependRequiredImports(block, rules) {
@@ -191,7 +199,7 @@ function auditStylesOrVueStyles(params) {
 }
 async function auditFile(filePath, fix, activeConfigRules) {
 	const violations = [];
-	let content = await fs.readFile(filePath, "utf-8");
+	let content = await fs$1.readFile(filePath, "utf-8");
 	let modified = false;
 	const isVue = filePath.endsWith(".vue");
 	const isLogic = filePath.endsWith(".ts") || filePath.endsWith(".js");
@@ -223,7 +231,7 @@ async function auditFile(filePath, fix, activeConfigRules) {
 		content = styleRes.content;
 		if (styleRes.modified) modified = true;
 	}
-	if (fix && modified) await fs.writeFile(filePath, content, "utf-8");
+	if (fix && modified) await fs$1.writeFile(filePath, content, "utf-8");
 	return violations;
 }
 function isInsideComment(content, index) {
@@ -560,7 +568,7 @@ function renderHumanTerminalReport(fileGroups, typeGroups, topFiles, errorsCount
 async function exportProjectReportOutput(values, jsonReport, all, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, logProgress) {
 	if (!values.output) return;
 	const outputPath = path.resolve(process.cwd(), values.output);
-	if (outputPath.endsWith(".json")) await fs.writeFile(outputPath, JSON.stringify(jsonReport, null, 2), "utf-8");
+	if (outputPath.endsWith(".json")) await fs$1.writeFile(outputPath, JSON.stringify(jsonReport, null, 2), "utf-8");
 	else if (outputPath.endsWith(".md")) {
 		let md = `# Reporte de Auditoría del Proyecto\n\n`;
 		md += `**Estado**: ${errorsCount === 0 ? "✅ Aprobado" : "❌ Fallido"}\n\n`;
@@ -576,10 +584,10 @@ async function exportProjectReportOutput(values, jsonReport, all, fileGroups, ty
 		topFiles.forEach((f) => {
 			md += `| \`${f.file}\` | ${f.errors} | ${f.warnings} | ${f.total} |\n`;
 		});
-		await fs.writeFile(outputPath, md, "utf-8");
+		await fs$1.writeFile(outputPath, md, "utf-8");
 	} else {
 		const lines = all.map((v) => `[${v.severity.toUpperCase()}] ${path.relative(process.cwd(), v.file)}:${v.line} -> [${getViolationCategory(v)}] ${v.message} ("${sanitizeContext(v.context)}")`);
-		await fs.writeFile(outputPath, lines.join("\n"), "utf-8");
+		await fs$1.writeFile(outputPath, lines.join("\n"), "utf-8");
 	}
 	logProgress(styleText("cyan", `✨ Reporte completo escrito en: ${outputPath}`));
 }
@@ -640,12 +648,12 @@ function buildProjectJsonReport(params) {
 }
 async function persistProjectReports(jsonReport) {
 	const scratchArchDir = path.resolve(process.cwd(), "scratch/audits/architecture");
-	await fs.mkdir(scratchArchDir, { recursive: true });
+	await fs$1.mkdir(scratchArchDir, { recursive: true });
 	const archJsonPath = path.join(scratchArchDir, "audit_project.json");
 	const latestArchJsonPath = path.resolve(process.cwd(), "scratch/audits/latest_audit_project.json");
 	const jsonReportStr = JSON.stringify(jsonReport, null, 2);
-	await fs.writeFile(archJsonPath, jsonReportStr, "utf-8");
-	await fs.writeFile(latestArchJsonPath, jsonReportStr, "utf-8");
+	await fs$1.writeFile(archJsonPath, jsonReportStr, "utf-8");
+	await fs$1.writeFile(latestArchJsonPath, jsonReportStr, "utf-8");
 	return {
 		archJsonPath,
 		jsonReportStr
@@ -740,8 +748,13 @@ function getProjectArchitectureRuleRemediationPhases() {
 	return phases;
 }
 var ProjectArchitectureAuditor = class extends BaseAuditor {
+	effectiveRoots;
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
+		const cfg = getAuditConfig(projectRoot);
+		const defaultCodeRoots = DEFAULT_AUDIT_CONFIG.paths?.codeRoots ?? [];
+		const defaultTestRoots = DEFAULT_AUDIT_CONFIG.paths?.testRoots ?? [];
+		const resolvedRoots = options.roots && options.roots.length > 0 ? options.roots : [...cfg.paths?.codeRoots ?? defaultCodeRoots, ...cfg.paths?.testRoots ?? defaultTestRoots];
 		const ruleDescriptions = getProjectArchitectureRuleDescriptions();
 		const ruleRemediations = getProjectArchitectureRuleRemediations();
 		const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
@@ -774,15 +787,16 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 			criticalConfig: {},
 			icon: "🏛️",
 			coverage: {
-				include: ["**/*.{vue,scss,css,ts,js,md}"],
+				...deriveCoverageFromRoots(resolvedRoots, AUDIT_EXTENSIONS, projectRoot),
 				exclude: [path.posix.join(AUDITOR_DIR, "**")]
 			},
 			projectRoot
 		});
+		this.effectiveRoots = resolvedRoots;
 	}
 	async runAudit() {
 		activeProjectRuleTimings.clear();
-		const files = await getFilesToAudit(this.projectRoot);
+		const files = await getFilesToAudit(this.projectRoot, this.effectiveRoots);
 		for (const f of files) this.recordScanned(f);
 		for (const r of Object.keys(this.ruleDescriptions ?? {})) {
 			this.markRuleEvaluated(r);
@@ -806,5 +820,4 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ProjectArchitectureAuditor());
-//#endregion
 export { ProjectArchitectureAuditor, activeProjectRuleTimings, applyRuleFix, buildProjectTopFiles, createLineLocator, extractAllBlocks, extractSelectedRules, filterActiveConfigRules, filterAndGroupViolations, getProjectArchitectureRuleDescriptions, getProjectArchitectureRuleRemediationPhases, getProjectArchitectureRuleRemediations, getViolationCategory, isInsideComment, main, runRules };

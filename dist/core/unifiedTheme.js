@@ -9,7 +9,7 @@ import path from "node:path";
 import { styleText } from "node:util";
 import boxen from "boxen";
 import Table from "cli-table3";
-//#region src/core/unifiedTheme.ts
+// src/core/unifiedTheme.ts
 /**
 * scripts/lib/unifiedTheme.ts
 *
@@ -312,7 +312,7 @@ function renderSetupBlockingBanner(setupErrors, postponedAppErrors, hints) {
 	const lines = [
 		styleText(["bold", "white"], `Detected ${styleText("red", setupErrorStr)} error(s) in Configuration, Dependency, and Script suites.`),
 		styleText(["bold", "yellow"], "THESE ERRORS MUST BE FIXED FIRST BEFORE TOUCHING CODE OR STYLES."),
-		styleText("dim", `To prevent induced false positives, reporting of ${postponedStr} application error(s) was postponed.`),
+		styleText("dim", postponedAppErrors > 0 ? `To prevent induced false positives, reporting of ${postponedStr} application error(s) was postponed.` : "Downstream application code and stylesheet checks are halted until setup errors are resolved."),
 		""
 	];
 	if (hints?.hasEngineMismatch) lines.push(styleText(["bold", "white"], "Imperative Step 1 — Synchronize runtime engine version:"), styleText(["bold", "cyan"], "  👉  nvm use / fnm use   (or install required version in .node-version)"));
@@ -626,5 +626,4 @@ function renderConsolidatedFooter(suitesTotal, suitesPassed, totalErrors, totalW
 		}
 	})}\n`;
 }
-//#endregion
 export { AUDIT_BADGE_STATUSES, COUNT_BADGE_COLORS, DURATION_PAD_LENGTH, NOTICE_BOX_COLORS, TASK_NAME_COL_WIDTH, TEXT_ALIGNMENTS, buildNoticeBox, extractPhaseBreakdown, formatDuration, formatDurationMs, formatFindingEntry, formatNumber, formatSampleErrorLine, formatStatusBadge, groupFindingsByFile, padVisual, renderAuditTaskRow, renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderBoxTable, renderCliHelp, renderConsolidatedFooter, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary, renderFamilyHeader, renderFindingsBreakdownTable, renderFindingsByFileTree, renderFindingsDetail, renderMarkdownReport, renderSampleErrors, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable, stringWidth, themeStyles, truncateVisual };

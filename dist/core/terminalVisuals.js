@@ -1,5 +1,5 @@
 import stringWidth, { default as stringWidth$1 } from "string-width";
-//#region src/core/terminalVisuals.ts
+// src/core/terminalVisuals.ts
 /**
 * packages/auditor/src/core/terminalVisuals.ts
 *
@@ -33,5 +33,4 @@ function truncateVisual(str, maxWidth) {
 	}
 	return result + ellipsis;
 }
-//#endregion
 export { TEXT_ALIGNMENTS, padVisual, stringWidth, truncateVisual };

@@ -1,7 +1,6 @@
 import { TableColumn } from "../unifiedTheme.js";
 import { CommandDef } from "../cli/cittyHarness.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
-//#region src/core/refactor/refactorCliHarness.d.ts
 export interface DiracInspectionItem {
   readonly line: number;
   readonly kind: string;
@@ -81,5 +80,4 @@ export declare function formatCliRelativeFilePath(relPath: string): string;
  */
 export declare function createRefactorCli<TFinding, TPlan>(def: RefactorCliDefinition<TFinding, TPlan>): CommandDef<typeof REFACTOR_HARNESS_ARGS>;
 export declare function runRefactorCliHarness<TFinding, TPlan>(def: RefactorCliDefinition<TFinding, TPlan>, argv?: readonly string[]): Promise<void>;
-//#endregion
 export {};

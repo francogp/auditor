@@ -2,7 +2,6 @@ import { AuditRule, Violation } from "../../analyzers/auditRuleTypes.js";
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "./audit_rules.js";
-//#region src/suites/architecture/audit_project.d.ts
 export declare function isInsideComment(content: string, index: number): boolean;
 export declare function createLineLocator(content: string, offset: number): (idx: number) => number;
 export declare function applyRuleFix(rule: AuditRule, content: string, filePath: string): string;
@@ -41,10 +40,11 @@ export declare function getProjectArchitectureRuleRemediations(): Record<string,
 export declare function getProjectArchitectureRuleRemediationPhases(): Record<string, RemediationPhaseId>;
 export interface AuditProjectOptions {
   readonly projectRoot?: string;
+  readonly roots?: readonly string[];
 }
 export declare class ProjectArchitectureAuditor extends BaseAuditor<string> {
+  private readonly effectiveRoots;
   constructor(options?: AuditProjectOptions);
   runAudit(): Promise<void>;
 }
-//#endregion
 export {};

@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_typography_line_height.ts
+// src/suites/architecture/validate_typography_line_height.ts
 /**
 * scripts/auditors/architecture/validate_typography_line_height.ts
 *
@@ -144,5 +144,4 @@ var TypographyLineHeightAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new TypographyLineHeightAuditor());
-//#endregion
 export { TYPOGRAPHY_LINE_HEIGHT_RULES, TypographyLineHeightAuditor };

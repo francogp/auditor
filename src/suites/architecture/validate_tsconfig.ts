@@ -17,12 +17,12 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import { safeReadFileSync, tryOrNull } from '../../core/safeUtils.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 
 import ts from 'typescript';
 
@@ -81,7 +81,10 @@ export const CANONICAL_TSCONFIG: TsConfigShape = {
     esModuleInterop: true,
     resolveJsonModule: true
   },
-  include: ['src/**/*', 'tests/**/*'],
+  include: [
+    ...DEFAULT_AUDIT_CONFIG.paths.srcRoots.map((r) => `${r}/**/*`),
+    ...DEFAULT_AUDIT_CONFIG.paths.testRoots.map((r) => `${r}/**/*`)
+  ],
   exclude: ['node_modules', 'dist', 'scratch']
 };
 
@@ -117,33 +120,22 @@ export const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId> 
   generateDefaultContent: () => JSON.stringify(CANONICAL_TSCONFIG, null, 2) + '\n'
 };
 
+export interface ValidateTsconfigOptions {
+  readonly projectRoot?: string;
+  readonly fix?: boolean;
+  readonly configFile?: string;
+}
+
 export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<TsConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<TsConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  constructor(options: ValidateTsconfigOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<TsConfigRuleId> = {
       ...TSCONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
@@ -225,9 +217,10 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       coverage: {
         include: ['tsconfig*.json']
       },
+      cachePaths: ['.tsbuildinfo'],
       projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      fix: options.fix,
+      ...options
     });
   }
 

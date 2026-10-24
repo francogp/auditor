@@ -1,4 +1,3 @@
-//#region src/cli/refactor_domain.d.ts
 /**
  * src/cli/refactor_domain.ts
  *
@@ -7,4 +6,3 @@
  * for naked string parameters, unfrozen domain catalogs, and unbranded ID types.
  */
 export declare function runRefactorDomainCli(argv?: readonly string[]): Promise<void>;
-//#endregion

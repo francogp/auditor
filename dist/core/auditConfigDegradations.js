@@ -1,13 +1,13 @@
 import { AUDIT_CONFIG_FILE } from "./auditConfigTypes.js";
 import { tryCatchSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import "./auditConfig.js";
 import "./safePath.js";
+import "./auditConfig.js";
 import { appendMissingSectionsToConfigFile, formatSectionObjectLiteral, parseAuditConfigFileAst } from "./auditConfigAst.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/core/auditConfigDegradations.ts
+// src/core/auditConfigDegradations.ts
 /**
 * src/core/auditConfigDegradations.ts
 *
@@ -166,5 +166,4 @@ function applyAcknowledgedDegradationsFix(projectRoot, missing) {
 	const finalCode = base + ((hasElements ? "\n" : "\n") + formattedItems + "\n    ") + code.slice(closeBracketPos);
 	fs.writeFileSync(configFilePath, finalCode, "utf8");
 }
-//#endregion
 export { applyAcknowledgedDegradationsFix, collectRelativeCodeFiles, detectUnacknowledgedDegradations };

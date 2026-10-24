@@ -1,6 +1,5 @@
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import ts from "typescript";
-//#region src/suites/architecture/validate_pinia_reactivity.d.ts
 export type PiniaReactivityRuleId = 'no-store-destructuring-without-storetorefs' | 'no-direct-state-mutation-outside-actions';
 export declare const PINIA_REACTIVITY_RULES: readonly PiniaReactivityRuleId[];
 export declare const DEFAULT_AUTHORIZED_STATE_MUTATION_FILES: readonly string[];
@@ -15,4 +14,3 @@ export declare class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactiv
   private checkStateMutation;
   protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void;
 }
-//#endregion

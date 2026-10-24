@@ -7,7 +7,6 @@
  *   1. Guarantees .npmrc exists on disk; auto-scaffolds in --fix mode.
  *   2. Guarantees mandatory reproducibility directives:
  *      - engine-strict=true (enforces package.json engines)
- *      - save-exact=true (pins exact dependency versions)
  *      - package-lock=true (ensures deterministic tree resolution)
  *   3. Preserves existing private tokens, custom registries, and comments without destruction.
  */
@@ -35,7 +34,6 @@ export type NpmrcConfigRuleId = (typeof NPMRC_CONFIG_RULES)[number];
 export const CANONICAL_NPMRC_LINES = [
   '# Estandares de reproducibilidad de paquetes (francogp/auditor)',
   'engine-strict=true',
-  'save-exact=true',
   'package-lock=true',
   ''
 ] as const;
@@ -44,7 +42,6 @@ export const CANONICAL_NPMRC_CONTENT = CANONICAL_NPMRC_LINES.join('\n');
 
 export const MANDATORY_NPMRC_SETTINGS: readonly { key: string; expected: string }[] = [
   { key: 'engine-strict', expected: 'true' },
-  { key: 'save-exact', expected: 'true' },
   { key: 'package-lock', expected: 'true' }
 ] as const;
 
@@ -130,7 +127,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
           '   `npm run auditor:fix`',
         'npmrc-config-missing-setting':
           '📖 REMEDIATION GUIDE: npmrc-config-missing-setting\n' +
-          '1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, save-exact=true, package-lock=true).\n' +
+          '1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, package-lock=true).\n' +
           '2. Diagnosis: Inspect existing `.npmrc` directives against mandatory settings.\n' +
           '3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to append or correct directives while preserving registries and tokens.\n' +
           '4. Example / Auto-fix command:\n' +

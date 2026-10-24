@@ -2,17 +2,16 @@
 import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
 import { parseJsonObjectOutput } from "../core/reportUtils.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import "../core/safePath.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
 import { execSync } from "node:child_process";
-//#region src/cli/report_complexity.ts
+// src/cli/report_complexity.ts
 /**
 * src/cli/report_complexity.ts
 */
@@ -345,5 +344,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runComplexityReport();
 }
-//#endregion
 export { FILE_PATH_TAIL_CHARS, MAX_FILE_PATH_DISPLAY_LENGTH, MAX_FUNCTION_NAME_CHARS, MAX_RECOMMENDATION_CHARS, MAX_RECOMMENDED_COGNITIVE, MAX_RECOMMENDED_CYCLOMATIC, MAX_RECOMMENDED_LOC, runComplexityReport };

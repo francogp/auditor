@@ -1,16 +1,16 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
+import "../../core/safePath.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { advancePastStringOrComment, scanBalancedBraces, scanBalancedParens } from "../../core/scannerUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_gsap_animations.ts
+// src/suites/architecture/validate_gsap_animations.ts
 /**
 * src/suites/architecture/validate_gsap_animations.ts
 *
@@ -617,5 +617,4 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGsapAnimationsAuditor());
-//#endregion
 export { BANNED_CSS_ANIMATIONS_REGEX, BANNED_UI_TIMERS_REGEX, CONTEXT_WINDOW_SPAN_CHARS, EMPTY_VUE_TRANSITIONS_REGEX, GPU_FILTER_REGEX, GSAP_ANIMATION_RULES, GSAP_LAYOUT_PROPERTIES, GSAP_TWEEN_CALL_REGEX, GSAP_TWEEN_CONFIG_SEARCH_WINDOW_CHARS, NO_IMPORTANT_ON_FILTERS_REGEX, NO_IMPORTANT_ON_TRANSFORMS_REGEX, ValidateGsapAnimationsAuditor };

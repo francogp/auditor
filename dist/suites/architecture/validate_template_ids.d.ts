@@ -1,5 +1,4 @@
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_template_ids.d.ts
 export type TemplateIdRuleId = 'template-duplicate-static-id' | 'template-shared-static-id' | 'template-missing-input-id';
 export declare const TEMPLATE_ID_RULES: readonly TemplateIdRuleId[];
 export interface TemplateIdAuditorOptions extends FileScanRootsOptions {
@@ -17,4 +16,3 @@ export declare class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId>
   private checkSingleIdCollisions;
   runAudit(): Promise<void>;
 }
-//#endregion

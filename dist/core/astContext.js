@@ -5,7 +5,7 @@ import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/core/astContext.ts
+// src/core/astContext.ts
 /**
 * scripts/lib/astContext.ts
 *
@@ -112,5 +112,4 @@ function printAstNode(node, printer = ts.createPrinter({ newLine: ts.NewLineKind
 	const dummy = createSyntheticSourceFile();
 	return printer.printNode(hint, node, dummy);
 }
-//#endregion
 export { SharedAstContext, createSyntheticSourceFile, printAstNode };

@@ -1,4 +1,3 @@
-//#region src/core/versionAnalyzer.d.ts
 /**
  * src/core/versionAnalyzer.ts
  *
@@ -74,4 +73,3 @@ export declare function collectGitDiffMetrics(cwd?: string, baseRef?: string): D
  * Analyzes diff metrics and commit intent to suggest the optimal SemVer bump.
  */
 export declare function analyzeVersionBump(options?: VersionAnalysisOptions): VersionAnalysisResult;
-//#endregion

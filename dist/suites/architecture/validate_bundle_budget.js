@@ -1,16 +1,16 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
-//#region src/suites/architecture/validate_bundle_budget.ts
+// src/suites/architecture/validate_bundle_budget.ts
 /**
 * scripts/auditors/architecture/validate_bundle_budget.ts
 *
@@ -280,5 +280,4 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new BundleBudgetAuditor());
-//#endregion
 export { BUNDLE_BUDGET_RULES, BundleBudgetAuditor, DEFAULT_FORBIDDEN_VALUE_IMPORTS_UI, getForbiddenValueImportsUI };

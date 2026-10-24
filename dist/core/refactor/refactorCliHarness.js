@@ -5,7 +5,7 @@ import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
-//#region src/core/refactor/refactorCliHarness.ts
+// src/core/refactor/refactorCliHarness.ts
 /**
 * src/core/refactor/refactorCliHarness.ts
 *
@@ -186,5 +186,4 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 			process.exit(1);
 	}
 }
-//#endregion
 export { createRefactorCli, formatCliRelativeFilePath, runRefactorCliHarness };

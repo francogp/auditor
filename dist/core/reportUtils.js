@@ -2,7 +2,7 @@ import { safeJsonParse } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { styleText } from "node:util";
-//#region src/core/reportUtils.ts
+// src/core/reportUtils.ts
 /**
 * @file reportUtils.ts
 * @description Shared utilities for report formatting and validation script output.
@@ -176,5 +176,4 @@ function extractJsonReportFilePaths(rawJson, fallbackFindings) {
 	}
 	return result;
 }
-//#endregion
 export { MAX_REPORT_SAMPLE_ITEMS, extractJsonReportFilePaths, isPathExempt, normalizePosixPath, parseJsonArrayOutput, parseJsonObjectOutput, parseLintResultsToFindings, printConsoleHeader, printConsoleSummary, writeReportFile };

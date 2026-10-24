@@ -17,6 +17,9 @@ import {
   type CoverageSource
 } from './auditContract.ts';
 import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from './safeUtils.ts';
+import { CANONICAL_BINARY_EXTENSIONS } from './canonicalIgnoreRegistry.ts';
+import { getAuditConfig } from './auditConfigLoader.ts';
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 
 export type { CoverageLedger };
 
@@ -33,16 +36,8 @@ export function resolveActiveCoverageRunId(): string | undefined {
   return runId && runId.trim().length > 0 ? runId : undefined;
 }
 
-/** Converts an absolute or relative path into a POSIX path relative to the project root. */
-export function toPosixRelative(projectRoot: string, filePath: string): string {
-  if (!filePath) return '';
-  const rel = path.isAbsolute(filePath) ? path.relative(projectRoot, filePath) : filePath;
-  const posix = rel.replaceAll(path.win32.sep, path.posix.sep);
-  const withoutLeadingDot = posix.startsWith('./') ? posix.slice(2) : posix;
-  return withoutLeadingDot.endsWith('/') && withoutLeadingDot.length > 1
-    ? withoutLeadingDot.slice(0, -1)
-    : withoutLeadingDot;
-}
+import { toPosixRelative } from './safePath.ts';
+export { toPosixRelative };
 
 export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean {
   return globs.some((glob) => {
@@ -55,89 +50,13 @@ export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): 
   });
 }
 
-export const DEFAULT_NON_AUDITABLE_GLOBS: readonly string[] = Object.freeze([
-  // Lockfiles & VCS metadata
-  'package-lock.json',
-  'pnpm-lock.yaml',
-  'yarn.lock',
-  'bun.lockb',
-  'skills-lock.json',
-  '**/*skills-lock.json',
-  '**/.gitkeep',
-  '**/.gitignore',
-  '**/.gitattributes',
-  '.nvmrc',
-  '.node-version',
-  '.npmrc',
-  '.replit',
-  // Tooling configs & build caches
-  '.prettierrc*',
-  '.prettierignore',
-  '.markdownlintignore',
-  '**/*.tsbuildinfo',
-  // Binary & media assets
-  '**/*.{png,jpg,jpeg,gif,webp,ico,bmp,tiff,avif}',
-  '**/*.{mp3,ogg,wav,flac,mp4,webm,avi,mov}',
-  '**/*.{woff,woff2,ttf,eot,otf}',
-  '**/*.{db,sqlite,sqlite3,wasm,zip,tar,tar.gz,tgz}',
-  // Test fixtures & backup dumps
-  '**/fixtures/**',
-  '**/canaries/**',
-  '**/*.canary',
-  '**/backups/**',
-  // Environment bootstrap scripts & setup plugins
-  'setup-linux.sh',
-  'setup-windows.ps1',
-  'update-linux.sh',
-  'update-windows.ps1',
-  'scripts/setup/plugins/**',
-  '.env.example',
-  '**/*.sample',
-  // Legal documentation & licenses
-  'LICENSE*'
-]);
-
-export const FAST_NON_AUDITABLE_EXTENSIONS: ReadonlySet<string> = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.gif',
-  '.webp',
-  '.ico',
-  '.bmp',
-  '.tiff',
-  '.avif',
-  '.mp3',
-  '.ogg',
-  '.wav',
-  '.flac',
-  '.mp4',
-  '.webm',
-  '.avi',
-  '.mov',
-  '.woff',
-  '.woff2',
-  '.ttf',
-  '.eot',
-  '.otf',
-  '.db',
-  '.sqlite',
-  '.sqlite3',
-  '.wasm',
-  '.zip',
-  '.tar',
-  '.gz',
-  '.tgz'
-]);
-
-/** Whether a file is part of the auditable codebase (excluding binaries, lockfiles, and tooling meta). */
+/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
 export function isAuditableCodebaseFile(
   relPosixPath: string,
   customExemptGlobs: readonly string[] = []
 ): boolean {
   const ext = path.posix.extname(relPosixPath).toLowerCase();
-  if (ext && FAST_NON_AUDITABLE_EXTENSIONS.has(ext)) return false;
-  if (matchesAnyGlob(relPosixPath, DEFAULT_NON_AUDITABLE_GLOBS)) return false;
+  if (ext && CANONICAL_BINARY_EXTENSIONS.has(ext)) return false;
   if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;
   return true;
 }
@@ -157,7 +76,14 @@ export function deriveCoverageFromRoots(
   extensions: ReadonlySet<string>,
   projectRoot: string = process.cwd()
 ): AuditorCoverageDeclaration {
-  const effectiveRoots = roots.length > 0 ? roots : ['src', 'scripts', 'tests'];
+  const config = getAuditConfig(projectRoot);
+  const effectiveRoots =
+    roots.length > 0
+      ? roots
+      : [
+          ...(config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
+          ...(config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots)
+        ];
   const include: string[] = []; // string-ok: dynamic file glob patterns derived at runtime
   for (const root of effectiveRoots) {
     const cleanRoot = toPosixRelative(projectRoot, root);

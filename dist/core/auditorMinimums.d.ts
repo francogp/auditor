@@ -1,5 +1,4 @@
 import { DependencyLocation } from "fallow/types";
-//#region src/core/auditorMinimums.d.ts
 export type AuditorMinimumVersions = Readonly<Record<string, string>>;
 export interface DependencyMaximumSpec {
   readonly ceiling: string;
@@ -43,4 +42,3 @@ export interface ProjectDependenciesReport {
   readonly devInstallCommand?: string;
 }
 export declare function evaluateProjectDependencies(projectRoot?: string): ProjectDependenciesReport;
-//#endregion

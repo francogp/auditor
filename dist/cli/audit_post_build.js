@@ -7,7 +7,7 @@ import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-//#region src/cli/audit_post_build.ts
+// src/cli/audit_post_build.ts
 /**
 * src/cli/audit_post_build.ts
 *
@@ -41,5 +41,4 @@ if (isMainModule(import.meta.url)) {
 	const exitCode = await runAuditPostBuild(getProcessCliArgs());
 	process.exit(exitCode);
 }
-//#endregion
 export { runAuditPostBuild };

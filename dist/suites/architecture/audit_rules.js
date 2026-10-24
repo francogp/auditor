@@ -1,11 +1,11 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
+import "../../core/safePath.js";
 import { isInCodeRoots, isScriptPath } from "../../core/auditCodeRoots.js";
 import { Z_LAYERS } from "../../core/auditZLayers.js";
 import { isDataPath, isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import "../../core/safePath.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { AUDIT_SEVERITIES, getLineAtMatch, isCommentLine, isTestOrNodeModules, matchesRule, normalizeFilePath } from "../../analyzers/auditRuleTypes.js";
 import { CANONICAL_INFRA_ID_WHITELIST } from "../domain_data/validate_domain_types.js";
@@ -13,7 +13,7 @@ import { DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, badConstantNames, isAuditabl
 import { CANONICAL_DEFAULT_Z_LAYERS, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_SORTED_ENTRIES, Z_VALUE_MAP, resolveZLayer, zIndexAudit, zIndexConstantDeclaration } from "../../analyzers/zIndexRules.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/audit_rules.ts
+// src/suites/architecture/audit_rules.ts
 /**
 * scripts/maintenance/audit_rules.ts
 *
@@ -611,5 +611,4 @@ for (const [key, rule] of Object.entries(auditRulesConfig)) {
 		r.aliases = [key.toLowerCase(), ...keyParts];
 	}
 }
-//#endregion
 export { AUDIT_SEVERITIES, CANONICAL_DEFAULT_Z_LAYERS, DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, FALLOW_SUITE_DESCRIPTORS, SASS_MIGRATOR_DESCRIPTOR, Z_INDEX_CONSISTENCY_DESCRIPTOR, Z_LAYERS, Z_SORTED_ENTRIES, Z_VALUE_MAP, auditRulesConfig, badConstantNames, esmExtensions, explicitResource, forbiddenFallbacks, forbiddenTypeCasts, functionCallsInTemplates, getDomainIdFallbackRegex, getLineAtMatch, hardcodedTimezone, intersectionObserverRoot, isAllowedDatabaseFile, isAuditableCodeFile, isCommentLine, isConstantNameExemptFromNumericSuffixCheck, isDomainAuditTarget, isTestOrNodeModules, jsonStringifyInWatch, legacyDates, matchesRule, noAliasConstants, noDomainIdFallbacks, noFloatingPromises, noInlineAnonymousObjectType, noInlineLiteralUnions, noInlineTypeImports, noLeakedGlobalState, noLiteralBooleanType, noLiteralSuffixInConstantName, noRawJsonImportsOutsideData, noSassAtImport, nodePrefix, normalizeFilePath, resolveZLayer, strictDomainParamTypes, timersPromises, tsIgnore, viewport, zIndexAudit, zIndexConstantDeclaration, zeroTimerLogic };

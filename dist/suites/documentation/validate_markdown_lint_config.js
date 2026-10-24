@@ -2,7 +2,7 @@ import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilit
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/documentation/validate_markdown_lint_config.ts
+// src/suites/documentation/validate_markdown_lint_config.ts
 /**
 * src/suites/documentation/validate_markdown_lint_config.ts
 *
@@ -195,5 +195,4 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateMarkdownLintConfigAuditor());
-//#endregion
 export { CANONICAL_MARKDOWNLINT_CONFIG, MARKDOWNLINT_CONFIG_REQUIREMENT, MARKDOWNLINT_CONFIG_RULES, ValidateMarkdownLintConfigAuditor };

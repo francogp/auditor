@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/packageJsonDetector.ts
+// src/analyzers/homebrew/detectors/packageJsonDetector.ts
 /**
 * src/analyzers/homebrew/detectors/packageJsonDetector.ts
 *
@@ -14,5 +14,4 @@ const packageJsonDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { packageJsonDetector };

@@ -68,8 +68,14 @@ export function resolveProductionRef(
   configuredRef = 'origin/main',
   skipNetwork = false
 ): string | null {
+  // Fast check: verify if projectRoot is inside a git repository
+  const isGitRepo = runGit(projectRoot, ['rev-parse', '--is-inside-work-tree']);
+  if (!isGitRepo.ok || isGitRepo.stdout.trim() !== 'true') {
+    return null;
+  }
+
   // 1. If network check is allowed, probe remote git ls-remote to verify authentic remote ref
-  if (!skipNetwork) {
+  if (!skipNetwork && !process.env.AUDIT_SUBPROCESS && !process.env.VITEST) {
     const branchName = configuredRef.replace(/^origin\//, '');
     const remoteCheck = runGit(projectRoot, ['ls-remote', '--heads', 'origin', branchName]);
     if (remoteCheck.ok && remoteCheck.stdout.trim().length > 0) {

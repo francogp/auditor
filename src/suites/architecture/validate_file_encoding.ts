@@ -19,7 +19,8 @@ import {
   BaseAuditor,
   FileScanAuditor,
   type AuditorOptions,
-  createRuleCapabilities
+  createRuleCapabilities,
+  getEffectiveIgnoreGlobs
 } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import type { RemediationPhaseId } from '../../core/auditContract.ts';
@@ -390,13 +391,11 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       roots,
       allowedExtensions,
       exemptPaths,
-      extraIgnorePatterns: [
-        'scratch/**',
-        'dist/**',
-        'coverage/**',
-        'node_modules/**',
-        ...(config.encoding?.exemptGlobs ?? [])
-      ],
+      extraIgnorePatterns: Array.from(
+        getEffectiveIgnoreGlobs(projectRoot, {
+          extraGlobs: config.encoding?.exemptGlobs ?? []
+        })
+      ),
       projectRoot,
       fix: optionsObj?.fix
     });

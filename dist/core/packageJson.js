@@ -1,7 +1,7 @@
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/packageJson.ts
+// src/core/packageJson.ts
 /**
 * src/core/packageJson.ts
 *
@@ -51,5 +51,4 @@ function writePackageJson(projectRoot, data) {
 	fs.writeFileSync(pkgPath, JSON.stringify(data, null, 2) + "\n", "utf-8");
 	packageJsonCache.set(pkgPath, data);
 }
-//#endregion
 export { PACKAGE_JSON_TYPES, clearPackageJsonCache, getPackageJson, writePackageJson };

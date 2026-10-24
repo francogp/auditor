@@ -1244,6 +1244,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       ),
       fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
       configFiles: [configRequirement],
+      cachePaths: ['dist', 'dev-dist'],
       fix: options.fix,
       id: 'validate_vite_plus_config',
       name: 'Vite+ Unified Configuration Validator',

@@ -1,7 +1,5 @@
 import { sanitizePath } from "./auditConfigLoader.js";
-import { toPosixRelative } from "./auditCoverage.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
-//#region src/core/safePath.d.ts
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
  * Prevents directory traversal attacks (CWE-22).
@@ -29,6 +27,10 @@ export declare function safeFetch(rawUrl: string, options?: RequestInit, allowed
  */
 export declare function safeDevUrl(endpoint: string, params?: Record<string, string>, baseOrigin?: string): string;
 /**
+ * Converts an absolute or relative path into a POSIX path relative to the project root.
+ */
+export declare function toPosixRelative(projectRoot: string, filePath: string): string;
+/**
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
  */
@@ -49,5 +51,4 @@ export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (
  * Strips recursive glob wildcards and trailing slashes from path patterns.
  */
 export declare function stripGlobSuffix(pattern: string): string;
-//#endregion
-export { isPathExempt, normalizePosixPath, sanitizePath, toPosixRelative };
+export { isPathExempt, normalizePosixPath, sanitizePath };

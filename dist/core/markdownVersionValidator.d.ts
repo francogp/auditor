@@ -1,4 +1,3 @@
-//#region src/core/markdownVersionValidator.d.ts
 /**
  * src/core/markdownVersionValidator.ts
  *
@@ -36,4 +35,3 @@ export declare function scanAndFixMarkdownProjectVersions(relPath: string, rawLi
  * during `auditor-version bump`.
  */
 export declare function syncDocumentationVersionReferences(cwd: string): string[];
-//#endregion

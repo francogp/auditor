@@ -1,7 +1,7 @@
 import { safeJsonParse, safeReadFileSync } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/auditProjectIdentity.ts
+// src/core/auditProjectIdentity.ts
 /**
 * packages/auditor/src/core/auditProjectIdentity.ts
 *
@@ -21,5 +21,4 @@ function isSelfProviderProject(projectRoot) {
 	}
 	return false;
 }
-//#endregion
 export { isSelfProviderProject };

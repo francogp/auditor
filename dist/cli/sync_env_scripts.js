@@ -5,7 +5,7 @@ import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-//#region src/cli/sync_env_scripts.ts
+// src/cli/sync_env_scripts.ts
 /**
 * src/cli/sync_env_scripts.ts
 *
@@ -87,5 +87,4 @@ if (isMainModule(import.meta.url)) {
 		process.exit(1);
 	}
 }
-//#endregion
 export { syncEnvScripts };

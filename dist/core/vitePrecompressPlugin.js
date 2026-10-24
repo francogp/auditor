@@ -1,10 +1,9 @@
-import { toPosixRelative } from "./auditCoverage.js";
-import "./safePath.js";
+import { toPosixRelative } from "./safePath.js";
 import path from "node:path";
 import fs from "node:fs/promises";
 import util, { styleText } from "node:util";
 import zlib from "node:zlib";
-//#region src/core/vitePrecompressPlugin.ts
+// src/core/vitePrecompressPlugin.ts
 /**
 * packages/auditor/src/core/vitePrecompressPlugin.ts
 *
@@ -309,5 +308,4 @@ function vitePrecompressPlugin(userOptions = {}) {
 		}
 	};
 }
-//#endregion
 export { COMPRESSIBLE_EXTENSIONS, buildApacheHtaccess, buildCaddyConfigSnippet, buildNginxConfigSnippet, isCompressibleExtension, vitePrecompressPlugin };

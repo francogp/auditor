@@ -4,7 +4,7 @@ import { generateBuildId, parseBaseSemver } from "../core/versionAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
-//#region src/cli/stamp_version.ts
+// src/cli/stamp_version.ts
 /**
 * src/cli/stamp_version.ts
 *
@@ -51,5 +51,4 @@ if (isMainModule(import.meta.url)) {
 	const result = stampVersion();
 	console.log(`[Version Stamped] ${result.version} (Build: ${result.buildId})`);
 }
-//#endregion
 export { stampVersion };

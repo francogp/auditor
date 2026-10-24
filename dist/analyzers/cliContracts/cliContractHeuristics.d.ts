@@ -1,6 +1,5 @@
 import { CliContractScanContext } from "./cliContractTypes.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/cliContractHeuristics.d.ts
 export declare const GLOBAL_HOST_OBJECTS: ReadonlySet<string>;
 export declare const PROCESS_MODULE_SPECIFIERS: ReadonlySet<string>;
 export declare const UTIL_MODULE_SPECIFIERS: ReadonlySet<string>;
@@ -20,4 +19,3 @@ export declare function isProcessObjectExpression(rawExpr: ts.Expression, ctx: C
  * Extracts the string value from a StringLiteral or NoSubstitutionTemplateLiteral.
  */
 export declare function getStaticStringValue(node: ts.Node | undefined): string | undefined;
-//#endregion

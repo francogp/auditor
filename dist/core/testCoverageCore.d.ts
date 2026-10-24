@@ -1,5 +1,4 @@
 import { ResolvedTestCoverageConfig } from "./auditConfigTypes.js";
-//#region src/core/testCoverageCore.d.ts
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
 export interface CoverageMetric {
   readonly total: number;
@@ -144,5 +143,4 @@ export declare function correlateComplexityHotspots(files: readonly FileCoverage
  * builds directory breakdown, computes buckets and returns full report.
  */
 export declare function analyzeTestCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: ResolvedTestCoverageConfig, complexityMap?: ReadonlyMap<string, number>): TestCoverageReport;
-//#endregion
 export {};

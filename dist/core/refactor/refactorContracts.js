@@ -1,4 +1,4 @@
-//#region src/core/refactor/refactorContracts.ts
+// src/core/refactor/refactorContracts.ts
 /**
 * src/core/refactor/refactorContracts.ts
 *
@@ -7,5 +7,4 @@
 * micro-context extraction (Dirac pattern), and AST refactoring plans.
 */
 const ESTIMATED_TOKENS_PER_CHAR = .25;
-//#endregion
 export { ESTIMATED_TOKENS_PER_CHAR };

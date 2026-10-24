@@ -3,7 +3,7 @@ import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import { isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { isTestOrNodeModules, normalizeFilePath } from "./auditRuleTypes.js";
-//#region src/analyzers/constantRules.ts
+// src/analyzers/constantRules.ts
 /**
 * packages/auditor/src/analyzers/constantRules.ts
 *
@@ -65,5 +65,4 @@ const badConstantNames = {
 	},
 	fixable: false
 };
-//#endregion
 export { DEFAULT_ALLOWED_NUMERIC_CONSTANT_PREFIXES, badConstantNames, isAuditableCodeFile, isConstantNameExemptFromNumericSuffixCheck, noAliasConstants, noLiteralSuffixInConstantName };

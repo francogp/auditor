@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/rawConsoleDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/rawConsoleDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * instead of using BaseAuditor reporting methods or unifiedTheme box drawing.
  */
 export declare const rawConsoleDetector: HomebrewDetector;
-//#endregion

@@ -29,6 +29,7 @@ import { enableCompileCache } from 'node:module';
 import { FileScanAuditor, BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { SharedAstContext } from '../../core/astContext.ts';
 
 enableCompileCache();
@@ -149,13 +150,13 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
           '   ❌ Fixed wait:  `await page.waitForTimeout(3000);`\n' +
           '   ✅ Auto-wait:   `await expect(page.locator("#status")).toHaveText("Ready");`'
       },
-      roots: testRoots.length > 0 ? testRoots : ['tests'],
+      roots: testRoots.length > 0 ? testRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots,
       allowedExtensions: new Set(['.ts', '.js'])
     });
   }
 
   protected override scanFile(relPath: string, content: string): void {
-    const config = getAuditConfig();
+    const config = getAuditConfig(this.projectRoot);
     const isIntegration = config.paths.integrationRoots.some((r) => relPath.startsWith(r));
     const isE2e = config.paths.e2eRoots.some((r) => relPath.startsWith(r));
 

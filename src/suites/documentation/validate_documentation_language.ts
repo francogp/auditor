@@ -19,7 +19,7 @@ import {
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
 import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, getEffectiveUnignoreDirs } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
@@ -546,7 +546,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       coverage: {
         include: ['**/*.md', ...dynamicCodeCoverage]
       },
-      unignoreDirs: ['.agents', 'skills', 'docs'],
+      unignoreDirs: Array.from(getEffectiveUnignoreDirs(projectRoot)),
       projectRoot
     });
     this.rootDir = projectRoot;

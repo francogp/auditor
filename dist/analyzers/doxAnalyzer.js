@@ -1,12 +1,13 @@
 import { safeReadFileAsync, safeReaddirAsync } from "../core/safeUtils.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isTestPath } from "../core/auditTestPredicates.js";
-import "../core/auditConfig.js";
 import "../core/safePath.js";
+import "../core/auditConfig.js";
 import { collectRepositoryFiles } from "../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../core/gitignoreMatcher.js";
 import path from "node:path";
-//#region src/analyzers/doxAnalyzer.ts
+// src/analyzers/doxAnalyzer.ts
 /**
 * scripts/maintenance/analyzers/doxAnalyzer.ts
 *
@@ -40,11 +41,12 @@ function normalizeDirPath(dir) {
 	if (process.platform === "win32" && resolved.length >= 2 && resolved.charAt(1) === ":" && drive) return drive.toLowerCase() + resolved.slice(1);
 	return resolved;
 }
-async function scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher) {
+async function scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher, extraIgnorePatterns = []) {
 	const doxDirs = [];
 	const doxFilesMap = /* @__PURE__ */ new Map();
 	const dirCodeMap = /* @__PURE__ */ new Set();
-	const allFiles = collectRepositoryFiles(rootDir, rootDir, Array.from(ignoreDirs), /* @__PURE__ */ new Set([
+	const combinedIgnores = [...Array.from(ignoreDirs), ...extraIgnorePatterns];
+	const allFiles = collectRepositoryFiles(rootDir, rootDir, combinedIgnores, /* @__PURE__ */ new Set([
 		".ts",
 		".vue",
 		".js",
@@ -65,9 +67,11 @@ async function scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher) {
 		}
 	}
 	const normRootDir = normalizeDirPath(rootDir);
+	const config = getAuditConfig(rootDir);
+	const primaryRoots = new Set(config.paths?.srcRoots ?? []);
 	for (const dir of dirCodeMap) {
-		const relPath = path.relative(normRootDir, dir);
-		if (relPath !== "" && relPath !== "src") doxDirs.push(dir);
+		const relPath = normalizePosixPath(path.relative(normRootDir, dir));
+		if (relPath !== "" && !primaryRoots.has(relPath)) doxDirs.push(dir);
 	}
 	return {
 		doxDirs,
@@ -418,9 +422,9 @@ function validateDoxSectionStructure(agentsPath, rootDir, content) {
 		...checkDoxSectionContent(headerInfos, originalLines, agentsPath, rootDir)
 	];
 }
-async function checkDoxIntegrity(rootDir, ignoreDirs) {
+async function checkDoxIntegrity(rootDir, ignoreDirs, extraIgnorePatterns = []) {
 	const gitIgnoreMatcher = new GitIgnoreMatcher(rootDir);
-	const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher);
+	const { doxDirs, doxFilesMap } = await scanDoxHierarchy(rootDir, ignoreDirs, gitIgnoreMatcher, extraIgnorePatterns);
 	const violations = [
 		...validateMissingAgentsFiles(rootDir, doxDirs, doxFilesMap),
 		...validateChildRegistration(rootDir, doxFilesMap),
@@ -432,5 +436,4 @@ async function checkDoxIntegrity(rootDir, ignoreDirs) {
 	}
 	return violations;
 }
-//#endregion
 export { DOX_ANALYZER_DESCRIPTOR, checkDoxIntegrity, validateDoxSectionStructure };

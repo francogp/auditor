@@ -1,13 +1,14 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestFileForCodeAudit } from "../../core/auditTestPredicates.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots, toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
-//#region src/suites/architecture/validate_type_assertion_hygiene.ts
+// src/suites/architecture/validate_type_assertion_hygiene.ts
 /**
 * packages/auditor/src/suites/architecture/validate_type_assertion_hygiene.ts
 *
@@ -131,6 +132,7 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 		const rootPath = typeof options === "string" ? options : options?.projectRoot;
 		const cfg = getAuditConfig(rootPath);
 		const codeRoots = typeof options === "object" && options?.roots ? options.roots : cfg.paths.codeRoots ?? [];
+		const typeIgnores = Array.from(getEffectiveIgnoreGlobs(rootPath, { extraGlobs: [...cfg.types?.ignoreGlobs ?? [], ...cfg.types?.exemptPaths ?? []] }));
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -170,27 +172,17 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 			},
 			coverage: {
 				include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
-				exclude: [
-					"coverage/**",
-					"dist/**",
-					"scratch/**",
-					".agents/**"
-				]
+				exclude: typeIgnores
 			},
 			roots: codeRoots,
 			allowedExtensions: EXTENSIONS,
-			extraIgnorePatterns: [
-				"coverage/**",
-				"dist/**",
-				"scratch/**",
-				".agents/**"
-			],
+			extraIgnorePatterns: typeIgnores,
 			projectRoot: rootPath
 		});
 	}
 	async scanFile(filePath, content) {
 		const rel = toPosixRelative(this.projectRoot, filePath);
-		if (isTestFileForCodeAudit(rel, this.projectRoot) || rel.includes("validate_type_assertion_hygiene.ts") || rel.includes("validate_domain_types.ts")) return;
+		if (isTestFileForCodeAudit(rel, this.projectRoot) || this.isPathExempt(rel)) return;
 		const doc = new AuditedDocument(filePath, content, filePath);
 		const ast = doc.getAst();
 		if (ast) {
@@ -237,5 +229,4 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ValidateTypeAssertionHygieneAuditor());
-//#endregion
 export { TYPE_ASSERTION_RULES, ValidateTypeAssertionHygieneAuditor };

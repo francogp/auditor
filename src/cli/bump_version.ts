@@ -469,7 +469,8 @@ function resolveBumpTypeFromParsed(
 function handleBumpCommand(
   parsed: ReturnType<typeof parseCittyArgs<typeof BUMP_CLI_ARGS>>,
   positionalType: string | undefined,
-  isJson: boolean
+  isJson: boolean,
+  cwd?: string
 ): void {
   const targetVersion =
     (typeof parsed['target-version'] === 'string' && parsed['target-version']) ||
@@ -490,7 +491,8 @@ function handleBumpCommand(
     bumpType,
     targetVersion,
     autoSyncPublicVersionJson: noSyncPublic ? false : undefined,
-    syncTargets
+    syncTargets,
+    cwd
   });
 
   if (isJson) {
@@ -500,12 +502,16 @@ function handleBumpCommand(
     console.log(
       `  ${result.previousVersion} → ${styleText(['bold', 'cyan'], result.newVersion)} (Bump: ${result.bumpType.toUpperCase()})`
     );
-    const relFiles = result.syncedFiles.map((f) => path.relative(process.cwd(), f) || f);
+    const effectiveCwd = cwd ?? process.cwd();
+    const relFiles = result.syncedFiles.map((f) => path.relative(effectiveCwd, f) || f);
     console.log(`  Synchronized files: ${relFiles.join(', ')}\n`);
   }
 }
 
-export function runBumpCli(rawArgs: readonly string[] = getProcessCliArgs()): void {
+export function runBumpCli(
+  rawArgs: readonly string[] = getProcessCliArgs(),
+  cwd: string = process.cwd()
+): void {
   const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs);
   const posList = parsed._.map(String);
   const firstPos = posList[0]?.toLowerCase();
@@ -533,7 +539,7 @@ export function runBumpCli(rawArgs: readonly string[] = getProcessCliArgs()): vo
   if (parsed.bump || firstPos === 'bump') {
     try {
       const positionalType = firstPos === 'bump' ? posList[1] : posList[0];
-      handleBumpCommand(parsed, positionalType, isJson);
+      handleBumpCommand(parsed, positionalType, isJson, cwd);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(styleText('red', `[Error] ${message}`));

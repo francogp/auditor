@@ -1,12 +1,12 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import { isCliPath, isScriptPath } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_console_cleanliness.ts
+// src/suites/architecture/validate_console_cleanliness.ts
 /**
 * scripts/auditors/architecture/validate_console_cleanliness.ts
 *
@@ -105,5 +105,4 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ConsoleCleanlinessAuditor());
-//#endregion
 export { CONSOLE_CLEANLINESS_RULES, ConsoleCleanlinessAuditor };

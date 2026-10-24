@@ -1,4 +1,3 @@
-//#region src/core/vueSfcParser.d.ts
 /**
  * src/core/vueSfcParser.ts
  *
@@ -49,5 +48,4 @@ export declare function extractSfcScriptContent(sfcContent: string): string | nu
  * Returns null if a .vue file contains no <script> blocks.
  */
 export declare function extractVueScriptOrRaw(relPath: string, content: string): string | null;
-//#endregion
 export { parseVueSfcBlocks as parseVueSfc };

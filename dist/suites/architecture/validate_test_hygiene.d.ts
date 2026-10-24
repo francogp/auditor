@@ -1,6 +1,5 @@
 import { SharedAstContext } from "../../core/astContext.js";
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_test_hygiene.d.ts
 export type TestHygieneRuleId = 'no-tautological-integration-mocks' | 'playwright-id-locators-only' | 'no-playwright-force-click' | 'no-test-timeout-inflation' | 'no-playwright-polling-waits';
 export declare const TEST_HYGIENE_RULES: readonly TestHygieneRuleId[];
 export declare function getForbiddenIntegrationMockTargets(): readonly string[];
@@ -18,4 +17,3 @@ export declare class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleI
   private scanPlaywrightPollingWaits;
   private scanTimeoutInflation;
 }
-//#endregion

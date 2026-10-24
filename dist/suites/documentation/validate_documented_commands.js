@@ -1,14 +1,14 @@
 import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { isAuditableCodebaseFile } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { COMMAND_INVOCATION_TYPES, VALID_NPM_BUILTINS, evaluateGenericCommandViolation, extractCommandsFromLine, loadPackageScriptsAndBins } from "../../core/npmCommandUtils.js";
 import path from "node:path";
-//#region src/suites/documentation/validate_documented_commands.ts
+// src/suites/documentation/validate_documented_commands.ts
 /**
 * src/suites/documentation/validate_documented_commands.ts
 *
@@ -195,5 +195,4 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateDocumentedCommandsAuditor());
-//#endregion
 export { DOCUMENTED_COMMANDS_RULES, COMMAND_INVOCATION_TYPES as DOCUMENTED_COMMAND_TYPES, VALID_NPM_BUILTINS, ValidateDocumentedCommandsAuditor, evaluateCommandViolation, extractDocumentedCommands, loadPackageScriptsAndBins };

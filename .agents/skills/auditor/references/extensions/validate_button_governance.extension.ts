@@ -21,8 +21,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   BaseAuditor,
+  FileScanAuditor,
   createUniformRuleCapabilities,
   getAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
   toPosixRelative,
   parseVueSfc,
   type FileScanRootsOptions
@@ -39,9 +41,17 @@ export const BUTTON_GOVERNANCE_RULES: readonly ButtonGovernanceRuleId[] = [
   'button-inset-cutoff'
 ] as const;
 
-export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId> {
+export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
+    const config = getAuditConfig(projectRoot);
+    const candidateRoots = [
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.stylesRoots ?? [])
+    ];
+    const defaultRoots = candidateRoots.length > 0 ? candidateRoots : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
+
     super({
       id: 'validate_button_governance',
       name: 'Button Governance Validator (Rule 23)',
@@ -89,7 +99,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
           '3. Canonical Solution: Use canonical positive or symmetric inset shadows.\n' +
           '4. Example / Command: npm run auditor'
       },
-      roots: options.roots ?? ['src/components', 'src/views', 'src/styles'],
+      roots: options.roots ?? defaultRoots,
       allowedExtensions: new Set(['.vue', '.scss']),
       projectRoot
     });
@@ -97,7 +107,7 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
 
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
-    const srcDir = path.resolve(this.projectRoot, config.paths.srcRoots?.[0] ?? 'src');
+    const srcDir = path.resolve(this.projectRoot, config.paths.srcRoots?.[0] ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots[0]);
     const buttonsScssPath = path.join(srcDir, 'styles', '_buttons.scss');
 
     // 1. Verify _buttons.scss integrity
@@ -143,11 +153,16 @@ export class ButtonGovernanceAuditor extends BaseAuditor<ButtonGovernanceRuleId>
     }
 
     // 2. Audit Vue components for ad-hoc button classes
+    const configuredCompRoots = [
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
+    ];
+    const targetCompRoots =
+      configuredCompRoots.length > 0
+        ? configuredCompRoots
+        : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
     const compFiles = await this.context.collectFiles(
-      [
-        ...(config.paths.componentsRoots ?? ['src/components']),
-        ...(config.paths.viewsRoots ?? ['src/views'])
-      ],
+      targetCompRoots,
       new Set(['.vue'])
     );
 

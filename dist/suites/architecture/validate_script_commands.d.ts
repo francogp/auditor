@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_script_commands.d.ts
 export type ScriptCommandsRuleId = 'script-cmd-unregistered-npm' | 'script-cmd-invalid-npm-syntax' | 'script-cmd-unregistered-npx';
 export declare const SCRIPT_COMMANDS_RULES: readonly ScriptCommandsRuleId[];
 export interface ScriptCommandViolation {
@@ -13,6 +12,7 @@ export interface ScriptCommandViolation {
 export declare class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRuleId> {
   private readonly rootDir;
   private readonly gitIgnoreMatcher;
+  private readonly scriptsRoots;
   constructor(options?: {
     projectRoot?: string;
   });
@@ -22,5 +22,4 @@ export declare class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCom
   private isExempt;
   private collectScriptFiles;
 }
-//#endregion
 export { ValidateScriptCommandsAuditor as ScriptCommandsAuditor };

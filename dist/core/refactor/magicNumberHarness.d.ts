@@ -1,5 +1,4 @@
 import { MagicRefactorPlan } from "./magicContracts.js";
-//#region src/core/refactor/magicNumberHarness.d.ts
 export declare const FORBIDDEN_GENERIC_NAMES_LIST: readonly ["ID", "NAME", "TYPE", "KEY", "INDEX", "COUNT", "DEFAULT", "SIZE", "MAX", "MIN", "VAL", "VALUE", "ITEM", "STATE", "MODE", "TAG", "DATA", "INFO", "OPTIONS", "CONFIG", "RESULT", "STATUS"];
 export type ForbiddenGenericName = (typeof FORBIDDEN_GENERIC_NAMES_LIST)[number];
 export declare class ConstantHygieneGate {
@@ -18,4 +17,3 @@ export declare class MagicNumberHarness {
   private static processTargetFile;
   private static injectLocalDeclarations;
 }
-//#endregion

@@ -1,5 +1,5 @@
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/cittyContractDetector.ts
+// src/analyzers/cliContracts/detectors/cittyContractDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/cittyContractDetector.ts
 *
@@ -18,5 +18,4 @@ const cittyContractDetector = (node, ctx) => {
 	};
 	return null;
 };
-//#endregion
 export { cittyContractDetector };

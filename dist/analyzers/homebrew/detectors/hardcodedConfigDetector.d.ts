@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/hardcodedConfigDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/hardcodedConfigDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * in auditor suites and extensions instead of dynamic configuration-driven resolution.
  */
 export declare const hardcodedConfigDetector: HomebrewDetector;
-//#endregion

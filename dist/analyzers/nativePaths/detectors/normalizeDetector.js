@@ -1,7 +1,7 @@
 import { POSIX_SEP, WIN_SEP, getRegexInfo, getStringValue, isSeparatorOnly, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { asMethodCall, isPathish, isSepConstant, isUrlish } from "../pathHeuristics.js";
 import "typescript";
-//#region src/analyzers/nativePaths/detectors/normalizeDetector.ts
+// src/analyzers/nativePaths/detectors/normalizeDetector.ts
 const NORMALIZE_MESSAGE = "Homebrew normalization of separators or path segments. Use 'path.normalize()', 'path.posix.normalize()', or native conversion 'p.split(path.sep).join(path.posix.sep)' / 'p.replaceAll(path.win32.sep, path.posix.sep)'.";
 const DOT_SLASH_PATTERNS = /* @__PURE__ */ new Set([WIN_SEP + "." + WIN_SEP + POSIX_SEP, WIN_SEP + "." + WIN_SEP + POSIX_SEP + "+"]);
 function isSeparatorPayload(expr) {
@@ -76,5 +76,4 @@ const normalizeDetector = (node, ctx) => {
 		message: NORMALIZE_MESSAGE
 	} : null;
 };
-//#endregion
 export { normalizeDetector };

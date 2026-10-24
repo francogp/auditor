@@ -1,5 +1,4 @@
 import { RelaxationCode } from "./configRatchet.js";
-//#region src/core/transcriptAuthorizationVerifier.d.ts
 export interface TranscriptVerificationResult {
   readonly verified: boolean;
   readonly tamperingDetected: boolean;
@@ -38,4 +37,3 @@ export declare function isRelaxationCode(code: string): code is RelaxationCode;
  * Verifies whether the specified relaxation code is authorized in the conversation transcript.
  */
 export declare function verifyTranscriptAuthorization(relaxationCode: RelaxationCode, options?: TranscriptVerifierOptions): TranscriptVerificationResult;
-//#endregion

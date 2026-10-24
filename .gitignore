@@ -4,6 +4,7 @@ node_modules/
 # Build and Cache
 .vite/
 .vitest-cache/
+.fallow/
 coverage/
 .eslintcache
 .stylelintcache
@@ -19,3 +20,9 @@ Thumbs.db
 .vscode/
 
 .vitest/
+
+# Auditor tool caches (Added by @francogp/auditor)
+test-results/
+.tsbuildinfo
+dist/
+dev-dist/

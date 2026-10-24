@@ -1,6 +1,5 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_docker_config.d.ts
 export declare const DOCKER_CONFIG_RULES: readonly ["dockerignore-missing", "dockerignore-missing-pattern"];
 export type DockerConfigRuleId = (typeof DOCKER_CONFIG_RULES)[number];
 export declare const MANDATORY_DOCKER_IGNORE_PATTERNS: readonly string[];
@@ -17,4 +16,3 @@ export declare class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfi
   }), maybeProjectRoot?: string);
   runAudit(): Promise<void>;
 }
-//#endregion

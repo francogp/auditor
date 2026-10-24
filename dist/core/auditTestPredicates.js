@@ -1,7 +1,7 @@
 import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { matchesAnyRoot } from "./auditRootMatcher.js";
-//#region src/core/auditTestPredicates.ts
+// src/core/auditTestPredicates.ts
 /**
 * packages/auditor/src/core/auditTestPredicates.ts
 *
@@ -41,5 +41,4 @@ function isTestFileForCodeAudit(filePath, projectRoot) {
 	if (getAuditConfig(projectRoot)?.paths?.includeTestsInCodeAudit) return false;
 	return isTestPath(filePath, projectRoot);
 }
-//#endregion
 export { isTestFileForCodeAudit, isTestPath };

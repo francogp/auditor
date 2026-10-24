@@ -1,4 +1,3 @@
-//#region src/core/refactor/magicContracts.d.ts
 /**
  * src/core/refactor/magicContracts.ts
  *
@@ -79,4 +78,3 @@ export interface MagicRefactorPlan {
     moduleSpecifier: string;
   }[]>>;
 }
-//#endregion

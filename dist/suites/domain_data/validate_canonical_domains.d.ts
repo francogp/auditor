@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/domain_data/validate_canonical_domains.d.ts
 export declare const CANONICAL_DOMAIN_RULES: readonly ["canonical-domain-collision", "canonical-domain-repeated-union", "canonical-domain-library-duplicate", "canonical-domain-subset-mismatch"];
 export type CanonicalDomainRuleId = (typeof CANONICAL_DOMAIN_RULES)[number];
 export declare const MAX_CANONICAL_DOMAIN_LITERAL_LENGTH: 30;
@@ -61,4 +60,3 @@ export declare class ValidateCanonicalDomainsAuditor extends BaseAuditor<Canonic
   constructor(optionsOrTarget?: string | ValidateCanonicalDomainsOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

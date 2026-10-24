@@ -3,17 +3,17 @@ import { assertAuditConfigComplete } from "../core/auditConfigValidators.js";
 import { safeJsonParse, tryCatchSync, tryOrDefault, tryOrUndefined } from "../core/safeUtils.js";
 import { normalizePosixPath } from "../core/reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../core/auditConfigLoader.js";
+import "../core/safePath.js";
 import "../core/auditConfig.js";
 import "../core/auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import "../core/safePath.js";
 import { formatStatusBadge, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
 import zlib from "node:zlib";
-//#region src/cli/audit_bundle.ts
+// src/cli/audit_bundle.ts
 /**
 * src/cli/audit_bundle.ts
 *
@@ -365,5 +365,4 @@ async function executeCli(rawArgs = getProcessCliArgs()) {
 	process.exit(0);
 }
 if (isMainModule(import.meta.url)) await executeCli();
-//#endregion
 export { BYTES_PER_KB, DEFAULT_DUPLICATE_MODULE_THRESHOLD_BYTES, DEFAULT_HEAVY_CHUNK_THRESHOLD, DEFAULT_TOP_MODULES_LIMIT, DEFAULT_UNBUDGETED_CHUNK_LIMIT, aggregateModuleSizes, auditSingleChunk, discoverCompiledChunks, executeCli, parseVisualizerData, resolveDistDir, runBundleAudit };

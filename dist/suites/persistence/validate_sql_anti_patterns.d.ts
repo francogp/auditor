@@ -1,5 +1,4 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/persistence/validate_sql_anti_patterns.d.ts
 export type SqlAntiPatternRuleId = 'sql-no-positional-arrays' | 'sql-plpgsql-declared-variables' | 'sql-rls-policy-grant-integrity' | 'db-payload-snake-case';
 export declare const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[];
 export declare const SQL_LOOP_HEADER_MAX_CHARS = 120;
@@ -24,4 +23,3 @@ export declare class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRu
   private scanRlsPolicyIntegrity;
   protected scanTypeScriptFile(relPath: string, content: string): void;
 }
-//#endregion

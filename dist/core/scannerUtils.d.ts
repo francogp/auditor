@@ -1,4 +1,3 @@
-//#region src/core/scannerUtils.d.ts
 /**
  * packages/auditor/src/core/scannerUtils.ts
  *
@@ -61,4 +60,3 @@ export declare const DEFAULT_COMMENT_LOOKBACK_LINES = 10;
  * @param options Lookback configuration (default: 10 lines, ignoring empty lines).
  */
 export declare function hasPrecedingComment(lines: readonly string[], lineIndex: number, directiveRegex: RegExp, options?: HasPrecedingCommentOptions): boolean;
-//#endregion

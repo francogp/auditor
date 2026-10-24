@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/predicatesDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/predicatesDetector.ts
  *
@@ -7,4 +6,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * instead of canonical isTestPath() and isSelfProviderProject().
  */
 export declare const predicatesDetector: HomebrewDetector;
-//#endregion

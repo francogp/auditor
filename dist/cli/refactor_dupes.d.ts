@@ -1,4 +1,3 @@
-//#region src/cli/refactor_dupes.d.ts
 /**
  * src/cli/refactor_dupes.ts
  *
@@ -6,4 +5,3 @@
  * Provides interactive discovery, micro-context inspection, and AST refactor application.
  */
 export declare function runRefactorCli(rawInputArgs?: readonly string[]): Promise<void>;
-//#endregion

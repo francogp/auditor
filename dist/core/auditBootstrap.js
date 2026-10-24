@@ -15,7 +15,7 @@ import { ensureNpmrcAllowGit } from "./npmrcAllowGit.js";
 import { repairVitePlusProject } from "./vitePlusConfigSync.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/auditBootstrap.ts
+// src/core/auditBootstrap.ts
 /**
 * src/core/auditBootstrap.ts
 *
@@ -123,7 +123,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.0.0-build.20261022-194620")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.1.0-build.20261024-181300")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}
@@ -144,5 +144,4 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected
 	};
 }
-//#endregion
 export { ensureProjectBootstrapped };

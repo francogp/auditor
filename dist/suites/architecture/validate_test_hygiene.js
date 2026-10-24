@@ -1,10 +1,11 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_test_hygiene.ts
+// src/suites/architecture/validate_test_hygiene.ts
 /**
 * scripts/auditors/architecture/validate_test_hygiene.ts
 *
@@ -92,12 +93,12 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 				"no-test-timeout-inflation": "📖 REMEDIATION GUIDE: no-test-timeout-inflation\n1. Root Cause: A test execution timeout was artificially inflated (`test.setTimeout(60000)`, `vi.setConfig({ testTimeout: ... })`). Inflating timeouts masks performance bottlenecks, infinite loops, or hanging promises.\n2. Diagnosis: Locate the custom timeout configuration in the test file.\n3. Canonical Solution: Remove the inflated timeout and optimize test execution (e.g. fast-forwarding animations with `gsap.globalTimeline.timeScale(100)` or resolving async steps deterministically).\n4. Example / Auto-fix command:\n   ❌ Inflated: `test.setTimeout(120000);`\n   ✅ Standard: Respect default framework timeouts (5s).",
 				"no-playwright-polling-waits": "📖 REMEDIATION GUIDE: no-playwright-polling-waits\n1. Root Cause: Fixed sleep timers (`page.waitForTimeout(ms)`) were used in E2E tests. Fixed sleeps slow test suites and cause flaky failures on slower CI runners.\n2. Diagnosis: Locate `waitForTimeout` calls in the test file.\n3. Canonical Solution: Replace fixed sleeps with web-first Playwright assertions that wait automatically for the exact state: `await expect(locator).toHaveText(...)` or `await page.waitForResponse(...)`.\n4. Example / Auto-fix command:\n   ❌ Fixed wait:  `await page.waitForTimeout(3000);`\n   ✅ Auto-wait:   `await expect(page.locator(\"#status\")).toHaveText(\"Ready\");`"
 			},
-			roots: testRoots.length > 0 ? testRoots : ["tests"],
+			roots: testRoots.length > 0 ? testRoots : DEFAULT_AUDIT_CONFIG.paths.testRoots,
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".js"])
 		});
 	}
 	scanFile(relPath, content) {
-		const config = getAuditConfig();
+		const config = getAuditConfig(this.projectRoot);
 		const isIntegration = config.paths.integrationRoots.some((r) => relPath.startsWith(r));
 		const isE2e = config.paths.e2eRoots.some((r) => relPath.startsWith(r));
 		if (isIntegration) this.runSubAuditorSync("no-tautological-integration-mocks", () => {
@@ -185,5 +186,4 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new TestHygieneAuditor());
-//#endregion
 export { TEST_HYGIENE_RULES, TestHygieneAuditor, getForbiddenIntegrationMockTargets };

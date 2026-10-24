@@ -1,6 +1,5 @@
 import { POSIX_SEP, RegexLiteralInfo, WIN_SEP, collectStringFragments, flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, hasFileExtensionTail, hasTraversalToken, isDriveLetterRegex, isDriveOrUncLiteral, isInsideRegExpConstruction, isOutermostPlus, isPathFragment, isRegExpConstruction, isSeparatorOnly, isUrlConstruction, startsWithUrlScheme, unwrapExpression } from "./pathLiteralHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/pathHeuristics.d.ts
 export declare const PARENT_SEGMENT = "..";
 export declare const FILE_SCHEME = "file://";
 export declare const REGEX_CONSUMER_METHODS: ReadonlySet<string>;
@@ -40,5 +39,4 @@ export declare function isFsSinkCall(call: ts.CallExpression): boolean;
 /** `path.join/resolve/normalize` (native or posix flavor, never win32). */
 export declare function isPathBuilderCall(call: ts.CallExpression): boolean;
 export declare function isInsideWin32Call(node: ts.Node): boolean;
-//#endregion
 export { POSIX_SEP, type RegexLiteralInfo, WIN_SEP, collectStringFragments, flattenPlusChain, getRegexInfo, getStringValue, getTemplateTexts, hasFileExtensionTail, hasTraversalToken, isDriveLetterRegex, isDriveOrUncLiteral, isInsideRegExpConstruction, isOutermostPlus, isPathFragment, isRegExpConstruction, isSeparatorOnly, isUrlConstruction, startsWithUrlScheme, unwrapExpression };

@@ -157,7 +157,11 @@ export function renderExecutiveSetupBlockingSummary(
     ['bold', 'red'],
     `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
   );
-  const status = `  Status: ${formatNumber(setupErrors)} setup error(s) (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)`;
+  const postponedSuffix =
+    postponedAppErrors > 0
+      ? ` (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)`
+      : '';
+  const status = `  Status: ${formatNumber(setupErrors)} setup error(s)${postponedSuffix}`;
 
   // no-domain: Non-domain utility collection or data structure
   const suitesLines: string[] = ['  Blocking Suites:'];

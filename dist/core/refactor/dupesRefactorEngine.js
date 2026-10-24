@@ -1,13 +1,12 @@
 import { tryOrNull } from "../safeUtils.js";
-import { toPosixRelative } from "../auditCoverage.js";
-import "../safePath.js";
+import { toPosixRelative } from "../safePath.js";
 import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
 import { HybridHarnessEngine } from "./hybridHarness.js";
 import path from "node:path";
 import { execSync } from "node:child_process";
-//#region src/core/refactor/dupesRefactorEngine.ts
+// src/core/refactor/dupesRefactorEngine.ts
 /**
 * src/core/refactor/dupesRefactorEngine.ts
 *
@@ -112,5 +111,4 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 		});
 	}
 };
-//#endregion
 export { DupesRefactorEngine, determineTopology, runFallowJson };

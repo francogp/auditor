@@ -1,5 +1,4 @@
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_git_config.d.ts
 export declare const GIT_CONFIG_RULES: readonly ["git-config-filemode", "git-config-autocrlf", "git-config-eol"];
 export type GitConfigRuleId = (typeof GIT_CONFIG_RULES)[number];
 export interface GitConfigSetting {
@@ -14,4 +13,3 @@ export declare class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleI
   constructor(options?: Partial<AuditorOptions<GitConfigRuleId>>);
   runAudit(): Promise<void>;
 }
-//#endregion

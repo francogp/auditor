@@ -1,4 +1,4 @@
-//#region src/analyzers/homebrew/homebrewRegistry.ts
+// src/analyzers/homebrew/homebrewRegistry.ts
 var HomebrewDetectorRegistry = class {
 	static detectors = /* @__PURE__ */ new Map();
 	static register(detector) {
@@ -58,5 +58,4 @@ var HomebrewDetectorRegistry = class {
 		return findings;
 	}
 };
-//#endregion
 export { HomebrewDetectorRegistry };

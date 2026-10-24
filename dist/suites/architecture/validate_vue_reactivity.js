@@ -3,7 +3,7 @@ import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformReme
 import { extractVueScriptOrRaw } from "../../core/vueSfcParser.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
-//#region src/suites/architecture/validate_vue_reactivity.ts
+// src/suites/architecture/validate_vue_reactivity.ts
 /**
 * packages/auditor/src/suites/architecture/validate_vue_reactivity.ts
 *
@@ -273,5 +273,4 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateVueReactivityAuditor());
-//#endregion
 export { VUE_REACTIVITY_RULES, ValidateVueReactivityAuditor };

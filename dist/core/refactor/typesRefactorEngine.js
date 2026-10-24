@@ -1,7 +1,7 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine } from "./refactorFileScanner.js";
 import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
-//#region src/core/refactor/typesRefactorEngine.ts
+// src/core/refactor/typesRefactorEngine.ts
 /**
 * src/core/refactor/typesRefactorEngine.ts
 *
@@ -145,5 +145,4 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 		return executePlanFileReplacements(targetDir, plan.targetFiles, [assertionReplacements, returnTypeInjections]);
 	}
 };
-//#endregion
 export { TypesRefactorEngine };

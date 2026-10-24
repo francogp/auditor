@@ -1,19 +1,18 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import "../core/auditConfigTypes.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
+import { isPathContained, toPosixRelative } from "../core/safePath.js";
 import "../core/auditConfig.js";
 import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "../core/remediationPhases.js";
 import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { COMMON_CLI_ARGS, CONSOLE_FORMAT_VALUES, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs, runMain } from "../core/cli/cittyHarness.js";
-import { toPosixRelative } from "../core/auditCoverage.js";
-import { isPathContained } from "../core/safePath.js";
 import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
 import { buildNoticeBox, renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
-//#region src/cli/report_findings.ts
+// src/cli/report_findings.ts
 /**
 * src/cli/report_findings.ts
 */
@@ -985,5 +984,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runMain(reportFindingsCommand);
 }
-//#endregion
 export { renderActivePhaseFocusBanner, reportFindingsCommand, resolveActiveRemediationPhase, runReport };

@@ -1,7 +1,7 @@
 import { WIN_SEP, getRegexInfo, getStringValue, isSeparatorOnly, unwrapExpression } from "../pathLiteralHeuristics.js";
 import { asMethodCall, isFilenameish, isPathish } from "../pathHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/detectors/parsingDetector.ts
+// src/analyzers/nativePaths/detectors/parsingDetector.ts
 /**
 * src/analyzers/nativePaths/detectors/parsingDetector.ts
 *
@@ -71,5 +71,4 @@ const parsingDetector = (node, ctx) => {
 		message: PARSING_MESSAGE
 	} : null;
 };
-//#endregion
 export { parsingDetector };

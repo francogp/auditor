@@ -1,6 +1,5 @@
 import { AuditFinding } from "../../core/auditContract.js";
 import { FileScanAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_secret_leaks.d.ts
 export declare const SECRET_LEAKS_RULES: readonly ["secret-leak-detected", "secret-leak-private-key"];
 export type SecretLeaksRuleId = (typeof SECRET_LEAKS_RULES)[number];
 export declare const SECRET_SCAN_EXTENSIONS: ReadonlySet<string>;
@@ -27,4 +26,3 @@ export declare class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLe
   runAudit(): Promise<void>;
   protected scanFile(relPath: string, content: string): Promise<void>;
 }
-//#endregion

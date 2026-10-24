@@ -1,10 +1,11 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/suites/architecture/validate_file_encoding.ts
+// src/suites/architecture/validate_file_encoding.ts
 /**
 * src/suites/architecture/validate_file_encoding.ts
 *
@@ -248,13 +249,7 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 			roots,
 			allowedExtensions,
 			exemptPaths,
-			extraIgnorePatterns: [
-				"scratch/**",
-				"dist/**",
-				"coverage/**",
-				"node_modules/**",
-				...config.encoding?.exemptGlobs ?? []
-			],
+			extraIgnorePatterns: Array.from(getEffectiveIgnoreGlobs(projectRoot, { extraGlobs: config.encoding?.exemptGlobs ?? [] })),
 			projectRoot,
 			fix: optionsObj?.fix
 		});
@@ -336,5 +331,4 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateFileEncodingAuditor());
-//#endregion
 export { DEFAULT_TEXT_EXTENSIONS, FILE_ENCODING_RULES, FILE_ENCODING_RULE_DESCRIPTIONS, FILE_ENCODING_RULE_REMEDIATIONS, FILE_ENCODING_RULE_REMEDIATION_PHASES, KNOWN_BINARY_EXTENSIONS, ValidateFileEncodingAuditor, inspectBufferEncoding, isBinaryBuffer, isLikelyUtf16LeWithoutBom };

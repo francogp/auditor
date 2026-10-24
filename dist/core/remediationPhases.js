@@ -1,5 +1,5 @@
 import { createDomainSet } from "./domainCollections.js";
-//#region src/core/remediationPhases.ts
+// src/core/remediationPhases.ts
 /**
 * src/core/remediationPhases.ts
 *
@@ -82,5 +82,4 @@ function isRemediationPhaseId(val) {
 function getRemediationPhaseMetadata(phaseId) {
 	return REMEDIATION_PHASES[phaseId];
 }
-//#endregion
 export { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata, isRemediationPhaseId };

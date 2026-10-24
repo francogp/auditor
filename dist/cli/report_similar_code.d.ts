@@ -1,4 +1,3 @@
-//#region src/cli/report_similar_code.d.ts
 /**
  * packages/auditor/src/cli/report_similar_code.ts
  *
@@ -8,4 +7,3 @@
  * detected via local vector embeddings.
  */
 export declare function runSimilarCodeReport(projectRoot?: string): void;
-//#endregion

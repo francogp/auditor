@@ -1,13 +1,12 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { toPosixRelative } from "../../core/safePath.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isDataPath } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import { toPosixRelative } from "../../core/auditCoverage.js";
-import "../../core/safePath.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import ts from "typescript";
-//#region src/suites/architecture/validate_magic_numbers.ts
+// src/suites/architecture/validate_magic_numbers.ts
 /**
 * src/suites/architecture/validate_magic_numbers.ts
 *
@@ -277,5 +276,4 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ValidateMagicNumbersAuditor());
-//#endregion
 export { MAGIC_NUMBERS_RULES, ValidateMagicNumbersAuditor as MagicNumbersAuditor, ValidateMagicNumbersAuditor, resolveSignedNumericLiteral };

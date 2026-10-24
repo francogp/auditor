@@ -1,5 +1,4 @@
 import { TranscriptVerifierOptions } from "./transcriptAuthorizationVerifier.js";
-//#region src/core/configRatchet.d.ts
 export type RelaxationCode = `RELAX-${string}` & {
   readonly __brand?: 'RelaxationCode';
 };
@@ -47,4 +46,3 @@ export declare function computeRelaxationCode(relaxations: readonly ConfigRelaxa
  * Runs the complete Unidirectional Online Config Ratchet check.
  */
 export declare function auditConfigRatchet(projectRoot: string, localConfig: Record<string, unknown>, options?: ConfigRatchetOptions): ConfigRatchetResult;
-//#endregion

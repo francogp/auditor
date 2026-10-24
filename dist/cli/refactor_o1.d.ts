@@ -1,4 +1,3 @@
-//#region src/cli/refactor_o1.d.ts
 /**
  * src/cli/refactor_o1.ts
  *
@@ -7,4 +6,3 @@
  * for linear search anti-patterns, structuredClone migration, and ReadonlySet hoists.
  */
 export declare function runRefactorO1Cli(argv?: readonly string[]): Promise<void>;
-//#endregion

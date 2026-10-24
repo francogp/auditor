@@ -1,4 +1,3 @@
-//#region src/cli/report_css.d.ts
 /**
  * packages/auditor/src/cli/report_css.ts
  *
@@ -16,4 +15,3 @@
  *   auditor-css --errors-only
  */
 export declare function runCssReport(projectRoot?: string): Promise<void>;
-//#endregion

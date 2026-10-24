@@ -1,7 +1,7 @@
 import { KNOWN_BARE_MODE_FLAGS } from "../../../core/cli/cittyHarness.js";
 import { CLI_ARG_COLLECTION_NAMES, CLI_ARG_ITEM_NAMES, getStaticStringValue, unwrapCliExpression } from "../cliContractHeuristics.js";
 import ts from "typescript";
-//#region src/analyzers/cliContracts/detectors/homebrewFlagDetector.ts
+// src/analyzers/cliContracts/detectors/homebrewFlagDetector.ts
 /**
 * src/analyzers/cliContracts/detectors/homebrewFlagDetector.ts
 *
@@ -76,5 +76,4 @@ const homebrewFlagDetector = (node, ctx) => {
 	};
 	return null;
 };
-//#endregion
 export { homebrewFlagDetector };

@@ -108,19 +108,25 @@ export class WorktreeSandboxManager {
   }
 }
 
+export interface WorktreeVerificationOptions {
+  verifyCommand?: string;
+}
+
 /**
  * Executes a mutation function safely inside an ephemeral Git worktree,
  * runs typechecking/compilation verification, and applies to host only on success.
  */
 export async function executeInWorktreeWithVerification(
   projectRoot: string,
-  applyFn: (targetDir: string) => Promise<void>
+  applyFn: (targetDir: string) => Promise<void>,
+  options: WorktreeVerificationOptions = {}
 ): Promise<void> {
+  const verifyCommand = options.verifyCommand || 'npm run typecheck';
   const session = WorktreeSandboxManager.createSession(projectRoot);
   try {
     await applyFn(session.worktreeDir);
     try {
-      execSync('npm run typecheck', { cwd: session.worktreeDir, stdio: 'inherit' });
+      execSync(verifyCommand, { cwd: session.worktreeDir, stdio: 'inherit' });
       await applyFn(projectRoot);
     } catch (err) {
       throw new Error(`TypeScript verification failed in worktree sandbox: ${(err as Error).message}`);
@@ -138,7 +144,8 @@ export async function applyPlanFileWithWorktreeVerification<TPlan>(
   rawPlanPath: string | undefined,
   useWorktree: boolean,
   applyFn: (targetDir: string, plan: TPlan) => Promise<void>,
-  commandHelpHint: string
+  commandHelpHint: string,
+  options: WorktreeVerificationOptions = {}
 ): Promise<void> {
   if (!rawPlanPath || !fs.existsSync(rawPlanPath)) {
     console.error(styleText('red', `❌ Error: Debes especificar un archivo de plan: ${commandHelpHint}`));
@@ -150,9 +157,13 @@ export async function applyPlanFileWithWorktreeVerification<TPlan>(
   if (useWorktree) {
     console.log(styleText('cyan', '🌿 Creando Git Worktree efímero para verificación aislada...'));
     try {
-      await executeInWorktreeWithVerification(projectRoot, async (dir) => {
-        await applyFn(dir, plan);
-      });
+      await executeInWorktreeWithVerification(
+        projectRoot,
+        async (dir) => {
+          await applyFn(dir, plan);
+        },
+        options
+      );
       console.log(styleText('green', '✅ Verificación exitosa en Worktree y cambios aplicados al repositorio.'));
     } catch (err) {
       console.error(styleText('red', `❌ Falló la verificación en el worktree: ${(err as Error).message}`));

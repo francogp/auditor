@@ -1,5 +1,5 @@
 import { createLineDetector, isInsideStringLiteral } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
+// src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
 *
@@ -20,5 +20,4 @@ const manualStepLoggingDetector = createLineDetector({
 		return "Llamada manual a 'this.context.logStep()'. El framework ya imprime una línea '🔍 [n/m]' por regla con su duración real. Elimina el log manual y mide cada regla con 'this.runSubAuditorSync(ruleId, ...)', 'await this.runSubAuditor(ruleId, ...)' o 'declareFileSubAuditor(ruleId, handler)'.";
 	}
 });
-//#endregion
 export { manualStepLoggingDetector };

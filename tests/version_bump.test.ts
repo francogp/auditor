@@ -532,20 +532,13 @@ describe('Version Analyzer & SemVer Heuristics', () => {
         'utf-8'
       );
 
-      const origCwd = process.cwd();
-      try {
-        process.chdir(tempDir);
+      runBumpCli(['bump', 'build', '--json'], tempDir);
+      const updated1 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updated1.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
 
-        runBumpCli(['bump', 'build', '--json']);
-        const updated1 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-        expect(updated1.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
-
-        runBumpCli(['bump', '--type=build', '--json']);
-        const updated2 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
-        expect(updated2.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
-      } finally {
-        process.chdir(origCwd);
-      }
+      runBumpCli(['bump', '--type=build', '--json'], tempDir);
+      const updated2 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updated2.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
     });
   });
 });

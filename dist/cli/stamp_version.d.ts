@@ -1,4 +1,3 @@
-//#region src/cli/stamp_version.d.ts
 /**
  * src/cli/stamp_version.ts
  *
@@ -16,4 +15,3 @@ export interface StampVersionResult {
  * Generates an elegant build ID and updates package.json and version.ts.
  */
 export declare function stampVersion(projectRoot?: string, customNow?: Temporal.ZonedDateTime): StampVersionResult;
-//#endregion

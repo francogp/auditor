@@ -1,4 +1,3 @@
-//#region src/core/lockedSkills.d.ts
 /**
  * src/core/lockedSkills.ts
  *
@@ -17,4 +16,3 @@ export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<stri
  * (e.g. .agents/skills/<lockedSkill>/**, skills/<lockedSkill>/**, .skills/<lockedSkill>/**).
  */
 export declare function isLockedSkillPath(filePath: string, projectRoot?: string): boolean;
-//#endregion

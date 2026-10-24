@@ -1,6 +1,6 @@
-import { CANONICAL_IGNORE_DIRS, FileScanAuditor, FileScanRootsOptions, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
+import { FileScanAuditor, FileScanRootsOptions, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
 import { NATIVE_PATH_RULES, NativePathRuleId, NativePathViolation } from "../../analyzers/nativePaths/nativePathTypes.js";
-//#region src/suites/architecture/validate_native_paths.d.ts
 export interface NativePathAuditResult {
   readonly filesScanned: number;
   readonly violations: readonly NativePathViolation[];
@@ -23,5 +23,4 @@ export declare class NativePathsAuditor extends FileScanAuditor<NativePathRuleId
   /** Runs the single AST pass once per document and shares the result across rule sub-auditors. */
   private scanDocumentOnce;
 }
-//#endregion
 export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_RULES, type NativePathRuleId, type NativePathViolation, getEffectiveScannableRoots, isPathIgnored };

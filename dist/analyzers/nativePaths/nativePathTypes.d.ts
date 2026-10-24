@@ -1,6 +1,5 @@
 import { FindingSeverity } from "../../core/auditContract.js";
 import ts from "typescript";
-//#region src/analyzers/nativePaths/nativePathTypes.d.ts
 export declare const NATIVE_PATH_RULES: readonly ["unsafe-path-concat", "unsanitized-env-argv-path", "untrusted-url-fetch", "hardcoded-slash-path", "homebrew-path-manipulation", "homebrew-path-parsing", "homebrew-path-containment", "homebrew-file-url", "homebrew-url-parsing"];
 export type NativePathRuleId = (typeof NATIVE_PATH_RULES)[number];
 export interface NativePathViolation {
@@ -35,4 +34,3 @@ export interface NativePathScanContext {
 /** Rules that only apply where `node:path` / `node:url` are available. */
 export declare const NODE_ONLY_RULES: ReadonlySet<NativePathRuleId>;
 export type NativePathDetector = (node: ts.Node, ctx: NativePathScanContext) => NativePathFinding | null;
-//#endregion

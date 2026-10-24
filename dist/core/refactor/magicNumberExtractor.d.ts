@@ -2,7 +2,6 @@ import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { DiscoveredMagicItem, MagicRefactorPlan, SuperDiracClusterPacket } from "./magicContracts.js";
 import { MagicNumbersAuditor as ValidateMagicNumbersAuditor } from "../../suites/architecture/validate_magic_numbers.js";
-//#region src/core/refactor/magicNumberExtractor.d.ts
 export declare class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredMagicItem, MagicRefactorPlan, ValidateMagicNumbersAuditor> {
   readonly toolId = "auditor-magic";
   readonly configSectionKey: "constants";
@@ -61,4 +60,3 @@ export declare class MagicNumberExtractor extends BaseRefactorEngine<DiscoveredM
     destinationFile?: string;
   }): MagicRefactorPlan;
 }
-//#endregion

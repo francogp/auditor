@@ -8,7 +8,7 @@ import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
 import path from "node:path";
 import { styleText } from "node:util";
-//#region src/cli/refactor_dupes.ts
+// src/cli/refactor_dupes.ts
 /**
 * src/cli/refactor_dupes.ts
 *
@@ -187,5 +187,4 @@ if (isMainModule(import.meta.url, ["auditor-dupes", "refactor_dupes"])) runRefac
 	console.error(err);
 	process.exit(1);
 });
-//#endregion
 export { runRefactorCli };

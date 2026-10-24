@@ -1,7 +1,7 @@
 import { AUDITOR_DIR, AUDIT_CONFIG_FILE, FALLOW_TARGET_PRIORITIES, LEGACY_ROOT_CONFIG_FILES, PACKAGE_DISTRIBUTION_LEVELS, PERSISTENCE_ENGINES } from "./auditConfigTypes.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/auditConfigValidators.ts
+// src/core/auditConfigValidators.ts
 /**
 * packages/auditor/src/core/auditConfigValidators.ts
 *
@@ -58,5 +58,4 @@ function assertNoLegacyRootConfig(projectRoot) {
 	const legacy = LEGACY_ROOT_CONFIG_FILES.filter((f) => fs.existsSync(path.resolve(projectRoot, f)));
 	if (legacy.length > 0) throw new Error(`[AuditConfig] Root-level ${legacy.join(", ")} is no longer supported: auditor configuration lives in '${AUDITOR_DIR}/'. Run 'auditor fix' (or 'npm run auditor:fix') to move it to '${AUDIT_CONFIG_FILE}' and rewrite its relative imports.`);
 }
-//#endregion
 export { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, assertAuditConfigComplete, assertNoLegacyRootConfig, checkInfrastructureSubsystems, checkSubsystemDeclarations, checkUiSubsystems };

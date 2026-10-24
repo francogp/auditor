@@ -1,7 +1,7 @@
 import { normalizePosixPath } from "../core/reportUtils.js";
 import { isTestPath } from "../core/auditTestPredicates.js";
 import "../core/safePath.js";
-//#region src/analyzers/auditRuleTypes.ts
+// src/analyzers/auditRuleTypes.ts
 /**
 * packages/auditor/src/analyzers/auditRuleTypes.ts
 *
@@ -46,5 +46,4 @@ function isTestOrNodeModules(filePath) {
 	if (!filePath) return true;
 	return filePath.includes("node_modules") || isTestPath(filePath);
 }
-//#endregion
 export { AUDIT_SEVERITIES, getLineAtMatch, isCommentLine, isTestOrNodeModules, matchesRule, normalizeFilePath };

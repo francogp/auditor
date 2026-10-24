@@ -3,7 +3,7 @@ import { isMainModule } from "./cliUtils.js";
 import { DomainRefactorEngine } from "../core/refactor/domainRefactorEngine.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { styleText } from "node:util";
-//#region src/cli/refactor_domain.ts
+// src/cli/refactor_domain.ts
 /**
 * src/cli/refactor_domain.ts
 *
@@ -124,5 +124,4 @@ if (isMainModule(import.meta.url, ["auditor-domain", "refactor_domain"])) runRef
 	console.error(styleText("red", `\n[Error] Fatal error in auditor-domain: ${err.message}`));
 	process.exit(1);
 });
-//#endregion
 export { runRefactorDomainCli };

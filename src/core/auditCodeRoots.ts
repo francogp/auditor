@@ -4,9 +4,11 @@
  * Path predicates for source code roots, scripts, and CLI directories.
  */
 
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import { getAuditConfig } from './auditConfigLoader.ts';
 import { matchesAnyRoot } from './auditRootMatcher.ts';
 import { isTestPath } from './auditTestPredicates.ts';
+import { normalizePosixPath } from './safePath.ts';
 
 /**
  * Determines whether a file path belongs to codeRoots configured for general code audits,
@@ -14,10 +16,10 @@ import { isTestPath } from './auditTestPredicates.ts';
  */
 export function isInCodeRoots(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
-  const norm = filePath.split('\\').join('/').toLowerCase();
+  const norm = normalizePosixPath(filePath).toLowerCase();
   if (norm.includes('node_modules')) return false;
 
-  const codeRoots = config?.paths?.codeRoots ?? ['src', 'scripts'];
+  const codeRoots = config?.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
   if (!matchesAnyRoot(norm, codeRoots)) return false;
 
   const includesTests =
@@ -36,8 +38,8 @@ export function isInCodeRoots(filePath: string, config = getAuditConfig()): bool
  */
 export function isScriptPath(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
-  const norm = filePath.split('\\').join('/').toLowerCase();
-  const scriptsRoots = config?.paths?.scriptsRoots ?? ['scripts'];
+  const norm = normalizePosixPath(filePath).toLowerCase();
+  const scriptsRoots = config?.paths?.scriptsRoots ?? DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
   return matchesAnyRoot(norm, scriptsRoots);
 }
 
@@ -46,8 +48,8 @@ export function isScriptPath(filePath: string, config = getAuditConfig()): boole
  */
 export function isSrcPath(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
-  const norm = filePath.split('\\').join('/').toLowerCase();
-  const srcRoots = config?.paths?.srcRoots ?? ['src'];
+  const norm = normalizePosixPath(filePath).toLowerCase();
+  const srcRoots = config?.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
   return matchesAnyRoot(norm, srcRoots);
 }
 
@@ -56,7 +58,7 @@ export function isSrcPath(filePath: string, config = getAuditConfig()): boolean 
  */
 export function isCliPath(filePath: string, config = getAuditConfig()): boolean {
   if (!filePath) return false;
-  const norm = filePath.split('\\').join('/').toLowerCase();
-  const cliRoots = config?.paths?.cliRoots ?? ['src/cli'];
+  const norm = normalizePosixPath(filePath).toLowerCase();
+  const cliRoots = config?.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
   return matchesAnyRoot(norm, cliRoots);
 }

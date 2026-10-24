@@ -4,7 +4,7 @@ import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } f
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
-//#region src/suites/architecture/validate_oxlint.ts
+// src/suites/architecture/validate_oxlint.ts
 /**
 * src/suites/architecture/validate_oxlint.ts
 *
@@ -493,6 +493,7 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			}, ["oxlint-violation"]),
 			fixableRuleIds: ["oxlint-violation"],
 			gitIgnoreEntries: OxlintAuditor.gitIgnoreEntries,
+			cachePaths: [".oxlintcache"],
 			id: "validate_oxlint",
 			name: "Oxlint & Vite+ Code Hygiene Validator",
 			description: "Style and syntax rules with Oxlint",
@@ -556,5 +557,4 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxlintAuditor());
-//#endregion
 export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, isOxlintRuleFixable, parseOxlintResults };

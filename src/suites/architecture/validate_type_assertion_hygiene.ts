@@ -13,7 +13,7 @@
 
 import { enableCompileCache } from 'node:module';
 import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import ts from 'typescript';
 import { getAuditConfig } from '../../core/auditConfig.ts';
@@ -208,6 +208,14 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     const cfg = getAuditConfig(rootPath);
     const codeRoots =
       typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
+    const typeIgnores = Array.from(
+      getEffectiveIgnoreGlobs(rootPath, {
+        extraGlobs: [
+          ...(cfg.types?.ignoreGlobs ?? []),
+          ...(cfg.types?.exemptPaths ?? [])
+        ]
+      })
+    );
 
     super({
       usesThirdPartyTool: false,
@@ -290,11 +298,11 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       },
       coverage: {
         include: deriveCoverageFromRoots(codeRoots, EXTENSIONS).include,
-        exclude: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**']
+        exclude: typeIgnores
       },
       roots: codeRoots,
       allowedExtensions: EXTENSIONS,
-      extraIgnorePatterns: ['coverage/**', 'dist/**', 'scratch/**', '.agents/**'],
+      extraIgnorePatterns: typeIgnores,
       projectRoot: rootPath
     });
   }
@@ -303,8 +311,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     const rel = toPosixRelative(this.projectRoot, filePath);
     if (
       isTestFileForCodeAudit(rel, this.projectRoot) ||
-      rel.includes('validate_type_assertion_hygiene.ts') ||
-      rel.includes('validate_domain_types.ts')
+      this.isPathExempt(rel)
     ) {
       return;
     }

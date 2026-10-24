@@ -5,7 +5,7 @@ import { isMainModule } from "./cliUtils.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { styleText } from "node:util";
 import { spawnSync } from "node:child_process";
-//#region src/cli/report_review.ts
+// src/cli/report_review.ts
 /**
 * packages/auditor/src/cli/report_review.ts
 *
@@ -48,5 +48,4 @@ function runReviewReport(projectRoot = process.cwd()) {
 	if (result.status !== null && result.status !== 0) process.exit(result.status);
 }
 if (isMainModule(import.meta.url)) runReviewReport();
-//#endregion
 export { runReviewReport };

@@ -1,5 +1,5 @@
 import { createLineDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/commentStrippingDetector.ts
+// src/analyzers/homebrew/detectors/commentStrippingDetector.ts
 /**
 * src/analyzers/homebrew/detectors/commentStrippingDetector.ts
 *
@@ -15,5 +15,4 @@ const commentStrippingDetector = createLineDetector({
 		return null;
 	}
 });
-//#endregion
 export { commentStrippingDetector };

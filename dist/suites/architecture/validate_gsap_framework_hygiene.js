@@ -1,14 +1,14 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { matchesAnyRoot } from "../../core/auditRootMatcher.js";
+import "../../core/safePath.js";
 import { isInCodeRoots } from "../../core/auditCodeRoots.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
 import "../../core/auditConfig.js";
-import "../../core/safePath.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { scanBalancedParens } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
-//#region src/suites/architecture/validate_gsap_framework_hygiene.ts
+// src/suites/architecture/validate_gsap_framework_hygiene.ts
 /**
 * src/suites/architecture/validate_gsap_framework_hygiene.ts
 *
@@ -186,5 +186,4 @@ var ValidateGsapFrameworkHygieneAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGsapFrameworkHygieneAuditor());
-//#endregion
 export { DEVTOOLS_GUARD_WINDOW_POST_CHARS, DEVTOOLS_GUARD_WINDOW_PRE_CHARS, GSAP_FRAMEWORK_HYGIENE_RULES, ValidateGsapFrameworkHygieneAuditor, findGsapScopeRanges };

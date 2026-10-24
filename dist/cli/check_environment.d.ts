@@ -1,4 +1,3 @@
-//#region src/cli/check_environment.d.ts
 /**
  * src/cli/check_environment.ts
  *
@@ -19,4 +18,3 @@ export interface AuditorEngineSpecs {
 }
 export declare function getAuditorEngines(): AuditorEngineSpecs;
 export declare function checkEnvironment(targetDir?: string, autoRemediate?: boolean): boolean;
-//#endregion

@@ -1,9 +1,10 @@
-import { matchesAnyGlob, toPosixRelative } from "./auditCoverage.js";
-import "./safePath.js";
-import { CANONICAL_IGNORE_DIRS, isPathIgnored } from "./auditorBase.js";
+import { toPosixRelative } from "./safePath.js";
+import { CANONICAL_IGNORE_DIRS } from "./canonicalIgnoreRegistry.js";
+import { matchesAnyGlob } from "./auditCoverage.js";
+import { isPathIgnored } from "./auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/testCoverageCore.ts
+// src/core/testCoverageCore.ts
 /**
 * @file testCoverageCore.ts
 * @description Core engine for test execution coverage analysis and verification.
@@ -369,5 +370,4 @@ function analyzeTestCoverage(rawJson, projectRoot, config, complexityMap) {
 		hotspots: complexityMap ? correlateComplexityHotspots(files, complexityMap) : void 0
 	};
 }
-//#endregion
 export { ACCEPTABLE_COVERAGE_THRESHOLD, DEFAULT_TEST_COVERAGE_THRESHOLD, analyzeTestCoverage, calculateMetric, compressLineRanges, computeBucketCounts, computeDirectoryBreakdown, correlateComplexityHotspots, determineCoverageStatus, extractUncoveredLines, findUntrackedFiles, isPathExempt, parseIstanbulCoverage, resolveCoverageFile };

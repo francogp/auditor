@@ -1,14 +1,13 @@
 import { getAuditConfig } from "../auditConfigLoader.js";
 import { isTestPath } from "../auditTestPredicates.js";
+import { toPosixRelative } from "../safePath.js";
 import { isExemptFile } from "../auditPathPredicates.js";
 import "../auditConfig.js";
-import { toPosixRelative } from "../auditCoverage.js";
-import "../safePath.js";
 import { collectRepositoryFiles } from "../auditorBase.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
 import path from "node:path";
 import fs from "node:fs";
-//#region src/core/refactor/refactorFileScanner.ts
+// src/core/refactor/refactorFileScanner.ts
 /**
 * src/core/refactor/refactorFileScanner.ts
 *
@@ -149,5 +148,4 @@ function executePlanFileReplacements(baseDir, targetFiles, replacementGroups, cu
 		changesApplied
 	};
 }
-//#endregion
 export { applyFileTextReplacements, executePlanFileReplacements, extractFileScriptContent, forEachSourceScriptLine, isSameFilePath, scanProjectSourceFiles };

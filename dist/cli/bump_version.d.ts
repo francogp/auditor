@@ -1,6 +1,5 @@
 import { AuditVersionTargetConfig } from "../core/auditConfigTypes.js";
 import { VersionBumpType } from "../core/versionAnalyzer.js";
-//#region src/cli/bump_version.d.ts
 export interface MetricTableRow {
   readonly label: string;
   readonly value: string;
@@ -32,5 +31,4 @@ export interface ApplyBumpResult {
  * Applies a SemVer bump and persists it to package.json, version.ts, and configured sync targets.
  */
 export declare function applyVersionBump(options?: ApplyBumpOptions): ApplyBumpResult;
-export declare function runBumpCli(rawArgs?: readonly string[]): void;
-//#endregion
+export declare function runBumpCli(rawArgs?: readonly string[], cwd?: string): void;

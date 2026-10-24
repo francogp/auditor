@@ -1,4 +1,3 @@
-//#region src/cli/make_executable.d.ts
 /**
  * src/cli/make_executable.ts
  *
@@ -8,4 +7,3 @@
  */
 export declare function purgeOrphanedDistFiles(distDir?: string, srcDir?: string): void;
 export declare function makeCliBinariesExecutable(distDir?: string): void;
-//#endregion

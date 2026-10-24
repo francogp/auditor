@@ -1,7 +1,6 @@
 import { AuditConfig } from "../../core/auditConfigTypes.js";
 import { AuditFinding, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-//#region src/suites/architecture/validate_vite_plus_config.d.ts
 export declare const VITE_PLUS_CONFIG_RULES: readonly ["vite-plus-config-core", "vite-plus-config-lint", "vite-plus-config-fmt", "vite-plus-config-pack", "vite-plus-config-ts"];
 export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
 export interface VitePlusConfigAuditOptions {
@@ -19,4 +18,3 @@ export declare class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusC
   constructor(options?: VitePlusConfigAuditOptions);
   runAudit(): Promise<void>;
 }
-//#endregion

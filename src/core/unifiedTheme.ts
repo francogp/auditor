@@ -488,7 +488,9 @@ export function renderSetupBlockingBanner(
     ),
     styleText(
       'dim',
-      `To prevent induced false positives, reporting of ${postponedStr} application error(s) was postponed.`
+      postponedAppErrors > 0
+        ? `To prevent induced false positives, reporting of ${postponedStr} application error(s) was postponed.`
+        : 'Downstream application code and stylesheet checks are halted until setup errors are resolved.'
     ),
     ''
   ];

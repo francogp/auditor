@@ -1,6 +1,5 @@
 import { SharedAstContext } from "./astContext.js";
 import ts from "typescript";
-//#region src/core/auditedDocument.d.ts
 export interface LineColumnPosition {
   readonly line: number;
   readonly column: number;
@@ -131,4 +130,3 @@ export declare class AuditedDocument {
    */
   applyFixesToFile(): boolean;
 }
-//#endregion

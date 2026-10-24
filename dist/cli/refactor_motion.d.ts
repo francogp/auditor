@@ -1,4 +1,3 @@
-//#region src/cli/refactor_motion.d.ts
 /**
  * src/cli/refactor_motion.ts
  *
@@ -7,4 +6,3 @@
  * for UI timers, GPU transforms, and GSAP animation hygiene.
  */
 export declare function runRefactorMotionCli(argv?: readonly string[]): Promise<void>;
-//#endregion

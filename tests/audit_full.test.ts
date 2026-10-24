@@ -17,7 +17,8 @@ import {
   computeAuditCategoryCounts,
   isRatchetScope,
   createAuditBannerDetails,
-  renderAndPersistMasterReport
+  renderAndPersistMasterReport,
+  formatSetupBlockingRemediationHint
 } from '../src/cli/audit_full.ts';
 import type {
   AuditTaskDefinition,
@@ -664,6 +665,24 @@ describe('audit_full CLI orchestration helpers', () => {
       } finally {
         console.log = originalLog;
       }
+    });
+  });
+
+  describe('formatSetupBlockingRemediationHint (Zero False-Fix Mandate)', () => {
+    it('omits npm run auditor:fix and instructs manual resolution when hasFixableErrors is false', () => {
+      const hint = formatSetupBlockingRemediationHint(1, false);
+
+      expect(hint).not.toContain('npm run auditor:fix');
+      expect(hint).not.toContain('auditor:fix');
+      expect(hint).toMatch(/manually|no automatic fix/i);
+      expect(hint).toContain('1 configuration error(s)');
+    });
+
+    it('suggests npm run auditor:fix ONLY when hasFixableErrors is true', () => {
+      const hint = formatSetupBlockingRemediationHint(3, true);
+
+      expect(hint).toContain('npm run auditor:fix');
+      expect(hint).toContain('3 configuration error(s)');
     });
   });
 });

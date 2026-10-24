@@ -1,5 +1,4 @@
 import { HomebrewDetector } from "../homebrewTypes.js";
-//#region src/analyzers/homebrew/detectors/manualStepLoggingDetector.d.ts
 /**
  * src/analyzers/homebrew/detectors/manualStepLoggingDetector.ts
  *
@@ -10,4 +9,3 @@ import { HomebrewDetector } from "../homebrewTypes.js";
  * `runSubAuditorSync` / `runSubAuditor` / `declareFileSubAuditor` instead.
  */
 export declare const manualStepLoggingDetector: HomebrewDetector;
-//#endregion

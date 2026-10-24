@@ -23,6 +23,7 @@ import {
   parseTagSemver,
   compareTagsDescending,
   extractTagsFromLsRemote,
+  renderUpdateHelp,
   runCli
 } from '../src/cli/update_package.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
@@ -281,6 +282,95 @@ describe('update_package CLI', () => {
       const result = updateAuditorPackage({ cwd: sandboxDir, silent: true });
       expect(result.success).toBe(false);
       expect(result.error).toContain('Failed to read package.json');
+    });
+
+    it('executes in checkOnly mode without invoking npm install or mutating files', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-check-consumer',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#v9.0.0'
+          }
+        })
+      );
+
+      const auditorPkgDir = path.join(sandboxDir, 'node_modules/@francogp/auditor');
+      fs.mkdirSync(auditorPkgDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorPkgDir, 'package.json'),
+        JSON.stringify({ name: '@francogp/auditor', version: '9.0.0' })
+      );
+
+      let spawnCalled = false;
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        spawnCalled = true;
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const result = updateAuditorPackage({
+        cwd: sandboxDir,
+        targetVersion: 'v10.0.0',
+        silent: true,
+        checkOnly: true
+      });
+      spy.mockRestore();
+
+      expect(spawnCalled).toBe(false);
+      expect(result.success).toBe(true);
+      expect(result.previousVersion).toBe('9.0.0');
+      expect(result.newVersion).toBe('v10.0.0');
+      expect(result.updated).toBe(false);
+      expect(result.updateAvailable).toBe(true);
+    });
+
+    it('reports updateAvailable false when installed version matches target tag in checkOnly mode', () => {
+      fs.writeFileSync(
+        path.join(sandboxDir, 'package.json'),
+        JSON.stringify({
+          name: 'host-check-uptodate',
+          devDependencies: {
+            '@francogp/auditor': 'github:francogp/auditor#v10.0.0'
+          }
+        })
+      );
+
+      const auditorPkgDir = path.join(sandboxDir, 'node_modules/@francogp/auditor');
+      fs.mkdirSync(auditorPkgDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorPkgDir, 'package.json'),
+        JSON.stringify({ name: '@francogp/auditor', version: '10.0.0' })
+      );
+
+      const result = updateAuditorPackage({
+        cwd: sandboxDir,
+        targetVersion: 'v10.0.0',
+        silent: true,
+        checkOnly: true
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.previousVersion).toBe('10.0.0');
+      expect(result.newVersion).toBe('v10.0.0');
+      expect(result.updateAvailable).toBe(false);
+    });
+  });
+
+  describe('renderUpdateHelp', () => {
+    it('renders usage, options and read-only guidance without errors', () => {
+      const help = renderUpdateHelp();
+      expect(help).toContain('USAGE:');
+      expect(help).toContain('auditor-update [targetVersion] [options]');
+      expect(help).toContain('--check');
+      expect(help).toContain('--help');
+      expect(help).toContain('npm run auditor:version');
     });
   });
 
