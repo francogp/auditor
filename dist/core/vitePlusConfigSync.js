@@ -468,6 +468,16 @@ function syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions) {
 			modified = true;
 		}
 	}
+	if (nextDevDeps["vite-plus"] || nextDeps?.["vite-plus"]) {
+		if (nextDevDeps["vite"] && nextDevDeps["vite"].includes("vite-plus-core")) {
+			delete nextDevDeps["vite"];
+			modified = true;
+		}
+		if (nextDeps?.["vite"] && nextDeps["vite"].includes("vite-plus-core")) {
+			delete nextDeps["vite"];
+			modified = true;
+		}
+	}
 	return modified;
 }
 function syncViteOverride(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps) {

@@ -646,6 +646,19 @@ function syncVitePlusDevDep(
       modified = true;
     }
   }
+
+  // Eradicate redundant vite-plus-core aliases when vite-plus is present
+  if (nextDevDeps['vite-plus'] || nextDeps?.['vite-plus']) {
+    if (nextDevDeps['vite'] && nextDevDeps['vite'].includes('vite-plus-core')) {
+      delete nextDevDeps['vite'];
+      modified = true;
+    }
+    if (nextDeps?.['vite'] && nextDeps['vite'].includes('vite-plus-core')) {
+      delete nextDeps['vite'];
+      modified = true;
+    }
+  }
+
   return modified;
 }
 

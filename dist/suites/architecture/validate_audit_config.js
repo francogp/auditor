@@ -297,7 +297,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			ruleRemediations: {
 				"audit-config-missing-path": "📖 REMEDIATION GUIDE: audit-config-missing-path\n1. Root Cause: A directory path declared in `config.paths` does not exist on the project filesystem.\n2. Diagnosis: Compare the paths defined in `.auditor/audit.config.ts` against actual folders in your repository.\n3. Canonical Solution: If the directory was renamed or moved, update `.auditor/audit.config.ts`. If optional or not yet created, create the empty directory or remove it from configuration.\n4. Example / Auto-fix command:\n   Update `.auditor/audit.config.ts` with correct paths.",
 				"audit-config-missing-file": "📖 REMEDIATION GUIDE: audit-config-missing-file\n1. Root Cause: The primary auditor configuration file `.auditor/audit.config.ts` (or `audit.config.json`) was not found.\n2. Diagnosis: Check whether `.auditor/audit.config.ts` exists in the project root.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to automatically generate the canonical configuration file with default settings.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"audit-config-invalid-extension": "📖 REMEDIATION GUIDE: audit-config-invalid-extension\n1. Root Cause: An extension or plugin declared in `config.extensions` could not be resolved on disk or does not export a valid BaseAuditor instance.\n2. Diagnosis: Inspect the relative path declared in `extensions: [...]` inside `.auditor/audit.config.ts`.\n3. Canonical Solution: Ensure the target extension file exists, is valid TypeScript/JavaScript, and exports an auditor subclassing `BaseAuditor`.\n4. Example / Auto-fix command:\n   Verify `extensions: [\"./custom_audit.ts\"]` in `.auditor/audit.config.ts`.",
+				"audit-config-invalid-extension": "📖 REMEDIATION GUIDE: audit-config-invalid-extension\n1. Root Cause: An extension or plugin declared in `config.extensions` could not be resolved on disk, fails compilation, or violates BaseAuditor constructor contracts.\n2. Diagnosis: Inspect the target extension file reported in the violation and its runtime compilation/instantiation error message.\n3. Canonical Solution: Ensure the extension file exists, compiles cleanly, and subclasses `BaseAuditor`. If missing `requiredPermissions`, declare `requiredPermissions: []` in constructor options. If using `hasLineSuppression`, replace it with `hasPrecedingComment`.\n4. Example / Auto-fix command:\n   Verify `extensions: [\"./scripts/auditors/my_audit.ts\"]` in `.auditor/audit.config.ts` and ensure `super({ ..., requiredPermissions: [] })`.",
 				"audit-config-missing-gitignore-entry": "📖 REMEDIATION GUIDE: audit-config-missing-gitignore-entry\n1. Root Cause: Mandatory entries governed by the auditor (e.g., `scratch/`, `coverage/`) are missing from `.gitignore`.\n2. Diagnosis: Inspect `.gitignore` against required auditor artifact paths.\n3. Canonical Solution: Run `auditor fix` to automatically inject missing gitignore entries, or add them manually.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"audit-config-missing-section": "📖 REMEDIATION GUIDE: audit-config-missing-section\n1. Root Cause: An active sub-auditor requires a specific configuration section in `.auditor/audit.config.ts` that is currently missing.\n2. Diagnosis: Identify the missing configuration section mentioned in the report.\n3. Canonical Solution: Run `npm run auditor:fix` to automatically inject the missing section with canonical default values via TypeScript AST.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"audit-config-unknown-field": "📖 REMEDIATION GUIDE: audit-config-unknown-field\n1. Root Cause: An unrecognized property or key was found in `.auditor/audit.config.ts` (obsolete or misspelled key).\n2. Diagnosis: Review the field name reported in `.auditor/audit.config.ts` for typographical errors.\n3. Canonical Solution: Remove obsolete keys or rename them to the canonical modern schema.\n4. Example / Auto-fix command:\n   Remove unknown property from `.auditor/audit.config.ts`.",
@@ -774,12 +774,15 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			}
 		} catch (err) {
 			const errorMsg = err instanceof Error ? err.message : String(err);
+			let hint = "";
+			if (errorMsg.includes("requiredPermissions")) hint = " Hint: declare 'requiredPermissions: []' in constructor options.";
+			else if (errorMsg.includes("hasLineSuppression")) hint = " Hint: 'hasLineSuppression' was eradicated by Zero-Ignore Mandate; replace it with 'hasPrecedingComment'.";
 			this.addViolation({
 				ruleId: "audit-config-invalid-extension",
 				severity: "error",
-				file: AUDIT_CONFIG_FILE,
+				file: relTarget,
 				line: 1,
-				message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' failed compilation or runtime instantiation: ${errorMsg}. Fix the extension before continuing.`,
+				message: `Extension '${relTarget}' failed compilation or runtime instantiation: ${errorMsg}.${hint} Fix the extension before continuing.`,
 				context: normalized
 			});
 		}

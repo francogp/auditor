@@ -9,6 +9,7 @@ import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
 import { initAgentSkill } from "./init_agent.js";
 import { syncEnvScripts } from "./sync_env_scripts.js";
 import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";
+import { syncPackageJsonForVitePlus } from "../core/vitePlusConfigSync.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -93,6 +94,28 @@ function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.
 	if (latestTag) return latestTag;
 	return `v${AUDITOR_VERSION.split("-")[0]}`;
 }
+function preSyncHostPackageJson(projectRoot) {
+	let modified = false;
+	if (tryOrNull(() => syncPackageJsonForVitePlus(projectRoot))) modified = true;
+	const pkgPath = path.join(projectRoot, "package.json");
+	if (fs.existsSync(pkgPath)) {
+		const raw = safeReadFileSync(pkgPath);
+		if (raw) {
+			const pkg = safeJsonParse(raw);
+			if (pkg) {
+				const devDeps = pkg.devDependencies || {};
+				const deps = pkg.dependencies || {};
+				if (!devDeps["citty"] && !deps["citty"]) {
+					devDeps["citty"] = "^0.2.2";
+					pkg.devDependencies = devDeps;
+					fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + "\n", "utf8");
+					modified = true;
+				}
+			}
+		}
+	}
+	return modified;
+}
 function updateAuditorPackage(options = {}) {
 	const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
 	const hostPkgJsonPath = path.join(projectRoot, "package.json");
@@ -146,6 +169,7 @@ function updateAuditorPackage(options = {}) {
 		"-D",
 		`github:francogp/auditor#${targetTag}`
 	];
+	preSyncHostPackageJson(projectRoot);
 	ensureNpmrcAllowGit(projectRoot);
 	if (!options.silent) {
 		console.log(renderBanner("@FRANCOGP/AUDITOR - NATIVE PACKAGE UPDATER", `Directory: ${projectRoot}  |  Current Version: ${previousVersion}  |  Target: ${targetTag}`));
@@ -379,4 +403,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runCli();
 }
-export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, readInstalledAuditorVersion, renderUpdateHelp, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };
+export { compareTagsDescending, extractTagsFromLsRemote, findHostProjectRoot, parseTagSemver, preSyncHostPackageJson, readInstalledAuditorVersion, renderUpdateHelp, resolveLatestAuditorTag, runAuditorFixAutoRemediation, runCli, updateAuditorPackage };

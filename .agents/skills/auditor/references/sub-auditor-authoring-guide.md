@@ -46,7 +46,7 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   FileScanAuditor,
-  hasLineSuppression,
+  hasPrecedingComment,
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
   resolveFileScanRoots,

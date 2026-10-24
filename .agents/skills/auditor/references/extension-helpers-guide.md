@@ -180,6 +180,7 @@ import {
 ```typescript
 import {
   parseVueSfc,
+  hasPrecedingComment,
   stripComments,
   stripCommentsAndStrings,
   scanBalancedDelimiter,
@@ -191,7 +192,7 @@ import {
 | Helper | Signature | Description |
 |:---|:---|:---|
 | `parseVueSfc` | `(content: string) => VueSfcBlocks` | Deterministically parses Vue SFC into structured `<template>`, `<script>`, and `<style>` blocks with precise line and index coordinates. |
-| `hasLineSuppression` | `(line: string, ruleId: string, lines?: readonly string[], lineIndex?: number) => boolean` | Robustly detects single-line (`// <ruleId>`) and multiline comments (`/* <ruleId> */`, `<!-- <ruleId> -->`) across Vue SFC templates, scripts, and stylesheets. |
+| `hasPrecedingComment` | `(lines: readonly string[], lineIndex: number, directiveRegex: RegExp, options?: PrecedingCommentOptions) => boolean` | Robustly detects preceding single-line or multi-line comment annotations across Vue SFC templates, scripts, and stylesheets with lookback. |
 | `stripComments` | `(code: string) => string` | Safely removes line (`//`) and block (`/* ... */`) comments while preserving string literals and line count. |
 | `stripCommentsAndStrings` | `(code: string) => string` | Strips comments and string literals, replacing non-whitespace with spaces to preserve line and character offsets. |
 | `scanBalancedDelimiter` | `(text: string, open: string, close: string, startIndex: number) => number` | Scans forward from an opening delimiter to locate its matching closing delimiter, handling nested pairs and string escapes. |

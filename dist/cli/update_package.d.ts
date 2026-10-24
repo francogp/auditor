@@ -31,6 +31,7 @@ export declare function parseTagSemver(tagStr: string): {
 export declare function compareTagsDescending(tagA: string, tagB: string): number;
 export declare function extractTagsFromLsRemote(stdout: string): string[];
 export declare function resolveLatestAuditorTag(repoUrl?: string): string;
+export declare function preSyncHostPackageJson(projectRoot: string): boolean;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;
 export declare function renderUpdateHelp(): string;

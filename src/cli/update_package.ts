@@ -25,6 +25,7 @@ import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { initAgentSkill } from './init_agent.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../core/safeUtils.ts';
 import { syncEnvScripts } from './sync_env_scripts.ts';
+import { syncPackageJsonForVitePlus } from '../core/vitePlusConfigSync.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
 
 export interface UpdateAuditorOptions {
@@ -137,6 +138,33 @@ export function resolveLatestAuditorTag(
   return `v${baseVersion}`;
 }
 
+export function preSyncHostPackageJson(projectRoot: string): boolean {
+  let modified = false;
+  const syncResult = tryOrNull(() => syncPackageJsonForVitePlus(projectRoot));
+  if (syncResult) {
+    modified = true;
+  }
+
+  const pkgPath = path.join(projectRoot, 'package.json');
+  if (fs.existsSync(pkgPath)) {
+    const raw = safeReadFileSync(pkgPath);
+    if (raw) {
+      const pkg = safeJsonParse<Record<string, unknown>>(raw);
+      if (pkg) {
+        const devDeps = (pkg.devDependencies || {}) as Record<string, string>;
+        const deps = (pkg.dependencies || {}) as Record<string, string>;
+        if (!devDeps['citty'] && !deps['citty']) {
+          devDeps['citty'] = '^0.2.2';
+          pkg.devDependencies = devDeps;
+          fs.writeFileSync(pkgPath, JSON.stringify(pkg, null, 2) + '\n', 'utf8');
+          modified = true;
+        }
+      }
+    }
+  }
+  return modified;
+}
+
 export function updateAuditorPackage(options: UpdateAuditorOptions = {}): UpdateAuditorResult {
   const projectRoot = findHostProjectRoot(options.cwd ?? process.cwd(), options.stopAt);
   const hostPkgJsonPath = path.join(projectRoot, 'package.json');
@@ -209,6 +237,7 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   }
 
   const npmArgs = ['install', '-D', `github:francogp/auditor#${targetTag}`];
+  preSyncHostPackageJson(projectRoot);
   ensureNpmrcAllowGit(projectRoot);
 
   if (!options.silent) {

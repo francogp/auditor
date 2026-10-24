@@ -24,7 +24,8 @@ import {
   compareTagsDescending,
   extractTagsFromLsRemote,
   renderUpdateHelp,
-  runCli
+  runCli,
+  preSyncHostPackageJson
 } from '../src/cli/update_package.ts';
 import { ensureNpmrcAllowGit } from '../src/core/npmrcAllowGit.ts';
 
@@ -519,5 +520,76 @@ describe('ensureNpmrcAllowGit', () => {
     fs.writeFileSync(path.join(dir, '.npmrc'), 'allow-git=all\n');
     expect(ensureNpmrcAllowGit(dir)).toBe(false);
     expect(fs.readFileSync(path.join(dir, '.npmrc'), 'utf-8')).toBe('allow-git=all\n');
+  });
+});
+
+describe('preSyncHostPackageJson', () => {
+  const dir = path.join(process.cwd(), 'scratch', 'test_presync_pkg_' + crypto.randomUUID());
+
+  beforeEach(() => fs.mkdirSync(dir, { recursive: true }));
+  afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('elevates outdated vite-plus, cleans redundant vite, and injects citty', () => {
+    const initialPkg = {
+      name: 'legacy-host',
+      devDependencies: {
+        '@francogp/auditor': 'github:francogp/auditor#v9.7.0',
+        'vite-plus': '1.3.0',
+        vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0'
+      },
+      overrides: {
+        braces: '^3.0.3',
+        micromatch: '^4.0.8',
+        vite: 'npm:@voidzero-dev/vite-plus-core@1.3.0'
+      }
+    };
+    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify(initialPkg, null, 2), 'utf-8');
+
+    const modified = preSyncHostPackageJson(dir);
+    expect(modified).toBe(true);
+
+    const updated = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8'));
+    expect(updated.devDependencies['vite-plus']).toBe('^1.4.0');
+    expect(updated.devDependencies['vite']).toBeUndefined();
+    expect(updated.devDependencies['citty']).toBe('^0.2.2');
+    expect(updated.overrides.braces).toBeUndefined();
+    expect(updated.overrides.micromatch).toBeUndefined();
+    expect(updated.overrides.vite).toBe('$vite');
+    expect(updated.overrides.vitest).toBe('$vitest');
+  });
+
+  it('returns false when package.json is already fully canonical', () => {
+    const canonicalPkg = {
+      name: 'modern-host',
+      scripts: {
+        check: 'vp check',
+        'check:fix': 'vp check --fix',
+        fmt: 'vp fmt',
+        'fmt:check': 'vp fmt --check',
+        test: 'vp test',
+        'test:coverage': 'vp test --coverage'
+      },
+      devDependencies: {
+        '@francogp/auditor': 'github:francogp/auditor#v10.1.0',
+        'vite-plus': '^1.4.0',
+        '@vitest/coverage-v8': '^5.0.5',
+        citty: '^0.2.2'
+      },
+      overrides: {
+        'js-yaml': '^5.5.0',
+        katex: '^0.19.1',
+        'smol-toml': '^1.9.1',
+        vite: '$vite',
+        vitest: '$vitest'
+      }
+    };
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify(canonicalPkg, null, 2),
+      'utf-8'
+    );
+
+    const modified = preSyncHostPackageJson(dir);
+    expect(modified).toBe(false);
   });
 });

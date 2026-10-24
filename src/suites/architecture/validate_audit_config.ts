@@ -578,11 +578,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           '   `npm run auditor:fix`',
         'audit-config-invalid-extension':
           '📖 REMEDIATION GUIDE: audit-config-invalid-extension\n' +
-          '1. Root Cause: An extension or plugin declared in `config.extensions` could not be resolved on disk or does not export a valid BaseAuditor instance.\n' +
-          '2. Diagnosis: Inspect the relative path declared in `extensions: [...]` inside `.auditor/audit.config.ts`.\n' +
-          '3. Canonical Solution: Ensure the target extension file exists, is valid TypeScript/JavaScript, and exports an auditor subclassing `BaseAuditor`.\n' +
+          '1. Root Cause: An extension or plugin declared in `config.extensions` could not be resolved on disk, fails compilation, or violates BaseAuditor constructor contracts.\n' +
+          '2. Diagnosis: Inspect the target extension file reported in the violation and its runtime compilation/instantiation error message.\n' +
+          '3. Canonical Solution: Ensure the extension file exists, compiles cleanly, and subclasses `BaseAuditor`. If missing `requiredPermissions`, declare `requiredPermissions: []` in constructor options. If using `hasLineSuppression`, replace it with `hasPrecedingComment`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   Verify `extensions: ["./custom_audit.ts"]` in `.auditor/audit.config.ts`.',
+          '   Verify `extensions: ["./scripts/auditors/my_audit.ts"]` in `.auditor/audit.config.ts` and ensure `super({ ..., requiredPermissions: [] })`.',
         'audit-config-missing-gitignore-entry':
           '📖 REMEDIATION GUIDE: audit-config-missing-gitignore-entry\n' +
           '1. Root Cause: Mandatory entries governed by the auditor (e.g., `scratch/`, `coverage/`) are missing from `.gitignore`.\n' +
@@ -1481,12 +1481,18 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
+      let hint = '';
+      if (errorMsg.includes('requiredPermissions')) {
+        hint = " Hint: declare 'requiredPermissions: []' in constructor options.";
+      } else if (errorMsg.includes('hasLineSuppression')) {
+        hint = " Hint: 'hasLineSuppression' was eradicated by Zero-Ignore Mandate; replace it with 'hasPrecedingComment'.";
+      }
       this.addViolation({
         ruleId: 'audit-config-invalid-extension',
         severity: 'error',
-        file: AUDIT_CONFIG_FILE,
+        file: relTarget,
         line: 1,
-        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' failed compilation or runtime instantiation: ${errorMsg}. Fix the extension before continuing.`,
+        message: `Extension '${relTarget}' failed compilation or runtime instantiation: ${errorMsg}.${hint} Fix the extension before continuing.`,
         context: normalized
       });
     }
