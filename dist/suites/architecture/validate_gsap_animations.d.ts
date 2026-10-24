@@ -23,6 +23,9 @@ export declare class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapA
   private scanGpuLayerPromotion;
   private scanUiTimers;
   private forEachTweenConfig;
+  private checkTweenProperty;
+  private checkTweenObjectLiteral;
+  private scanGsapTweensAst;
   private scanLayoutProperties;
   private scanKebabCaseProperties;
   private scanRawTransformString;

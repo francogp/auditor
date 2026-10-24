@@ -164,6 +164,26 @@ function checkBooleanLiteralAnnotation(
   }
   if (!isBoolLit) return;
 
+  // Permit canonical discriminated union members:
+  // e.g. type Result = { success: true; data: T } | { success: false; error: E };
+  if (ts.isPropertySignature(node) || ts.isPropertyDeclaration(node)) {
+    let curr: ts.Node | undefined = node.parent;
+    while (curr) {
+      if (ts.isUnionTypeNode(curr)) {
+        return;
+      }
+      if (
+        ts.isTypeAliasDeclaration(curr) ||
+        ts.isInterfaceDeclaration(curr) ||
+        ts.isClassDeclaration(curr) ||
+        ts.isFunctionDeclaration(curr)
+      ) {
+        break;
+      }
+      curr = curr.parent;
+    }
+  }
+
   const { line, column } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
     ruleId: 'type-assertion-boolean-literal',
@@ -406,14 +426,14 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
       'Double type assertion `as unknown as [Domain]Id` bypasses type checking'
     );
 
-    // 3. Boolean literal annotations
+    // 3. Boolean literal annotations (excluding discriminated union lines with |)
     this.scanPattern(
       content,
       lines,
       rel,
       P_BOOLEAN_LITERAL_TYPE_ANNOTATION,
       'type-assertion-boolean-literal',
-      () => true,
+      (_match: RegExpExecArray, line: string) => !line.includes('|'),
       'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state'
     );
 

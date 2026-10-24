@@ -9,7 +9,7 @@ export declare const COVERAGE_EXPECTED_SUITES_ENV = "AUDIT_COVERAGE_EXPECTED_SUI
 /** Returns the run identifier of the orchestrated full run, if any. Ledgers are only written inside such runs. */
 export declare function resolveActiveCoverageRunId(): string | undefined;
 export declare function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): boolean;
-/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
+/** Whether a file is part of the auditable codebase (excluding binary assets, environment auxiliaries, and explicitly configured exemptions). */
 export declare function isAuditableCodebaseFile(relPosixPath: string, customExemptGlobs?: readonly string[]): boolean;
 /** Whether a file falls inside the static coverage declaration of a suite. */
 export declare function isDeclaredByCoverage(relPosixPath: string, declaration: AuditorCoverageDeclaration): boolean;

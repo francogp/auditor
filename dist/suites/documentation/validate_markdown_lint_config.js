@@ -86,7 +86,12 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 				"markdownlint-config-syntax": "📖 REMEDIATION GUIDE: markdownlint-config-syntax\n1. Root Cause: File `.markdownlint.json` contains JSON syntax errors (trailing commas, unclosed quotes, or corrupt format).\n2. Diagnosis: Open `.markdownlint.json` and validate syntax with a JSON parser.\n3. Canonical Solution: Correct trailing commas or missing quotes in `.markdownlint.json`.\n4. Example / Auto-fix command:\n   - Run: `npm run auditor:fix` or format `.markdownlint.json` with `vp run oxfmt`",
 				"markdownlint-config-missing-strict-rule": "📖 REMEDIATION GUIDE: markdownlint-config-missing-strict-rule\n1. Root Cause: Missing mandatory strict baseline rules (MD033 with allowed_elements: [\"br\"], MD024 with siblings_only: true, etc.) in `.markdownlint.json`.\n2. Diagnosis: Compare `.markdownlint.json` against required rules from framework documentation standards.\n3. Canonical Solution: Restore strict baseline rules by running auditor mechanical auto-repair.\n4. Example / Auto-fix command:\n   - Run: `npm run auditor:fix` or `auditor fix`"
 			},
-			coverage: { include: [".markdownlint*"] },
+			coverage: { include: [
+				".markdownlint.json",
+				".markdownlint.yaml",
+				".markdownlint.yml",
+				".markdownlint-cli2.jsonc"
+			] },
 			projectRoot,
 			fix: optionsObj?.fix,
 			...optionsObj

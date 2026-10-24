@@ -18,12 +18,15 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_console_cleanliness.ts
  */
 
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
   resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 
 enableCompileCache();
 
@@ -59,7 +62,7 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -105,25 +108,65 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
 
   protected override scanFile(relPath: string, content: string): void {
     const normalizedPath = normalizePosixPath(relPath);
-
-    // 1. Audit debugger statements (all files)
-    this.runSubAuditorSync('no-debugger-statement', () => {
-      this.auditDebugger(normalizedPath, content);
-    });
-
-    // 2. Audit raw console.log (exempt files, CLI tools, and terminal/auditor engine modules excluded)
     const config = getAuditConfig(this.projectRoot);
     const exemptFiles = getExemptLoggingFiles(this.projectRoot);
     const isCliOrTerminalOutput =
       isScriptPath(normalizedPath, config) ||
       isExemptFile(normalizedPath, config) ||
       isCliPath(normalizedPath, config);
+    const checkConsole = !exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput;
 
-    this.runSubAuditorSync('no-console-log-in-src', () => {
-      if (!exemptFiles.has(normalizedPath) && !isCliOrTerminalOutput) {
-        this.auditConsoleLog(normalizedPath, content);
-      }
-    });
+    const fullPath = path.resolve(this.projectRoot, relPath);
+    const doc = new AuditedDocument(relPath, content, fullPath);
+    const ast = doc.getAst();
+
+    if (ast) {
+      this.runSubAuditorSync('no-debugger-statement', () => {
+        this.runSubAuditorSync('no-console-log-in-src', () => {
+          const visit = (node: ts.Node): void => {
+            if (node.kind === ts.SyntaxKind.DebuggerStatement) {
+              const { line, column } = doc.getNodeLineAndColumn(node, ast);
+              this.addViolation({
+                ruleId: 'no-debugger-statement',
+                file: relPath,
+                line,
+                column,
+                message: 'Forbidden debugger statement found. Remove all debug breakpoints before committing.',
+                severity: 'error'
+              });
+            } else if (
+              checkConsole &&
+              ts.isCallExpression(node) &&
+              ts.isPropertyAccessExpression(node.expression) &&
+              ts.isIdentifier(node.expression.expression) &&
+              node.expression.expression.text === 'console' &&
+              node.expression.name.text === 'log'
+            ) {
+              const { line, column } = doc.getNodeLineAndColumn(node, ast);
+              this.addViolation({
+                ruleId: 'no-console-log-in-src',
+                file: relPath,
+                line,
+                column,
+                message: 'Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.',
+                severity: 'error'
+              });
+            }
+            ts.forEachChild(node, visit);
+          };
+          visit(ast);
+        });
+      });
+    } else {
+      this.runSubAuditorSync('no-debugger-statement', () => {
+        this.auditDebugger(normalizedPath, content);
+      });
+      this.runSubAuditorSync('no-console-log-in-src', () => {
+        if (checkConsole) {
+          this.auditConsoleLog(normalizedPath, content);
+        }
+      });
+    }
   }
 
   private auditDebugger(relPath: string, content: string): void {

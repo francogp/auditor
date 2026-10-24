@@ -27,6 +27,7 @@ describe('canonicalIgnoreRegistry', () => {
     expect(ALWAYS_IGNORE_DIRS.has('.vscode')).toBe(true);
     expect(ALWAYS_IGNORE_DIRS.has('.github')).toBe(true);
     expect(ALWAYS_IGNORE_DIRS.has('.gemini')).toBe(true);
+    expect(ALWAYS_IGNORE_DIRS.has('.auditor')).toBe(true);
     expect(ALWAYS_IGNORE_DIRS.has('tmp')).toBe(true);
     expect(ALWAYS_IGNORE_DIRS.has('volumes')).toBe(true);
 
@@ -43,7 +44,6 @@ describe('canonicalIgnoreRegistry', () => {
     expect(ALWAYS_IGNORE_DIRS.has('src')).toBe(false);
     expect(ALWAYS_IGNORE_DIRS.has('scripts')).toBe(false);
     expect(ALWAYS_IGNORE_DIRS.has('tests')).toBe(false);
-    expect(ALWAYS_IGNORE_DIRS.has('.auditor')).toBe(false);
   });
 
   it('exposes CANONICAL_IGNORE_DIRS matching ALWAYS_IGNORE_DIRS without hardcoded application folders', () => {

@@ -101,6 +101,14 @@ function checkBooleanLiteralAnnotation(node, doc, ast, issues) {
 		if (lit.kind === ts.SyntaxKind.TrueKeyword || lit.kind === ts.SyntaxKind.FalseKeyword) isBoolLit = true;
 	} else if (typeNode.kind === ts.SyntaxKind.TrueKeyword || typeNode.kind === ts.SyntaxKind.FalseKeyword) isBoolLit = true;
 	if (!isBoolLit) return;
+	if (ts.isPropertySignature(node) || ts.isPropertyDeclaration(node)) {
+		let curr = node.parent;
+		while (curr) {
+			if (ts.isUnionTypeNode(curr)) return;
+			if (ts.isTypeAliasDeclaration(curr) || ts.isInterfaceDeclaration(curr) || ts.isClassDeclaration(curr) || ts.isFunctionDeclaration(curr)) break;
+			curr = curr.parent;
+		}
+	}
 	const { line, column } = doc.getNodeLineAndColumn(node, ast);
 	issues.push({
 		ruleId: "type-assertion-boolean-literal",
@@ -223,7 +231,7 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 		this.scanPattern(content, lines, rel, P_TYPECAST_ARRAY_ANY_UNKNOWN, "type-assertion-zero-any", () => true, "Array typecast `as any[]` or `as unknown[]` degrades type safety");
 		this.scanPattern(content, lines, rel, P_TYPECAST_UNKNOWN, "type-assertion-double-cast", () => true, "Double type assertion `as unknown as ...` bypasses type checker");
 		this.scanPattern(content, lines, rel, P_DOUBLE_CAST_DOMAIN_ID, "type-assertion-double-cast", () => true, "Double type assertion `as unknown as [Domain]Id` bypasses type checking");
-		this.scanPattern(content, lines, rel, P_BOOLEAN_LITERAL_TYPE_ANNOTATION, "type-assertion-boolean-literal", () => true, "Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state");
+		this.scanPattern(content, lines, rel, P_BOOLEAN_LITERAL_TYPE_ANNOTATION, "type-assertion-boolean-literal", (_match, line) => !line.includes("|"), "Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state");
 		this.scanPattern(content, lines, rel, P_FLOATING_PROMISE, "type-assertion-floating-promise", () => true, "Floating Promise call `...Async()` without await or void — unhandled async execution");
 		this.scanPattern(content, lines, rel, P_TYPECAST_READONLY_STRING_ARRAY, "type-assertion-loose-array", () => true, "Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`");
 	}

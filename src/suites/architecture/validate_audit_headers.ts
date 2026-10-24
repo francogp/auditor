@@ -74,7 +74,8 @@ export interface AuditHeadersResult {
 
 export { CANONICAL_IGNORE_DIRS, isPathIgnored };
 
-const FALLOW_IGNORE_REGEX = /(?:\/\/|\/\*|<!--)\s*fallow-ignore(?:-file|-next-line)?\b/i;
+const FALLOW_IGNORE_REGEX =
+  /(?:\/\/|\/\*|<!--)\s*fallow-ignore(?:-file)?\b(?!\s*-(?:next-line|line)\b)/i;
 const TS_SUPPRESSION_REGEX = /^\s*\/\/\s*@ts-(?:nocheck|ignore|expect-error)\b/i;
 const ESLINT_DISABLE_BLOCK_REGEX =
   /^\s*\/\*\s*(?:eslint|oxlint)-disable\b(?!\s*-(?:next-line|line)\b)/i;

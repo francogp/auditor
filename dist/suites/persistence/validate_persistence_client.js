@@ -5,10 +5,13 @@ import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
+import { AuditedDocument } from "../../core/auditedDocument.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { scanBalancedBraces } from "../../core/scannerUtils.js";
 import { isCommentLine } from "../../analyzers/auditRuleTypes.js";
 import { enableCompileCache } from "node:module";
+import path from "node:path";
+import ts from "typescript";
 // src/suites/persistence/validate_persistence_client.ts
 /**
 * packages/auditor/src/suites/persistence/validate_persistence_client.ts
@@ -30,6 +33,12 @@ const PERSISTENCE_CLIENT_RULES = [
 	"persistence-client-unhandled-quota-error"
 ];
 const EXTENSIONS = /* @__PURE__ */ new Set([".ts", ".vue"]);
+const STORAGE_METHOD_NAMES = /* @__PURE__ */ new Set([
+	"setItem",
+	"getItem",
+	"removeItem"
+]);
+const BROWSER_STORAGE_OBJECTS = /* @__PURE__ */ new Set(["localStorage", "sessionStorage"]);
 const P_STORAGE_METHOD = /\b(?:localStorage|sessionStorage)\.(setItem|getItem|removeItem)\s*\(\s*([^,)\s][^,)]*)/g;
 const P_STORAGE_INDEXED = /\b(?:localStorage|sessionStorage)\s*\[([^\]]+)\]/g;
 var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
@@ -53,7 +62,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
@@ -93,6 +102,83 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 	scanFile(file, content) {
 		if (getAuditConfig(this.projectRoot).persistence?.engine === "none") return;
 		if (isTestFileForCodeAudit(file, this.projectRoot)) return;
+		const fullPath = path.resolve(this.projectRoot, file);
+		const doc = new AuditedDocument(file, content, fullPath);
+		const ast = doc.getAst();
+		if (ast) {
+			const isAuthorizedFile = this.isAuthorizedSaveFile(file);
+			const isTryWrapped = (node) => {
+				let curr = node.parent;
+				while (curr) {
+					if (ts.isTryStatement(curr) && curr.tryBlock.pos <= node.pos && curr.tryBlock.end >= node.end) return true;
+					curr = curr.parent;
+				}
+				return false;
+			};
+			this.runSubAuditorSync("persistence-client-uncoordinated-save", () => {
+				this.runSubAuditorSync("persistence-client-untyped-key", () => {
+					this.runSubAuditorSync("persistence-client-unhandled-quota-error", () => {
+						const visit = (node) => {
+							let isStorage = false;
+							let isWrite = false;
+							let keyNode;
+							let mutationLabel = "'.setItem()'";
+							if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression) && BROWSER_STORAGE_OBJECTS.has(node.expression.expression.text)) {
+								const method = node.expression.name.text;
+								if (STORAGE_METHOD_NAMES.has(method)) {
+									isStorage = true;
+									isWrite = method === "setItem";
+									keyNode = node.arguments[0];
+									mutationLabel = "'.setItem()'";
+								}
+							} else if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression) && BROWSER_STORAGE_OBJECTS.has(node.expression.text)) {
+								isStorage = true;
+								keyNode = node.argumentExpression;
+								mutationLabel = "by indexed assignment ('[key] = ...')";
+								if (ts.isBinaryExpression(node.parent) && node.parent.left === node && node.parent.operatorToken.kind === ts.SyntaxKind.EqualsToken) isWrite = true;
+							}
+							if (isStorage && keyNode) {
+								const rawKey = keyNode.getText(ast);
+								const keyText = ts.isStringLiteral(keyNode) ? keyNode.text : rawKey.replace(/['"`]/g, "");
+								const { line, column } = doc.getNodeLineAndColumn(keyNode, ast);
+								if (isWrite && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
+									if (this.saveKeyPrefixes.some((p) => keyText.startsWith(p) || keyText.includes(p))) this.addViolation({
+										ruleId: "persistence-client-uncoordinated-save",
+										filePath: file,
+										line,
+										column,
+										severity: "error",
+										message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
+										context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+									});
+								}
+								if (ts.isStringLiteral(keyNode)) this.addViolation({
+									ruleId: "persistence-client-untyped-key",
+									filePath: file,
+									line,
+									column,
+									severity: "error",
+									message: `Storage key ${rawKey} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
+									context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+								});
+								if (isWrite && !isTryWrapped(node)) this.addViolation({
+									ruleId: "persistence-client-unhandled-quota-error",
+									filePath: file,
+									line,
+									column,
+									severity: "error",
+									message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
+									context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
+								});
+							}
+							ts.forEachChild(node, visit);
+						};
+						visit(ast);
+					});
+				});
+			});
+			return;
+		}
 		this.runSubAuditorSync("persistence-client-uncoordinated-save", () => {
 			this.scanUncoordinatedSave(file, content);
 		});

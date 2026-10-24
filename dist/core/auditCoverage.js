@@ -37,8 +37,15 @@ function matchesAnyGlob(relPosixPath, globs) {
 		return false;
 	});
 }
-/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
+const CANONICAL_AUXILIARY_NON_CODE_BASENAMES = /* @__PURE__ */ new Set([
+	".gitkeep",
+	".node-version",
+	".env.example"
+]);
+/** Whether a file is part of the auditable codebase (excluding binary assets, environment auxiliaries, and explicitly configured exemptions). */
 function isAuditableCodebaseFile(relPosixPath, customExemptGlobs = []) {
+	const base = path.posix.basename(relPosixPath);
+	if (CANONICAL_AUXILIARY_NON_CODE_BASENAMES.has(base) || base.endsWith(".sample")) return false;
 	const ext = path.posix.extname(relPosixPath).toLowerCase();
 	if (ext && CANONICAL_BINARY_EXTENSIONS.has(ext)) return false;
 	if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;

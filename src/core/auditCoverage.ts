@@ -50,11 +50,21 @@ export function matchesAnyGlob(relPosixPath: string, globs: readonly string[]): 
   });
 }
 
-/** Whether a file is part of the auditable codebase (excluding binary assets and explicitly configured exemptions). */
+const CANONICAL_AUXILIARY_NON_CODE_BASENAMES: ReadonlySet<string> = new Set([
+  '.gitkeep',
+  '.node-version',
+  '.env.example'
+]);
+
+/** Whether a file is part of the auditable codebase (excluding binary assets, environment auxiliaries, and explicitly configured exemptions). */
 export function isAuditableCodebaseFile(
   relPosixPath: string,
   customExemptGlobs: readonly string[] = []
 ): boolean {
+  const base = path.posix.basename(relPosixPath);
+  if (CANONICAL_AUXILIARY_NON_CODE_BASENAMES.has(base) || base.endsWith('.sample')) {
+    return false;
+  }
   const ext = path.posix.extname(relPosixPath).toLowerCase();
   if (ext && CANONICAL_BINARY_EXTENSIONS.has(ext)) return false;
   if (customExemptGlobs.length > 0 && matchesAnyGlob(relPosixPath, customExemptGlobs)) return false;

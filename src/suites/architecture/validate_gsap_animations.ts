@@ -21,6 +21,8 @@
  */
 
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
   resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
@@ -175,6 +177,7 @@ export const GSAP_LAYOUT_PROPERTIES = [
 export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 
 const LAYOUT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(GSAP_LAYOUT_PROPERTIES);
+const GSAP_TWEEN_METHODS: ReadonlySet<string> = new Set(['to', 'from', 'fromTo', 'set']);
 
 function readTopLevelProperty(
   cfgText: string,
@@ -330,7 +333,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -515,8 +518,13 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.declareFileSubAuditor(ruleId, (doc) => {
         const norm = normalizeFilePath(doc.relPath);
         if ((!norm.endsWith('.ts') && !norm.endsWith('.vue')) || isExemptFile(doc.relPath)) return;
-        const scriptRanges = this.getScriptRanges(doc.rawContent, norm);
-        scanner(doc.relPath, doc.rawContent, scriptRanges);
+        const ast = doc.getAst();
+        if (ast) {
+          this.scanGsapTweensAst(doc, ast, ruleId);
+        } else {
+          const scriptRanges = this.getScriptRanges(doc.rawContent, norm);
+          scanner(doc.relPath, doc.rawContent, scriptRanges);
+        }
       });
     };
 
@@ -749,6 +757,128 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         }
       }
     }
+  }
+
+  private checkTweenProperty(
+    prop: ts.PropertyAssignment,
+    propName: string,
+    doc: AuditedDocument,
+    ast: ts.SourceFile,
+    targetRule: GsapAnimationRuleId
+  ): void {
+    if (targetRule === 'gsap-no-layout-properties' && LAYOUT_PROPERTIES_SET.has(propName)) {
+      const { line, column } = doc.getNodeLineAndColumn(prop, ast);
+      this.addViolation({
+        ruleId: 'gsap-no-layout-properties',
+        message: `Animation of CSS layout properties in GSAP detected: '${propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
+        filePath: doc.relPath,
+        line,
+        column,
+        severity: 'error'
+      });
+      return;
+    }
+
+    if (targetRule === 'gsap-kebab-case-properties' && propName.includes('-')) {
+      const { line, column } = doc.getNodeLineAndColumn(prop, ast);
+      this.addViolation({
+        ruleId: 'gsap-kebab-case-properties',
+        message: `CSS property in kebab-case detected in GSAP tween: '${propName}'. Use camelCase according to GSAP standards.`,
+        filePath: doc.relPath,
+        line,
+        column,
+        severity: 'error'
+      });
+      return;
+    }
+
+    if (
+      targetRule === 'gsap-raw-transform-string' &&
+      propName === 'transform' &&
+      ts.isStringLiteral(prop.initializer)
+    ) {
+      const { line, column } = doc.getNodeLineAndColumn(prop, ast);
+      this.addViolation({
+        ruleId: 'gsap-raw-transform-string',
+        message: `Use of raw CSS string 'transform' in GSAP detected: '${prop.initializer.text}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
+        filePath: doc.relPath,
+        line,
+        column,
+        severity: 'error'
+      });
+    }
+  }
+
+  private checkTweenObjectLiteral(
+    arg: ts.ObjectLiteralExpression,
+    doc: AuditedDocument,
+    ast: ts.SourceFile,
+    targetRule: GsapAnimationRuleId
+  ): void {
+    let hasSvgOrigin = false;
+    let hasTransformOrigin = false;
+
+    for (const prop of arg.properties) {
+      if (!ts.isPropertyAssignment(prop)) continue;
+      const propName = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
+        ? prop.name.text
+        : '';
+
+      if (propName === 'svgOrigin') hasSvgOrigin = true;
+      if (propName === 'transformOrigin') hasTransformOrigin = true;
+
+      this.checkTweenProperty(prop, propName, doc, ast, targetRule);
+    }
+
+    if (targetRule === 'gsap-simultaneous-origin-conflict' && hasSvgOrigin && hasTransformOrigin) {
+      const { line, column } = doc.getNodeLineAndColumn(arg, ast);
+      this.addViolation({
+        ruleId: 'gsap-simultaneous-origin-conflict',
+        message: "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
+        filePath: doc.relPath,
+        line,
+        column,
+        severity: 'error'
+      });
+    }
+  }
+
+  private scanGsapTweensAst(
+    doc: AuditedDocument,
+    ast: ts.SourceFile,
+    targetRule: GsapAnimationRuleId
+  ): void {
+    const isGsapCall = (call: ts.CallExpression): boolean => {
+      const expr = call.expression;
+      if (!ts.isPropertyAccessExpression(expr)) return false;
+      if (!GSAP_TWEEN_METHODS.has(expr.name.text)) return false;
+
+      let recv: ts.Node = expr.expression;
+      while (ts.isPropertyAccessExpression(recv)) {
+        recv = recv.name;
+      }
+      if (ts.isIdentifier(recv)) {
+        const text = recv.text.toLowerCase();
+        return text === 'gsap' || text.includes('timeline') || text.includes('tl') || text === 'ctx';
+      }
+      if (ts.isCallExpression(recv)) {
+        return isGsapCall(recv);
+      }
+      return false;
+    };
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node) && isGsapCall(node)) {
+        for (const arg of node.arguments) {
+          if (ts.isObjectLiteralExpression(arg)) {
+            this.checkTweenObjectLiteral(arg, doc, ast, targetRule);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+
+    visit(ast);
   }
 
   private scanLayoutProperties(

@@ -38,6 +38,7 @@ const ALWAYS_IGNORE_DIRS = /* @__PURE__ */ new Set([
 	".vscode",
 	".github",
 	".gemini",
+	".auditor",
 	"tmp",
 	"volumes"
 ]);
@@ -55,6 +56,7 @@ const CANONICAL_BINARY_EXTENSIONS = /* @__PURE__ */ new Set([
 	".bmp",
 	".tiff",
 	".avif",
+	".svg",
 	".mp3",
 	".ogg",
 	".wav",

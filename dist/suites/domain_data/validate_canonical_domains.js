@@ -161,7 +161,7 @@ async function extractLibraryDomainTypes(root) {
 function detectLibraryDomainTypeDuplicates(files, libraryTypes) {
 	const findings = [];
 	if (libraryTypes.size === 0) return findings;
-	const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?:\s+as\s+const)?/g;
+	const P_LITERAL_ARRAY_DECL = /\b(?:(?:export\s+)?const|let|var)\s+([A-Z_a-z]\w*)\s*(?::[^=]+)?=\s*\[\s*['"`][\s\S]*?\](?!\s+as\s+const)/g;
 	const P_TYPE_UNION_DECL = /\b(?:export\s+)?type\s+(\w+)\s*=\s*(?:\(\s*|\|\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)/g;
 	const P_PROP_UNION_DECL = /\b(\w+)\??:\s*(?:\(\s*|\|\s*)?(['"`][\w\s'"`-]+\|[\w\s|'"`-]+)/g;
 	const reportIfLibraryDuplicate = (sigKey, file, lineNum, col, snippet, messageBuilder) => {

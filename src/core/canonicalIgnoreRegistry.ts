@@ -39,6 +39,7 @@ export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([
   '.vscode',
   '.github',
   '.gemini',
+  '.auditor',
   'tmp',
   'volumes'
 ]);
@@ -57,6 +58,7 @@ export const CANONICAL_BINARY_EXTENSIONS: ReadonlySet<string> = new Set([
   '.bmp',
   '.tiff',
   '.avif',
+  '.svg',
   '.mp3',
   '.ogg',
   '.wav',

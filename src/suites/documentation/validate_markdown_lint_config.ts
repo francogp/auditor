@@ -160,7 +160,12 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
           '   - Run: `npm run auditor:fix` or `auditor fix`'
       },
       coverage: {
-        include: ['.markdownlint*']
+        include: [
+          '.markdownlint.json',
+          '.markdownlint.yaml',
+          '.markdownlint.yml',
+          '.markdownlint-cli2.jsonc'
+        ]
       },
       projectRoot,
       fix: optionsObj?.fix,

@@ -1674,7 +1674,7 @@ All other paths must be derived dynamically from `audit.config.ts`.
 
 ### 3. Isolated Subsystem Ignore Governance & Universal Ignore Resolution
 
-1. **Binary Rule**: If a directory belongs to a tool or sub-auditor (`.fallow`, `.oxlintcache`, `.stylelintcache`), the sub-auditor MUST declare it via `cachePaths`. If it belongs to no specific sub-auditor (`.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `dist`, `coverage`), it lives in `ALWAYS_IGNORE_DIRS`.
+1. **Binary Rule**: If a directory belongs to a tool or sub-auditor (`.fallow`, `.oxlintcache`, `.stylelintcache`), the sub-auditor MUST declare it via `cachePaths`. If it belongs to no specific sub-auditor (`.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `.auditor`), it lives in `ALWAYS_IGNORE_DIRS`.
 2. **Section Isolation**: Each sub-auditor isolates its custom ignores in its own section (e.g. `dox: { enabled: true, ignoreGlobs: ['.agents/**'] }`), ensuring that other sub-auditors scan `.agents/**` normally.
 3. **Universal Resolution**: `BaseAuditor` resolves ignores through:
    $$\text{UNION}(\text{ALWAYS\_IGNORE\_DIRS}, \text{DynamicCaches}, \text{LockedSkills}, \text{paths.ignoreGlobs}, \text{subsystem.ignoreGlobs})$$
