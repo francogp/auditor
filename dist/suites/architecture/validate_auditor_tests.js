@@ -93,8 +93,9 @@ function deriveAuditorTestsCoverage(projectRoot) {
 	const hasCoreSuites = fs.existsSync(path.join(projectRoot, suitesDir));
 	const defaultAuditorRoots = DEFAULT_AUDIT_CONFIG.auditorHygiene?.roots ?? ["scripts/auditors"];
 	const auditorRoots = isSelfRepo && hasCoreSuites ? [suitesDir] : config.auditorHygiene?.roots?.length ? config.auditorHygiene.roots : defaultAuditorRoots;
+	const testPatterns = isSelfRepo && hasCoreSuites ? (tr) => [path.posix.join(tr, "**", "validate_*.test.ts"), path.posix.join(tr, "audit_project.test.ts")] : (tr) => [path.posix.join(tr, "**", "{validate,audit}_*.test.ts")];
 	return {
-		include: [...auditorRoots.map((r) => `${r}/**/*.ts`), ...testRoots.flatMap((tr) => [path.posix.join(tr, "**", "validate_*.test.ts"), path.posix.join(tr, "audit_project.test.ts")])],
+		include: [...auditorRoots.map((r) => `${r}/**/*.ts`), ...testRoots.flatMap((tr) => testPatterns(tr))],
 		exclude: isSelfRepo && hasCoreSuites ? [
 			path.posix.join(suitesDir, "architecture", "audit_rules.ts"),
 			path.posix.join(suitesDir, "architecture", "stylelintSassTrapsPlugin.ts"),

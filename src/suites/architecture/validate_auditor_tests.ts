@@ -146,12 +146,18 @@ function deriveAuditorTestsCoverage(projectRoot: string): { include: string[]; e
     ? [suitesDir]
     : (config.auditorHygiene?.roots?.length ? config.auditorHygiene.roots : defaultAuditorRoots);
 
+  const testPatterns = isSelfRepo && hasCoreSuites
+    ? (tr: string) => [
+        path.posix.join(tr, '**', 'validate_*.test.ts'),
+        path.posix.join(tr, 'audit_project.test.ts')
+      ]
+    : (tr: string) => [
+        path.posix.join(tr, '**', '{validate,audit}_*.test.ts')
+      ];
+
   const include = [
     ...auditorRoots.map((r: string) => `${r}/**/*.ts`),
-    ...testRoots.flatMap((tr: string) => [
-      path.posix.join(tr, '**', 'validate_*.test.ts'),
-      path.posix.join(tr, 'audit_project.test.ts')
-    ])
+    ...testRoots.flatMap((tr: string) => testPatterns(tr))
   ];
 
   const exclude = isSelfRepo && hasCoreSuites

@@ -966,9 +966,9 @@ export function computeResultsFixableViolations(
 /* ========================================================================= */
 
 /**
- * Nominal branding helper for compile-time domain safety.
+ * Flavored branding helper for compile-time domain safety and ergonomic assignability.
  */
-export type Brand<T, B extends string> = T & { readonly __brand: B };
+export type Brand<T, B extends string> = T & { readonly __brand?: B };
 
 /**
  * Open, human-readable display text, UI labels, narratives, or user-facing strings.

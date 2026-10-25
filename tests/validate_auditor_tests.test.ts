@@ -53,6 +53,15 @@ describe('AuditorTestsAuditor', () => {
       auditor.recordScannedFile('src/suites/some.ts');
       validateAuditorConstruction(auditor);
     });
+
+    it('derives coverage include with {validate,audit}_*.test.ts for consumer host projects', () => {
+      const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
+      const declaration = auditor.getCoverageRecorder().declaration;
+      const hasAuditorTestGlob = declaration.include.some(
+        (glob) => glob.includes('{validate,audit}_*.test.ts') || glob.includes('audit_*.test.ts')
+      );
+      expect(hasAuditorTestGlob).toBe(true);
+    });
   });
 
   describe('extractSuiteDeclaredRules', () => {

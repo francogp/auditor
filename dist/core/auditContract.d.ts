@@ -542,10 +542,10 @@ export interface FixableViolationsSummary {
  */
 export declare function computeResultsFixableViolations(results: readonly StandardAuditResult[], isFixMode?: boolean): FixableViolationsSummary;
 /**
- * Nominal branding helper for compile-time domain safety.
+ * Flavored branding helper for compile-time domain safety and ergonomic assignability.
  */
 export type Brand<T, B extends string> = T & {
-  readonly __brand: B;
+  readonly __brand?: B;
 };
 /**
  * Open, human-readable display text, UI labels, narratives, or user-facing strings.

@@ -1,6 +1,7 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -215,6 +216,11 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 		];
 		const allowedExtensions = config.encoding?.allowedExtensions !== void 0 && config.encoding.allowedExtensions.length > 0 ? new Set(config.encoding.allowedExtensions) : DEFAULT_TEXT_EXTENSIONS;
 		const exemptPaths = [...config.encoding?.exemptPaths ?? [], ...config.encoding?.exemptFiles ?? []];
+		const encodingExcludes = [
+			...config.encoding?.exemptGlobs ?? [],
+			...config.encoding?.exemptPaths ?? [],
+			...config.encoding?.exemptFiles ?? []
+		];
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -250,6 +256,10 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 			allowedExtensions,
 			exemptPaths,
 			extraIgnorePatterns: Array.from(getEffectiveIgnoreGlobs(projectRoot, { extraGlobs: config.encoding?.exemptGlobs ?? [] })),
+			coverage: {
+				...deriveCoverageFromRoots(roots, allowedExtensions, projectRoot),
+				exclude: encodingExcludes
+			},
 			projectRoot,
 			fix: optionsObj?.fix
 		});
@@ -259,6 +269,15 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 		const encodingConfig = getAuditConfig(this.projectRoot).encoding;
 		const prohibitBom = encodingConfig?.prohibitBom ?? true;
 		const detectMojibake = encodingConfig?.detectMojibake ?? true;
+		const encodingExcludes = [
+			...encodingConfig?.exemptGlobs ?? [],
+			...encodingConfig?.exemptPaths ?? [],
+			...encodingConfig?.exemptFiles ?? []
+		];
+		this.redeclareCoverage({
+			...deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot),
+			exclude: encodingExcludes
+		});
 		const candidateFiles = this.getScannableFiles();
 		let scannedCount = 0;
 		let repairedCount = 0;

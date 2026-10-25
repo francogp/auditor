@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { resetAuditConfig, setAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   ValidateFileEncodingAuditor,
@@ -35,6 +36,32 @@ describe('ValidateFileEncodingAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(FILE_ENCODING_RULES);
       expect(auditor.description.length).toBeLessThanOrEqual(60);
+    });
+
+    it('populates coverage.exclude with config.encoding.exemptGlobs, exemptPaths and exemptFiles', () => {
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'test-app',
+          paths: {
+            srcRoots: ['src'],
+            codeRoots: ['src'],
+            testRoots: ['tests'],
+            scriptsRoots: ['scripts']
+          },
+          encoding: {
+            exemptGlobs: ['database/backups/**'],
+            exemptPaths: ['legacy/vendor'],
+            exemptFiles: ['legacy/file.txt']
+          }
+        }),
+        tmpDir
+      );
+      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
+      const declaration = auditor.getCoverageRecorder().declaration;
+      expect(declaration.exclude).toContain('database/backups/**');
+      expect(declaration.exclude).toContain('legacy/vendor');
+      expect(declaration.exclude).toContain('legacy/file.txt');
+      resetAuditConfig();
     });
   });
 

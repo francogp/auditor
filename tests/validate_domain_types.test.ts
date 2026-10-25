@@ -18,6 +18,7 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
+import { type Brand, type DisplayText, type AssetUri } from '../src/core/auditContract.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
 import {
   DomainTypesAuditor,
@@ -464,6 +465,19 @@ export function isQuoteOrDelimiter(char: string): boolean {
       const findings = await auditFile(lexerTestFile);
       const chained = findings.filter((f) => f.ruleId === 'domain-chained-literal-comparison');
       expect(chained).toHaveLength(0);
+    });
+
+    it('exports Brand flavored type with optional brand tag enabling ergonomic string assignability', () => {
+      type CustomId = Brand<string, 'CustomId'>;
+      const id: CustomId = 'valid-custom-id';
+      const text: DisplayText = 'valid display text';
+      const uri: AssetUri = '/assets/sprite.png';
+      expect(typeof id).toBe('string');
+      expect(typeof text).toBe('string');
+      expect(typeof uri).toBe('string');
+      expect(id).toBe('valid-custom-id');
+      expect(text).toBe('valid display text');
+      expect(uri).toBe('/assets/sprite.png');
     });
   });
 });

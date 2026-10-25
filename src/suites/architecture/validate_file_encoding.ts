@@ -22,6 +22,7 @@ import {
   createRuleCapabilities,
   getEffectiveIgnoreGlobs
 } from '../../core/auditorBase.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import type { RemediationPhaseId } from '../../core/auditContract.ts';
 
@@ -357,6 +358,12 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       ...(config.encoding?.exemptFiles ?? [])
     ];
 
+    const encodingExcludes = [
+      ...(config.encoding?.exemptGlobs ?? []),
+      ...(config.encoding?.exemptPaths ?? []),
+      ...(config.encoding?.exemptFiles ?? [])
+    ];
+
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -396,6 +403,10 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
           extraGlobs: config.encoding?.exemptGlobs ?? []
         })
       ),
+      coverage: {
+        ...deriveCoverageFromRoots(roots, allowedExtensions, projectRoot),
+        exclude: encodingExcludes
+      },
       projectRoot,
       fix: optionsObj?.fix
     });
@@ -410,6 +421,16 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
     const encodingConfig = config.encoding;
     const prohibitBom = encodingConfig?.prohibitBom ?? true;
     const detectMojibake = encodingConfig?.detectMojibake ?? true;
+
+    const encodingExcludes = [
+      ...(encodingConfig?.exemptGlobs ?? []),
+      ...(encodingConfig?.exemptPaths ?? []),
+      ...(encodingConfig?.exemptFiles ?? [])
+    ];
+    this.redeclareCoverage({
+      ...deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot),
+      exclude: encodingExcludes
+    });
 
     // Collect all scannable files according to canonical roots & extensions
     const candidateFiles = this.getScannableFiles();
