@@ -174,5 +174,30 @@ describe('TestHygieneAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('marks playwright-id-locators-only not applicable when e2e.idLocatorsOnly is false', async () => {
+      setAuditConfig({
+        ...DEFAULT_AUDIT_CONFIG,
+        paths: {
+          ...DEFAULT_AUDIT_CONFIG.paths,
+          e2eRoots: ['tests']
+        },
+        e2e: {
+          enabled: true,
+          idLocatorsOnly: false
+        }
+      });
+      const auditor = new TestHygieneAuditor();
+      await auditor.runAudit();
+      const ledger = auditor.getCoverageRecorder().toLedger({
+        runId: 'test-run',
+        suiteId: auditor.id,
+        skipped: false,
+        ruleIds: TEST_HYGIENE_RULES
+      });
+      expect(ledger.notApplicable['playwright-id-locators-only']).toBe(
+        'e2e.idLocatorsOnly is not enabled in audit.config.ts'
+      );
+    });
   });
 });

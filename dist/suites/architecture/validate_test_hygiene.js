@@ -134,7 +134,7 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 			this.markRuleNotApplicable("playwright-id-locators-only", "No existing e2eRoots found on disk");
 			this.markRuleNotApplicable("no-playwright-force-click", "No existing e2eRoots found on disk");
 			this.markRuleNotApplicable("no-playwright-polling-waits", "No existing e2eRoots found on disk");
-		}
+		} else if (config.e2e?.idLocatorsOnly !== true) this.markRuleNotApplicable("playwright-id-locators-only", "e2e.idLocatorsOnly is not enabled in audit.config.ts");
 	}
 	scanIntegrationMocksAst(relPath, sf, lines) {
 		const forbiddenTargets = getForbiddenIntegrationMockTargets();

@@ -217,6 +217,11 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
         'no-playwright-polling-waits',
         'No existing e2eRoots found on disk'
       );
+    } else if (config.e2e?.idLocatorsOnly !== true) {
+      this.markRuleNotApplicable(
+        'playwright-id-locators-only',
+        'e2e.idLocatorsOnly is not enabled in audit.config.ts'
+      );
     }
   }
 
