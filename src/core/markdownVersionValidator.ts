@@ -109,7 +109,7 @@ export function resolveProjectVersionInfo(rootDir: string): ProjectVersionInfo |
       expectedAuditorFullVersion: auditorVer.fullVersion
     };
   } catch {
-    // catch-ok: ignore invalid package.json
+    // ignore invalid package.json
     return null;
   }
 }

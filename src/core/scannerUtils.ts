@@ -272,7 +272,7 @@ export const DEFAULT_COMMENT_LOOKBACK_LINES = 10;
 /**
  * Checks if the current line or any preceding lines contain a comment matching `directiveRegex`.
  * Useful for multiline constructs in TypeScript or Vue SFC templates where a directive or suppression
- * comment (e.g. `<!-- ui-branching-ok: ... -->` or `// layout-ok: ...`) is placed above a multiline tag.
+ * comment (e.g. documentation or directive comment) is placed above a multiline tag.
  *
  * @param lines Array of code lines.
  * @param lineIndex 0-indexed line number of the target statement or tag.

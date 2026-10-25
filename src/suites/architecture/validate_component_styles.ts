@@ -649,7 +649,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
           '2. Diagnosis: Open the `.vue` component and verify it has no `<style>` block.\n' +
           '3. Canonical Solution:\n' +
           '   a) Add `<style lang="scss" scoped>` containing component-specific rules.\n' +
-          '   b) If purely logical / renderless, add `// renderless-ok: <reason>` in `<script>`.\n' +
+          '   b) If purely logical / renderless, add `<style lang="scss" scoped></style>` or extract logic to a composable (`.ts`).\n' +
           '4. Example / Auto-fix command:\n' +
           '   - Add: `<style lang="scss" scoped>\n.component-root {\n  display: block;\n}\n</style>`',
         'banned-style-inherited':

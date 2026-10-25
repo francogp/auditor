@@ -130,7 +130,7 @@ import {
 } from '../../analyzers/auditRuleTypes.ts';
 
 export const viewport: AuditRule = {
-  // string-ok: Internal string formatting or DOM token identifier
+  // Internal string formatting or DOM token identifier
   id: 'viewport',
   name: 'Viewport Units',
   category: 'Viewport (dvh/dvw)',
@@ -138,7 +138,7 @@ export const viewport: AuditRule = {
   regex: /\b\d+(?:\.\d+)?(vw|vh)\b/gi,
   message: (match: string) =>
     `Legacy viewport unit detected: '${match}'. Use '${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}' for dynamic mobile viewport support.`,
-  fix: (match: string) => `${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}` // string-ok: Internal string formatting or DOM token identifier
+  fix: (match: string) => `${match.slice(0, -2)}d${match.slice(-2).toLowerCase()}` // Internal string formatting or DOM token identifier
 };
 
 export const legacyDates: AuditRule = {
@@ -148,7 +148,7 @@ export const legacyDates: AuditRule = {
   aliases: ['temporal', 'date', 'dates', 'legacy-dates'],
   regex: /new Date\(|Date\.now\(\)/g,
   message: "Usage of 'Date' detected. Use 'Temporal'.",
-  severity: 'error', // string-ok: Internal string formatting or DOM token identifier
+  severity: 'error', // Internal string formatting or DOM token identifier
   appliesTo: (filePath: string) => {
     return !isExemptFile(filePath) && isInCodeRoots(filePath);
   },
@@ -229,14 +229,14 @@ export const noDomainIdFallbacks: AuditRule = {
   },
   message:
     "SILENT FALLBACK ON DOMAIN ID / NAME DETECTED. Using silent fallbacks (such as || '', ?? '', or swapping id with name) is strictly prohibited for domain identifiers. A strict validation function throwing an explicit error (Fail Loud) must be used if the ID is missing or invalid.",
-  severity: 'error', // string-ok: Internal string formatting or DOM token identifier
+  severity: 'error', // Internal string formatting or DOM token identifier
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
     if (!isDomainAuditTarget(filePath, config)) return false;
 
     const matchText = match[0] || '';
-    // Exclude boolean conditions like !name || !condition
-    if (/!\s*(?:name|description|title)\b/.test(matchText)) return false;
+    // Exclude boolean conditions like !name || !condition, or comparisons like name === x || id === y
+    if (/(?:===|!==|==|!=)/.test(matchText) || /!\s*(?:name|description|title)\b/.test(matchText)) return false;
 
     const infraWhitelist = [
       ...CANONICAL_INFRA_ID_WHITELIST,
@@ -654,7 +654,7 @@ export const strictDomainParamTypes: AuditRule = {
    RULE: Catalog domain IDs MUST be typed with their canonical domain union.
    INSTANCES vs CATALOG:
       - If it represents a dynamic instance / UUID (e.g. generated ID), name it '*Uid' (e.g. 'targetUid', 'instanceUid') to be automatically recognized.
-      - If it is an external infrastructure UUID (DOM, WebSocket), justify explicitly via '// uuid-ok: <technical reason>' or '// infra-id-ok: <technical reason>'.`,
+      - If it is an external infrastructure UUID (DOM, WebSocket), type it with DomElementId or UserUuid from @francogp/auditor.`,
   severity: 'error',
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
@@ -804,10 +804,10 @@ for (const [key, rule] of Object.entries(auditRulesConfig)) {
   if (!r.name) {
     (r as { name: string }).name = key
       .replace(/([A-Z])/g, ' $1')
-      .replace(/^./, (str) => str.toUpperCase()); // string-ok: Internal string formatting or DOM token identifier
+      .replace(/^./, (str) => str.toUpperCase()); // Internal string formatting or DOM token identifier
   }
   if (!r.aliases) {
-    const keyParts = key.split(/(?=[A-Z])/).map((s) => s.toLowerCase()); // string-ok: Internal string formatting or DOM token identifier
-    (r as { aliases: readonly string[] }).aliases = [key.toLowerCase(), ...keyParts]; // string-ok: Internal string formatting or DOM token identifier
+    const keyParts = key.split(/(?=[A-Z])/).map((s) => s.toLowerCase()); // Internal string formatting or DOM token identifier
+    (r as { aliases: readonly string[] }).aliases = [key.toLowerCase(), ...keyParts]; // Internal string formatting or DOM token identifier
   }
 }

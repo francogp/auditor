@@ -6,9 +6,6 @@
  * Enforces lean CSS bundles by detecting orphaned/unused classes inside <style scoped>
  * blocks of Vue components across src/components and src/views.
  *
- * Escape Hatch:
- *   // css-ok: <justification> or // dead-css-ok: <justification>
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_dead_css.ts
  *   npm run validate:dead-css

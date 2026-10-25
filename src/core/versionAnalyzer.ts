@@ -132,7 +132,7 @@ function countFileLines(filePath: string): number {
     try {
       return fs.readFileSync(filePath, 'utf-8').split('\n').length;
     } catch {
-      // catch-ok: fallback for binary/unreadable files
+      // fallback for binary/unreadable files
       return 1;
     }
   }
@@ -247,7 +247,7 @@ function readCurrentPackageVersion(cwd: string): string {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')) as { version?: string };
     return pkg.version ?? '1.0.0';
   } catch {
-    // catch-ok: Default to 1.0.0 if package.json cannot be parsed
+    // Default to 1.0.0 if package.json cannot be parsed
     return '1.0.0';
   }
 }

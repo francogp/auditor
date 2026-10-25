@@ -68,6 +68,8 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     infraIdWhitelist: [],
     fallbackIdPatterns: [],
     o1CatalogPatterns: [],
+    exemptSignatures: [],
+    exemptCollections: [],
     allowedNumericConstantPrefixes: [
       'GEN_',
       'ISO_',

@@ -85,7 +85,7 @@ function inspectNpmFamilyTokens(
   let idx = 0;
   while (idx < words.length && words[idx]!.startsWith('-')) {
     const flag = words[idx]!;
-    // domain-ok: Script flag parsing
+    // Script flag parsing
     if (flag === '--prefix' || flag === '-C' || flag === '--workspace' || flag === '-w') {
       idx += 2;
     } else {
@@ -196,7 +196,7 @@ export function extractCommandsFromShell(content: string): ExtractedCommand[] {
   try {
     ast = parseBash(content);
   } catch {
-    // catch-ok: Fallback to lexical extraction if unbash encounters unsupported shell syntax
+    // Fallback to lexical extraction if unbash encounters unsupported shell syntax
     return extractCommandsLexically(content, '.sh');
   }
 
@@ -302,7 +302,7 @@ export function extractCommandsFromYaml(content: string): ExtractedCommand[] {
   try {
     doc = parseDocument(content, { keepSourceTokens: true });
   } catch {
-    // catch-ok: Fallback to lexical extraction if YAML parsing fails
+    // Fallback to lexical extraction if YAML parsing fails
     return extractCommandsLexically(content, '.yml');
   }
 
@@ -676,7 +676,7 @@ function stripComments(line: string, ext: string): string {
     return line;
   }
 
-  // domain-ok: Script file extensions
+  // Script file extensions
   if (lowerExt === '.ts' || lowerExt === '.js' || lowerExt === '.mjs' || lowerExt === '.cjs') {
     const slashIndex = line.indexOf('//');
     if (slashIndex !== -1) return line.slice(0, slashIndex);
@@ -728,19 +728,19 @@ export function extractScriptCommands(content: string, filePath: string): Extrac
   }
 
   // 3. Shell scripts (.sh, .bash, .zsh)
-  // domain-ok: Shell script extensions
+  // Shell script extensions
   if (ext === '.sh' || ext === '.bash' || ext === '.zsh') {
     return extractCommandsFromShell(content);
   }
 
   // 4. PowerShell & Batch (.ps1, .bat, .cmd)
-  // domain-ok: Windows script extensions
+  // Windows script extensions
   if (ext === '.ps1' || ext === '.bat' || ext === '.cmd') {
     return extractCommandsFromPowerShell(content, ext);
   }
 
   // 5. TypeScript & JavaScript maintenance scripts (.ts, .js, .mjs, .cjs)
-  // domain-ok: JavaScript script extensions
+  // JavaScript script extensions
   if (ext === '.ts' || ext === '.js' || ext === '.mjs' || ext === '.cjs') {
     return extractCommandsFromTypeScript(content, filePath);
   }

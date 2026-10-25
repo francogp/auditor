@@ -1128,7 +1128,7 @@ function applyWarningRatchet(
     verdict = executed.verdict;
     newWarnings = executed.newWarnings;
   } catch (err: unknown) {
-    // catch-ok: converted into a blocking ratchet failure that is persisted in latest_audit.json and fails the run.
+    // converted into a blocking ratchet failure that is persisted in latest_audit.json and fails the run.
     verdict = {
       ...base,
       status: 'failed',
@@ -1151,7 +1151,7 @@ export interface FixableCountsResult {
  * In fix mode (isFixMode === true), any remaining error could not be resolved,
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
-// wrapper-ok: facade delegator exported for orchestrator consumers
+// facade delegator exported for orchestrator consumers
 export const computeFixableViolations = BaseAuditor.computeFixableViolations;
 
 interface PersistAuditReportsParams {
@@ -1507,7 +1507,7 @@ function findTaskByUidOrName(
   if (matchById) {
     return matchById;
   }
-  const targetQuery = targetUid.toLowerCase().trim(); // domain-ok: Open dynamic text or non-domain string payload
+  const targetQuery = targetUid.toLowerCase().trim(); // Open dynamic text or non-domain string payload
   const normalizedQuery = targetQuery.replace(/-/g, '_');
 
   const matchByName = allTasks.find((t) => t.name.toLowerCase() === targetQuery);

@@ -44,7 +44,7 @@ export type AuditPresetName =
   | 'post-build'
   | 'build'
   | 'critical'
-  | (string & {}); // domain-ok: Open user-defined or plugin preset identifier
+  | (string & {}); // Open user-defined or plugin preset identifier
 
 export {
   type DiscoveryOptions,

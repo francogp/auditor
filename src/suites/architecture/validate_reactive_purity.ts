@@ -7,9 +7,6 @@
  *   1. Computed getters must NEVER mutate state (.value =, state.x =, this.x =, store.x =).
  *   2. Computed getters must NEVER trigger persistence side-effects (.save(), scheduleSave(), etc.).
  *
- * Escape Hatch:
- *   // purity-ok: <justification> disables check on that line or block.
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_reactive_purity.ts
  *   npm run validate:reactive-purity
@@ -77,7 +74,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),

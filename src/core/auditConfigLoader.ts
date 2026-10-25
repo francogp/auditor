@@ -123,7 +123,7 @@ export function tryLoadConfigFromEnv(projectRoot: string): AuditEngineConfig | n
   return null;
 }
 
-let dynamicImportCounter: number = 0; // singleton-ok: Singleton instance state container
+let dynamicImportCounter: number = 0; // Singleton instance state container
 
 function resolveCurrentAuditorEntryUrl(): string | null {
   return tryOrNull(() => {

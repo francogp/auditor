@@ -53,7 +53,7 @@ export function dtoValueToTsExpression(value: unknown): ts.Expression {
 
 export function printTsExpression(expr: ts.Expression): string {
   const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  // homebrew-ok: synthetic AST source file for ts.createPrinter
+  // synthetic AST source file for ts.createPrinter
   const dummySource = ts.createSourceFile(
     'config.ts',
     '',
@@ -113,7 +113,7 @@ export function parseAuditConfigFileAst(
 ): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
   try {
     const code = fs.readFileSync(configFilePath, 'utf8');
-    // homebrew-ok: in-place AST configuration rewrite
+    // in-place AST configuration rewrite
     const source = ts.createSourceFile(
       configFilePath,
       code,

@@ -82,6 +82,8 @@ export interface AuditDomainConfig extends BaseAuditSubsystemConfig {
   readonly infraIdWhitelist?: readonly string[];
   readonly fallbackIdPatterns?: readonly string[];
   readonly o1CatalogPatterns?: readonly O1CatalogPatternConfig[];
+  readonly exemptSignatures?: readonly string[];
+  readonly exemptCollections?: readonly string[];
   readonly caseNormalizationExemptTokens?: readonly string[];
   readonly exemptComparisonTokens?: readonly string[];
   readonly allowedStoreSetterPrefixes?: readonly string[];
@@ -505,7 +507,7 @@ export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly staged?: AuditVitePlusStagedConfig | Record<string, string>;
   readonly hooks?: AuditVitePlusHooksConfig;
   readonly vscode?: AuditVitePlusVSCodeConfig;
-  readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
+  readonly extraLintRules?: Record<string, CanonicalRuleSeverityLevel>;
 }
 export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
 export type DeepPartial<T> = { [P in keyof T]?: string extends P ? unknown : NonNullable<T[P]> extends Function ? T[P] : NonNullable<T[P]> extends readonly (infer U)[] ? readonly U[] : NonNullable<T[P]> extends ReadonlySet<infer S> ? ReadonlySet<S> : NonNullable<T[P]> extends ReadonlyMap<infer K, infer V> ? ReadonlyMap<K, V> : NonNullable<T[P]> extends object ? DeepPartial<NonNullable<T[P]>> : T[P]; };

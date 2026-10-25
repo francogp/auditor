@@ -16,9 +16,6 @@
  *   8. `homebrew-file-url`: `file://` conversions by hand instead of `fileURLToPath`/`pathToFileURL`.
  *   9. `homebrew-url-parsing`: URL/query parsing by hand instead of `URL`/`URLSearchParams`.
  *
- * Authorized Escape Hatches:
- *   path-ok: <reason>, url-ok: <reason>, env-ok: <reason>, cross-platform-ok: <reason>, security-ok: <reason>, string-ok: <reason>, test-ok: <reason>, no-domain: <reason>
- *
  * Usage:
  *   npm run auditor -- task=validate_native_paths
  */
@@ -81,7 +78,7 @@ export function scanFileForNativePathViolations(
 }
 
 function createEmptyCounts(): Record<NativePathRuleId, number> {
-  return Object.fromEntries(NATIVE_PATH_RULES.map((r) => [r, 0])) as Record<NativePathRuleId, number>; // type-ok: keys enumerated from NATIVE_PATH_RULES
+  return Object.fromEntries(NATIVE_PATH_RULES.map((r) => [r, 0])) as Record<NativePathRuleId, number>; // keys enumerated from NATIVE_PATH_RULES
 }
 
 /**
@@ -153,7 +150,7 @@ const RULE_REMEDIATIONS: Record<NativePathRuleId, string> = {
     '2. Diagnosis: Locate the filesystem or path sink call receiving the raw process argument.\n' +
     '3. Canonical Solution:\n' +
     '   a) Assign the value to a variable, resolve it with `path.resolve(base, value)`, and validate containment with `path.relative()` + `path.isAbsolute()` (or `assertSafePathComponent()`).\n' +
-    '   b) If in a CLI script where path is already validated, annotate `// path-ok: <justification>`.\n' +
+    '   b) In CLI scripts, validate input arguments using path normalization helpers (e.g. `normalizePosixPath`, `isPathContained`).\n' +
     '4. Example:\n' +
     '   ❌ Insecure: Passing process arguments directly to file read calls\n' +
     '   ✅ Secure:   `const target = path.resolve(root, input); assertSafePathComponent(target);`',
@@ -164,7 +161,7 @@ const RULE_REMEDIATIONS: Record<NativePathRuleId, string> = {
     '3. Canonical Solution:\n' +
     '   a) Construct the URL using `new URL(endpoint, baseUrl)`.\n' +
     '   b) Validate `protocol` and `hostname`/`origin` against an allowlist, or use `safeFetch()`.\n' +
-    '   c) If an internal call with fixed URL, annotate `// url-ok: <justification>`.\n' +
+    '   c) For internal endpoints, define constant URLs with `new URL(path, base)`.\n' +
     '4. Example:\n' +
     '   ❌ Insecure: Invoking fetch with an unvalidated incoming string\n' +
     '   ✅ Secure:   `fetch(new URL(userPath, baseUrl));`',

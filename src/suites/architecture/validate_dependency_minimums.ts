@@ -176,7 +176,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     try {
       return JSON.parse(fs.readFileSync(lockPath, 'utf8')) as LockfileShape;
     } catch {
-      // catch-ok: unreadable lockfile is reported as not applicable, never crashes the audit
+      // unreadable lockfile is reported as not applicable, never crashes the audit
       return null;
     }
   }

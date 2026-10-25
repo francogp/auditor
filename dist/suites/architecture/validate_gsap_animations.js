@@ -28,9 +28,6 @@ import ts from "typescript";
 *   7. `gsap-no-important-filters`: Prohibits `!important` on `filter` in styles.
 *   8. `gsap-gpu-layer-promotion`: Flags dynamic filter animations lacking `will-change`.
 *
-* Escape Hatches:
-*   `// timer-ok: <reason>`, `// delay-ok: <reason>`, `// layout-ok: <reason>`, `// gpu-ok: <reason>`
-*
 * Usage:
 *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_gsap_animations.ts
 */
@@ -123,6 +120,16 @@ const GSAP_LAYOUT_PROPERTIES = [
 	"paddingRight"
 ];
 const LAYOUT_PROPERTIES_SET = new Set(GSAP_LAYOUT_PROPERTIES);
+const COLLAPSIBLE_HEIGHT_TARGETS = /* @__PURE__ */ new Set([
+	"auto",
+	"0",
+	"0px"
+]);
+const GSAP_ANIMATED_TWEEN_METHODS = /* @__PURE__ */ new Set([
+	"to",
+	"from",
+	"fromTo"
+]);
 const GSAP_TWEEN_METHODS = /* @__PURE__ */ new Set([
 	"to",
 	"from",
@@ -135,13 +142,24 @@ function readTopLevelProperty(cfgText, i, limit) {
 	const id = cfgText.slice(idStart, i);
 	let j = i;
 	while (j < limit && (cfgText[j] === " " || cfgText[j] === "	" || cfgText[j] === "\n" || cfgText[j] === "\r")) j++;
-	if (j < limit && cfgText[j] === ":" && LAYOUT_PROPERTIES_SET.has(id)) return {
-		nextIndex: j,
-		match: {
-			index: idStart,
-			propName: id
+	if (j < limit && cfgText[j] === ":" && LAYOUT_PROPERTIES_SET.has(id)) {
+		if (id === "height") {
+			let valStart = j + 1;
+			while (valStart < limit && /\s/.test(cfgText[valStart] ?? "")) valStart++;
+			const rest = cfgText.slice(valStart, valStart + 10);
+			if (/^(?:['"]auto['"]|['"]0(?:px)?['"]|0\b)/.test(rest)) return {
+				nextIndex: j,
+				match: null
+			};
 		}
-	};
+		return {
+			nextIndex: j,
+			match: {
+				index: idStart,
+				propName: id
+			}
+		};
+	}
 	return {
 		nextIndex: j,
 		match: null
@@ -497,6 +515,11 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 	}
 	checkTweenProperty(prop, propName, doc, ast, targetRule) {
 		if (targetRule === "gsap-no-layout-properties" && LAYOUT_PROPERTIES_SET.has(propName)) {
+			if (propName === "height") {
+				const init = prop.initializer;
+				if (ts.isStringLiteral(init) && COLLAPSIBLE_HEIGHT_TARGETS.has(init.text)) return;
+				if (ts.isNumericLiteral(init) && init.text === "0") return;
+			}
 			const { line, column } = doc.getNodeLineAndColumn(prop, ast);
 			this.addViolation({
 				ruleId: "gsap-no-layout-properties",
@@ -508,7 +531,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			});
 			return;
 		}
-		if (targetRule === "gsap-kebab-case-properties" && propName.includes("-")) {
+		if (targetRule === "gsap-kebab-case-properties" && !propName.startsWith("--") && propName.includes("-")) {
 			const { line, column } = doc.getNodeLineAndColumn(prop, ast);
 			this.addViolation({
 				ruleId: "gsap-kebab-case-properties",
@@ -558,7 +581,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 		const isGsapCall = (call) => {
 			const expr = call.expression;
 			if (!ts.isPropertyAccessExpression(expr)) return false;
-			if (!GSAP_TWEEN_METHODS.has(expr.name.text)) return false;
+			if (!(targetRule === "gsap-no-layout-properties" ? GSAP_ANIMATED_TWEEN_METHODS : GSAP_TWEEN_METHODS).has(expr.name.text)) return false;
 			let recv = expr.expression;
 			while (ts.isPropertyAccessExpression(recv)) recv = recv.name;
 			if (ts.isIdentifier(recv)) {

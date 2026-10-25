@@ -698,7 +698,7 @@ function tryParseFallowJson(raw: string | Buffer | undefined): FallowAuditData |
   try {
     return JSON.parse(str.substring(start)) as FallowAuditData;
   } catch {
-    // catch-ok: fallback error handled by caller
+    // fallback error handled by caller
     return null;
   }
 }

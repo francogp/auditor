@@ -9,14 +9,13 @@
  *   3. `gsap-missing-plugin-registration`: Enforces gsap.registerPlugin(...) for imported GSAP plugins.
  *   4. `gsap-banned-devtools-production`: Prohibits GSDevTools or MotionPathHelper without dev guard.
  *
- * Escape Hatches:
- *   `// scope-ok: <reason>`, `// revert-ok: <reason>`, `// plugin-ok: <reason>`, `// devtools-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_gsap_framework_hygiene.ts
  */
 
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
   resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
@@ -93,7 +92,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -186,6 +185,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
   protected override scanFile(relPath: string, content: string): void {
     const norm = normalizeFilePath(relPath);
     if (!this.isCodeFile(norm) || isExemptFile(relPath)) return;
+    const doc = new AuditedDocument(relPath, content, relPath);
 
     this.runSubAuditorSync('gsap-unscoped-component-selectors', () => {
       if (this.isUiComponent(norm) && isInCodeRoots(relPath)) {
@@ -199,10 +199,10 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     });
 
     this.runSubAuditorSync('gsap-missing-plugin-registration', () => {
-      this.scanPluginRegistration(relPath, content);
+      this.scanPluginRegistration(relPath, content, doc);
     });
     this.runSubAuditorSync('gsap-banned-devtools-production', () => {
-      this.scanDevtoolsProduction(relPath, content);
+      this.scanDevtoolsProduction(relPath, content, doc);
     });
   }
 
@@ -262,7 +262,68 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     }
   }
 
-  private scanPluginRegistration(relPath: string, content: string): void {
+  private scanPluginRegistration(relPath: string, content: string, doc: AuditedDocument): void {
+    const sf = doc.getAst();
+    if (sf) {
+const KNOWN_GSAP_PLUGINS = [
+  'ScrollTrigger',
+  'Flip',
+  'Draggable',
+  'SplitText',
+  'Observer',
+  'ScrollSmoother',
+  'InertiaPlugin',
+  'MotionPathPlugin'
+] as const;
+
+type KnownGsapPlugin = typeof KNOWN_GSAP_PLUGINS[number];
+const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
+
+      const importedPlugins: Array<{ name: string; node: ts.Node }> = [];
+      const registeredPlugins = new Set<string>();
+
+      const checkNode = (node: ts.Node): void => {
+        if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.startsWith('gsap/')) {
+          const named = node.importClause?.namedBindings;
+          if (named && ts.isNamedImports(named)) {
+            for (const el of named.elements) {
+              if (KNOWN_PLUGINS.has(el.name.text as KnownGsapPlugin)) {
+                importedPlugins.push({ name: el.name.text, node: el });
+              }
+            }
+          }
+        }
+
+        if (ts.isCallExpression(node)) {
+          const callText = node.expression.getText(sf);
+          if (callText === 'gsap.registerPlugin' || callText.endsWith('.registerPlugin')) {
+            for (const arg of node.arguments) {
+              registeredPlugins.add(arg.getText(sf));
+            }
+          }
+        }
+
+        ts.forEachChild(node, checkNode);
+      };
+
+      checkNode(sf);
+
+      for (const { name, node } of importedPlugins) {
+        if (!registeredPlugins.has(name)) {
+          const { line, column } = doc.getNodeLineAndColumn(node, sf);
+          this.addViolation({
+            ruleId: 'gsap-missing-plugin-registration',
+            filePath: relPath,
+            line,
+            column,
+            message: `GSAP plugin '${name}' imported without calling 'gsap.registerPlugin(${name})'. Risk of tree-shaking elimination.`,
+            severity: 'error'
+          });
+        }
+      }
+      return;
+    }
+
     const pluginImportRegex =
       /import\s*\{[^}]*\b(ScrollTrigger|Flip|Draggable|SplitText|Observer|ScrollSmoother|InertiaPlugin|MotionPathPlugin)\b[^}]*\}\s*from\s*['"]gsap\/[a-zA-Z0-9]+['"]/g;
     let pluginMatch: RegExpExecArray | null;
@@ -285,7 +346,41 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     }
   }
 
-  private scanDevtoolsProduction(relPath: string, content: string): void {
+  private scanDevtoolsProduction(relPath: string, content: string, doc: AuditedDocument): void {
+    const sf = doc.getAst();
+    if (sf) {
+      const visit = (node: ts.Node): void => {
+        if (ts.isCallExpression(node)) {
+          const exprText = node.expression.getText(sf);
+          if (exprText === 'GSDevTools.create' || exprText === 'MotionPathHelper.create') {
+            const toolName = exprText.split('.')[0]!;
+            const windowAround = content.slice(
+              Math.max(0, node.getStart(sf) - DEVTOOLS_GUARD_WINDOW_PRE_CHARS),
+              Math.min(content.length, node.getEnd() + DEVTOOLS_GUARD_WINDOW_POST_CHARS)
+            );
+            const hasDevGuard = /import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(
+              windowAround
+            );
+
+            if (!hasDevGuard) {
+              const { line, column } = doc.getNodeLineAndColumn(node, sf);
+              this.addViolation({
+                ruleId: 'gsap-banned-devtools-production',
+                filePath: relPath,
+                line,
+                column,
+                message: `Debugging tool '${toolName}' detected without 'import.meta.env.DEV' environment guard. Prohibited in production.`,
+                severity: 'error'
+              });
+            }
+          }
+        }
+        ts.forEachChild(node, visit);
+      };
+      visit(sf);
+      return;
+    }
+
     const devtoolsRegex = /\b(GSDevTools|MotionPathHelper)\.create\s*\(/g;
     let devtoolsMatch: RegExpExecArray | null;
     while ((devtoolsMatch = devtoolsRegex.exec(content)) !== null) {

@@ -25,6 +25,8 @@ export type ScssArchitectureRuleId = (typeof SCSS_ARCHITECTURE_RULES)[number];
 
 const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 
+export type ScssBlockKind = 'selector' | 'atrule';
+
 export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const scssRoots = resolveFileScanRoots(options);
@@ -297,7 +299,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
   private processScssLineBraces(
     line: string,
-    blockStack: Array<'selector' | 'atrule'>,
+    blockStack: ScssBlockKind[],
     maxAllowedDepth: number,
     onViolation: (depth: number) => void
   ): void {
@@ -333,7 +335,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
     const cleanContent = stripCommentsAndStrings(content);
     const lines = cleanContent.split('\n');
-    const blockStack: Array<'selector' | 'atrule'> = [];
+    const blockStack: ScssBlockKind[] = [];
 
     for (let i = 0; i < lines.length; i++) {
       this.processScssLineBraces(lines[i]!, blockStack, maxAllowedDepth, (depth) => {

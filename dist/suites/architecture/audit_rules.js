@@ -209,7 +209,7 @@ const noDomainIdFallbacks = {
 		const config = getAuditConfig();
 		if (!isDomainAuditTarget(filePath, config)) return false;
 		const matchText = match[0] || "";
-		if (/!\s*(?:name|description|title)\b/.test(matchText)) return false;
+		if (/(?:===|!==|==|!=)/.test(matchText) || /!\s*(?:name|description|title)\b/.test(matchText)) return false;
 		const infraWhitelist = [...CANONICAL_INFRA_ID_WHITELIST, ...config.domain?.infraIdWhitelist ?? []];
 		if (infraWhitelist.length > 0) {
 			if (infraWhitelist.some((id) => new RegExp(`\\b${id}\\b`).test(matchText))) return false;
@@ -499,7 +499,7 @@ const strictDomainParamTypes = {
    RULE: Catalog domain IDs MUST be typed with their canonical domain union.
    INSTANCES vs CATALOG:
       - If it represents a dynamic instance / UUID (e.g. generated ID), name it '*Uid' (e.g. 'targetUid', 'instanceUid') to be automatically recognized.
-      - If it is an external infrastructure UUID (DOM, WebSocket), justify explicitly via '// uuid-ok: <technical reason>' or '// infra-id-ok: <technical reason>'.`,
+      - If it is an external infrastructure UUID (DOM, WebSocket), type it with DomElementId or UserUuid from @francogp/auditor.`,
 	severity: "error",
 	check: (_content, match, filePath) => {
 		const config = getAuditConfig();

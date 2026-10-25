@@ -11,9 +11,6 @@
  *      Direct assignment to `store.$state = ...` bypasses Pinia mutation tracking and action
  *      lifecycle. Permitted exclusively in authorized save persistence coordinators and tests.
  *
- * Escape Hatches:
- *   `// pinia-ok: <reason>`, `// store-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_pinia_reactivity.ts
  */
@@ -113,8 +110,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
           'Inspect the destructuring assignment that calls "use...Store()". If extracting state or getters, they must pass through storeToRefs.\n\n' +
           '3. Canonical Solution:\n' +
           '1. Use the official utility "storeToRefs(store)" to destructure state and getters as "Ref<T>".\n' +
-          '2. Actions (store methods) must NOT pass through storeToRefs; destructure actions directly from the store instance or call "store.action()".\n' +
-          '3. If exclusively destructuring actions, document with "// pinia-ok: actions only".\n\n' +
+          '2. Actions (store methods) must NOT pass through storeToRefs; call actions directly on the store instance ("store.action()") or assign the store to a variable first.\n\n' +
           '4. Example / Auto-fix command:\n' +
           '// ❌ Incorrect: severed reactivity on username and score\n' +
           'const { username, score, login } = useAuthStore();\n\n' +
@@ -191,7 +187,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
           content,
           relPath,
           'no-store-destructuring-without-storetorefs',
-          `Direct or indirect destructuring from use...Store() detected. Destructuring directly strips reactivity from state and getters; wrap with 'storeToRefs(store)' or use '// pinia-ok: <reason>' if destructuring actions only.`
+          `Direct or indirect destructuring from use...Store() detected. Destructuring directly strips reactivity from state and getters; wrap with 'storeToRefs(store)' or call actions directly on the store instance.`
         );
       }
     }

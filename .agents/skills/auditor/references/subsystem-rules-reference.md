@@ -63,7 +63,7 @@ The `validate_magic_numbers` suite inspects the TypeScript Compiler AST using `S
 
 - **Zero Directory Ignores**: Constant data structures (`const`, `as const`, arrays, matrices, dictionaries, enums, literal types, readonly class fields, default parameter values) are recognized semantically without requiring directory ignore lists.
 - **Built-in Sentinels**: Built-in base, calendar, and geometry sentinels (`-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024`) and next-tick delay `0` are permitted without false alarms.
-- **Timer Delays**: Named constants are required for all positive timer delays (`setTimeout`, `setInterval`, `delayedCall`, `gsapSleep`). Host projects declare domain sentinels in `config.constants.exemptMagicNumbers` or line-level `// const-ok: <justification>`.
+- **Timer Delays**: Named constants are required for all positive timer delays (`setTimeout`, `setInterval`, `delayedCall`, `gsapSleep`). Host projects declare domain sentinels in `config.constants.exemptMagicNumbers` without comment escape hatches.
 - **Vue Template Safeguard (`vue-template-magic-calculation`)**: Flags inline calculations (`*`, `/`, `%`) and comparisons involving numbers inside Vue `<template>` expressions while allowing markup props (`:span="12"`), index offsets (`+ 1`), and bounds checks (`.length === 0`).
 - **AST Unwrapping Invariance**: In `validate_duplicate_constants`, constant declaration initializers are unwrapped through `ts.isAsExpression`, `ts.isTypeAssertionExpression`, and `ts.isParenthesizedExpression` before comparative evaluation to prevent false divergent alarms between typed and untyped literals.
 
@@ -190,7 +190,7 @@ Governed by `validate_gsap_animations.ts`:
 
 - **Scope of Manual Timers (`manualTimersFrontend`)**: Timer enforcement (`setTimeout`, `setInterval`) is strictly scoped to frontend UI components and views (`.vue` or files within `componentsRoots` and `viewsRoots`). Legitimate Node.js CLI tools and runner scripts are permitted to use standard timers.
 - **Universal GSAP Standard**: `gsapSleep` and `delayedCall` are universal standards for UI delays and animation timing across all projects, scaling deterministically with `timeScale(100)` during automated tests.
-- **GPU Transforms vs Layout Properties (`gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). When variable content height legitimately requires layout property animation (e.g. accordion dropdowns), developers must provide a statement-level `// layout-ok: <technical justification>` comment covering the tween.
+- **GPU Transforms vs Layout Properties (`gsap-no-layout-properties`)**: UI animations must use GPU transforms (`scaleX`, `scaleY`, `x`, `y`, `Flip`). Static style applications are configured via `gsap.set()`, and variable collapsible content uses recognized zero-to-auto height transitions without escape hatches.
 - **Anti-Destruction Mandate for CSS/SCSS Transitions**: Developers and AI agents are strictly prohibited from deleting CSS/SCSS transitions (`transition: ...`) to pass audits or silence `gsap-banned-css-animations`. Interactive UI transitions must be cleanly migrated to GSAP tweens (`gsap.to`, `gsap.fromTo`, `useGSAP`). Deleting transitions without migration degrades UX and is treated as architectural sabotage.
 
 ---
@@ -319,3 +319,20 @@ Governed by `src/suites/architecture/validate_cli_contracts.ts`:
   7. `cli-contracts-unregistered-script`: Mandatory registration of `:human` script variants across package script manifests.
 - **Token Normalization (`getProcessCliArgs()`)**: Positional tokens (`human`, `help`, bare `key=val`) are normalized automatically into canonical flags (`--human`, `--help`, `--key=val`) before feeding into `citty`.
 - **Absolute Blocking in Setup Phase (`phase: 'setup'`)**: Any defect in CLI contracts halts downstream analysis to prevent broken CLI runners from masking findings or producing false passes.
+
+---
+
+## 20. Canonical Domain Governance & Zero Escape Hatches (`validate_canonical_domains`, `validate_error_suppression`)
+
+Governed by `src/suites/domain_data/validate_canonical_domains.ts` and `src/suites/architecture/validate_error_suppression.ts`:
+
+- **Pure AST Architecture (`ast: true`)**: Both suites operate exclusively under TypeScript Compiler AST parsing, eradicating fragile regex pattern matching.
+- **SSoT Domain Deduplication (`validate_canonical_domains`)**:
+  - `canonical-domain-repeated-union`: Enforces extracting repeated string unions into canonical SSoT domain type aliases.
+  - `canonical-domain-collision`: Prevents multiple disparate modules from declaring identical domain catalogs.
+  - `canonical-domain-subset-mismatch`: Prevents loose sub-collections or redundant duplicate domain arrays; sub-collections must be derived via TypeScript utility types (`Extract<Master, ...>`).
+- **Dynamic SSoT Configuration (`audit.config.ts`)**:
+  - `domain.exemptSignatures`: Projects configure project-specific utility unions/pairs (e.g. `['front|back', 'f|m']`) that are legitimate directional or formatting primitives, with zero hardcoding in the auditor engine.
+  - `domain.exemptCollections`: Projects configure non-catalog arrays (e.g. weighted lottery pools like `['scalePool']`).
+- **Zero Comment-Based Escape Hatches**: All `// ...-ok:` comments (`// domain-ok:`, `// catch-ok:`, `// layout-ok:`, etc.) are permanently banned.
+- **Fail-Loud & Clean Utility Encapsulation (`validate_error_suppression`)**: Silent or empty `catch {}` blocks are strictly forbidden. Non-fatal operations must use safe encapsulated utilities (`tryOrNull`, `tryOrUndefined`, `tryOrNullAsync`) or explicit error logging.

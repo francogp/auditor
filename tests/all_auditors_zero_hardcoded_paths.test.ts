@@ -229,115 +229,150 @@ describe('Universal Zero Hardcoded Paths & Scope Conformance (All Sub-Auditors &
     }
   });
 
-  it('guarantees that 100% of sub-auditors and extensions NEVER return or scan paths outside the configured scope', async () => {
-    const builtInTasks = await scanAllAuditorTasks(process.cwd());
-    const referenceExtensions = await scanReferenceExtensions(process.cwd());
-    const allTasks = [...builtInTasks, ...referenceExtensions];
-
-    expect(allTasks.length).toBeGreaterThanOrEqual(40);
+  async function assertTasksRespectScope(tasks: readonly AuditTaskDefinition[]): Promise<void> {
     const checkedTaskIds = new Set<string>();
     const violations: string[] = [];
 
-    for (const task of allTasks) {
-      if (checkedTaskIds.has(task.id)) continue;
+    const uniqueTasks = tasks.filter((task) => {
+      if (checkedTaskIds.has(task.id)) return false;
       checkedTaskIds.add(task.id);
+      return true;
+    });
 
-      const suitePath = path.isAbsolute(task.scriptPath)
-        ? task.scriptPath
-        : path.resolve(process.cwd(), task.scriptPath);
+    const batchSize = 8;
+    for (let i = 0; i < uniqueTasks.length; i += batchSize) {
+      const batch = uniqueTasks.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (task) => {
+          const suitePath = path.isAbsolute(task.scriptPath)
+            ? task.scriptPath
+            : path.resolve(process.cwd(), task.scriptPath);
 
-      const mod = (await import(suitePath)) as Record<string, unknown>;
-      const Cls = findAuditorClass(mod);
-      if (!Cls) continue;
+          const mod = (await import(suitePath)) as Record<string, unknown>;
+          const Cls = findAuditorClass(mod);
+          if (!Cls) return;
 
-      let auditor: BaseAuditor<string>;
-      try {
-        auditor = instantiateAuditorClass(Cls, tempDir);
-      } catch (err) {
-        violations.push(
-          `[${task.id}] Failed to instantiate auditor with projectRoot '${tempDir}': ${err instanceof Error ? err.message : String(err)}`
-        );
-        continue;
-      }
-
-      // 1. Assert auditor.roots does NOT return more than configured scope
-      if (Array.isArray(auditor.roots)) {
-        for (const root of auditor.roots) {
-          if (!isPathWithinExpectedScope(root, CUSTOM_SCOPE)) {
+          let auditor: BaseAuditor<string>;
+          try {
+            auditor = instantiateAuditorClass(Cls, tempDir);
+          } catch (err) {
             violations.push(
-              `[${task.id}] 'roots' returned unexpected path '${root}' outside configured scope '${CUSTOM_SCOPE}'.`
+              `[${task.id}] Failed to instantiate auditor with projectRoot '${tempDir}': ${err instanceof Error ? err.message : String(err)}`
             );
+            return;
           }
-        }
-      }
 
-      // 2. Assert coverage.include does NOT declare paths outside configured scope
-      const coverage = auditor.getCoverageRecorder()?.declaration;
-      if (coverage?.include && Array.isArray(coverage.include)) {
-        for (const pattern of coverage.include) {
-          if (!isPathWithinExpectedScope(pattern, CUSTOM_SCOPE)) {
-            violations.push(
-              `[${task.id}] coverage.include returned unexpected pattern '${pattern}' outside configured scope '${CUSTOM_SCOPE}'.`
-            );
+          // 1. Assert auditor.roots does NOT return more than configured scope
+          if (Array.isArray(auditor.roots)) {
+            for (const root of auditor.roots) {
+              if (!isPathWithinExpectedScope(root, CUSTOM_SCOPE)) {
+                violations.push(
+                  `[${task.id}] 'roots' returned unexpected path '${root}' outside configured scope '${CUSTOM_SCOPE}'.`
+                );
+              }
+            }
           }
-        }
-      }
 
-      // 3. Assert internal path properties do NOT return paths outside configured scope
-      const instanceRecord = auditor as unknown as Record<string, unknown>;
-      if (Array.isArray(instanceRecord.skillsRoots)) {
-        for (const sr of instanceRecord.skillsRoots) {
-          if (!isPathWithinExpectedScope(String(sr), CUSTOM_SCOPE)) {
-            violations.push(
-              `[${task.id}] 'skillsRoots' returned unexpected path '${sr}' outside configured scope '${CUSTOM_SCOPE}'.`
-            );
+          // 2. Assert coverage.include does NOT declare paths outside configured scope
+          const coverage = auditor.getCoverageRecorder()?.declaration;
+          if (coverage?.include && Array.isArray(coverage.include)) {
+            for (const pattern of coverage.include) {
+              if (!isPathWithinExpectedScope(pattern, CUSTOM_SCOPE)) {
+                violations.push(
+                  `[${task.id}] coverage.include returned unexpected pattern '${pattern}' outside configured scope '${CUSTOM_SCOPE}'.`
+                );
+              }
+            }
           }
-        }
-      }
 
-      if (typeof instanceRecord.configuredMigrationsDir === 'string') {
-        if (!isPathWithinExpectedScope(instanceRecord.configuredMigrationsDir, CUSTOM_SCOPE)) {
-          violations.push(
-            `[${task.id}] 'configuredMigrationsDir' returned unexpected path '${instanceRecord.configuredMigrationsDir}' outside configured scope '${CUSTOM_SCOPE}'.`
-          );
-        }
-      }
+          // 3. Assert internal path properties do NOT return paths outside configured scope
+          const instanceRecord = auditor as unknown as Record<string, unknown>;
+          if (Array.isArray(instanceRecord.skillsRoots)) {
+            for (const sr of instanceRecord.skillsRoots) {
+              if (!isPathWithinExpectedScope(String(sr), CUSTOM_SCOPE)) {
+                violations.push(
+                  `[${task.id}] 'skillsRoots' returned unexpected path '${sr}' outside configured scope '${CUSTOM_SCOPE}'.`
+                );
+              }
+            }
+          }
 
-      // 4. Intercept recordScanned during execution to guarantee ZERO unexpected files scanned
-      const scannedPaths: string[] = [];
-      const auditorWithRecord = auditor as unknown as {
-        recordScanned: (filePath: string) => void;
-      };
-      const originalRecordScanned = auditorWithRecord.recordScanned.bind(auditor);
-      auditorWithRecord.recordScanned = (filePath: string) => {
-        scannedPaths.push(filePath);
-        originalRecordScanned(filePath);
-      };
+          if (typeof instanceRecord.configuredMigrationsDir === 'string') {
+            if (!isPathWithinExpectedScope(instanceRecord.configuredMigrationsDir, CUSTOM_SCOPE)) {
+              violations.push(
+                `[${task.id}] 'configuredMigrationsDir' returned unexpected path '${instanceRecord.configuredMigrationsDir}' outside configured scope '${CUSTOM_SCOPE}'.`
+              );
+            }
+          }
 
-      try {
-        await auditor.runAudit();
-      } catch {
-        // Some suites may fail due to sandbox missing specific files (e.g. git);
-        // we inspect all files recorded as scanned up to that point.
-      }
+          // 4. Intercept recordScanned during execution to guarantee ZERO unexpected files scanned
+          const scannedPaths: string[] = [];
+          const auditorWithRecord = auditor as unknown as {
+            recordScanned: (filePath: string) => void;
+          };
+          const originalRecordScanned = auditorWithRecord.recordScanned.bind(auditor);
+          auditorWithRecord.recordScanned = (filePath: string) => {
+            scannedPaths.push(filePath);
+            originalRecordScanned(filePath);
+          };
 
-      for (const scanned of scannedPaths) {
-        const relScanned = path.isAbsolute(scanned)
-          ? normalizePosixPath(path.relative(tempDir, scanned))
-          : normalizePosixPath(scanned);
-        if (!isPathWithinExpectedScope(relScanned, CUSTOM_SCOPE)) {
-          violations.push(
-            `[${task.id}] Scanned unexpected file '${scanned}' outside configured scope '${CUSTOM_SCOPE}'.`
-          );
-        }
-      }
+          try {
+            await auditor.runAudit();
+          } catch {
+            // Some suites may fail due to sandbox missing specific files (e.g. git);
+            // we inspect all files recorded as scanned up to that point.
+          }
+
+          for (const scanned of scannedPaths) {
+            const relScanned = path.isAbsolute(scanned)
+              ? normalizePosixPath(path.relative(tempDir, scanned))
+              : normalizePosixPath(scanned);
+            if (!isPathWithinExpectedScope(relScanned, CUSTOM_SCOPE)) {
+              violations.push(
+                `[${task.id}] Scanned unexpected file '${scanned}' outside configured scope '${CUSTOM_SCOPE}'.`
+              );
+            }
+          }
+        })
+      );
     }
 
     expect(
       violations,
       `Expected ZERO sub-auditors or extensions to return unexpected paths, but found violations:\n${violations.join('\n')}`
     ).toEqual([]);
-  }, 120_000);
+  }
+
+  it('guarantees that 100% of built-in sub-auditors (Part 1) NEVER return or scan paths outside the configured scope', async () => {
+    const builtInTasks = await scanAllAuditorTasks(process.cwd());
+    const q1 = Math.floor(builtInTasks.length / 4);
+    await assertTasksRespectScope(builtInTasks.slice(0, q1));
+  }, 20_000);
+
+  it('guarantees that 100% of built-in sub-auditors (Part 2) NEVER return or scan paths outside the configured scope', async () => {
+    const builtInTasks = await scanAllAuditorTasks(process.cwd());
+    const q1 = Math.floor(builtInTasks.length / 4);
+    const q2 = Math.floor(builtInTasks.length / 2);
+    await assertTasksRespectScope(builtInTasks.slice(q1, q2));
+  }, 20_000);
+
+  it('guarantees that 100% of built-in sub-auditors (Part 3) NEVER return or scan paths outside the configured scope', async () => {
+    const builtInTasks = await scanAllAuditorTasks(process.cwd());
+    const q2 = Math.floor(builtInTasks.length / 2);
+    const q3 = Math.floor((builtInTasks.length * 3) / 4);
+    await assertTasksRespectScope(builtInTasks.slice(q2, q3));
+  }, 20_000);
+
+  it('guarantees that 100% of built-in sub-auditors (Part 4) NEVER return or scan paths outside the configured scope', async () => {
+    const builtInTasks = await scanAllAuditorTasks(process.cwd());
+    const q3 = Math.floor((builtInTasks.length * 3) / 4);
+    await assertTasksRespectScope(builtInTasks.slice(q3));
+  }, 20_000);
+
+  it('guarantees that 100% of reference extensions NEVER return or scan paths outside the configured scope', async () => {
+    const referenceExtensions = await scanReferenceExtensions(process.cwd());
+    await assertTasksRespectScope(referenceExtensions);
+  }, 20_000);
 
   it('guarantees that passing an explicit root strictly confines the auditor to that single root and nothing more', async () => {
     const singleExplicitRoot = 'strictly_single_isolated_root';

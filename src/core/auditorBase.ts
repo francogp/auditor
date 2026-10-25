@@ -440,7 +440,7 @@ export function collectRepositoryFiles(
   try {
     entries = nodeFs.readdirSync(dir, { withFileTypes: true });
   } catch {
-    // catch-ok: directory unreadable or permission denied
+    // directory unreadable or permission denied
     return [];
   }
 
@@ -3039,7 +3039,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       try {
         content = nodeFs.readFileSync(file, 'utf-8');
       } catch {
-        // catch-ok: unreadable files are skipped
+        // unreadable files are skipped
         this.unrecordScanned(relPath);
         continue;
       }
@@ -3439,7 +3439,7 @@ export abstract class FileScanAuditor<
     try {
       content = nodeFs.readFileSync(file, 'utf-8');
     } catch {
-      // catch-ok: unreadable files are not recorded as scanned, so coverage reports them as uncovered
+      // unreadable files are not recorded as scanned, so coverage reports them as uncovered
       this.unrecordScanned(relPath);
       return;
     }

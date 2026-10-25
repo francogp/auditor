@@ -49,9 +49,9 @@ const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
 const ERROR_WEIGHT_FACTOR = 1000;
 
-type Finding = AuditFinding; // type-ok: Type contract declaration
+type Finding = AuditFinding; // Type contract declaration
 
-type AuditReport = ConsolidatedAuditReport; // type-ok: Type contract declaration
+type AuditReport = ConsolidatedAuditReport; // Type contract declaration
 
 const SEVERITY_FILTERS = ['all', 'error', 'warning'] as const;
 type SeverityFilter = (typeof SEVERITY_FILTERS)[number];

@@ -23,7 +23,7 @@ import {
   type ParsedArgs
 } from 'citty';
 
-export type CittyArgsDef = ArgsDef; // type-ok: Canonical Citty args definition alias
+export type CittyArgsDef = ArgsDef; // Canonical Citty args definition alias
 
 export const CONSOLE_FORMAT_VALUES = ['compact', 'human', 'verbose', 'json'] as const;
 export type ConsoleFormat = (typeof CONSOLE_FORMAT_VALUES)[number];
@@ -163,7 +163,7 @@ export function parseCittyArgs<T extends ArgsDef>(
 ): ParsedArgs<T> {
   const normalized = normalizeCliArgv(rawArgs, argsDef, subCommandNames);
   const parsed = cittyParseArgs<T>(normalized, argsDef);
-  const mutableParsed = parsed as Record<string, unknown>; // type-ok: Hydrate explicit 'no-*' boolean keys
+  const mutableParsed = parsed as Record<string, unknown>; // Hydrate explicit 'no-*' boolean keys
   for (const [key, def] of Object.entries(argsDef)) {
     if (key.startsWith('no-') && def?.type === 'boolean') {
       const positiveKey = key.slice(3);

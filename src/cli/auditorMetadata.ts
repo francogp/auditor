@@ -281,7 +281,7 @@ export async function extractAuditorMetadataFromFile(
       result.icon = staticMeta.icon;
     }
   } catch {
-    // catch-ok: Dynamic import failed or timed out, fallback to static analysis
+    // Dynamic import failed or timed out, fallback to static analysis
     return extractStaticMetadataFromFile(fullPath);
   } finally {
     if (timer) clearTimeout(timer);

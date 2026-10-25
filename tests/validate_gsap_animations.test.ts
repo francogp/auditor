@@ -246,6 +246,46 @@ describe('ValidateGsapAnimationsAuditor', () => {
       expect(violations[0]?.severity).toBe('error');
     });
 
+    it('permits CSS custom properties with leading dashes in tween configs', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      auditor.testScanFile(
+        'src/features/cssVarTween.ts',
+        `gsap.to('.card', { '--glow-opacity': 0.8 });`
+      );
+
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-kebab-case-properties'
+      );
+      expect(violations.length).toBe(0);
+    });
+
+    it('permits instantaneous layout styles in gsap.set() without violations', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      auditor.testScanFile(
+        'src/features/setStyles.ts',
+        `gsap.set('.card', { width: 100, height: 200, top: 0, left: 0 });`
+      );
+
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
+      expect(violations.length).toBe(0);
+    });
+
+    it('permits canonical collapsible accordion height transitions in GSAP tweens', () => {
+      const auditor = new TestableGsapAnimationsAuditor();
+      auditor.testScanFile(
+        'src/features/accordionTransition.ts',
+        `gsap.fromTo('.drawer', { height: 0 }, { height: 'auto', duration: 0.3 });
+         gsap.to('.drawer', { height: 0, duration: 0.2 });`
+      );
+
+      const violations = auditor.recordedViolations.filter(
+        (v) => v.ruleId === 'gsap-no-layout-properties'
+      );
+      expect(violations.length).toBe(0);
+    });
+
     it('detects raw transform string in GSAP tweens', () => {
       const auditor = new TestableGsapAnimationsAuditor();
       auditor.testScanFile(

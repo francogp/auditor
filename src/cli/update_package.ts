@@ -184,7 +184,7 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   try {
     hostPkg = JSON.parse(fs.readFileSync(hostPkgJsonPath, 'utf-8'));
   } catch (err) {
-    // catch-ok: Propagate error when parsing invalid package.json
+    // Propagate error when parsing invalid package.json
     return {
       success: false,
       projectRoot,

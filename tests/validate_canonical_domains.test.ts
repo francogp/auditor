@@ -289,6 +289,25 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     );
   });
 
+  it('does not flag immutable runtime as const arrays as duplicates of type-only library definitions', () => {
+    const libMap = new Map([
+      [
+        'atk|def|hp|spa|spd|spe',
+        { typeName: 'StatID', pkgName: '@pkmn/types', signature: 'atk|def|hp|spa|spd|spe' }
+      ]
+    ]);
+
+    const scanned = [
+      {
+        file: 'src/battleConstants.ts',
+        content: `export const POKEMON_STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;`
+      }
+    ];
+
+    const findings = detectLibraryDomainTypeDuplicates(scanned, libMap);
+    expect(findings).toHaveLength(0);
+  });
+
   it('handles missing package.json gracefully in extractLibraryDomainTypes', async () => {
     const emptyDir = path.join(tempDir, 'no-pkg');
     await fs.mkdir(emptyDir, { recursive: true });

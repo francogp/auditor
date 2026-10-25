@@ -158,7 +158,7 @@ function analyzeUncoveredFiles(
   scannedSets: ReadonlyMap<string, ReadonlySet<string>>
 ): CoverageFinding[] {
   const candidates = getAuditableCandidates(input);
-  const uncovered: string[] = []; // domain-ok: Non-domain relative file path strings collection
+  const uncovered: string[] = []; // Non-domain relative file path strings collection
 
   for (const file of candidates) {
     if (!ledgers.some((l) => isCoveredBy(file, l, scannedSets))) {

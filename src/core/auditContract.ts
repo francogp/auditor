@@ -556,7 +556,7 @@ export function deriveCanonicalAuditorScript(
     .replace(/^(validate_|audit_)/, '')
     .replace(/_/g, '-');
   return {
-    name: overrides?.name ?? `auditor:${shortId}`, // domain-ok: Script requirement identifier convention
+    name: overrides?.name ?? `auditor:${shortId}`, // Script requirement identifier convention
     command: overrides?.command ?? `auditor task=${id}`,
     description: overrides?.description ?? description,
     category: overrides?.category ?? 'suite',

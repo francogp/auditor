@@ -5,8 +5,8 @@
  */
 
 export const AUDITOR_DIR = '.auditor';
-export const AUDIT_CONFIG_FILE = `${AUDITOR_DIR}/audit.config.ts`; // path-ok: Canonical relative configuration path constant
-export const AUDIT_CONFIG_JSON_FILE = `${AUDITOR_DIR}/audit.config.json`; // path-ok: Canonical relative configuration path constant
+export const AUDIT_CONFIG_FILE = `${AUDITOR_DIR}/audit.config.ts`; // Canonical relative configuration path constant
+export const AUDIT_CONFIG_JSON_FILE = `${AUDITOR_DIR}/audit.config.json`; // Canonical relative configuration path constant
 export const LEGACY_ROOT_CONFIG_FILES = ['audit.config.ts', 'audit.config.json'] as const;
 
 /**
@@ -90,6 +90,8 @@ export interface AuditDomainConfig extends BaseAuditSubsystemConfig {
   readonly infraIdWhitelist?: readonly string[];
   readonly fallbackIdPatterns?: readonly string[];
   readonly o1CatalogPatterns?: readonly O1CatalogPatternConfig[];
+  readonly exemptSignatures?: readonly string[];
+  readonly exemptCollections?: readonly string[];
   readonly caseNormalizationExemptTokens?: readonly string[];
   readonly exemptComparisonTokens?: readonly string[];
   readonly allowedStoreSetterPrefixes?: readonly string[];
@@ -600,7 +602,7 @@ export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly staged?: AuditVitePlusStagedConfig | Record<string, string>;
   readonly hooks?: AuditVitePlusHooksConfig;
   readonly vscode?: AuditVitePlusVSCodeConfig;
-  readonly extraLintRules?: Record<string, 'error' | 'warn' | 'off'>;
+  readonly extraLintRules?: Record<string, CanonicalRuleSeverityLevel>;
 }
 
 export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
@@ -678,4 +680,4 @@ export interface AuditEngineConfig {
   readonly _rawConfig?: Readonly<DeepPartial<AuditEngineConfig>>;
 }
 
-export type AuditConfig = AuditEngineConfig; // type-ok: Type contract declaration
+export type AuditConfig = AuditEngineConfig; // Type contract declaration

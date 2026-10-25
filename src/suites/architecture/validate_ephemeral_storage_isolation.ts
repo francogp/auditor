@@ -301,7 +301,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
     try {
       entries = fs.readdirSync(currentDir, { withFileTypes: true });
     } catch {
-      // catch-ok: Directory may be inaccessible or deleted during traversal
+      // Directory may be inaccessible or deleted during traversal
       return;
     }
 

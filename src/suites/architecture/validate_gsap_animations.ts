@@ -13,9 +13,6 @@
  *   7. `gsap-no-important-filters`: Prohibits `!important` on `filter` in styles.
  *   8. `gsap-gpu-layer-promotion`: Flags dynamic filter animations lacking `will-change`.
  *
- * Escape Hatches:
- *   `// timer-ok: <reason>`, `// delay-ok: <reason>`, `// layout-ok: <reason>`, `// gpu-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_gsap_animations.ts
  */
@@ -177,6 +174,8 @@ export const GSAP_LAYOUT_PROPERTIES = [
 export type GsapLayoutProperty = (typeof GSAP_LAYOUT_PROPERTIES)[number];
 
 const LAYOUT_PROPERTIES_SET: ReadonlySet<string> = new Set<string>(GSAP_LAYOUT_PROPERTIES);
+const COLLAPSIBLE_HEIGHT_TARGETS: ReadonlySet<string> = new Set<string>(['auto', '0', '0px']);
+const GSAP_ANIMATED_TWEEN_METHODS: ReadonlySet<string> = new Set(['to', 'from', 'fromTo']);
 const GSAP_TWEEN_METHODS: ReadonlySet<string> = new Set(['to', 'from', 'fromTo', 'set']);
 
 function readTopLevelProperty(
@@ -197,6 +196,14 @@ function readTopLevelProperty(
     j++;
   }
   if (j < limit && cfgText[j] === ':' && LAYOUT_PROPERTIES_SET.has(id)) {
+    if (id === 'height') {
+      let valStart = j + 1;
+      while (valStart < limit && /\s/.test(cfgText[valStart] ?? '')) valStart++;
+      const rest = cfgText.slice(valStart, valStart + 10);
+      if (/^(?:['"]auto['"]|['"]0(?:px)?['"]|0\b)/.test(rest)) {
+        return { nextIndex: j, match: null };
+      }
+    }
     return { nextIndex: j, match: { index: idStart, propName: id } };
   }
   return { nextIndex: j, match: null };
@@ -767,6 +774,15 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     targetRule: GsapAnimationRuleId
   ): void {
     if (targetRule === 'gsap-no-layout-properties' && LAYOUT_PROPERTIES_SET.has(propName)) {
+      if (propName === 'height') {
+        const init = prop.initializer;
+        if (ts.isStringLiteral(init) && COLLAPSIBLE_HEIGHT_TARGETS.has(init.text)) {
+          return;
+        }
+        if (ts.isNumericLiteral(init) && init.text === '0') {
+          return;
+        }
+      }
       const { line, column } = doc.getNodeLineAndColumn(prop, ast);
       this.addViolation({
         ruleId: 'gsap-no-layout-properties',
@@ -779,7 +795,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       return;
     }
 
-    if (targetRule === 'gsap-kebab-case-properties' && propName.includes('-')) {
+    if (targetRule === 'gsap-kebab-case-properties' && !propName.startsWith('--') && propName.includes('-')) {
       const { line, column } = doc.getNodeLineAndColumn(prop, ast);
       this.addViolation({
         ruleId: 'gsap-kebab-case-properties',
@@ -851,7 +867,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     const isGsapCall = (call: ts.CallExpression): boolean => {
       const expr = call.expression;
       if (!ts.isPropertyAccessExpression(expr)) return false;
-      if (!GSAP_TWEEN_METHODS.has(expr.name.text)) return false;
+      const allowedMethods = targetRule === 'gsap-no-layout-properties'
+        ? GSAP_ANIMATED_TWEEN_METHODS
+        : GSAP_TWEEN_METHODS;
+      if (!allowedMethods.has(expr.name.text)) return false;
 
       let recv: ts.Node = expr.expression;
       while (ts.isPropertyAccessExpression(recv)) {

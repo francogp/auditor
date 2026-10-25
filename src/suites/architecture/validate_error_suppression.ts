@@ -16,18 +16,16 @@
  *      Requires explicit type narrowing (`if (err instanceof Error)`) before accessing
  *      `.message` or `.code` on caught exception objects.
  *
- * Escape Hatches:
- *   `// catch-ok: <reason>`, `// fallback-ok: <reason>`, `// error-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_error_suppression.ts
  */
 
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
   resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
-import { stripComments } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -44,15 +42,7 @@ export const ERROR_SUPPRESSION_RULES: readonly ErrorSuppressionRuleId[] = [
   'strict-catch-narrowing'
 ] as const;
 
-// Regex for empty catch: matches catch block with empty or comment-only body
-const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\)\s*)?\{([^{}]*)\}/g;
-
-// Regex for silent promise catches: .catch(() => {}) or .catch(() => null/undefined/false)
-const SILENT_PROMISE_CATCH_REGEX =
-  /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*|\s*(?:\/\/[^\r\n]*\r?\n|\/\*[\s\S]*?\*\/)\s*)\}|null|undefined|false|true)\s*\)/g;
-
-// Regex for Valibot fallback in schemas: v.fallback( or fallback(
-const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
+const STANDARD_ERROR_PROPERTIES: ReadonlySet<string> = new Set(['message', 'code', 'stack']);
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
@@ -71,7 +61,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -135,122 +125,152 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
-    this.runSubAuditorSync('no-empty-catch', () => {
-      this.auditEmptyCatch(relPath, content);
-    });
-    this.runSubAuditorSync('no-silent-promise-catch', () => {
-      this.auditSilentPromiseCatch(relPath, content);
-    });
-    this.runSubAuditorSync('no-silent-mock-fallbacks', () => {
-      this.auditSchemaFallbacks(relPath, content);
-    });
-    this.runSubAuditorSync('strict-catch-narrowing', () => {
-      this.auditCatchNarrowing(relPath, content);
-    });
-  }
+  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
+    const doc = new AuditedDocument(relPath, content, relPath);
+    const sf = sourceFile ?? doc.getAst();
+    if (!sf) return;
 
-  private forEachNonCommentMatch(
-    content: string,
-    regexTemplate: RegExp,
-    callback: (match: RegExpExecArray, line: number, lineContent: string) => void
-  ): void {
-    const regex = new RegExp(regexTemplate.source, regexTemplate.flags);
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      const line = this.getLineNumber(content, match.index);
-      const lineContent = this.getLineAt(content, line);
-      const trimmed = lineContent.trim();
-      if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
-        continue;
-      }
-      callback(match, line, lineContent);
-    }
-  }
+    const isSchemaFile =
+      relPath.includes('schema') || relPath.includes('models') || relPath.includes('storage');
 
-  private auditEmptyCatch(relPath: string, content: string): void {
-    this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, _lineContent) => {
-      const innerContent = match[1] ?? '';
-      const strippedComments = stripComments(innerContent).trim();
+    const visit = (node: ts.Node): void => {
+      // 1. Catch clause: check no-empty-catch and strict-catch-narrowing
+      if (ts.isCatchClause(node)) {
+        // Rule: no-empty-catch
+        this.runSubAuditorSync('no-empty-catch', () => {
+          if (node.block.statements.length === 0) {
+            const { line, column } = doc.getNodeLineAndColumn(node, sf);
+            this.addViolation({
+              ruleId: 'no-empty-catch',
+              severity: 'error',
+              file: relPath,
+              line,
+              column,
+              message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
+              context: node.getText(sf).slice(0, 100)
+            });
+          }
+        });
 
-      if (strippedComments.length === 0) {
-        this.addViolation({
-          ruleId: 'no-empty-catch',
-          severity: 'error',
-          file: relPath,
-          line,
-          message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
-          context: match[0].slice(0, 100)
+        // Rule: strict-catch-narrowing
+        this.runSubAuditorSync('strict-catch-narrowing', () => {
+          if (node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+            const varName = node.variableDeclaration.name.text;
+            let hasPropertyAccess = false;
+            let hasInstanceofCheck = false;
+
+            const checkCatchBody = (inner: ts.Node): void => {
+              if (
+                ts.isBinaryExpression(inner) &&
+                inner.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword &&
+                inner.left.getText(sf) === varName &&
+                inner.right.getText(sf) === 'Error'
+              ) {
+                hasInstanceofCheck = true;
+              }
+
+              if (ts.isPropertyAccessExpression(inner)) {
+                let target: ts.Node = inner.expression;
+                if (ts.isAsExpression(target) || ts.isTypeAssertionExpression(target)) {
+                  target = target.expression;
+                }
+                if (ts.isIdentifier(target) && target.text === varName) {
+                  const prop = inner.name.text;
+                  if (STANDARD_ERROR_PROPERTIES.has(prop)) {
+                    hasPropertyAccess = true;
+                  }
+                }
+              }
+
+              ts.forEachChild(inner, checkCatchBody);
+            };
+
+            checkCatchBody(node.block);
+
+            if (hasPropertyAccess && !hasInstanceofCheck) {
+              const { line, column } = doc.getNodeLineAndColumn(node, sf);
+              this.addViolation({
+                ruleId: 'strict-catch-narrowing',
+                severity: 'error',
+                file: relPath,
+                line,
+                column,
+                message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
+                context: `catch (${varName})`
+              });
+            }
+          }
         });
       }
-    });
-  }
 
-  private auditSilentPromiseCatch(relPath: string, content: string): void {
-    this.forEachNonCommentMatch(content, SILENT_PROMISE_CATCH_REGEX, (match, line, _lineContent) => {
-      this.addViolation({
-        ruleId: 'no-silent-promise-catch',
-        severity: 'error',
-        file: relPath,
-        line,
-        message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
-        context: match[0].slice(0, 100)
-      });
-    });
-  }
-
-  private auditSchemaFallbacks(relPath: string, content: string): void {
-    if (
-      !relPath.includes('schema') &&
-      !relPath.includes('models') &&
-      !relPath.includes('storage')
-    ) {
-      return;
-    }
-
-    this.forEachNonCommentMatch(content, VALIBOT_FALLBACK_REGEX, (_match, line, lineContent) => {
-      this.addViolation({
-        ruleId: 'no-silent-mock-fallbacks',
-        severity: 'error',
-        file: relPath,
-        line,
-        message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
-        context: lineContent.trim()
-      });
-    });
-  }
-
-  private auditCatchNarrowing(relPath: string, content: string): void {
-    const catchBlockRegex = /catch\s*\(\s*([a-zA-Z_$][\w$]*)\s*\)\s*\{([\s\S]*?)\}/g;
-    let match: RegExpExecArray | null;
-
-    while ((match = catchBlockRegex.exec(content)) !== null) {
-      const varName = match[1]!;
-      const blockBody = match[2]!;
-
-      // Check if blockBody accesses varName.message or (varName as any).message
-      const hasMessageAccess = new RegExp(
-        `\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+` + `any\\s*\\)\\.message`
-      ).test(blockBody);
-      if (hasMessageAccess) {
-        // Check if there is an instanceof Error check
-        const hasInstanceCheck = new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(
-          blockBody
-        );
-        if (!hasInstanceCheck) {
-          const line = this.getLineNumber(content, match.index);
-
-          this.addViolation({
-            ruleId: 'strict-catch-narrowing',
-            severity: 'error',
-            file: relPath,
-            line,
-            message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
-            context: `catch (${varName})`
+      // 2. Call expressions: no-silent-promise-catch and no-silent-mock-fallbacks
+      if (ts.isCallExpression(node)) {
+        // Rule: no-silent-mock-fallbacks
+        if (isSchemaFile) {
+          this.runSubAuditorSync('no-silent-mock-fallbacks', () => {
+            const callText = node.expression.getText(sf);
+            if (callText === 'fallback' || callText.endsWith('.fallback')) {
+              const { line, column } = doc.getNodeLineAndColumn(node, sf);
+              this.addViolation({
+                ruleId: 'no-silent-mock-fallbacks',
+                severity: 'error',
+                file: relPath,
+                line,
+                column,
+                message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
+                context: node.getText(sf).slice(0, 100)
+              });
+            }
           });
         }
+
+        // Rule: no-silent-promise-catch
+        this.runSubAuditorSync('no-silent-promise-catch', () => {
+          if (
+            ts.isPropertyAccessExpression(node.expression) &&
+            node.expression.name.text === 'catch' &&
+            node.arguments.length > 0
+          ) {
+            const handler = node.arguments[0];
+            if (handler && (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) {
+              let isSilent = false;
+              if (ts.isBlock(handler.body)) {
+                if (handler.body.statements.length === 0) {
+                  isSilent = true;
+                }
+              } else {
+                const body = handler.body;
+                if (
+                  body.kind === ts.SyntaxKind.NullKeyword ||
+                  body.kind === ts.SyntaxKind.UndefinedKeyword ||
+                  body.kind === ts.SyntaxKind.FalseKeyword ||
+                  body.kind === ts.SyntaxKind.TrueKeyword
+                ) {
+                  isSilent = true;
+                }
+              }
+
+              if (isSilent) {
+                const { line, column } = doc.getNodeLineAndColumn(node, sf);
+                this.addViolation({
+                  ruleId: 'no-silent-promise-catch',
+                  severity: 'error',
+                  file: relPath,
+                  line,
+                  column,
+                  message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
+                  context: node.getText(sf).slice(0, 100)
+                });
+              }
+            }
+          }
+        });
       }
-    }
+
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sf);
   }
 }
 

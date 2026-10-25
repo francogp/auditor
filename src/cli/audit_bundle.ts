@@ -65,7 +65,7 @@ export interface AggregatedModule {
   readonly count: number;
 }
 
-export type ChunkAuditStatus = SubAuditorStatus; // type-ok: Type contract declaration
+export type ChunkAuditStatus = SubAuditorStatus; // Type contract declaration
 export interface ChunkAuditResult {
   readonly filename: string;
   readonly sizeBytes: number;

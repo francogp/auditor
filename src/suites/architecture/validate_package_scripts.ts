@@ -542,7 +542,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     try {
       entries = fs.readdirSync(workflowsDir, { withFileTypes: true });
     } catch {
-      // catch-ok: Ignore unreadable workflows directory
+      // Ignore unreadable workflows directory
       return;
     }
 

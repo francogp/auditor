@@ -1,6 +1,7 @@
+import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
-import { stripComments } from "../../core/scannerUtils.js";
 import { enableCompileCache } from "node:module";
+import ts from "typescript";
 // src/suites/architecture/validate_error_suppression.ts
 /**
 * scripts/auditors/architecture/validate_error_suppression.ts
@@ -20,9 +21,6 @@ import { enableCompileCache } from "node:module";
 *      Requires explicit type narrowing (`if (err instanceof Error)`) before accessing
 *      `.message` or `.code` on caught exception objects.
 *
-* Escape Hatches:
-*   `// catch-ok: <reason>`, `// fallback-ok: <reason>`, `// error-ok: <reason>`
-*
 * Usage:
 *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_error_suppression.ts
 */
@@ -33,9 +31,11 @@ const ERROR_SUPPRESSION_RULES = [
 	"no-silent-mock-fallbacks",
 	"strict-catch-narrowing"
 ];
-const EMPTY_CATCH_REGEX = /catch\s*(?:\([^)]*\)\s*)?\{([^{}]*)\}/g;
-const SILENT_PROMISE_CATCH_REGEX = /\.catch\s*\(\s*(?:\(\s*\)|[a-zA-Z_$][\w$]*)\s*=>\s*(?:\{(?:\s*|\s*(?:\/\/[^\r\n]*\r?\n|\/\*[\s\S]*?\*\/)\s*)\}|null|undefined|false|true)\s*\)/g;
-const VALIBOT_FALLBACK_REGEX = /\b(?:v\.)?fallback\s*\(/g;
+const STANDARD_ERROR_PROPERTIES = /* @__PURE__ */ new Set([
+	"message",
+	"code",
+	"stack"
+]);
 var ErrorSuppressionAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths.codeRoots);
@@ -49,7 +49,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
@@ -79,89 +79,106 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".vue"])
 		});
 	}
-	scanFile(relPath, content) {
-		this.runSubAuditorSync("no-empty-catch", () => {
-			this.auditEmptyCatch(relPath, content);
-		});
-		this.runSubAuditorSync("no-silent-promise-catch", () => {
-			this.auditSilentPromiseCatch(relPath, content);
-		});
-		this.runSubAuditorSync("no-silent-mock-fallbacks", () => {
-			this.auditSchemaFallbacks(relPath, content);
-		});
-		this.runSubAuditorSync("strict-catch-narrowing", () => {
-			this.auditCatchNarrowing(relPath, content);
-		});
-	}
-	forEachNonCommentMatch(content, regexTemplate, callback) {
-		const regex = new RegExp(regexTemplate.source, regexTemplate.flags);
-		let match;
-		while ((match = regex.exec(content)) !== null) {
-			const line = this.getLineNumber(content, match.index);
-			const lineContent = this.getLineAt(content, line);
-			const trimmed = lineContent.trim();
-			if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) continue;
-			callback(match, line, lineContent);
-		}
-	}
-	auditEmptyCatch(relPath, content) {
-		this.forEachNonCommentMatch(content, EMPTY_CATCH_REGEX, (match, line, _lineContent) => {
-			const innerContent = match[1] ?? "";
-			if (stripComments(innerContent).trim().length === 0) this.addViolation({
-				ruleId: "no-empty-catch",
-				severity: "error",
-				file: relPath,
-				line,
-				message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
-				context: match[0].slice(0, 100)
-			});
-		});
-	}
-	auditSilentPromiseCatch(relPath, content) {
-		this.forEachNonCommentMatch(content, SILENT_PROMISE_CATCH_REGEX, (match, line, _lineContent) => {
-			this.addViolation({
-				ruleId: "no-silent-promise-catch",
-				severity: "error",
-				file: relPath,
-				line,
-				message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
-				context: match[0].slice(0, 100)
-			});
-		});
-	}
-	auditSchemaFallbacks(relPath, content) {
-		if (!relPath.includes("schema") && !relPath.includes("models") && !relPath.includes("storage")) return;
-		this.forEachNonCommentMatch(content, VALIBOT_FALLBACK_REGEX, (_match, line, lineContent) => {
-			this.addViolation({
-				ruleId: "no-silent-mock-fallbacks",
-				severity: "error",
-				file: relPath,
-				line,
-				message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
-				context: lineContent.trim()
-			});
-		});
-	}
-	auditCatchNarrowing(relPath, content) {
-		const catchBlockRegex = /catch\s*\(\s*([a-zA-Z_$][\w$]*)\s*\)\s*\{([\s\S]*?)\}/g;
-		let match;
-		while ((match = catchBlockRegex.exec(content)) !== null) {
-			const varName = match[1];
-			const blockBody = match[2];
-			if (new RegExp(`\\b${varName}\\.message\\b|\\(\\s*${varName}\\s+as\\s+any\\s*\\)\\.message`).test(blockBody)) {
-				if (!new RegExp(`\\b${varName}\\s+instanceof\\s+Error\\b`).test(blockBody)) {
-					const line = this.getLineNumber(content, match.index);
-					this.addViolation({
-						ruleId: "strict-catch-narrowing",
-						severity: "error",
-						file: relPath,
-						line,
-						message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
-						context: `catch (${varName})`
-					});
-				}
+	scanFile(relPath, content, sourceFile) {
+		const doc = new AuditedDocument(relPath, content, relPath);
+		const sf = sourceFile ?? doc.getAst();
+		if (!sf) return;
+		const isSchemaFile = relPath.includes("schema") || relPath.includes("models") || relPath.includes("storage");
+		const visit = (node) => {
+			if (ts.isCatchClause(node)) {
+				this.runSubAuditorSync("no-empty-catch", () => {
+					if (node.block.statements.length === 0) {
+						const { line, column } = doc.getNodeLineAndColumn(node, sf);
+						this.addViolation({
+							ruleId: "no-empty-catch",
+							severity: "error",
+							file: relPath,
+							line,
+							column,
+							message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
+							context: node.getText(sf).slice(0, 100)
+						});
+					}
+				});
+				this.runSubAuditorSync("strict-catch-narrowing", () => {
+					if (node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+						const varName = node.variableDeclaration.name.text;
+						let hasPropertyAccess = false;
+						let hasInstanceofCheck = false;
+						const checkCatchBody = (inner) => {
+							if (ts.isBinaryExpression(inner) && inner.operatorToken.kind === ts.SyntaxKind.InstanceOfKeyword && inner.left.getText(sf) === varName && inner.right.getText(sf) === "Error") hasInstanceofCheck = true;
+							if (ts.isPropertyAccessExpression(inner)) {
+								let target = inner.expression;
+								if (ts.isAsExpression(target) || ts.isTypeAssertionExpression(target)) target = target.expression;
+								if (ts.isIdentifier(target) && target.text === varName) {
+									const prop = inner.name.text;
+									if (STANDARD_ERROR_PROPERTIES.has(prop)) hasPropertyAccess = true;
+								}
+							}
+							ts.forEachChild(inner, checkCatchBody);
+						};
+						checkCatchBody(node.block);
+						if (hasPropertyAccess && !hasInstanceofCheck) {
+							const { line, column } = doc.getNodeLineAndColumn(node, sf);
+							this.addViolation({
+								ruleId: "strict-catch-narrowing",
+								severity: "error",
+								file: relPath,
+								line,
+								column,
+								message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
+								context: `catch (${varName})`
+							});
+						}
+					}
+				});
 			}
-		}
+			if (ts.isCallExpression(node)) {
+				if (isSchemaFile) this.runSubAuditorSync("no-silent-mock-fallbacks", () => {
+					const callText = node.expression.getText(sf);
+					if (callText === "fallback" || callText.endsWith(".fallback")) {
+						const { line, column } = doc.getNodeLineAndColumn(node, sf);
+						this.addViolation({
+							ruleId: "no-silent-mock-fallbacks",
+							severity: "error",
+							file: relPath,
+							line,
+							column,
+							message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
+							context: node.getText(sf).slice(0, 100)
+						});
+					}
+				});
+				this.runSubAuditorSync("no-silent-promise-catch", () => {
+					if (ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "catch" && node.arguments.length > 0) {
+						const handler = node.arguments[0];
+						if (handler && (ts.isArrowFunction(handler) || ts.isFunctionExpression(handler))) {
+							let isSilent = false;
+							if (ts.isBlock(handler.body)) {
+								if (handler.body.statements.length === 0) isSilent = true;
+							} else {
+								const body = handler.body;
+								if (body.kind === ts.SyntaxKind.NullKeyword || body.kind === ts.SyntaxKind.UndefinedKeyword || body.kind === ts.SyntaxKind.FalseKeyword || body.kind === ts.SyntaxKind.TrueKeyword) isSilent = true;
+							}
+							if (isSilent) {
+								const { line, column } = doc.getNodeLineAndColumn(node, sf);
+								this.addViolation({
+									ruleId: "no-silent-promise-catch",
+									severity: "error",
+									file: relPath,
+									line,
+									column,
+									message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
+									context: node.getText(sf).slice(0, 100)
+								});
+							}
+						}
+					}
+				});
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ErrorSuppressionAuditor());

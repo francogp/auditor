@@ -11,9 +11,6 @@
  *      and `console.error` remain 100% permitted for standard system error reporting.
  *      Authorized logging is mediated via `@/logic/utils/logger.ts`.
  *
- * Escape Hatches:
- *   `// console-ok: <reason>`, `// debugger-ok: <reason>`
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_console_cleanliness.ts
  */

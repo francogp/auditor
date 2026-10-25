@@ -90,7 +90,7 @@ export function collectRelativeCodeFiles(
     return [];
   }
 
-  const found: string[] = []; // domain-ok: Non-domain relative file paths collection
+  const found: string[] = []; // Non-domain relative file paths collection
   const queue = [dirAbs];
   while (queue.length > 0 && found.length < maxFiles) {
     const current = queue.pop()!;

@@ -49,9 +49,12 @@ The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, D
    }
    ```
 
-4. **Escape Hatch Contract**:
-   When dynamic typing is legitimately required (e.g. third-party untyped JavaScript libraries or mock objects), declare an explicit statement-level escape hatch:
-   `// type-ok: <justification>` or `// type-ignore: <justification>`.
+4. **Zero Escape Hatches & Safe Narrowing**:
+   Comment escape hatches (`// type-ok:`, `// any-ok:`, `// type-ignore:`) are permanently eradicated. Instead, use canonical safe typing:
+   - Use `unknown` with runtime type guards (`isRecord`, `isString`, `instanceof`) instead of `as any`.
+   - Use `Record<string, unknown>` instead of untyped objects.
+   - Use Valibot schema validation (`v.parse()`, `v.safeParse()`) for external payloads.
+   - Use typed generics (`<T>`) for polymorphic operations.
 
 ---
 

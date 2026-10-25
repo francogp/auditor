@@ -16,9 +16,10 @@
  */
 
 import { enableCompileCache } from 'node:module';
+import ts from 'typescript';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
-import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -32,17 +33,6 @@ export const VUE_ROUTER_RULES: readonly VueRouterRuleId[] = [
   'no-define-async-component-in-router',
   'no-window-location-navigation'
 ] as const;
-
-// Detects beforeEach/beforeResolve with 3 arguments including 'next'
-const DEPRECATED_NEXT_GUARD_REGEX =
-  /\b(?:beforeEach|beforeResolve)\s*\((?:async\s+)?\(\s*\w+\s*,\s*\w+\s*,\s*next\s*\)/g;
-
-// Detects defineAsyncComponent inside route definitions
-const DEFINE_ASYNC_IN_ROUTER_REGEX = /\bcomponent:\s*defineAsyncComponent\s*\(/g;
-
-// Detects internal SPA route assignments to window.location.href or .assign
-const WINDOW_LOCATION_NAV_REGEX =
-  /\bwindow\.location\.(?:href|assign)\s*=\s*['"](?!\/\/|https?:\/\/)([^'"]+)['"]/g;
 
 const VUE_ROUTER_EXTENSIONS = new Set(['.vue', '.ts', '.js']);
 
@@ -78,7 +68,7 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
         phase: 'normal',
         fix: 'none',
         md: false,
-        ast: false,
+        ast: true,
         changedOnly: false,
         critical: false
       }),
@@ -126,40 +116,117 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
-    const scriptContent = extractVueScriptOrRaw(relPath, content);
-    if (!scriptContent) return;
+  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void {
+    const effectiveDoc = doc ?? new AuditedDocument(relPath, content, relPath);
+    const sf = sourceFile ?? effectiveDoc.getAst();
+    if (!sf) return;
 
-    this.scanRegexMatches(
-      scriptContent,
-      DEPRECATED_NEXT_GUARD_REGEX,
-      relPath,
-      'no-deprecated-router-next',
-      `Deprecated 'next' argument in router navigation guard. Vue Router 4 mandates returning a boolean or route location object instead.`,
-      undefined,
-      content
-    );
+    this.runSubAuditorSync('no-deprecated-router-next', () => {
+      this.scanDeprecatedRouterNext(sf, effectiveDoc, relPath);
+    });
 
-    this.scanRegexMatches(
-      scriptContent,
-      DEFINE_ASYNC_IN_ROUTER_REGEX,
-      relPath,
-      'no-define-async-component-in-router',
-      `defineAsyncComponent used in router route definition. Use canonical dynamic import 'component: () => import(...)' instead.`,
-      undefined,
-      content
-    );
+    this.runSubAuditorSync('no-define-async-component-in-router', () => {
+      this.scanDefineAsyncComponent(sf, effectiveDoc, relPath);
+    });
 
-    this.scanRegexMatches(
-      scriptContent,
-      WINDOW_LOCATION_NAV_REGEX,
-      relPath,
-      'no-window-location-navigation',
-      `Direct SPA navigation with 'window.location'. Use useRouter().push(...) to preserve application state.`,
-      undefined,
-      content
-    );
+    this.runSubAuditorSync('no-window-location-navigation', () => {
+      this.scanWindowLocationNavigation(sf, effectiveDoc, relPath);
+    });
   }
+
+  private scanDeprecatedRouterNext(sf: ts.SourceFile, doc: AuditedDocument, relPath: string): void {
+    const visit = (node: ts.Node): void => {
+      if (ts.isCallExpression(node)) {
+        const nextParam = extractRouterNextParam(node, sf);
+        if (nextParam) {
+          const { line, column } = doc.getNodeLineAndColumn(nextParam, sf);
+          this.addViolation({
+            ruleId: 'no-deprecated-router-next',
+            filePath: relPath,
+            line,
+            column,
+            message: `Deprecated 'next' argument in router navigation guard. Vue Router 4 mandates returning a boolean or route location object instead.`,
+            severity: 'error'
+          });
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+
+  private scanDefineAsyncComponent(sf: ts.SourceFile, doc: AuditedDocument, relPath: string): void {
+    const visit = (node: ts.Node): void => {
+      if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) {
+        if (node.name.text === 'component' && ts.isCallExpression(node.initializer)) {
+          const callText = node.initializer.expression.getText(sf);
+          if (callText === 'defineAsyncComponent' || callText.endsWith('.defineAsyncComponent')) {
+            const { line, column } = doc.getNodeLineAndColumn(node, sf);
+            this.addViolation({
+              ruleId: 'no-define-async-component-in-router',
+              filePath: relPath,
+              line,
+              column,
+              message: `defineAsyncComponent used in router route definition. Use canonical dynamic import 'component: () => import(...)' instead.`,
+              severity: 'error'
+            });
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+
+  private isSpaInternalUrl(url: string): boolean {
+    return !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//');
+  }
+
+  private scanWindowLocationNavigation(sf: ts.SourceFile, doc: AuditedDocument, relPath: string): void {
+    const reportViolation = (node: ts.Node): void => {
+      const { line, column } = doc.getNodeLineAndColumn(node, sf);
+      this.addViolation({
+        ruleId: 'no-window-location-navigation',
+        filePath: relPath,
+        line,
+        column,
+        message: `Direct SPA navigation with 'window.location'. Use useRouter().push(...) to preserve application state.`,
+        severity: 'error'
+      });
+    };
+
+    const visit = (node: ts.Node): void => {
+      if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+        const leftText = node.left.getText(sf);
+        if ((leftText === 'window.location.href' || leftText === 'location.href') && ts.isStringLiteral(node.right)) {
+          if (this.isSpaInternalUrl(node.right.text)) {
+            reportViolation(node);
+          }
+        }
+      } else if (ts.isCallExpression(node)) {
+        const exprText = node.expression.getText(sf);
+        if (exprText === 'window.location.assign' || exprText === 'location.assign') {
+          const firstArg = node.arguments[0];
+          if (firstArg && ts.isStringLiteral(firstArg) && this.isSpaInternalUrl(firstArg.text)) {
+            reportViolation(node);
+          }
+        }
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(sf);
+  }
+}
+
+function extractRouterNextParam(call: ts.CallExpression, sf: ts.SourceFile): ts.ParameterDeclaration | null {
+  const expr = call.expression;
+  const methodName = ts.isPropertyAccessExpression(expr) ? expr.name.text : ts.isIdentifier(expr) ? expr.text : '';
+  if ((methodName !== 'beforeEach' && methodName !== 'beforeResolve') || call.arguments.length === 0) return null;
+  const guardFn = call.arguments[0];
+  if (!guardFn || (!ts.isArrowFunction(guardFn) && !ts.isFunctionExpression(guardFn))) return null;
+  if (guardFn.parameters.length < 3) return null;
+  const thirdParam = guardFn.parameters[2];
+  return (thirdParam && thirdParam.name.getText(sf) === 'next') ? thirdParam : null;
 }
 
 // Standalone execution support

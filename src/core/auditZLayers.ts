@@ -70,7 +70,7 @@ function parseZLayersFromTs(tsPath: string): Record<string, number> | null {
     }
     return Object.keys(parsed).length > 0 ? parsed : null;
   } catch {
-    // catch-ok: Fallback to default on read or parse failure
+    // Fallback to default on read or parse failure
     return null;
   }
 }

@@ -22,7 +22,6 @@
  *     * CLI and slice boundaries: .slice(2)
  *     * Radix arguments: parseInt(x, 10), (num).toString(16)
  *     * JSON formatting indentation: JSON.stringify(obj, null, 2)
- *   - Escape hatch: '// const-ok: <justification>'
  *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_magic_numbers.ts
@@ -293,8 +292,8 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           '3. Universal Exempt Sentinels: Note that values -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024, ' +
           'as well as array indexes ("arr[0]"), precision arguments (".toFixed(2)"), slice boundaries (".slice(2)"), and radix ("parseInt(x, 10)") ' +
           'are universally exempt and never trigger findings.\n' +
-          '4. Justified Escape Hatch: If the number is part of a one-off mathematical formula or test fixture where a constant is unnecessary, ' +
-          'add "// const-ok: <technical justification>" on the same line or immediately above.\n' +
+          '4. Domain Sentinel Registration: If the number is a project-wide sentinel or formula constant, ' +
+          'register it in "constants.exemptMagicNumbers" in ".auditor/audit.config.ts" without comment escape hatches.\n' +
           '5. Repository Configuration in .auditor/audit.config.ts: If the repository uses global status codes, multipliers, or domain constants, ' +
           'they can be registered in "constants.exemptMagicNumbers" upon developer consultation.\n' +
           '6. Automated Deterministic Refactoring: Run "npm run auditor:magic inspect <file>", inspect the suggested JSON plan, ' +

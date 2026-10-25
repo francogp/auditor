@@ -1104,7 +1104,7 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
           '   - For custom entity IDs: `type HeroId = Brand<string, "HeroId">`\n' +
           '4. Example / Copy-pasteable import:\n' +
           '   import type { Brand, UserUuid, DomElementId } from "@francogp/auditor";\n' +
-          '   ❌ Incorrect: export type HeroId = string; // uuid-ok:\n' +
+          '   ❌ Incorrect: export type HeroId = string; // \n' +
           '   ✅ Correct:   export type HeroId = Brand<string, "HeroId">;',
         'domain-chained-literal-comparison':
           '📖 REMEDIATION GUIDE: domain-chained-literal-comparison\n' +

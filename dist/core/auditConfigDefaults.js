@@ -70,6 +70,8 @@ const DEFAULT_AUDIT_CONFIG = {
 		infraIdWhitelist: [],
 		fallbackIdPatterns: [],
 		o1CatalogPatterns: [],
+		exemptSignatures: [],
+		exemptCollections: [],
 		allowedNumericConstantPrefixes: [
 			"GEN_",
 			"ISO_",

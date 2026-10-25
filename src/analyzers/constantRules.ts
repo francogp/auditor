@@ -42,7 +42,7 @@ export function isConstantNameExemptFromNumericSuffixCheck(
 }
 
 export const noAliasConstants: AuditRule = {
-  // redos-ok: deterministic property accessor regex
+  // deterministic property accessor regex
   regex:
     /\bconst\s+([A-Z0-9_]{3,})(?:\s*:\s*[^=;\r\n]+)?\s*=\s*([A-Z0-9_][A-Z0-9_.]*)(?:\s+as\s+[^;\r\n]+)?\s*(?:;\s*)?$/gm,
   message: (match: string) =>

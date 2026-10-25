@@ -718,7 +718,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
     try {
       content = fsSync.readFileSync(agentsMdPath, 'utf8');
     } catch {
-      // catch-ok: Unreadable AGENTS.md
+      // Unreadable AGENTS.md
       return;
     }
 

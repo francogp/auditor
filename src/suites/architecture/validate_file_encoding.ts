@@ -66,7 +66,7 @@ export const FILE_ENCODING_RULE_REMEDIATIONS: Record<FileEncodingRuleId, string>
     '2. Diagnosis: Inspect the reported line and check whether accented or multi-byte characters are displayed incorrectly.\n' +
     '3. Canonical Solution:\n' +
     '   - Manually fix corrupted text or restore original clean UTF-8 characters.\n' +
-    '   - If the line contains intentional mojibake sequences (e.g. legacy SQL migration or encoding test fixtures), add the canonical suppression comment `// mojibake-ok: <reason>` (TS/JS), `-- mojibake-ok: <reason>` (SQL), or `# mojibake-ok: <reason>` on that line.\n' +
+    '   - If the line contains intentional test fixtures or legacy migrations, add the file path to `paths.exemptPaths` in `.auditor/audit.config.ts`.\n' +
     '4. Example:\n' +
     '   ❌ Incorrect: Corrupted text from double-encoding\n' +
     '   ✅ Canonical: const msg = "User configuration";'

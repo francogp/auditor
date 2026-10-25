@@ -45,8 +45,8 @@ export const HTML_VALIDATE_RULES: readonly HtmlValidateRuleId[] = ['html-validat
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
 
-export type RawHtmlValidateMessage = RawLintMessage; // type-ok: Type contract declaration
-export type RawHtmlValidateFileReport = RawLintFileReport; // type-ok: Type contract declaration
+export type RawHtmlValidateMessage = RawLintMessage; // Type contract declaration
+export type RawHtmlValidateFileReport = RawLintFileReport; // Type contract declaration
 
 /**
  * Parses raw JSON output or an array of file reports from html-validate into canonical AuditFindings.
@@ -139,7 +139,7 @@ export function readAndParseHtmlValidateOutput(
       rawJson = fs.readFileSync(reportFile, 'utf-8');
       findings = parseHtmlValidateResults(rawJson, projectRoot);
     } catch {
-      // catch-ok: Fall back to parsing combined output
+      // Fall back to parsing combined output
       findings = parseHtmlValidateResults(combinedOutput, projectRoot);
     }
   } else {

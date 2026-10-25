@@ -12,9 +12,6 @@ import ts from "typescript";
 *      an explicit removeEventListener, or an unmount lifecycle hook (onUnmounted, onBeforeUnmount, onScopeDispose).
 *   2. Native Timers: Every setInterval must have a clearInterval.
 *
-* Escape Hatch:
-*   // leak-ok: <justification> or // reactive-leak-ok: <justification>
-*
 * Usage:
 *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_reactive_leaks.ts
 *   npm run validate:reactive-leaks

@@ -101,7 +101,10 @@ npm run auditor:o1 apply -- --plan scratch/o1-plan.json --worktree
 
 ---
 
-## 🛡️ Escape Hatches
+## 🛡️ Zero Escape Hatches & Architectural Alternatives
 
-- `// o1-ok: <justification>`
-- `// linear-search-ok: <justification>`
+Comment escape hatches (`// o1-ok:`, `// linear-search-ok:`) are permanently eradicated. Instead, use canonical data structures and configuration:
+
+1. **Small Fixed Sets**: For small static arrays (e.g. `<= 4` elements), use `as const` tuple arrays or explicit Set lookups (`new Set([...])`).
+2. **Deep Cloning**: For structured deep cloning, use native `structuredClone(obj)` instead of `JSON.parse(JSON.stringify(obj))`.
+3. **Exemptions**: If a specific utility requires exemption, configure file or path exemptions in `.auditor/audit.config.ts` (`paths.exemptPaths` or tool-specific config) rather than embedding inline comment escape hatches.

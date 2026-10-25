@@ -207,7 +207,7 @@ export function buildRepositoryFileIndex(
     try {
       entries = fs.readdirSync(currentDir, { withFileTypes: true });
     } catch {
-      // catch-ok: unreadable directory
+      // unreadable directory
       return;
     }
 

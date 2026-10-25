@@ -325,7 +325,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
         nodeFs.writeFileSync(configPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
       }
     } catch (err: unknown) {
-      // catch-ok: Non-fatal if config is malformed or inaccessible during auto-repair
+      // Non-fatal if config is malformed or inaccessible during auto-repair
       if (process.env.DEBUG) {
         console.debug('Failed to auto-repair .markdownlint.json:', err);
       }

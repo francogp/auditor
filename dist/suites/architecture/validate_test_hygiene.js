@@ -1,10 +1,12 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
+import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
+import ts from "typescript";
 // src/suites/architecture/validate_test_hygiene.ts
 /**
 * scripts/auditors/architecture/validate_test_hygiene.ts
@@ -41,11 +43,12 @@ const TEST_HYGIENE_RULES = [
 function getForbiddenIntegrationMockTargets() {
 	return getAuditConfig().persistence?.forbiddenMockModules ?? [];
 }
-const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /:has-text\(|getByText\(|getByRole\(\s*['"](?:button|tab|link)['"]\s*,\s*\{\s*name:|\btext=/;
-const FORCE_CLICK_REGEX = /\.(?:click|dblclick)\s*\(\s*\{[^}]*\bforce\s*:\s*true/;
-const WAIT_FOR_TIMEOUT_REGEX = /\bpage\.waitForTimeout\s*\(/;
-const TIMEOUT_INFLATION_REGEX = /testTimeout\s*:\s*([3-9]\d{4,}|\d{6,})|\b(?:it|test)\s*\([^,]+,\s*(?:async\s*)?\([^)]*\)\s*=>\s*\{[\s\S]*?\},\s*([3-9]\d{4,}|\d{6,})\)/;
-const VI_MOCK_REGEX = /vi\.mock\(\s*['"]([^'"]+)['"]/g;
+const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /:has-text\(|^text=/;
+const PLAYWRIGHT_LOCATOR_METHODS = /* @__PURE__ */ new Set([
+	"locator",
+	"click",
+	"dblclick"
+]);
 var TestHygieneAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
@@ -64,7 +67,7 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
@@ -97,26 +100,30 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 			allowedExtensions: /* @__PURE__ */ new Set([".ts", ".js"])
 		});
 	}
-	scanFile(relPath, content) {
+	scanFile(relPath, content, sourceFile, doc) {
 		const config = getAuditConfig(this.projectRoot);
 		const isIntegration = config.paths.integrationRoots.some((r) => relPath.startsWith(r));
 		const isE2e = config.paths.e2eRoots.some((r) => relPath.startsWith(r));
+		const effectiveDoc = doc ?? new AuditedDocument(relPath, content, relPath);
+		const sf = sourceFile ?? effectiveDoc.getAst();
+		if (!sf) return;
+		const lines = content.split("\n");
 		if (isIntegration) this.runSubAuditorSync("no-tautological-integration-mocks", () => {
-			this.scanIntegrationMocks(relPath, content);
+			this.scanIntegrationMocksAst(relPath, sf, lines);
 		});
 		if (isE2e) {
-			this.runSubAuditorSync("playwright-id-locators-only", () => {
-				this.scanPlaywrightLocators(relPath, content);
+			if (config.e2e?.idLocatorsOnly === true) this.runSubAuditorSync("playwright-id-locators-only", () => {
+				this.scanPlaywrightLocatorsAst(relPath, sf, lines);
 			});
 			this.runSubAuditorSync("no-playwright-force-click", () => {
-				this.scanPlaywrightForceClick(relPath, content);
+				this.scanPlaywrightForceClickAst(relPath, sf, lines);
 			});
 			this.runSubAuditorSync("no-playwright-polling-waits", () => {
-				this.scanPlaywrightPollingWaits(relPath, content);
+				this.scanPlaywrightPollingWaitsAst(relPath, sf, lines);
 			});
 		}
 		this.runSubAuditorSync("no-test-timeout-inflation", () => {
-			this.scanTimeoutInflation(relPath, content);
+			this.scanTimeoutInflationAst(relPath, sf, lines);
 		});
 	}
 	async runAudit(astContext) {
@@ -129,61 +136,137 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 			this.markRuleNotApplicable("no-playwright-polling-waits", "No existing e2eRoots found on disk");
 		}
 	}
-	scanIntegrationMocks(relPath, content) {
-		const lines = content.split("\n");
-		let match;
-		VI_MOCK_REGEX.lastIndex = 0;
-		while ((match = VI_MOCK_REGEX.exec(content)) !== null) {
-			const rawTarget = match[1];
-			if (!rawTarget) continue;
-			const target = rawTarget.replace(/\.ts$/, "").replace(/\.js$/, "");
-			const lineNumber = content.slice(0, match.index).split("\n").length;
-			const lineContent = lines[lineNumber - 1] || "";
-			const forbiddenTargets = getForbiddenIntegrationMockTargets();
-			for (const forbidden of forbiddenTargets) if (target === forbidden || target.endsWith(forbidden.replace(/^@\//, "/"))) {
-				this.addViolation({
-					ruleId: "no-tautological-integration-mocks",
-					severity: "error",
-					file: relPath,
-					line: lineNumber,
-					message: `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in tests/integration/.`,
-					context: lineContent.trim()
-				});
-				break;
+	scanIntegrationMocksAst(relPath, sf, lines) {
+		const forbiddenTargets = getForbiddenIntegrationMockTargets();
+		if (forbiddenTargets.length === 0) return;
+		const visit = (node) => {
+			if (ts.isCallExpression(node)) {
+				const target = extractViMockTarget(node, sf);
+				if (target) {
+					for (const forbidden of forbiddenTargets) if (target === forbidden || target.endsWith(forbidden.replace(/^@\//, "/"))) {
+						const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+						this.reportHygieneViolation("no-tautological-integration-mocks", relPath, line, `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in tests/integration/.`, lines[line]?.trim() ?? "");
+						break;
+					}
+				}
 			}
-		}
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
 	}
-	scanLineRegexRule(relPath, content, ruleId, regex, messageFn) {
-		const lines = content.split("\n");
-		for (let i = 0; i < lines.length; i++) {
-			const lineContent = lines[i];
-			if (!lineContent) continue;
-			const match = regex.exec(lineContent);
-			if (match) this.addViolation({
-				ruleId,
-				severity: "error",
-				file: relPath,
-				line: i + 1,
-				message: messageFn(lineContent, match),
-				context: lineContent.trim()
-			});
-		}
+	scanPlaywrightLocatorsAst(relPath, sf, lines) {
+		const visit = (node) => {
+			if (ts.isCallExpression(node) && isPlaywrightTextLocator(node, sf)) {
+				const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+				this.reportHygieneViolation("playwright-id-locators-only", relPath, line, `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`, lines[line]?.trim() ?? "");
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
 	}
-	scanPlaywrightLocators(relPath, content) {
-		if (getAuditConfig().e2e?.idLocatorsOnly !== true) return;
-		this.scanLineRegexRule(relPath, content, "playwright-id-locators-only", PLAYWRIGHT_TEXT_LOCATOR_REGEX, () => `Text-based locator detected in E2E spec. Project policy requires 100% ID-based locators ('#id', '[id="..."]', '[data-testid="..."]').`);
-	}
-	scanPlaywrightForceClick(relPath, content) {
-		this.scanLineRegexRule(relPath, content, "no-playwright-force-click", FORCE_CLICK_REGEX, () => `Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.`);
-	}
-	scanPlaywrightPollingWaits(relPath, content) {
-		this.scanLineRegexRule(relPath, content, "no-playwright-polling-waits", WAIT_FOR_TIMEOUT_REGEX, () => `Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.`);
-	}
-	scanTimeoutInflation(relPath, content) {
-		this.scanLineRegexRule(relPath, content, "no-test-timeout-inflation", TIMEOUT_INFLATION_REGEX, (_line, match) => {
-			return `Test timeout inflation detected (${match[1] || match[2] || "unknown"}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`;
+	reportHygieneViolation(ruleId, relPath, line, message, context) {
+		this.addViolation({
+			ruleId,
+			severity: "error",
+			file: relPath,
+			line: line + 1,
+			message,
+			context
 		});
 	}
+	scanCallsForViolation(sf, predicate, onMatch) {
+		const visit = (node) => {
+			if (ts.isCallExpression(node) && predicate(node)) onMatch(node);
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
+	}
+	scanPlaywrightForceClickAst(relPath, sf, lines) {
+		this.scanCallsForViolation(sf, isForceClick, (node) => {
+			const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+			this.reportHygieneViolation("no-playwright-force-click", relPath, line, "Force click ({ force: true }) detected in E2E simulation. Interactivity checks must pass naturally.", lines[line]?.trim() ?? "");
+		});
+	}
+	scanPlaywrightPollingWaitsAst(relPath, sf, lines) {
+		this.scanCallsForViolation(sf, isPollingWait, (node) => {
+			const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+			this.reportHygieneViolation("no-playwright-polling-waits", relPath, line, "Artificial sleep page.waitForTimeout() detected. Simulations must synchronize via reactive events or locator assertions.", lines[line]?.trim() ?? "");
+		});
+	}
+	scanTimeoutInflationAst(relPath, sf, lines) {
+		const reportTimeout = (node, timeoutMs) => {
+			const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
+			this.reportHygieneViolation("no-test-timeout-inflation", relPath, line, `Test timeout inflation detected (${timeoutMs}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`, lines[line]?.trim() ?? "");
+		};
+		const visit = (node) => {
+			if (ts.isPropertyAssignment(node)) {
+				const propName = node.name.getText(sf);
+				if (propName === "testTimeout" || propName === "timeout") {
+					if (ts.isNumericLiteral(node.initializer)) {
+						const timeoutMs = parseInt(node.initializer.text, 10);
+						if (timeoutMs >= 3e4) reportTimeout(node, timeoutMs);
+					}
+				}
+			} else if (ts.isCallExpression(node)) {
+				const timeoutMs = getCallTimeoutMs(node);
+				if (timeoutMs !== null && timeoutMs >= 3e4) reportTimeout(node, timeoutMs);
+			}
+			ts.forEachChild(node, visit);
+		};
+		visit(sf);
+	}
 };
+function isForceClick(call) {
+	const expr = call.expression;
+	return ts.isPropertyAccessExpression(expr) && (expr.name.text === "click" || expr.name.text === "dblclick") && hasForceClickOption(call);
+}
+function isPollingWait(call) {
+	const expr = call.expression;
+	return ts.isPropertyAccessExpression(expr) && expr.name.text === "waitForTimeout";
+}
+function hasForceClickOption(call) {
+	for (const arg of call.arguments) if (ts.isObjectLiteralExpression(arg)) {
+		for (const prop of arg.properties) if (ts.isPropertyAssignment(prop) && prop.name.getText() === "force" && prop.initializer.kind === ts.SyntaxKind.TrueKeyword) return true;
+	}
+	return false;
+}
+function getCallTimeoutMs(call) {
+	const expr = call.expression;
+	if (ts.isPropertyAccessExpression(expr) && expr.name.text === "setTimeout") {
+		const firstArg = call.arguments[0];
+		if (firstArg && ts.isNumericLiteral(firstArg)) return parseInt(firstArg.text, 10);
+	}
+	let isTestFn = false;
+	if (ts.isIdentifier(expr) && (expr.text === "it" || expr.text === "test")) isTestFn = true;
+	else if (ts.isPropertyAccessExpression(expr) && (expr.name.text === "it" || expr.name.text === "test")) isTestFn = true;
+	if (isTestFn && call.arguments.length >= 3) {
+		const lastArg = call.arguments[call.arguments.length - 1];
+		if (lastArg && ts.isNumericLiteral(lastArg)) return parseInt(lastArg.text, 10);
+	}
+	return null;
+}
+function extractViMockTarget(node, sf) {
+	const expr = node.expression;
+	if (!ts.isPropertyAccessExpression(expr)) return null;
+	if (expr.expression.getText(sf) !== "vi" || expr.name.text !== "mock" && expr.name.text !== "spyOn") return null;
+	const firstArg = node.arguments[0];
+	if (!firstArg || !ts.isStringLiteral(firstArg) && !ts.isNoSubstitutionTemplateLiteral(firstArg)) return null;
+	return firstArg.text.replace(/\.ts$/, "").replace(/\.js$/, "");
+}
+function isPlaywrightTextLocator(node, sf) {
+	const expr = node.expression;
+	if (!ts.isPropertyAccessExpression(expr)) return false;
+	const methodName = expr.name.text;
+	if (methodName === "getByText") return true;
+	if (methodName === "getByRole") {
+		const secondArg = node.arguments[1];
+		if (secondArg && ts.isObjectLiteralExpression(secondArg)) return secondArg.properties.some((p) => p.name?.getText(sf) === "name");
+	}
+	if (PLAYWRIGHT_LOCATOR_METHODS.has(methodName)) {
+		const firstArg = node.arguments[0];
+		if (firstArg && (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))) return PLAYWRIGHT_TEXT_LOCATOR_REGEX.test(firstArg.text);
+	}
+	return false;
+}
 await BaseAuditor.runCliIfMain(import.meta.url, new TestHygieneAuditor());
 export { TEST_HYGIENE_RULES, TestHygieneAuditor, getForbiddenIntegrationMockTargets };

@@ -203,7 +203,7 @@ export function parseJsonObjectOutput<T = Record<string, unknown>>(input: unknow
   try {
     return JSON.parse(str.substring(jsonStart, jsonEnd + 1)) as T;
   } catch {
-    // catch-ok: Ignore parse errors on fallback
+    // Ignore parse errors on fallback
     return null;
   }
 }

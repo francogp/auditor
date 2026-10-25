@@ -26,9 +26,6 @@ import fs from "node:fs";
 *   5. `cli-contracts-missing-citty-contract`: CLI entrypoints under `src/cli/` missing `defineCommand` / `createRefactorCli` / `createAuditorCli`.
 *   6. `cli-contracts-unregistered-script`: missing `:human` script registrations in `CORE_PACKAGE_SCRIPT_REQUIREMENTS`.
 *
-* Authorized Escape Hatches:
-*   cli-ok: <reason>, argv-ok: <reason>, env-ok: <reason>, test-ok: <reason>
-*
 * Usage:
 *   npm run auditor -- task=validate_cli_contracts
 */

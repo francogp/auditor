@@ -65,7 +65,7 @@ export function getPackageJson(
     packageJsonCache.set(pkgPath, parsed);
     return parsed;
   } catch {
-    // catch-ok: Corrupt or unparseable package.json returns null gracefully
+    // Corrupt or unparseable package.json returns null gracefully
     packageJsonCache.set(pkgPath, null);
     return null;
   }

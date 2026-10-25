@@ -23,6 +23,7 @@ import {
   type AuditOxfmtConfig,
   type AuditHtmlValidateConfig,
   type BaseAuditSubsystemConfig,
+  type CanonicalRuleSeverityLevel,
   type AuditVitePlusConfig,
   type AuditVitePlusFmtConfig,
   type AuditVitePlusLintConfig,
@@ -881,7 +882,7 @@ export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): Aud
     staged: buildVitePlusStagedConfig(v.staged, def?.staged),
     hooks: v.hooks ? { ...v.hooks, enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true } : def?.hooks,
     vscode: v.vscode ? { ...v.vscode, enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true } : def?.vscode,
-    extraLintRules: v.extraLintRules ? ({ ...v.extraLintRules } as Record<string, 'error' | 'warn' | 'off'>) : def?.extraLintRules
+    extraLintRules: v.extraLintRules ? ({ ...v.extraLintRules } as Record<string, CanonicalRuleSeverityLevel>) : def?.extraLintRules
   };
 }
 

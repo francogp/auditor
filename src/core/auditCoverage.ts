@@ -94,7 +94,7 @@ export function deriveCoverageFromRoots(
           ...(config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
           ...(config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots)
         ];
-  const include: string[] = []; // string-ok: dynamic file glob patterns derived at runtime
+  const include: string[] = []; // dynamic file glob patterns derived at runtime
   for (const root of effectiveRoots) {
     const cleanRoot = toPosixRelative(projectRoot, root);
     const isRootFolder = cleanRoot === '' || cleanRoot === '.';
@@ -125,7 +125,7 @@ function resolvePatternsForRequiredFile(
     }
     return [rel];
   } catch {
-    // catch-ok: fallback to literal path if stat fails
+    // fallback to literal path if stat fails
     return [rel];
   }
 }
@@ -301,7 +301,7 @@ export async function readCoverageLedgers(
   try {
     entries = await fs.readdir(dir);
   } catch {
-    // catch-ok: no ledger directory means no suite wrote coverage during this run
+    // no ledger directory means no suite wrote coverage during this run
     return [];
   }
   const ledgers: CoverageLedger[] = [];

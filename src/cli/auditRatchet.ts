@@ -135,7 +135,7 @@ export function describeBaselineDefect(projectRoot: string, baselineFile: string
     parseBaseline(raw, baselineFile);
     return null;
   } catch (err: unknown) {
-    // catch-ok: the defect is returned to the caller, which reports it as a blocking audit error.
+    // the defect is returned to the caller, which reports it as a blocking audit error.
     return err instanceof Error ? err.message : String(err);
   }
 }

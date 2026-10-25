@@ -9,9 +9,6 @@
  *      as runtime values in UI layers (src/components, src/views, src/stores).
  *   3. Enforces client chunk budgets in dist/assets when compiled assets exist.
  *
- * Escape Hatch:
- *   // bundle-leak-ok: <justification> disables import check on that line.
- *
  * Usage:
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_bundle_budget.ts
  *   npm run validate:bundle-budget

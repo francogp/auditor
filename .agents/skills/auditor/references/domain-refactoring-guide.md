@@ -40,9 +40,33 @@ The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery,
    export function fetchHeroDetails(heroId: HeroId, status: HeroStatus): Promise<Hero> { ... }
    ```
 
-4. **Escape Hatch Contract**:
-   When raw string interoperability is required for third-party protocols or external JSON schemas, declare a statement-level escape hatch:
-   `// domain-ok: <justification>` or `// domain-ignore: <justification>`.
+4. **Zero Escape Hatches & Canonical Semantic Types**:
+   Comment escape hatches (`// domain-ok:`, `// string-ok:`) are permanently eradicated. When dealing with open strings or external protocols, use canonical semantic types exported by `@francogp/auditor`:
+   - `DisplayText` for UI text / messages
+   - `LocalizedText` for translations / i18n
+   - `AssetUri` / `UrlString` for file paths or web endpoints
+   - `HexColor` for CSS hex codes
+   - `IsoDateString` for ISO date/time strings
+   - `DomElementId` / `UserUuid` for IDs
+
+5. **Canonical Domain Catalog & Union Deduplication (`validate_canonical_domains`)**:
+   Repeated string unions across code files (`canonical-domain-repeated-union`) and duplicate catalog arrays (`canonical-domain-collision`, `canonical-domain-subset-mismatch`) are detected via AST.
+   - Refactor repeated unions into a single SSoT type alias (e.g. `export type OrderMode = 'pickup' | 'delivery';`).
+   - Derive sub-collections or partial unions using TypeScript utility types (`Extract<MasterCatalog, ...>`) instead of re-declaring string literals.
+
+6. **Dynamic SSoT Configuration (`audit.config.ts`)**:
+   Host projects can configure architectural domain exemptions without code hardcoding:
+
+   ```ts
+   // .auditor/audit.config.ts
+   domain: {
+     enabled: true,
+     // Allowed non-domain utility signatures (e.g. directional pairs, binary flags)
+     exemptSignatures: ['front|back', 'f|m'],
+     // Variable names of non-catalog collections (e.g. weighted lottery pools)
+     exemptCollections: ['scalePool', 'lotteryWeightDistribution']
+   }
+   ```
 
 ---
 

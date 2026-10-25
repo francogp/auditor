@@ -93,13 +93,14 @@ describe('MyFeatureAuditor', () => {
     expect(result.status).toBe('failed');
   });
 
-  it('respects canonical suppression escape hatches', async () => {
-    const ignoredFile = path.join(TEST_DIR, 'ignored.ts');
-    fs.writeFileSync(ignoredFile, 'const bad = forbiddenToken; // my-feature-ok: Justified test exception\n', 'utf-8');
+  it('respects canonical configuration exemptions', async () => {
+    const ignoredFile = path.join(TEST_DIR, 'exempt.ts');
+    fs.writeFileSync(ignoredFile, 'const bad = forbiddenToken;\n', 'utf-8');
 
     const auditor = new MyFeatureAuditor({
       projectRoot: TEST_DIR,
-      roots: [TEST_DIR]
+      roots: [TEST_DIR],
+      exemptPaths: ['exempt.ts']
     });
     const result = await auditor.execute();
 

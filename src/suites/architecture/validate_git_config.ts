@@ -54,7 +54,7 @@ export function getLocalGitConfig(key: string, projectRoot: string): string | nu
     }
     return null;
   } catch {
-    // catch-ok: Fallback when git CLI is inaccessible or command fails
+    // Fallback when git CLI is inaccessible or command fails
     return null;
   }
 }
@@ -68,7 +68,7 @@ export function setLocalGitConfig(key: string, value: string, projectRoot: strin
     });
     return res.status === 0;
   } catch {
-    // catch-ok: Fallback when git CLI is inaccessible or command fails
+    // Fallback when git CLI is inaccessible or command fails
     return false;
   }
 }

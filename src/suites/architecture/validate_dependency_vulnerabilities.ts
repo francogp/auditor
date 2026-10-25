@@ -281,7 +281,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
 
     const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
     if (error || !stdout) {
-      // catch-ok: Offline development environment or network lookup failure
+      // Offline development environment or network lookup failure
       this.context.logProgress(
         '⚠️  Could not connect to npm registry for audit (offline mode)'
       );

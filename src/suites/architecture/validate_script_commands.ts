@@ -24,7 +24,8 @@ import {
   loadPackageScriptsAndBins,
   evaluateGenericCommandViolation,
   type ExtractedCommand,
-  type NpmCommandValidationEnv
+  type NpmCommandValidationEnv,
+  type GenericCommandViolationKind
 } from '../../core/npmCommandUtils.ts';
 import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
@@ -286,7 +287,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
       try {
         content = fsSync.readFileSync(absFile, 'utf8');
       } catch {
-        // catch-ok: Unreadable file
+        // Unreadable file
         continue;
       }
 
@@ -301,7 +302,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
 
   private reportViolations(
     ruleId: ScriptCommandsRuleId,
-    targetKind: 'unregistered-npm' | 'invalid-npm-syntax' | 'unregistered-npx',
+    targetKind: GenericCommandViolationKind,
     scannedFiles: readonly ScannedScriptFile[],
     env: NpmCommandValidationEnv
   ): void {

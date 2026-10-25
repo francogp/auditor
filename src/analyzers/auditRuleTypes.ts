@@ -47,12 +47,12 @@ export interface Violation {
 
 function collectRuleTokens(descriptor: RuleDescriptor | AuditRule): string[] {
   const tokens: string[] = [];
-  if (descriptor.id) tokens.push(descriptor.id.toLowerCase()); // string-ok: Case-insensitive token lookup
-  if (descriptor.name) tokens.push(descriptor.name.toLowerCase()); // string-ok: Case-insensitive token lookup
-  if (descriptor.category) tokens.push(descriptor.category.toLowerCase()); // string-ok: Case-insensitive token lookup
+  if (descriptor.id) tokens.push(descriptor.id.toLowerCase()); // Case-insensitive token lookup
+  if (descriptor.name) tokens.push(descriptor.name.toLowerCase()); // Case-insensitive token lookup
+  if (descriptor.category) tokens.push(descriptor.category.toLowerCase()); // Case-insensitive token lookup
   if (descriptor.aliases) {
     for (const a of descriptor.aliases) {
-      if (a) tokens.push(a.toLowerCase()); // string-ok: Case-insensitive token lookup
+      if (a) tokens.push(a.toLowerCase()); // Case-insensitive token lookup
     }
   }
   return tokens;

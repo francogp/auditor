@@ -140,7 +140,7 @@ if (isMainModule(import.meta.url)) {
       }
     }
   } catch (err) {
-    // catch-ok: In postinstall, never crash npm install / npm ci if filesystem permissions are restricted
+    // In postinstall, never crash npm install / npm ci if filesystem permissions are restricted
     if (!isPostinstall) {
       console.error(err);
       process.exit(1);

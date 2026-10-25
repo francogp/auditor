@@ -88,9 +88,9 @@ try {
 
 When writing unit tests for linters or AST rules that detect banned imports or syntax (e.g. banned modules, dangerous types), string fixtures representing violating code snippets MUST be dynamically split or concatenated (e.g. `'import fs from ' + "'fs';"`). This prevents whole-project regex and AST scanners from misidentifying test fixtures as workspace architectural defects.
 
-### 4. Suppression / Escape Hatch Verification
+### 4. Zero-Ignore Mandate Verification
 
-If the auditor supports statement-level suppression comments (e.g., `// <rule>-ok: <justification>`) or configuration ignore patterns, the test suite must verify that valid suppressions cleanly bypass detection and do not produce violations.
+All static analysis rules enforce the Zero-Ignore Mandate: comment escape hatches (`// ...-ok:`) are strictly rejected and must NOT suppress violations. Unit tests must assert that legacy escape comments do not prevent rules from flagging violations, and that configuration-level exemptions (e.g. `config.paths.exemptPaths`) are respected through official mechanisms rather than source-level comments.
 
 ---
 

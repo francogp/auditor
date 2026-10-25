@@ -456,14 +456,14 @@ export function runRules(
       continue;
     }
     const ruleKey = rule.id;
-    const start = performance.now(); // timing-ok: CLI internal rule runner telemetry
+    const start = performance.now(); // CLI internal rule runner telemetry
     if (fix && rule.fix) {
       result = applyRuleFix(rule, result, filePath);
     }
     const getLineNo = createLineLocator(result, offset);
     collectRuleViolations(rule, result, filePath, getLineNo, violations);
     if (ruleKey) {
-      const elapsed = performance.now() - start; // timing-ok: CLI internal rule runner telemetry
+      const elapsed = performance.now() - start; // CLI internal rule runner telemetry
       const current = activeProjectRuleTimings.get(ruleKey) ?? 0;
       activeProjectRuleTimings.set(ruleKey, current + elapsed);
     }
@@ -971,7 +971,7 @@ async function persistProjectReports(
 
 export async function main(cliArgs?: string[]): Promise<Violation[]> {
   await loadAuditConfig();
-  const startTime = performance.now(); // timing-ok: CLI standalone runner execution timer
+  const startTime = performance.now(); // CLI standalone runner execution timer
   const ctx = parseProjectCliContext(cliArgs);
 
   function logProgress(msg: string) {
@@ -1012,7 +1012,7 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
     topFiles,
     errorsCount,
     warningsCount,
-    durationMs: Math.round(performance.now() - startTime) // timing-ok: CLI standalone runner execution timer
+    durationMs: Math.round(performance.now() - startTime) // CLI standalone runner execution timer
   });
 
   const { archJsonPath, jsonReportStr } = await persistProjectReports(jsonReport);

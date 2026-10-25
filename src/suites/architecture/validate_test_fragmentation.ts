@@ -260,7 +260,7 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
         ]
       }
     );
-    process.stdout.write(`\n${tableStr}\n\n`); // console-ok: diagnostic distribution summary table
+    process.stdout.write(`\n${tableStr}\n\n`); // diagnostic distribution summary table
   }
 }
 

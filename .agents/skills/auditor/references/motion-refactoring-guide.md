@@ -9,7 +9,7 @@ The `auditor-motion` CLI and `MotionRefactorEngine` provide automated detection 
 Modern UI animation architecture requires:
 
 1. **Zero Raw Browser Timers in UI Components**: Raw `setTimeout` and `setInterval` bypass test runners that accelerate time via `gsap.globalTimeline.timeScale(100)`, causing flakiness or timeout failures in automated UI tests.
-2. **GPU Acceleration Over Layout Thrashing**: Animating layout properties (`top`, `left`, `width`, `height`, `margin*`) forces browser reflows and repaints on every frame (dropping 60 FPS). Animations MUST use GPU-accelerated transforms (`x`, `y`, `scaleX`, `scaleY`) or explicitly declare statement-level exceptions (`// layout-ok: <reason>`).
+2. **GPU Acceleration Over Layout Thrashing**: Animating layout properties (`top`, `left`, `width`, `height`, `margin*`) forces browser reflows and repaints on every frame (dropping 60 FPS). Animations MUST use GPU-accelerated transforms (`x`, `y`, `scaleX`, `scaleY`), `Flip`, or recognized collapsible height transitions without comment escape hatches.
 3. **Canonical Modern Eases**: GSAP v3 requires canonical string eases (`'power1.out'`, `'back.inOut'`) instead of legacy object instances (`Power1.easeOut`).
 
 ---
@@ -100,9 +100,9 @@ npm run auditor:motion apply -- --plan scratch/motion-plan.json --worktree
 
 ---
 
-## 🛡️ Escape Hatches
+## 🛡️ Zero Escape Hatches & Architectural Alternatives
 
-When raw browser timers or layout properties are genuinely required (e.g. low-level hardware debouncing or layout constraints), apply statement-level comments:
+Comment escape hatches (`// timer-ok:`, `// layout-ok:`) are permanently eradicated. Instead, use canonical architectural solutions:
 
-- `// timer-ok: debouncing window resize events`
-- `// layout-ok: SVG container width animation`
+1. **Timers outside UI**: Timers in background services, Node.js scripts, and CLI utilities are permitted natively (scoped strictly outside `componentsRoots`/`viewsRoots`). For UI component delays, use `gsap.delayedCall(delay, callback)` or `gsapSleep(delay)`.
+2. **Layout Tweens vs Transforms**: Continuous animations must use GPU transforms (`x`, `y`, `scaleX`, `scaleY`) or `Flip`. For static setup, use `gsap.set()`. For collapsible accordions, use recognized zero-to-auto transitions (`height: 'auto'` <-> `height: 0` / `'0px'`).
