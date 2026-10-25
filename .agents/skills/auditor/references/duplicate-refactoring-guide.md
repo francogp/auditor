@@ -1,5 +1,12 @@
 # Duplicate & Triplicate Code Refactoring Guide
 
+> [!IMPORTANT]
+> **Distinction Between CI Quality Gate & Interactive Refactor Tool**:
+>
+> - **`validate_similar_code` & Fallow Dupes (`npm run auditor`)**: CI static verification suite. Audits semantic vector duplication and whole-function duplicates exceeding the duplication threshold in Phase 3 (`dedup`). If CI passes with 0 errors, there are no blocking clone violations.
+> - **`auditor-dupes` (`npm run auditor:dupes`)**: Interactive clone refactoring engine (`BaseRefactorEngine`). Discovers opportunities to deduplicate smaller functions, Vue SFC scripts, and SCSS mixins. Provides Dirac micro-context and applies multi-file refactoring plans inside an isolated worktree.
+> - `npm run auditor` **NEVER** runs `auditor:dupes`. Discovering candidates in `npm run auditor:dupes discover` does not mean CI is broken. See [quality-gates-vs-refactor-engines.md](./quality-gates-vs-refactor-engines.md).
+
 ## 1. Architectural Overview & Dedup Phase
 
 In the canonical 7-Phase Strategic Remediation Order (`RemediationPhaseId`), clone deduplication belongs to **Phase 3 (`dedup`)**:
@@ -177,3 +184,130 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 1. Detects common inheritance ancestors (`class Fighter extends BaseCombatant`, `class Mage extends BaseCombatant`).
 2. Hoists the shared method into `BaseCombatant`.
 3. Removes redundant overrides in derived classes.
+
+---
+
+## 7. Reaction Protocol: CI Error vs. Elective Deduplication
+
+### Scenario A: CI Quality Gate Error (`validate_similar_code`)
+
+- **Trigger**: `npm run auditor` reports `similar-code-vector-duplicate` or `fallow-duplicate-code`.
+- **Strategic Phase**: Phase 3 (`dedup`).
+- **Action**: Follow the **Dead-Code Triage Rule** first (`fallow fix --yes`). If the code is alive, formulate a **Correction Plan**. Extract the shared function to a common module in `src/utils/` or `src/shared/`.
+- **Verification**: `npm run auditor -- suite=validate_similar_code` -> Green.
+
+### Scenario B: Elective Deduplication (`auditor:dupes`)
+
+- **Trigger**: User requests *"eliminate duplicate code"*, *"deduplicate logic"*, or *"reduce clones"*.
+- **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before initiating refactoring.
+- **Action**: Formulate an **Improvement Plan**. Run `auditor:dupes discover`, inspect clone candidates with `auditor:dupes inspect <fingerprint>` (Dirac Micro-Context), draft `refactor_plan.json`, and apply with `--worktree`.
+
+---
+
+## 8. Concrete Plan Blueprints
+
+### Correction Plan (CI Error: `similar-code-vector-duplicate`)
+
+````markdown
+# Correction Plan: Semantic Clone in orderService.ts and checkoutService.ts
+
+## 1. Diagnosis & Strategic Phase
+- **Active Phase (`auditor:next`)**: `dedup` (Phase 3)
+- **Suite**: `validate_similar_code`
+- **Affected Files**:
+  - `src/services/orderService.ts:L45-L68`
+  - `src/services/checkoutService.ts:L112-L135`
+- **Similarity**: 96.4% (Regional tax calculation with exemptions).
+
+## 2. Canonical Solution
+1. Extract pure function `calculateRegionalTax(amount: number, regionCode: RegionCode): number` to `src/utils/taxCalculator.ts`.
+2. Replace cloned blocks in both services by importing the newly shared utility.
+
+## 3. Verification
+
+`npm run auditor -- suite=validate_similar_code`
+````
+
+### Improvement Plan (Elective: `auditor:dupes`)
+
+````markdown
+# Improvement Plan: Date Formatting Deduplication Across Components
+
+## 1. Scope & Motivation
+- **Tool**: `auditor-dupes`
+- **Fingerprint**: `grp_date_iso_split_402`
+- **Dirac Savings**: 98.7% token reduction (from 17,000 to 210 tokens in context).
+
+## 2. Candidate Catalog (Dirac Micro-Context)
+| File | Lines | Local Function | Proposed Extraction |
+| :--- | :--- | :--- | :--- |
+| `src/views/ProfileView.vue` | 42-46 | `formatDate()` | `formatIsoDate(date: Date)` |
+| `src/views/InvoiceView.vue` | 78-82 | `formatDate()` | `formatIsoDate(date: Date)` |
+
+## 3. Declarative Plan (`scratch/refactor_plan.json`)
+
+```json
+{
+  "version": 1,
+  "planId": "refactor-date-formatter",
+  "fingerprint": "grp_date_iso_split_402",
+  "action": "extract-shared-function",
+  "sharedModulePath": "src/utils/dateFormatter.ts",
+  "functionName": "formatIsoDate",
+  "parameters": [{ "name": "date", "type": "Date" }],
+  "returnType": "string",
+  "sharedFunctionCode": "export function formatIsoDate(date: Date): string {\n  return date.toISOString().split('T')[0];\n}",
+  "targetFiles": [
+    "src/views/ProfileView.vue",
+    "src/views/InvoiceView.vue"
+  ],
+  "astPattern": "$DATE.toISOString().split('T')[0]",
+  "astRewrite": "formatIsoDate($DATE)"
+}
+```
+
+## 4. Sandbox Execution
+
+`npm run auditor:dupes apply scratch/refactor_plan.json --worktree`
+````
+
+---
+
+## 9. Step-by-Step Tutorial & CLI Walkthrough
+
+### Step 1: Discover Clones Across Repository
+
+```bash
+npm run auditor:dupes discover
+```
+
+Output renders an 80-column Box-Drawing table:
+
+```text
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                  auditor-dupes: Code Clone Discovery Table                   │
+├──────────────────────────┬──────────────┬─────────────┬──────────────────────┤
+│ Fingerprint              │ Occurrences  │ Lines Total │ Suggested Type       │
+├──────────────────────────┼──────────────┼─────────────┼──────────────────────┤
+│ grp_date_iso_split_402   │ 3 files      │ 24 lines    │ pure-function        │
+│ grp_card_animation_99    │ 2 files      │ 48 lines    │ composable           │
+└──────────────────────────┴──────────────┴─────────────┴──────────────────────┘
+```
+
+### Step 2: Inspect Specific Clone via Dirac Micro-Context
+
+```bash
+npm run auditor:dupes inspect grp_date_iso_split_402
+```
+
+Output emits the ultra-compact JSON packet without flooding the LLM context.
+
+### Step 3: Formulate & Apply Plan with `--worktree`
+
+Save plan to `scratch/refactor_plan.json` and execute:
+
+```bash
+npm run auditor:dupes apply scratch/refactor_plan.json --worktree
+```
+
+The worktree sandbox builds the project and runs tests. If all pass, changes are safely applied to your working directory.

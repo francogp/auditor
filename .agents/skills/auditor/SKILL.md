@@ -1,7 +1,7 @@
 ---
 name: auditor
 description: >-
-  MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings, errors or warnings ('errores', 'fallos', 'advertencias', 'warnings', 'findings', 'auditor:findings', 'auditor:next'), investigating violations, debugging audit failures, planning or executing fixes, or whenever analyzing, inspecting, querying, or reading 'scratch/audits/latest_audit.json' or 'latest_audit.json' ('analizar scratch/audits/latest_audit.json', 'analizar latest_audit.json', 'leer latest_audit.json', 'inspeccionar latest_audit.json', 'ver latest_audit.json', 'scratch/audits/latest_audit.json', 'latest_audit.json', 'latest_audit'). MANDATORY TO PRIORITIZE OFFICIAL CLI TOOLS: Whenever analyzing scratch/audits/latest_audit.json or latest_audit.json, developers and AI agents MUST activate this skill and use the framework's native CLI tools ('npm run auditor:next', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:by-rule', 'npm run auditor:by-file', 'npm run auditor:errors', 'npm run auditor:warnings', 'npm run auditor:summary', 'auditor guide <ruleId>') instead of reading raw JSON or writing ad-hoc scripts. ALSO TRIGGER for refactoring duplicate code ('duplicados', 'clones', 'auditor:dupes'), magic numbers ('numeros magicos', 'auditor:magic'), UI animations ('auditor:motion'), O(1) structures ('auditor:o1'), type assertions ('auditor:types'), domain models ('auditor:domain'), dependencies ('auditor:dependencies'), or updating auditor ('auditor:update'). Creating ad-hoc scratch scripts or node -e one-liners is STRICTLY PROHIBITED. Never invoke npx; pass flags with --. Enforces strict OOP inheritance, Box-Drawing tables, dynamic auto-discovery, zero code duplication, zero project hardcoding, and mandatory rule timing wrappers.
+  MANDATORY governance and architectural engine for running, analyzing, inspecting, creating, refactoring, maintaining, administering, and UPDATING ALL static analysis tools, sub-auditors, AST rules, and CLI reporting scripts across the repository. Governs the strict dichotomy between CI Quality Gates (blocking, pass/fail) and Interactive Refactor Engines (elective, proposals), providing reaction protocols for CI errors (Correction Plans via auditor:next) vs elective enhancements (Improvement Plans via Dirac & worktrees). ALWAYS TRIGGER THIS SKILL whenever analyzing audit results, inspecting findings, errors or warnings ('errores', 'fallos', 'advertencias', 'warnings', 'findings', 'auditor:findings', 'auditor:next'), investigating violations, debugging audit failures, planning or executing fixes, or whenever analyzing, inspecting, querying, or reading 'scratch/audits/latest_audit.json' or 'latest_audit.json' ('analizar scratch/audits/latest_audit.json', 'analizar latest_audit.json', 'leer latest_audit.json', 'inspeccionar latest_audit.json', 'ver latest_audit.json', 'scratch/audits/latest_audit.json', 'latest_audit.json', 'latest_audit'). MANDATORY TO PRIORITIZE OFFICIAL CLI TOOLS: Whenever analyzing scratch/audits/latest_audit.json or latest_audit.json, developers and AI agents MUST activate this skill and use the framework's native CLI tools ('npm run auditor:next', 'npm run auditor:findings', 'npm run auditor:rules', 'npm run auditor:by-rule', 'npm run auditor:by-file', 'npm run auditor:errors', 'npm run auditor:warnings', 'npm run auditor:summary', 'auditor guide <ruleId>') instead of reading raw JSON or writing ad-hoc scripts. ALSO TRIGGER for refactoring duplicate code ('duplicados', 'clones', 'auditor:dupes'), magic numbers ('numeros magicos', 'auditor:magic'), UI animations ('auditor:motion'), O(1) structures ('auditor:o1'), type assertions ('auditor:types'), domain models ('auditor:domain'), dependencies ('auditor:dependencies'), or updating auditor ('auditor:update'). Creating ad-hoc scratch scripts or node -e one-liners is STRICTLY PROHIBITED. Never invoke npx; pass flags with --. Enforces strict OOP inheritance, Box-Drawing tables, dynamic auto-discovery, zero code duplication, zero project hardcoding, and mandatory rule timing wrappers.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -27,12 +27,6 @@ graph TD
   M --> E["Host Project Extensions (.auditor/audit.config.ts)"]
   O --> SO["Official Sub-Auditors (Shared Resources & AST)"]
   E --> SE["Extension Sub-Auditors (Shared Resources & AST)"]
-
-  style M fill:#1e293b,stroke:#38bdf8,stroke-width:2px,color:#f8fafc
-  style O fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#f8fafc
-  style E fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#f8fafc
-  style SO fill:#312e81,stroke:#818cf8,stroke-width:2px,color:#f8fafc
-  style SE fill:#831843,stroke:#f472b6,stroke-width:2px,color:#f8fafc
 ```
 
 1. **Global Orchestrator (`npm run auditor`)**: Discovers suites dynamically, manages CPU worker pools, and coordinates atomic console output.
@@ -339,7 +333,7 @@ Pre-formatted, production-ready templates conforming to all project standards:
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
-- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v10.1.5`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v10.1.6`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
   - **Read-Only Version Checks vs. Prohibited Diagnostic Updating**: When analyzing dependencies, inspecting versions, or conducting read-only investigations, AI agents and developers are **STRICTLY PROHIBITED** from executing `auditor-update` or `npm run auditor:update`. To inspect current package or framework versions, use `npm run auditor:version` or `auditor --version`. To check if an update is available without modifying any files or running npm install, use `npm run auditor:update -- --check` (or `auditor-update --check`). Safe CLI usage manual can be viewed with `auditor-update --help`.
 - **Migration-First, Delete-Last Gate**: When migrating host configurations to unified Vite+ (`vite.config.ts`), `cleanLegacyConfigFiles` will NEVER delete legacy configuration files (`vitest.config.ts`, `eslint.config.js`, `tsdown.config.ts`) unless `vite.config.ts` actively contains verified `test:`, `lint:` and `pack:` blocks.
 - **Deployment Builds (`AUDITOR_ENV=production`)**: In production deployments, Docker containers, or CI pipelines, run `npm run build:deploy` (`auditor-build-deploy`) under `AUDITOR_ENV=production` to cleanly skip Candle CPU vector duplication and test coverage checks without failing builds on uncommitted coverage files.
@@ -415,50 +409,36 @@ Root environment lifecycle scripts belong canonically to `@francogp/auditor`:
 
 ---
 
-## 🧬 Automated Duplicate & Triplicate Refactoring (Phase 3: Dedup)
+## ⚖️ CI Quality Gates vs. Interactive Refactor Engines
 
-Refactoring syntactic and semantic clones (`fallow-duplicate-code`, `fallow-triplicate-code`, `validate_similar_code`) follows a deterministic 3-step workflow:
+The framework strictly partitions verification into two distinct architectural tiers:
 
-1. **Dead-Code Triage**: Before refactoring, verify if clones reside in dead code. ~25% of clone groups vanish by running `fallow fix --yes` (or deleting orphaned files).
-2. **Dirac Micro-Context Inspection**: Never load entire files into LLM context. Run `npm run auditor:dupes inspect <fingerprint>` (or `auditor-dupes inspect <fingerprint>`) to extract only clone lines with 3–5 lines of local context, achieving a 98.7% token reduction.
-3. **Hermetic Worktree Refactor**: Formulate a `refactor_plan.json` conforming to `refactor_plan_blueprint.json` and apply it safely via:
+```mermaid
+flowchart LR
+    A["CI Gates: npm run auditor<br/>(81 suites, blocking, pass/fail)"]
+    B["Refactor Engines: npm run auditor:<tool><br/>(BaseRefactorEngine, elective, proposals)"]
+```
 
-   ```bash
-   npm run auditor:dupes apply refactor_plan.json --worktree
-   ```
+1. **The Green CI vs. Candidates Paradox**: `npm run auditor` **NEVER** runs interactive refactor tools (`auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:types`, `auditor:domain`, `auditor:motion`). If CI reports 0 errors, the repository is 100% healthy. Finding candidates in `discover` reflects elective modernization opportunities, NOT broken code.
+2. **Reaction Protocol for Errors (CI Quality Gates)**:
+   - Run `npm run auditor:next` to isolate the active strategic phase (`setup` -> `polish`).
+   - Consult `npm run auditor guide <ruleId>` for canonical solution.
+   - Run `npm run auditor:fix` first for auto-fixable rules.
+   - Formulate a **Correction Plan** for manual fixes; verify with `npm run auditor -- suite=<id>`.
+3. **Reaction Protocol for Improvements (Refactor Engines)**:
+   - Verify green CI baseline (`npm run auditor`) before touching anything.
+   - Run `npm run auditor:<tool> discover` and `inspect <file>` for Dirac micro-context (98%+ token savings).
+   - Formulate an **Improvement Plan** with the human developer.
+   - Apply safely in sandbox: `npm run auditor:<tool> apply <plan.json> --worktree`.
+4. **The 6 Interactive Refactor Engines**:
+   - 🔢 **`auditor:magic`**: Visual literals/hex in SCSS/Vue to design tokens (Phase 6: Hygiene). See [magic-numbers-refactoring-guide.md](./references/magic-numbers-refactoring-guide.md).
+   - 🧬 **`auditor:dupes`**: Syntactic/semantic clone extraction via Dirac micro-context (Phase 3: Dedup). See [duplicate-refactoring-guide.md](./references/duplicate-refactoring-guide.md).
+   - ⚡ **`auditor:o1`**: Linear searches to Sets/Maps, `structuredClone` (Phase 5: Behavior). See [o1-data-structures-guide.md](./references/o1-data-structures-guide.md).
+   - 🏷️ **`auditor:types`**: Explicit return types, double cast removal, safe guards (Phase 4: Contracts). See [types-refactoring-guide.md](./references/types-refactoring-guide.md).
+   - 🏛️ **`auditor:domain`**: Frozen catalogs (`as const`), nominal IDs (`Brand`), un-naked strings (Phase 4: Contracts). See [domain-refactoring-guide.md](./references/domain-refactoring-guide.md).
+   - 🎬 **`auditor:motion`**: UI timers to `delayedCall`, layout tweens to GPU transforms (Phase 5: Behavior). See [motion-refactoring-guide.md](./references/motion-refactoring-guide.md).
 
-   The Hybrid Harness applies specialized transforms (`ts-morph` for TypeScript imports, `magic-string` for Vue SFCs, `@ast-grep/napi` for polyglot matching) inside an isolated Git worktree, validating with `vp check` and `vp test` before committing changes to the working tree.
-
-📘 **Detailed Refactoring Guide**: See [duplicate-refactoring-guide.md](./references/duplicate-refactoring-guide.md).
-
----
-
-## 🔢 Automated Magic Numbers & Design Tokens (Phase 6: Hygiene)
-
-Remediating naked magic numbers and design literals (`validate_magic_numbers`, `validate_constant_hygiene`, `validate_scss_architecture`, `validate_z_index`) follows a 3-tier deterministic pipeline:
-
-1. **Zero-Token Semantic Inference**: Deduces candidate names automatically from AST syntax (timers, object properties, comparisons) or maps to existing tokens (`Z_LAYERS`, `--color-*`) with 0 LLM tokens.
-2. **Super-Dirac Value Clustering**: Encodes ambiguous domain equations into a compact 1-line-per-cluster table, cutting LLM context by 83% to 95%.
-3. **Pre-Flight Hygiene Gate & Worktree**: Validates names against `constant-no-literal-suffix` and generic word bans, applying bottom-up replacements via:
-
-   ```bash
-   npm run auditor:magic discover
-   npm run auditor:magic inspect <file>
-   npm run auditor:magic apply magic_plan.json --worktree
-   ```
-
-📘 **Detailed Magic Numbers Guide**: See [magic-numbers-refactoring-guide.md](./references/magic-numbers-refactoring-guide.md).
-
----
-
-## 🏷️ Automated Type & Domain Refactoring (Phase 4: Contracts)
-
-Remediating loose type assertions, double casts, naked strings, and unbranded entity IDs follows a 0-token Dirac inspection workflow:
-
-1. **Type Hygiene (`auditor-types`)**: Discovers `as any`, `as unknown as T`, and functions lacking explicit return types, replacing them with `as unknown` or strict return annotations (`npm run auditor:types discover`, `npm run auditor:types inspect <file>`).
-2. **Domain Hygiene (`auditor-domain`)**: Discovers mutable catalogs lacking `as const`, naked string parameters (`heroId: string`), and unbranded ID aliases, replacing them with literal tuples and nominal `Brand<string, 'T'>` (`npm run auditor:domain discover`, `npm run auditor:domain inspect <file>`).
-
-📘 **Detailed Guides**: See [types-refactoring-guide.md](./references/types-refactoring-guide.md), [domain-refactoring-guide.md](./references/domain-refactoring-guide.md), and [zero-ignore-type-remediation.md](./references/zero-ignore-type-remediation.md).
+📘 **Master Architecture Guide**: See [quality-gates-vs-refactor-engines.md](./references/quality-gates-vs-refactor-engines.md).
 
 ---
 
@@ -466,6 +446,7 @@ Remediating loose type assertions, double casts, naked strings, and unbranded en
 
 | Reference Guide | Description |
 |---|---|
+| [`references/quality-gates-vs-refactor-engines.md`](./references/quality-gates-vs-refactor-engines.md) | Architectural dichotomy, paradox guide, reaction protocols, and plan blueprints. |
 | [`references/zero-ignore-type-remediation.md`](./references/zero-ignore-type-remediation.md) | Guide for zero escape hatches (// *-ok:) via canonical semantic types & ratchet. |
 | [`references/types-refactoring-guide.md`](./references/types-refactoring-guide.md) | Guide for automated type assertion, double cast, and return type refactoring. |
 | [`references/domain-refactoring-guide.md`](./references/domain-refactoring-guide.md) | Guide for automated domain catalogs, naked strings, and branded ID refactoring. |
