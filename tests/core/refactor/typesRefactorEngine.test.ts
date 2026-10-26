@@ -73,7 +73,7 @@ export function computeTotal(a: number, b: number) {
       const returnFindings = findings.filter((f) => f.kind === 'missing-return-type');
       expect(returnFindings.length).toBe(1);
       expect(returnFindings[0]?.identifier).toBe('computeTotal');
-      expect(returnFindings[0]?.suggestedReplacement).toContain('): void');
+      expect(returnFindings[0]?.suggestedReplacement).toBe('number');
     });
 
     it('detects findings even when // type-ok: is present (Zero-Ignore Mandate)', () => {

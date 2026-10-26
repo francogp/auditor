@@ -92,6 +92,7 @@ Architecture & Tooling Engineers.
 ## Key Files
 
 - [`astContext.ts`](./astContext.ts): Shared TypeScript AST cache and parsing engine.
+- [`astScriptExtractor.ts`](./astScriptExtractor.ts): Unified 1:1 AST script extractor, Vue SFC non-script masking, and coordinate-preserving code mutation engine.
 - [`auditBootstrap.ts`](./auditBootstrap.ts): Pre-flight zero-setup auto-bootstrap engine initializing configurations, skills, and hygiene defaults.
 - [`auditCodeRoots.ts`](./auditCodeRoots.ts): Path predicates for source code roots, scripts, and CLI directories.
 - [`auditConfig.ts`](./auditConfig.ts): SSoT configuration loader facade (`getAuditConfig`, `defineAuditConfig`).

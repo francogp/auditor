@@ -22,18 +22,19 @@ import type {
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: 'file', header: 'Archivo', width: 40, align: 'left' },
+  { key: 'file', header: 'Archivo', width: 36, align: 'left' },
   { key: 'naked', header: 'NakedStr', width: 9, align: 'right' },
   { key: 'unfrozen', header: 'Unfrozen', width: 9, align: 'right' },
   { key: 'unbranded', header: 'Unbranded', width: 10, align: 'right' },
+  { key: 'records', header: 'RecordKey', width: 10, align: 'right' },
   { key: 'total', header: 'Total', width: 7, align: 'right' }
 ];
 
 const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan> = {
   toolName: 'auditor-domain',
-  toolDescription: 'parameters with naked strings, mutable catalogs, or unbranded IDs',
+  toolDescription: 'parameters with naked strings, mutable catalogs, unbranded IDs, or unbranded Record keys',
   bannerTitle: 'AUDITOR DOMAIN: DOMAIN TYPE & BRANDED ID HYGIENE',
-  bannerSubtitle: 'Deterministic auto-remediation of naked strings, mutable catalogs, and unbranded IDs',
+  bannerSubtitle: 'Deterministic auto-remediation of naked strings, mutable catalogs, and unbranded Record keys',
   scanningMessage: 'Scanning domain contracts and nominal types in',
   zeroFindingsMessage: 'Zero raw strings, mutable catalogs, or unbranded IDs detected!',
   tableColumns: TABLE_COLUMNS,
@@ -43,11 +44,13 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
     const naked = findings.filter((f) => f.kind === 'naked-string-parameter').length;
     const unfrozen = findings.filter((f) => f.kind === 'unfrozen-catalog').length;
     const unbranded = findings.filter((f) => f.kind === 'unbranded-id').length;
+    const records = findings.filter((f) => f.kind === 'record-string-key').length;
     return {
       file: formatCliRelativeFilePath(relFile),
       naked: String(naked),
       unfrozen: String(unfrozen),
       unbranded: String(unbranded),
+      records: String(records),
       total: String(findings.length)
     };
   },
@@ -55,7 +58,8 @@ const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan>
     const naked = allFindings.filter((f) => f.kind === 'naked-string-parameter').length;
     const unfrozen = allFindings.filter((f) => f.kind === 'unfrozen-catalog').length;
     const unbranded = allFindings.filter((f) => f.kind === 'unbranded-id').length;
-    return `Summary: ${filesCount} file(s) with ${allFindings.length} domain opportunities (${naked} raw strings, ${unfrozen} mutable catalogs, ${unbranded} unbranded IDs).`;
+    const records = allFindings.filter((f) => f.kind === 'record-string-key').length;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} domain opportunities (${naked} raw strings, ${unfrozen} mutable catalogs, ${unbranded} unbranded IDs, ${records} record keys).`;
   },
   toDiracItem: (f) => ({
     line: f.line,

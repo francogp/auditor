@@ -1,6 +1,7 @@
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
+import { discoverRecordKeyFindings, injectImportStatement } from "./domainRecordKeyRemediator.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/refactor/domainRefactorEngine.ts
@@ -107,12 +108,26 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 				}
 			}
 		});
+		if (fs.existsSync(filePath)) {
+			const sourceText = fs.readFileSync(filePath, "utf-8");
+			const recordFindings = discoverRecordKeyFindings(filePath, sourceText);
+			for (const r of recordFindings) findings.push({
+				file: filePath,
+				line: r.line,
+				kind: "record-string-key",
+				identifier: "Record",
+				originalSnippet: r.originalSnippet,
+				suggestedReplacement: r.suggestedReplacement,
+				explanation: `Prohibited Record with open string key "${r.originalSnippet}". Replace with branded key or DisplayText.`
+			});
+		}
 		return findings;
 	}
 	static buildDomainHygienePlan(planId, targetFiles, findings) {
 		const constAssertions = [];
 		const brandWrappers = [];
 		const parameterReplacements = [];
+		const recordKeyReplacements = [];
 		for (const f of findings) if (f.kind === "unfrozen-catalog") constAssertions.push({
 			file: f.file,
 			line: f.line,
@@ -131,18 +146,52 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 			originalParameter: f.originalSnippet,
 			replacementParameter: f.suggestedReplacement
 		});
+		else if (f.kind === "record-string-key") recordKeyReplacements.push({
+			file: f.file,
+			line: f.line,
+			originalTypeRef: f.originalSnippet,
+			replacementTypeRef: f.suggestedReplacement,
+			importToAdd: "import type { DisplayText } from '@francogp/auditor';"
+		});
 		return {
 			version: 1,
 			planId,
 			targetFiles,
 			constAssertions,
 			brandWrappers,
-			parameterReplacements
+			parameterReplacements,
+			recordKeyReplacements
 		};
 	}
 	static createPlan(planId, findings) {
 		const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
 		return DomainRefactorEngine.buildDomainHygienePlan(planId, targetFiles, findings);
+	}
+	static applySnippetReplacements(content, items, relFile, targetDir) {
+		let current = content;
+		let count = 0;
+		for (const item of items) if (isSameFilePath(item.file, relFile, targetDir) && current.includes(item.original)) {
+			current = current.replace(item.original, item.replacement);
+			count++;
+		}
+		return {
+			content: current,
+			count
+		};
+	}
+	static applyRecordKeyPlanReplacements(content, items, relFile, targetDir) {
+		let current = content;
+		let count = 0;
+		for (const item of items) {
+			if (!isSameFilePath(item.file, relFile, targetDir) || !current.includes(item.originalTypeRef)) continue;
+			current = current.replace(item.originalTypeRef, item.replacementTypeRef);
+			count++;
+			if (item.importToAdd && !relFile.endsWith(".d.ts") && !relFile.startsWith("src/")) current = injectImportStatement(current, item.importToAdd, relFile.endsWith(".vue"));
+		}
+		return {
+			content: current,
+			count
+		};
 	}
 	/**
 	* Deterministically applies a DomainRefactorPlan across target source files.
@@ -155,18 +204,33 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 			if (!fs.existsSync(fullPath)) continue;
 			const initialContent = fs.readFileSync(fullPath, "utf-8");
 			let currentContent = initialContent;
-			for (const item of plan.constAssertions ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalDeclaration)) {
-				currentContent = currentContent.replace(item.originalDeclaration, item.replacementDeclaration);
-				changesApplied++;
-			}
-			for (const item of plan.brandWrappers ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalTypeDef)) {
-				currentContent = currentContent.replace(item.originalTypeDef, item.replacementTypeDef);
-				changesApplied++;
-			}
-			for (const item of plan.parameterReplacements ?? []) if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalParameter)) {
-				currentContent = currentContent.replace(item.originalParameter, item.replacementParameter);
-				changesApplied++;
-			}
+			const constItems = (plan.constAssertions ?? []).map((i) => ({
+				file: i.file,
+				original: i.originalDeclaration,
+				replacement: i.replacementDeclaration
+			}));
+			const constRes = DomainRefactorEngine.applySnippetReplacements(currentContent, constItems, relFile, targetDir);
+			currentContent = constRes.content;
+			changesApplied += constRes.count;
+			const brandItems = (plan.brandWrappers ?? []).map((i) => ({
+				file: i.file,
+				original: i.originalTypeDef,
+				replacement: i.replacementTypeDef
+			}));
+			const brandRes = DomainRefactorEngine.applySnippetReplacements(currentContent, brandItems, relFile, targetDir);
+			currentContent = brandRes.content;
+			changesApplied += brandRes.count;
+			const paramItems = (plan.parameterReplacements ?? []).map((i) => ({
+				file: i.file,
+				original: i.originalParameter,
+				replacement: i.replacementParameter
+			}));
+			const paramRes = DomainRefactorEngine.applySnippetReplacements(currentContent, paramItems, relFile, targetDir);
+			currentContent = paramRes.content;
+			changesApplied += paramRes.count;
+			const recordRes = DomainRefactorEngine.applyRecordKeyPlanReplacements(currentContent, plan.recordKeyReplacements ?? [], relFile, targetDir);
+			currentContent = recordRes.content;
+			changesApplied += recordRes.count;
 			if (currentContent !== initialContent) {
 				fs.writeFileSync(fullPath, currentContent, "utf-8");
 				filesChanged++;

@@ -20,6 +20,10 @@ import type {
 import { BaseRefactorEngine } from './baseRefactorEngine.ts';
 import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { DomainTypesAuditor } from '../../suites/domain_data/validate_domain_types.ts';
+import {
+  discoverRecordKeyFindings,
+  injectImportStatement
+} from './domainRecordKeyRemediator.ts';
 
 const UNFROZEN_ARRAY_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\[[^\]]+\])\s*;/m;
 const UNFROZEN_OBJECT_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\{[^}]+\})\s*;/m;
@@ -152,6 +156,23 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
       }
     });
 
+    // 4. Detect Record<string, T> or Record<PropertyKey, T> using AST
+    if (fs.existsSync(filePath)) {
+      const sourceText = fs.readFileSync(filePath, 'utf-8');
+      const recordFindings = discoverRecordKeyFindings(filePath, sourceText);
+      for (const r of recordFindings) {
+        findings.push({
+          file: filePath,
+          line: r.line,
+          kind: 'record-string-key',
+          identifier: 'Record',
+          originalSnippet: r.originalSnippet,
+          suggestedReplacement: r.suggestedReplacement,
+          explanation: `Prohibited Record with open string key "${r.originalSnippet}". Replace with branded key or DisplayText.`
+        });
+      }
+    }
+
     return findings;
   }
 
@@ -178,6 +199,13 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
       originalParameter: string;
       replacementParameter: string;
     }[] = [];
+    const recordKeyReplacements: {
+      file: string;
+      line: number;
+      originalTypeRef: string;
+      replacementTypeRef: string;
+      importToAdd?: string;
+    }[] = [];
 
     for (const f of findings) {
       if (f.kind === 'unfrozen-catalog') {
@@ -201,6 +229,14 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
           originalParameter: f.originalSnippet,
           replacementParameter: f.suggestedReplacement
         });
+      } else if (f.kind === 'record-string-key') {
+        recordKeyReplacements.push({
+          file: f.file,
+          line: f.line,
+          originalTypeRef: f.originalSnippet,
+          replacementTypeRef: f.suggestedReplacement,
+          importToAdd: "import type { DisplayText } from '@francogp/auditor';"
+        });
       }
     }
 
@@ -210,7 +246,8 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
       targetFiles,
       constAssertions,
       brandWrappers,
-      parameterReplacements
+      parameterReplacements,
+      recordKeyReplacements
     };
   }
 
@@ -220,6 +257,45 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
   ): DomainRefactorPlan {
     const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
     return DomainRefactorEngine.buildDomainHygienePlan(planId, targetFiles, findings);
+  }
+
+  private static applySnippetReplacements(
+    content: string,
+    items: readonly { readonly file: string; readonly original: string; readonly replacement: string }[],
+    relFile: string,
+    targetDir: string
+  ): { content: string; count: number } {
+    let current = content;
+    let count = 0;
+    for (const item of items) {
+      if (isSameFilePath(item.file, relFile, targetDir) && current.includes(item.original)) {
+        current = current.replace(item.original, item.replacement);
+        count++;
+      }
+    }
+    return { content: current, count };
+  }
+
+  private static applyRecordKeyPlanReplacements(
+    content: string,
+    items: readonly { readonly file: string; readonly originalTypeRef: string; readonly replacementTypeRef: string; readonly importToAdd?: string }[],
+    relFile: string,
+    targetDir: string
+  ): { content: string; count: number } {
+    let current = content;
+    let count = 0;
+    for (const item of items) {
+      if (!isSameFilePath(item.file, relFile, targetDir) || !current.includes(item.originalTypeRef)) {
+        continue;
+      }
+      current = current.replace(item.originalTypeRef, item.replacementTypeRef);
+      count++;
+
+      if (item.importToAdd && !relFile.endsWith('.d.ts') && !relFile.startsWith('src/')) {
+        current = injectImportStatement(current, item.importToAdd, relFile.endsWith('.vue'));
+      }
+    }
+    return { content: current, count };
   }
 
   /**
@@ -238,26 +314,41 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
       const initialContent = fs.readFileSync(fullPath, 'utf-8');
       let currentContent = initialContent;
 
-      for (const item of plan.constAssertions ?? []) {
-        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalDeclaration)) {
-          currentContent = currentContent.replace(item.originalDeclaration, item.replacementDeclaration);
-          changesApplied++;
-        }
-      }
+      const constItems = (plan.constAssertions ?? []).map((i) => ({
+        file: i.file,
+        original: i.originalDeclaration,
+        replacement: i.replacementDeclaration
+      }));
+      const constRes = DomainRefactorEngine.applySnippetReplacements(currentContent, constItems, relFile, targetDir);
+      currentContent = constRes.content;
+      changesApplied += constRes.count;
 
-      for (const item of plan.brandWrappers ?? []) {
-        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalTypeDef)) {
-          currentContent = currentContent.replace(item.originalTypeDef, item.replacementTypeDef);
-          changesApplied++;
-        }
-      }
+      const brandItems = (plan.brandWrappers ?? []).map((i) => ({
+        file: i.file,
+        original: i.originalTypeDef,
+        replacement: i.replacementTypeDef
+      }));
+      const brandRes = DomainRefactorEngine.applySnippetReplacements(currentContent, brandItems, relFile, targetDir);
+      currentContent = brandRes.content;
+      changesApplied += brandRes.count;
 
-      for (const item of plan.parameterReplacements ?? []) {
-        if (isSameFilePath(item.file, relFile, targetDir) && currentContent.includes(item.originalParameter)) {
-          currentContent = currentContent.replace(item.originalParameter, item.replacementParameter);
-          changesApplied++;
-        }
-      }
+      const paramItems = (plan.parameterReplacements ?? []).map((i) => ({
+        file: i.file,
+        original: i.originalParameter,
+        replacement: i.replacementParameter
+      }));
+      const paramRes = DomainRefactorEngine.applySnippetReplacements(currentContent, paramItems, relFile, targetDir);
+      currentContent = paramRes.content;
+      changesApplied += paramRes.count;
+
+      const recordRes = DomainRefactorEngine.applyRecordKeyPlanReplacements(
+        currentContent,
+        plan.recordKeyReplacements ?? [],
+        relFile,
+        targetDir
+      );
+      currentContent = recordRes.content;
+      changesApplied += recordRes.count;
 
       if (currentContent !== initialContent) {
         fs.writeFileSync(fullPath, currentContent, 'utf-8');

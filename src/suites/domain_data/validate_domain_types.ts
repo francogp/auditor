@@ -1027,17 +1027,19 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     );
 
     super({
+      fix: options.fix,
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
+        fix: 'normal',
         md: false,
         ast: true,
         changedOnly: false,
         critical: true
       }),
+      fixableRuleIds: ['domain-naked-string-primitive'],
       id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',
       description: 'Raw string usage instead of domain types',
@@ -1151,6 +1153,19 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     const filePaths = this.collectAuditableDomainFiles();
     if (filePaths.length === 0) return;
 
+    if (this.isFixModeRequested()) {
+      try {
+        const { remediateRecordKeysInFile } = await import('../../core/refactor/domainRecordKeyRemediator.ts');
+        for (const filePath of filePaths) {
+          const rel = toPosixRelative(this.projectRoot, filePath);
+          if (!isContractFile(rel, this.projectRoot)) continue;
+          remediateRecordKeysInFile(filePath, this.projectRoot);
+        }
+      } catch (err) {
+        console.warn('[Handled controlled exception]:', err);
+      }
+    }
+
     const findingsByRule = new Map<DomainTypesRuleId, Finding[]>();
     for (const rule of DOMAIN_TYPES_RULES) {
       findingsByRule.set(rule, []);
@@ -1180,7 +1195,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
             line: finding.line,
             column: finding.col,
             message: finding.pattern,
-            context: finding.snippet
+            context: finding.snippet,
+            fixable: finding.pattern.includes('Record<string,')
           });
         }
       });

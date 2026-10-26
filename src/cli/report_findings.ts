@@ -795,10 +795,7 @@ function filterMatchingFindings(
   filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }>;
   matchingFindings: Finding[];
 } {
-  const filteredCategories: Record<
-    string,
-    { errors: number; warnings: number; findings: Finding[] }
-  > = {};
+  const filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }> = {};
   const matchingFindings: Finding[] = [];
 
   for (const [catName, data] of Object.entries(categoryCounts)) {

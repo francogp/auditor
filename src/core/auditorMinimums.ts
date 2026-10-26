@@ -56,10 +56,7 @@ function readAuditorPackageJsonSection(
   if (!fs.existsSync(auditorPackageJsonPath)) {
     return null;
   }
-  const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as Record<
-    string,
-    Record<string, string> | undefined
-  >;
+  const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as Record<string, Record<string, string> | undefined>;
   const section = data[sectionKey];
   return section && Object.keys(section).length > 0 ? section : null;
 }

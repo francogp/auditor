@@ -2120,7 +2120,9 @@ const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
   // Phase 2: File renames & AST/Code/Markdown mutations
   validate_component_styles: 220,
   audit_project: 230,
+  validate_error_suppression: 235,
   validate_z_index: 240,
+  validate_domain_types: 245,
   validate_markdown_code_references: 260,
   validate_markdown_syntax: 270,
   validate_mermaid_syntax: 280,

@@ -161,4 +161,11 @@ describe('ErrorSuppressionAuditor', () => {
       expect(result.status).toBe('passed');
     });
   });
+
+  describe('Auto-Fix Support', () => {
+    it('supports auto-fix mode with fix: true', () => {
+      const auditor = new ErrorSuppressionAuditor({ fix: true });
+      expect(auditor.isFixActive()).toBe(true);
+    });
+  });
 });

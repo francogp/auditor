@@ -75,6 +75,25 @@ The `auditor-domain` CLI and `DomainRefactorEngine` provide automated discovery,
    }
    ```
 
+7. **Elimination of Open `Record<string, T>` Key Types**:
+   Open dictionaries typed as `Record<string, T>` or `Record<PropertyKey, T>` invite arbitrary string keys and duck-typing defects across domain contracts. In domain models and state containers, dictionary keys should be strict branded types (e.g. `Record<ItemId, T>`) or semantic `DisplayText` for UI text maps:
+
+   ```ts
+   // Anti-pattern: Open string keyspace
+   export interface SoundCatalog {
+     effects: Record<string, SoundEffect>;
+   }
+
+   // Canonical: Semantic DisplayText or Nominal Domain Key
+   import type { DisplayText } from '@francogp/auditor';
+
+   export interface SoundCatalog {
+     effects: Record<DisplayText, SoundEffect>;
+   }
+   ```
+
+   When refactoring with `auditor-domain`, the engine automatically replaces `Record<string, T>` with `Record<DisplayText, T>` and injects the canonical type import at the top of the file or `<script>` block.
+
 ---
 
 ## 🛠️ CLI Tool Usage (`auditor-domain`)
@@ -150,6 +169,15 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
       "line": 34,
       "originalParameter": "factionId: string",
       "replacementParameter": "factionId: FactionId"
+    }
+  ],
+  "recordKeyReplacements": [
+    {
+      "file": "src/data/catalogs.ts",
+      "line": 42,
+      "originalTypeRef": "Record<string, FactionConfig>",
+      "replacementTypeRef": "Record<DisplayText, FactionConfig>",
+      "importToAdd": "import type { DisplayText } from '@francogp/auditor';"
     }
   ]
 }

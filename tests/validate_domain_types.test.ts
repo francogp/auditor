@@ -479,5 +479,10 @@ export function isQuoteOrDelimiter(char: string): boolean {
       expect(text).toBe('valid display text');
       expect(uri).toBe('/assets/sprite.png');
     });
+
+    it('supports auto-fix mode with fix: true', () => {
+      const auditor = new DomainTypesAuditor({ fix: true });
+      expect(auditor.isFixActive()).toBe(true);
+    });
   });
 });

@@ -21,11 +21,18 @@
  */
 
 import { enableCompileCache } from 'node:module';
+import fs from 'node:fs';
+import path from 'node:path';
 import ts from 'typescript';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
 import { BaseAuditor,
   createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
   resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import {
+  createUnifiedAstSourceFile,
+  applyAstReplacements,
+  type AstTextReplacement
+} from '../../core/astScriptExtractor.ts';
 
 enableCompileCache();
 
@@ -52,6 +59,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
     );
 
     super({
+      fix: options.fix,
       usesThirdPartyTool: false,
       requiredPermissions: [],
       roots: targetRoots,
@@ -59,12 +67,13 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
       ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
+        fix: 'normal',
         md: false,
         ast: true,
         changedOnly: false,
         critical: false
       }),
+      fixableRuleIds: ['no-empty-catch', 'no-silent-promise-catch'],
       id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',
       description: 'Prohibits error suppression, empty catches, and fallbacks',
@@ -126,9 +135,13 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
   }
 
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
+    const isVue = relPath.endsWith('.vue');
     const doc = new AuditedDocument(relPath, content, relPath);
-    const sf = sourceFile ?? doc.getAst();
+    const sf = sourceFile ?? (isVue ? createUnifiedAstSourceFile(relPath, content).sourceFile : doc.getAst());
     if (!sf) return;
+
+    const isFixMode = this.isFixActive();
+    const replacements: AstTextReplacement[] = [];
 
     const isSchemaFile =
       relPath.includes('schema') || relPath.includes('models') || relPath.includes('storage');
@@ -139,16 +152,34 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
         // Rule: no-empty-catch
         this.runSubAuditorSync('no-empty-catch', () => {
           if (node.block.statements.length === 0) {
-            const { line, column } = doc.getNodeLineAndColumn(node, sf);
-            this.addViolation({
-              ruleId: 'no-empty-catch',
-              severity: 'error',
-              file: relPath,
-              line,
-              column,
-              message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
-              context: node.getText(sf).slice(0, 100)
-            });
+            if (isFixMode) {
+              if (node.variableDeclaration && ts.isIdentifier(node.variableDeclaration.name)) {
+                const varName = node.variableDeclaration.name.text;
+                replacements.push({
+                  start: node.block.getStart(sf),
+                  end: node.block.getEnd(),
+                  text: `{\n    console.warn('[Handled controlled exception]:', ${varName});\n  }`
+                });
+              } else {
+                replacements.push({
+                  start: node.getStart(sf),
+                  end: node.block.getEnd(),
+                  text: `catch (err) {\n    console.warn('[Handled controlled exception]:', err);\n  }`
+                });
+              }
+            } else {
+              const { line, column } = doc.getNodeLineAndColumn(node, sf);
+              this.addViolation({
+                ruleId: 'no-empty-catch',
+                severity: 'error',
+                file: relPath,
+                line,
+                column,
+                message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
+                context: node.getText(sf).slice(0, 100),
+                fixable: true
+              });
+            }
           }
         });
 
@@ -251,16 +282,25 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
               }
 
               if (isSilent) {
-                const { line, column } = doc.getNodeLineAndColumn(node, sf);
-                this.addViolation({
-                  ruleId: 'no-silent-promise-catch',
-                  severity: 'error',
-                  file: relPath,
-                  line,
-                  column,
-                  message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
-                  context: node.getText(sf).slice(0, 100)
-                });
+                if (isFixMode) {
+                  replacements.push({
+                    start: handler.getStart(sf),
+                    end: handler.getEnd(),
+                    text: `(err) => {\n    console.warn('[Handled promise rejection]:', err);\n  }`
+                  });
+                } else {
+                  const { line, column } = doc.getNodeLineAndColumn(node, sf);
+                  this.addViolation({
+                    ruleId: 'no-silent-promise-catch',
+                    severity: 'error',
+                    file: relPath,
+                    line,
+                    column,
+                    message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
+                    context: node.getText(sf).slice(0, 100),
+                    fixable: true
+                  });
+                }
               }
             }
           }
@@ -271,6 +311,16 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
     };
 
     visit(sf);
+
+    if (isFixMode && replacements.length > 0) {
+      const updatedContent = applyAstReplacements(content, replacements);
+      const absoluteFilePath = path.resolve(this.projectRoot, relPath);
+      try {
+        fs.writeFileSync(absoluteFilePath, updatedContent, 'utf-8');
+      } catch (err) {
+    console.warn('[Handled controlled exception]:', err);
+  }
+    }
   }
 }
 

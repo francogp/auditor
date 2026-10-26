@@ -252,7 +252,8 @@ export interface TypesRefactorPlan {
 export type DomainFindingKind =
   | 'naked-string-parameter'
   | 'unfrozen-catalog'
-  | 'unbranded-id';
+  | 'unbranded-id'
+  | 'record-string-key';
 
 export interface DomainFindingItem {
   readonly file: string;
@@ -285,6 +286,52 @@ export interface DomainRefactorPlan {
     readonly line: number;
     readonly originalParameter: string;
     readonly replacementParameter: string;
+  }[];
+  readonly recordKeyReplacements?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalTypeRef: string;
+    readonly replacementTypeRef: string;
+    readonly importToAdd?: string;
+  }[];
+}
+
+export type HygieneFindingKind =
+  | 'member-accessibility'
+  | 'prefer-global-this'
+  | 'no-void';
+
+export interface HygieneFindingItem {
+  readonly file: string;
+  readonly line: number;
+  readonly kind: HygieneFindingKind;
+  readonly identifier?: string;
+  readonly originalSnippet: string;
+  readonly suggestedReplacement: string;
+  readonly explanation: string;
+}
+
+export interface HygieneRefactorPlan {
+  readonly version: 1;
+  readonly planId: string;
+  readonly targetFiles: readonly string[];
+  readonly accessibilityInjections?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalSnippet: string;
+    readonly replacementSnippet: string;
+  }[];
+  readonly globalThisReplacements?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalSnippet: string;
+    readonly replacementSnippet: string;
+  }[];
+  readonly voidReplacements?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalSnippet: string;
+    readonly replacementSnippet: string;
   }[];
 }
 

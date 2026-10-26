@@ -1,6 +1,6 @@
 # CI Quality Gates vs. Interactive Refactor Engines
 
-This guide defines the architectural dichotomy between **CI Static Verification Quality Gates** (`npm run auditor`) and **Interactive Code Refactoring Engines** (`auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`), providing agent reaction protocols, decision trees, plan templates, and tutorials.
+This guide defines the architectural dichotomy between **CI Static Verification Quality Gates** (`npm run auditor`) and **Interactive Code Refactoring Engines** (`auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene`), providing agent reaction protocols, decision trees, plan templates, and tutorials.
 
 ---
 
@@ -33,8 +33,8 @@ flowchart TD
 
 | Property | CI Static Quality Gates (`auditor`) | Interactive Refactor Engines (`auditor:<tool>`) |
 | :--- | :--- | :--- |
-| **Primary Binaries** | `auditor`, `auditor-findings`, `auditor-fallow` | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain` |
-| **Package Scripts** | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types` |
+| **Primary Binaries** | `auditor`, `auditor-findings`, `auditor-fallow` | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene` |
+| **Package Scripts** | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types`, `auditor:domain`, `auditor:hygiene` |
 | **Base Abstraction** | `BaseAuditor`, `FileScanAuditor` | `BaseRefactorEngine<TFinding, TPlan>` |
 | **Purpose** | Enforces mandatory repository laws and invariants | Assists developers in elective code surgery and modernization |
 | **Execution Trigger** | Automatic in CI/CD, pre-commit, and safe-commit gates | On-demand explicit invocation by developer or AI agent |
@@ -44,7 +44,7 @@ flowchart TD
 
 > [!IMPORTANT]
 > **The Golden Rule for AI Agents**:
-> Running `npm run auditor` (or `auditor:lint`, `auditor:full`) **NEVER** runs interactive refactoring tools like `auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:types`, `auditor:motion`, or `auditor:domain`.
+> Running `npm run auditor` (or `auditor:lint`, `auditor:full`) **NEVER** runs interactive refactoring tools like `auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:types`, `auditor:motion`, `auditor:domain`, or `auditor:hygiene`.
 > If `npm run auditor` passes with **0 errors and 0 warnings**, the codebase is 100% clean and healthy for commit. Discovering candidates in `auditor:magic` does NOT mean the project is broken or has hidden debt.
 
 ---

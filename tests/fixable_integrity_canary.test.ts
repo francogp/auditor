@@ -687,7 +687,6 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         'similar_code',
         'fallow',
         'complexity',
-        'domain_types',
         'test_coverage'
       ];
 

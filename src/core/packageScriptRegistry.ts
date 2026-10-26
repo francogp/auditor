@@ -283,6 +283,12 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     category: 'reporting'
   },
   {
+    name: 'auditor:hygiene',
+    command: 'auditor-hygiene',
+    description: 'Deterministic remediation of member accessibility, globalThis, and void expressions',
+    category: 'reporting'
+  },
+  {
     name: 'auditor:dependencies',
     command: 'auditor-dependencies',
     description: 'Inspection of minimum and maximum versions of approved libraries',

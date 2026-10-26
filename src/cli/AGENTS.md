@@ -63,6 +63,7 @@ Architecture & Tooling Engineers.
 - [`refactor_motion.ts`](./refactor_motion.ts): Interactive UI animation and GSAP governance refactoring CLI (`auditor-motion`, `npm run auditor:motion`).
 - [`refactor_o1.ts`](./refactor_o1.ts): Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).
 - [`refactor_domain.ts`](./refactor_domain.ts): Interactive domain type, naked strings, and branded IDs refactoring CLI (`auditor-domain`, `npm run auditor:domain`).
+- [`refactor_hygiene.ts`](./refactor_hygiene.ts): Interactive member accessibility, globalThis, and void expressions refactoring CLI (`auditor-hygiene`, `npm run auditor:hygiene`).
 - [`refactor_types.ts`](./refactor_types.ts): Interactive type assertion, double casting, and return type refactoring CLI (`auditor-types`, `npm run auditor:types`).
 - [`sync_env_scripts.ts`](./sync_env_scripts.ts): Synchronizer for environment setup scripts across OS environments.
 - [`update_package.ts`](./update_package.ts): Native CLI updater (`auditor-update`) for updating `@francogp/auditor` across host repositories.

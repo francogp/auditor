@@ -138,10 +138,7 @@ export function compressLineRanges(lines: readonly number[]): string[] {
 
 interface RawIstanbulEntry {
   path?: string;
-  statementMap?: Record<
-    string,
-    { start: { line: number; column?: number }; end: { line: number; column?: number } }
-  >;
+  statementMap?: Record<string, { start: { line: number; column?: number }; end: { line: number; column?: number } }>;
   s?: Record<string, number>;
   fnMap?: Record<string, unknown>;
   f?: Record<string, number>;

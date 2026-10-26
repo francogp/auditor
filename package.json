@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.1.6-build.20261025-124058",
+  "version": "10.2.0-build.20261025-225731",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -29,6 +29,7 @@
     "auditor-findings": "dist/cli/report_findings.js",
     "auditor-flags": "dist/cli/report_flags.js",
     "auditor-guard": "dist/cli/report_guard.js",
+    "auditor-hygiene": "dist/cli/refactor_hygiene.js",
     "auditor-init-agent": "dist/cli/init_agent.js",
     "auditor-magic": "dist/cli/refactor_magic.js",
     "auditor-motion": "dist/cli/refactor_motion.js",
@@ -190,6 +191,9 @@
     "auditor:domain": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_domain.ts",
     "auditor:domain:inspect": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/refactor_domain.ts inspect",
     "auditor:domain:apply": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_domain.ts apply",
+    "auditor:hygiene": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_hygiene.ts",
+    "auditor:hygiene:inspect": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/refactor_hygiene.ts inspect",
+    "auditor:hygiene:apply": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/refactor_hygiene.ts apply",
     "auditor:similar": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_similar_code.ts",
     "auditor:review": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_review.ts",
     "auditor:guard": "node --permission --experimental-strip-types --allow-fs-read=* --allow-child-process src/cli/report_guard.ts",

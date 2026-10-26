@@ -521,6 +521,7 @@ function renderCliHelp(activeFamilies) {
 	lines.push(boldYellow("DETERMINISTIC REFACTORING ENGINES (ZERO LLM TOKENS):"));
 	lines.push("  npm run auditor:types        Remediation of as any, double casts, and return contracts.");
 	lines.push("  npm run auditor:domain       Remediation of naked strings, unbranded catalogs, and raw IDs.");
+	lines.push("  npm run auditor:hygiene      Remediation of member accessibility, globalThis, and void expressions.");
 	lines.push("  npm run auditor:dupes        Deduplication of syntactic clones and triplicates.");
 	lines.push("  npm run auditor:magic        Extraction of magic numbers to design tokens.");
 	lines.push("  npm run auditor:motion       Governance of UI animations and forbidden timers.");

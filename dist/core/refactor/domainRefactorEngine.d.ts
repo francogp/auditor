@@ -20,6 +20,8 @@ export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindi
   static discoverInFile(filePath: string): readonly DomainFindingItem[];
   static buildDomainHygienePlan(planId: string, targetFiles: readonly string[], findings: readonly DomainFindingItem[]): DomainRefactorPlan;
   static createPlan(planId: string, findings: readonly DomainFindingItem[]): DomainRefactorPlan;
+  private static applySnippetReplacements;
+  private static applyRecordKeyPlanReplacements;
   /**
    * Deterministically applies a DomainRefactorPlan across target source files.
    */

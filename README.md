@@ -86,10 +86,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.1.6`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.2.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.1.6 --allow-git=all
+npm install -D github:francogp/auditor#v10.2.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -99,7 +99,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.1.6"
+    "@francogp/auditor": "github:francogp/auditor#v10.2.0"
   }
 }
 ```
@@ -134,9 +134,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.1.6
+npm run auditor:update -- v10.2.0
 # or directly:
-auditor-update v10.1.6
+auditor-update v10.2.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -199,7 +199,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.1.6-build.20261025-124058',
+  auditorVersion: '10.2.0-build.20261025-225731',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -256,7 +256,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.1.6"`), or install via `npm install -D github:francogp/auditor#v10.1.6 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.2.0"`), or install via `npm install -D github:francogp/auditor#v10.2.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -989,6 +989,7 @@ All binaries execute directly or through native `npm run` scripts. Running tools
 | `auditor-o1`                  | `src/cli/refactor_o1.ts`          | Interactive O(1) data structures and linear search refactoring CLI (`auditor-o1`, `npm run auditor:o1`).                                                                                                                                                  |
 | `auditor-types`               | `src/cli/refactor_types.ts`       | Type assertions (`as any`), double casts, and return contracts zero-token refactoring CLI (`auditor-types`, `npm run auditor:types`).                                                                                                                     |
 | `auditor-domain`              | `src/cli/refactor_domain.ts`      | Raw string parameters, mutable catalogs, and unbranded entity IDs refactoring CLI (`auditor-domain`, `npm run auditor:domain`).                                                                                                                           |
+| `auditor-hygiene`             | `src/cli/refactor_hygiene.ts`     | Member accessibility, globalThis, and void expressions zero-token refactoring CLI (`auditor-hygiene`, `npm run auditor:hygiene`).                                                                                                                         |
 | `auditor-similar`             | `src/cli/report_similar_code.ts`  | Semantic clone and function similarity analysis via Fallow vector embeddings.                                                                                                                                                                             |
 | `auditor-review`              | `src/cli/report_review.ts`        | Graph-grounded architectural review brief for changed code.                                                                                                                                                                                               |
 | `auditor-css`                 | `src/cli/report_css.ts`           | Stylelint and stylesheet hygiene analysis report.                                                                                                                                                                                                         |

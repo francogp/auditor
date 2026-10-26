@@ -63,6 +63,14 @@ The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, D
    - Use Valibot schema validation (`v.parse()`, `v.safeParse()`) for external payloads.
    - Use typed generics (`<T>`) for polymorphic operations.
 
+5. **Deterministic AST Return Type Inference Engine**:
+   `TypesRefactorEngine` embeds an advanced Abstract Syntax Tree (AST) inference algorithm analyzing all `return` statements across function bodies:
+   - **Void & Async Void**: Infers `void` (or `Promise<void>`) when a function contains no `return` statements or bare returns (`return;`).
+   - **Primitives**: Infers `boolean`, `number`, and `string` (and their `Promise<...>` variants for `async` functions) from literals, arithmetic expressions (`a + b`, `*`, `/`), comparisons (`===`, `!`), and template literals.
+   - **Homogeneous Object Shapes**: Computes merged property signatures when multiple return branches yield uniform object shapes (e.g. `{ ok: boolean; reason?: string }`).
+   - **Concise Arrow Functions**: Automatically inserts the inferred return type immediately before the arrow token `=>` (e.g. `(id: string): boolean => list.includes(id)`).
+   - **Uniform Type Assertions**: Preserves explicit `as TargetType` returns if all branches consistently assert to that type.
+
 ---
 
 ## 🛠️ CLI Tool Usage (`auditor-types`)
