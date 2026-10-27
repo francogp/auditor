@@ -947,7 +947,7 @@ function validateLintOptionsAndPlugins(summary, fileName) {
 	});
 	return findings;
 }
-function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot) {
+function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot) {
 	const findings = [];
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const missingLint = summary.hasSection("lint") ? lintIgnores.filter((g) => !summary.lintIgnorePatterns.includes(g)) : lintIgnores;
@@ -977,10 +977,43 @@ function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot)
 		context: "lint.ignorePatterns",
 		message: `Missing exclusion patterns required by audit.config.ts in lint of vite.config.ts: [${missingLint.join(", ")}]. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
 	});
-	const rawTestRoots = auditConfig.paths?.testRoots;
-	if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection("test")) {
-		const missingRoots = resolveVitestRoots(auditConfig).filter((r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`)));
-		if (missingRoots.length > 0) findings.push({
+	return findings;
+}
+function validateConfiguredProjects(summary, fileName, testRoots, configuredProjects) {
+	const findings = [];
+	const allAssignedRoots = Object.values(configuredProjects).flat();
+	const unassignedRoots = testRoots.filter((r) => !allAssignedRoots.some((ar) => ar === r || ar.startsWith(`${r}/`) || r.startsWith(`${ar}/`)));
+	if (unassignedRoots.length > 0) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-ts",
+		ruleDescription: "Vite+: TypeScript and test synchronization",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: "vitePlusConfig.test.projects",
+		message: `Test roots declared in audit.config.ts paths.testRoots (${unassignedRoots.join(", ")}) are not assigned to any project in 'vitePlusConfig.test.projects'. Assign them to a project in audit.config.ts.`
+	});
+	for (const [projName, projRoots] of Object.entries(configuredProjects)) {
+		const projectSummary = summary.testProjects.find((p) => p.name === projName);
+		if (!projectSummary) {
+			findings.push({
+				suiteId: "validate_vite_plus_config",
+				suiteName: "Vite+ Unified Configuration Validator",
+				ruleId: "vite-plus-config-ts",
+				ruleDescription: "Vite+: TypeScript and test synchronization",
+				severity: "error",
+				file: fileName,
+				line: 1,
+				col: 1,
+				context: `test.projects.${projName}`,
+				message: `Vitest project '${projName}' declared in audit.config.ts is missing in 'test.projects' of ${fileName}. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+			});
+			continue;
+		}
+		const missingInProject = projRoots.filter((r) => !projectSummary.include.some((inc) => inc === r || inc.startsWith(`${r}/`) || r.startsWith(`${inc}/`)));
+		if (missingInProject.length > 0) findings.push({
 			suiteId: "validate_vite_plus_config",
 			suiteName: "Vite+ Unified Configuration Validator",
 			ruleId: "vite-plus-config-ts",
@@ -989,11 +1022,52 @@ function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot)
 			file: fileName,
 			line: 1,
 			col: 1,
-			context: "test.include",
-			message: `Test roots declared in audit.config.ts (${missingRoots.join(", ")}) are not synchronized in 'test.include' of vite.config.ts. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+			context: `test.projects.${projName}.include`,
+			message: `Test roots [${missingInProject.join(", ")}] assigned to project '${projName}' in audit.config.ts are not synchronized in 'test.projects' of ${fileName}. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
 		});
 	}
 	return findings;
+}
+function validateSynchronizedTest(summary, fileName, auditConfig) {
+	const findings = [];
+	if (summary.hasSection("test") && summary.hasTestProjects && summary.hasRootTestInclude) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-ts",
+		ruleDescription: "Vite+: TypeScript and test synchronization",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: "test.include",
+		message: `Root 'test.include' detected alongside 'test.projects' in ${fileName}. Root include causes runner cross-contamination across isolated test projects in Vitest. Run 'npm run auditor:fix' or 'auditor fix' to remove root include and isolate project suites.`
+	});
+	const rawTestRoots = auditConfig.paths?.testRoots;
+	const configuredProjects = auditConfig.vitePlusConfig?.test?.projects;
+	const hasConfiguredProjects = Boolean(configuredProjects && Object.keys(configuredProjects).length > 0);
+	if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection("test")) {
+		const testRoots = resolveVitestRoots(auditConfig);
+		if (hasConfiguredProjects && configuredProjects) findings.push(...validateConfiguredProjects(summary, fileName, testRoots, configuredProjects));
+		else {
+			const missingRoots = testRoots.filter((r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`) || inc === r));
+			if (missingRoots.length > 0) findings.push({
+				suiteId: "validate_vite_plus_config",
+				suiteName: "Vite+ Unified Configuration Validator",
+				ruleId: "vite-plus-config-ts",
+				ruleDescription: "Vite+: TypeScript and test synchronization",
+				severity: "error",
+				file: fileName,
+				line: 1,
+				col: 1,
+				context: summary.hasTestProjects ? "test.projects" : "test.include",
+				message: `Test roots declared in audit.config.ts (${missingRoots.join(", ")}) are not synchronized in ${summary.hasTestProjects ? "'test.projects'" : "'test.include'"} of ${fileName}. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+			});
+		}
+	}
+	return findings;
+}
+function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot) {
+	return [...validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot), ...validateSynchronizedTest(summary, fileName, auditConfig)];
 }
 /**
 * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections
@@ -1029,7 +1103,7 @@ const RULE_REMEDIATIONS = {
 	"vite-plus-config-lint": "Root Cause:\nThe \"lint\" section in vite.config.ts violates the mandatory Anti-Castration Mandate baseline, has disabled rules (\"off\" or null), or lacks required domain plugins.\nUnder strict architecture governance, strict TypeScript, immutability, and control-flow rules cannot be degraded to hide code defects.\n\nDiagnosis:\nThe violation message specifies which Oxlint or @typescript-eslint rule is missing or downgraded below \"error\".\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor injects and re-synchronizes the full canonical rule catalog in vite.config.ts.\n2. Fix genuine code defects flagged by the linter in source code.",
 	"vite-plus-config-fmt": "Root Cause:\nThe \"fmt\" section is missing from vite.config.ts or does not declare mandatory \"sortImports: true\" and \"sortPackageJson: true\".\nOxfmt requires deterministic sorting of imports and package.json keys to eliminate git diff merge conflicts.\n\nDiagnosis:\nInspect the \"fmt\" object in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to repair configuration automatically.\n2. Or add to vite.config.ts:\n   fmt: { sortImports: true, sortPackageJson: true }",
 	"vite-plus-config-pack": "Root Cause:\nThe package is configured as a public library or shareable package but lacks the \"pack\" section in vite.config.ts with publint and Are The Types Wrong (attw) validators.\nWithout this verification, packages may publish broken exports or .d.ts types incompatible with ESM/CJS.\n\nDiagnosis:\nCheck if the package defines exports or binaries and lacks the pack block in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to inject canonical pack section.\n2. Configure: pack: { publint: true, attw: { profile: \"esm-only\" } }.",
-	"vite-plus-config-ts": "Root Cause:\nDiscrepancy detected between paths governed in .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs) and \"test.include\" / \"ignorePatterns\" in vite.config.ts.\naudit.config.ts acts as the Single Source of Truth (SSoT) and must be faithfully reflected in test runners and linters.\n\nDiagnosis:\nCheck if new test directories were added to audit.config.ts without synchronizing vite.config.ts.\n\nCanonical Solution:\nRun \"npm run auditor:fix\" or \"auditor fix\". The auditor automatically synchronizes test and ignore patterns."
+	"vite-plus-config-ts": "Root Cause:\nDiscrepancy detected between paths governed in .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs, vitePlusConfig.test.projects) and \"test.include\" / \"test.projects\" / \"ignorePatterns\" in vite.config.ts, or root \"test.include\" detected alongside \"test.projects\" causing runner cross-contamination.\naudit.config.ts acts as the Single Source of Truth (SSoT) and must be faithfully reflected in test runners and linters.\n\nDiagnosis:\n1. Check if new test directories were added to audit.config.ts without synchronizing vite.config.ts.\n2. Check if a project uses Vitest Workspace projects (\"projects: [...]\") while retaining a root \"test.include\", which contaminates isolated runners.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor automatically synchronizes test projects, purges root includes in multi-project configs, and aligns ignore patterns.\n2. If using multiple test runners (e.g. unit and node), declare \"vitePlusConfig.test.projects\" in .auditor/audit.config.ts."
 };
 var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 	constructor(options = {}) {

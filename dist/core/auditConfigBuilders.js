@@ -510,6 +510,16 @@ function buildVitePlusStagedConfig(rawStaged, defStaged) {
 		rules: isStagedWithRules && stagedObj?.rules ? stagedObj.rules : isStagedObject && !("rules" in rawStaged) ? rawStaged : defStagedObj?.rules ? defStagedObj.rules : { "*": "vp check --fix" }
 	};
 }
+function buildVitePlusTestConfig(rawTest, defTest) {
+	if (!rawTest && !defTest) return void 0;
+	const v = rawTest ?? {};
+	const def = defTest ?? { enabled: true };
+	const projects = v.projects ? Object.fromEntries(Object.entries(v.projects).filter(([, val]) => Array.isArray(val)).map(([k, val]) => [k, Array.isArray(val) ? val.filter((item) => typeof item === "string") : []])) : def.projects;
+	return {
+		enabled: v.enabled ?? def.enabled ?? true,
+		...projects ? { projects } : {}
+	};
+}
 function buildVitePlusConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
 	const v = raw ?? {};
@@ -518,6 +528,7 @@ function buildVitePlusConfig(raw) {
 		precompress: buildVitePlusPrecompressConfig(v.precompress, def?.precompress),
 		fmt: buildVitePlusFmtConfig(v.fmt, def?.fmt),
 		lint: buildVitePlusLintConfig(v.lint, def?.lint),
+		test: buildVitePlusTestConfig(v.test, def?.test),
 		staged: buildVitePlusStagedConfig(v.staged, def?.staged),
 		hooks: v.hooks ? {
 			...v.hooks,

@@ -154,6 +154,10 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
       typeAware: true,
       typeCheck: true
     },
+    test: {
+      enabled: true,
+      projects: {}
+    },
     staged: {
       enabled: true,
       rules: {

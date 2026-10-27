@@ -9,6 +9,10 @@ export declare function astExpressionToValue(expr: ts.Expression, sf: ts.SourceF
 export declare function findConfigRootObject(sf: ts.SourceFile): ts.ObjectLiteralExpression | null;
 export declare function findPropertyAssignment(obj: ts.ObjectLiteralExpression, propName: string, sf: ts.SourceFile): ts.PropertyAssignment | null;
 export declare function extractAstPropertyBlock(fileContent: string, propName: string): string | null;
+export interface ParsedVitestProjectSummary {
+  readonly name: string;
+  readonly include: readonly string[];
+}
 export interface ParsedVitePlusConfigSummary {
   readonly definesFromVitePlus: boolean;
   readonly hasSection: (name: string) => boolean;
@@ -21,6 +25,10 @@ export interface ParsedVitePlusConfigSummary {
   readonly packConfig: Readonly<Record<string, unknown>>;
   readonly hasPackAttw: boolean;
   readonly testInclude: readonly string[];
+  readonly testProjects: readonly ParsedVitestProjectSummary[];
+  readonly hasTestProjects: boolean;
+  readonly hasRootTestInclude: boolean;
+  readonly rootTestInclude: readonly string[];
 }
 export declare function extractParsedConfigSummary(fileContent: string): ParsedVitePlusConfigSummary;
 export declare function extractEslintIgnoresFromAst(rawContent: string): string[];

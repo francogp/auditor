@@ -67,6 +67,27 @@ export default defineConfig({
       'package-lock.json'
     ]
   },
+  // 1. Standard Flat Testing Mode (Default):
+  // test: {
+  //   globals: true,
+  //   pool: 'forks',
+  //   environment: 'node',
+  //   include: ['tests/**/*.test.ts'],
+  //   testTimeout: 30000,
+  //   hookTimeout: 30000,
+  //   css: false,
+  //   coverage: {
+  //     provider: 'v8',
+  //     reporter: ['text', 'json', 'json-summary'],
+  //     reportsDirectory: 'coverage',
+  //     include: ['src/**/*.ts'],
+  //     exclude: ['src/**/*.d.ts', 'dist/**']
+  //   }
+  // },
+  //
+  // 2. Vitest Workspace Projects Mode (Multi-Environment SSoT):
+  // Governed by `vitePlusConfig.test.projects` in .auditor/audit.config.ts.
+  // Note: Root `include` is strictly prohibited alongside `projects` to prevent runner cross-contamination.
   test: {
     globals: true,
     pool: 'forks',

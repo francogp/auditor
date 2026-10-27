@@ -421,3 +421,68 @@ When `oxfmt` formats long lists or arrays in SCSS (e.g. `$font-mono: '...', '...
 **Canonical Solution**:
 
 Structure long variables as an indented multiline list with an inline trailing comment on the first line (e.g., `// Monospace stack`). This instructs `oxfmt` to preserve the multiline structure and satisfies strict Stylelint spacing rules.
+
+---
+
+### 8.9 Vitest Workspace Projects & Runner Isolation Protocol (SSoT Anti-Contamination Mandate)
+
+In complex repositories with multiple test environments (such as frontend JSDOM unit tests, Node.js backend logic tests, and ephemeral database migrations), Vitest supports inline workspace projects:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  test: {
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          environment: 'node',
+          environmentOptions: { jsdom: { pretendToBeVisual: true } },
+          include: ['tests/unit/**/*.{test,spec}.ts', 'src/**/*.{test,spec}.ts'],
+          setupFiles: ['./tests/vitest.setup.ts']
+        }
+      },
+      {
+        test: {
+          name: 'node',
+          environment: 'node',
+          include: ['tests/node/**/*.test.ts'],
+          setupFiles: ['./tests/vitest.node.setup.ts']
+        }
+      }
+    ]
+  }
+});
+```
+
+#### The Runner Cross-Contamination Pitfall
+
+In Vitest, if a root `include: [...]` array exists on `test:` alongside `projects: [...]`, Vitest uses the root include as a global matcher. When running `vitest run --project unit`, Vitest will execute **all** tests matching the root include (including backend Node and database tests) under the `unit` runner with `vitest.setup.ts`, causing false positive failures.
+
+#### SSoT Governance in `.auditor/audit.config.ts`
+
+To ensure 100% deterministic auto-fixing without guessing or manual editing, configure `vitePlusConfig.test.projects` in `.auditor/audit.config.ts`:
+
+```ts
+// .auditor/audit.config.ts
+export default defineAuditConfig({
+  paths: {
+    srcRoots: ['src'],
+    testRoots: ['tests', 'test_aventura/tests']
+  },
+  vitePlusConfig: {
+    enabled: true,
+    test: {
+      projects: {
+        unit: ['tests/unit', 'tests/integration', 'src'],
+        node: ['tests/node', 'test_aventura/tests']
+      }
+    }
+  }
+});
+```
+
+#### Canonical Auditor Guarantees
+
+1. **Anti-Contamination Enforcement**: `validate_vite_plus_config` (`vite-plus-config-ts`) flags any root `test.include` coexisting with `test.projects` as a blocking error.
+2. **Deterministic Auto-Fix (`auditor fix`)**: Purgers the root `test.include` from `vite.config.ts`, maps each declared root to its corresponding project's `include`, and leaves custom project properties (`setupFiles`, `globals`, `environmentOptions`) completely intact.

@@ -393,6 +393,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -560,6 +561,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -601,6 +603,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -1052,6 +1055,184 @@ export default defineConfig({
       const updatedAgentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
       expect(updatedAgentsMd).toContain('keep-script.ts');
       expect(updatedAgentsMd).not.toContain('vite-plugin-precompress.ts');
+    });
+  });
+
+  describe('Vitest Workspace Projects & Runner Isolation Canaries (C-CFG-61 to C-CFG-64)', () => {
+    it('C-CFG-61: flags vite-plus-config-ts when root test.include contaminates test.projects', () => {
+      const config = defineAuditConfig({
+        name: 'Anti-Contamination Test',
+        paths: { testRoots: ['tests/unit', 'tests/node'] }
+      });
+      const contaminatedConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {
+            projects: [
+              { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
+              { test: { name: 'node', include: ['tests/node/**/*.test.ts'] } }
+            ],
+            include: ['tests/**/*.{test,spec}.ts']
+          }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(contaminatedConfig, 'vite.config.ts', config);
+      const contaminationFinding = findings.find(
+        (f) =>
+          f.ruleId === 'vite-plus-config-ts' && f.message.includes('runner cross-contamination')
+      );
+      expect(contaminationFinding).toBeDefined();
+    });
+
+    it('C-CFG-62: auto-fix purges root include and synchronizes roots into configured test.projects', async () => {
+      const mockAuditConfig = defineAuditConfig({
+        name: 'Multi-Project SSoT App',
+        domain: { enabled: true },
+        paths: {
+          srcRoots: ['src'],
+          codeRoots: ['src'],
+          testRoots: ['tests/unit', 'tests/node', 'test_aventura/tests'],
+          ignoreGlobs: []
+        },
+        vitePlusConfig: {
+          test: {
+            projects: {
+              unit: ['tests/unit'],
+              node: ['tests/node', 'test_aventura/tests']
+            }
+          }
+        }
+      });
+      setAuditConfig(mockAuditConfig, tempDir);
+
+      const contaminatedConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/no-explicit-any': 'error',
+              '@typescript-eslint/ban-ts-comment': 'error',
+              '@typescript-eslint/consistent-type-assertions': ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }],
+              '@francogp/domain-type/no-double-cast-unknown': 'error',
+              '@francogp/domain-type/no-legacy-date': 'error'
+            }
+          },
+          fmt: { singleQuote: true },
+          staged: { '**/*': 'vp check' },
+          test: {
+            projects: [
+              {
+                test: {
+                  name: 'unit',
+                  include: ['tests/unit/**/*.test.ts'],
+                  setupFiles: ['./tests/vitest.setup.ts']
+                }
+              },
+              {
+                test: {
+                  name: 'node',
+                  include: ['tests/node/**/*.test.ts'],
+                  setupFiles: ['./tests/vitest.node.setup.ts']
+                }
+              }
+            ],
+            include: ['tests/**/*.{test,spec}.ts', 'test_aventura/tests/**/*.{test,spec}.ts']
+          }
+        });
+      `;
+      const viteConfigPath = path.join(tempDir, 'vite.config.ts');
+      fs.writeFileSync(viteConfigPath, contaminatedConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
+
+      const synced = fs.readFileSync(viteConfigPath, 'utf-8');
+
+      // 1. Root include must be purged
+      expect(synced).not.toMatch(/include:\s*\['tests\/\*\*\/\*\.\{test,spec\}\.ts'/);
+
+      // 2. Project 'node' must include test_aventura/tests
+      expect(synced).toContain('test_aventura/tests/**/*.{test,spec}.ts');
+
+      // 3. Project setupFiles must remain intact
+      expect(synced).toContain('./tests/vitest.setup.ts');
+      expect(synced).toContain('./tests/vitest.node.setup.ts');
+
+      // 4. Audit should now pass clean
+      const verifyAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const verifyResult = await verifyAuditor.execute();
+      const tsFindings = verifyResult.findings.filter((f) => f.ruleId === 'vite-plus-config-ts');
+      expect(tsFindings).toHaveLength(0);
+    });
+
+    it('C-CFG-63: accepts compliant test.projects without SSoT test.projects when all testRoots are covered', () => {
+      const config = defineAuditConfig({
+        name: 'Workspace App',
+        paths: { testRoots: ['tests/unit', 'tests/node'], ignoreGlobs: [] }
+      });
+      const compliantWorkspaceConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {
+            projects: [
+              { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } },
+              { test: { name: 'node', include: ['tests/node/**/*.test.ts'] } }
+            ]
+          }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(
+        compliantWorkspaceConfig,
+        'vite.config.ts',
+        config
+      );
+      const testFindings = findings.filter(
+        (f) => f.ruleId === 'vite-plus-config-ts' && f.context?.startsWith('test')
+      );
+      expect(testFindings).toHaveLength(0);
+    });
+
+    it('C-CFG-64: flags unassigned testRoots when vitePlusConfig.test.projects is configured', () => {
+      const config = defineAuditConfig({
+        name: 'Unassigned Test Roots App',
+        paths: { testRoots: ['tests/unit', 'orphan_tests'] },
+        vitePlusConfig: {
+          test: {
+            projects: {
+              unit: ['tests/unit']
+            }
+          }
+        }
+      });
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {
+            projects: [
+              { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } }
+            ]
+          }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts', config);
+      const unassignedFinding = findings.find(
+        (f) =>
+          f.ruleId === 'vite-plus-config-ts' &&
+          f.context === 'vitePlusConfig.test.projects' &&
+          f.message.includes('orphan_tests')
+      );
+      expect(unassignedFinding).toBeDefined();
     });
   });
 });

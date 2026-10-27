@@ -134,4 +134,24 @@ describe('audit_config_vite_plus (8 Canary Matrix)', () => {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
+
+  it('C-AC-09: vitePlusConfig.test.projects in audit.config.ts normalizes projects cleanly', () => {
+    const config = defineAuditConfig({
+      name: 'test-app',
+      vitePlusConfig: {
+        enabled: true,
+        test: {
+          enabled: true,
+          projects: {
+            unit: ['tests/unit', 'src'],
+            node: ['tests/node']
+          }
+        }
+      }
+    });
+
+    expect(config.vitePlusConfig?.test?.enabled).toBe(true);
+    expect(config.vitePlusConfig?.test?.projects?.unit).toEqual(['tests/unit', 'src']);
+    expect(config.vitePlusConfig?.test?.projects?.node).toEqual(['tests/node']);
+  });
 });

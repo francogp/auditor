@@ -595,10 +595,17 @@ export interface AuditVitePlusPrecompressConfig extends BaseAuditSubsystemConfig
   readonly outDir?: string;
 }
 
+export type AuditVitePlusTestProjects = Record<string, readonly string[]>;
+
+export interface AuditVitePlusTestConfig extends BaseAuditSubsystemConfig {
+  readonly projects?: AuditVitePlusTestProjects;
+}
+
 export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly precompress?: AuditVitePlusPrecompressConfig;
   readonly fmt?: AuditVitePlusFmtConfig;
   readonly lint?: AuditVitePlusLintConfig;
+  readonly test?: AuditVitePlusTestConfig;
   readonly staged?: AuditVitePlusStagedConfig | Record<string, string>;
   readonly hooks?: AuditVitePlusHooksConfig;
   readonly vscode?: AuditVitePlusVSCodeConfig;

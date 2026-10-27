@@ -250,7 +250,13 @@ export default defineAuditConfig({
   },
 
   vitePlusConfig: {
-    enabled: true // Unified Vite+ configuration governance and mandatory type safety in vite.config.ts
+    enabled: true, // Unified Vite+ configuration governance and mandatory type safety in vite.config.ts
+    test: {
+      projects: {
+        unit: ['tests/unit', 'tests/integration', 'src'], // Frontend UI components and battle visual tests (JSDOM)
+        node: ['tests/node', 'tests/simulations'] // Algorithmic combat simulation and database persistence tests (Node.js)
+      }
+    }
   },
 
   environment: {

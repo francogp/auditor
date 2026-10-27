@@ -28,6 +28,7 @@ import {
   type AuditVitePlusFmtConfig,
   type AuditVitePlusLintConfig,
   type AuditVitePlusPrecompressConfig,
+  type AuditVitePlusTestConfig,
   type AuditVitePlusStagedConfig,
   type AuditBundleConfig,
   type AuditAgentPluginConfig,
@@ -871,6 +872,30 @@ function buildVitePlusStagedConfig(
   };
 }
 
+function buildVitePlusTestConfig(
+  rawTest?: DeepPartial<AuditVitePlusTestConfig>,
+  defTest?: AuditVitePlusTestConfig
+): AuditVitePlusTestConfig | undefined {
+  if (!rawTest && !defTest) return undefined;
+  const v = rawTest ?? {};
+  const def = defTest ?? { enabled: true };
+  const projects = v.projects
+    ? Object.fromEntries(
+        Object.entries(v.projects)
+          .filter(([, val]) => Array.isArray(val))
+          .map(([k, val]) => [
+            k,
+            Array.isArray(val) ? val.filter((item): item is string => typeof item === 'string') : []
+          ])
+      )
+    : def.projects;
+
+  return {
+    enabled: v.enabled ?? def.enabled ?? true,
+    ...(projects ? { projects } : {})
+  };
+}
+
 export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): AuditVitePlusConfig {
   const def = DEFAULT_AUDIT_CONFIG.vitePlusConfig;
   const v = raw ?? {};
@@ -879,6 +904,7 @@ export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): Aud
     precompress: buildVitePlusPrecompressConfig(v.precompress, def?.precompress),
     fmt: buildVitePlusFmtConfig(v.fmt, def?.fmt),
     lint: buildVitePlusLintConfig(v.lint, def?.lint),
+    test: buildVitePlusTestConfig(v.test, def?.test),
     staged: buildVitePlusStagedConfig(v.staged, def?.staged),
     hooks: v.hooks ? { ...v.hooks, enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true } : def?.hooks,
     vscode: v.vscode ? { ...v.vscode, enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true } : def?.vscode,

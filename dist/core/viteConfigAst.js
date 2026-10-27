@@ -277,6 +277,14 @@ function extractAstPropertyBlock(fileContent, propName) {
 	visit(sf);
 	return fallbackProp ? fallbackProp.getText(sf) : null;
 }
+function extractStringProp(obj, propName, sf) {
+	const prop = findPropertyAssignment(obj, propName, sf);
+	if (prop) {
+		const val = astExpressionToValue(prop.initializer, sf);
+		if (typeof val === "string") return val;
+	}
+	return null;
+}
 function extractStringArrayProp(obj, propName, sf) {
 	const prop = findPropertyAssignment(obj, propName, sf);
 	const items = [];
@@ -331,28 +339,79 @@ function collectConfigSections(sf) {
 	visitTopProps(sf);
 	return sections;
 }
-function extractParsedConfigSummary(fileContent) {
-	const sf = parseTsSourceFile(fileContent);
-	const definesFromVitePlus = sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite-plus");
-	const sections = collectConfigSections(sf);
-	const { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
+function extractProjectInfoFromElement(el, sf) {
+	const testPropInEl = findPropertyAssignment(el, "test", sf);
+	const innerTestObj = testPropInEl && ts.isObjectLiteralExpression(testPropInEl.initializer) ? testPropInEl.initializer : null;
+	const nameVal = innerTestObj ? extractStringProp(innerTestObj, "name", sf) ?? extractStringProp(el, "name", sf) : extractStringProp(el, "name", sf);
+	const incList = innerTestObj ? extractStringArrayProp(innerTestObj, "include", sf) : extractStringArrayProp(el, "include", sf);
+	return {
+		name: nameVal ?? "",
+		innerTestObj,
+		include: incList
+	};
+}
+function extractFmtSummaryFromAst(fmtExpr, sf) {
 	let fmtConfig = {};
 	let fmtIgnorePatterns = [];
-	const fmtExpr = sections.get("fmt");
 	if (fmtExpr && ts.isObjectLiteralExpression(fmtExpr)) {
 		fmtConfig = astExpressionToValue(fmtExpr, sf);
 		if (Array.isArray(fmtConfig.ignorePatterns)) fmtIgnorePatterns = fmtConfig.ignorePatterns.filter((v) => typeof v === "string");
 	}
+	return {
+		fmtConfig,
+		fmtIgnorePatterns
+	};
+}
+function extractPackSummaryFromAst(packExpr, sf) {
 	let packConfig = {};
 	let hasPackAttw = false;
-	const packExpr = sections.get("pack");
 	if (packExpr && ts.isObjectLiteralExpression(packExpr)) {
 		packConfig = astExpressionToValue(packExpr, sf);
 		const attwProp = findPropertyAssignment(packExpr, "attw", sf);
 		hasPackAttw = Boolean(attwProp && ts.isObjectLiteralExpression(attwProp.initializer));
 	}
-	const testExpr = sections.get("test");
-	const testInclude = testExpr && ts.isObjectLiteralExpression(testExpr) ? extractStringArrayProp(testExpr, "include", sf) : [];
+	return {
+		packConfig,
+		hasPackAttw
+	};
+}
+function extractTestSummaryFromAst(testExpr, sf) {
+	let hasRootTestInclude = false;
+	let rootTestInclude = [];
+	const testProjects = [];
+	if (testExpr && ts.isObjectLiteralExpression(testExpr)) {
+		if (findPropertyAssignment(testExpr, "include", sf)) {
+			hasRootTestInclude = true;
+			rootTestInclude = extractStringArrayProp(testExpr, "include", sf);
+		}
+		const projectsProp = findPropertyAssignment(testExpr, "projects", sf);
+		if (projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer)) for (const el of projectsProp.initializer.elements) {
+			if (!ts.isObjectLiteralExpression(el)) continue;
+			const info = extractProjectInfoFromElement(el, sf);
+			if (info.name || info.include.length > 0) testProjects.push({
+				name: info.name,
+				include: info.include
+			});
+		}
+	}
+	const hasTestProjects = testProjects.length > 0;
+	const testInclude = hasTestProjects ? Array.from(/* @__PURE__ */ new Set([...rootTestInclude, ...testProjects.flatMap((p) => p.include)])) : rootTestInclude;
+	return {
+		hasRootTestInclude,
+		rootTestInclude,
+		testProjects,
+		hasTestProjects,
+		testInclude
+	};
+}
+function extractParsedConfigSummary(fileContent) {
+	const sf = parseTsSourceFile(fileContent);
+	const definesFromVitePlus = sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite-plus");
+	const sections = collectConfigSections(sf);
+	const { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
+	const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get("fmt"), sf);
+	const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get("pack"), sf);
+	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude } = extractTestSummaryFromAst(sections.get("test"), sf);
 	return {
 		definesFromVitePlus,
 		hasSection: (name) => sections.has(name),
@@ -364,7 +423,11 @@ function extractParsedConfigSummary(fileContent) {
 		fmtIgnorePatterns,
 		packConfig,
 		hasPackAttw,
-		testInclude
+		testInclude,
+		testProjects,
+		hasTestProjects,
+		hasRootTestInclude,
+		rootTestInclude
 	};
 }
 function extractEslintIgnoresFromAst(rawContent) {
@@ -569,6 +632,19 @@ function updateObjectProperty(props, key, newInitializer, sf, forceQuote = false
 	});
 	if (!replaced) nextProps.push(newProp);
 	return nextProps;
+}
+function removeObjectProperty(props, key, sf) {
+	let modified = false;
+	return {
+		props: props.filter((prop) => {
+			if (ts.isPropertyAssignment(prop) && getPropertyKeyName(prop.name, sf) === key) {
+				modified = true;
+				return false;
+			}
+			return true;
+		}),
+		modified
+	};
 }
 function deduplicateObjectProperties(props, sf) {
 	const lastIdxByKey = /* @__PURE__ */ new Map();
@@ -776,13 +852,72 @@ function syncTestCoverageAst(props, sf) {
 		modified: false
 	};
 }
+function syncTestProjectsAst(props, testProjectsConfig, sf) {
+	let modified = false;
+	const projectsProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "projects", sf);
+	const updatedElements = [...projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer) ? [...projectsProp.initializer.elements] : []];
+	const handledProjects = /* @__PURE__ */ new Set();
+	for (let i = 0; i < updatedElements.length; i++) {
+		const el = updatedElements[i];
+		if (!el || !ts.isObjectLiteralExpression(el)) continue;
+		const info = extractProjectInfoFromElement(el, sf);
+		const configuredRoots = info.name ? testProjectsConfig[info.name] : void 0;
+		if (info.name && configuredRoots) {
+			handledProjects.add(info.name);
+			const expectedPatterns = configuredRoots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`);
+			const targetObj = info.innerTestObj ?? el;
+			const targetProps = [...targetObj.properties];
+			const existingIncludes = extractStringArrayProp(targetObj, "include", sf);
+			const missing = expectedPatterns.filter((p) => !existingIncludes.some((inc) => inc === p || isPathUnderRoot(inc, p)));
+			if (missing.length > 0) {
+				const updatedTargetProps = updateObjectProperty(targetProps, "include", valueToAstExpression(Array.from(/* @__PURE__ */ new Set([...existingIncludes, ...missing]))), sf);
+				if (info.innerTestObj) {
+					const updatedOuterProps = updateObjectProperty(el.properties, "test", ts.factory.createObjectLiteralExpression(updatedTargetProps, true), sf);
+					updatedElements[i] = ts.factory.createObjectLiteralExpression(updatedOuterProps, true);
+				} else updatedElements[i] = ts.factory.createObjectLiteralExpression(updatedTargetProps, true);
+				modified = true;
+			}
+		}
+	}
+	for (const [projName, roots] of Object.entries(testProjectsConfig)) if (!handledProjects.has(projName)) {
+		const patterns = roots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`);
+		const newProj = ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("test", ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("name", ts.factory.createStringLiteral(projName, true)), ts.factory.createPropertyAssignment("include", valueToAstExpression(patterns))], true))], true);
+		updatedElements.push(newProj);
+		modified = true;
+	}
+	if (modified || !projectsProp) return {
+		props: updateObjectProperty(props, "projects", ts.factory.createArrayLiteralExpression(updatedElements, true), sf),
+		modified: true
+	};
+	return {
+		props,
+		modified: false
+	};
+}
 function syncTestSectionAst(testObj, auditConfig, sf) {
 	const dedup = deduplicateObjectProperties(testObj.properties, sf);
 	let props = dedup.props;
 	let modified = dedup.modified;
-	const includeRes = syncTestIncludeAst(props, auditConfig, sf);
-	props = includeRes.props;
-	if (includeRes.modified) modified = true;
+	const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
+	const hasConfiguredProjects = Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0);
+	const projectsProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "projects", sf);
+	const hasExistingProjects = Boolean(projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer));
+	if (hasConfiguredProjects || hasExistingProjects) {
+		if (findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "include", sf)) {
+			const rmRes = removeObjectProperty(props, "include", sf);
+			props = rmRes.props;
+			if (rmRes.modified) modified = true;
+		}
+		if (hasConfiguredProjects && testProjectsConfig) {
+			const projRes = syncTestProjectsAst(props, testProjectsConfig, sf);
+			props = projRes.props;
+			if (projRes.modified) modified = true;
+		}
+	} else {
+		const includeRes = syncTestIncludeAst(props, auditConfig, sf);
+		props = includeRes.props;
+		if (includeRes.modified) modified = true;
+	}
 	const covRes = syncTestCoverageAst(props, sf);
 	props = covRes.props;
 	if (covRes.modified) modified = true;
