@@ -4,6 +4,7 @@
  * Unit tests for sync_env_scripts CLI utility.
  */
 
+import * as childProcess from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -76,5 +77,58 @@ describe('sync_env_scripts CLI Utility', () => {
     expect(fs.existsSync(path.join(tempDir, 'setup-windows.ps1'))).toBe(true);
     expect(fs.existsSync(path.join(tempDir, 'update-linux.sh'))).toBe(true);
     expect(fs.existsSync(path.join(tempDir, 'update-windows.ps1'))).toBe(true);
+  });
+
+  it('guarantees all canonical environment scripts are strictly 7-bit ASCII', () => {
+    const canonicalFiles = [
+      'setup-linux.sh',
+      'setup-windows.ps1',
+      'update-linux.sh',
+      'update-windows.ps1',
+      '.agents/skills/auditor/references/plugins/01-docker-db.ps1',
+      '.agents/skills/auditor/references/plugins/01-docker-db.sh',
+      '.agents/skills/auditor/references/plugins/02-local-ssl-certs.ps1',
+      '.agents/skills/auditor/references/plugins/02-local-ssl-certs.sh'
+    ];
+
+    for (const relPath of canonicalFiles) {
+      const fullPath = path.resolve(process.cwd(), relPath);
+      if (!fs.existsSync(fullPath)) continue;
+      const buffer = fs.readFileSync(fullPath);
+      for (let i = 0; i < buffer.length; i++) {
+        const byte = buffer[i]!;
+        if (byte > 0x7f) {
+          throw new Error(
+            `Non-ASCII byte (0x${byte.toString(16).toUpperCase()}) detected in ${relPath} at offset ${i}`
+          );
+        }
+      }
+    }
+  });
+
+  it('verifies setup-windows.ps1 parses with zero syntax errors in PowerShell', () => {
+    if (process.platform !== 'win32') return;
+
+    const ps1Path = path.resolve(process.cwd(), 'setup-windows.ps1');
+
+    const testScript = [
+      '$errs = $null;',
+      '$nullRef = $null;',
+      `$inputScript = [System.IO.File]::ReadAllText('${ps1Path.replace(/'/g, "''")}');`,
+      '[System.Management.Automation.Language.Parser]::ParseInput($inputScript, [ref]$nullRef, [ref]$errs) | Out-Null;',
+      'if ($errs -and $errs.Count -gt 0) {',
+      '  $errs | ForEach-Object { Write-Output ("SYNTAX_ERROR:" + $_.Message) }',
+      '} else {',
+      '  Write-Output "PERFECT_PARSE"',
+      '}'
+    ].join('\n');
+
+    const proc = childProcess.spawnSync('powershell.exe', ['-NoProfile', '-Command', testScript], {
+      encoding: 'utf8'
+    });
+
+    expect(proc.status).toBe(0);
+    expect(proc.stdout).toContain('PERFECT_PARSE');
+    expect(proc.stdout).not.toContain('SYNTAX_ERROR');
   });
 });

@@ -466,7 +466,7 @@ if (-not $installSuccess) {
 if (-not $installSuccess) {
     Write-Host ""
     Write-Host "======================================================" -ForegroundColor Red
-    Write-Host " ❌ [ERROR] Dependency installation failed in $projectName." -ForegroundColor Red
+    Write-Host " [ERROR] Dependency installation failed in $projectName." -ForegroundColor Red
     Write-Host " Check npm errors above. It is unsafe to proceed without dependencies installed." -ForegroundColor Red
     Write-Host "======================================================" -ForegroundColor Red
     exit 1
@@ -511,7 +511,7 @@ foreach ($dir in $requiredDirs) {
         New-Item -ItemType Directory -Path $targetPath -Force | Out-Null
         Write-Host "  [+] Created directory: $dir" -ForegroundColor Green
     } else {
-        Write-Host "  [✓] Directory detected: $dir" -ForegroundColor Gray
+        Write-Host "  [OK] Directory detected: $dir" -ForegroundColor Gray
     }
 }
 
@@ -537,7 +537,7 @@ if ($hasFallow) {
     if (-not (Test-Path $fallowVectorsDir)) {
         New-Item -ItemType Directory -Path $fallowVectorsDir -Force | Out-Null
     }
-    Write-Host "  [✓] Persistent cache directory verified: $fallowUserCache" -ForegroundColor Gray
+    Write-Host "  [OK] Persistent cache directory verified: $fallowUserCache" -ForegroundColor Gray
 
     # 2. Unblock Fallow binaries (SmartScreen / Mark of the Web)
     $fallowCliDirs = @(
@@ -549,7 +549,7 @@ if ($hasFallow) {
             Get-ChildItem -Path $dir -Include "*.exe", "*.dll", "*.node" -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
         }
     }
-    Write-Host "  [✓] Fallow binaries unblocked (Unblock-File)." -ForegroundColor Gray
+    Write-Host "  [OK] Fallow binaries unblocked (Unblock-File)." -ForegroundColor Gray
 
     # 3. Windows Defender Antivirus Whitelist
     $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -592,7 +592,7 @@ if ($hasFallow) {
                 Write-Host "  [+] Downloading and initializing AI embedding model (jina-embeddings-v2-base-code)..." -ForegroundColor Cyan
                 node $fallowBin similar-code setup --local --yes
             } else {
-                Write-Host "  [✓] Similar-code AI embedding model verified and ready." -ForegroundColor Green
+                Write-Host "  [OK] Similar-code AI embedding model verified and ready." -ForegroundColor Green
             }
         } catch {
             Write-Host "  [WARN] Could not initialize similar-code automatically: $_" -ForegroundColor Yellow
@@ -611,7 +611,7 @@ if (Test-Path $projectGitignore) {
         [System.IO.File]::AppendAllText($projectGitignore, $entry, (New-Object System.Text.UTF8Encoding $false))
         Write-Host "  [OK] scratch/ added to .gitignore" -ForegroundColor Green
     } else {
-        Write-Host "  [✓] scratch/ is already excluded in .gitignore" -ForegroundColor Gray
+        Write-Host "  [OK] scratch/ is already excluded in .gitignore" -ForegroundColor Gray
     }
 } else {
     Write-Host "  [+] Creating basic .gitignore excluding scratch/..." -ForegroundColor Cyan

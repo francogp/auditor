@@ -10,7 +10,7 @@ NODE_VERSION_PATH="$SCRIPT_DIR/.node-version"
 NVMRC_PATH="$SCRIPT_DIR/.nvmrc"
 
 if [ ! -f "$PKG_PATH" ]; then
-    echo "❌ ERROR: package.json not found in $PKG_PATH"
+    echo "[ERROR] package.json not found in $PKG_PATH"
     exit 1
 fi
 
@@ -48,7 +48,7 @@ done
 TARGET_NODE_VER=""
 
 if [ "$UPDATE_TO_LATEST" = true ]; then
-    echo "🔍 Querying latest stable Node.js Current version from nodejs.org..."
+    echo "[NODE] Querying latest stable Node.js Current version from nodejs.org..."
     if command -v curl >/dev/null 2>&1; then
         TARGET_NODE_VER=$(curl -s --max-time 10 https://nodejs.org/dist/index.json | grep -o '"version": *"v[0-9.]*"' | head -n 1 | grep -o '[0-9.]*' || true)
     fi
@@ -57,10 +57,10 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
             sed -i -E "s/(\"node\": *\">=)[^\"]*(\")/\1$TARGET_NODE_VER\2/" "$PKG_PATH"
         fi
         echo "$TARGET_NODE_VER" > "$NODE_VERSION_PATH"
-        echo "✅ Node.js version synchronized to v$TARGET_NODE_VER in .node-version and package.json"
+        echo "[OK] Node.js version synchronized to v$TARGET_NODE_VER in .node-version and package.json"
     fi
 else
-    echo "🔒 Declared versions mode active (--declared-versions). Preserving exact version from .node-version without network query..."
+    echo "[NODE] Declared versions mode active (--declared-versions). Preserving exact version from .node-version without network query..."
 fi
 
 # If no remote query or query failed: read canonical version from .node-version
@@ -79,7 +79,7 @@ if [ -z "$TARGET_NODE_VER" ]; then
 fi
 
 if [ -z "$TARGET_NODE_VER" ]; then
-    echo "❌ ERROR: Could not determine required Node.js version in $PKG_PATH"
+    echo "[ERROR] Could not determine required Node.js version in $PKG_PATH"
     exit 1
 fi
 
@@ -91,14 +91,14 @@ if [ -f "$AUDITOR_PKG" ]; then
         # Basic semver comparison via sort -V
         LOWER_VER=$(printf '%s\n%s\n' "$TARGET_NODE_VER" "$AUDITOR_NODE_MIN" | sort -V | head -n 1)
         if [ "$TARGET_NODE_VER" != "$AUDITOR_NODE_MIN" ] && [ "$LOWER_VER" = "$TARGET_NODE_VER" ]; then
-            echo "❌ ERROR: Target version v$TARGET_NODE_VER is LOWER than minimum required by @francogp/auditor (v$AUDITOR_NODE_MIN)."
+            echo "[ERROR] Target version v$TARGET_NODE_VER is LOWER than minimum required by @francogp/auditor (v$AUDITOR_NODE_MIN)."
             exit 1
         fi
     fi
 fi
 
 echo "======================================================"
-echo " 🚀 NODE ENVIRONMENT PREPARATION (v$TARGET_NODE_VER) [$PROJECT_NAME]"
+echo " [SETUP] NODE ENVIRONMENT PREPARATION (v$TARGET_NODE_VER) [$PROJECT_NAME]"
 echo "======================================================"
 
 # 1. Check / Load NVM
@@ -107,31 +107,31 @@ export NVM_DIR="$HOME/.nvm"
 if [ -s "$NVM_DIR/nvm.sh" ]; then
     . "$NVM_DIR/nvm.sh"
 else
-    echo "📦 NVM not detected. Installing NVM (v0.40.1)..."
+    echo "[NVM] NVM not detected. Installing NVM (v0.40.1)..."
     curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 fi
 
 # 2. Install and activate Node.js in NVM
-echo -e "\n🟢 Verifying / Installing Node.js v$TARGET_NODE_VER in NVM..."
-nvm install "$TARGET_NODE_VER" || echo "⚠️ Warning while installing Node v$TARGET_NODE_VER via NVM."
+echo -e "\n[NODE] Verifying / Installing Node.js v$TARGET_NODE_VER in NVM..."
+nvm install "$TARGET_NODE_VER" || echo "  [WARN] Warning while installing Node v$TARGET_NODE_VER via NVM."
 
-echo -e "\n⚡ Activating Node.js v$TARGET_NODE_VER..."
-nvm use "$TARGET_NODE_VER" || echo "⚠️ Warning while activating Node v$TARGET_NODE_VER."
+echo -e "\n[NODE] Activating Node.js v$TARGET_NODE_VER..."
+nvm use "$TARGET_NODE_VER" || echo "  [WARN] Warning while activating Node v$TARGET_NODE_VER."
 
 # Preserve existing default alias for multi-project coexistence
 CURRENT_DEFAULT=$(nvm alias default 2>/dev/null | awk '{print $3}' || true)
 if [ -n "$CURRENT_DEFAULT" ] && [ "$CURRENT_DEFAULT" != "N/A" ] && [ "$SET_DEFAULT" = false ]; then
-    echo "ℹ️ Preserving existing default alias ($CURRENT_DEFAULT). $PROJECT_NAME is activated locally via .node-version ('vp env use')."
+    echo "[INFO] Preserving existing default alias ($CURRENT_DEFAULT). $PROJECT_NAME is activated locally via .node-version ('vp env use')."
 else
-    echo "📌 Configuring NVM default alias to v$TARGET_NODE_VER..."
+    echo "[NVM] Configuring NVM default alias to v$TARGET_NODE_VER..."
     nvm alias default "$TARGET_NODE_VER" 2>/dev/null || true
 fi
 
 # 3. Obsolete versions cleanup (STRICTLY OPT-IN with --prune-other-versions)
 if [ "$PRUNE_VERSIONS" = true ]; then
-    echo -e "\n🧹 Cleaning Node.js versions in NVM (--prune-other-versions enabled)..."
+    echo -e "\n[CLEANUP] Cleaning Node.js versions in NVM (--prune-other-versions enabled)..."
     if [ -d "$NVM_DIR/versions/node" ]; then
         for old_dir in "$NVM_DIR/versions/node"/v*; do
             if [ -d "$old_dir" ] && [ "$(basename "$old_dir")" != "v$TARGET_NODE_VER" ]; then
@@ -142,7 +142,7 @@ if [ "$PRUNE_VERSIONS" = true ]; then
         done
     fi
 else
-    echo -e "\nℹ️ Preserving all other Node.js versions installed in NVM for multi-project coexistence."
+    echo -e "\n[INFO] Preserving all other Node.js versions installed in NVM for multi-project coexistence."
 fi
 
 # 4. Detect binary directory and ensure symlinks in ~/.local/bin
@@ -157,7 +157,7 @@ export PATH="$NODE_BIN_DIR:$PATH"
 LOCAL_BIN="$HOME/.local/bin"
 mkdir -p "$LOCAL_BIN"
 
-echo -e "\n🔗 Synchronizing symlinks in $LOCAL_BIN..."
+echo -e "\n[LINKS] Synchronizing symlinks in $LOCAL_BIN..."
 for bin_name in node npm npx corepack; do
     if [ -e "$NODE_BIN_DIR/$bin_name" ]; then
         ln -sf "$NODE_BIN_DIR/$bin_name" "$LOCAL_BIN/$bin_name"
@@ -166,13 +166,13 @@ done
 
 # 5. Update npm to appropriate version
 if [ "$UPDATE_TO_LATEST" = true ]; then
-    echo -e "\n📦 Updating npm to latest global version in this Node (npm@latest)..."
-    npm install -g npm@latest || echo "⚠️ Warning: Could not update npm globally. Continuing with active version..."
+    echo -e "\n[NPM] Updating npm to latest global version in this Node (npm@latest)..."
+    npm install -g npm@latest || echo "  [WARN] Warning: Could not update npm globally. Continuing with active version..."
 
     NEW_NPM_VER=$(npm -v 2>/dev/null || true)
     if [ -n "$NEW_NPM_VER" ] && grep -q '"npm":' "$PKG_PATH"; then
         sed -i -E "s/(\"npm\": *\">=)[^\"]*(\")/\1$NEW_NPM_VER\2/" "$PKG_PATH"
-        echo "✅ npm version synchronized to >=$NEW_NPM_VER in package.json"
+        echo "  [OK] npm version synchronized to >=$NEW_NPM_VER in package.json"
     fi
 
     for bin_name in npm npx; do
@@ -184,20 +184,20 @@ else
     TARGET_NPM_VER=$(grep -o '"npm": *"[^"]*"' "$PKG_PATH" | grep -o '[0-9.]*' | head -n 1)
     CURRENT_NPM_VER=$($NODE_BIN_DIR/npm -v 2>/dev/null || npm -v)
     if [ -n "$TARGET_NPM_VER" ] && [ "$CURRENT_NPM_VER" != "$TARGET_NPM_VER" ]; then
-        echo -e "\n📦 Synchronizing npm to version declared in commit (npm@$TARGET_NPM_VER)..."
-        npm install -g "npm@$TARGET_NPM_VER" || echo "⚠️ Warning: Could not install npm@$TARGET_NPM_VER."
+        echo -e "\n[NPM] Synchronizing npm to version declared in commit (npm@$TARGET_NPM_VER)..."
+        npm install -g "npm@$TARGET_NPM_VER" || echo "  [WARN] Warning: Could not install npm@$TARGET_NPM_VER."
         for bin_name in npm npx; do
             if [ -e "$NODE_BIN_DIR/$bin_name" ]; then
                 ln -sf "$NODE_BIN_DIR/$bin_name" "$LOCAL_BIN/$bin_name"
             fi
         done
     else
-        echo -e "\n🔒 Preserving active npm version ($CURRENT_NPM_VER)."
+        echo -e "\n[NPM] Preserving active npm version ($CURRENT_NPM_VER)."
     fi
 fi
 
 # 6. Project-isolated NPM Security Configuration (without affecting global environment)
-echo -e "\n🛡️ Verifying local npm configuration (project .npmrc)..."
+echo -e "\n[CONFIG] Verifying local npm configuration (project .npmrc)..."
 if [ ! -f "$SCRIPT_DIR/.npmrc" ]; then
     cat << EOF > "$SCRIPT_DIR/.npmrc"
 # $PROJECT_NAME - Local Project NPM Configuration
@@ -207,54 +207,54 @@ audit-level=high
 EOF
     echo "  [+] Created local .npmrc with isolated policies (ignore-scripts, registry, audit-level)."
 else
-    echo "  [✓] Local .npmrc detected and active."
+    echo "  [OK] Local .npmrc detected and active."
 fi
 
 # 7. Clean installation of project dependencies
-echo -e "\n📦 Installing project dependencies..."
+echo -e "\n[DEPS] Installing project dependencies..."
 cd "$SCRIPT_DIR"
 
 INSTALL_SUCCESS=false
 
 if command -v vp >/dev/null 2>&1; then
-    echo "⚡ Using Vite+ (vp install)..."
+    echo "[DEPS] Using Vite+ (vp install)..."
     if vp install; then
         INSTALL_SUCCESS=true
     else
-        echo "⚠️ 'vp install' failed. Retrying with npm ci..."
+        echo "  [WARN] 'vp install' failed. Retrying with npm ci..."
     fi
 fi
 
 if [ "$INSTALL_SUCCESS" = false ]; then
-    echo "📦 Installing clean dependencies with npm ci..."
+    echo "[DEPS] Installing clean dependencies with npm ci..."
     if npm ci; then
         INSTALL_SUCCESS=true
     else
-        echo "⚠️ 'npm ci' failed (possible lockfile desynchronization or remote dependencies)."
-        echo "🔄 Attempting recovery with 'npm install' to synchronize dependencies..."
+        echo "  [WARN] 'npm ci' failed (possible lockfile desynchronization or remote dependencies)."
+        echo "  [RECOVERY] Attempting recovery with 'npm install' to synchronize dependencies..."
         if npm install; then
             INSTALL_SUCCESS=true
-            echo "✅ Dependencies installed and synchronized successfully via npm install."
-            echo "⚠️ NOTICE: package-lock.json was desynchronized with package.json and was updated by npm install. Review and commit alongside package.json."
+            echo "  [OK] Dependencies installed and synchronized successfully via npm install."
+            echo "  [WARN] NOTICE: package-lock.json was desynchronized with package.json and was updated by npm install. Review and commit alongside package.json."
         fi
     fi
 fi
 
 if [ "$INSTALL_SUCCESS" = false ]; then
     echo -e "\n======================================================"
-    echo "❌ ERROR: Dependency installation failed in $PROJECT_NAME."
+    echo "[ERROR] Dependency installation failed in $PROJECT_NAME."
     echo "Check npm errors above. It is unsafe to proceed."
     echo "======================================================"
     exit 1
 fi
 
 if command -v vp >/dev/null 2>&1; then
-    echo -e "\n🔧 Synchronizing configuration with Vite+ (vp config)..."
+    echo -e "\n[CONFIG] Synchronizing configuration with Vite+ (vp config)..."
     vp config || true
 fi
 
 # 8. Initialize Auditor & Project Base Directories
-echo -e "\n📁 Initializing auditor and project base directories..."
+echo -e "\n[DIRECTORIES] Initializing auditor and project base directories..."
 REQUIRED_DIRS=(
     "scratch"
     "scratch/audits"
@@ -274,7 +274,7 @@ for dir in "${REQUIRED_DIRS[@]}"; do
         mkdir -p "$target_path"
         echo "  [+] Created directory: $dir"
     else
-        echo "  [✓] Directory detected: $dir"
+        echo "  [OK] Directory detected: $dir"
     fi
 done
 
@@ -291,7 +291,7 @@ if [ -f "$FALLOW_BIN" ]; then
     echo "  [+] Verifying similar-code vector model status..."
     STATUS_JSON=$(node "$FALLOW_BIN" similar-code status --format json 2>/dev/null || echo "{}")
     if echo "$STATUS_JSON" | grep -q '"model_ready":true'; then
-        echo "  [✓] Similar-code AI embedding model verified and ready."
+        echo "  [OK] Similar-code AI embedding model verified and ready."
     else
         echo "  [+] Downloading and initializing AI embedding model (jina-embeddings-v2-base-code)..."
         node "$FALLOW_BIN" similar-code setup --local --yes || echo "  [WARN] Could not initialize similar-code automatically."
@@ -306,7 +306,7 @@ if [ -f "$GITIGNORE_FILE" ]; then
         printf "\n# Scratch & Temporary Audits\nscratch/\n" >> "$GITIGNORE_FILE"
         echo "  [OK] scratch/ added to .gitignore"
     else
-        echo "  [✓] scratch/ is already excluded in .gitignore"
+        echo "  [OK] scratch/ is already excluded in .gitignore"
     fi
 else
     echo -e "\n  [+] Creating basic .gitignore excluding scratch/..."
@@ -329,7 +329,7 @@ if [ -d "$PLUGINS_DIR" ]; then
     for plugin_script in "$PLUGINS_DIR"/*.sh; do
         if [ -f "$plugin_script" ] && [ ! "$plugin_script" = "$PLUGINS_DIR/*.sh" ]; then
             plugin_name=$(basename "$plugin_script")
-            echo -e "\n🔌 Executing setup plugin: $plugin_name..."
+            echo -e "\n[PLUGIN] Executing setup plugin: $plugin_name..."
             bash "$plugin_script"
         fi
     done
@@ -337,12 +337,12 @@ fi
 
 # 10. Optional npm hook: env:post-setup
 if grep -q '"env:post-setup"' "$PKG_PATH"; then
-    echo -e "\n🪝 Executing post-setup hook (npm run env:post-setup)..."
+    echo -e "\n[HOOK] Executing post-setup hook (npm run env:post-setup)..."
     npm run env:post-setup
 fi
 
 echo "======================================================"
-echo " 🎉 ENVIRONMENT AND DEPENDENCIES PREPARED SUCCESSFULLY!"
+echo " [SUCCESS] ENVIRONMENT AND DEPENDENCIES PREPARED SUCCESSFULLY!"
 echo " Project: $PROJECT_NAME"
 echo "======================================================"
 echo "Active versions:"

@@ -14,6 +14,7 @@ This guide documents the canonical architecture, extension mechanisms, and gover
    - Environment preparation and cache initialization (Fallow vectors cache, native tool prerequisites).
 2. **Zero Core Modification & Strict Prohibition on Local Host Patches**: Domain-specific requirements of a host project (e.g. Docker databases, local SSL certificates, database seeds, background daemons) **MUST NEVER** be introduced by mutating the framework base scripts. Furthermore, when encountering bugs, version synchronization gaps, or improvements in setup scripts, **AGENTS ARE STRICTLY FORBIDDEN** from applying local patches or workarounds in the host project; agents MUST notify the user so the issue is resolved upstream in `@francogp/auditor`.
 3. **Mandatory Idempotency**: All extension scripts must be 100% idempotent; executing the setup repeatedly must yield identical end states without errors, duplicates, or data corruption.
+4. **Mandatory 7-Bit ASCII Hygiene**: All environment setup scripts, update runners, and extension plugins in `scripts/setup/plugins/` MUST be authored strictly in 7-bit ASCII (`0x00 - 0x7F`). Multi-byte characters, checkmarks (`✓`), emojis, and non-ASCII typographic characters are strictly prohibited to prevent syntax parsing aborts in Windows PowerShell 5.1 (`powershell.exe`) caused by Windows-1252 ANSI byte collisions. Use standard ASCII status indicators (`[OK]`, `[WARN]`, `[ERROR]`, `[INFO]`, etc.).
 
 ---
 
