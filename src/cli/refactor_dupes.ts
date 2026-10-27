@@ -193,6 +193,17 @@ const REFACTOR_DUPES_ARGS = {
     type: 'string',
     description: 'Path to RefactorPlan JSON file'
   },
+  subcommand: {
+    type: 'positional',
+    required: false,
+    default: 'discover',
+    description: 'Subcommand to run (discover | inspect | apply | help)'
+  },
+  target: {
+    type: 'positional',
+    required: false,
+    description: 'Fingerprint to inspect or plan JSON file to apply'
+  },
   fingerprint: {
     type: 'string',
     description: 'Clone group fingerprint to inspect'
@@ -209,21 +220,19 @@ const DUPES_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', '
 export async function runRefactorCli(rawInputArgs?: readonly string[]): Promise<void> {
   const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
   const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, DUPES_SUBCOMMANDS);
-  const posList = parsed._;
 
-  const firstPos = posList[0] ? String(posList[0]) : undefined;
-  let subCommand = 'discover';
-  let targetArg: string | undefined;
+  const subCommand = (parsed.subcommand as string) || 'discover';
+  const targetArg =
+    (parsed.target as string | undefined) ||
+    (typeof parsed.fingerprint === 'string' ? parsed.fingerprint : undefined) ||
+    (typeof parsed.plan === 'string' ? parsed.plan : undefined);
 
-  if (parsed.help || firstPos === 'help') {
+  if (parsed.help || subCommand === 'help') {
     console.log('Available commands: discover, inspect, apply');
     return;
   }
 
-  if (firstPos && DUPES_SUBCOMMANDS.has(firstPos)) {
-    subCommand = firstPos;
-    targetArg = posList[1] ? String(posList[1]) : undefined;
-  } else if (firstPos) {
+  if (!DUPES_SUBCOMMANDS.has(subCommand)) {
     console.log('Available commands: discover, inspect, apply');
     return;
   }

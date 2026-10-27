@@ -22,6 +22,17 @@ const REFACTOR_SUBCOMMANDS = /* @__PURE__ */ new Set([
 ]);
 const REFACTOR_HARNESS_ARGS = {
 	...COMMON_CLI_ARGS,
+	subcommand: {
+		type: "positional",
+		required: false,
+		description: "Subcommand to execute (discover, inspect, apply, help)",
+		default: "discover"
+	},
+	target: {
+		type: "positional",
+		required: false,
+		description: "Target file to inspect or plan JSON to apply"
+	},
 	file: {
 		type: "string",
 		description: "Target file path to inspect"
@@ -159,7 +170,7 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 		verbose: Boolean(parsed.verbose),
 		format: typeof parsed.format === "string" ? parsed.format : void 0
 	}, argv);
-	const command = parsed._[0] || "discover";
+	const command = (typeof parsed.subcommand === "string" && parsed.subcommand ? parsed.subcommand : void 0) ?? (parsed._[0] || "discover");
 	if (parsed.help || command === "help") {
 		renderHarnessHelp(def);
 		return;
@@ -176,10 +187,10 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 			handleDiscoverCommand(def, projectRoot, engine, isHuman);
 			break;
 		case "inspect":
-			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" ? parsed.file : void 0) || parsed._[1]);
+			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0) ?? parsed._[1]);
 			break;
 		case "apply":
-			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" ? parsed.plan : void 0) || parsed._[1], Boolean(parsed.worktree));
+			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0) ?? parsed._[1], Boolean(parsed.worktree));
 			break;
 		default:
 			console.error(styleText("red", `[Error] Unknown command: ${command}`));

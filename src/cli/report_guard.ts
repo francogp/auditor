@@ -13,7 +13,8 @@ import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
-  resolveHumanModeFromArgs
+  resolveHumanModeFromArgs,
+  type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
@@ -193,8 +194,17 @@ export function runGuardReport(
   return status;
 }
 
+const GUARD_CLI_ARGS = {
+  ...COMMON_CLI_ARGS,
+  files: {
+    type: 'positional',
+    required: false,
+    description: 'Files to inspect with architectural guard'
+  }
+} as const satisfies CittyArgsDef;
+
 if (isMainModule(import.meta.url)) {
-  const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+  const parsed = parseCittyArgs(GUARD_CLI_ARGS, getProcessCliArgs());
   const files = parsed._.map(String).filter(Boolean);
   const exitCode = runGuardReport(process.cwd(), files, {
     json: Boolean(parsed.json),

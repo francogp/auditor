@@ -117,8 +117,16 @@ function runGuardReport(projectRoot = process.cwd(), files = [], options = {}) {
 	renderGuardResultsTable(fileResults, options);
 	return status;
 }
+const GUARD_CLI_ARGS = {
+	...COMMON_CLI_ARGS,
+	files: {
+		type: "positional",
+		required: false,
+		description: "Files to inspect with architectural guard"
+	}
+};
 if (isMainModule(import.meta.url)) {
-	const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+	const parsed = parseCittyArgs(GUARD_CLI_ARGS, getProcessCliArgs());
 	const files = parsed._.map(String).filter(Boolean);
 	const exitCode = runGuardReport(process.cwd(), files, {
 		json: Boolean(parsed.json),

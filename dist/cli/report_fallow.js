@@ -51,6 +51,11 @@ const FALLOW_REPORT_ARGS = {
 		type: "string",
 		description: "Fallow analysis category"
 	},
+	categoryPos: {
+		type: "positional",
+		required: false,
+		description: "Fallow analysis category"
+	},
 	top: {
 		type: "string",
 		default: "20",
@@ -65,7 +70,8 @@ const FALLOW_REPORT_ARGS = {
 function parseCommandLineArgs() {
 	const parsed = parseCittyArgs(FALLOW_REPORT_ARGS, getProcessCliArgs());
 	const positionals = parsed._.map(String);
-	let category = typeof parsed.category === "string" ? parsed.category.toLowerCase() : "";
+	const rawPosCategory = typeof parsed.categoryPos === "string" ? parsed.categoryPos.toLowerCase() : "";
+	let category = typeof parsed.category === "string" ? parsed.category.toLowerCase() : rawPosCategory;
 	const rawTopStr = String(parsed.top || "20");
 	let top = rawTopStr === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTopStr, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
 	let jsonOutput = Boolean(parsed.json);

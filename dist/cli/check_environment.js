@@ -14,6 +14,19 @@ import { fileURLToPath } from "node:url";
 * Enforces Node.js and npm version invariants dynamically derived from package.json
 * without hardcoded versions.
 */
+const CHECK_ENV_ARGS = {
+	...COMMON_CLI_ARGS,
+	mode: {
+		type: "positional",
+		required: false,
+		description: "Execution mode (e.g. preinstall)"
+	},
+	preinstall: {
+		type: "boolean",
+		default: false,
+		description: "Invoked during npm preinstall lifecycle hook"
+	}
+};
 function parseSemver(v) {
 	const parts = v.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
 	return {
@@ -119,7 +132,7 @@ function validateRuntimeEnvironment(hostPkg, projectName, verbose = true) {
 	return true;
 }
 function checkEnvironment(targetDir = process.cwd(), autoRemediate = true) {
-	const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+	const parsed = parseCittyArgs(CHECK_ENV_ARGS, getProcessCliArgs());
 	const hostPkgPath = path.resolve(targetDir, "package.json");
 	if (!fs.existsSync(hostPkgPath)) {
 		console.error(`[check_environment] package.json not found in ${targetDir}`);
@@ -132,7 +145,7 @@ function checkEnvironment(targetDir = process.cwd(), autoRemediate = true) {
 	if (isDeclaredValid && isRuntimeValid) return true;
 	const setupScriptName = process.platform === "win32" ? "setup-windows.ps1" : "setup-linux.sh";
 	const setupScriptPath = path.resolve(targetDir, setupScriptName);
-	const isPreinstallHook = process.env.npm_lifecycle_event === "preinstall" || parsed._.map(String).includes("preinstall");
+	const isPreinstallHook = process.env.npm_lifecycle_event === "preinstall" || Boolean(parsed.preinstall) || parsed.mode === "preinstall";
 	if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
 		console.log(`\n\x1b[36m\x1b[1m🔄 Environment drift detected in ${projectName}. Automatically running ${setupScriptName} to synchronize environment...\x1b[0m\n`);
 		if (runSetup([], targetDir) === 0) {

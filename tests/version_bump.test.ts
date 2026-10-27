@@ -540,5 +540,39 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       const updated2 = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
       expect(updated2.version).toMatch(/^3\.1\.4-build\.\d{8}-\d{6}$/);
     });
+
+    it('accepts Citty canonical JSON format and positional arguments in analyze command', () => {
+      const logs: string[] = [];
+      const logSpy = vi.spyOn(console, 'log').mockImplementation((msg?: unknown) => {
+        logs.push(String(msg));
+      });
+
+      try {
+        runBumpCli(['analyze', 'json'], tempDir);
+        expect(logs.some((l) => l.includes('"recommendedBump"'))).toBe(true);
+
+        logs.length = 0;
+        runBumpCli(['analyze', 'format=json'], tempDir);
+        expect(logs.some((l) => l.includes('"recommendedBump"'))).toBe(true);
+      } finally {
+        logSpy.mockRestore();
+      }
+    });
+
+    it('handles Citty canonical positional and typed bump arguments', () => {
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'test-pkg', version: '1.0.0-build.20261001-000000' }),
+        'utf-8'
+      );
+
+      runBumpCli(['bump', 'patch'], tempDir);
+      let updated = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updated.version).toMatch(/^1\.0\.1-build\.\d{8}-\d{6}$/);
+
+      runBumpCli(['bump', '--type=minor'], tempDir);
+      updated = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
+      expect(updated.version).toMatch(/^1\.1\.0-build\.\d{8}-\d{6}$/);
+    });
   });
 });

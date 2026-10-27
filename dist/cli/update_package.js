@@ -277,6 +277,11 @@ function renderUpdateHelp() {
 }
 const UPDATE_PACKAGE_ARGS = {
 	...COMMON_CLI_ARGS,
+	targetVersion: {
+		type: "positional",
+		required: false,
+		description: "Target version or tag (e.g. 10.0.0, v10.0.0)"
+	},
 	check: {
 		type: "boolean",
 		alias: "c",
@@ -295,21 +300,15 @@ const UPDATE_PACKAGE_ARGS = {
 		description: "Suppress console progress output"
 	}
 };
-const HELP_COMMAND_TOKENS = /* @__PURE__ */ new Set([
-	"help",
-	"--help",
-	"-h"
-]);
 function runCli() {
 	const rawArgs = getProcessCliArgs();
 	const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, rawArgs);
-	const rawFirstArg = parsed._.map(String)[0]?.trim();
-	if (Boolean(parsed.help || rawFirstArg && HELP_COMMAND_TOKENS.has(rawFirstArg))) {
+	if (Boolean(parsed.help || parsed.targetVersion === "help" || parsed._.includes("help"))) {
 		console.log(renderUpdateHelp());
 		process.exit(0);
 	}
 	const isCheckMode = Boolean(parsed.check || parsed.dryRun);
-	const targetVersion = rawFirstArg && !rawFirstArg.startsWith("-") && rawFirstArg !== "help" ? rawFirstArg : void 0;
+	const targetVersion = typeof parsed.targetVersion === "string" && parsed.targetVersion !== "help" ? parsed.targetVersion : void 0;
 	const silent = Boolean(parsed.silent);
 	const isHuman = resolveHumanModeFromArgs(parsed);
 	const result = updateAuditorPackage({

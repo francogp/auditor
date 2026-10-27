@@ -53,12 +53,14 @@ function isFlagItemIncludesCall(node) {
 	if (!firstArg || !firstArg.includes("=")) return false;
 	return isArgItemReceiver(callee.expression);
 }
-function isFirstArgIndexAccess(expr) {
+function isArgIndexAccess(expr, ctx) {
 	const target = unwrapCliExpression(expr);
 	if (!ts.isElementAccessExpression(target)) return false;
 	const arr = unwrapCliExpression(target.expression);
 	const idx = unwrapCliExpression(target.argumentExpression);
-	return ts.isIdentifier(arr) && CLI_ARG_COLLECTION_NAMES.has(arr.text) && ts.isNumericLiteral(idx) && idx.text === "0";
+	if (!ts.isIdentifier(arr) || !ts.isNumericLiteral(idx)) return false;
+	if (arr.text === "args") return ctx.isCliEntrypoint;
+	return CLI_ARG_COLLECTION_NAMES.has(arr.text);
 }
 const homebrewFlagDetector = (node, ctx) => {
 	if (ctx.isAuthorizedHarness) return null;
@@ -69,7 +71,12 @@ const homebrewFlagDetector = (node, ctx) => {
 			message: HOMEBREW_FLAG_MESSAGE
 		};
 	}
-	if (ts.isSwitchStatement(node) && isFirstArgIndexAccess(node.expression)) return {
+	if (ts.isElementAccessExpression(node) && isArgIndexAccess(node, ctx)) return {
+		ruleId: "cli-contracts-homebrew-flag-parsing",
+		node,
+		message: HOMEBREW_FLAG_MESSAGE
+	};
+	if (ts.isSwitchStatement(node) && isArgIndexAccess(node.expression, ctx)) return {
 		ruleId: "cli-contracts-homebrew-flag-parsing",
 		node: node.expression,
 		message: HOMEBREW_FLAG_MESSAGE

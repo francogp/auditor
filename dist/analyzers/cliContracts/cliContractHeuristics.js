@@ -33,6 +33,7 @@ const CLI_ARG_COLLECTION_NAMES = /* @__PURE__ */ new Set([
 	"argv",
 	"rawCliArgs",
 	"posArgs",
+	"posList",
 	"positionals",
 	"nonProjectPositionals"
 ]);

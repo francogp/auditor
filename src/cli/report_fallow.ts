@@ -59,6 +59,7 @@ const VALID_CATEGORY_ALIASES = new Set([
 const FALLOW_REPORT_ARGS = {
   ...COMMON_CLI_ARGS,
   category: { type: 'string', description: 'Fallow analysis category' },
+  categoryPos: { type: 'positional', required: false, description: 'Fallow analysis category' },
   top: { type: 'string', default: '20', description: 'Maximum items to display' },
   retirement: { type: 'boolean', default: false, description: 'Show retirement candidates for flags' }
 } as const satisfies CittyArgsDef;
@@ -67,7 +68,8 @@ function parseCommandLineArgs() {
   const parsed = parseCittyArgs(FALLOW_REPORT_ARGS, getProcessCliArgs());
   const positionals = parsed._.map(String);
 
-  let category = typeof parsed.category === 'string' ? parsed.category.toLowerCase() : '';
+  const rawPosCategory = typeof parsed.categoryPos === 'string' ? parsed.categoryPos.toLowerCase() : '';
+  let category = typeof parsed.category === 'string' ? parsed.category.toLowerCase() : rawPosCategory;
   const rawTopStr = String(parsed.top || '20');
   let top =
     rawTopStr === 'all'

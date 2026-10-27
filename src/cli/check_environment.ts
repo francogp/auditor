@@ -12,8 +12,27 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMainModule } from './cliUtils.ts';
 import { runSetup } from './setup_env.ts';
-import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
+import {
+  getProcessCliArgs,
+  parseCittyArgs,
+  COMMON_CLI_ARGS,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
 import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
+
+const CHECK_ENV_ARGS = {
+  ...COMMON_CLI_ARGS,
+  mode: {
+    type: 'positional',
+    required: false,
+    description: 'Execution mode (e.g. preinstall)'
+  },
+  preinstall: {
+    type: 'boolean',
+    default: false,
+    description: 'Invoked during npm preinstall lifecycle hook'
+  }
+} as const satisfies CittyArgsDef;
 
 export interface SemverVersion {
   major: number;
@@ -194,7 +213,7 @@ export function checkEnvironment(
   targetDir: string = process.cwd(),
   autoRemediate: boolean = true
 ): boolean {
-  const parsed = parseCittyArgs(COMMON_CLI_ARGS, getProcessCliArgs());
+  const parsed = parseCittyArgs(CHECK_ENV_ARGS, getProcessCliArgs());
   const hostPkgPath = path.resolve(targetDir, 'package.json');
   if (!fs.existsSync(hostPkgPath)) {
     console.error(`[check_environment] package.json not found in ${targetDir}`);
@@ -216,7 +235,9 @@ export function checkEnvironment(
   const setupScriptName = isWindows ? 'setup-windows.ps1' : 'setup-linux.sh';
   const setupScriptPath = path.resolve(targetDir, setupScriptName);
   const isPreinstallHook =
-    process.env.npm_lifecycle_event === 'preinstall' || parsed._.map(String).includes('preinstall');
+    process.env.npm_lifecycle_event === 'preinstall' ||
+    Boolean(parsed.preinstall) ||
+    parsed.mode === 'preinstall';
 
   if (autoRemediate && !isPreinstallHook && fs.existsSync(setupScriptPath)) {
     console.log(

@@ -135,6 +135,17 @@ async function handleApply(projectRoot: string, rawPlanPath: string | undefined,
 
 const REFACTOR_MAGIC_ARGS = {
   ...COMMON_CLI_ARGS,
+  subcommand: {
+    type: 'positional',
+    required: false,
+    default: 'discover',
+    description: 'Subcommand to run (discover | inspect | apply | help)'
+  },
+  target: {
+    type: 'positional',
+    required: false,
+    description: 'File to inspect or MagicRefactorPlan JSON file to apply'
+  },
   file: {
     type: 'string',
     description: 'Target file to inspect for magic literals'
@@ -154,21 +165,13 @@ const MAGIC_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', '
 
 export async function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void> {
   const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
-  const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs);
-  const posList = parsed._;
+  const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs, MAGIC_SUBCOMMANDS);
 
-  const firstPos = posList[0] ? String(posList[0]) : undefined;
-  let command = 'discover';
-  let targetArg: string | undefined;
-
-  if (firstPos && MAGIC_SUBCOMMANDS.has(firstPos)) {
-    command = firstPos;
-    targetArg = (posList[1] ? String(posList[1]) : undefined) || (typeof parsed.file === 'string' ? parsed.file : undefined);
-  } else if (firstPos) {
-    command = firstPos;
-  } else {
-    targetArg = typeof parsed.file === 'string' ? parsed.file : undefined;
-  }
+  const command = (parsed.subcommand as string) || 'discover';
+  const targetArg =
+    (parsed.target as string | undefined) ||
+    (typeof parsed.file === 'string' ? parsed.file : undefined) ||
+    (typeof parsed.plan === 'string' ? parsed.plan : undefined);
 
   const projectRoot = path.resolve(String(parsed.project || process.cwd()));
 

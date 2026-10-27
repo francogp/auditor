@@ -64,6 +64,17 @@ const REFACTOR_SUBCOMMANDS: ReadonlySet<string> = new Set([
 
 const REFACTOR_HARNESS_ARGS = {
   ...COMMON_CLI_ARGS,
+  subcommand: {
+    type: 'positional',
+    required: false,
+    description: 'Subcommand to execute (discover, inspect, apply, help)',
+    default: 'discover'
+  },
+  target: {
+    type: 'positional',
+    required: false,
+    description: 'Target file to inspect or plan JSON to apply'
+  },
   file: {
     type: 'string',
     description: 'Target file path to inspect'
@@ -273,7 +284,10 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     argv
   );
 
-  const command = parsed._[0] || 'discover';
+  const rawSubcommand =
+    (typeof parsed.subcommand === 'string' && parsed.subcommand ? parsed.subcommand : undefined) ??
+    (parsed._[0] || 'discover');
+  const command = rawSubcommand;
   if (parsed.help || command === 'help') {
     renderHarnessHelp(def);
     return;
@@ -297,21 +311,22 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     case 'discover':
       handleDiscoverCommand(def, projectRoot, engine, isHuman);
       break;
-    case 'inspect':
-      handleInspectCommand(
-        def,
-        projectRoot,
-        (typeof parsed.file === 'string' ? parsed.file : undefined) || parsed._[1]
-      );
+    case 'inspect': {
+      const targetFile =
+        (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
+        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined) ??
+        parsed._[1];
+      handleInspectCommand(def, projectRoot, targetFile);
       break;
-    case 'apply':
-      await handleApplyCommand(
-        def,
-        projectRoot,
-        (typeof parsed.plan === 'string' ? parsed.plan : undefined) || parsed._[1],
-        Boolean(parsed.worktree)
-      );
+    }
+    case 'apply': {
+      const planFile =
+        (typeof parsed.plan === 'string' && parsed.plan ? parsed.plan : undefined) ??
+        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined) ??
+        parsed._[1];
+      await handleApplyCommand(def, projectRoot, planFile, Boolean(parsed.worktree));
       break;
+    }
     default:
       console.error(styleText('red', `[Error] Unknown command: ${command}`));
       process.exit(1);

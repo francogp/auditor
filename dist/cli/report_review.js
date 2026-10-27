@@ -23,11 +23,15 @@ const REVIEW_CLI_ARGS = {
 	"changed-since": {
 		type: "string",
 		description: "Git ref to review changes since"
+	},
+	ref: {
+		type: "positional",
+		required: false,
+		description: "Git ref to review changes since"
 	}
 };
 function runReviewReport(projectRoot = process.cwd()) {
 	const parsed = parseCittyArgs(REVIEW_CLI_ARGS, getProcessCliArgs());
-	const positionals = parsed._.map(String);
 	const fallowBin = resolveFallowBinary(projectRoot);
 	if (!fallowBin) {
 		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
@@ -35,9 +39,9 @@ function runReviewReport(projectRoot = process.cwd()) {
 	}
 	const isJson = Boolean(parsed.json);
 	const args = ["review"];
+	const targetRef = parsed.ref ?? parsed["changed-since"];
 	if (parsed.base) args.push("--base", String(parsed.base));
-	else if (parsed["changed-since"]) args.push("--changed-since", String(parsed["changed-since"]));
-	else if (positionals.length > 0 && positionals[0]) args.push("--changed-since", positionals[0]);
+	else if (targetRef) args.push("--changed-since", targetRef);
 	if (isJson) args.push("--format", "json");
 	const isHuman = resolveHumanModeFromArgs(parsed);
 	if (!isJson && isHuman) console.log(renderBanner("CHANGE REVIEW (FALLOW REVIEW)", "Structural decisions and blast radius"));

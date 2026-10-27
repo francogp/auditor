@@ -92,6 +92,17 @@ async function handleApply(projectRoot, rawPlanPath, useWorktree) {
 }
 const REFACTOR_MAGIC_ARGS = {
 	...COMMON_CLI_ARGS,
+	subcommand: {
+		type: "positional",
+		required: false,
+		default: "discover",
+		description: "Subcommand to run (discover | inspect | apply | help)"
+	},
+	target: {
+		type: "positional",
+		required: false,
+		description: "File to inspect or MagicRefactorPlan JSON file to apply"
+	},
 	file: {
 		type: "string",
 		description: "Target file to inspect for magic literals"
@@ -114,16 +125,9 @@ const MAGIC_SUBCOMMANDS = /* @__PURE__ */ new Set([
 ]);
 async function runRefactorMagicCli(rawInputArgs) {
 	const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
-	const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs);
-	const posList = parsed._;
-	const firstPos = posList[0] ? String(posList[0]) : void 0;
-	let command = "discover";
-	let targetArg;
-	if (firstPos && MAGIC_SUBCOMMANDS.has(firstPos)) {
-		command = firstPos;
-		targetArg = (posList[1] ? String(posList[1]) : void 0) || (typeof parsed.file === "string" ? parsed.file : void 0);
-	} else if (firstPos) command = firstPos;
-	else targetArg = typeof parsed.file === "string" ? parsed.file : void 0;
+	const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs, MAGIC_SUBCOMMANDS);
+	const command = parsed.subcommand || "discover";
+	const targetArg = parsed.target || (typeof parsed.file === "string" ? parsed.file : void 0) || (typeof parsed.plan === "string" ? parsed.plan : void 0);
 	const projectRoot = path.resolve(String(parsed.project || process.cwd()));
 	if (parsed.help || command === "help") {
 		renderBanner("auditor-magic", "Deterministic Magic Numbers Governance & Refactoring");

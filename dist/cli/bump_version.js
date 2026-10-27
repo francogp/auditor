@@ -228,6 +228,16 @@ function renderAnalysisTable(analysis) {
 }
 const BUMP_CLI_ARGS = {
 	...COMMON_CLI_ARGS,
+	subcommand: {
+		type: "positional",
+		required: false,
+		description: "Subcommand to run (analyze, bump, version, help)"
+	},
+	bumpType: {
+		type: "positional",
+		required: false,
+		description: "Bump type (major | minor | patch | build | auto) or subcommand target"
+	},
 	version: {
 		type: "boolean",
 		alias: "v",
@@ -291,6 +301,12 @@ function printHelp(command) {
 	}
 	console.log(`@francogp/auditor v${AUDITOR_VERSION} - SemVer Manager & Build Stamper\n\nUsage:\n  auditor-version                     Show current version\n  auditor-version analyze [options]  Analyze diff and suggest bump\n  auditor-version bump [type] [opt]   Apply bump (auto | major | minor | patch | build)\n\nCommands:\n  version, -v, --version              Show current version\n  analyze                             Analyze git changes and recommend major/minor/patch\n  bump [type]                         Apply bump: major | minor | patch | build | auto\n\nGlobal options:\n  -h, --help                          Show this help message\n`);
 }
+const BUMP_SUBCOMMAND_NAMES = /* @__PURE__ */ new Set([
+	"analyze",
+	"bump",
+	"version",
+	"help"
+]);
 function resolveBumpTypeFromParsed(explicitType, positionalType) {
 	if (explicitType) {
 		const val = explicitType.toLowerCase();
@@ -325,39 +341,66 @@ function handleBumpCommand(parsed, positionalType, isJson, cwd) {
 		console.log(`  Synchronized files: ${relFiles.join(", ")}\n`);
 	}
 }
+function resolveCliCommand(parsed) {
+	if (parsed.help) return "help";
+	if (parsed.analyze) return "analyze";
+	if (parsed.bump) return "bump";
+	if (parsed.version) return "version";
+	const sub = typeof parsed.subcommand === "string" ? parsed.subcommand.toLowerCase() : "";
+	if (sub) {
+		if (isCliBumpType(sub)) return "bump";
+		return sub;
+	}
+	return "version";
+}
+function resolvePositionalBumpType(parsed, command) {
+	const sub = typeof parsed.subcommand === "string" ? parsed.subcommand.toLowerCase() : void 0;
+	const target = typeof parsed.bumpType === "string" ? parsed.bumpType : void 0;
+	if (command === "bump") {
+		if (sub && isCliBumpType(sub)) return sub;
+		return target;
+	}
+	return target;
+}
+function isJsonRequested(parsed) {
+	if (parsed.json || parsed.format === "json") return true;
+	return parsed.subcommand === "json" || parsed.bumpType === "json";
+}
+function executeBumpAction(parsed, bumpType, isJson, cwd) {
+	try {
+		handleBumpCommand(parsed, bumpType, isJson, cwd);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(styleText("red", `[Error] ${message}`));
+		process.exitCode = 1;
+	}
+}
 function runBumpCli(rawArgs = getProcessCliArgs(), cwd = process.cwd()) {
-	const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs);
-	const posList = parsed._.map(String);
-	const firstPos = posList[0]?.toLowerCase();
-	if (parsed.help || firstPos === "help") {
-		printHelp(firstPos === "help" ? posList[1]?.toLowerCase() : firstPos);
-		return;
-	}
-	if (rawArgs.length === 0 || parsed.version || firstPos === "version") {
-		console.log(`@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`);
-		return;
-	}
-	const isJson = Boolean(parsed.json);
+	const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs, BUMP_SUBCOMMAND_NAMES);
+	const command = resolveCliCommand(parsed);
+	const bumpType = resolvePositionalBumpType(parsed, command);
+	const isJson = isJsonRequested(parsed);
 	const isHuman = resolveHumanModeFromArgs(parsed);
-	if (parsed.analyze || firstPos === "analyze") {
-		handleAnalyzeCommand({
-			isJson,
-			isHuman
-		});
-		return;
+	switch (command) {
+		case "help":
+			printHelp(bumpType);
+			break;
+		case "version":
+			console.log(`@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`);
+			break;
+		case "analyze":
+			handleAnalyzeCommand({
+				isJson,
+				isHuman
+			});
+			break;
+		case "bump":
+			executeBumpAction(parsed, bumpType, isJson, cwd);
+			break;
+		default:
+			console.log(`Unknown command: ${command}`);
+			printHelp();
 	}
-	if (parsed.bump || firstPos === "bump") {
-		try {
-			handleBumpCommand(parsed, firstPos === "bump" ? posList[1] : posList[0], isJson, cwd);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			console.error(styleText("red", `[Error] ${message}`));
-			process.exitCode = 1;
-		}
-		return;
-	}
-	console.log(`Unknown command: ${firstPos}`);
-	printHelp();
 }
 if (isMainModule(import.meta.url)) runBumpCli();
 export { CLI_BUMP_TYPES, applyVersionBump, isCliBumpType, runBumpCli };

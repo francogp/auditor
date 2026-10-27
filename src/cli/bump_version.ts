@@ -365,6 +365,16 @@ function renderAnalysisTable(analysis: VersionAnalysisResult): void {
 
 const BUMP_CLI_ARGS = {
   ...COMMON_CLI_ARGS,
+  subcommand: {
+    type: 'positional',
+    required: false,
+    description: 'Subcommand to run (analyze, bump, version, help)'
+  },
+  bumpType: {
+    type: 'positional',
+    required: false,
+    description: 'Bump type (major | minor | patch | build | auto) or subcommand target'
+  },
   version: { type: 'boolean', alias: 'v', description: 'Show current version' },
   analyze: { type: 'boolean', description: 'Analyze git diff and recommend bump' },
   bump: { type: 'boolean', description: 'Apply version bump' },
@@ -441,6 +451,8 @@ function printHelp(command?: string): void {
   );
 }
 
+const BUMP_SUBCOMMAND_NAMES: ReadonlySet<string> = new Set(['analyze', 'bump', 'version', 'help']);
+
 function resolveBumpTypeFromParsed(
   explicitType: string | undefined,
   positionalType: string | undefined
@@ -508,48 +520,81 @@ function handleBumpCommand(
   }
 }
 
+type ParsedBumpArgs = ReturnType<typeof parseCittyArgs<typeof BUMP_CLI_ARGS>>;
+
+function resolveCliCommand(parsed: ParsedBumpArgs): string {
+  if (parsed.help) return 'help';
+  if (parsed.analyze) return 'analyze';
+  if (parsed.bump) return 'bump';
+  if (parsed.version) return 'version';
+  const sub = typeof parsed.subcommand === 'string' ? parsed.subcommand.toLowerCase() : '';
+  if (sub) {
+    if (isCliBumpType(sub)) return 'bump';
+    return sub;
+  }
+  return 'version';
+}
+
+function resolvePositionalBumpType(parsed: ParsedBumpArgs, command: string): string | undefined {
+  const sub = typeof parsed.subcommand === 'string' ? parsed.subcommand.toLowerCase() : undefined;
+  const target = typeof parsed.bumpType === 'string' ? parsed.bumpType : undefined;
+  if (command === 'bump') {
+    if (sub && isCliBumpType(sub)) return sub;
+    return target;
+  }
+  return target;
+}
+
+function isJsonRequested(parsed: ParsedBumpArgs): boolean {
+  if (parsed.json || parsed.format === 'json') return true;
+  return parsed.subcommand === 'json' || parsed.bumpType === 'json';
+}
+
+function executeBumpAction(
+  parsed: ParsedBumpArgs,
+  bumpType: string | undefined,
+  isJson: boolean,
+  cwd: string
+): void {
+  try {
+    handleBumpCommand(parsed, bumpType, isJson, cwd);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(styleText('red', `[Error] ${message}`));
+    process.exitCode = 1;
+  }
+}
+
 export function runBumpCli(
   rawArgs: readonly string[] = getProcessCliArgs(),
   cwd: string = process.cwd()
 ): void {
-  const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs);
-  const posList = parsed._.map(String);
-  const firstPos = posList[0]?.toLowerCase();
-
-  if (parsed.help || firstPos === 'help') {
-    printHelp(firstPos === 'help' ? posList[1]?.toLowerCase() : firstPos);
-    return;
-  }
-
-  if (rawArgs.length === 0 || parsed.version || firstPos === 'version') {
-    console.log(
-      `@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`
-    );
-    return;
-  }
-
-  const isJson = Boolean(parsed.json);
+  const parsed = parseCittyArgs(BUMP_CLI_ARGS, rawArgs, BUMP_SUBCOMMAND_NAMES);
+  const command = resolveCliCommand(parsed);
+  const bumpType = resolvePositionalBumpType(parsed, command);
+  const isJson = isJsonRequested(parsed);
   const isHuman = resolveHumanModeFromArgs(parsed);
 
-  if (parsed.analyze || firstPos === 'analyze') {
-    handleAnalyzeCommand({ isJson, isHuman });
-    return;
+  switch (command) {
+    case 'help':
+      printHelp(bumpType);
+      break;
+    case 'version':
+      console.log(
+        `@francogp/auditor v${AUDITOR_VERSION} (Build: ${AUDITOR_BUILD_ID}, Date: ${AUDITOR_BUILD_DATE})`
+      );
+      break;
+    case 'analyze':
+      handleAnalyzeCommand({ isJson, isHuman });
+      break;
+    case 'bump':
+      executeBumpAction(parsed, bumpType, isJson, cwd);
+      break;
+    default:
+      console.log(`Unknown command: ${command}`);
+      printHelp();
+      break;
   }
-
-  if (parsed.bump || firstPos === 'bump') {
-    try {
-      const positionalType = firstPos === 'bump' ? posList[1] : posList[0];
-      handleBumpCommand(parsed, positionalType, isJson, cwd);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(styleText('red', `[Error] ${message}`));
-      process.exitCode = 1;
-    }
-    return;
-  }
-
-  console.log(`Unknown command: ${firstPos}`);
-  printHelp();
 }
 
 if (isMainModule(import.meta.url)) {

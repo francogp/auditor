@@ -13,6 +13,11 @@ import { spawnSync } from "node:child_process";
 */
 const SETUP_ENV_ARGS = {
 	...COMMON_CLI_ARGS,
+	action: {
+		type: "positional",
+		required: false,
+		description: "Setup action to perform (e.g. update)"
+	},
 	update: {
 		type: "boolean",
 		alias: "u",
@@ -28,7 +33,7 @@ const SETUP_ENV_ARGS = {
 function runSetup(rawInputArgs = getProcessCliArgs(), targetDir = process.cwd()) {
 	const parsed = parseCittyArgs(SETUP_ENV_ARGS, rawInputArgs);
 	const isWindows = process.platform === "win32";
-	const isUpdate = Boolean(parsed.update) || Boolean(parsed["update-version"]) || parsed._.map(String).includes("update");
+	const isUpdate = Boolean(parsed.update) || Boolean(parsed["update-version"]) || parsed.action === "update";
 	const forwardedArgs = rawInputArgs.filter((a) => a !== "update" && a !== "--update");
 	if (isWindows) {
 		const targetScript = isUpdate ? "update-windows.ps1" : "setup-windows.ps1";

@@ -29,6 +29,17 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   readonly extendedHelp?: string;
 }
 declare const REFACTOR_HARNESS_ARGS: {
+  readonly subcommand: {
+    readonly type: "positional";
+    readonly required: false;
+    readonly description: "Subcommand to execute (discover, inspect, apply, help)";
+    readonly default: "discover";
+  };
+  readonly target: {
+    readonly type: "positional";
+    readonly required: false;
+    readonly description: "Target file to inspect or plan JSON to apply";
+  };
   readonly file: {
     readonly type: "string";
     readonly description: "Target file path to inspect";

@@ -159,7 +159,8 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
 **Step 1.4** — Version Bump Analysis & User Decision (`ask_question`)
 
 - **Clean Base Version Invariant**: Prior to executing `version:analyze`, the agent MUST verify that `package.json` and `src/core/version.ts` do not contain uncommitted, unapproved version alterations from failed or aborted earlier turns. The base SemVer version evaluated MUST strictly reflect the current repository state at HEAD. If intermediate unapproved version modifications are present in the working tree, restore them to HEAD before running `version:analyze` to prevent distorted candidates.
-- Execute `npm run version:analyze -- --json` (or `auditor-version analyze --json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
+- Execute `npm run version:analyze -- json` (or `auditor-version analyze json`) to evaluate Git diff metrics, affected subsystems, commit intent, and fresh candidate version stamps.
+  - **PowerShell & NPM Flag Interoperability Mandate**: Always pass the bare positional argument `json` rather than double-dashed flags like `-- --json`. In Windows PowerShell, passing `-- --json` or `-- --help` causes `npm` to intercept the flag as an unrecognized npm option and emit the generic `Run "npm help run"` manual without executing the tool. The Citty harness automatically normalizes bare positional mode arguments (`json`, `human`, `help`) into structured options.
 - **Mandatory Analysis Presentation in Chat Before Prompting**:
   Before calling `ask_question`, the agent MUST display the complete Version Analysis breakdown table directly in the visible chat message (detected Git diff metrics, affected subsystems, candidate version options with their freshly updated build identifiers and timestamps `-build.YYYYMMDD-HHmmss`, and SemVer rationale), along with a clickable link to `task.md`. Calling `ask_question` blindly without displaying the version candidates table in chat is STRICTLY FORBIDDEN, as the modal blocks the UI and conceals the analysis.
 - Solicit explicit user review via `ask_question` at this early stage:
@@ -167,18 +168,22 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
     The build identifier and timestamp (`-build.YYYYMMDD-HHmmss`) **MUST ALWAYS BE FRESHLY UPDATED AND EXPLICITLY INCLUDED IN ALL 3 VERSION OPTIONS (MAJOR, MINOR, BUGFIX/PATCH)** as well as in the build-only option.
     - **Foundational Rationale**: The build and timestamp ALWAYS change on every build/commit (`generateBuildId()`), whereas the base SemVer version (major, minor, bugfix) may change or not depending on the commit scope.
     - **Strict Prohibition on Naked Versions**: Presenting bare base versions without the updated build timestamp (e.g. `(1.0.0)`, `(0.7.0)`, `(0.6.3)`) or preserving stale build timestamps across options is STRICTLY AND CATEGORICALLY PROHIBITED.
-    - The agent MUST retrieve the freshly computed candidate strings from the `npm run version:analyze -- --json` output (`candidates.major`, `candidates.minor`, `candidates.patch`, `candidates.build`).
+    - The agent MUST retrieve the freshly computed candidate strings from the `npm run version:analyze -- json` output (`candidates.major`, `candidates.minor`, `candidates.patch`, `candidates.build`).
   - **Canonical Options Structure for `ask_question`**:
     1. `(Recommended) Aplicar salto SemVer: <RECOMENDADO> (<candidates.recommended>) - <justificación de analyze>`
     2. `Aplicar salto SemVer: <OTRA_OPCIÓN_1> (<candidates.otra_1>) - <descripción de alcance>`
     3. `Aplicar salto SemVer: <OTRA_OPCIÓN_2> (<candidates.otra_2>) - <descripción de alcance>`
     4. `Solo actualizar build y timestamp: BUILD (<candidates.build>) - Mantener versión base <baseVersion> sin salto en mayor, menor ni bugfix, estampando nueva build y timestamp`
     5. `Mantener versión actual intacta (<currentVersion>) sin actualizar build ni versión base (solo para ramas de trabajo intermedias)`
-- If the user approves a bump, execute immediately:
+- If the user approves a bump, execute immediately with clean positional syntax:
 
   ```bash
-  npm run version:bump -- --type=<approved_type>
-  # or directly: auditor-version bump --type=<approved_type>
+  npm run version:bump -- <approved_type>
+  # Canonical Examples:
+  # npm run version:bump -- patch
+  # npm run version:bump -- minor
+  # npm run version:bump -- major
+  # npm run version:bump -- build
   ```
 
   *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)*
@@ -306,6 +311,10 @@ Once the user approves:
   - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:
 
     ```bash
+    # Windows PowerShell (use ';' separator, as '&&' causes parser errors in PowerShell 5.1):
+    git add . ; git commit -F scratch/release_notes.txt ; git tag -a v<base_version> -F scratch/release_notes.txt
+
+    # Linux / macOS / Bash:
     git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt
     ```
 
@@ -313,6 +322,10 @@ Once the user approves:
   - If no version bump occurred:
 
     ```bash
+    # Windows PowerShell:
+    git add . ; git commit -F scratch/release_notes.txt
+
+    # Linux / macOS / Bash:
     git add . && git commit -F scratch/release_notes.txt
     ```
 

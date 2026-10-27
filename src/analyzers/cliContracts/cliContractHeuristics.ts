@@ -46,6 +46,7 @@ export const CLI_ARG_COLLECTION_NAMES: ReadonlySet<string> = new Set([
   'argv',
   'rawCliArgs',
   'posArgs',
+  'posList',
   'positionals',
   'nonProjectPositionals'
 ]); // runtime-set: O(1) argument array identifier lookup

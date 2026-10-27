@@ -384,6 +384,11 @@ export function renderUpdateHelp(): string {
 
 const UPDATE_PACKAGE_ARGS = {
   ...COMMON_CLI_ARGS,
+  targetVersion: {
+    type: 'positional',
+    required: false,
+    description: 'Target version or tag (e.g. 10.0.0, v10.0.0)'
+  },
   check: {
     type: 'boolean',
     alias: 'c',
@@ -403,15 +408,12 @@ const UPDATE_PACKAGE_ARGS = {
   }
 } as const satisfies CittyArgsDef;
 
-const HELP_COMMAND_TOKENS: ReadonlySet<string> = new Set(['help', '--help', '-h']);
-
 export function runCli(): void {
   const rawArgs = getProcessCliArgs();
   const parsed = parseCittyArgs(UPDATE_PACKAGE_ARGS, rawArgs);
 
-  const rawFirstArg = parsed._.map(String)[0]?.trim();
   const isHelpRequested = Boolean(
-    parsed.help || (rawFirstArg && HELP_COMMAND_TOKENS.has(rawFirstArg))
+    parsed.help || parsed.targetVersion === 'help' || parsed._.includes('help')
   );
 
   if (isHelpRequested) {
@@ -421,8 +423,8 @@ export function runCli(): void {
 
   const isCheckMode = Boolean(parsed.check || parsed.dryRun);
   const targetVersion =
-    rawFirstArg && !rawFirstArg.startsWith('-') && rawFirstArg !== 'help'
-      ? rawFirstArg
+    typeof parsed.targetVersion === 'string' && parsed.targetVersion !== 'help'
+      ? parsed.targetVersion
       : undefined;
   const silent = Boolean(parsed.silent);
   const isHuman = resolveHumanModeFromArgs(parsed);

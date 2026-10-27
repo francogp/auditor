@@ -120,6 +120,16 @@ function resolveConsoleMode(values, positionals) {
 }
 const AUDIT_FULL_ARGS = {
 	...COMMON_CLI_ARGS,
+	subcommand: {
+		type: "positional",
+		required: false,
+		description: "Subcommand to run (e.g. guide, fix, critical, human)"
+	},
+	subcommandTarget: {
+		type: "positional",
+		required: false,
+		description: "Target rule or suite for guide or subcommand"
+	},
 	list: {
 		type: "boolean",
 		alias: "l",
@@ -961,10 +971,10 @@ function handleInfoCommand(targetUid, allAvailableTasks) {
 	process.exit(0);
 }
 function handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies) {
-	let target = typeof cliOptions.values.guide === "string" && cliOptions.values.guide.trim() !== "" ? cliOptions.values.guide.trim() : void 0;
+	let target = typeof cliOptions.values.guide === "string" && cliOptions.values.guide.trim() !== "" ? cliOptions.values.guide.trim() : typeof cliOptions.values.subcommandTarget === "string" && cliOptions.values.subcommandTarget.trim() !== "" ? cliOptions.values.subcommandTarget.trim() : void 0;
 	if (!target) {
 		const guideIdx = cliOptions.positionals.indexOf("guide");
-		if (guideIdx !== -1 && cliOptions.positionals.length > guideIdx + 1) target = cliOptions.positionals[guideIdx + 1]?.trim();
+		if (guideIdx !== -1) target = cliOptions.positionals.slice(guideIdx + 1).find((t) => t && !t.startsWith("-"))?.trim();
 	}
 	const suiteParam = typeof cliOptions.values.suite === "string" ? cliOptions.values.suite.trim() : typeof cliOptions.values.task === "string" ? cliOptions.values.task.trim() : void 0;
 	if (suiteParam) {

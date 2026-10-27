@@ -14,7 +14,7 @@ import {
   getStaticStringValue,
   unwrapCliExpression
 } from '../cliContractHeuristics.ts';
-import type { CliContractDetector } from '../cliContractTypes.ts';
+import type { CliContractDetector, CliContractScanContext } from '../cliContractTypes.ts';
 import { KNOWN_BARE_MODE_FLAGS } from '../../../core/cli/cittyHarness.ts';
 
 const HOMEBREW_FLAG_MESSAGE =
@@ -80,17 +80,16 @@ function isFlagItemIncludesCall(node: ts.CallExpression): boolean {
   return isArgItemReceiver(callee.expression);
 }
 
-function isFirstArgIndexAccess(expr: ts.Expression): boolean {
+function isArgIndexAccess(expr: ts.Expression, ctx: CliContractScanContext): boolean {
   const target = unwrapCliExpression(expr);
   if (!ts.isElementAccessExpression(target)) return false;
   const arr = unwrapCliExpression(target.expression);
   const idx = unwrapCliExpression(target.argumentExpression);
-  return (
-    ts.isIdentifier(arr) &&
-    CLI_ARG_COLLECTION_NAMES.has(arr.text) &&
-    ts.isNumericLiteral(idx) &&
-    idx.text === '0'
-  );
+  if (!ts.isIdentifier(arr) || !ts.isNumericLiteral(idx)) return false;
+  if (arr.text === 'args') {
+    return ctx.isCliEntrypoint;
+  }
+  return CLI_ARG_COLLECTION_NAMES.has(arr.text);
 }
 
 export const homebrewFlagDetector: CliContractDetector = (node, ctx) => {
@@ -110,7 +109,15 @@ export const homebrewFlagDetector: CliContractDetector = (node, ctx) => {
     }
   }
 
-  if (ts.isSwitchStatement(node) && isFirstArgIndexAccess(node.expression)) {
+  if (ts.isElementAccessExpression(node) && isArgIndexAccess(node, ctx)) {
+    return {
+      ruleId: 'cli-contracts-homebrew-flag-parsing',
+      node,
+      message: HOMEBREW_FLAG_MESSAGE
+    };
+  }
+
+  if (ts.isSwitchStatement(node) && isArgIndexAccess(node.expression, ctx)) {
     return {
       ruleId: 'cli-contracts-homebrew-flag-parsing',
       node: node.expression,

@@ -116,6 +116,11 @@ const CSS_REPORT_ARGS = {
 		default: "all",
 		description: "CSS finding category filter"
 	},
+	categoryPos: {
+		type: "positional",
+		required: false,
+		description: "CSS finding category positional filter"
+	},
 	"errors-only": {
 		type: "boolean",
 		default: false,
@@ -129,8 +134,8 @@ const CSS_REPORT_ARGS = {
 };
 async function runCssReport(projectRoot = process.cwd()) {
 	const parsed = parseCittyArgs(CSS_REPORT_ARGS, getProcessCliArgs());
-	const isFix = Boolean(parsed.fix) || parsed._.map(String).includes("fix");
-	const category = String(parsed.category || "all").toLowerCase();
+	const isFix = Boolean(parsed.fix);
+	const category = String(parsed.categoryPos || parsed.category || "all").toLowerCase();
 	const isJson = Boolean(parsed.json);
 	const errorsOnly = Boolean(parsed["errors-only"]);
 	const isHuman = resolveHumanModeFromArgs(parsed);

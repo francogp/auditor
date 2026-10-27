@@ -24,12 +24,12 @@ import { resolveFallowBinary } from '../suites/architecture/validate_similar_cod
 const REVIEW_CLI_ARGS = {
   ...COMMON_CLI_ARGS,
   base: { type: 'string', description: 'Git base branch or ref for review' },
-  'changed-since': { type: 'string', description: 'Git ref to review changes since' }
+  'changed-since': { type: 'string', description: 'Git ref to review changes since' },
+  ref: { type: 'positional', required: false, description: 'Git ref to review changes since' }
 } as const satisfies CittyArgsDef;
 
 export function runReviewReport(projectRoot: string = process.cwd()): void {
   const parsed = parseCittyArgs(REVIEW_CLI_ARGS, getProcessCliArgs());
-  const positionals = parsed._.map(String);
 
   const fallowBin = resolveFallowBinary(projectRoot);
   if (!fallowBin) {
@@ -40,12 +40,11 @@ export function runReviewReport(projectRoot: string = process.cwd()): void {
   const isJson = Boolean(parsed.json);
   const args = ['review'];
 
+  const targetRef = (parsed.ref as string | undefined) ?? (parsed['changed-since'] as string | undefined);
   if (parsed.base) {
     args.push('--base', String(parsed.base));
-  } else if (parsed['changed-since']) {
-    args.push('--changed-since', String(parsed['changed-since']));
-  } else if (positionals.length > 0 && positionals[0]) {
-    args.push('--changed-since', positionals[0]);
+  } else if (targetRef) {
+    args.push('--changed-since', targetRef);
   }
 
   if (isJson) {

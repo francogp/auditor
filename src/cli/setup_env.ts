@@ -19,6 +19,11 @@ import {
 
 const SETUP_ENV_ARGS = {
   ...COMMON_CLI_ARGS,
+  action: {
+    type: 'positional',
+    required: false,
+    description: 'Setup action to perform (e.g. update)'
+  },
   update: { type: 'boolean', alias: 'u', default: false, description: 'Update runtime environment version' },
   'update-version': { type: 'boolean', default: false, description: 'Update runtime environment version' }
 } as const satisfies CittyArgsDef;
@@ -32,7 +37,7 @@ export function runSetup(
   const isUpdate =
     Boolean(parsed.update) ||
     Boolean(parsed['update-version']) ||
-    parsed._.map(String).includes('update');
+    parsed.action === 'update';
   const forwardedArgs = rawInputArgs.filter((a) => a !== 'update' && a !== '--update');
 
   if (isWindows) {

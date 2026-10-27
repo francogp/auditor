@@ -125,6 +125,7 @@ function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], categ
 const CSS_REPORT_ARGS = {
   ...COMMON_CLI_ARGS,
   category: { type: 'string', default: 'all', description: 'CSS finding category filter' },
+  categoryPos: { type: 'positional', required: false, description: 'CSS finding category positional filter' },
   'errors-only': { type: 'boolean', default: false, description: 'Show only error-severity findings' },
   fix: { type: 'boolean', default: false, description: 'Apply Stylelint auto-fixes' }
 } as const satisfies CittyArgsDef;
@@ -132,8 +133,8 @@ const CSS_REPORT_ARGS = {
 export async function runCssReport(projectRoot: string = process.cwd()): Promise<void> {
   const parsed = parseCittyArgs(CSS_REPORT_ARGS, getProcessCliArgs());
 
-  const isFix = Boolean(parsed.fix) || parsed._.map(String).includes('fix');
-  const category = String(parsed.category || 'all').toLowerCase();
+  const isFix = Boolean(parsed.fix);
+  const category = String(parsed.categoryPos || parsed.category || 'all').toLowerCase();
   const isJson = Boolean(parsed.json);
   const errorsOnly = Boolean(parsed['errors-only']);
   const isHuman = resolveHumanModeFromArgs(parsed);
