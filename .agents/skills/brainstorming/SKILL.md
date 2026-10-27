@@ -1,6 +1,12 @@
 ---
 name: brainstorming
-description: "Transform raw ideas, feature requests, architectural changes, and complex refactors into rigorous, validated technical designs and typed specifications before any implementation begins. MUST trigger BEFORE writing code whenever a user proposes a new feature, system design, module restructure, workflow change, or ambiguous requirement, or says 'brainstorm', 'let's design', 'how should we build', 'pensar la arquitectura', 'diseñar', or 'brainstorming'."
+description: >-
+  Transform raw ideas, feature requests, architectural changes, and complex
+  refactors into rigorous, validated technical designs and typed specifications
+  before any implementation begins. MUST trigger BEFORE writing code whenever a
+  user proposes a new feature, system design, module restructure, workflow change,
+  or ambiguous requirement, or says 'brainstorm', 'let's design', 'how should we
+  build', 'pensar la arquitectura', 'diseñar', or 'brainstorming'.
 ---
 
 # Brainstorming Ideas Into Validated Designs

@@ -1,6 +1,8 @@
 ---
 name: clean-code
-description: Pragmatic coding standards - concise, direct, no over-engineering, no unnecessary comments
+description: >-
+  Pragmatic coding standards - concise, direct, no over-engineering, no
+  unnecessary comments
 allowed-tools: Read, Write, Edit
 version: 2.0
 priority: CRITICAL

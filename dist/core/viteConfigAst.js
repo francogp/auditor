@@ -852,6 +852,9 @@ function syncTestCoverageAst(props, sf) {
 		modified: false
 	};
 }
+function toTestGlobPattern(root) {
+	return root.includes("*") ? root : `${root}/**/*.{test,spec}.ts`;
+}
 function syncTestProjectsAst(props, testProjectsConfig, sf) {
 	let modified = false;
 	const projectsProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "projects", sf);
@@ -864,7 +867,7 @@ function syncTestProjectsAst(props, testProjectsConfig, sf) {
 		const configuredRoots = info.name ? testProjectsConfig[info.name] : void 0;
 		if (info.name && configuredRoots) {
 			handledProjects.add(info.name);
-			const expectedPatterns = configuredRoots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`);
+			const expectedPatterns = configuredRoots.map(toTestGlobPattern);
 			const targetObj = info.innerTestObj ?? el;
 			const targetProps = [...targetObj.properties];
 			const existingIncludes = extractStringArrayProp(targetObj, "include", sf);
@@ -880,7 +883,7 @@ function syncTestProjectsAst(props, testProjectsConfig, sf) {
 		}
 	}
 	for (const [projName, roots] of Object.entries(testProjectsConfig)) if (!handledProjects.has(projName)) {
-		const patterns = roots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`);
+		const patterns = roots.map(toTestGlobPattern);
 		const newProj = ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("test", ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("name", ts.factory.createStringLiteral(projName, true)), ts.factory.createPropertyAssignment("include", valueToAstExpression(patterns))], true))], true);
 		updatedElements.push(newProj);
 		modified = true;

@@ -13,9 +13,10 @@ import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import yaml from 'yaml';
 import ts from 'typescript';
-import { safeReadFileSync, safeJsonParse } from '../../core/safeUtils.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
 import { isPathContained } from '../../core/safePath.ts';
+import { isLockedSkillPath } from '../../core/lockedSkills.ts';
 import {
   BaseAuditor,
   type AuditorOptions,
@@ -31,19 +32,36 @@ enableCompileCache();
 export type AgentPluginRuleId =
   | 'missing-agent-plugin-registration'
   | 'skill-invalid-yaml-frontmatter'
-  | 'skill-invalid-asset-syntax';
+  | 'skill-invalid-asset-syntax'
+  | 'skill-exceeds-line-limit';
 
 export const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[] = [
   'missing-agent-plugin-registration',
   'skill-invalid-yaml-frontmatter',
-  'skill-invalid-asset-syntax'
+  'skill-invalid-asset-syntax',
+  'skill-exceeds-line-limit'
 ] as const;
 
 /** Empty Set allows collecting all file types within skill directories. */
 const ALL_SKILL_EXTENSIONS: ReadonlySet<string> = new Set();
 
+/** Maximum allowed lines for custom skills to satisfy 3-tier progressive disclosure (<500 lines). */
+const MAX_CUSTOM_SKILL_LINES = 500;
+
+/** Target maximum column wrap limit for YAML folded scalars. */
+const MAX_DESCRIPTION_LINE_WRAP = 82;
+
 interface ParsedSourceFile extends ts.SourceFile {
   parseDiagnostics?: readonly ts.Diagnostic[];
+}
+
+interface SkillFileContext {
+  readonly skillName: string;
+  readonly skillMdPath: string;
+  readonly relMdPath: string;
+  readonly frontmatterRaw: string;
+  readonly parsed: Record<string, unknown>;
+  readonly isLocked: boolean;
 }
 
 function extractSkillName(absFile: string, projectRoot: string, skillsRoots: readonly string[]): string {
@@ -108,9 +126,9 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
           changedOnly: false,
           critical: false
         },
-        ['missing-agent-plugin-registration']
+        ['missing-agent-plugin-registration', 'skill-invalid-yaml-frontmatter']
       ),
-      fixableRuleIds: ['missing-agent-plugin-registration'],
+      fixableRuleIds: ['missing-agent-plugin-registration', 'skill-invalid-yaml-frontmatter'],
       id: 'validate_agent_plugin',
       name: 'Agent Plugin & Skill Integration Validator',
       description: 'Verifies agent audit plugin registration',
@@ -119,7 +137,8 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       ruleRemediationPhases: {
         'missing-agent-plugin-registration': 'setup',
         'skill-invalid-yaml-frontmatter': 'hygiene',
-        'skill-invalid-asset-syntax': 'hygiene'
+        'skill-invalid-asset-syntax': 'hygiene',
+        'skill-exceeds-line-limit': 'hygiene'
       },
       packageName: 'Agent',
       configKey: 'agentPlugin.enabled',
@@ -129,7 +148,8 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       ruleDescriptions: {
         'missing-agent-plugin-registration': 'Plugin/skills unregistered in .agents',
         'skill-invalid-yaml-frontmatter': 'Invalid YAML frontmatter in SKILL.md',
-        'skill-invalid-asset-syntax': 'Syntax error in skill asset file (JSON/TS)'
+        'skill-invalid-asset-syntax': 'Syntax error in skill asset file (JSON/TS)',
+        'skill-exceeds-line-limit': 'Custom skill exceeds 500 lines limit'
       },
       ruleRemediations: {
         'missing-agent-plugin-registration':
@@ -143,20 +163,25 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
           '   `npm run auditor:fix`',
         'skill-invalid-yaml-frontmatter':
           '📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n' +
-          '1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter (commonly unquoted colons `: ` or missing folded scalar `>-`), or lacks required `name` and `description` fields.\n' +
-          '2. Diagnosis: Run `npm run auditor:agent-plugin` to identify the specific skill and YAML parser error message.\n' +
-          '3. Canonical Solution: Use the folded scalar block `description: >-` for multi-line or special-character descriptions. Ensure `name: <name>` matches the skill folder name.\n' +
+          '1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n' +
+          '2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n' +
+          '3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariable #15 of /architecture). Ensure `name: <name>` matches the directory name.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   - Before (Invalid): description: Rule: description\n' +
-          '   - After (Canonical): description: >-\n' +
-          '       Rule: description',
+          '   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).',
         'skill-invalid-asset-syntax':
           '📖 REMEDIATION GUIDE: skill-invalid-asset-syntax\n' +
           '1. Root Cause: A secondary asset file within an agent skill (such as an evaluation schema in evals/*.json, blueprint *.json, or code template/example *.ts) contains malformed JSON or TypeScript syntax errors.\n' +
           '2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-asset-syntax` to inspect the reported file and parser error message.\n' +
           '3. Canonical Solution: Repair the JSON syntax (ensure double quotes on keys, remove trailing commas) or fix TypeScript syntax errors in the reported template/example file.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   Inspect and repair syntax in the target file, then verify with `npm run auditor:agent-plugin`.'
+          '   Inspect and repair syntax in the target file, then verify with `npm run auditor:agent-plugin`.',
+        'skill-exceeds-line-limit':
+          '📖 REMEDIATION GUIDE: skill-exceeds-line-limit\n' +
+          '1. Root Cause: A custom in-house skill exceeds the 500-line threshold in its primary SKILL.md, violating the 3-tier progressive disclosure mandate.\n' +
+          '2. Diagnosis: Run `npm run auditor:findings -- rule=skill-exceeds-line-limit` to identify the oversized skill and inspect its line count.\n' +
+          '3. Canonical Solution: Extract deep technical specifications, extensive rule dictionaries, or workflows into specialized reference files under `references/` or `workflows/`, linking them relatively.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Modularize large sections into `references/<topic>.md` and link them relatively from `SKILL.md`.'
       },
       coverage: {
         include: [pluginsJsonRel, skillsJsonRel, ...skillsCoverageGlobs]
@@ -185,6 +210,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       );
       this.markRuleNotApplicable(
         'skill-invalid-asset-syntax',
+        'config.agentPlugin.enabled = false'
+      );
+      this.markRuleNotApplicable(
+        'skill-exceeds-line-limit',
         'config.agentPlugin.enabled = false'
       );
       return true;
@@ -227,10 +256,90 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     this.context.setMetric('Agent Plugin Status', 'Missing');
   }
 
+  private validateSkillLineLimit(skillMdPath: string, skillName: string): void {
+    if (isLockedSkillPath(skillMdPath, this.projectRoot)) {
+      return;
+    }
+    const relMdPath = toPosixRelative(this.projectRoot, skillMdPath);
+    const content = safeReadFileSync(skillMdPath);
+    if (!content) return;
+    const lineCount = content.split(/\r?\n/).length;
+    if (lineCount > MAX_CUSTOM_SKILL_LINES) {
+      this.addViolation({
+        ruleId: 'skill-exceeds-line-limit',
+        severity: 'error',
+        file: relMdPath,
+        line: 1,
+        message: `Custom skill ${skillName}/SKILL.md has ${lineCount} lines (exceeds the 500 lines threshold). Apply 3-tier progressive disclosure by moving detailed specifications into references/ or workflows/.`,
+        context: skillName
+      });
+    }
+  }
+
+  private tryAutoFixSkillDescription(skillMdPath: string, descriptionText: string): boolean {
+    if (!this.isFixActive()) return false;
+    try {
+      const content = safeReadFileSync(skillMdPath);
+      if (!content) return false;
+      const descRegex = /^description:\s*[^\r\n]*(?:\r?\n(?:\s+[^\r\n]*))*/m;
+      if (!descRegex.test(content)) return false;
+
+      const words = descriptionText.replace(/\r?\n/g, ' ').split(/\s+/).filter(Boolean);
+      const lines: string[] = [];
+      let currentLine = '  ';
+      for (const word of words) {
+        if (currentLine.length + word.length + 1 > MAX_DESCRIPTION_LINE_WRAP) {
+          lines.push(currentLine);
+          currentLine = '  ' + word;
+        } else {
+          currentLine = currentLine === '  ' ? '  ' + word : currentLine + ' ' + word;
+        }
+      }
+      if (currentLine.trim()) lines.push(currentLine);
+      const formatted = 'description: >-\n' + lines.join('\n');
+
+      const updated = content.replace(descRegex, formatted);
+      fs.writeFileSync(skillMdPath, updated, 'utf8');
+      const targetLabel = path.posix.join(path.basename(path.dirname(skillMdPath)), 'SKILL.md');
+      this.context.logProgress(
+        `Auto-formatted 'description: >-' in ${targetLabel}`
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private tryRecoverFrontmatter(
+    skillMdPath: string,
+    frontmatterRaw: string
+  ): Record<string, unknown> | null {
+    if (!this.isFixActive()) return null;
+
+    const descMatch = frontmatterRaw.match(/^description:\s*([^\r\n]+)/m);
+    if (!descMatch || !descMatch[1]) return null;
+
+    const rawDescText = descMatch[1].replace(/^[>|]-?\s*/, '').trim();
+    if (rawDescText.length < 10) return null;
+
+    const fixed = this.tryAutoFixSkillDescription(skillMdPath, rawDescText);
+    if (!fixed) return null;
+
+    const freshContent = safeReadFileSync(skillMdPath);
+    if (!freshContent) return null;
+
+    const freshParts = freshContent.split('---');
+    if (freshParts.length < 3) return null;
+
+    return tryOrNull(() => yaml.parse(freshParts[1]!));
+  }
+
   private validateSkillFrontmatter(skillMdPath: string, skillName: string): void {
     const relMdPath = toPosixRelative(this.projectRoot, skillMdPath);
     this.recordScanned(relMdPath);
-    const content = fs.readFileSync(skillMdPath, 'utf8');
+    const content = safeReadFileSync(skillMdPath);
+    if (!content) return;
+    const isLocked = isLockedSkillPath(skillMdPath, this.projectRoot);
 
     if (!content.startsWith('---')) {
       this.addViolation({
@@ -262,16 +371,23 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     try {
       parsed = yaml.parse(frontmatterRaw);
     } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      this.addViolation({
-        ruleId: 'skill-invalid-yaml-frontmatter',
-        severity: 'error',
-        file: relMdPath,
-        line: 1,
-        message: `YAML syntax error in frontmatter of ${skillName}/SKILL.md: ${errMsg.split('\n')[0]}`,
-        context: skillName
-      });
-      return;
+      if (!isLocked) {
+        parsed = this.tryRecoverFrontmatter(skillMdPath, frontmatterRaw);
+      }
+
+      if (!parsed || typeof parsed !== 'object') {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        this.addViolation({
+          ruleId: 'skill-invalid-yaml-frontmatter',
+          severity: 'error',
+          file: relMdPath,
+          line: 1,
+          message: `YAML syntax error in frontmatter of ${skillName}/SKILL.md: ${errMsg.split('\n')[0]}`,
+          context: skillName,
+          fixable: !isLocked
+        });
+        return;
+      }
     }
 
     if (!parsed || typeof parsed !== 'object') {
@@ -286,8 +402,17 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       return;
     }
 
+    const ctx: SkillFileContext = {
+      skillName,
+      skillMdPath,
+      relMdPath,
+      frontmatterRaw,
+      parsed,
+      isLocked
+    };
+
     this.validateSkillName(parsed, relMdPath, skillName);
-    this.validateSkillDescription(parsed, frontmatterRaw, relMdPath, skillName);
+    this.validateSkillDescription(ctx);
   }
 
   private validateSkillName(
@@ -316,41 +441,52 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     }
   }
 
-  private validateSkillDescription(
-    parsed: Record<string, unknown>,
-    frontmatterRaw: string,
-    relMdPath: string,
-    skillName: string
-  ): void {
-    if (!parsed.description || typeof parsed.description !== 'string' || !parsed.description.trim()) {
+  private validateSkillDescription(ctx: SkillFileContext): void {
+    if (!ctx.parsed.description || typeof ctx.parsed.description !== 'string' || !ctx.parsed.description.trim()) {
       this.addViolation({
         ruleId: 'skill-invalid-yaml-frontmatter',
         severity: 'error',
-        file: relMdPath,
+        file: ctx.relMdPath,
         line: 1,
-        message: `Missing 'description' field in frontmatter of ${skillName}/SKILL.md`,
-        context: skillName
+        message: `Missing 'description' field in frontmatter of ${ctx.skillName}/SKILL.md`,
+        context: ctx.skillName
       });
       return;
     }
 
-    if (parsed.description.trim().length < 10) {
+    if (ctx.parsed.description.trim().length < 10) {
       this.addViolation({
         ruleId: 'skill-invalid-yaml-frontmatter',
         severity: 'error',
-        file: relMdPath,
+        file: ctx.relMdPath,
         line: 1,
-        message: `Skill description in ${skillName}/SKILL.md is too short (must be at least 10 characters)`,
-        context: skillName
+        message: `Skill description in ${ctx.skillName}/SKILL.md is too short (must be at least 10 characters)`,
+        context: ctx.skillName
       });
       return;
     }
 
-    const descMatch = frontmatterRaw.match(/^description:\s*([^\r\n]*)/m);
+    const descMatch = ctx.frontmatterRaw.match(/^description:\s*([^\r\n]*)/m);
     if (!descMatch) return;
 
     const lineAfterDesc = descMatch[1]?.trim() ?? '';
-    const isFoldedOrBlock = lineAfterDesc.startsWith('>') || lineAfterDesc.startsWith('|');
+    if (ctx.isLocked) {
+      const isFoldedOrBlock =
+        lineAfterDesc.startsWith('>-') ||
+        lineAfterDesc.startsWith('>') ||
+        lineAfterDesc.startsWith('|-') ||
+        lineAfterDesc.startsWith('|');
+      this.validateLockedSkillDescription(ctx, lineAfterDesc, isFoldedOrBlock);
+    } else {
+      this.validateCustomSkillDescription(ctx, lineAfterDesc, descMatch);
+    }
+  }
+
+  private validateLockedSkillDescription(
+    ctx: SkillFileContext,
+    lineAfterDesc: string,
+    isFoldedOrBlock: boolean
+  ): void {
     const isQuoted =
       (lineAfterDesc.startsWith('"') && lineAfterDesc.endsWith('"')) ||
       (lineAfterDesc.startsWith("'") && lineAfterDesc.endsWith("'"));
@@ -360,12 +496,62 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         this.addViolation({
           ruleId: 'skill-invalid-yaml-frontmatter',
           severity: 'error',
-          file: relMdPath,
+          file: ctx.relMdPath,
           line: 1,
-          message: `Unquoted single-line 'description' in ${skillName}/SKILL.md contains ': ' or '!'. Use folded block scalar ('description: >-') or quote the string for Go YAML / Antigravity compatibility.`,
-          context: skillName
+          message: `Unquoted single-line 'description' in locked skill ${ctx.skillName}/SKILL.md contains ': ' or '!'. Quote the string or use folded block scalar for Go YAML compatibility.`,
+          context: ctx.skillName
         });
       }
+    }
+  }
+
+  private hasInvalidDescriptionBlockIndentation(
+    frontmatterRaw: string,
+    matchedDesc: string
+  ): boolean {
+    const descIndex = frontmatterRaw.indexOf(matchedDesc);
+    const afterDesc = frontmatterRaw.slice(descIndex + matchedDesc.length);
+    const rawLines = afterDesc.split(/\r?\n/);
+
+    for (const line of rawLines) {
+      if (!line.trim()) continue;
+      if (!line.startsWith(' ') && !line.startsWith('\t')) break;
+      if (!/^ {2}\S/.test(line)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private validateCustomSkillDescription(
+    ctx: SkillFileContext,
+    lineAfterDesc: string,
+    descMatch: RegExpMatchArray
+  ): void {
+    const isStrictFolded = lineAfterDesc === '>-';
+    const hasInvalidIndentation = isStrictFolded
+      ? this.hasInvalidDescriptionBlockIndentation(ctx.frontmatterRaw, descMatch[0])
+      : false;
+
+    if (!isStrictFolded || hasInvalidIndentation) {
+      if (this.isFixActive()) {
+        const fixed = this.tryAutoFixSkillDescription(ctx.skillMdPath, ctx.parsed.description as string);
+        if (fixed) return;
+      }
+
+      const issueDetail = !isStrictFolded
+        ? `must define 'description' using folded block scalar syntax ('description: >-')`
+        : `must indent description block lines with exactly 2 spaces`;
+
+      this.addViolation({
+        ruleId: 'skill-invalid-yaml-frontmatter',
+        severity: 'error',
+        file: ctx.relMdPath,
+        line: 1,
+        message: `Custom skill ${ctx.skillName}/SKILL.md ${issueDetail} (Invariable #15 of /architecture). Run 'npm run auditor:fix' or 'auditor fix' to format automatically.`,
+        context: ctx.skillName,
+        fixable: true
+      });
     }
   }
 
@@ -468,6 +654,12 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     this.runSubAuditorSync('skill-invalid-yaml-frontmatter', () => {
       for (const { absFile, skillName } of skillMdFiles) {
         this.validateSkillFrontmatter(absFile, skillName);
+      }
+    });
+
+    this.runSubAuditorSync('skill-exceeds-line-limit', () => {
+      for (const { absFile, skillName } of skillMdFiles) {
+        this.validateSkillLineLimit(absFile, skillName);
       }
     });
 

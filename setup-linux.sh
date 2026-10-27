@@ -170,9 +170,21 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
     npm install -g npm@latest || echo "  [WARN] Warning: Could not update npm globally. Continuing with active version..."
 
     NEW_NPM_VER=$(npm -v 2>/dev/null || true)
-    if [ -n "$NEW_NPM_VER" ] && grep -q '"npm":' "$PKG_PATH"; then
-        sed -i -E "s/(\"npm\": *\">=)[^\"]*(\")/\1$NEW_NPM_VER\2/" "$PKG_PATH"
-        echo "  [OK] npm version synchronized to >=$NEW_NPM_VER in package.json"
+    if [ -n "$NEW_NPM_VER" ]; then
+        if grep -q '"npm":' "$PKG_PATH"; then
+            sed -i -E "s/(\"npm\": *\">=)[^\"]*(\")/\1$NEW_NPM_VER\2/" "$PKG_PATH"
+            echo "  [OK] npm version synchronized to >=$NEW_NPM_VER in package.json"
+        fi
+        if grep -q '"packageManager":' "$PKG_PATH"; then
+            sed -i -E "s/(\"packageManager\": *\")[^\"]*(\")/\1npm@$NEW_NPM_VER\2/" "$PKG_PATH"
+            echo "  [OK] packageManager synchronized to npm@$NEW_NPM_VER in package.json"
+        elif grep -E -q '"name": *"[^"]*", *(\r)?$' "$PKG_PATH"; then
+            sed -i -E "s/(\"name\": *\"[^\"]*\",)(\r)?$/\1\n  \"packageManager\": \"npm@$NEW_NPM_VER\",\2/" "$PKG_PATH"
+            echo "  [OK] packageManager injected as npm@$NEW_NPM_VER in package.json"
+        elif grep -q '"name":' "$PKG_PATH"; then
+            sed -i -E "s/(\"name\": *\"[^\"]*\")(\r)?$/\1,\n  \"packageManager\": \"npm@$NEW_NPM_VER\"\2/" "$PKG_PATH"
+            echo "  [OK] packageManager injected as npm@$NEW_NPM_VER in package.json"
+        fi
     fi
 
     for bin_name in npm npx; do

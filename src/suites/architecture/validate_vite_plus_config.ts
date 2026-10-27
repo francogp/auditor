@@ -4,8 +4,9 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { toPosixRelative, isPathContained } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import { DEFAULT_PRECOMPRESS_THRESHOLD_BYTES } from '../../core/auditConfigDefaults.ts';
 import {
   buildCanonicalVitePlusConfig,
@@ -1104,22 +1105,25 @@ function validateSynchronizedLintAndFmt(
   return findings;
 }
 
+function isRootMatch(expectedRoot: string, assignedRoot: string, baseDir: string): boolean {
+  return (
+    isPathContained(expectedRoot, assignedRoot, baseDir) ||
+    isPathContained(assignedRoot, expectedRoot, baseDir)
+  );
+}
+
 function validateConfiguredProjects(
   summary: ParsedVitePlusConfigSummary,
   fileName: string,
   testRoots: readonly string[],
-  configuredProjects: Record<string, readonly string[]>
+  configuredProjects: AuditVitePlusTestProjects,
+  projectRoot?: string
 ): AuditFinding[] {
   const findings: AuditFinding[] = [];
+  const baseDir = projectRoot ? path.resolve(projectRoot) : process.cwd();
   const allAssignedRoots = Object.values(configuredProjects).flat();
   const unassignedRoots = testRoots.filter(
-    (r) =>
-      !allAssignedRoots.some(
-        (ar) =>
-          ar === r ||
-          ar.startsWith(`${r}/`) ||
-          r.startsWith(`${ar}/`)
-      )
+    (r) => !allAssignedRoots.some((ar) => isRootMatch(r, ar, baseDir))
   );
 
   if (unassignedRoots.length > 0) {
@@ -1156,10 +1160,7 @@ function validateConfiguredProjects(
     }
 
     const missingInProject = projRoots.filter(
-      (r) =>
-        !projectSummary.include.some(
-          (inc) => inc === r || inc.startsWith(`${r}/`) || r.startsWith(`${inc}/`)
-        )
+      (r) => !projectSummary.include.some((inc) => isRootMatch(r, inc, baseDir))
     );
     if (missingInProject.length > 0) {
       findings.push({
@@ -1183,7 +1184,8 @@ function validateConfiguredProjects(
 function validateSynchronizedTest(
   summary: ParsedVitePlusConfigSummary,
   fileName: string,
-  auditConfig: AuditConfig
+  auditConfig: AuditConfig,
+  projectRoot?: string
 ): AuditFinding[] {
   const findings: AuditFinding[] = [];
 
@@ -1212,7 +1214,7 @@ function validateSynchronizedTest(
 
     if (hasConfiguredProjects && configuredProjects) {
       findings.push(
-        ...validateConfiguredProjects(summary, fileName, testRoots, configuredProjects)
+        ...validateConfiguredProjects(summary, fileName, testRoots, configuredProjects, projectRoot)
       );
     } else {
       const missingRoots = testRoots.filter(
@@ -1248,7 +1250,7 @@ function validateSynchronizedConfig(
 ): AuditFinding[] {
   return [
     ...validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot),
-    ...validateSynchronizedTest(summary, fileName, auditConfig)
+    ...validateSynchronizedTest(summary, fileName, auditConfig, projectRoot)
   ];
 }
 

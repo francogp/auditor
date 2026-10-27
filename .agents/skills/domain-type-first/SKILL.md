@@ -1,6 +1,20 @@
 ---
 name: domain-type-first
-description: MANDATORY governance for defining, typing, declaring, modifying, refactoring, or reviewing ANY TypeScript data type, variable, constant, function parameter, return type, component prop, interface field, DTO, schema, store state, or finite domain. This skill MUST trigger whenever the user or task mentions defining or declaring types, variables, parameters, arguments, props, fields, constants, enums, unions, branded types, or schemas, in both Spanish and English (e.g., "tipo de dato", "tipar", "variable", "variables", "parametro", "parámetros", "prop", "props", "campo", "campos", "firma", "constante", "declarar", "data type", "type", "variable", "parameter", "parameters", "args", "return type", "interface", "schema", "state", "ids", "status", "category", "mode", "kind", "Record", "Set", "Map", "array of strings", generated JSON/TS databases). Enforces strict compile-time TypeScript unions derived from canonical data, eliminating naked strings, ad-hoc literal unions, loose any/unknown casts, and runtime fallbacks.
+description: >-
+  MANDATORY governance for defining, typing, declaring, modifying, refactoring, or
+  reviewing ANY TypeScript data type, variable, constant, function parameter,
+  return type, component prop, interface field, DTO, schema, store state, or
+  finite domain. This skill MUST trigger whenever the user or task mentions
+  defining or declaring types, variables, parameters, arguments, props, fields,
+  constants, enums, unions, branded types, or schemas, in both Spanish and English
+  (e.g., "tipo de dato", "tipar", "variable", "variables", "parametro",
+  "parámetros", "prop", "props", "campo", "campos", "firma", "constante",
+  "declarar", "data type", "type", "variable", "parameter", "parameters", "args",
+  "return type", "interface", "schema", "state", "ids", "status", "category",
+  "mode", "kind", "Record", "Set", "Map", "array of strings", generated JSON/TS
+  databases). Enforces strict compile-time TypeScript unions derived from
+  canonical data, eliminating naked strings, ad-hoc literal unions, loose
+  any/unknown casts, and runtime fallbacks.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini
@@ -398,44 +412,10 @@ If code seems to need an inline cast (e.g., `(DATABASE as Record<string, T>)[key
 
 ## AST Audit Rules & Anti-Patterns Reference
 
-### A. Prohibited Inline Literal Unions (`noInlineLiteralUnions`)
-
-- ❌ **Anti-pattern**: `role?: 'admin' | 'editor' | 'viewer'` or `theme?: 'default' | 'error' | 'warning'`
-- ✅ **Canonical**: Centralize in `src/types/` as an `as const` array and derive the union:
-
-  ```typescript
-  export const USER_ROLES = ['admin', 'editor', 'viewer', 'guest'] as const;
-  export type UserRole = (typeof USER_ROLES)[number];
-  ```
-
-### B. Prohibited Inline Type Imports (`noInlineTypeImports`)
-
-- ❌ **Anti-pattern**: `function format(date: import('temporal-polyfill').Temporal.ZonedDateTime)`
-- ✅ **Canonical**: Explicitly import in the file header:
-
-  ```typescript
-  import type { Temporal } from 'temporal-polyfill';
-  ```
-
-### C. Prohibited Anonymous Object Types in Parameters (`noInlineAnonymousObjectType`)
-
-- ❌ **Anti-pattern**: `send: (payload: { type: ChannelType, event: string, payload: unknown }) => void`
-- ✅ **Canonical**: Declare a named interface:
-
-  ```typescript
-  export interface ChannelPayload {
-    type: ChannelType;
-    event: string;
-    payload: unknown;
-  }
-  export interface Channel {
-    send: (payload: ChannelPayload) => void;
-  }
-  ```
-
-### D. Shared Multi-Tier System Constants
-
-- Multi-tier systems (access tiers, execution levels, difficulty modes) must consume shared domain constants (e.g. `TierLevel` / `SYSTEM_TIERS` from `@/types/system/tiers`) rather than declaring ad-hoc literal unions like `'easy' | 'medium' | 'hard' | 'expert'`.
+- **Prohibited Inline Literal Unions (`noInlineLiteralUnions`)**: Never declare `role?: 'admin' | 'editor' | 'viewer'`. Centralize in `src/types/` as an `as const` tuple and derive the union (`export type UserRole = (typeof USER_ROLES)[number]`).
+- **Prohibited Inline Type Imports (`noInlineTypeImports`)**: Never declare `date: import('temporal-polyfill').Temporal.ZonedDateTime`. Explicitly declare `import type { Temporal } from 'temporal-polyfill'` in the file header.
+- **Prohibited Anonymous Object Types in Parameters (`noInlineAnonymousObjectType`)**: Never declare `send: (payload: { type: ChannelType, event: string }) => void`. Declare a named `interface ChannelPayload` or `type`.
+- **Shared Multi-Tier System Constants**: Multi-tier systems (access tiers, execution levels, difficulty modes) must consume shared domain constants (`TierLevel` / `SYSTEM_TIERS` from `@/types/system/tiers`) rather than ad-hoc literal unions.
 
 ## Generated Data Workflow
 

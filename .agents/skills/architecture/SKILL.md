@@ -1,6 +1,21 @@
 ---
 name: architecture
-description: Architectural governance framework. Coordinates /domain-type-first, /clean-code, /dox-navigator, /ponytail, /auditor, and /fallow as mandatory design pillars before designing, restructuring, or implementing systems, and /systematic-debugging as the mandatory primary debugging and evidence-based triage guide (RED-GREEN ante todo). Governs daily verification cadence (auditor:lint for fast critical checks vs auditor for work-complete gating), mandatory priority of official framework CLI tools over premature ad-hoc scratch scripts, official locked skills isolation, skills-lock.json integrity, deterministic upstream skills updating (e.g. 'actualizar skills', 'update skills', 'actualizar skills-lock', 'sync skills', 'skills-lock.json'), mandatory synchronization between repository dependencies and related agent skills (e.g. updating fallow, vitest, gsap, vue together with their skills), and imperative enforcement of Node.js native standard library for all file, path, and runtime operations (e.g. 'rutas nativas', 'file walker', 'node:path', 'node:fs', 'herramientas nativas de nodejs', 'native nodejs').
+description: >-
+  Architectural governance framework. Coordinates /domain-type-first, /clean-code,
+  /dox-navigator, /ponytail, /auditor, and /fallow as mandatory design pillars
+  before designing, restructuring, or implementing systems, and
+  /systematic-debugging as the mandatory primary debugging and evidence-based
+  triage guide (RED-GREEN ante todo). Governs daily verification cadence
+  (auditor:lint for fast critical checks vs auditor for work-complete gating),
+  mandatory priority of official framework CLI tools over premature ad-hoc scratch
+  scripts, official locked skills isolation, skills-lock.json integrity,
+  deterministic upstream skills updating (e.g. 'actualizar skills', 'update
+  skills', 'actualizar skills-lock', 'sync skills', 'skills-lock.json'), mandatory
+  synchronization between repository dependencies and related agent skills (e.g.
+  updating fallow, vitest, gsap, vue together with their skills), and imperative
+  enforcement of Node.js native standard library for all file, path, and runtime
+  operations (e.g. 'rutas nativas', 'file walker', 'node:path', 'node:fs',
+  'herramientas nativas de nodejs', 'native nodejs').
 allowed-tools: Read, Glob, Grep
 license: MIT
 metadata:

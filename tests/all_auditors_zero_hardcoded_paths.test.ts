@@ -343,30 +343,32 @@ describe('Universal Zero Hardcoded Paths & Scope Conformance (All Sub-Auditors &
     ).toEqual([]);
   }
 
-  it('guarantees that 100% of built-in sub-auditors (Part 1) NEVER return or scan paths outside the configured scope', async () => {
+  async function assertBuiltInPartition(partIndex: number, totalParts = 5): Promise<void> {
     const builtInTasks = await scanAllAuditorTasks(process.cwd());
-    const q1 = Math.floor(builtInTasks.length / 4);
-    await assertTasksRespectScope(builtInTasks.slice(0, q1));
+    const step = Math.floor(builtInTasks.length / totalParts);
+    const start = partIndex * step;
+    const end = partIndex === totalParts - 1 ? builtInTasks.length : (partIndex + 1) * step;
+    await assertTasksRespectScope(builtInTasks.slice(start, end));
+  }
+
+  it('guarantees that 100% of built-in sub-auditors (Part 1) NEVER return or scan paths outside the configured scope', async () => {
+    await assertBuiltInPartition(0);
   }, 20_000);
 
   it('guarantees that 100% of built-in sub-auditors (Part 2) NEVER return or scan paths outside the configured scope', async () => {
-    const builtInTasks = await scanAllAuditorTasks(process.cwd());
-    const q1 = Math.floor(builtInTasks.length / 4);
-    const q2 = Math.floor(builtInTasks.length / 2);
-    await assertTasksRespectScope(builtInTasks.slice(q1, q2));
+    await assertBuiltInPartition(1);
   }, 20_000);
 
   it('guarantees that 100% of built-in sub-auditors (Part 3) NEVER return or scan paths outside the configured scope', async () => {
-    const builtInTasks = await scanAllAuditorTasks(process.cwd());
-    const q2 = Math.floor(builtInTasks.length / 2);
-    const q3 = Math.floor((builtInTasks.length * 3) / 4);
-    await assertTasksRespectScope(builtInTasks.slice(q2, q3));
+    await assertBuiltInPartition(2);
   }, 20_000);
 
   it('guarantees that 100% of built-in sub-auditors (Part 4) NEVER return or scan paths outside the configured scope', async () => {
-    const builtInTasks = await scanAllAuditorTasks(process.cwd());
-    const q3 = Math.floor((builtInTasks.length * 3) / 4);
-    await assertTasksRespectScope(builtInTasks.slice(q3));
+    await assertBuiltInPartition(3);
+  }, 20_000);
+
+  it('guarantees that 100% of built-in sub-auditors (Part 5) NEVER return or scan paths outside the configured scope', async () => {
+    await assertBuiltInPartition(4);
   }, 20_000);
 
   it('guarantees that 100% of reference extensions NEVER return or scan paths outside the configured scope', async () => {

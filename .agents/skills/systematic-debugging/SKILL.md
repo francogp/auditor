@@ -1,6 +1,6 @@
 ---
 name: systematic-debugging
-description: >
+description: >-
   MANDATORY orchestrator for evidence-based troubleshooting, bug resolution, and failure triage across TypeScript, Vue, Node.js and fullstack applications.
   YOU MUST trigger this skill whenever a bug, error, test failure, crash, desync, unhandled rejection, visual glitch,
   database bug, persistence failure, SQL migration mismatch, multi-engine database divergence (SQLite, PostgreSQL),

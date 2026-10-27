@@ -1,6 +1,14 @@
 ---
 name: dox-navigator
-description: MANDATORY skill for searching components, files, manuals, database schemas, or project context. You MUST activate this skill whenever navigating the directory structure, reading or updating DOX indices (AGENTS.md files), performing refactorings or major structural changes where DOX indices must be refreshed, executing the /learn command to persist lessons, or performing the DOX pass / lessons extraction step during /safe-commit. It enforces relative paths, language integrity (English-first or native file language, strictly prohibiting language mixing in DOX), and correct targeting of child AGENTS.md files.
+description: >-
+  MANDATORY skill for searching components, files, manuals, database schemas, or
+  project context. You MUST activate this skill whenever navigating the directory
+  structure, reading or updating DOX indices (AGENTS.md files), performing
+  refactorings or major structural changes where DOX indices must be refreshed,
+  executing the /learn command to persist lessons, or performing the DOX pass /
+  lessons extraction step during /safe-commit. It enforces relative paths,
+  language integrity (English-first or native file language, strictly prohibiting
+  language mixing in DOX), and correct targeting of child AGENTS.md files.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini

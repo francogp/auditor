@@ -252,7 +252,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.mkdir(path.join(skillDir, 'evals'), { recursive: true });
       await fs.writeFile(
         path.join(skillDir, 'SKILL.md'),
-        '---\nname: json-broken-skill\ndescription: Valid description\n---\n# Skill\n',
+        '---\nname: json-broken-skill\ndescription: >-\n  Valid description\n---\n# Skill\n',
         'utf8'
       );
       // Malformed JSON (trailing comma, unquoted key)
@@ -278,7 +278,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.mkdir(path.join(skillDir, 'templates'), { recursive: true });
       await fs.writeFile(
         path.join(skillDir, 'SKILL.md'),
-        '---\nname: ts-broken-skill\ndescription: Valid description\n---\n# Skill\n',
+        '---\nname: ts-broken-skill\ndescription: >-\n  Valid description\n---\n# Skill\n',
         'utf8'
       );
       // Malformed TypeScript syntax
@@ -296,6 +296,214 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(violation?.severity).toBe('error');
       expect(violation?.file).toContain('broken.ts');
       expect(violation?.message).toContain('TypeScript syntax error');
+    });
+
+    interface SkillFixtureOptions {
+      fix?: boolean;
+      customPkg?: Record<string, unknown>;
+    }
+
+    async function executeSkillFixture(
+      skillName: string,
+      frontmatterContent: string,
+      options: SkillFixtureOptions = {}
+    ) {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify(options.customPkg ?? { name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const skillDir = path.join(tempDir, '.agents/skills', skillName);
+      await fs.mkdir(skillDir, { recursive: true });
+      const skillPath = path.join(skillDir, 'SKILL.md');
+      await fs.writeFile(skillPath, frontmatterContent, 'utf8');
+
+      const auditor = new AgentPluginAuditor({
+        projectRoot: tempDir,
+        fix: options.fix
+      });
+      const result = await auditor.execute();
+      return { result, skillPath, skillDir };
+    }
+
+    it('detects custom skill with flat description and flags skill-invalid-yaml-frontmatter', async () => {
+      const { result } = await executeSkillFixture(
+        'custom-flat-skill',
+        '---\nname: custom-flat-skill\ndescription: "Flat single line description"\n---\n# Custom Skill\n'
+      );
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'custom-flat-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toContain(
+        "must define 'description' using folded block scalar syntax ('description: >-')"
+      );
+    });
+
+    it('auto-fixes custom skill description to description: >- format when fix: true', async () => {
+      const { result, skillPath } = await executeSkillFixture(
+        'custom-autofix-skill',
+        '---\nname: custom-autofix-skill\ndescription: A long single line description without folding\n---\n# Custom Autofix Skill\n',
+        { fix: true }
+      );
+
+      const frontmatterViolation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'custom-autofix-skill'
+      );
+      expect(frontmatterViolation).toBeUndefined();
+
+      const updatedContent = await fs.readFile(skillPath, 'utf8');
+      expect(updatedContent).toContain('description: >-');
+      expect(updatedContent).toContain('  A long single line description without folding');
+    });
+
+    it('detects custom skill exceeding 500 lines limit', async () => {
+      const lines = [
+        '---',
+        'name: huge-custom-skill',
+        'description: >-',
+        '  Description for huge skill',
+        '---',
+        '# Huge Custom Skill',
+        ...Array.from({ length: 500 }, (_, i) => `Line content ${i + 1}`)
+      ];
+      const { result } = await executeSkillFixture('huge-custom-skill', lines.join('\n'));
+
+      const violation = result.findings.find((f) => f.ruleId === 'skill-exceeds-line-limit');
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toContain('exceeds the 500 lines threshold');
+      expect(violation?.file).toContain('huge-custom-skill');
+    });
+
+    it('exempts locked skills from 500 lines limit and strict description folding', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      // Create skills-lock.json with locked-skill
+      await fs.writeFile(
+        path.join(tempDir, 'skills-lock.json'),
+        JSON.stringify(
+          {
+            version: 1,
+            skills: {
+              'locked-skill': {
+                source: 'test/upstream',
+                computedHash: 'abc123'
+              }
+            }
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const skillDir = path.join(tempDir, '.agents/skills/locked-skill');
+      await fs.mkdir(skillDir, { recursive: true });
+      // Locked skill has flat description AND >500 lines, but should pass because it's locked
+      const lines = [
+        '---',
+        'name: locked-skill',
+        'description: Flat description from third-party vendor without folding',
+        '---',
+        '# Locked Upstream Skill',
+        ...Array.from({ length: 550 }, (_, i) => `Upstream content ${i + 1}`)
+      ];
+      await fs.writeFile(path.join(skillDir, 'SKILL.md'), lines.join('\n'), 'utf8');
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.execute();
+
+      const lineLimitViolation = result.findings.find(
+        (f) => f.ruleId === 'skill-exceeds-line-limit'
+      );
+      expect(lineLimitViolation).toBeUndefined();
+
+      const yamlViolation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'locked-skill'
+      );
+      expect(yamlViolation).toBeUndefined();
+    });
+
+    it('rejects pipe block scalar (description: |) in custom skills', async () => {
+      const { result } = await executeSkillFixture(
+        'pipe-skill',
+        '---\nname: pipe-skill\ndescription: |\n  Line one of description\n  Line two of description\n---\n# Pipe Skill\n'
+      );
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'pipe-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.message).toContain(
+        "must define 'description' using folded block scalar syntax ('description: >-')"
+      );
+    });
+
+    it('rejects unchomped folded scalar (description: >) in custom skills', async () => {
+      const { result } = await executeSkillFixture(
+        'unchomped-skill',
+        '---\nname: unchomped-skill\ndescription: >\n  Line one of description\n---\n# Unchomped Skill\n'
+      );
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'unchomped-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.message).toContain(
+        "must define 'description' using folded block scalar syntax ('description: >-')"
+      );
+    });
+
+    it('rejects custom skill description block lines with invalid indentation', async () => {
+      const { result } = await executeSkillFixture(
+        'bad-indent-skill',
+        '---\nname: bad-indent-skill\ndescription: >-\n    Four spaces indented description\n---\n# Bad Indent Skill\n'
+      );
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'bad-indent-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.message).toContain(
+        'must indent description block lines with exactly 2 spaces'
+      );
+    });
+
+    it('rejects custom skill with inline text after description: >-', async () => {
+      const { result } = await executeSkillFixture(
+        'inline-text-skill',
+        '---\nname: inline-text-skill\ndescription: >- Inline text that is not on a newline\n---\n# Inline Skill\n'
+      );
+
+      const violation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'inline-text-skill'
+      );
+      expect(violation).toBeDefined();
+      expect(violation?.severity).toBe('error');
+      expect(violation?.message).toMatch(/YAML syntax error|must define 'description'/);
+    });
+
+    it('auto-fixes custom skill with unquoted special characters (colon space) in description', async () => {
+      const { result, skillPath } = await executeSkillFixture(
+        'unquoted-colon-skill',
+        '---\nname: unquoted-colon-skill\ndescription: Core framework: automated analysis and rules\n---\n# Special Skill\n',
+        { fix: true }
+      );
+
+      const frontmatterViolation = result.findings.find(
+        (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'unquoted-colon-skill'
+      );
+      expect(frontmatterViolation).toBeUndefined();
+
+      const updatedContent = await fs.readFile(skillPath, 'utf8');
+      expect(updatedContent).toContain('description: >-');
+      expect(updatedContent).toContain('  Core framework: automated analysis and rules');
     });
   });
 });

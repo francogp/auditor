@@ -1,6 +1,14 @@
 ---
 name: database-migrations
-description: "Comprehensive database migration systems, incremental schema evolution, dual-engine synchronization (PostgreSQL + SQLite), in-memory fixture testing, and fail-loud architecture. Make sure to use this skill whenever the user mentions database migrations, SQL migrations, db:migrate, altering tables, writing schema changes, testing migrations, verifying migrations on legacy fixtures, in-memory SQLite testing, dual database persistence, system_config db_version tracking, or debugging PostgreSQL/SQLite migration errors, even if they do not explicitly say 'database-migrations'."
+description: >-
+  Comprehensive database migration systems, incremental schema evolution,
+  dual-engine synchronization (PostgreSQL + SQLite), in-memory fixture testing,
+  and fail-loud architecture. Make sure to use this skill whenever the user
+  mentions database migrations, SQL migrations, db:migrate, altering tables,
+  writing schema changes, testing migrations, verifying migrations on legacy
+  fixtures, in-memory SQLite testing, dual database persistence, system_config
+  db_version tracking, or debugging PostgreSQL/SQLite migration errors, even if
+  they do not explicitly say 'database-migrations'.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini

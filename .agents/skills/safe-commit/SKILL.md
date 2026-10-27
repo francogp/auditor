@@ -1,6 +1,14 @@
 ---
 name: safe-commit
-description: MANDATORY safeguard for repository operations. You MUST trigger and follow this skill whenever the user asks to commit, push, git commit, push changes, save changes, or safe-commit (including variations like "commit seguro", "safe commit", "subir cambios", "guardar cambios", "guardar seguro", "commit this", "push this"). Standard commits or pushes are STRICTLY FORBIDDEN without running this validation pipeline first — doing so would push broken or unvalidated code into history, which is irreversible. Do NOT trigger for automatic agent-internal saves.
+description: >-
+  MANDATORY safeguard for repository operations. You MUST trigger and follow this
+  skill whenever the user asks to commit, push, git commit, push changes, save
+  changes, or safe-commit (including variations like "commit seguro", "safe
+  commit", "subir cambios", "guardar cambios", "guardar seguro", "commit this",
+  "push this"). Standard commits or pushes are STRICTLY FORBIDDEN without running
+  this validation pipeline first — doing so would push broken or unvalidated code
+  into history, which is irreversible. Do NOT trigger for automatic agent-internal
+  saves.
 license: MIT
 metadata:
   author: Franco Gastón Pellegrini

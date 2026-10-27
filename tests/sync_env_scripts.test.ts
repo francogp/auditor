@@ -131,4 +131,335 @@ describe('sync_env_scripts CLI Utility', () => {
     expect(proc.stdout).toContain('PERFECT_PARSE');
     expect(proc.stdout).not.toContain('SYNTAX_ERROR');
   });
+
+  it('verifies setup-linux.sh parses with zero syntax errors in bash when available', () => {
+    let bashBinary: string | null = null;
+    for (const candidate of ['bash', 'sh']) {
+      try {
+        const probe = childProcess.spawnSync(candidate, ['-c', 'echo BASH_OK'], {
+          encoding: 'utf8'
+        });
+        if (probe.status === 0 && probe.stdout.includes('BASH_OK')) {
+          bashBinary = candidate;
+          break;
+        }
+      } catch {
+        // Continue searching
+      }
+    }
+
+    if (!bashBinary) {
+      return;
+    }
+
+    const scriptPath = path.resolve('setup-linux.sh');
+    const scriptContent = fs.readFileSync(scriptPath, 'utf8');
+
+    const proc = childProcess.spawnSync(bashBinary, ['-n', '-s'], {
+      input: scriptContent,
+      encoding: 'utf8'
+    });
+
+    expect(proc.status).toBe(0);
+    expect(proc.stderr || '').toBe('');
+  });
+
+  it('verifies packageManager and npm engines synchronization regex logic', () => {
+    const originalPkg = JSON.stringify(
+      {
+        name: 'test-project',
+        version: '1.0.0',
+        packageManager: 'npm@10.2.0',
+        engines: {
+          node: '>=26.0.0',
+          npm: '>=10.2.0'
+        }
+      },
+      null,
+      2
+    );
+
+    const testFile = path.join(tempDir, 'package.json');
+    fs.writeFileSync(testFile, originalPkg, 'utf8');
+
+    const newVer = '11.5.0';
+
+    // Verify regex substitution logic matching setup-windows.ps1 & setup-linux.sh
+    let raw = fs.readFileSync(testFile, 'utf8');
+    raw = raw.replace(/("npm":\s*">=)[^"]*(")/g, `$1${newVer}$2`);
+    raw = raw.replace(/("packageManager":\s*"npm@)[^"]*(")/g, `$1${newVer}$2`);
+    fs.writeFileSync(testFile, raw, 'utf8');
+
+    const updated = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(updated.packageManager).toBe(`npm@${newVer}`);
+    expect(updated.engines.npm).toBe(`>=${newVer}`);
+
+    // If on Windows, test the exact PowerShell command block
+    if (process.platform === 'win32') {
+      const psTestScript = [
+        `$pkgPath = '${testFile.replace(/'/g, "''")}';`,
+        `$newNpmVer = '12.0.1';`,
+        '$rawPkg = [System.IO.File]::ReadAllText($pkgPath);',
+        '$rawPkg = $rawPkg -replace \'("npm":\\s*">=)[^"]*(")\', "`${1}$newNpmVer`${2}";',
+        '$rawPkg = $rawPkg -replace \'("packageManager":\\s*"npm@)[^"]*(")\', "`${1}$newNpmVer`${2}";',
+        '[System.IO.File]::WriteAllText($pkgPath, $rawPkg);',
+        'Write-Output "SYNCED_OK";'
+      ].join('\n');
+
+      const psProc = childProcess.spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-Command', psTestScript],
+        {
+          encoding: 'utf8'
+        }
+      );
+
+      expect(psProc.status).toBe(0);
+      expect(psProc.stdout).toContain('SYNCED_OK');
+
+      const psUpdated = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+      expect(psUpdated.packageManager).toBe('npm@12.0.1');
+      expect(psUpdated.engines.npm).toBe('>=12.0.1');
+    }
+  });
+
+  it('verifies packageManager injection when missing from package.json', () => {
+    const pkgWithoutPackageManager = JSON.stringify(
+      {
+        name: 'legacy-project',
+        version: '1.0.0',
+        engines: {
+          node: '>=26.0.0',
+          npm: '>=10.2.0'
+        }
+      },
+      null,
+      2
+    );
+
+    const testFile = path.join(tempDir, 'package.json');
+    fs.writeFileSync(testFile, pkgWithoutPackageManager, 'utf8');
+
+    const newVer = '11.8.0';
+
+    // Verify injection logic matching setup-windows.ps1 & setup-linux.sh
+    let raw = fs.readFileSync(testFile, 'utf8');
+    if (!/("packageManager":\s*")[^"]*(")/.test(raw)) {
+      if (/("name":\s*"[^"]*"\s*,)/.test(raw)) {
+        raw = raw.replace(/("name":\s*"[^"]*"\s*,)/, `$1\n  "packageManager": "npm@${newVer}",`);
+      } else if (/("name":\s*"[^"]*")/.test(raw)) {
+        raw = raw.replace(/("name":\s*"[^"]*")/, `$1,\n  "packageManager": "npm@${newVer}"`);
+      }
+      fs.writeFileSync(testFile, raw, 'utf8');
+    }
+
+    const updated = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(updated.packageManager).toBe(`npm@${newVer}`);
+
+    // If on Windows, test the exact PowerShell injection block
+    if (process.platform === 'win32') {
+      fs.writeFileSync(testFile, pkgWithoutPackageManager, 'utf8');
+
+      const psTestScript = [
+        `$pkgPath = '${testFile.replace(/'/g, "''")}';`,
+        `$newNpmVer = '12.4.0';`,
+        '$rawPkg = [System.IO.File]::ReadAllText($pkgPath);',
+        'if ($rawPkg -match \'("packageManager":\\s*")[^"]*(")\') {',
+        '    $rawPkg = $rawPkg -replace \'("packageManager":\\s*")[^"]*(")\', "`${1}npm@$newNpmVer`${2}";',
+        '} elseif ($rawPkg -match \'("name":\\s*"[^"]*"\\s*,)\') {',
+        '    $rawPkg = $rawPkg -replace \'("name":\\s*"[^"]*"\\s*,)\', "`$1`n  `"packageManager`": `"npm@$newNpmVer`",";',
+        '} elseif ($rawPkg -match \'("name":\\s*"[^"]*")\') {',
+        '    $rawPkg = $rawPkg -replace \'("name":\\s*"[^"]*")\', "`$1,`n  `"packageManager`": `"npm@$newNpmVer`"";',
+        '}',
+        '[System.IO.File]::WriteAllText($pkgPath, $rawPkg);',
+        'Write-Output "INJECTED_OK";'
+      ].join('\n');
+
+      const psProc = childProcess.spawnSync(
+        'powershell.exe',
+        ['-NoProfile', '-Command', psTestScript],
+        {
+          encoding: 'utf8'
+        }
+      );
+
+      expect(psProc.status).toBe(0);
+      expect(psProc.stdout).toContain('INJECTED_OK');
+
+      const psUpdated = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+      expect(psUpdated.packageManager).toBe('npm@12.4.0');
+    }
+  });
+
+  it('replaces alternative package managers (pnpm, yarn) without creating duplicate keys', () => {
+    const pkgWithPnpm = JSON.stringify(
+      {
+        name: 'pnpm-project',
+        version: '1.0.0',
+        packageManager: 'pnpm@9.12.0',
+        engines: {
+          node: '>=26.0.0'
+        }
+      },
+      null,
+      2
+    );
+
+    const testFile = path.join(tempDir, 'package.json');
+    fs.writeFileSync(testFile, pkgWithPnpm, 'utf8');
+
+    const newVer = '11.9.0';
+    let raw = fs.readFileSync(testFile, 'utf8');
+    raw = raw.replace(/("packageManager":\s*")[^"]*(")/, `$1npm@${newVer}$2`);
+    fs.writeFileSync(testFile, raw, 'utf8');
+
+    const updated = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(updated.packageManager).toBe(`npm@${newVer}`);
+    // Count occurrences of packageManager
+    const matches = raw.match(/"packageManager"/g);
+    expect(matches?.length).toBe(1);
+  });
+
+  it('safely handles package.json when name has no trailing comma', () => {
+    const pkgWithoutComma = '{\n  "name": "no-comma-project"\n}';
+    const testFile = path.join(tempDir, 'package.json');
+    fs.writeFileSync(testFile, pkgWithoutComma, 'utf8');
+
+    const newVer = '11.9.0';
+    let raw = fs.readFileSync(testFile, 'utf8');
+    if (!/("packageManager":\s*")[^"]*(")/.test(raw)) {
+      if (/("name":\s*"[^"]*"\s*,)/.test(raw)) {
+        raw = raw.replace(/("name":\s*"[^"]*"\s*,)/, `$1\n  "packageManager": "npm@${newVer}",`);
+      } else if (/("name":\s*"[^"]*")/.test(raw)) {
+        raw = raw.replace(/("name":\s*"[^"]*")/, `$1,\n  "packageManager": "npm@${newVer}"`);
+      }
+      fs.writeFileSync(testFile, raw, 'utf8');
+    }
+
+    // Must parse as valid JSON without throwing syntax error
+    const parsed = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(parsed.name).toBe('no-comma-project');
+    expect(parsed.packageManager).toBe(`npm@${newVer}`);
+  });
+
+  it('executes setup-linux.sh sed commands in bash when available', () => {
+    let bashBinary: string | null = null;
+    for (const candidate of ['bash', 'sh']) {
+      try {
+        const probe = childProcess.spawnSync(candidate, ['-c', 'echo BASH_OK'], {
+          encoding: 'utf8'
+        });
+        if (probe.status === 0 && probe.stdout.includes('BASH_OK')) {
+          bashBinary = candidate;
+          break;
+        }
+      } catch {
+        // Continue searching
+      }
+    }
+
+    if (!bashBinary) {
+      return;
+    }
+
+    const testFile = path.join(tempDir, 'package.json');
+    const posixWinPath = testFile.replaceAll(path.win32.sep, path.posix.sep);
+    const newNpmVer = '12.3.4';
+
+    // 1. Test replacement of existing pnpm packageManager and npm engines
+    const pkgWithPnpm = JSON.stringify(
+      {
+        name: 'test-linux-pnpm',
+        version: '1.0.0',
+        packageManager: 'pnpm@9.5.0',
+        engines: {
+          node: '>=26.0.0',
+          npm: '>=10.0.0'
+        }
+      },
+      null,
+      2
+    );
+    fs.writeFileSync(testFile, pkgWithPnpm, 'utf8');
+
+    const runnerScript = [
+      'PKG_PATH="$1"',
+      'NEW_NPM_VER="$2"',
+      'if command -v wslpath >/dev/null 2>&1; then',
+      '    PKG_PATH=$(wslpath -u "$PKG_PATH")',
+      'elif command -v cygpath >/dev/null 2>&1; then',
+      '    PKG_PATH=$(cygpath -u "$PKG_PATH")',
+      'fi',
+      'if grep -q \'"npm":\' "$PKG_PATH"; then',
+      '    sed -i -E "s/(\\"npm\\": *\\">=)[^\\"]*(\\")/' + '\\1$NEW_NPM_VER\\2/' + '" "$PKG_PATH"',
+      'fi',
+      'if grep -q \'"packageManager":\' "$PKG_PATH"; then',
+      '    sed -i -E "s/(\\"packageManager\\": *\\")[^\\"]*(\\")/' +
+        '\\1npm@$NEW_NPM_VER\\2/' +
+        '" "$PKG_PATH"',
+      'elif grep -E -q \'"name": *"[^"]*", *(\r)?$\' "$PKG_PATH"; then',
+      '    sed -i -E "s/(\\"name\\": *\\"[^\\"]*\\",)(\\r)?$/' +
+        '\\1\\n  \\"packageManager\\": \\"npm@$NEW_NPM_VER\\",\\2/' +
+        '" "$PKG_PATH"',
+      'elif grep -q \'"name":\' "$PKG_PATH"; then',
+      '    sed -i -E "s/(\\"name\\": *\\"[^\\"]*\\")(\\r)?$/' +
+        '\\1,\\n  \\"packageManager\\": \\"npm@$NEW_NPM_VER\\"\\2/' +
+        '" "$PKG_PATH"',
+      'fi',
+      'echo "BASH_RUNNER_DONE"'
+    ].join('\n');
+
+    const proc1 = childProcess.spawnSync(bashBinary, ['-s', '--', posixWinPath, newNpmVer], {
+      input: runnerScript,
+      encoding: 'utf8'
+    });
+    expect(proc1.status).toBe(0);
+    expect(proc1.stdout).toContain('BASH_RUNNER_DONE');
+
+    const parsed1 = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(parsed1.packageManager).toBe(`npm@${newNpmVer}`);
+    expect(parsed1.engines.npm).toBe(`>=${newNpmVer}`);
+
+    // 2. Test injection when name has trailing comma and packageManager is missing
+    const pkgWithComma = '{\n  "name": "linux-comma",\n  "version": "1.0.0"\n}';
+    fs.writeFileSync(testFile, pkgWithComma, 'utf8');
+
+    const proc2 = childProcess.spawnSync(bashBinary, ['-s', '--', posixWinPath, newNpmVer], {
+      input: runnerScript,
+      encoding: 'utf8'
+    });
+    expect(proc2.status).toBe(0);
+    expect(proc2.stdout).toContain('BASH_RUNNER_DONE');
+
+    const parsed2 = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(parsed2.packageManager).toBe(`npm@${newNpmVer}`);
+
+    // 3. Test injection when name has NO trailing comma
+    const pkgWithoutComma = '{\n  "name": "linux-no-comma"\n}';
+    fs.writeFileSync(testFile, pkgWithoutComma, 'utf8');
+
+    const proc3 = childProcess.spawnSync(bashBinary, ['-s', '--', posixWinPath, newNpmVer], {
+      input: runnerScript,
+      encoding: 'utf8'
+    });
+    expect(proc3.status).toBe(0);
+
+    const parsed3 = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(parsed3.name).toBe('linux-no-comma');
+    expect(parsed3.packageManager).toBe(`npm@${newNpmVer}`);
+
+    // 4. Test injection with CRLF line endings
+    const pkgWithCrlf = '{\r\n  "name": "linux-crlf",\r\n  "version": "1.0.0"\r\n}';
+    fs.writeFileSync(testFile, pkgWithCrlf, 'utf8');
+
+    const proc4 = childProcess.spawnSync(bashBinary, ['-s', '--', posixWinPath, newNpmVer], {
+      input: runnerScript,
+      encoding: 'utf8'
+    });
+    expect(proc4.status).toBe(0);
+
+    const parsed4 = JSON.parse(fs.readFileSync(testFile, 'utf8'));
+    expect(parsed4.name).toBe('linux-crlf');
+    expect(parsed4.packageManager).toBe(`npm@${newNpmVer}`);
+  });
 });

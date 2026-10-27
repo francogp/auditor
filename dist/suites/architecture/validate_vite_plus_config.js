@@ -1,6 +1,6 @@
 import "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import { isPathContained, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
@@ -979,10 +979,14 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 	});
 	return findings;
 }
-function validateConfiguredProjects(summary, fileName, testRoots, configuredProjects) {
+function isRootMatch(expectedRoot, assignedRoot, baseDir) {
+	return isPathContained(expectedRoot, assignedRoot, baseDir) || isPathContained(assignedRoot, expectedRoot, baseDir);
+}
+function validateConfiguredProjects(summary, fileName, testRoots, configuredProjects, projectRoot) {
 	const findings = [];
+	const baseDir = projectRoot ? path.resolve(projectRoot) : process.cwd();
 	const allAssignedRoots = Object.values(configuredProjects).flat();
-	const unassignedRoots = testRoots.filter((r) => !allAssignedRoots.some((ar) => ar === r || ar.startsWith(`${r}/`) || r.startsWith(`${ar}/`)));
+	const unassignedRoots = testRoots.filter((r) => !allAssignedRoots.some((ar) => isRootMatch(r, ar, baseDir)));
 	if (unassignedRoots.length > 0) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -1012,7 +1016,7 @@ function validateConfiguredProjects(summary, fileName, testRoots, configuredProj
 			});
 			continue;
 		}
-		const missingInProject = projRoots.filter((r) => !projectSummary.include.some((inc) => inc === r || inc.startsWith(`${r}/`) || r.startsWith(`${inc}/`)));
+		const missingInProject = projRoots.filter((r) => !projectSummary.include.some((inc) => isRootMatch(r, inc, baseDir)));
 		if (missingInProject.length > 0) findings.push({
 			suiteId: "validate_vite_plus_config",
 			suiteName: "Vite+ Unified Configuration Validator",
@@ -1028,7 +1032,7 @@ function validateConfiguredProjects(summary, fileName, testRoots, configuredProj
 	}
 	return findings;
 }
-function validateSynchronizedTest(summary, fileName, auditConfig) {
+function validateSynchronizedTest(summary, fileName, auditConfig, projectRoot) {
 	const findings = [];
 	if (summary.hasSection("test") && summary.hasTestProjects && summary.hasRootTestInclude) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -1047,7 +1051,7 @@ function validateSynchronizedTest(summary, fileName, auditConfig) {
 	const hasConfiguredProjects = Boolean(configuredProjects && Object.keys(configuredProjects).length > 0);
 	if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection("test")) {
 		const testRoots = resolveVitestRoots(auditConfig);
-		if (hasConfiguredProjects && configuredProjects) findings.push(...validateConfiguredProjects(summary, fileName, testRoots, configuredProjects));
+		if (hasConfiguredProjects && configuredProjects) findings.push(...validateConfiguredProjects(summary, fileName, testRoots, configuredProjects, projectRoot));
 		else {
 			const missingRoots = testRoots.filter((r) => !summary.testInclude.some((inc) => inc.startsWith(`${r}/`) || inc === r));
 			if (missingRoots.length > 0) findings.push({
@@ -1067,7 +1071,7 @@ function validateSynchronizedTest(summary, fileName, auditConfig) {
 	return findings;
 }
 function validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot) {
-	return [...validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot), ...validateSynchronizedTest(summary, fileName, auditConfig)];
+	return [...validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectRoot), ...validateSynchronizedTest(summary, fileName, auditConfig, projectRoot)];
 }
 /**
 * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections

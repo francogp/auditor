@@ -1414,6 +1414,10 @@ function syncTestCoverageAst(
   return { props, modified: false };
 }
 
+function toTestGlobPattern(root: string): string {
+  return root.includes('*') ? root : `${root}/**/*.{test,spec}.ts`;
+}
+
 function syncTestProjectsAst(
   props: ts.ObjectLiteralElementLike[],
   testProjectsConfig: AuditVitePlusTestProjects,
@@ -1443,9 +1447,7 @@ function syncTestProjectsAst(
 
     if (info.name && configuredRoots) {
       handledProjects.add(info.name);
-      const expectedPatterns = configuredRoots.map((r) =>
-        r.includes('*') ? r : `${r}/**/*.{test,spec}.ts`
-      );
+      const expectedPatterns = configuredRoots.map(toTestGlobPattern);
 
       const targetObj = info.innerTestObj ?? el;
       const targetProps = [...targetObj.properties];
@@ -1482,7 +1484,7 @@ function syncTestProjectsAst(
   // Add any configured projects that don't exist yet in AST
   for (const [projName, roots] of Object.entries(testProjectsConfig)) {
     if (!handledProjects.has(projName)) {
-      const patterns = roots.map((r) => (r.includes('*') ? r : `${r}/**/*.{test,spec}.ts`));
+      const patterns = roots.map(toTestGlobPattern);
       const newProj = ts.factory.createObjectLiteralExpression(
         [
           ts.factory.createPropertyAssignment(

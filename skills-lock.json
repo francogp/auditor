@@ -37,6 +37,12 @@
       "skillPath": "skills/create-adaptable-composable/SKILL.md",
       "computedHash": "9d6c8822577020dd62594e7fca4c11feb2be1af36f62d3f190984fe5aae1f6d1"
     },
+    "design-motion-principles": {
+      "source": "kylezantos/design-motion-principles",
+      "sourceType": "github",
+      "skillPath": "skills/design-motion-principles/SKILL.md",
+      "computedHash": "599f42dbf011df38f3fcaf1497533af447d91cf97443b92439455af103c25b2e"
+    },
     "docker-patterns": {
       "source": "affaan-m/ecc",
       "sourceType": "github",
