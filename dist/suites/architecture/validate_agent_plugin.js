@@ -1,7 +1,7 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
-import { isLockedSkillPath } from "../../core/lockedSkills.js";
+import { SKILLS_LOCK_CANDIDATE_PATHS, isLockedSkillPath, loadAuditorOwnedSkills } from "../../core/lockedSkills.js";
 import { isPathContained, toPosixRelative } from "../../core/safePath.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
@@ -27,6 +27,7 @@ import yaml from "yaml";
 enableCompileCache();
 const AGENT_PLUGIN_RULES = [
 	"missing-agent-plugin-registration",
+	"host-duplicate-auditor-skill",
 	"skill-invalid-yaml-frontmatter",
 	"skill-invalid-asset-syntax",
 	"skill-exceeds-line-limit"
@@ -84,8 +85,16 @@ var AgentPluginAuditor = class extends BaseAuditor {
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["missing-agent-plugin-registration", "skill-invalid-yaml-frontmatter"]),
-			fixableRuleIds: ["missing-agent-plugin-registration", "skill-invalid-yaml-frontmatter"],
+			}, [
+				"missing-agent-plugin-registration",
+				"host-duplicate-auditor-skill",
+				"skill-invalid-yaml-frontmatter"
+			]),
+			fixableRuleIds: [
+				"missing-agent-plugin-registration",
+				"host-duplicate-auditor-skill",
+				"skill-invalid-yaml-frontmatter"
+			],
 			id: "validate_agent_plugin",
 			name: "Agent Plugin & Skill Integration Validator",
 			description: "Verifies agent audit plugin registration",
@@ -93,6 +102,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			ruleIds: AGENT_PLUGIN_RULES,
 			ruleRemediationPhases: {
 				"missing-agent-plugin-registration": "setup",
+				"host-duplicate-auditor-skill": "setup",
 				"skill-invalid-yaml-frontmatter": "hygiene",
 				"skill-invalid-asset-syntax": "hygiene",
 				"skill-exceeds-line-limit": "hygiene"
@@ -104,12 +114,14 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			icon: "🤖",
 			ruleDescriptions: {
 				"missing-agent-plugin-registration": "Plugin/skills unregistered in .agents",
+				"host-duplicate-auditor-skill": "Host duplicates auditor-owned skill",
 				"skill-invalid-yaml-frontmatter": "Invalid YAML frontmatter in SKILL.md",
 				"skill-invalid-asset-syntax": "Syntax error in skill asset file (JSON/TS)",
 				"skill-exceeds-line-limit": "Custom skill exceeds 500 lines limit"
 			},
 			ruleRemediations: {
 				"missing-agent-plugin-registration": "📖 REMEDIATION GUIDE: missing-agent-plugin-registration\n1. Root Cause: The host project does not have the `@francogp/auditor` plugin registered in `.agents/plugins.json` or lacks the corresponding skills catalog in `.agents/skills/`.\n2. Diagnosis: Check if `.agents/plugins.json` exists and references the auditor plugin.\n3. Canonical Solution:\n   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically register the plugin and sync skills.\n   b) Or run `auditor-init` in the host project.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"host-duplicate-auditor-skill": "📖 REMEDIATION GUIDE: host-duplicate-auditor-skill\n1. Root Cause: A consumer host project cloned, updated, or registered in its local `.agents/skills/` or `skills-lock.json` a skill that belongs to `@francogp/auditor` (e.g. `fallow`, `gsap-*`, `vue-*`, `vitest`, `valibot`, `pinia`, `architecture`, `auditor`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=host-duplicate-auditor-skill` to inspect the duplicated skill directory or lock entry.\n3. Canonical Solution: Each project may ONLY manage or lock its own project-local skills. Consumer host projects must never update or duplicate skills distributed by `@francogp/auditor` (ask the `@francogp/auditor` maintainer to update auditor skills upstream). Run `npm run auditor:fix` to remove the duplicate host skill or lock entry.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"skill-invalid-yaml-frontmatter": "📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariant #15 of /architecture). Ensure `name: <name>` matches the directory name.\n4. Example / Auto-fix command:\n   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).",
 				"skill-invalid-asset-syntax": "📖 REMEDIATION GUIDE: skill-invalid-asset-syntax\n1. Root Cause: A secondary asset file within an agent skill (such as an evaluation schema in evals/*.json, blueprint *.json, or code template/example *.ts) contains malformed JSON or TypeScript syntax errors.\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-asset-syntax` to inspect the reported file and parser error message.\n3. Canonical Solution: Repair the JSON syntax (ensure double quotes on keys, remove trailing commas) or fix TypeScript syntax errors in the reported template/example file.\n4. Example / Auto-fix command:\n   Inspect and repair syntax in the target file, then verify with `npm run auditor:agent-plugin`.",
 				"skill-exceeds-line-limit": "📖 REMEDIATION GUIDE: skill-exceeds-line-limit\n1. Root Cause: A custom in-house skill exceeds the 500-line threshold in its primary SKILL.md, violating the 3-tier progressive disclosure mandate.\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-exceeds-line-limit` to identify the oversized skill and inspect its line count.\n3. Canonical Solution: Extract deep technical specifications, extensive rule dictionaries, or workflows into specialized reference files under `references/` or `workflows/`, linking them relatively.\n4. Example / Auto-fix command:\n   Modularize large sections into `references/<topic>.md` and link them relatively from `SKILL.md`."
@@ -117,6 +129,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			coverage: { include: [
 				pluginsJsonRel,
 				skillsJsonRel,
+				...SKILLS_LOCK_CANDIDATE_PATHS,
 				...skillsCoverageGlobs
 			] },
 			unignoreDirs: [primaryAgentDir],
@@ -129,6 +142,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		if ((this.projectRoot !== process.cwd() ? await loadAuditConfig(this.projectRoot) : getAuditConfig()).agentPlugin?.enabled === false) {
 			this.context.setMetric("Agent Plugin Status", "Disabled");
 			this.markRuleNotApplicable("missing-agent-plugin-registration", "config.agentPlugin.enabled = false");
+			this.markRuleNotApplicable("host-duplicate-auditor-skill", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("skill-invalid-yaml-frontmatter", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("skill-invalid-asset-syntax", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("skill-exceeds-line-limit", "config.agentPlugin.enabled = false");
@@ -456,14 +470,87 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			}
 		}
 	}
+	validateHostLockFileOwnership(relLockPath, absLockPath, auditorOwnedSkills) {
+		const raw = safeReadFileSync(absLockPath);
+		if (!raw) return;
+		const data = safeJsonParse(raw);
+		if (!data?.skills || typeof data.skills !== "object") return;
+		const offendingKeys = Object.keys(data.skills).filter((k) => auditorOwnedSkills.has(k.toLowerCase()));
+		if (offendingKeys.length === 0) return;
+		if (this.isFixActive()) {
+			for (const key of offendingKeys) delete data.skills[key];
+			if (Object.keys(data.skills).length === 0) fs.rmSync(absLockPath, { force: true });
+			else fs.writeFileSync(absLockPath, JSON.stringify(data, null, 2) + "\n", "utf8");
+			this.context.logProgress(`Removed auditor-owned skill lock entries (${offendingKeys.join(", ")}) from ${relLockPath}`);
+			return;
+		}
+		for (const key of offendingKeys) this.addViolation({
+			ruleId: "host-duplicate-auditor-skill",
+			severity: "error",
+			file: relLockPath,
+			line: 1,
+			message: `Host skills-lock file '${relLockPath}' locks skill '${key}' which belongs to @francogp/auditor. Each project may only lock its own project-local skills; request the @francogp/auditor maintainer to update auditor skills upstream.`,
+			context: key,
+			fixable: true
+		});
+	}
+	validateHostDuplicateSkillDirs(auditorOwnedSkills, removedOrDuplicateSkills) {
+		const skillsJsonRel = path.posix.join(this.primaryAgentDir, "skills.json");
+		for (const root of this.skillsRoots) {
+			const absRoot = path.resolve(this.projectRoot, root);
+			if (!fs.existsSync(absRoot)) continue;
+			const entries = tryOrNull(() => fs.readdirSync(absRoot, { withFileTypes: true })) ?? [];
+			for (const entry of entries) {
+				if (!entry.isDirectory()) continue;
+				const skillName = entry.name;
+				if (!auditorOwnedSkills.has(skillName.toLowerCase())) continue;
+				removedOrDuplicateSkills.add(skillName);
+				const skillDir = path.join(absRoot, skillName);
+				if (this.isFixActive()) {
+					fs.rmSync(skillDir, {
+						recursive: true,
+						force: true
+					});
+					this.context.logProgress(`Removed duplicate auditor-owned skill directory '${skillName}'`);
+				} else this.addViolation({
+					ruleId: "host-duplicate-auditor-skill",
+					severity: "error",
+					file: skillsJsonRel,
+					line: 1,
+					message: `Skill '${skillName}' in '${toPosixRelative(this.projectRoot, skillDir)}' belongs to @francogp/auditor and must not be duplicated or updated in a consumer host project. Only @francogp/auditor can manage its own skills; request the @francogp/auditor maintainer to update it upstream.`,
+					context: skillName,
+					fixable: true
+				});
+			}
+		}
+	}
+	validateHostDuplicateAuditorSkills() {
+		const removedOrDuplicateSkills = /* @__PURE__ */ new Set();
+		const auditorOwnedSkills = loadAuditorOwnedSkills(this.projectRoot);
+		if (auditorOwnedSkills.size === 0) return removedOrDuplicateSkills;
+		this.validateHostDuplicateSkillDirs(auditorOwnedSkills, removedOrDuplicateSkills);
+		for (const relLockPath of SKILLS_LOCK_CANDIDATE_PATHS) {
+			const absLockPath = path.resolve(this.projectRoot, relLockPath);
+			if (!fs.existsSync(absLockPath)) continue;
+			this.recordScanned(relLockPath);
+			this.validateHostLockFileOwnership(relLockPath, absLockPath, auditorOwnedSkills);
+		}
+		return removedOrDuplicateSkills;
+	}
 	async runAudit(astContext) {
 		if (await this.checkGating()) return;
 		const pluginsJsonRel = path.posix.join(this.primaryAgentDir, "plugins.json");
 		const skillsJsonRel = path.posix.join(this.primaryAgentDir, "skills.json");
-		for (const registryFile of [pluginsJsonRel, skillsJsonRel]) if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
-		if (isSelfProviderProject(this.projectRoot)) {
+		for (const registryFile of [
+			pluginsJsonRel,
+			skillsJsonRel,
+			...SKILLS_LOCK_CANDIDATE_PATHS
+		]) if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
+		const isProvider = isSelfProviderProject(this.projectRoot);
+		if (isProvider) {
 			this.context.setMetric("Agent Plugin Status", "Provider Validated");
 			this.markRuleNotApplicable("missing-agent-plugin-registration", "Provider project for @francogp/auditor (self-registered)");
+			this.markRuleNotApplicable("host-duplicate-auditor-skill", "Provider project for @francogp/auditor (owns canonical skills)");
 		} else this.runSubAuditorSync("missing-agent-plugin-registration", () => {
 			if (isPluginRegisteredInAgents(this.projectRoot, this.primaryAgentDir)) {
 				this.context.setMetric("Agent Plugin Status", "Registered");
@@ -490,14 +577,20 @@ var AgentPluginAuditor = class extends BaseAuditor {
 				skillName
 			});
 		}
+		let duplicateSkills = /* @__PURE__ */ new Set();
+		if (!isProvider) this.runSubAuditorSync("host-duplicate-auditor-skill", () => {
+			duplicateSkills = this.validateHostDuplicateAuditorSkills();
+		});
+		const activeSkillMdFiles = this.isFixActive() && duplicateSkills.size > 0 ? skillMdFiles.filter((s) => !duplicateSkills.has(s.skillName)) : skillMdFiles;
+		const activeSkillAssetFiles = this.isFixActive() && duplicateSkills.size > 0 ? skillAssetFiles.filter((s) => !duplicateSkills.has(s.skillName)) : skillAssetFiles;
 		this.runSubAuditorSync("skill-invalid-yaml-frontmatter", () => {
-			for (const { absFile, skillName } of skillMdFiles) this.validateSkillFrontmatter(absFile, skillName);
+			for (const { absFile, skillName } of activeSkillMdFiles) this.validateSkillFrontmatter(absFile, skillName);
 		});
 		this.runSubAuditorSync("skill-exceeds-line-limit", () => {
-			for (const { absFile, skillName } of skillMdFiles) this.validateSkillLineLimit(absFile, skillName);
+			for (const { absFile, skillName } of activeSkillMdFiles) this.validateSkillLineLimit(absFile, skillName);
 		});
 		this.runSubAuditorSync("skill-invalid-asset-syntax", () => {
-			for (const { absFile, relFile, skillName } of skillAssetFiles) this.validateSkillAsset(relFile, absFile, skillName, astEngine);
+			for (const { absFile, relFile, skillName } of activeSkillAssetFiles) this.validateSkillAsset(relFile, absFile, skillName, astEngine);
 		});
 	}
 };

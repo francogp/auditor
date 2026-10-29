@@ -4,50 +4,54 @@
  * VUE SFC & SCRIPT SETUP HYGIENE AUDITOR (Node.js 26+ Native)
  *
  * Enforces Vue 3 Composition API & Single File Component architecture rules (vue-best-practices):
- *   1. Script Setup Required (`script-setup-required`):
- *      Components in `src/components/` and `src/views/` must use `<script setup lang="ts">`.
- *      Options API (`export default { ... }`) is strictly forbidden.
- *   2. No Script Setup Exports (`no-script-setup-exports`):
- *      `<script setup>` cannot contain ES module exports (`export const`, `export type`,
- *      `export interface`). Shared contracts must be extracted to companion `*Types.ts` files.
- *   3. Vue Template Quote Escaping (`vueTemplateQuoteEscaping`):
- *      Prohibits unescaped inner double quotes inside double-quoted template attribute bindings
- *      (e.g. `:alt="tier?.name || "Bronce""`), which break Vite parsing.
- *   4. No Heavy Data Providers in Templates (`no-data-provider-in-template`):
- *      Prohibits invoking heavy database data providers (e.g. `dataProvider.get...()`)
- *      directly inside `<template>` render expressions.
- *
- * Usage:
- *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
+ *   1. Script Setup Required (`script-setup-required`)
+ *   2. No Script Setup Exports (`no-script-setup-exports`)
+ *   3. Vue Template Quote Escaping (`vue-template-quote-escaping`)
+ *   4. No Heavy Data Providers in Templates (`no-data-provider-in-template`)
+ *   5. No Magic Calculations in Templates (`vue-template-magic-calculation`)
+ *   6. IME-Safe Enter Submission (`ime-unsafe-enter-submit`)
+ *   7. Pure Template Expressions Without Side Effects (`vue-template-no-side-effects`)
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import type ts from 'typescript';
+import { SharedAstContext } from '../../core/astContext.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
+import { parseVueSfc, parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
+import {
+  MODERN_VUE_HYGIENE_RULES,
+  analyzeImeSafeEnterInScriptAst,
+  analyzeTemplateSideEffectsAst
+} from '../../analyzers/vueModernHygieneAnalyzer.ts';
 
 enableCompileCache();
 
-export type VueSfcHygieneRuleId =
-  | 'script-setup-required'
-  | 'no-script-setup-exports'
-  | 'vue-template-quote-escaping'
-  | 'no-data-provider-in-template'
-  | 'vue-template-magic-calculation';
-
-export const VUE_SFC_HYGIENE_RULES: readonly VueSfcHygieneRuleId[] = [
+export const VUE_SFC_HYGIENE_RULES = [
   'script-setup-required',
   'no-script-setup-exports',
   'vue-template-quote-escaping',
   'no-data-provider-in-template',
-  'vue-template-magic-calculation'
+  'vue-template-magic-calculation',
+  ...MODERN_VUE_HYGIENE_RULES
 ] as const;
+
+export type VueSfcHygieneRuleId = (typeof VUE_SFC_HYGIENE_RULES)[number];
+
+const FIXABLE_VUE_HYGIENE_RULES: readonly VueSfcHygieneRuleId[] = [...MODERN_VUE_HYGIENE_RULES];
 
 export const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
-const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX =
   /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
 const TEMPLATE_QUOTE_ESCAPE_REGEX =
@@ -101,6 +105,8 @@ function detectTemplateMagicCalculation(expression: string): string | null {
 }
 
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
+  private readonly astCache = new SharedAstContext();
+
   constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
@@ -109,17 +115,23 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
+      fix: options.fix,
       roots: targetRoots,
       projectRoot: effectiveRoot,
-      ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        VUE_SFC_HYGIENE_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: false,
+          critical: false
+        },
+        FIXABLE_VUE_HYGIENE_RULES
+      ),
+      fixableRuleIds: FIXABLE_VUE_HYGIENE_RULES,
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
       description: 'Verifies Vue SFC standards and <script setup lang="ts">',
@@ -136,7 +148,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         'no-script-setup-exports': 'Export inside script setup',
         'vue-template-quote-escaping': 'Unescaped quotes in template',
         'no-data-provider-in-template': 'Data provider in template',
-        'vue-template-magic-calculation': 'Magic calculation in Vue template'
+        'vue-template-magic-calculation': 'Magic calculation in Vue template',
+        'ime-unsafe-enter-submit': 'Enter key handler missing !e.isComposing',
+        'vue-template-no-side-effects': 'Mutating .sort/.reverse/.splice in template'
       },
       ruleRemediations: {
         'script-setup-required':
@@ -230,13 +244,37 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
           'const VAT_RATE = 0.21;\n' +
           'const taxAmount = computed(() => (props.subtotal * VAT_RATE).toFixed(2));\n' +
           '</script>\n' +
-          '<template><span>{{ taxAmount }}</span></template>'
+          '<template><span>{{ taxAmount }}</span></template>',
+        'ime-unsafe-enter-submit':
+          '1. Root Cause:\n' +
+          'A keyboard submission handler checks `event.key === "Enter"` without verifying `!event.isComposing`. When users type with CJK or mobile IME composition, pressing Enter to confirm an IME candidate triggers premature form/message submission.\n\n' +
+          '2. Diagnosis:\n' +
+          'Inspect the `keydown` handler in `<script setup>` at the reported line.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Guard the Enter key check with `&& !event.isComposing`. Run `npm run auditor:fix` to auto-repair.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Premature IME submit: if (e.key === "Enter") submitChat();\n' +
+          '// ✅ IME-safe submit:      if (e.key === "Enter" && !e.isComposing) submitChat();',
+        'vue-template-no-side-effects':
+          '1. Root Cause:\n' +
+          'An in-place mutating array method (`.sort()`, `.reverse()`, `.splice()`) or state mutation operator (`++`, `--`) was invoked inside a non-event `<template>` expression. Mutating reactive state during render triggers infinite re-render loops.\n\n' +
+          '2. Diagnosis:\n' +
+          'Locate the `.sort()`, `.reverse()`, or `.splice()` call in the `<template>`.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Use ES2023 immutable methods (`.toSorted()`, `.toReversed()`, `.toSpliced()`) or move the transformation to a `computed()` property. Run `npm run auditor:fix` to auto-migrate `.sort()`/`.reverse()`.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          '// ❌ Mutates state in render: <li v-for="item in items.sort()" :key="item.id">\n' +
+          '// ✅ Immutable render:        <li v-for="item in items.toSorted()" :key="item.id">'
       },
       allowedExtensions: new Set(['.vue'])
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile
+  ): void {
     // 1. Audit Script Setup requirement and Options API prohibition
     this.runSubAuditorSync('script-setup-required', () => {
       this.auditScriptSetup(relPath, content);
@@ -261,10 +299,71 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     this.runSubAuditorSync('vue-template-magic-calculation', () => {
       this.auditTemplateMagicCalculation(relPath, content);
     });
+
+    // 6 & 7. Audit modern Vue AST rules (IME-safe Enter & pure template expressions)
+    this.auditModernVueHygieneRules(relPath, content, sourceFile);
+  }
+
+  private auditModernVueHygieneRules(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile
+  ): void {
+    const isFix = this.isFixActive();
+    const absFile = path.resolve(this.projectRoot, relPath);
+    let updatedContent: string | undefined;
+
+    this.runSubAuditorSync('ime-unsafe-enter-submit', () => {
+      const sf = sourceFile ?? this.astCache.getSourceFile(relPath, content);
+      const imeRes = analyzeImeSafeEnterInScriptAst(content, sf, isFix);
+      for (const f of imeRes.findings) {
+        this.addViolation({
+          ruleId: 'ime-unsafe-enter-submit',
+          severity: 'error',
+          file: relPath,
+          line: f.line,
+          message: f.message,
+          context: f.context
+        });
+      }
+      if (isFix && imeRes.fixedContent !== undefined) {
+        updatedContent = imeRes.fixedContent;
+      }
+    });
+
+    this.runSubAuditorSync('vue-template-no-side-effects', () => {
+      const baseContent = updatedContent ?? content;
+      const sfc = parseVueSfc(baseContent);
+      if (!sfc.template) return;
+
+      const tplRes = analyzeTemplateSideEffectsAst(
+        baseContent,
+        sfc.template.content,
+        sfc.template.contentStartIndex,
+        this.astCache,
+        isFix
+      );
+      for (const f of tplRes.findings) {
+        this.addViolation({
+          ruleId: 'vue-template-no-side-effects',
+          severity: 'error',
+          file: relPath,
+          line: f.line,
+          message: f.message,
+          context: f.context
+        });
+      }
+      if (isFix && tplRes.fixedContent !== undefined) {
+        updatedContent = tplRes.fixedContent;
+      }
+    });
+
+    if (isFix && updatedContent !== undefined && fs.existsSync(absFile)) {
+      fs.writeFileSync(absFile, updatedContent, 'utf-8');
+    }
   }
 
   private auditScriptSetup(relPath: string, content: string): void {
-    // Options API detection
     let match: RegExpExecArray | null;
     const optionsRegex = new RegExp(
       OPTIONS_API_EXPORT_REGEX.source,
@@ -284,12 +383,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       });
     }
 
-    // Check if component has any script tags, and if none has 'setup'
-    const scriptMatches = [
-      ...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))
-    ];
-    if (scriptMatches.length > 0) {
-      const hasSetup = scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ''));
+    const sfc = parseVueSfc(content);
+    if (sfc.scripts.length > 0) {
+      const hasSetup = sfc.scripts.some((s) => s.isSetup);
       if (!hasSetup) {
         this.addViolation({
           ruleId: 'script-setup-required',
@@ -297,23 +393,17 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
           file: relPath,
           line: 1,
           message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
-          context: scriptMatches[0]![0].slice(0, SCRIPT_TAG_CONTEXT_MAX_CHARS)
+          context: sfc.scripts[0]!.rawBlock.slice(0, SCRIPT_TAG_CONTEXT_MAX_CHARS)
         });
       }
     }
   }
 
   private auditScriptSetupExports(relPath: string, content: string): void {
-    const scriptMatches = [
-      ...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))
-    ];
+    const sfc = parseVueSfc(content);
 
-    for (const sMatch of scriptMatches) {
-      const attrs = sMatch[1] ?? '';
-      if (!/\bsetup\b/.test(attrs)) continue;
-
-      const scriptBody = sMatch[2] ?? '';
-      const scriptStartIndex = sMatch.index ?? 0;
+    for (const sBlock of sfc.scripts) {
+      if (!sBlock.isSetup) continue;
 
       let expMatch: RegExpExecArray | null;
       const expRegex = new RegExp(
@@ -321,8 +411,8 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         SCRIPT_SETUP_EXPORT_REGEX.flags
       );
 
-      while ((expMatch = expRegex.exec(scriptBody)) !== null) {
-        const fullIndex = scriptStartIndex + expMatch.index;
+      while ((expMatch = expRegex.exec(sBlock.content)) !== null) {
+        const fullIndex = sBlock.contentStartIndex + expMatch.index;
         const line = this.getLineNumber(content, fullIndex);
         const lineContent = this.getLineAt(content, line);
 
@@ -355,11 +445,9 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
 
     const { templateContent, templateStartIndex } = template;
 
-    // Scan lines for patterns like :attr="foo || "bar""
     const lines = templateContent.split('\n');
     for (let i = 0; i < lines.length; i++) {
       const lineText = lines[i]!;
-      // Detect unescaped double quotes inside attribute value
       if (TEMPLATE_QUOTE_ESCAPE_REGEX.test(lineText)) {
         const line = this.getLineNumber(content, templateStartIndex) + i;
 
@@ -378,12 +466,10 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   private extractDynamicExpressions(
     templateContent: string
   ): Array<{ expression: string; offsetInTemplate: number }> {
-    // 1. Mask HTML comments with whitespace to preserve character indices
     const masked = templateContent.replace(/<!--[\s\S]*?-->/g, (match) => ' '.repeat(match.length));
 
     const results: Array<{ expression: string; offsetInTemplate: number }> = [];
 
-    // 2. Extract mustache interpolations: {{ ... }}
     const interpolationRegex = /\{\{([\s\S]*?)\}\}/g;
     let m: RegExpExecArray | null;
     while ((m = interpolationRegex.exec(masked)) !== null) {
@@ -394,7 +480,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       });
     }
 
-    // 3. Extract dynamic directives in tag attributes: :prop="...", v-bind:prop="...", v-if="...", @event="...", etc.
     const directiveRegex = /(?:v-[\w.:-]+|:[\w.-]+|@[\w.-]+)\s*=\s*(["'])([\s\S]*?)\1/g;
     while ((m = directiveRegex.exec(masked)) !== null) {
       const fullMatch = m[0];
@@ -444,7 +529,6 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
       prohibitedDb.length > 0 ? new RegExp(`\\b(?:${prohibitedDb.join('|')})\\b`, 'i') : null;
 
     for (const { expression, offsetInTemplate } of dynamicExpressions) {
-      // 1. Check heavy data providers (e.g. dataProvider.get...)
       const providerMatch = providerRegex.exec(expression);
       if (providerMatch) {
         const fullIndex = templateStartIndex + offsetInTemplate + providerMatch.index;
@@ -456,9 +540,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
         );
       }
 
-      // 2. Check prohibited database client identifiers outside string literals
       if (dbRegex) {
-        // Strip string literals inside expression to avoid matching strings like tab === 'db'
         const strippedExpression = expression.replace(/'(?:\\.|[^'])*'|"(?:\\.|[^"])*"/g, (match) =>
           ' '.repeat(match.length)
         );
@@ -521,5 +603,4 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   }
 }
 
-// Standalone execution support
 await BaseAuditor.runCliIfMain(import.meta.url, new VueSfcHygieneAuditor());

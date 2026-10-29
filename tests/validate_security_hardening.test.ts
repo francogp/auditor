@@ -1,3 +1,4 @@
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { resetAuditConfig } from '../src/core/auditConfig.ts';
 import { validateAuditorConstruction } from '../src/core/auditorContractConformance.ts';
+import { WorktreeSandboxManager } from '../src/core/refactor/worktreeSandbox.ts';
 import {
   ValidateSecurityHardeningAuditor,
   SECURITY_HARDENING_RULES
@@ -53,6 +55,21 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       expect(auditor.ruleDescriptions['permissive-cors']).toBe("Permissive CORS with origin '*'");
       expect(auditor.ruleDescriptions['unvalidated-redirect']).toBe(
         'Open redirect without validation'
+      );
+      expect(auditor.ruleDescriptions['security-postmessage-origin-validation']).toBe(
+        'postMessage missing origin validation'
+      );
+      expect(auditor.ruleDescriptions['security-trusted-types-passthrough']).toBe(
+        'Trusted Types passthrough policy'
+      );
+      expect(auditor.ruleDescriptions['security-external-sri-missing']).toBe(
+        'External CDN script/style missing SRI'
+      );
+      expect(auditor.ruleDescriptions['security-cookie-samesite-partitioned']).toBe(
+        'SameSite=None cookie missing Secure'
+      );
+      expect(auditor.ruleDescriptions['ci-github-actions-script-injection']).toBe(
+        'GitHub Actions run script injection'
       );
 
       const constructionErrors = validateAuditorConstruction(auditor);
@@ -210,6 +227,121 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
       const finding = result.findings.find((f) => f.ruleId === 'unvalidated-redirect');
       expect(finding).toBeDefined();
       expect(finding?.severity).toBe('error');
+    });
+
+    it('detects all 5 modern AST/DOM/YAML security rules and auto-repairs in an ephemeral Git worktree', async () => {
+      const fixtureTs = fs.readFileSync(
+        path.resolve(import.meta.dirname, 'fixtures/modern_web/SecurityBroken.ts.cases'),
+        'utf-8'
+      );
+      const srcDir = path.join(tempDir, 'src');
+      const wfDir = path.join(tempDir, '.github/workflows');
+      fs.mkdirSync(srcDir, { recursive: true });
+      fs.mkdirSync(wfDir, { recursive: true });
+
+      fs.writeFileSync(path.join(srcDir, 'SecurityBroken.ts'), fixtureTs, 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'index.html'),
+        '<!DOCTYPE html><html><head><script src="https://cdn.example.com/lib.js" integrity="sha384-abc"></script></head><body></body></html>\n',
+        'utf-8'
+      );
+      fs.writeFileSync(
+        path.join(wfDir, 'ci.yml'),
+        [
+          'name: CI',
+          'on: pull_request',
+          'jobs:',
+          '  check:',
+          '    runs-on: ubuntu-latest',
+          '    steps:',
+          '      - name: Print PR title',
+          '        run: echo "${{ github.event.pull_request.title }}"'
+        ].join('\n'),
+        'utf-8'
+      );
+
+      // Initialize git repo in tempDir to test WorktreeSandboxManager
+      execSync(
+        'git init && git config user.email "test@example.com" && git config user.name "Test" && git add . && git commit -m "init"',
+        {
+          cwd: tempDir,
+          stdio: 'pipe'
+        }
+      );
+
+      const session = WorktreeSandboxManager.createSession(tempDir, `sec-fix-wt-${Date.now()}`);
+      try {
+        // 1. Read-only check on worktree
+        const checkAuditor = new ValidateSecurityHardeningAuditor({
+          projectRoot: session.worktreeDir
+        });
+        await checkAuditor.runAudit();
+        const checkRes = await checkAuditor.finishAudit();
+
+        const ruleSet = new Set(checkRes.findings.map((f) => f.ruleId));
+        expect(ruleSet.has('security-postmessage-origin-validation')).toBe(true);
+        expect(ruleSet.has('security-trusted-types-passthrough')).toBe(true);
+        expect(ruleSet.has('security-external-sri-missing')).toBe(true);
+        expect(ruleSet.has('security-cookie-samesite-partitioned')).toBe(true);
+        expect(ruleSet.has('ci-github-actions-script-injection')).toBe(true);
+
+        // 2. Run --fix inside isolated worktree
+        const fixAuditor = new ValidateSecurityHardeningAuditor({
+          projectRoot: session.worktreeDir,
+          fix: true
+        });
+        await fixAuditor.runAudit();
+
+        const fixedTs = fs.readFileSync(
+          path.join(session.worktreeDir, 'src/SecurityBroken.ts'),
+          'utf-8'
+        );
+        expect(fixedTs).toContain('window.location.origin');
+        expect(fixedTs).toContain('secure: true');
+
+        const fixedHtml = fs.readFileSync(path.join(session.worktreeDir, 'index.html'), 'utf-8');
+        expect(fixedHtml).toContain('crossorigin="anonymous"');
+
+        const fixedWf = fs.readFileSync(
+          path.join(session.worktreeDir, '.github/workflows/ci.yml'),
+          'utf-8'
+        );
+        expect(fixedWf).toContain('GH_PULL_REQUEST_TITLE');
+        expect(fixedWf).toContain('"$GH_PULL_REQUEST_TITLE"');
+
+        // Verify original tempDir working tree was untouched
+        const origTs = fs.readFileSync(path.join(tempDir, 'src/SecurityBroken.ts'), 'utf-8');
+        expect(origTs).toContain("'*'");
+      } finally {
+        session.cleanup();
+      }
+    });
+
+    it('avoids false positives on Dedicated Web Workers (*.worker.ts / self.addEventListener) and sanitized Trusted Types', async () => {
+      const auditor = new ValidateSecurityHardeningAuditor({ projectRoot: tempDir });
+      const workerCode = [
+        'self.addEventListener("message", (event: MessageEvent) => {',
+        '  const { jobId } = event.data;',
+        '  self.postMessage({ jobId, ok: true });',
+        '});'
+      ].join('\n');
+
+      auditor.testScanFile('src/logic/spriteOutliner.worker.ts', workerCode);
+
+      const safeMainThread = [
+        'window.addEventListener("message", (event: MessageEvent) => {',
+        '  if (event.origin !== window.location.origin) return;',
+        '  console.info(event.data);',
+        '});',
+        'window.trustedTypes?.createPolicy("default", {',
+        '  createHTML: (s: string) => DOMPurify.sanitize(s)',
+        '});',
+        'export const SAFE_COOKIE = { sameSite: "none", secure: true };'
+      ].join('\n');
+
+      auditor.testScanFile('src/logic/safeMessaging.ts', safeMainThread);
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(0);
     });
   });
 

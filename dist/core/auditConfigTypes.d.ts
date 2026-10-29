@@ -322,6 +322,7 @@ export interface AuditVersionConfig extends BaseAuditSubsystemConfig {
 }
 export interface AuditSecretLeaksConfig extends BaseAuditSubsystemConfig {
   readonly maskSecrets?: boolean;
+  readonly allows?: readonly string[];
   readonly allowedPatterns?: readonly string[];
   readonly exemptGlobs?: readonly string[];
 }

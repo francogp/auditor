@@ -152,6 +152,15 @@ function readTopLevelProperty(cfgText, i, limit) {
 				match: null
 			};
 		}
+		if (id === "width") {
+			let valStart = j + 1;
+			while (valStart < limit && /\s/.test(cfgText[valStart] ?? "")) valStart++;
+			const rest = cfgText.slice(valStart, valStart + 30);
+			if (/^(?:['"`][^'"`]*%['"`]|['"]0(?:px)?['"]|0\b)/.test(rest) || /percent|pct/i.test(rest)) return {
+				nextIndex: j,
+				match: null
+			};
+		}
 		return {
 			nextIndex: j,
 			match: {
@@ -233,6 +242,64 @@ function isHighDensityOrSuppressed(content, start, matchIndex, context, filePath
 	const highDensityKeywords = /card|item|avatar|badge|icon|grid|list|row|cell|overlay|background/i;
 	return highDensityKeywords.test(selectorText) || (filePath ? highDensityKeywords.test(filePath) : false);
 }
+function findVariableInitializer(stmts, targetName) {
+	for (const stmt of stmts) if (ts.isVariableStatement(stmt)) {
+		for (const decl of stmt.declarationList.declarations) if (ts.isIdentifier(decl.name) && decl.name.text === targetName) return decl.initializer;
+	}
+}
+function resolveLocalVariableDeclaration(ident, ast) {
+	const targetName = ident.text;
+	let current = ident.parent;
+	while (current) {
+		if (ts.isBlock(current) || ts.isSourceFile(current) || ts.isFunctionDeclaration(current) || ts.isFunctionExpression(current) || ts.isArrowFunction(current) || ts.isMethodDeclaration(current)) {
+			const stmts = ts.isSourceFile(current) || ts.isBlock(current) ? current.statements : "body" in current && current.body && ts.isBlock(current.body) ? current.body.statements : void 0;
+			if (stmts) {
+				const found = findVariableInitializer(stmts, targetName);
+				if (found) return found;
+			}
+		}
+		current = current.parent;
+	}
+	return findVariableInitializer(ast.statements, targetName);
+}
+function isPercentageWidthExpression(expr, ast, depth = 0) {
+	if (depth > 5) return false;
+	if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+		const text = expr.text.trim();
+		return text.endsWith("%") || text === "0" || text === "0px";
+	}
+	if (ts.isNumericLiteral(expr)) return expr.text === "0";
+	if (ts.isTemplateExpression(expr)) {
+		const lastSpan = expr.templateSpans[expr.templateSpans.length - 1];
+		if (lastSpan && lastSpan.literal.text.trimEnd().endsWith("%")) return true;
+		return false;
+	}
+	if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+		if (ts.isStringLiteral(expr.right) && expr.right.text.trimEnd().endsWith("%")) return true;
+		if (ts.isStringLiteral(expr.left) && expr.left.text.trimEnd().endsWith("%")) return true;
+		return isPercentageWidthExpression(expr.right, ast, depth + 1) || isPercentageWidthExpression(expr.left, ast, depth + 1);
+	}
+	if (ts.isIdentifier(expr)) {
+		const declExpr = resolveLocalVariableDeclaration(expr, ast);
+		if (declExpr && isPercentageWidthExpression(declExpr, ast, depth + 1)) return true;
+		const name = expr.text.toLowerCase();
+		if (name.includes("percent") || name.includes("pct") || name.endsWith("ratio")) return true;
+		return false;
+	}
+	if (ts.isPropertyAccessExpression(expr)) {
+		const prop = expr.name.text.toLowerCase();
+		if (prop.includes("percent") || prop.includes("pct") || prop.endsWith("ratio")) return true;
+		return false;
+	}
+	return false;
+}
+function resolveObjectLiteral(expr, ast) {
+	if (ts.isObjectLiteralExpression(expr)) return expr;
+	if (ts.isIdentifier(expr)) {
+		const decl = resolveLocalVariableDeclaration(expr, ast);
+		if (decl && ts.isObjectLiteralExpression(decl)) return decl;
+	}
+}
 var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
@@ -289,7 +356,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			ruleRemediations: {
 				"gsap-banned-css-animations": "📖 REMEDIATION GUIDE: gsap-banned-css-animations\n1. Root Cause: A manual animation or transition defined in CSS or SCSS (@keyframes, transition, animation) was detected. In projects standardizing on GSAP, CSS animations break time synchronization and test determinism.\n2. Diagnosis: Locate the transition or animation property in the reported stylesheet rule.\n3. Canonical Solution: Migrate the animation to GSAP using gsap.to(), gsap.fromTo(), gsap.timeline(), or Vue component lifecycle hooks.\n4. Example / Auto-fix command:\n   ❌ Banned:  .modal-card { transition: transform 0.3s ease, opacity 0.3s; }\n   ✅ Correct: gsap.to(cardEl, { scale: 1, opacity: 1, duration: 0.3, ease: \"power2.out\" });",
 				"gsap-banned-ui-timers": "📖 REMEDIATION GUIDE: gsap-banned-ui-timers\n1. Root Cause: Usage of setTimeout(), setInterval(), or requestAnimationFrame() in UI layers (src/ui/). These native timers desynchronize from GSAP timelines and cause memory leaks.\n2. Diagnosis: Identify the setTimeout/setInterval call in the reported file.\n3. Canonical Solution:\n   a) For delays: replace setTimeout(fn, ms) with gsap.delayedCall(seconds, fn) or await gsapSleep(seconds).\n   b) For loops: use gsap.timeline({ repeat: -1 }) or gsap.ticker.add(fn).\n4. Example / Auto-fix command:\n   ❌ Banned:  setTimeout(() => { isVisible.value = false; }, 300);\n   ✅ Correct: gsap.delayedCall(DELAY_SEC, () => { isVisible.value = false; });",
-				"gsap-no-layout-properties": "📖 REMEDIATION GUIDE: gsap-no-layout-properties\n1. Root Cause: A GSAP tween animates geometric layout properties (top, left, width, margin). Animating these forces layout reflow on CPU on every frame.\n2. Diagnosis: Check the tween properties object at the reported line.\n3. Canonical Solution: Replace layout properties with hardware-accelerated GPU transforms (x, y, xPercent, yPercent, scale, rotation, autoAlpha).\n4. Example / Auto-fix command:\n   ❌ Banned:  animating layout properties like top/left in gsap.to\n   ✅ Correct: gsap.to(el, { y: 100, x: 50 });",
+				"gsap-no-layout-properties": "📖 REMEDIATION GUIDE: gsap-no-layout-properties\n1. Root Cause: A GSAP tween animates geometric layout properties (top, left, width in px, margin). Animating these forces layout reflow on CPU on every frame.\n2. Diagnosis: Inspect the tween properties object at the reported line.\n3. Canonical Solution:\n   a) Isolated elements: Use hardware-accelerated GPU transforms (x, y, xPercent, yPercent, scaleX, scaleY, rotation, autoAlpha).\n   b) Stacked meters / Flexbox distribution bars: Animate geometric percentage width (e.g. width: \"0%\" to \"62%\") or SVG <rect>. CAUTION: Do NOT replace width with scaleX on adjacent flex items as GPU transforms do not reflow sibling positions, leaving visual gaps and glitches.\n   c) Collapsible accordions: Use height: 0 or height: \"auto\".\n4. Example / Auto-fix command:\n   ❌ Banned:  gsap.to(el, { left: \"100px\", width: \"200px\" });\n   ✅ Correct: gsap.to(el, { x: 100 }); // isolated element\n   ✅ Correct: gsap.fromTo(barEl, { width: \"0%\" }, { width: \"62%\" }); // flex distribution bar",
 				"gsap-named-timer-constants": "📖 REMEDIATION GUIDE: gsap-named-timer-constants\n1. Root Cause: A raw numeric value (magic number) was used as duration or delay in a GSAP animation without a descriptive constant or design token.\n2. Diagnosis: Locate literal numbers in duration or delay properties in the tween.\n3. Canonical Solution: Define or import a named constant (e.g. MODAL_ENTER_DURATION_SEC) to unify design system animation speed.\n4. Example / Auto-fix command:\n   ❌ Banned:  gsap.to(el, { duration: 0.35, delay: 0.1 });\n   ✅ Correct: gsap.to(el, { duration: MODAL_ENTER_DURATION_SEC, delay: STAGGER_DELAY_SEC });",
 				"gsap-empty-vue-transitions": "📖 REMEDIATION GUIDE: gsap-empty-vue-transitions\n1. Root Cause: A <Transition> or <TransitionGroup> tag was declared in a Vue component without CSS transition classes or GSAP animation hooks.\n2. Diagnosis: Locate <Transition> tags in template lacking name, css, or listener bindings.\n3. Canonical Solution: Bind JavaScript hooks to animate entry/exit with GSAP (:css=\"false\" @enter=\"onEnter\" @leave=\"onLeave\") or remove the wrapper.\n4. Example / Auto-fix command:\n   <Transition :css=\"false\" @enter=\"onEnter\" @leave=\"onLeave\">",
 				"gsap-no-important-transforms": "📖 REMEDIATION GUIDE: gsap-no-important-transforms\n1. Root Cause: !important was declared on a CSS transform property, overriding GSAP transform matrices and breaking animations.\n2. Diagnosis: Search for \"transform: ... !important\" in the reported styles.\n3. Canonical Solution: Remove !important from transform rules and manage visual hierarchy with selector specificity.\n4. Example / Auto-fix command:\n   ❌ Banned:  transform: translateY(0) !important;\n   ✅ Correct: transform: translateY(0);",
@@ -520,6 +587,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				if (ts.isStringLiteral(init) && COLLAPSIBLE_HEIGHT_TARGETS.has(init.text)) return;
 				if (ts.isNumericLiteral(init) && init.text === "0") return;
 			}
+			if (propName === "width") {
+				if (isPercentageWidthExpression(prop.initializer, ast)) return;
+			}
 			const { line, column } = doc.getNodeLineAndColumn(prop, ast);
 			this.addViolation({
 				ruleId: "gsap-no-layout-properties",
@@ -592,8 +662,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			return false;
 		};
 		const visit = (node) => {
-			if (ts.isCallExpression(node) && isGsapCall(node)) {
-				for (const arg of node.arguments) if (ts.isObjectLiteralExpression(arg)) this.checkTweenObjectLiteral(arg, doc, ast, targetRule);
+			if (ts.isCallExpression(node) && isGsapCall(node)) for (const arg of node.arguments) {
+				const obj = resolveObjectLiteral(arg, ast);
+				if (obj) this.checkTweenObjectLiteral(obj, doc, ast, targetRule);
 			}
 			ts.forEachChild(node, visit);
 		};

@@ -292,5 +292,38 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
+
+    it('allows tokens matching secretLeaks.allows patterns without flagging secret-leak-detected', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      fs.mkdirSync(srcDir, { recursive: true });
+      const allowedToken = 'gh' + 'p_333333333333333333333333333333333333';
+      fs.writeFileSync(
+        path.join(srcDir, 'allowed.ts'),
+        `export const fixtureToken = "${allowedToken}";\n`
+      );
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Allows Secret Test Project',
+          secretLeaks: {
+            enabled: true,
+            allows: [allowedToken]
+          },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateSecretLeaksAuditor({
+        projectRoot: tempDir,
+        roots: ['src']
+      });
+
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
   });
 });

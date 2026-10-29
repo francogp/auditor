@@ -57,6 +57,18 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(auditor.ruleDescriptions['uncompressed-video']).toBe(
         'Video missing preload="none" or webm'
       );
+      expect(auditor.ruleDescriptions['perf-lcp-lazy-conflict']).toBe(
+        'LCP image with loading="lazy"'
+      );
+      expect(auditor.ruleDescriptions['perf-font-preload-crossorigin']).toBe(
+        'Preloaded font missing crossorigin'
+      );
+      expect(auditor.ruleDescriptions['perf-srcset-missing-sizes']).toBe(
+        'srcset width descriptor missing sizes'
+      );
+      expect(auditor.ruleDescriptions['perf-content-visibility-intrinsic-size']).toBe(
+        'content-visibility missing intrinsic size'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -289,7 +301,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
         '<head>',
         '  <link rel="stylesheet" href="/print.css" media="print">',
         '  <link rel="stylesheet" href="/alt.css" disabled>',
-        '  <link rel="preload" href="/font.woff2" as="font">',
+        '  <link rel="preload" href="/font.woff2" as="font" crossorigin="anonymous">',
         '  <script src="/mod.js" type="module"></script>',
         '</head>',
         '<img src="/aspect.webp" style="aspect-ratio: 16/9" alt="aspect" decoding="async" />',
@@ -405,6 +417,65 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+
+    it('detects all 4 modern Core Web Vitals rules on fixture and auto-repairs them via --fix', async () => {
+      const fixtureContent = fs.readFileSync(
+        path.resolve(import.meta.dirname, 'fixtures/modern_web/WebPerfBroken.vue.cases'),
+        'utf-8'
+      );
+      const viewsDir = path.join(tempDir, 'src/views');
+      fs.mkdirSync(viewsDir, { recursive: true });
+      const targetFile = path.join(viewsDir, 'WebPerfBroken.vue');
+      fs.writeFileSync(targetFile, fixtureContent, 'utf-8');
+
+      const checkAuditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      checkAuditor.testScanFile('src/views/WebPerfBroken.vue', fixtureContent);
+      const checkRes = await checkAuditor.finishAudit();
+
+      const ruleSet = new Set(checkRes.findings.map((f) => f.ruleId));
+      expect(ruleSet.has('perf-lcp-lazy-conflict')).toBe(true);
+      expect(ruleSet.has('perf-font-preload-crossorigin')).toBe(true);
+      expect(ruleSet.has('perf-srcset-missing-sizes')).toBe(true);
+      expect(ruleSet.has('perf-content-visibility-intrinsic-size')).toBe(true);
+
+      // Run in --fix mode
+      const fixAuditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir, fix: true });
+      fixAuditor.testScanFile('src/views/WebPerfBroken.vue', fixtureContent);
+
+      const fixedSfc = fs.readFileSync(targetFile, 'utf-8');
+      expect(fixedSfc).toContain('crossorigin="anonymous"');
+      expect(fixedSfc).not.toContain('as="font" type="font/woff2" fetchpriority="high"');
+      expect(fixedSfc).toContain('sizes="auto"');
+      expect(fixedSfc).toContain('contain-intrinsic-size: auto 500px;');
+
+      // Re-verify 0 errors on repaired file
+      const verifyAuditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      verifyAuditor.testScanFile('src/views/WebPerfBroken.vue', fixedSfc);
+      const verifyRes = await verifyAuditor.finishAudit();
+      expect(verifyRes.findings).toHaveLength(0);
+    });
+
+    it('avoids false positives on 2x pixel density srcset descriptors and picture sources with sized img', async () => {
+      const auditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      const cleanPerfSnippet = [
+        '<template>',
+        '  <div>',
+        '    <img src="/icon.webp" srcset="/icon.webp 1x, /icon@2x.webp 2x" width="48" height="48" decoding="async" alt="Icon" />',
+        '    <picture>',
+        '      <source srcset="/hero-400.avif 400w, /hero-800.avif 800w" type="image/avif" />',
+        '      <img src="/hero-800.webp" sizes="100vw" width="800" height="400" decoding="async" alt="Hero" />',
+        '    </picture>',
+        '  </div>',
+        '</template>',
+        '<style lang="scss">',
+        '.feed { content-visibility: auto; contain-intrinsic-block-size: auto 400px; }',
+        '</style>'
+      ].join('\n');
+
+      auditor.testScanFile('src/views/CleanPerf.vue', cleanPerfSnippet);
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(0);
     });
   });
 

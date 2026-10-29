@@ -51,6 +51,30 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
       expect(auditor.ruleDescriptions['excessive-scss-nesting']).toBe(
         'SCSS nesting exceeds 3 levels'
       );
+      expect(auditor.ruleDescriptions['scss-viewport-overflow-and-dvh']).toBe(
+        '100vw overflow or static 100vh unit'
+      );
+      expect(auditor.ruleDescriptions['scss-overflow-clip-margin-trap']).toBe(
+        'overflow-clip-margin without clip'
+      );
+      expect(auditor.ruleDescriptions['scss-prefer-user-invalid']).toBe(
+        'Use :user-invalid instead of :invalid'
+      );
+      expect(auditor.ruleDescriptions['scss-focus-outline-removal']).toBe(
+        'Focus outline removed without fallback'
+      );
+      expect(auditor.ruleDescriptions['typography-unclamped-viewport-font']).toBe(
+        'Unclamped vw/vh font-size breaks zoom'
+      );
+      expect(auditor.ruleDescriptions['scss-flexbox-dead-properties']).toBe(
+        'Dead justify-self in flex container'
+      );
+      expect(auditor.ruleDescriptions['scss-universal-expensive-selectors']).toBe(
+        'Expensive property on universal * rule'
+      );
+      expect(auditor.ruleDescriptions['dark-mode-color-scheme-missing']).toBe(
+        'Dark mode missing root color-scheme'
+      );
 
       const constructionErrors = validateAuditorConstruction(auditor);
       expect(constructionErrors).toHaveLength(0);
@@ -290,6 +314,70 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+
+    it('detects all 8 modern SCSS AST rules on fixture and auto-repairs them via --fix', async () => {
+      const fixtureContent = fs.readFileSync(
+        path.resolve(import.meta.dirname, 'fixtures/modern_web/ScssBroken.scss.cases'),
+        'utf-8'
+      );
+      const stylesDir = path.join(tempDir, 'src/styles');
+      fs.mkdirSync(stylesDir, { recursive: true });
+      const targetFile = path.join(stylesDir, 'ScssBroken.scss');
+      fs.writeFileSync(targetFile, fixtureContent, 'utf-8');
+
+      const checkAuditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      checkAuditor.testScanFile('src/styles/ScssBroken.scss', fixtureContent);
+      const checkRes = await checkAuditor.finishAudit();
+
+      const ruleSet = new Set(checkRes.findings.map((f) => f.ruleId));
+      expect(ruleSet.has('scss-viewport-overflow-and-dvh')).toBe(true);
+      expect(ruleSet.has('scss-overflow-clip-margin-trap')).toBe(true);
+      expect(ruleSet.has('scss-prefer-user-invalid')).toBe(true);
+      expect(ruleSet.has('scss-focus-outline-removal')).toBe(true);
+      expect(ruleSet.has('typography-unclamped-viewport-font')).toBe(true);
+      expect(ruleSet.has('scss-flexbox-dead-properties')).toBe(true);
+      expect(ruleSet.has('scss-universal-expensive-selectors')).toBe(true);
+      expect(ruleSet.has('dark-mode-color-scheme-missing')).toBe(true);
+
+      // Run in --fix mode
+      const fixAuditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir, fix: true });
+      fixAuditor.testScanFile('src/styles/ScssBroken.scss', fixtureContent);
+
+      const fixedCss = fs.readFileSync(targetFile, 'utf-8');
+      expect(fixedCss).toContain('color-scheme: light dark;');
+      expect(fixedCss).toContain('width: 100%;');
+      expect(fixedCss).toContain('min-height: 100dvh;');
+      expect(fixedCss).toContain('overflow: clip;');
+      expect(fixedCss).toContain('clamp(1rem, calc(0.5rem + 4vw), 2.5rem)');
+      expect(fixedCss).not.toContain('justify-self: center;');
+      expect(fixedCss).not.toContain('filter: blur(2px);');
+      expect(fixedCss).toContain(':user-invalid');
+      expect(fixedCss).toContain(':focus:not(:focus-visible)');
+
+      // Re-verify 0 modern SCSS errors after fix
+      const verifyAuditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      verifyAuditor.testScanFile('src/styles/ScssBroken.scss', fixedCss);
+      const verifyRes = await verifyAuditor.finishAudit();
+      const remainingModern = verifyRes.findings.filter(
+        (f) => f.ruleId !== 'missing-theme-token-usage'
+      );
+      expect(remainingModern).toHaveLength(0);
+    });
+
+    it('avoids false positives on clamped fluid typography, grid justify-self, and custom focus-visible rings', async () => {
+      const auditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      const cleanModernScss = [
+        ':root { color-scheme: light dark; }',
+        '@media (prefers-color-scheme: dark) { :root { --bg: var(--dark); } }',
+        '* { box-sizing: border-box; margin: 0; }',
+        '.grid-item { display: grid; justify-self: center; font-size: clamp(1rem, 2.5vw, 2rem); }',
+        '.btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--focus-ring); }'
+      ].join('\n');
+
+      auditor.testScanFile('src/styles/cleanModern.scss', cleanModernScss);
+      const result = await auditor.finishAudit();
+      expect(result.findings).toHaveLength(0);
     });
   });
 

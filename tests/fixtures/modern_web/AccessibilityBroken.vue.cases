@@ -1,0 +1,23 @@
+<template>
+  <div class="a11y-fixture">
+    <button type="button" tabindex="2">Jump order</button>
+    <button type="button" aria-hidden="true">Hidden focus trap</button>
+    <button type="button" aria-label="Icon action"><svg viewBox="0 0 24 24"><path d="M0 0L12 12" /></svg></button>
+    <svg class="standalone-chart" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" /></svg>
+    <iframe src="/embed" scrolling="no"></iframe>
+    <input type="number" name="postalCode" />
+    <input type="password" name="userPassword" autocomplete="off" />
+    <dialog ref="modalRef" popover><p>Modal content</p></dialog>
+    <details>
+      <summary><button type="button">Nested Action</button></summary>
+      <p>Details body</p>
+    </details>
+  </div>
+</template>
+<script setup lang="ts">
+import { ref } from 'vue';
+const modalRef = ref<HTMLDialogElement | null>(null);
+function openModal(): void {
+  modalRef.value?.showModal();
+}
+</script>

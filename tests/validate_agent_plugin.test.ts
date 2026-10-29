@@ -542,5 +542,82 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(updatedContent).toContain('indented-comment-or-metadata: value');
       expect(updatedContent).toContain('license: MIT');
     });
+
+    it('flags host-duplicate-auditor-skill when a consumer project duplicates or locks an @francogp/auditor skill and auto-cleans in fix mode', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const agentsDir = path.join(tempDir, '.agents');
+      await fs.mkdir(agentsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(agentsDir, 'plugins.json'),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
+        'utf8'
+      );
+      await fs.writeFile(
+        path.join(agentsDir, 'skills.json'),
+        JSON.stringify(
+          { entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      // Simulate installed @francogp/auditor in node_modules owning 'fallow'
+      const auditorNodeModDir = path.join(tempDir, 'node_modules/@francogp/auditor');
+      await fs.mkdir(path.join(auditorNodeModDir, '.agents/skills/fallow'), { recursive: true });
+      await fs.writeFile(
+        path.join(auditorNodeModDir, 'skills-lock.json'),
+        JSON.stringify(
+          {
+            version: 1,
+            skills: {
+              fallow: { source: 'fallow-rs/fallow-skills', computedHash: '123' }
+            }
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      // Consumer host project illegally clones 'fallow' locally and locks it in skills-lock.json
+      const hostFallowDir = path.join(tempDir, '.agents/skills/fallow');
+      await fs.mkdir(hostFallowDir, { recursive: true });
+      await fs.writeFile(
+        path.join(hostFallowDir, 'SKILL.md'),
+        '---\nname: fallow\ndescription: >-\n  Duplicate fallow skill in host\n---\n# Fallow\n',
+        'utf8'
+      );
+      await fs.writeFile(
+        path.join(tempDir, 'skills-lock.json'),
+        JSON.stringify(
+          {
+            version: 1,
+            skills: {
+              fallow: { source: 'fallow-rs/fallow-skills', computedHash: '123' }
+            }
+          },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const checkAuditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const checkResult = await checkAuditor.execute();
+      const dupFindings = checkResult.findings.filter(
+        (f) => f.ruleId === 'host-duplicate-auditor-skill'
+      );
+      expect(dupFindings.length).toBe(2);
+
+      // Run in fix mode to verify auto-cleanup
+      const fixAuditor = new AgentPluginAuditor({ projectRoot: tempDir, fix: true });
+      const fixResult = await fixAuditor.execute();
+      expect(fixResult.summary.errors).toBe(0);
+    });
   });
 });

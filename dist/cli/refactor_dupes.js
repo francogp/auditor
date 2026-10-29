@@ -6,7 +6,7 @@ import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
 import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
-import { REFACTOR_POSITIONAL_CLI_ARGS } from "../core/refactor/refactorCliHarness.js";
+import { REFACTOR_POSITIONAL_CLI_ARGS, REFACTOR_SUBCOMMANDS } from "../core/refactor/refactorCliHarness.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/refactor_dupes.ts
@@ -16,12 +16,31 @@ import { styleText } from "node:util";
 * CANONICAL REFACTORING & DUPLICATION REMEDIATION CLI (Node.js 26+ Native)
 * Provides interactive discovery, micro-context inspection, and AST refactor application.
 */
-function triageCandidates(projectRoot, minOccurrences) {
-	const engine = new DupesRefactorEngine({ projectRoot });
-	return Array.from(engine.triageCandidates(minOccurrences));
-}
+const REFACTOR_DUPES_CLI_COMMAND = "auditor:dupes";
+const REFACTOR_DUPES_ARGS = {
+	...COMMON_CLI_ARGS,
+	"min-occurrences": {
+		type: "string",
+		default: "2",
+		description: "Minimum number of clone occurrences to triage"
+	},
+	plan: {
+		type: "string",
+		description: "Path to RefactorPlan JSON file"
+	},
+	...REFACTOR_POSITIONAL_CLI_ARGS,
+	fingerprint: {
+		type: "string",
+		description: "Clone group fingerprint to inspect"
+	},
+	worktree: {
+		type: "boolean",
+		default: false,
+		description: "Execute mutations in an isolated Git worktree"
+	}
+};
 const MAX_COMPACT_CLONES = 15;
-function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
+function handleDupesDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 	if (isJson) {
 		console.log(JSON.stringify(candidates, null, 2));
 		return;
@@ -94,7 +113,7 @@ function handleDiscover(projectRoot, candidates, isJson, isVerbose = false) {
 	console.log(renderBoxTable(cols, rows));
 	console.log(styleText("cyan", "\n[Notice] To inspect a clone and generate its Dirac micro-context:\n   npm run auditor:dupes inspect <fingerprint>\n"));
 }
-function handleInspect(projectRoot, fp, isJson) {
+function handleDupesInspect(projectRoot, fp, isJson) {
 	if (!fp) {
 		console.error(styleText("red", "[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>"));
 		process.exit(1);
@@ -119,69 +138,41 @@ function handleInspect(projectRoot, fp, isJson) {
 	}
 	console.log(styleText("cyan", "[Notice] Design RefactorPlan JSON and apply with:\n   npm run auditor:dupes apply --plan <plan.json> --worktree\n"));
 }
-async function handleApply(projectRoot, rawPlanPath, useWorktree) {
+async function handleDupesApply(projectRoot, rawPlanPath, useWorktree) {
 	await applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, (dir, plan) => HybridHarnessEngine.execute(dir, plan), "auditor:dupes apply <plan.json>");
 	console.log(styleText("green", "[OK] Refactoring successfully applied to workspace."));
 }
-const REFACTOR_DUPES_ARGS = {
-	...COMMON_CLI_ARGS,
-	"min-occurrences": {
-		type: "string",
-		default: "2",
-		description: "Minimum number of clone occurrences to triage"
-	},
-	plan: {
-		type: "string",
-		description: "Path to RefactorPlan JSON file"
-	},
-	...REFACTOR_POSITIONAL_CLI_ARGS,
-	fingerprint: {
-		type: "string",
-		description: "Clone group fingerprint to inspect"
-	},
-	worktree: {
-		type: "boolean",
-		default: false,
-		description: "Execute mutations in an isolated Git worktree"
-	}
-};
-const DUPES_SUBCOMMANDS = /* @__PURE__ */ new Set([
-	"discover",
-	"inspect",
-	"apply",
-	"help"
-]);
-async function runRefactorCli(rawInputArgs) {
-	const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
-	const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, DUPES_SUBCOMMANDS);
+async function executeDupesCli(parsed) {
 	const subCommand = parsed.subcommand || "discover";
 	const targetArg = parsed.target || (typeof parsed.fingerprint === "string" ? parsed.fingerprint : void 0) || (typeof parsed.plan === "string" ? parsed.plan : void 0);
-	if (parsed.help || subCommand === "help") {
-		console.log("Available commands: discover, inspect, apply");
-		return;
-	}
-	if (!DUPES_SUBCOMMANDS.has(subCommand)) {
-		console.log("Available commands: discover, inspect, apply");
+	if (parsed.help || subCommand === "help" || !REFACTOR_SUBCOMMANDS.has(subCommand)) {
+		console.log("Available commands: discover, inspect, apply (see also auditor:magic)");
 		return;
 	}
 	const projectRoot = path.resolve(String(parsed.project || "."));
 	const isJson = Boolean(parsed.json);
 	const isVerbose = resolveHumanModeFromArgs(parsed);
-	switch (subCommand) {
-		case "discover":
-			handleDiscover(projectRoot, triageCandidates(projectRoot, parseInt(String(parsed["min-occurrences"] || "2"), 10)), isJson, isVerbose);
-			break;
-		case "inspect":
-			handleInspect(projectRoot, targetArg || (typeof parsed.fingerprint === "string" ? parsed.fingerprint : void 0), isJson);
-			break;
-		case "apply":
-			await handleApply(projectRoot, targetArg || (typeof parsed.plan === "string" ? parsed.plan : void 0), Boolean(parsed.worktree));
-			break;
-		default: console.log("Available commands: discover, inspect, apply");
+	if (subCommand === "discover") {
+		const minOcc = parseInt(String(parsed["min-occurrences"] || "2"), 10);
+		handleDupesDiscover(projectRoot, new DupesRefactorEngine({ projectRoot }).triageCandidates(minOcc), isJson, isVerbose);
+		return;
 	}
+	if (subCommand === "inspect") {
+		handleDupesInspect(projectRoot, targetArg || (typeof parsed.fingerprint === "string" ? parsed.fingerprint : void 0), isJson);
+		return;
+	}
+	if (subCommand === "apply") {
+		await handleDupesApply(projectRoot, targetArg || (typeof parsed.plan === "string" ? parsed.plan : void 0), Boolean(parsed.worktree));
+		return;
+	}
+	console.log("Available commands: discover, inspect, apply");
+}
+async function runRefactorCli(rawInputArgs) {
+	const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+	await executeDupesCli(parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, REFACTOR_SUBCOMMANDS));
 }
 if (isMainModule(import.meta.url, ["auditor-dupes", "refactor_dupes"])) runRefactorCli().catch((err) => {
 	console.error(err);
 	process.exit(1);
 });
-export { runRefactorCli };
+export { REFACTOR_DUPES_CLI_COMMAND, executeDupesCli, handleDupesApply, handleDupesDiscover, handleDupesInspect, runRefactorCli };

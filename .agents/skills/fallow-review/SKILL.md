@@ -132,10 +132,11 @@ The loop lets an agent produce judgments that fallow post-validates against the 
 
 When the project sends production coverage to Fallow Cloud, check the changed functions against it. Use the scoped reads, not the full runtime-context pull:
 
-- **Before an edit:** `fallow coverage review-packet --repo <owner/repo> --base <ref>` (MCP: `get_cloud_review_packet`). Read `hit_count`, `covered_by_test`, and the callers when present. A hot function with `covered_by_test: null` is a high-risk edit.
+- **Before an edit:** `fallow coverage review-packet --repo <owner/repo> --base <ref>` (MCP: `get_cloud_review_packet`). Read `hit_count`, `covered_by_test`, and the callers when present. A hot function with `covered_by_test: false` or `null` is a high-risk edit.
 - **Before a delete:** require `period_tracking_state: "never_called"` over the period, not only `tracking_state`, and read `evidence_window.observed_hours`. Low observed hours or a low-traffic surface mean "not visited", not "dead".
 - **After a deploy:** `fallow coverage deployment-changes --repo <owner/repo>` (MCP: `get_cloud_deployment_changes`). When `comparable` is `false`, report `reason` and claim no change.
 - Open files by `repo_path`, not `file_path`.
+- Without a local fallow install or checkout, use the hosted Fallow Cloud MCP server. It also has `get_file_context`, `verify_deployment`, `list_errors`, `get_branch_usage` and `get_runtime_dependencies`. In a checkout, prefer the local server.
 
 The data is context: cite it in a `framing`, never as a gate. Field meanings and the full recipe: **[references/production-runtime-data.md](references/production-runtime-data.md)**.
 

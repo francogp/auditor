@@ -270,6 +270,7 @@ describe('Auditor Architecture Conformance', () => {
         .sort();
       const EXPECTED_FIX_SUITES = [
         'audit_project',
+        'validate_accessibility',
         'validate_agent_plugin',
         'validate_agents_config_mandate',
         'validate_audit_config',
@@ -299,10 +300,14 @@ describe('Auditor Architecture Conformance', () => {
         'validate_package_scripts',
         'validate_playwright_config',
         'validate_script_extensions',
+        'validate_scss_architecture',
+        'validate_security_hardening',
         'validate_stylelint',
         'validate_stylelint_config',
         'validate_tsconfig',
         'validate_vite_plus_config',
+        'validate_vue_sfc_hygiene',
+        'validate_web_performance',
         'validate_z_index'
       ].sort();
 

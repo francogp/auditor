@@ -1,0 +1,22 @@
+export function sendResizeBroadcast(height: number): void {
+  window.parent.postMessage({ type: 'resize', height }, '*');
+}
+
+export function registerUnsafeMessageListener(): void {
+  window.addEventListener('message', (event: MessageEvent) => {
+    if (event.origin.includes('trusted.example.com')) {
+      console.info(event.data);
+    }
+  });
+}
+
+export function createUnsafeTrustedPolicy(): void {
+  window.trustedTypes?.createPolicy('default', {
+    createHTML: (input: string) => input
+  });
+}
+
+export const UNSAFE_COOKIE_OPTIONS = {
+  sameSite: 'none',
+  httpOnly: true
+};

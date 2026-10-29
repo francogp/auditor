@@ -4,7 +4,9 @@ import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
+import { SharedAstContext } from "../../core/astContext.js";
+import { extractSfcScriptContent, parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
+import { MODERN_ACCESSIBILITY_RULES, analyzeModernAccessibility, fixViewportZoomLockContent } from "../../analyzers/accessibilityModernAnalyzer.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -18,7 +20,17 @@ const ACCESSIBILITY_RULES = [
 	"a11y-interactive-supports-focus",
 	"a11y-anchor-has-content",
 	"a11y-aria-role-invalid",
-	"a11y-viewport-zoom-lock"
+	"a11y-viewport-zoom-lock",
+	...MODERN_ACCESSIBILITY_RULES
+];
+const FIXABLE_ACCESSIBILITY_RULES = [
+	"a11y-viewport-zoom-lock",
+	"a11y-no-positive-tabindex",
+	"a11y-no-aria-hidden-focusable",
+	"a11y-svg-accessibility",
+	"a11y-iframe-title-and-scroll",
+	"forms-identifier-input-type",
+	"forms-autocomplete-hygiene"
 ];
 const TEMPLATE_BACKED_RULES = ACCESSIBILITY_RULES.filter((id) => id !== "a11y-viewport-zoom-lock");
 const A11Y_RULE_ID_MAP = {
@@ -116,6 +128,7 @@ function mapA11yRuleId(eslintRuleId) {
 	return A11Y_RULE_ID_MAP[bare] ?? "a11y-aria-role-invalid";
 }
 var ValidateAccessibilityAuditor = class extends BaseAuditor {
+	astCache = new SharedAstContext();
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(effectiveRoot);
@@ -135,7 +148,8 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}),
+			}, FIXABLE_ACCESSIBILITY_RULES),
+			fixableRuleIds: FIXABLE_ACCESSIBILITY_RULES,
 			fix: options.fix,
 			id: "validate_accessibility",
 			name: "Vue & Web Accessibility Standards Auditor",
@@ -154,7 +168,14 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				"a11y-interactive-supports-focus": "Interactive element missing focus",
 				"a11y-anchor-has-content": "Link or button missing text or label",
 				"a11y-aria-role-invalid": "Non-compliant ARIA role or attribute",
-				"a11y-viewport-zoom-lock": "Viewport zoom lock in HTML"
+				"a11y-viewport-zoom-lock": "Viewport zoom lock in HTML",
+				"a11y-no-positive-tabindex": "Positive tabindex disrupts focus order",
+				"a11y-no-aria-hidden-focusable": "Focusable element has aria-hidden=\"true\"",
+				"a11y-svg-accessibility": "Inline SVG missing role or aria-hidden",
+				"a11y-iframe-title-and-scroll": "Iframe missing title or blocks scrolling",
+				"forms-identifier-input-type": "Identifier input uses type=\"number\"",
+				"forms-autocomplete-hygiene": "Auth input disables password autofill",
+				"html-dialog-popover-exclusivity": "Dialog popover or summary interactive trap"
 			},
 			ruleRemediations: {
 				"a11y-img-alt": "📖 REMEDIATION GUIDE: a11y-img-alt\n1. Root Cause: An `<img>` tag was found without an `alt` attribute (or with missing `alt`). Screen readers cannot convey visual content to visually impaired users (WCAG 1.1.1).\n2. Diagnosis: Locate the reported image in the Vue component template.\n3. Canonical Solution:\n   a) If the image conveys information: concisely describe its content via `alt=\"Description of graphic or photo\"`.\n   b) If the image is purely decorative: add an explicit empty `alt=\"\"` or `aria-hidden=\"true\"`.\n4. Example / Auto-fix command:\n   ❌ Inaccessible: `<img src=\"/logo.png\">`\n   ✅ Accessible:   `<img src=\"/logo.png\" alt=\"Application logo\">`",
@@ -162,7 +183,14 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				"a11y-interactive-supports-focus": "📖 REMEDIATION GUIDE: a11y-interactive-supports-focus\n1. Root Cause: A non-interactive element (e.g. `<div>` or `<span>`) has `@click` handlers but is not keyboard accessible (`tabindex` or keyboard listeners), excluding keyboard-only users (WCAG 2.1.1).\n2. Diagnosis: Check the element with `@click` at the reported line.\n3. Canonical Solution:\n   a) Convert the element into a native semantic button: `<button type=\"button\" @click=\"...\">`.\n   b) If it must remain a div for layout, add `role=\"button\"`, `tabindex=\"0\"`, and a `@keydown.enter.space=\"...\"` listener.\n4. Example / Auto-fix command:\n   ❌ Inaccessible: `<div class=\"card\" @click=\"selectItem\">`\n   ✅ Semantic:     `<button type=\"button\" class=\"card\" @click=\"selectItem\">`",
 				"a11y-anchor-has-content": "📖 REMEDIATION GUIDE: a11y-anchor-has-content\n1. Root Cause: A link (`<a>`) or button (`<button>`) has no visible text or accessible label (e.g. an icon without text alternative), preventing screen readers from announcing its destination or action (WCAG 2.4.4 / 4.1.2).\n2. Diagnosis: Check link or button content in the template.\n3. Canonical Solution:\n   a) Add descriptive text or a visually hidden label: `<span class=\"sr-only\">Close</span>`.\n   b) Or define `aria-label=\"Action description\"`.\n4. Example / Auto-fix command:\n   ❌ Empty:      `<button @click=\"close\"><i class=\"icon-close\" /></button>`\n   ✅ Accessible: `<button @click=\"close\" aria-label=\"Close modal\"><i class=\"icon-close\" aria-hidden=\"true\" /></button>`",
 				"a11y-aria-role-invalid": "📖 REMEDIATION GUIDE: a11y-aria-role-invalid\n1. Root Cause: An unrecognized or misspelled value was used in `role=\"...\"`. W3C WAI-ARIA defines an exact catalog of valid roles.\n2. Diagnosis: Inspect the value assigned to `role` at the reported element.\n3. Canonical Solution: Correct the value using a canonical WAI-ARIA role (e.g. `dialog`, `button`, `navigation`, `tab`, `alert`).\n4. Example / Auto-fix command:\n   ❌ Invalid:    `<div role=\"modal-box\">`\n   ✅ Compliant:  `<div role=\"dialog\" aria-modal=\"true\">`",
-				"a11y-viewport-zoom-lock": "📖 REMEDIATION GUIDE: a11y-viewport-zoom-lock\n1. Root Cause: The `<meta name=\"viewport\">` tag in `index.html` disables user zooming (`user-scalable=no` or `maximum-scale=1.0`), preventing low-vision users from magnifying content (WCAG 1.4.4 Resize Text).\n2. Diagnosis: Inspect `index.html` at the viewport meta tag.\n3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Allow standard responsive zoom.\n4. Example / Auto-fix command:\n   ❌ Locked:     `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">`\n   ✅ Accessible: `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">`"
+				"a11y-viewport-zoom-lock": "📖 REMEDIATION GUIDE: a11y-viewport-zoom-lock\n1. Root Cause: The `<meta name=\"viewport\">` tag in `index.html` disables user zooming (`user-scalable=no` or `maximum-scale=1.0`), preventing low-vision users from magnifying content (WCAG 1.4.4 Resize Text).\n2. Diagnosis: Inspect `index.html` at the viewport meta tag.\n3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Run `npm run auditor:fix` to auto-repair.\n4. Example / Auto-fix command:\n   ❌ Locked:     `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">`\n   ✅ Accessible: `<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">`",
+				"a11y-no-positive-tabindex": "📖 REMEDIATION GUIDE: a11y-no-positive-tabindex\n1. Root Cause: An element defines a positive `tabindex` (`tabindex=\"1\"`, `tabindex=\"2\"`, etc.), jumping ahead of the logical DOM order and confusing keyboard users (WCAG 2.4.3).\n2. Diagnosis: Locate the element with `tabindex > 0` in the template.\n3. Canonical Solution: Replace positive values with `tabindex=\"0\"` and order elements naturally in the DOM. Run `npm run auditor:fix` to auto-repair.\n4. Example / Auto-fix command:\n   ❌ Broken order: `<button tabindex=\"2\">Submit</button>`\n   ✅ Natural order: `<button tabindex=\"0\">Submit</button>`",
+				"a11y-no-aria-hidden-focusable": "📖 REMEDIATION GUIDE: a11y-no-aria-hidden-focusable\n1. Root Cause: A focusable element (`<button>`, `<a href>`, `<input>`, or `[tabindex=\"0\"]`) declares `aria-hidden=\"true\"`, allowing keyboard users to focus an element that assistive technology cannot announce (WCAG 4.1.2).\n2. Diagnosis: Inspect the focusable element with `aria-hidden=\"true\"`.\n3. Canonical Solution: Remove `aria-hidden=\"true\"` from interactive elements, or add `tabindex=\"-1\"` and `disabled` if the element is inactive. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Focus ghost: `<button aria-hidden=\"true\">Close</button>`\n   ✅ Accessible:  `<button type=\"button\">Close</button>`",
+				"a11y-svg-accessibility": "📖 REMEDIATION GUIDE: a11y-svg-accessibility\n1. Root Cause: An inline `<svg>` lacks both `aria-hidden=\"true\"` (for decorative icons) and `role=\"img\"` + `<title>`/`aria-label` (for informative graphics), causing screen readers to announce unlabelled graphic nodes (WCAG 1.1.1).\n2. Diagnosis: Inspect the `<svg>` tag at the reported line.\n3. Canonical Solution: Add `aria-hidden=\"true\"` to decorative SVGs, or add `role=\"img\"` and `aria-label=\"...\"` to standalone informative SVGs. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Ambiguous: `<svg viewBox=\"0 0 24 24\"><path d=\"...\" /></svg>`\n   ✅ Decorative: `<svg aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"...\" /></svg>`",
+				"a11y-iframe-title-and-scroll": "📖 REMEDIATION GUIDE: a11y-iframe-title-and-scroll\n1. Root Cause: An `<iframe>` omits a descriptive `title` attribute or uses `scrolling=\"no\"` which clips zoomed content (WCAG 2.4.1 / 1.4.10).\n2. Diagnosis: Check the `<iframe>` element in the template.\n3. Canonical Solution: Provide a clear `title=\"...\"` and remove `scrolling=\"no\"`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Inaccessible: `<iframe src=\"/embed\" scrolling=\"no\"></iframe>`\n   ✅ Accessible:   `<iframe src=\"/embed\" title=\"Payment document preview\"></iframe>`",
+				"forms-identifier-input-type": "📖 REMEDIATION GUIDE: forms-identifier-input-type\n1. Root Cause: An `<input type=\"number\">` is used for a non-arithmetic identifier (postal code, ZIP, credit card, phone, OTP, DNI, CUIT). `type=\"number\"` strips leading zeros and mutates values on accidental scroll-wheel events.\n2. Diagnosis: Inspect the `<input type=\"number\">` at the reported line.\n3. Canonical Solution: Use `type=\"text\" inputmode=\"numeric\"` instead. Run `npm run auditor:fix` to auto-repair.\n4. Example / Auto-fix command:\n   ❌ Fragile:   `<input type=\"number\" name=\"postalCode\" />`\n   ✅ Canonical: `<input type=\"text\" inputmode=\"numeric\" name=\"postalCode\" />`",
+				"forms-autocomplete-hygiene": "📖 REMEDIATION GUIDE: forms-autocomplete-hygiene\n1. Root Cause: An authentication `<input type=\"password\">` or `<input type=\"email\">` sets `autocomplete=\"off\"`, obstructing password managers and passkey autofill.\n2. Diagnosis: Locate the input with `autocomplete=\"off\"`.\n3. Canonical Solution: Use `autocomplete=\"current-password\"`, `autocomplete=\"new-password\"`, or `autocomplete=\"email\"`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Blocked:   `<input type=\"password\" autocomplete=\"off\" />`\n   ✅ Canonical: `<input type=\"password\" autocomplete=\"current-password\" />`",
+				"html-dialog-popover-exclusivity": "📖 REMEDIATION GUIDE: html-dialog-popover-exclusivity\n1. Root Cause: Either a `<dialog>` combines `popover` with `.showModal()`, or a `<summary>` element nests interactive controls (`<button>`, `<a>`, `<input>`) or headings (`<h1>`-`<h6>`).\n2. Diagnosis: Inspect the `<dialog>` or `<summary>` at the reported line.\n3. Canonical Solution: Keep modal `<dialog>` separate from `[popover]`, and place only plain phrasing text inside `<summary>`.\n4. Example / Auto-fix command:\n   ❌ Invalid: `<summary><h3>Details</h3><button>Edit</button></summary>`\n   ✅ Valid:   `<summary>Details</summary>`"
 			},
 			projectRoot: effectiveRoot,
 			coverage: { include: [INDEX_HTML_FILE, ...deriveCoverageFromRoots(scannableRoots, /* @__PURE__ */ new Set([".vue"]), effectiveRoot).include] }
@@ -187,40 +215,69 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 			});
 			return;
 		}
-		for (const ruleId of TEMPLATE_BACKED_RULES) this.runSubAuditorSync(ruleId, () => {
-			for (const absFile of vueFiles) {
-				const relFile = toPosixRelative(this.projectRoot, absFile);
-				this.recordScanned(relFile);
-				this.auditVueFileForRule(absFile, relFile, ruleId);
+		const isFix = this.isFixActive();
+		const parsedVueFiles = [];
+		const modernFindingsByRule = /* @__PURE__ */ new Map();
+		for (const r of MODERN_ACCESSIBILITY_RULES) modernFindingsByRule.set(r, []);
+		for (const absFile of vueFiles) {
+			const relFile = toPosixRelative(this.projectRoot, absFile);
+			this.recordScanned(relFile);
+			let content = "";
+			try {
+				content = fs.readFileSync(absFile, "utf-8");
+			} catch {
+				continue;
 			}
+			const blocks = parseVueSfcBlocks(content);
+			if (!blocks.template) continue;
+			const templateContent = blocks.template.content;
+			const linesBeforeTemplate = Math.max(0, blocks.template.contentStartLine - 1);
+			parsedVueFiles.push({
+				absFile,
+				relFile,
+				content,
+				templateContent,
+				linesBeforeTemplate
+			});
+			const scriptContent = extractSfcScriptContent(content);
+			const scriptAst = scriptContent ? this.astCache.getSourceFile(`${relFile}.ts`, scriptContent) : void 0;
+			const modernRes = analyzeModernAccessibility(templateContent, scriptAst, blocks.template.contentStartLine, isFix);
+			for (const finding of modernRes.findings) modernFindingsByRule.get(finding.ruleId)?.push({
+				file: relFile,
+				finding
+			});
+			if (isFix && modernRes.fixedContent !== void 0) {
+				const updatedSfc = content.slice(0, blocks.template.contentStartIndex) + modernRes.fixedContent + content.slice(blocks.template.contentStartIndex + templateContent.length);
+				fs.writeFileSync(absFile, updatedSfc, "utf-8");
+			}
+		}
+		this.runSubAuditorSync("a11y-img-alt", () => {
+			for (const file of parsedVueFiles) this.auditImgAlt(file.templateContent, file.relFile, file.linesBeforeTemplate);
 		});
-	}
-	auditVueFileForRule(absPath, relPath, ruleId) {
-		let content = "";
-		try {
-			content = fs.readFileSync(absPath, "utf-8");
-		} catch {
-			return;
-		}
-		const blocks = parseVueSfcBlocks(content);
-		if (!blocks.template) return;
-		const templateContent = blocks.template.content;
-		const linesBeforeTemplate = Math.max(0, blocks.template.contentStartLine - 1);
-		switch (ruleId) {
-			case "a11y-img-alt":
-				this.auditImgAlt(templateContent, relPath, linesBeforeTemplate);
-				break;
-			case "a11y-form-control-has-label":
-				this.auditFormControlLabel(templateContent, relPath, linesBeforeTemplate);
-				break;
-			case "a11y-interactive-supports-focus":
-				this.auditInteractiveFocus(templateContent, relPath, linesBeforeTemplate);
-				break;
-			case "a11y-anchor-has-content":
-				this.auditAnchorContent(templateContent, relPath, linesBeforeTemplate);
-				break;
-			case "a11y-aria-role-invalid": this.auditAriaRole(templateContent, relPath, linesBeforeTemplate);
-		}
+		this.runSubAuditorSync("a11y-form-control-has-label", () => {
+			for (const file of parsedVueFiles) this.auditFormControlLabel(file.templateContent, file.relFile, file.linesBeforeTemplate);
+		});
+		this.runSubAuditorSync("a11y-interactive-supports-focus", () => {
+			for (const file of parsedVueFiles) this.auditInteractiveFocus(file.templateContent, file.relFile, file.linesBeforeTemplate);
+		});
+		this.runSubAuditorSync("a11y-anchor-has-content", () => {
+			for (const file of parsedVueFiles) this.auditAnchorContent(file.templateContent, file.relFile, file.linesBeforeTemplate);
+		});
+		this.runSubAuditorSync("a11y-aria-role-invalid", () => {
+			for (const file of parsedVueFiles) this.auditAriaRole(file.templateContent, file.relFile, file.linesBeforeTemplate);
+		});
+		for (const modRuleId of MODERN_ACCESSIBILITY_RULES) this.runSubAuditorSync(modRuleId, () => {
+			const items = modernFindingsByRule.get(modRuleId) ?? [];
+			for (const item of items) this.addViolation({
+				ruleId: item.finding.ruleId,
+				severity: "error",
+				file: item.file,
+				line: item.finding.line,
+				context: item.finding.context,
+				message: item.finding.message,
+				fixable: item.finding.fixable
+			});
+		});
 	}
 	auditImgAlt(template, relPath, lineOffset) {
 		const imgRegex = /<img\b([^>]*)>/gi;
@@ -358,8 +415,12 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				line: lineNum,
 				context: tag.trim(),
 				message: "Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.",
-				fixable: false
+				fixable: true
 			});
+			if (this.isFixActive()) {
+				const fixed = fixViewportZoomLockContent(content);
+				if (fixed !== void 0) fs.writeFileSync(indexPath, fixed, "utf-8");
+			}
 		}
 	}
 };

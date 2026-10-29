@@ -1,13 +1,24 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import { SharedAstContext } from '../../core/astContext.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
-import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import { parseVueSfc, extractSfcScriptContent } from '../../core/vueSfcParser.ts';
+import {
+  MODERN_ACCESSIBILITY_RULES,
+  analyzeModernAccessibility,
+  fixViewportZoomLockContent,
+  type ModernA11yFinding,
+  type ModernAccessibilityRuleId
+} from '../../analyzers/accessibilityModernAnalyzer.ts';
 
 enableCompileCache();
 
@@ -20,9 +31,20 @@ export const ACCESSIBILITY_RULES = [
   'a11y-interactive-supports-focus',
   'a11y-anchor-has-content',
   'a11y-aria-role-invalid',
-  'a11y-viewport-zoom-lock'
+  'a11y-viewport-zoom-lock',
+  ...MODERN_ACCESSIBILITY_RULES
 ] as const;
 export type AccessibilityRuleId = (typeof ACCESSIBILITY_RULES)[number];
+
+const FIXABLE_ACCESSIBILITY_RULES: readonly AccessibilityRuleId[] = [
+  'a11y-viewport-zoom-lock',
+  'a11y-no-positive-tabindex',
+  'a11y-no-aria-hidden-focusable',
+  'a11y-svg-accessibility',
+  'a11y-iframe-title-and-scroll',
+  'forms-identifier-input-type',
+  'forms-autocomplete-hygiene'
+];
 
 const TEMPLATE_BACKED_RULES: readonly AccessibilityRuleId[] = ACCESSIBILITY_RULES.filter(
   (id) => id !== 'a11y-viewport-zoom-lock'
@@ -129,6 +151,8 @@ export function mapA11yRuleId(eslintRuleId: string): AccessibilityRuleId {
 }
 
 export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleId> {
+  private readonly astCache = new SharedAstContext();
+
   constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
@@ -140,15 +164,20 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     super({
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
-        speed: 'light',
-        phase: 'normal',
-        fix: 'none',
-        md: false,
-        ast: false,
-        changedOnly: false,
-        critical: false
-      }),
+      ruleCapabilities: createRuleCapabilities(
+        ACCESSIBILITY_RULES,
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        },
+        FIXABLE_ACCESSIBILITY_RULES
+      ),
+      fixableRuleIds: FIXABLE_ACCESSIBILITY_RULES,
       fix: options.fix,
       id: 'validate_accessibility',
       name: 'Vue & Web Accessibility Standards Auditor',
@@ -167,7 +196,14 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         'a11y-interactive-supports-focus': 'Interactive element missing focus',
         'a11y-anchor-has-content': 'Link or button missing text or label',
         'a11y-aria-role-invalid': 'Non-compliant ARIA role or attribute',
-        'a11y-viewport-zoom-lock': 'Viewport zoom lock in HTML'
+        'a11y-viewport-zoom-lock': 'Viewport zoom lock in HTML',
+        'a11y-no-positive-tabindex': 'Positive tabindex disrupts focus order',
+        'a11y-no-aria-hidden-focusable': 'Focusable element has aria-hidden="true"',
+        'a11y-svg-accessibility': 'Inline SVG missing role or aria-hidden',
+        'a11y-iframe-title-and-scroll': 'Iframe missing title or blocks scrolling',
+        'forms-identifier-input-type': 'Identifier input uses type="number"',
+        'forms-autocomplete-hygiene': 'Auth input disables password autofill',
+        'html-dialog-popover-exclusivity': 'Dialog popover or summary interactive trap'
       },
       ruleRemediations: {
         'a11y-img-alt':
@@ -222,10 +258,66 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
           '📖 REMEDIATION GUIDE: a11y-viewport-zoom-lock\n' +
           '1. Root Cause: The `<meta name="viewport">` tag in `index.html` disables user zooming (`user-scalable=no` or `maximum-scale=1.0`), preventing low-vision users from magnifying content (WCAG 1.4.4 Resize Text).\n' +
           '2. Diagnosis: Inspect `index.html` at the viewport meta tag.\n' +
-          '3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Allow standard responsive zoom.\n' +
+          '3. Canonical Solution: Remove `user-scalable=no`, `user-scalable=0`, and `maximum-scale=1.0`. Run `npm run auditor:fix` to auto-repair.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Locked:     `<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">`\n' +
-          '   ✅ Accessible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`'
+          '   ✅ Accessible: `<meta name="viewport" content="width=device-width, initial-scale=1.0">`',
+        'a11y-no-positive-tabindex':
+          '📖 REMEDIATION GUIDE: a11y-no-positive-tabindex\n' +
+          '1. Root Cause: An element defines a positive `tabindex` (`tabindex="1"`, `tabindex="2"`, etc.), jumping ahead of the logical DOM order and confusing keyboard users (WCAG 2.4.3).\n' +
+          '2. Diagnosis: Locate the element with `tabindex > 0` in the template.\n' +
+          '3. Canonical Solution: Replace positive values with `tabindex="0"` and order elements naturally in the DOM. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Broken order: `<button tabindex="2">Submit</button>`\n' +
+          '   ✅ Natural order: `<button tabindex="0">Submit</button>`',
+        'a11y-no-aria-hidden-focusable':
+          '📖 REMEDIATION GUIDE: a11y-no-aria-hidden-focusable\n' +
+          '1. Root Cause: A focusable element (`<button>`, `<a href>`, `<input>`, or `[tabindex="0"]`) declares `aria-hidden="true"`, allowing keyboard users to focus an element that assistive technology cannot announce (WCAG 4.1.2).\n' +
+          '2. Diagnosis: Inspect the focusable element with `aria-hidden="true"`.\n' +
+          '3. Canonical Solution: Remove `aria-hidden="true"` from interactive elements, or add `tabindex="-1"` and `disabled` if the element is inactive. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Focus ghost: `<button aria-hidden="true">Close</button>`\n' +
+          '   ✅ Accessible:  `<button type="button">Close</button>`',
+        'a11y-svg-accessibility':
+          '📖 REMEDIATION GUIDE: a11y-svg-accessibility\n' +
+          '1. Root Cause: An inline `<svg>` lacks both `aria-hidden="true"` (for decorative icons) and `role="img"` + `<title>`/`aria-label` (for informative graphics), causing screen readers to announce unlabelled graphic nodes (WCAG 1.1.1).\n' +
+          '2. Diagnosis: Inspect the `<svg>` tag at the reported line.\n' +
+          '3. Canonical Solution: Add `aria-hidden="true"` to decorative SVGs, or add `role="img"` and `aria-label="..."` to standalone informative SVGs. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Ambiguous: `<svg viewBox="0 0 24 24"><path d="..." /></svg>`\n' +
+          '   ✅ Decorative: `<svg aria-hidden="true" viewBox="0 0 24 24"><path d="..." /></svg>`',
+        'a11y-iframe-title-and-scroll':
+          '📖 REMEDIATION GUIDE: a11y-iframe-title-and-scroll\n' +
+          '1. Root Cause: An `<iframe>` omits a descriptive `title` attribute or uses `scrolling="no"` which clips zoomed content (WCAG 2.4.1 / 1.4.10).\n' +
+          '2. Diagnosis: Check the `<iframe>` element in the template.\n' +
+          '3. Canonical Solution: Provide a clear `title="..."` and remove `scrolling="no"`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Inaccessible: `<iframe src="/embed" scrolling="no"></iframe>`\n' +
+          '   ✅ Accessible:   `<iframe src="/embed" title="Payment document preview"></iframe>`',
+        'forms-identifier-input-type':
+          '📖 REMEDIATION GUIDE: forms-identifier-input-type\n' +
+          '1. Root Cause: An `<input type="number">` is used for a non-arithmetic identifier (postal code, ZIP, credit card, phone, OTP, DNI, CUIT). `type="number"` strips leading zeros and mutates values on accidental scroll-wheel events.\n' +
+          '2. Diagnosis: Inspect the `<input type="number">` at the reported line.\n' +
+          '3. Canonical Solution: Use `type="text" inputmode="numeric"` instead. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Fragile:   `<input type="number" name="postalCode" />`\n' +
+          '   ✅ Canonical: `<input type="text" inputmode="numeric" name="postalCode" />`',
+        'forms-autocomplete-hygiene':
+          '📖 REMEDIATION GUIDE: forms-autocomplete-hygiene\n' +
+          '1. Root Cause: An authentication `<input type="password">` or `<input type="email">` sets `autocomplete="off"`, obstructing password managers and passkey autofill.\n' +
+          '2. Diagnosis: Locate the input with `autocomplete="off"`.\n' +
+          '3. Canonical Solution: Use `autocomplete="current-password"`, `autocomplete="new-password"`, or `autocomplete="email"`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Blocked:   `<input type="password" autocomplete="off" />`\n' +
+          '   ✅ Canonical: `<input type="password" autocomplete="current-password" />`',
+        'html-dialog-popover-exclusivity':
+          '📖 REMEDIATION GUIDE: html-dialog-popover-exclusivity\n' +
+          '1. Root Cause: Either a `<dialog>` combines `popover` with `.showModal()`, or a `<summary>` element nests interactive controls (`<button>`, `<a>`, `<input>`) or headings (`<h1>`-`<h6>`).\n' +
+          '2. Diagnosis: Inspect the `<dialog>` or `<summary>` at the reported line.\n' +
+          '3. Canonical Solution: Keep modal `<dialog>` separate from `[popover]`, and place only plain phrasing text inside `<summary>`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Invalid: `<summary><h3>Details</h3><button>Edit</button></summary>`\n' +
+          '   ✅ Valid:   `<summary>Details</summary>`'
       },
       projectRoot: effectiveRoot,
       coverage: {
@@ -266,49 +358,115 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       return;
     }
 
-    for (const ruleId of TEMPLATE_BACKED_RULES) {
-      this.runSubAuditorSync(ruleId, () => {
-        for (const absFile of vueFiles) {
-          const relFile = toPosixRelative(this.projectRoot, absFile);
-          this.recordScanned(relFile);
-          this.auditVueFileForRule(absFile, relFile, ruleId);
+    const isFix = this.isFixActive();
+
+    interface ParsedVueFileInfo {
+      absFile: string;
+      relFile: string;
+      content: string;
+      templateContent: string;
+      linesBeforeTemplate: number;
+    }
+
+    const parsedVueFiles: ParsedVueFileInfo[] = [];
+    const modernFindingsByRule = new Map<
+      ModernAccessibilityRuleId,
+      Array<{ file: string; finding: ModernA11yFinding }>
+    >();
+    for (const r of MODERN_ACCESSIBILITY_RULES) {
+      modernFindingsByRule.set(r, []);
+    }
+
+    for (const absFile of vueFiles) {
+      const relFile = toPosixRelative(this.projectRoot, absFile);
+      this.recordScanned(relFile);
+
+      let content = '';
+      try {
+        content = fs.readFileSync(absFile, 'utf-8');
+      } catch {
+        continue;
+      }
+
+      const blocks = parseVueSfc(content);
+      if (!blocks.template) continue;
+
+      const templateContent = blocks.template.content;
+      const linesBeforeTemplate = Math.max(0, blocks.template.contentStartLine - 1);
+      parsedVueFiles.push({
+        absFile,
+        relFile,
+        content,
+        templateContent,
+        linesBeforeTemplate
+      });
+
+      const scriptContent = extractSfcScriptContent(content);
+      const scriptAst = scriptContent
+        ? this.astCache.getSourceFile(`${relFile}.ts`, scriptContent)
+        : undefined;
+
+      const modernRes = analyzeModernAccessibility(
+        templateContent,
+        scriptAst,
+        blocks.template.contentStartLine,
+        isFix
+      );
+
+      for (const finding of modernRes.findings) {
+        modernFindingsByRule.get(finding.ruleId)?.push({ file: relFile, finding });
+      }
+
+      if (isFix && modernRes.fixedContent !== undefined) {
+        const updatedSfc =
+          content.slice(0, blocks.template.contentStartIndex) +
+          modernRes.fixedContent +
+          content.slice(blocks.template.contentStartIndex + templateContent.length);
+        fs.writeFileSync(absFile, updatedSfc, 'utf-8');
+      }
+    }
+
+    this.runSubAuditorSync('a11y-img-alt', () => {
+      for (const file of parsedVueFiles) {
+        this.auditImgAlt(file.templateContent, file.relFile, file.linesBeforeTemplate);
+      }
+    });
+    this.runSubAuditorSync('a11y-form-control-has-label', () => {
+      for (const file of parsedVueFiles) {
+        this.auditFormControlLabel(file.templateContent, file.relFile, file.linesBeforeTemplate);
+      }
+    });
+    this.runSubAuditorSync('a11y-interactive-supports-focus', () => {
+      for (const file of parsedVueFiles) {
+        this.auditInteractiveFocus(file.templateContent, file.relFile, file.linesBeforeTemplate);
+      }
+    });
+    this.runSubAuditorSync('a11y-anchor-has-content', () => {
+      for (const file of parsedVueFiles) {
+        this.auditAnchorContent(file.templateContent, file.relFile, file.linesBeforeTemplate);
+      }
+    });
+    this.runSubAuditorSync('a11y-aria-role-invalid', () => {
+      for (const file of parsedVueFiles) {
+        this.auditAriaRole(file.templateContent, file.relFile, file.linesBeforeTemplate);
+      }
+    });
+
+    for (const modRuleId of MODERN_ACCESSIBILITY_RULES) {
+      this.runSubAuditorSync(modRuleId, () => {
+        const items = modernFindingsByRule.get(modRuleId) ?? [];
+        for (const item of items) {
+          this.addViolation({
+            ruleId: item.finding.ruleId,
+            severity: 'error',
+            file: item.file,
+            line: item.finding.line,
+            context: item.finding.context,
+            message: item.finding.message,
+            fixable: item.finding.fixable
+          });
         }
       });
-    }
-  }
-
-  private auditVueFileForRule(absPath: string, relPath: string, ruleId: AccessibilityRuleId): void {
-    let content = '';
-    try {
-      content = fs.readFileSync(absPath, 'utf-8');
-    } catch {
-      return;
-    }
-
-    const blocks = parseVueSfc(content);
-    if (!blocks.template) return;
-
-    const templateContent = blocks.template.content;
-    const linesBeforeTemplate = Math.max(0, blocks.template.contentStartLine - 1);
-
-    switch (ruleId) {
-      case 'a11y-img-alt':
-        this.auditImgAlt(templateContent, relPath, linesBeforeTemplate);
-        break;
-      case 'a11y-form-control-has-label':
-        this.auditFormControlLabel(templateContent, relPath, linesBeforeTemplate);
-        break;
-      case 'a11y-interactive-supports-focus':
-        this.auditInteractiveFocus(templateContent, relPath, linesBeforeTemplate);
-        break;
-      case 'a11y-anchor-has-content':
-        this.auditAnchorContent(templateContent, relPath, linesBeforeTemplate);
-        break;
-      case 'a11y-aria-role-invalid':
-        this.auditAriaRole(templateContent, relPath, linesBeforeTemplate);
-        break;
-      default:
-        break;
     }
   }
 
@@ -478,8 +636,15 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         context: tag.trim(),
         message:
           'Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.',
-        fixable: false
+        fixable: true
       });
+
+      if (this.isFixActive()) {
+        const fixed = fixViewportZoomLockContent(content);
+        if (fixed !== undefined) {
+          fs.writeFileSync(indexPath, fixed, 'utf-8');
+        }
+      }
     }
   }
 }

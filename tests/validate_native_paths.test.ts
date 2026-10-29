@@ -10,6 +10,7 @@
  */
 
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
@@ -179,11 +180,23 @@ describe('NativePathsAuditor', () => {
     });
 
     it('auditNativePaths integration runner passes', () => {
-      const result = auditNativePaths();
-      expect(typeof result.passed).toBe('boolean');
-      expect(result.filesScanned).toBeGreaterThan(0);
-      expect(result.violations).toBeDefined();
-    }, 29_000);
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'native-paths-'));
+      try {
+        const srcDir = path.join(tmpDir, 'src');
+        fs.mkdirSync(srcDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(srcDir, 'clean.ts'),
+          "import path from 'node:path';\nexport const p = path.join('a', 'b');\n",
+          'utf-8'
+        );
+        const result = auditNativePaths(tmpDir);
+        expect(result.passed).toBe(true);
+        expect(result.filesScanned).toBe(1);
+        expect(result.violations).toEqual([]);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
   });
 
   describe('validate_native_paths case catalog', () => {

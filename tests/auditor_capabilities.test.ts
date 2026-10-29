@@ -118,6 +118,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
     const EXPECTED_FIX_SUITES = [
       'audit_project',
+      'validate_accessibility',
       'validate_agent_plugin',
       'validate_agents_config_mandate',
       'validate_audit_config',
@@ -147,10 +148,14 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_package_scripts',
       'validate_playwright_config',
       'validate_script_extensions',
+      'validate_scss_architecture',
+      'validate_security_hardening',
       'validate_stylelint',
       'validate_stylelint_config',
       'validate_tsconfig',
       'validate_vite_plus_config',
+      'validate_vue_sfc_hygiene',
+      'validate_web_performance',
       'validate_z_index'
     ].sort();
 
@@ -185,11 +190,13 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_pinia_reactivity',
       'validate_reactive_leaks',
       'validate_reactive_purity',
+      'validate_security_hardening',
       'validate_test_hygiene',
       'validate_type_assertion_hygiene',
       'validate_valibot_parity',
       'validate_vue_reactivity',
-      'validate_vue_router'
+      'validate_vue_router',
+      'validate_vue_sfc_hygiene'
     ].sort();
 
     expect(astSuiteIds).toEqual(EXPECTED_AST_SUITES);

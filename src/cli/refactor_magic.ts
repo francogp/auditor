@@ -14,23 +14,42 @@ import {
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { REFACTOR_POSITIONAL_CLI_ARGS } from '../core/refactor/refactorCliHarness.ts';
 import {
+  applyPlanFileWithWorktreeVerification,
+  formatCliRelativeFilePath,
+  REFACTOR_POSITIONAL_CLI_ARGS,
+  REFACTOR_SUBCOMMANDS,
   renderBanner,
   renderBoxTable,
   type TableColumn
-} from '../core/unifiedTheme.ts';
+} from '../core/refactor/refactorCliHarness.ts';
 import { MagicNumberExtractor } from '../core/refactor/magicNumberExtractor.ts';
 import { MagicNumberHarness } from '../core/refactor/magicNumberHarness.ts';
-import {
-  applyPlanFileWithWorktreeVerification
-} from '../core/refactor/worktreeSandbox.ts';
-import { isMainModule } from './cliUtils.ts';
 import type { MagicRefactorPlan } from '../core/refactor/magicContracts.ts';
+import { isMainModule } from './cliUtils.ts';
+import { REFACTOR_DUPES_CLI_COMMAND } from './refactor_dupes.ts';
 
-const MAX_DISPLAY_FILE_PATH_LENGTH = 42;
+export const REFACTOR_MAGIC_CLI_COMMAND = 'auditor:magic';
 
-function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): void {
+const REFACTOR_MAGIC_ARGS = {
+  ...COMMON_CLI_ARGS,
+  ...REFACTOR_POSITIONAL_CLI_ARGS,
+  file: {
+    type: 'string',
+    description: 'Target file to inspect for magic literals'
+  },
+  plan: {
+    type: 'string',
+    description: 'Path to MagicRefactorPlan JSON file'
+  },
+  worktree: {
+    type: 'boolean',
+    default: false,
+    description: 'Execute mutations in an isolated Git worktree'
+  }
+} as const satisfies CittyArgsDef;
+
+export function handleMagicDiscover(projectRoot: string, extractor: MagicNumberExtractor): void {
   console.log(styleText('cyan', `Scanning files for magic numbers in: ${projectRoot}...\n`));
 
   const scannableFiles = extractor.getScannableFiles();
@@ -43,9 +62,7 @@ function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): v
       totalFound += items.length;
       const zeroCount = items.filter((i) => i.isZeroTokenResolvable).length;
       tableRows.push({
-        file: relFile.length > MAX_DISPLAY_FILE_PATH_LENGTH
-          ? `...${relFile.slice(-(MAX_DISPLAY_FILE_PATH_LENGTH - 3))}`
-          : relFile,
+        file: formatCliRelativeFilePath(relFile),
         count: String(items.length),
         zero: String(zeroCount),
         pending: String(items.length - zeroCount)
@@ -80,9 +97,15 @@ function handleDiscover(projectRoot: string, extractor: MagicNumberExtractor): v
   );
 }
 
-function handleInspect(projectRoot: string, extractor: MagicNumberExtractor, targetFile: string | undefined): void {
+export function handleMagicInspect(
+  projectRoot: string,
+  extractor: MagicNumberExtractor,
+  targetFile: string | undefined
+): void {
   if (!targetFile) {
-    console.error(styleText('red', '[Error] You must specify a file to inspect: auditor:magic inspect <file>'));
+    console.error(
+      styleText('red', '[Error] You must specify a file to inspect: auditor:magic inspect <file>')
+    );
     process.exit(1);
   }
 
@@ -123,7 +146,11 @@ function handleInspect(projectRoot: string, extractor: MagicNumberExtractor, tar
   );
 }
 
-async function handleApply(projectRoot: string, rawPlanPath: string | undefined, useWorktree: boolean): Promise<void> {
+export async function handleMagicApply(
+  projectRoot: string,
+  rawPlanPath: string | undefined,
+  useWorktree: boolean
+): Promise<void> {
   await applyPlanFileWithWorktreeVerification<MagicRefactorPlan>(
     projectRoot,
     rawPlanPath,
@@ -134,30 +161,10 @@ async function handleApply(projectRoot: string, rawPlanPath: string | undefined,
   console.log(styleText('green', '\n[OK] Magic numbers refactoring applied successfully!'));
 }
 
-const REFACTOR_MAGIC_ARGS = {
-  ...COMMON_CLI_ARGS,
-  ...REFACTOR_POSITIONAL_CLI_ARGS,
-  file: {
-    type: 'string',
-    description: 'Target file to inspect for magic literals'
-  },
-  plan: {
-    type: 'string',
-    description: 'Path to MagicRefactorPlan JSON file'
-  },
-  worktree: {
-    type: 'boolean',
-    default: false,
-    description: 'Execute mutations in an isolated Git worktree'
-  }
-} as const satisfies CittyArgsDef;
-
-const MAGIC_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', 'apply', 'help']); // runtime-set: O(1) subcommand lookup
-
-export async function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void> {
-  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
-  const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs, MAGIC_SUBCOMMANDS);
-
+export async function executeMagicCli(
+  parsed: Record<string, unknown>,
+  createExtractor: (projectRoot: string) => MagicNumberExtractor
+): Promise<void> {
   const command = (parsed.subcommand as string) || 'discover';
   const targetArg =
     (parsed.target as string | undefined) ||
@@ -176,6 +183,7 @@ Commands:
   discover                  Scan workspace and list files with magic numbers or tokens
   inspect <file>            Extract Super-Dirac packet for a specific file
   apply <plan.json>         Apply refactor plan (supports --worktree)
+  (see also: ${REFACTOR_DUPES_CLI_COMMAND})
 
 Options:
   --project <path>          Path to target project root (default: cwd)
@@ -187,7 +195,7 @@ Options:
   }
 
   renderBanner('auditor-magic', 'Deterministic Magic Numbers Governance & Refactoring');
-  const extractor = new MagicNumberExtractor({ projectRoot });
+  const extractor = createExtractor(projectRoot);
 
   if (!extractor.isToolEnabled()) {
     console.log(
@@ -201,24 +209,31 @@ Options:
 
   extractor.indexProjectConstants(projectRoot);
 
-  switch (command) {
-    case 'discover':
-      handleDiscover(projectRoot, extractor);
-      break;
-    case 'inspect':
-      handleInspect(projectRoot, extractor, targetArg);
-      break;
-    case 'apply':
-      await handleApply(
-        projectRoot,
-        targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined),
-        Boolean(parsed.worktree)
-      );
-      break;
-    default:
-      console.error(styleText('red', `[Error] Unknown command: ${command}`));
-      process.exit(1);
+  if (command === 'discover') {
+    handleMagicDiscover(projectRoot, extractor);
+    return;
   }
+  if (command === 'inspect') {
+    handleMagicInspect(projectRoot, extractor, targetArg);
+    return;
+  }
+  if (command === 'apply') {
+    await handleMagicApply(
+      projectRoot,
+      targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined),
+      Boolean(parsed.worktree)
+    );
+    return;
+  }
+
+  console.error(styleText('red', `[Error] Unknown command: ${command}`));
+  process.exit(1);
+}
+
+export async function runRefactorMagicCli(rawInputArgs?: readonly string[]): Promise<void> {
+  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+  const parsed = parseCittyArgs(REFACTOR_MAGIC_ARGS, rawArgs, REFACTOR_SUBCOMMANDS);
+  await executeMagicCli(parsed, (projectRoot) => new MagicNumberExtractor({ projectRoot }));
 }
 
 if (isMainModule(import.meta.url, ['auditor-magic', 'refactor_magic'])) {

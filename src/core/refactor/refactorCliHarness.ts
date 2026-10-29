@@ -53,9 +53,16 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   readonly extendedHelp?: string;
 }
 
+export {
+  applyPlanFileWithWorktreeVerification,
+  renderBanner,
+  renderBoxTable,
+  type TableColumn
+};
+
 const MAX_DISPLAY_FILE_PATH_LENGTH = 44;
 
-const REFACTOR_SUBCOMMANDS: ReadonlySet<string> = new Set([
+export const REFACTOR_SUBCOMMANDS: ReadonlySet<string> = new Set([
   'discover',
   'inspect',
   'apply',

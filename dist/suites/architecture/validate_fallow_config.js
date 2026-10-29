@@ -1,7 +1,7 @@
 import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
 import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { toPosixRelative } from "../../core/safePath.js";
+import { isPathContained, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -51,6 +51,8 @@ function isSymbolExportedInContent(content, symbol, isVue = false) {
 	if (!new RegExp(`\\b${escaped}\\b`).test(content)) return false;
 	return new RegExp(`export\\s+(?:const|let|var|function|async\\s+function|type|interface|enum|class|abstract\\s+class)\\s+${escaped}\\b|export\\s+(?:const|let|var)\\s+\\{[^}]*\\b${escaped}\\b|export\\s+(?:const|let|var)\\s+\\[[^\\]]*\\b${escaped}\\b|export\\s+(?:type\\s+)?\\{[^}]*\\b${escaped}\\b|export\\s+\\*\\s+as\\s+${escaped}\\b`).test(content);
 }
+const FALLOW_CYCLOMATIC_POLICIES = ["standard", "literal-membership"];
+const VALID_CYCLOMATIC_POLICIES = new Set(FALLOW_CYCLOMATIC_POLICIES);
 function createDefaultFallowConfigContent() {
 	return JSON.stringify({
 		$schema: "https://fallow.tools/schema/config.json",
@@ -69,29 +71,53 @@ function createDefaultFallowConfigContent() {
 	}, null, 2) + "\n";
 }
 const VALID_SEVERITIES = new Set(CANONICAL_RULE_SEVERITY_LEVELS);
+function validateFallowSchemaFields(parsed, auditor) {
+	if (parsed.audit?.worsened && !VALID_SEVERITIES.has(parsed.audit.worsened)) auditor.addViolation({
+		ruleId: "fallow-config-syntax",
+		severity: "error",
+		file: ".fallowrc.json",
+		line: 1,
+		message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
+		context: ".fallowrc.json"
+	});
+	if (parsed.health?.cyclomaticPolicy !== void 0) {
+		if (typeof parsed.health.cyclomaticPolicy !== "string" || !VALID_CYCLOMATIC_POLICIES.has(parsed.health.cyclomaticPolicy)) auditor.addViolation({
+			ruleId: "fallow-config-syntax",
+			severity: "error",
+			file: ".fallowrc.json",
+			line: 1,
+			message: `Invalid value for health.cyclomaticPolicy in .fallowrc.json: '${String(parsed.health.cyclomaticPolicy)}'. Must be one of: 'standard', 'literal-membership'.`,
+			context: ".fallowrc.json"
+		});
+	}
+	if (parsed.markupExtensions !== void 0) {
+		if (!(Array.isArray(parsed.markupExtensions) && parsed.markupExtensions.every((item) => typeof item === "string" && item.trim().length > 0))) auditor.addViolation({
+			ruleId: "fallow-config-syntax",
+			severity: "error",
+			file: ".fallowrc.json",
+			line: 1,
+			message: `Invalid value for markupExtensions in .fallowrc.json: must be an array of non-empty extension strings.`,
+			context: ".fallowrc.json"
+		});
+	}
+	if (parsed.mutation?.runnerConfig !== void 0) {
+		const runnerConfig = parsed.mutation.runnerConfig;
+		if (!(typeof runnerConfig === "string" && runnerConfig.trim().length > 0 && !path.isAbsolute(runnerConfig) && isPathContained(auditor.projectRoot, runnerConfig, auditor.projectRoot))) auditor.addViolation({
+			ruleId: "fallow-config-syntax",
+			severity: "error",
+			file: ".fallowrc.json",
+			line: 1,
+			message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be a non-empty relative file path string within the project root.`,
+			context: ".fallowrc.json"
+		});
+	}
+}
 function loadFallowConfig(configPath, auditor) {
 	if (!fs.existsSync(configPath)) return null;
 	try {
 		const raw = fs.readFileSync(configPath, "utf-8");
 		const parsed = JSON.parse(raw);
-		if (parsed.audit?.worsened) {
-			if (!VALID_SEVERITIES.has(parsed.audit.worsened)) auditor.addViolation({
-				ruleId: "fallow-config-syntax",
-				severity: "error",
-				file: ".fallowrc.json",
-				line: 1,
-				message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
-				context: ".fallowrc.json"
-			});
-		}
-		if (parsed.mutation?.runnerConfig && (typeof parsed.mutation.runnerConfig !== "object" || Array.isArray(parsed.mutation.runnerConfig))) auditor.addViolation({
-			ruleId: "fallow-config-syntax",
-			severity: "error",
-			file: ".fallowrc.json",
-			line: 1,
-			message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be an object.`,
-			context: ".fallowrc.json"
-		});
+		validateFallowSchemaFields(parsed, auditor);
 		return parsed;
 	} catch (err) {
 		auditor.addViolation({
@@ -315,19 +341,55 @@ function validateFallowIgnoreExports(config, projectRoot, auditor) {
 		modified
 	};
 }
-function validateFallowWorkspaceDiagnostics(diagnostics, auditor) {
-	if (!Array.isArray(diagnostics)) return;
+function pruneRedundantFallowConfigDiagnostic(diag, config) {
+	if (!config || !diag.pattern) return false;
+	if (diag.kind === "entry-pattern-redundant" && Array.isArray(config.entry)) {
+		const before = config.entry.length;
+		config.entry = config.entry.filter((p) => p !== diag.pattern);
+		if (config.entry.length === 0) delete config.entry;
+		return (config.entry?.length ?? 0) !== before;
+	}
+	if (diag.kind === "ignore-dependencies-entry-redundant" && Array.isArray(config.ignoreDependencies)) {
+		const before = config.ignoreDependencies.length;
+		config.ignoreDependencies = config.ignoreDependencies.filter((p) => p !== diag.pattern);
+		if (config.ignoreDependencies.length === 0) delete config.ignoreDependencies;
+		return (config.ignoreDependencies?.length ?? 0) !== before;
+	}
+	if (diag.kind === "ignore-patterns-entry-redundant" && Array.isArray(config.ignorePatterns)) {
+		const before = config.ignorePatterns.length;
+		config.ignorePatterns = config.ignorePatterns.filter((p) => p !== diag.pattern);
+		if (config.ignorePatterns.length === 0) delete config.ignorePatterns;
+		return (config.ignorePatterns?.length ?? 0) !== before;
+	}
+	return false;
+}
+const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS = [
+	"entry-pattern-redundant",
+	"ignore-dependencies-entry-redundant",
+	"ignore-patterns-entry-redundant"
+];
+const REDUNDANT_CONFIG_DIAGNOSTIC_SET = new Set(FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS);
+function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
+	if (!Array.isArray(diagnostics)) return false;
+	let modified = false;
 	for (const d of diagnostics) {
 		if (d.kind === "boundaries-not-configured" || d.kind === "rule-packs-not-configured") continue;
+		const isRedundantConfigEntry = Boolean(d.kind && REDUNDANT_CONFIG_DIAGNOSTIC_SET.has(d.kind));
+		if (isRedundantConfigEntry && auditor.isFixActive() && pruneRedundantFallowConfigDiagnostic(d, config)) {
+			modified = true;
+			continue;
+		}
 		auditor.addViolation({
 			ruleId: "fallow-config-workspace-diagnostic",
 			severity: "error",
 			file: d.path && d.path !== "." ? d.path : ".fallowrc.json",
 			line: 1,
 			message: `Workspace diagnostic (Fallow): [${d.kind || "diagnostic"}] ${d.message || ""}`,
-			context: d.kind || "workspace_diagnostic"
+			context: d.kind || "workspace_diagnostic",
+			fixable: isRedundantConfigEntry && Boolean(d.pattern)
 		});
 	}
+	return modified;
 }
 const FALLOW_CONFIG_REQUIREMENT = {
 	id: "fallow-config",
@@ -379,7 +441,8 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				"fallow-stale-file",
 				"fallow-stale-export",
 				"fallow-empty-export-list",
-				"fallow-duplicate-entry"
+				"fallow-duplicate-entry",
+				"fallow-config-workspace-diagnostic"
 			]),
 			fixableRuleIds: [
 				"fallow-config-missing",
@@ -387,7 +450,8 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				"fallow-stale-file",
 				"fallow-stale-export",
 				"fallow-empty-export-list",
-				"fallow-duplicate-entry"
+				"fallow-duplicate-entry",
+				"fallow-config-workspace-diagnostic"
 			],
 			configFiles: [configRequirement],
 			cachePaths: ValidateFallowConfigAuditor.cachePaths,
@@ -421,7 +485,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				"fallow-stale-export": "📖 REMEDIATION GUIDE: fallow-stale-export\n1. Root Cause: A symbol declared in the exports array of an ignoreExports entry is no longer exported in the source file.\n2. Diagnosis: Check the source file to verify that the symbol was renamed or deleted.\n3. Canonical Solution: Run npm run auditor:fix to synchronize and purge obsolete symbol names.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
 				"fallow-empty-export-list": "📖 REMEDIATION GUIDE: fallow-empty-export-list\n1. Root Cause: A file entry in ignoreExports has an empty exports array (exports: []).\n2. Diagnosis: Review entries in .fallowrc.json where no symbols are declared.\n3. Canonical Solution: Run npm run auditor:fix to remove the redundant entry.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
 				"fallow-duplicate-entry": "📖 REMEDIATION GUIDE: fallow-duplicate-entry\n1. Root Cause: The same file or symbol is repeated more than once within .fallowrc.json.\n2. Diagnosis: The message indicates the duplicate entry.\n3. Canonical Solution: Run npm run auditor:fix to deduplicate entries and symbols automatically.\n4. Example / Auto-fix command:\n   npm run auditor:fix",
-				"fallow-config-workspace-diagnostic": "📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n1. Root Cause: The Fallow engine emitted a workspace-level diagnostic or boundary configuration warning.\n2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n3. Canonical Solution: Adjust package or boundary settings in .fallowrc.json according to engine recommendations.\n4. Example / Auto-fix command:\n   Review and update boundaries in .fallowrc.json."
+				"fallow-config-workspace-diagnostic": "📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n1. Root Cause: The Fallow engine emitted a workspace-level diagnostic, redundant config entry warning, or boundary configuration warning.\n2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant), or adjust package/boundary settings in .fallowrc.json.\n4. Example / Auto-fix command:\n   npm run auditor:fix"
 			},
 			coverage: { include: [".fallowrc.json"] },
 			projectRoot
@@ -461,7 +525,8 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			tryCatchSync(() => {
 				const fallowBin = [path.resolve(this.projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
 				if (fallowBin) {
-					const stdout = execSync(`node "${fallowBin}" list --workspaces --format json --root "${this.projectRoot}"`, {
+					const subcmd = fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces";
+					const stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${this.projectRoot}"`, {
 						encoding: "utf8",
 						stdio: [
 							"pipe",
@@ -471,11 +536,13 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 						timeout: 1e4
 					});
 					const parsed = safeJsonParse(stdout);
-					if (parsed?.workspace_diagnostics) validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
+					if (parsed?.workspace_diagnostics) {
+						if (validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this, validConfig) && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
+					}
 				}
 			});
 		});
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateFallowConfigAuditor());
-export { BANNED_ENTRY_GLOBS, FALLOW_CONFIG_REQUIREMENT, FALLOW_CONFIG_RULES, ValidateFallowConfigAuditor, createDefaultFallowConfigContent, escapeRegExp, getBannedEntryGlobs, isSymbolExportedInContent, validateFallowWorkspaceDiagnostics };
+export { BANNED_ENTRY_GLOBS, FALLOW_CONFIG_REQUIREMENT, FALLOW_CONFIG_RULES, FALLOW_CYCLOMATIC_POLICIES, FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS, ValidateFallowConfigAuditor, createDefaultFallowConfigContent, escapeRegExp, getBannedEntryGlobs, isSymbolExportedInContent, validateFallowWorkspaceDiagnostics };

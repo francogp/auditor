@@ -15,27 +15,51 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { REFACTOR_POSITIONAL_CLI_ARGS } from '../core/refactor/refactorCliHarness.ts';
 import {
+  applyPlanFileWithWorktreeVerification,
+  REFACTOR_POSITIONAL_CLI_ARGS,
+  REFACTOR_SUBCOMMANDS,
   renderBanner,
   renderBoxTable,
   type TableColumn
-} from '../core/unifiedTheme.ts';
-import { MicroContextExtractor } from '../core/refactor/microContextExtractor.ts';
-import { HybridHarnessEngine } from '../core/refactor/hybridHarness.ts';
-import { applyPlanFileWithWorktreeVerification } from '../core/refactor/worktreeSandbox.ts';
+} from '../core/refactor/refactorCliHarness.ts';
 import { isMainModule } from './cliUtils.ts';
+
+export const REFACTOR_DUPES_CLI_COMMAND = 'auditor:dupes';
+import {
+  DupesRefactorEngine,
+  runFallowJson
+} from '../core/refactor/dupesRefactorEngine.ts';
+import { HybridHarnessEngine } from '../core/refactor/hybridHarness.ts';
+import { MicroContextExtractor } from '../core/refactor/microContextExtractor.ts';
 import type {
   FallowDupesOutput,
-  TriagedCloneCandidate,
-  RefactorPlan
+  RefactorPlan,
+  TriagedCloneCandidate
 } from '../core/refactor/refactorContracts.ts';
-import { DupesRefactorEngine, runFallowJson } from '../core/refactor/dupesRefactorEngine.ts';
 
-function triageCandidates(projectRoot: string, minOccurrences: number): TriagedCloneCandidate[] {
-  const engine = new DupesRefactorEngine({ projectRoot });
-  return Array.from(engine.triageCandidates(minOccurrences));
-}
+const REFACTOR_DUPES_ARGS = {
+  ...COMMON_CLI_ARGS,
+  'min-occurrences': {
+    type: 'string',
+    default: '2',
+    description: 'Minimum number of clone occurrences to triage'
+  },
+  plan: {
+    type: 'string',
+    description: 'Path to RefactorPlan JSON file'
+  },
+  ...REFACTOR_POSITIONAL_CLI_ARGS,
+  fingerprint: {
+    type: 'string',
+    description: 'Clone group fingerprint to inspect'
+  },
+  worktree: {
+    type: 'boolean',
+    default: false,
+    description: 'Execute mutations in an isolated Git worktree'
+  }
+} as const satisfies CittyArgsDef;
 
 interface CandidateRow {
   index: string;
@@ -48,9 +72,9 @@ interface CandidateRow {
 
 const MAX_COMPACT_CLONES = 15;
 
-function handleDiscover(
+export function handleDupesDiscover(
   projectRoot: string,
-  candidates: TriagedCloneCandidate[],
+  candidates: readonly TriagedCloneCandidate[],
   isJson: boolean,
   isVerbose = false
 ): void {
@@ -67,7 +91,9 @@ function handleDiscover(
     console.log(`\n• Total: ${candidates.length} clone group(s) detected:`);
     for (const c of candidates.slice(0, MAX_COMPACT_CLONES)) {
       const fileNames = c.files.map((f) => path.basename(f)).join(', ');
-      console.log(`  - [${c.fingerprint}] ${c.topology} (${c.tokenCount * c.occurrenceCount} tokens) -> ${fileNames}`);
+      console.log(
+        `  - [${c.fingerprint}] ${c.topology} (${c.tokenCount * c.occurrenceCount} tokens) -> ${fileNames}`
+      );
     }
     if (candidates.length > MAX_COMPACT_CLONES) {
       console.log(`  ... and ${candidates.length - MAX_COMPACT_CLONES} more group(s).`);
@@ -94,9 +120,7 @@ function handleDiscover(
   ];
 
   const rows: CandidateRow[] = candidates.slice(0, 20).map((c, i) => {
-    const statusLabel = c.isDeadCodeTarget
-      ? styleText('red', 'DEAD')
-      : styleText('green', 'ACTIVE');
+    const statusLabel = c.isDeadCodeTarget ? styleText('red', 'DEAD') : styleText('green', 'ACTIVE');
     const fileNames = c.files.map((f) => path.basename(f)).join(', ');
     return {
       index: String(i + 1),
@@ -117,18 +141,22 @@ function handleDiscover(
   );
 }
 
-function handleInspect(
+export function handleDupesInspect(
   projectRoot: string,
   fp: string | undefined,
   isJson: boolean
 ): void {
   if (!fp) {
-    console.error(styleText('red', '[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>'));
+    console.error(
+      styleText('red', '[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>')
+    );
     process.exit(1);
   }
 
   const dupes = runFallowJson<FallowDupesOutput>('dupes', [], projectRoot);
-  const group = dupes.clone_groups.find((g) => g.fingerprint === fp || g.fingerprint === `dup:${fp}`);
+  const group = dupes.clone_groups.find(
+    (g) => g.fingerprint === fp || g.fingerprint === `dup:${fp}`
+  );
 
   if (!group) {
     console.error(styleText('red', `[Error] Clone group not found for fingerprint: "${fp}".`));
@@ -151,13 +179,25 @@ function handleInspect(
       )
   );
 
-  console.log(`  Context Reduction: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText('green', packet.tokenSavingsPercent + '% savings')})`);
+  console.log(
+    `  Context Reduction: ${packet.traditionalTokensEstimate.toLocaleString()} tokens → ${packet.microContextTokensEstimate.toLocaleString()} tokens (${styleText('green', packet.tokenSavingsPercent + '% savings')})`
+  );
   console.log(`  Inferred Parameters: ${packet.candidateParameters.join(', ') || 'none'}`);
   console.log(`  Inferred Returns:    ${packet.candidateReturns.join(', ') || 'none'}\n`);
 
   for (const [idx, inst] of packet.instances.entries()) {
-    console.log(styleText('bold', `  Instance #${idx + 1}: ${inst.file} (Lines ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`));
-    console.log(inst.contextSnippet.split('\n').map((l) => `    │ ${l}`).join('\n') + '\n');
+    console.log(
+      styleText(
+        'bold',
+        `  Instance #${idx + 1}: ${inst.file} (Lines ${inst.startLine}-${inst.endLine}) [sha256: ${inst.sha256.slice(0, 8)}...]`
+      )
+    );
+    console.log(
+      inst.contextSnippet
+        .split('\n')
+        .map((l) => `    │ ${l}`)
+        .join('\n') + '\n'
+    );
   }
 
   console.log(
@@ -168,7 +208,7 @@ function handleInspect(
   );
 }
 
-async function handleApply(
+export async function handleDupesApply(
   projectRoot: string,
   rawPlanPath: string | undefined,
   useWorktree: boolean
@@ -183,48 +223,15 @@ async function handleApply(
   console.log(styleText('green', '[OK] Refactoring successfully applied to workspace.'));
 }
 
-const REFACTOR_DUPES_ARGS = {
-  ...COMMON_CLI_ARGS,
-  'min-occurrences': {
-    type: 'string',
-    default: '2',
-    description: 'Minimum number of clone occurrences to triage'
-  },
-  plan: {
-    type: 'string',
-    description: 'Path to RefactorPlan JSON file'
-  },
-  ...REFACTOR_POSITIONAL_CLI_ARGS,
-  fingerprint: {
-    type: 'string',
-    description: 'Clone group fingerprint to inspect'
-  },
-  worktree: {
-    type: 'boolean',
-    default: false,
-    description: 'Execute mutations in an isolated Git worktree'
-  }
-} as const satisfies CittyArgsDef;
-
-const DUPES_SUBCOMMANDS: ReadonlySet<string> = new Set(['discover', 'inspect', 'apply', 'help']); // runtime-set: O(1) subcommand lookup
-
-export async function runRefactorCli(rawInputArgs?: readonly string[]): Promise<void> {
-  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
-  const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, DUPES_SUBCOMMANDS);
-
+export async function executeDupesCli(parsed: Record<string, unknown>): Promise<void> {
   const subCommand = (parsed.subcommand as string) || 'discover';
   const targetArg =
     (parsed.target as string | undefined) ||
     (typeof parsed.fingerprint === 'string' ? parsed.fingerprint : undefined) ||
     (typeof parsed.plan === 'string' ? parsed.plan : undefined);
 
-  if (parsed.help || subCommand === 'help') {
-    console.log('Available commands: discover, inspect, apply');
-    return;
-  }
-
-  if (!DUPES_SUBCOMMANDS.has(subCommand)) {
-    console.log('Available commands: discover, inspect, apply');
+  if (parsed.help || subCommand === 'help' || !REFACTOR_SUBCOMMANDS.has(subCommand)) {
+    console.log('Available commands: discover, inspect, apply (see also auditor:magic)');
     return;
   }
 
@@ -232,30 +239,33 @@ export async function runRefactorCli(rawInputArgs?: readonly string[]): Promise<
   const isJson = Boolean(parsed.json);
   const isVerbose = resolveHumanModeFromArgs(parsed);
 
-  switch (subCommand) {
-    case 'discover': {
-      const minOcc = parseInt(String(parsed['min-occurrences'] || '2'), 10);
-      const candidates = triageCandidates(projectRoot, minOcc);
-      handleDiscover(projectRoot, candidates, isJson, isVerbose);
-      break;
-    }
-
-    case 'inspect': {
-      const fp = targetArg || (typeof parsed.fingerprint === 'string' ? parsed.fingerprint : undefined);
-      handleInspect(projectRoot, fp, isJson);
-      break;
-    }
-
-    case 'apply': {
-      const rawPlanPath = targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined);
-      await handleApply(projectRoot, rawPlanPath, Boolean(parsed.worktree));
-      break;
-    }
-
-    default:
-      console.log('Available commands: discover, inspect, apply');
-      break;
+  if (subCommand === 'discover') {
+    const minOcc = parseInt(String(parsed['min-occurrences'] || '2'), 10);
+    const engine = new DupesRefactorEngine({ projectRoot });
+    handleDupesDiscover(projectRoot, engine.triageCandidates(minOcc), isJson, isVerbose);
+    return;
   }
+
+  if (subCommand === 'inspect') {
+    const fp =
+      targetArg || (typeof parsed.fingerprint === 'string' ? parsed.fingerprint : undefined);
+    handleDupesInspect(projectRoot, fp, isJson);
+    return;
+  }
+
+  if (subCommand === 'apply') {
+    const rawPlanPath = targetArg || (typeof parsed.plan === 'string' ? parsed.plan : undefined);
+    await handleDupesApply(projectRoot, rawPlanPath, Boolean(parsed.worktree));
+    return;
+  }
+
+  console.log('Available commands: discover, inspect, apply');
+}
+
+export async function runRefactorCli(rawInputArgs?: readonly string[]): Promise<void> {
+  const rawArgs = rawInputArgs ? [...rawInputArgs] : getProcessCliArgs();
+  const parsed = parseCittyArgs(REFACTOR_DUPES_ARGS, rawArgs, REFACTOR_SUBCOMMANDS);
+  await executeDupesCli(parsed);
 }
 
 if (isMainModule(import.meta.url, ['auditor-dupes', 'refactor_dupes'])) {

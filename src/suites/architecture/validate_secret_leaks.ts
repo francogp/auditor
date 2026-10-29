@@ -44,12 +44,13 @@ export const SECRET_SCAN_EXTENSIONS: ReadonlySet<string> = new Set([
 
 type SecretLintConfig = SecretLintSourceOptions['options']['config'];
 
-function buildSecretLintConfig(): SecretLintConfig {
+export function buildSecretLintConfig(allows?: readonly string[]): SecretLintConfig {
+  const ruleOptions = allows && allows.length > 0 ? { allows: [...allows] } : {};
   return {
     rules: presetRules.map((rule: (typeof presetRules)[number]) => ({
       id: rule.meta.id,
       rule,
-      options: {}
+      options: ruleOptions
     }))
   };
 }
@@ -166,6 +167,12 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
     }
 
     const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
+    const configuredAllows = [
+      ...(config.secretLeaks?.allows ?? []),
+      ...(config.secretLeaks?.allowedPatterns ?? [])
+    ];
+    const effectiveConfig =
+      configuredAllows.length > 0 ? buildSecretLintConfig(configuredAllows) : this.secretLintConfig;
     const ext = path.extname(relPath) || '.txt';
 
     let messages: Array<{
@@ -184,7 +191,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
           contentType: 'text'
         },
         options: {
-          config: this.secretLintConfig,
+          config: effectiveConfig,
           maskSecrets
         }
       })

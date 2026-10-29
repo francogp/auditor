@@ -1,6 +1,7 @@
-import { TableColumn } from "../unifiedTheme.js";
+import { TableColumn, renderBanner, renderBoxTable } from "../unifiedTheme.js";
 import { CommandDef } from "../cli/cittyHarness.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 export interface DiracInspectionItem {
   readonly line: number;
   readonly kind: string;
@@ -28,6 +29,7 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   };
   readonly extendedHelp?: string;
 }
+export declare const REFACTOR_SUBCOMMANDS: ReadonlySet<string>;
 export declare const REFACTOR_POSITIONAL_CLI_ARGS: {
   readonly subcommand: {
     readonly type: "positional";
@@ -104,4 +106,4 @@ export declare function formatCliRelativeFilePath(relPath: string): string;
  */
 export declare function createRefactorCli<TFinding, TPlan>(def: RefactorCliDefinition<TFinding, TPlan>): CommandDef<typeof REFACTOR_HARNESS_ARGS>;
 export declare function runRefactorCliHarness<TFinding, TPlan>(def: RefactorCliDefinition<TFinding, TPlan>, argv?: readonly string[]): Promise<void>;
-export {};
+export { type TableColumn, applyPlanFileWithWorktreeVerification, renderBanner, renderBoxTable };

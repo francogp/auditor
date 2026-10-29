@@ -164,23 +164,28 @@ When an AI agent is instructed to audit skills, review governance rules, or chec
 
 ---
 
-## 6. Official Locked Skills Update Protocol (Step-by-Step)
+## 6. Official Locked Skills Update Protocol & Project Ownership Boundary
 
-When developers or users request to update, upgrade, or sync external skills (e.g. *"actualizar skills"*, *"update skills"*, *"actualizar skills-lock"*, *"sync skills"*), execute this deterministic zero-guesswork workflow without redundant investigation.
+### 6.0 Strict Project-Scoped Skill Ownership Boundary (Provider vs. Consumer Projects)
+
+1. **Each Project Only Manages Its Own Local Skills**: A repository may ONLY execute `skills update` or maintain `skills-lock.json` entries for skills that **exclusively belong to that repository** and reside inside its own `.agents/skills/` directory.
+2. **Prohibition on Updating or Suggesting Sync of `@francogp/auditor` Skills in Consumer Projects**: All shared framework and ecosystem skills packaged by `@francogp/auditor` (`fallow`, `fallow-review`, `fallow-setup`, `gsap-*`, `vue-*`, `vitest`, `vite`, `valibot`, `pinia`, `playwright-cli`, `architecture`, `auditor`, etc.) are owned 100% by `@francogp/auditor` and consumed read-only from `node_modules/@francogp/auditor/.agents/skills`.
+   - Consumer host projects (`!isSelfProviderProject`) are **STRICTLY PROHIBITED** from running `skills update` on auditor-owned skills, cloning them into the host's `.agents/skills/`, adding them to a host `skills-lock.json`, or proposing to the user to synchronize them locally (enforced by `host-duplicate-auditor-skill` in `validate_agent_plugin`).
+   - When a consumer host project upgrades a library whose skill belongs to `@francogp/auditor`, the AI agent MUST NOT modify or offer to sync the skill in the host project; it may **ONLY suggest to the user to ask the `@francogp/auditor` programmer to update the skills in the `@francogp/auditor` repository**.
+
+When developers or users request to update, upgrade, or sync project-owned external skills inside the owner repository (e.g. inside `@francogp/auditor` for shared skills, or inside a host project ONLY for domain-specific skills owned by that host project), execute this deterministic zero-guesswork workflow:
 
 ### 6.1 Canonical Command Execution
 
-Use the official Skills CLI (`skills`) documented in [`find-skills`](../../find-skills/SKILL.md):
+Use the official Skills CLI (`skills`) via `npm exec` (never invoke `npx`):
 
 ```bash
 # Update ALL project-scoped skills non-interactively
-skills update -p -y
+npm exec --yes -- skills update -p -y
 
 # Or update a specific locked skill by name
-skills update <skill-name> -p -y
+npm exec --yes -- skills update <skill-name> -p -y
 ```
-
-> **Note**: If `skills` is not yet present in `$PATH`, it can be run via npm package execution (`skills` package on npm).
 
 **Key Flags Explained**:
 
@@ -207,7 +212,7 @@ git status --short skills-lock.json .agents/skills
 git diff skills-lock.json
 
 # 3. Verify framework isolation tests pass 100%
-vp test tests/locked_skills.test.ts # or npm test -- tests/locked_skills.test.ts
+vp test tests/locked_skills.test.ts
 ```
 
 ### 6.4 Reporting Template
@@ -220,16 +225,19 @@ Deliver a consolidated final report detailing:
 
 ---
 
-## 7. Mandatory Dependency-to-Skill Synchronization Matrix
+## 7. Mandatory Dependency-to-Skill Synchronization Matrix (Owner-Scoped)
 
-When upgrading, bumping, or adding libraries in `package.json`, developers and AI agents must check whether the dependency has a corresponding official agent skill in the repository. If so, the skill **must be updated simultaneously** to keep agent knowledge aligned with library capabilities, CLI flags, and best practices.
+When upgrading, bumping, or adding libraries in `package.json`, developers and AI agents must check whether the dependency has a corresponding official agent skill **owned by the current repository**:
 
-### 7.1 Dependency-to-Skill Mapping Matrix
+- **Inside `@francogp/auditor` (Provider Repository)**: The skills in the matrix below are owned by `@francogp/auditor` and **must be updated simultaneously** via `npm exec --yes -- skills update <skill-name> -p -y` when their corresponding library is bumped in `@francogp/auditor`.
+- **Inside Consumer Host Projects**: Because the skills in the matrix below belong to `@francogp/auditor` (not the host project), the agent in the host project **MUST NEVER update, lock, or propose synchronizing them locally**. Only `vp config` (for `vite-plus` directives in the host's `AGENTS.md`) or skills exclusively owned by the host project's own `.agents/skills/` may be updated in the host project. For any `@francogp/auditor` skill, the agent may only inform the user to request the `@francogp/auditor` programmer to update the skills upstream.
+
+### 7.1 Dependency-to-Skill Mapping Matrix (`@francogp/auditor` Owned Catalog)
 
 | Library / Package (`package.json`) | Associated Agent Skill(s) | Upstream Repository Source |
 | :--- | :--- | :--- |
 | `vite-plus`, `@voidzero-dev/vite-plus-core` | Packaged `node_modules/vite-plus/AGENTS.md` (injected into `AGENTS.md` via `vp config`), [`vite`](../../vite/SKILL.md), [`vitest`](../../vitest/SKILL.md) | `voidzero-dev/vite-plus` (`https://viteplus.dev/llms-full.txt`), `antfu/skills` |
-| `fallow` | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md) | `fallow-rs/fallow-skills` |
+| `fallow` | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md), [`fallow-setup`](../../fallow-setup/SKILL.md) | `fallow-rs/fallow-skills` |
 | `vitest`, `@vitest/*` | [`vitest`](../../vitest/SKILL.md) | `antfu/skills` |
 | `vite`, `rolldown` | [`vite`](../../vite/SKILL.md) | `antfu/skills` |
 | `valibot` | [`valibot`](../../valibot/SKILL.md) | `open-circle/agent-skills` |
@@ -244,7 +252,7 @@ When upgrading, bumping, or adding libraries in `package.json`, developers and A
 When the user asks to update dependencies (e.g. *"actualizar dependencias"*, *"update fallow"*, *"upgrade vitest"*, *"upgrade vite-plus"*):
 
 1. **Update Library**: Bump the package version in `package.json` and install dependencies.
-2. **Identify Associated Skills**: Match the upgraded package against the table above. For `vite-plus`, run `vp config` so the official instructions from `node_modules/vite-plus/AGENTS.md` are synchronized into `AGENTS.md`.
-3. **Update Associated Skills**: Run the skill update command for each affected skill (`skills update <skill-name> -p -y`) or synchronize all project skills concurrently (`skills update -p -y`).
-4. **Verify Lockfile & Tests**: Ensure `skills-lock.json` reflects the new hashes and run tests: `git diff skills-lock.json` and `npm test tests/locked_skills.test.ts`.
-5. **Report Coordinated Updates**: In the final response, confirm both the new library version and the updated skill status.
+2. **Check Skill Ownership Scope**:
+   - If running in **`@francogp/auditor`** (or if the upgraded dependency corresponds to a skill owned locally by the current project's `.agents/skills/`): run `npm exec --yes -- skills update <skill-name> -p -y` and verify `skills-lock.json`.
+   - If running in a **consumer host project** and the skill belongs to `@francogp/auditor`: **DO NOT run `skills update` and DO NOT propose syncing the skill locally**. If relevant, mention that the user can ask the `@francogp/auditor` programmer to update the skill in `@francogp/auditor`.
+3. **Verify Lockfile & Tests**: Ensure `skills-lock.json` (in the owner repository) reflects the new hashes and run `vp test`.

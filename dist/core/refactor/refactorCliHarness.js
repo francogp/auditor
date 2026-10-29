@@ -200,4 +200,4 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 			process.exit(1);
 	}
 }
-export { REFACTOR_POSITIONAL_CLI_ARGS, createRefactorCli, formatCliRelativeFilePath, runRefactorCliHarness };
+export { REFACTOR_POSITIONAL_CLI_ARGS, REFACTOR_SUBCOMMANDS, applyPlanFileWithWorktreeVerification, createRefactorCli, formatCliRelativeFilePath, renderBanner, renderBoxTable, runRefactorCliHarness };

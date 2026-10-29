@@ -178,6 +178,30 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(result.findings[0]?.ruleId).toBe('fallow-config-workspace-diagnostic');
       expect(result.findings[0]?.message).toContain('undeclared-workspace');
     });
+
+    it('validates mutation.runnerConfig as a non-empty relative path string and rejects objects', async () => {
+      fs.writeFileSync(
+        path.join(scratchDir, '.fallowrc.json'),
+        JSON.stringify({ mutation: { runnerConfig: {} } }),
+        'utf-8'
+      );
+      const badAuditor = new ValidateFallowConfigAuditor(scratchDir);
+      const badResult = await badAuditor.execute();
+      expect(badResult.findings.some((f) => f.ruleId === 'fallow-config-syntax')).toBe(true);
+
+      fs.writeFileSync(
+        path.join(scratchDir, '.fallowrc.json'),
+        JSON.stringify({
+          mutation: { runnerConfig: 'vitest.unit.config.ts' },
+          health: { maxCrap: 0, cyclomaticPolicy: 'literal-membership' },
+          markupExtensions: ['.astro', '.mdx']
+        }),
+        'utf-8'
+      );
+      const goodAuditor = new ValidateFallowConfigAuditor(scratchDir);
+      const goodResult = await goodAuditor.execute();
+      expect(goodResult.summary.errors).toBe(0);
+    });
   });
 
   describe('Clean Execution', () => {
@@ -221,6 +245,42 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(createdContent.typeAware).toBe(true);
       expect(createdContent.duplicates?.nearMiss).toBe(true);
       expect(createdContent.duplicates?.mode).toBe('strict');
+    });
+
+    it('auto-prunes redundant entry, ignoreDependencies, and ignorePatterns diagnostics when fix: true is active', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir, fix: true });
+      const config = {
+        entry: ['src/index.ts', '.auditor/audit.config.ts'],
+        ignoreDependencies: ['fallow', 'knip'],
+        ignorePatterns: ['dist/**', 'tests/**']
+      };
+      const diagnostics = [
+        {
+          path: '.',
+          kind: 'entry-pattern-redundant',
+          pattern: 'src/index.ts',
+          message: 'redundant entry'
+        },
+        {
+          path: '.',
+          kind: 'ignore-dependencies-entry-redundant',
+          pattern: 'fallow',
+          message: 'redundant dep'
+        },
+        {
+          path: '.',
+          kind: 'ignore-patterns-entry-redundant',
+          pattern: 'dist/**',
+          message: 'redundant pattern'
+        }
+      ];
+      const modified = validateFallowWorkspaceDiagnostics(diagnostics, auditor, config);
+      const result = await auditor.finishAudit();
+      expect(modified).toBe(true);
+      expect(result.findings.length).toBe(0);
+      expect(config.entry).toEqual(['.auditor/audit.config.ts']);
+      expect(config.ignoreDependencies).toEqual(['knip']);
+      expect(config.ignorePatterns).toEqual(['tests/**']);
     });
   });
 });

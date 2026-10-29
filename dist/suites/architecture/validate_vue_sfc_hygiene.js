@@ -1,8 +1,12 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { SharedAstContext } from "../../core/astContext.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
+import { MODERN_VUE_HYGIENE_RULES, analyzeImeSafeEnterInScriptAst, analyzeTemplateSideEffectsAst } from "../../analyzers/vueModernHygieneAnalyzer.js";
 import { enableCompileCache } from "node:module";
+import path from "node:path";
+import fs from "node:fs";
 // src/suites/architecture/validate_vue_sfc_hygiene.ts
 /**
 * scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
@@ -10,21 +14,13 @@ import { enableCompileCache } from "node:module";
 * VUE SFC & SCRIPT SETUP HYGIENE AUDITOR (Node.js 26+ Native)
 *
 * Enforces Vue 3 Composition API & Single File Component architecture rules (vue-best-practices):
-*   1. Script Setup Required (`script-setup-required`):
-*      Components in `src/components/` and `src/views/` must use `<script setup lang="ts">`.
-*      Options API (`export default { ... }`) is strictly forbidden.
-*   2. No Script Setup Exports (`no-script-setup-exports`):
-*      `<script setup>` cannot contain ES module exports (`export const`, `export type`,
-*      `export interface`). Shared contracts must be extracted to companion `*Types.ts` files.
-*   3. Vue Template Quote Escaping (`vueTemplateQuoteEscaping`):
-*      Prohibits unescaped inner double quotes inside double-quoted template attribute bindings
-*      (e.g. `:alt="tier?.name || "Bronce""`), which break Vite parsing.
-*   4. No Heavy Data Providers in Templates (`no-data-provider-in-template`):
-*      Prohibits invoking heavy database data providers (e.g. `dataProvider.get...()`)
-*      directly inside `<template>` render expressions.
-*
-* Usage:
-*   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_vue_sfc_hygiene.ts
+*   1. Script Setup Required (`script-setup-required`)
+*   2. No Script Setup Exports (`no-script-setup-exports`)
+*   3. Vue Template Quote Escaping (`vue-template-quote-escaping`)
+*   4. No Heavy Data Providers in Templates (`no-data-provider-in-template`)
+*   5. No Magic Calculations in Templates (`vue-template-magic-calculation`)
+*   6. IME-Safe Enter Submission (`ime-unsafe-enter-submit`)
+*   7. Pure Template Expressions Without Side Effects (`vue-template-no-side-effects`)
 */
 enableCompileCache();
 const VUE_SFC_HYGIENE_RULES = [
@@ -32,11 +28,12 @@ const VUE_SFC_HYGIENE_RULES = [
 	"no-script-setup-exports",
 	"vue-template-quote-escaping",
 	"no-data-provider-in-template",
-	"vue-template-magic-calculation"
+	"vue-template-magic-calculation",
+	...MODERN_VUE_HYGIENE_RULES
 ];
+const FIXABLE_VUE_HYGIENE_RULES = [...MODERN_VUE_HYGIENE_RULES];
 const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
-const SCRIPT_TAG_REGEX = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
 const TEMPLATE_QUOTE_ESCAPE_REGEX = /(?:\s:|\bv-bind:)[\w-]+="[^"\n]*\\"[^"\n]*"|(?:\s:|\bv-bind:)[\w-]+="[^"\n]*"[\w$]/;
 const DEFAULT_DATA_PROVIDER_IN_TEMPLATE_REGEX = /\{\{[^}]*\b(?:\w*DataProvider|dataProvider)\.\w+\s*\(/g;
@@ -70,11 +67,13 @@ function detectTemplateMagicCalculation(expression) {
 	return checkMultDivMod(codeOnly) ?? checkMagicComparison(codeOnly) ?? checkMagicAddSub(codeOnly);
 }
 var VueSfcHygieneAuditor = class extends FileScanAuditor {
+	astCache = new SharedAstContext();
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => [...cfg.paths.componentsRoots ?? [], ...cfg.paths.viewsRoots ?? []]);
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
+			fix: options.fix,
 			roots: targetRoots,
 			projectRoot: effectiveRoot,
 			ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
@@ -82,10 +81,11 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 				phase: "normal",
 				fix: "none",
 				md: false,
-				ast: false,
+				ast: true,
 				changedOnly: false,
 				critical: false
-			}),
+			}, FIXABLE_VUE_HYGIENE_RULES),
+			fixableRuleIds: FIXABLE_VUE_HYGIENE_RULES,
 			id: "validate_vue_sfc_hygiene",
 			name: "Vue SFC & Script Setup Hygiene Auditor",
 			description: "Verifies Vue SFC standards and <script setup lang=\"ts\">",
@@ -102,19 +102,23 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 				"no-script-setup-exports": "Export inside script setup",
 				"vue-template-quote-escaping": "Unescaped quotes in template",
 				"no-data-provider-in-template": "Data provider in template",
-				"vue-template-magic-calculation": "Magic calculation in Vue template"
+				"vue-template-magic-calculation": "Magic calculation in Vue template",
+				"ime-unsafe-enter-submit": "Enter key handler missing !e.isComposing",
+				"vue-template-no-side-effects": "Mutating .sort/.reverse/.splice in template"
 			},
 			ruleRemediations: {
 				"script-setup-required": "1. Root Cause:\nA Vue component was detected using legacy Options API (\"export default { ... }\") or a <script> block missing the \"setup\" attribute.\nThe mandatory architecture standard requires native Vue 3 Composition API with \"<script setup lang=\\\"ts\\\">\" to maximize TypeScript inference, eliminate boilerplate, and optimize compiler performance.\n\n2. Diagnosis:\nCheck the script tag of the component. It must be exactly \"<script setup lang=\\\"ts\\\">\".\n\n3. Canonical Solution:\nMigrate the component to Composition API with script setup:\n1. Replace \"data()\" with \"ref()\" or \"reactive()\" calls.\n2. Replace \"computed: { ... }\" with \"computed(() => ...)\" constants.\n3. Declare methods as standard TypeScript arrow or function declarations.\n4. Declare props via \"const props = defineProps<{ ... }>()\" and emits via \"const emit = defineEmits<{ ... }>()\".\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: legacy Options API\n<script lang=\"ts\">\nexport default {\n  data() { return { count: 0 }; },\n  methods: { increment() { this.count++; } }\n};\n<\/script>\n\n// ✅ Correct: modern script setup\n<script setup lang=\"ts\">\nimport { ref } from \"vue\";\nconst count = ref(0);\nconst increment = () => { count.value++; };\n<\/script>",
 				"no-script-setup-exports": "1. Root Cause:\nAn \"export\" statement (\"export const\", \"export type\", \"export interface\", \"export enum\") was detected inside a \"<script setup>\" block.\nPer the official Vue SFC specification, <script setup> represents the body of the component setup function, not a standard ES module. Internal exports break static analysis tools, Vite, and SFC linters.\n\n2. Diagnosis:\nLook for \"export\" keywords inside <script setup>.\n\n3. Canonical Solution:\n1. If the type or interface must be shared across components or stores, extract it to a companion contracts file (e.g. \"src/types/...ts\" or a companion \"[Component]Types.ts\").\n2. If the symbol is only used locally within this component, remove the \"export\" keyword.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: export inside script setup\n<script setup lang=\"ts\">\nexport interface CardProps { title: string; }\n<\/script>\n\n// ✅ Correct: local interface or extracted to types file\n<script setup lang=\"ts\">\ninterface CardProps { title: string; }\ndefineProps<CardProps>();\n<\/script>",
 				"vue-template-quote-escaping": "1. Root Cause:\nUnescaped or unbalanced double quotes were detected inside a double-quoted dynamic attribute binding in the <template> (e.g. :alt=\"tier?.name || \\\"Bronze\\\"\").\nThis breaks HTML attribute parsing and Vite / Vue template compilation, producing build-time syntax errors.\n\n2. Diagnosis:\nInspect the dynamic attribute flagged in the report.\n\n3. Canonical Solution:\nAlternate quotes: use single quotes for inner string literals within double-quoted attribute expressions.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: unescaped nested double quotes\n<img :alt=\"user?.role || \\\"Guest\\\"\" />\n\n// ✅ Correct: single quotes for inner string\n<img :alt=\"user?.role || 'Guest'\" />",
 				"no-data-provider-in-template": "1. Root Cause:\nA persistence or database provider method (e.g. \"dataProvider.get...\", \"supabase...\", \"db...\") was invoked directly inside a template interpolation {{ ... }} or dynamic attribute binding :prop.\nTemplates re-evaluate on every render cycle; calling data providers inside templates causes query waterfalls, UI jank, and severe performance degradation.\n\n2. Diagnosis:\nInspect template expressions for database clients or provider method calls.\n\n3. Canonical Solution:\nMove the query to an asynchronous fetch routine in \"<script setup>\", store the result in a \"ref()\" or \"computed()\", and bind the template strictly to that reactive state.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: direct data provider call in template\n<span>{{ dataProvider.getStats(userId) }}</span>\n\n// ✅ Correct: fetch in script setup and bind reactive state\n<script setup lang=\"ts\">\nconst stats = ref<UserStats | null>(null);\nonMounted(async () => { stats.value = await dataProvider.getStats(props.userId); });\n<\/script>\n<template><span>{{ stats?.score }}</span></template>",
-				"vue-template-magic-calculation": "1. Root Cause:\nMathematical calculations or complex comparisons with magic numbers were detected inside the <template> (e.g. \"v-if=\\\"items.length > 5\\\"\", \"{{ (price * 1.21).toFixed(2) }}\").\nVue templates must remain declarative and focused on presentation. Calculations and numeric constants must reside in TypeScript for strong typing and testability.\n\n2. Diagnosis:\nSearch for arithmetic operators (*, /, %, +, -) or numeric comparisons (> 1, === 42) in template markup.\n\n3. Canonical Solution:\nExtract the expression into a semantically named \"computed()\" property in the \"<script setup>\" block.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: inline math in template\n<span>{{ (subtotal * 0.21).toFixed(2) }}</span>\n\n// ✅ Correct: computed property with named constant\n<script setup lang=\"ts\">\nconst VAT_RATE = 0.21;\nconst taxAmount = computed(() => (props.subtotal * VAT_RATE).toFixed(2));\n<\/script>\n<template><span>{{ taxAmount }}</span></template>"
+				"vue-template-magic-calculation": "1. Root Cause:\nMathematical calculations or complex comparisons with magic numbers were detected inside the <template> (e.g. \"v-if=\\\"items.length > 5\\\"\", \"{{ (price * 1.21).toFixed(2) }}\").\nVue templates must remain declarative and focused on presentation. Calculations and numeric constants must reside in TypeScript for strong typing and testability.\n\n2. Diagnosis:\nSearch for arithmetic operators (*, /, %, +, -) or numeric comparisons (> 1, === 42) in template markup.\n\n3. Canonical Solution:\nExtract the expression into a semantically named \"computed()\" property in the \"<script setup>\" block.\n\n4. Example / Auto-fix command:\n// ❌ Incorrect: inline math in template\n<span>{{ (subtotal * 0.21).toFixed(2) }}</span>\n\n// ✅ Correct: computed property with named constant\n<script setup lang=\"ts\">\nconst VAT_RATE = 0.21;\nconst taxAmount = computed(() => (props.subtotal * VAT_RATE).toFixed(2));\n<\/script>\n<template><span>{{ taxAmount }}</span></template>",
+				"ime-unsafe-enter-submit": "1. Root Cause:\nA keyboard submission handler checks `event.key === \"Enter\"` without verifying `!event.isComposing`. When users type with CJK or mobile IME composition, pressing Enter to confirm an IME candidate triggers premature form/message submission.\n\n2. Diagnosis:\nInspect the `keydown` handler in `<script setup>` at the reported line.\n\n3. Canonical Solution:\nGuard the Enter key check with `&& !event.isComposing`. Run `npm run auditor:fix` to auto-repair.\n\n4. Example / Auto-fix command:\n// ❌ Premature IME submit: if (e.key === \"Enter\") submitChat();\n// ✅ IME-safe submit:      if (e.key === \"Enter\" && !e.isComposing) submitChat();",
+				"vue-template-no-side-effects": "1. Root Cause:\nAn in-place mutating array method (`.sort()`, `.reverse()`, `.splice()`) or state mutation operator (`++`, `--`) was invoked inside a non-event `<template>` expression. Mutating reactive state during render triggers infinite re-render loops.\n\n2. Diagnosis:\nLocate the `.sort()`, `.reverse()`, or `.splice()` call in the `<template>`.\n\n3. Canonical Solution:\nUse ES2023 immutable methods (`.toSorted()`, `.toReversed()`, `.toSpliced()`) or move the transformation to a `computed()` property. Run `npm run auditor:fix` to auto-migrate `.sort()`/`.reverse()`.\n\n4. Example / Auto-fix command:\n// ❌ Mutates state in render: <li v-for=\"item in items.sort()\" :key=\"item.id\">\n// ✅ Immutable render:        <li v-for=\"item in items.toSorted()\" :key=\"item.id\">"
 			},
 			allowedExtensions: /* @__PURE__ */ new Set([".vue"])
 		});
 	}
-	scanFile(relPath, content) {
+	scanFile(relPath, content, sourceFile) {
 		this.runSubAuditorSync("script-setup-required", () => {
 			this.auditScriptSetup(relPath, content);
 		});
@@ -130,6 +134,41 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 		this.runSubAuditorSync("vue-template-magic-calculation", () => {
 			this.auditTemplateMagicCalculation(relPath, content);
 		});
+		this.auditModernVueHygieneRules(relPath, content, sourceFile);
+	}
+	auditModernVueHygieneRules(relPath, content, sourceFile) {
+		const isFix = this.isFixActive();
+		const absFile = path.resolve(this.projectRoot, relPath);
+		let updatedContent;
+		this.runSubAuditorSync("ime-unsafe-enter-submit", () => {
+			const sf = sourceFile ?? this.astCache.getSourceFile(relPath, content);
+			const imeRes = analyzeImeSafeEnterInScriptAst(content, sf, isFix);
+			for (const f of imeRes.findings) this.addViolation({
+				ruleId: "ime-unsafe-enter-submit",
+				severity: "error",
+				file: relPath,
+				line: f.line,
+				message: f.message,
+				context: f.context
+			});
+			if (isFix && imeRes.fixedContent !== void 0) updatedContent = imeRes.fixedContent;
+		});
+		this.runSubAuditorSync("vue-template-no-side-effects", () => {
+			const baseContent = updatedContent ?? content;
+			const sfc = parseVueSfcBlocks(baseContent);
+			if (!sfc.template) return;
+			const tplRes = analyzeTemplateSideEffectsAst(baseContent, sfc.template.content, sfc.template.contentStartIndex, this.astCache, isFix);
+			for (const f of tplRes.findings) this.addViolation({
+				ruleId: "vue-template-no-side-effects",
+				severity: "error",
+				file: relPath,
+				line: f.line,
+				message: f.message,
+				context: f.context
+			});
+			if (isFix && tplRes.fixedContent !== void 0) updatedContent = tplRes.fixedContent;
+		});
+		if (isFix && updatedContent !== void 0 && fs.existsSync(absFile)) fs.writeFileSync(absFile, updatedContent, "utf-8");
 	}
 	auditScriptSetup(relPath, content) {
 		let match;
@@ -146,29 +185,26 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 				context: lineContent.trim()
 			});
 		}
-		const scriptMatches = [...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))];
-		if (scriptMatches.length > 0) {
-			if (!scriptMatches.some((m) => /\bsetup\b/.test(m[1] ?? ""))) this.addViolation({
+		const sfc = parseVueSfcBlocks(content);
+		if (sfc.scripts.length > 0) {
+			if (!sfc.scripts.some((s) => s.isSetup)) this.addViolation({
 				ruleId: "script-setup-required",
 				severity: "error",
 				file: relPath,
 				line: 1,
 				message: `Component has <script> but lacks 'setup'. All Vue components must use '<script setup lang="ts">'.`,
-				context: scriptMatches[0][0].slice(0, 80)
+				context: sfc.scripts[0].rawBlock.slice(0, 80)
 			});
 		}
 	}
 	auditScriptSetupExports(relPath, content) {
-		const scriptMatches = [...content.matchAll(new RegExp(SCRIPT_TAG_REGEX.source, SCRIPT_TAG_REGEX.flags))];
-		for (const sMatch of scriptMatches) {
-			const attrs = sMatch[1] ?? "";
-			if (!/\bsetup\b/.test(attrs)) continue;
-			const scriptBody = sMatch[2] ?? "";
-			const scriptStartIndex = sMatch.index ?? 0;
+		const sfc = parseVueSfcBlocks(content);
+		for (const sBlock of sfc.scripts) {
+			if (!sBlock.isSetup) continue;
 			let expMatch;
 			const expRegex = new RegExp(SCRIPT_SETUP_EXPORT_REGEX.source, SCRIPT_SETUP_EXPORT_REGEX.flags);
-			while ((expMatch = expRegex.exec(scriptBody)) !== null) {
-				const fullIndex = scriptStartIndex + expMatch.index;
+			while ((expMatch = expRegex.exec(sBlock.content)) !== null) {
+				const fullIndex = sBlock.contentStartIndex + expMatch.index;
 				const line = this.getLineNumber(content, fullIndex);
 				const lineContent = this.getLineAt(content, line);
 				this.addViolation({

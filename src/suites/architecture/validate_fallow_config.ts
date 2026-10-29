@@ -17,7 +17,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { isPathContained, toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
 import { type CanonicalRuleSeverityLevel, CANONICAL_RULE_SEVERITY_LEVELS } from '../../core/auditConfigTypes.ts';
@@ -90,11 +90,17 @@ export interface FallowIgnoreExportEntry {
   exports: string[];
 }
 
+export const FALLOW_CYCLOMATIC_POLICIES = ['standard', 'literal-membership'] as const;
+export type FallowCyclomaticPolicy = (typeof FALLOW_CYCLOMATIC_POLICIES)[number];
+const VALID_CYCLOMATIC_POLICIES: ReadonlySet<string> = new Set<string>(FALLOW_CYCLOMATIC_POLICIES);
+
 export interface FallowConfigSchema {
   $schema?: string;
   entry?: string[];
   ignorePatterns?: string[];
+  ignoreDependencies?: string[];
   ignoreExports?: FallowIgnoreExportEntry[];
+  markupExtensions?: string[];
   rules?: Record<string, string>;
   typeAware?: boolean;
   duplicates?: {
@@ -110,12 +116,13 @@ export interface FallowConfigSchema {
   };
   health?: {
     maxCrap?: number;
+    cyclomaticPolicy?: FallowCyclomaticPolicy;
   };
   audit?: {
     worsened?: CanonicalRuleSeverityLevel;
   };
   mutation?: {
-    runnerConfig?: Record<string, unknown>;
+    runnerConfig?: string;
   };
 }
 
@@ -143,6 +150,73 @@ export function createDefaultFallowConfigContent(): string {
 
 const VALID_SEVERITIES: ReadonlySet<string> = new Set<string>(CANONICAL_RULE_SEVERITY_LEVELS);
 
+function validateFallowSchemaFields(
+  parsed: FallowConfigSchema,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (parsed.audit?.worsened && !VALID_SEVERITIES.has(parsed.audit.worsened)) {
+    auditor.addViolation({
+      ruleId: 'fallow-config-syntax',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
+      context: '.fallowrc.json'
+    });
+  }
+
+  if (parsed.health?.cyclomaticPolicy !== undefined) {
+    if (
+      typeof parsed.health.cyclomaticPolicy !== 'string' ||
+      !VALID_CYCLOMATIC_POLICIES.has(parsed.health.cyclomaticPolicy)
+    ) {
+      auditor.addViolation({
+        ruleId: 'fallow-config-syntax',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: 1,
+        message: `Invalid value for health.cyclomaticPolicy in .fallowrc.json: '${String(parsed.health.cyclomaticPolicy)}'. Must be one of: 'standard', 'literal-membership'.`,
+        context: '.fallowrc.json'
+      });
+    }
+  }
+
+  if (parsed.markupExtensions !== undefined) {
+    const isStringArray =
+      Array.isArray(parsed.markupExtensions) &&
+      parsed.markupExtensions.every((item) => typeof item === 'string' && item.trim().length > 0);
+    if (!isStringArray) {
+      auditor.addViolation({
+        ruleId: 'fallow-config-syntax',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: 1,
+        message: `Invalid value for markupExtensions in .fallowrc.json: must be an array of non-empty extension strings.`,
+        context: '.fallowrc.json'
+      });
+    }
+  }
+
+  if (parsed.mutation?.runnerConfig !== undefined) {
+    const runnerConfig = parsed.mutation.runnerConfig;
+    const isValidString =
+      typeof runnerConfig === 'string' &&
+      runnerConfig.trim().length > 0 &&
+      !path.isAbsolute(runnerConfig) &&
+      isPathContained(auditor.projectRoot, runnerConfig, auditor.projectRoot);
+    if (!isValidString) {
+      auditor.addViolation({
+        ruleId: 'fallow-config-syntax',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: 1,
+        message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be a non-empty relative file path string within the project root.`,
+        context: '.fallowrc.json'
+      });
+    }
+  }
+}
+
 function loadFallowConfig(
   configPath: string,
   auditor: ValidateFallowConfigAuditor
@@ -154,31 +228,7 @@ function loadFallowConfig(
   try {
     const raw = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(raw) as FallowConfigSchema;
-
-    if (parsed.audit?.worsened) {
-      if (!VALID_SEVERITIES.has(parsed.audit.worsened)) {
-        auditor.addViolation({
-          ruleId: 'fallow-config-syntax',
-          severity: 'error',
-          file: '.fallowrc.json',
-          line: 1,
-          message: `Invalid value for audit.worsened in .fallowrc.json: '${parsed.audit.worsened}'. Must be one of: 'error', 'warn', 'off'.`,
-          context: '.fallowrc.json'
-        });
-      }
-    }
-
-    if (parsed.mutation?.runnerConfig && (typeof parsed.mutation.runnerConfig !== 'object' || Array.isArray(parsed.mutation.runnerConfig))) {
-      auditor.addViolation({
-        ruleId: 'fallow-config-syntax',
-        severity: 'error',
-        file: '.fallowrc.json',
-        line: 1,
-        message: `Invalid value for mutation.runnerConfig in .fallowrc.json: must be an object.`,
-        context: '.fallowrc.json'
-      });
-    }
-
+    validateFallowSchemaFields(parsed, auditor);
     return parsed;
   } catch (err) {
     auditor.addViolation({
@@ -468,27 +518,83 @@ function validateFallowIgnoreExports(
 export interface FallowWorkspaceDiagnosticItem {
   readonly path?: string;
   readonly kind?: string;
+  readonly pattern?: string;
   readonly message?: string;
 }
 
+function pruneRedundantFallowConfigDiagnostic(
+  diag: FallowWorkspaceDiagnosticItem,
+  config: FallowConfigSchema | undefined
+): boolean {
+  if (!config || !diag.pattern) return false;
+  if (diag.kind === 'entry-pattern-redundant' && Array.isArray(config.entry)) {
+    const before = config.entry.length;
+    config.entry = config.entry.filter((p) => p !== diag.pattern);
+    if (config.entry.length === 0) delete config.entry;
+    return (config.entry?.length ?? 0) !== before;
+  }
+  if (
+    diag.kind === 'ignore-dependencies-entry-redundant' &&
+    Array.isArray(config.ignoreDependencies)
+  ) {
+    const before = config.ignoreDependencies.length;
+    config.ignoreDependencies = config.ignoreDependencies.filter((p) => p !== diag.pattern);
+    if (config.ignoreDependencies.length === 0) delete config.ignoreDependencies;
+    return (config.ignoreDependencies?.length ?? 0) !== before;
+  }
+  if (diag.kind === 'ignore-patterns-entry-redundant' && Array.isArray(config.ignorePatterns)) {
+    const before = config.ignorePatterns.length;
+    config.ignorePatterns = config.ignorePatterns.filter((p) => p !== diag.pattern);
+    if (config.ignorePatterns.length === 0) delete config.ignorePatterns;
+    return (config.ignorePatterns?.length ?? 0) !== before;
+  }
+  return false;
+}
+
+export const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS = [
+  'entry-pattern-redundant',
+  'ignore-dependencies-entry-redundant',
+  'ignore-patterns-entry-redundant'
+] as const;
+export type FallowRedundantConfigDiagnosticKind =
+  (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
+const REDUNDANT_CONFIG_DIAGNOSTIC_SET: ReadonlySet<string> = new Set<string>(
+  FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS
+);
+
 export function validateFallowWorkspaceDiagnostics(
   diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined,
-  auditor: ValidateFallowConfigAuditor
-): void {
-  if (!Array.isArray(diagnostics)) return;
+  auditor: ValidateFallowConfigAuditor,
+  config?: FallowConfigSchema
+): boolean {
+  if (!Array.isArray(diagnostics)) return false;
+  let modified = false;
   for (const d of diagnostics) {
     if (d.kind === 'boundaries-not-configured' || d.kind === 'rule-packs-not-configured') {
       continue;
     }
+    const isRedundantConfigEntry = Boolean(d.kind && REDUNDANT_CONFIG_DIAGNOSTIC_SET.has(d.kind));
+
+    if (
+      isRedundantConfigEntry &&
+      auditor.isFixActive() &&
+      pruneRedundantFallowConfigDiagnostic(d, config)
+    ) {
+      modified = true;
+      continue;
+    }
+
     auditor.addViolation({
       ruleId: 'fallow-config-workspace-diagnostic',
       severity: 'error',
       file: d.path && d.path !== '.' ? d.path : '.fallowrc.json',
       line: 1,
       message: `Workspace diagnostic (Fallow): [${d.kind || 'diagnostic'}] ${d.message || ''}`,
-      context: d.kind || 'workspace_diagnostic'
+      context: d.kind || 'workspace_diagnostic',
+      fixable: isRedundantConfigEntry && Boolean(d.pattern)
     });
   }
+  return modified;
 }
 
 export interface ValidateFallowConfigOptions {
@@ -560,7 +666,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           'fallow-stale-file',
           'fallow-stale-export',
           'fallow-empty-export-list',
-          'fallow-duplicate-entry'
+          'fallow-duplicate-entry',
+          'fallow-config-workspace-diagnostic'
         ]
       ),
       fixableRuleIds: [
@@ -569,7 +676,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-stale-file',
         'fallow-stale-export',
         'fallow-empty-export-list',
-        'fallow-duplicate-entry'
+        'fallow-duplicate-entry',
+        'fallow-config-workspace-diagnostic'
       ],
       configFiles: [configRequirement],
       cachePaths: ValidateFallowConfigAuditor.cachePaths,
@@ -647,11 +755,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           '   npm run auditor:fix',
         'fallow-config-workspace-diagnostic':
           '📖 REMEDIATION GUIDE: fallow-config-workspace-diagnostic\n' +
-          '1. Root Cause: The Fallow engine emitted a workspace-level diagnostic or boundary configuration warning.\n' +
+          '1. Root Cause: The Fallow engine emitted a workspace-level diagnostic, redundant config entry warning, or boundary configuration warning.\n' +
           '2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n' +
-          '3. Canonical Solution: Adjust package or boundary settings in .fallowrc.json according to engine recommendations.\n' +
+          '3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant), or adjust package/boundary settings in .fallowrc.json.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   Review and update boundaries in .fallowrc.json.'
+          '   npm run auditor:fix'
       },
       coverage: {
         include: ['.fallowrc.json']
@@ -713,8 +821,10 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         ];
         const fallowBin = candidates.find((c) => fs.existsSync(c));
         if (fallowBin) {
+          const hasPackageJson = fs.existsSync(path.join(this.projectRoot, 'package.json'));
+          const subcmd = hasPackageJson ? 'dead-code' : 'list --workspaces';
           const stdout = execSync(
-            `node "${fallowBin}" list --workspaces --format json --root "${this.projectRoot}"`,
+            `node "${fallowBin}" ${subcmd} --format json --root "${this.projectRoot}"`,
             {
               encoding: 'utf8',
               stdio: ['pipe', 'pipe', 'ignore'],
@@ -725,7 +835,14 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
             workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
           }>(stdout);
           if (parsed?.workspace_diagnostics) {
-            validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this);
+            const diagModified = validateFallowWorkspaceDiagnostics(
+              parsed.workspace_diagnostics,
+              this,
+              validConfig
+            );
+            if (diagModified && this.isFixActive()) {
+              fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + '\n', 'utf-8');
+            }
           }
         }
       });

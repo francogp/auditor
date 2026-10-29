@@ -60,6 +60,10 @@ $width: math.percentage(0.5);
 $tint: color.scale(#3498db, $lightness: 10%);
 ```
 
+### Fatal Deprecations (`dart-sass-2` in Sass `1.107.0+`)
+
+When configuring Vite or Dart Sass `options.fatalDeprecations` to enforce strict Dart Sass 2.0 readiness, use the official `sass.deprecations.dartSass2` selector (or CLI `--fatal-deprecation=dart-sass-2`) introduced in `sass@1.107.0`. Passing future version numbers beyond the active Dart Sass release is deprecated.
+
 ---
 
 ## 2. Dart Sass Safety & Compilation Traps

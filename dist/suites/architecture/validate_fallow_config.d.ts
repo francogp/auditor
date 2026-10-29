@@ -14,11 +14,15 @@ export interface FallowIgnoreExportEntry {
   file: string;
   exports: string[];
 }
+export declare const FALLOW_CYCLOMATIC_POLICIES: readonly ["standard", "literal-membership"];
+export type FallowCyclomaticPolicy = (typeof FALLOW_CYCLOMATIC_POLICIES)[number];
 export interface FallowConfigSchema {
   $schema?: string;
   entry?: string[];
   ignorePatterns?: string[];
+  ignoreDependencies?: string[];
   ignoreExports?: FallowIgnoreExportEntry[];
+  markupExtensions?: string[];
   rules?: Record<string, string>;
   typeAware?: boolean;
   duplicates?: {
@@ -34,21 +38,25 @@ export interface FallowConfigSchema {
   };
   health?: {
     maxCrap?: number;
+    cyclomaticPolicy?: FallowCyclomaticPolicy;
   };
   audit?: {
     worsened?: CanonicalRuleSeverityLevel;
   };
   mutation?: {
-    runnerConfig?: Record<string, unknown>;
+    runnerConfig?: string;
   };
 }
 export declare function createDefaultFallowConfigContent(): string;
 export interface FallowWorkspaceDiagnosticItem {
   readonly path?: string;
   readonly kind?: string;
+  readonly pattern?: string;
   readonly message?: string;
 }
-export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor): void;
+export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant"];
+export type FallowRedundantConfigDiagnosticKind = (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
+export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor, config?: FallowConfigSchema): boolean;
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;

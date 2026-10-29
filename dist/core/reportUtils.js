@@ -77,7 +77,7 @@ function parseJsonArrayOutput(input, options) {
 */
 function normalizePosixPath(filePath, cwd = process.cwd()) {
 	if (!filePath) return "";
-	const posix = (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).split(path.sep).join(path.posix.sep);
+	const posix = (path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath).replaceAll(path.win32.sep, path.posix.sep);
 	return posix.startsWith("./") ? posix.slice(2) : posix;
 }
 /**

@@ -1,0 +1,31 @@
+:root {
+  --surface-bg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface-bg: #121212;
+  }
+}
+
+* {
+  filter: blur(2px);
+}
+
+.hero-panel {
+  width: 100vw;
+  min-height: 100vh;
+  overflow: hidden;
+  overflow-clip-margin: 12px;
+  display: flex;
+  justify-self: center;
+  font-size: 4vw;
+}
+
+.form-field:invalid {
+  border-color: var(--error);
+}
+
+.action-btn:focus {
+  outline: none;
+}

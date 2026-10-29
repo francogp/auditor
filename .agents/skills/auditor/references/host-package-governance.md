@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.2.6 --allow-git=all
+npm install -D github:francogp/auditor#v10.2.7 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -64,7 +64,8 @@ Under the hood, `auditor-update`:
 3. Synchronizes Antigravity agent skills in `.agents/skills/` and setup scripts (`setup-windows.ps1`, `setup-linux.sh`).
 4. Executes `auditor fix` to apply any new configuration minimums or script definitions.
 5. Inspects and prints the newly installed version with full build metadata (`auditor-version -v`).
-6. Commit the updated `package.json` and `package-lock.json` to lock the audited version for the entire team and CI.
+6. **Mandatory Post-Update Minimum Library Check & Upgrade (`auditor-dependencies`)**: Immediately after updating the auditor, ALWAYS inspect the newly enforced minimum library requirements by running `npm run auditor:dependencies` (or `auditor-dependencies`). If any declared project libraries fall below the new minimum version floors (`dependency-below-minimum-range` or `dependency-below-minimum-installed`), retrieve the exact remediation commands via `npm run auditor:dependencies -- commands` (`auditor-dependencies --commands`) and execute them immediately to upgrade the outdated libraries before running downstream audits.
+7. Commit the updated `package.json` and `package-lock.json` to lock the audited version for the entire team and CI.
 
 ---
 

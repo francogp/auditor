@@ -546,5 +546,62 @@ const inlineComment = true; // No need for clearInterval here
       );
       expect(layoutViolations.length).toBeGreaterThanOrEqual(1);
     });
+
+    describe('Percentage Width Exception for Flexbox and Progress Meters', () => {
+      it('permits percentage width in gsap.fromTo and gsap.to for stacked progress bars (CalculationBreakdownCard.vue)', () => {
+        const auditor = new TestableGsapAnimationsAuditor();
+        const code = `<script setup lang="ts">
+          import gsap from 'gsap';
+          import { ref } from 'vue';
+
+          const energyBarRef = ref<HTMLElement | null>(null);
+          const taxesBarRef = ref<HTMLElement | null>(null);
+          const energyTarget = '62%';
+          const taxesTarget = \`\${38}%\`;
+
+          // Direct literals and templates
+          gsap.fromTo(energyBarRef.value, { width: '0%' }, { width: '62%', duration: 0.8 });
+          gsap.to(taxesBarRef.value, { width: taxesTarget, duration: 0.5 });
+
+          // Local variables resolved to percentage
+          gsap.to(energyBarRef.value, { width: energyTarget, duration: 0.5 });
+
+          // Config objects passed via variables
+          const fromVars = { width: '0%' };
+          const toVars = { width: energyTarget, duration: 0.8 };
+          gsap.fromTo(energyBarRef.value, fromVars, toVars);
+        </script>`;
+
+        auditor.testScanFile('src/components/calculator/CalculationBreakdownCard.vue', code);
+        const layoutViolations = auditor.recordedViolations.filter(
+          (v) => v.ruleId === 'gsap-no-layout-properties'
+        );
+        expect(layoutViolations).toHaveLength(0);
+      });
+
+      it('strictly flags non-percentage width (px, raw numbers) even if passed via variables', () => {
+        const auditor = new TestableGsapAnimationsAuditor();
+        const code = `<script setup lang="ts">
+          import gsap from 'gsap';
+          const el = document.createElement('div');
+
+          // Direct pixel width
+          gsap.to(el, { width: '500px', duration: 0.5 });
+
+          // Numeric non-zero width
+          gsap.to(el, { width: 300, duration: 0.5 });
+
+          // Passed via variable
+          const badVars = { width: '200px' };
+          gsap.to(el, badVars);
+        </script>`;
+
+        auditor.testScanFile('src/components/BadWidthCard.vue', code);
+        const layoutViolations = auditor.recordedViolations.filter(
+          (v) => v.ruleId === 'gsap-no-layout-properties'
+        );
+        expect(layoutViolations.length).toBe(3);
+      });
+    });
   });
 });

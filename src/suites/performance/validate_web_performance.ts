@@ -1,9 +1,10 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   FileScanAuditor,
-  createUniformRuleCapabilities,
+  createRuleCapabilities,
   createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
@@ -12,6 +13,13 @@ import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { isPathExempt } from '../../core/safePath.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import {
+  MODERN_WEB_PERF_RULES,
+  analyzeModernWebPerfMarkup,
+  analyzeModernWebPerfStyles,
+  type ModernWebPerfFinding,
+  type ModernWebPerfRuleId
+} from '../../analyzers/webPerfModernAnalyzer.ts';
 
 enableCompileCache();
 
@@ -22,10 +30,13 @@ export const WEB_PERFORMANCE_RULES = [
   'css-render-blocking',
   'excessive-dom-depth',
   'layout-shift-dimensions',
-  'uncompressed-video'
+  'uncompressed-video',
+  ...MODERN_WEB_PERF_RULES
 ] as const;
 
 export type WebPerformanceRuleId = (typeof WEB_PERFORMANCE_RULES)[number];
+
+const FIXABLE_WEB_PERF_RULES: readonly WebPerformanceRuleId[] = [...MODERN_WEB_PERF_RULES];
 
 const SCANNABLE_EXTS = new Set(['.vue', '.html', '.htm', '.jsx', '.tsx', '.css', '.scss']);
 const MAX_RECOMMENDED_DOM_DEPTH = 16;
@@ -48,6 +59,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
+      fix: options.fix,
       roots: webRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: WEB_PERFORMANCE_RULES,
@@ -59,7 +71,11 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         'css-render-blocking': 'Render-blocking CSS or script in head',
         'excessive-dom-depth': 'Excessive DOM depth > 16 levels',
         'layout-shift-dimensions': 'Media element missing width/height',
-        'uncompressed-video': 'Video missing preload="none" or webm'
+        'uncompressed-video': 'Video missing preload="none" or webm',
+        'perf-lcp-lazy-conflict': 'LCP image with loading="lazy"',
+        'perf-font-preload-crossorigin': 'Preloaded font missing crossorigin',
+        'perf-srcset-missing-sizes': 'srcset width descriptor missing sizes',
+        'perf-content-visibility-intrinsic-size': 'content-visibility missing intrinsic size'
       },
       ruleRemediations: {
         'unoptimized-images':
@@ -119,14 +135,52 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
           '3. Canonical Solution: Add `preload="metadata"` and provide modern WebM and MP4 sources.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Inefficient: `<video src="/intro.mp4" autoplay>`\n' +
-          '   ✅ Optimized:   `<video preload="metadata" playsinline><source src="/intro.webm" type="video/webm" /></video>`'
+          '   ✅ Optimized:   `<video preload="metadata" playsinline><source src="/intro.webm" type="video/webm" /></video>`',
+        'perf-lcp-lazy-conflict':
+          '📖 REMEDIATION GUIDE: perf-lcp-lazy-conflict\n' +
+          '1. Root Cause: An `<img>` combines `loading="lazy"` with `fetchpriority="high"`. Lazy-loading defers resource fetching until layout intersection, directly sabotaging the LCP priority hint.\n' +
+          '2. Diagnosis: Inspect the `<img>` tag at the reported line.\n' +
+          '3. Canonical Solution: Remove `loading="lazy"` from high-priority LCP hero images. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Conflicting: `<img src="/hero.webp" loading="lazy" fetchpriority="high" width="1200" height="600" alt="Hero">`\n' +
+          '   ✅ Canonical:   `<img src="/hero.webp" fetchpriority="high" width="1200" height="600" alt="Hero">`',
+        'perf-font-preload-crossorigin':
+          '📖 REMEDIATION GUIDE: perf-font-preload-crossorigin\n' +
+          '1. Root Cause: A `<link rel="preload" as="font">` omits the `crossorigin` attribute. Web fonts are always fetched in anonymous CORS mode by CSS `@font-face`, so preloading without `crossorigin` causes the browser to download the font twice.\n' +
+          '2. Diagnosis: Inspect `<link rel="preload" as="font">` in `index.html` or templates.\n' +
+          '3. Canonical Solution: Add `crossorigin="anonymous"` to font preload links. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Double fetch: `<link rel="preload" href="/font.woff2" as="font" type="font/woff2">`\n' +
+          '   ✅ Single fetch: `<link rel="preload" href="/font.woff2" as="font" type="font/woff2" crossorigin="anonymous">`',
+        'perf-srcset-missing-sizes':
+          '📖 REMEDIATION GUIDE: perf-srcset-missing-sizes\n' +
+          '1. Root Cause: An `<img>` or `<source>` uses width descriptors (`w`) in `srcset` without declaring a `sizes` attribute. Without `sizes`, browsers assume `100vw` and download oversized images.\n' +
+          '2. Diagnosis: Locate the `<img>` or `<source>` element with `srcset="... 400w, ..."`.\n' +
+          '3. Canonical Solution: Add `sizes="auto"` (for `loading="lazy"` images) or an explicit viewport media `sizes` attribute. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Missing sizes: `<img src="/pic-800.webp" srcset="/pic-400.webp 400w, /pic-800.webp 800w" loading="lazy" width="800" height="600" alt="Pic">`\n' +
+          '   ✅ With sizes:    `<img src="/pic-800.webp" srcset="/pic-400.webp 400w, /pic-800.webp 800w" sizes="auto" loading="lazy" width="800" height="600" alt="Pic">`',
+        'perf-content-visibility-intrinsic-size':
+          '📖 REMEDIATION GUIDE: perf-content-visibility-intrinsic-size\n' +
+          '1. Root Cause: A CSS rule declares `content-visibility: auto` without `contain-intrinsic-size`, causing offscreen containers to collapse to `0px` height and making the scrollbar jump during scrolling.\n' +
+          '2. Diagnosis: Inspect the CSS rule with `content-visibility: auto`.\n' +
+          '3. Canonical Solution: Pair `content-visibility: auto` with `contain-intrinsic-size: auto 500px;`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Collapsed: `.section { content-visibility: auto; }`\n' +
+          '   ✅ Reserved:  `.section { content-visibility: auto; contain-intrinsic-size: auto 500px; }`'
       },
-      ruleCapabilities: createUniformRuleCapabilities(
+      ruleCapabilities: createRuleCapabilities(
         WEB_PERFORMANCE_RULES,
-        LIGHT_RULE_CAPABILITIES
+        LIGHT_RULE_CAPABILITIES,
+        FIXABLE_WEB_PERF_RULES
       ),
+      fixableRuleIds: FIXABLE_WEB_PERF_RULES,
       projectRoot: webRoots.effectiveRoot,
-      coverage: deriveCoverageFromRoots(webRoots.targetRoots, SCANNABLE_EXTS, webRoots.effectiveRoot),
+      coverage: deriveCoverageFromRoots(
+        webRoots.targetRoots,
+        SCANNABLE_EXTS,
+        webRoots.effectiveRoot
+      ),
       exemptPaths: webConfig.webPerformance?.exemptPaths
     });
     this.exemptSvgPaths = webConfig.webPerformance?.exemptSvgPaths ?? [];
@@ -154,6 +208,106 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
     this.runSubAuditorSync('uncompressed-video', () => {
       this.auditUncompressedVideo(relPath, content);
     });
+
+    this.auditModernWebPerformanceRules(relPath, content);
+  }
+
+  private collectVueModernWebPerf(
+    content: string,
+    isFix: boolean
+  ): { findings: ModernWebPerfFinding[]; updatedContent: string; mutated: boolean } {
+    const sfc = parseVueSfc(content);
+    const findings: ModernWebPerfFinding[] = [];
+    let updatedContent = content;
+    let mutated = false;
+
+    if (sfc.template) {
+      const tplRes = analyzeModernWebPerfMarkup(
+        sfc.template.content,
+        sfc.template.contentStartLine,
+        isFix
+      );
+      findings.push(...tplRes.findings);
+      if (isFix && tplRes.fixedContent !== undefined) {
+        updatedContent =
+          updatedContent.slice(0, sfc.template.contentStartIndex) +
+          tplRes.fixedContent +
+          updatedContent.slice(sfc.template.contentStartIndex + sfc.template.content.length);
+        mutated = true;
+      }
+    } else if (sfc.scripts.length === 0 && sfc.styles.length === 0) {
+      const rawRes = analyzeModernWebPerfMarkup(content, 1, isFix);
+      findings.push(...rawRes.findings);
+      if (isFix && rawRes.fixedContent !== undefined) {
+        updatedContent = rawRes.fixedContent;
+        mutated = true;
+      }
+    }
+
+    for (let i = sfc.styles.length - 1; i >= 0; i--) {
+      const block = sfc.styles[i]!;
+      const styleRes = analyzeModernWebPerfStyles(block.content, block.contentStartLine, isFix);
+      findings.push(...styleRes.findings);
+      if (isFix && styleRes.fixedContent !== undefined) {
+        updatedContent =
+          updatedContent.slice(0, block.contentStartIndex) +
+          styleRes.fixedContent +
+          updatedContent.slice(block.contentStartIndex + block.content.length);
+        mutated = true;
+      }
+    }
+
+    return { findings, updatedContent, mutated };
+  }
+
+  private auditModernWebPerformanceRules(relPath: string, content: string): void {
+    const ext = path.extname(relPath).toLowerCase();
+    const isFix = this.isFixActive();
+    const absFile = path.resolve(this.projectRoot, relPath);
+
+    let updatedFileContent = content;
+    let fileMutated = false;
+    const collectedFindings: ModernWebPerfFinding[] = [];
+
+    if (ext === '.vue') {
+      const vueRes = this.collectVueModernWebPerf(content, isFix);
+      collectedFindings.push(...vueRes.findings);
+      updatedFileContent = vueRes.updatedContent;
+      fileMutated = vueRes.mutated;
+    } else if (ext === '.html' || ext === '.htm') {
+      const htmlRes = analyzeModernWebPerfMarkup(content, 1, isFix);
+      collectedFindings.push(...htmlRes.findings);
+      if (isFix && htmlRes.fixedContent !== undefined) {
+        updatedFileContent = htmlRes.fixedContent;
+        fileMutated = true;
+      }
+    } else if (ext === '.css' || ext === '.scss') {
+      const cssRes = analyzeModernWebPerfStyles(content, 1, isFix);
+      collectedFindings.push(...cssRes.findings);
+      if (isFix && cssRes.fixedContent !== undefined) {
+        updatedFileContent = cssRes.fixedContent;
+        fileMutated = true;
+      }
+    }
+
+    for (const ruleId of MODERN_WEB_PERF_RULES) {
+      this.runSubAuditorSync(ruleId, () => {
+        for (const item of collectedFindings) {
+          if (item.ruleId !== ruleId) continue;
+          this.addViolation({
+            ruleId: item.ruleId as ModernWebPerfRuleId,
+            severity: 'error',
+            message: item.message,
+            file: relPath,
+            line: item.line
+          });
+        }
+      });
+    }
+
+    if (isFix && fileMutated && fs.existsSync(absFile)) {
+      fs.writeFileSync(absFile, updatedFileContent, 'utf-8');
+    }
   }
 
   private auditUnoptimizedImages(relPath: string, content: string): void {
@@ -286,7 +440,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         lineOffset = sfc.template.contentStartLine;
         targetContent = sfc.template.content;
       } else {
-        // In fragments without <template> tag, strip script/style blocks from content
         targetContent = content;
         for (const block of [...sfc.scripts, ...sfc.styles]) {
           targetContent =
@@ -364,7 +517,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       const tag = match[1]!.toLowerCase();
       const attrs = match[2] ?? '';
 
-      // Check if class contains any of exemptImgClasses
       if (exemptClasses.length > 0) {
         const classMatch = /class=["']([^"']+)["']/i.exec(attrs);
         if (classMatch) {

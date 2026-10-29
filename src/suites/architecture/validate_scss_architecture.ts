@@ -1,8 +1,10 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   FileScanAuditor,
-  createUniformRuleCapabilities,
+  createRuleCapabilities,
   createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
@@ -10,6 +12,12 @@ import {
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripCommentsAndStrings } from '../../core/scannerUtils.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import {
+  MODERN_SCSS_RULES,
+  analyzeModernScss,
+  type ModernScssRuleId
+} from '../../analyzers/scssModernAnalyzer.ts';
 
 enableCompileCache();
 
@@ -18,10 +26,13 @@ export const SCSS_ARCHITECTURE_RULES = [
   'scss-deep-selector-abuse',
   'non-standard-spacing-unit',
   'missing-theme-token-usage',
-  'excessive-scss-nesting'
+  'excessive-scss-nesting',
+  ...MODERN_SCSS_RULES
 ] as const;
 
 export type ScssArchitectureRuleId = (typeof SCSS_ARCHITECTURE_RULES)[number];
+
+const FIXABLE_SCSS_RULES: readonly ScssArchitectureRuleId[] = [...MODERN_SCSS_RULES];
 
 const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 
@@ -43,6 +54,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
+      fix: options.fix,
       roots: scssRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SCSS_ARCHITECTURE_RULES,
@@ -52,7 +64,15 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         'scss-deep-selector-abuse': 'Abuse or nesting of :deep()',
         'non-standard-spacing-unit': 'Arbitrary spacing outside token scale',
         'missing-theme-token-usage': 'Hardcoded color without theme token',
-        'excessive-scss-nesting': 'SCSS nesting exceeds 3 levels'
+        'excessive-scss-nesting': 'SCSS nesting exceeds 3 levels',
+        'scss-viewport-overflow-and-dvh': '100vw overflow or static 100vh unit',
+        'scss-overflow-clip-margin-trap': 'overflow-clip-margin without clip',
+        'scss-prefer-user-invalid': 'Use :user-invalid instead of :invalid',
+        'scss-focus-outline-removal': 'Focus outline removed without fallback',
+        'typography-unclamped-viewport-font': 'Unclamped vw/vh font-size breaks zoom',
+        'scss-flexbox-dead-properties': 'Dead justify-self in flex container',
+        'scss-universal-expensive-selectors': 'Expensive property on universal * rule',
+        'dark-mode-color-scheme-missing': 'Dark mode missing root color-scheme'
       },
       ruleRemediations: {
         'raw-css-in-sfc':
@@ -96,14 +116,84 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
           '3. Canonical Solution: Flatten SCSS rules using BEM methodology or direct class selectors.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Deep nesting: `.card { .header { .title { span { color: red; } } } }`\n' +
-          '   ✅ Flattened:    `.card__title-highlight { color: var(--color-danger); }`'
+          '   ✅ Flattened:    `.card__title-highlight { color: var(--color-danger); }`',
+        'scss-viewport-overflow-and-dvh':
+          '📖 REMEDIATION GUIDE: scss-viewport-overflow-and-dvh\n' +
+          '1. Root Cause: `width: 100vw` includes vertical scrollbar width (causing horizontal scrollbars), and `100vh` ignores dynamic mobile browser toolbars.\n' +
+          '2. Diagnosis: Inspect the viewport unit declaration at the reported line.\n' +
+          '3. Canonical Solution: Use `width: 100%` (or `100dvw`) and `100dvh` for vertical viewport sizing. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Legacy: `width: 100vw; min-height: 100vh;`\n' +
+          '   ✅ Modern: `width: 100%; min-height: 100dvh;`',
+        'scss-overflow-clip-margin-trap':
+          '📖 REMEDIATION GUIDE: scss-overflow-clip-margin-trap\n' +
+          '1. Root Cause: `overflow-clip-margin` was declared on an element without `overflow: clip`. Browsers ignore `overflow-clip-margin` when `overflow: hidden` is used.\n' +
+          '2. Diagnosis: Inspect the CSS rule block containing `overflow-clip-margin`.\n' +
+          '3. Canonical Solution: Pair `overflow-clip-margin` with `overflow: clip`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Ignored: `overflow: hidden; overflow-clip-margin: 8px;`\n' +
+          '   ✅ Working: `overflow: clip; overflow-clip-margin: 8px;`',
+        'scss-prefer-user-invalid':
+          '📖 REMEDIATION GUIDE: scss-prefer-user-invalid\n' +
+          '1. Root Cause: The `:invalid` pseudo-class matches required empty inputs immediately on page load before the user interacts with the form.\n' +
+          '2. Diagnosis: Locate the `:invalid` selector in the stylesheet.\n' +
+          '3. Canonical Solution: Replace `:invalid` with `:user-invalid` so error styling activates only after user interaction. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Premature: `input:invalid { border-color: var(--danger); }`\n' +
+          '   ✅ Modern:    `input:user-invalid { border-color: var(--danger); }`',
+        'scss-focus-outline-removal':
+          '📖 REMEDIATION GUIDE: scss-focus-outline-removal\n' +
+          '1. Root Cause: `outline: none` or `outline: 0` was set on `:focus` or `:focus-visible` without a visible replacement focus ring, breaking keyboard navigation (WCAG 2.4.7).\n' +
+          '2. Diagnosis: Inspect the `:focus` rule at the reported line.\n' +
+          '3. Canonical Solution: Use `:focus:not(:focus-visible)` to hide mouse focus rings while preserving keyboard `:focus-visible` indicators. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Inaccessible: `.btn:focus { outline: none; }`\n' +
+          '   ✅ Accessible:   `.btn:focus:not(:focus-visible) { outline: none; }`',
+        'typography-unclamped-viewport-font':
+          '📖 REMEDIATION GUIDE: typography-unclamped-viewport-font\n' +
+          '1. Root Cause: `font-size` is defined solely in viewport units (`vw`/`vh`) without `clamp()` or `rem`, preventing text from scaling when users zoom to 200% (WCAG 1.4.4).\n' +
+          '2. Diagnosis: Inspect the `font-size` declaration.\n' +
+          '3. Canonical Solution: Wrap fluid typography in `clamp(minRem, calc(rem + vw), maxRem)`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Zoom-locked: `font-size: 4vw;`\n' +
+          '   ✅ Accessible:  `font-size: clamp(1rem, calc(0.5rem + 4vw), 2.5rem);`',
+        'scss-flexbox-dead-properties':
+          '📖 REMEDIATION GUIDE: scss-flexbox-dead-properties\n' +
+          '1. Root Cause: `justify-self` is declared inside a Flexbox rule (`display: flex`). Per CSS Box Alignment, `justify-self` has no effect in Flexbox.\n' +
+          '2. Diagnosis: Locate `justify-self` in the flex rule block.\n' +
+          '3. Canonical Solution: Use `justify-content` on the flex container or `margin-inline-start: auto` on the flex item. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Dead property: `.row { display: flex; justify-self: center; }`\n' +
+          '   ✅ Effective:     `.row { display: flex; justify-content: center; }`',
+        'scss-universal-expensive-selectors':
+          '📖 REMEDIATION GUIDE: scss-universal-expensive-selectors\n' +
+          '1. Root Cause: An expensive layout or compositor property (`text-wrap: balance/pretty` or `will-change`) is applied to the universal selector `*`, degrading rendering performance.\n' +
+          '2. Diagnosis: Inspect the `*` rule in the stylesheet.\n' +
+          '3. Canonical Solution: Scope `text-wrap: balance` strictly to headings (`h1, h2, h3, h4, h5, h6`) and `will-change` only to active animated elements. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Expensive: `* { text-wrap: balance; }`\n' +
+          '   ✅ Scoped:    `h1, h2, h3, h4, h5, h6 { text-wrap: balance; }`',
+        'dark-mode-color-scheme-missing':
+          '📖 REMEDIATION GUIDE: dark-mode-color-scheme-missing\n' +
+          '1. Root Cause: The stylesheet defines `@media (prefers-color-scheme: dark)` rules but `:root` lacks `color-scheme: light dark`, leaving native scrollbars, form controls, and system UI surfaces in light mode.\n' +
+          '2. Diagnosis: Check the `:root` rule in the main stylesheet.\n' +
+          '3. Canonical Solution: Add `color-scheme: light dark;` to `:root`. Run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Incomplete: `:root { --bg: #fff; }`\n' +
+          '   ✅ Complete:   `:root { color-scheme: light dark; --bg: #fff; }`'
       },
-      ruleCapabilities: createUniformRuleCapabilities(
+      ruleCapabilities: createRuleCapabilities(
         SCSS_ARCHITECTURE_RULES,
-        LIGHT_RULE_CAPABILITIES
+        LIGHT_RULE_CAPABILITIES,
+        FIXABLE_SCSS_RULES
       ),
+      fixableRuleIds: FIXABLE_SCSS_RULES,
       projectRoot: scssRoots.effectiveRoot,
-      coverage: deriveCoverageFromRoots(scssRoots.targetRoots, SCANNABLE_EXTS, scssRoots.effectiveRoot),
+      coverage: deriveCoverageFromRoots(
+        scssRoots.targetRoots,
+        SCANNABLE_EXTS,
+        scssRoots.effectiveRoot
+      ),
       exemptPaths: scssConfig.scssArchitecture?.exemptPaths
     });
   }
@@ -112,6 +202,8 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     const isVueSfc = relPath.endsWith('.vue');
     const isScssFile = relPath.endsWith('.scss');
     const isCssFile = relPath.endsWith('.css');
+    const isFix = this.isFixActive();
+    const absFile = path.resolve(this.projectRoot, relPath);
 
     this.runSubAuditorSync('raw-css-in-sfc', () => {
       if (isVueSfc) {
@@ -120,70 +212,92 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     });
 
     if (isVueSfc) {
-      const styleBlocks = this.extractStyleBlocks(content);
-      for (const block of styleBlocks) {
-        this.runSubAuditorSync('scss-deep-selector-abuse', () => {
-          this.auditScssDeepSelectorAbuse(relPath, block.content, block.startLine);
-        });
-        this.runSubAuditorSync('non-standard-spacing-unit', () => {
-          this.auditNonStandardSpacingUnit(relPath, block.content, block.startLine);
-        });
-        this.runSubAuditorSync('missing-theme-token-usage', () => {
-          this.auditMissingThemeTokenUsage(relPath, block.content, block.startLine, block.scoped);
-        });
-        this.runSubAuditorSync('excessive-scss-nesting', () => {
-          this.auditExcessiveScssNesting(relPath, block.content, block.startLine, block.scoped);
+      const sfc = parseVueSfc(content);
+      let updatedSfc = content;
+      let sfcMutated = false;
+
+      for (let i = sfc.styles.length - 1; i >= 0; i--) {
+        const block = sfc.styles[i]!;
+          this.auditStyleBlockRules(
+            relPath,
+            block.content,
+            block.contentStartLine,
+            block.isScoped,
+            (fixedBlock) => {
+              updatedSfc =
+                updatedSfc.slice(0, block.contentStartIndex) +
+                fixedBlock +
+                updatedSfc.slice(block.contentStartIndex + block.content.length);
+              sfcMutated = true;
+            }
+          );
+        }
+
+        if (isFix && sfcMutated) {
+          fs.writeFileSync(absFile, updatedSfc, 'utf-8');
+        }
+      } else if (isScssFile || isCssFile) {
+        this.auditStyleBlockRules(relPath, content, 1, false, (fixedStyle) => {
+          fs.writeFileSync(absFile, fixedStyle, 'utf-8');
         });
       }
-    } else if (isScssFile || isCssFile) {
-      this.runSubAuditorSync('scss-deep-selector-abuse', () => {
-        this.auditScssDeepSelectorAbuse(relPath, content, 1);
-      });
-      this.runSubAuditorSync('non-standard-spacing-unit', () => {
-        this.auditNonStandardSpacingUnit(relPath, content, 1);
-      });
-      this.runSubAuditorSync('missing-theme-token-usage', () => {
-        this.auditMissingThemeTokenUsage(relPath, content, 1, false);
-      });
-      this.runSubAuditorSync('excessive-scss-nesting', () => {
-        this.auditExcessiveScssNesting(relPath, content, 1, false);
-      });
     }
-  }
 
-  private extractStyleBlocks(
-    content: string
-  ): Array<{ content: string; startLine: number; scoped: boolean }> {
-    const blocks: Array<{ content: string; startLine: number; scoped: boolean }> = [];
-    const styleRegex = /<style\b([^>]*)>([\s\S]*?)<\/style>/gi;
-    let match: RegExpExecArray | null;
-    while ((match = styleRegex.exec(content)) !== null) {
-      const attrs = match[1] ?? '';
-      const scoped = /\bscoped\b/i.test(attrs);
-      const before = content.slice(0, match.index);
-      const startLine = before.split('\n').length;
-      blocks.push({ content: match[2] ?? '', startLine, scoped });
+    private auditStyleBlockRules(
+      relPath: string,
+      styleContent: string,
+      startLine: number,
+      isScoped: boolean,
+      onFixed: (fixed: string) => void
+    ): void {
+      const isFix = this.isFixActive();
+      this.runSubAuditorSync('scss-deep-selector-abuse', () => {
+      this.auditScssDeepSelectorAbuse(relPath, styleContent, startLine);
+    });
+    this.runSubAuditorSync('non-standard-spacing-unit', () => {
+      this.auditNonStandardSpacingUnit(relPath, styleContent, startLine);
+    });
+    this.runSubAuditorSync('missing-theme-token-usage', () => {
+      this.auditMissingThemeTokenUsage(relPath, styleContent, startLine, isScoped);
+    });
+    this.runSubAuditorSync('excessive-scss-nesting', () => {
+      this.auditExcessiveScssNesting(relPath, styleContent, startLine, isScoped);
+    });
+
+    const modernRes = analyzeModernScss(styleContent, startLine, isFix);
+    for (const modRuleId of MODERN_SCSS_RULES) {
+      this.runSubAuditorSync(modRuleId, () => {
+        for (const finding of modernRes.findings) {
+          if (finding.ruleId !== modRuleId) continue;
+          this.addViolation({
+            ruleId: finding.ruleId as ModernScssRuleId,
+            severity: 'error',
+            file: relPath,
+            line: finding.line,
+            message: finding.message,
+            fixable: finding.fixable
+          });
+        }
+      });
     }
-    return blocks;
+
+    if (isFix && modernRes.fixedContent !== undefined) {
+      onFixed(modernRes.fixedContent);
+    }
   }
 
   private auditRawCssInSfc(relPath: string, content: string): void {
     if (!relPath.endsWith('.vue')) return;
 
-    // Detect <style> without lang="scss"
-    const styleTagRegex = /<style\b([^>]*)>/gi;
-    let match: RegExpExecArray | null;
-    while ((match = styleTagRegex.exec(content)) !== null) {
-      const attrs = match[1] ?? '';
-      const hasScss = /lang=["']scss["']/i.test(attrs);
-      if (!hasScss) {
-        const line = this.getLineNumber(content, match.index);
+    const sfc = parseVueSfc(content);
+    for (const block of sfc.styles) {
+      if (block.lang?.toLowerCase() !== 'scss') {
         this.addViolation({
           ruleId: 'raw-css-in-sfc',
           severity: 'error',
           message: '<style> block in SFC component missing mandatory lang="scss" attribute',
           file: relPath,
-          line
+          line: block.startLine
         });
       }
     }
@@ -194,7 +308,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     content: string,
     lineOffset: number = 1
   ): void {
-    // 1. Detect nested :deep() e.g. :deep(...) :deep(...)
     const nestedDeepRegex = /:deep\([^)]*\)[^{};]*:deep\(/g;
     let nestedMatch: RegExpExecArray | null;
     while ((nestedMatch = nestedDeepRegex.exec(content)) !== null) {
@@ -208,7 +321,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       });
     }
 
-    // 2. Detect overly complex selector chain inside :deep (> 3 compound selectors)
     const complexDeepRegex = /:deep\(\s*([^)]+)\s*\)/g;
     let complexMatch: RegExpExecArray | null;
     while ((complexMatch = complexDeepRegex.exec(content)) !== null) {
@@ -237,7 +349,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
     const allowedUnits = new Set(config.scssArchitecture?.allowedSpacingUnits ?? []);
 
-    // Detect arbitrary odd pixel values like 11px, 13px, 15px, 17px, 19px, 21px, 23px, 27px in spacing
     const arbitrarySpacingRegex =
       /(?:margin(?:-(?:top|bottom|left|right|inline|block))?|padding(?:-(?:top|bottom|left|right|inline|block))?|gap|row-gap|column-gap)\s*:[^;]*?\b(1[13579]|2[13579]|3[13579]|7|9|13|17|23|27)px\b/gi;
     let match: RegExpExecArray | null;
@@ -266,7 +377,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
     const config = getAuditConfig(this.projectRoot);
     if (isScoped && config.scssArchitecture?.allowScopedColors) return;
 
-    // Detect hardcoded hex colors or rgb(...) in color properties without var(--...)
     const hardcodedColorRegex =
       /(?:color|background-color|background|border-color|fill|stroke)\s*:\s*([^;{}]*)/gi;
     let match: RegExpExecArray | null;
@@ -288,8 +398,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         this.addViolation({
           ruleId: 'missing-theme-token-usage',
           severity: 'error',
-          message:
-            'Hardcoded hex or rgb color without using design system token or variable',
+          message: 'Hardcoded hex or rgb color without using design system token or variable',
           file: relPath,
           line
         });

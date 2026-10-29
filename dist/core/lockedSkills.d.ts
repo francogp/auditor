@@ -10,6 +10,12 @@ export declare function clearLockedSkillsCache(): void;
  * Canonical candidate relative locations for skills-lock.json in order of precedence.
  */
 export declare const SKILLS_LOCK_CANDIDATE_PATHS: readonly string[];
+/**
+ * Loads the set of skill names owned and distributed by `@francogp/auditor` inside
+ * `node_modules/@francogp/auditor` (both locked upstream skills in its `skills-lock.json`
+ * and built-in auditor skills in `node_modules/@francogp/auditor/.agents/skills/`).
+ */
+export declare function loadAuditorOwnedSkills(projectRoot?: string): ReadonlySet<string>;
 export declare function loadLockedSkills(projectRoot?: string): ReadonlySet<string>;
 /**
  * Checks whether a relative POSIX or absolute path belongs to an official/locked skill directory

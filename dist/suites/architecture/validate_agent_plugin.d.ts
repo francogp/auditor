@@ -1,6 +1,6 @@
 import { SharedAstContext } from "../../core/astContext.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-export type AgentPluginRuleId = 'missing-agent-plugin-registration' | 'skill-invalid-yaml-frontmatter' | 'skill-invalid-asset-syntax' | 'skill-exceeds-line-limit';
+export type AgentPluginRuleId = 'missing-agent-plugin-registration' | 'host-duplicate-auditor-skill' | 'skill-invalid-yaml-frontmatter' | 'skill-invalid-asset-syntax' | 'skill-exceeds-line-limit';
 export declare const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[];
 export declare class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private readonly skillsRoots;
@@ -20,5 +20,8 @@ export declare class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private hasInvalidDescriptionBlockIndentation;
   private validateCustomSkillDescription;
   private validateSkillAsset;
+  private validateHostLockFileOwnership;
+  private validateHostDuplicateSkillDirs;
+  private validateHostDuplicateAuditorSkills;
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }

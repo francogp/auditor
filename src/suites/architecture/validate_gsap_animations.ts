@@ -204,6 +204,14 @@ function readTopLevelProperty(
         return { nextIndex: j, match: null };
       }
     }
+    if (id === 'width') {
+      let valStart = j + 1;
+      while (valStart < limit && /\s/.test(cfgText[valStart] ?? '')) valStart++;
+      const rest = cfgText.slice(valStart, valStart + 30);
+      if (/^(?:['"`][^'"`]*%['"`]|['"]0(?:px)?['"]|0\b)/.test(rest) || /percent|pct/i.test(rest)) {
+        return { nextIndex: j, match: null };
+      }
+    }
     return { nextIndex: j, match: { index: idStart, propName: id } };
   }
   return { nextIndex: j, match: null };
@@ -311,6 +319,123 @@ function isHighDensityOrSuppressed(
   );
 }
 
+function findVariableInitializer(
+  stmts: readonly ts.Statement[],
+  targetName: string
+): ts.Expression | undefined {
+  for (const stmt of stmts) {
+    if (ts.isVariableStatement(stmt)) {
+      for (const decl of stmt.declarationList.declarations) {
+        if (ts.isIdentifier(decl.name) && decl.name.text === targetName) {
+          return decl.initializer;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+function resolveLocalVariableDeclaration(
+  ident: ts.Identifier,
+  ast: ts.SourceFile
+): ts.Expression | undefined {
+  const targetName = ident.text;
+  let current: ts.Node | undefined = ident.parent;
+
+  while (current) {
+    if (
+      ts.isBlock(current) ||
+      ts.isSourceFile(current) ||
+      ts.isFunctionDeclaration(current) ||
+      ts.isFunctionExpression(current) ||
+      ts.isArrowFunction(current) ||
+      ts.isMethodDeclaration(current)
+    ) {
+      const stmts = ts.isSourceFile(current) || ts.isBlock(current)
+        ? current.statements
+        : 'body' in current && current.body && ts.isBlock(current.body as ts.Node)
+          ? (current.body as ts.Block).statements
+          : undefined;
+
+      if (stmts) {
+        const found = findVariableInitializer(stmts, targetName);
+        if (found) return found;
+      }
+    }
+    current = current.parent;
+  }
+
+  return findVariableInitializer(ast.statements, targetName);
+}
+
+function isPercentageWidthExpression(
+  expr: ts.Expression,
+  ast: ts.SourceFile,
+  depth = 0
+): boolean {
+  if (depth > 5) return false;
+
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
+    const text = expr.text.trim();
+    return text.endsWith('%') || text === '0' || text === '0px';
+  }
+
+  if (ts.isNumericLiteral(expr)) {
+    return expr.text === '0';
+  }
+
+  if (ts.isTemplateExpression(expr)) {
+    const lastSpan = expr.templateSpans[expr.templateSpans.length - 1];
+    if (lastSpan && lastSpan.literal.text.trimEnd().endsWith('%')) {
+      return true;
+    }
+    return false;
+  }
+
+  if (ts.isBinaryExpression(expr) && expr.operatorToken.kind === ts.SyntaxKind.PlusToken) {
+    if (ts.isStringLiteral(expr.right) && expr.right.text.trimEnd().endsWith('%')) return true;
+    if (ts.isStringLiteral(expr.left) && expr.left.text.trimEnd().endsWith('%')) return true;
+    return (
+      isPercentageWidthExpression(expr.right, ast, depth + 1) ||
+      isPercentageWidthExpression(expr.left, ast, depth + 1)
+    );
+  }
+
+  if (ts.isIdentifier(expr)) {
+    const declExpr = resolveLocalVariableDeclaration(expr, ast);
+    if (declExpr && isPercentageWidthExpression(declExpr, ast, depth + 1)) {
+      return true;
+    }
+    const name = expr.text.toLowerCase();
+    if (name.includes('percent') || name.includes('pct') || name.endsWith('ratio')) {
+      return true;
+    }
+    return false;
+  }
+
+  if (ts.isPropertyAccessExpression(expr)) {
+    const prop = expr.name.text.toLowerCase();
+    if (prop.includes('percent') || prop.includes('pct') || prop.endsWith('ratio')) {
+      return true;
+    }
+    return false;
+  }
+
+  return false;
+}
+
+function resolveObjectLiteral(
+  expr: ts.Expression,
+  ast: ts.SourceFile
+): ts.ObjectLiteralExpression | undefined {
+  if (ts.isObjectLiteralExpression(expr)) return expr;
+  if (ts.isIdentifier(expr)) {
+    const decl = resolveLocalVariableDeclaration(expr, ast);
+    if (decl && ts.isObjectLiteralExpression(decl)) return decl;
+  }
+  return undefined;
+}
+
 export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
@@ -384,12 +509,16 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           '   ✅ Correct: gsap.delayedCall(DELAY_SEC, () => { isVisible.value = false; });',
         'gsap-no-layout-properties':
           '📖 REMEDIATION GUIDE: gsap-no-layout-properties\n' +
-          '1. Root Cause: A GSAP tween animates geometric layout properties (top, left, width, margin). Animating these forces layout reflow on CPU on every frame.\n' +
-          '2. Diagnosis: Check the tween properties object at the reported line.\n' +
-          '3. Canonical Solution: Replace layout properties with hardware-accelerated GPU transforms (x, y, xPercent, yPercent, scale, rotation, autoAlpha).\n' +
+          '1. Root Cause: A GSAP tween animates geometric layout properties (top, left, width in px, margin). Animating these forces layout reflow on CPU on every frame.\n' +
+          '2. Diagnosis: Inspect the tween properties object at the reported line.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Isolated elements: Use hardware-accelerated GPU transforms (x, y, xPercent, yPercent, scaleX, scaleY, rotation, autoAlpha).\n' +
+          '   b) Stacked meters / Flexbox distribution bars: Animate geometric percentage width (e.g. width: "0%" to "62%") or SVG <rect>. CAUTION: Do NOT replace width with scaleX on adjacent flex items as GPU transforms do not reflow sibling positions, leaving visual gaps and glitches.\n' +
+          '   c) Collapsible accordions: Use height: 0 or height: "auto".\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Banned:  animating layout properties like top/left in gsap.to\n' +
-          '   ✅ Correct: gsap.to(el, { y: 100, x: 50 });',
+          '   ❌ Banned:  gsap.to(el, { left: "100px", width: "200px" });\n' +
+          '   ✅ Correct: gsap.to(el, { x: 100 }); // isolated element\n' +
+          '   ✅ Correct: gsap.fromTo(barEl, { width: "0%" }, { width: "62%" }); // flex distribution bar',
         'gsap-named-timer-constants':
           '📖 REMEDIATION GUIDE: gsap-named-timer-constants\n' +
           '1. Root Cause: A raw numeric value (magic number) was used as duration or delay in a GSAP animation without a descriptive constant or design token.\n' +
@@ -783,6 +912,11 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           return;
         }
       }
+      if (propName === 'width') {
+        if (isPercentageWidthExpression(prop.initializer, ast)) {
+          return;
+        }
+      }
       const { line, column } = doc.getNodeLineAndColumn(prop, ast);
       this.addViolation({
         ruleId: 'gsap-no-layout-properties',
@@ -889,8 +1023,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     const visit = (node: ts.Node): void => {
       if (ts.isCallExpression(node) && isGsapCall(node)) {
         for (const arg of node.arguments) {
-          if (ts.isObjectLiteralExpression(arg)) {
-            this.checkTweenObjectLiteral(arg, doc, ast, targetRule);
+          const obj = resolveObjectLiteral(arg, ast);
+          if (obj) {
+            this.checkTweenObjectLiteral(obj, doc, ast, targetRule);
           }
         }
       }

@@ -1,15 +1,27 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import type ts from 'typescript';
+import { SharedAstContext } from '../../core/astContext.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
-  createUniformRuleCapabilities,
+  createRuleCapabilities,
   createUniformRemediationPhases,
-  LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { isPathExempt, toPosixRelative } from '../../core/safePath.ts';
+import {
+  MODERN_SECURITY_RULES,
+  analyzeModernSecurityScriptAst,
+  analyzeExternalSriHtml,
+  analyzeGithubActionsWorkflowYaml,
+  type ModernSecurityFinding,
+  type ModernSecurityRuleId
+} from '../../analyzers/securityModernAstAnalyzer.ts';
 
 enableCompileCache();
 
@@ -21,14 +33,24 @@ export const SECURITY_HARDENING_RULES = [
   'missing-csrf-token',
   'eval-or-function-constructor',
   'permissive-cors',
-  'unvalidated-redirect'
+  'unvalidated-redirect',
+  ...MODERN_SECURITY_RULES
 ] as const;
 
 export type SecurityHardeningRuleId = (typeof SECURITY_HARDENING_RULES)[number];
 
-const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html']);
+const FIXABLE_SECURITY_RULES: readonly SecurityHardeningRuleId[] = [
+  'security-postmessage-origin-validation',
+  'security-external-sri-missing',
+  'security-cookie-samesite-partitioned',
+  'ci-github-actions-script-injection'
+];
+
+const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html', '.yml', '.yaml']);
 
 export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHardeningRuleId> {
+  private readonly astCache = new SharedAstContext();
+
   constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
     const securityRoots = resolveFileScanRoots(options);
     const secConfig = getAuditConfig(securityRoots.effectiveRoot);
@@ -44,6 +66,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
+      fix: options.fix,
       roots: securityRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SECURITY_HARDENING_RULES,
@@ -56,7 +79,12 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         'missing-csrf-token': 'POST form missing CSRF token',
         'eval-or-function-constructor': 'Eval or Function constructor',
         'permissive-cors': "Permissive CORS with origin '*'",
-        'unvalidated-redirect': 'Open redirect without validation'
+        'unvalidated-redirect': 'Open redirect without validation',
+        'security-postmessage-origin-validation': 'postMessage missing origin validation',
+        'security-trusted-types-passthrough': 'Trusted Types passthrough policy',
+        'security-external-sri-missing': 'External CDN script/style missing SRI',
+        'security-cookie-samesite-partitioned': 'SameSite=None cookie missing Secure',
+        'ci-github-actions-script-injection': 'GitHub Actions run script injection'
       },
       ruleRemediations: {
         'hardcoded-secrets':
@@ -131,19 +159,137 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
           '3. Canonical Solution: Validate that the URL begins with `/` (relative path) or belongs to an allowed whitelist before navigating.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Insecure: Direct unvalidated redirection to user-supplied query parameters.\n' +
-          '   ✅ Secure:   `if (isInternalUrl(returnUrl)) window.location.href = returnUrl;`'
+          '   ✅ Secure:   `if (isInternalUrl(returnUrl)) window.location.href = returnUrl;`',
+        'security-postmessage-origin-validation':
+          '📖 REMEDIATION GUIDE: security-postmessage-origin-validation\n' +
+          "1. Root Cause: Either `postMessage(data, '*')` broadcasts messages to wildcard origins, or a `window.addEventListener('message', ...)` listener reads `event.data` without strict `event.origin` equality validation.\n" +
+          '2. Diagnosis: Inspect the `postMessage` call or `message` event listener at the reported line.\n' +
+          '3. Canonical Solution: Pass `window.location.origin` (or an explicit trusted origin) to `postMessage`, and verify `if (event.origin !== EXPECTED_ORIGIN) return;` in listeners. Run `npm run auditor:fix` to auto-repair wildcard `postMessage` calls.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Wildcard: `window.parent.postMessage(payload, "*");`\n' +
+          '   ✅ Scoped:   `window.parent.postMessage(payload, window.location.origin);`',
+        'security-trusted-types-passthrough':
+          '📖 REMEDIATION GUIDE: security-trusted-types-passthrough\n' +
+          '1. Root Cause: `trustedTypes.createPolicy(...)` defines an identity pass-through function (`createHTML: (s) => s`), completely neutralizing Trusted Types DOM XSS protection.\n' +
+          '2. Diagnosis: Inspect the `trustedTypes.createPolicy` call at the reported line.\n' +
+          '3. Canonical Solution: Sanitize all HTML inputs with `DOMPurify.sanitize(s)` or validate script URLs against a strict origin allowlist inside the policy callback.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Passthrough: `trustedTypes.createPolicy("default", { createHTML: (s) => s });`\n' +
+          '   ✅ Sanitized:   `trustedTypes.createPolicy("default", { createHTML: (s) => DOMPurify.sanitize(s) });`',
+        'security-external-sri-missing':
+          '📖 REMEDIATION GUIDE: security-external-sri-missing\n' +
+          '1. Root Cause: An external third-party `<script src="https://...">` or `<link rel="stylesheet" href="https://...">` lacks Subresource Integrity (`integrity="sha384-..."`) or `crossorigin="anonymous"`, exposing the app to CDN supply-chain tampering.\n' +
+          '2. Diagnosis: Locate the external `<script>` or `<link>` tag in `index.html`.\n' +
+          '3. Canonical Solution: Add `integrity="sha384-..."` and `crossorigin="anonymous"`. Run `npm run auditor:fix` to inject missing `crossorigin="anonymous"` when `integrity` is present.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Unverified: `<script src="https://cdn.example.com/lib.js" defer></script>`\n' +
+          '   ✅ Verified:   `<script src="https://cdn.example.com/lib.js" integrity="sha384-..." crossorigin="anonymous" defer></script>`',
+        'security-cookie-samesite-partitioned':
+          '📖 REMEDIATION GUIDE: security-cookie-samesite-partitioned\n' +
+          '1. Root Cause: A cookie options object configures `sameSite: "none"` without `secure: true`. Modern browsers reject `SameSite=None` cookies unless `Secure` is enabled.\n' +
+          '2. Diagnosis: Inspect the cookie configuration object at the reported line.\n' +
+          '3. Canonical Solution: Add `secure: true` alongside `sameSite: "none"`. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Rejected: `{ sameSite: "none", httpOnly: true }`\n' +
+          '   ✅ Accepted: `{ sameSite: "none", secure: true, httpOnly: true }`',
+        'ci-github-actions-script-injection':
+          '📖 REMEDIATION GUIDE: ci-github-actions-script-injection\n' +
+          '1. Root Cause: A GitHub Actions `run:` block interpolates untrusted event context (`${{ github.event.issue.title }}`, `${{ inputs.* }}`, etc.) directly into a shell script, enabling arbitrary command injection.\n' +
+          '2. Diagnosis: Inspect the workflow step in `.github/workflows/*.yml`.\n' +
+          '3. Canonical Solution: Bind the expression to a step `env:` variable and reference it as a quoted shell variable `"$GH_..."`. Run `npm run auditor:fix` to auto-repair.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   ❌ Vulnerable: `run: echo "${{ github.event.pull_request.title }}"`\n' +
+          '   ✅ Hardened:   `env: { GH_PULL_REQUEST_TITLE: "${{ github.event.pull_request.title }}" }` + `run: echo "$GH_PULL_REQUEST_TITLE"`'
       },
-      ruleCapabilities: createUniformRuleCapabilities(
+      ruleCapabilities: createRuleCapabilities(
         SECURITY_HARDENING_RULES,
-        LIGHT_RULE_CAPABILITIES
+        {
+          speed: 'light',
+          phase: 'normal',
+          fix: 'none',
+          md: false,
+          ast: true,
+          changedOnly: true,
+          critical: true
+        },
+        FIXABLE_SECURITY_RULES
       ),
+      fixableRuleIds: FIXABLE_SECURITY_RULES,
       projectRoot: securityRoots.effectiveRoot,
-      coverage: deriveCoverageFromRoots(securityRoots.targetRoots, SCANNABLE_EXTS, securityRoots.effectiveRoot),
+      coverage: deriveCoverageFromRoots(
+        securityRoots.targetRoots,
+        SCANNABLE_EXTS,
+        securityRoots.effectiveRoot
+      ),
       exemptPaths: secConfig.securityHardening?.exemptPaths
     });
   }
 
-  protected override scanFile(relPath: string, content: string): void {
+  public override async runAudit(): Promise<void> {
+    await super.runAudit();
+
+    const isFix = this.isFixActive();
+
+    // Scan root index.html specifically for external CDN SRI (`security-external-sri-missing`)
+    const indexHtmlAbs = path.join(this.projectRoot, 'index.html');
+    if (fs.existsSync(indexHtmlAbs)) {
+      const rel = toPosixRelative(this.projectRoot, indexHtmlAbs);
+      if (!isPathExempt(rel, this.exemptPaths)) {
+        const content = fs.readFileSync(indexHtmlAbs, 'utf-8');
+        this.runSubAuditorSync('security-external-sri-missing', () => {
+          const sriRes = analyzeExternalSriHtml(content, isFix);
+          for (const f of sriRes.findings) {
+            this.addViolation({
+              ruleId: 'security-external-sri-missing',
+              severity: 'error',
+              message: f.message,
+              file: rel,
+              line: f.line
+            });
+          }
+          if (isFix && sriRes.fixedContent !== undefined) {
+            fs.writeFileSync(indexHtmlAbs, sriRes.fixedContent, 'utf-8');
+          }
+        });
+      }
+    }
+
+    // Scan .github/workflows/*.{yml,yaml} specifically for `ci-github-actions-script-injection`
+    const workflowsDir = path.join(this.projectRoot, '.github', 'workflows');
+    if (fs.existsSync(workflowsDir)) {
+      const entries = fs.readdirSync(workflowsDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile()) continue;
+        const ext = path.extname(entry.name).toLowerCase();
+        if (ext !== '.yml' && ext !== '.yaml') continue;
+        const fullPath = path.join(workflowsDir, entry.name);
+        const rel = toPosixRelative(this.projectRoot, fullPath);
+        if (isPathExempt(rel, this.exemptPaths)) continue;
+        const content = fs.readFileSync(fullPath, 'utf-8');
+        this.runSubAuditorSync('ci-github-actions-script-injection', () => {
+          const yamlRes = analyzeGithubActionsWorkflowYaml(content, isFix);
+          for (const f of yamlRes.findings) {
+            this.addViolation({
+              ruleId: 'ci-github-actions-script-injection',
+              severity: 'error',
+              message: f.message,
+              file: rel,
+              line: f.line
+            });
+          }
+          if (isFix && yamlRes.fixedContent !== undefined) {
+            fs.writeFileSync(fullPath, yamlRes.fixedContent, 'utf-8');
+          }
+        });
+      }
+    }
+  }
+
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile
+  ): void {
     const lines = content.split('\n');
     const isTest = isTestPath(relPath);
 
@@ -171,6 +317,67 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     this.runSubAuditorSync('unvalidated-redirect', () => {
       this.auditUnvalidatedRedirect(relPath, content, lines);
     });
+
+    this.auditModernSecurityRules(relPath, content, isTest, sourceFile);
+  }
+
+  private auditModernSecurityRules(
+    relPath: string,
+    content: string,
+    isTest: boolean,
+    sourceFile?: ts.SourceFile
+  ): void {
+    const ext = path.extname(relPath).toLowerCase();
+    const isFix = this.isFixActive();
+    const absFile = path.resolve(this.projectRoot, relPath);
+
+    const collectedSecurityFindings: ModernSecurityFinding[] = [];
+    let updatedContent: string | undefined;
+
+    if (!isTest && (ext === '.ts' || ext === '.js' || ext === '.vue')) {
+      const sf = sourceFile ?? this.astCache.getSourceFile(relPath, content);
+      const astRes = analyzeModernSecurityScriptAst(content, sf, isFix);
+      collectedSecurityFindings.push(...astRes.findings);
+      if (isFix && astRes.fixedContent !== undefined) {
+        updatedContent = astRes.fixedContent;
+      }
+    }
+
+    if (!isTest && ext === '.html') {
+      const baseHtml = updatedContent ?? content;
+      const sriRes = analyzeExternalSriHtml(baseHtml, isFix);
+      collectedSecurityFindings.push(...sriRes.findings);
+      if (isFix && sriRes.fixedContent !== undefined) {
+        updatedContent = sriRes.fixedContent;
+      }
+    }
+
+    if (ext === '.yml' || ext === '.yaml') {
+      const yamlRes = analyzeGithubActionsWorkflowYaml(content, isFix);
+      collectedSecurityFindings.push(...yamlRes.findings);
+      if (isFix && yamlRes.fixedContent !== undefined) {
+        updatedContent = yamlRes.fixedContent;
+      }
+    }
+
+    for (const secRuleId of MODERN_SECURITY_RULES) {
+      this.runSubAuditorSync(secRuleId, () => {
+        for (const f of collectedSecurityFindings) {
+          if (f.ruleId !== secRuleId) continue;
+          this.addViolation({
+            ruleId: f.ruleId as ModernSecurityRuleId,
+            severity: 'error',
+            message: f.message,
+            file: relPath,
+            line: f.line
+          });
+        }
+      });
+    }
+
+    if (isFix && updatedContent !== undefined && fs.existsSync(absFile)) {
+      fs.writeFileSync(absFile, updatedContent, 'utf-8');
+    }
   }
 
   private scanSecurityPattern(
@@ -272,7 +479,6 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       'Direct assignment to innerHTML without sanitization via DOMPurify (XSS risk)',
       (m) => {
         const assigned = (m[1] ?? '').trim();
-        // Safe container reset: empty string or empty template literal
         if (/^(['"`])\s*\1$/.test(assigned)) return false;
         return !assigned.includes('DOMPurify.sanitize') && !assigned.includes('sanitizeHtml');
       }

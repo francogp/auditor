@@ -1,0 +1,28 @@
+<template>
+  <div class="perf-fixture">
+    <link rel="preload" href="/fonts/inter.woff2" as="font" type="font/woff2" fetchpriority="high" />
+    <img
+      src="/hero.webp"
+      loading="lazy"
+      fetchpriority="high"
+      width="1200"
+      height="600"
+      decoding="async"
+      alt="Hero"
+    />
+    <img
+      src="/card-800.webp"
+      srcset="/card-400.webp 400w, /card-800.webp 800w"
+      loading="lazy"
+      width="800"
+      height="600"
+      decoding="async"
+      alt="Card"
+    />
+  </div>
+</template>
+<style scoped lang="scss">
+.offscreen-feed {
+  content-visibility: auto;
+}
+</style>

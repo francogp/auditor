@@ -143,7 +143,7 @@ export function parseJsonArrayOutput<T = unknown>(
 export function normalizePosixPath(filePath: string, cwd: string = process.cwd()): string {
   if (!filePath) return '';
   const resolved = path.isAbsolute(filePath) ? path.relative(cwd, filePath) : filePath;
-  const posix = resolved.split(path.sep).join(path.posix.sep);
+  const posix = resolved.replaceAll(path.win32.sep, path.posix.sep);
   return posix.startsWith('./') ? posix.slice(2) : posix;
 }
 

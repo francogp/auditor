@@ -10,6 +10,10 @@
  * - Verifies clean execution (0 errors, passed status)
  */
 
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import type { ViolationInput } from '../src/core/auditorBase.ts';
@@ -48,6 +52,8 @@ describe('VueSfcHygieneAuditor', () => {
       expect(VUE_SFC_HYGIENE_RULES).toContain('vue-template-quote-escaping');
       expect(VUE_SFC_HYGIENE_RULES).toContain('no-data-provider-in-template');
       expect(VUE_SFC_HYGIENE_RULES).toContain('vue-template-magic-calculation');
+      expect(VUE_SFC_HYGIENE_RULES).toContain('ime-unsafe-enter-submit');
+      expect(VUE_SFC_HYGIENE_RULES).toContain('vue-template-no-side-effects');
     });
 
     it('initializes with correct id and family', () => {
@@ -274,6 +280,73 @@ describe('VueSfcHygieneAuditor', () => {
         (v) => v.ruleId === 'vue-template-magic-calculation'
       );
       expect(violations).toHaveLength(0);
+    });
+
+    it('detects ime-unsafe-enter-submit and vue-template-no-side-effects on fixture and auto-repairs via --fix', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vue-hygiene-fix-'));
+      try {
+        const fixtureContent = fs.readFileSync(
+          path.resolve(import.meta.dirname, 'fixtures/modern_web/VueHygieneBroken.vue.cases'),
+          'utf-8'
+        );
+        const compDir = path.join(tempDir, 'src/components');
+        fs.mkdirSync(compDir, { recursive: true });
+        const targetFile = path.join(compDir, 'VueHygieneBroken.vue');
+        fs.writeFileSync(targetFile, fixtureContent, 'utf-8');
+
+        const checkAuditor = new TestableVueSfcHygieneAuditor({ projectRoot: tempDir });
+        checkAuditor.testScanFile('src/components/VueHygieneBroken.vue', fixtureContent);
+
+        const ruleSet = new Set(checkAuditor.collectedViolations.map((v) => v.ruleId));
+        expect(ruleSet.has('ime-unsafe-enter-submit')).toBe(true);
+        expect(ruleSet.has('vue-template-no-side-effects')).toBe(true);
+
+        // Run in --fix mode
+        const fixAuditor = new TestableVueSfcHygieneAuditor({
+          projectRoot: tempDir,
+          fix: true
+        });
+        fixAuditor.testScanFile('src/components/VueHygieneBroken.vue', fixtureContent);
+
+        const fixedSfc = fs.readFileSync(targetFile, 'utf-8');
+        expect(fixedSfc).toContain("e.key === 'Enter' && !e.isComposing");
+        expect(fixedSfc).toContain('items.toSorted()');
+        expect(fixedSfc).toContain('tags.toReversed()');
+
+        // Re-verify 0 errors on repaired file
+        const verifyAuditor = new TestableVueSfcHygieneAuditor({ projectRoot: tempDir });
+        verifyAuditor.testScanFile('src/components/VueHygieneBroken.vue', fixedSfc);
+        expect(verifyAuditor.collectedViolations).toHaveLength(0);
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('avoids false positives on [...items].sort(), items.slice().sort(), and @click mutations in templates', () => {
+      const auditor = new TestableVueSfcHygieneAuditor();
+      const sfc = [
+        '<template>',
+        '  <div>',
+        '    <li v-for="x in [...items].sort()" :key="x">{{ x }}</li>',
+        '    <li v-for="y in items.slice().reverse()" :key="y">{{ y }}</li>',
+        '    <button type="button" @click="count++">Increment</button>',
+        '  </div>',
+        '</template>',
+        '<script setup lang="ts">',
+        'import { ref } from "vue";',
+        'const items = ref(["b", "a"]);',
+        'const count = ref(0);',
+        'function onKeydown(e: KeyboardEvent): void {',
+        '  if (e.key === "Enter" && !e.isComposing) {',
+        '    submitForm();',
+        '  }',
+        '}',
+        'function submitForm(): void {}',
+        '</script>'
+      ].join('\n');
+
+      auditor.testScanFile('src/components/SafeVueModern.vue', sfc);
+      expect(auditor.collectedViolations).toHaveLength(0);
     });
   });
 

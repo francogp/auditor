@@ -30,11 +30,12 @@ const SECRET_SCAN_EXTENSIONS = /* @__PURE__ */ new Set([
 	".yaml",
 	".yml"
 ]);
-function buildSecretLintConfig() {
+function buildSecretLintConfig(allows) {
+	const ruleOptions = allows && allows.length > 0 ? { allows: [...allows] } : {};
 	return { rules: rules.map((rule) => ({
 		id: rule.meta.id,
 		rule,
-		options: {}
+		options: ruleOptions
 	})) };
 }
 /**
@@ -107,6 +108,8 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 		const exemptGlobs = config.secretLeaks?.exemptGlobs ?? [];
 		for (const glob of exemptGlobs) if (matchesSinglePattern(relPath, glob)) return;
 		const maskSecrets = config.secretLeaks?.maskSecrets ?? true;
+		const configuredAllows = [...config.secretLeaks?.allows ?? [], ...config.secretLeaks?.allowedPatterns ?? []];
+		const effectiveConfig = configuredAllows.length > 0 ? buildSecretLintConfig(configuredAllows) : this.secretLintConfig;
 		const ext = path.extname(relPath) || ".txt";
 		let messages = [];
 		const result = await tryOrNullAsync(() => lintSource({
@@ -117,7 +120,7 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 				contentType: "text"
 			},
 			options: {
-				config: this.secretLintConfig,
+				config: effectiveConfig,
 				maskSecrets
 			}
 		}));
@@ -155,4 +158,4 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecretLeaksAuditor());
-export { SECRET_LEAKS_RULES, SECRET_SCAN_EXTENSIONS, ValidateSecretLeaksAuditor, mapSecretLintMessageToFinding };
+export { SECRET_LEAKS_RULES, SECRET_SCAN_EXTENSIONS, ValidateSecretLeaksAuditor, buildSecretLintConfig, mapSecretLintMessageToFinding };

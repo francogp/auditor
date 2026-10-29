@@ -1,4 +1,5 @@
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "./safeUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -39,6 +40,22 @@ function resolveSkillsLockCandidates(projectRoot) {
 	if (fs.existsSync(path.resolve(projectRoot, inheritedLock))) candidatePaths.push(inheritedLock);
 	return candidatePaths;
 }
+/**
+* Loads the set of skill names owned and distributed by `@francogp/auditor` inside
+* `node_modules/@francogp/auditor` (both locked upstream skills in its `skills-lock.json`
+* and built-in auditor skills in `node_modules/@francogp/auditor/.agents/skills/`).
+*/
+function loadAuditorOwnedSkills(projectRoot = process.cwd()) {
+	const owned = /* @__PURE__ */ new Set();
+	const auditorLockPath = path.resolve(projectRoot, "node_modules/@francogp/auditor/skills-lock.json");
+	if (fs.existsSync(auditorLockPath)) for (const skill of parseLockedSkillsFile(auditorLockPath)) owned.add(skill);
+	const auditorSkillsDir = path.resolve(projectRoot, "node_modules/@francogp/auditor/.agents/skills");
+	if (fs.existsSync(auditorSkillsDir)) {
+		const entries = tryOrNull(() => fs.readdirSync(auditorSkillsDir, { withFileTypes: true }));
+		for (const entry of entries ?? []) if (entry.isDirectory()) owned.add(entry.name.toLowerCase());
+	}
+	return owned;
+}
 function loadLockedSkills(projectRoot = process.cwd()) {
 	if (lockedSkillsCache && lockedSkillsCacheRoot === projectRoot) return lockedSkillsCache;
 	const locked = /* @__PURE__ */ new Set();
@@ -54,20 +71,19 @@ function loadLockedSkills(projectRoot = process.cwd()) {
 function isLockedSkillPath(filePath, projectRoot = process.cwd()) {
 	const locked = loadLockedSkills(projectRoot);
 	if (locked.size === 0) return false;
-	let curr = path.resolve(projectRoot, filePath);
-	const root = path.parse(curr).root;
-	while (curr && curr !== root) {
-		const parentDir = path.dirname(curr);
+	let curr = normalizePosixPath(filePath, projectRoot);
+	while (curr && curr !== "." && curr !== "/") {
+		const parentDir = path.posix.dirname(curr);
 		if (parentDir === curr) break;
-		const skillName = path.basename(curr);
-		const parentName = path.basename(parentDir);
+		const skillName = path.posix.basename(curr);
+		const parentName = path.posix.basename(parentDir);
 		if (locked.has(skillName)) {
 			if (parentName === "skills" || parentName === ".skills") return true;
-			const grandParentDir = path.dirname(parentDir);
-			if (parentName === "skills" && path.basename(grandParentDir) === ".agents") return true;
+			const grandParentDir = path.posix.dirname(parentDir);
+			if (parentName === "skills" && path.posix.basename(grandParentDir) === ".agents") return true;
 		}
 		curr = parentDir;
 	}
 	return false;
 }
-export { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills };
+export { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadAuditorOwnedSkills, loadLockedSkills };

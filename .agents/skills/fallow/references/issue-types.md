@@ -26,7 +26,7 @@ The `generated:issue-types` table below is regenerated from `fallow schema` by s
 | `unused-class-member` | `--unused-class-members` | - | `// fallow-ignore-next-line unused-class-member` | Methods and properties |
 | `unused-store-member` | `--unused-store-members` | - | `// fallow-ignore-next-line unused-store-member` | Pinia store state/getter/action (needs `pinia` dep) |
 | `unresolved-import` | `--unresolved-imports` | - | `// fallow-ignore-next-line unresolved-import` | Imports that can't be resolved |
-| `unlisted-dependency` | `--unlisted-deps` | - | - | Used packages missing from package.json. In monorepos, importing a workspace package from a workspace whose own `package.json` does not list it is reported here too; self-references stay allowed without requiring a package to depend on itself. |
+| `unlisted-dependency` | `--unlisted-deps` | - | - | Used packages missing an applicable dependency declaration. This includes root code importing an npm workspace package: a workspace link or hoisted install makes the package resolvable but does not declare it. Add runtime imports to `dependencies`, or tooling/test imports to `devDependencies`, in the owning `package.json`. Private packages and tooling may inherit ancestor declarations. Self-references need no declaration. Use `ignoreDependencies` for a deliberate ambient-package opt-out. |
 | `duplicate-export` | `--duplicate-exports` | - | `// fallow-ignore-file duplicate-export` | Same symbol exported from multiple modules |
 | `circular-dependency` | `--circular-deps` | - | `// fallow-ignore-next-line circular-dependency` | Import cycles in the module graph |
 | `re-export-cycle` | `--re-export-cycles` | - | `// fallow-ignore-file re-export-cycle` | Barrel files re-exporting from each other in a loop (`kind: "multi-node"`) or a barrel re-exporting from itself (`kind: "self-loop"`). Chain propagation through the loop is a structural no-op so imports through any member may silently come up empty. Default `warn`. Distinct from `circular-dependencies` (runtime cycles, sometimes intentional). File-scoped suppression only: `// fallow-ignore-file re-export-cycle` on any member breaks the cycle. |
@@ -53,9 +53,12 @@ The `generated:issue-types` table below is regenerated from `fallow schema` by s
 | `unused-component-input` | `--unused-component-inputs` | - | `// fallow-ignore-next-line unused-component-input` | An Angular @Input() / signal input() / model() is read nowhere in its own component (class body or template); needs `@angular/core` dep |
 | `unused-component-output` | `--unused-component-outputs` | - | `// fallow-ignore-next-line unused-component-output` | An Angular @Output() / signal output() is emitted (.emit()) nowhere in its own component; needs `@angular/core` dep |
 | `unused-svelte-event` | `--unused-svelte-events` | - | `// fallow-ignore-next-line unused-svelte-event` | A Svelte createEventDispatcher event is listened to nowhere in the project; needs `svelte` dep |
+| `unused-effect-layer` | `--unused-effect-layers` | - | `// fallow-ignore-next-line unused-effect-layer` | An Effect layer is composed only into layers that nothing uses |
+| `unused-tagged-error` | `--unused-tagged-errors` | - | `// fallow-ignore-next-line unused-tagged-error` | An Effect tagged error class is referenced only as a type or a catchTag string, and no code constructs or fails with it |
+| `unproduced-catch-tag` | `--unproduced-catch-tags` | - | `// fallow-ignore-next-line unproduced-catch-tag` | A catchTag handler names a project error tag that no code produces |
 | `unused-server-action` | `--unused-server-actions` | - | `// fallow-ignore-next-line unused-server-action` | A Next.js Server Action exported from a "use server" file is referenced by no code in the project |
 | `unused-load-data-key` | `--unused-load-data-keys` | - | `// fallow-ignore-next-line unused-load-data-key` | A SvelteKit load() return-object key is read by no consumer (needs @sveltejs/kit dep) |
-| `prop-drilling` | - | - | `// fallow-ignore-next-line prop-drilling` | A React/Preact prop is forwarded unchanged through 3+ pass-through components to a distant consumer; Opt-in: set rules.prop-drilling to warn or error to enable. Defaults to off. |
+| `prop-drilling` | - | - | `// fallow-ignore-next-line prop-drilling` | A React/Preact prop is forwarded unchanged through 3+ pass-through components to a distant consumer; Opt-in: error gates CI; warn remains advisory even with --fail-on-issues. Defaults to off. Source-hop overrides decide severity. |
 | `thin-wrapper` | - | - | `// fallow-ignore-next-line thin-wrapper` | A React/Preact component whose whole body is a single spread-forwarded child render (a candidate for inlining); Opt-in: set rules.thin-wrapper to warn or error to enable. Defaults to off. |
 | `duplicate-prop-shape` | - | - | `// fallow-ignore-next-line duplicate-prop-shape` | Three or more React/Preact components across two or more files declare an identical prop-name set (a missing shared Props type); Opt-in: set rules.duplicate-prop-shape to warn or error to enable. Defaults to off. |
 | `route-collision` | - | - | `// fallow-ignore-file route-collision` | Two or more Next.js App Router route files resolve to the same URL |
@@ -64,6 +67,7 @@ The `generated:issue-types` table below is regenerated from `fallow schema` by s
 | `high-cognitive-complexity` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function has high cognitive complexity |
 | `high-complexity` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function exceeds both complexity thresholds |
 | `high-crap-score` | `--complexity` | - | `// fallow-ignore-next-line complexity` | Function has a high CRAP score (complexity combined with low coverage) |
+| `long-file` | `--complexity` | - | `// fallow-ignore-file complexity` | File has more lines than the file-length threshold |
 | `refactoring-target` | `--targets` | - | - | File identified as a high-priority refactoring candidate |
 | `css-token-drift` | - | - | `// fallow-ignore-next-line css-token-drift` | CSS or CSS-in-JS hardcoded styling value bypasses the design token system |
 | `css-duplicate-block` | - | - | `// fallow-ignore-next-line css-duplicate-block` | CSS or CSS-in-JS declaration block is duplicated across rules |
@@ -78,6 +82,11 @@ The `generated:issue-types` table below is regenerated from `fallow schema` by s
 | `tainted-sink` | - | - | `// fallow-ignore-next-line security-sink` | Syntactic security sink candidates require verification |
 | `client-server-leak` | - | - | `// fallow-ignore-file security-client-server-leak` | Client-bound code reaches a non-public env read |
 | `hardcoded-secret` | - | - | `// fallow-ignore-next-line security-sink` | Provider-prefixed or contextual secret literals require verification; Include-required category: enable via security.categories.include |
+| `weakened-tests` | - | - | `// fallow-ignore-next-line weakened-tests` | The change weakens tests or a coverage threshold |
+| `added-suppression` | - | - | `// fallow-ignore-next-line added-suppression` | The change adds a suppression comment |
+| `test-only-branch` | - | - | `// fallow-ignore-next-line test-only-branch` | The change adds a test-environment branch to source code |
+| `diverged-clone-sibling` | - | - | `// fallow-ignore-next-line diverged-clone-sibling` | The change edits one copy of duplicated code but not its siblings |
+| `added-dependency` | - | - | - | The change adds a dependency. Config suppression only, because `package.json` cannot hold a comment: set `added-dependency` to `off` for the path in an `overrides` entry. |
 
 Runtime-coverage verdicts and the full security sink catalogue are listed by `fallow schema` (`issue_types`).
 <!-- generated:issue-types:end -->

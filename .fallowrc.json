@@ -1,39 +1,17 @@
 {
   "$schema": "https://fallow.tools/schema/config.json",
-  "entry": [
-    "src/index.ts",
-    "src/cli/*.ts",
-    "src/core/*.ts",
-    "src/plugin/*.ts",
-    "src/analyzers/*.ts",
-    "src/suites/**/*.ts",
-    ".auditor/audit.config.ts"
-  ],
-  "ignorePatterns": [
-    "skills/**",
-    ".agents/**",
-    "scratch/**",
-    "dist/**",
-    "tests/**",
-    "!.auditor/**"
-  ],
+  "entry": [".auditor/audit.config.ts"],
+  "ignorePatterns": [".agents/**", "tests/**", "!.auditor/**"],
   "ignoreDependencies": [
     "@arethetypeswrong/core",
-    "fallow",
     "html-validate",
     "html-validate-vue",
     "knip",
-    "markdownlint-cli",
     "postcss-html",
     "publint",
-    "stylelint",
-    "stylelint-config-standard",
     "stylelint-config-standard-scss",
     "stylelint-config-standard-vue",
-    "stylelint-order",
-    "stylelint-scss",
-    "type-coverage",
-    "typescript"
+    "type-coverage"
   ],
   "health": {
     "maxCrap": 0

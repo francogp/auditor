@@ -15,6 +15,7 @@ Architecture & Tooling Engineers.
 
 ## Key Files
 
+- [`accessibilityModernAnalyzer.ts`](./accessibilityModernAnalyzer.ts): JSDOM (`includeNodeLocations: true`) + MagicString analyzer enforcing 7 modern WCAG/HTML/form rules (`a11y-no-positive-tabindex`, `a11y-no-aria-hidden-focusable`, `a11y-svg-accessibility`, `a11y-iframe-title-and-scroll`, `forms-identifier-input-type`, `forms-autocomplete-hygiene`, `html-dialog-popover-exclusivity`) and viewport zoom-lock repair.
 - [`agentsMandateAnalyzer.ts`](./agentsMandateAnalyzer.ts): AGENTS.md mandate parsing, language validation, and in-place injection helper.
 - [`auditRuleTypes.ts`](./auditRuleTypes.ts): Core rule descriptors, violation schemas, and matching primitives.
 - [`cliContracts/`](./cliContracts/AGENTS.md): CLI contract scanner and modular AST detectors.
@@ -22,7 +23,12 @@ Architecture & Tooling Engineers.
 - [`constantRules.ts`](./constantRules.ts): Rules and heuristics for magic numbers, constant names, numeric suffixes, and aliases.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
 - [`homebrew/`](./homebrew/AGENTS.md): Modular analyzer engine and registry detecting homebrew anti-patterns in auditors and extensions.
+- [`modernDomAstUtils.ts`](./modernDomAstUtils.ts): Shared JSDOM (`includeNodeLocations: true`, `VirtualConsole`) and TypeScript AST source-span utilities for modern web analyzers.
 - [`nativePaths/`](./nativePaths/AGENTS.md): TypeScript AST semantic analyzer enforcing Node.js native standard library for filesystem paths and URLs.
+- [`scssModernAnalyzer.ts`](./scssModernAnalyzer.ts): Recursive CSS/SCSS block & value AST parser (`postcss-value-parser` + `MagicString`) enforcing 8 modern layout, selector, and dark-mode rules (`scss-viewport-overflow-and-dvh`, `scss-overflow-clip-margin-trap`, `scss-prefer-user-invalid`, `scss-focus-outline-removal`, `typography-unclamped-viewport-font`, `scss-flexbox-dead-properties`, `scss-universal-expensive-selectors`, `dark-mode-color-scheme-missing`).
+- [`securityModernAstAnalyzer.ts`](./securityModernAstAnalyzer.ts): TypeScript Compiler AST + JSDOM + YAML AST (`parseDocument`) analyzer enforcing 5 browser and CI/CD security rules (`security-postmessage-origin-validation`, `security-trusted-types-passthrough`, `security-external-sri-missing`, `security-cookie-samesite-partitioned`, `ci-github-actions-script-injection`).
+- [`vueModernHygieneAnalyzer.ts`](./vueModernHygieneAnalyzer.ts): TypeScript Compiler AST (`SharedAstContext`) analyzer enforcing IME-safe Enter key submission (`ime-unsafe-enter-submit`) and pure non-mutating Vue template expressions (`vue-template-no-side-effects`).
+- [`webPerfModernAnalyzer.ts`](./webPerfModernAnalyzer.ts): JSDOM + CSS AST analyzer enforcing 4 Core Web Vitals rules (`perf-lcp-lazy-conflict`, `perf-font-preload-crossorigin`, `perf-srcset-missing-sizes`, `perf-content-visibility-intrinsic-size`).
 - [`zIndexRules.ts`](./zIndexRules.ts): Z-Index Design System Parity and isolated constant rules.
 
 ## Work Guidance
