@@ -24,5 +24,4 @@ Thumbs.db
 # Auditor tool caches (Added by @francogp/auditor)
 test-results/
 .tsbuildinfo
-dist/
 dev-dist/

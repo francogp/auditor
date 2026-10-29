@@ -60,7 +60,11 @@ function buildCacheGitIgnoreEntries(cachePaths, ownerId, reason) {
 		return {
 			id: `${ownerId}-${cp}`,
 			pattern: normPattern,
-			reason
+			reason,
+			isApplicable: (config) => {
+				if ((trimmed === "dist" || trimmed.startsWith("dist/")) && config.packageDistribution?.enabled === true) return false;
+				return true;
+			}
 		};
 	});
 }
