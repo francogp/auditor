@@ -392,12 +392,12 @@ if ($updateToLatest) {
                 $rawPkg = $rawPkg -replace '("packageManager":\s*")[^"]*(")', "`${1}npm@$newNpmVer`${2}"
                 $pkgModified = $true
                 Write-Host "  [OK] packageManager synchronized to npm@$newNpmVer in package.json" -ForegroundColor Green
-            } elseif ($rawPkg -match '("name":\s*"[^"]*"\s*,)') {
-                $rawPkg = $rawPkg -replace '("name":\s*"[^"]*"\s*,)', "`$1`n  `"packageManager`": `"npm@$newNpmVer`","
+            } elseif ($rawPkg -match '(?m)^(  "name":\s*"[^"]*"\s*,)') {
+                $rawPkg = $rawPkg -replace '(?m)^(  "name":\s*"[^"]*"\s*,)', "`$1`n  `"packageManager`": `"npm@$newNpmVer`","
                 $pkgModified = $true
                 Write-Host "  [OK] packageManager injected as npm@$newNpmVer in package.json" -ForegroundColor Green
-            } elseif ($rawPkg -match '("name":\s*"[^"]*")') {
-                $rawPkg = $rawPkg -replace '("name":\s*"[^"]*")', "`$1,`n  `"packageManager`": `"npm@$newNpmVer`""
+            } elseif ($rawPkg -match '(?m)^(  "name":\s*"[^"]*")') {
+                $rawPkg = $rawPkg -replace '(?m)^(  "name":\s*"[^"]*")', "`$1,`n  `"packageManager`": `"npm@$newNpmVer`""
                 $pkgModified = $true
                 Write-Host "  [OK] packageManager injected as npm@$newNpmVer in package.json" -ForegroundColor Green
             }
@@ -413,6 +413,8 @@ if ($updateToLatest) {
     if (Test-Path $pkgPath) {
         $rawPkg = [System.IO.File]::ReadAllText($pkgPath)
         if ($rawPkg -match '"npm":\s*">=?([0-9.]+)"') {
+            $targetNpmVer = $matches[1]
+        } elseif ($rawPkg -match '"packageManager":\s*"npm@([0-9.]+)"') {
             $targetNpmVer = $matches[1]
         }
     }

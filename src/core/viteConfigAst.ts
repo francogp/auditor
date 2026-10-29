@@ -9,17 +9,21 @@ import ts from 'typescript';
 import type { AuditConfig } from './auditConfig.ts';
 import type { AuditVitePlusTestProjects } from './auditConfigTypes.ts';
 import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
-import { isPathContained, normalizePosixPath } from './safePath.ts';
+import { isPathContained, normalizePosixPath, stripGlobSuffix } from './safePath.ts';
 
 function normalizePosixRoot(rawRoot: string): string {
-  return normalizePosixPath(rawRoot).toLowerCase();
+  return (stripGlobSuffix(normalizePosixPath(rawRoot)) || '.').toLowerCase();
 }
 
-function isPathUnderRoot(candidatePath: string, rootDir: string): boolean {
+function isPathUnderRoot(
+  candidatePath: string,
+  rootDir: string,
+  baseDir = process.cwd()
+): boolean {
   return isPathContained(
     normalizePosixRoot(rootDir),
     normalizePosixRoot(candidatePath),
-    process.cwd()
+    baseDir
   );
 }
 
@@ -816,10 +820,23 @@ export function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralEx
   const testRoots = resolveVitestRoots(auditConfig);
   const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
   const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+  const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
+  const hasProjects = Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0);
 
-  const testData = {
+  const testData: Record<string, unknown> = {
     environment: 'node',
-    include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`),
+    ...(hasProjects && testProjectsConfig
+      ? {
+          projects: Object.entries(testProjectsConfig).map(([projName, roots]) => ({
+            test: {
+              name: projName,
+              include: roots.map((r) => (r.includes('*') ? r : `${r}/**/*.{test,spec}.ts`))
+            }
+          }))
+        }
+      : {
+          include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`)
+        }),
     coverage: {
       provider: 'v8',
       reportsDirectory: 'scratch/coverage',
@@ -1418,17 +1435,26 @@ function toTestGlobPattern(root: string): string {
   return root.includes('*') ? root : `${root}/**/*.{test,spec}.ts`;
 }
 
+function findPropInList(
+  props: readonly ts.ObjectLiteralElementLike[],
+  propName: string,
+  sf: ts.SourceFile
+): ts.PropertyAssignment | undefined {
+  for (const prop of props) {
+    if (ts.isPropertyAssignment(prop) && getPropertyKeyName(prop.name, sf) === propName) {
+      return prop;
+    }
+  }
+  return undefined;
+}
+
 function syncTestProjectsAst(
   props: ts.ObjectLiteralElementLike[],
   testProjectsConfig: AuditVitePlusTestProjects,
   sf: ts.SourceFile
 ): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
   let modified = false;
-  const projectsProp = findPropertyAssignment(
-    ts.factory.createObjectLiteralExpression(props, true),
-    'projects',
-    sf
-  );
+  const projectsProp = findPropInList(props, 'projects', sf);
 
   const existingElements: ts.Expression[] =
     projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer)
@@ -1534,27 +1560,16 @@ function syncTestSectionAst(
   const hasConfiguredProjects =
     Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0);
 
-  const projectsProp = findPropertyAssignment(
-    ts.factory.createObjectLiteralExpression(props, true),
-    'projects',
-    sf
-  );
+  const projectsProp = findPropInList(props, 'projects', sf);
   const hasExistingProjects = Boolean(
     projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer)
   );
 
   if (hasConfiguredProjects || hasExistingProjects) {
     // 1. Anti-contamination: purge root include if projects exist
-    const rootIncludeProp = findPropertyAssignment(
-      ts.factory.createObjectLiteralExpression(props, true),
-      'include',
-      sf
-    );
-    if (rootIncludeProp) {
-      const rmRes = removeObjectProperty(props, 'include', sf);
-      props = rmRes.props;
-      if (rmRes.modified) modified = true;
-    }
+    const rmRes = removeObjectProperty(props, 'include', sf);
+    props = rmRes.props;
+    if (rmRes.modified) modified = true;
 
     // 2. Synchronize projects if configured in audit.config.ts
     if (hasConfiguredProjects && testProjectsConfig) {

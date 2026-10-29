@@ -143,6 +143,12 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       const codeIdx = code.indexOf('const c');
       expect(isInsideComment(code, codeIdx)).toBe(false);
     });
+
+    it('does not treat URLs with https:// as line comments in isInsideComment', () => {
+      const lineWithUrl = 'const endpoint = "https://api.example.com/v1"; const badVal: any = 1;';
+      const idxOfAny = lineWithUrl.indexOf('any');
+      expect(isInsideComment(lineWithUrl, idxOfAny)).toBe(false);
+    });
   });
 
   describe('createLineLocator Helper', () => {
@@ -310,6 +316,26 @@ describe('ProjectArchitectureAuditor & Fallow Integration', () => {
       const res = await auditor.finishAudit();
       expect(res.summary.errors).toBe(0);
       expect(res.status).toBe('passed');
+    });
+
+    it('isolates ProjectArchitectureAuditor to its configured projectRoot instead of process.cwd()', async () => {
+      const srcDir = path.join(tempDir, 'src');
+      await fs.mkdir(srcDir, { recursive: true });
+      await fs.writeFile(
+        path.join(srcDir, 'bad.ts'),
+        'import fs from ' + '"fs";\nexport const val: any = 1;\n',
+        'utf-8'
+      );
+
+      const auditor = new ProjectArchitectureAuditor({
+        projectRoot: tempDir,
+        roots: ['src']
+      });
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+
+      expect(result.findings.length).toBeGreaterThan(0);
+      expect(result.findings.every((f) => f.file === 'src/bad.ts')).toBe(true);
     });
   });
 });

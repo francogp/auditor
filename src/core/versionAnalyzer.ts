@@ -5,7 +5,7 @@
  * based on Git diff metrics, affected subsystems, and commit intent.
  */
 
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { tryOrNull } from './safeUtils.ts';
@@ -208,21 +208,27 @@ export function collectGitDiffMetrics(
   const changedFilesMap = new Map<string, ChangedFileDetail>();
 
   tryOrNull(() => {
-    const diffOutput = execSync(`git diff ${baseRef} --numstat`, {
+    const diffProc = spawnSync('git', ['diff', baseRef, '--numstat'], {
       cwd,
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false
     });
-    parseNumstatOutput(diffOutput, changedFilesMap);
+    if (diffProc.status === 0 && diffProc.stdout) {
+      parseNumstatOutput(diffProc.stdout, changedFilesMap);
+    }
   });
 
   tryOrNull(() => {
-    const statusOutput = execSync('git status --porcelain', {
+    const statusProc = spawnSync('git', ['status', '--porcelain'], {
       cwd,
       encoding: 'utf-8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false
     });
-    parsePorcelainOutput(statusOutput, cwd, changedFilesMap);
+    if (statusProc.status === 0 && statusProc.stdout) {
+      parsePorcelainOutput(statusProc.stdout, cwd, changedFilesMap);
+    }
   });
 
   const changedFiles = Array.from(changedFilesMap.values());

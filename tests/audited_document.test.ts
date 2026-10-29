@@ -97,6 +97,20 @@ describe('AuditedDocument', () => {
       const afterComment = doc.advancePastCommentOrString(0);
       expect(afterComment).toBe(13); // Length of "/* comment */"
     });
+
+    it('handles regex literals containing quotes and comment tokens without desynchronizing ranges', () => {
+      const codeWithRegexQuotes = [
+        "const rx = /don't match \\/\\* fake comment/g;",
+        'const realString = "inside string";',
+        '// real comment at end'
+      ].join('\n');
+      const doc = new AuditedDocument('/virtual/regex.ts', codeWithRegexQuotes);
+      const posInsideRealString = codeWithRegexQuotes.indexOf('inside string');
+      const posOutsideString = codeWithRegexQuotes.indexOf('const realString');
+      expect(doc.isInsideString(posInsideRealString)).toBe(true);
+      expect(doc.isInsideString(posOutsideString)).toBe(false);
+      expect(doc.isInsideComment(posOutsideString)).toBe(false);
+    });
   });
 
   describe('Vue SFC Block Extraction', () => {

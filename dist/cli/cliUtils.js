@@ -228,6 +228,7 @@ function resolvePackageBin(packageName, options) {
 */
 function executeCliToFile(command, args, outputFilePath, options) {
 	const outFd = fs.openSync(outputFilePath, "w");
+	const needsShell = options?.shell ?? (process.platform === "win32" && /\.(?:cmd|bat)$/i.test(command));
 	try {
 		spawnSync(command, args, {
 			cwd: options?.cwd || process.cwd(),
@@ -236,7 +237,7 @@ function executeCliToFile(command, args, outputFilePath, options) {
 				outFd,
 				"pipe"
 			],
-			shell: options?.shell ?? true,
+			shell: needsShell,
 			encoding: "utf-8",
 			maxBuffer: options?.maxBuffer ?? 52428800,
 			timeout: options?.timeout ?? 0

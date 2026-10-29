@@ -62,8 +62,7 @@ const REFACTOR_SUBCOMMANDS: ReadonlySet<string> = new Set([
   'help'
 ]); // runtime-set: O(1) subcommand lookup
 
-const REFACTOR_HARNESS_ARGS = {
-  ...COMMON_CLI_ARGS,
+export const REFACTOR_POSITIONAL_CLI_ARGS = {
   subcommand: {
     type: 'positional',
     required: false,
@@ -74,7 +73,12 @@ const REFACTOR_HARNESS_ARGS = {
     type: 'positional',
     required: false,
     description: 'Target file to inspect or plan JSON to apply'
-  },
+  }
+} as const satisfies ArgsDef;
+
+const REFACTOR_HARNESS_ARGS = {
+  ...COMMON_CLI_ARGS,
+  ...REFACTOR_POSITIONAL_CLI_ARGS,
   file: {
     type: 'string',
     description: 'Target file path to inspect'
@@ -285,8 +289,7 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
   );
 
   const rawSubcommand =
-    (typeof parsed.subcommand === 'string' && parsed.subcommand ? parsed.subcommand : undefined) ??
-    (parsed._[0] || 'discover');
+    typeof parsed.subcommand === 'string' && parsed.subcommand ? parsed.subcommand : 'discover';
   const command = rawSubcommand;
   if (parsed.help || command === 'help') {
     renderHarnessHelp(def);
@@ -314,16 +317,14 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     case 'inspect': {
       const targetFile =
         (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
-        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined) ??
-        parsed._[1];
+        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
       handleInspectCommand(def, projectRoot, targetFile);
       break;
     }
     case 'apply': {
       const planFile =
         (typeof parsed.plan === 'string' && parsed.plan ? parsed.plan : undefined) ??
-        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined) ??
-        parsed._[1];
+        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
       await handleApplyCommand(def, projectRoot, planFile, Boolean(parsed.worktree));
       break;
     }

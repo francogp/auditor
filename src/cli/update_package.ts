@@ -123,7 +123,7 @@ export function resolveLatestAuditorTag(
   repoUrl = 'https://github.com/francogp/auditor.git'
 ): string {
   const latestTag = tryOrNull(() => {
-    const stdout = childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
+    const stdout = childProcess.execFileSync('git', ['ls-remote', '--tags', repoUrl], {
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
       timeout: 10000

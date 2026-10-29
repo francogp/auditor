@@ -11,7 +11,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
 import { enableCompileCache } from 'node:module';
-import { execSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -340,10 +340,17 @@ async function auditFile(
 }
 
 export function isInsideComment(content: string, index: number): boolean {
-  // Check for Line Comment // ...
+  // Check for Line Comment // ... (excluding URL schemes such as http:// or https://)
   const lastNewLine = content.lastIndexOf('\n', index);
-  const lastLineComment = content.lastIndexOf('//', index);
-  if (lastLineComment > lastNewLine) return true;
+  let searchPos = index;
+  while (searchPos > lastNewLine) {
+    const slashIdx = content.lastIndexOf('//', searchPos);
+    if (slashIdx <= lastNewLine) break;
+    if (slashIdx === 0 || content[slashIdx - 1] !== ':') {
+      return true;
+    }
+    searchPos = slashIdx - 1;
+  }
 
   // Check for Block Comment /* ... */
   const lastStartBlock = content.lastIndexOf('/*', index);
@@ -501,11 +508,16 @@ export function extractAllBlocks(content: string, tag: string): VueBlock[] {
 
 function getChangedFiles(ref: string, projectRoot = process.cwd()): string[] {
   try {
-    const output = execSync(`git diff --name-only ${ref}`, {
+    const proc = spawnSync('git', ['diff', '--name-only', ref], {
       cwd: projectRoot,
       encoding: 'utf8',
-      stdio: ['pipe', 'pipe', 'ignore']
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false
     });
+    if (proc.status !== 0 || !proc.stdout) {
+      throw new Error(`git diff failed for ref ${ref}`);
+    }
+    const output = proc.stdout;
     return output
       .split('\n')
       .map((f) => f.trim())
@@ -631,19 +643,34 @@ function parseProjectCliContext(cliArgs?: string[]): ProjectCliContext {
   };
 }
 
+export interface ProjectMainRunOptions {
+  readonly projectRoot?: string;
+  readonly precollectedFiles?: readonly string[];
+  readonly skipPersist?: boolean;
+}
+
 async function runAstFileScans(
   ctx: ProjectCliContext,
-  logProgress: (msg: string) => void
+  logProgress: (msg: string) => void,
+  options?: ProjectMainRunOptions
 ): Promise<{ violations: Violation[]; files: string[] }> {
   const shouldScanFiles = ctx.activeConfigRules.size > 0;
   const changedSince = ctx.values['changed-since'] as string | undefined;
+  const baseRoot = options?.projectRoot ?? process.cwd();
   let files: string[] = [];
   let violations: Violation[] = [];
 
   if (!shouldScanFiles) return { violations, files };
 
-  if (changedSince) {
-    files = getChangedFiles(changedSince);
+  if (options?.precollectedFiles) {
+    files = options.precollectedFiles.map((f) =>
+      path.isAbsolute(f) ? f : path.resolve(baseRoot, f)
+    );
+    logProgress(
+      styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`)
+    );
+  } else if (changedSince) {
+    files = getChangedFiles(changedSince, baseRoot);
     logProgress(
       styleText(
         'cyan',
@@ -651,7 +678,7 @@ async function runAstFileScans(
       )
     );
   } else {
-    files = await getFilesToAudit(path.resolve(process.cwd(), ctx.values.path as string));
+    files = await getFilesToAudit(path.resolve(baseRoot, ctx.values.path as string));
     logProgress(
       styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`)
     );
@@ -879,9 +906,10 @@ async function exportProjectReportOutput(
 
 async function executeProjectAuditPhases(
   ctx: ProjectCliContext,
-  logProgress: (msg: string) => void
+  logProgress: (msg: string) => void,
+  options?: ProjectMainRunOptions
 ): Promise<{ all: Violation[]; files: string[] }> {
-  const astResult = await runAstFileScans(ctx, logProgress);
+  const astResult = await runAstFileScans(ctx, logProgress, options);
   return { all: astResult.violations, files: astResult.files };
 }
 
@@ -954,23 +982,31 @@ function buildProjectJsonReport(params: {
 }
 
 async function persistProjectReports(
-  jsonReport: object
+  jsonReport: object,
+  projectRoot = process.cwd(),
+  skipPersist = false
 ): Promise<{ archJsonPath: string; jsonReportStr: string }> {
-  const scratchArchDir = path.resolve(process.cwd(), 'scratch/audits/architecture');
-  await fs.mkdir(scratchArchDir, { recursive: true });
+  const scratchArchDir = path.resolve(projectRoot, 'scratch/audits/architecture');
   const archJsonPath = path.join(scratchArchDir, 'audit_project.json');
   const latestArchJsonPath = path.resolve(
-    process.cwd(),
+    projectRoot,
     'scratch/audits/latest_audit_project.json'
   );
   const jsonReportStr = JSON.stringify(jsonReport, null, 2);
-  await fs.writeFile(archJsonPath, jsonReportStr, 'utf-8');
-  await fs.writeFile(latestArchJsonPath, jsonReportStr, 'utf-8');
+  if (!skipPersist) {
+    await fs.mkdir(scratchArchDir, { recursive: true });
+    await fs.writeFile(archJsonPath, jsonReportStr, 'utf-8');
+    await fs.writeFile(latestArchJsonPath, jsonReportStr, 'utf-8');
+  }
   return { archJsonPath, jsonReportStr };
 }
 
-export async function main(cliArgs?: string[]): Promise<Violation[]> {
-  await loadAuditConfig();
+export async function main(
+  cliArgs?: string[],
+  options?: ProjectMainRunOptions
+): Promise<Violation[]> {
+  const effectiveProjectRoot = options?.projectRoot ?? process.cwd();
+  await loadAuditConfig(effectiveProjectRoot);
   const startTime = performance.now(); // CLI standalone runner execution timer
   const ctx = parseProjectCliContext(cliArgs);
 
@@ -995,7 +1031,7 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
     );
   }
 
-  const { all: rawAll, files } = await executeProjectAuditPhases(ctx, logProgress);
+  const { all: rawAll, files } = await executeProjectAuditPhases(ctx, logProgress, options);
   const { all, fileGroups, typeGroups } = filterAndGroupViolations(rawAll, ctx);
 
   const topLimit = ctx.values.top ? parseInt(ctx.values.top as string, 10) : DEFAULT_TOP_LIMIT;
@@ -1015,7 +1051,11 @@ export async function main(cliArgs?: string[]): Promise<Violation[]> {
     durationMs: Math.round(performance.now() - startTime) // CLI standalone runner execution timer
   });
 
-  const { archJsonPath, jsonReportStr } = await persistProjectReports(jsonReport);
+  const { archJsonPath, jsonReportStr } = await persistProjectReports(
+    jsonReport,
+    effectiveProjectRoot,
+    options?.skipPersist
+  );
 
   if (process.env.AUDIT_SUBPROCESS !== 'true') {
     if (ctx.isHumanMode) {
@@ -1200,7 +1240,12 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
     const cliArgs = this.isFixActive()
       ? [...getProcessCliArgs(), '--fix']
       : undefined;
-    const violations = await main(cliArgs);
+    const isExternalProject = path.resolve(this.projectRoot) !== path.resolve(process.cwd());
+    const violations = await main(cliArgs, {
+      projectRoot: this.projectRoot,
+      precollectedFiles: files,
+      skipPersist: isExternalProject
+    });
     for (const [ruleId, durationMs] of activeProjectRuleTimings.entries()) {
       this.reportRuleDuration(ruleId, durationMs);
     }

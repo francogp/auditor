@@ -14,13 +14,50 @@ import {
   type AcknowledgeableExemptionPolicy,
   AUDIT_CONFIG_FILE
 } from './auditConfig.ts';
-import { normalizePosixPath } from './safePath.ts';
 import {
-  formatSectionObjectLiteral,
-  parseAuditConfigFileAst,
-  appendMissingSectionsToConfigFile
-} from './auditConfigAst.ts';
+  extractExportedConfigObjectLiteral,
+  dtoValueToTsExpression,
+  formatTsNodeTwoSpaceIndent
+} from './astContext.ts';
+import { normalizePosixPath } from './safePath.ts';
 import { tryCatchSync } from './safeUtils.ts';
+
+function insertBeforeClosingToken(
+  code: string,
+  endPos: number,
+  closingChar: '}' | ']',
+  hasExistingItems: boolean,
+  snippet: string
+): string | null {
+  const closePos = code.lastIndexOf(closingChar, endPos - 1);
+  if (closePos === -1) return null;
+  const beforeClose = code.slice(0, closePos).trimEnd();
+  const needsComma = hasExistingItems && !beforeClose.endsWith(',');
+  const commaPos = beforeClose.length;
+  const base = needsComma
+    ? code.slice(0, commaPos) + ',' + code.slice(commaPos, closePos)
+    : code.slice(0, closePos);
+  return base + snippet + code.slice(closePos);
+}
+
+function parseAuditConfigFileAst(
+  configFilePath: string
+): { code: string; source: ts.SourceFile; configObj: ts.ObjectLiteralExpression | null } | null {
+  try {
+    const code = fs.readFileSync(configFilePath, 'utf8');
+    // in-place AST configuration rewrite
+    const source = ts.createSourceFile(
+      configFilePath,
+      code,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS
+    );
+    return { code, source, configObj: extractExportedConfigObjectLiteral(source) };
+  } catch {
+    return null;
+  }
+}
 
 export interface UnacknowledgedDegradation {
   readonly policy: AcknowledgeableExemptionPolicy;
@@ -216,12 +253,22 @@ export function applyAcknowledgedDegradationsFix(
       p.name.getText(source).replace(/^['"]|['"]$/g, '') === 'coverage'
   ) as ts.PropertyAssignment | undefined;
 
+  const formatIndented = (val: unknown, extraIndent = '  '): string =>
+    formatTsNodeTwoSpaceIndent(dtoValueToTsExpression(val), ts.EmitHint.Expression)
+      .split('\n')
+      .map((line, idx) => (idx === 0 ? line : `${extraIndent}${line}`))
+      .join('\n');
+
   if (!coverageProp || !ts.isObjectLiteralExpression(coverageProp.initializer)) {
-    appendMissingSectionsToConfigFile(configFilePath, {
-      coverage: {
-        acknowledgedDegradations: newEntries
-      }
-    });
+    const covStr = formatIndented({ acknowledgedDegradations: newEntries }, '  ');
+    const updated = insertBeforeClosingToken(
+      code,
+      configObj.getEnd(),
+      '}',
+      configObj.properties.length > 0,
+      `\n  coverage: ${covStr}\n`
+    );
+    if (updated) fs.writeFileSync(configFilePath, updated, 'utf8');
     return;
   }
 
@@ -233,50 +280,33 @@ export function applyAcknowledgedDegradationsFix(
   ) as ts.PropertyAssignment | undefined;
 
   if (!ackProp || !ts.isArrayLiteralExpression(ackProp.initializer)) {
-    const formattedArray = formatSectionObjectLiteral(newEntries)
-      .split('\n')
-      .map((line, idx) => (idx === 0 ? line : `    ${line}`))
-      .join('\n');
-    const closeBracePos = code.lastIndexOf('}', coverageObj.getEnd() - 1);
-    if (closeBracePos === -1) return;
-
-    const beforeClose = code.slice(0, closeBracePos).trimEnd();
-    const needsComma = !beforeClose.endsWith(',');
-    const commaPos = beforeClose.length;
-
-    const base = needsComma
-      ? code.slice(0, commaPos) + ',' + code.slice(commaPos, closeBracePos)
-      : code.slice(0, closeBracePos);
-
-    const snippet = `\n    acknowledgedDegradations: ${formattedArray}\n  `;
-    const finalCode = base + snippet + code.slice(closeBracePos);
-    fs.writeFileSync(configFilePath, finalCode, 'utf8');
+    const formattedArray = formatIndented(newEntries, '      ');
+    const updated = insertBeforeClosingToken(
+      code,
+      coverageObj.getEnd(),
+      '}',
+      coverageObj.properties.length > 0,
+      `\n    acknowledgedDegradations: ${formattedArray}\n  `
+    );
+    if (updated) fs.writeFileSync(configFilePath, updated, 'utf8');
     return;
   }
 
   const ackArray = ackProp.initializer;
-  const closeBracketPos = code.lastIndexOf(']', ackArray.getEnd() - 1);
-  if (closeBracketPos === -1) return;
-
-  const beforeBracket = code.slice(0, closeBracketPos).trimEnd();
-  const hasElements = ackArray.elements.length > 0;
-  const needsComma = hasElements && !beforeBracket.endsWith(',');
-  const commaPos = beforeBracket.length;
-
-  const base = needsComma
-    ? code.slice(0, commaPos) + ',' + code.slice(commaPos, closeBracketPos)
-    : code.slice(0, closeBracketPos);
-
   const formattedItems = newEntries
-    .map((entry) => {
-      const itemStr = formatSectionObjectLiteral(entry);
-      return itemStr
+    .map((entry) =>
+      formatIndented(entry, '  ')
         .split('\n')
         .map((l) => `      ${l}`)
-        .join('\n');
-    })
+        .join('\n')
+    )
     .join(',\n');
-  const snippet = (hasElements ? '\n' : '\n') + formattedItems + '\n    ';
-  const finalCode = base + snippet + code.slice(closeBracketPos);
-  fs.writeFileSync(configFilePath, finalCode, 'utf8');
+  const updated = insertBeforeClosingToken(
+    code,
+    ackArray.getEnd(),
+    ']',
+    ackArray.elements.length > 0,
+    `\n${formattedItems}\n    `
+  );
+  if (updated) fs.writeFileSync(configFilePath, updated, 'utf8');
 }

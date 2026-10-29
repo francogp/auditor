@@ -44,7 +44,7 @@ import {
 } from '../../core/auditConfigDegradations.ts';
 import { auditConfigRatchet } from '../../core/configRatchet.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
-import { createSyntheticSourceFile } from '../../core/astContext.ts';
+import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from '../../core/astContext.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
 import ts from 'typescript';
 import { SyntaxKind } from 'ts-morph';
@@ -52,34 +52,10 @@ import { SyntaxKind } from 'ts-morph';
 enableCompileCache();
 
 import {
-  dtoValueToTsExpression,
-  printTsExpression,
-  formatSectionObjectLiteral,
-  findConfigObjectLiteral,
-  appendMissingSectionsFallback,
-  parseAuditConfigFileAst,
-  appendMissingSectionsToJsonFile,
-  appendMissingSectionsToTsFile,
   appendMissingSectionsToConfigFile,
-  findTargetAuditConfigObject,
   syncAuditorVersionInTsFile,
   mutateAuditConfigFileAst
 } from '../../core/auditConfigAst.ts';
-
-export {
-  dtoValueToTsExpression,
-  printTsExpression,
-  formatSectionObjectLiteral,
-  findConfigObjectLiteral,
-  appendMissingSectionsFallback,
-  parseAuditConfigFileAst,
-  appendMissingSectionsToJsonFile,
-  appendMissingSectionsToTsFile,
-  appendMissingSectionsToConfigFile,
-  findTargetAuditConfigObject,
-  syncAuditorVersionInTsFile,
-  mutateAuditConfigFileAst
-};
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
   if (typeof obj !== 'object' || obj === null) return undefined;
@@ -264,14 +240,8 @@ export function createDefaultAuditConfigContent(
     )
   );
 
-  const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-  const dummySource = createSyntheticSourceFile('audit.config.ts');
-  const importCode = printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource);
-  const exportCode = printer
-    .printNode(ts.EmitHint.Unspecified, exportDecl, dummySource)
-    .split('\n')
-    .map((line) => line.replace(/^( {4})+/, (m) => ' '.repeat(m.length / 2)))
-    .join('\n');
+  const importCode = formatTsNodeTwoSpaceIndent(importDecl);
+  const exportCode = formatTsNodeTwoSpaceIndent(exportDecl);
 
   return `${importCode}\n\n${exportCode}\n`;
 }

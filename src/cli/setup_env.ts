@@ -37,7 +37,8 @@ export function runSetup(
   const isUpdate =
     Boolean(parsed.update) ||
     Boolean(parsed['update-version']) ||
-    parsed.action === 'update';
+    parsed.action === 'update' ||
+    parsed._.map(String).includes('update');
   const forwardedArgs = rawInputArgs.filter((a) => a !== 'update' && a !== '--update');
 
   if (isWindows) {

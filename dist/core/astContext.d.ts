@@ -42,3 +42,6 @@ export declare function createSyntheticSourceFile(fileName?: string): ts.SourceF
  * Helper to print an AST node using a synthetic source file.
  */
 export declare function printAstNode(node: ts.Node, printer?: ts.Printer, hint?: ts.EmitHint): string;
+export declare function extractExportedConfigObjectLiteral(source: ts.SourceFile): ts.ObjectLiteralExpression | null;
+export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
+export declare function formatTsNodeTwoSpaceIndent(node: ts.Node, hint?: ts.EmitHint): string;

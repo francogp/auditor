@@ -23,6 +23,11 @@ interface ProjectCliContext {
 }
 export declare function extractSelectedRules(values: Record<string, unknown>, positionals: string[]): Set<string>;
 export declare function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule>;
+export interface ProjectMainRunOptions {
+  readonly projectRoot?: string;
+  readonly precollectedFiles?: readonly string[];
+  readonly skipPersist?: boolean;
+}
 export declare function filterAndGroupViolations(rawViolations: Violation[], ctx: ProjectCliContext): {
   all: Violation[];
   fileGroups: Record<string, Violation[]>;
@@ -34,7 +39,7 @@ export declare function buildProjectTopFiles(fileGroups: Record<string, Violatio
   warnings: number;
   total: number;
 }[];
-export declare function main(cliArgs?: string[]): Promise<Violation[]>;
+export declare function main(cliArgs?: string[], options?: ProjectMainRunOptions): Promise<Violation[]>;
 export declare function getProjectArchitectureRuleDescriptions(): Record<string, string>;
 export declare function getProjectArchitectureRuleRemediations(): Record<string, string>;
 export declare function getProjectArchitectureRuleRemediationPhases(): Record<string, RemediationPhaseId>;

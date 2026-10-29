@@ -7,12 +7,12 @@ import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { createSyntheticSourceFile } from "../../core/astContext.js";
+import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from "../../core/astContext.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
+import { appendMissingSectionsToConfigFile, mutateAuditConfigFileAst, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 import { getPackageJson } from "../../core/packageJson.js";
-import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 import { detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
 import { auditConfigRatchet } from "../../core/configRatchet.js";
 import { enableCompileCache } from "node:module";
@@ -130,9 +130,7 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 	};
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineAuditConfig"))])), ts.factory.createStringLiteral("@francogp/auditor", true));
 	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
-	const printer = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed });
-	const dummySource = createSyntheticSourceFile("audit.config.ts");
-	return `${printer.printNode(ts.EmitHint.Unspecified, importDecl, dummySource)}\n\n${printer.printNode(ts.EmitHint.Unspecified, exportDecl, dummySource).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n")}\n`;
+	return `${formatTsNodeTwoSpaceIndent(importDecl)}\n\n${formatTsNodeTwoSpaceIndent(exportDecl)}\n`;
 }
 function computeMissingConfigDiff(expected, current, isRootLevel = true) {
 	if (current === void 0) {
@@ -833,4 +831,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 	}
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
-export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, dtoValueToTsExpression, enforceCriticalConfigurations, extractMissingConfigPaths, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInConfigFile, syncAuditorVersionInTsFile };
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, enforceCriticalConfigurations, extractMissingConfigPaths, syncAuditorVersionInConfigFile };

@@ -1,6 +1,6 @@
 import "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import { isPathContained, toPosixRelative } from "../../core/safePath.js";
+import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
@@ -980,7 +980,14 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 	return findings;
 }
 function isRootMatch(expectedRoot, assignedRoot, baseDir) {
-	return isPathContained(expectedRoot, assignedRoot, baseDir) || isPathContained(assignedRoot, expectedRoot, baseDir);
+	const cleanExpected = stripGlobSuffix(expectedRoot);
+	const cleanAssigned = stripGlobSuffix(assignedRoot);
+	return isPathContained(cleanExpected, cleanAssigned, baseDir) || isPathContained(cleanAssigned, cleanExpected, baseDir);
+}
+function isRootCoveredByIncludePattern(expectedRoot, includePattern, baseDir) {
+	const cleanExpected = stripGlobSuffix(expectedRoot);
+	const cleanIncludeBase = stripGlobSuffix(includePattern);
+	return isPathContained(cleanIncludeBase, cleanExpected, baseDir);
 }
 function validateConfiguredProjects(summary, fileName, testRoots, configuredProjects, projectRoot) {
 	const findings = [];
@@ -1016,7 +1023,7 @@ function validateConfiguredProjects(summary, fileName, testRoots, configuredProj
 			});
 			continue;
 		}
-		const missingInProject = projRoots.filter((r) => !projectSummary.include.some((inc) => isRootMatch(r, inc, baseDir)));
+		const missingInProject = projRoots.filter((r) => !projectSummary.include.some((inc) => isRootCoveredByIncludePattern(r, inc, baseDir)));
 		if (missingInProject.length > 0) findings.push({
 			suiteId: "validate_vite_plus_config",
 			suiteName: "Vite+ Unified Configuration Validator",

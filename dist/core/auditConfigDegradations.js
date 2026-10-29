@@ -3,7 +3,7 @@ import { tryCatchSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import "./safePath.js";
 import "./auditConfig.js";
-import { appendMissingSectionsToConfigFile, formatSectionObjectLiteral, parseAuditConfigFileAst } from "./auditConfigAst.js";
+import { dtoValueToTsExpression, extractExportedConfigObjectLiteral, formatTsNodeTwoSpaceIndent } from "./astContext.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -15,6 +15,27 @@ import ts from "typescript";
 * Scans configured exemption roots (scripts, data, cli, demo, exemptFiles) and ensures
 * that any path containing code files is registered under coverage.acknowledgedDegradations.
 */
+function insertBeforeClosingToken(code, endPos, closingChar, hasExistingItems, snippet) {
+	const closePos = code.lastIndexOf(closingChar, endPos - 1);
+	if (closePos === -1) return null;
+	const beforeClose = code.slice(0, closePos).trimEnd();
+	const needsComma = hasExistingItems && !beforeClose.endsWith(",");
+	const commaPos = beforeClose.length;
+	return (needsComma ? code.slice(0, commaPos) + "," + code.slice(commaPos, closePos) : code.slice(0, closePos)) + snippet + code.slice(closePos);
+}
+function parseAuditConfigFileAst(configFilePath) {
+	try {
+		const code = fs.readFileSync(configFilePath, "utf8");
+		const source = ts.createSourceFile(configFilePath, code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+		return {
+			code,
+			source,
+			configObj: extractExportedConfigObjectLiteral(source)
+		};
+	} catch {
+		return null;
+	}
+}
 const POLICY_DEFINITIONS = [
 	{
 		policy: "scripts",
@@ -135,35 +156,24 @@ function applyAcknowledgedDegradationsFix(projectRoot, missing) {
 	if (!parsed || !parsed.configObj) return;
 	const { code, source, configObj } = parsed;
 	const coverageProp = configObj.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText(source).replace(/^['"]|['"]$/g, "") === "coverage");
+	const formatIndented = (val, extraIndent = "  ") => formatTsNodeTwoSpaceIndent(dtoValueToTsExpression(val), ts.EmitHint.Expression).split("\n").map((line, idx) => idx === 0 ? line : `${extraIndent}${line}`).join("\n");
 	if (!coverageProp || !ts.isObjectLiteralExpression(coverageProp.initializer)) {
-		appendMissingSectionsToConfigFile(configFilePath, { coverage: { acknowledgedDegradations: newEntries } });
+		const covStr = formatIndented({ acknowledgedDegradations: newEntries }, "  ");
+		const updated = insertBeforeClosingToken(code, configObj.getEnd(), "}", configObj.properties.length > 0, `\n  coverage: ${covStr}\n`);
+		if (updated) fs.writeFileSync(configFilePath, updated, "utf8");
 		return;
 	}
 	const coverageObj = coverageProp.initializer;
 	const ackProp = coverageObj.properties.find((p) => ts.isPropertyAssignment(p) && p.name.getText(source).replace(/^['"]|['"]$/g, "") === "acknowledgedDegradations");
 	if (!ackProp || !ts.isArrayLiteralExpression(ackProp.initializer)) {
-		const formattedArray = formatSectionObjectLiteral(newEntries).split("\n").map((line, idx) => idx === 0 ? line : `    ${line}`).join("\n");
-		const closeBracePos = code.lastIndexOf("}", coverageObj.getEnd() - 1);
-		if (closeBracePos === -1) return;
-		const beforeClose = code.slice(0, closeBracePos).trimEnd();
-		const needsComma = !beforeClose.endsWith(",");
-		const commaPos = beforeClose.length;
-		const finalCode = (needsComma ? code.slice(0, commaPos) + "," + code.slice(commaPos, closeBracePos) : code.slice(0, closeBracePos)) + `\n    acknowledgedDegradations: ${formattedArray}\n  ` + code.slice(closeBracePos);
-		fs.writeFileSync(configFilePath, finalCode, "utf8");
+		const formattedArray = formatIndented(newEntries, "      ");
+		const updated = insertBeforeClosingToken(code, coverageObj.getEnd(), "}", coverageObj.properties.length > 0, `\n    acknowledgedDegradations: ${formattedArray}\n  `);
+		if (updated) fs.writeFileSync(configFilePath, updated, "utf8");
 		return;
 	}
 	const ackArray = ackProp.initializer;
-	const closeBracketPos = code.lastIndexOf("]", ackArray.getEnd() - 1);
-	if (closeBracketPos === -1) return;
-	const beforeBracket = code.slice(0, closeBracketPos).trimEnd();
-	const hasElements = ackArray.elements.length > 0;
-	const needsComma = hasElements && !beforeBracket.endsWith(",");
-	const commaPos = beforeBracket.length;
-	const base = needsComma ? code.slice(0, commaPos) + "," + code.slice(commaPos, closeBracketPos) : code.slice(0, closeBracketPos);
-	const formattedItems = newEntries.map((entry) => {
-		return formatSectionObjectLiteral(entry).split("\n").map((l) => `      ${l}`).join("\n");
-	}).join(",\n");
-	const finalCode = base + ((hasElements ? "\n" : "\n") + formattedItems + "\n    ") + code.slice(closeBracketPos);
-	fs.writeFileSync(configFilePath, finalCode, "utf8");
+	const formattedItems = newEntries.map((entry) => formatIndented(entry, "  ").split("\n").map((l) => `      ${l}`).join("\n")).join(",\n");
+	const updated = insertBeforeClosingToken(code, ackArray.getEnd(), "]", ackArray.elements.length > 0, `\n${formattedItems}\n    `);
+	if (updated) fs.writeFileSync(configFilePath, updated, "utf8");
 }
 export { applyAcknowledgedDegradationsFix, collectRelativeCodeFiles, detectUnacknowledgedDegradations };

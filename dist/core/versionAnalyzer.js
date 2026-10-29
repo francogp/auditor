@@ -1,7 +1,7 @@
 import { tryOrNull } from "./safeUtils.js";
 import path from "node:path";
 import fs from "node:fs";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 // src/core/versionAnalyzer.ts
 /**
 * src/core/versionAnalyzer.ts
@@ -137,26 +137,34 @@ function aggregateSubsystemMetrics(changedFiles) {
 function collectGitDiffMetrics(cwd = process.cwd(), baseRef = "HEAD") {
 	const changedFilesMap = /* @__PURE__ */ new Map();
 	tryOrNull(() => {
-		parseNumstatOutput(execSync(`git diff ${baseRef} --numstat`, {
+		const diffProc = spawnSync("git", [
+			"diff",
+			baseRef,
+			"--numstat"
+		], {
 			cwd,
 			encoding: "utf-8",
 			stdio: [
-				"pipe",
+				"ignore",
 				"pipe",
 				"ignore"
-			]
-		}), changedFilesMap);
+			],
+			shell: false
+		});
+		if (diffProc.status === 0 && diffProc.stdout) parseNumstatOutput(diffProc.stdout, changedFilesMap);
 	});
 	tryOrNull(() => {
-		parsePorcelainOutput(execSync("git status --porcelain", {
+		const statusProc = spawnSync("git", ["status", "--porcelain"], {
 			cwd,
 			encoding: "utf-8",
 			stdio: [
-				"pipe",
+				"ignore",
 				"pipe",
 				"ignore"
-			]
-		}), cwd, changedFilesMap);
+			],
+			shell: false
+		});
+		if (statusProc.status === 0 && statusProc.stdout) parsePorcelainOutput(statusProc.stdout, cwd, changedFilesMap);
 	});
 	const changedFiles = Array.from(changedFilesMap.values());
 	const agg = aggregateSubsystemMetrics(changedFiles);

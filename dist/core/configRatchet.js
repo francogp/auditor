@@ -1,10 +1,12 @@
-import { safeJsonParse, safeReadFileSync } from "./safeUtils.js";
+import { safeReadFileSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { createDomainSet } from "./domainCollections.js";
 import "./safePath.js";
+import { extractExportedConfigObjectLiteral } from "./astContext.js";
 import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier.js";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import ts from "typescript";
 import { createHash } from "node:crypto";
 // src/core/configRatchet.ts
 /**
@@ -24,6 +26,34 @@ import { createHash } from "node:crypto";
 * 4. Antigravity Native Authorization: If `RELAX-<8hex>` is verified in Antigravity's conversation transcript
 *    from a USER_EXPLICIT step with zero model tampering, the relaxation is accepted.
 */
+function astExpressionToPlainValue(expr) {
+	if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
+	if (ts.isNumericLiteral(expr)) return Number(expr.text);
+	if (ts.isPrefixUnaryExpression(expr) && expr.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(expr.operand)) return -Number(expr.operand.text);
+	if (expr.kind === ts.SyntaxKind.TrueKeyword) return true;
+	if (expr.kind === ts.SyntaxKind.FalseKeyword) return false;
+	if (expr.kind === ts.SyntaxKind.NullKeyword) return null;
+	if (ts.isArrayLiteralExpression(expr)) return expr.elements.map((el) => astExpressionToPlainValue(el));
+	if (ts.isObjectLiteralExpression(expr)) {
+		const out = {};
+		for (const prop of expr.properties) if (ts.isPropertyAssignment(prop) && prop.name) {
+			const key = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : void 0;
+			if (key !== void 0) out[key] = astExpressionToPlainValue(prop.initializer);
+		}
+		return out;
+	}
+}
+function parseAuditConfigTextToRecord(code) {
+	try {
+		const source = ts.createSourceFile("audit.config.ts", code, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+		const configObj = extractExportedConfigObjectLiteral(source);
+		if (!configObj) return null;
+		const plain = astExpressionToPlainValue(configObj);
+		return typeof plain === "object" && plain !== null && !Array.isArray(plain) ? plain : null;
+	} catch {
+		return null;
+	}
+}
 function runGit(projectRoot, args) {
 	const proc = spawnSync("git", args, {
 		cwd: projectRoot,
@@ -265,12 +295,10 @@ function auditConfigRatchet(projectRoot, localConfig, options = {}) {
 		tamperingDetected: false
 	};
 	const relaxations = [];
-	if (readGitFile(projectRoot, effectiveRef, ".auditor/audit.config.ts")) {
-		const rawOnlineJson = readGitFile(projectRoot, effectiveRef, ".auditor/audit.config.json");
-		if (rawOnlineJson) {
-			const parsedOnline = safeJsonParse(rawOnlineJson);
-			if (parsedOnline) relaxations.push(...inspectAuditConfigChanges(parsedOnline, localConfig));
-		}
+	const rawOnlineAuditConfig = readGitFile(projectRoot, effectiveRef, ".auditor/audit.config.ts");
+	if (rawOnlineAuditConfig) {
+		const parsedOnlineTs = parseAuditConfigTextToRecord(rawOnlineAuditConfig);
+		if (parsedOnlineTs) relaxations.push(...inspectAuditConfigChanges(parsedOnlineTs, localConfig));
 	}
 	for (const jsonFile of [
 		".stylelintrc.json",

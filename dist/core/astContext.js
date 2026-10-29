@@ -39,9 +39,7 @@ var SharedAstContext = class {
 		let codeToParse = rawContent;
 		if (isVue) {
 			const extracted = this.extractScript(rawContent, norm);
-			const match = rawContent.match(/<script\b[^>]*>/i);
-			const openTagEnd = match && match.index !== void 0 ? match.index + match[0].length : 0;
-			const linesBefore = (rawContent.substring(0, openTagEnd).match(/\n/g) ?? []).length;
+			const linesBefore = Math.max(0, extracted.offsetLine - 1);
 			codeToParse = "\n".repeat(linesBefore) + extracted.scriptContent;
 		}
 		const sf = ts.createSourceFile(path.basename(norm), codeToParse, ts.ScriptTarget.Latest, true, isVue ? ts.ScriptKind.TS : void 0);
@@ -67,9 +65,11 @@ var SharedAstContext = class {
 			this.extractedScripts.set(norm, empty);
 			return empty;
 		}
+		const scriptContent = match[1] ?? "";
+		const openTagLength = match[0].indexOf(scriptContent);
 		const result = {
-			scriptContent: match[1] ?? "",
-			offsetLine: (content.substring(0, match.index).match(/\n/g) ?? []).length + 1
+			scriptContent,
+			offsetLine: (content.substring(0, match.index + (openTagLength >= 0 ? openTagLength : 0)).match(/\n/g) ?? []).length + 1
 		};
 		this.extractedScripts.set(norm, result);
 		return result;
@@ -112,4 +112,34 @@ function printAstNode(node, printer = ts.createPrinter({ newLine: ts.NewLineKind
 	const dummy = createSyntheticSourceFile();
 	return printer.printNode(hint, node, dummy);
 }
-export { SharedAstContext, createSyntheticSourceFile, printAstNode };
+function extractExportedConfigObjectLiteral(source) {
+	const expr = source.statements.find(ts.isExportAssignment)?.expression;
+	if (!expr) return null;
+	if (ts.isObjectLiteralExpression(expr)) return expr;
+	if (ts.isCallExpression(expr) && expr.arguments[0] && ts.isObjectLiteralExpression(expr.arguments[0])) return expr.arguments[0];
+	return null;
+}
+function dtoValueToTsExpression(value) {
+	if (typeof value === "string") return ts.factory.createStringLiteral(value, true);
+	if (typeof value === "number") return value < 0 ? ts.factory.createPrefixUnaryExpression(ts.SyntaxKind.MinusToken, ts.factory.createNumericLiteral(Math.abs(value))) : ts.factory.createNumericLiteral(value);
+	if (typeof value === "boolean") return value ? ts.factory.createTrue() : ts.factory.createFalse();
+	if (value === null || value === void 0) return ts.factory.createNull();
+	if (Array.isArray(value)) {
+		const elements = value.map((item) => dtoValueToTsExpression(item));
+		const multiLine = value.length > 3 || value.some((item) => typeof item === "object" && item !== null);
+		return ts.factory.createArrayLiteralExpression(elements, multiLine);
+	}
+	if (typeof value === "object") {
+		const entries = Object.entries(value).filter(([, v]) => v !== void 0);
+		const props = entries.map(([k, v]) => {
+			const propName = /^[a-z_$][\w$]*$/i.test(k) ? ts.factory.createIdentifier(k) : ts.factory.createStringLiteral(k, true);
+			return ts.factory.createPropertyAssignment(propName, dtoValueToTsExpression(v));
+		});
+		return ts.factory.createObjectLiteralExpression(props, entries.length > 0);
+	}
+	return ts.factory.createNull();
+}
+function formatTsNodeTwoSpaceIndent(node, hint = ts.EmitHint.Unspecified) {
+	return printAstNode(node, void 0, hint).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n");
+}
+export { SharedAstContext, createSyntheticSourceFile, dtoValueToTsExpression, extractExportedConfigObjectLiteral, formatTsNodeTwoSpaceIndent, printAstNode };

@@ -80,7 +80,11 @@ function extractTagsFromLsRemote(stdout) {
 }
 function resolveLatestAuditorTag(repoUrl = "https://github.com/francogp/auditor.git") {
 	const latestTag = tryOrNull(() => {
-		const sortedTags = extractTagsFromLsRemote(childProcess.execSync(`git ls-remote --tags ${repoUrl}`, {
+		const sortedTags = extractTagsFromLsRemote(childProcess.execFileSync("git", [
+			"ls-remote",
+			"--tags",
+			repoUrl
+		], {
 			encoding: "utf-8",
 			stdio: [
 				"ignore",

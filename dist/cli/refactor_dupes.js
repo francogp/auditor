@@ -6,6 +6,7 @@ import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
 import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
+import { REFACTOR_POSITIONAL_CLI_ARGS } from "../core/refactor/refactorCliHarness.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/refactor_dupes.ts
@@ -133,17 +134,7 @@ const REFACTOR_DUPES_ARGS = {
 		type: "string",
 		description: "Path to RefactorPlan JSON file"
 	},
-	subcommand: {
-		type: "positional",
-		required: false,
-		default: "discover",
-		description: "Subcommand to run (discover | inspect | apply | help)"
-	},
-	target: {
-		type: "positional",
-		required: false,
-		description: "Fingerprint to inspect or plan JSON file to apply"
-	},
+	...REFACTOR_POSITIONAL_CLI_ARGS,
 	fingerprint: {
 		type: "string",
 		description: "Clone group fingerprint to inspect"

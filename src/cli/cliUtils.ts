@@ -355,11 +355,13 @@ export function executeCliToFile(
   options?: ExecuteCliToFileOptions
 ): void {
   const outFd = fs.openSync(outputFilePath, 'w');
+  const needsShell =
+    options?.shell ?? (process.platform === 'win32' && /\.(?:cmd|bat)$/i.test(command));
   try {
     spawnSync(command, args, {
       cwd: options?.cwd || process.cwd(),
       stdio: ['ignore', outFd, 'pipe'],
-      shell: options?.shell ?? true,
+      shell: needsShell,
       encoding: 'utf-8',
       maxBuffer: options?.maxBuffer ?? DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
       timeout: options?.timeout ?? DEFAULT_SUBPROCESS_TIMEOUT_MS

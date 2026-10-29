@@ -1481,6 +1481,14 @@ var BaseAuditor = class BaseAuditor {
 			this.recordRuleDuration(ruleId, performance.now() - start);
 		}
 	}
+	/**
+	* Applies per-task CLI arguments (e.g. --rule, --changed-since, --fix) when executing in-process.
+	*/
+	applyTaskCliArgs(cliArgs) {
+		if (cliArgs.length === 0) return;
+		const parsed = parseCittyArgs(SUB_AUDITOR_CLI_ARGS, [...cliArgs]);
+		Object.assign(this.context.values, parsed);
+	}
 	async execute(astContext) {
 		await loadAuditConfig(this.projectRoot);
 		await this.context.checkFiles();

@@ -24,3 +24,9 @@ const firstPos = posList[0]?.toLowerCase();
 
 ### H09 homebrew-positionals-index#1 expect=cli-contracts-homebrew-flag-parsing
 const target = positionals[1];
+
+### H10 homebrew-parsed-underscore-index#1 expect=cli-contracts-homebrew-flag-parsing
+const sub = parsed._[0];
+
+### H11 homebrew-options-positionals-index#1 expect=cli-contracts-homebrew-flag-parsing
+const file = cliOptions.positionals[0];

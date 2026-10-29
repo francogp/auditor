@@ -7,6 +7,7 @@ export declare function determineTopology(files: readonly string[]): CloneTopolo
 export declare class DupesRefactorEngine extends BaseRefactorEngine<TriagedCloneCandidate, RefactorPlan, FallowArchitectureAuditor> {
   readonly toolId = "auditor-dupes";
   readonly configSectionKey: "fallow";
+  private readonly cachedCandidatesByMin;
   constructor(auditorOrOptions?: FallowArchitectureAuditor | string | {
     projectRoot?: string;
     config?: AuditEngineConfig;

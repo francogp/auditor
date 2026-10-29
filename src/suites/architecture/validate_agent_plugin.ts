@@ -165,7 +165,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
           '📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n' +
           '1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n' +
           '2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n' +
-          '3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariable #15 of /architecture). Ensure `name: <name>` matches the directory name.\n' +
+          '3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariant #15 of /architecture). Ensure `name: <name>` matches the directory name.\n' +
           '4. Example / Auto-fix command:\n' +
           '   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).',
         'skill-invalid-asset-syntax':
@@ -276,13 +276,41 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     }
   }
 
+  private findDescriptionBlockBounds(
+    fmRaw: string
+  ): { startLineIdx: number; endLineIdx: number; rawValue: string } | null {
+    const fmLines = fmRaw.split(/\r?\n/);
+    const startLineIdx = fmLines.findIndex((line) => line.startsWith('description:'));
+    if (startLineIdx === -1) return null;
+    const firstValue = fmLines[startLineIdx]!.slice('description:'.length).trim();
+    const valueLines = firstValue ? [firstValue] : [];
+    let endLineIdx = startLineIdx;
+    for (let i = startLineIdx + 1; i < fmLines.length; i++) {
+      const line = fmLines[i]!;
+      if (/^[ \t]+\S/.test(line)) {
+        valueLines.push(line.trim());
+        endLineIdx = i;
+      } else {
+        break;
+      }
+    }
+    return {
+      startLineIdx,
+      endLineIdx,
+      rawValue: valueLines.join(' ').replace(/^[>|]-?[ \t]*/, '').trim()
+    };
+  }
+
   private tryAutoFixSkillDescription(skillMdPath: string, descriptionText: string): boolean {
     if (!this.isFixActive()) return false;
     try {
       const content = safeReadFileSync(skillMdPath);
       if (!content) return false;
-      const descRegex = /^description:\s*[^\r\n]*(?:\r?\n(?:\s+[^\r\n]*))*/m;
-      if (!descRegex.test(content)) return false;
+      const fmMatch = content.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);
+      if (!fmMatch) return false;
+      const fmRaw = fmMatch[2]!;
+      const bounds = this.findDescriptionBlockBounds(fmRaw);
+      if (!bounds) return false;
 
       const words = descriptionText.replace(/\r?\n/g, ' ').split(/\s+/).filter(Boolean);
       const lines: string[] = [];
@@ -298,7 +326,14 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       if (currentLine.trim()) lines.push(currentLine);
       const formatted = 'description: >-\n' + lines.join('\n');
 
-      const updated = content.replace(descRegex, formatted);
+      const fmLines = fmRaw.split(/\r?\n/);
+      fmLines.splice(
+        bounds.startLineIdx,
+        bounds.endLineIdx - bounds.startLineIdx + 1,
+        formatted
+      );
+      const updatedFm = fmLines.join('\n');
+      const updated = fmMatch[1]! + updatedFm + fmMatch[3]! + content.slice(fmMatch[0].length);
       fs.writeFileSync(skillMdPath, updated, 'utf8');
       const targetLabel = path.posix.join(path.basename(path.dirname(skillMdPath)), 'SKILL.md');
       this.context.logProgress(
@@ -313,16 +348,13 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private tryRecoverFrontmatter(
     skillMdPath: string,
     frontmatterRaw: string
-  ): Record<string, unknown> | null {
+  ): { parsed: Record<string, unknown>; freshFrontmatterRaw: string } | null {
     if (!this.isFixActive()) return null;
 
-    const descMatch = frontmatterRaw.match(/^description:\s*([^\r\n]+)/m);
-    if (!descMatch || !descMatch[1]) return null;
+    const bounds = this.findDescriptionBlockBounds(frontmatterRaw);
+    if (!bounds || bounds.rawValue.length < 10) return null;
 
-    const rawDescText = descMatch[1].replace(/^[>|]-?\s*/, '').trim();
-    if (rawDescText.length < 10) return null;
-
-    const fixed = this.tryAutoFixSkillDescription(skillMdPath, rawDescText);
+    const fixed = this.tryAutoFixSkillDescription(skillMdPath, bounds.rawValue);
     if (!fixed) return null;
 
     const freshContent = safeReadFileSync(skillMdPath);
@@ -331,7 +363,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     const freshParts = freshContent.split('---');
     if (freshParts.length < 3) return null;
 
-    return tryOrNull(() => yaml.parse(freshParts[1]!));
+    const freshFrontmatterRaw = freshParts[1]!;
+    const parsed = tryOrNull(() => yaml.parse(freshFrontmatterRaw));
+    if (!parsed || typeof parsed !== 'object') return null;
+    return { parsed: parsed as Record<string, unknown>, freshFrontmatterRaw };
   }
 
   private validateSkillFrontmatter(skillMdPath: string, skillName: string): void {
@@ -366,13 +401,17 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       return;
     }
 
-    const frontmatterRaw = parts[1]!;
+    let frontmatterRaw = parts[1]!;
     let parsed: Record<string, unknown> | null = null;
     try {
       parsed = yaml.parse(frontmatterRaw);
     } catch (err) {
       if (!isLocked) {
-        parsed = this.tryRecoverFrontmatter(skillMdPath, frontmatterRaw);
+        const recovered = this.tryRecoverFrontmatter(skillMdPath, frontmatterRaw);
+        if (recovered) {
+          parsed = recovered.parsed;
+          frontmatterRaw = recovered.freshFrontmatterRaw;
+        }
       }
 
       if (!parsed || typeof parsed !== 'object') {
@@ -548,7 +587,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         severity: 'error',
         file: ctx.relMdPath,
         line: 1,
-        message: `Custom skill ${ctx.skillName}/SKILL.md ${issueDetail} (Invariable #15 of /architecture). Run 'npm run auditor:fix' or 'auditor fix' to format automatically.`,
+        message: `Custom skill ${ctx.skillName}/SKILL.md ${issueDetail} (Invariant #15 of /architecture). Run 'npm run auditor:fix' or 'auditor fix' to format automatically.`,
         context: ctx.skillName,
         fixable: true
       });

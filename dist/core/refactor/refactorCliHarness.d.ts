@@ -28,7 +28,7 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   };
   readonly extendedHelp?: string;
 }
-declare const REFACTOR_HARNESS_ARGS: {
+export declare const REFACTOR_POSITIONAL_CLI_ARGS: {
   readonly subcommand: {
     readonly type: "positional";
     readonly required: false;
@@ -40,6 +40,8 @@ declare const REFACTOR_HARNESS_ARGS: {
     readonly required: false;
     readonly description: "Target file to inspect or plan JSON to apply";
   };
+};
+declare const REFACTOR_HARNESS_ARGS: {
   readonly file: {
     readonly type: "string";
     readonly description: "Target file path to inspect";
@@ -52,6 +54,17 @@ declare const REFACTOR_HARNESS_ARGS: {
     readonly type: "boolean";
     readonly description: "Execute and verify mutation inside an ephemeral Git Worktree";
     readonly default: false;
+  };
+  readonly subcommand: {
+    readonly type: "positional";
+    readonly required: false;
+    readonly description: "Subcommand to execute (discover, inspect, apply, help)";
+    readonly default: "discover";
+  };
+  readonly target: {
+    readonly type: "positional";
+    readonly required: false;
+    readonly description: "Target file to inspect or plan JSON to apply";
   };
   readonly project: {
     readonly type: "string";

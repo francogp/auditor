@@ -1,20 +1,7 @@
-import ts from "typescript";
 import { ObjectLiteralExpression, SourceFile } from "ts-morph";
-export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
-export declare function printTsExpression(expr: ts.Expression): string;
-export declare function formatSectionObjectLiteral(value: unknown): string;
-export declare function findConfigObjectLiteral(source: ts.SourceFile): ts.ObjectLiteralExpression | null;
-export declare function appendMissingSectionsFallback(configFilePath: string, _code: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
-export declare function parseAuditConfigFileAst(configFilePath: string): {
-  code: string;
-  source: ts.SourceFile;
-  configObj: ts.ObjectLiteralExpression | null;
-} | null;
-export declare function formatValueWithIndent(value: unknown, indent: string): string;
 export declare function deepMergeMissingJson(target: Record<string, unknown>, missing: Record<string, unknown>): boolean;
 export declare function appendMissingSectionsToJsonFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function findTargetAuditConfigObject(sourceFile: SourceFile): ObjectLiteralExpression | undefined;
 export declare function mutateAuditConfigFileAst(configFilePath: string, mutator: (targetObj: ObjectLiteralExpression, sourceFile: SourceFile) => boolean): boolean;
 export declare function syncAuditorVersionInTsFile(configFilePath: string, version: string): boolean;
-export declare function appendMissingSectionsToTsFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;

@@ -19,14 +19,66 @@
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import ts from 'typescript';
 import {
   verifyTranscriptAuthorization,
   type TranscriptVerifierOptions
 } from './transcriptAuthorizationVerifier.ts';
-import { safeJsonParse, safeReadFileSync } from './safeUtils.ts';
+import { extractExportedConfigObjectLiteral } from './astContext.ts';
+import { safeReadFileSync } from './safeUtils.ts';
 import { normalizePosixPath } from './safePath.ts';
 import { createDomainSet } from './domainCollections.ts';
 import type { AuditRatchetConfig } from './auditConfigTypes.ts';
+
+function astExpressionToPlainValue(expr: ts.Expression): unknown {
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
+  if (ts.isNumericLiteral(expr)) return Number(expr.text);
+  if (
+    ts.isPrefixUnaryExpression(expr) &&
+    expr.operator === ts.SyntaxKind.MinusToken &&
+    ts.isNumericLiteral(expr.operand)
+  ) {
+    return -Number(expr.operand.text);
+  }
+  if (expr.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (expr.kind === ts.SyntaxKind.FalseKeyword) return false;
+  if (expr.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (ts.isArrayLiteralExpression(expr)) {
+    return expr.elements.map((el) => astExpressionToPlainValue(el));
+  }
+  if (ts.isObjectLiteralExpression(expr)) {
+    const out: Record<string, unknown> = {};
+    for (const prop of expr.properties) {
+      if (ts.isPropertyAssignment(prop) && prop.name) {
+        const key =
+          ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : undefined;
+        if (key !== undefined) out[key] = astExpressionToPlainValue(prop.initializer);
+      }
+    }
+    return out;
+  }
+  return undefined;
+}
+
+function parseAuditConfigTextToRecord(code: string): Record<string, unknown> | null {
+  try {
+    const source = ts.createSourceFile(
+      'audit.config.ts',
+      code,
+      ts.ScriptTarget.Latest,
+      true,
+      ts.ScriptKind.TS
+    );
+    const configObj = extractExportedConfigObjectLiteral(source);
+    if (!configObj) return null;
+    const plain = astExpressionToPlainValue(configObj);
+    return typeof plain === 'object' && plain !== null && !Array.isArray(plain)
+      ? (plain as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
 
 export type RelaxationCode = `RELAX-${string}` & { readonly __brand?: 'RelaxationCode' };
 
@@ -442,14 +494,9 @@ export function auditConfigRatchet(
   // 1. Audit .auditor/audit.config.ts
   const rawOnlineAuditConfig = readGitFile(projectRoot, effectiveRef, '.auditor/audit.config.ts');
   if (rawOnlineAuditConfig) {
-    // Basic structural extract of exemption arrays & thresholds from raw text if not running full import
-    // When localConfig is available, compare against parsed localConfig
-    const rawOnlineJson = readGitFile(projectRoot, effectiveRef, '.auditor/audit.config.json');
-    if (rawOnlineJson) {
-      const parsedOnline = safeJsonParse<Record<string, unknown>>(rawOnlineJson);
-      if (parsedOnline) {
-        relaxations.push(...inspectAuditConfigChanges(parsedOnline, localConfig));
-      }
+    const parsedOnlineTs = parseAuditConfigTextToRecord(rawOnlineAuditConfig);
+    if (parsedOnlineTs) {
+      relaxations.push(...inspectAuditConfigChanges(parsedOnlineTs, localConfig));
     }
   }
 

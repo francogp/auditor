@@ -44,6 +44,7 @@ function determineTopology(files) {
 var DupesRefactorEngine = class extends BaseRefactorEngine {
 	toolId = "auditor-dupes";
 	configSectionKey = "fallow";
+	cachedCandidatesByMin = /* @__PURE__ */ new Map();
 	constructor(auditorOrOptions, _explicitConfig) {
 		const auditor = auditorOrOptions instanceof FallowArchitectureAuditor ? auditorOrOptions : new FallowArchitectureAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot ?? process.cwd() });
 		super(auditor);
@@ -78,10 +79,12 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 	* instances through the canonical sub-auditor path resolution.
 	*/
 	triageCandidates(minOccurrences = 2) {
-		const dupes = runFallowJson("dupes", ["--min-occurrences", String(minOccurrences)], this.projectRoot);
+		const effectiveMin = Math.max(2, minOccurrences);
+		const cached = this.cachedCandidatesByMin.get(effectiveMin);
+		if (cached) return cached;
+		const dupes = runFallowJson("dupes", ["--min-occurrences", String(effectiveMin)], this.projectRoot);
 		const dead = tryOrNull(() => runFallowJson("dead-code", ["--include-dupes"], this.projectRoot));
 		const deadFiles = new Set(dead ? dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)) : []);
-		const effectiveMin = Math.max(2, minOccurrences);
 		const candidates = [];
 		for (const g of dupes.clone_groups) {
 			const validInstances = g.instances.filter((i) => {
@@ -105,10 +108,12 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 				isDeadCodeTarget: isDead
 			});
 		}
-		return candidates.sort((a, b) => {
+		const sorted = candidates.sort((a, b) => {
 			const scoreA = a.tokenCount * a.occurrenceCount * (1 + .15 * a.spread);
 			return b.tokenCount * b.occurrenceCount * (1 + .15 * b.spread) - scoreA;
 		});
+		this.cachedCandidatesByMin.set(effectiveMin, sorted);
+		return sorted;
 	}
 };
 export { DupesRefactorEngine, determineTopology, runFallowJson };

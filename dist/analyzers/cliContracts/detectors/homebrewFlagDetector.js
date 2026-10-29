@@ -58,7 +58,9 @@ function isArgIndexAccess(expr, ctx) {
 	if (!ts.isElementAccessExpression(target)) return false;
 	const arr = unwrapCliExpression(target.expression);
 	const idx = unwrapCliExpression(target.argumentExpression);
-	if (!ts.isIdentifier(arr) || !ts.isNumericLiteral(idx)) return false;
+	if (!ts.isNumericLiteral(idx)) return false;
+	if (ts.isPropertyAccessExpression(arr)) return arr.name.text === "_" || arr.name.text === "positionals";
+	if (!ts.isIdentifier(arr)) return false;
 	if (arr.text === "args") return ctx.isCliEntrypoint;
 	return CLI_ARG_COLLECTION_NAMES.has(arr.text);
 }

@@ -5,6 +5,7 @@ import { isMainModule } from "./cliUtils.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
 import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
+import { REFACTOR_POSITIONAL_CLI_ARGS } from "../core/refactor/refactorCliHarness.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/cli/refactor_magic.ts
@@ -92,17 +93,7 @@ async function handleApply(projectRoot, rawPlanPath, useWorktree) {
 }
 const REFACTOR_MAGIC_ARGS = {
 	...COMMON_CLI_ARGS,
-	subcommand: {
-		type: "positional",
-		required: false,
-		default: "discover",
-		description: "Subcommand to run (discover | inspect | apply | help)"
-	},
-	target: {
-		type: "positional",
-		required: false,
-		description: "File to inspect or MagicRefactorPlan JSON file to apply"
-	},
+	...REFACTOR_POSITIONAL_CLI_ARGS,
 	file: {
 		type: "string",
 		description: "Target file to inspect for magic literals"

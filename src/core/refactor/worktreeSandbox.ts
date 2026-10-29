@@ -84,9 +84,14 @@ export class WorktreeSandboxManager {
 
   private static forceClean(absRepo: string, worktreeDir: string): void {
     const targetNodeModules = path.join(worktreeDir, 'node_modules');
-    if (fs.existsSync(targetNodeModules)) {
-      safeRmSync(targetNodeModules, { recursive: true, force: true });
-    }
+    tryOrNull(() => {
+      const stat = fs.lstatSync(targetNodeModules);
+      if (stat.isSymbolicLink()) {
+        fs.unlinkSync(targetNodeModules);
+      } else {
+        safeRmSync(targetNodeModules, { recursive: true, force: true });
+      }
+    });
 
     tryOrNull(() =>
       execSync(`git -C "${absRepo}" worktree remove --force "${worktreeDir}"`, {

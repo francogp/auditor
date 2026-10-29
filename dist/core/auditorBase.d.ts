@@ -449,6 +449,10 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   protected getLineAt(content: string, lineIndex: number): string;
   protected scanRegexMatches(content: string, regex: RegExp, relPath: string, ruleId: TRuleId, message: string, filter?: (lineContent: string, match: RegExpExecArray) => boolean, sourceForLines?: string, charOffset?: number): void;
   abstract runAudit(astContext?: SharedAstContext): Promise<void> | void;
+  /**
+   * Applies per-task CLI arguments (e.g. --rule, --changed-since, --fix) when executing in-process.
+   */
+  applyTaskCliArgs(cliArgs: readonly string[]): void;
   execute(astContext?: SharedAstContext): Promise<StandardAuditResult>;
   finishAudit(): Promise<StandardAuditResult>;
   protected ensureSubAuditorsLogged(): void;

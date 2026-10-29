@@ -431,6 +431,7 @@ export function buildTaskArgs(
 async function executeTaskInProcess(
   task: AuditTaskDefinition,
   sharedAstContext: SharedAstContext,
+  taskArgs: readonly string[],
   onSubLine?: (line: string) => void
 ): Promise<{ result: StandardAuditResult; durationMs: number } | null> {
   const taskStart = performance.now();
@@ -450,6 +451,7 @@ async function executeTaskInProcess(
     }
     if (AuditorClass) {
       const auditor = new AuditorClass();
+      auditor.applyTaskCliArgs(taskArgs);
       if (onSubLine) {
         auditor.setStepLogger((stepNumber, totalSteps, description) => {
           onSubLine(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
@@ -1659,20 +1661,12 @@ function handleGuideCommand(
   allAvailableTasks: readonly AuditTaskDefinition[],
   activeFamilies: readonly AuditFamily[]
 ): void {
-  let target: string | undefined =
+  const target: string | undefined =
     typeof cliOptions.values.guide === 'string' && cliOptions.values.guide.trim() !== ''
       ? cliOptions.values.guide.trim()
       : typeof cliOptions.values.subcommandTarget === 'string' && cliOptions.values.subcommandTarget.trim() !== ''
         ? cliOptions.values.subcommandTarget.trim()
         : undefined;
-
-  if (!target) {
-    const guideIdx = cliOptions.positionals.indexOf('guide');
-    if (guideIdx !== -1) {
-      const remaining = cliOptions.positionals.slice(guideIdx + 1);
-      target = remaining.find((t) => t && !t.startsWith('-'))?.trim();
-    }
-  }
 
   const suiteParam =
     typeof cliOptions.values.suite === 'string'
@@ -1910,7 +1904,7 @@ async function runTaskExecution(
 ): Promise<ExecutedTaskData> {
   const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
   if (task.requiresAst && ctx.sharedAstContext) {
-    const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, (line) =>
+    const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, taskArgs, (line) =>
       subLines.push(line)
     );
     if (inProcess) {

@@ -2805,6 +2805,15 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   public abstract runAudit(astContext?: SharedAstContext): Promise<void> | void;
 
+  /**
+   * Applies per-task CLI arguments (e.g. --rule, --changed-since, --fix) when executing in-process.
+   */
+  public applyTaskCliArgs(cliArgs: readonly string[]): void {
+    if (cliArgs.length === 0) return;
+    const parsed = parseCittyArgs(SUB_AUDITOR_CLI_ARGS, [...cliArgs]);
+    Object.assign(this.context.values, parsed);
+  }
+
   public async execute(astContext?: SharedAstContext): Promise<StandardAuditResult> {
     await loadAuditConfig(this.projectRoot);
     await this.context.checkFiles();

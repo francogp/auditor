@@ -1,6 +1,12 @@
+import * as childProcess from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { describe, it, expect } from 'vite-plus/test';
 
 import {
+  auditConfigRatchet,
   computeRelaxationCode,
   readGitFile,
   type ConfigRelaxation,
@@ -71,5 +77,71 @@ describe('configRatchet', () => {
     // Calling readGitFile with backslashes or non-existent commit fails gracefully with null
     const result = readGitFile(process.cwd(), 'non-existent-commit-hash', 'src\\core\\safePath.ts');
     expect(result).toBeNull();
+  });
+
+  it('detects unauthorized relaxations in .auditor/audit.config.ts against git HEAD', () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-ratchet-test-'));
+    try {
+      childProcess.spawnSync('git', ['init'], { cwd: tempDir, stdio: 'ignore' });
+      childProcess.spawnSync('git', ['config', 'user.email', 'test@example.com'], {
+        cwd: tempDir,
+        stdio: 'ignore'
+      });
+      childProcess.spawnSync('git', ['config', 'user.name', 'Test User'], {
+        cwd: tempDir,
+        stdio: 'ignore'
+      });
+
+      const auditorDir = path.join(tempDir, '.auditor');
+      fs.mkdirSync(auditorDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(auditorDir, 'audit.config.ts'),
+        `import { defineAuditConfig } from '@francogp/auditor';
+export default defineAuditConfig({
+  name: 'ratchet-test',
+  testCoverage: {
+    enabled: true,
+    threshold: 85
+  },
+  oxlint: {
+    enabled: true
+  }
+});
+`,
+        'utf-8'
+      );
+
+      childProcess.spawnSync('git', ['add', '.'], { cwd: tempDir, stdio: 'ignore' });
+      childProcess.spawnSync('git', ['commit', '-m', 'chore: initial audit config'], {
+        cwd: tempDir,
+        stdio: 'ignore'
+      });
+
+      const localRelaxedConfig = {
+        name: 'ratchet-test',
+        testCoverage: {
+          enabled: true,
+          threshold: 60
+        },
+        oxlint: {
+          enabled: false
+        }
+      };
+
+      const result = auditConfigRatchet(tempDir, localRelaxedConfig, {
+        productionRef: 'HEAD',
+        skipNetwork: true
+      });
+
+      expect(result.passed).toBe(false);
+      expect(result.relaxations.length).toBeGreaterThanOrEqual(2);
+      expect(
+        result.relaxations.some(
+          (r) => r.file === '.auditor/audit.config.ts' && r.path === 'oxlint.enabled'
+        )
+      ).toBe(true);
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 });

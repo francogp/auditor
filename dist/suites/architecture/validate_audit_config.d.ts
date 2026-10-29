@@ -1,7 +1,6 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
 import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-import { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 export declare function deepMergeDefaultsObject(target: Record<string, unknown>, defaults: Record<string, unknown>): void;
 export declare function buildTaskExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Map<string, {
   tasks: AuditTaskDefinition[];
@@ -67,4 +66,3 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
   private verifyExtensionPaths;
 }
 export declare function enforceCriticalConfigurations(projectRoot: string, tasks: readonly AuditTaskDefinition[]): Promise<boolean>;
-export { appendMissingSectionsFallback, appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, appendMissingSectionsToTsFile, dtoValueToTsExpression, findConfigObjectLiteral, findTargetAuditConfigObject, formatSectionObjectLiteral, mutateAuditConfigFileAst, parseAuditConfigFileAst, printTsExpression, syncAuditorVersionInTsFile };

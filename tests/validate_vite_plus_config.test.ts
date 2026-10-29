@@ -394,8 +394,6 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       await auditor.runAudit();
       const result = await auditor.finishAudit();
       expect(result.summary.errors).toBe(0);
-
-      expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
       expect(fs.existsSync(path.join(tempDir, 'vite.config.ts'))).toBe(true);
       expect(fs.existsSync(path.join(tempDir, 'eslint.config.js'))).toBe(false);
@@ -562,8 +560,6 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       await auditor.runAudit();
       const result = await auditor.finishAudit();
       expect(result.summary.errors).toBe(0);
-
-      expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
 
       const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
@@ -603,8 +599,6 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
       await auditor.runAudit();
       const result = await auditor.finishAudit();
-      expect(result.summary.errors).toBe(0);
-
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
 
@@ -1233,6 +1227,38 @@ export default defineConfig({
           f.message.includes('orphan_tests')
       );
       expect(unassignedFinding).toBeDefined();
+    });
+
+    it('C-CFG-65: flags incomplete test.projects coverage when project include only covers a subdirectory of configured root', () => {
+      const config = defineAuditConfig({
+        name: 'Incomplete Subfolder Coverage App',
+        paths: { testRoots: ['tests'] },
+        vitePlusConfig: {
+          test: {
+            projects: {
+              unit: ['tests']
+            }
+          }
+        }
+      });
+      const content = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { rules: {} },
+          fmt: {},
+          staged: {},
+          test: {
+            projects: [
+              { test: { name: 'unit', include: ['tests/unit/**/*.test.ts'] } }
+            ]
+          }
+        });
+      `;
+      const findings = auditVitePlusConfigContent(content, 'vite.config.ts', config, tempDir);
+      const missingRootFinding = findings.find(
+        (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'test.projects.unit.include'
+      );
+      expect(missingRootFinding).toBeDefined();
     });
   });
 });

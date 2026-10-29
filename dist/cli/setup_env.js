@@ -33,7 +33,7 @@ const SETUP_ENV_ARGS = {
 function runSetup(rawInputArgs = getProcessCliArgs(), targetDir = process.cwd()) {
 	const parsed = parseCittyArgs(SETUP_ENV_ARGS, rawInputArgs);
 	const isWindows = process.platform === "win32";
-	const isUpdate = Boolean(parsed.update) || Boolean(parsed["update-version"]) || parsed.action === "update";
+	const isUpdate = Boolean(parsed.update) || Boolean(parsed["update-version"]) || parsed.action === "update" || parsed._.map(String).includes("update");
 	const forwardedArgs = rawInputArgs.filter((a) => a !== "update" && a !== "--update");
 	if (isWindows) {
 		const targetScript = isUpdate ? "update-windows.ps1" : "setup-windows.ps1";

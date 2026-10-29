@@ -4,7 +4,7 @@ import { enableCompileCache } from 'node:module';
 import { BaseAuditor,
   createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative, isPathContained } from '../../core/safePath.ts';
+import { toPosixRelative, isPathContained, stripGlobSuffix } from '../../core/safePath.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import { DEFAULT_PRECOMPRESS_THRESHOLD_BYTES } from '../../core/auditConfigDefaults.ts';
@@ -1106,10 +1106,22 @@ function validateSynchronizedLintAndFmt(
 }
 
 function isRootMatch(expectedRoot: string, assignedRoot: string, baseDir: string): boolean {
+  const cleanExpected = stripGlobSuffix(expectedRoot);
+  const cleanAssigned = stripGlobSuffix(assignedRoot);
   return (
-    isPathContained(expectedRoot, assignedRoot, baseDir) ||
-    isPathContained(assignedRoot, expectedRoot, baseDir)
+    isPathContained(cleanExpected, cleanAssigned, baseDir) ||
+    isPathContained(cleanAssigned, cleanExpected, baseDir)
   );
+}
+
+function isRootCoveredByIncludePattern(
+  expectedRoot: string,
+  includePattern: string,
+  baseDir: string
+): boolean {
+  const cleanExpected = stripGlobSuffix(expectedRoot);
+  const cleanIncludeBase = stripGlobSuffix(includePattern);
+  return isPathContained(cleanIncludeBase, cleanExpected, baseDir);
 }
 
 function validateConfiguredProjects(
@@ -1160,7 +1172,7 @@ function validateConfiguredProjects(
     }
 
     const missingInProject = projRoots.filter(
-      (r) => !projectSummary.include.some((inc) => isRootMatch(r, inc, baseDir))
+      (r) => !projectSummary.include.some((inc) => isRootCoveredByIncludePattern(r, inc, baseDir))
     );
     if (missingInProject.length > 0) {
       findings.push({

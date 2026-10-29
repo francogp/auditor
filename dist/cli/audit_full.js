@@ -306,7 +306,7 @@ function buildTaskArgs(task, values, formattedRules) {
 	if (values.fix && !taskArgs.includes("fix")) taskArgs.push("fix");
 	return taskArgs;
 }
-async function executeTaskInProcess(task, sharedAstContext, onSubLine) {
+async function executeTaskInProcess(task, sharedAstContext, taskArgs, onSubLine) {
 	const taskStart = performance.now();
 	try {
 		const baseDir = process.env.AUDITOR_HOME_DIR ?? process.cwd();
@@ -319,6 +319,7 @@ async function executeTaskInProcess(task, sharedAstContext, onSubLine) {
 		}
 		if (AuditorClass) {
 			const auditor = new AuditorClass();
+			auditor.applyTaskCliArgs(taskArgs);
 			if (onSubLine) {
 				auditor.setStepLogger((stepNumber, totalSteps, description) => {
 					onSubLine(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
@@ -971,11 +972,7 @@ function handleInfoCommand(targetUid, allAvailableTasks) {
 	process.exit(0);
 }
 function handleGuideCommand(cliOptions, allAvailableTasks, activeFamilies) {
-	let target = typeof cliOptions.values.guide === "string" && cliOptions.values.guide.trim() !== "" ? cliOptions.values.guide.trim() : typeof cliOptions.values.subcommandTarget === "string" && cliOptions.values.subcommandTarget.trim() !== "" ? cliOptions.values.subcommandTarget.trim() : void 0;
-	if (!target) {
-		const guideIdx = cliOptions.positionals.indexOf("guide");
-		if (guideIdx !== -1) target = cliOptions.positionals.slice(guideIdx + 1).find((t) => t && !t.startsWith("-"))?.trim();
-	}
+	const target = typeof cliOptions.values.guide === "string" && cliOptions.values.guide.trim() !== "" ? cliOptions.values.guide.trim() : typeof cliOptions.values.subcommandTarget === "string" && cliOptions.values.subcommandTarget.trim() !== "" ? cliOptions.values.subcommandTarget.trim() : void 0;
 	const suiteParam = typeof cliOptions.values.suite === "string" ? cliOptions.values.suite.trim() : typeof cliOptions.values.task === "string" ? cliOptions.values.task.trim() : void 0;
 	if (suiteParam) {
 		const task = findTaskByUidOrName(allAvailableTasks, suiteParam);
@@ -1074,7 +1071,7 @@ function formatSubtitleDetails(details, maxLineWidth = 72) {
 async function runTaskExecution(task, ctx, subLines) {
 	const taskArgs = buildTaskArgs(task, ctx.cliOptions.values, ctx.cliOptions.formattedRules);
 	if (task.requiresAst && ctx.sharedAstContext) {
-		const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, (line) => subLines.push(line));
+		const inProcess = await executeTaskInProcess(task, ctx.sharedAstContext, taskArgs, (line) => subLines.push(line));
 		if (inProcess) return {
 			result: inProcess.result,
 			durationMs: inProcess.durationMs

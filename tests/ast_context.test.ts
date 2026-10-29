@@ -51,6 +51,40 @@ const name = 'Pikachu';
     expect(scriptInfo.offsetLine).toBe(5);
   });
 
+  it('calculates exact line offsets in Vue SFCs containing both <script> and <script setup>', () => {
+    const vueContent = [
+      '<script lang="ts">', // L1
+      'export interface DualScriptProps {', // L2
+      '  id: string;', // L3
+      '}', // L4
+      '</script>', // L5
+      '', // L6
+      '<script setup lang="ts">', // L7
+      'const firstSetupConst = 10;', // L8
+      'const secondSetupConst = 20;', // L9
+      '</script>', // L10
+      '', // L11
+      '<template>', // L12
+      '  <div>{{ firstSetupConst + secondSetupConst }}</div>', // L13
+      '</template>' // L14
+    ].join('\n');
+
+    const ctx = new SharedAstContext();
+    const sf = ctx.getSourceFile('/virtual/DualBlockComponent.vue', vueContent);
+
+    let firstConstLine = -1;
+    ts.forEachChild(sf, (node) => {
+      if (ts.isVariableStatement(node)) {
+        const decl = node.declarationList.declarations[0];
+        if (decl && ts.isIdentifier(decl.name) && decl.name.text === 'firstSetupConst') {
+          firstConstLine = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+        }
+      }
+    });
+
+    expect(firstConstLine).toBe(8);
+  });
+
   it('clears cache successfully', () => {
     const ctx = new SharedAstContext();
     ctx.getSourceFile('a.ts', 'const a = 1;');

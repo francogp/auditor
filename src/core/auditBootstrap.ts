@@ -31,10 +31,10 @@ import { tryOrNull, tryCatchSync, tryOrNullAsync, tryOrUndefinedAsync } from './
 import type { AuditTaskDefinition } from './auditContract.ts';
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../cli/auditScanner.ts';
 import { migrateLegacyAuditConfig } from '../cli/migrateAuditConfig.ts';
+import { appendMissingSectionsToConfigFile } from './auditConfigAst.ts';
 import {
   createDefaultAuditConfigContent,
   collectMissingSections,
-  appendMissingSectionsToConfigFile,
   syncAuditorVersionInConfigFile,
   enforceCriticalConfigurations
 } from '../suites/architecture/validate_audit_config.ts';

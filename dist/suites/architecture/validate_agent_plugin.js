@@ -110,7 +110,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			},
 			ruleRemediations: {
 				"missing-agent-plugin-registration": "📖 REMEDIATION GUIDE: missing-agent-plugin-registration\n1. Root Cause: The host project does not have the `@francogp/auditor` plugin registered in `.agents/plugins.json` or lacks the corresponding skills catalog in `.agents/skills/`.\n2. Diagnosis: Check if `.agents/plugins.json` exists and references the auditor plugin.\n3. Canonical Solution:\n   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically register the plugin and sync skills.\n   b) Or run `auditor-init` in the host project.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
-				"skill-invalid-yaml-frontmatter": "📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariable #15 of /architecture). Ensure `name: <name>` matches the directory name.\n4. Example / Auto-fix command:\n   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).",
+				"skill-invalid-yaml-frontmatter": "📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariant #15 of /architecture). Ensure `name: <name>` matches the directory name.\n4. Example / Auto-fix command:\n   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).",
 				"skill-invalid-asset-syntax": "📖 REMEDIATION GUIDE: skill-invalid-asset-syntax\n1. Root Cause: A secondary asset file within an agent skill (such as an evaluation schema in evals/*.json, blueprint *.json, or code template/example *.ts) contains malformed JSON or TypeScript syntax errors.\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-asset-syntax` to inspect the reported file and parser error message.\n3. Canonical Solution: Repair the JSON syntax (ensure double quotes on keys, remove trailing commas) or fix TypeScript syntax errors in the reported template/example file.\n4. Example / Auto-fix command:\n   Inspect and repair syntax in the target file, then verify with `npm run auditor:agent-plugin`.",
 				"skill-exceeds-line-limit": "📖 REMEDIATION GUIDE: skill-exceeds-line-limit\n1. Root Cause: A custom in-house skill exceeds the 500-line threshold in its primary SKILL.md, violating the 3-tier progressive disclosure mandate.\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-exceeds-line-limit` to identify the oversized skill and inspect its line count.\n3. Canonical Solution: Extract deep technical specifications, extensive rule dictionaries, or workflows into specialized reference files under `references/` or `workflows/`, linking them relatively.\n4. Example / Auto-fix command:\n   Modularize large sections into `references/<topic>.md` and link them relatively from `SKILL.md`."
 			},
@@ -182,13 +182,36 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			context: skillName
 		});
 	}
+	findDescriptionBlockBounds(fmRaw) {
+		const fmLines = fmRaw.split(/\r?\n/);
+		const startLineIdx = fmLines.findIndex((line) => line.startsWith("description:"));
+		if (startLineIdx === -1) return null;
+		const firstValue = fmLines[startLineIdx].slice(12).trim();
+		const valueLines = firstValue ? [firstValue] : [];
+		let endLineIdx = startLineIdx;
+		for (let i = startLineIdx + 1; i < fmLines.length; i++) {
+			const line = fmLines[i];
+			if (/^[ \t]+\S/.test(line)) {
+				valueLines.push(line.trim());
+				endLineIdx = i;
+			} else break;
+		}
+		return {
+			startLineIdx,
+			endLineIdx,
+			rawValue: valueLines.join(" ").replace(/^[>|]-?[ \t]*/, "").trim()
+		};
+	}
 	tryAutoFixSkillDescription(skillMdPath, descriptionText) {
 		if (!this.isFixActive()) return false;
 		try {
 			const content = safeReadFileSync(skillMdPath);
 			if (!content) return false;
-			const descRegex = /^description:\s*[^\r\n]*(?:\r?\n(?:\s+[^\r\n]*))*/m;
-			if (!descRegex.test(content)) return false;
+			const fmMatch = content.match(/^(---\r?\n)([\s\S]*?)(\r?\n---)/);
+			if (!fmMatch) return false;
+			const fmRaw = fmMatch[2];
+			const bounds = this.findDescriptionBlockBounds(fmRaw);
+			if (!bounds) return false;
 			const words = descriptionText.replace(/\r?\n/g, " ").split(/\s+/).filter(Boolean);
 			const lines = [];
 			let currentLine = "  ";
@@ -198,7 +221,10 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			} else currentLine = currentLine === "  " ? "  " + word : currentLine + " " + word;
 			if (currentLine.trim()) lines.push(currentLine);
 			const formatted = "description: >-\n" + lines.join("\n");
-			const updated = content.replace(descRegex, formatted);
+			const fmLines = fmRaw.split(/\r?\n/);
+			fmLines.splice(bounds.startLineIdx, bounds.endLineIdx - bounds.startLineIdx + 1, formatted);
+			const updatedFm = fmLines.join("\n");
+			const updated = fmMatch[1] + updatedFm + fmMatch[3] + content.slice(fmMatch[0].length);
 			fs.writeFileSync(skillMdPath, updated, "utf8");
 			const targetLabel = path.posix.join(path.basename(path.dirname(skillMdPath)), "SKILL.md");
 			this.context.logProgress(`Auto-formatted 'description: >-' in ${targetLabel}`);
@@ -209,16 +235,20 @@ var AgentPluginAuditor = class extends BaseAuditor {
 	}
 	tryRecoverFrontmatter(skillMdPath, frontmatterRaw) {
 		if (!this.isFixActive()) return null;
-		const descMatch = frontmatterRaw.match(/^description:\s*([^\r\n]+)/m);
-		if (!descMatch || !descMatch[1]) return null;
-		const rawDescText = descMatch[1].replace(/^[>|]-?\s*/, "").trim();
-		if (rawDescText.length < 10) return null;
-		if (!this.tryAutoFixSkillDescription(skillMdPath, rawDescText)) return null;
+		const bounds = this.findDescriptionBlockBounds(frontmatterRaw);
+		if (!bounds || bounds.rawValue.length < 10) return null;
+		if (!this.tryAutoFixSkillDescription(skillMdPath, bounds.rawValue)) return null;
 		const freshContent = safeReadFileSync(skillMdPath);
 		if (!freshContent) return null;
 		const freshParts = freshContent.split("---");
 		if (freshParts.length < 3) return null;
-		return tryOrNull(() => yaml.parse(freshParts[1]));
+		const freshFrontmatterRaw = freshParts[1];
+		const parsed = tryOrNull(() => yaml.parse(freshFrontmatterRaw));
+		if (!parsed || typeof parsed !== "object") return null;
+		return {
+			parsed,
+			freshFrontmatterRaw
+		};
 	}
 	validateSkillFrontmatter(skillMdPath, skillName) {
 		const relMdPath = toPosixRelative(this.projectRoot, skillMdPath);
@@ -249,12 +279,18 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			});
 			return;
 		}
-		const frontmatterRaw = parts[1];
+		let frontmatterRaw = parts[1];
 		let parsed = null;
 		try {
 			parsed = yaml.parse(frontmatterRaw);
 		} catch (err) {
-			if (!isLocked) parsed = this.tryRecoverFrontmatter(skillMdPath, frontmatterRaw);
+			if (!isLocked) {
+				const recovered = this.tryRecoverFrontmatter(skillMdPath, frontmatterRaw);
+				if (recovered) {
+					parsed = recovered.parsed;
+					frontmatterRaw = recovered.freshFrontmatterRaw;
+				}
+			}
 			if (!parsed || typeof parsed !== "object") {
 				const errMsg = err instanceof Error ? err.message : String(err);
 				this.addViolation({
@@ -376,7 +412,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 				severity: "error",
 				file: ctx.relMdPath,
 				line: 1,
-				message: `Custom skill ${ctx.skillName}/SKILL.md ${issueDetail} (Invariable #15 of /architecture). Run 'npm run auditor:fix' or 'auditor fix' to format automatically.`,
+				message: `Custom skill ${ctx.skillName}/SKILL.md ${issueDetail} (Invariant #15 of /architecture). Run 'npm run auditor:fix' or 'auditor fix' to format automatically.`,
 				context: ctx.skillName,
 				fixable: true
 			});

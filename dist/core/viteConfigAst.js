@@ -1,6 +1,6 @@
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import { isPathContained } from "./safePath.js";
+import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import ts from "typescript";
 // src/core/viteConfigAst.ts
 /**
@@ -11,10 +11,10 @@ import ts from "typescript";
 * Zero regex or manual string manipulation.
 */
 function normalizePosixRoot(rawRoot) {
-	return normalizePosixPath(rawRoot).toLowerCase();
+	return (stripGlobSuffix(normalizePosixPath(rawRoot)) || ".").toLowerCase();
 }
-function isPathUnderRoot(candidatePath, rootDir) {
-	return isPathContained(normalizePosixRoot(rootDir), normalizePosixRoot(candidatePath), process.cwd());
+function isPathUnderRoot(candidatePath, rootDir, baseDir = process.cwd()) {
+	return isPathContained(normalizePosixRoot(rootDir), normalizePosixRoot(candidatePath), baseDir);
 }
 const CANONICAL_LINT_RULES_MAP = {
 	"@typescript-eslint/no-explicit-any": "error",
@@ -515,9 +515,13 @@ function buildTestAstObject(auditConfig) {
 	const testRoots = resolveVitestRoots(auditConfig);
 	const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
 	const cliRoots = auditConfig.paths?.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots ?? [];
+	const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
 	return valueToAstExpression({
 		environment: "node",
-		include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`),
+		...Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0) && testProjectsConfig ? { projects: Object.entries(testProjectsConfig).map(([projName, roots]) => ({ test: {
+			name: projName,
+			include: roots.map((r) => r.includes("*") ? r : `${r}/**/*.{test,spec}.ts`)
+		} })) } : { include: testRoots.map((r) => `${r}/**/*.{test,spec}.ts`) },
 		coverage: {
 			provider: "v8",
 			reportsDirectory: "scratch/coverage",
@@ -855,9 +859,12 @@ function syncTestCoverageAst(props, sf) {
 function toTestGlobPattern(root) {
 	return root.includes("*") ? root : `${root}/**/*.{test,spec}.ts`;
 }
+function findPropInList(props, propName, sf) {
+	for (const prop of props) if (ts.isPropertyAssignment(prop) && getPropertyKeyName(prop.name, sf) === propName) return prop;
+}
 function syncTestProjectsAst(props, testProjectsConfig, sf) {
 	let modified = false;
-	const projectsProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "projects", sf);
+	const projectsProp = findPropInList(props, "projects", sf);
 	const updatedElements = [...projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer) ? [...projectsProp.initializer.elements] : []];
 	const handledProjects = /* @__PURE__ */ new Set();
 	for (let i = 0; i < updatedElements.length; i++) {
@@ -903,14 +910,12 @@ function syncTestSectionAst(testObj, auditConfig, sf) {
 	let modified = dedup.modified;
 	const testProjectsConfig = auditConfig.vitePlusConfig?.test?.projects;
 	const hasConfiguredProjects = Boolean(testProjectsConfig && Object.keys(testProjectsConfig).length > 0);
-	const projectsProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "projects", sf);
+	const projectsProp = findPropInList(props, "projects", sf);
 	const hasExistingProjects = Boolean(projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer));
 	if (hasConfiguredProjects || hasExistingProjects) {
-		if (findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "include", sf)) {
-			const rmRes = removeObjectProperty(props, "include", sf);
-			props = rmRes.props;
-			if (rmRes.modified) modified = true;
-		}
+		const rmRes = removeObjectProperty(props, "include", sf);
+		props = rmRes.props;
+		if (rmRes.modified) modified = true;
 		if (hasConfiguredProjects && testProjectsConfig) {
 			const projRes = syncTestProjectsAst(props, testProjectsConfig, sf);
 			props = projRes.props;

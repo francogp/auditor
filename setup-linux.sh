@@ -178,11 +178,11 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
         if grep -q '"packageManager":' "$PKG_PATH"; then
             sed -i -E "s/(\"packageManager\": *\")[^\"]*(\")/\1npm@$NEW_NPM_VER\2/" "$PKG_PATH"
             echo "  [OK] packageManager synchronized to npm@$NEW_NPM_VER in package.json"
-        elif grep -E -q '"name": *"[^"]*", *(\r)?$' "$PKG_PATH"; then
-            sed -i -E "s/(\"name\": *\"[^\"]*\",)(\r)?$/\1\n  \"packageManager\": \"npm@$NEW_NPM_VER\",\2/" "$PKG_PATH"
+        elif grep -E -q '^  "name": *"[^"]*", *(\r)?$' "$PKG_PATH"; then
+            sed -i -E "s/^(  \"name\": *\"[^\"]*\",)(\r)?$/\1\n  \"packageManager\": \"npm@$NEW_NPM_VER\",\2/" "$PKG_PATH"
             echo "  [OK] packageManager injected as npm@$NEW_NPM_VER in package.json"
-        elif grep -q '"name":' "$PKG_PATH"; then
-            sed -i -E "s/(\"name\": *\"[^\"]*\")(\r)?$/\1,\n  \"packageManager\": \"npm@$NEW_NPM_VER\"\2/" "$PKG_PATH"
+        elif grep -E -q '^  "name":' "$PKG_PATH"; then
+            sed -i -E "s/^(  \"name\": *\"[^\"]*\")(\r)?$/\1,\n  \"packageManager\": \"npm@$NEW_NPM_VER\"\2/" "$PKG_PATH"
             echo "  [OK] packageManager injected as npm@$NEW_NPM_VER in package.json"
         fi
     fi
@@ -194,6 +194,9 @@ if [ "$UPDATE_TO_LATEST" = true ]; then
     done
 else
     TARGET_NPM_VER=$(grep -o '"npm": *"[^"]*"' "$PKG_PATH" | grep -o '[0-9.]*' | head -n 1)
+    if [ -z "$TARGET_NPM_VER" ]; then
+        TARGET_NPM_VER=$(grep -o '"packageManager": *"npm@[^"]*"' "$PKG_PATH" | grep -o '[0-9.]*' | head -n 1)
+    fi
     CURRENT_NPM_VER=$($NODE_BIN_DIR/npm -v 2>/dev/null || npm -v)
     if [ -n "$TARGET_NPM_VER" ] && [ "$CURRENT_NPM_VER" != "$TARGET_NPM_VER" ]; then
         echo -e "\n[NPM] Synchronizing npm to version declared in commit (npm@$TARGET_NPM_VER)..."

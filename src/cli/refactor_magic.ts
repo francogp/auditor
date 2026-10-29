@@ -14,6 +14,7 @@ import {
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { REFACTOR_POSITIONAL_CLI_ARGS } from '../core/refactor/refactorCliHarness.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -135,17 +136,7 @@ async function handleApply(projectRoot: string, rawPlanPath: string | undefined,
 
 const REFACTOR_MAGIC_ARGS = {
   ...COMMON_CLI_ARGS,
-  subcommand: {
-    type: 'positional',
-    required: false,
-    default: 'discover',
-    description: 'Subcommand to run (discover | inspect | apply | help)'
-  },
-  target: {
-    type: 'positional',
-    required: false,
-    description: 'File to inspect or MagicRefactorPlan JSON file to apply'
-  },
+  ...REFACTOR_POSITIONAL_CLI_ARGS,
   file: {
     type: 'string',
     description: 'Target file to inspect for magic literals'

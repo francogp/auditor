@@ -63,6 +63,7 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
 > {
   public readonly toolId = 'auditor-dupes';
   public readonly configSectionKey = 'fallow' as const;
+  private readonly cachedCandidatesByMin = new Map<number, readonly TriagedCloneCandidate[]>();
 
   constructor(
     auditorOrOptions?: FallowArchitectureAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
@@ -120,9 +121,14 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
    * instances through the canonical sub-auditor path resolution.
    */
   public triageCandidates(minOccurrences: number = 2): readonly TriagedCloneCandidate[] {
+    const effectiveMin = Math.max(2, minOccurrences);
+    const cached = this.cachedCandidatesByMin.get(effectiveMin);
+    if (cached) {
+      return cached;
+    }
     const dupes = runFallowJson<FallowDupesOutput>(
       'dupes',
-      ['--min-occurrences', String(minOccurrences)],
+      ['--min-occurrences', String(effectiveMin)],
       this.projectRoot
     );
 
@@ -137,7 +143,6 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
       dead ? dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)) : []
     );
 
-    const effectiveMin = Math.max(2, minOccurrences);
     const candidates: TriagedCloneCandidate[] = [];
 
     for (const g of dupes.clone_groups) {
@@ -170,10 +175,12 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
       });
     }
 
-    return candidates.sort((a, b) => {
+    const sorted = candidates.sort((a, b) => {
       const scoreA = a.tokenCount * a.occurrenceCount * (1 + 0.15 * a.spread);
       const scoreB = b.tokenCount * b.occurrenceCount * (1 + 0.15 * b.spread);
       return scoreB - scoreA;
     });
+    this.cachedCandidatesByMin.set(effectiveMin, sorted);
+    return sorted;
   }
 }

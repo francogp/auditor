@@ -20,8 +20,7 @@ const REFACTOR_SUBCOMMANDS = /* @__PURE__ */ new Set([
 	"apply",
 	"help"
 ]);
-const REFACTOR_HARNESS_ARGS = {
-	...COMMON_CLI_ARGS,
+const REFACTOR_POSITIONAL_CLI_ARGS = {
 	subcommand: {
 		type: "positional",
 		required: false,
@@ -32,7 +31,11 @@ const REFACTOR_HARNESS_ARGS = {
 		type: "positional",
 		required: false,
 		description: "Target file to inspect or plan JSON to apply"
-	},
+	}
+};
+const REFACTOR_HARNESS_ARGS = {
+	...COMMON_CLI_ARGS,
+	...REFACTOR_POSITIONAL_CLI_ARGS,
 	file: {
 		type: "string",
 		description: "Target file path to inspect"
@@ -170,7 +173,7 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 		verbose: Boolean(parsed.verbose),
 		format: typeof parsed.format === "string" ? parsed.format : void 0
 	}, argv);
-	const command = (typeof parsed.subcommand === "string" && parsed.subcommand ? parsed.subcommand : void 0) ?? (parsed._[0] || "discover");
+	const command = typeof parsed.subcommand === "string" && parsed.subcommand ? parsed.subcommand : "discover";
 	if (parsed.help || command === "help") {
 		renderHarnessHelp(def);
 		return;
@@ -187,14 +190,14 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 			handleDiscoverCommand(def, projectRoot, engine, isHuman);
 			break;
 		case "inspect":
-			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0) ?? parsed._[1]);
+			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0));
 			break;
 		case "apply":
-			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0) ?? parsed._[1], Boolean(parsed.worktree));
+			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0), Boolean(parsed.worktree));
 			break;
 		default:
 			console.error(styleText("red", `[Error] Unknown command: ${command}`));
 			process.exit(1);
 	}
 }
-export { createRefactorCli, formatCliRelativeFilePath, runRefactorCliHarness };
+export { REFACTOR_POSITIONAL_CLI_ARGS, createRefactorCli, formatCliRelativeFilePath, runRefactorCliHarness };

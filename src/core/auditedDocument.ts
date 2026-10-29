@@ -195,11 +195,13 @@ function scanHtmlComment(content: string, start: number, limit: number): Lexical
   return { start, end: Math.min(limit, i + 3), kind: 'comment_html' };
 }
 
+type QuoteDelimiterChar = "'" | '"';
+
 function scanQuotedString(
   content: string,
   start: number,
   limit: number,
-  quote: "'" | '"'
+  quote: QuoteDelimiterChar
 ): LexicalRange {
   let i = start + 1;
   while (i < limit) {
@@ -219,9 +221,24 @@ function scanQuotedString(
 
 function scanTemplateString(content: string, start: number, limit: number): LexicalRange {
   let i = start + 1;
+  let braceDepth = 0;
   while (i < limit) {
     if (content[i] === '\\') {
       i += 2;
+    } else if (braceDepth === 0 && content[i] === '$' && content[i + 1] === '{') {
+      braceDepth = 1;
+      i += 2;
+    } else if (braceDepth > 0) {
+      if (content[i] === '{') braceDepth++;
+      else if (content[i] === '}') braceDepth--;
+      else if (content[i] === "'" || content[i] === '"') {
+        i = scanQuotedString(content, i, limit, content[i] as QuoteDelimiterChar).end;
+        continue;
+      } else if (content[i] === '`') {
+        i = scanTemplateString(content, i, limit).end;
+        continue;
+      }
+      i++;
     } else if (content[i] === '`') {
       i++;
       break;
@@ -230,6 +247,63 @@ function scanTemplateString(content: string, start: number, limit: number): Lexi
     }
   }
   return { start, end: i, kind: 'string_template' };
+}
+
+const REGEX_PRECEDING_CHARS = new Set([
+  '=',
+  '(',
+  '[',
+  ',',
+  ':',
+  ';',
+  '!',
+  '&',
+  '|',
+  '?',
+  '{',
+  '}',
+  '+',
+  '-',
+  '~',
+  '*',
+  '%',
+  '^',
+  '<',
+  '>'
+]);
+
+function tryFindRegexLiteralEnd(content: string, start: number, limit: number): number | null {
+  let prevIdx = start - 1;
+  while (prevIdx >= 0 && (content[prevIdx] === ' ' || content[prevIdx] === '\t' || content[prevIdx] === '\r' || content[prevIdx] === '\n')) {
+    prevIdx--;
+  }
+  if (prevIdx >= 0 && !REGEX_PRECEDING_CHARS.has(content[prevIdx]!)) {
+    return null;
+  }
+
+  let i = start + 1;
+  let inCharClass = false;
+  while (i < limit) {
+    const c = content[i];
+    if (c === '\n' || c === '\r') return null;
+    if (c === '\\') {
+      i += 2;
+      continue;
+    }
+    if (c === '[') {
+      inCharClass = true;
+    } else if (c === ']') {
+      inCharClass = false;
+    } else if (c === '/' && !inCharClass) {
+      i++;
+      while (i < limit && /[dgimsuvy]/.test(content[i]!)) {
+        i++;
+      }
+      return i;
+    }
+    i++;
+  }
+  return null;
 }
 
 function scanNextLexicalRange(content: string, i: number, limit: number): LexicalRange | null {
@@ -327,6 +401,13 @@ export class AuditedDocument {
     let i = 0;
 
     while (i < limit) {
+      if (content[i] === '/' && content[i + 1] !== '/' && content[i + 1] !== '*') {
+        const regexEnd = tryFindRegexLiteralEnd(content, i, limit);
+        if (regexEnd !== null) {
+          i = regexEnd;
+          continue;
+        }
+      }
       const match = scanNextLexicalRange(content, i, limit);
       if (match) {
         ranges.push(match);

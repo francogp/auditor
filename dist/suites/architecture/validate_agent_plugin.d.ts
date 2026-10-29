@@ -10,6 +10,7 @@ export declare class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private tryAutoFixPlugin;
   private reportMissingPluginViolation;
   private validateSkillLineLimit;
+  private findDescriptionBlockBounds;
   private tryAutoFixSkillDescription;
   private tryRecoverFrontmatter;
   private validateSkillFrontmatter;

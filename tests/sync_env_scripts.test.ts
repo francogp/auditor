@@ -13,6 +13,22 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { syncEnvScripts } from '../src/cli/sync_env_scripts.ts';
 
+function findWorkingBashBinary(): string | null {
+  for (const candidate of ['bash', 'sh']) {
+    try {
+      const probe = childProcess.spawnSync(candidate, ['-c', 'echo BASH_OK'], {
+        encoding: 'utf8'
+      });
+      if (probe.status === 0 && probe.stdout.includes('BASH_OK')) {
+        return candidate;
+      }
+    } catch {
+      // Continue searching
+    }
+  }
+  return null;
+}
+
 describe('sync_env_scripts CLI Utility', () => {
   let tempDir: string;
 
@@ -133,21 +149,7 @@ describe('sync_env_scripts CLI Utility', () => {
   });
 
   it('verifies setup-linux.sh parses with zero syntax errors in bash when available', () => {
-    let bashBinary: string | null = null;
-    for (const candidate of ['bash', 'sh']) {
-      try {
-        const probe = childProcess.spawnSync(candidate, ['-c', 'echo BASH_OK'], {
-          encoding: 'utf8'
-        });
-        if (probe.status === 0 && probe.stdout.includes('BASH_OK')) {
-          bashBinary = candidate;
-          break;
-        }
-      } catch {
-        // Continue searching
-      }
-    }
-
+    const bashBinary = findWorkingBashBinary();
     if (!bashBinary) {
       return;
     }
@@ -343,21 +345,7 @@ describe('sync_env_scripts CLI Utility', () => {
   });
 
   it('executes setup-linux.sh sed commands in bash when available', () => {
-    let bashBinary: string | null = null;
-    for (const candidate of ['bash', 'sh']) {
-      try {
-        const probe = childProcess.spawnSync(candidate, ['-c', 'echo BASH_OK'], {
-          encoding: 'utf8'
-        });
-        if (probe.status === 0 && probe.stdout.includes('BASH_OK')) {
-          bashBinary = candidate;
-          break;
-        }
-      } catch {
-        // Continue searching
-      }
-    }
-
+    const bashBinary = findWorkingBashBinary();
     if (!bashBinary) {
       return;
     }
@@ -461,5 +449,47 @@ describe('sync_env_scripts CLI Utility', () => {
     const parsed4 = JSON.parse(fs.readFileSync(testFile, 'utf8'));
     expect(parsed4.name).toBe('linux-crlf');
     expect(parsed4.packageManager).toBe(`npm@${newNpmVer}`);
+
+    // 5. Does not inject duplicate packageManager inside nested author.name objects in setup-linux.sh
+    const pkgWithAuthorName = [
+      '{',
+      '  "name": "nested-author-pkg",',
+      '  "author": {',
+      '    "name": "Franco",',
+      '    "email": "test@example.com"',
+      '  },',
+      '  "version": "1.0.0"',
+      '}'
+    ].join('\n');
+    fs.writeFileSync(testFile, pkgWithAuthorName, 'utf8');
+
+    const setupLinuxRaw = fs.readFileSync(path.resolve('setup-linux.sh'), 'utf8');
+    const sedBlockMatch = setupLinuxRaw.match(
+      /if grep -q '"packageManager":' "\$PKG_PATH"; then[\s\S]*?fi/
+    );
+    expect(sedBlockMatch).not.toBeNull();
+
+    const realSedRunner = [
+      'PKG_PATH="$1"',
+      'NEW_NPM_VER="$2"',
+      'if command -v wslpath >/dev/null 2>&1; then',
+      '    PKG_PATH=$(wslpath -u "$PKG_PATH")',
+      'elif command -v cygpath >/dev/null 2>&1; then',
+      '    PKG_PATH=$(cygpath -u "$PKG_PATH")',
+      'fi',
+      sedBlockMatch![0],
+      'echo "REAL_SED_DONE"'
+    ].join('\n');
+
+    const proc5 = childProcess.spawnSync(bashBinary, ['-s', '--', posixWinPath, newNpmVer], {
+      input: realSedRunner,
+      encoding: 'utf8'
+    });
+    expect(proc5.status).toBe(0);
+    const rawAfterSed = fs.readFileSync(testFile, 'utf8');
+    expect(rawAfterSed.match(/"packageManager"/g)?.length).toBe(1);
+    const parsed5 = JSON.parse(rawAfterSed);
+    expect(parsed5.packageManager).toBe(`npm@${newNpmVer}`);
+    expect((parsed5.author as Record<string, unknown>).packageManager).toBeUndefined();
   });
 });

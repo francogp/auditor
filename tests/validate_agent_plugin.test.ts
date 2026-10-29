@@ -505,5 +505,42 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       expect(updatedContent).toContain('description: >-');
       expect(updatedContent).toContain('  Core framework: automated analysis and rules');
     });
+
+    it('preserves all continuation lines and $ tokens when auto-fixing multiline description or blank frontmatter lines', async () => {
+      const { result, skillPath } = await executeSkillFixture(
+        'multiline-dollar-skill',
+        [
+          '---',
+          'name: multiline-dollar-skill',
+          'description: First line with colon: unquoted and $HOME and $& token',
+          '  second continuation line that must not be lost',
+          '  third continuation line for the skill',
+          '',
+          '  indented-comment-or-metadata: value',
+          'license: MIT',
+          '---',
+          '# Multiline Skill',
+          ''
+        ].join('\n'),
+        { fix: true }
+      );
+
+      const frontmatterViolation = result.findings.find(
+        (f) =>
+          f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'multiline-dollar-skill'
+      );
+      expect(frontmatterViolation).toBeUndefined();
+
+      const updatedContent = await fs.readFile(skillPath, 'utf8');
+      const normalizedWhitespace = updatedContent.replace(/\s+/g, ' ');
+      expect(updatedContent).toContain('description: >-');
+      // $& must stay literal '$& token', never expand to the full regex match 'description: First line...'
+      expect(updatedContent).not.toContain('description: First line');
+      expect(normalizedWhitespace).toContain('$HOME and $& token');
+      expect(normalizedWhitespace).toContain('second continuation line that must not be lost');
+      expect(normalizedWhitespace).toContain('third continuation line for the skill');
+      expect(updatedContent).toContain('indented-comment-or-metadata: value');
+      expect(updatedContent).toContain('license: MIT');
+    });
   });
 });

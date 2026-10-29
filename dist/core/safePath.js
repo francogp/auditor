@@ -153,10 +153,10 @@ function buildRepositoryFileIndex(rootDir, isIgnoredFn) {
 * Strips recursive glob wildcards and trailing slashes from path patterns.
 */
 function stripGlobSuffix(pattern) {
-	let clean = pattern;
-	if (clean.endsWith("/**")) clean = clean.slice(0, -3);
-	else if (clean.endsWith("/*")) clean = clean.slice(0, -2);
-	else if (clean.endsWith("/")) clean = clean.slice(0, -1);
-	return clean;
+	if (!pattern) return "";
+	const wildcardIdx = pattern.search(/[*?{[]/);
+	let clean = wildcardIdx === -1 ? pattern : pattern.slice(0, wildcardIdx);
+	while (clean.endsWith("/")) clean = clean.slice(0, -1);
+	return clean || (wildcardIdx === 0 ? "." : "");
 }
 export { buildRepositoryFileIndex, isPathContained, isPathExempt, normalizePosixPath, safeDevUrl, safeFetch, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };
