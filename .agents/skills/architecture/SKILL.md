@@ -63,7 +63,7 @@ For specialized architectural needs, delegate to and complement with:
 
 - **[`codebase-design`](../codebase-design/SKILL.md)**: Deep modules, clear interface boundaries (*seams*), and hiding implementation complexity behind simple public APIs.
 - **[`domain-modeling`](../domain-modeling/SKILL.md)**: Formal domain modeling, ubiquitous language, and Architecture Decision Records (ADRs).
-- **[`database-migrations`](../database-migrations/SKILL.md)** & **[`supabase-postgres-best-practices`](../supabase-postgres-best-practices/SKILL.md)**: Relational schema design, RLS performance, multi-host parity, and 100% immutable *forward-only* SQL migrations.
+- **[`database-migrations`](../database-migrations/SKILL.md)**: Relational schema design, RLS performance, multi-host parity, and 100% immutable *forward-only* SQL migrations (complemented by the Supabase plugin).
 
 ---
 
