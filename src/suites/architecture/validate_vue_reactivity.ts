@@ -18,10 +18,18 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
+
 import ts from 'typescript';
+
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { extractVueScriptOrRaw } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
@@ -62,24 +70,21 @@ function getCallNameAndFirstArg(
 }
 
 export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) => [
-        ...(config.paths.componentsRoots ?? []),
-        ...(config.paths.viewsRoots ?? []),
-        ...(config.paths.composablesRoots ?? []),
-        ...(config.paths.storesRoots ?? [])
-      ]
-    );
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? []),
+      ...(config.paths.composablesRoots ?? []),
+      ...(config.paths.storesRoots ?? [])
+    ]);
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -304,7 +309,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     fullContent: string
   ): void {
     this.runSubAuditorSync('no-async-in-computed', () => {
-      const visit = (node: ts.Node) => {
+      const visit = (node: ts.Node): void => {
         this.checkAsyncInComputed(node, ast, doc, relPath);
         ts.forEachChild(node, visit);
       };
@@ -312,7 +317,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     });
 
     this.runSubAuditorSync('watch-reactive-property-getter', () => {
-      const visit = (node: ts.Node) => {
+      const visit = (node: ts.Node): void => {
         this.checkWatchPropertyGetter(node, ast, doc, relPath);
         ts.forEachChild(node, visit);
       };
@@ -320,7 +325,7 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     });
 
     this.runSubAuditorSync('no-destructured-reactive', () => {
-      const visit = (node: ts.Node) => {
+      const visit = (node: ts.Node): void => {
         this.checkDestructuredReactive(node, ast, doc, relPath);
         ts.forEachChild(node, visit);
       };
@@ -410,7 +415,13 @@ export class ValidateVueReactivityAuditor extends FileScanAuditor<VueReactivityR
     if (method === 'sort' || method === 'reverse') {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first (e.g. [...${targetVar}].${method}()).`;
     }
-    const arrayMutationMethods: ReadonlySet<string> = new Set(['push', 'pop', 'shift', 'unshift', 'splice']);
+    const arrayMutationMethods: ReadonlySet<string> = new Set([
+      'push',
+      'pop',
+      'shift',
+      'unshift',
+      'splice'
+    ]);
     if (arrayMutationMethods.has(method)) {
       return `In-place mutation '${fullMatched.trim()}' on aliased reactive state detected inside computed(). Create a shallow copy first.`;
     }

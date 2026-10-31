@@ -5,6 +5,7 @@
  */
 
 import path from 'node:path';
+
 import ts from 'typescript';
 
 export const POSIX_SEP = path.posix.sep;
@@ -26,7 +27,12 @@ function containsSeparator(value: string): boolean {
 }
 
 export function isSeparatorOnly(value: string): boolean {
-  return value.length > 0 && [...value].every(isSeparatorChar);
+  if (value.length === 0) return false;
+  for (let i = 0; i < value.length; i++) {
+    const ch = value.charAt(i);
+    if (ch !== POSIX_SEP && ch !== WIN_SEP) return false;
+  }
+  return true;
 }
 
 export function startsWithUrlScheme(value: string): boolean {
@@ -35,7 +41,7 @@ export function startsWithUrlScheme(value: string): boolean {
 }
 
 function hasWhitespace(value: string): boolean {
-  return [...value].some((ch) => ch.trim() === '');
+  return /\s/.test(value);
 }
 
 /**
@@ -61,7 +67,8 @@ function isAlnum(ch: string | undefined): boolean {
 }
 
 export function isDriveOrUncLiteral(value: string): boolean {
-  const isDrive = value.length >= 3 && isAsciiLetter(value[0]) && value[1] === ':' && isSeparatorChar(value[2]!);
+  const isDrive =
+    value.length >= 3 && isAsciiLetter(value[0]) && value[1] === ':' && isSeparatorChar(value[2]!);
   const isUnc = value.startsWith(WIN_SEP + WIN_SEP) && isAlnum(value[2]);
   return isDrive || isUnc;
 }
@@ -71,7 +78,10 @@ export function hasFileExtensionTail(value: string): boolean {
   const dot = value.lastIndexOf('.');
   if (dot <= 0 || dot === value.length - 1) return false;
   const ext = value.slice(dot + 1);
-  if (ext.length > 5 || ![...ext].every((ch) => isAlnum(ch))) return false;
+  if (ext.length > 5) return false;
+  for (let i = 0; i < ext.length; i++) {
+    if (!isAlnum(ext.charAt(i))) return false;
+  }
   const lastSep = Math.max(value.lastIndexOf(POSIX_SEP), value.lastIndexOf(WIN_SEP));
   return dot > lastSep;
 }
@@ -149,7 +159,10 @@ const REGEX_STRUCTURAL_CHARS: ReadonlySet<string> = new Set([
   '9'
 ]); // runtime-set: O(1) lookup of quantifier/grouping characters
 
-function classifyRegexToken(token: string, info: { backslash: boolean; slash: boolean; other: boolean; anchor: boolean }): void {
+function classifyRegexToken(
+  token: string,
+  info: { backslash: boolean; slash: boolean; other: boolean; anchor: boolean }
+): void {
   if (token === WIN_SEP + WIN_SEP) info.backslash = true;
   else if (token === WIN_SEP + POSIX_SEP || token === POSIX_SEP) info.slash = true;
   else if (token === '^' || token === '$') info.anchor = true;
@@ -194,7 +207,11 @@ export function hasTraversalToken(source: string): boolean {
 
 /** Regex sources anchored on a Windows drive letter (`^[a-zA-Z]:`). */
 export function isDriveLetterRegex(source: string): boolean {
-  return source.startsWith('^[a-zA-Z]:') || source.startsWith('^[A-Za-z]:') || source.startsWith('^[a-z]:');
+  return (
+    source.startsWith('^[a-zA-Z]:') ||
+    source.startsWith('^[A-Za-z]:') ||
+    source.startsWith('^[a-z]:')
+  );
 }
 
 /** Collects every string fragment (cooked and raw) from RegExp constructor arguments. */
@@ -224,5 +241,7 @@ export function isInsideRegExpConstruction(node: ts.Node): boolean {
 }
 
 export function isUrlConstruction(node: ts.Node): node is ts.NewExpression {
-  return ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL';
+  return (
+    ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'URL'
+  );
 }

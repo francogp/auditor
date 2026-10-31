@@ -196,12 +196,12 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 			...storesRoots.map((r) => `${r}/**/*.ts`)
 		];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

@@ -58,7 +58,7 @@ describe('DeadCssAuditor', () => {
       await fs.writeFile(path.join(compDir, 'DeadTest.vue'), vueContent, 'utf-8');
 
       const auditor = new DeadCssAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const deadClass = result.findings.find((f) => f.ruleId === 'dead-scoped-css');
       expect(deadClass).toBeDefined();
@@ -81,7 +81,7 @@ describe('DeadCssAuditor', () => {
       await fs.writeFile(path.join(compDir, 'ExemptTest.vue'), vueContent, 'utf-8');
 
       const auditor = new DeadCssAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const deadClass = result.findings.find((f) => f.ruleId === 'dead-scoped-css');
       expect(deadClass).toBeDefined();
@@ -107,7 +107,7 @@ describe('DeadCssAuditor', () => {
       await fs.writeFile(path.join(compDir, 'DynamicTest.vue'), vueContent, 'utf-8');
 
       const auditor = new DeadCssAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -130,7 +130,7 @@ describe('DeadCssAuditor', () => {
       await fs.writeFile(path.join(compDir, 'CleanCard.vue'), cleanVue, 'utf-8');
 
       const auditor = new DeadCssAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');

@@ -60,29 +60,27 @@ const DOCKER_CONFIG_REQUIREMENT = {
 	generateDefaultContent: () => CANONICAL_DOCKERIGNORE_CONTENT
 };
 var ValidateDockerConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...DOCKER_CONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(DOCKER_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["dockerignore-missing", "dockerignore-missing-pattern"],
 			configFiles: [configRequirement],
 			id: "validate_docker_config",
 			name: "Docker Configuration Validator",
@@ -104,9 +102,7 @@ var ValidateDockerConfigAuditor = class extends BaseAuditor {
 				"dockerignore-missing-pattern": "📖 REMEDIATION GUIDE: dockerignore-missing-pattern\n1. Root Cause: Critical ignore patterns (`node_modules`, `.git`, `scratch`, `.env*`) are missing from `.dockerignore`.\n2. Diagnosis: Inspect existing `.dockerignore` against mandatory exclusions.\n3. Canonical Solution: Run `npm run auditor:fix` to append missing patterns without modifying existing rules.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".dockerignore"] },
-			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			projectRoot
 		});
 	}
 	async runAudit() {

@@ -30,7 +30,7 @@ describe('ValidateDockerConfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateDockerConfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_docker_config');
       expect(auditor.family).toBe('architecture');
@@ -41,8 +41,8 @@ describe('ValidateDockerConfigAuditor', () => {
 
   describe('Conditional Applicability', () => {
     it('skips cleanly without errors or findings if no Dockerfile/compose exists', async () => {
-      const auditor = new ValidateDockerConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('skipped');
       expect(result.summary.errors).toBe(0);
@@ -55,8 +55,8 @@ describe('ValidateDockerConfigAuditor', () => {
       fs.writeFileSync(path.join(tmpDir, 'Dockerfile'), 'FROM node:26-alpine\n', 'utf8');
       fs.writeFileSync(path.join(tmpDir, '.dockerignore'), CANONICAL_DOCKERIGNORE_CONTENT, 'utf8');
 
-      const auditor = new ValidateDockerConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -72,15 +72,15 @@ describe('ValidateDockerConfigAuditor', () => {
       expect(fs.existsSync(ignorePath)).toBe(false);
 
       // Check mode
-      const checkAuditor = new ValidateDockerConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('dockerignore-missing');
 
       // Fix mode
-      const fixAuditor = new ValidateDockerConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
       expect(fs.existsSync(ignorePath)).toBe(true);
@@ -102,8 +102,8 @@ describe('ValidateDockerConfigAuditor', () => {
       fs.writeFileSync(ignorePath, 'dist\n*.log\n', 'utf8');
 
       // Check mode
-      const checkAuditor = new ValidateDockerConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       const violations = checkResult.findings.filter(
         (f) => f.ruleId === 'dockerignore-missing-pattern'
@@ -112,8 +112,8 @@ describe('ValidateDockerConfigAuditor', () => {
       expect(violations.length).toBe(4);
 
       // Fix mode
-      const fixAuditor = new ValidateDockerConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const repaired = fs.readFileSync(ignorePath, 'utf8');

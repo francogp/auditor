@@ -10,14 +10,9 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  BaseAuditor,
-  createUniformRemediationPhases,
-  type AuditorOptions,
-  createRuleCapabilities
-} from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import {
   parseSemver,
   compareVersions,
@@ -25,8 +20,14 @@ import {
   type SemverVersion,
   type AuditorEngineSpecs
 } from '../../cli/check_environment.ts';
-import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  type AuditorOptions,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
+import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
 import { tryOrNull, safeRmSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
@@ -92,24 +93,20 @@ export function syncNodeVersion(projectRoot: string, targetNodeEngine: string): 
 }
 
 export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEnginesRuleId> {
-  constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
+  public constructor(options: Partial<AuditorOptions<EnvironmentEnginesRuleId>> = {}) {
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['environment-engines-missing', 'environment-engines-below-floor'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        ENVIRONMENT_ENGINES_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['environment-engines-missing', 'environment-engines-below-floor']
-      ),
-      fixableRuleIds: ['environment-engines-missing', 'environment-engines-below-floor'],
+      ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_environment_engines',
       name: 'Environment Engines & Runtime Validator',
       description: 'Validates Node.js and npm versions in package.json',
@@ -277,7 +274,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     }
   }
 
-  private repairEnginesInPackageJson(
+  public repairEnginesInPackageJson(
     pkg: PackageJsonDTO,
     auditorEngines: AuditorEngineSpecs,
     minNodeReq: SemverVersion,
@@ -295,7 +292,7 @@ export class ValidateEnvironmentEnginesAuditor extends BaseAuditor<EnvironmentEn
     }
 
     const updatedEngines: Record<string, string> = {
-      ...(pkg.engines ?? {}),
+      ...pkg.engines,
       node: isNodeOk ? currentNode : auditorEngines.node,
       npm: isNpmOk ? currentNpm : auditorEngines.npm
     };

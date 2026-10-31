@@ -13,14 +13,18 @@
 
 import crypto from 'node:crypto';
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import type { NpmAuditSeverityLevel } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, FindingSeverity } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { runNpmCommandSync } from '../../core/npmCommandUtils.ts';
 import { safeReadFileSync, safeJsonParse, tryCatchSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
@@ -158,8 +162,9 @@ export function parseNpmAuditReport(
 }
 
 export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<DependencyVulnerabilitiesRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     super({
+      ruleFixers: {},
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -170,7 +175,6 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
         speed: ['heavy', 'full'],
         phase: 'setup',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -183,7 +187,10 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       packageName: 'Dependencies',
       icon: '🛡️',
       ruleIds: DEPENDENCY_VULNERABILITIES_RULES,
-      ruleRemediationPhases: createUniformRemediationPhases(DEPENDENCY_VULNERABILITIES_RULES, 'hygiene'),
+      ruleRemediationPhases: createUniformRemediationPhases(
+        DEPENDENCY_VULNERABILITIES_RULES,
+        'hygiene'
+      ),
       ruleDescriptions: {
         'dependency-cve-critical': 'Critical vulnerability in package',
         'dependency-cve-high': 'High vulnerability in package',
@@ -282,9 +289,7 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
     const { stdout, error } = runNpmAudit(this.projectRoot, omitDev);
     if (error || !stdout) {
       // Offline development environment or network lookup failure
-      this.context.logProgress(
-        '⚠️  Could not connect to npm registry for audit (offline mode)'
-      );
+      this.context.logProgress('⚠️  Could not connect to npm registry for audit (offline mode)');
       for (const ruleId of DEPENDENCY_VULNERABILITIES_RULES) {
         this.runSubAuditorSync(ruleId, () => {
           this.markRuleNotApplicable(ruleId, 'No connection to npm registry (offline)');

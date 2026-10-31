@@ -83,12 +83,12 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 			...srcRoots
 		]));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

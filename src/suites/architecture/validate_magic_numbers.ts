@@ -27,8 +27,11 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_magic_numbers.ts
  */
 
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
+
+import ts from 'typescript';
+
+import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import {
   FileScanAuditor,
   createUniformRemediationPhases,
@@ -37,7 +40,6 @@ import {
   resolveFileScanRoots,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { getAuditConfig, isInCodeRoots, isDataPath } from '../../core/auditConfig.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -182,7 +184,10 @@ function isExplicitBaseLiteral(node: ts.Node, sourceFile: ts.SourceFile): boolea
   );
 }
 
-export function resolveSignedNumericLiteral(node: ts.NumericLiteral): { val: number; reportedNode: ts.Node } {
+export function resolveSignedNumericLiteral(node: ts.NumericLiteral): {
+  val: number;
+  reportedNode: ts.Node;
+} {
   let val = parseFloat(node.text);
   let reportedNode: ts.Node = node;
 
@@ -233,7 +238,7 @@ function isAnimationPropertyArg(node: ts.Node): boolean {
 export type ValidateMagicNumbersOptions = FileScanRootsOptions;
 
 export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRuleId> {
-  constructor(options: ValidateMagicNumbersOptions = {}) {
+  public constructor(options: ValidateMagicNumbersOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths.codeRoots ?? []
@@ -242,12 +247,12 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
     const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -358,9 +363,9 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           this.addViolation({
             ruleId: 'magic-number-naked',
             severity: 'error',
-            filePath: relPath,
+            file: relPath,
             line: actualLine,
-            column: actualCol,
+            col: actualCol,
             message,
             context: lineText.trim() || String(val)
           });

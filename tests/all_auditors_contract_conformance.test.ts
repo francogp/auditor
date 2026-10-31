@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { BaseAuditor, type AuditorOptions } from '../src/core/auditorBase.ts';
 import {
   runAuditorContractConformanceTests,
   validateAuditorConstruction,
@@ -25,7 +25,6 @@ import {
 const BASE_MOCK_CAPS = {
   speed: 'light',
   phase: 'normal',
-  fix: 'none',
   md: false,
   ast: false,
   changedOnly: false,
@@ -65,7 +64,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
-              capabilities: { ...BASE_MOCK_CAPS } as never,
+              ruleFixers: {},
+              capabilities: { ...BASE_MOCK_CAPS },
               ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
               configKey: 'paths',
               defaultConfig: {},
@@ -76,7 +76,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'],
               ruleDescriptions: { 'rule-1': 'Desc' },
               ruleRemediations: { 'rule-1': 'Remediacion' }
-            });
+            } as unknown as AuditorOptions<string>);
           }
           public override async runAudit() {}
         })();
@@ -87,6 +87,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       class MockAuditor extends BaseAuditor<string> {
         constructor() {
           super({
+            ruleFixers: {},
             id: 'real_id',
             name: 'Mock',
             description: 'Mock desc',
@@ -125,6 +126,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
+              ruleFixers: {},
               ruleCapabilities: {
                 'rule-1': { ...BASE_MOCK_CAPS },
                 'rule-2': { ...BASE_MOCK_CAPS }
@@ -189,6 +191,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               family: 'architecture',
               packageName: 'Mock',
               icon: '🧪',
+              ruleFixers: {},
               ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
               configKey: 'paths',
               defaultConfig: {},
@@ -209,18 +212,19 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       }).toThrowError(/exceeds 60 characters/i);
     });
 
-    it('detects capabilities.fix !== "none" without fixableRuleIds at BaseAuditor construction', () => {
+    it('detects manual fix declared in ruleCapabilities', () => {
       expect(() => {
         new (class extends BaseAuditor<string> {
           constructor() {
             super({
+              ruleFixers: {},
               id: 'mock_fix_missing',
               name: 'Mock',
               description: 'Mock desc',
               family: 'architecture',
               packageName: 'Mock',
               icon: '🛠️',
-              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS, fix: 'normal' } },
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS, fix: 'normal' } as never },
               configKey: 'paths',
               defaultConfig: {},
               requiredPermissions: [],
@@ -242,22 +246,23 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
           }
           public override async runAudit() {}
         })();
-      }).toThrowError(/failed to explicitly initialize 'fixableRuleIds'/i);
+      }).toThrowError(/declared manual 'fix' in 'ruleCapabilities/i);
     });
 
-    it('detects fixableRuleIds declared when capabilities.fix is "none"', () => {
+    it('detects manual string/boolean fix properties in constructor options', () => {
       expect(() => {
         new (class extends BaseAuditor<string> {
           constructor() {
             super({
+              ruleFixers: {},
               id: 'mock_fix_invalid',
               name: 'Mock',
               description: 'Mock desc',
               family: 'architecture',
               packageName: 'Mock',
               icon: '🛠️',
-              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS, fix: 'none' } },
-              fixableRuleIds: ['rule-1'] as never,
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
+              fix: 'normal' as never,
               configKey: 'paths',
               defaultConfig: {},
               requiredPermissions: [],
@@ -275,11 +280,51 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
                   description: 'Mock'
                 }
               ]
-            });
+            } as never);
           }
           public override async runAudit() {}
         })();
-      }).toThrowError(/declared 'fixableRuleIds'.*but capabilities\.fix is 'none'/i);
+      }).toThrowError(/declared manual fix capabilities/i);
+    });
+
+    it('rejects undeclared rules in fixableRuleIds at BaseAuditor construction', () => {
+      expect(() => {
+        new (class extends BaseAuditor<string> {
+          constructor() {
+            super({
+              ruleFixers: {},
+              id: 'mock_fix_invalid_rule',
+              name: 'Mock',
+              description: 'Mock desc',
+              family: 'architecture',
+              packageName: 'Mock',
+              icon: '🛠️',
+              ruleCapabilities: { 'rule-1': { ...BASE_MOCK_CAPS } },
+              fixableRuleIds: ['undeclared-rule'] as never,
+              configKey: 'paths',
+              defaultConfig: {},
+              requiredPermissions: [],
+              criticalConfig: {},
+              usesThirdPartyTool: false,
+              coverage: { include: ['src/**'] },
+              ruleIds: ['rule-1'] as never,
+              ruleDescriptions: { 'rule-1': 'Desc' } as never,
+              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleRemediationPhases: { 'rule-1': 'setup' } as never,
+              scripts: [
+                {
+                  name: 'auditor:mock',
+                  command: 'auditor task=mock_fix_invalid_rule',
+                  description: 'Mock'
+                }
+              ]
+            } as never);
+          }
+          public override async runAudit() {}
+        })();
+      }).toThrowError(
+        /declared 'fixableRuleIds' for 'undeclared-rule', but that rule is not declared in 'ruleIds'/i
+      );
     });
   });
 
@@ -287,6 +332,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
     class CompliantAuditor extends BaseAuditor<string> {
       constructor() {
         super({
+          ruleFixers: {},
           id: 'mock_compliant',
           name: 'Compliant',
           description: 'Desc',

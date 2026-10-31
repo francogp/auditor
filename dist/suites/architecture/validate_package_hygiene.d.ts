@@ -33,7 +33,6 @@ export declare function verifyLockfileIntegrity(projectRoot: string, isFixMode?:
 export declare class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
   constructor(options?: {
     projectRoot?: string;
-    fix?: boolean;
   });
   runAudit(): Promise<void>;
   private resolveFallowIgnoredDependencies;

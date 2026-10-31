@@ -14,23 +14,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import {
-  analyzeVersionBump,
-  calculateNextBaseVersion,
-  generateBuildId,
-  type VersionBumpType,
-  type VersionAnalysisResult
-} from '../core/versionAnalyzer.ts';
-import { AUDITOR_VERSION, AUDITOR_BUILD_ID, AUDITOR_BUILD_DATE } from '../core/version.ts';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+
 import {
   getAuditConfig,
   type AuditEngineConfig,
   type AuditVersionTargetConfig
 } from '../core/auditConfig.ts';
-import { safeReadFileSync, safeJsonParse, tryCatchSync, tryOrNull } from '../core/safeUtils.ts';
-import { syncDocumentationVersionReferences } from '../core/markdownVersionValidator.ts';
-import { isMainModule } from './cliUtils.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -38,6 +27,18 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { syncDocumentationVersionReferences } from '../core/markdownVersionValidator.ts';
+import { safeReadFileSync, safeJsonParse, tryCatchSync, tryOrNull } from '../core/safeUtils.ts';
+import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { AUDITOR_VERSION, AUDITOR_BUILD_ID, AUDITOR_BUILD_DATE } from '../core/version.ts';
+import {
+  analyzeVersionBump,
+  calculateNextBaseVersion,
+  generateBuildId,
+  type VersionBumpType,
+  type VersionAnalysisResult
+} from '../core/versionAnalyzer.ts';
+import { isMainModule } from './cliUtils.ts';
 
 export interface MetricTableRow {
   readonly label: string;
@@ -337,7 +338,10 @@ function renderAnalysisTable(analysis: VersionAnalysisResult): void {
       label: 'Recommended Bump',
       value: styleText('bold', analysis.recommendedBump.toUpperCase())
     },
-    { label: 'Suggested Version', value: styleText(['bold', 'green'], analysis.recommendedVersion) },
+    {
+      label: 'Suggested Version',
+      value: styleText(['bold', 'green'], analysis.recommendedVersion)
+    },
     { label: 'MAJOR Candidate', value: analysis.candidates.major },
     { label: 'MINOR Candidate', value: analysis.candidates.minor },
     { label: 'PATCH Candidate (bugfix)', value: analysis.candidates.patch },
@@ -492,12 +496,9 @@ function handleBumpCommand(
     typeof parsed.type === 'string' ? parsed.type : undefined,
     positionalType
   );
-  const noSyncPublic =
-    parsed['sync-public'] === false || Boolean(parsed['no-sync-public']);
+  const noSyncPublic = parsed['sync-public'] === false || Boolean(parsed['no-sync-public']);
   const syncTargets =
-    typeof parsed.sync === 'string'
-      ? parsed.sync.split(',').filter(Boolean)
-      : undefined;
+    typeof parsed.sync === 'string' ? parsed.sync.split(',').filter(Boolean) : undefined;
 
   const result = applyVersionBump({
     bumpType,

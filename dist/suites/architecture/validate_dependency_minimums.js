@@ -47,26 +47,22 @@ function normalizePinnedVersionToCaret(range) {
 var ValidateDependencyMinimumsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [
+				"dependency-exact-version-pinned",
+				"dependency-below-minimum-range",
+				"dependency-exceeds-maximum-range"
+			],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [
-				"dependency-below-minimum-range",
-				"dependency-exact-version-pinned",
-				"dependency-exceeds-maximum-range"
-			]),
-			fixableRuleIds: [
-				"dependency-below-minimum-range",
-				"dependency-exact-version-pinned",
-				"dependency-exceeds-maximum-range"
-			],
+			}),
 			id: "validate_dependency_minimums",
 			name: "Dependency Minimum Versions Validator",
 			description: "Minimum and maximum versions of installed packages",

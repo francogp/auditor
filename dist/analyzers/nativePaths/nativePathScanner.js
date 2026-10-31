@@ -1,15 +1,15 @@
-import { NODE_ONLY_RULES } from "./nativePathTypes.js";
 import { isUrlConstruction } from "./pathLiteralHeuristics.js";
 import { getNodePathFunction, isFsSinkCall, isPathOriginChain } from "./pathHeuristics.js";
 import { concatDetector } from "./detectors/concatDetector.js";
-import { normalizeDetector } from "./detectors/normalizeDetector.js";
-import { parsingDetector } from "./detectors/parsingDetector.js";
 import { containmentDetector } from "./detectors/containmentDetector.js";
-import { fileUrlDetector } from "./detectors/fileUrlDetector.js";
-import { urlParsingDetector } from "./detectors/urlParsingDetector.js";
-import { slashDetector } from "./detectors/slashDetector.js";
 import { envArgvDetector } from "./detectors/envArgvDetector.js";
 import { fetchDetector } from "./detectors/fetchDetector.js";
+import { fileUrlDetector } from "./detectors/fileUrlDetector.js";
+import { normalizeDetector } from "./detectors/normalizeDetector.js";
+import { parsingDetector } from "./detectors/parsingDetector.js";
+import { slashDetector } from "./detectors/slashDetector.js";
+import { urlParsingDetector } from "./detectors/urlParsingDetector.js";
+import { NODE_ONLY_RULES } from "./nativePathTypes.js";
 import ts from "typescript";
 // src/analyzers/nativePaths/nativePathScanner.ts
 /**

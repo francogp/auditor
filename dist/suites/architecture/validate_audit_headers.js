@@ -3,8 +3,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
-import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -137,6 +136,7 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const headerRoots = options.roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			roots: headerRoots,
@@ -144,7 +144,6 @@ var AuditHeadersAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,
@@ -349,4 +348,4 @@ function auditAuditHeaders(targetDir = process.cwd()) {
 	};
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new AuditHeadersAuditor());
-export { AuditHeadersAuditor, CANONICAL_IGNORE_DIRS, HEADER_RULES, MAX_HEADER_LINES_CHECK, auditAuditHeaders, isPathIgnored, scanFileForIllegalHeaders };
+export { AuditHeadersAuditor, HEADER_RULES, MAX_HEADER_LINES_CHECK, auditAuditHeaders, scanFileForIllegalHeaders };

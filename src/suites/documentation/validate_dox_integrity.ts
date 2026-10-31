@@ -15,17 +15,18 @@
  *   npm run validate:dox-integrity
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { checkDoxIntegrity } from '../../analyzers/doxAnalyzer.ts';
+import { loadAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  getEffectiveIgnoreDirs,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { loadAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { checkDoxIntegrity } from '../../analyzers/doxAnalyzer.ts';
+import { getEffectiveIgnoreDirs } from '../../core/canonicalIgnoreRegistry.ts';
 
 enableCompileCache();
 
@@ -53,16 +54,16 @@ export interface DoxIntegrityAuditorOptions {
 export class DoxIntegrityAuditor extends BaseAuditor<DoxRuleId> {
   private readonly rootDir: string;
 
-  constructor(options: DoxIntegrityAuditorOptions = {}) {
+  public constructor(options: DoxIntegrityAuditorOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     super({
+      ruleFixers: {},
       projectRoot,
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOX_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: true,
         ast: false,
         changedOnly: false,

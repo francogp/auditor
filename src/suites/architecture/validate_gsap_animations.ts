@@ -18,25 +18,32 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import ts from 'typescript';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
-  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
+import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
   isExemptFile,
   matchesAnyRoot
 } from '../../core/auditConfig.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
-import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
-import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import {
   advancePastStringOrComment,
   scanBalancedBraces,
   scanBalancedParens
 } from '../../core/scannerUtils.ts';
+import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -351,11 +358,12 @@ function resolveLocalVariableDeclaration(
       ts.isArrowFunction(current) ||
       ts.isMethodDeclaration(current)
     ) {
-      const stmts = ts.isSourceFile(current) || ts.isBlock(current)
-        ? current.statements
-        : 'body' in current && current.body && ts.isBlock(current.body as ts.Node)
-          ? (current.body as ts.Block).statements
-          : undefined;
+      const stmts =
+        ts.isSourceFile(current) || ts.isBlock(current)
+          ? current.statements
+          : 'body' in current && current.body && ts.isBlock(current.body)
+            ? current.body.statements
+            : undefined;
 
       if (stmts) {
         const found = findVariableInitializer(stmts, targetName);
@@ -368,11 +376,7 @@ function resolveLocalVariableDeclaration(
   return findVariableInitializer(ast.statements, targetName);
 }
 
-function isPercentageWidthExpression(
-  expr: ts.Expression,
-  ast: ts.SourceFile,
-  depth = 0
-): boolean {
+function isPercentageWidthExpression(expr: ts.Expression, ast: ts.SourceFile, depth = 0): boolean {
   if (depth > 5) return false;
 
   if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) {
@@ -437,7 +441,7 @@ function resolveObjectLiteral(
 }
 
 export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimationRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     const config = getAuditConfig(effectiveRoot);
     const stylesExempts = [
@@ -446,6 +450,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     ];
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       projectRoot: effectiveRoot,
@@ -463,7 +468,6 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       ruleCapabilities: createRuleCapabilities(GSAP_ANIMATION_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -650,7 +654,7 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         rawContent: string,
         scriptRanges: readonly { start: number; end: number }[]
       ) => void
-    ) => {
+    ): void => {
       this.declareFileSubAuditor(ruleId, (doc) => {
         const norm = normalizeFilePath(doc.relPath);
         if ((!norm.endsWith('.ts') && !norm.endsWith('.vue')) || isExemptFile(doc.relPath)) return;
@@ -739,9 +743,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           `CSS animation or transition detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Using CSS animations or transitions instead of GSAP is strictly PROHIBITED. ` +
           `[🚨 SABOTAGE ALERT]: DELETING OR NULLIFYING THE TRANSITION TO SILENCE THE AUDITOR IS CATEGORICALLY PROHIBITED. ` +
           `All interactive transitions must be cleanly migrated to GSAP tweens (gsap.to, gsap.fromTo, useGSAP).`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -757,9 +761,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-empty-vue-transitions',
         message: `Empty Vue transition detected: '${m[0].trim()}'. MANDATORY MIGRATION TO GSAP: Emptying transition classes to evade the auditor is prohibited.`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -774,9 +778,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-no-important-transforms',
         message: `Use of '!important' in 'transform' detected: '${m[0]}'. Overrides GSAP runtime mutations.`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -791,9 +795,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-no-important-filters',
         message: `Use of '!important' in 'filter' detected: '${m[0]}'. Invalidates GSAP effect animations.`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -821,9 +825,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           ruleId: 'gsap-gpu-layer-promotion',
           message:
             "Dynamic filter detected without 'will-change'. Consider adding GPU layer promotion.",
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -856,9 +860,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         this.addViolation({
           ruleId: 'gsap-banned-ui-timers',
           message: `ANIMATION/UI timer detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Prohibited in UI. Use gsap.delayedCall or deterministic promises.`,
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -921,22 +925,26 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-no-layout-properties',
         message: `Animation of CSS layout properties in GSAP detected: '${propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
-        filePath: doc.relPath,
+        file: doc.relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
       return;
     }
 
-    if (targetRule === 'gsap-kebab-case-properties' && !propName.startsWith('--') && propName.includes('-')) {
+    if (
+      targetRule === 'gsap-kebab-case-properties' &&
+      !propName.startsWith('--') &&
+      propName.includes('-')
+    ) {
       const { line, column } = doc.getNodeLineAndColumn(prop, ast);
       this.addViolation({
         ruleId: 'gsap-kebab-case-properties',
         message: `CSS property in kebab-case detected in GSAP tween: '${propName}'. Use camelCase according to GSAP standards.`,
-        filePath: doc.relPath,
+        file: doc.relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
       return;
@@ -951,9 +959,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-raw-transform-string',
         message: `Use of raw CSS string 'transform' in GSAP detected: '${prop.initializer.text}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
-        filePath: doc.relPath,
+        file: doc.relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -970,9 +978,8 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
 
     for (const prop of arg.properties) {
       if (!ts.isPropertyAssignment(prop)) continue;
-      const propName = ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name)
-        ? prop.name.text
-        : '';
+      const propName =
+        ts.isIdentifier(prop.name) || ts.isStringLiteral(prop.name) ? prop.name.text : '';
 
       if (propName === 'svgOrigin') hasSvgOrigin = true;
       if (propName === 'transformOrigin') hasTransformOrigin = true;
@@ -984,10 +991,11 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       const { line, column } = doc.getNodeLineAndColumn(arg, ast);
       this.addViolation({
         ruleId: 'gsap-simultaneous-origin-conflict',
-        message: "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
-        filePath: doc.relPath,
+        message:
+          "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
+        file: doc.relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -1001,9 +1009,10 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
     const isGsapCall = (call: ts.CallExpression): boolean => {
       const expr = call.expression;
       if (!ts.isPropertyAccessExpression(expr)) return false;
-      const allowedMethods = targetRule === 'gsap-no-layout-properties'
-        ? GSAP_ANIMATED_TWEEN_METHODS
-        : GSAP_TWEEN_METHODS;
+      const allowedMethods =
+        targetRule === 'gsap-no-layout-properties'
+          ? GSAP_ANIMATED_TWEEN_METHODS
+          : GSAP_TWEEN_METHODS;
       if (!allowedMethods.has(expr.name.text)) return false;
 
       let recv: ts.Node = expr.expression;
@@ -1012,7 +1021,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       }
       if (ts.isIdentifier(recv)) {
         const text = recv.text.toLowerCase();
-        return text === 'gsap' || text.includes('timeline') || text.includes('tl') || text === 'ctx';
+        return (
+          text === 'gsap' || text.includes('timeline') || text.includes('tl') || text === 'ctx'
+        );
       }
       if (ts.isCallExpression(recv)) {
         return isGsapCall(recv);
@@ -1048,9 +1059,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         this.addViolation({
           ruleId: 'gsap-no-layout-properties',
           message: `Animation of CSS layout properties in GSAP detected: '${foundLayout.propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -1072,9 +1083,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         this.addViolation({
           ruleId: 'gsap-kebab-case-properties',
           message: `CSS property in kebab-case detected in GSAP tween: '${kebabMatch[0]}'. Use camelCase according to GSAP standards.`,
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -1096,9 +1107,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         this.addViolation({
           ruleId: 'gsap-raw-transform-string',
           message: `Use of raw CSS string 'transform' in GSAP detected: '${rawMatch[0]}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -1117,9 +1128,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
           ruleId: 'gsap-simultaneous-origin-conflict',
           message:
             "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -1138,9 +1149,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-named-timer-constants',
         message: `Magic number detected in GSAP animation delay: '${m[0].trim()}'. Define and use a semantic constant with '_SEC' suffix.`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -1158,9 +1169,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
         this.addViolation({
           ruleId: 'gsap-timeline-constructor-duration',
           message: `'duration' property in timeline constructor is ignored in GSAP 3. Use 'defaults: { duration: ... }'.`,
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           severity: 'error'
         });
       }
@@ -1176,9 +1187,9 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       this.addViolation({
         ruleId: 'gsap-legacy-ease-names',
         message: `Legacy GSAP v2 ease '${m[0]}' detected. Use canonical GSAP 3 format (e.g. 'power2.out', 'none').`,
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         severity: 'error'
       });
     }
@@ -1193,17 +1204,17 @@ export class ValidateGsapAnimationsAuditor extends FileScanAuditor<GsapAnimation
       if (/\bgsap\.(?:to|from|fromTo)\s*\(/.test(listenerChunk)) {
         const { line, column } = getLineAndColumnAt(content, m.index);
         this.addViolation({
-            ruleId: 'gsap-high-frequency-tween-creation',
-            message:
-              "Tween creation with 'gsap.to()' inside continuous listener. In 'mousemove', etc. use 'gsap.quickTo()'.",
-            filePath: relPath,
-            line,
-            column,
-            severity: 'warning'
-          });
-        }
+          ruleId: 'gsap-high-frequency-tween-creation',
+          message:
+            "Tween creation with 'gsap.to()' inside continuous listener. In 'mousemove', etc. use 'gsap.quickTo()'.",
+          file: relPath,
+          line,
+          col: column,
+          severity: 'warning'
+        });
       }
     }
   }
+}
 
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGsapAnimationsAuditor());

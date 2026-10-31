@@ -1,14 +1,17 @@
 import { enableCompileCache } from 'node:module';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
-  LIGHT_RULE_CAPABILITIES
+  LIGHT_RULE_CAPABILITIES,
+  type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { normalizePosixPath, isPathExempt, isPathContained } from '../../core/safePath.ts';
+import { isPathExempt } from '../../core/reportUtils.ts';
+import { normalizePosixPath, isPathContained } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -30,7 +33,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   private readonly migrationsDir?: string;
   private readonly excludeMigrationsDir: boolean;
 
-  constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const excludeMigrations = config.queryPerformance?.excludeMigrationsDir !== false;
@@ -38,6 +41,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
     const migrationRoots = !excludeMigrations && migrationsDir ? [migrationsDir] : [];
     const targetRoots = options.roots ?? [...(config.paths?.srcRoots ?? []), ...migrationRoots];
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       id: 'validate_query_performance',

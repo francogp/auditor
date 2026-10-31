@@ -12,22 +12,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
-export const NPMRC_CONFIG_RULES = [
-  'npmrc-config-missing',
-  'npmrc-config-missing-setting'
-] as const;
+export const NPMRC_CONFIG_RULES = ['npmrc-config-missing', 'npmrc-config-missing-setting'] as const;
 
 export type NpmrcConfigRuleId = (typeof NPMRC_CONFIG_RULES)[number];
 
@@ -54,53 +51,37 @@ export const NPMRC_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<NpmrcConfigR
   generateDefaultContent: () => CANONICAL_NPMRC_CONTENT
 };
 
+export interface NpmrcConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
+
 export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<NpmrcConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<NpmrcConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: NpmrcConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<NpmrcConfigRuleId> = {
       ...NPMRC_CONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(NPMRC_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: false,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'npmrc-config-missing',
-        'npmrc-config-missing-setting'
-      ],
       configFiles: [configRequirement],
       id: 'validate_npmrc_config',
       name: 'NPMRC Configuration Validator',
@@ -136,9 +117,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
       coverage: {
         include: ['.npmrc']
       },
-      projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      projectRoot
     });
   }
 
@@ -162,8 +141,7 @@ export class ValidateNpmrcConfigAuditor extends BaseAuditor<NpmrcConfigRuleId> {
 
     const resolvedPath = configFile;
 
-    const relPath =
-      path.relative(this.projectRoot, resolvedPath) || NPMRC_CONFIG_REQUIREMENT.file;
+    const relPath = path.relative(this.projectRoot, resolvedPath) || NPMRC_CONFIG_REQUIREMENT.file;
     this.recordScanned(relPath);
     let rawContent: string;
     try {

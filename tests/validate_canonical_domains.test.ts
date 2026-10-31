@@ -55,7 +55,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
   });
 
   it('fulfills point 1: metadata and BaseAuditor contract verification', () => {
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_canonical_domains');
     expect(auditor.family).toBe('domain_data');
     expect(auditor.packageName).toBe('Catalogs');
@@ -77,8 +77,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/accountTiers.ts'), canonicalA, 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/account.ts'), canonicalB, 'utf-8');
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -93,8 +93,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/rolesA.ts'), fileA, 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/rolesB.ts'), fileB, 'utf-8');
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const collisions = result.findings.filter((f) => f.ruleId === 'canonical-domain-collision');
@@ -110,8 +110,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/modeA.ts'), fileA, 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/modeB.ts'), fileB, 'utf-8');
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const repeated = result.findings.filter((f) => f.ruleId === 'canonical-domain-repeated-union');
@@ -128,8 +128,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/http.ts'), canonical, 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/safe.ts'), consumer, 'utf-8');
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const subsets = result.findings.filter((f) => f.ruleId === 'canonical-domain-subset-mismatch');
@@ -167,8 +167,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
       'utf-8'
     );
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
@@ -182,7 +182,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
       projectRoot: tempDir,
       roots: [emptySubDir]
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -231,8 +231,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/exemptA.ts'), fileA, 'utf-8');
     await fs.writeFile(path.join(tempDir, 'src/exemptB.ts'), fileB, 'utf-8');
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThanOrEqual(1);
     expect(result.status).toBe('failed');
@@ -356,8 +356,8 @@ describe('ValidateCanonicalDomainsAuditor', () => {
       'utf-8'
     );
 
-    const auditor = new ValidateCanonicalDomainsAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateCanonicalDomainsAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const typeDup = result.findings.find((f) => f.message.includes('Duplicate domain type union'));

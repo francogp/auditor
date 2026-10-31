@@ -2,8 +2,10 @@
  * src/analyzers/homebrew/homebrewRegistry.ts
  *
  * Dynamic registry and runner coordinator for homebrew detectors.
+ * Inherits directly from BaseEntityRegistry to unify in-memory lifecycle and isolation.
  */
 
+import { BaseEntityRegistry, type IBaseEntityRegistry } from '../../core/baseRegistry.ts';
 import type {
   AuditorHomebrewRuleId,
   HomebrewDetector,
@@ -11,46 +13,53 @@ import type {
   HomebrewInspectionContext
 } from './homebrewTypes.ts';
 
-export class HomebrewDetectorRegistry {
-  private static readonly detectors = new Map<string, HomebrewDetector>();
+export interface IHomebrewDetectorRegistry extends IBaseEntityRegistry<HomebrewDetector> {
+  scanFile(file: string, context: HomebrewInspectionContext): readonly HomebrewFinding[];
+  scanAll(context: HomebrewInspectionContext): readonly HomebrewFinding[];
+  getRuleIds(): readonly AuditorHomebrewRuleId[];
+  getRuleDescriptions(): Record<AuditorHomebrewRuleId, string>;
+  getRuleRemediations(): Record<AuditorHomebrewRuleId, string>;
+  run(
+    context: HomebrewInspectionContext,
+    disabledDetectors?: readonly string[],
+    onDetectorDuration?: (ruleId: AuditorHomebrewRuleId, durationMs: number) => void
+  ): HomebrewFinding[];
+}
 
-  public static register(detector: HomebrewDetector): void {
-    this.detectors.set(detector.id, detector);
+export class HomebrewDetectorRegistryImpl
+  extends BaseEntityRegistry<HomebrewDetector>
+  implements IHomebrewDetectorRegistry
+{
+  public constructor() {
+    super((d) => d.id);
   }
 
-  public static unregister(id: string): boolean {
-    return this.detectors.delete(id);
+  public scanFile(file: string, context: HomebrewInspectionContext): readonly HomebrewFinding[] {
+    const effectiveContext = context.filePath === file ? context : { ...context, filePath: file };
+    return this.run(effectiveContext);
   }
 
-  public static get(id: string): HomebrewDetector | undefined {
-    return this.detectors.get(id);
+  public scanAll(context: HomebrewInspectionContext): readonly HomebrewFinding[] {
+    return this.run(context);
   }
 
-  public static getAll(): readonly HomebrewDetector[] {
-    return Array.from(this.detectors.values());
-  }
-
-  public static clear(): void {
-    this.detectors.clear();
-  }
-
-  public static getRuleIds(): readonly AuditorHomebrewRuleId[] {
+  public getRuleIds(): readonly AuditorHomebrewRuleId[] {
     const ids = new Set<AuditorHomebrewRuleId>();
-    for (const d of this.detectors.values()) {
+    for (const d of this.getAll()) {
       ids.add(d.ruleId);
     }
     return Array.from(ids);
   }
 
-  public static getRuleDescriptions(): Record<AuditorHomebrewRuleId, string> {
+  public getRuleDescriptions(): Record<AuditorHomebrewRuleId, string> {
     const descriptions: Record<string, string> = {};
-    for (const d of this.detectors.values()) {
+    for (const d of this.getAll()) {
       descriptions[d.ruleId] = d.ruleDescription;
     }
-    return descriptions as Record<AuditorHomebrewRuleId, string>;
+    return descriptions;
   }
 
-  public static getRuleRemediations(): Record<AuditorHomebrewRuleId, string> {
+  public getRuleRemediations(): Record<AuditorHomebrewRuleId, string> {
     const remediations: Record<string, string> = {
       'auditor-manual-package-json':
         'Use the canonical getPackageJson(projectRoot) utility from src/core/packageJson.ts instead of manually reading or parsing package.json.',
@@ -83,10 +92,10 @@ export class HomebrewDetectorRegistry {
       'auditor-inefficient-file-scan':
         'Avoid iterating rules before files or passing blind wildcards (**/*.ext) to external CLIs; use this.scanFilesSinglePass(), FileScanAuditor, or pass the list of files discovered by auditor.'
     };
-    return remediations as Record<AuditorHomebrewRuleId, string>;
+    return remediations;
   }
 
-  public static run(
+  public run(
     context: HomebrewInspectionContext,
     disabledDetectors: readonly string[] = [],
     onDetectorDuration?: (ruleId: AuditorHomebrewRuleId, durationMs: number) => void
@@ -94,7 +103,7 @@ export class HomebrewDetectorRegistry {
     const disabledSet = new Set(disabledDetectors);
     const findings: HomebrewFinding[] = [];
 
-    for (const detector of this.detectors.values()) {
+    for (const detector of this.getAll()) {
       if (disabledSet.has(detector.id)) continue;
 
       const t0 = performance.now();
@@ -110,3 +119,11 @@ export class HomebrewDetectorRegistry {
     return findings;
   }
 }
+
+/**
+ * Universal singleton instance for HomebrewDetectorRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export const HomebrewDetectorRegistry: IHomebrewDetectorRegistry =
+  new HomebrewDetectorRegistryImpl();
+export type HomebrewDetectorRegistry = IHomebrewDetectorRegistry;

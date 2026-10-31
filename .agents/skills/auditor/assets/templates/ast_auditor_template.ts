@@ -21,6 +21,7 @@ import {
   getEffectiveIgnoreGlobs,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
+  createUniformRuleCapabilities,
   type AuditorRuleCapabilities,
   type RemediationPhaseId,
   type FileScanRootsOptions
@@ -54,27 +55,17 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
     const allowedExtensions = new Set(['.ts', '.vue']);
 
     super({
-      // Mandatory: Explicit 7-Field Orthogonal Rule Capabilities (Zero Fallbacks Mandate)
-      ruleCapabilities: {
-        'my-ast-forbidden-pattern': {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: true,
-          changedOnly: false,
-          critical: false
-        },
-        'my-ast-missing-contract': {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: true,
-          changedOnly: false,
-          critical: false
-        }
-      },
+      ruleFixers: {},
+      // Mandatory: Explicit orthogonal rule capabilities.
+      // Zero Manual Booleans: 'fix' is computed dynamically by BaseAuditor based on registered fixers.
+      ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: true,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_my_ast',
       name: 'My AST Validator',
       description: 'Validates AST contracts across TypeScript and Vue SFCs',

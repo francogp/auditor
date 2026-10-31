@@ -19,6 +19,16 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
+import { discoverAuditors, collectAllGitIgnoreRequirements } from '../cli/auditScanner.ts';
+import { initAgentSkill } from '../cli/init_agent.ts';
+import { migrateLegacyAuditConfig } from '../cli/migrateAuditConfig.ts';
+import {
+  createDefaultAuditConfigContent,
+  collectMissingSections,
+  syncAuditorVersionInConfigFile,
+  enforceCriticalConfigurations
+} from '../suites/architecture/validate_audit_config.ts';
 import {
   AUDIT_CONFIG_FILE,
   AUDIT_CONFIG_JSON_FILE,
@@ -27,22 +37,13 @@ import {
   resetAuditConfig,
   isSelfProviderProject
 } from './auditConfig.ts';
-import { tryOrNull, tryCatchSync, tryOrNullAsync, tryOrUndefinedAsync } from './safeUtils.ts';
-import type { AuditTaskDefinition } from './auditContract.ts';
-import { discoverAuditors, collectAllGitIgnoreRequirements } from '../cli/auditScanner.ts';
-import { migrateLegacyAuditConfig } from '../cli/migrateAuditConfig.ts';
 import { appendMissingSectionsToConfigFile } from './auditConfigAst.ts';
-import {
-  createDefaultAuditConfigContent,
-  collectMissingSections,
-  syncAuditorVersionInConfigFile,
-  enforceCriticalConfigurations
-} from '../suites/architecture/validate_audit_config.ts';
-import { initAgentSkill } from '../cli/init_agent.ts';
+import type { AuditTaskDefinition } from './auditContract.ts';
 import { findMissingGitIgnoreRequirements, appendGitIgnoreEntries } from './gitignoreMatcher.ts';
-import { getPackageJson } from './packageJson.ts';
-import { AUDITOR_VERSION } from './version.ts';
 import { ensureNpmrcAllowGit } from './npmrcAllowGit.ts';
+import { getPackageJson } from './packageJson.ts';
+import { tryOrNull, tryCatchSync, tryOrNullAsync, tryOrUndefinedAsync } from './safeUtils.ts';
+import { AUDITOR_VERSION } from './version.ts';
 import { repairVitePlusProject } from './vitePlusConfigSync.ts';
 
 export interface BootstrapResult {

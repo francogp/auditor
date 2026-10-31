@@ -9,19 +9,24 @@
  *   3. Persists the complete structured JSON report to scratch/audits/latest_audit.json.
  */
 
-import { styleText } from 'node:util';
-import { enableCompileCache } from 'node:module';
-import {
-  COMMON_CLI_ARGS,
-  getProcessCliArgs,
-  parseCittyArgs,
-  type CittyArgsDef
-} from '../core/cli/cittyHarness.ts';
 import fs from 'node:fs/promises';
-import path from 'node:path';
+import { enableCompileCache } from 'node:module';
 import os from 'node:os';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { styleText } from 'node:util';
 
+import { SharedAstContext } from '../core/astContext.ts';
+import { ensureProjectBootstrapped } from '../core/auditBootstrap.ts';
+import {
+  loadAuditConfig,
+  assertAuditConfigComplete,
+  buildRatchetConfig,
+  sanitizePath,
+  type AuditEngineConfig,
+  type AuditListFilter,
+  type ResolvedRatchetConfig
+} from '../core/auditConfig.ts';
 import {
   type StandardAuditResult,
   type SubAuditorReport,
@@ -44,22 +49,38 @@ import {
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
 import {
-  loadAuditConfig,
-  assertAuditConfigComplete,
-  buildRatchetConfig,
-  sanitizePath,
-  type AuditEngineConfig,
-  type AuditListFilter,
-  type ResolvedRatchetConfig
-} from '../core/auditConfig.ts';
-import { runWarningRatchet, initWarningBaseline } from './auditRatchet.ts';
-import { migrateLegacyAuditConfig } from './migrateAuditConfig.ts';
-import {
   COVERAGE_LEDGER_DIR,
   COVERAGE_RUN_ID_ENV,
   COVERAGE_RUN_MODE_ENV,
   COVERAGE_EXPECTED_SUITES_ENV
 } from '../core/auditCoverage.ts';
+import { BaseAuditor } from '../core/auditorBase.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../core/cli/cittyHarness.ts';
+import {
+  renderExecutivePassSummary,
+  renderExecutiveFailSummary,
+  renderExecutiveSetupBlockingSummary,
+  renderExecutiveFixSummary,
+  extractPhaseBreakdown
+} from '../core/executiveTheme.ts';
+import {
+  REMEDIATION_PHASE_IDS,
+  getRemediationPhaseMetadata,
+  type RemediationPhaseId
+} from '../core/remediationPhases.ts';
+import { safeJsonParse, safeRmSync, safeReadFileAsync } from '../core/safeUtils.ts';
+import {
+  type ConsoleOutputMode,
+  executeAuditorStreaming,
+  isNodeInternalWarning,
+  TaskStreamCoordinator
+} from '../core/streamingRunner.ts';
+import { evaluateSuiteStatus } from '../core/suiteGating.ts';
 import {
   stringWidth,
   renderBanner,
@@ -79,11 +100,10 @@ import {
   formatDurationMs,
   formatNumber
 } from '../core/unifiedTheme.ts';
-import {
-  REMEDIATION_PHASE_IDS,
-  getRemediationPhaseMetadata,
-  type RemediationPhaseId
-} from '../core/remediationPhases.ts';
+import { AUDITOR_VERSION } from '../core/version.ts';
+import { runWarningRatchet, initWarningBaseline } from './auditRatchet.ts';
+import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
+import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
 import {
   renderRuleGuideCard,
   renderSuiteGuideCards,
@@ -91,27 +111,7 @@ import {
   renderGlobalGuideIndex,
   findRuleGuide
 } from './guideRenderer.ts';
-import { discoverAuditors, type AuditPresetName } from './auditScanner.ts';
-import {
-  type ConsoleOutputMode,
-  executeAuditorStreaming,
-  isNodeInternalWarning,
-  TaskStreamCoordinator
-} from '../core/streamingRunner.ts';
-import { safeJsonParse, safeRmSync, safeReadFileAsync } from '../core/safeUtils.ts';
-import {
-  renderExecutivePassSummary,
-  renderExecutiveFailSummary,
-  renderExecutiveSetupBlockingSummary,
-  renderExecutiveFixSummary,
-  extractPhaseBreakdown
-} from '../core/executiveTheme.ts';
-import { SharedAstContext } from '../core/astContext.ts';
-import { BaseAuditor } from '../core/auditorBase.ts';
-import { evaluateSuiteStatus } from '../core/suiteGating.ts';
-import { AUDITOR_VERSION } from '../core/version.ts';
-import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
-import { ensureProjectBootstrapped } from '../core/auditBootstrap.ts';
+import { migrateLegacyAuditConfig } from './migrateAuditConfig.ts';
 import '../core/permissionGuard.ts';
 
 enableCompileCache();
@@ -254,7 +254,12 @@ export function resolveTargetPreset(
 }
 
 const AUDIT_SPEED_NAMES: ReadonlySet<string> = new Set(['light', 'heavy', 'full']);
-const AUDIT_PHASE_NAMES: ReadonlySet<string> = new Set(['setup', 'normal', 'post-run', 'post-build']);
+const AUDIT_PHASE_NAMES: ReadonlySet<string> = new Set([
+  'setup',
+  'normal',
+  'post-run',
+  'post-build'
+]);
 
 function parseSpeedValue(raw: unknown): AuditExecutionSpeed | undefined {
   if (typeof raw === 'string' && AUDIT_SPEED_NAMES.has(raw)) {
@@ -314,10 +319,16 @@ const AUDIT_FULL_ARGS = {
   'only-suite': { type: 'string', description: 'Run only specified suite(s)' },
   'only-task': { type: 'string', description: 'Run only specified task(s)' },
   guide: { type: 'string', description: 'Show remediation guide for a rule or suite' },
-  preset: { type: 'string', description: 'Execution preset (lint, full, critical, md, post-build)' },
+  preset: {
+    type: 'string',
+    description: 'Execution preset (lint, full, critical, md, post-build)'
+  },
   speed: { type: 'string', description: 'Target speed tier (light, heavy, full)' },
   'only-speed': { type: 'string', description: 'Exclusive speed tier filter' },
-  phase: { type: 'string', description: 'Execution phase filter (setup, normal, post-run, post-build)' },
+  phase: {
+    type: 'string',
+    description: 'Execution phase filter (setup, normal, post-run, post-build)'
+  },
   concurrency: { type: 'string', description: 'Maximum parallel worker concurrency' },
   output: { type: 'string', alias: 'o', description: 'Custom output path for report' },
   'changed-since': { type: 'string', description: 'Git ref to filter changed files' },
@@ -356,7 +367,8 @@ export function parseAuditFullCliArgs(
   return {
     values,
     positionals,
-    project: typeof values.project === 'string' && values.project !== '.' ? values.project : undefined,
+    project:
+      typeof values.project === 'string' && values.project !== '.' ? values.project : undefined,
     targetFamily: resolveTargetFamily(values.family, positionals, activeFamilies),
     formattedRules: resolveFormattedRules(values, positionals),
     targetPreset,
@@ -460,14 +472,19 @@ async function executeTaskInProcess(
           onSubLine(msg);
         });
       }
-      const result = await auditor.execute(sharedAstContext);
+      const isFixMode = taskArgs.includes('--fix') || taskArgs.includes('fix');
+      const result = isFixMode
+        ? await auditor.fix(sharedAstContext)
+        : await auditor.audit(sharedAstContext);
       const durationMs = Math.round(performance.now() - taskStart);
       result.durationMs = durationMs;
       return { result, durationMs };
     }
   } catch (err: unknown) {
     if (process.env.DEBUG === 'true') {
-      console.warn(`[AuditFull] in-process execution failed for ${task.id}: ${(err as Error).message}`);
+      console.warn(
+        `[AuditFull] in-process execution failed for ${task.id}: ${(err as Error).message}`
+      );
     }
   }
   return null;
@@ -708,7 +725,7 @@ export function formatSetupBlockingRemediationHint(
 ): string {
   const fixHint = hasFixableErrors
     ? " (e.g. 'npm run auditor:fix')"
-    : " manually (see error details above; no automatic fix available)";
+    : ' manually (see error details above; no automatic fix available)';
   return `   Resolve the ${setupErrors} configuration error(s) first${fixHint} to unblock full project analysis.\n`;
 }
 
@@ -741,34 +758,18 @@ function printFindingsSummary(
   if (blockingContext?.isSetupBlocking) {
     console.log(
       '\n' +
-        renderSetupBlockingBanner(
-          blockingContext.setupErrors,
-          blockingContext.postponedAppErrors,
-          {
-            hasLockfileMismatch: blockingContext.hasLockfileMismatch,
-            hasEngineMismatch: blockingContext.hasEngineMismatch,
-            hasFixableErrors: blockingContext.hasFixableErrors
-          }
-        ) +
+        renderSetupBlockingBanner(blockingContext.setupErrors, blockingContext.postponedAppErrors, {
+          hasLockfileMismatch: blockingContext.hasLockfileMismatch,
+          hasEngineMismatch: blockingContext.hasEngineMismatch,
+          hasFixableErrors: blockingContext.hasFixableErrors
+        }) +
         '\n'
     );
-    console.log(
-      styleText(
-        'bold',
-        '📊 EXCLUSIVE SETUP & PROJECT BREAKDOWN (PHASE 1: SETUP):\n'
-      )
-    );
+    console.log(styleText('bold', '📊 EXCLUSIVE SETUP & PROJECT BREAKDOWN (PHASE 1: SETUP):\n'));
     if (tieredGroups && tieredGroups.length > 0) {
-      console.log(
-        renderTieredFindingsBreakdownTable(
-          tieredGroups,
-          'ISSUE TYPE / SETUP RULE'
-        )
-      );
+      console.log(renderTieredFindingsBreakdownTable(tieredGroups, 'ISSUE TYPE / SETUP RULE'));
     } else {
-      console.log(
-        renderFindingsBreakdownTable(sortedCategories, 'ISSUE TYPE / SETUP RULE')
-      );
+      console.log(renderFindingsBreakdownTable(sortedCategories, 'ISSUE TYPE / SETUP RULE'));
     }
     const setupErrors = sortedCategories.flatMap(([, data]) =>
       data.findings.filter((f) => f.severity === 'error')
@@ -796,10 +797,7 @@ function printFindingsSummary(
   } else {
     console.log(
       '\n' +
-        styleText(
-          'bold',
-          '📊 BREAKDOWN BY ISSUE TYPE & SEVERITY (STRATEGIC RESOLUTION ORDER):\n'
-        )
+        styleText('bold', '📊 BREAKDOWN BY ISSUE TYPE & SEVERITY (STRATEGIC RESOLUTION ORDER):\n')
     );
     if (tieredGroups && tieredGroups.length > 0) {
       console.log(renderTieredFindingsBreakdownTable(tieredGroups, 'ISSUE TYPE / RULE'));
@@ -901,7 +899,7 @@ function buildConsolidatedReport(params: {
           suites: byFamily.get(f) ?? []
         }
       ])
-    ) as Record<AuditFamily, { title: string; suites: StandardAuditResult[] }>,
+    ),
     allFindings: sortedFindings,
     findingsByFile,
     remediationPhases: (() => {
@@ -990,9 +988,7 @@ function printRatchetVerdict(
       return;
     }
     if (verdict.error) {
-      console.log(
-        styleText(['bold', 'red'], `\n🔒 Ratchet Blocked: ${verdict.error}\n`)
-      );
+      console.log(styleText(['bold', 'red'], `\n🔒 Ratchet Blocked: ${verdict.error}\n`));
       return;
     }
     if (verdict.status === 'initialized') {
@@ -1023,9 +1019,7 @@ function printRatchetVerdict(
     return;
   }
   if (verdict.error) {
-    console.log(
-      styleText(['bold', 'red'], `\n🔒 WARNINGS RATCHET BLOCKED: ${verdict.error}\n`)
-    );
+    console.log(styleText(['bold', 'red'], `\n🔒 WARNINGS RATCHET BLOCKED: ${verdict.error}\n`));
     return;
   }
   if (verdict.newWarnings > 0) {
@@ -1164,7 +1158,10 @@ export interface FixableCountsResult {
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
 // facade delegator exported for orchestrator consumers
-export const computeFixableViolations = BaseAuditor.computeFixableViolations;
+export const computeFixableViolations = (
+  ...args: Parameters<typeof BaseAuditor.computeFixableViolations>
+): ReturnType<typeof BaseAuditor.computeFixableViolations> =>
+  BaseAuditor.computeFixableViolations(...args);
 
 interface PersistAuditReportsParams {
   readonly scratchAuditsDir: string;
@@ -1328,8 +1325,7 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
   );
   const hasEngineMismatch = setupFindings.some(
     (f) =>
-      f.ruleId === 'environment-runtime-mismatch' ||
-      f.ruleId === 'environment-engines-below-floor'
+      f.ruleId === 'environment-runtime-mismatch' || f.ruleId === 'environment-engines-below-floor'
   );
   const hasFixableErrors = setupFindings.some((f) => f.fixable && f.severity === 'error');
 
@@ -1469,10 +1465,7 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
         )
       );
       console.log(
-        styleText(
-          'dim',
-          `   Quality gates will require a full audit run ('npm run auditor').\n`
-        )
+        styleText('dim', `   Quality gates will require a full audit run ('npm run auditor').\n`)
       );
     }
 
@@ -1491,11 +1484,15 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
           styleText('cyan', 'npm run auditor:guide -- <rule>')
       );
       console.log(
-        styleText('dim', '   ❓ Global help catalog:     ') + styleText('cyan', 'npm run auditor:help')
+        styleText('dim', '   ❓ Global help catalog:     ') +
+          styleText('cyan', 'npm run auditor:help')
       );
       console.log(
         styleText('dim', '   🔧 Refactoring tools help:  ') +
-          styleText('cyan', 'npm run auditor:types help | auditor:domain help | auditor:motion help\n')
+          styleText(
+            'cyan',
+            'npm run auditor:types help | auditor:domain help | auditor:motion help\n'
+          )
       );
     }
   }
@@ -1532,7 +1529,9 @@ function findTaskByUidOrName(
 
   const matchWithoutPrefix = allTasks.find((t) => {
     const idWithoutValidate = t.id.toLowerCase().replace(/^validate_/, '');
-    return idWithoutValidate === normalizedQuery || idWithoutValidate.replace(/_/g, '-') === targetQuery;
+    return (
+      idWithoutValidate === normalizedQuery || idWithoutValidate.replace(/_/g, '-') === targetQuery
+    );
   });
   if (matchWithoutPrefix) return matchWithoutPrefix;
 
@@ -1664,7 +1663,8 @@ function handleGuideCommand(
   const target: string | undefined =
     typeof cliOptions.values.guide === 'string' && cliOptions.values.guide.trim() !== ''
       ? cliOptions.values.guide.trim()
-      : typeof cliOptions.values.subcommandTarget === 'string' && cliOptions.values.subcommandTarget.trim() !== ''
+      : typeof cliOptions.values.subcommandTarget === 'string' &&
+          cliOptions.values.subcommandTarget.trim() !== ''
         ? cliOptions.values.subcommandTarget.trim()
         : undefined;
 
@@ -1711,7 +1711,7 @@ function handleGuideCommand(
     process.exit(0);
   }
 
-  if (activeFamilies.includes(target as AuditFamily)) {
+  if (activeFamilies.includes(target)) {
     const tasksInFam = allAvailableTasks.filter((t) => t.family === target);
     console.log(renderFamilyGuideIndex(target, tasksInFam));
     process.exit(0);
@@ -1741,10 +1741,7 @@ function handleGuideCommand(
     .slice(0, 5);
 
   console.error(
-    styleText(
-      'red',
-      `\n❌ No rule, suite, or family found matching identifier '${target}'.`
-    )
+    styleText('red', `\n❌ No rule, suite, or family found matching identifier '${target}'.`)
   );
   if (suggestions.length > 0) {
     console.error(
@@ -2019,10 +2016,7 @@ async function checkEarlyCliCommands(): Promise<void> {
   if (cliTokens.some((a) => a === 'fix' || a === '--fix')) {
     for (const moved of migrateLegacyAuditConfig(process.cwd())) {
       console.log(
-        styleText(
-          'green',
-          `🛠️  Moved ${moved} to .auditor/${moved} (relative imports rewritten).`
-        )
+        styleText('green', `🛠️  Moved ${moved} to .auditor/${moved} (relative imports rewritten).`)
       );
     }
   }
@@ -2196,15 +2190,14 @@ async function executeAllAuditTasks(
       )
     );
   }
-  const executeSingleTask = (task: AuditTaskDefinition, index: number) => {
+  const executeSingleTask = (
+    task: AuditTaskDefinition,
+    index: number
+  ): Promise<StandardAuditResult> => {
     return executeSingleAuditTask(task, taskCtx, index);
   };
 
-  const workerResults = await runAuditWorkers(
-    workerTasks,
-    effectiveConcurrency,
-    executeSingleTask
-  );
+  const workerResults = await runAuditWorkers(workerTasks, effectiveConcurrency, executeSingleTask);
 
   const postRunResults: StandardAuditResult[] = [];
   for (let pIdx = 0; pIdx < postRunTasks.length; pIdx++) {
@@ -2302,12 +2295,7 @@ export async function runMasterAudit(): Promise<void> {
   });
 
   if (tasksToRun.length === 0) {
-    console.log(
-      styleText(
-        'yellow',
-        '⚠️ No auditors found matching specified filters.'
-      )
-    );
+    console.log(styleText('yellow', '⚠️ No auditors found matching specified filters.'));
     process.exit(0);
   }
 
@@ -2363,7 +2351,12 @@ export async function runMasterAudit(): Promise<void> {
 
 if (isMainModule(import.meta.url)) {
   runMasterAudit().catch((err) => {
-    console.error(styleText('red', `\n💥 Fatal error in audit_full: ${(err as Error).stack || (err as Error).message}`));
+    console.error(
+      styleText(
+        'red',
+        `\n💥 Fatal error in audit_full: ${(err as Error).stack || (err as Error).message}`
+      )
+    );
     process.exit(1);
   });
 }

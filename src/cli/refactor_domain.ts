@@ -8,17 +8,15 @@
  */
 
 import { styleText } from 'node:util';
-import type { TableColumn } from '../core/unifiedTheme.ts';
+
 import { DomainRefactorEngine } from '../core/refactor/domainRefactorEngine.ts';
 import {
   runRefactorCliHarness,
   formatCliRelativeFilePath,
   type RefactorCliDefinition
 } from '../core/refactor/refactorCliHarness.ts';
-import type {
-  DomainFindingItem,
-  DomainRefactorPlan
-} from '../core/refactor/refactorContracts.ts';
+import type { DomainFindingItem, DomainRefactorPlan } from '../core/refactor/refactorContracts.ts';
+import type { TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
@@ -32,9 +30,11 @@ const TABLE_COLUMNS: readonly TableColumn[] = [
 
 const domainCliDef: RefactorCliDefinition<DomainFindingItem, DomainRefactorPlan> = {
   toolName: 'auditor-domain',
-  toolDescription: 'parameters with naked strings, mutable catalogs, unbranded IDs, or unbranded Record keys',
+  toolDescription:
+    'parameters with naked strings, mutable catalogs, unbranded IDs, or unbranded Record keys',
   bannerTitle: 'AUDITOR DOMAIN: DOMAIN TYPE & BRANDED ID HYGIENE',
-  bannerSubtitle: 'Deterministic auto-remediation of naked strings, mutable catalogs, and unbranded Record keys',
+  bannerSubtitle:
+    'Deterministic auto-remediation of naked strings, mutable catalogs, and unbranded Record keys',
   scanningMessage: 'Scanning domain contracts and nominal types in',
   zeroFindingsMessage: 'Zero raw strings, mutable catalogs, or unbranded IDs detected!',
   tableColumns: TABLE_COLUMNS,

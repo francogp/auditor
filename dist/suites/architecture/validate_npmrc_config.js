@@ -40,29 +40,27 @@ const NPMRC_CONFIG_REQUIREMENT = {
 	generateDefaultContent: () => CANONICAL_NPMRC_CONTENT
 };
 var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...NPMRC_CONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(NPMRC_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["npmrc-config-missing", "npmrc-config-missing-setting"],
 			configFiles: [configRequirement],
 			id: "validate_npmrc_config",
 			name: "NPMRC Configuration Validator",
@@ -84,9 +82,7 @@ var ValidateNpmrcConfigAuditor = class extends BaseAuditor {
 				"npmrc-config-missing-setting": "📖 REMEDIATION GUIDE: npmrc-config-missing-setting\n1. Root Cause: Critical directives are missing from `.npmrc` (engine-strict=true, package-lock=true).\n2. Diagnosis: Inspect existing `.npmrc` directives against mandatory settings.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to append or correct directives while preserving registries and tokens.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".npmrc"] },
-			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			projectRoot
 		});
 	}
 	async runAudit() {

@@ -24,15 +24,21 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+
+import type { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { SharedAstContext } from '../../core/astContext.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -58,14 +64,18 @@ export function getForbiddenIntegrationMockTargets(): readonly string[] {
 }
 
 const PLAYWRIGHT_TEXT_LOCATOR_REGEX = /:has-text\(|^text=/;
-const PLAYWRIGHT_LOCATOR_METHODS: ReadonlySet<string> = new Set<string>(['locator', 'click', 'dblclick']);
+const PLAYWRIGHT_LOCATOR_METHODS: ReadonlySet<string> = new Set<string>([
+  'locator',
+  'click',
+  'dblclick'
+]);
 
 export interface TestHygieneOptions {
   readonly projectRoot?: string;
 }
 
 export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
-  constructor(options: TestHygieneOptions = {}) {
+  public constructor(options: TestHygieneOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const testRoots = [
@@ -75,13 +85,13 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
     ];
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       projectRoot,
       ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -152,7 +162,12 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
     });
   }
 
-  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void {
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile,
+    doc?: AuditedDocument
+  ): void {
     const config = getAuditConfig(this.projectRoot);
     const isIntegration = config.paths.integrationRoots.some((r) => relPath.startsWith(r));
     const isE2e = config.paths.e2eRoots.some((r) => relPath.startsWith(r));
@@ -364,7 +379,11 @@ export class TestHygieneAuditor extends FileScanAuditor<TestHygieneRuleId> {
 
 function isForceClick(call: ts.CallExpression): boolean {
   const expr = call.expression;
-  return ts.isPropertyAccessExpression(expr) && (expr.name.text === 'click' || expr.name.text === 'dblclick') && hasForceClickOption(call);
+  return (
+    ts.isPropertyAccessExpression(expr) &&
+    (expr.name.text === 'click' || expr.name.text === 'dblclick') &&
+    hasForceClickOption(call)
+  );
 }
 
 function isPollingWait(call: ts.CallExpression): boolean {
@@ -376,7 +395,11 @@ function hasForceClickOption(call: ts.CallExpression): boolean {
   for (const arg of call.arguments) {
     if (ts.isObjectLiteralExpression(arg)) {
       for (const prop of arg.properties) {
-        if (ts.isPropertyAssignment(prop) && prop.name.getText() === 'force' && prop.initializer.kind === ts.SyntaxKind.TrueKeyword) {
+        if (
+          ts.isPropertyAssignment(prop) &&
+          prop.name.getText() === 'force' &&
+          prop.initializer.kind === ts.SyntaxKind.TrueKeyword
+        ) {
           return true;
         }
       }
@@ -397,7 +420,10 @@ function getCallTimeoutMs(call: ts.CallExpression): number | null {
   let isTestFn = false;
   if (ts.isIdentifier(expr) && (expr.text === 'it' || expr.text === 'test')) {
     isTestFn = true;
-  } else if (ts.isPropertyAccessExpression(expr) && (expr.name.text === 'it' || expr.name.text === 'test')) {
+  } else if (
+    ts.isPropertyAccessExpression(expr) &&
+    (expr.name.text === 'it' || expr.name.text === 'test')
+  ) {
     isTestFn = true;
   }
 
@@ -413,9 +439,14 @@ function getCallTimeoutMs(call: ts.CallExpression): number | null {
 function extractViMockTarget(node: ts.CallExpression, sf: ts.SourceFile): string | null {
   const expr = node.expression;
   if (!ts.isPropertyAccessExpression(expr)) return null;
-  if (expr.expression.getText(sf) !== 'vi' || (expr.name.text !== 'mock' && expr.name.text !== 'spyOn')) return null;
+  if (
+    expr.expression.getText(sf) !== 'vi' ||
+    (expr.name.text !== 'mock' && expr.name.text !== 'spyOn')
+  )
+    return null;
   const firstArg = node.arguments[0];
-  if (!firstArg || (!ts.isStringLiteral(firstArg) && !ts.isNoSubstitutionTemplateLiteral(firstArg))) return null;
+  if (!firstArg || (!ts.isStringLiteral(firstArg) && !ts.isNoSubstitutionTemplateLiteral(firstArg)))
+    return null;
   return firstArg.text.replace(/\.ts$/, '').replace(/\.js$/, '');
 }
 
@@ -427,12 +458,15 @@ function isPlaywrightTextLocator(node: ts.CallExpression, sf: ts.SourceFile): bo
   if (methodName === 'getByRole') {
     const secondArg = node.arguments[1];
     if (secondArg && ts.isObjectLiteralExpression(secondArg)) {
-      return secondArg.properties.some(p => p.name?.getText(sf) === 'name');
+      return secondArg.properties.some((p) => p.name?.getText(sf) === 'name');
     }
   }
   if (PLAYWRIGHT_LOCATOR_METHODS.has(methodName)) {
     const firstArg = node.arguments[0];
-    if (firstArg && (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))) {
+    if (
+      firstArg &&
+      (ts.isStringLiteral(firstArg) || ts.isNoSubstitutionTemplateLiteral(firstArg))
+    ) {
       return PLAYWRIGHT_TEXT_LOCATOR_REGEX.test(firstArg.text);
     }
   }

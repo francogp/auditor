@@ -1,5 +1,6 @@
-import { CLI_CONTRACT_RULES, CliContractRuleId, CliContractViolation } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { SharedAstContext } from "../../core/astContext.js";
+import { RuleFixContext } from "../../core/auditContract.js";
+import { CLI_CONTRACT_RULES, CliContractRuleId, CliContractViolation } from "../../analyzers/cliContracts/cliContractTypes.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 export interface CliContractsAuditResult {
   readonly filesScanned: number;
@@ -17,6 +18,7 @@ export declare function scanFileForCliContractViolations(filePath: string, conte
  * Full repository audit runner for CLI contracts and Citty governance.
  */
 export declare function auditCliContracts(targetDir?: string): CliContractsAuditResult;
+export declare function fixCliContracts(context: RuleFixContext<CliContractRuleId>): boolean;
 export declare class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
   private readonly cliViolationsByDoc;
   constructor(options?: FileScanRootsOptions);

@@ -10,9 +10,11 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import semver from 'semver';
+
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -72,28 +74,24 @@ export function normalizePinnedVersionToCaret(range: string): string | null {
 }
 
 export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMinimumsRuleId> {
-  constructor(options: Partial<AuditorOptions<DependencyMinimumsRuleId>> = {}) {
+  public constructor(options: Partial<AuditorOptions<DependencyMinimumsRuleId>> = {}) {
     super({
-      usesThirdPartyTool: false,
-      requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        DEPENDENCY_MINIMUMS_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['dependency-below-minimum-range', 'dependency-exact-version-pinned', 'dependency-exceeds-maximum-range']
-      ),
+      ruleFixers: {},
       fixableRuleIds: [
-        'dependency-below-minimum-range',
         'dependency-exact-version-pinned',
+        'dependency-below-minimum-range',
         'dependency-exceeds-maximum-range'
       ],
+      usesThirdPartyTool: false,
+      requiredPermissions: [],
+      ruleCapabilities: createRuleCapabilities(DEPENDENCY_MINIMUMS_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_dependency_minimums',
       name: 'Dependency Minimum Versions Validator',
       description: 'Minimum and maximum versions of installed packages',
@@ -283,7 +281,7 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
     }
   }
 
-  private repairDeclaredRangesInPackageJson(
+  public repairDeclaredRangesInPackageJson(
     pkg: PackageJsonDTO,
     minimums: Readonly<Record<string, string>>,
     maximums: Readonly<Record<string, DependencyMaximumSpec>>
@@ -310,8 +308,8 @@ export class ValidateDependencyMinimumsAuditor extends BaseAuditor<DependencyMin
       const maxSpec = maximums[name];
       const exceedsMax = Boolean(
         maxSpec &&
-          semver.validRange(declared.range) &&
-          semver.intersects(declared.range, maxSpec.prohibitedRange)
+        semver.validRange(declared.range) &&
+        semver.intersects(declared.range, maxSpec.prohibitedRange)
       );
 
       const targetSection = sectionMap[declared.section];

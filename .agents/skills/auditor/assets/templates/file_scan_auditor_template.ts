@@ -60,11 +60,13 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
     const allowedExtensions = new Set(['.md']);
 
     super({
-      // Mandatory: Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate)
+      ruleFixers: {},
+      // Mandatory: Explicit orthogonal rule capabilities.
+      // Zero Manual Booleans: 'fix' is computed automatically by BaseAuditor/FileScanAuditor
+      // based on whether declareFileSubAuditor defines a 'fix' handler or declarePatternSubAuditor defines 'replace'.
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: true,
         ast: false,
         changedOnly: false,
@@ -123,6 +125,36 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 
     // ARCHITECTURAL NOTE: FileScanAuditor line scanning is reserved for non-code text files.
     // For TypeScript or Vue SFC code analysis, use BaseAuditor with AST (ast_auditor_template.ts).
+
+    // Option A (Declarative Pattern Sub-Auditor with Auto-Fix):
+    // Providing 'replace' automatically registers the rule as auto-fixable and mutates the document.
+    // Omitting 'replace' strictly marks the rule as unfixable (Zero False-Fix Mandate).
+    // this.declarePatternSubAuditor('my-feature-forbidden-pattern', {
+    //   regex: /forbiddenPattern/g,
+    //   message: "Detected forbidden pattern 'forbiddenPattern'. Replace with canonical syntax.",
+    //   replace: 'canonicalPattern'
+    // });
+
+    // Option B (Declarative File Sub-Auditor with explicit Fix Handler):
+    // Function Identity Deduplication Mandate:
+    // - If multiple sub-auditors share the exact same 'audit' or 'fix' function, FileScanAuditor executes it strictly ONCE per document.
+    // - If 'audit === fix', running in --fix mode executes the function strictly ONCE (not twice).
+    // this.declareFileSubAuditor('my-feature-missing-attribute', {
+    //   audit: (doc) => {
+    //     if (!doc.getContent().includes('# Purpose')) {
+    //       this.addViolation({
+    //         ruleId: 'my-feature-missing-attribute',
+    //         severity: 'error',
+    //         file: doc.getRelativePath(),
+    //         message: 'Missing # Purpose header'
+    //       });
+    //     }
+    //   },
+    //   fix: (doc) => {
+    //     doc.setContent('# Purpose\n\n' + doc.getContent());
+    //     return true;
+    //   }
+    // });
   }
 
   protected override scanFile(relPath: string, content: string): void {

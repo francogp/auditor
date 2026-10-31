@@ -670,11 +670,22 @@ function deduplicateObjectProperties(props, sf) {
 		modified
 	};
 }
-function syncStringArrayExpression(existingProp, requiredStrings, sf) {
+function syncStringArrayExpression(existingProp, requiredStrings, sf, exact = false) {
 	const currentValues = [];
 	if (existingProp && ts.isArrayLiteralExpression(existingProp.initializer)) for (const el of existingProp.initializer.elements) {
 		const v = astExpressionToValue(el, sf);
 		if (typeof v === "string") currentValues.push(v);
+	}
+	if (exact) {
+		const allMatch = currentValues.length === requiredStrings.length && requiredStrings.every((req, i) => currentValues[i] === req);
+		if (existingProp && ts.isArrayLiteralExpression(existingProp.initializer) && allMatch) return {
+			expr: existingProp.initializer,
+			modified: false
+		};
+		return {
+			expr: valueToAstExpression([...requiredStrings]),
+			modified: true
+		};
 	}
 	const missing = requiredStrings.filter((req) => !currentValues.includes(req));
 	if (existingProp && ts.isArrayLiteralExpression(existingProp.initializer) && missing.length === 0) return {
@@ -715,9 +726,35 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 			rulesModified = true;
 		}
 	}
+	const allowedRuleKeys = /* @__PURE__ */ new Set([
+		...Object.keys(CANONICAL_LINT_RULES_MAP),
+		...Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {}),
+		...Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
+	]);
+	const purge = purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf);
+	if (purge.modified) {
+		rulesProps = purge.rulesProps;
+		rulesModified = true;
+	}
 	return {
 		rulesProps,
 		modified: rulesModified
+	};
+}
+function purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf) {
+	let modified = false;
+	let nextProps = rulesProps;
+	for (const ruleKey of currentRuleMap.keys()) if (!allowedRuleKeys.has(ruleKey)) {
+		const rmResult = removeObjectProperty(nextProps, ruleKey, sf);
+		if (rmResult.modified) {
+			nextProps = rmResult.props;
+			currentRuleMap.delete(ruleKey);
+			modified = true;
+		}
+	}
+	return {
+		rulesProps: nextProps,
+		modified
 	};
 }
 function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
@@ -754,7 +791,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 		props = updateObjectProperty(props, "rules", ts.factory.createObjectLiteralExpression(syncedRules.rulesProps, true), sf);
 		modified = true;
 	}
-	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), lintIgnores, sf);
+	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), lintIgnores, sf, true);
 	if (ignoreSync.modified) {
 		props = updateObjectProperty(props, "ignorePatterns", ignoreSync.expr, sf);
 		modified = true;
@@ -788,7 +825,7 @@ function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf) {
 		props = updateObjectProperty(props, "sortImports", ts.factory.createTrue(), sf);
 		modified = true;
 	}
-	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), fmtIgnores, sf);
+	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), fmtIgnores, sf, true);
 	if (ignoreSync.modified) {
 		props = updateObjectProperty(props, "ignorePatterns", ignoreSync.expr, sf);
 		modified = true;

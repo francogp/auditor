@@ -43,9 +43,7 @@ function scanFileForCliContractViolations(filePath, content) {
 	return scanCliContractAst(new AuditedDocument(filePath, content, filePath));
 }
 function initCliRuleCounters() {
-	const counters = {};
-	for (const ruleKey of CLI_CONTRACT_RULES) counters[ruleKey] = 0;
-	return counters;
+	return Object.fromEntries(CLI_CONTRACT_RULES.map((r) => [r, 0]));
 }
 /**
 * Full repository audit runner for CLI contracts and Citty governance.
@@ -64,7 +62,7 @@ function auditCliContracts(targetDir = process.cwd()) {
 	const violations = [];
 	for (const absFile of candidateFiles) {
 		const posixRel = toPosixRelative(targetDir, absFile);
-		let sourceText = "";
+		let sourceText;
 		try {
 			sourceText = fs.readFileSync(absFile, "utf-8");
 		} catch {
@@ -110,24 +108,39 @@ const CLI_CONTRACT_REMEDIATION_PHASES = {
 	"cli-contracts-dynamic-eval-bypass": "contracts",
 	"cli-contracts-missing-citty-contract": "contracts"
 };
+function fixCliContracts(context) {
+	const pkg = getPackageJson(context.projectRoot);
+	if (!pkg) return false;
+	if (!Boolean(pkg.devDependencies?.["citty"] || pkg.dependencies?.["citty"])) {
+		const updatedPkg = {
+			...pkg,
+			devDependencies: {
+				...pkg.devDependencies,
+				citty: "^0.2.2"
+			}
+		};
+		writePackageJson(context.projectRoot, updatedPkg);
+		return true;
+	}
+	return false;
+}
+const CLI_CONTRACT_FIXERS = { "cli-contracts-missing-citty-dependency": fixCliContracts };
 var CliContractsAuditor = class extends FileScanAuditor {
 	cliViolationsByDoc = /* @__PURE__ */ new WeakMap();
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots);
 		super({
-			fix: options.fix,
+			ruleFixers: CLI_CONTRACT_FIXERS,
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(CLI_CONTRACT_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
 				critical: true
-			}, ["cli-contracts-missing-citty-dependency"]),
-			fixableRuleIds: ["cli-contracts-missing-citty-dependency"],
+			}),
 			id: "validate_cli_contracts",
 			name: "CLI Contracts & Citty Governance Validator",
 			description: "Enforces Citty CLI contracts and bans homebrew argv",
@@ -170,7 +183,7 @@ var CliContractsAuditor = class extends FileScanAuditor {
 					const updatedPkg = {
 						...pkg,
 						devDependencies: {
-							...pkg.devDependencies || {},
+							...pkg.devDependencies,
 							citty: "^0.2.2"
 						}
 					};
@@ -178,9 +191,9 @@ var CliContractsAuditor = class extends FileScanAuditor {
 				} else this.addViolation({
 					ruleId: "cli-contracts-missing-citty-dependency",
 					severity: "error",
-					filePath: "package.json",
+					file: "package.json",
 					line: 1,
-					column: 1,
+					col: 1,
 					message: "Missing 'citty' dependency in package.json. CLI commands and scripts require 'citty@^0.2.2' in devDependencies.",
 					context: "\"devDependencies\": { ... }",
 					fixable: true
@@ -202,4 +215,4 @@ var CliContractsAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new CliContractsAuditor());
-export { CLI_CONTRACT_EXTENSIONS, CLI_CONTRACT_RULES, CliContractsAuditor, auditCliContracts, scanFileForCliContractViolations };
+export { CLI_CONTRACT_EXTENSIONS, CLI_CONTRACT_RULES, CliContractsAuditor, auditCliContracts, fixCliContracts, scanFileForCliContractViolations };

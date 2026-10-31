@@ -20,7 +20,6 @@ const CODE_SIMPLIFICATION_RULES = [
 const CODE_SIMPLIFICATION_CAPABILITIES = {
 	speed: "light",
 	phase: "normal",
-	fix: "none",
 	md: false,
 	ast: true,
 	changedOnly: false,
@@ -36,6 +35,7 @@ var ValidateCodeSimplificationAuditor = class extends FileScanAuditor {
 		const scanRoots = resolveFileScanRoots(options);
 		const simplificationConfig = getAuditConfig(scanRoots.effectiveRoot);
 		super({
+			ruleFixers: {},
 			id: "validate_code_simplification",
 			name: "Code Complexity & Readability Simplifier Validator",
 			description: "Code simplification, nesting, and syntactic clarity",

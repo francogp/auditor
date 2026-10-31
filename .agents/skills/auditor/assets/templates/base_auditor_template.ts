@@ -16,6 +16,7 @@ import { enableCompileCache } from 'node:module';
 import {
   BaseAuditor,
   createRuleCapabilities,
+  createUniformRuleCapabilities,
   createUniformRemediationPhases,
   resolveFileScanRoots,
   deriveCoverageFromRoots,
@@ -73,22 +74,29 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
     const allowedExtensions = new Set(['.ts', '.json']);
 
     super({
-      // Explicit 7-field orthogonal rule capabilities (Zero Fallbacks Mandate):
-      // Tip: For tools with fast/deep CLI flags (e.g. TieredCommandProfile), you can pass
-      // speed: ['light', 'full'] so the rule runs fast in light/heavy and deep in full.
-      ruleCapabilities: createRuleCapabilities(
-        MY_COMPOSITE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['composite-missing-config']
-      ),
+      // Explicit orthogonal rule capabilities:
+      // Zero Manual Booleans: 'fix' is computed automatically by BaseAuditor based on
+      // registered ruleFixers, replace patterns, or configFiles.
+      ruleCapabilities: createUniformRuleCapabilities(MY_COMPOSITE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
+      // Optional Contract-Driven Auto-Fix Map:
+      // Provide executable fixer functions mapping ruleId -> ({ projectRoot, options }) => Promise<boolean | void>
+      // BaseAuditor automatically derives fixableRuleIds and marks rules with registered fixers as fixable.
+      // Rules without a fixer function are strictly fixable: false (Zero False-Fix Mandate).
+      // Function Identity Deduplication Mandate:
+      // If multiple rules reference the exact same fixer function, BaseAuditor executes it strictly ONCE per run.
+      // ruleFixers: {
+      //   'composite-parity-mismatch': async ({ projectRoot, options }) => {
+      //     // Execute deterministic mechanical repair
+      //     return true;
+      //   }
+      // },
       // Optional gitignore requirements registered dynamically without hardcoding:
       gitIgnoreEntries: MyCompositeAuditor.gitIgnoreEntries,
       // Optional custom cache or temporary paths outside scratch/ (auto-injected into .gitignore and ignored by scanners):

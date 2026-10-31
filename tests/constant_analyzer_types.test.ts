@@ -36,7 +36,7 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     await fs.writeFile(fileB, 'export const RATIO_FACTOR = 0.75 as const;\n', 'utf-8');
 
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
@@ -56,7 +56,7 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     await fs.writeFile(fileB, 'export const SENTINEL_LIMIT = <const>5000;\n', 'utf-8');
 
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
@@ -75,7 +75,7 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     await fs.writeFile(fileB, 'export const SPEED_MULTIPLIER = 1.5;\n', 'utf-8');
 
     const auditor = new ConstantHygieneAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');

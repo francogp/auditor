@@ -15,12 +15,20 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_pinia_reactivity.ts
  */
 
-import path from 'node:path';
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
+import ts from 'typescript';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath, isPathContained } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -66,13 +74,14 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
   private readonly storesRoots: readonly string[];
   private readonly authorizedStateMutationFiles: ReadonlySet<string>;
 
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (cfg) => cfg.paths.srcRoots ?? []
     );
     const config = getAuditConfig(effectiveRoot);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       roots: targetRoots,
@@ -80,7 +89,6 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
       ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -246,7 +254,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     const storeVariables = new Set<string>();
 
     this.runSubAuditorSync('no-store-destructuring-without-storetorefs', () => {
-      const visitDestructuring = (node: ts.Node) => {
+      const visitDestructuring = (node: ts.Node): void => {
         if (ts.isVariableDeclaration(node)) {
           this.checkStoreVariableDeclaration(
             node,
@@ -263,7 +271,7 @@ export class PiniaReactivityAuditor extends FileScanAuditor<PiniaReactivityRuleI
     });
 
     this.runSubAuditorSync('no-direct-state-mutation-outside-actions', () => {
-      const visitMutations = (node: ts.Node) => {
+      const visitMutations = (node: ts.Node): void => {
         if (!ts.isVariableDeclaration(node)) {
           this.checkStateMutation(node, sf, content, relPath, storeVariables, isAuthorized);
         }

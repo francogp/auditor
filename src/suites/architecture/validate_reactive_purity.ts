@@ -13,9 +13,17 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import ts from 'typescript';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -58,21 +66,18 @@ function extractComputedGetterBody(firstArg: ts.Node, sf: ts.SourceFile): ts.Nod
 }
 
 export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) => [
-        ...(config.paths.storesRoots ?? []),
-        ...(config.paths.composablesRoots ?? [])
-      ]
-    );
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [
+      ...(config.paths.storesRoots ?? []),
+      ...(config.paths.composablesRoots ?? [])
+    ]);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -147,7 +152,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
 
     this.runSubAuditorSync('computed-state-mutation', () => {
       this.activeTargetRule = 'computed-state-mutation';
-      const visit = (node: ts.Node) => {
+      const visit = (node: ts.Node): void => {
         this.checkComputedCall(node, sf, relPath, content);
         ts.forEachChild(node, visit);
       };
@@ -156,7 +161,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
 
     this.runSubAuditorSync('computed-side-effect', () => {
       this.activeTargetRule = 'computed-side-effect';
-      const visit = (node: ts.Node) => {
+      const visit = (node: ts.Node): void => {
         this.checkComputedCall(node, sf, relPath, content);
         ts.forEachChild(node, visit);
       };
@@ -191,7 +196,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
     relPath: string,
     fullContent: string
   ): void {
-    const walk = (child: ts.Node) => {
+    const walk = (child: ts.Node): void => {
       // Check for state mutations (=, +=, -=, etc.)
       if (!this.activeTargetRule || this.activeTargetRule === 'computed-state-mutation') {
         if (ts.isBinaryExpression(child)) {

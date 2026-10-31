@@ -18,20 +18,23 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { tryOrDefault } from '../../core/safeUtils.ts';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   collectRepositoryFiles,
   createRuleCapabilities,
-  getEffectiveUnignoreDirs,
-  getEffectiveIgnoreGlobs,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
+import {
+  getEffectiveIgnoreGlobs,
+  getEffectiveUnignoreDirs
+} from '../../core/canonicalIgnoreRegistry.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { buildRepositoryFileIndex, toPosixRelative } from '../../core/safePath.ts';
+import { tryOrDefault } from '../../core/safeUtils.ts';
 import {
   resolveMarkdownScanDirectories,
   stripCodeBlocks
@@ -97,9 +100,7 @@ export interface MarkdownLinkAuditOptions {
 
 const DEFAULT_ROOT = path.resolve(import.meta.dirname, '../../..');
 
-export {
-  resolveMarkdownScanDirectories
-} from './validate_markdown_code_references.ts';
+export { resolveMarkdownScanDirectories } from './validate_markdown_code_references.ts';
 
 export const DEFAULT_MARKDOWN_IGNORE_PATTERNS = ['coverage/**'] as const;
 
@@ -532,16 +533,16 @@ export function auditMarkdownLinks(
 export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
   private readonly scanRoots: readonly string[];
 
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINK_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: true,
         ast: false,
         changedOnly: false,
@@ -583,7 +584,8 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
           '2. Diagnosis: Locate the absolute path reported in the Markdown file.\n' +
           '3. Canonical Solution: Convert the absolute path into a repository-relative or file-relative path, or use canonical `file:///relative/path` syntax.\n' +
           '4. Example:\n' +
-          '   ❌ Incorrect: `[Config](file:///' + 'root/users/user/project/audit.config.ts)`\n' +
+          '   ❌ Incorrect: `[Config](file:///' +
+          'root/users/user/project/audit.config.ts)`\n' +
           '   ✅ Correct:   `[Config](file:///.auditor/audit.config.ts)`',
         'markdown-stale-environment-path':
           '📖 REMEDIATION GUIDE: markdown-stale-environment-path\n' +
@@ -601,7 +603,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
           '   b) If illustrative of a generated artifact, document it in an explanatory code block rather than a clickable link.\n' +
           '4. Example:\n' +
           '   ❌ Incorrect: `[View coverage](file:///coverage/index.html)`\n' +
-          '   ✅ Correct:   `Check the report generated under \`scratch/coverage/\` after running test suites.`',
+          '   ✅ Correct:   `Check the report generated under scratch/coverage/ after running test suites.`',
         'markdown-broken-workspace-package':
           '📖 REMEDIATION GUIDE: markdown-broken-workspace-package\n' +
           '1. Root Cause: A Markdown link or reference points to a monorepo workspace package (`packages/<pkg>`) that does not exist or was renamed.\n' +
@@ -656,7 +658,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
       ruleId: MarkdownLinkRuleId,
       matcherFn: (text: string) => boolean,
       msgFn: (lineText: string) => string
-    ) => {
+    ): void => {
       for (const doc of docs) {
         for (let i = 0; i < doc.lines.length; i++) {
           const lineText = doc.lines[i]!;
@@ -729,7 +731,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
 
     const forEachResolvedLocalLink = (
       callback: (doc: ParsedMarkdownDoc, link: MarkdownLinkItem, resolvedTarget: string) => void
-    ) => {
+    ): void => {
       for (const doc of docs) {
         for (const link of doc.links) {
           const target = resolveLocalMarkdownTarget(doc.file, link.rawUrl);

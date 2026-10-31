@@ -4,9 +4,10 @@
  * Dedicated metadata extractor for auditor suites and tasks.
  */
 
-import path from 'node:path';
 import fsSync from 'node:fs';
+import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
 import {
   type AuditorCapabilities,
   type AuditExecutionSpeed,
@@ -47,7 +48,7 @@ export function extractStaticMetadataFromFile(fullPath: string): ExtractedAudito
     gitIgnoreEntries: readonly GitIgnoreRequirement[];
     icon?: string;
   } = {
-    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+    capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, fix: 'none' },
     gitIgnoreEntries: []
   };
 
@@ -198,6 +199,7 @@ function extractMetadataFromFunction(val: unknown, result: MutableExtractedAudit
   if (withStatic.capabilities && typeof withStatic.capabilities === 'object') {
     result.capabilities = {
       ...DEFAULT_AUDITOR_CAPABILITIES,
+      fix: 'none',
       ...withStatic.capabilities
     };
   }
@@ -237,7 +239,7 @@ export async function extractAuditorMetadataFromFile(
   if (cached) return cached;
 
   const result: MutableExtractedAuditorMetadata = {
-    capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+    capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, fix: 'none' },
     gitIgnoreEntries: []
   };
 

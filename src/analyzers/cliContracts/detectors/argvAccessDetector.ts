@@ -39,10 +39,7 @@ function isComputedArgvAccess(
   return ts.isIdentifier(arg) && ctx.argvKeyConstants.has(arg.text);
 }
 
-function isObjectDestructuringArgv(
-  node: ts.BindingElement,
-  ctx: CliContractScanContext
-): boolean {
+function isObjectDestructuringArgv(node: ts.BindingElement, ctx: CliContractScanContext): boolean {
   const pattern = node.parent;
   if (!ts.isObjectBindingPattern(pattern)) return false;
   const propIdentifier = node.propertyName ?? node.name;

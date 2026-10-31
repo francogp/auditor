@@ -3,6 +3,7 @@ import ts from "typescript";
 export interface LineColumnPosition {
   readonly line: number;
   readonly column: number;
+  readonly col: number;
   readonly lineText: string;
 }
 export type LexicalRangeKind = 'comment_line' | 'comment_block' | 'comment_html' | 'string_single' | 'string_double' | 'string_template';

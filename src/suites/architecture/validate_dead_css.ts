@@ -12,15 +12,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { parseVueSfc } from '../../core/vueSfcParser.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
+import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -225,18 +229,18 @@ export interface DeadCssAuditorOptions {
 }
 
 export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
-  constructor(options: DeadCssAuditorOptions = {}) {
+  public constructor(options: DeadCssAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const compRoots = [...(config.paths.componentsRoots ?? []), ...(config.paths.viewsRoots ?? [])];
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -291,10 +295,7 @@ export class DeadCssAuditor extends BaseAuditor<DeadCssRuleId> {
 
     if (componentFiles.length === 0) {
       this.runSubAuditorSync('dead-scoped-css', () => {
-        this.markRuleNotApplicable(
-          'dead-scoped-css',
-          'No .vue components found in project'
-        );
+        this.markRuleNotApplicable('dead-scoped-css', 'No .vue components found in project');
       });
       return;
     }

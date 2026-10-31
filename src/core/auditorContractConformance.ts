@@ -9,18 +9,20 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import type { describe, it, expect, beforeAll, afterAll } from 'vite-plus/test';
-import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from './auditorBase.ts';
+
+import { discoverAuditors } from '../cli/auditScanner.ts';
 import { getAuditConfig } from './auditConfig.ts';
-import { toPosixRelative } from './safePath.ts';
-import type { AuditTaskDefinition, AuditFamily, AuditorRuleCapabilities } from './auditContract.ts';
+import type { AuditTaskDefinition, AuditorComputedCapabilities } from './auditContract.ts';
 import {
   getActiveFamilies,
   AUDIT_EXECUTION_SPEEDS,
   AUDIT_EXECUTION_PHASES,
   AUDIT_FIX_CAPABILITIES
 } from './auditContract.ts';
-import { discoverAuditors } from '../cli/auditScanner.ts';
+import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from './auditorBase.ts';
+import { toPosixRelative } from './safePath.ts';
 import { tryOrNull, safeRmSync } from './safeUtils.ts';
 
 export interface DiscoveredAuditorTask extends AuditTaskDefinition {
@@ -154,10 +156,10 @@ export async function scanAllAuditorTasks(
  */
 export function findAuditorClass(
   mod: Record<string, unknown>
-): (new (...args: unknown[]) => BaseAuditor<string>) | null {
+): (new (...args: unknown[]) => BaseAuditor) | null {
   for (const value of Object.values(mod)) {
     if (typeof value === 'function' && value.prototype && value.prototype instanceof BaseAuditor) {
-      return value as new (...args: unknown[]) => BaseAuditor<string>;
+      return value as new (...args: unknown[]) => BaseAuditor;
     }
   }
   return null;
@@ -168,10 +170,10 @@ export function findAuditorClass(
  * Mandate: Prohibits legacy positional arguments; strictly expects { projectRoot: tempDir } or ().
  */
 export function instantiateAuditorClass(
-  Cls: new (...args: unknown[]) => BaseAuditor<string>,
+  Cls: new (...args: unknown[]) => BaseAuditor,
   tempDir: string
-): BaseAuditor<string> {
-  const attempts: (() => BaseAuditor<string>)[] = [
+): BaseAuditor {
+  const attempts: (() => BaseAuditor)[] = [
     () => new Cls({ projectRoot: tempDir }),
     () => new Cls()
   ];
@@ -194,11 +196,7 @@ export function instantiateAuditorClass(
   );
 }
 
-function validateBasicMetadata(
-  auditor: BaseAuditor<string>,
-  taskId: string,
-  errors: string[]
-): void {
+function validateBasicMetadata(auditor: BaseAuditor, taskId: string, errors: string[]): void {
   if (!auditor.id || typeof auditor.id !== 'string') {
     errors.push(`Auditor [${taskId}] no define un 'id' válido.`);
   } else if (auditor.id !== taskId) {
@@ -222,11 +220,7 @@ function validateBasicMetadata(
   }
 }
 
-function validateAuditorManifest(
-  auditor: BaseAuditor<string>,
-  taskId: string,
-  errors: string[]
-): void {
+function validateAuditorManifest(auditor: BaseAuditor, taskId: string, errors: string[]): void {
   try {
     const manifest = auditor.toManifest();
     if (typeof manifest.id !== 'string' || manifest.id !== auditor.id) {
@@ -241,7 +235,7 @@ function validateAuditorManifest(
  * Validates in-memory constructor contract and metadata for an instantiated auditor.
  */
 export function validateAuditorConstruction(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string = auditor.id
 ): string[] {
   const errors: string[] = [];
@@ -249,7 +243,7 @@ export function validateAuditorConstruction(
   validateBasicMetadata(auditor, taskId, errors);
 
   const activeFamilies = getActiveFamilies();
-  if (!activeFamilies.includes(auditor.family as AuditFamily)) {
+  if (!activeFamilies.includes(auditor.family)) {
     errors.push(
       `Auditor [${taskId}] familia '${auditor.family}' no es una familia arquitectónica válida.`
     );
@@ -273,7 +267,7 @@ export function validateAuditorConstruction(
 }
 
 function validateAuditorThirdPartyToolContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -320,7 +314,7 @@ function validateAuditorThirdPartyToolContract(
 }
 
 function validateAuditorRuleRemediationsContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -353,7 +347,7 @@ function validateSpeedValue(speed: unknown): boolean {
 }
 
 function validateSixFieldCapabilities(
-  caps: AuditorRuleCapabilities,
+  caps: AuditorComputedCapabilities,
   label: string,
   errors: string[]
 ): void {
@@ -376,7 +370,7 @@ function validateSixFieldCapabilities(
 }
 
 function validateAuditorRuleCapabilitiesContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -404,7 +398,7 @@ function validateAuditorRuleCapabilitiesContract(
 }
 
 function validateAuditorCriticalConfigContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -430,7 +424,7 @@ function validateAuditorCriticalConfigContract(
 }
 
 function validateAuditorConfigContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -450,7 +444,7 @@ function validateAuditorConfigContract(
 }
 
 function validateAuditorCapabilitiesContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -483,7 +477,7 @@ function validateAuditorCapabilitiesContract(
 }
 
 function validateAuditorScriptsContract(
-  auditor: BaseAuditor<string>,
+  auditor: BaseAuditor,
   taskId: string,
   errors: string[]
 ): void {
@@ -502,11 +496,7 @@ function validateAuditorScriptsContract(
   }
 }
 
-function validateRuleDescriptions(
-  auditor: BaseAuditor<string>,
-  taskId: string,
-  errors: string[]
-): void {
+function validateRuleDescriptions(auditor: BaseAuditor, taskId: string, errors: string[]): void {
   if (!auditor.ruleDescriptions || typeof auditor.ruleDescriptions !== 'object') {
     errors.push(`Auditor [${taskId}] no define un mapa de 'ruleDescriptions'.`);
     return;
@@ -623,6 +613,8 @@ export function checkViolationVerification(testSource: string): boolean {
 
 export function checkFixVerification(testSource: string): boolean {
   return (
+    testSource.includes('.fix(') ||
+    testSource.includes('.fix()') ||
     testSource.includes('fix: true') ||
     testSource.includes('fix = true') ||
     testSource.includes("'--fix'") ||
@@ -641,7 +633,7 @@ export function checkFixVerification(testSource: string): boolean {
 export function validateAuditorTestFileContent(
   testSource: string,
   testFileRel: string,
-  auditor: BaseAuditor<string>
+  auditor: BaseAuditor
 ): string[] {
   const errors: string[] = [];
 
@@ -665,7 +657,7 @@ export function validateAuditorTestFileContent(
 
   if (auditor.capabilities.fix !== 'none' && !checkFixVerification(testSource)) {
     errors.push(
-      `El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('fix: true') de '${auditor.id}'.`
+      `El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('auditor.fix()') de '${auditor.id}'.`
     );
   }
 
@@ -711,7 +703,7 @@ async function evaluateTaskContract(
     return [`El módulo '${suitePath}' no exporta una subclase válida de BaseAuditor.`];
   }
 
-  let auditor: BaseAuditor<string>;
+  let auditor: BaseAuditor;
   try {
     auditor = instantiateAuditorClass(Cls, tempDir);
   } catch (err) {

@@ -44,23 +44,23 @@ const P_STORAGE_INDEXED = /\b(?:localStorage|sessionStorage)\s*\[([^\]]+)\]/g;
 var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 	authorizedSaveFiles;
 	saveKeyPrefixes;
-	constructor(options) {
-		const rootPath = typeof options === "string" ? options : options?.projectRoot;
+	constructor(options = {}) {
+		const rootPath = options.projectRoot ?? process.cwd();
 		const cfg = getAuditConfig(rootPath);
-		const codeRoots = typeof options === "object" && options?.roots ? options.roots : cfg.paths.codeRoots ?? [];
-		const customAuthorized = typeof options === "object" && options?.authorizedSaveFiles ? options.authorizedSaveFiles : cfg.persistence?.authorizedSaveFiles ?? [];
-		const customPrefixes = typeof options === "object" && options?.saveKeyPrefixes ? options.saveKeyPrefixes : cfg.persistence?.saveKeyPrefixes ?? [];
+		const codeRoots = options.roots ?? cfg.paths.codeRoots ?? [];
+		const customAuthorized = options.authorizedSaveFiles ?? cfg.persistence?.authorizedSaveFiles ?? [];
+		const customPrefixes = options.saveKeyPrefixes ?? cfg.persistence?.saveKeyPrefixes ?? [];
 		const extraGlobs = [...cfg.persistence?.ignoreGlobs ?? [], ...cfg.persistence?.exemptPaths ?? []];
 		if (cfg.paths?.migrationsDir) extraGlobs.push(`${cfg.paths.migrationsDir}/**`);
 		if (cfg.persistence?.allowedDatabaseDirs) for (const d of cfg.persistence.allowedDatabaseDirs) extraGlobs.push(`${d}/**`);
 		const persistenceIgnores = Array.from(getEffectiveIgnoreGlobs(rootPath, { extraGlobs }));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -144,9 +144,9 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 								if (isWrite && !isAuthorizedFile && this.saveKeyPrefixes.length > 0) {
 									if (this.saveKeyPrefixes.some((p) => keyText.startsWith(p) || keyText.includes(p))) this.addViolation({
 										ruleId: "persistence-client-uncoordinated-save",
-										filePath: file,
+										file,
 										line,
-										column,
+										col: column,
 										severity: "error",
 										message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
 										context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
@@ -154,18 +154,18 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 								}
 								if (ts.isStringLiteral(keyNode)) this.addViolation({
 									ruleId: "persistence-client-untyped-key",
-									filePath: file,
+									file,
 									line,
-									column,
+									col: column,
 									severity: "error",
 									message: `Storage key ${rawKey} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
 									context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
 								});
 								if (isWrite && !isTryWrapped(node)) this.addViolation({
 									ruleId: "persistence-client-unhandled-quota-error",
-									filePath: file,
+									file,
 									line,
-									column,
+									col: column,
 									severity: "error",
 									message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
 									context: node.getText(ast).slice(0, 100).replace(/\n/g, "↵")
@@ -226,7 +226,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 			if (!isWrite) return;
 			if (this.saveKeyPrefixes.some((prefix) => rawKeyArg.includes(`'${prefix}`) || rawKeyArg.includes(`"${prefix}`) || rawKeyArg.includes(`\`${prefix}`))) this.addViolationAtMatch({
 				ruleId: "persistence-client-uncoordinated-save",
-				filePath: file,
+				file,
 				content,
 				matchIndex,
 				message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
@@ -238,7 +238,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 		this.forEachStorageAccess(content, ({ rawKeyArg, matchIndex, line }) => {
 			if (/^['"`][\w$-]+['"`]$/.test(rawKeyArg)) this.addViolationAtMatch({
 				ruleId: "persistence-client-untyped-key",
-				filePath: file,
+				file,
 				content,
 				matchIndex,
 				message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
@@ -250,7 +250,7 @@ var ValidatePersistenceClientAuditor = class extends FileScanAuditor {
 		this.forEachStorageAccess(content, ({ matchIndex, isWrite, line, mutationLabel }) => {
 			if (isWrite && !this.isInsideTryCatch(content, matchIndex)) this.addViolationAtMatch({
 				ruleId: "persistence-client-unhandled-quota-error",
-				filePath: file,
+				file,
 				content,
 				matchIndex,
 				message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,

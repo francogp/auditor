@@ -23,7 +23,6 @@ export declare class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRu
   constructor(options?: {
     projectRoot?: string;
     roots?: readonly string[];
-    fix?: boolean;
   });
   recordViolation(v: ComponentStyleViolation, ruleId: ComponentStyleRuleId, context: string, line?: number, fixable?: boolean): void;
   getViolations(): readonly ComponentStyleViolation[];

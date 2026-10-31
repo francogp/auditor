@@ -17,9 +17,24 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
 
+import { scanCliContractAst } from '../../analyzers/cliContracts/cliContractScanner.ts';
+import {
+  CLI_CONTRACT_RULES,
+  type CliContractRuleId,
+  type CliContractViolation
+} from '../../analyzers/cliContracts/cliContractTypes.ts';
+import type { SharedAstContext } from '../../core/astContext.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type {
+  RemediationPhaseId,
+  RuleFixContext,
+  AnyRuleFixerFn
+} from '../../core/auditContract.ts';
+import { toPosixRelative } from '../../core/auditCoverage.ts';
 import {
   AuditedDocument,
   assertSafePathComponent,
@@ -31,18 +46,7 @@ import {
   SCANNABLE_EXTENSIONS,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { RemediationPhaseId } from '../../core/auditContract.ts';
-import { toPosixRelative } from '../../core/auditCoverage.ts';
 import { getPackageJson, writePackageJson, type PackageJsonDTO } from '../../core/packageJson.ts';
-import type { SharedAstContext } from '../../core/astContext.ts';
-import {
-  CLI_CONTRACT_RULES,
-  type CliContractRuleId,
-  type CliContractViolation
-} from '../../analyzers/cliContracts/cliContractTypes.ts';
-import { scanCliContractAst } from '../../analyzers/cliContracts/cliContractScanner.ts';
 
 enableCompileCache();
 
@@ -73,11 +77,10 @@ export function scanFileForCliContractViolations(
 }
 
 function initCliRuleCounters(): Record<CliContractRuleId, number> {
-  const counters = {} as Record<CliContractRuleId, number>; // initialized across all CLI_CONTRACT_RULES
-  for (const ruleKey of CLI_CONTRACT_RULES) {
-    counters[ruleKey] = 0;
-  }
-  return counters;
+  return Object.fromEntries(CLI_CONTRACT_RULES.map((r) => [r, 0])) as Record<
+    CliContractRuleId,
+    number
+  >;
 }
 
 /**
@@ -106,7 +109,7 @@ export function auditCliContracts(targetDir = process.cwd()): CliContractsAuditR
 
   for (const absFile of candidateFiles) {
     const posixRel = toPosixRelative(targetDir, absFile);
-    let sourceText = '';
+    let sourceText: string;
     try {
       sourceText = fs.readFileSync(absFile, 'utf-8');
     } catch {
@@ -205,6 +208,28 @@ const CLI_CONTRACT_REMEDIATION_PHASES: Record<CliContractRuleId, RemediationPhas
   'cli-contracts-missing-citty-contract': 'contracts'
 };
 
+export function fixCliContracts(context: RuleFixContext<CliContractRuleId>): boolean {
+  const pkg = getPackageJson(context.projectRoot);
+  if (!pkg) return false;
+  const hasCitty = Boolean(pkg.devDependencies?.['citty'] || pkg.dependencies?.['citty']);
+  if (!hasCitty) {
+    const updatedPkg: PackageJsonDTO = {
+      ...pkg,
+      devDependencies: {
+        ...pkg.devDependencies,
+        citty: '^0.2.2'
+      }
+    };
+    writePackageJson(context.projectRoot, updatedPkg);
+    return true;
+  }
+  return false;
+}
+
+const CLI_CONTRACT_FIXERS: Partial<Record<CliContractRuleId, AnyRuleFixerFn>> = {
+  'cli-contracts-missing-citty-dependency': fixCliContracts
+};
+
 export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
   private readonly cliViolationsByDoc = new WeakMap<
     AuditedDocument,
@@ -217,23 +242,17 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
       (cfg) => cfg.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots
     );
     super({
-      fix: options.fix,
+      ruleFixers: CLI_CONTRACT_FIXERS,
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        CLI_CONTRACT_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'none',
-          md: false,
-          ast: true,
-          changedOnly: false,
-          critical: true
-        },
-        ['cli-contracts-missing-citty-dependency']
-      ),
-      fixableRuleIds: ['cli-contracts-missing-citty-dependency'],
+      ruleCapabilities: createRuleCapabilities(CLI_CONTRACT_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: true,
+        changedOnly: false,
+        critical: true
+      }),
       id: 'validate_cli_contracts',
       name: 'CLI Contracts & Citty Governance Validator',
       description: 'Enforces Citty CLI contracts and bans homebrew argv',
@@ -286,7 +305,7 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
           const updatedPkg: PackageJsonDTO = {
             ...pkg,
             devDependencies: {
-              ...(pkg.devDependencies || {}),
+              ...pkg.devDependencies,
               citty: '^0.2.2'
             }
           };
@@ -295,9 +314,9 @@ export class CliContractsAuditor extends FileScanAuditor<CliContractRuleId> {
           this.addViolation({
             ruleId: 'cli-contracts-missing-citty-dependency',
             severity: 'error',
-            filePath: 'package.json',
+            file: 'package.json',
             line: 1,
-            column: 1,
+            col: 1,
             message:
               "Missing 'citty' dependency in package.json. CLI commands and scripts require 'citty@^0.2.2' in devDependencies.",
             context: '"devDependencies": { ... }',

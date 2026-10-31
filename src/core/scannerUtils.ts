@@ -319,5 +319,3 @@ export function hasPrecedingComment(
 
   return false;
 }
-
-

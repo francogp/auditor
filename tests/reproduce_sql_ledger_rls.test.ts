@@ -52,7 +52,7 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       customMigrationsDir: 'database/migrations',
       projectRoot: scratchDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const rlsViolations = result.findings.filter(
       (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
@@ -91,7 +91,7 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
       customMigrationsDir: 'database/migrations',
       projectRoot: scratchDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const rlsViolations = result.findings.filter(
       (f) => f.ruleId === 'sql-rls-policy-grant-integrity'

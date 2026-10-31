@@ -138,7 +138,7 @@ describe('ReactivePurityAuditor', () => {
       auditor.testScanFile('src/composables/usePricing.ts', cleanCode);
       expect(auditor.collectedViolations).toHaveLength(0);
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });

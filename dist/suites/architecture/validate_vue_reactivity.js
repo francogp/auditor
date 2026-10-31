@@ -55,12 +55,12 @@ var ValidateVueReactivityAuditor = class extends FileScanAuditor {
 			...config.paths.storesRoots ?? []
 		]);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VUE_REACTIVITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

@@ -105,29 +105,20 @@ function isVueProjectContext(projectRoot) {
 	return false;
 }
 var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = Boolean(rootsOrOptions && !Array.isArray(rootsOrOptions)) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
-		const fixableRules = [
-			"html-validate-config-missing",
-			"html-validate-config-missing-strict-rule",
-			"html-validate-config-missing-plugin",
-			"html-validate-config-missing-transform",
-			"html-validate-config-missing-doctype-style"
-		];
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: true
-			}, fixableRules),
-			fixableRuleIds: fixableRules,
+			}),
 			id: "validate_html_validate_config",
 			name: "HTML-Validate Configuration Integrity Validator",
 			description: "Validates .htmlvalidate.json baseline and integrity",
@@ -157,8 +148,7 @@ var ValidateHtmlValidateConfigAuditor = class extends BaseAuditor {
 				"html-validate-config-missing-doctype-style": "📖 REMEDIATION GUIDE: html-validate-config-missing-doctype-style\n1. Root Cause: Vite+ and modern code formatters enforce lowercase `<!doctype html>`. HTML-Validate must configure `doctype-style` to lowercase.\n2. Diagnosis: Check rule `\"doctype-style\"` in `.htmlvalidate.json`.\n3. Canonical Solution: Configure `\"doctype-style\": [\"error\", { \"style\": \"lowercase\" }]` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".htmlvalidate*"] },
-			projectRoot,
-			fix: optionsObj?.fix
+			projectRoot
 		});
 	}
 	async runAudit() {

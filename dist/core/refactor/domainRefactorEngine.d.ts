@@ -1,14 +1,11 @@
-import { AuditEngineConfig } from "../auditConfigTypes.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
-import { DomainFindingItem, DomainRefactorPlan } from "./refactorContracts.js";
+import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
+import { DomainFindingItem, DomainRefactorPlan } from "./refactorContracts.js";
+export type DomainRefactorEngineOptions = RefactorEngineOptions<DomainTypesAuditor>;
 export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan, DomainTypesAuditor> {
   readonly toolId = "auditor-domain";
   readonly configSectionKey: "domain";
-  constructor(auditorOrOptions?: DomainTypesAuditor | string | {
-    projectRoot?: string;
-    config?: AuditEngineConfig;
-  }, _explicitConfig?: AuditEngineConfig);
+  constructor(options?: DomainRefactorEngineOptions);
   discoverInFile(filePath: string): readonly DomainFindingItem[];
   createPlan(domainPlanId: string, domainFindings: readonly DomainFindingItem[]): DomainRefactorPlan;
   applyPlan(projectRoot: string, plan: DomainRefactorPlan): {

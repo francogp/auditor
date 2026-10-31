@@ -1,6 +1,6 @@
+import { isPathExempt } from "./reportUtils.js";
 import { toPosixRelative } from "./safePath.js";
 import { CANONICAL_IGNORE_DIRS } from "./canonicalIgnoreRegistry.js";
-import { matchesAnyGlob } from "./auditCoverage.js";
 import { isPathIgnored } from "./auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";
@@ -160,18 +160,6 @@ function parseRawCoverageItem(keyPath, raw, projectRoot, threshold) {
 		uncoveredLines: extractUncoveredLines(raw),
 		status: determineCoverageStatus(metrics.statements.pct, threshold)
 	};
-}
-/**
-* Checks if a relative path matches an exempt glob or path pattern.
-*/
-function isPathExempt(relPath, exemptGlobs) {
-	if (exemptGlobs.length === 0) return false;
-	for (const glob of exemptGlobs) {
-		let cleanGlob = glob.startsWith("./") ? glob.slice(2) : glob;
-		if (cleanGlob.endsWith("/")) cleanGlob = cleanGlob.slice(0, -1);
-		if (relPath === cleanGlob || relPath.startsWith(`${cleanGlob}/`)) return true;
-	}
-	return matchesAnyGlob(relPath, exemptGlobs);
 }
 /**
 * Parses raw Istanbul JSON into structured FileCoverageResults and overall totals.
@@ -370,4 +358,4 @@ function analyzeTestCoverage(rawJson, projectRoot, config, complexityMap) {
 		hotspots: complexityMap ? correlateComplexityHotspots(files, complexityMap) : void 0
 	};
 }
-export { ACCEPTABLE_COVERAGE_THRESHOLD, DEFAULT_TEST_COVERAGE_THRESHOLD, analyzeTestCoverage, calculateMetric, compressLineRanges, computeBucketCounts, computeDirectoryBreakdown, correlateComplexityHotspots, determineCoverageStatus, extractUncoveredLines, findUntrackedFiles, isPathExempt, parseIstanbulCoverage, resolveCoverageFile };
+export { ACCEPTABLE_COVERAGE_THRESHOLD, DEFAULT_TEST_COVERAGE_THRESHOLD, analyzeTestCoverage, calculateMetric, compressLineRanges, computeBucketCounts, computeDirectoryBreakdown, correlateComplexityHotspots, determineCoverageStatus, extractUncoveredLines, findUntrackedFiles, parseIstanbulCoverage, resolveCoverageFile };

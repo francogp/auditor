@@ -7,20 +7,20 @@ import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath,
 import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
-import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
+import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, SPEED_RANK, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "./cli/cittyHarness.js";
 import "./permissionGuard.js";
-import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { ConfigFileRegistry } from "./configFileRegistry.js";
+import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
-import { ALWAYS_IGNORE_DIRS, CANONICAL_IGNORE_DIRS, SuiteIgnoreRegistry, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
+import { isMainModule } from "../cli/cliUtils.js";
+import { ALWAYS_IGNORE_DIRS, SuiteIgnoreRegistry, getDynamicCachePaths, getEffectiveUnignoreDirs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
 import { CoverageRecorder, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isDeclaredByCoverage, resolveActiveCoverageRunId, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
+import { AuditedDocument } from "./auditedDocument.js";
 import { formatDurationMs } from "./durationFormatter.js";
+import { evaluateSuiteStatus } from "./suiteGating.js";
 import { renderFindingsDetail } from "./fileTreeRenderer.js";
 import { renderAuditTaskRow, renderBanner, renderSimilarCodeWarningBanner } from "./unifiedTheme.js";
-import { isMainModule } from "../cli/cliUtils.js";
-import { evaluateSuiteStatus } from "./suiteGating.js";
-import { AuditedDocument } from "./auditedDocument.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -430,7 +430,6 @@ function setupAuditor(config) {
 const DEFAULT_AUDITOR_CAPABILITIES = Object.freeze({
 	speed: "light",
 	phase: "normal",
-	fix: "none",
 	md: false,
 	ast: false,
 	changedOnly: false,
@@ -441,16 +440,24 @@ const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 /**
 * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
 */
-function deriveSuiteCapabilities(ruleCapabilities) {
-	if (!ruleCapabilities || typeof ruleCapabilities !== "object") return { ...DEFAULT_AUDITOR_CAPABILITIES };
+function deriveSuiteCapabilities(ruleCapabilities, fixableRuleIds) {
+	if (!ruleCapabilities || typeof ruleCapabilities !== "object") return {
+		...DEFAULT_AUDITOR_CAPABILITIES,
+		fix: "none"
+	};
 	const entries = Object.values(ruleCapabilities);
-	if (entries.length === 0) return { ...DEFAULT_AUDITOR_CAPABILITIES };
+	if (entries.length === 0) return {
+		...DEFAULT_AUDITOR_CAPABILITIES,
+		fix: "none"
+	};
 	const distinctSpeeds = [];
 	for (const s of AUDIT_EXECUTION_SPEEDS) if (entries.some((c) => normalizeSpeeds(c.speed).includes(s))) distinctSpeeds.push(s);
+	const effectiveSpeed = distinctSpeeds.length === 0 ? "light" : distinctSpeeds.length === 1 ? distinctSpeeds[0] : distinctSpeeds;
+	const effectivePhase = entries.some((c) => c.phase === "post-build") ? "post-build" : entries.some((c) => c.phase === "post-run") ? "post-run" : entries.some((c) => c.phase === "setup") ? "setup" : "normal";
 	return {
-		speed: distinctSpeeds.length === 0 ? "light" : distinctSpeeds.length === 1 ? distinctSpeeds[0] : distinctSpeeds,
-		phase: entries.some((c) => c.phase === "post-build") ? "post-build" : entries.some((c) => c.phase === "post-run") ? "post-run" : entries.some((c) => c.phase === "setup") ? "setup" : "normal",
-		fix: entries.some((c) => c.fix === "priority") ? "priority" : entries.some((c) => c.fix === "normal") ? "normal" : "none",
+		speed: effectiveSpeed,
+		phase: effectivePhase,
+		fix: (fixableRuleIds ? fixableRuleIds.size > 0 : false) ? effectivePhase === "setup" ? "priority" : "normal" : "none",
 		md: entries.some((c) => c.md),
 		ast: entries.some((c) => c.ast),
 		changedOnly: entries.some((c) => c.changedOnly),
@@ -458,18 +465,12 @@ function deriveSuiteCapabilities(ruleCapabilities) {
 	};
 }
 /**
-* Creates individual rule capabilities for suites, automatically adjusting
-* the `fix` capability per rule based on declared fixableRuleIds.
+* Creates individual rule capabilities for suites. Manual fix booleans are strictly forbidden.
 */
-function createRuleCapabilities(ruleIds, baseCapabilities, fixableRuleIds) {
-	const isBaseFix = baseCapabilities.fix !== "none";
-	const fixType = baseCapabilities.fix === "priority" ? "priority" : "normal";
-	const fixableSet = new Set(fixableRuleIds ?? (isBaseFix ? ruleIds : []));
+function createRuleCapabilities(ruleIds, baseCapabilities) {
+	if (baseCapabilities && "fix" in baseCapabilities) throw new Error("[Auditor Contract Violation] Manual 'fix' passed to createRuleCapabilities. Manual fix capabilities are strictly prohibited under the Zero Manual Fix Booleans Mandate (/architecture). BaseAuditor derives fixability dynamically from registered fixer functions; remove 'fix' from your capability declaration.");
 	const result = {};
-	for (const id of ruleIds) result[id] = {
-		...baseCapabilities,
-		fix: fixableSet.has(id) ? fixType : "none"
-	};
+	for (const id of ruleIds) result[id] = baseCapabilities;
 	return result;
 }
 /**
@@ -489,13 +490,12 @@ function createUniformRemediationPhases(ruleIds, phase) {
 	return result;
 }
 /**
-* Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
+* Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal').
 */
 const LIGHT_RULE_CAPABILITIES = Object.freeze({
 	...DEFAULT_AUDITOR_CAPABILITIES,
 	speed: "light",
-	phase: "normal",
-	fix: "none"
+	phase: "normal"
 });
 /**
 * Canonical capability template for rules requiring TypeScript AST context (speed: 'light', ast: true).
@@ -504,7 +504,6 @@ const AST_RULE_CAPABILITIES = Object.freeze({
 	...DEFAULT_AUDITOR_CAPABILITIES,
 	speed: "light",
 	phase: "normal",
-	fix: "none",
 	ast: true
 });
 /**
@@ -570,7 +569,6 @@ function validateAuditorCriticalConfig(options) {
 const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
 	"speed",
 	"phase",
-	"fix",
 	"md",
 	"ast",
 	"changedOnly",
@@ -594,20 +592,24 @@ function validateAuditorRuleCapabilities(options) {
 		if (!caps || typeof caps !== "object") throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] is missing 'ruleCapabilities' for declared rule '${ruleId}'. Every sub-auditor must declare its individual capabilities.`);
 		if (!isValidRuleSpeed(caps.speed)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.speed' as ${AUDIT_EXECUTION_SPEEDS.map((s) => `'${s}'`).join(" | ")} (or a non-empty array of them).`);
 		if (typeof caps.phase !== "string" || !AUDIT_EXECUTION_PHASES.some((p) => p === caps.phase)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.phase' as ${AUDIT_EXECUTION_PHASES.map((p) => `'${p}'`).join(" | ")}.`);
-		if (typeof caps.fix !== "string" || !AUDIT_FIX_CAPABILITIES.some((f) => f === caps.fix)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.fix' as ${AUDIT_FIX_CAPABILITIES.map((f) => `'${f}'`).join(" | ")}.`);
+		if ("fix" in caps) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared manual 'fix' in 'ruleCapabilities.${ruleId}'. Declaring manual fix booleans in rule capabilities is strictly prohibited under the Zero Manual Fix Booleans Mandate (/architecture). Remove 'fix' from ruleCapabilities; BaseAuditor derives fixability dynamically from registered fixer functions.`);
 		for (const key of MANDATORY_BOOLEAN_CAPABILITY_KEYS) if (typeof caps[key] !== "boolean") throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define sub-capability 'ruleCapabilities.${ruleId}.${key}' as a boolean (true or false).`);
 		for (const key of Object.keys(caps)) if (!MANDATORY_AUDITOR_CAPABILITY_KEYS.includes(key)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared unknown capability '${key}' in rule '${ruleId}'.`);
 	}
 	for (const ruleId of Object.keys(options.ruleCapabilities)) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declares 'ruleCapabilities' for rule '${ruleId}' which is not in 'ruleIds'.`);
 }
-function validateAuditorFixContract(options, capabilities) {
-	const isFix = capabilities.fix !== "none";
-	const fixableList = options.fixableRuleIds ?? [];
-	const configFilesWithFix = (options.configFiles ?? []).filter((c) => Boolean(c.ruleId && c.generateDefaultContent));
-	if (isFix) {
-		if (fixableList.length === 0 && configFilesWithFix.length === 0) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix !== 'none' (${capabilities.fix}) but failed to explicitly initialize 'fixableRuleIds' in its constructor. Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`);
-		for (const ruleId of fixableList) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared fixable rule '${ruleId}', but it is not registered in 'ruleIds'.`);
-	} else if (fixableList.length > 0) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' (${fixableList.join(", ")}) but capabilities.fix is 'none'.`);
+function validateAuditorFixContract(options) {
+	if (options.ruleFixers === void 0 || typeof options.ruleFixers !== "object" || options.ruleFixers === null) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must explicitly define mandatory 'ruleFixers' object in constructor options (pass {} if no automated repair algorithms exist).`);
+	const rawFix = options.fix;
+	if (typeof rawFix === "string" || typeof rawFix === "boolean") throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared manual fix capabilities ('fix: ${String(rawFix)}') in constructor options. Manual fix declarations are strictly prohibited under the Contract-Driven Auto-Fix Protocol (/architecture). Register executable repair functions via 'ruleFixers', 'fixableRuleIds', 'configFiles', or sub-auditor fix handlers.`);
+	if (options.fixableRuleIds !== void 0) {
+		if (!Array.isArray(options.fixableRuleIds)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' but it is not an array.`);
+		for (const ruleId of options.fixableRuleIds) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' for '${ruleId}', but that rule is not declared in 'ruleIds'.`);
+	}
+	if ("_allowDeferredFixers" in options) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] declared forbidden internal property '_allowDeferredFixers'.`);
+	const fixerRules = Object.keys(options.ruleFixers ?? {});
+	for (const ruleId of fixerRules) if (!options.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] registered a ruleFixer for '${ruleId}', but that rule is not declared in 'ruleIds'.`);
+	for (const cfg of options.configFiles ?? []) if (cfg.ruleId && !options.ruleIds.includes(cfg.ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] configured configFile requirement for '${String(cfg.ruleId)}', but that rule is not declared in 'ruleIds'.`);
 }
 function validateAuditorRules(options) {
 	if (!Array.isArray(options.ruleIds) || options.ruleIds.length === 0) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define a mandatory 'ruleIds' array containing at least one ruleId. Zero-rule suites or omitted rule catalogs are strictly prohibited.`);
@@ -664,7 +666,7 @@ function validateAuditorThirdPartyToolContract(options) {
 function validateAuditorRequiredPermissions(options) {
 	if (options.requiredPermissions === void 0 || !Array.isArray(options.requiredPermissions)) throw new Error(`[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'requiredPermissions' array in its constructor options (pass [] if no special permissions are needed).`);
 }
-function validateAuditorOptions(options, effectiveCapabilities) {
+function validateAuditorOptions(options) {
 	validateAuditorIdentity(options);
 	validateAuditorConfigKey(options);
 	validateAuditorDefaultConfig(options);
@@ -673,7 +675,7 @@ function validateAuditorOptions(options, effectiveCapabilities) {
 	validateAuditorRequiredPermissions(options);
 	validateAuditorRules(options);
 	validateAuditorRuleCapabilities(options);
-	validateAuditorFixContract(options, effectiveCapabilities);
+	validateAuditorFixContract(options);
 	validateAuditorRuleRemediations(options);
 	validateAuditorRuleRemediationPhases(options);
 	validateAuditorScripts(options);
@@ -698,21 +700,31 @@ function resolveSubsystemIgnoresAndExemptions(options, config) {
 	const section = resolveSubsystemConfig(config, options.configKey);
 	const effectiveSection = section && typeof section === "object" ? section : options.defaultConfig;
 	const sectionObj = effectiveSection && typeof effectiveSection === "object" ? effectiveSection : {};
-	const ignoreGlobs = extractStringList(sectionObj.ignoreGlobs);
-	const exemptPaths = [...extractStringList(sectionObj.exemptPaths), ...extractStringList(sectionObj.exemptFiles)];
+	const ignoreGlobs = [...extractStringList(sectionObj.ignoreGlobs), ...extractStringList(sectionObj.ignorePatterns)];
+	const exemptPaths = [
+		...extractStringList(sectionObj.exemptPaths),
+		...extractStringList(sectionObj.exemptFiles),
+		...extractStringList(sectionObj.exemptCssFiles),
+		...extractStringList(sectionObj.exemptGlobs)
+	];
 	return {
 		extraIgnorePatterns: Array.from(/* @__PURE__ */ new Set([...options.extraIgnorePatterns ?? [], ...ignoreGlobs])),
 		exemptPaths: Array.from(/* @__PURE__ */ new Set([...options.exemptPaths ?? [], ...exemptPaths]))
 	};
 }
 function resolveRulePhases(options) {
-	const resolvedPhases = {};
-	for (const ruleId of options.ruleIds) resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase;
-	return Object.freeze(resolvedPhases);
+	const entries = options.ruleIds.map((ruleId) => [ruleId, options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase]);
+	return Object.freeze(Object.fromEntries(entries));
 }
 function resolveFixableRuleIds(options) {
+	const fixerRules = Object.keys(options.ruleFixers ?? {});
 	const configFixableRules = (options.configFiles ?? []).filter((c) => Boolean(c.ruleId && c.generateDefaultContent)).map((c) => c.ruleId);
-	return /* @__PURE__ */ new Set([...options.fixableRuleIds ?? [], ...configFixableRules]);
+	const suiteFixableRules = options.fixableRuleIds ?? [];
+	return /* @__PURE__ */ new Set([
+		...fixerRules,
+		...configFixableRules,
+		...suiteFixableRules
+	]);
 }
 var BaseAuditor = class BaseAuditor {
 	id;
@@ -732,7 +744,6 @@ var BaseAuditor = class BaseAuditor {
 	ruleDescriptions;
 	ruleRemediations;
 	ruleRemediationPhases;
-	explicitSubAuditors;
 	roots;
 	allowedExtensions;
 	extraIgnorePatterns;
@@ -746,6 +757,7 @@ var BaseAuditor = class BaseAuditor {
 	criticalConfig;
 	usesThirdPartyTool;
 	thirdPartyToolPolicy;
+	ruleFixers;
 	fixableRuleIds;
 	durationsByRule = /* @__PURE__ */ new Map();
 	auditExecutionDurationMs;
@@ -759,11 +771,29 @@ var BaseAuditor = class BaseAuditor {
 	fixableWarningsByRule = /* @__PURE__ */ new Map();
 	subAuditorReports = [];
 	coverageRecorder;
-	fixMode;
+	currentFixActive = false;
 	isSkipped = false;
 	skipReason;
 	getFixableRuleIds() {
 		return Array.from(this.fixableRuleIds);
+	}
+	/**
+	* Executes registered rule fixers for this suite in deterministic order.
+	* If multiple rules share the exact same fixer function reference, the function
+	* is executed strictly once (deduplicated via Set<Function>).
+	*/
+	async executeRuleFixers(context = { projectRoot: this.projectRoot }) {
+		if (!this.ruleFixers) return;
+		const executedFixers = /* @__PURE__ */ new Set();
+		for (const [ruleId, fixer] of Object.entries(this.ruleFixers)) {
+			if (!fixer || typeof fixer !== "function") continue;
+			if (executedFixers.has(fixer)) continue;
+			executedFixers.add(fixer);
+			await fixer({
+				...context,
+				ruleId
+			});
+		}
 	}
 	recordRuleDuration(ruleId, durationMs) {
 		const current = this.durationsByRule.get(ruleId) ?? 0;
@@ -806,20 +836,6 @@ var BaseAuditor = class BaseAuditor {
 		} finally {
 			this.recordRuleDuration(ruleId, performance.now() - start);
 		}
-	}
-	/**
-	* @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-	* Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-	*/
-	async runSubAuditorsBatch(ruleIds, _action) {
-		throw new Error(`[BaseAuditor] 'runSubAuditorsBatch' is strictly prohibited under the Universal Empirical Individual Timing Contract. Batch stamping duplicates elapsed time across [${ruleIds.join(", ")}]. Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`);
-	}
-	/**
-	* @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-	* Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-	*/
-	runSubAuditorsBatchSync(ruleIds, _action) {
-		throw new Error(`[BaseAuditor] 'runSubAuditorsBatchSync' is strictly prohibited under the Universal Empirical Individual Timing Contract. Batch stamping duplicates elapsed time across [${ruleIds.join(", ")}]. Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`);
 	}
 	getRuleDuration(ruleId) {
 		return this.durationsByRule.get(ruleId);
@@ -882,7 +898,7 @@ var BaseAuditor = class BaseAuditor {
 	* Returns the active execution tier ('light', 'heavy', 'full', 'md', 'fix', or 'post-build').
 	*/
 	getExecutionTier() {
-		if (this.fixMode || this.isFixModeRequested()) return "fix";
+		if (this.isFixActive()) return "fix";
 		if (process.env.AUDITOR_PRESET === "md") return "md";
 		if (process.env.AUDITOR_PHASE === "post-build" || process.env.AUDITOR_PRESET === "post-build" || process.env.AUDITOR_PRESET === "build") return "post-build";
 		if (process.env.AUDITOR_PRESET === "critical") {
@@ -1020,9 +1036,7 @@ var BaseAuditor = class BaseAuditor {
 			...options,
 			coverage: effectiveCoverage,
 			scripts: effectiveScripts
-		}, effectiveCapabilities);
-		this.ruleCapabilities = options.ruleCapabilities;
-		this.capabilities = effectiveCapabilities;
+		});
 		this.requiresAst = effectiveCapabilities.ast;
 		this.packageName = options.packageName;
 		this.icon = options.icon;
@@ -1041,12 +1055,10 @@ var BaseAuditor = class BaseAuditor {
 		this.scripts = effectiveScripts;
 		this.requiredPermissions = options.requiredPermissions ?? [];
 		this.registerAuditorDependencies(options, effectiveScripts);
-		this.fixMode = Boolean(options.fix);
 		this.ruleIds = options.ruleIds;
 		this.ruleDescriptions = options.ruleDescriptions;
 		this.ruleRemediations = options.ruleRemediations;
 		this.ruleRemediationPhases = resolveRulePhases(options);
-		this.explicitSubAuditors = options.subAuditors;
 		const config = getAuditConfig(effectiveProjectRoot);
 		this.roots = options.roots ?? getEffectiveScannableRoots(config);
 		this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
@@ -1057,7 +1069,27 @@ var BaseAuditor = class BaseAuditor {
 		this.requiredFiles = options.requiredFiles ?? [];
 		this.projectRoot = effectiveProjectRoot;
 		this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage);
+		this.ruleFixers = options.ruleFixers;
 		this.fixableRuleIds = resolveFixableRuleIds(options);
+		const hasFixables = Array.from(this.fixableRuleIds).length > 0;
+		const defaultFixTier = effectiveCapabilities.phase === "setup" ? "priority" : "normal";
+		const updatedRuleCaps = {};
+		for (const ruleId of this.ruleIds) {
+			const existing = options.ruleCapabilities[ruleId];
+			if (existing) {
+				const isRuleFixable = this.fixableRuleIds.has(ruleId);
+				updatedRuleCaps[ruleId] = {
+					...existing,
+					fix: isRuleFixable ? defaultFixTier : "none"
+				};
+			}
+		}
+		this.ruleCapabilities = updatedRuleCaps;
+		const effectiveSuiteFix = hasFixables ? defaultFixTier : "none";
+		this.capabilities = {
+			...effectiveCapabilities,
+			fix: effectiveSuiteFix
+		};
 		validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
 		this.initRuleLedger();
 		this.context = this.initExecutionContext(this.coverageRecorder.declaration);
@@ -1155,13 +1187,6 @@ var BaseAuditor = class BaseAuditor {
 	markRuleEvaluated(ruleId, count = 1) {
 		this.coverageRecorder.markRuleEvaluated(ruleId, count);
 	}
-	/**
-	* Loud failure for obsolete v3 method name.
-	* Enforces the Loud Failure Mandate under AGENTS.md.
-	*/
-	recordRuleEvaluation(ruleId) {
-		throw new Error(`[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`);
-	}
 	/** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
 	markRuleNotApplicable(ruleId, reason) {
 		this.coverageRecorder.markRuleNotApplicable(ruleId, reason);
@@ -1201,7 +1226,6 @@ var BaseAuditor = class BaseAuditor {
 		}));
 	}
 	getSubAuditors() {
-		if (this.explicitSubAuditors && this.explicitSubAuditors.length > 0) return this.explicitSubAuditors;
 		return this.ruleIds.map((ruleId) => ({
 			id: ruleId,
 			name: this.formatRuleDescription(ruleId),
@@ -1285,12 +1309,12 @@ var BaseAuditor = class BaseAuditor {
 	}
 	addViolation(v) {
 		if (!(v.ruleId in this.ruleDescriptions)) throw new Error(`[Auditor Contract Violation] Rule '${v.ruleId}' emitted in '${this.id}' is NOT registered in 'ruleDescriptions'. All emitted rules must be registered in the constructor.`);
-		const targetFile = v.file ?? v.filePath;
+		const targetFile = v.file;
 		const normalizedFile = targetFile ? toPosixRelative(this.projectRoot, targetFile) : targetFile;
 		if (normalizedFile && this.isViolationSuppressed(normalizedFile)) return;
 		const current = this.countsByRule.get(v.ruleId) ?? 0;
 		this.countsByRule.set(v.ruleId, current + 1);
-		const isFixable = v.fixable !== void 0 ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
+		const isFixable = this.fixableRuleIds.has(v.ruleId) && (v.fixable !== void 0 ? Boolean(v.fixable) : true);
 		if (v.severity === "error") {
 			const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
 			this.errorsByRule.set(v.ruleId, errCurrent + 1);
@@ -1307,7 +1331,7 @@ var BaseAuditor = class BaseAuditor {
 			}
 		}
 		const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
-		const targetCol = v.col ?? v.column;
+		const targetCol = v.col;
 		const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
 		const effectiveRemediationPhase = v.remediationPhase ?? this.ruleRemediationPhases?.[v.ruleId];
 		if (v.severity === "error") this.context.addFinding({
@@ -1342,12 +1366,7 @@ var BaseAuditor = class BaseAuditor {
 		});
 	}
 	isFixActive() {
-		return this.fixMode || this.isFixModeRequested();
-	}
-	isFixModeRequested() {
-		const rawValues = this.context.values;
-		const cliTokens = getProcessCliArgs();
-		return this.fixMode || cliTokens.includes("fix") || cliTokens.includes("--fix") || process.env.AUDIT_FIX === "true" || Boolean(rawValues?.fix);
+		return this.currentFixActive;
 	}
 	/**
 	* Resolves whether any declared file or candidate file for this requirement exists on disk.
@@ -1492,29 +1511,44 @@ var BaseAuditor = class BaseAuditor {
 		const parsed = parseCittyArgs(SUB_AUDITOR_CLI_ARGS, [...cliArgs]);
 		Object.assign(this.context.values, parsed);
 	}
-	async execute(astContext) {
-		await loadAuditConfig(this.projectRoot);
-		await this.context.checkFiles();
-		for (const rf of this.requiredFiles) {
-			const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
-			const stats = safeStatSync(abs);
-			if (stats && !stats.isDirectory()) this.recordScanned(toPosixRelative(this.projectRoot, rf));
+	async audit(astContext) {
+		return this.executeCore(astContext, false);
+	}
+	async fix(astContext) {
+		return this.executeCore(astContext, true);
+	}
+	async executeCore(astContext, isFix = false) {
+		this.currentFixActive = isFix;
+		try {
+			await loadAuditConfig(this.projectRoot);
+			if (isFix) await this.executeRuleFixers();
+			await this.context.checkFiles();
+			for (const rf of this.requiredFiles) {
+				const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
+				const stats = safeStatSync(abs);
+				if (stats && !stats.isDirectory()) this.recordScanned(toPosixRelative(this.projectRoot, rf));
+			}
+			let effectiveAst = astContext;
+			if (!effectiveAst && this.requiresAst) {
+				const { SharedAstContext } = await import("./astContext.js");
+				effectiveAst = new SharedAstContext();
+			}
+			const auditExecutionStart = performance.now();
+			await this.runAudit(effectiveAst);
+			this.auditExecutionDurationMs = Math.max(0, performance.now() - auditExecutionStart);
+			if (this.ruleIds.length === 1) {
+				const singleRuleId = this.ruleIds[0];
+				if (!this.durationsByRule.has(singleRuleId)) this.durationsByRule.set(singleRuleId, this.auditExecutionDurationMs);
+			}
+			this.context.setMetric("Files Scanned", this.filesScannedCount);
+			for (const [ruleId, count] of this.countsByRule.entries()) this.context.setMetric(`Rule: ${ruleId}`, count);
+			return await this.finishAudit();
+		} finally {
+			this.currentFixActive = false;
 		}
-		let effectiveAst = astContext;
-		if (!effectiveAst && this.requiresAst) {
-			const { SharedAstContext } = await import("./astContext.js");
-			effectiveAst = new SharedAstContext();
-		}
-		const auditExecutionStart = performance.now();
-		await this.runAudit(effectiveAst);
-		this.auditExecutionDurationMs = Math.max(0, performance.now() - auditExecutionStart);
-		if (this.ruleIds.length === 1) {
-			const singleRuleId = this.ruleIds[0];
-			if (!this.durationsByRule.has(singleRuleId)) this.durationsByRule.set(singleRuleId, this.auditExecutionDurationMs);
-		}
-		this.context.setMetric("Files Scanned", this.filesScannedCount);
-		for (const [ruleId, count] of this.countsByRule.entries()) this.context.setMetric(`Rule: ${ruleId}`, count);
-		return this.finishAudit();
+	}
+	execute(_astContext) {
+		throw new Error(`[BaseAuditor]: Method 'execute' was eradicated in favor of dedicated methods. Use 'await auditor.audit()' for inspection or 'await auditor.fix()' for auto-repair.`);
 	}
 	async finishAudit() {
 		await this.persistCoverageLedger();
@@ -1658,7 +1692,9 @@ var BaseAuditor = class BaseAuditor {
 		if (BaseAuditor.isExecutingCli) return;
 		BaseAuditor.isExecutingCli = true;
 		try {
-			const result = await auditor.execute();
+			const cliTokens = getProcessCliArgs();
+			const rawValues = auditor.context?.values;
+			const result = cliTokens.includes("fix") || cliTokens.includes("--fix") || process.env.AUDIT_FIX === "true" || Boolean(rawValues?.fix) ? await auditor.fix() : await auditor.audit();
 			process.exit(result.summary.errors > 0 ? 1 : 0);
 		} finally {
 			BaseAuditor.isExecutingCli = false;
@@ -1675,30 +1711,39 @@ var BaseAuditor = class BaseAuditor {
 * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
 */
 var FileScanAuditor = class extends BaseAuditor {
-	declaredFileSubAuditors = /* @__PURE__ */ new Map();
-	/**
-	* Primary file scanning entry point receiving an immutable AuditedDocument.
-	* Automatically executes declared file sub-auditors measuring their runtimes
-	* before delegating to scanFile(relPath, content, sourceFile, doc).
-	*/
-	scanDocument(doc) {
-		if (isPathExempt(doc.relPath, this.exemptPaths)) return;
-		const pending = [];
-		for (const [ruleId, handler] of this.declaredFileSubAuditors.entries()) {
-			this.markRuleEvaluated(ruleId);
-			const start = performance.now();
-			try {
-				const res = handler(doc);
-				if (res instanceof Promise) pending.push(res.finally(() => {
-					this.recordRuleDuration(ruleId, performance.now() - start);
-				}));
-				else this.recordRuleDuration(ruleId, performance.now() - start);
-			} catch (err) {
+	declaredFileSubAuditorsList = [];
+	executeDocumentPass(ruleId, fn, doc, pending) {
+		const start = performance.now();
+		try {
+			const res = fn(doc);
+			if (res instanceof Promise) pending.push(res.finally(() => {
 				this.recordRuleDuration(ruleId, performance.now() - start);
-				throw err;
+			}));
+			else this.recordRuleDuration(ruleId, performance.now() - start);
+		} catch (err) {
+			this.recordRuleDuration(ruleId, performance.now() - start);
+			throw err;
+		}
+	}
+	dispatchDeclaredSubAuditors(doc, isFixing, pending) {
+		if (this.declaredFileSubAuditorsList.length === 0) return;
+		const executedAuditFns = /* @__PURE__ */ new Set();
+		const executedFixFns = /* @__PURE__ */ new Set();
+		for (const entry of this.declaredFileSubAuditorsList) {
+			this.markRuleEvaluated(entry.ruleId);
+			if (!executedAuditFns.has(entry.audit)) {
+				executedAuditFns.add(entry.audit);
+				if (isFixing && entry.fix && entry.audit === entry.fix) executedFixFns.add(entry.fix);
+				this.executeDocumentPass(entry.ruleId, entry.audit, doc, pending);
+			}
+			if (isFixing && entry.fix && !executedFixFns.has(entry.fix)) {
+				executedFixFns.add(entry.fix);
+				this.executeDocumentPass(entry.ruleId, entry.fix, doc, pending);
 			}
 		}
-		const singleRuleId = this.declaredFileSubAuditors.size === 0 && this.ruleIds.length === 1 ? this.ruleIds[0] : void 0;
+	}
+	dispatchDirectScanFile(doc, pending) {
+		const singleRuleId = this.declaredFileSubAuditorsList.length === 0 && this.ruleIds.length === 1 ? this.ruleIds[0] : void 0;
 		const startScan = singleRuleId ? performance.now() : 0;
 		const scanFileRes = this.scanFile(doc.relPath, doc.rawContent, this.requiresAst ? doc.getAst() : void 0, doc);
 		if (singleRuleId) {
@@ -1707,6 +1752,18 @@ var FileScanAuditor = class extends BaseAuditor {
 			}));
 			else this.recordRuleDuration(singleRuleId, performance.now() - startScan);
 		} else if (scanFileRes instanceof Promise) pending.push(scanFileRes);
+	}
+	/**
+	* Primary file scanning entry point receiving an immutable AuditedDocument.
+	* Automatically executes declared file sub-auditors measuring runtimes and
+	* deduplicating shared audit and fix functions (Set<Function>) to run them strictly once per document.
+	*/
+	scanDocument(doc) {
+		if (isPathExempt(doc.relPath, this.exemptPaths)) return;
+		const pending = [];
+		const isFixing = this.isFixActive();
+		this.dispatchDeclaredSubAuditors(doc, isFixing, pending);
+		this.dispatchDirectScanFile(doc, pending);
 		if (pending.length > 0) return Promise.all(pending).then(() => {});
 	}
 	/**
@@ -1716,6 +1773,7 @@ var FileScanAuditor = class extends BaseAuditor {
 		const doc = new AuditedDocument(path.resolve(this.projectRoot, relPath), content, relPath);
 		const prevTotalEvals = this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0);
 		const finishScan = () => {
+			if (this.isFixActive() && doc.hasFixes()) doc.applyFixesToFile();
 			this.recordScanned(relPath);
 			if (this.getRuleCatalog().reduce((acc, r) => acc + this.getEvaluations(r), 0) === prevTotalEvals) for (const ruleId of this.getRuleCatalog()) this.markRuleEvaluated(ruleId);
 		};
@@ -1725,18 +1783,54 @@ var FileScanAuditor = class extends BaseAuditor {
 	}
 	/**
 	* Declares a file-scoped sub-auditor tied to a declared rule.
-	* The superclass executes the handler for each audited file and empirically accumulates duration.
+	* If a handler object with `fix` is provided, the rule is automatically marked as fixable.
+	* Otherwise, the rule is classified as unfixable (fixable: false).
 	*/
-	declareFileSubAuditor(ruleId, handler) {
+	syncDynamicRuleFixability(ruleId, isFixable) {
+		const curCap = this.ruleCapabilities[ruleId];
+		if (isFixable) {
+			this.fixableRuleIds.add(ruleId);
+			if (curCap) this.ruleCapabilities[ruleId] = {
+				...curCap,
+				fix: curCap.fix && curCap.fix !== "none" ? curCap.fix : "normal"
+			};
+			if (this.capabilities.fix === "none") this.capabilities = {
+				...this.capabilities,
+				fix: "normal"
+			};
+		} else {
+			this.fixableRuleIds.delete(ruleId);
+			if (curCap) this.ruleCapabilities[ruleId] = {
+				...curCap,
+				fix: "none"
+			};
+			if (this.fixableRuleIds.size === 0) this.capabilities = {
+				...this.capabilities,
+				fix: "none"
+			};
+		}
+	}
+	declareFileSubAuditor(ruleId, handlerOrSpec) {
 		if (!this.ruleIds.includes(ruleId)) throw new Error(`[Auditor Contract Violation] Auditor [${this.id}] attempted to declare file sub-auditor for '${ruleId}', but that rule is not registered in 'ruleIds'.`);
-		this.declaredFileSubAuditors.set(ruleId, handler);
+		const auditFn = typeof handlerOrSpec === "function" ? handlerOrSpec : handlerOrSpec.audit;
+		const fixFn = typeof handlerOrSpec !== "function" && typeof handlerOrSpec.fix === "function" ? handlerOrSpec.fix : void 0;
+		this.syncDynamicRuleFixability(ruleId, fixFn !== void 0);
+		this.declaredFileSubAuditorsList.push({
+			ruleId,
+			audit: auditFn,
+			fix: fixFn
+		});
 	}
 	/**
 	* Declares a regex pattern sub-auditor tied to a declared rule.
 	* Scans safe patterns skipping comments and strings automatically.
+	* If `replace` is provided, the rule is automatically marked as fixable and registers replacements.
 	*/
 	declarePatternSubAuditor(ruleId, options) {
-		this.declareFileSubAuditor(ruleId, (doc) => {
+		const hasReplace = Boolean(options.replace);
+		if (hasReplace) this.fixableRuleIds.add(ruleId);
+		else this.fixableRuleIds.delete(ruleId);
+		const auditHandler = (doc) => {
 			this.scanSafePattern(doc, {
 				ruleId,
 				regex: options.regex,
@@ -1744,9 +1838,14 @@ var FileScanAuditor = class extends BaseAuditor {
 				severity: options.severity,
 				skipComments: options.skipComments,
 				skipStrings: options.skipStrings,
-				fixable: options.fixable
+				replace: options.replace
 			}, options.onMatch);
+		};
+		if (hasReplace) this.declareFileSubAuditor(ruleId, {
+			audit: auditHandler,
+			fix: auditHandler
 		});
+		else this.declareFileSubAuditor(ruleId, auditHandler);
 	}
 	/**
 	* Overridable file scanning method for sub-auditors.
@@ -1777,18 +1876,21 @@ var FileScanAuditor = class extends BaseAuditor {
 	addViolationAtMatch(params) {
 		const pos = params.doc ? params.doc.getLineAndColumn(params.matchIndex) : (() => {
 			const preceding = params.content.slice(0, params.matchIndex);
+			const line = preceding.split("\n").length;
+			const col = (preceding.split("\n").pop()?.length ?? 0) + 1;
 			return {
-				line: preceding.split("\n").length,
-				column: (preceding.split("\n").pop()?.length ?? 0) + 1,
+				line,
+				column: col,
+				col,
 				lineText: params.context ?? ""
 			};
 		})();
 		this.addViolation({
 			ruleId: params.ruleId,
 			severity: params.severity ?? "error",
-			filePath: params.filePath,
+			file: params.file,
 			line: pos.line,
-			column: pos.column,
+			col: pos.col,
 			message: params.message,
 			context: params.context ?? pos.lineText.trim(),
 			fixable: params.fixable
@@ -1814,15 +1916,25 @@ var FileScanAuditor = class extends BaseAuditor {
 					if (onMatch(m, pos) === false) continue;
 				}
 				const msg = typeof options.message === "function" ? options.message(m, pos) : options.message;
+				if (options.replace !== void 0 && this.isFixActive()) {
+					const repText = typeof options.replace === "function" ? options.replace(m, pos) : options.replace;
+					doc.registerFix({
+						start: matchIdx,
+						end: matchIdx + m[0].length,
+						newText: repText,
+						ruleId: options.ruleId,
+						description: msg
+					});
+				}
 				this.addViolation({
 					ruleId: options.ruleId,
-					filePath: doc.relPath,
+					file: doc.relPath,
 					line: pos.line,
-					column: pos.column,
+					col: pos.col,
 					message: msg,
 					severity: options.severity ?? "error",
 					context: pos.lineText.trim(),
-					fixable: options.fixable
+					fixable: options.replace !== void 0
 				});
 			}
 		} finally {
@@ -1854,7 +1966,7 @@ var FileScanAuditor = class extends BaseAuditor {
 					severity,
 					file,
 					line: lineNum,
-					column: col,
+					col,
 					message: msg,
 					context: match[0].trim()
 				});
@@ -1898,4 +2010,4 @@ var FileScanAuditor = class extends BaseAuditor {
 		for (const file of files) await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
 	}
 };
-export { ALWAYS_IGNORE_DIRS, AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_IGNORE_DIRS, CANONICAL_SCANNABLE_ROOTS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, SuiteIgnoreRegistry, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveScannableRoots, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, isLockedSkillPath, isPathExempt, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, registerDynamicCachePath, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };
+export { AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_SCANNABLE_ROOTS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveScannableRoots, isLockedSkillPath, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };

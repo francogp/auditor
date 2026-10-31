@@ -12,18 +12,24 @@
  *    Storage mutations (.setItem) invoked outside try/catch blocks susceptible to QuotaExceededError crashes.
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
+
+import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
-import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
-import { scanBalancedBraces } from '../../core/scannerUtils.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  FileScanAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
+import { scanBalancedBraces } from '../../core/scannerUtils.ts';
 
 enableCompileCache();
 
@@ -36,10 +42,10 @@ export const PERSISTENCE_CLIENT_RULES = [
 export type PersistenceClientRuleId = (typeof PERSISTENCE_CLIENT_RULES)[number];
 
 export interface ValidatePersistenceClientOptions {
-  projectRoot?: string;
-  roots?: readonly string[];
-  authorizedSaveFiles?: readonly string[];
-  saveKeyPrefixes?: readonly string[];
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+  readonly authorizedSaveFiles?: readonly string[];
+  readonly saveKeyPrefixes?: readonly string[];
 }
 
 export interface StorageAccessContext {
@@ -63,19 +69,13 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
   private readonly authorizedSaveFiles: ReadonlySet<string>;
   private readonly saveKeyPrefixes: readonly string[];
 
-  constructor(options?: string | ValidatePersistenceClientOptions) {
-    const rootPath = typeof options === 'string' ? options : options?.projectRoot;
+  public constructor(options: ValidatePersistenceClientOptions = {}) {
+    const rootPath = options.projectRoot ?? process.cwd();
     const cfg = getAuditConfig(rootPath);
-    const codeRoots =
-      typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
+    const codeRoots = options.roots ?? cfg.paths.codeRoots ?? [];
     const customAuthorized =
-      typeof options === 'object' && options?.authorizedSaveFiles
-        ? options.authorizedSaveFiles
-        : (cfg.persistence?.authorizedSaveFiles ?? []);
-    const customPrefixes =
-      typeof options === 'object' && options?.saveKeyPrefixes
-        ? options.saveKeyPrefixes
-        : (cfg.persistence?.saveKeyPrefixes ?? []);
+      options.authorizedSaveFiles ?? cfg.persistence?.authorizedSaveFiles ?? [];
+    const customPrefixes = options.saveKeyPrefixes ?? cfg.persistence?.saveKeyPrefixes ?? [];
 
     const extraGlobs: string[] = [
       ...(cfg.persistence?.ignoreGlobs ?? []),
@@ -89,17 +89,15 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
         extraGlobs.push(`${d}/**`);
       }
     }
-    const persistenceIgnores = Array.from(
-      getEffectiveIgnoreGlobs(rootPath, { extraGlobs })
-    );
+    const persistenceIgnores = Array.from(getEffectiveIgnoreGlobs(rootPath, { extraGlobs }));
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(PERSISTENCE_CLIENT_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -175,7 +173,11 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       const isTryWrapped = (node: ts.Node): boolean => {
         let curr: ts.Node | undefined = node.parent;
         while (curr) {
-          if (ts.isTryStatement(curr) && curr.tryBlock.pos <= node.pos && curr.tryBlock.end >= node.end) {
+          if (
+            ts.isTryStatement(curr) &&
+            curr.tryBlock.pos <= node.pos &&
+            curr.tryBlock.end >= node.end
+          ) {
             return true;
           }
           curr = curr.parent;
@@ -224,7 +226,9 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
 
               if (isStorage && keyNode) {
                 const rawKey = keyNode.getText(ast);
-                const keyText = ts.isStringLiteral(keyNode) ? keyNode.text : rawKey.replace(/['"`]/g, '');
+                const keyText = ts.isStringLiteral(keyNode)
+                  ? keyNode.text
+                  : rawKey.replace(/['"`]/g, '');
                 const { line, column } = doc.getNodeLineAndColumn(keyNode, ast);
 
                 // 1. Uncoordinated save
@@ -235,9 +239,9 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
                   if (matchesPrefix) {
                     this.addViolation({
                       ruleId: 'persistence-client-uncoordinated-save',
-                      filePath: file,
+                      file,
                       line,
-                      column,
+                      col: column,
                       severity: 'error',
                       message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
                       context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
@@ -249,9 +253,9 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
                 if (ts.isStringLiteral(keyNode)) {
                   this.addViolation({
                     ruleId: 'persistence-client-untyped-key',
-                    filePath: file,
+                    file,
                     line,
-                    column,
+                    col: column,
                     severity: 'error',
                     message: `Storage key ${rawKey} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
                     context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
@@ -262,9 +266,9 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
                 if (isWrite && !isTryWrapped(node)) {
                   this.addViolation({
                     ruleId: 'persistence-client-unhandled-quota-error',
-                    filePath: file,
+                    file,
                     line,
-                    column,
+                    col: column,
                     severity: 'error',
                     message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,
                     context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
@@ -345,7 +349,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       if (matchesSavePrefix) {
         this.addViolationAtMatch({
           ruleId: 'persistence-client-uncoordinated-save',
-          filePath: file,
+          file,
           content,
           matchIndex,
           message: `Direct write to web storage bypasses authorized persistence architecture. Delegate to authorized save stores or persistence service.`,
@@ -360,7 +364,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       if (/^['"`][\w$-]+['"`]$/.test(rawKeyArg)) {
         this.addViolationAtMatch({
           ruleId: 'persistence-client-untyped-key',
-          filePath: file,
+          file,
           content,
           matchIndex,
           message: `Storage key ${rawKeyArg} is a raw string literal — use typed constant or enum from canonical storage definitions.`,
@@ -375,7 +379,7 @@ export class ValidatePersistenceClientAuditor extends FileScanAuditor<Persistenc
       if (isWrite && !this.isInsideTryCatch(content, matchIndex)) {
         this.addViolationAtMatch({
           ruleId: 'persistence-client-unhandled-quota-error',
-          filePath: file,
+          file,
           content,
           matchIndex,
           message: `Web storage mutation ${mutationLabel} must be wrapped in try/catch to guard against QuotaExceededError on full or private storage.`,

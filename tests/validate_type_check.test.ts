@@ -103,7 +103,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
         fs.writeFileSync(path.join(sandbox, 'src/index.ts'), 'export const x: number = 42;\n');
 
         const auditor = new TypeCheckAuditor({ projectRoot: sandbox });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');
@@ -143,7 +143,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
     it('detects type errors inside tests/ and fails', async () => {
       const { sandbox, cleanup } = await createBrokenSandbox();
       try {
-        const result = await new TypeCheckAuditor({ projectRoot: sandbox }).execute();
+        const result = await new TypeCheckAuditor({ projectRoot: sandbox }).audit();
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.status).toBe('failed');
         expect(
@@ -164,7 +164,7 @@ src/stores/authStore.ts:50:8 - error TS2345: Argument of type '{ id: string; }' 
       const previous = process.env.FORCE_COLOR;
       process.env.FORCE_COLOR = '1';
       try {
-        const result = await new TypeCheckAuditor({ projectRoot: sandbox }).execute();
+        const result = await new TypeCheckAuditor({ projectRoot: sandbox }).audit();
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.status).toBe('failed');
       } finally {

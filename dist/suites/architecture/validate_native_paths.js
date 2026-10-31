@@ -2,10 +2,9 @@ import { safeReadFileSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
-import { CANONICAL_IGNORE_DIRS } from "../../core/canonicalIgnoreRegistry.js";
 import "../../core/auditCoverage.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, isPathIgnored, resolveFileScanRoots } from "../../core/auditorBase.js";
+import { BaseAuditor, FileScanAuditor, SCANNABLE_EXTENSIONS, assertSafePathComponent, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, getEffectiveScannableRoots, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { NATIVE_PATH_RULES } from "../../analyzers/nativePaths/nativePathTypes.js";
 import { scanNativePathAst } from "../../analyzers/nativePaths/nativePathScanner.js";
 import { enableCompileCache } from "node:module";
@@ -101,12 +100,12 @@ var NativePathsAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => getEffectiveScannableRoots(cfg));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -143,4 +142,4 @@ var NativePathsAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new NativePathsAuditor());
-export { CANONICAL_IGNORE_DIRS, NATIVE_PATH_EXTENSIONS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, getEffectiveScannableRoots, isPathIgnored, scanFileForNativePathViolations };
+export { NATIVE_PATH_EXTENSIONS, NATIVE_PATH_RULES, NativePathsAuditor, auditNativePaths, scanFileForNativePathViolations };

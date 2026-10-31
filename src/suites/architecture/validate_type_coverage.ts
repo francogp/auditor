@@ -1,15 +1,19 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import path from 'node:path';
+
+import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { AuditFinding } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { safeRmSync } from '../../core/safeUtils.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
-import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
@@ -90,11 +94,12 @@ export function parseTypeCoverageReport(
 export const DEFAULT_TYPE_COVERAGE_THRESHOLD = 95;
 
 export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
+      ruleFixers: {},
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -105,7 +110,6 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
         speed: ['heavy', 'full'],
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

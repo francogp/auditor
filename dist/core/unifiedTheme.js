@@ -1,7 +1,7 @@
 import { getRemediationPhaseMetadata } from "./remediationPhases.js";
 import { FAMILY_METADATA, normalizeSpeeds } from "./auditContract.js";
-import { TEXT_ALIGNMENTS, padVisual, stringWidth, truncateVisual } from "./terminalVisuals.js";
 import { DURATION_PAD_LENGTH, formatDuration, formatDurationMs, formatNumber } from "./durationFormatter.js";
+import { TEXT_ALIGNMENTS, padVisual, stringWidth, truncateVisual } from "./terminalVisuals.js";
 import { formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors } from "./fileTreeRenderer.js";
 import { renderMarkdownReport } from "./markdownReport.js";
 import { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "./executiveTheme.js";

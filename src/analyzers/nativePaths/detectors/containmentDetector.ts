@@ -86,7 +86,10 @@ function getLogicalRoot(node: ts.Node): ts.Node {
 function isPathPrefixArgument(arg: ts.Expression, ctx: NativePathScanContext): boolean {
   const node = unwrapExpression(arg);
   if (ts.isTemplateExpression(node)) {
-    return getTemplateTexts(node).some(isPathFragment) && node.templateSpans.some((s) => isPathish(s.expression, ctx.pathOriginNames));
+    return (
+      getTemplateTexts(node).some(isPathFragment) &&
+      node.templateSpans.some((s) => isPathish(s.expression, ctx.pathOriginNames))
+    );
   }
   if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.PlusToken) {
     const ops = flattenPlusChain(node);
@@ -169,14 +172,21 @@ function checkParentSegmentComparison(node: ts.Node): boolean {
     kind === ts.SyntaxKind.ExclamationEqualsEqualsToken ||
     kind === ts.SyntaxKind.EqualsEqualsToken ||
     kind === ts.SyntaxKind.ExclamationEqualsToken;
-  return isEquality && (getStringValue(node.left) === PARENT_SEGMENT || getStringValue(node.right) === PARENT_SEGMENT);
+  return (
+    isEquality &&
+    (getStringValue(node.left) === PARENT_SEGMENT || getStringValue(node.right) === PARENT_SEGMENT)
+  );
 }
 
 export const containmentDetector: NativePathDetector = (node, ctx) => {
   let matched = checkRegExpConstruction(node, ctx) || checkParentSegmentComparison(node);
   if (!matched) {
     const mc = asMethodCall(node);
-    matched = mc !== undefined && (checkStartsWith(mc, ctx) || checkTraversalSearch(mc) || checkRegexUsage(mc, ctx));
+    matched =
+      mc !== undefined &&
+      (checkStartsWith(mc, ctx) || checkTraversalSearch(mc) || checkRegexUsage(mc, ctx));
   }
-  return matched ? { ruleId: 'homebrew-path-containment', node, message: CONTAINMENT_MESSAGE } : null;
+  return matched
+    ? { ruleId: 'homebrew-path-containment', node, message: CONTAINMENT_MESSAGE }
+    : null;
 };

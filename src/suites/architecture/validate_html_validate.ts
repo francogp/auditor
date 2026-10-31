@@ -14,9 +14,13 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
-import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { AuditFinding } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -24,17 +28,14 @@ import {
   collectRepositoryFiles,
   isPathIgnored
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
-import { tryCatchSync } from '../../core/safeUtils.ts';
 import {
   parseLintResultsToFindings,
   extractJsonReportFilePaths,
   type RawLintMessage,
   type RawLintFileReport
 } from '../../core/reportUtils.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
+import { tryCatchSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -83,7 +84,12 @@ function collectRootHtmlTargets(
   extraIgnorePatterns: readonly string[] = []
 ): void {
   const fullRoot = path.resolve(projectRoot, root);
-  const found = collectRepositoryFiles(fullRoot, projectRoot, extraIgnorePatterns, new Set(['.html', '.vue']));
+  const found = collectRepositoryFiles(
+    fullRoot,
+    projectRoot,
+    extraIgnorePatterns,
+    new Set(['.html', '.vue'])
+  );
   if (found.length > 0) {
     targets.push(root);
     filesToScan.push(...found);
@@ -150,7 +156,7 @@ export function readAndParseHtmlValidateOutput(
 }
 
 export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const targetRoots = Array.from(
@@ -161,6 +167,8 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       ])
     );
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['html-validate-issue'],
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -168,20 +176,14 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'html-validate-issue'
       },
-      ruleCapabilities: createRuleCapabilities(
-        HTML_VALIDATE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: true
-        },
-        ['html-validate-issue']
-      ),
-      fixableRuleIds: ['html-validate-issue'],
+      ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: true
+      }),
       id: 'validate_html_validate',
       name: 'HTML5 Standards & Markup Hygiene Validator',
       description: 'Validates standards and obsolete elements with html-validate',
@@ -234,7 +236,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('HTML-Validate disabled in configuration')) return;
 
-    const isFixMode = this.isFixModeRequested();
+    const isFixMode = this.isFixActive();
     const config = getAuditConfig(this.projectRoot);
 
     const binPath = resolveNodeModuleBin(this.projectRoot, 'html-validate/bin/html-validate.mjs');
@@ -273,10 +275,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
     );
 
     if (filesToScan.length === 0 && targets.length === 0) {
-      this.markRuleNotApplicable(
-        'html-validate-issue',
-        'No HTML files or templates to validate'
-      );
+      this.markRuleNotApplicable('html-validate-issue', 'No HTML files or templates to validate');
       return;
     }
 
@@ -284,9 +283,7 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       this.recordScanned(f);
     }
 
-    const relFiles = filesToScan.map((f) =>
-      normalizePosixPath(path.relative(this.projectRoot, f))
-    );
+    const relFiles = filesToScan.map((f) => normalizePosixPath(path.relative(this.projectRoot, f)));
     const totalChars = relFiles.reduce((acc, f) => acc + f.length + 1, 0);
     const effectiveTargets = totalChars < 6000 && relFiles.length > 0 ? relFiles : targets;
 

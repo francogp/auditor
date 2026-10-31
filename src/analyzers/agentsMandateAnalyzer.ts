@@ -7,6 +7,7 @@
  */
 
 import fsSync from 'node:fs';
+
 import type { DocumentationLanguage } from '../core/auditConfigTypes.ts';
 
 /**

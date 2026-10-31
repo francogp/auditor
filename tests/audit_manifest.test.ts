@@ -56,13 +56,13 @@ describe('Auditor Manifest & Introspection Registry', () => {
             'Esta es una descripción deliberadamente larguísima que excede los sesenta caracteres reglamentarios',
           icon: '⚠️',
           family: 'architecture',
+          ruleFixers: {},
           ruleIds: ['test-rule'],
           packageName: 'Test',
           ruleCapabilities: {
             'test-rule': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,

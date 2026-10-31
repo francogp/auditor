@@ -11,8 +11,9 @@
  */
 
 import type { JSDOM } from 'jsdom';
-import ts from 'typescript';
 import MagicString from 'magic-string';
+import ts from 'typescript';
+
 import { SharedAstContext } from '../core/astContext.ts';
 import {
   computeRawLineOffsets,
@@ -112,11 +113,7 @@ function findEnclosingFunction(node: ts.Node): ts.FunctionLikeDeclarationBase | 
   return null;
 }
 
-function functionChecksIsComposing(
-  fnNode: ts.Node,
-  paramName: string,
-  sf: ts.SourceFile
-): boolean {
+function functionChecksIsComposing(fnNode: ts.Node, paramName: string, sf: ts.SourceFile): boolean {
   let found = false;
   const visit = (n: ts.Node): void => {
     if (found) return;
@@ -279,13 +276,7 @@ const ROOT_CONTAINER_TAGS: ReadonlySet<string> = new Set<RootContainerTag>(
   ROOT_CONTAINER_TAGS_LIST
 ); // runtime-set: Fast O(1) membership lookup set
 
-const VUE_DYNAMIC_DIRECTIVES_LIST = [
-  'v-if',
-  'v-else-if',
-  'v-show',
-  'v-for',
-  'v-model'
-] as const;
+const VUE_DYNAMIC_DIRECTIVES_LIST = ['v-if', 'v-else-if', 'v-show', 'v-for', 'v-model'] as const;
 export type VueDynamicDirective = (typeof VUE_DYNAMIC_DIRECTIVES_LIST)[number];
 const VUE_DYNAMIC_DIRECTIVES: ReadonlySet<string> = new Set<VueDynamicDirective>(
   VUE_DYNAMIC_DIRECTIVES_LIST
@@ -308,7 +299,7 @@ function extractAttrValueRange(
   eqIdx: number
 ): { inner: string; innerRelOffset: number } | null {
   const afterEq = attrRaw.slice(eqIdx + 1);
-  const quoteChar = afterEq.includes('"') ? '"' : afterEq.includes('\'') ? '\'' : null;
+  const quoteChar = afterEq.includes('"') ? '"' : afterEq.includes("'") ? "'" : null;
 
   if (quoteChar) {
     const firstQuote = attrRaw.indexOf(quoteChar, eqIdx);

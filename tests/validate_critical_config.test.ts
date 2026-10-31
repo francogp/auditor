@@ -26,7 +26,7 @@ import {
 type SampleRuleId = 'sample-rule';
 
 class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
-  constructor(projectRoot = process.cwd()) {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
       id: 'validate_sample_critical',
       name: 'Sample Critical Suite',
@@ -50,6 +50,9 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
         }
       },
       usesThirdPartyTool: false,
+      ruleFixers: {
+        'sample-rule': async () => true
+      },
       ruleIds: ['sample-rule'],
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
@@ -64,7 +67,6 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': {
           speed: 'light',
           phase: 'normal',
-          fix: 'normal',
           md: false,
           ast: false,
           changedOnly: false,
@@ -74,8 +76,7 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
       coverage: {
         include: ['src/**']
       },
-      fixableRuleIds: ['sample-rule'],
-      projectRoot
+      projectRoot: options.projectRoot ?? process.cwd()
     });
   }
 
@@ -85,7 +86,8 @@ class ValidCriticalAuditor extends BaseAuditor<SampleRuleId> {
 }
 
 class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
-  constructor(options: Record<string, unknown>, projectRoot = process.cwd()) {
+  constructor(options: Partial<AuditorOptions<SampleRuleId>> & { projectRoot?: string } = {}) {
+    const { projectRoot = process.cwd(), ...restOptions } = options;
     super({
       id: 'validate_sample_probe',
       name: 'Sample Probe Suite',
@@ -98,6 +100,7 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
+      ruleFixers: {},
       ruleIds: ['sample-rule'],
       ruleDescriptions: {
         'sample-rule': 'Regla de muestra para validación'
@@ -112,7 +115,6 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
         'sample-rule': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
@@ -123,7 +125,7 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
         include: ['src/**']
       },
       projectRoot,
-      ...options
+      ...restOptions
     } as AuditorOptions<SampleRuleId>);
   }
 
@@ -157,7 +159,7 @@ describe('Auditor Critical Configuration Contract', () => {
 
   describe('Constructor Contract & Conformance', () => {
     it('properly constructs and validates an auditor declaring criticalConfig', () => {
-      const auditor = new ValidCriticalAuditor(tempDir);
+      const auditor = new ValidCriticalAuditor({ projectRoot: tempDir });
       const errors = validateAuditorConstruction(auditor);
       expect(errors).toEqual([]);
       expect(auditor.criticalConfig).toBeDefined();
@@ -177,31 +179,27 @@ describe('Auditor Critical Configuration Contract', () => {
 
     it('rejects criticalConfig with empty rationale', () => {
       expect(() => {
-        new TestProbeAuditor(
-          {
-            criticalConfig: {
-              rationale: '   ',
-              requiredMinimums: { items: ['min1'] }
-            }
+        new TestProbeAuditor({
+          criticalConfig: {
+            rationale: '   ',
+            requiredMinimums: { items: ['min1'] }
           },
-          tempDir
-        );
+          projectRoot: tempDir
+        });
       }).toThrow(/must define a non-empty 'rationale' in 'criticalConfig'/);
     });
 
     it('rejects auditor when criticalConfig is undefined or omitted', () => {
       expect(() => {
-        new TestProbeAuditor(
-          {
-            criticalConfig: undefined
-          },
-          tempDir
-        );
+        new TestProbeAuditor({
+          criticalConfig: undefined,
+          projectRoot: tempDir
+        });
       }).toThrow(/must define mandatory 'criticalConfig' in its constructor/);
     });
 
     it('allows empty criticalConfig: {} when no constraints are required', () => {
-      const auditor = new TestProbeAuditor({ criticalConfig: {} }, tempDir);
+      const auditor = new TestProbeAuditor({ criticalConfig: {}, projectRoot: tempDir });
       expect(auditor.criticalConfig).toEqual({});
       const manifest = auditor.toManifest();
       expect(manifest.criticalConfig).toEqual({});
@@ -209,17 +207,15 @@ describe('Auditor Critical Configuration Contract', () => {
 
     it('rejects criticalConfig with non-array requiredMinimums', () => {
       expect(() => {
-        new TestProbeAuditor(
-          {
-            criticalConfig: {
-              rationale: 'Mínimos inválidos',
-              requiredMinimums: {
-                items: 'not-an-array'
-              }
+        new TestProbeAuditor({
+          criticalConfig: {
+            rationale: 'Mínimos inválidos',
+            requiredMinimums: {
+              items: 'not-an-array' as unknown as readonly string[]
             }
           },
-          tempDir
-        );
+          projectRoot: tempDir
+        });
       }).toThrow(/must be a non-empty array/);
     });
   });

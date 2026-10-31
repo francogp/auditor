@@ -13,10 +13,10 @@
 
 import { execFileSync } from 'node:child_process';
 import nodeFs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, isPathIgnored, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import {
   getAuditConfig,
   type AuditEngineConfig,
@@ -31,8 +31,13 @@ import {
   readCoverageLedgers,
   resolveActiveCoverageRunId
 } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  isPathIgnored,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { getMatchingExemptionPolicies } from '../../core/exemptionPolicies.ts';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
@@ -342,14 +347,14 @@ export function listTrackedFiles(projectRoot: string): string[] {
 }
 
 export class AuditCoverageAuditor extends BaseAuditor<AuditCoverageRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
         speed: 'light',
         phase: 'post-run',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

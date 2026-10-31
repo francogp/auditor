@@ -8,6 +8,11 @@
 export * from './core/auditContract.ts';
 export * from './core/auditConfig.ts';
 export * from './core/auditorBase.ts';
+export {
+  type AuditorConstructor,
+  type FixableAuditorInstance,
+  type FixableAuditorConstructor
+} from './core/auditorBase.ts';
 export * from './core/auditedDocument.ts';
 export * from './core/astContext.ts';
 export * from './core/streamingRunner.ts';
@@ -23,6 +28,8 @@ export * from './core/scannerUtils.ts';
 export * from './core/auditZLayers.ts';
 export * from './core/gitignoreMatcher.ts';
 export * from './core/gitIgnoreRegistry.ts';
+export * from './core/canonicalIgnoreRegistry.ts';
+export * from './core/baseRegistry.ts';
 export * from './core/configFileRegistry.ts';
 export * from './core/packageScriptRegistry.ts';
 export * from './cli/auditScanner.ts';

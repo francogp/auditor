@@ -16,8 +16,10 @@
  *   auditor-css --errors-only
  */
 
-import { styleText } from 'node:util';
 import path from 'node:path';
+import { styleText } from 'node:util';
+
+import type { AuditFinding } from '../core/auditContract.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -26,9 +28,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { isMainModule } from './cliUtils.ts';
 import { StylelintAuditor } from '../suites/architecture/validate_stylelint.ts';
-import type { AuditFinding } from '../core/auditContract.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const MAX_ITEM_DISPLAY_CHARS = 30;
 const MAX_ITEM_TRUNCATE_CHARS = 29;
@@ -92,11 +93,13 @@ function formatCssTableRow(f: AuditFinding, index: number): TableRow {
   };
 }
 
-function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], category: string, isHuman: boolean): void {
+function renderCssFindingsTable(
+  filteredFindings: readonly AuditFinding[],
+  category: string,
+  isHuman: boolean
+): void {
   if (filteredFindings.length === 0) {
-    console.log(
-      styleText('green', '[OK] No CSS/SCSS style issues or violations detected.\n')
-    );
+    console.log(styleText('green', '[OK] No CSS/SCSS style issues or violations detected.\n'));
     return;
   }
 
@@ -104,7 +107,9 @@ function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], categ
     console.log(`[CSS] Found ${filteredFindings.length} issue(s) in category '${category}':`);
     for (const f of filteredFindings) {
       const loc = f.file ? (f.line ? `${f.file}:${f.line}` : f.file) : 'general';
-      console.log(`• [${f.severity.toUpperCase()}] ${loc} [${f.ruleId ?? 'stylelint'}]: ${f.message}`);
+      console.log(
+        `• [${f.severity.toUpperCase()}] ${loc} [${f.ruleId ?? 'stylelint'}]: ${f.message}`
+      );
     }
     console.log('');
     return;
@@ -125,8 +130,16 @@ function renderCssFindingsTable(filteredFindings: readonly AuditFinding[], categ
 const CSS_REPORT_ARGS = {
   ...COMMON_CLI_ARGS,
   category: { type: 'string', default: 'all', description: 'CSS finding category filter' },
-  categoryPos: { type: 'positional', required: false, description: 'CSS finding category positional filter' },
-  'errors-only': { type: 'boolean', default: false, description: 'Show only error-severity findings' },
+  categoryPos: {
+    type: 'positional',
+    required: false,
+    description: 'CSS finding category positional filter'
+  },
+  'errors-only': {
+    type: 'boolean',
+    default: false,
+    description: 'Show only error-severity findings'
+  },
   fix: { type: 'boolean', default: false, description: 'Apply Stylelint auto-fixes' }
 } as const satisfies CittyArgsDef;
 
@@ -140,7 +153,7 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
   const isHuman = resolveHumanModeFromArgs(parsed);
 
   const auditor = new StylelintAuditor({ projectRoot });
-  const result = await auditor.execute();
+  const result = isFix ? await auditor.fix() : await auditor.audit();
 
   const filteredFindings = result.findings.filter((f) => {
     if (errorsOnly && f.severity !== 'error') return false;
@@ -182,10 +195,7 @@ export async function runCssReport(projectRoot: string = process.cwd()): Promise
 
     if (isFix) {
       console.log(
-        styleText(
-          'cyan',
-          '[Notice] Auto-fix mode: Stylelint applied automated fixes.\n'
-        )
+        styleText('cyan', '[Notice] Auto-fix mode: Stylelint applied automated fixes.\n')
       );
     }
   }

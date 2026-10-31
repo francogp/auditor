@@ -24,7 +24,7 @@ export declare function normalizePosixPath(filePath: string, cwd?: string): stri
  * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
  * Supports exact matches, sub-directory prefixes, and glob wildcards (e.g. '/**' or '/*').
  */
-export declare function isPathExempt(relPath: string, exemptPaths?: readonly string[]): boolean;
+export declare function isPathExempt(relPath: string, exemptPaths?: readonly string[], projectRoot?: string): boolean;
 /**
  * Parses raw JSON output containing an object, handling stdout strings or execSync error objects.
  */

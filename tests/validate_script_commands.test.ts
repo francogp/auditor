@@ -110,7 +110,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(workflowDir, 'ci.yml'), ciYaml);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -137,7 +137,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     );
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.status).toBe('failed');
@@ -170,7 +170,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     );
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npm');
@@ -196,7 +196,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'build.sh'), '#!/bin/bash\nnpm compile\n');
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-invalid-npm-syntax');
@@ -224,7 +224,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     );
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npx');
@@ -249,7 +249,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'dev.sh'), '#!/bin/bash\nnpx vite --host\n');
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'script-cmd-unregistered-npx');
@@ -289,7 +289,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     );
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -327,7 +327,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     );
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -360,7 +360,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'run.sh'), '#!/bin/bash\nnpm run unregistered-script\n');
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
@@ -393,7 +393,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'build.sh'), script);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -432,7 +432,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(workflowDir, 'deploy.yml'), workflow);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -464,7 +464,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'setup-windows.ps1'), psScript);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -510,7 +510,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(scriptsDir, 'run_simulations.ts'), tsScript);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -540,7 +540,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(scriptsDir, 'deploy.ts'), tsScript);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     expect(result.status).toBe('failed');
@@ -573,7 +573,7 @@ describe('ValidateScriptCommandsAuditor', () => {
     await fs.writeFile(path.join(scriptsDir, 'help.ts'), tsScript);
 
     const auditor = new ValidateScriptCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');

@@ -43,7 +43,7 @@ describe('AuditorHygieneAuditor', () => {
 
   describe('Metadata & Construction', () => {
     it('initializes with correct id, family, icon and package name and fulfills contract', () => {
-      const auditor = new AuditorHygieneAuditor(tempDir);
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
       expect(auditor.id).toBe('validate_auditor_hygiene');
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Auditor');
@@ -73,7 +73,7 @@ describe('AuditorHygieneAuditor', () => {
     });
 
     it('enforces composed rule descriptions <= 50 characters', () => {
-      const auditor = new AuditorHygieneAuditor(tempDir);
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
       const descriptions = HomebrewDetectorRegistry.getRuleDescriptions();
       for (const [, desc] of Object.entries(descriptions)) {
         const composed = `${auditor.packageName}: ${desc}`;
@@ -92,7 +92,7 @@ describe('AuditorHygieneAuditor', () => {
       HomebrewDetectorRegistry.register(testDetector);
       expect(HomebrewDetectorRegistry.get('test-custom-detector')).toBe(testDetector);
 
-      HomebrewDetectorRegistry.unregister('test-custom-detector');
+      HomebrewDetectorRegistry.delete('test-custom-detector');
       expect(HomebrewDetectorRegistry.get('test-custom-detector')).toBeUndefined();
     });
   });
@@ -127,8 +127,8 @@ describe('AuditorHygieneAuditor', () => {
         'utf8'
       );
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -145,8 +145,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'const pkg = JSON.parse(fs.' + 'readFileSync("package.json", "utf8"));';
       await fs.writeFile(path.join(auditorsDir, 'bad_pkg.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
@@ -164,8 +164,8 @@ describe('AuditorHygieneAuditor', () => {
         'const m = /<temp' + 'late\\b[^>]*>([\\s\\S]*?)<\\/template>/i.exec(content);';
       await fs.writeFile(path.join(auditorsDir, 'bad_vue.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -182,8 +182,8 @@ describe('AuditorHygieneAuditor', () => {
         'const sf = ts.' + 'createSourceFile("file.ts", code, ts.ScriptTarget.Latest);';
       await fs.writeFile(path.join(auditorsDir, 'bad_ast.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -199,8 +199,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'console.' + 'log("Running suite...");';
       await fs.writeFile(path.join(auditorsDir, 'bad_console.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -216,8 +216,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'const clean = code.replace(' + '/\\/\\*[\\s\\S]*?\\*\\//g, "");';
       await fs.writeFile(path.join(auditorsDir, 'bad_comments.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -233,8 +233,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'let brace' + 'Depth = 0; braceDepth++;';
       await fs.writeFile(path.join(auditorsDir, 'bad_brace.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -250,8 +250,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'function walk' + 'Files(dir: string): string[] { return []; }';
       await fs.writeFile(path.join(auditorsDir, 'bad_walker.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -267,8 +267,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = 'const isTest = filePath.in' + 'cludes(".spec.");';
       await fs.writeFile(path.join(auditorsDir, 'bad_predicate.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -290,8 +290,8 @@ describe('AuditorHygieneAuditor', () => {
         'this.recordDuration("rule-1", elapsed);';
       await fs.writeFile(path.join(auditorsDir, 'bad_timing.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -307,8 +307,8 @@ describe('AuditorHygieneAuditor', () => {
       const snippet = "const dirs = ['migra" + "tions', 'supabase/migrations'];";
       await fs.writeFile(path.join(auditorsDir, 'bad_config.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -328,8 +328,8 @@ describe('AuditorHygieneAuditor', () => {
       ].join('\n');
       await fs.writeFile(path.join(auditorsDir, 'bad_folders.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -357,8 +357,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
       `;
       await fs.writeFile(path.join(auditorsDir, 'bad_third_party.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       const finding = result.findings.find(
@@ -375,8 +375,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
       const snippet = "console.log('uncoordinated debug output'); // homebrew-ok: benchmark test";
       await fs.writeFile(path.join(auditorsDir, 'exempt_file.ts'), snippet, 'utf8');
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
@@ -444,8 +444,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
         'utf-8'
       );
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -492,8 +492,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
         'utf-8'
       );
 
-      const auditor = new AuditorHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -509,8 +509,8 @@ export class MissingPolicyAuditor extends BaseAuditor {
         'utf-8'
       );
 
-      const auditor = new AuditorHygieneAuditor(emptyDir);
-      const result = await auditor.execute();
+      const auditor = new AuditorHygieneAuditor({ projectRoot: emptyDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -548,8 +548,8 @@ describe('AuditorHygieneAuditor — extension migration regression corpus', () =
 
   async function audit(fileName: string, lines: readonly string[]) {
     await fs.writeFile(path.join(auditorsDir, fileName), lines.join('\n'), 'utf8');
-    const auditor = new AuditorHygieneAuditor(tempDir);
-    return auditor.execute();
+    const auditor = new AuditorHygieneAuditor({ projectRoot: tempDir });
+    return auditor.audit();
   }
 
   function findingsFor(result: Awaited<ReturnType<typeof audit>>, ruleId: AuditorHomebrewRuleId) {

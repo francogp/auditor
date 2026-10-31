@@ -64,7 +64,11 @@ export const bannedParserDetector: CliContractDetector = (node, ctx) => {
   if (ts.isImportDeclaration(node)) {
     const spec = getStaticStringValue(node.moduleSpecifier);
     if (isBannedPackageSpecifier(spec)) {
-      return { ruleId: 'cli-contracts-banned-parser-library', node, message: BANNED_PARSER_MESSAGE };
+      return {
+        ruleId: 'cli-contracts-banned-parser-library',
+        node,
+        message: BANNED_PARSER_MESSAGE
+      };
     }
     const parseArgsSpec = isUtilParseArgsImport(node);
     if (parseArgsSpec) {
@@ -78,7 +82,11 @@ export const bannedParserDetector: CliContractDetector = (node, ctx) => {
 
   if (ts.isCallExpression(node)) {
     if (isRequireBannedPackageCall(node) || isUtilParseArgsCall(node)) {
-      return { ruleId: 'cli-contracts-banned-parser-library', node, message: BANNED_PARSER_MESSAGE };
+      return {
+        ruleId: 'cli-contracts-banned-parser-library',
+        node,
+        message: BANNED_PARSER_MESSAGE
+      };
     }
   }
 

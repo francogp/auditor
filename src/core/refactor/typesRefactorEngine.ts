@@ -11,20 +11,21 @@
  */
 
 import fs from 'node:fs';
+
 import ts from 'typescript';
 
-import type {
-  TypesFindingItem,
-  TypesRefactorPlan
-} from './refactorContracts.ts';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { ValidateTypeAssertionHygieneAuditor } from '../../suites/architecture/validate_type_assertion_hygiene.ts';
 import {
   createUnifiedAstSourceFile,
   applyAstReplacementsAcrossFiles,
   type AstTextReplacement
 } from '../astScriptExtractor.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
+import type { TypesFindingItem, TypesRefactorPlan } from './refactorContracts.ts';
 
 const AS_ANY_REGEX = /\bas\s+any\b/g;
 const ANGLE_ANY_REGEX = /<any>\s*([a-zA-Z0-9_$.()]+)/g;
@@ -47,7 +48,11 @@ const VOID_ACTION_CALL_NAMES: ReadonlySet<string> = new Set([
 
 function isUntypedFunctionDeclaration(
   node: ts.Node
-): node is ts.FunctionDeclaration | ts.ArrowFunction | ts.FunctionExpression | ts.MethodDeclaration {
+): node is
+  | ts.FunctionDeclaration
+  | ts.ArrowFunction
+  | ts.FunctionExpression
+  | ts.MethodDeclaration {
   return (
     (ts.isFunctionDeclaration(node) ||
       ts.isArrowFunction(node) ||
@@ -81,6 +86,8 @@ function resolveFunctionReturnTypeInsertRange(
   return null;
 }
 
+export type TypesRefactorEngineOptions = RefactorEngineOptions<ValidateTypeAssertionHygieneAuditor>;
+
 export class TypesRefactorEngine extends BaseRefactorEngine<
   TypesFindingItem,
   TypesRefactorPlan,
@@ -89,18 +96,13 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
   public readonly toolId = 'auditor-types';
   public readonly configSectionKey = 'types' as const;
 
-  constructor(
-    auditorOrOptions?: ValidateTypeAssertionHygieneAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: TypesRefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<ValidateTypeAssertionHygieneAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof ValidateTypeAssertionHygieneAuditor
-        ? auditorOrOptions
-        : new ValidateTypeAssertionHygieneAuditor(
-            typeof auditorOrOptions === 'string'
-              ? auditorOrOptions
-              : auditorOrOptions?.projectRoot
-          );
+      opts.auditor ??
+      new ValidateTypeAssertionHygieneAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 
@@ -163,7 +165,8 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
           kind: 'as-any',
           originalSnippet: 'as any',
           suggestedReplacement: 'as unknown',
-          explanation: 'Avoid loose "as any" assertions. Prefer "as unknown" or domain types to maintain compile-time safety.'
+          explanation:
+            'Avoid loose "as any" assertions. Prefer "as unknown" or domain types to maintain compile-time safety.'
         });
         continue;
       }
@@ -257,7 +260,13 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
       const returnExpressions: ts.Expression[] = [];
 
       function findReturns(n: ts.Node): void {
-        if (n !== node && (ts.isFunctionDeclaration(n) || ts.isArrowFunction(n) || ts.isFunctionExpression(n) || ts.isMethodDeclaration(n))) {
+        if (
+          n !== node &&
+          (ts.isFunctionDeclaration(n) ||
+            ts.isArrowFunction(n) ||
+            ts.isFunctionExpression(n) ||
+            ts.isMethodDeclaration(n))
+        ) {
           return; // Skip inner functions
         }
         if (ts.isReturnStatement(n)) {
@@ -304,9 +313,14 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
     return null;
   }
 
-  private static inferArrayLiteralType(expr: ts.ArrayLiteralExpression, sourceFile: ts.SourceFile): string | null {
+  private static inferArrayLiteralType(
+    expr: ts.ArrayLiteralExpression,
+    sourceFile: ts.SourceFile
+  ): string | null {
     if (expr.elements.length === 0) return null;
-    const elemTypes = expr.elements.map((el) => TypesRefactorEngine.inferExpressionType(el, sourceFile));
+    const elemTypes = expr.elements.map((el) =>
+      TypesRefactorEngine.inferExpressionType(el, sourceFile)
+    );
     const first = elemTypes[0];
     if (first && elemTypes.every((t) => t === first)) {
       return `${first}[]`;
@@ -314,7 +328,10 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
     return null;
   }
 
-  private static inferObjectLiteralType(expr: ts.ObjectLiteralExpression, sourceFile: ts.SourceFile): string | null {
+  private static inferObjectLiteralType(
+    expr: ts.ObjectLiteralExpression,
+    sourceFile: ts.SourceFile
+  ): string | null {
     const propTypes: string[] = [];
     for (const prop of expr.properties) {
       if (!ts.isPropertyAssignment(prop)) {
@@ -375,7 +392,8 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
   }
 
   public static isBooleanExpression(e: ts.Expression): boolean {
-    if (ts.isParenthesizedExpression(e)) return TypesRefactorEngine.isBooleanExpression(e.expression);
+    if (ts.isParenthesizedExpression(e))
+      return TypesRefactorEngine.isBooleanExpression(e.expression);
     if (e.kind === ts.SyntaxKind.TrueKeyword || e.kind === ts.SyntaxKind.FalseKeyword) return true;
     if (ts.isPrefixUnaryExpression(e) && e.operator === ts.SyntaxKind.ExclamationToken) return true;
     if (ts.isBinaryExpression(e)) {
@@ -395,13 +413,26 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
         return true;
       }
       if (k === ts.SyntaxKind.AmpersandAmpersandToken || k === ts.SyntaxKind.BarBarToken) {
-        return TypesRefactorEngine.isBooleanExpression(e.left) && TypesRefactorEngine.isBooleanExpression(e.right);
+        return (
+          TypesRefactorEngine.isBooleanExpression(e.left) &&
+          TypesRefactorEngine.isBooleanExpression(e.right)
+        );
       }
     }
     if (ts.isCallExpression(e)) {
       const name = TypesRefactorEngine.getCallName(e);
       if (
-        ['Boolean', 'includes', 'has', 'some', 'every', 'startsWith', 'endsWith', 'test', 'isArray'].includes(name) ||
+        [
+          'Boolean',
+          'includes',
+          'has',
+          'some',
+          'every',
+          'startsWith',
+          'endsWith',
+          'test',
+          'isArray'
+        ].includes(name) ||
         name.startsWith('is') ||
         name.startsWith('has') ||
         name.startsWith('can') ||
@@ -416,15 +447,22 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
   }
 
   public static isNumberExpression(e: ts.Expression): boolean {
-    if (ts.isParenthesizedExpression(e)) return TypesRefactorEngine.isNumberExpression(e.expression);
+    if (ts.isParenthesizedExpression(e))
+      return TypesRefactorEngine.isNumberExpression(e.expression);
     if (ts.isNumericLiteral(e)) return true;
-    if (ts.isPrefixUnaryExpression(e) && (e.operator === ts.SyntaxKind.MinusToken || e.operator === ts.SyntaxKind.PlusToken)) {
+    if (
+      ts.isPrefixUnaryExpression(e) &&
+      (e.operator === ts.SyntaxKind.MinusToken || e.operator === ts.SyntaxKind.PlusToken)
+    ) {
       return TypesRefactorEngine.isNumberExpression(e.operand);
     }
     if (ts.isBinaryExpression(e)) {
       const k = e.operatorToken.kind;
       if (k === ts.SyntaxKind.PlusToken) {
-        if (!TypesRefactorEngine.isStringExpression(e.left) && !TypesRefactorEngine.isStringExpression(e.right)) {
+        if (
+          !TypesRefactorEngine.isStringExpression(e.left) &&
+          !TypesRefactorEngine.isStringExpression(e.right)
+        ) {
           return true;
         }
       }
@@ -449,7 +487,21 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
     if (ts.isCallExpression(e)) {
       const name = TypesRefactorEngine.getCallName(e);
       if (
-        ['floor', 'round', 'ceil', 'min', 'max', 'abs', 'parseInt', 'parseFloat', 'Number', 'getTime', 'indexOf', 'findIndex', 'random'].includes(name) ||
+        [
+          'floor',
+          'round',
+          'ceil',
+          'min',
+          'max',
+          'abs',
+          'parseInt',
+          'parseFloat',
+          'Number',
+          'getTime',
+          'indexOf',
+          'findIndex',
+          'random'
+        ].includes(name) ||
         name.endsWith('Count') ||
         name.endsWith('Index') ||
         name.endsWith('Level') ||
@@ -460,7 +512,21 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
     }
     if (ts.isPropertyAccessExpression(e)) {
       const name = e.name.text;
-      if (['length', 'size', 'count', 'amount', 'total', 'index', 'timestamp', 'width', 'height', 'scale', 'opacity'].includes(name)) {
+      if (
+        [
+          'length',
+          'size',
+          'count',
+          'amount',
+          'total',
+          'index',
+          'timestamp',
+          'width',
+          'height',
+          'scale',
+          'opacity'
+        ].includes(name)
+      ) {
         return true;
       }
     }
@@ -468,17 +534,41 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
   }
 
   public static isStringExpression(e: ts.Expression): boolean {
-    if (ts.isParenthesizedExpression(e)) return TypesRefactorEngine.isStringExpression(e.expression);
-    if (ts.isStringLiteral(e) || ts.isNoSubstitutionTemplateLiteral(e) || ts.isTemplateExpression(e)) return true;
+    if (ts.isParenthesizedExpression(e))
+      return TypesRefactorEngine.isStringExpression(e.expression);
+    if (
+      ts.isStringLiteral(e) ||
+      ts.isNoSubstitutionTemplateLiteral(e) ||
+      ts.isTemplateExpression(e)
+    )
+      return true;
     if (ts.isBinaryExpression(e)) {
       if (e.operatorToken.kind === ts.SyntaxKind.PlusToken) {
-        return TypesRefactorEngine.isStringExpression(e.left) || TypesRefactorEngine.isStringExpression(e.right);
+        return (
+          TypesRefactorEngine.isStringExpression(e.left) ||
+          TypesRefactorEngine.isStringExpression(e.right)
+        );
       }
     }
     if (ts.isCallExpression(e)) {
       const name = TypesRefactorEngine.getCallName(e);
       if (
-        ['String', 'join', 'slice', 'substring', 'trim', 'trimStart', 'trimEnd', 'toLowerCase', 'toUpperCase', 'replace', 'replaceAll', 'padStart', 'padEnd', 'toString'].includes(name) ||
+        [
+          'String',
+          'join',
+          'slice',
+          'substring',
+          'trim',
+          'trimStart',
+          'trimEnd',
+          'toLowerCase',
+          'toUpperCase',
+          'replace',
+          'replaceAll',
+          'padStart',
+          'padEnd',
+          'toString'
+        ].includes(name) ||
         name.startsWith('format') ||
         name.endsWith('Name') ||
         name.endsWith('Url') ||
@@ -504,7 +594,9 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
   ): string | null {
     if (returnExpressions.length === 0) return null;
 
-    const inferred = returnExpressions.map((e) => TypesRefactorEngine.inferExpressionType(e, sourceFile));
+    const inferred = returnExpressions.map((e) =>
+      TypesRefactorEngine.inferExpressionType(e, sourceFile)
+    );
     const nonNullInferred: string[] = [];
     for (const t of inferred) {
       if (!t) return null;

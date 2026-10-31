@@ -31,5 +31,6 @@ export declare class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownC
   constructor(options?: MarkdownCodeReferencesOptions);
   private scanMarkdownDocReferences;
   runAudit(): Promise<void>;
+  repairOutdatedVersionReferences(): void;
   private collectMarkdownFiles;
 }

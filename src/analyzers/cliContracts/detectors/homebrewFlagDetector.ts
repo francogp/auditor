@@ -8,6 +8,7 @@
 
 import ts from 'typescript';
 
+import { KNOWN_BARE_MODE_FLAGS } from '../../../core/cli/cittyHarness.ts';
 import {
   CLI_ARG_COLLECTION_NAMES,
   CLI_ARG_ITEM_NAMES,
@@ -15,7 +16,6 @@ import {
   unwrapCliExpression
 } from '../cliContractHeuristics.ts';
 import type { CliContractDetector, CliContractScanContext } from '../cliContractTypes.ts';
-import { KNOWN_BARE_MODE_FLAGS } from '../../../core/cli/cittyHarness.ts';
 
 const HOMEBREW_FLAG_MESSAGE =
   "Homebrew CLI flag or subcommand parsing detected (startsWith('--'), includes('--flag'), BOOLEAN_FLAGS, or manual args[0] extraction). Declare typed options and subCommands in 'defineCommand' (citty) or 'cittyHarness.ts'.";
@@ -44,10 +44,7 @@ function isFlagStartsWithCall(node: ts.CallExpression): boolean {
   const firstArg = getStaticStringValue(node.arguments[0]);
   if (!firstArg) return false;
   const isFlagPrefix =
-    firstArg === '-' ||
-    firstArg === '--' ||
-    firstArg.startsWith('--') ||
-    firstArg.includes('=');
+    firstArg === '-' || firstArg === '--' || firstArg.startsWith('--') || firstArg.includes('=');
   return isFlagPrefix && isArgItemReceiver(callee.expression);
 }
 

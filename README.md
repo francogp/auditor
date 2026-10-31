@@ -28,12 +28,14 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 
 - **Built-In Generic Architectural Suites**: Comprehensive static verification across 6 canonical families (`architecture/`, `domain_data/`, `persistence/`, `performance/`, `security/`, `documentation/`).
 - **Zero Hardcoded Paths Mandate**: Complete eradication of literal path fallbacks (`?? ['src']`, `?? ['scripts']`) across all sub-auditors and extensions. Scan roots are resolved dynamically from `config.paths`, `DEFAULT_AUDIT_CONFIG.paths`, or constructor options using `resolveFileScanRoots(options, selector)`. Probed across 100% of suites via `tests/all_auditors_zero_hardcoded_paths.test.ts`.
-- **Single Options Object Mandate**: Positional constructor arguments are strictly prohibited across all sub-auditors, extensions, and refactoring engines. Constructors accept a single typed options object (`options: FileScanRootsOptions = {}` or extended interface) ensuring full backward compatibility and zero positional parameter fragility.
-- **Unified Canonical Ignore Registry (`CanonicalIgnoreRegistry`)**: Centralized single source of truth for directory and file exclusion patterns (`src/core/canonicalIgnoreRegistry.ts`), eradicating scattered ignore definitions across sub-auditors and tools.
+- **Single Options Object Mandate**: Positional constructor arguments are strictly prohibited across all sub-auditors, extensions, and refactoring engines. Constructors accept a single typed options object (`options: FileScanRootsOptions = {}` or extended interface) ensuring strict API typing, extensible options, and zero positional parameter fragility.
+- **Unified Canonical Ignore Registry (`SuiteIgnoreRegistry`) & SSoT Isolation**: Centralized single source of truth for directory and file exclusion patterns (`src/core/canonicalIgnoreRegistry.ts`), eradicating scattered ignore definitions and intermediate proxy re-exports across sub-auditors and tools. Path exemptions (`reportUtils.ts` -> `isPathExempt`) operate strictly as an authoritative SSoT.
+- **BaseEntityRegistry Architecture & Lifecycle Governance**: Strongly typed in-memory entity registry pattern (`src/core/baseRegistry.ts`) providing standardized lifecycle management (`register`, `registerMany`, `get`, `getAll`, `has`, `delete`, `reset`, `size`, `dispose()`, `BaseEntityRegistry.unregister()`), inherited by all framework registries (`GitIgnoreRegistry`, `PackageScriptRegistry`, `ConfigFileRegistry`, `SuiteIgnoreRegistry`) with total eradication of legacy alias methods.
+- **Strict 3-Layer Interface Protection & Canary Introspection**: All framework registries and refactor engines implement strict, dedicated TypeScript interfaces (`IBaseEntityRegistry<TItem>`, `IRefactorEngine`). Singletons are exported masked with their interfaces (`SuiteIgnoreRegistry: ISuiteIgnoreRegistry`), compile-time exact type invariance is proven via `VerifyExact` in dedicated test canaries, and runtime prototype purity is verified by inspecting prototype keys against explicit module-level allowed sets (`REGISTRY_ALLOWED_PROTO_METHODS`) with zero alias methods.
 - **Node.js 26+ Native Path Utilities**: Strict enforcement of native Node.js path manipulation (`isPathContained`, `stripGlobSuffix`, `toPosixRelative`), eradicating fragile regex and third-party path dependencies.
 - **Strategic Remediation Order (`ruleRemediationPhases` & `npm run auditor:next`)**: Every rule is mapped to one of the 7 canonical strategic phases (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`), enabling targeted iterative remediation.
 - **Diagnostic Remediation Guides (`ruleRemediations`)**: 100% of declared rules include structured 4-section remediation guides (`1. Root Cause / Causa Raíz`, `2. Diagnosis / Diagnóstico`, `3. Canonical Solution / Solución Canónica`, `4. Example / Ejemplo o auto-fix`), accessible on demand via `auditor guide <ruleId>`.
-- **Capability-Driven Auto-Coordination (`AuditorRuleCapabilities`)**: Sub-auditors declare explicit 7-field orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]`, `phase: 'normal' | 'post-run' | 'post-build'`, `fix: 'none' | 'normal' | 'priority'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with 100% mandatory completeness and zero fallbacks. `BaseAuditor` derives suite-level `AuditorCapabilities` automatically from `ruleCapabilities`. No hardcoded suite lists in runners or scanners.
+- **Capability-Driven Auto-Coordination & Contract-Driven Auto-Fix (`AuditorRuleCapabilities`, `ruleFixers`)**: Sub-auditors declare explicit orthogonal per-rule capabilities (`speed: 'light' | 'heavy' | 'full'`, `phase: 'normal' | 'post-run' | 'post-build'`, `md: boolean`, `ast: boolean`, `changedOnly: boolean`, `critical: boolean`) with zero fallbacks, while `fix` is computed automatically by `BaseAuditor` from registered executable `ruleFixers`, replace patterns, or configuration files (`configFiles`). Zero manual fix booleans; rules without registered fixers unconditionally report `isFixable = false` (Zero False-Fix Mandate).
 - **3-Tier Speed Engine (`light` `🐇`, `heavy` `🐢`, `full` `🐘`) & `TieredCommandProfile`**: Supports cumulative ceiling mode (`speed=light|heavy|full`, default `speed=heavy`) and exact isolation mode (`only-speed=light|heavy|full`). Multi-profile suites (such as `validate_oxlint`) declare `speed: ['light', 'full']` so fast modes run syntax-only (`🐇` ~2s) while `speed=full` (`🐘`) enables deep type-aware rules.
 - **RAM Optimization (`WorkspaceFileCache` & `scanFilesSinglePass`)**: Deduplicates file reads across rules via `WorkspaceFileCache` (`getFileLines()`, `getFileContent()`, `scanFilesSinglePass(files, handlers)`), enforced by `validate_auditor_hygiene` (`auditor-inefficient-file-scan`).
 - **Strict Domain-Type-First Governance**: Complete static eradication of arbitrary type bypasses (`: any`, `as any`, `<any>`, and `as unknown as`) and legacy `new Date()` / `Date.now()` constructors in favor of Temporal API.
@@ -86,10 +88,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.2.8`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.3.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.2.8 --allow-git=all
+npm install -D github:francogp/auditor#v10.3.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -99,7 +101,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.2.8"
+    "@francogp/auditor": "github:francogp/auditor#v10.3.0"
   }
 }
 ```
@@ -134,9 +136,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.2.8
+npm run auditor:update -- v10.3.0
 # or directly:
-auditor-update v10.2.8
+auditor-update v10.3.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -199,7 +201,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.2.8-build.20261029-192729',
+  auditorVersion: '10.3.0-build.20261031-001051',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -256,7 +258,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.2.8"`), or install via `npm install -D github:francogp/auditor#v10.2.8 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.3.0"`), or install via `npm install -D github:francogp/auditor#v10.3.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -734,7 +736,6 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(NO_INLINE_SQL_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

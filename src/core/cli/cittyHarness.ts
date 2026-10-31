@@ -182,7 +182,7 @@ export function resolveHumanModeFromArgs(
   args?: {
     readonly human?: boolean;
     readonly verbose?: boolean;
-    readonly format?: ConsoleFormat | string;
+    readonly format?: string;
   },
   rawArgs?: readonly string[]
 ): boolean {
@@ -195,7 +195,9 @@ export function resolveHumanModeFromArgs(
     return true;
   }
   if (rawArgs) {
-    return rawArgs.some((a) => KNOWN_BARE_MODE_FLAGS.has(a) || KNOWN_BARE_MODE_FLAGS.has(a.replace(/^--/, '')));
+    return rawArgs.some(
+      (a) => KNOWN_BARE_MODE_FLAGS.has(a) || KNOWN_BARE_MODE_FLAGS.has(a.replace(/^--/, ''))
+    );
   }
   return false;
 }

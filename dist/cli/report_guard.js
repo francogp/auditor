@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { executeFallowJsonCommand, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
 import { styleText } from "node:util";
 // src/cli/report_guard.ts

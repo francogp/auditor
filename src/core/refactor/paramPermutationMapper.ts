@@ -47,7 +47,7 @@ export class ParamPermutationMapper {
   ): readonly string[] {
     return canonicalParams.map((param) => {
       if (param in instanceBindings && instanceBindings[param] !== undefined) {
-        return instanceBindings[param]!;
+        return instanceBindings[param];
       }
       return defaultFallback;
     });
@@ -65,8 +65,7 @@ export class ParamPermutationMapper {
     const alignedArgs = this.alignArguments(canonicalParams, instanceBindings, defaultFallback);
     const originalKeys = Object.keys(instanceBindings);
     const isPermuted =
-      originalKeys.length > 1 &&
-      canonicalParams.some((param, idx) => originalKeys[idx] !== param);
+      originalKeys.length > 1 && canonicalParams.some((param, idx) => originalKeys[idx] !== param);
 
     return {
       functionName,

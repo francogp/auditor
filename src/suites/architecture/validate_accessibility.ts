@@ -1,17 +1,7 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { SharedAstContext } from '../../core/astContext.ts';
-import {
-  BaseAuditor,
-  createUniformRemediationPhases,
-  createRuleCapabilities
-} from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
-import { parseVueSfc, extractSfcScriptContent } from '../../core/vueSfcParser.ts';
+import path from 'node:path';
+
 import {
   MODERN_ACCESSIBILITY_RULES,
   analyzeModernAccessibility,
@@ -19,6 +9,17 @@ import {
   type ModernA11yFinding,
   type ModernAccessibilityRuleId
 } from '../../analyzers/accessibilityModernAnalyzer.ts';
+import { SharedAstContext } from '../../core/astContext.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createUniformRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
+import { parseVueSfc, extractSfcScriptContent } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
 
@@ -35,16 +36,6 @@ export const ACCESSIBILITY_RULES = [
   ...MODERN_ACCESSIBILITY_RULES
 ] as const;
 export type AccessibilityRuleId = (typeof ACCESSIBILITY_RULES)[number];
-
-const FIXABLE_ACCESSIBILITY_RULES: readonly AccessibilityRuleId[] = [
-  'a11y-viewport-zoom-lock',
-  'a11y-no-positive-tabindex',
-  'a11y-no-aria-hidden-focusable',
-  'a11y-svg-accessibility',
-  'a11y-iframe-title-and-scroll',
-  'forms-identifier-input-type',
-  'forms-autocomplete-hygiene'
-];
 
 const TEMPLATE_BACKED_RULES: readonly AccessibilityRuleId[] = ACCESSIBILITY_RULES.filter(
   (id) => id !== 'a11y-viewport-zoom-lock'
@@ -153,7 +144,7 @@ export function mapA11yRuleId(eslintRuleId: string): AccessibilityRuleId {
 export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleId> {
   private readonly astCache = new SharedAstContext();
 
-  constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const scannableRoots = [
@@ -162,23 +153,26 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       ...(config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots)
     ];
     super({
+      ruleFixers: {},
+      fixableRuleIds: [
+        'a11y-viewport-zoom-lock',
+        'a11y-no-positive-tabindex',
+        'a11y-no-aria-hidden-focusable',
+        'a11y-svg-accessibility',
+        'a11y-iframe-title-and-scroll',
+        'forms-identifier-input-type',
+        'forms-autocomplete-hygiene'
+      ],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        ACCESSIBILITY_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        FIXABLE_ACCESSIBILITY_RULES
-      ),
-      fixableRuleIds: FIXABLE_ACCESSIBILITY_RULES,
-      fix: options.fix,
+      ruleCapabilities: createUniformRuleCapabilities(ACCESSIBILITY_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_accessibility',
       name: 'Vue & Web Accessibility Standards Auditor',
       description: 'Validates WCAG 2.1/2.2 standards and accessibility',
@@ -381,7 +375,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
       const relFile = toPosixRelative(this.projectRoot, absFile);
       this.recordScanned(relFile);
 
-      let content = '';
+      let content: string;
       try {
         content = fs.readFileSync(absFile, 'utf-8');
       } catch {
@@ -635,8 +629,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
         line: lineNum,
         context: tag.trim(),
         message:
-          'Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.',
-        fixable: true
+          'Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.'
       });
 
       if (this.isFixActive()) {

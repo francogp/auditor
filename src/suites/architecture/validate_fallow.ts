@@ -10,26 +10,28 @@
  *   4. Structural complexity and refactoring targets enforcement.
  */
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
-import { BaseAuditor } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+
+import type { AuditFindingAttribution } from 'fallow/types';
+
+import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
-import type {
-  FindingSeverity,
-  AuditorCapabilities,
-  TieredCommandProfile,
-  RemediationPhaseId
-} from '../../core/auditContract.ts';
 import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
 } from '../../core/auditConfigTypes.ts';
-import type { AuditFindingAttribution } from 'fallow/types';
-import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
+import type {
+  FindingSeverity,
+  AuditorRuleCapabilities,
+  TieredCommandProfile,
+  RemediationPhaseId
+} from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { BaseAuditor } from '../../core/auditorBase.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import { resolveFallowBinary } from './validate_similar_code.ts';
 
 export const FALLOW_RULES = [
@@ -48,11 +50,10 @@ export const FALLOW_RULES = [
 
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
 
-export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities> = {
+export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorRuleCapabilities> = {
   'fallow-boundary-violations': {
     speed: ['light', 'full'],
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -61,7 +62,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-stale-suppressions': {
     speed: ['light', 'full'],
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -70,7 +70,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-workspace-diagnostic': {
     speed: ['light', 'full'],
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -79,7 +78,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-refactoring-targets': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -88,7 +86,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-duplicate-code': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -97,7 +94,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-triplicate-code': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -106,7 +102,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-unused-exports': {
     speed: ['light', 'full'],
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -115,7 +110,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-unused-files': {
     speed: ['light', 'full'],
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -124,7 +118,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-unused-dependencies': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -133,7 +126,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-circular-dependencies': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -142,7 +134,6 @@ export const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>
   'fallow-security-cwe': {
     speed: 'light',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: true,
@@ -364,7 +355,7 @@ export function resolveFallowTargetMinThreshold(
     return Number.isFinite(priority) ? Math.max(0, priority) : FALLOW_HIGH_PRIORITY_THRESHOLD;
   }
   if (typeof priority === 'string' && priority in FALLOW_PRIORITY_MIN_THRESHOLDS) {
-    return FALLOW_PRIORITY_MIN_THRESHOLDS[priority as FallowTargetPriorityNamed];
+    return FALLOW_PRIORITY_MIN_THRESHOLDS[priority];
   }
   return FALLOW_HIGH_PRIORITY_THRESHOLD;
 }
@@ -708,11 +699,12 @@ export interface FallowArchitectureAuditorOptions {
 }
 
 export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
-  constructor(options: FallowArchitectureAuditorOptions = {}) {
+  public constructor(options: FallowArchitectureAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
+      ruleFixers: {},
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -786,7 +778,11 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
           stdio: ['pipe', 'pipe', 'ignore'],
           maxBuffer: DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
         });
-        const mapped = this.handleParsedFallowOutput(tryParseFallowJson(stdout), primaryRule, command);
+        const mapped = this.handleParsedFallowOutput(
+          tryParseFallowJson(stdout),
+          primaryRule,
+          command
+        );
         if (mapped) {
           return mapped;
         }
@@ -802,7 +798,11 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
         }
       } catch (e: unknown) {
         const err = e as { stdout?: Buffer | string; message?: string };
-        const mapped = this.handleParsedFallowOutput(tryParseFallowJson(err.stdout), primaryRule, command);
+        const mapped = this.handleParsedFallowOutput(
+          tryParseFallowJson(err.stdout),
+          primaryRule,
+          command
+        );
         if (mapped) {
           return mapped;
         }

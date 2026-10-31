@@ -1,13 +1,16 @@
 import { AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
-import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
-import { AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { SharedAstContext } from "./astContext.js";
+import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
+import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
-import { isPathExempt } from "./reportUtils.js";
 import { CoverageRecorder } from "./auditCoverage.js";
-import { ALWAYS_IGNORE_DIRS, CANONICAL_IGNORE_DIRS, EffectiveIgnoreGlobsOptions, SuiteIgnoreRegistry, SuiteIgnoreRequirement, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
+export interface FixableAuditorInstance {
+  fix(...args: readonly unknown[]): Promise<unknown>;
+}
+export type FixableAuditorConstructor = new (options?: Readonly<Record<string, unknown>>) => FixableAuditorInstance;
+export type AuditorConstructor<TRuleId extends string = string> = new (options?: Readonly<Record<string, unknown>>) => BaseAuditor<TRuleId>;
 export declare const SCANNABLE_EXTENSIONS: ReadonlySet<string>;
 export declare const CANONICAL_SCANNABLE_ROOTS: readonly ["scripts", "src", "tests"];
 export type CanonicalScannableRoot = (typeof CANONICAL_SCANNABLE_ROOTS)[number];
@@ -75,12 +78,11 @@ export declare const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
 /**
  * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
  */
-export declare function deriveSuiteCapabilities(ruleCapabilities: Readonly<Record<string, AuditorRuleCapabilities>> | undefined): AuditorRuleCapabilities;
+export declare function deriveSuiteCapabilities(ruleCapabilities: Readonly<Record<string, AuditorRuleCapabilities>> | undefined, fixableRuleIds?: ReadonlySet<string>): AuditorComputedCapabilities;
 /**
- * Creates individual rule capabilities for suites, automatically adjusting
- * the `fix` capability per rule based on declared fixableRuleIds.
+ * Creates individual rule capabilities for suites. Manual fix booleans are strictly forbidden.
  */
-export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], baseCapabilities: AuditorRuleCapabilities, fixableRuleIds?: readonly TRuleId[]): Record<TRuleId, AuditorRuleCapabilities>;
+export declare function createRuleCapabilities<TRuleId extends string>(ruleIds: readonly TRuleId[], baseCapabilities: AuditorRuleCapabilities): Record<TRuleId, AuditorRuleCapabilities>;
 /**
  * Creates uniform rule capabilities for suites where every declared rule
  * shares the same operational capabilities.
@@ -92,7 +94,7 @@ export declare function createUniformRuleCapabilities<TRuleId extends string>(ru
  */
 export declare function createUniformRemediationPhases<TRuleId extends string>(ruleIds: readonly TRuleId[], phase: RemediationPhaseId): Record<TRuleId, RemediationPhaseId>;
 /**
- * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
+ * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal').
  */
 export declare const LIGHT_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
 /**
@@ -102,7 +104,6 @@ export declare const AST_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities>;
 export interface FileScanRootsOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
-  readonly fix?: boolean;
 }
 /**
  * Resolves effective roots for file scan auditors, dynamically consulting configured srcRoots.
@@ -118,10 +119,20 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly family: AuditFamily;
   readonly packageName: string;
   readonly icon: string;
-  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
-  readonly capabilities?: never;
+  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorRuleCapabilities>>;
+  /**
+   * Mandatory map of executable auto-repair functions by ruleId.
+   * If a rule defines a fixer here, the framework automatically derives capabilities.fix
+   * and registers the rule as auto-fixable. Pass an empty object `{}` if the suite has no automated fixers.
+   */
+  readonly ruleFixers: Partial<Record<TRuleId, RuleFixerFn<TRuleId> | AnyRuleFixerFn>>;
+  /**
+   * Optional list of rule IDs that are mechanically repaired by the suite itself during fix mode
+   * (e.g. inside `runAudit()` when `isFixActive()` is true, or by overriding `fix()`).
+   * When declared, the framework automatically derives capabilities.fix for these rules
+   * without requiring fine-grained ruleFixers micro-functions.
+   */
   readonly fixableRuleIds?: readonly TRuleId[];
-  readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   /**
    * Custom cache or temporary directories/files produced by this suite or underlying tool
@@ -161,7 +172,6 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish'.
    */
   readonly ruleRemediationPhases?: Readonly<Record<TRuleId, RemediationPhaseId>>;
-  readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
   readonly extraIgnorePatterns?: readonly string[];
@@ -206,27 +216,25 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly ruleDescription?: string;
   readonly severity: FindingSeverity;
   readonly file?: string;
-  readonly filePath?: string;
   readonly line?: number;
   readonly col?: number;
-  readonly column?: number;
   readonly message: string;
   readonly context?: string;
   readonly fixable?: boolean;
   readonly remediation?: string;
   readonly remediationPhase?: RemediationPhaseId;
 }
-export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "fix", "md", "ast", "changedOnly", "critical"];
+export declare const MANDATORY_AUDITOR_CAPABILITY_KEYS: readonly ["speed", "phase", "md", "ast", "changedOnly", "critical"];
 export declare const MANDATORY_BOOLEAN_CAPABILITY_KEYS: readonly ["md", "ast", "changedOnly", "critical"];
-export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
+export declare abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor, AuditorExecutable {
   readonly id: string;
   readonly name: string;
   readonly description: string;
   readonly family: AuditFamily;
   readonly packageName: string;
   readonly icon: string;
-  readonly capabilities: AuditorCapabilities;
-  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
+  capabilities: AuditorComputedCapabilities;
+  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorComputedCapabilities>>;
   readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   readonly cachePaths: readonly string[];
   readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
@@ -236,7 +244,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
   readonly ruleRemediationPhases: Readonly<Record<TRuleId, RemediationPhaseId>>;
-  readonly explicitSubAuditors?: readonly SubAuditorStep[];
   readonly roots: readonly string[];
   readonly allowedExtensions: ReadonlySet<string>;
   readonly extraIgnorePatterns: readonly string[];
@@ -250,7 +257,8 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly criticalConfig: AuditorCriticalConfig;
   readonly usesThirdPartyTool: boolean;
   readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
-  protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
+  readonly ruleFixers?: Readonly<Partial<Record<string, RuleFixerFn | AnyRuleFixerFn>>>;
+  protected readonly fixableRuleIds: Set<TRuleId>;
   protected readonly durationsByRule: Map<TRuleId, number>;
   protected auditExecutionDurationMs?: number;
   protected readonly instanceStartTime: number;
@@ -263,10 +271,18 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   protected readonly fixableWarningsByRule: Map<TRuleId, number>;
   protected readonly subAuditorReports: SubAuditorReport[];
   protected readonly coverageRecorder: CoverageRecorder;
-  protected readonly fixMode: boolean;
+  private currentFixActive;
   protected isSkipped: boolean;
   protected skipReason?: string;
   getFixableRuleIds(): readonly TRuleId[];
+  /**
+   * Executes registered rule fixers for this suite in deterministic order.
+   * If multiple rules share the exact same fixer function reference, the function
+   * is executed strictly once (deduplicated via Set<Function>).
+   */
+  executeRuleFixers(context?: Readonly<{
+    readonly projectRoot: string;
+  }>): Promise<void>;
   recordRuleDuration(ruleId: TRuleId, durationMs: number): void;
   /**
    * Allows an external subprogram with its own telemetry (such as Fallow elapsed_ms)
@@ -285,16 +301,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
    */
   runSubAuditor<T = void>(ruleId: TRuleId, action: () => Promise<T> | T): Promise<T>;
   runSubAuditorSync<T = void>(ruleId: TRuleId, action: () => T): T;
-  /**
-   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-   */
-  runSubAuditorsBatch(ruleIds: readonly TRuleId[], _action: () => Promise<void> | void): Promise<void>;
-  /**
-   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-   */
-  runSubAuditorsBatchSync(ruleIds: readonly TRuleId[], _action: () => void): void;
   getRuleDuration(ruleId: TRuleId): number | undefined;
   getDurationsByRule(): ReadonlyMap<TRuleId, number>;
   private readonly executedCommandTiers;
@@ -382,11 +388,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   protected declareRuleCatalog(ruleIds: readonly string[]): void;
   /** Records that a rule passed its activation gates and was evaluated (per file, or per tool invocation). */
   protected markRuleEvaluated(ruleId: TRuleId, count?: number): void;
-  /**
-   * Loud failure for obsolete v3 method name.
-   * Enforces the Loud Failure Mandate under AGENTS.md.
-   */
-  protected recordRuleEvaluation(ruleId: string): never;
   /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
   markRuleNotApplicable(ruleId: TRuleId, reason: string): void;
   /**
@@ -421,7 +422,6 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   getFilesScanned(): number;
   addViolation(v: ViolationInput<TRuleId>): void;
   isFixActive(): boolean;
-  protected isFixModeRequested(): boolean;
   /**
    * Resolves whether any declared file or candidate file for this requirement exists on disk.
    * Returns the absolute path of the first existing candidate, or null if none exist.
@@ -453,7 +453,10 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
    * Applies per-task CLI arguments (e.g. --rule, --changed-since, --fix) when executing in-process.
    */
   applyTaskCliArgs(cliArgs: readonly string[]): void;
-  execute(astContext?: SharedAstContext): Promise<StandardAuditResult>;
+  audit(astContext?: SharedAstContext): Promise<StandardAuditResult>;
+  fix(astContext?: SharedAstContext): Promise<StandardAuditResult>;
+  protected executeCore(astContext?: SharedAstContext, isFix?: boolean): Promise<StandardAuditResult>;
+  execute(_astContext?: SharedAstContext): Promise<StandardAuditResult>;
   finishAudit(): Promise<StandardAuditResult>;
   protected ensureSubAuditorsLogged(): void;
   importAuditFindings(findings: readonly AuditFinding[], fallbackRuleId: TRuleId, fallbackContext?: string): void;
@@ -474,19 +477,36 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
     scan: (file: string, content: string, lines: readonly string[], doc: AuditedDocument) => void | Promise<void>;
   }>): Promise<void>;
   private static isExecutingCli;
-  static runCli(auditor: BaseAuditor<string>): Promise<void>;
-  static runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void>;
+  static runCli(auditor: BaseAuditor): Promise<void>;
+  static runCliIfMain(metaUrl: string, auditor: BaseAuditor): Promise<void>;
+}
+export interface PatternSubAuditorOptions {
+  readonly regex: RegExp;
+  readonly message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+  readonly severity?: FindingSeverity;
+  readonly skipComments?: boolean;
+  readonly skipStrings?: boolean;
+  readonly replace?: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+  readonly onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
+}
+interface DeclaredFileSubAuditorEntry<TRuleId extends string> {
+  ruleId: TRuleId;
+  audit: (doc: AuditedDocument) => void | Promise<void>;
+  fix?: (doc: AuditedDocument) => void | Promise<void>;
 }
 /**
  * Specialized File-Scanning Auditor.
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
  */
 export declare abstract class FileScanAuditor<TRuleId extends string = string> extends BaseAuditor<TRuleId> {
-  protected readonly declaredFileSubAuditors: Map<TRuleId, (doc: AuditedDocument) => void | Promise<void>>;
+  protected readonly declaredFileSubAuditorsList: DeclaredFileSubAuditorEntry<TRuleId>[];
+  private executeDocumentPass;
+  private dispatchDeclaredSubAuditors;
+  private dispatchDirectScanFile;
   /**
    * Primary file scanning entry point receiving an immutable AuditedDocument.
-   * Automatically executes declared file sub-auditors measuring their runtimes
-   * before delegating to scanFile(relPath, content, sourceFile, doc).
+   * Automatically executes declared file sub-auditors measuring runtimes and
+   * deduplicating shared audit and fix functions (Set<Function>) to run them strictly once per document.
    */
   protected scanDocument(doc: AuditedDocument): void | Promise<void>;
   /**
@@ -495,22 +515,20 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   testScanFile(relPath: string, content: string, _sourceFile?: ts.SourceFile): void | Promise<void>;
   /**
    * Declares a file-scoped sub-auditor tied to a declared rule.
-   * The superclass executes the handler for each audited file and empirically accumulates duration.
+   * If a handler object with `fix` is provided, the rule is automatically marked as fixable.
+   * Otherwise, the rule is classified as unfixable (fixable: false).
    */
-  declareFileSubAuditor(ruleId: TRuleId, handler: (doc: AuditedDocument) => void | Promise<void>): void;
+  private syncDynamicRuleFixability;
+  declareFileSubAuditor(ruleId: TRuleId, handlerOrSpec: ((doc: AuditedDocument) => void | Promise<void>) | {
+    audit: (doc: AuditedDocument) => void | Promise<void>;
+    fix?: (doc: AuditedDocument) => void | Promise<void>;
+  }): void;
   /**
    * Declares a regex pattern sub-auditor tied to a declared rule.
    * Scans safe patterns skipping comments and strings automatically.
+   * If `replace` is provided, the rule is automatically marked as fixable and registers replacements.
    */
-  declarePatternSubAuditor(ruleId: TRuleId, options: {
-    regex: RegExp;
-    message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
-    severity?: FindingSeverity;
-    skipComments?: boolean;
-    skipStrings?: boolean;
-    fixable?: boolean;
-    onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
-  }): void;
+  declarePatternSubAuditor(ruleId: TRuleId, options: PatternSubAuditorOptions): void;
   /**
    * Overridable file scanning method for sub-auditors.
    */
@@ -529,7 +547,7 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
    */
   protected addViolationAtMatch(params: {
     ruleId: TRuleId;
-    filePath: string;
+    file: string;
     content: string;
     matchIndex: number;
     message: string;
@@ -542,14 +560,8 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
    * High-level pattern scanner that skips comments and strings automatically
    * and verifies escape hatches before registering violations.
    */
-  protected scanSafePattern(doc: AuditedDocument, options: {
-    regex: RegExp;
+  protected scanSafePattern(doc: AuditedDocument, options: PatternSubAuditorOptions & {
     ruleId: TRuleId;
-    message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
-    severity?: FindingSeverity;
-    skipComments?: boolean;
-    skipStrings?: boolean;
-    fixable?: boolean;
   }, onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void): void;
   /**
    * Superclass pattern scanner that executes a regex search over content or file lines,
@@ -561,4 +573,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   private scanSingleDiscoveredFile;
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-export { ALWAYS_IGNORE_DIRS, AuditedDocument, CANONICAL_IGNORE_DIRS, type DocumentReplacement, type EffectiveIgnoreGlobsOptions, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, SKILLS_LOCK_CANDIDATE_PATHS, SuiteIgnoreRegistry, type SuiteIgnoreRequirement, clearLockedSkillsCache, deriveCanonicalAuditorScript, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, isLockedSkillPath, isPathExempt, loadLockedSkills, normalizeSpeeds, registerDynamicCachePath, resolveEffectiveSpeed };
+export { type AnyRuleFixerFn, AuditedDocument, type AuditorComputedCapabilities, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RuleFixContext, type RuleFixerFn, type RuleFixersMap, SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };

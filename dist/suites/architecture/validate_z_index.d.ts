@@ -1,3 +1,4 @@
+import { RuleFixContext } from "../../core/auditContract.js";
 import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import { fixZIndexLiteral } from "../../analyzers/zIndexRules.js";
 export declare const Z_INDEX_RULES: readonly ["z-index-missing-var", "z-index-mismatch", "z-index-read-error", "z-index-hardcoded-literal", "z-index-isolated-constant"];
@@ -19,6 +20,7 @@ export declare const ISOLATED_Z_INDEX_CONST_REGEX: RegExp;
 export interface ZIndexAuditorOptions extends FileScanRootsOptions {
   readonly scssPath?: string;
 }
+export declare function fixZIndexVariables(context: RuleFixContext<'z-index-missing-var' | 'z-index-mismatch'>): Promise<boolean>;
 export declare class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
   private readonly scssPath?;
   private readonly isExplicit;

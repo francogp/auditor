@@ -10,12 +10,12 @@ import path from 'node:path';
 import { describe, it, expect } from 'vite-plus/test';
 
 import type { ResolvedTestCoverageConfig } from '../src/core/auditConfig.ts';
+import { isPathExempt } from '../src/core/reportUtils.ts';
 import {
   calculateMetric,
   determineCoverageStatus,
   compressLineRanges,
   extractUncoveredLines,
-  isPathExempt,
   parseIstanbulCoverage,
   computeDirectoryBreakdown,
   computeBucketCounts,

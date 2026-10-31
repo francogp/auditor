@@ -464,6 +464,24 @@ function parseOxlintResults(input, cwd = process.cwd()) {
 		defaultMessage: "Linter violation"
 	});
 }
+async function fixOxlint(context) {
+	const vpBin = resolvePackageBin("vite-plus", {
+		projectRoot: context.projectRoot,
+		fallbackRelativeBin: "bin/vp"
+	}) ?? path.resolve(context.projectRoot, "node_modules/vite-plus/bin/vp");
+	const args = ["lint", "--fix"];
+	try {
+		executeNodeCli(vpBin, args, {
+			cwd: context.projectRoot,
+			maxBuffer: MAX_BUFFER_BYTES,
+			timeout: EXECUTION_TIMEOUT_MS
+		});
+		return true;
+	} catch {
+		return false;
+	}
+}
+const OXLINT_FIXERS = { "oxlint-violation": fixOxlint };
 var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 	static gitIgnoreEntries = [{
 		id: ".oxlintcache",
@@ -475,6 +493,7 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot || process.cwd();
 		super({
+			ruleFixers: OXLINT_FIXERS,
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -485,13 +504,11 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(OXLINT_RULES, {
 				speed: ["light", "full"],
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: true
-			}, ["oxlint-violation"]),
-			fixableRuleIds: ["oxlint-violation"],
+			}),
 			gitIgnoreEntries: OxlintAuditor.gitIgnoreEntries,
 			cachePaths: [".oxlintcache"],
 			id: "validate_oxlint",
@@ -522,7 +539,7 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			exclude: excludeGlobs,
 			source: "declared-only"
 		});
-		const isFixMode = this.isFixModeRequested();
+		const isFixMode = this.isFixActive();
 		const tier = this.getExecutionTier();
 		const vpBin = resolvePackageBin("vite-plus", {
 			projectRoot: this.projectRoot,
@@ -557,4 +574,4 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxlintAuditor());
-export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, isOxlintRuleFixable, parseOxlintResults };
+export { OXLINT_FIXABLE_RULES, OXLINT_FIXABLE_RULES_LIST, OXLINT_RULES, OxlintAuditor, fixOxlint, isOxlintRuleFixable, parseOxlintResults };

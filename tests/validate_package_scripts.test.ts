@@ -37,7 +37,7 @@ describe('ValidatePackageScriptsAuditor', () => {
 
   describe('Contract & Metadata Conformance (5-Point Mandate)', () => {
     it('satisfies 100% of BaseAuditor metadata contracts via validateAuditorConstruction', () => {
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
       const errors = validateAuditorConstruction(auditor, 'validate_package_scripts');
       expect(errors).toEqual([]);
       expect(auditor.id).toBe('validate_package_scripts');
@@ -48,7 +48,7 @@ describe('ValidatePackageScriptsAuditor', () => {
     });
 
     it('declares 100% of rule IDs in ruleDescriptions within the 50 char badge limit', () => {
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
       for (const ruleId of PACKAGE_SCRIPTS_RULES) {
         expect(auditor.ruleDescriptions?.[ruleId]).toBeDefined();
         const desc = auditor.ruleDescriptions![ruleId]!;
@@ -92,8 +92,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -106,8 +106,8 @@ describe('ValidatePackageScriptsAuditor', () => {
     it('detects missing package.json (package-scripts-missing-file)', async () => {
       await writeConfig({ name: 'test-app', paths: { srcRoots: ['src'] } });
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-missing-file');
@@ -129,8 +129,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-build-missing-audit');
@@ -162,8 +162,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-removed-commit-gate');
@@ -192,8 +192,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-invalid-production-ref');
@@ -229,8 +229,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const f = result.findings.find(
@@ -265,8 +265,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-missing-recommended');
@@ -298,8 +298,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
       const f = result.findings.find((x) => x.ruleId === 'package-scripts-obsolete');
@@ -335,8 +335,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
 
       expect(fixResult.summary.errors).toBe(0);
 
@@ -373,15 +373,14 @@ describe('ValidatePackageScriptsAuditor', () => {
       );
 
       const inspectAuditor = new ValidatePackageScriptsAuditor({
-        projectRoot: tempDir,
-        fix: false
+        projectRoot: tempDir
       });
-      const inspectResult = await inspectAuditor.execute();
+      const inspectResult = await inspectAuditor.audit();
       expect(inspectResult.summary.errors).toBe(1);
       expect(inspectResult.findings[0]?.message).toContain('uses "vp run" instead of "npm run"');
 
-      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const updated = JSON.parse(await fs.readFile(pkgPath, 'utf-8'));
@@ -423,8 +422,8 @@ describe('ValidatePackageScriptsAuditor', () => {
       );
 
       // Check mode reports warning
-      const checkAuditor = new ValidatePackageScriptsAuditor(tempDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.summary.warnings).toBeGreaterThan(0);
       const wfFinding = checkResult.findings.find(
         (x) => x.ruleId === 'package-scripts-obsolete' && x.file === '.github/workflows/deploy.yml'
@@ -432,8 +431,8 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(wfFinding).toBeDefined();
 
       // Fix mode migrates deploy.yml
-      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
       expect(fixResult.summary.warnings).toBe(0);
 
@@ -469,8 +468,8 @@ describe('ValidatePackageScriptsAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidatePackageScriptsAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -508,8 +507,8 @@ describe('ValidatePackageScriptsAuditor', () => {
       );
 
       // Check mode
-      const checkAuditor = new ValidatePackageScriptsAuditor(tempDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.summary.warnings).toBeGreaterThan(0);
       const obsoleteFindings = checkResult.findings.filter(
         (f) => f.ruleId === 'package-scripts-obsolete' && f.file === 'package.json'
@@ -517,8 +516,8 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(obsoleteFindings.length).toBe(3);
 
       // Fix mode
-      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
       expect(fixResult.summary.warnings).toBe(0);
 

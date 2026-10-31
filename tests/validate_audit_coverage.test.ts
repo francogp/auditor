@@ -332,7 +332,7 @@ describe('validate_audit_coverage Suite', () => {
       process.env[COVERAGE_RUN_MODE_ENV] = 'preset';
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('skipped');
       expect(result.findings?.length).toBe(0);
@@ -377,7 +377,7 @@ describe('validate_audit_coverage Suite', () => {
       execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).not.toBe('skipped');
       expect(result.status).toBe('passed');
@@ -396,7 +396,7 @@ describe('validate_audit_coverage Suite', () => {
       );
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('skipped');
     });
@@ -442,7 +442,7 @@ describe('validate_audit_coverage Suite', () => {
       execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -469,7 +469,7 @@ describe('validate_audit_coverage Suite', () => {
       execFileSync('git', ['commit', '-m', 'initial'], { cwd: tempDir });
 
       const auditor = new AuditCoverageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);

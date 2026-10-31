@@ -60,11 +60,10 @@ export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
-  readonly fix?: boolean;
 }
 export declare const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfigRuleId>;
 export declare class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
   static readonly cachePaths: readonly [".fallow"];
-  constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions);
+  constructor(options?: ValidateFallowConfigOptions);
   runAudit(): Promise<void>;
 }

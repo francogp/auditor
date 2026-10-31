@@ -16,10 +16,18 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import ts from 'typescript';
+
 import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -37,24 +45,23 @@ export const VUE_ROUTER_RULES: readonly VueRouterRuleId[] = [
 const VUE_ROUTER_EXTENSIONS = new Set(['.vue', '.ts', '.js']);
 
 export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) =>
-        config.paths.componentsRoots?.length ||
-        config.paths.viewsRoots?.length ||
-        config.paths.composablesRoots?.length
-          ? Array.from(
-              new Set([
-                ...(config.paths.componentsRoots ?? []),
-                ...(config.paths.viewsRoots ?? []),
-                ...(config.paths.composablesRoots ?? [])
-              ])
-            )
-          : (config.paths.srcRoots ?? [])
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) =>
+      config.paths.componentsRoots?.length ||
+      config.paths.viewsRoots?.length ||
+      config.paths.composablesRoots?.length
+        ? Array.from(
+            new Set([
+              ...(config.paths.componentsRoots ?? []),
+              ...(config.paths.viewsRoots ?? []),
+              ...(config.paths.composablesRoots ?? [])
+            ])
+          )
+        : (config.paths.srcRoots ?? [])
     );
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       id: 'validate_vue_router',
@@ -66,7 +73,6 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
       ruleCapabilities: createRuleCapabilities(VUE_ROUTER_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -116,7 +122,12 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
     });
   }
 
-  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void {
+  protected override scanFile(
+    relPath: string,
+    content: string,
+    sourceFile?: ts.SourceFile,
+    doc?: AuditedDocument
+  ): void {
     const effectiveDoc = doc ?? new AuditedDocument(relPath, content, relPath);
     const sf = sourceFile ?? effectiveDoc.getAst();
     if (!sf) return;
@@ -142,9 +153,9 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
           const { line, column } = doc.getNodeLineAndColumn(nextParam, sf);
           this.addViolation({
             ruleId: 'no-deprecated-router-next',
-            filePath: relPath,
+            file: relPath,
             line,
-            column,
+            col: column,
             message: `Deprecated 'next' argument in router navigation guard. Vue Router 4 mandates returning a boolean or route location object instead.`,
             severity: 'error'
           });
@@ -157,16 +168,19 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
 
   private scanDefineAsyncComponent(sf: ts.SourceFile, doc: AuditedDocument, relPath: string): void {
     const visit = (node: ts.Node): void => {
-      if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) {
+      if (
+        ts.isPropertyAssignment(node) &&
+        (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))
+      ) {
         if (node.name.text === 'component' && ts.isCallExpression(node.initializer)) {
           const callText = node.initializer.expression.getText(sf);
           if (callText === 'defineAsyncComponent' || callText.endsWith('.defineAsyncComponent')) {
             const { line, column } = doc.getNodeLineAndColumn(node, sf);
             this.addViolation({
               ruleId: 'no-define-async-component-in-router',
-              filePath: relPath,
+              file: relPath,
               line,
-              column,
+              col: column,
               message: `defineAsyncComponent used in router route definition. Use canonical dynamic import 'component: () => import(...)' instead.`,
               severity: 'error'
             });
@@ -182,14 +196,18 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
     return !url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('//');
   }
 
-  private scanWindowLocationNavigation(sf: ts.SourceFile, doc: AuditedDocument, relPath: string): void {
+  private scanWindowLocationNavigation(
+    sf: ts.SourceFile,
+    doc: AuditedDocument,
+    relPath: string
+  ): void {
     const reportViolation = (node: ts.Node): void => {
       const { line, column } = doc.getNodeLineAndColumn(node, sf);
       this.addViolation({
         ruleId: 'no-window-location-navigation',
-        filePath: relPath,
+        file: relPath,
         line,
-        column,
+        col: column,
         message: `Direct SPA navigation with 'window.location'. Use useRouter().push(...) to preserve application state.`,
         severity: 'error'
       });
@@ -198,7 +216,10 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
     const visit = (node: ts.Node): void => {
       if (ts.isBinaryExpression(node) && node.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
         const leftText = node.left.getText(sf);
-        if ((leftText === 'window.location.href' || leftText === 'location.href') && ts.isStringLiteral(node.right)) {
+        if (
+          (leftText === 'window.location.href' || leftText === 'location.href') &&
+          ts.isStringLiteral(node.right)
+        ) {
           if (this.isSpaInternalUrl(node.right.text)) {
             reportViolation(node);
           }
@@ -218,15 +239,26 @@ export class ValidateVueRouterAuditor extends FileScanAuditor<VueRouterRuleId> {
   }
 }
 
-function extractRouterNextParam(call: ts.CallExpression, sf: ts.SourceFile): ts.ParameterDeclaration | null {
+function extractRouterNextParam(
+  call: ts.CallExpression,
+  sf: ts.SourceFile
+): ts.ParameterDeclaration | null {
   const expr = call.expression;
-  const methodName = ts.isPropertyAccessExpression(expr) ? expr.name.text : ts.isIdentifier(expr) ? expr.text : '';
-  if ((methodName !== 'beforeEach' && methodName !== 'beforeResolve') || call.arguments.length === 0) return null;
+  const methodName = ts.isPropertyAccessExpression(expr)
+    ? expr.name.text
+    : ts.isIdentifier(expr)
+      ? expr.text
+      : '';
+  if (
+    (methodName !== 'beforeEach' && methodName !== 'beforeResolve') ||
+    call.arguments.length === 0
+  )
+    return null;
   const guardFn = call.arguments[0];
   if (!guardFn || (!ts.isArrowFunction(guardFn) && !ts.isFunctionExpression(guardFn))) return null;
   if (guardFn.parameters.length < 3) return null;
   const thirdParam = guardFn.parameters[2];
-  return (thirdParam && thirdParam.name.getText(sf) === 'next') ? thirdParam : null;
+  return thirdParam && thirdParam.name.getText(sf) === 'next' ? thirdParam : null;
 }
 
 // Standalone execution support

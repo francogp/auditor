@@ -951,8 +951,10 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 	const findings = [];
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const missingLint = summary.hasSection("lint") ? lintIgnores.filter((g) => !summary.lintIgnorePatterns.includes(g)) : lintIgnores;
+	const extraLint = summary.hasSection("lint") ? summary.lintIgnorePatterns.filter((g) => !lintIgnores.includes(g)) : [];
 	const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
 	const missingFmt = summary.hasSection("fmt") ? fmtIgnores.filter((g) => !summary.fmtIgnorePatterns.includes(g)) : fmtIgnores;
+	const extraFmt = summary.hasSection("fmt") ? summary.fmtIgnorePatterns.filter((g) => !fmtIgnores.includes(g)) : [];
 	if (missingFmt.length > 0) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -965,6 +967,18 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: "fmt.ignorePatterns",
 		message: `Missing exclusion patterns in fmt of vite.config.ts: [${missingFmt.join(", ")}]. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
 	});
+	if (extraFmt.length > 0) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-fmt",
+		ruleDescription: "Vite+: Formatting standards with Oxfmt",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: "fmt.ignorePatterns",
+		message: `Unsynchronized exclusion patterns detected in fmt of vite.config.ts: [${extraFmt.join(", ")}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+	});
 	if (missingLint.length > 0) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -976,6 +990,18 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		col: 1,
 		context: "lint.ignorePatterns",
 		message: `Missing exclusion patterns required by audit.config.ts in lint of vite.config.ts: [${missingLint.join(", ")}]. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+	});
+	if (extraLint.length > 0) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-ts",
+		ruleDescription: "Vite+: TypeScript and test synchronization",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: "lint.ignorePatterns",
+		message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(", ")}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
 	});
 	return findings;
 }
@@ -1126,21 +1152,19 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			generateDefaultContent: () => buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot))
 		} : VITE_PLUS_CONFIG_REQUIREMENT;
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...VITE_PLUS_CONFIG_RULES]),
-			fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
+			}),
 			configFiles: [configRequirement],
 			cachePaths: ["dist", "dev-dist"],
-			fix: options.fix,
 			id: "validate_vite_plus_config",
 			name: "Vite+ Unified Configuration Validator",
 			description: "Validates Vite+ configuration and domain rules",

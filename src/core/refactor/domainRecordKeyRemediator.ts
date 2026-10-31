@@ -8,7 +8,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import ts from 'typescript';
+
 import { createUnifiedAstSourceFile } from '../astScriptExtractor.ts';
 
 export interface RecordKeyFinding {

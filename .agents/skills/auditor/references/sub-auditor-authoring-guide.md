@@ -84,7 +84,6 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_FEATURE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -210,7 +209,6 @@ export class MyDataAuditor extends BaseAuditor<MyDataRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_DATA_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -363,7 +361,6 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_AST_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -792,7 +789,6 @@ export class MyValidator extends BaseAuditor<MyRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -804,23 +800,30 @@ export class MyValidator extends BaseAuditor<MyRuleId> {
   }
 }
 
-// Auto-repair capable sub-auditor: declare fixableRuleIds via createRuleCapabilities
+// Contract-Driven Auto-Fix capable sub-auditor: provide executable ruleFixers map
 export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
   constructor() {
+    const fixers = {
+      'my-fixable-rule': async ({ projectRoot, options }) => {
+        // Execute deterministic mechanical code or file mutation on disk
+        return true;
+      }
+    };
+
     super({
       id: 'validate_my_auto_fix',
+      ruleFixers: fixers,
       ruleCapabilities: createRuleCapabilities(
         MY_RULES,
         {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
           critical: false
         },
-        ['my-fixable-rule'] // fixableRuleIds automatically upgraded to fix: 'normal'
+        fixers // Passing ruleFixers automatically upgrades declared rules to fix: 'normal'
       ),
       ruleIds: MY_RULES,
       ...
@@ -830,8 +833,19 @@ export class MyAutoFixValidator extends BaseAuditor<MyRuleId> {
 ```
 
 > [!IMPORTANT]
-> **Grounded Fixability Contract for `fixableRuleIds`**:
-> A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all. Rules included in `fixableRuleIds` or emitting `fixable: true` MUST be backed by a verified, mechanical, automated code mutation engine on disk that resolves violations with zero human intervention. Speculative fixability, linters emitting suggestions (`💡`), hints, dangerous fixes (`⚠️`), or rules requiring human architectural decisions MUST NEVER be included in `fixableRuleIds`. Every fix-enabled suite must maintain positive and negative canary tests in `tests/fixable_integrity_canary.test.ts`.
+> **Contract-Driven Auto-Fix Protocol & Grounded Fixability Contract**:
+> A sub-auditor or rule MUST be 100% automatically fixable via mechanical code mutation, or NOT be classified as fixable at all.
+>
+> 1. **Zero False-Fix Mandate**: If an issue requires human judgment or lacks an automated code mutation algorithm, it has **ZERO AUTO-FIX** (`fix: 'none'`). Reporting non-mechanical errors as fixable to users or AI agents is strictly prohibited.
+> 2. **Contract-Driven Infallibility (`ruleFixers`)**: Auto-fix is declared exclusively by supplying real, executable repair functions (`ruleFixers`) in the constructor or registering fixers in sub-auditors (`declareFileSubAuditor({ audit, fix })` or `declarePatternSubAuditor({ regex, replace })`).
+> 3. **Automatic Capability Derivation & Zero Manual Booleans**: `BaseAuditor` derives `fixableRuleIds` directly from registered repair functions, replace patterns, and configuration files (`configFiles`). Developers are strictly prohibited from manually writing `fix: 'normal'` or `fix: 'none'` in rule capabilities contracts; the framework computes `fix` automatically. If a rule has NO registered fixer function, `BaseAuditor.addViolation` forces `isFixable = false` inconditionally, eradicating false-positive auto-fix counts.
+> 4. **Declarative Pattern & File Sub-Auditors (`FileScanAuditor`)**:
+>    - `this.declarePatternSubAuditor('rule-id', { regex, message, replace: 'safeValue' })` automatically registers the rule as auto-fixable and replaces occurrences in the `AuditedDocument`. If `replace` is omitted, the rule is strictly unfixable.
+>    - `this.declareFileSubAuditor('rule-id', { audit: (doc) => ..., fix: (doc) => ... })` binds an explicit fix handler that mutates the document. Passing a single audit callback without `fix` leaves the rule strictly unfixable.
+> 5. **Function Identity Deduplication Mandate (`Set<Function>`)**:
+>    - When multiple sub-auditors share the exact same `audit` or `fix` function across rules, `FileScanAuditor.scanDocument` executes it strictly **ONCE per document** (`executedAuditFns = new Set<Function>()` and `executedFixFns = new Set<Function>()`), eliminating duplicate multi-pass overhead.
+>    - When `audit === fix`, running in `--fix` mode executes the function strictly **ONCE** instead of running audit followed by fix.
+>    - In `BaseAuditor.executeRuleFixers`, shared fixer references across rules are tracked via `Set<AnyRuleFixerFn>` and run strictly once per audit run.
 
 ### Dynamic Auto-Coordination in the Runner (Zero Hardcoding)
 
@@ -1006,7 +1020,7 @@ Every sub-auditor MUST have a companion unit test file in `tests/<suite_name>.te
 
 1. **Negative Verification**: Asserts that clean code yields `0 errors` and `status: 'passed'`.
 2. **RuleId Coverage**: Every declared rule ID has dedicated dirty snippet assertions.
-3. **Zero Live Scanning**: Use `auditor.testScanFile(...)` followed by `await auditor.finishAudit()`, or initialize `BaseAuditor({ projectRoot: tempDir })`. Never run `auditor.execute()` on `process.cwd()`.
+3. **Zero Live Scanning**: Use `auditor.testScanFile(...)` followed by `await auditor.finishAudit()`, or initialize `BaseAuditor({ projectRoot: tempDir })`. Never run `auditor.audit()` or `auditor.fix()` on `process.cwd()`.
 
 ---
 
@@ -1245,7 +1259,6 @@ Suites that validate compiled distribution artifacts (such as bundle budgets, ex
 ruleCapabilities: createUniformRuleCapabilities(RULES, {
   speed: 'heavy',
   phase: 'post-build',
-  fix: 'none',
   md: false,
   ast: false,
   changedOnly: false,
@@ -1459,7 +1472,7 @@ When upgrading `@francogp/auditor` in a host project with local extensions in `s
 ### 1. Error: `passed redundant 'capabilities' to constructor options` or missing 7-field `ruleCapabilities`
 
 - ❌ **Legacy Pattern**: Passing `capabilities: { ... }` directly to `super({ ... })` or using the old 10-boolean object.
-- ✅ **Canonical Pattern**: Pass the 7-field orthogonal `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false })` (or `LINT_RULE_CAPABILITIES` / `AST_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
+- ✅ **Canonical Pattern**: Pass the 7-field orthogonal `ruleCapabilities: createUniformRuleCapabilities(RULES, { speed: 'light', phase: 'normal', md: false, ast: false, changedOnly: false, critical: false })` (or `LINT_RULE_CAPABILITIES` / `AST_RULE_CAPABILITIES`). `BaseAuditor` derives suite-level capabilities automatically.
 
 ```typescript
 // Legacy:
@@ -1477,7 +1490,6 @@ super({
   ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
     speed: 'light',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: false,
@@ -1733,7 +1745,6 @@ export class ValidateSecurityAstAuditor extends BaseAuditor<SecurityAstRuleId> {
         'security-no-eval': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: true,
           changedOnly: false,
@@ -1742,7 +1753,6 @@ export class ValidateSecurityAstAuditor extends BaseAuditor<SecurityAstRuleId> {
         'security-require-exported-guard': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: true,
           changedOnly: false,

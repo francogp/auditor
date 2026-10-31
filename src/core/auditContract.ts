@@ -7,6 +7,8 @@
  */
 
 import path from 'node:path';
+
+import type { SharedAstContext } from './astContext.ts';
 import {
   getAuditConfig,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES,
@@ -64,8 +66,7 @@ export const FAMILY_METADATA: Record<string, FamilyMetadata> = {
     title: 'DOMAIN TYPES & CANONICAL DATABASES',
     order: 2,
     icon: '🔒',
-    description:
-      'Strict domain type validation (/domain-type-first), catalogs, and formulas.'
+    description: 'Strict domain type validation (/domain-type-first), catalogs, and formulas.'
   },
   persistence: {
     key: 'persistence',
@@ -105,7 +106,7 @@ export function resolveFamilyMetadata(
   customFamilies?: readonly CustomAuditFamilyConfig[]
 ): FamilyMetadata {
   if (FAMILY_METADATA[familyKey]) {
-    return FAMILY_METADATA[familyKey]!;
+    return FAMILY_METADATA[familyKey];
   }
   const custom = customFamilies?.find((f) => f.key === familyKey);
   if (custom) {
@@ -189,15 +190,45 @@ export const AUDIT_FIX_CAPABILITIES = ['none', 'normal', 'priority'] as const;
 export type AuditFixCapability = (typeof AUDIT_FIX_CAPABILITIES)[number];
 
 /**
- * Orthogonal 7-field rule capability contract eliminating overlapping boolean flags.
+ * Context provided to an executable auto-repair function.
+ */
+export interface RuleFixContext<TRuleId extends string = string> {
+  readonly projectRoot: string;
+  readonly ruleId: TRuleId;
+  readonly options?: Readonly<Record<string, unknown>>;
+}
+
+/**
+ * Universal auto-repair function callback contract.
+ */
+export type AnyRuleFixerFn = (
+  context: RuleFixContext<never>
+) => Promise<boolean | void> | boolean | void;
+
+/**
+ * Executable auto-repair function for a given rule.
+ * Returns true or void if repaired, false if skipped/unrepairable.
+ */
+export type RuleFixerFn<TRuleId extends string = string> = (
+  context: RuleFixContext<TRuleId>
+) => Promise<boolean | void> | boolean | void;
+
+/**
+ * Map of executable auto-repair functions by ruleId.
+ */
+export type RuleFixersMap<TRuleId extends string = string> = Partial<
+  Record<TRuleId, RuleFixerFn<TRuleId> | AnyRuleFixerFn>
+>;
+
+/**
+ * Orthogonal 6-field rule capability contract eliminating overlapping boolean flags.
+ * Fix capability is strictly derived dynamically by BaseAuditor and MUST NOT be declared here.
  */
 export interface AuditorRuleCapabilities {
   /** Execution speed level(s): 'light' (🐇), 'heavy' (🐢), or 'full' (🐘), or a tuple of supported levels e.g. ['light', 'full'] */
   readonly speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[];
   /** Mutually exclusive execution phase: 'normal', 'post-run', or 'post-build' */
   readonly phase: AuditExecutionPhase;
-  /** Mutually exclusive auto-fix capability: 'none', 'normal', or 'priority' */
-  readonly fix: AuditFixCapability;
   /** Whether the rule participates in markdown/documentation runs (preset=md / npm run auditor:md) */
   readonly md: boolean;
   /** Whether the rule requires the shared in-memory TypeScript AST context */
@@ -208,7 +239,15 @@ export interface AuditorRuleCapabilities {
   readonly critical: boolean;
 }
 
-export type AuditorCapabilities = AuditorRuleCapabilities;
+/**
+ * Derived execution capabilities including dynamically resolved auto-fix classification.
+ */
+export interface AuditorComputedCapabilities extends AuditorRuleCapabilities {
+  /** Mutually exclusive auto-fix capability derived by BaseAuditor: 'none', 'normal', or 'priority' */
+  readonly fix: AuditFixCapability;
+}
+
+export type AuditorCapabilities = AuditorComputedCapabilities;
 
 export function normalizeSpeeds(
   speed: AuditExecutionSpeed | readonly AuditExecutionSpeed[] | undefined
@@ -304,6 +343,11 @@ export interface ICompositeAuditor {
   getSubAuditors(): readonly SubAuditorStep[];
 }
 
+export interface AuditorExecutable {
+  audit(astContext?: SharedAstContext): Promise<StandardAuditResult>;
+  fix(astContext?: SharedAstContext): Promise<StandardAuditResult>;
+}
+
 export interface StandardAuditResult {
   id: string;
   name: string;
@@ -387,6 +431,8 @@ export interface AuditorPackageScriptRequirement {
   readonly category?: string;
   /** Node.js 26 permissions required by this script (e.g. ['--allow-addons', '--allow-child-process']) */
   readonly permissions?: readonly string[];
+  /** Optional source identifier registering this requirement (e.g. 'framework:core', 'suite:validate_oxlint') */
+  readonly sourceId?: string;
   /** Optional predicate determining if this script is applicable in the current project */
   readonly isApplicable?: (config: AuditEngineConfig, projectRoot: string) => boolean;
 }
@@ -446,7 +492,7 @@ export interface AuditorManifestDTO {
    */
   readonly description: string;
   /** Supported execution capabilities */
-  readonly capabilities: AuditorRuleCapabilities;
+  readonly capabilities: AuditorCapabilities;
   /** Catalog of evaluated rules with concise description */
   readonly rules: Readonly<Record<string, string>>;
   /** Catalog of on-demand diagnostic and remediation guides for each rule */
@@ -454,7 +500,7 @@ export interface AuditorManifestDTO {
   /** Catalog of strategic remediation phases for each rule */
   readonly remediationPhases?: Readonly<Record<string, RemediationPhaseId>>;
   /** Individual capabilities declared by each sub-auditor / rule */
-  readonly ruleCapabilities?: Readonly<Record<string, AuditorRuleCapabilities>>;
+  readonly ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
   /** List of ruleIds that this suite can mechanically repair automatically */
   readonly fixableRules: readonly string[];
   /**
@@ -583,7 +629,7 @@ export interface AuditTaskDefinition {
   capabilities?: AuditorCapabilities;
   ruleCapabilities?: Readonly<Record<string, AuditorCapabilities>>;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
-  configFiles?: readonly AuditorConfigFileRequirement<string>[];
+  configFiles?: readonly AuditorConfigFileRequirement[];
   scripts?: readonly AuditorPackageScriptRequirement[];
   manifest?: AuditorManifestDTO;
   configKey?: string;
@@ -605,7 +651,7 @@ export interface AuditTaskDescriptor {
   requiresAst?: boolean;
   capabilities?: AuditorCapabilities;
   gitIgnoreEntries?: readonly GitIgnoreRequirement[];
-  configFiles?: readonly AuditorConfigFileRequirement<string>[];
+  configFiles?: readonly AuditorConfigFileRequirement[];
   scripts?: readonly AuditorPackageScriptRequirement[];
 }
 
@@ -869,12 +915,8 @@ export function assertAuditorExecuted(
     );
   }
 
-  assertAuditFreshness(report.meta as ConsolidatedAuditReport['meta'], consumerName, options);
-  assertAuditSuiteExecuted(
-    report.meta as ConsolidatedAuditReport['meta'],
-    requiredSuiteId,
-    consumerName
-  );
+  assertAuditFreshness(report.meta, consumerName, options);
+  assertAuditSuiteExecuted(report.meta, requiredSuiteId, consumerName);
 }
 
 export function groupResultsByFamily(

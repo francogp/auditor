@@ -180,12 +180,12 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		const srcRoots = config.paths.srcRoots ?? [];
 		const distDirRel = config.bundle?.distDir ? toPosixRelative(projectRoot, config.bundle.distDir) : "dist";
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
 				speed: "light",
 				phase: "post-build",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

@@ -74,7 +74,7 @@ When testing whole-directory scans, instantiate the auditor passing an isolated 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'auditor-test-'));
 try {
   const auditor = new MyAuditor({ projectRoot: tempDir });
-  const result = await auditor.execute();
+  const result = await auditor.audit();
   // assertions...
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });
@@ -82,7 +82,7 @@ try {
 ```
 
 > [!CAUTION]
-> **Zero Live Repository Scanning**: Sub-auditor unit tests MUST NEVER execute full workspace scans (`auditor.execute()`) directly on `process.cwd()` without a sandbox directory.
+> **Zero Live Repository Scanning**: Sub-auditor unit tests MUST NEVER execute full workspace scans (`auditor.audit()`) directly on `process.cwd()` without a sandbox directory.
 
 ### 3. Test Fixture String Concatenation
 

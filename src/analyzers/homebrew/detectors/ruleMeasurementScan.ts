@@ -16,6 +16,7 @@
  */
 
 import ts from 'typescript';
+
 import { SharedAstContext } from '../../../core/astContext.ts';
 import type { HomebrewInspectionContext } from '../homebrewTypes.ts';
 

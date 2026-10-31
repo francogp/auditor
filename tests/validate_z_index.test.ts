@@ -70,7 +70,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -85,7 +85,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const missing = result.findings.find((e) => e.ruleId === 'z-index-missing-var');
@@ -101,7 +101,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const mismatch = result.findings.find((e) => e.ruleId === 'z-index-mismatch');
     expect(mismatch).toBeDefined();
@@ -115,7 +115,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const readError = result.findings.find((e) => e.ruleId === 'z-index-read-error');
     expect(readError).toBeDefined();
@@ -136,7 +136,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const hardcoded = result.findings.find((e) => e.ruleId === 'z-index-hardcoded-literal');
     expect(hardcoded).toBeDefined();
@@ -158,7 +158,7 @@ describe('ZIndexAuditor', () => {
       roots: [tempDir],
       projectRoot: tempDir
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const isolated = result.findings.find((e) => e.ruleId === 'z-index-isolated-constant');
     expect(isolated).toBeDefined();
@@ -183,7 +183,7 @@ describe('ZIndexAuditor', () => {
     );
 
     const auditor = new ZIndexAuditor();
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');

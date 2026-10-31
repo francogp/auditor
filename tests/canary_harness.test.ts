@@ -72,7 +72,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
     const auditor = new NativePathsAuditor({ roots: ['src'], projectRoot: sandboxDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const pathFinding = (result.findings || []).find((f) => f.ruleId === 'unsafe-path-concat');
     expect(pathFinding).toBeDefined();
@@ -96,7 +96,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
     const auditor = new ErrorSuppressionAuditor({ roots: ['src'], projectRoot: sandboxDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const catchFinding = (result.findings || []).find((f) => f.ruleId === 'no-empty-catch');
     expect(catchFinding).toBeDefined();
@@ -160,7 +160,7 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     execFileSync('git', ['commit', '-m', 'sandbox files'], { cwd: sandboxDir });
 
     const coverageAuditor = new AuditCoverageAuditor({ projectRoot: sandboxDir });
-    const coverageResult = await coverageAuditor.execute();
+    const coverageResult = await coverageAuditor.audit();
 
     // Must FAIL loudly with status: 'failed' and severity: 'error'
     expect(coverageResult.status).toBe('failed');

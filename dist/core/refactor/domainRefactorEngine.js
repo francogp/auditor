@@ -1,7 +1,7 @@
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
-import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
 import { discoverRecordKeyFindings, injectImportStatement } from "./domainRecordKeyRemediator.js";
+import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/refactor/domainRefactorEngine.ts
@@ -19,8 +19,9 @@ const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\
 var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-domain";
 	configSectionKey = "domain";
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof DomainTypesAuditor ? auditorOrOptions : new DomainTypesAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new DomainTypesAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

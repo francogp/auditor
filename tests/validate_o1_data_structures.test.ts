@@ -299,7 +299,7 @@ describe('O1DataStructuresAuditor', () => {
       );
 
       const auditor = new O1DataStructuresAuditor({ roots: ['src'], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');

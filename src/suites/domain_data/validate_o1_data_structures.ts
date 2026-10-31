@@ -14,12 +14,20 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
+
 import ts from 'typescript';
+
 import type { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath } from '../../core/auditConfig.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -181,11 +189,7 @@ function forEachUncommentedLine(
   for (let index = 0; index < lines.length; index++) {
     const lineText = lines[index]!;
     const trimmed = lineText.trim();
-    if (
-      trimmed.startsWith('//') ||
-      trimmed.startsWith('*') ||
-      trimmed.startsWith('/*')
-    ) {
+    if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
       continue;
     }
     callback(lineText, index + 1);
@@ -211,7 +215,7 @@ function scanAstForO1Issues(
   });
 
   // 2. AST Visitor for structured rules
-  const visit = (node: ts.Node) => {
+  const visit = (node: ts.Node): void => {
     const { lineText } = doc.getNodeLineAndColumn(node, ast);
     const trimmed = lineText.trim();
     if (trimmed.startsWith('//') || trimmed.startsWith('*') || trimmed.startsWith('/*')) {
@@ -301,7 +305,8 @@ function checkJsonClone(
   issues: O1Issue[]
 ): void {
   if (!ts.isCallExpression(node) || !ts.isPropertyAccessExpression(node.expression)) return;
-  if (node.expression.expression.getText(ast) !== 'JSON' || node.expression.name.text !== 'parse') return;
+  if (node.expression.expression.getText(ast) !== 'JSON' || node.expression.name.text !== 'parse')
+    return;
   if (node.arguments.length === 0) return;
 
   let arg0 = node.arguments[0]!;
@@ -309,7 +314,11 @@ function checkJsonClone(
     arg0 = arg0.expression;
   }
   if (!ts.isCallExpression(arg0) || !ts.isPropertyAccessExpression(arg0.expression)) return;
-  if (arg0.expression.expression.getText(ast) !== 'JSON' || arg0.expression.name.text !== 'stringify') return;
+  if (
+    arg0.expression.expression.getText(ast) !== 'JSON' ||
+    arg0.expression.name.text !== 'stringify'
+  )
+    return;
 
   const { line } = doc.getNodeLineAndColumn(node, ast);
   issues.push({
@@ -328,7 +337,12 @@ function checkRedundantSpreadReturn(
   doc: AuditedDocument,
   issues: O1Issue[]
 ): void {
-  if (!ts.isReturnStatement(node) || !node.expression || !ts.isArrayLiteralExpression(node.expression)) return;
+  if (
+    !ts.isReturnStatement(node) ||
+    !node.expression ||
+    !ts.isArrayLiteralExpression(node.expression)
+  )
+    return;
   if (node.expression.elements.length !== 1) return;
 
   const el = node.expression.elements[0];
@@ -376,18 +390,18 @@ export function scanFileForO1Issues(
 }
 
 export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths.codeRoots ?? []
     );
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(O1_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -450,7 +464,7 @@ export class O1DataStructuresAuditor extends FileScanAuditor<O1RuleId> {
           '📖 REMEDIATION GUIDE: o1-redundant-spread-return\n' +
           '1. Root Cause: A pure function ends with "return [...arr];" unnecessarily duplicating the array on the heap when the caller does not mutate the result.\n' +
           '2. Diagnosis: Look for return [...array] in read-only functions.\n' +
-          '3. Canonical Solution: Type the return signature as "readonly T[]" and return the direct array reference (return arr;), eliminating memory allocation.',
+          '3. Canonical Solution: Type the return signature as "readonly T[]" and return the direct array reference (return arr;), eliminating memory allocation.'
       },
       roots: targetRoots,
       allowedExtensions: new Set(['.ts', '.vue']),

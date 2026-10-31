@@ -15,16 +15,21 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
-import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
+
 import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -227,8 +232,7 @@ function auditCompiledChunks(
         continue;
       }
 
-      const parentPath =
-        (entry as { parentPath?: string }).parentPath ?? distDir;
+      const parentPath = (entry as { parentPath?: string }).parentPath ?? distDir;
       const fullPath = path.join(parentPath, name);
       const relName = normalizePosixPath(path.relative(distDir, fullPath));
 
@@ -267,7 +271,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     }
   ];
 
-  constructor(options: BundleBudgetAuditorOptions = {}) {
+  public constructor(options: BundleBudgetAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const srcRoots = config.paths.srcRoots ?? [];
@@ -276,12 +280,12 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       : 'dist';
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(BUNDLE_BUDGET_RULES, {
         speed: 'light',
         phase: 'post-build',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -388,14 +392,8 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
     const astEngine = astContext ?? new SharedAstContext();
 
     if (candidateFiles.length === 0) {
-      this.markRuleNotApplicable(
-        'bundle-runtime-leak',
-        'No candidate source files found'
-      );
-      this.markRuleNotApplicable(
-        'bundle-heavy-import',
-        'No candidate source files found'
-      );
+      this.markRuleNotApplicable('bundle-runtime-leak', 'No candidate source files found');
+      this.markRuleNotApplicable('bundle-heavy-import', 'No candidate source files found');
     } else {
       for (const relPath of candidateFiles) {
         this.recordScanned(relPath);
@@ -427,10 +425,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       chunksAudited = auditCompiledChunks(distDir, config.bundle, this.projectRoot, this);
     });
     if (chunksAudited === 0) {
-      this.markRuleNotApplicable(
-        'bundle-chunk-size',
-        'No compiled artifacts found in dist'
-      );
+      this.markRuleNotApplicable('bundle-chunk-size', 'No compiled artifacts found in dist');
     }
 
     this.context.setMetric('Files Audited', this.filesScannedCount);

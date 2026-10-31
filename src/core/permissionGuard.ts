@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import fsPromises from 'node:fs/promises';
 import { styleText } from 'node:util';
+
 import { tryOrNull, tryOrNullAsync } from './safeUtils.ts';
 
 /**
@@ -9,7 +10,7 @@ import { tryOrNull, tryOrNullAsync } from './safeUtils.ts';
  * causing tools like Stylelint --fix or atomic file writers to fail even when --allow-fs-write=* is granted.
  */
 export function polyfillPermissionModelFsync(): void {
-  const permission = (process as NodeJS.Process).permission;
+  const permission = process.permission;
   if (!permission || typeof permission.has !== 'function') {
     return;
   }
@@ -23,13 +24,15 @@ export function polyfillPermissionModelFsync(): void {
     Reflect.set(fsPromises, 'fsync', async () => {});
   });
 
-  void tryOrNullAsync(async () => {
+  tryOrNullAsync(async () => {
     const handle = await fsPromises.open(process.execPath, 'r');
     const proto = Object.getPrototypeOf(handle);
     if (proto && typeof proto.sync === 'function') {
       proto.sync = async () => {};
     }
     await handle.close();
+  }).catch((err: unknown) => {
+    process.stderr.write(`[PermissionGuard] Failed to stub fsync: ${String(err)}\n`);
   });
 }
 
@@ -59,7 +62,7 @@ export interface PermissionRequirements {
  * Gracefully no-ops when Node is executed without the experimental permission model.
  */
 export function checkRequiredPermissions(requirements: PermissionRequirements): string[] {
-  const permission = (process as NodeJS.Process).permission;
+  const permission = process.permission;
   if (!permission || typeof permission.has !== 'function') {
     return [];
   }

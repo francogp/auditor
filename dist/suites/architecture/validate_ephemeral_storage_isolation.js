@@ -95,12 +95,12 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

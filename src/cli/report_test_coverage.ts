@@ -7,10 +7,12 @@
  * displays uncovered line ranges, and gates pull requests / commits.
  */
 
+import { spawnSync, execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawnSync, execSync } from 'node:child_process';
 import { styleText } from 'node:util';
+
+import { getAuditConfig, buildTestCoverageConfig } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -18,7 +20,7 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { getAuditConfig, buildTestCoverageConfig } from '../core/auditConfig.ts';
+import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import { toPosixRelative, isPathContained } from '../core/safePath.ts';
 import { tryCatchSync } from '../core/safeUtils.ts';
 import {
@@ -39,7 +41,6 @@ import {
   resolvePackageBin,
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES
 } from './cliUtils.ts';
-import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import '../core/permissionGuard.ts';
 
 const RADIX_DECIMAL = 10;
@@ -87,7 +88,11 @@ const TEST_COVERAGE_ARGS = {
   below: { type: 'boolean', default: false, description: 'Show only files below threshold' },
   zero: { type: 'boolean', default: false, description: 'Show only files with 0% coverage' },
   untracked: { type: 'boolean', default: false, description: 'Show untracked source files' },
-  hotspots: { type: 'boolean', default: false, description: 'Show high-complexity low-coverage hotspots' },
+  hotspots: {
+    type: 'boolean',
+    default: false,
+    description: 'Show high-complexity low-coverage hotspots'
+  },
   top: { type: 'string', default: '20', description: 'Maximum rows to display' }
 } as const satisfies CittyArgsDef;
 
@@ -359,9 +364,7 @@ function renderFileDrillDown(report: TestCoverageReport, fileFilter: string): bo
     (f) => f.relPath === targetFile || f.relPath.endsWith(targetFile)
   );
   if (!found) {
-    console.log(
-      styleText('yellow', `\n[Warning] No coverage found for file '${fileFilter}'.`)
-    );
+    console.log(styleText('yellow', `\n[Warning] No coverage found for file '${fileFilter}'.`));
     return false;
   }
   console.log(styleText('bold', `\n[Coverage] File details: ${found.relPath}\n`));
@@ -386,10 +389,7 @@ function renderFileDrillDown(report: TestCoverageReport, fileFilter: string): bo
 
 function renderUntrackedView(untrackedFiles: readonly string[], topLimit: number): void {
   console.log(
-    styleText(
-      'bold',
-      `\n[Coverage] UNTRACKED FILES ON DISK (${untrackedFiles.length}):\n`
-    )
+    styleText('bold', `\n[Coverage] UNTRACKED FILES ON DISK (${untrackedFiles.length}):\n`)
   );
   console.log(renderUntrackedTable(untrackedFiles, topLimit));
   if (untrackedFiles.length > topLimit) {
@@ -516,9 +516,7 @@ function runTestRunnerIfRequested(
   console.log(styleText('cyan', `\n[Notice] Running test coverage: '${runCommand}'...\n`));
   const res = spawnSync(runCommand, { cwd: projectRoot, stdio: 'inherit', shell: true });
   if (res.status !== 0) {
-    console.error(
-      styleText('red', `\n[FAIL] Test runner exited with code ${res.status}.`)
-    );
+    console.error(styleText('red', `\n[FAIL] Test runner exited with code ${res.status}.`));
     process.exit(res.status ?? 1);
   }
 }
@@ -529,9 +527,7 @@ function loadCoveragePayloadOrExit(
 ): Record<string, unknown> {
   const coverageFile = resolveCoverageFile(projectRoot, configPath);
   if (!coverageFile) {
-    console.error(
-      styleText('red', `\n[FAIL] Coverage file not found at '${configPath}'.`)
-    );
+    console.error(styleText('red', `\n[FAIL] Coverage file not found at '${configPath}'.`));
     console.log(styleText('yellow', '   Run tests with coverage first:'));
     console.log(styleText('bold', `   npm run auditor:test-coverage -- --run\n`));
     process.exit(1);
@@ -683,10 +679,7 @@ export async function runTestCoverageReport(
   }
 
   console.log(
-    renderBanner(
-      'TEST COVERAGE REPORT',
-      `v${AUDITOR_VERSION}  |  Vitest & Istanbul Analytics`
-    )
+    renderBanner('TEST COVERAGE REPORT', `v${AUDITOR_VERSION}  |  Vitest & Istanbul Analytics`)
   );
 
   if (!renderSpecificCoverageView(report, args, effectiveThreshold, projectRoot)) {

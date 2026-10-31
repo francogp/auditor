@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { StylelintAuditor } from "../suites/architecture/validate_stylelint.js";
 import path from "node:path";
 import { styleText } from "node:util";
@@ -140,7 +140,7 @@ async function runCssReport(projectRoot = process.cwd()) {
 	const errorsOnly = Boolean(parsed["errors-only"]);
 	const isHuman = resolveHumanModeFromArgs(parsed);
 	const auditor = new StylelintAuditor({ projectRoot });
-	const result = await auditor.execute();
+	const result = isFix ? await auditor.fix() : await auditor.audit();
 	const filteredFindings = result.findings.filter((f) => {
 		if (errorsOnly && f.severity !== "error") return false;
 		return matchesCssCategory(f.ruleId, category);

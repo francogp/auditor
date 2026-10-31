@@ -1,18 +1,4 @@
-/**
- * packages/auditor/src/core/canonicalIgnoreRegistry.ts
- *
- * CANONICAL IGNORE & PATH EXEMPTION REGISTRY
- * Single Source of Truth for immutable system directories, cache directories,
- * scratch workspaces, and dynamic configuration-driven ignore/unignore resolutions.
- *
- * Rules:
- * 1. Hardcoded folder exceptions are strictly restricted to:
- *    - node_modules (Node package manager standard)
- *    - scratch (ephemeral runtime and audit scratch directory)
- *    - Caches, VCS, and build artifacts (.git, dist, coverage, tmp, etc.)
- * 2. All other application code roots, documentation roots, and skills roots MUST resolve
- *    dynamically from audit.config.ts (config.paths, config.documentation).
- */
+import { BaseEntityRegistry, IBaseEntityRegistry } from "./baseRegistry.js";
 /**
  * Directories that must ALWAYS be ignored across all tools, runners, and static analyzers
  * (compilation, VCS, scratch, test artifacts, runtime volume storage).
@@ -80,16 +66,16 @@ export interface SuiteIgnoreRequirement {
   readonly ignoreGlobs?: readonly string[];
   readonly reason?: string;
 }
-/**
- * Registry where sub-auditors and host extensions declare their suggested ignore defaults
- * to be dynamically collected and injected into newly created or scaffolded audit.config.ts files.
- */
-export declare class SuiteIgnoreRegistry {
-  private static readonly requirements;
-  static register(req: SuiteIgnoreRequirement): void;
-  static getAll(): readonly SuiteIgnoreRequirement[];
-  static reset(): void;
+export type ISuiteIgnoreRegistry = IBaseEntityRegistry<SuiteIgnoreRequirement>;
+export declare class SuiteIgnoreRegistryImpl extends BaseEntityRegistry<SuiteIgnoreRequirement> implements ISuiteIgnoreRegistry {
+  constructor();
 }
+/**
+ * Universal singleton instance for SuiteIgnoreRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export declare const SuiteIgnoreRegistry: ISuiteIgnoreRegistry;
+export type SuiteIgnoreRegistry = ISuiteIgnoreRegistry;
 /**
  * Returns a deduplicated array of glob patterns representing all active ignore directories
  * (each formatted as `${dir}/**`), merged with project-level `paths.ignoreGlobs`,

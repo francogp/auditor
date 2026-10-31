@@ -7,9 +7,9 @@
  * TypeScript AST source-span utilities across modern web static analyzers.
  */
 
-import ts from 'typescript';
 import { JSDOM, VirtualConsole } from 'jsdom';
 import MagicString from 'magic-string';
+import ts from 'typescript';
 
 export const SILENT_VIRTUAL_CONSOLE = new VirtualConsole();
 

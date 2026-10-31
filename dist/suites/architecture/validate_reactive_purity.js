@@ -41,12 +41,12 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [...config.paths.storesRoots ?? [], ...config.paths.composablesRoots ?? []]);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(REACTIVE_PURITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

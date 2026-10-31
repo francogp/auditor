@@ -47,11 +47,11 @@ describe('Auditor Plugin Protocol', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleCapabilities: {
             'dummy-rule': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -105,11 +105,11 @@ describe('Auditor Plugin Protocol', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleCapabilities: {
             'registered-rule': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -160,11 +160,11 @@ describe('Auditor Plugin Protocol', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleCapabilities: {
             'step-one': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -173,7 +173,6 @@ describe('Auditor Plugin Protocol', () => {
             'step-two': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -206,7 +205,7 @@ describe('Auditor Plugin Protocol', () => {
     }
 
     const auditor = new CompositeExtAuditor();
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('passed');
     expect(result.summary.errors).toBe(0);

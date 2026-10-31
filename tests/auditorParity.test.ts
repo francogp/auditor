@@ -18,9 +18,10 @@ const PARITY_RULES = ['parity-rule-a', 'parity-rule-b'] as const;
 type ParityRuleId = (typeof PARITY_RULES)[number];
 
 class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
-  constructor(tempDir: string) {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
       usesThirdPartyTool: false,
+      ruleFixers: {},
       id: 'validate_parity_test',
       name: 'Parity Test Auditor',
       description: 'Auditor de verificación de paridad estricta',
@@ -47,7 +48,6 @@ class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
       ruleCapabilities: createRuleCapabilities(PARITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -56,7 +56,7 @@ class ParityTestAuditor extends BaseAuditor<ParityRuleId> {
       coverage: {
         include: ['src/**/*.ts']
       },
-      projectRoot: tempDir
+      projectRoot: options.projectRoot ?? process.cwd()
     });
   }
 
@@ -85,11 +85,11 @@ describe('Auditor Parity Verification Harness', () => {
     fs.writeFileSync(path.join(srcDir, 'sub/nested.ts'), 'export const b = 2;');
     fs.writeFileSync(path.join(srcDir, 'sub/ignored.txt'), 'text');
 
-    const auditor1 = new ParityTestAuditor(tempDir);
+    const auditor1 = new ParityTestAuditor({ projectRoot: tempDir });
     const filesPass1 = auditor1['context'].collectFiles(['src'], new Set(['.ts']));
 
     // Pass 2 uses in-memory RAM cache
-    const auditor2 = new ParityTestAuditor(tempDir);
+    const auditor2 = new ParityTestAuditor({ projectRoot: tempDir });
     const filesPass2 = auditor2['context'].collectFiles(['src'], new Set(['.ts']));
 
     expect(filesPass2).toEqual(filesPass1);
@@ -106,7 +106,7 @@ describe('Auditor Parity Verification Harness', () => {
     fs.writeFileSync(file1, 'const a = "TOKEN_A";\nconst b = "TOKEN_B";\n');
     fs.writeFileSync(file2, 'const c = "TOKEN_A";\n');
 
-    const auditor = new ParityTestAuditor(tempDir);
+    const auditor = new ParityTestAuditor({ projectRoot: tempDir });
 
     await auditor.scanFilesSinglePass(
       [file1, file2],
@@ -120,7 +120,7 @@ describe('Auditor Parity Verification Harness', () => {
                   ruleId: 'parity-rule-a',
                   file,
                   line: i + 1,
-                  column: 1,
+                  col: 1,
                   message: 'Encontrado TOKEN_A',
                   severity: 'error'
                 });
@@ -137,7 +137,7 @@ describe('Auditor Parity Verification Harness', () => {
                   ruleId: 'parity-rule-b',
                   file,
                   line: i + 1,
-                  column: 1,
+                  col: 1,
                   message: 'Encontrado TOKEN_B',
                   severity: 'error'
                 });
@@ -188,7 +188,7 @@ describe('Auditor Parity Verification Harness', () => {
 
     // 2. Full auditor execution with RAM cache and optimized loop
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     // Verify exact findings count and rule distribution
     expect(result.findings.length).toBe(directFindings.length);

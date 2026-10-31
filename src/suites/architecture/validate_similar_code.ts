@@ -13,18 +13,18 @@
  *   4. Auto-Initialization: If the companion model is not ready, automatically downloads and sets up the local model with clear console notification.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-import os from 'node:os';
 import childProcess from 'node:child_process';
-import { styleText } from 'node:util';
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import type { AuditorCapabilities } from '../../core/auditContract.ts';
-import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
-import { getProcessCliArgs } from '../../core/cli/cittyHarness.ts';
+import os from 'node:os';
+import path from 'node:path';
+import { styleText } from 'node:util';
+
+import {
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  DEFAULT_SUBPROCESS_TIMEOUT_MS,
+  resolvePackageBin
+} from '../../cli/cliUtils.ts';
 import {
   getAuditConfig,
   isTestPath,
@@ -32,13 +32,13 @@ import {
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { AuditorRuleCapabilities } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { BaseAuditor, createUniformRemediationPhases } from '../../core/auditorBase.ts';
+import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
+import { getProcessCliArgs } from '../../core/cli/cittyHarness.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { tryOrNull, safeJsonParse } from '../../core/safeUtils.ts';
-import {
-  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
-  DEFAULT_SUBPROCESS_TIMEOUT_MS,
-  resolvePackageBin
-} from '../../cli/cliUtils.ts';
 
 enableCompileCache();
 
@@ -46,11 +46,10 @@ export const SIMILAR_CODE_RULES = ['fallow-similar-code', 'fallow-similar-code-f
 
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
 
-export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCapabilities> = {
+export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorRuleCapabilities> = {
   'fallow-similar-code': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: false,
@@ -59,7 +58,6 @@ export const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCa
   'fallow-similar-code-failed': {
     speed: 'heavy',
     phase: 'normal',
-    fix: 'none',
     md: false,
     ast: false,
     changedOnly: false,
@@ -304,12 +302,13 @@ export function evaluateSimilarCodeCandidates(
 }
 
 export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
     const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -375,8 +374,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
         severity: 'error',
         file: 'package.json',
         line: 1,
-        message:
-          'Fallow binary not found in local dependencies to run similar-code.',
+        message: 'Fallow binary not found in local dependencies to run similar-code.',
         context: 'binary-missing'
       });
       return null;

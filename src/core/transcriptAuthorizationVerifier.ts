@@ -13,10 +13,11 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import os from 'node:os';
-import { tryOrNull, safeStatSync, safeReadFileSync, safeJsonParse } from './safeUtils.ts';
+import path from 'node:path';
+
 import type { RelaxationCode } from './configRatchet.ts';
+import { tryOrNull, safeStatSync, safeReadFileSync, safeJsonParse } from './safeUtils.ts';
 
 export interface TranscriptVerificationResult {
   readonly verified: boolean;
@@ -133,7 +134,11 @@ function scanTranscriptLines(lines: readonly string[], cleanCode: string): Trans
     const step = safeJsonParse<TranscriptStep>(line);
     if (!step) continue;
 
-    if (step.source === 'MODEL' && Array.isArray(step.tool_calls) && detectToolTampering(step.tool_calls)) {
+    if (
+      step.source === 'MODEL' &&
+      Array.isArray(step.tool_calls) &&
+      detectToolTampering(step.tool_calls)
+    ) {
       tamperingDetected = true;
     }
 

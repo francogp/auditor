@@ -17,7 +17,8 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { resetAuditConfig } from '../src/core/auditConfigLoader.ts';
-import { BaseAuditor, getEffectiveIgnoreDirs } from '../src/core/auditorBase.ts';
+import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { getEffectiveIgnoreDirs } from '../src/core/canonicalIgnoreRegistry.ts';
 import { isPathExempt } from '../src/core/reportUtils.ts';
 
 describe('Subsystem Ignores & Exemptions (Polymorphic BaseAuditor)', () => {
@@ -107,12 +108,12 @@ describe('Subsystem Ignores & Exemptions (Polymorphic BaseAuditor)', () => {
         requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
+        ruleFixers: {},
         ruleIds: ['html-rule'],
         ruleCapabilities: {
           'html-rule': {
             speed: 'light',
             phase: 'normal',
-            fix: 'none',
             md: false,
             ast: false,
             changedOnly: false,

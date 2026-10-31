@@ -16,19 +16,21 @@
  *    from a USER_EXPLICIT step with zero model tampering, the relaxation is accepted.
  */
 
-import path from 'node:path';
-import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import path from 'node:path';
+
 import ts from 'typescript';
+
+import { extractExportedConfigObjectLiteral } from './astContext.ts';
+import type { AuditRatchetConfig } from './auditConfigTypes.ts';
+import { createDomainSet } from './domainCollections.ts';
+import { normalizePosixPath } from './safePath.ts';
+import { safeReadFileSync } from './safeUtils.ts';
 import {
   verifyTranscriptAuthorization,
   type TranscriptVerifierOptions
 } from './transcriptAuthorizationVerifier.ts';
-import { extractExportedConfigObjectLiteral } from './astContext.ts';
-import { safeReadFileSync } from './safeUtils.ts';
-import { normalizePosixPath } from './safePath.ts';
-import { createDomainSet } from './domainCollections.ts';
-import type { AuditRatchetConfig } from './auditConfigTypes.ts';
 
 function astExpressionToPlainValue(expr: ts.Expression): unknown {
   if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
@@ -106,7 +108,10 @@ export interface ConfigRatchetOptions {
   readonly transcriptOptions?: TranscriptVerifierOptions;
 }
 
-export function runGit(projectRoot: string, args: readonly string[]): { ok: boolean; stdout: string } {
+export function runGit(
+  projectRoot: string,
+  args: readonly string[]
+): { ok: boolean; stdout: string } {
   const proc = spawnSync('git', args, {
     cwd: projectRoot,
     encoding: 'utf-8',
@@ -265,9 +270,7 @@ export function inspectAuditConfigChanges(
   ): boolean {
     if (typeof onlineVal !== 'number') return false;
 
-    const isComplexityCeiling =
-      fieldPath.includes('complexity') ||
-      CEILING_METRIC_KEYS.has(key);
+    const isComplexityCeiling = fieldPath.includes('complexity') || CEILING_METRIC_KEYS.has(key);
 
     if (isComplexityCeiling) {
       compareNumericBoundary(configFile, fieldPath, onlineVal, localVal, relaxations, 'ceiling');
@@ -317,7 +320,10 @@ export function inspectAuditConfigChanges(
     if (key !== 'acknowledgedDegradations' || !localVal || typeof localVal !== 'object') {
       return false;
     }
-    const onlineDeg = (onlineVal && typeof onlineVal === 'object' ? onlineVal : {}) as Record<string, unknown>;
+    const onlineDeg = (onlineVal && typeof onlineVal === 'object' ? onlineVal : {}) as Record<
+      string,
+      unknown
+    >;
     const localDeg = localVal as Record<string, unknown>;
     for (const policy of Object.keys(localDeg)) {
       compareExemptionLists(
@@ -433,14 +439,16 @@ export function inspectLinterConfigChanges(
     }
 
     // Check severity string demotion
-    const onlineSev = typeof onlineRuleVal === 'string' ? (SEVERITY_WEIGHT[onlineRuleVal] ?? null) : null;
-    const localSev = typeof localRuleVal === 'string' ? (SEVERITY_WEIGHT[localRuleVal] ?? null) : null;
+    const onlineSev =
+      typeof onlineRuleVal === 'string' ? (SEVERITY_WEIGHT[onlineRuleVal] ?? null) : null;
+    const localSev =
+      typeof localRuleVal === 'string' ? (SEVERITY_WEIGHT[localRuleVal] ?? null) : null;
 
     if (onlineSev !== null && localSev !== null && localSev < onlineSev) {
       relaxations.push({
         file,
         path: `rules.${rule}`,
-        description: `Demoted rule '${rule}' from severity '${onlineRuleVal}' to '${localRuleVal}'`,
+        description: `Demoted rule '${rule}' from severity '${String(onlineRuleVal)}' to '${String(localRuleVal)}'`,
         onlineValue: onlineRuleVal,
         localValue: localRuleVal
       });
@@ -457,10 +465,7 @@ export function computeRelaxationCode(relaxations: readonly ConfigRelaxation[]):
   const sorted = [...relaxations].sort((a, b) =>
     `${a.file}:${a.path}`.localeCompare(`${b.file}:${b.path}`)
   );
-  const hash = createHash('sha256')
-    .update(JSON.stringify(sorted))
-    .digest('hex')
-    .slice(0, 8);
+  const hash = createHash('sha256').update(JSON.stringify(sorted)).digest('hex').slice(0, 8);
   return `RELAX-${hash}` as RelaxationCode;
 }
 
@@ -474,7 +479,9 @@ export function auditConfigRatchet(
 ): ConfigRatchetResult {
   const effectiveRef = resolveProductionRef(
     projectRoot,
-    options.productionRef ?? (localConfig.ratchet as AuditRatchetConfig | undefined)?.productionRef ?? 'origin/main',
+    options.productionRef ??
+      (localConfig.ratchet as AuditRatchetConfig | undefined)?.productionRef ??
+      'origin/main',
     options.skipNetwork
   );
 

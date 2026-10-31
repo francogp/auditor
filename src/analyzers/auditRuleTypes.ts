@@ -5,8 +5,8 @@
  * for architectural audits.
  */
 
-import { normalizePosixPath } from '../core/safePath.ts';
 import { isTestPath } from '../core/auditTestPredicates.ts';
+import { normalizePosixPath } from '../core/safePath.ts';
 
 export const AUDIT_SEVERITIES = ['error', 'warning'] as const;
 export type AuditSeverity = (typeof AUDIT_SEVERITIES)[number];

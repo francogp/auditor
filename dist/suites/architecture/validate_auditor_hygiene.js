@@ -6,8 +6,8 @@ import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { HomebrewDetectorRegistry } from "../../analyzers/homebrew/homebrewRegistry.js";
 import { AUDITOR_HOMEBREW_RULES } from "../../analyzers/homebrew/homebrewTypes.js";
+import { HomebrewDetectorRegistry } from "../../analyzers/homebrew/homebrewRegistry.js";
 import "../../analyzers/homebrew/index.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -25,8 +25,8 @@ import fs from "node:fs";
 */
 enableCompileCache();
 var AuditorHygieneAuditor = class extends BaseAuditor {
-	constructor(options) {
-		const projectRoot = typeof options === "string" ? options : options?.projectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const configuredRoots = config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0 ? config.auditorHygiene.roots : isSelfProviderProject(projectRoot) ? [
 			"src/suites",
@@ -35,6 +35,7 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 			"scripts/auditors"
 		] : ["scripts/auditors"];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			id: "validate_auditor_hygiene",
@@ -56,7 +57,6 @@ var AuditorHygieneAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

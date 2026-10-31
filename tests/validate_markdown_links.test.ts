@@ -217,7 +217,7 @@ describe('MarkdownLinkAuditor', () => {
           'utf-8'
         );
         const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
@@ -235,7 +235,7 @@ describe('MarkdownLinkAuditor', () => {
           'utf-8'
         );
         const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.status).toBe('failed');
         expect(
           result.findings.some(
@@ -260,7 +260,7 @@ describe('MarkdownLinkAuditor', () => {
           'utf-8'
         );
         const auditor = new MarkdownLinkAuditor({ roots: [], projectRoot: sandbox });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');

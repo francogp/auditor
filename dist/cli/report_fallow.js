@@ -5,11 +5,11 @@ import { toPosixRelative } from "../core/safePath.js";
 import { isInCodeRoots } from "../core/auditCodeRoots.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, bootstrapCliProject, isMainModule, resolveCoverageArgs } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { resolveFallowBinary } from "../suites/architecture/validate_similar_code.js";
-import { runGuardReport } from "./report_guard.js";
 import { runFlagsReport } from "./report_flags.js";
+import { runGuardReport } from "./report_guard.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -73,9 +73,9 @@ function parseCommandLineArgs() {
 	const rawPosCategory = typeof parsed.categoryPos === "string" && VALID_CATEGORY_ALIASES.has(parsed.categoryPos.toLowerCase()) ? parsed.categoryPos.toLowerCase() : "";
 	let category = typeof parsed.category === "string" ? parsed.category.toLowerCase() : rawPosCategory;
 	const rawTopStr = String(parsed.top || "20");
-	let top = rawTopStr === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTopStr, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-	let jsonOutput = Boolean(parsed.json);
-	let human = resolveHumanModeFromArgs(parsed);
+	const top = rawTopStr === "all" ? Number.MAX_SAFE_INTEGER : parseInt(rawTopStr, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
+	const jsonOutput = Boolean(parsed.json);
+	const human = resolveHumanModeFromArgs(parsed);
 	for (const pos of positionals) {
 		const cleanPos = pos.toLowerCase();
 		if (!category && VALID_CATEGORY_ALIASES.has(cleanPos)) category = cleanPos;

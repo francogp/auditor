@@ -241,6 +241,33 @@ const MANDATE_DEFINITIONS = [
 		errorMessageEs: "AGENTS.md raíz debe incluir obligatoriamente el mandato de inmutabilidad de dependencias y prohibición absoluta de mutar node_modules/."
 	}
 ];
+function fixSingleAgentsMandate(context) {
+	const mandate = MANDATE_DEFINITIONS.find((m) => m.ruleId === context.ruleId);
+	if (!mandate) return false;
+	const agentsMdPath = path.resolve(context.projectRoot, "AGENTS.md");
+	if (!fs.existsSync(agentsMdPath)) return false;
+	const currentContent = fs.readFileSync(agentsMdPath, "utf8");
+	const config = getAuditConfig(context.projectRoot);
+	const targetLanguage = config.documentation?.language ?? "en";
+	const chatLanguage = config.documentation?.chatLanguage ?? "es";
+	injectOrUpdateMandateInAgentsMd({
+		agentsMdPath,
+		content: currentContent,
+		canonicalSnippet: mandate.getSnippet(targetLanguage, chatLanguage),
+		isExistingLine: mandate.isExistingLine
+	});
+	return true;
+}
+const AGENTS_CONFIG_MANDATE_FIXERS = {
+	"agents-missing-config-mandate": fixSingleAgentsMandate,
+	"agents-missing-backward-compat-mandate": fixSingleAgentsMandate,
+	"agents-missing-fake-pass-mandate": fixSingleAgentsMandate,
+	"agents-missing-chat-language-mandate": fixSingleAgentsMandate,
+	"agents-missing-destructive-git-mandate": fixSingleAgentsMandate,
+	"agents-missing-official-tools-mandate": fixSingleAgentsMandate,
+	"agents-missing-architecture-mandate": fixSingleAgentsMandate,
+	"agents-missing-dependency-immutability-mandate": fixSingleAgentsMandate
+};
 var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	rootDir;
 	languageOption;
@@ -248,19 +275,17 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
 		super({
+			ruleFixers: AGENTS_CONFIG_MANDATE_FIXERS,
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...AGENTS_CONFIG_MANDATE_RULES]),
-			fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
-			fix: options?.fix,
+			}),
 			id: "validate_agents_config_mandate",
 			name: "Root AGENTS.md Config Mandate Validator",
 			description: "Validates config and architecture mandates in AGENTS.md",
@@ -352,4 +377,4 @@ var AgentsConfigMandateAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AgentsConfigMandateAuditor());
-export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, containsArchitectureMandate, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDependencyImmutabilityMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, getCanonicalArchitectureSnippet, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDependencyImmutabilitySnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet };
+export { AGENTS_CONFIG_MANDATE_RULES, AgentsConfigMandateAuditor, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_EN, CANONICAL_ARCHITECTURE_MANDATE_SNIPPET_ES, CANONICAL_BACKWARD_COMPAT_SNIPPET_EN, CANONICAL_BACKWARD_COMPAT_SNIPPET_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_EN, CANONICAL_CHAT_LANGUAGE_SNIPPET_ES_CHAT_ES, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN, CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_EN, CANONICAL_DESTRUCTIVE_GIT_SNIPPET_ES, CANONICAL_FAKE_PASS_SNIPPET_EN, CANONICAL_FAKE_PASS_SNIPPET_ES, CANONICAL_MANDATE_SNIPPET_EN, CANONICAL_MANDATE_SNIPPET_ES, CANONICAL_OFFICIAL_TOOLS_SNIPPET_EN, CANONICAL_OFFICIAL_TOOLS_SNIPPET_ES, containsArchitectureMandate, containsBackwardCompatMandate, containsChatLanguageMandate, containsConfigAntiTamperingMandate, containsDependencyImmutabilityMandate, containsDestructiveGitMandate, containsFakePassMandate, containsOfficialToolsMandate, fixSingleAgentsMandate, getCanonicalArchitectureSnippet, getCanonicalBackwardCompatSnippet, getCanonicalChatLanguageSnippet, getCanonicalDependencyImmutabilitySnippet, getCanonicalDestructiveGitSnippet, getCanonicalFakePassSnippet, getCanonicalMandateSnippet, getCanonicalOfficialToolsSnippet };

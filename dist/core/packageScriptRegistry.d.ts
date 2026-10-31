@@ -1,33 +1,28 @@
 import { AuditorPackageScriptRequirement } from "./auditContract.js";
+import { BaseEntityRegistry, IBaseEntityRegistry } from "./baseRegistry.js";
 export declare const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequirement[];
-export declare class PackageScriptRegistry {
-  private static readonly requirements;
+export interface IPackageScriptRegistry extends IBaseEntityRegistry<AuditorPackageScriptRequirement> {
+  register(requirement: AuditorPackageScriptRequirement, sourceId?: string): void;
+  registerMany(requirements: readonly AuditorPackageScriptRequirement[], sourceId?: string): void;
+}
+export declare class PackageScriptRegistryImpl extends BaseEntityRegistry<AuditorPackageScriptRequirement> implements IPackageScriptRegistry {
+  constructor();
   /**
-   * Registers a single package script requirement.
+   * Registers a single package script requirement with command collision verification.
    * Throws an explicit error if a script name collides with another registered command.
    */
-  static register(requirement: AuditorPackageScriptRequirement, sourceId?: string): void;
+  register(requirement: AuditorPackageScriptRequirement, sourceId?: string): void;
   /**
    * Registers multiple package script requirements.
    */
-  static registerMany(requirements: readonly AuditorPackageScriptRequirement[], sourceId?: string): void;
-  /**
-   * Retrieves a registered package script requirement by script name.
-   */
-  static get(name: string): AuditorPackageScriptRequirement | undefined;
-  /**
-   * Checks whether a package script requirement is already registered.
-   */
-  static has(name: string): boolean;
-  /**
-   * Returns all currently registered package script requirements.
-   */
-  static getAll(): readonly AuditorPackageScriptRequirement[];
-  /**
-   * Resets the registry back to core framework defaults.
-   */
-  static reset(): void;
+  registerMany(requirements: readonly AuditorPackageScriptRequirement[], sourceId?: string): void;
 }
+/**
+ * Universal singleton instance for PackageScriptRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export declare const PackageScriptRegistry: IPackageScriptRegistry;
+export type PackageScriptRegistry = IPackageScriptRegistry;
 /**
  * Builds the canonical runner command for an AuditorPackageScriptRequirement,
  * dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.

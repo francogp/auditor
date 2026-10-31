@@ -154,12 +154,12 @@ var DeadCssAuditor = class extends BaseAuditor {
 		const config = getAuditConfig(projectRoot);
 		const compRoots = [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DEAD_CSS_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

@@ -62,7 +62,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
@@ -91,7 +91,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(1);
       const violation = result.findings.find(
@@ -127,7 +127,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -148,7 +148,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
@@ -161,7 +161,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
     it('runs on the @francogp/auditor provider repository itself and reports zero errors', async () => {
       // In the provider repo, package.json has name @francogp/auditor and root plugin.json exists
       const auditor = new AgentPluginAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -175,7 +175,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         'utf8'
       );
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -187,8 +187,8 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
         'utf8'
       );
-      const auditor = new AgentPluginAuditor({ projectRoot: tempDir, fix: true });
-      const result = await auditor.execute();
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.fix();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -210,7 +210,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-yaml-frontmatter');
       expect(violation).toBeDefined();
@@ -233,7 +233,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violation = result.findings.find(
         (f) => f.ruleId === 'skill-invalid-yaml-frontmatter' && f.context === 'nameless-skill'
@@ -259,7 +259,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.writeFile(path.join(skillDir, 'evals', 'evals.json'), '{ "broken": , }', 'utf8');
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-asset-syntax');
       expect(violation).toBeDefined();
@@ -289,7 +289,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violation = result.findings.find((f) => f.ruleId === 'skill-invalid-asset-syntax');
       expect(violation).toBeDefined();
@@ -319,10 +319,9 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.writeFile(skillPath, frontmatterContent, 'utf8');
 
       const auditor = new AgentPluginAuditor({
-        projectRoot: tempDir,
-        fix: options.fix
+        projectRoot: tempDir
       });
-      const result = await auditor.execute();
+      const result = options.fix ? await auditor.fix() : await auditor.audit();
       return { result, skillPath, skillDir };
     }
 
@@ -417,7 +416,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       await fs.writeFile(path.join(skillDir, 'SKILL.md'), lines.join('\n'), 'utf8');
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.fix();
 
       const lineLimitViolation = result.findings.find(
         (f) => f.ruleId === 'skill-exceeds-line-limit'
@@ -608,15 +607,15 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
 
       const checkAuditor = new AgentPluginAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
       const dupFindings = checkResult.findings.filter(
         (f) => f.ruleId === 'host-duplicate-auditor-skill'
       );
       expect(dupFindings.length).toBe(2);
 
       // Run in fix mode to verify auto-cleanup
-      const fixAuditor = new AgentPluginAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
     });
   });

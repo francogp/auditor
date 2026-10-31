@@ -84,19 +84,21 @@ function normalizePosixPath(filePath, cwd = process.cwd()) {
 * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
 * Supports exact matches, sub-directory prefixes, and glob wildcards (e.g. '/**' or '/*').
 */
-function isPathExempt(relPath, exemptPaths) {
+function isPathExempt(relPath, exemptPaths, projectRoot = process.cwd()) {
 	if (!exemptPaths || exemptPaths.length === 0) return false;
-	const norm = normalizePosixPath(relPath);
+	const norm = normalizePosixPath(relPath, projectRoot);
 	for (const p of exemptPaths) {
-		const normP = normalizePosixPath(p);
+		if (!p) continue;
+		const normP = normalizePosixPath(p, projectRoot);
 		if (p.includes("*") || p.includes("?")) {
-			if (path.posix.matchesGlob(norm, normP) || path.posix.matchesGlob(norm, `**/${normP}`)) return true;
+			if (path.posix.matchesGlob(norm, normP) || normP.startsWith("**") && path.posix.matchesGlob(norm.replace(/^\.+[/\\]?/, ""), normP)) return true;
 		}
 		let cleanPrefix = normP;
 		if (cleanPrefix.endsWith("/**")) cleanPrefix = cleanPrefix.slice(0, -3);
 		else if (cleanPrefix.endsWith("/*")) cleanPrefix = cleanPrefix.slice(0, -2);
 		else if (cleanPrefix.endsWith("/")) cleanPrefix = cleanPrefix.slice(0, -1);
-		if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || norm.includes(`/${cleanPrefix}/`) || norm.endsWith(`/${cleanPrefix}`)) return true;
+		const hasSlash = p.includes("/") || p.includes("\\");
+		if (norm === cleanPrefix || norm.startsWith(`${cleanPrefix}/`) || !hasSlash && (norm.includes(`/${cleanPrefix}/`) || norm.endsWith(`/${cleanPrefix}`))) return true;
 	}
 	return false;
 }

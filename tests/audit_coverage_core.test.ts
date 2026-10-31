@@ -39,6 +39,7 @@ const BASE_OPTIONS = {
   requiredPermissions: [] as readonly string[],
   criticalConfig: {},
   usesThirdPartyTool: false,
+  ruleFixers: {},
   ruleDescriptions: { 'probe-rule': 'Regla sonda' },
   ruleRemediations: { 'probe-rule': 'Soluciona probe-rule ajustando la sonda.' },
   ruleRemediationPhases: { 'probe-rule': 'hygiene' },
@@ -46,7 +47,6 @@ const BASE_OPTIONS = {
     'probe-rule': {
       speed: 'light',
       phase: 'normal',
-      fix: 'none',
       md: false,
       ast: false,
       changedOnly: false,

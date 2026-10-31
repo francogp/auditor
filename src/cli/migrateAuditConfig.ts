@@ -8,7 +8,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import ts from 'typescript';
+
 import { AUDITOR_DIR, LEGACY_ROOT_CONFIG_FILES } from '../core/auditConfig.ts';
 import { toPosixRelative } from '../core/safePath.ts';
 

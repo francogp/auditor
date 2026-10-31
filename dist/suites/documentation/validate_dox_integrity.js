@@ -37,13 +37,13 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
 		super({
+			ruleFixers: {},
 			projectRoot,
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOX_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: true,
 				ast: false,
 				changedOnly: false,

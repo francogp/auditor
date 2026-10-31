@@ -85,7 +85,6 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         generateDefaultContent: (ctx) => `{\n  "name": "${ctx.packageName}",\n  "ok": true\n}\n`
       };
 
-      const isFix = Boolean(options.fix);
       super({
         id: 'validate_custom_tool',
         name: 'Custom Tool Config Validator',
@@ -98,11 +97,11 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
+        ruleFixers: {},
         ruleCapabilities: {
           'custom-config-missing': {
             speed: 'light',
             phase: 'normal',
-            fix: isFix ? 'normal' : 'none',
             md: false,
             ast: false,
             changedOnly: false,
@@ -111,14 +110,12 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           'custom-content-valid': {
             speed: 'light',
             phase: 'normal',
-            fix: 'none',
             md: false,
             ast: false,
             changedOnly: false,
             critical: false
           }
         },
-        fixableRuleIds: isFix ? ['custom-config-missing'] : undefined,
         ruleIds: ['custom-config-missing', 'custom-content-valid'],
         ruleDescriptions: {
           'custom-config-missing': 'Configuración ausente',
@@ -133,7 +130,6 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           'custom-content-valid': 'setup'
         },
         configFiles: [requirement],
-        fix: isFix,
         coverage: {
           include: ['custom.config.json', 'custom.config.js']
         },
@@ -157,7 +153,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
   it('reports an error when config file is missing in check mode', async () => {
     const auditor = new CustomToolAuditor({ projectRoot: tempDir, fix: false });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBe(1);
@@ -176,8 +172,8 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
         .catch(() => false)
     ).toBe(false);
 
-    const auditor = new CustomToolAuditor({ projectRoot: tempDir, fix: true });
-    const result = await auditor.execute();
+    const auditor = new CustomToolAuditor({ projectRoot: tempDir });
+    const result = await auditor.fix();
 
     // Clean path verification
     expect(result.summary.errors).toBe(0);
@@ -200,7 +196,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     await fs.writeFile(candidatePath, 'module.exports = { ok: true };\n', 'utf-8');
 
     const auditor = new CustomToolAuditor({ projectRoot: tempDir, fix: false, candidate: true });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -232,11 +228,11 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleCapabilities: {
             'optional-config-missing': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -267,7 +263,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     }
 
     const auditor = new OptionalConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -299,7 +295,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     await fs.writeFile(configPath, '{\n  "ok": true\n}\n', 'utf-8');
 
     const extAuditor = new CustomToolAuditor({ projectRoot: tempDir, fix: false });
-    const result = await extAuditor.execute();
+    const result = await extAuditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');

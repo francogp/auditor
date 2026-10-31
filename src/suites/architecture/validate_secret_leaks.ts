@@ -10,10 +10,14 @@
  *   - secret-leak-private-key: Detects unencrypted private cryptographic keys (RSA, EC, OPENSSH).
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import { lintSource, type SecretLintSourceOptions } from '@secretlint/core';
 import { rules as presetRules } from '@secretlint/secretlint-rule-preset-recommend';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { AuditFinding } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -21,8 +25,6 @@ import {
   matchesSinglePattern,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
 import { tryOrNullAsync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
@@ -89,15 +91,15 @@ export function mapSecretLintMessageToFinding(
 export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleId> {
   private readonly secretLintConfig: SecretLintConfig;
 
-  constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
+  public constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(SECRET_LEAKS_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -125,11 +127,15 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
           '   b) Move secrets to environment variables (`.env.local` excluded in `.gitignore` or CI/CD secret vaults).\n' +
           '   c) If this is synthetic test data, alter the entropy or prefix to avoid triggering live pattern heuristics, or add an exemption in configuration.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Exposed: `const API_TOKEN = "sk_' + 'live_secret12345";`\n' +
+          '   ❌ Exposed: `const API_TOKEN = "sk_' +
+          'live_secret12345";`\n' +
           '   ✅ Secure:   `const API_TOKEN = process.env.API_TOKEN ?? "";`',
         'secret-leak-private-key':
           '📖 REMEDIATION GUIDE: secret-leak-private-key\n' +
-          '1. Root Cause: A cryptographic private key block (' + '`-----BEGIN ' + 'PRIVATE KEY-----`, ' + 'or similar) was found in the repository.\n' +
+          '1. Root Cause: A cryptographic private key block (' +
+          '`-----BEGIN ' +
+          'PRIVATE KEY-----`, ' +
+          'or similar) was found in the repository.\n' +
           '2. Diagnosis: Check the file and line number where the private key was detected.\n' +
           '3. Canonical Solution:\n' +
           '   a) Immediately remove the private key block from source files and revoke associated certificates.\n' +
@@ -197,7 +203,7 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
       })
     );
     if (result) {
-      messages = result.messages as typeof messages;
+      messages = result.messages;
     }
 
     this.runSubAuditorSync('secret-leak-detected', () => {

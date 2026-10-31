@@ -1,17 +1,20 @@
-import ts from 'typescript';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import ts from 'typescript';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
-  resolveFileScanRoots
+  resolveFileScanRoots,
+  type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 
 enableCompileCache();
 
@@ -29,7 +32,6 @@ export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number
 export const CODE_SIMPLIFICATION_CAPABILITIES = {
   speed: 'light',
   phase: 'normal',
-  fix: 'none',
   md: false,
   ast: true,
   changedOnly: false,
@@ -39,10 +41,11 @@ export const CODE_SIMPLIFICATION_CAPABILITIES = {
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue']);
 
 export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
-  constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const scanRoots = resolveFileScanRoots(options);
     const simplificationConfig = getAuditConfig(scanRoots.effectiveRoot);
     super({
+      ruleFixers: {},
       id: 'validate_code_simplification',
       name: 'Code Complexity & Readability Simplifier Validator',
       description: 'Code simplification, nesting, and syntactic clarity',
@@ -126,7 +129,11 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
         CODE_SIMPLIFICATION_CAPABILITIES
       ),
       projectRoot: scanRoots.effectiveRoot,
-      coverage: deriveCoverageFromRoots(scanRoots.targetRoots, SCANNABLE_EXTS, scanRoots.effectiveRoot)
+      coverage: deriveCoverageFromRoots(
+        scanRoots.targetRoots,
+        SCANNABLE_EXTS,
+        scanRoots.effectiveRoot
+      )
     });
   }
 

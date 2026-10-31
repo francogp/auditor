@@ -5,12 +5,13 @@
  */
 
 import path from 'node:path';
-import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
-import { safeReadFileAsync, safeReaddirAsync } from '../core/safeUtils.ts';
-import { collectRepositoryFiles } from '../core/auditorBase.ts';
+
 import { isTestPath, getAuditConfig } from '../core/auditConfig.ts';
+import { collectRepositoryFiles } from '../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../core/gitignoreMatcher.ts';
 import { normalizePosixPath } from '../core/safePath.ts';
+import { safeReadFileAsync, safeReaddirAsync } from '../core/safeUtils.ts';
+import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 
 export const DOX_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'dox',

@@ -1,15 +1,12 @@
-import { AuditEngineConfig } from "../auditConfigTypes.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { TypesFindingItem, TypesRefactorPlan } from "./refactorContracts.js";
 import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
 import ts from "typescript";
+export type TypesRefactorEngineOptions = RefactorEngineOptions<ValidateTypeAssertionHygieneAuditor>;
 export declare class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan, ValidateTypeAssertionHygieneAuditor> {
   readonly toolId = "auditor-types";
   readonly configSectionKey: "types";
-  constructor(auditorOrOptions?: ValidateTypeAssertionHygieneAuditor | string | {
-    projectRoot?: string;
-    config?: AuditEngineConfig;
-  }, _explicitConfig?: AuditEngineConfig);
+  constructor(options?: TypesRefactorEngineOptions);
   discoverInFile(filePath: string): readonly TypesFindingItem[];
   createPlan(typesPlanId: string, typesFindings: readonly TypesFindingItem[]): TypesRefactorPlan;
   applyPlan(projectRoot: string, plan: TypesRefactorPlan): {

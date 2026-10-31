@@ -7,6 +7,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import { safeReadFileSync, safeJsonParse, tryOrNull } from './safeUtils.ts';
 
 export interface ProjectVersionInfo {
@@ -33,7 +34,7 @@ interface PackageJsonShape {
 
 const EXEMPT_MARKDOWN_FILENAMES: ReadonlySet<string> = new Set([
   'changelog.md',
-  'v8-migration-guide.md'
+  'legacy-migration-guide.md'
 ]);
 
 const HISTORICAL_OR_EXEMPT_LINE_PATTERNS: readonly RegExp[] = [
@@ -46,7 +47,10 @@ function extractBaseSemver(versionStr: string): string | null {
   return match ? match[1]! : null;
 }
 
-function resolveInstalledAuditorVersions(rootDir: string, pkg: PackageJsonShape): {
+function resolveInstalledAuditorVersions(
+  rootDir: string,
+  pkg: PackageJsonShape
+): {
   semver: string | null;
   fullVersion: string | null;
 } {
@@ -68,7 +72,13 @@ function resolveInstalledAuditorVersions(rootDir: string, pkg: PackageJsonShape)
   }
 
   let fullVersion: string | null = null;
-  const installedPkgPath = path.join(rootDir, 'node_modules', '@francogp', 'auditor', 'package.json');
+  const installedPkgPath = path.join(
+    rootDir,
+    'node_modules',
+    '@francogp',
+    'auditor',
+    'package.json'
+  );
   const installedRaw = safeReadFileSync(installedPkgPath);
   if (installedRaw) {
     const installedPkg = safeJsonParse<PackageJsonShape>(installedRaw);
@@ -183,8 +193,7 @@ function inspectLineAndReplace(
     }
 
     // 3. auditorVersion: 'X.Y.Z...' in config snippets
-    const auditorVersionRegex =
-      /(auditorVersion:\s*['"])v?(\d+\.\d+\.\d+)(-build\.[^'"]*)?(['"])/g;
+    const auditorVersionRegex = /(auditorVersion:\s*['"])v?(\d+\.\d+\.\d+)(-build\.[^'"]*)?(['"])/g;
     updatedLine = updatedLine.replace(
       auditorVersionRegex,
       (
@@ -196,8 +205,7 @@ function inspectLineAndReplace(
       ) => {
         if (ver !== expectedSemver) {
           const replacementVer =
-            info.expectedAuditorFullVersion ??
-            `${expectedSemver}${buildSuffix ?? ''}`;
+            info.expectedAuditorFullVersion ?? `${expectedSemver}${buildSuffix ?? ''}`;
           matches.push({
             lineNum,
             found: `${ver}${buildSuffix ?? ''}`,
@@ -211,7 +219,13 @@ function inspectLineAndReplace(
     );
     // 4. auditor-update [v]X.Y.Z or npm run auditor:update -- [v]X.Y.Z
     const updaterCmdRegex = /(auditor[-:]update(?:\s+--)?\s+v?)(\d+\.\d+\.\d+)/g;
-    updatedLine = replacePrefixedSemver(updatedLine, updaterCmdRegex, expectedSemver, lineNum, matches);
+    updatedLine = replacePrefixedSemver(
+      updatedLine,
+      updaterCmdRegex,
+      expectedSemver,
+      lineNum,
+      matches
+    );
   }
 
   // 5. Explicit project package version reference: <pkgName>@X.Y.Z or <pkgName> vX.Y.Z

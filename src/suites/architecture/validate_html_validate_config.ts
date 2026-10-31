@@ -18,19 +18,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
-  collectRepositoryFiles,
-  type AuditorOptions
+  collectRepositoryFiles
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
@@ -135,52 +135,27 @@ export function isVueProjectContext(projectRoot: string): boolean {
   return false;
 }
 
-export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<HtmlValidateConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const isOptionsObj = Boolean(rootsOrOptions && !Array.isArray(rootsOrOptions));
-    const optionsObj = isOptionsObj
-      ? (rootsOrOptions as Partial<AuditorOptions<HtmlValidateConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        })
-      : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+export interface HtmlValidateConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
 
-    const fixableRules: readonly HtmlValidateConfigRuleId[] = [
-      'html-validate-config-missing',
-      'html-validate-config-missing-strict-rule',
-      'html-validate-config-missing-plugin',
-      'html-validate-config-missing-transform',
-      'html-validate-config-missing-doctype-style'
-    ];
+export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateConfigRuleId> {
+  public constructor(options: HtmlValidateConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        HTML_VALIDATE_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: true
-        },
-        fixableRules
-      ),
-      fixableRuleIds: fixableRules,
+      ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: true
+      }),
       id: 'validate_html_validate_config',
       name: 'HTML-Validate Configuration Integrity Validator',
       description: 'Validates .htmlvalidate.json baseline and integrity',
@@ -248,8 +223,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
       coverage: {
         include: ['.htmlvalidate*']
       },
-      projectRoot,
-      fix: optionsObj?.fix
+      projectRoot
     });
   }
 
@@ -266,11 +240,26 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
         this.ensureConfigFile(HTML_VALIDATE_CONFIG_REQUIREMENT)
       );
       if (!ensured) {
-        this.markRuleNotApplicable('html-validate-config-syntax', 'Missing .htmlvalidate.json file');
-        this.markRuleNotApplicable('html-validate-config-missing-strict-rule', 'Missing .htmlvalidate.json file');
-        this.markRuleNotApplicable('html-validate-config-missing-plugin', 'Missing .htmlvalidate.json file');
-        this.markRuleNotApplicable('html-validate-config-missing-transform', 'Missing .htmlvalidate.json file');
-        this.markRuleNotApplicable('html-validate-config-missing-doctype-style', 'Missing .htmlvalidate.json file');
+        this.markRuleNotApplicable(
+          'html-validate-config-syntax',
+          'Missing .htmlvalidate.json file'
+        );
+        this.markRuleNotApplicable(
+          'html-validate-config-missing-strict-rule',
+          'Missing .htmlvalidate.json file'
+        );
+        this.markRuleNotApplicable(
+          'html-validate-config-missing-plugin',
+          'Missing .htmlvalidate.json file'
+        );
+        this.markRuleNotApplicable(
+          'html-validate-config-missing-transform',
+          'Missing .htmlvalidate.json file'
+        );
+        this.markRuleNotApplicable(
+          'html-validate-config-missing-doctype-style',
+          'Missing .htmlvalidate.json file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -285,10 +274,22 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
       rawContent = fs.readFileSync(resolvedFile, 'utf-8');
     } catch {
       this.markRuleNotApplicable('html-validate-config-syntax', 'No se pudo leer el archivo');
-      this.markRuleNotApplicable('html-validate-config-missing-strict-rule', 'No se pudo leer el archivo');
-      this.markRuleNotApplicable('html-validate-config-missing-plugin', 'No se pudo leer el archivo');
-      this.markRuleNotApplicable('html-validate-config-missing-transform', 'No se pudo leer el archivo');
-      this.markRuleNotApplicable('html-validate-config-missing-doctype-style', 'No se pudo leer el archivo');
+      this.markRuleNotApplicable(
+        'html-validate-config-missing-strict-rule',
+        'No se pudo leer el archivo'
+      );
+      this.markRuleNotApplicable(
+        'html-validate-config-missing-plugin',
+        'No se pudo leer el archivo'
+      );
+      this.markRuleNotApplicable(
+        'html-validate-config-missing-transform',
+        'No se pudo leer el archivo'
+      );
+      this.markRuleNotApplicable(
+        'html-validate-config-missing-doctype-style',
+        'No se pudo leer el archivo'
+      );
       return;
     }
 
@@ -312,7 +313,10 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
       this.markRuleNotApplicable('html-validate-config-missing-strict-rule', 'Invalid JSON syntax');
       this.markRuleNotApplicable('html-validate-config-missing-plugin', 'Invalid JSON syntax');
       this.markRuleNotApplicable('html-validate-config-missing-transform', 'Invalid JSON syntax');
-      this.markRuleNotApplicable('html-validate-config-missing-doctype-style', 'Invalid JSON syntax');
+      this.markRuleNotApplicable(
+        'html-validate-config-missing-doctype-style',
+        'Invalid JSON syntax'
+      );
       return;
     }
 

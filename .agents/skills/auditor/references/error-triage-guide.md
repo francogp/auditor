@@ -164,7 +164,6 @@ export class SampleAuditorExtension extends BaseAuditor<'sample-rule-a'> {
       ruleCapabilities: createUniformRuleCapabilities(['sample-rule-a'], {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

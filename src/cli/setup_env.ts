@@ -9,13 +9,14 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { isMainModule } from './cliUtils.ts';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const SETUP_ENV_ARGS = {
   ...COMMON_CLI_ARGS,
@@ -24,8 +25,17 @@ const SETUP_ENV_ARGS = {
     required: false,
     description: 'Setup action to perform (e.g. update)'
   },
-  update: { type: 'boolean', alias: 'u', default: false, description: 'Update runtime environment version' },
-  'update-version': { type: 'boolean', default: false, description: 'Update runtime environment version' }
+  update: {
+    type: 'boolean',
+    alias: 'u',
+    default: false,
+    description: 'Update runtime environment version'
+  },
+  'update-version': {
+    type: 'boolean',
+    default: false,
+    description: 'Update runtime environment version'
+  }
 } as const satisfies CittyArgsDef;
 
 export function runSetup(

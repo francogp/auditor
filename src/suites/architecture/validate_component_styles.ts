@@ -18,17 +18,21 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
-import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
-import { stripComments } from '../../core/scannerUtils.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { tryCatchSync } from '../../core/safeUtils.ts';
+import { stripComments } from '../../core/scannerUtils.ts';
+import { parseVueSfc, type VueSfcBlock } from '../../core/vueSfcParser.ts';
+import { getEffectiveGlobalUtilityClasses } from './validate_dead_css.ts';
 
 enableCompileCache();
 
@@ -582,7 +586,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
   private scssCount = 0;
   private cssCount = 0;
 
-  constructor(options: { projectRoot?: string; roots?: readonly string[]; fix?: boolean } = {}) {
+  public constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const effectiveRoots =
@@ -597,23 +601,18 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
       );
 
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['banned-plain-css-style', 'banned-raw-css-file'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        COMPONENT_STYLE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['banned-plain-css-style', 'banned-raw-css-file']
-      ),
-      fixableRuleIds: ['banned-plain-css-style', 'banned-raw-css-file'],
-      fix: options.fix,
+      ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_component_styles',
       name: 'Vue Component Style Linkage & SCSS Auditor',
       description: 'Validates component style links and orphaned SCSS',
@@ -744,10 +743,7 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     return this.cssCount;
   }
 
-  public collectProjectFiles(
-    roots: readonly string[],
-    extensions: ReadonlySet<string>
-  ): string[] {
+  public collectProjectFiles(roots: readonly string[], extensions: ReadonlySet<string>): string[] {
     return this.context.collectFiles(roots, extensions);
   }
 

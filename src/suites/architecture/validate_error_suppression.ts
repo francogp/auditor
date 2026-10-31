@@ -20,19 +20,26 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_error_suppression.ts
  */
 
-import { enableCompileCache } from 'node:module';
 import fs from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
+
 import ts from 'typescript';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
-  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import {
   createUnifiedAstSourceFile,
   applyAstReplacements,
   type AstTextReplacement
 } from '../../core/astScriptExtractor.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -52,14 +59,15 @@ export const ERROR_SUPPRESSION_RULES: readonly ErrorSuppressionRuleId[] = [
 const STANDARD_ERROR_PROPERTIES: ReadonlySet<string> = new Set(['message', 'code', 'stack']);
 
 export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (cfg) => cfg.paths.codeRoots
     );
 
     super({
-      fix: options.fix,
+      ruleFixers: {},
+      fixableRuleIds: ['no-empty-catch', 'no-silent-promise-catch'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
       roots: targetRoots,
@@ -67,13 +75,11 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
       ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'normal',
         md: false,
         ast: true,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: ['no-empty-catch', 'no-silent-promise-catch'],
       id: 'validate_error_suppression',
       name: 'Zero Error Suppression Auditor',
       description: 'Prohibits error suppression, empty catches, and fallbacks',
@@ -137,7 +143,9 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
   protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     const isVue = relPath.endsWith('.vue');
     const doc = new AuditedDocument(relPath, content, relPath);
-    const sf = sourceFile ?? (isVue ? createUnifiedAstSourceFile(relPath, content).sourceFile : doc.getAst());
+    const sf =
+      sourceFile ??
+      (isVue ? createUnifiedAstSourceFile(relPath, content).sourceFile : doc.getAst());
     if (!sf) return;
 
     const isFixMode = this.isFixActive();
@@ -174,7 +182,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
                 severity: 'error',
                 file: relPath,
                 line,
-                column,
+                col: column,
                 message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
                 context: node.getText(sf).slice(0, 100),
                 fixable: true
@@ -225,7 +233,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
                 severity: 'error',
                 file: relPath,
                 line,
-                column,
+                col: column,
                 message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
                 context: `catch (${varName})`
               });
@@ -247,7 +255,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
                 severity: 'error',
                 file: relPath,
                 line,
-                column,
+                col: column,
                 message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
                 context: node.getText(sf).slice(0, 100)
               });
@@ -295,7 +303,7 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
                     severity: 'error',
                     file: relPath,
                     line,
-                    column,
+                    col: column,
                     message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
                     context: node.getText(sf).slice(0, 100),
                     fixable: true
@@ -318,8 +326,8 @@ export class ErrorSuppressionAuditor extends FileScanAuditor<ErrorSuppressionRul
       try {
         fs.writeFileSync(absoluteFilePath, updatedContent, 'utf-8');
       } catch (err) {
-    console.warn('[Handled controlled exception]:', err);
-  }
+        console.warn('[Handled controlled exception]:', err);
+      }
     }
   }
 }

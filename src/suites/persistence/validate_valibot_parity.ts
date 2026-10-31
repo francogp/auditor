@@ -23,18 +23,23 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+
+import { SharedAstContext } from '../../core/astContext.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { SharedAstContext } from '../../core/astContext.ts';
 import type {
   ValibotNestedParityTarget,
   ValibotParityTarget
 } from '../../core/auditConfigTypes.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -279,7 +284,7 @@ export interface ValibotParityAuditorOptions {
 }
 
 export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleId> {
-  constructor(options: ValibotParityAuditorOptions = {}) {
+  public constructor(options: ValibotParityAuditorOptions = {}) {
     const config = getAuditConfig(options.projectRoot);
     const declaredTargets = config.valibot?.targets ?? [];
     const targetFiles = declaredTargets.flatMap((t) => [
@@ -288,9 +293,9 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
       ...(t.serializerFile ? [t.serializerFile] : []),
       ...(t.initialStateFile ? [t.initialStateFile] : [])
     ]);
-    const typesRoots = (config.paths.typesRoots ?? DEFAULT_AUDIT_CONFIG.paths.typesRoots) ?? [];
-    const logicRoots = (config.paths.logicRoots ?? DEFAULT_AUDIT_CONFIG.paths.logicRoots) ?? [];
-    const storesRoots = (config.paths.storesRoots ?? DEFAULT_AUDIT_CONFIG.paths.storesRoots) ?? [];
+    const typesRoots = config.paths.typesRoots ?? DEFAULT_AUDIT_CONFIG.paths.typesRoots ?? [];
+    const logicRoots = config.paths.logicRoots ?? DEFAULT_AUDIT_CONFIG.paths.logicRoots ?? [];
+    const storesRoots = config.paths.storesRoots ?? DEFAULT_AUDIT_CONFIG.paths.storesRoots ?? [];
     const fallbackGlobs = [
       ...typesRoots.map((r: string) => `${r}/**/*.ts`),
       ...logicRoots.map((r: string) => `${r}/**/*.ts`),
@@ -298,12 +303,12 @@ export class ValidateValibotParityAuditor extends BaseAuditor<ValibotParityRuleI
     ];
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(VALIBOT_PARITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,

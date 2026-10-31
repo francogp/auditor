@@ -10,13 +10,14 @@
 
 import type { JSDOM } from 'jsdom';
 import MagicString from 'magic-string';
-import { parseScssBlockNodes, type ScssAstRuleNode } from './scssModernAnalyzer.ts';
+
 import {
   type JsdomElementLocation,
   computeRawLineOffsets,
   getAttrLocation,
   parseDomWithLocations
 } from './modernDomAstUtils.ts';
+import { parseScssBlockNodes, type ScssAstRuleNode } from './scssModernAnalyzer.ts';
 
 export const MODERN_WEB_PERF_RULES = [
   'perf-lcp-lazy-conflict',

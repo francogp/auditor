@@ -35,7 +35,8 @@ const LAST_SEGMENT_ACCESS_METHODS: ReadonlySet<string> = new Set(['pop', 'at', '
 
 function isFollowedByLastSegmentAccess(call: ts.CallExpression): boolean {
   let parent = call.parent;
-  while (ts.isParenthesizedExpression(parent) || ts.isNonNullExpression(parent)) parent = parent.parent;
+  while (ts.isParenthesizedExpression(parent) || ts.isNonNullExpression(parent))
+    parent = parent.parent;
   if (ts.isElementAccessExpression(parent)) return true;
   if (ts.isPropertyAccessExpression(parent)) {
     const name = parent.name.text;
@@ -47,9 +48,12 @@ function isFollowedByLastSegmentAccess(call: ts.CallExpression): boolean {
 function checkSplit(mc: MethodCall, ctx: NativePathScanContext): boolean {
   if (mc.method !== 'split') return false;
   const value = firstArgValue(mc);
-  if (value !== undefined && isSeparatorOnly(value)) return isPathish(mc.receiver, ctx.pathOriginNames);
+  if (value !== undefined && isSeparatorOnly(value))
+    return isPathish(mc.receiver, ctx.pathOriginNames);
   if (value === EXTENSION_SEPARATOR) {
-    return isFollowedByLastSegmentAccess(mc.call) && isFilenameish(mc.receiver, ctx.pathOriginNames);
+    return (
+      isFollowedByLastSegmentAccess(mc.call) && isFilenameish(mc.receiver, ctx.pathOriginNames)
+    );
   }
   return checkSeparatorClassRegex(mc, ctx);
 }
@@ -68,7 +72,8 @@ function checkExtensionStrip(mc: MethodCall, ctx: NativePathScanContext): boolea
   const [pattern, replacement] = mc.call.arguments;
   const info = pattern ? getRegexInfo(pattern) : undefined;
   if (!info || !replacement || getStringValue(replacement) !== '') return false;
-  const isExtensionPattern = info.pattern.startsWith(WIN_SEP + EXTENSION_SEPARATOR) && info.pattern.endsWith('$');
+  const isExtensionPattern =
+    info.pattern.startsWith(WIN_SEP + EXTENSION_SEPARATOR) && info.pattern.endsWith('$');
   return isExtensionPattern && isFilenameish(mc.receiver, ctx.pathOriginNames);
 }
 

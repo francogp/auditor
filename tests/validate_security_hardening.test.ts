@@ -287,10 +287,9 @@ describe('ValidateSecurityHardeningAuditor Conformance & Rule Detection', () => 
 
         // 2. Run --fix inside isolated worktree
         const fixAuditor = new ValidateSecurityHardeningAuditor({
-          projectRoot: session.worktreeDir,
-          fix: true
+          projectRoot: session.worktreeDir
         });
-        await fixAuditor.runAudit();
+        await fixAuditor.fix();
 
         const fixedTs = fs.readFileSync(
           path.join(session.worktreeDir, 'src/SecurityBroken.ts'),

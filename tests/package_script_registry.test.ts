@@ -28,11 +28,11 @@ class DummyAuditorWithoutScripts extends BaseAuditor {
       requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
+      ruleFixers: {},
       ruleCapabilities: {
         'dummy-rule': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
@@ -73,11 +73,11 @@ class DummyAuditorWithCustomScripts extends BaseAuditor {
       requiredPermissions: [],
       criticalConfig: {},
       usesThirdPartyTool: false,
+      ruleFixers: {},
       ruleCapabilities: {
         'custom-rule': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
@@ -218,11 +218,11 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             ruleCapabilities: {
               'rule-1': {
                 speed: 'light',
                 phase: 'normal',
-                fix: 'none',
                 md: false,
                 ast: false,
                 changedOnly: false,

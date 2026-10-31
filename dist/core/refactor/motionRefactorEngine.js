@@ -1,5 +1,5 @@
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, isSameFilePath } from "./refactorFileScanner.js";
 import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validate_gsap_animations.js";
 import path from "node:path";
@@ -192,8 +192,9 @@ function inspectSourceFile(sf, lineOffset, fileLines, findings) {
 var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-motion";
 	configSectionKey = "animation";
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof ValidateGsapAnimationsAuditor ? auditorOrOptions : new ValidateGsapAnimationsAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new ValidateGsapAnimationsAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {
@@ -220,7 +221,7 @@ var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine
 			".mjs",
 			".vue"
 		].includes(ext)) return [];
-		let fileContent = "";
+		let fileContent;
 		try {
 			fileContent = fs.readFileSync(filePath, "utf-8");
 		} catch {

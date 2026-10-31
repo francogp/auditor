@@ -1,27 +1,31 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import type ts from 'typescript';
-import { SharedAstContext } from '../../core/astContext.ts';
-import {
-  BaseAuditor,
-  FileScanAuditor,
-  createRuleCapabilities,
-  createUniformRemediationPhases,
-  resolveFileScanRoots
-} from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isTestPath } from '../../core/auditTestPredicates.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { isPathExempt, toPosixRelative } from '../../core/safePath.ts';
+
 import {
   MODERN_SECURITY_RULES,
   analyzeModernSecurityScriptAst,
   analyzeExternalSriHtml,
   analyzeGithubActionsWorkflowYaml,
-  type ModernSecurityFinding,
-  type ModernSecurityRuleId
+  type ModernSecurityFinding
 } from '../../analyzers/securityModernAstAnalyzer.ts';
+import { SharedAstContext } from '../../core/astContext.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { RuleFixContext } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  FileScanAuditor,
+  type FileScanRootsOptions,
+  createRuleCapabilities,
+  createUniformRemediationPhases,
+  resolveFileScanRoots
+} from '../../core/auditorBase.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { isPathExempt } from '../../core/reportUtils.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -39,22 +43,51 @@ export const SECURITY_HARDENING_RULES = [
 
 export type SecurityHardeningRuleId = (typeof SECURITY_HARDENING_RULES)[number];
 
-const FIXABLE_SECURITY_RULES: readonly SecurityHardeningRuleId[] = [
-  'security-postmessage-origin-validation',
-  'security-external-sri-missing',
-  'security-cookie-samesite-partitioned',
-  'ci-github-actions-script-injection'
-];
+export function getGithubWorkflowFiles(projectRoot: string): string[] {
+  const workflowsDir = path.join(projectRoot, '.github', 'workflows');
+  if (!fs.existsSync(workflowsDir)) return [];
+  return fs
+    .readdirSync(workflowsDir, { withFileTypes: true })
+    .filter((e) => e.isFile() && (e.name.endsWith('.yml') || e.name.endsWith('.yaml')))
+    .map((e) => path.join(workflowsDir, e.name));
+}
+
+export function repairGithubActionsWorkflows(
+  context: RuleFixContext<'ci-github-actions-script-injection'>
+): boolean {
+  const projectRoot = context.projectRoot;
+  const config = getAuditConfig(projectRoot);
+  const exemptPaths = config.security?.exemptPaths ?? [];
+
+  for (const fullPath of getGithubWorkflowFiles(projectRoot)) {
+    const rel = toPosixRelative(projectRoot, fullPath);
+    if (isPathExempt(rel, exemptPaths)) continue;
+    const content = fs.readFileSync(fullPath, 'utf-8');
+    const yamlRes = analyzeGithubActionsWorkflowYaml(content, true);
+    if (yamlRes.fixedContent !== undefined && yamlRes.fixedContent !== content) {
+      fs.writeFileSync(fullPath, yamlRes.fixedContent, 'utf-8');
+    }
+  }
+  return true;
+}
 
 const SCANNABLE_EXTS = new Set(['.ts', '.js', '.vue', '.html', '.yml', '.yaml']);
 
 export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHardeningRuleId> {
   private readonly astCache = new SharedAstContext();
 
-  constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const securityRoots = resolveFileScanRoots(options);
     const secConfig = getAuditConfig(securityRoots.effectiveRoot);
     super({
+      ruleFixers: {
+        'ci-github-actions-script-injection': repairGithubActionsWorkflows
+      },
+      fixableRuleIds: [
+        'security-postmessage-origin-validation',
+        'security-cookie-samesite-partitioned',
+        'security-external-sri-missing'
+      ],
       id: 'validate_security_hardening',
       name: 'Security Hardening & Threat Boundary Auditor',
       description: 'Security hardening, OWASP Top 10, and SSRF',
@@ -66,7 +99,6 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
-      fix: options.fix,
       roots: securityRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SECURITY_HARDENING_RULES,
@@ -180,7 +212,7 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
           '📖 REMEDIATION GUIDE: security-external-sri-missing\n' +
           '1. Root Cause: An external third-party `<script src="https://...">` or `<link rel="stylesheet" href="https://...">` lacks Subresource Integrity (`integrity="sha384-..."`) or `crossorigin="anonymous"`, exposing the app to CDN supply-chain tampering.\n' +
           '2. Diagnosis: Locate the external `<script>` or `<link>` tag in `index.html`.\n' +
-          '3. Canonical Solution: Add `integrity="sha384-..."` and `crossorigin="anonymous"`. Run `npm run auditor:fix` to inject missing `crossorigin="anonymous"` when `integrity` is present.\n' +
+          '3. Canonical Solution: Add `integrity="sha384-..."` and `crossorigin="anonymous"`. Obtain genuine cryptographic digest from vendor or CDN provider.\n' +
           '4. Example / Auto-fix command:\n' +
           '   ❌ Unverified: `<script src="https://cdn.example.com/lib.js" defer></script>`\n' +
           '   ✅ Verified:   `<script src="https://cdn.example.com/lib.js" integrity="sha384-..." crossorigin="anonymous" defer></script>`',
@@ -201,20 +233,14 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
           '   ❌ Vulnerable: `run: echo "${{ github.event.pull_request.title }}"`\n' +
           '   ✅ Hardened:   `env: { GH_PULL_REQUEST_TITLE: "${{ github.event.pull_request.title }}" }` + `run: echo "$GH_PULL_REQUEST_TITLE"`'
       },
-      ruleCapabilities: createRuleCapabilities(
-        SECURITY_HARDENING_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: true,
-          changedOnly: true,
-          critical: true
-        },
-        FIXABLE_SECURITY_RULES
-      ),
-      fixableRuleIds: FIXABLE_SECURITY_RULES,
+      ruleCapabilities: createRuleCapabilities(SECURITY_HARDENING_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: true,
+        changedOnly: true,
+        critical: true
+      }),
       projectRoot: securityRoots.effectiveRoot,
       coverage: deriveCoverageFromRoots(
         securityRoots.targetRoots,
@@ -244,7 +270,8 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
               severity: 'error',
               message: f.message,
               file: rel,
-              line: f.line
+              line: f.line,
+              fixable: f.fixable
             });
           }
           if (isFix && sriRes.fixedContent !== undefined) {
@@ -255,41 +282,29 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
     }
 
     // Scan .github/workflows/*.{yml,yaml} specifically for `ci-github-actions-script-injection`
-    const workflowsDir = path.join(this.projectRoot, '.github', 'workflows');
-    if (fs.existsSync(workflowsDir)) {
-      const entries = fs.readdirSync(workflowsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isFile()) continue;
-        const ext = path.extname(entry.name).toLowerCase();
-        if (ext !== '.yml' && ext !== '.yaml') continue;
-        const fullPath = path.join(workflowsDir, entry.name);
-        const rel = toPosixRelative(this.projectRoot, fullPath);
-        if (isPathExempt(rel, this.exemptPaths)) continue;
-        const content = fs.readFileSync(fullPath, 'utf-8');
-        this.runSubAuditorSync('ci-github-actions-script-injection', () => {
-          const yamlRes = analyzeGithubActionsWorkflowYaml(content, isFix);
-          for (const f of yamlRes.findings) {
-            this.addViolation({
-              ruleId: 'ci-github-actions-script-injection',
-              severity: 'error',
-              message: f.message,
-              file: rel,
-              line: f.line
-            });
-          }
-          if (isFix && yamlRes.fixedContent !== undefined) {
-            fs.writeFileSync(fullPath, yamlRes.fixedContent, 'utf-8');
-          }
-        });
-      }
+    for (const fullPath of getGithubWorkflowFiles(this.projectRoot)) {
+      const rel = toPosixRelative(this.projectRoot, fullPath);
+      if (isPathExempt(rel, this.exemptPaths)) continue;
+      const content = fs.readFileSync(fullPath, 'utf-8');
+      this.runSubAuditorSync('ci-github-actions-script-injection', () => {
+        const yamlRes = analyzeGithubActionsWorkflowYaml(content, isFix);
+        for (const f of yamlRes.findings) {
+          this.addViolation({
+            ruleId: 'ci-github-actions-script-injection',
+            severity: 'error',
+            message: f.message,
+            file: rel,
+            line: f.line
+          });
+        }
+        if (isFix && yamlRes.fixedContent !== undefined && yamlRes.fixedContent !== content) {
+          fs.writeFileSync(fullPath, yamlRes.fixedContent, 'utf-8');
+        }
+      });
     }
   }
 
-  protected override scanFile(
-    relPath: string,
-    content: string,
-    sourceFile?: ts.SourceFile
-  ): void {
+  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     const lines = content.split('\n');
     const isTest = isTestPath(relPath);
 
@@ -365,11 +380,12 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
         for (const f of collectedSecurityFindings) {
           if (f.ruleId !== secRuleId) continue;
           this.addViolation({
-            ruleId: f.ruleId as ModernSecurityRuleId,
+            ruleId: f.ruleId,
             severity: 'error',
             message: f.message,
             file: relPath,
-            line: f.line
+            line: f.line,
+            fixable: f.fixable
           });
         }
       });

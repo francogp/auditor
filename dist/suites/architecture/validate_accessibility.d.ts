@@ -11,7 +11,6 @@ export declare class ValidateAccessibilityAuditor extends BaseAuditor<Accessibil
   private readonly astCache;
   constructor(options?: {
     projectRoot?: string;
-    fix?: boolean;
   });
   runAudit(): Promise<void>;
   private auditImgAlt;

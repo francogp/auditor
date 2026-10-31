@@ -1,23 +1,21 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { MODERN_SCSS_RULES, analyzeModernScss } from '../../analyzers/scssModernAnalyzer.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
   createRuleCapabilities,
   createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
-  resolveFileScanRoots
+  resolveFileScanRoots,
+  type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import { stripCommentsAndStrings } from '../../core/scannerUtils.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
-import {
-  MODERN_SCSS_RULES,
-  analyzeModernScss,
-  type ModernScssRuleId
-} from '../../analyzers/scssModernAnalyzer.ts';
 
 enableCompileCache();
 
@@ -32,17 +30,17 @@ export const SCSS_ARCHITECTURE_RULES = [
 
 export type ScssArchitectureRuleId = (typeof SCSS_ARCHITECTURE_RULES)[number];
 
-const FIXABLE_SCSS_RULES: readonly ScssArchitectureRuleId[] = [...MODERN_SCSS_RULES];
-
 const SCANNABLE_EXTS = new Set(['.scss', '.vue', '.css']);
 
 export type ScssBlockKind = 'selector' | 'atrule';
 
 export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchitectureRuleId> {
-  constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const scssRoots = resolveFileScanRoots(options);
     const scssConfig = getAuditConfig(scssRoots.effectiveRoot);
     super({
+      ruleFixers: {},
+      fixableRuleIds: [...MODERN_SCSS_RULES],
       id: 'validate_scss_architecture',
       name: 'SCSS Architecture & Distinctive Design Validator',
       description: 'SCSS architecture, tokenization, and distinctive styling',
@@ -54,7 +52,6 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
-      fix: options.fix,
       roots: scssRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: SCSS_ARCHITECTURE_RULES,
@@ -182,12 +179,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
           '   ❌ Incomplete: `:root { --bg: #fff; }`\n' +
           '   ✅ Complete:   `:root { color-scheme: light dark; --bg: #fff; }`'
       },
-      ruleCapabilities: createRuleCapabilities(
-        SCSS_ARCHITECTURE_RULES,
-        LIGHT_RULE_CAPABILITIES,
-        FIXABLE_SCSS_RULES
-      ),
-      fixableRuleIds: FIXABLE_SCSS_RULES,
+      ruleCapabilities: createRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: scssRoots.effectiveRoot,
       coverage: deriveCoverageFromRoots(
         scssRoots.targetRoots,
@@ -218,40 +210,40 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
 
       for (let i = sfc.styles.length - 1; i >= 0; i--) {
         const block = sfc.styles[i]!;
-          this.auditStyleBlockRules(
-            relPath,
-            block.content,
-            block.contentStartLine,
-            block.isScoped,
-            (fixedBlock) => {
-              updatedSfc =
-                updatedSfc.slice(0, block.contentStartIndex) +
-                fixedBlock +
-                updatedSfc.slice(block.contentStartIndex + block.content.length);
-              sfcMutated = true;
-            }
-          );
-        }
-
-        if (isFix && sfcMutated) {
-          fs.writeFileSync(absFile, updatedSfc, 'utf-8');
-        }
-      } else if (isScssFile || isCssFile) {
-        this.auditStyleBlockRules(relPath, content, 1, false, (fixedStyle) => {
-          fs.writeFileSync(absFile, fixedStyle, 'utf-8');
-        });
+        this.auditStyleBlockRules(
+          relPath,
+          block.content,
+          block.contentStartLine,
+          block.isScoped,
+          (fixedBlock) => {
+            updatedSfc =
+              updatedSfc.slice(0, block.contentStartIndex) +
+              fixedBlock +
+              updatedSfc.slice(block.contentStartIndex + block.content.length);
+            sfcMutated = true;
+          }
+        );
       }
-    }
 
-    private auditStyleBlockRules(
-      relPath: string,
-      styleContent: string,
-      startLine: number,
-      isScoped: boolean,
-      onFixed: (fixed: string) => void
-    ): void {
-      const isFix = this.isFixActive();
-      this.runSubAuditorSync('scss-deep-selector-abuse', () => {
+      if (isFix && sfcMutated) {
+        fs.writeFileSync(absFile, updatedSfc, 'utf-8');
+      }
+    } else if (isScssFile || isCssFile) {
+      this.auditStyleBlockRules(relPath, content, 1, false, (fixedStyle) => {
+        fs.writeFileSync(absFile, fixedStyle, 'utf-8');
+      });
+    }
+  }
+
+  private auditStyleBlockRules(
+    relPath: string,
+    styleContent: string,
+    startLine: number,
+    isScoped: boolean,
+    onFixed: (fixed: string) => void
+  ): void {
+    const isFix = this.isFixActive();
+    this.runSubAuditorSync('scss-deep-selector-abuse', () => {
       this.auditScssDeepSelectorAbuse(relPath, styleContent, startLine);
     });
     this.runSubAuditorSync('non-standard-spacing-unit', () => {
@@ -270,7 +262,7 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
         for (const finding of modernRes.findings) {
           if (finding.ruleId !== modRuleId) continue;
           this.addViolation({
-            ruleId: finding.ruleId as ModernScssRuleId,
+            ruleId: finding.ruleId,
             severity: 'error',
             file: relPath,
             line: finding.line,

@@ -14,19 +14,22 @@
  */
 
 import nodeFs from 'node:fs';
-import path from 'node:path';
-import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import type { AuditFinding } from '../../core/auditContract.ts';
+import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  getEffectiveUnignoreDirs,
-  getEffectiveIgnoreGlobs,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import {
+  getEffectiveIgnoreGlobs,
+  getEffectiveUnignoreDirs
+} from '../../core/canonicalIgnoreRegistry.ts';
 import { parseJsonArrayOutput, normalizePosixPath } from '../../core/reportUtils.ts';
 
 enableCompileCache();
@@ -165,9 +168,11 @@ export interface MarkdownLintAuditorOptions {
 }
 
 export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
-  constructor(options: MarkdownLintAuditorOptions = {}) {
+  public constructor(options: MarkdownLintAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['markdownlint-issue'],
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -175,20 +180,14 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'markdownlint-issue'
       },
-      ruleCapabilities: createRuleCapabilities(
-        MARKDOWN_LINT_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: true,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['markdownlint-issue']
-      ),
-      fixableRuleIds: ['markdownlint-issue'],
+      ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: true,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_markdown_lint',
       name: 'Markdownlint Style & Hygiene Validator',
       description: 'Style, spacing, and formatting in markdown documentation',
@@ -256,7 +255,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       this.markRuleEvaluated('markdownlint-issue');
     }
 
-    const isFixMode = this.isFixModeRequested();
+    const isFixMode = this.isFixActive();
     if (isFixMode && hasConfigFile) {
       this.repairMarkdownLintConfig(configPath);
     }
@@ -280,9 +279,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       timeout: EXECUTION_TIMEOUT_MS
     });
     const rawFindings = parseMarkdownLintIssues(combinedOutput, this.projectRoot);
-    const findings = isFixMode
-      ? rawFindings.map((f) => ({ ...f, fixable: false }))
-      : rawFindings;
+    const findings = isFixMode ? rawFindings.map((f) => ({ ...f, fixable: false })) : rawFindings;
 
     this.importAuditFindings(findings, 'markdownlint-issue', 'markdownlint');
 

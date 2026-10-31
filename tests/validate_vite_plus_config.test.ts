@@ -51,7 +51,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
     it('C-CFG-00: flags vite-plus-config-core and fails when vite.config.ts is absent', async () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
@@ -390,9 +390,8 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       fs.writeFileSync(path.join(tempDir, 'eslint.config.js'), 'export default [];');
       fs.writeFileSync(path.join(tempDir, '.nvmrc'), '26.11.1\n');
 
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      const result = await auditor.finishAudit();
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
       expect(fs.existsSync(path.join(tempDir, 'vite.config.ts'))).toBe(true);
@@ -556,9 +555,8 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), bareConfig);
 
       // Run with fix: true
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      const result = await auditor.finishAudit();
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
 
@@ -596,9 +594,8 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       `;
       fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), functionStyleConfig);
 
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      const result = await auditor.finishAudit();
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
 
@@ -657,7 +654,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       expect(fs.existsSync(tsdownPath)).toBe(false);
     });
 
-    it('C-CFG-20: resolves coverage degradations, coverage exempt globs, and dataRoots into ignorePatterns', () => {
+    it('C-CFG-20: strictly isolates subsystem ignores (coverage acknowledgedDegradations never contaminate lint ignorePatterns)', () => {
       const mockAuditConfig = defineAuditConfig({
         name: 'Exemption Globs Test',
         paths: {
@@ -677,9 +674,9 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
       const globs = resolveAuditConfigIgnoreGlobs(mockAuditConfig, 'lint', tempDir);
 
-      expect(globs).toContain('scripts/**');
+      // Subsystem isolation: coverage degradations must NEVER contaminate lint ignores
+      expect(globs).not.toContain('scripts/**');
       expect(globs).toContain('src/generated/**');
-      expect(globs).toContain('src/legacy/**');
       expect(globs).toContain('data/**');
       expect(globs).toContain('fixtures/**');
       expect(globs).toContain('demo/**');
@@ -953,7 +950,7 @@ export default defineConfig({
 
       // 2. Audit without fix -> should detect violation
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const compressionFindings = result.findings.filter(
         (f) => f.context === 'homebrew-compression'
@@ -961,8 +958,8 @@ export default defineConfig({
       expect(compressionFindings.length).toBeGreaterThan(0);
 
       // 3. Audit with fix -> should migrate vite.config.ts and delete the homebrew script
-      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await fixAuditor.execute();
+      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       expect(fs.existsSync(homebrewScript)).toBe(false);
       const updatedViteConfig = fs.readFileSync(viteConfigPath, 'utf-8');
@@ -1042,8 +1039,8 @@ export default defineConfig({
         'utf-8'
       );
 
-      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await fixAuditor.execute();
+      const fixAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       expect(fs.existsSync(homebrewScript)).toBe(false);
       const updatedAgentsMd = fs.readFileSync(agentsMdPath, 'utf-8');
@@ -1140,9 +1137,8 @@ export default defineConfig({
       const viteConfigPath = path.join(tempDir, 'vite.config.ts');
       fs.writeFileSync(viteConfigPath, contaminatedConfig, 'utf-8');
 
-      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir, fix: true });
-      await auditor.runAudit();
-      const result = await auditor.finishAudit();
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
 
       const synced = fs.readFileSync(viteConfigPath, 'utf-8');
@@ -1159,7 +1155,7 @@ export default defineConfig({
 
       // 4. Audit should now pass clean
       const verifyAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      const verifyResult = await verifyAuditor.execute();
+      const verifyResult = await verifyAuditor.audit();
       const tsFindings = verifyResult.findings.filter((f) => f.ruleId === 'vite-plus-config-ts');
       expect(tsFindings).toHaveLength(0);
     });
@@ -1259,6 +1255,63 @@ export default defineConfig({
         (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'test.projects.unit.include'
       );
       expect(missingRootFinding).toBeDefined();
+    });
+
+    it('C-CFG-66: flags unsynchronized extra ignores in lint.ignorePatterns and purges them on auto-fix', async () => {
+      const config = defineAuditConfig({
+        name: 'Strict Ignore Sync Test',
+        paths: {
+          codeRoots: ['src'],
+          testRoots: ['tests'],
+          ignoreGlobs: ['dist/**']
+        }
+      });
+      setAuditConfig(config, tempDir);
+
+      const unalignedConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {},
+            ignorePatterns: [
+              'src/cli/**',
+              'src/core/**',
+              'dist/**'
+            ]
+          },
+          fmt: { ignorePatterns: ['dist/**'] },
+          staged: {},
+          test: { environment: 'node' }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), unalignedConfig);
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const extraFindings = auditResult.findings.filter(
+        (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'lint.ignorePatterns'
+      );
+      const unsyncedFinding = extraFindings.find((f) =>
+        f.message.includes('Unsynchronized exclusion patterns detected')
+      );
+      expect(unsyncedFinding).toBeDefined();
+      expect(unsyncedFinding?.message).toContain('src/cli/**');
+
+      await auditor.fix();
+      const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const secondAudit = await secondAuditor.audit();
+      const remainingUnsynced = secondAudit.findings.filter(
+        (f) =>
+          f.ruleId === 'vite-plus-config-ts' &&
+          f.context === 'lint.ignorePatterns' &&
+          f.message.includes('Unsynchronized exclusion patterns detected')
+      );
+      expect(remainingUnsynced).toHaveLength(0);
+
+      const fixedContent = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(fixedContent).not.toContain("'src/cli/**'");
+      expect(fixedContent).not.toContain("'src/core/**'");
+      expect(fixedContent).toContain("'dist/**'");
     });
   });
 });

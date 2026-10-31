@@ -53,6 +53,7 @@ var PiniaReactivityAuditor = class extends FileScanAuditor {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths.srcRoots ?? []);
 		const config = getAuditConfig(effectiveRoot);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			roots: targetRoots,
@@ -60,7 +61,6 @@ var PiniaReactivityAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(PINIA_REACTIVITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

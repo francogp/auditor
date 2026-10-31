@@ -24,15 +24,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -102,7 +106,7 @@ export interface SqlAntiPatternsAuditorOptions {
 export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private readonly configuredMigrationsDir: string;
 
-  constructor(options: SqlAntiPatternsAuditorOptions = {}) {
+  public constructor(options: SqlAntiPatternsAuditorOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const migrationsDirRel =
@@ -116,12 +120,12 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
     const sqlRoots = Array.from(new Set([migrationsDirRel, ...allowedDbDirs, ...srcRoots]));
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(SQL_ANTI_PATTERN_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -147,13 +151,13 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       ruleRemediations: {
         'sql-no-positional-arrays':
           '📖 REMEDIATION GUIDE: sql-no-positional-arrays\n' +
-          '1. Root Cause: Attempted to mutate or query JSONB arrays in SQL using fixed positional indexes (e.g.: `jsonb_set(col, \'{0}\', ...)` or `col->0`). Numeric indexes in JSON arrays are fragile to ordering and violate normalized relational design.\n' +
+          "1. Root Cause: Attempted to mutate or query JSONB arrays in SQL using fixed positional indexes (e.g.: `jsonb_set(col, '{0}', ...)` or `col->0`). Numeric indexes in JSON arrays are fragile to ordering and violate normalized relational design.\n" +
           '2. Diagnosis: Locate positional manipulation in the reported SQL query or function.\n' +
           '3. Canonical Solution:\n' +
           '   a) If elements have identity, model the relationship as a 1:N relational child table.\n' +
           '   b) If it must be JSON, manipulate the entire array in-memory in application layer or use named object keys instead of positional arrays.\n' +
           '4. Example:\n' +
-          '   ❌ Positional: `UPDATE profile SET tags = jsonb_set(tags, \'{0}\', \'"admin"\')`\n' +
+          "   ❌ Positional: `UPDATE profile SET tags = jsonb_set(tags, '{0}', '\"admin\"')`\n" +
           '   ✅ Normalized: Use relational table `user_tags (user_id, tag)`.',
         'sql-plpgsql-declared-variables':
           '📖 REMEDIATION GUIDE: sql-plpgsql-declared-variables\n' +

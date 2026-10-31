@@ -1,6 +1,6 @@
-# Host Project Migration Guide: Upgrading to @francogp/auditor v8
+# Host Project Legacy Migration Guide: Upgrading Outdated Versions to Modern @francogp/auditor
 
-This guide outlines the step-by-step procedure, technical rationale, and friction points encountered when upgrading host applications (such as `PokeBorrador`) from `@francogp/auditor` v7 to v8.
+This guide outlines the step-by-step procedure, technical rationale, and friction points encountered when upgrading host applications and sub-auditors from legacy versions (v7, v8, v9) to modern `@francogp/auditor` standards.
 
 ---
 
@@ -79,9 +79,9 @@ export interface AuditorRuleCapabilities {
 | `phase: 'normal'` | `phase: 'normal'` | Standard source audit |
 | `postRun: true` | `phase: 'post-run'` | Sequential execution post-audit (coverage flush) |
 | `requiresBuild: true` | `phase: 'post-build'` | Executed against `dist/` via `auditor:post-build` |
-| `fix: false` | `fix: 'none'` | Non-auto-fixable rule |
-| `fix: true, fixPriority: false` | `fix: 'normal'` | Standard auto-fixable rule |
-| `fixPriority: true` | `fix: 'priority'` | Executed first during `auditor fix` |
+| `fix: false` | Derived automatically (`fix: 'none'`) | Non-auto-fixable rule (no registered fixer) |
+| `fix: true, fixPriority: false` | Derived automatically (`fix: 'normal'`) | Derived from registered `ruleFixers` |
+| `fixPriority: true` | Derived automatically (`fix: 'priority'`) | Priority auto-fix (setup/config suites) |
 | `ast: boolean` | `ast: boolean` | Preheats shared TypeScript AST |
 | `md: boolean` | `md: boolean` | Included in markdown-only preset |
 | `changedSince: boolean` | `changedOnly: boolean` | Differential git diff scoping (`changedSince` eradicated) |
@@ -101,7 +101,6 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -126,7 +125,6 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
         {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: true,
           changedOnly: false,
@@ -273,3 +271,60 @@ After updating extensions and scripts:
    ```
 
    Ensures `auditor:full` ➔ compile ➔ `auditor:post-build` executes smoothly end-to-end.
+
+---
+
+## 🏛️ 6. Zero Backward Compatibility, Strict Interface Masking & Entity Registries Modernization
+
+Modern versions of `@francogp/auditor` enforce a strict Zero Backward Compatibility policy (`RULE[AGENTS.md]`). Legacy tolerance, fallback wrappers, and unmigrated alias methods are permanently eradicated.
+
+### 6.1 Eradication of Registry Alias Methods (`count()` -> `size`)
+
+In legacy versions, entity registries exposed an alias method `count(): number`. Under the new standard, all entity registries (`BaseEntityRegistry`, `GitIgnoreRegistry`, `PackageScriptRegistry`, `ConfigFileRegistry`, `SuiteIgnoreRegistry`, `HomebrewDetectorRegistry`) implement `IBaseEntityRegistry<TItem>` and expose the standard getter:
+
+```ts
+// ❌ Deprecated legacy pattern (fails loudly in modern auditor)
+const total = registry.count();
+
+// ✅ Canonical modern pattern
+const total = registry.size;
+```
+
+### 6.2 Strict 3-Layer Interface Masking & Prototype Introspection
+
+All framework registries and engines are protected against accidental alias methods or private implementation leaks through a 3-layer verification model:
+
+1. **Compile-time Exact Invariance**: Evaluated in dedicated test canaries using `AssertNever<Exclude<keyof Target, keyof Interface>>`, guaranteeing zero uncontracted public members.
+2. **Interface Masking**: Singletons are exported typed strictly as their canonical interfaces:
+
+   ```ts
+   export const SuiteIgnoreRegistry: ISuiteIgnoreRegistry = new SuiteIgnoreRegistryImpl();
+   export const GitIgnoreRegistry: IGitIgnoreRegistry = new GitIgnoreRegistryImpl();
+   export const ConfigFileRegistry: IConfigFileRegistry = new ConfigFileRegistryImpl();
+   export const PackageScriptRegistry: IPackageScriptRegistry = new PackageScriptRegistryImpl();
+   export const HomebrewDetectorRegistry: IHomebrewDetectorRegistry = new HomebrewDetectorRegistryImpl();
+   ```
+
+3. **Runtime Prototype Purity**: Verified by `tests/zero_backward_compatibility_mandate.test.ts` against explicit module-level allowed sets (`REGISTRY_ALLOWED_PROTO_METHODS`).
+
+### 6.3 Single Options Object Constructor Mandate
+
+Positional constructor arguments (e.g. `new SubAuditor(roots, projectRoot)`) or string shortcuts are strictly prohibited. All sub-auditor classes extending `BaseAuditor` or `FileScanAuditor` must receive a single typed options object:
+
+```ts
+// ❌ Deprecated positional pattern (fails compilation & runtime contracts)
+const auditor = new MyCustomAuditor(['src'], '/path/to/project');
+
+// ✅ Canonical typed options object pattern
+const auditor = new MyCustomAuditor({
+  roots: ['src'],
+  projectRoot: '/path/to/project'
+});
+```
+
+### 6.4 BaseRefactorEngine SSoT Delegation & Dynamic Test Gating
+
+All refactoring tools (`auditor:magic`, `auditor:dupes`, `auditor:domain`, `auditor:motion`, `auditor:o1`, `auditor:types`) implement `IRefactorEngine` and inherit from `BaseRefactorEngine`. In modern versions:
+
+- `getScannableFiles()` delegates 100% to `this.auditor.getScannableFiles().filter((f) => this.isPathScannable(f))`.
+- `isPathScannable(relPath)` dynamically gates test files via `if (!this.shouldIncludeTests() && isTestPath(relPath, this.projectRoot)) return false;`, ensuring strict adherence to `paths.includeTestsInCodeAudit`.

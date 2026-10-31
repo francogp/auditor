@@ -13,18 +13,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  BaseAuditor,
-  createUniformRuleCapabilities,
-  createUniformRemediationPhases
-} from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-import { safeReadFileSync, tryOrNull } from '../../core/safeUtils.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import path from 'node:path';
 
 import ts from 'typescript';
+
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createRuleCapabilities,
+  createUniformRemediationPhases
+} from '../../core/auditorBase.ts';
+import { safeReadFileSync, tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -96,20 +97,11 @@ export const MANDATORY_STRICT_OPTIONS: readonly (keyof TsCompilerOptionsShape)[]
   'useUnknownInCatchVariables'
 ] as const;
 
-export const VALID_MODULE_RESOLUTIONS = [
-  'bundler',
-  'node16',
-  'nodenext'
-] as const;
+export const VALID_MODULE_RESOLUTIONS = ['bundler', 'node16', 'nodenext'] as const;
 
-export const VALID_TARGETS = [
-  'es2025',
-  'esnext'
-] as const;
+export const VALID_TARGETS = ['es2025', 'esnext'] as const;
 
-export const BANNED_COMPILER_OPTIONS = [
-  'suppressImplicitAnyIndexErrors'
-] as const;
+export const BANNED_COMPILER_OPTIONS = ['suppressImplicitAnyIndexErrors'] as const;
 
 export const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId> = {
   id: 'tsconfig-config',
@@ -122,12 +114,11 @@ export const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId> 
 
 export interface ValidateTsconfigOptions {
   readonly projectRoot?: string;
-  readonly fix?: boolean;
   readonly configFile?: string;
 }
 
 export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
-  constructor(options: ValidateTsconfigOptions = {}) {
+  public constructor(options: ValidateTsconfigOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<TsConfigRuleId> = {
@@ -141,23 +132,22 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     };
 
     super({
+      ruleFixers: {},
+      fixableRuleIds: [
+        'tsconfig-missing-strict-compiler-option',
+        'tsconfig-banned-option',
+        'tsconfig-missing-source-include'
+      ],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createUniformRuleCapabilities(TSCONFIG_RULES, {
+      ruleCapabilities: createRuleCapabilities(TSCONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: false,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'tsconfig-missing',
-        'tsconfig-missing-strict-compiler-option',
-        'tsconfig-banned-option',
-        'tsconfig-missing-source-include'
-      ],
       configFiles: [configRequirement],
       id: 'validate_tsconfig',
       name: 'TypeScript Configuration Validator',
@@ -219,7 +209,6 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       },
       cachePaths: ['.tsbuildinfo'],
       projectRoot,
-      fix: options.fix,
       ...options
     });
   }
@@ -237,7 +226,10 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       );
       if (!ensured) {
         this.markRuleNotApplicable('tsconfig-syntax', 'Missing tsconfig.json file');
-        this.markRuleNotApplicable('tsconfig-missing-strict-compiler-option', 'Missing tsconfig.json file');
+        this.markRuleNotApplicable(
+          'tsconfig-missing-strict-compiler-option',
+          'Missing tsconfig.json file'
+        );
         this.markRuleNotApplicable('tsconfig-banned-option', 'Missing tsconfig.json file');
         this.markRuleNotApplicable('tsconfig-missing-source-include', 'Missing tsconfig.json file');
         return;
@@ -381,9 +373,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       }
 
       // Check target (minimum ES2025 / ESNext standard for Node.js 26+)
-      const targetOpt = compilerOptions.target
-        ? String(compilerOptions.target).toLowerCase()
-        : '';
+      const targetOpt = compilerOptions.target ? String(compilerOptions.target).toLowerCase() : '';
       if (!VALID_TARGETS.some((v) => v === targetOpt)) {
         if (isFix) {
           compilerOptions.target = 'ES2025';
@@ -429,8 +419,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
             severity: 'error',
             file: relPath,
             line: 1,
-            message:
-              'compilerOptions.noImplicitThis: false is prohibited. Must be true or removed.'
+            message: 'compilerOptions.noImplicitThis: false is prohibited. Must be true or removed.'
           });
         }
       }
@@ -469,11 +458,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
     this.runSubAuditorSync('tsconfig-missing-source-include', () => {
       if (parsedConfig.include && Array.isArray(parsedConfig.include)) {
         const hasSrc = parsedConfig.include.some(
-          (p) =>
-            p === 'src' ||
-            p.startsWith('src/') ||
-            p === './src' ||
-            p.startsWith('./src/')
+          (p) => p === 'src' || p.startsWith('src/') || p === './src' || p.startsWith('./src/')
         );
         if (!hasSrc) {
           if (isFix) {

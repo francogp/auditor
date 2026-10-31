@@ -35,11 +35,10 @@ export async function doTask(): Promise<void> {
 
     const auditor = new ErrorSuppressionAuditor({
       projectRoot: tempDir,
-      roots: [tempDir],
-      fix: false
+      roots: [tempDir]
     });
 
-    await auditor.runAudit();
+    await auditor.audit();
 
     const counts = auditor.getCountsByRule();
     expect(counts.get('no-empty-catch')).toBe(1);
@@ -71,11 +70,10 @@ export async function runService(): Promise<void> {
 
     const auditor = new ErrorSuppressionAuditor({
       projectRoot: tempDir,
-      roots: [tempDir],
-      fix: true
+      roots: [tempDir]
     });
 
-    await auditor.runAudit();
+    await auditor.fix();
 
     const counts = auditor.getCountsByRule();
     expect(counts.get('no-empty-catch') ?? 0).toBe(0);
@@ -103,11 +101,10 @@ export function parseData(): void {
 
     const auditor = new ErrorSuppressionAuditor({
       projectRoot: tempDir,
-      roots: [tempDir],
-      fix: true
+      roots: [tempDir]
     });
 
-    await auditor.runAudit();
+    await auditor.fix();
 
     const counts = auditor.getCountsByRule();
     expect(counts.get('strict-catch-narrowing')).toBe(1);

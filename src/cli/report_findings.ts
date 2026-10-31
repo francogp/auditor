@@ -5,6 +5,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
+
+import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
 import type {
   ConsolidatedAuditReport,
   AuditFinding,
@@ -19,20 +21,6 @@ import {
   isRemediationPhaseId
 } from '../core/auditContract.ts';
 import {
-  REMEDIATION_PHASE_IDS,
-  REMEDIATION_PHASES
-} from '../core/remediationPhases.ts';
-import { getAuditConfig, DEFAULT_MAX_AUDIT_STALENESS_MINUTES } from '../core/auditConfig.ts';
-import { toPosixRelative, isPathContained } from '../core/safePath.ts';
-import {
-  renderBanner,
-  buildNoticeBox,
-  renderFindingsBreakdownTable,
-  renderSampleFindings,
-  renderFindingsByFileTree
-} from '../core/unifiedTheme.ts';
-import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
-import {
   COMMON_CLI_ARGS,
   CONSOLE_FORMAT_VALUES,
   defineCommand,
@@ -44,6 +32,16 @@ import {
   type CittyArgsDef,
   type ParsedArgs
 } from '../core/cli/cittyHarness.ts';
+import { REMEDIATION_PHASE_IDS, REMEDIATION_PHASES } from '../core/remediationPhases.ts';
+import { toPosixRelative, isPathContained } from '../core/safePath.ts';
+import {
+  renderBanner,
+  buildNoticeBox,
+  renderFindingsBreakdownTable,
+  renderSampleFindings,
+  renderFindingsByFileTree
+} from '../core/unifiedTheme.ts';
+import { isMainModule, bootstrapCliProject, isHumanConsoleMode } from './cliUtils.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const DEFAULT_SAMPLE_ERROR_LIMIT = 5;
@@ -95,7 +93,8 @@ const REPORT_FINDINGS_ARGS = {
   ...COMMON_CLI_ARGS,
   phase: {
     type: 'string',
-    description: 'Filter findings by strategic phase (setup, prune, dedup, contracts, behavior, hygiene, polish, next)'
+    description:
+      'Filter findings by strategic phase (setup, prune, dedup, contracts, behavior, hygiene, polish, next)'
   },
   fase: {
     type: 'string',
@@ -310,6 +309,7 @@ function parseScopeFilter(raw: unknown): ReportScope | null {
 
 function parseTopOption(raw: unknown): number | 'all' {
   if (raw === undefined || raw === null || raw === '') return DEFAULT_TOP_LIMIT;
+  if (typeof raw !== 'string' && typeof raw !== 'number') return DEFAULT_TOP_LIMIT;
   const str = String(raw).trim().toLowerCase();
   if (str === 'all' || str === '0') return 'all';
   const num = Number(str);
@@ -318,10 +318,7 @@ function parseTopOption(raw: unknown): number | 'all' {
 
 type ReportFindingsArgs = ParsedArgs<typeof REPORT_FINDINGS_ARGS>;
 
-function applyNamedFilterArgs(
-  parsed: ReportFindingsArgs,
-  opts: ReportOptions
-): void {
+function applyNamedFilterArgs(parsed: ReportFindingsArgs, opts: ReportOptions): void {
   const phase = parsePhaseFilter(parsed.phase);
   if (phase && phase !== 'all') {
     opts.phase = phase;
@@ -398,10 +395,7 @@ const POSITIONAL_FLAG_MAP: Readonly<Record<string, (opts: ReportOptions) => void
   }
 };
 
-const EXCLUDED_BARE_TOKENS: ReadonlySet<string> = new Set([
-  ...CONSOLE_FORMAT_VALUES,
-  'help'
-]);
+const EXCLUDED_BARE_TOKENS: ReadonlySet<string> = new Set([...CONSOLE_FORMAT_VALUES, 'help']);
 
 function applyPositionalTokens(tokens: readonly string[], opts: ReportOptions): void {
   for (const token of tokens) {
@@ -432,9 +426,7 @@ function applyPositionalTokens(tokens: readonly string[], opts: ReportOptions): 
   }
 }
 
-function parseReportOptions(
-  inputArgs?: ReportFindingsArgs | readonly string[]
-): ReportOptions {
+function parseReportOptions(inputArgs?: ReportFindingsArgs | readonly string[]): ReportOptions {
   const isParsedObject =
     inputArgs !== undefined &&
     inputArgs !== null &&
@@ -502,7 +494,9 @@ function loadAuditReport(inspectFix: boolean = false): AuditReport | null {
     }
     return parsed;
   } catch (e) {
-    console.error(`[Error] Failed to parse scratch/audits/${targetFileName}: ${(e as Error).message}`);
+    console.error(
+      `[Error] Failed to parse scratch/audits/${targetFileName}: ${(e as Error).message}`
+    );
     return null;
   }
 }
@@ -570,28 +564,19 @@ function validateReportFreshnessAndScope(report: AuditReport, args: ReportOption
           'red',
           `[Error] scratch/audits/${targetFileName} is STALE (${elapsedMins} minutes old, limit: ${limitMins} min).\n`
         ) +
-          styleText(
-            'yellow',
-            `   Source code may have changed since last audit.\n`
-          ) +
-          styleText(
-            'cyan',
-            `   Run 'npm run auditor' to regenerate and validate report.`
-          )
+          styleText('yellow', `   Source code may have changed since last audit.\n`) +
+          styleText('cyan', `   Run 'npm run auditor' to regenerate and validate report.`)
       );
       process.exit(1);
     }
   } catch (err) {
-    if ((err as Error).message.includes('STALE') || (err as Error).message.includes('OBSOLETO')) throw err;
+    if ((err as Error).message.includes('STALE') || (err as Error).message.includes('OBSOLETO'))
+      throw err;
     console.error(
       styleText(
         'red',
         `[Error] scratch/audits/${targetFileName} contains an invalid timestamp ('${report.meta.timestamp}').\n`
-      ) +
-        styleText(
-          'cyan',
-          `   Run 'npm run auditor' to regenerate and validate report.`
-        )
+      ) + styleText('cyan', `   Run 'npm run auditor' to regenerate and validate report.`)
     );
     process.exit(1);
   }
@@ -744,7 +729,10 @@ function matchesPathFilters(f: Finding, args: ReportOptions): boolean {
   if (args.filePattern) {
     if (!f.file) return false;
     const lowerFile = f.file.toLowerCase();
-    const patterns = args.filePattern.split(',').map((p) => p.trim()).filter(Boolean);
+    const patterns = args.filePattern
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
     const matchesAny = patterns.some((p) => lowerFile.includes(p));
     if (!matchesAny) return false;
   }
@@ -779,7 +767,9 @@ function checkFindingMatchesFilter(f: Finding, catKey: string, args: ReportOptio
   if (args.rulePattern) {
     const cleanRule = args.rulePattern.toLowerCase();
     const inRuleId = f.ruleId ? f.ruleId.toLowerCase().includes(cleanRule) : false;
-    const inRuleDesc = f.ruleDescription ? f.ruleDescription.toLowerCase().includes(cleanRule) : false;
+    const inRuleDesc = f.ruleDescription
+      ? f.ruleDescription.toLowerCase().includes(cleanRule)
+      : false;
     if (!inRuleId && !inRuleDesc) return false;
   }
   if (args.severity !== 'all' && f.severity !== args.severity) return false;
@@ -795,7 +785,10 @@ function filterMatchingFindings(
   filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }>;
   matchingFindings: Finding[];
 } {
-  const filteredCategories: Record<string, { errors: number; warnings: number; findings: Finding[] }> = {};
+  const filteredCategories: Record<
+    string,
+    { errors: number; warnings: number; findings: Finding[] }
+  > = {};
   const matchingFindings: Finding[] = [];
 
   for (const [catName, data] of Object.entries(categoryCounts)) {
@@ -956,7 +949,9 @@ function renderFindingsDetailSample(
       if (args.human) {
         console.log(renderSampleFindings(allErrors, limit));
       } else {
-        console.log(`\n[Errors] Top ${Math.min(limit, allErrors.length)} of ${allErrors.length} error(s):`);
+        console.log(
+          `\n[Errors] Top ${Math.min(limit, allErrors.length)} of ${allErrors.length} error(s):`
+        );
         allErrors.slice(0, limit).forEach((f, idx) => {
           const loc = formatFindingLocation(f);
           const ruleTag = f.ruleId ? `[${f.ruleId}] ` : '';
@@ -980,7 +975,9 @@ function renderRulesView(matchingFindings: Finding[], args: ReportOptions): void
       console.log(styleText('green', '[OK] No findings match active filters.'));
       return;
     }
-    console.log(`\n[ByRule] ${sortedRules.length} rule(s) violated (${matchingFindings.length} findings):`);
+    console.log(
+      `\n[ByRule] ${sortedRules.length} rule(s) violated (${matchingFindings.length} findings):`
+    );
     for (const [ruleId, stats] of rulesToDisplay) {
       console.log(`• [${ruleId}]: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
     }
@@ -989,9 +986,7 @@ function renderRulesView(matchingFindings: Finding[], args: ReportOptions): void
   }
 
   const bannerTitle =
-    args.category !== 'all'
-      ? `BREAKDOWN BY RULE (${args.category})`
-      : 'AUDIT RULE BREAKDOWN';
+    args.category !== 'all' ? `BREAKDOWN BY RULE (${args.category})` : 'AUDIT RULE BREAKDOWN';
   console.log(
     '\n' +
       renderBanner(
@@ -1010,7 +1005,9 @@ function renderBreakdownView(matchingFindings: Finding[], args: ReportOptions): 
       console.log(styleText('green', '[OK] No findings match active filters.'));
       return;
     }
-    console.log(`\n[Breakdown] ${sortedDirs.length} scope(s) affected (${matchingFindings.length} findings):`);
+    console.log(
+      `\n[Breakdown] ${sortedDirs.length} scope(s) affected (${matchingFindings.length} findings):`
+    );
     for (const [dir, stats] of sortedDirs) {
       console.log(`• ${dir}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
     }
@@ -1047,7 +1044,9 @@ function renderFilesOnlyView(
       console.log(styleText('green', '[OK] No findings match active filters.'));
       return;
     }
-    console.log(`\n[Files] ${sortedFiles.length} file(s) affected (${matchingFindings.length} findings):`);
+    console.log(
+      `\n[Files] ${sortedFiles.length} file(s) affected (${matchingFindings.length} findings):`
+    );
     for (const [file, stats] of filesToDisplay) {
       console.log(`• ${file}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
     }
@@ -1082,9 +1081,7 @@ function renderByFileCompact(
   }
   console.log(`\n[ByFile] ${fileSummaries.length} file(s) affected (${totalFindings} findings):`);
   const limit =
-    typeof args.top === 'number'
-      ? Math.min(args.top, fileSummaries.length)
-      : fileSummaries.length;
+    typeof args.top === 'number' ? Math.min(args.top, fileSummaries.length) : fileSummaries.length;
   for (const fs of fileSummaries.slice(0, limit)) {
     console.log(`• ${fs.file} (${fs.errors} error(s), ${fs.warnings} warning(s))`);
     if (!args.summaryOnly) {
@@ -1149,13 +1146,7 @@ function renderByFileView(
   }
 
   if (!args.human) {
-    renderByFileCompact(
-      fileSummaries,
-      matchingFindings.length,
-      totalErrors,
-      totalWarnings,
-      args
-    );
+    renderByFileCompact(fileSummaries, matchingFindings.length, totalErrors, totalWarnings, args);
     return;
   }
 
@@ -1165,9 +1156,7 @@ function renderByFileView(
       ? `Filters: ${filterLabels.join(', ')} | Files: ${fileSummaries.length} | Findings: ${matchingFindings.length}`
       : `Status: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Files: ${fileSummaries.length} | Findings: ${matchingFindings.length}`;
 
-  console.log(
-    '\n' + renderBanner('AUDIT FINDINGS GROUPED BY FILE AND LINE', subtitle)
-  );
+  console.log('\n' + renderBanner('AUDIT FINDINGS GROUPED BY FILE AND LINE', subtitle));
 
   if (fileSummaries.length === 0) {
     console.log(
@@ -1195,9 +1184,7 @@ function renderByFileView(
         ? Math.min(args.top, fileSummaries.length)
         : fileSummaries.length;
     console.log(
-      '\n' +
-        renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), 'AFFECTED FILE') +
-        '\n'
+      '\n' + renderFindingsBreakdownTable(tableEntries.slice(0, tableLimit), 'AFFECTED FILE') + '\n'
     );
   }
 
@@ -1220,7 +1207,10 @@ export interface ActiveRemediationPhaseResolution {
 export function resolveActiveRemediationPhase(
   allFindings: readonly Finding[]
 ): ActiveRemediationPhaseResolution | null {
-  const phaseStats: Record<RemediationPhaseId, { errors: number; warnings: number; total: number }> = {
+  const phaseStats: Record<
+    RemediationPhaseId,
+    { errors: number; warnings: number; total: number }
+  > = {
     setup: { errors: 0, warnings: 0, total: 0 },
     prune: { errors: 0, warnings: 0, total: 0 },
     dedup: { errors: 0, warnings: 0, total: 0 },
@@ -1235,9 +1225,7 @@ export function resolveActiveRemediationPhase(
 
   for (const f of allFindings) {
     const rawPhase = f.remediationPhase;
-    const p: RemediationPhaseId = rawPhase && isRemediationPhaseId(rawPhase)
-      ? rawPhase
-      : 'hygiene';
+    const p: RemediationPhaseId = rawPhase && isRemediationPhaseId(rawPhase) ? rawPhase : 'hygiene';
     if (f.severity === 'error') {
       phaseStats[p].errors++;
       totalErrors++;
@@ -1254,7 +1242,7 @@ export function resolveActiveRemediationPhase(
     if (phaseStats[p].errors > 0) {
       let postponedCount = 0;
       for (let j = i + 1; j < REMEDIATION_PHASE_IDS.length; j++) {
-        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!]!.total;
+        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!].total;
       }
       return {
         phase: p,
@@ -1273,7 +1261,7 @@ export function resolveActiveRemediationPhase(
     if (phaseStats[p].warnings > 0) {
       let postponedCount = 0;
       for (let j = i + 1; j < REMEDIATION_PHASE_IDS.length; j++) {
-        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!]!.total;
+        postponedCount += phaseStats[REMEDIATION_PHASE_IDS[j]!].total;
       }
       return {
         phase: p,
@@ -1297,39 +1285,37 @@ export function renderActivePhaseFocusBanner(
   const phaseOrder = meta.order;
   const title = meta.title;
 
-  const targetDesc = resolution.errors > 0
-    ? `${resolution.errors} error(s)` + (resolution.warnings > 0 ? ` and ${resolution.warnings} warning(s)` : '')
-    : `${resolution.warnings} warning(s)`;
-  const postponedDesc = resolution.postponedCount > 0
-    ? `Postponing ${resolution.postponedCount} downstream finding(s) in lower-priority phases to prevent premature fixes.`
-    : 'No downstream findings.';
+  const targetDesc =
+    resolution.errors > 0
+      ? `${resolution.errors} error(s)` +
+        (resolution.warnings > 0 ? ` and ${resolution.warnings} warning(s)` : '')
+      : `${resolution.warnings} warning(s)`;
+  const postponedDesc =
+    resolution.postponedCount > 0
+      ? `Postponing ${resolution.postponedCount} downstream finding(s) in lower-priority phases to prevent premature fixes.`
+      : 'No downstream findings.';
 
   if (isHuman) {
     return buildNoticeBox({
       borderColor: resolution.errors > 0 ? 'red' : 'yellow',
       title: `ACTIVE REMEDIATION PHASE ${phaseOrder}/7: ${meta.icon} ${title.toUpperCase()}`,
-      lines: [
-        `Focus: ${targetDesc} in this phase.`,
-        postponedDesc
-      ]
+      lines: [`Focus: ${targetDesc} in this phase.`, postponedDesc]
     });
   }
 
   const header = `[FOCUS] ACTIVE REMEDIATION PHASE ${phaseOrder}/7: ${title.toUpperCase()}`;
   const statusLine = `Target: ${targetDesc}.`;
-  const postponedLine = resolution.postponedCount > 0
-    ? `Postponed: ${resolution.postponedCount} downstream finding(s).`
-    : 'Downstream: clean.';
+  const postponedLine =
+    resolution.postponedCount > 0
+      ? `Postponed: ${resolution.postponedCount} downstream finding(s).`
+      : 'Downstream: clean.';
 
   return styleText(['bold', 'cyan'], `${header}\n  ${statusLine} ${postponedLine}\n`);
 }
 
 type FindingsCategoryEntry = [string, { errors: number; warnings: number; findings: Finding[] }];
 
-function handleActiveRemediationPhase(
-  args: ReportOptions,
-  allFindings: Finding[]
-): boolean {
+function handleActiveRemediationPhase(args: ReportOptions, allFindings: Finding[]): boolean {
   if (args.phase !== 'next') return true;
 
   const activeResolution = resolveActiveRemediationPhase(allFindings);
@@ -1409,7 +1395,10 @@ function renderCompactSummary(
     `\n[Summary] Status: ${report.status === 'passed' ? 'PASSED' : 'FAILED'} | Suites: ${report.summary.suitesPassed}/${report.summary.suitesTotal} | Violations: ${matchingFindings.length} (${report.summary.errors} errors, ${report.summary.warnings} warnings)`
   );
   console.log('\n[Categories]:');
-  for (const [name, stats] of sortedCategories.slice(0, typeof args.top === 'number' ? args.top : DEFAULT_TOP_LIMIT)) {
+  for (const [name, stats] of sortedCategories.slice(
+    0,
+    typeof args.top === 'number' ? args.top : DEFAULT_TOP_LIMIT
+  )) {
     console.log(`• ${name}: ${stats.errors} error(s), ${stats.warnings} warning(s)`);
   }
   console.log('');
@@ -1427,15 +1416,15 @@ function renderDefaultReportView(
 ): void {
   const hasSpecificFilter = Boolean(
     args.flat ||
-      args.suitePattern ||
-      args.rulePattern ||
-      args.search ||
-      args.filePattern ||
-      args.dirPattern ||
-      args.category !== 'all' ||
-      args.phase !== 'all' ||
-      args.severity !== 'all' ||
-      args.scope !== 'all'
+    args.suitePattern ||
+    args.rulePattern ||
+    args.search ||
+    args.filePattern ||
+    args.dirPattern ||
+    args.category !== 'all' ||
+    args.phase !== 'all' ||
+    args.severity !== 'all' ||
+    args.scope !== 'all'
   );
 
   const categoriesToRender = hasSpecificFilter ? filteredCategories : categoryCounts;
@@ -1510,5 +1499,8 @@ export const reportFindingsCommand = defineCommand({
 
 if (isMainModule(import.meta.url)) {
   bootstrapCliProject();
-  runMain(reportFindingsCommand);
+  runMain(reportFindingsCommand).catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
 }

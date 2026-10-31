@@ -53,7 +53,8 @@ export const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, Remediation
       order: 3,
       title: 'PHASE 3 · DEDUPLICATION & CLONES',
       icon: '🧩',
-      description: 'Triplicated blocks, Fallow duplicate code, semantic clones, and redundant constants.',
+      description:
+        'Triplicated blocks, Fallow duplicate code, semantic clones, and redundant constants.',
       rationale:
         'Unifies clones into a single canonical function before polishing details, avoiding multiplying work by 5x.'
     },
@@ -62,7 +63,8 @@ export const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, Remediation
       order: 4,
       title: 'PHASE 4 · CONTRACTS & TYPING',
       icon: '🔒',
-      description: 'TypeScript errors, as any/unknown, naked strings in domain, and Valibot parity.',
+      description:
+        'TypeScript errors, as any/unknown, naked strings in domain, and Valibot parity.',
       rationale:
         'Establishes solid data model foundations and contracts before altering component or UI logic.'
     },
@@ -71,9 +73,9 @@ export const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, Remediation
       order: 5,
       title: 'PHASE 5 · FRAMEWORK & UI',
       icon: '🎨',
-      description: 'GSAP, semantic HTML5, Vue/SFC reactivity, unmanaged lifecycle timers, and style collisions.',
-      rationale:
-        'Guarantees functional correctness, performance, and UI lifecycle integrity.'
+      description:
+        'GSAP, semantic HTML5, Vue/SFC reactivity, unmanaged lifecycle timers, and style collisions.',
+      rationale: 'Guarantees functional correctness, performance, and UI lifecycle integrity.'
     },
     hygiene: {
       id: 'hygiene',
@@ -89,7 +91,8 @@ export const REMEDIATION_PHASES: Readonly<Record<RemediationPhaseId, Remediation
       order: 7,
       title: 'PHASE 7 · FORMATTING & COVERAGE',
       icon: '✨',
-      description: 'Oxfmt formatting, DOX indices (AGENTS.md), Markdown/Mermaid syntax, and test coverage thresholds.',
+      description:
+        'Oxfmt formatting, DOX indices (AGENTS.md), Markdown/Mermaid syntax, and test coverage thresholds.',
       rationale:
         'Final pass: automated formatting, documentation sync, and confirmation that test suites pass cleanly.'
     }

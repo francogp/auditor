@@ -79,6 +79,17 @@ function setLocalGitConfig(key, value, projectRoot) {
 		return false;
 	}
 }
+const GIT_CONFIG_FIXERS = {
+	"git-config-filemode": ({ projectRoot }) => {
+		setLocalGitConfig("core.filemode", "false", projectRoot);
+	},
+	"git-config-autocrlf": ({ projectRoot }) => {
+		setLocalGitConfig("core.autocrlf", "input", projectRoot);
+	},
+	"git-config-eol": ({ projectRoot }) => {
+		setLocalGitConfig("core.eol", "lf", projectRoot);
+	}
+};
 var ValidateGitConfigAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
@@ -87,13 +98,12 @@ var ValidateGitConfigAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...GIT_CONFIG_RULES]),
-			fixableRuleIds: [...GIT_CONFIG_RULES],
+			}),
+			ruleFixers: GIT_CONFIG_FIXERS,
 			id: "validate_git_config",
 			name: "Git Configuration Validator",
 			description: "Validates and synchronizes local Git configuration",

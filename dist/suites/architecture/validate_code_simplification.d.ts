@@ -1,23 +1,18 @@
 import { AuditedDocument } from "../../core/auditedDocument.js";
-import { FileScanAuditor } from "../../core/auditorBase.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 import ts from "typescript";
 export declare const CODE_SIMPLIFICATION_RULES: readonly ["dead-code-accumulation", "boolean-trap-parameters", "deep-nesting-control-flow", "redundant-else-after-return", "premature-abstraction-wrapper", "massive-switch-branching"];
 export type CodeSimplificationRuleId = (typeof CODE_SIMPLIFICATION_RULES)[number];
 export declare const CODE_SIMPLIFICATION_CAPABILITIES: {
   readonly speed: "light";
   readonly phase: "normal";
-  readonly fix: "none";
   readonly md: false;
   readonly ast: true;
   readonly changedOnly: false;
   readonly critical: false;
 };
 export declare class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimplificationRuleId> {
-  constructor(options?: {
-    projectRoot?: string;
-    fix?: boolean;
-    roots?: readonly string[];
-  });
+  constructor(options?: FileScanRootsOptions);
   protected scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile, doc?: AuditedDocument): void;
   private recordSimplificationFinding;
   private auditDeadCodeAccumulation;

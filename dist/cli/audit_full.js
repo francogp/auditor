@@ -9,14 +9,14 @@ import { REMEDIATION_PHASE_IDS, getRemediationPhaseMetadata } from "../core/reme
 import { getActiveFamilies, groupFindingsByFileMap, groupResultsByFamily, normalizeSpeeds, resolveFamilyMetadata, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
+import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { COVERAGE_EXPECTED_SUITES_ENV, COVERAGE_LEDGER_DIR, COVERAGE_RUN_ID_ENV, COVERAGE_RUN_MODE_ENV } from "../core/auditCoverage.js";
-import { stringWidth } from "../core/terminalVisuals.js";
 import { formatDurationMs, formatNumber } from "../core/durationFormatter.js";
+import { evaluateSuiteStatus } from "../core/suiteGating.js";
+import { stringWidth } from "../core/terminalVisuals.js";
 import { renderMarkdownReport } from "../core/markdownReport.js";
 import { extractPhaseBreakdown, renderExecutiveFailSummary, renderExecutiveFixSummary, renderExecutivePassSummary, renderExecutiveSetupBlockingSummary } from "../core/executiveTheme.js";
 import { renderAuditorDetailCard, renderAuditorsRegistryTable, renderAutoFixCompletionBanner, renderAutoFixNoticeBanner, renderBanner, renderCliHelp, renderConsolidatedFooter, renderFindingsBreakdownTable, renderSampleFindings, renderSetupBlockingBanner, renderSimilarCodeWarningBanner, renderTieredFindingsBreakdownTable } from "../core/unifiedTheme.js";
-import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
-import { evaluateSuiteStatus } from "../core/suiteGating.js";
 import { BaseAuditor } from "../core/auditorBase.js";
 import { SharedAstContext } from "../core/astContext.js";
 import { TaskStreamCoordinator, executeAuditorStreaming, isNodeInternalWarning } from "../core/streamingRunner.js";
@@ -328,7 +328,7 @@ async function executeTaskInProcess(task, sharedAstContext, taskArgs, onSubLine)
 					onSubLine(msg);
 				});
 			}
-			const result = await auditor.execute(sharedAstContext);
+			const result = taskArgs.includes("--fix") || taskArgs.includes("fix") ? await auditor.fix(sharedAstContext) : await auditor.audit(sharedAstContext);
 			const durationMs = Math.round(performance.now() - taskStart);
 			result.durationMs = durationMs;
 			return {
@@ -695,7 +695,7 @@ function applyWarningRatchet(ctx, isFullAudit, totalErrors) {
 * In fix mode (isFixMode === true), any remaining error could not be resolved,
 * so fixableErrors and autoFixRecommended are always 0/false.
 */
-const computeFixableViolations = BaseAuditor.computeFixableViolations;
+const computeFixableViolations = (...args) => BaseAuditor.computeFixableViolations(...args);
 async function persistAuditReportsToDisk(params) {
 	const prefix = params.isFixMode ? "latest_fix_" : "latest_";
 	const byFilePrefix = params.isFixMode ? "by_file_fix.json" : "by_file.json";

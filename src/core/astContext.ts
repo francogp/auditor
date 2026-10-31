@@ -9,11 +9,13 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
-import { tryCatchSync } from './safeUtils.ts';
+import path from 'node:path';
+
+import ts from 'typescript';
+
 import { normalizePosixPath } from './safePath.ts';
+import { tryCatchSync } from './safeUtils.ts';
 
 enableCompileCache();
 
@@ -89,10 +91,7 @@ export class SharedAstContext {
 
     const scriptContent = match[1] ?? '';
     const openTagLength = match[0].indexOf(scriptContent);
-    const codeBeforeScriptContent = content.substring(
-      0,
-      match.index + (openTagLength >= 0 ? openTagLength : 0)
-    );
+    const codeBeforeScriptContent = content.substring(0, match.index + Math.max(openTagLength, 0));
     const offsetLine = (codeBeforeScriptContent.match(/\n/g) ?? []).length + 1;
 
     const result: ExtractedScript = { scriptContent, offsetLine };
@@ -135,13 +134,7 @@ export class SharedAstContext {
  * Creates a synthetic, empty ts.SourceFile for use with ts.Printer when printing generated AST nodes.
  */
 export function createSyntheticSourceFile(fileName = 'synthetic.ts'): ts.SourceFile {
-  return ts.createSourceFile(
-    fileName,
-    '',
-    ts.ScriptTarget.Latest,
-    false,
-    ts.ScriptKind.TS
-  );
+  return ts.createSourceFile(fileName, '', ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
 }
 
 /**

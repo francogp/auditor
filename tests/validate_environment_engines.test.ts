@@ -85,7 +85,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       );
 
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -97,7 +97,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
   describe('Violation Detection', () => {
     it('detects missing package.json', async () => {
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
@@ -114,7 +114,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       );
 
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
       const finding = result.findings.find((f) => f.ruleId === 'environment-engines-missing');
@@ -142,7 +142,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       );
 
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
       const finding = result.findings.find((f) => f.ruleId === 'environment-engines-below-floor');
@@ -170,7 +170,7 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       );
 
       const auditor = new ValidateEnvironmentEnginesAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
       const finding = result.findings.find((f) => f.ruleId === 'environment-runtime-mismatch');
@@ -201,25 +201,23 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
   });
 
   describe('SSoT Auto-Fix & Non-Mutation in Check Mode', () => {
-    it('auto-injects canonical SSoT engines when fix: true and does not mutate when fix: false', async () => {
+    it('auto-injects canonical SSoT engines on fix() and does not mutate on audit()', async () => {
       const pkgPath = path.join(tempDir, 'package.json');
       const originalPkg = { name: 'fixable-pkg', version: '1.0.0' };
       await fs.writeFile(pkgPath, JSON.stringify(originalPkg, null, 2), 'utf8');
 
       const checkAuditor = new ValidateEnvironmentEnginesAuditor({
-        projectRoot: tempDir,
-        fix: false
+        projectRoot: tempDir
       });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       const unmutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
       expect(unmutated.engines).toBeUndefined();
 
       const fixAuditor = new ValidateEnvironmentEnginesAuditor({
-        projectRoot: tempDir,
-        fix: true
+        projectRoot: tempDir
       });
-      const fixResult = await fixAuditor.execute();
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       const mutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
       const auditorEngines = getAuditorEngines();
@@ -242,10 +240,9 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       await fs.writeFile(pkgPath, JSON.stringify(originalPkg, null, 2), 'utf8');
 
       const auditor = new ValidateEnvironmentEnginesAuditor({
-        projectRoot: tempDir,
-        fix: true
+        projectRoot: tempDir
       });
-      const result = await auditor.execute();
+      const result = await auditor.fix();
 
       expect(result.status).toBe('passed');
       const mutated = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
@@ -277,10 +274,9 @@ describe('validate_environment_engines (Environment Engines & Runtime Validator)
       );
 
       const auditor = new ValidateEnvironmentEnginesAuditor({
-        projectRoot: tempDir,
-        fix: true
+        projectRoot: tempDir
       });
-      const result = await auditor.execute();
+      const result = await auditor.fix();
 
       const finding = result.findings.find((f) => f.ruleId === 'environment-runtime-mismatch');
       expect(finding).toBeDefined();

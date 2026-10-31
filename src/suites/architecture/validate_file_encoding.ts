@@ -12,19 +12,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
 
+import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import type { RemediationPhaseId } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
-  type AuditorOptions,
-  createRuleCapabilities,
-  getEffectiveIgnoreGlobs
+  type FileScanRootsOptions,
+  createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
-import type { RemediationPhaseId } from '../../core/auditContract.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 
 enableCompileCache();
 
@@ -239,8 +239,7 @@ export function inspectBufferEncoding(
     return {
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
-      message:
-        'The file is encoded in UTF-16LE with BOM. Standard UTF-8 without BOM is required.',
+      message: 'The file is encoded in UTF-16LE with BOM. Standard UTF-8 without BOM is required.',
       context: 'Charset: UTF-16LE with BOM',
       line: 1,
       col: 1,
@@ -253,8 +252,7 @@ export function inspectBufferEncoding(
     return {
       ruleId: 'file-encoding-invalid-charset',
       severity: 'error',
-      message:
-        'The file is encoded in UTF-16BE with BOM. Standard UTF-8 without BOM is required.',
+      message: 'The file is encoded in UTF-16BE with BOM. Standard UTF-8 without BOM is required.',
       context: 'Charset: UTF-16BE with BOM',
       line: 1,
       col: 1,
@@ -320,26 +318,11 @@ export function inspectBufferEncoding(
 }
 
 export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<FileEncodingRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<FileEncodingRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: FileScanRootsOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     const config: AuditEngineConfig = getAuditConfig(projectRoot);
 
-    const roots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : undefined) ?? [
+    const roots = options.roots ?? [
       ...config.paths.codeRoots,
       ...config.paths.testRoots,
       ...config.paths.scriptsRoots,
@@ -365,6 +348,8 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
     ];
 
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['file-encoding-invalid-charset', 'file-encoding-unwanted-bom'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
       id: 'validate_file_encoding',
@@ -384,14 +369,12 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       ruleCapabilities: createRuleCapabilities(FILE_ENCODING_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'normal',
         md: true,
         ast: false,
         changedOnly: true,
         critical: true
       }),
       ruleIds: FILE_ENCODING_RULES,
-      fixableRuleIds: ['file-encoding-unwanted-bom', 'file-encoding-invalid-charset'],
       ruleDescriptions: FILE_ENCODING_RULE_DESCRIPTIONS,
       ruleRemediations: FILE_ENCODING_RULE_REMEDIATIONS,
       ruleRemediationPhases: FILE_ENCODING_RULE_REMEDIATION_PHASES,
@@ -407,8 +390,7 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
         ...deriveCoverageFromRoots(roots, allowedExtensions, projectRoot),
         exclude: encodingExcludes
       },
-      projectRoot,
-      fix: optionsObj?.fix
+      projectRoot
     });
   }
 
@@ -493,11 +475,7 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
     }
   }
 
-  private applyRepair(
-    filePath: string,
-    buffer: Buffer,
-    action: FileEncodingRepairAction
-  ): boolean {
+  private applyRepair(filePath: string, buffer: Buffer, action: FileEncodingRepairAction): boolean {
     try {
       if (action === 'strip-utf8-bom') {
         const cleanBuffer = buffer.subarray(3);
@@ -506,16 +484,14 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       }
 
       if (action === 'transcode-utf16le') {
-        const offset =
-          buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe ? 2 : 0;
+        const offset = buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe ? 2 : 0;
         const text = new TextDecoder('utf-16le').decode(buffer.subarray(offset));
         fs.writeFileSync(filePath, text, 'utf8');
         return true;
       }
 
       if (action === 'transcode-utf16be') {
-        const offset =
-          buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff ? 2 : 0;
+        const offset = buffer.length >= 2 && buffer[0] === 0xfe && buffer[1] === 0xff ? 2 : 0;
         const text = new TextDecoder('utf-16be').decode(buffer.subarray(offset));
         fs.writeFileSync(filePath, text, 'utf8');
         return true;

@@ -8,9 +8,10 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { isMainModule } from './cliUtils.ts';
+
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from '../core/cli/cittyHarness.ts';
 import { tryCatchSync } from '../core/safeUtils.ts';
+import { isMainModule } from './cliUtils.ts';
 
 function extractDistBaseName(fileName: string): string {
   let name = fileName;

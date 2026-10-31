@@ -3,7 +3,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
-import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
 import { extractSfcScriptContent, parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { MODERN_ACCESSIBILITY_RULES, analyzeModernAccessibility, fixViewportZoomLockContent } from "../../analyzers/accessibilityModernAnalyzer.js";
@@ -22,15 +22,6 @@ const ACCESSIBILITY_RULES = [
 	"a11y-aria-role-invalid",
 	"a11y-viewport-zoom-lock",
 	...MODERN_ACCESSIBILITY_RULES
-];
-const FIXABLE_ACCESSIBILITY_RULES = [
-	"a11y-viewport-zoom-lock",
-	"a11y-no-positive-tabindex",
-	"a11y-no-aria-hidden-focusable",
-	"a11y-svg-accessibility",
-	"a11y-iframe-title-and-scroll",
-	"forms-identifier-input-type",
-	"forms-autocomplete-hygiene"
 ];
 const TEMPLATE_BACKED_RULES = ACCESSIBILITY_RULES.filter((id) => id !== "a11y-viewport-zoom-lock");
 const A11Y_RULE_ID_MAP = {
@@ -138,19 +129,26 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 			...config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
 		];
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [
+				"a11y-viewport-zoom-lock",
+				"a11y-no-positive-tabindex",
+				"a11y-no-aria-hidden-focusable",
+				"a11y-svg-accessibility",
+				"a11y-iframe-title-and-scroll",
+				"forms-identifier-input-type",
+				"forms-autocomplete-hygiene"
+			],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
-			ruleCapabilities: createRuleCapabilities(ACCESSIBILITY_RULES, {
+			ruleCapabilities: createUniformRuleCapabilities(ACCESSIBILITY_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, FIXABLE_ACCESSIBILITY_RULES),
-			fixableRuleIds: FIXABLE_ACCESSIBILITY_RULES,
-			fix: options.fix,
+			}),
 			id: "validate_accessibility",
 			name: "Vue & Web Accessibility Standards Auditor",
 			description: "Validates WCAG 2.1/2.2 standards and accessibility",
@@ -222,7 +220,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 		for (const absFile of vueFiles) {
 			const relFile = toPosixRelative(this.projectRoot, absFile);
 			this.recordScanned(relFile);
-			let content = "";
+			let content;
 			try {
 				content = fs.readFileSync(absFile, "utf-8");
 			} catch {
@@ -414,8 +412,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 				file: INDEX_HTML_FILE,
 				line: lineNum,
 				context: tag.trim(),
-				message: "Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text.",
-				fixable: true
+				message: "Meta viewport blocks mobile zoom (user-scalable=no or maximum-scale=1.0). Violates WCAG 1.4.4 Resize text."
 			});
 			if (this.isFixActive()) {
 				const fixed = fixViewportZoomLockContent(content);

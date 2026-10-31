@@ -6,7 +6,6 @@ export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
 export interface VitePlusConfigAuditOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
-  readonly fix?: boolean;
 }
 /**
  * Validates that a vite.config.ts file enforces strict /domain-type-first rules and sections

@@ -178,7 +178,7 @@ const P_TYPECAST_INLINE_DOMAIN_ID = /\bas\s+(?:[A-Z]\w*Id|keyof\s+typeof\s+[A-Z_
 const P_OBJECT_KEYS_CAST = /\bObject\.(?:keys|entries)\s*\([^)]+\)\s+as\s+(?:\([|\w\s]+\)|[A-Za-z]\w*)\[\]/g;
 const P_INLINE_ANONYMOUS_OBJECT_PARAM = /\(\s*[A-Za-z0-9_$,\s]*\b[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*[,;]\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g;
 const P_UNBRANDED_DOMAIN_ID_ALIAS = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=\s*string\s*;/g;
-const P_PARAM_WILDCARD_STRING_UNION = /\b([a-z_]\w*)\s*\??:\s*([A-Z]\w*)\s*\|\s*string\b/g;
+const P_PARAM_WILDCARD_STRING_UNION = /\b([a-z_]\w*)\s*\??:\s*(?:\|\s*)?([A-Z]\w*)\s*\|\s*string\b/g;
 const P_PARAM_DOMAIN_ID_NULLABLE = /\b(\w{2,}[iI]d)\s*:\s*[A-Z]\w*Id\s*\|\s*(?:null|undefined)\b|\b(\w{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*[A-Z]\w*Id\b/g;
 const P_DOMAIN_TYPE_NULLABLE = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=[^;\n]*\|\s*(?:null|undefined)\b/g;
 function isTestFile(file, projectRoot) {
@@ -464,10 +464,7 @@ function auditFileContent(filePath, content, ruleFilter, projectRoot = process.c
 	}));
 	findings.push(...findMatches(content, rel, P_INLINE_ANONYMOUS_OBJECT_PARAM, "Inline anonymous object type in function parameter prohibited — define a named interface or type contract", "ERROR", "domain-naked-string-primitive", (_match, line) => !line.includes("withDefaults")));
 	findings.push(...findMatches(content, rel, P_PARAM_WILDCARD_STRING_UNION, "Function parameter mixes domain type with loose `| string` — require strict domain type", "ERROR", "domain-naked-string-primitive", (match) => {
-		if (!isFunctionParameterContext(content, match.index)) return false;
-		const typeName = match[2] ?? "";
-		if (/Auditor|Engine|Config|Harness|Options/.test(typeName)) return false;
-		return true;
+		return isFunctionParameterContext(content, match.index);
 	}));
 	findings.push(...findMatches(content, rel, P_PARAM_DOMAIN_ID_NULLABLE, "Domain ID parameter is nullable — use undefined optional param `id?: DomainId` or explicit null-handling object", "ERROR", "domain-naked-string-primitive", (match, line) => {
 		const matchedText = match[0] ?? "";
@@ -491,19 +488,18 @@ var DomainTypesAuditor = class extends BaseAuditor {
 		const config = getAuditConfig(effectiveRoot);
 		const domainIgnores = Array.from(getEffectiveIgnoreGlobs(effectiveRoot, { extraGlobs: [...config.domain?.ignoreGlobs ?? [], ...config.domain?.exemptPaths ?? []] }));
 		super({
-			fix: options.fix,
+			ruleFixers: {},
+			fixableRuleIds: ["domain-naked-string-primitive"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: true,
 				changedOnly: false,
 				critical: true
 			}),
-			fixableRuleIds: ["domain-naked-string-primitive"],
 			id: "validate_domain_types",
 			name: "Domain Types Integrity Audit",
 			description: "Raw string usage instead of domain types",
@@ -554,7 +550,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 		}
 		const filePaths = this.collectAuditableDomainFiles();
 		if (filePaths.length === 0) return;
-		if (this.isFixModeRequested()) try {
+		if (this.isFixActive()) try {
 			const { remediateRecordKeysInFile } = await import("../../core/refactor/domainRecordKeyRemediator.js");
 			for (const filePath of filePaths) {
 				if (!isContractFile(toPosixRelative(this.projectRoot, filePath), this.projectRoot)) continue;
@@ -581,7 +577,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 					severity: finding.severity === "ERROR" ? "error" : "warning",
 					file: finding.file,
 					line: finding.line,
-					column: finding.col,
+					col: finding.col,
 					message: finding.pattern,
 					context: finding.snippet,
 					fixable: finding.pattern.includes("Record<string,")

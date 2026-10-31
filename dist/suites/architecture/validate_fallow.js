@@ -3,8 +3,8 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { resolveFallowBinary } from "./validate_similar_code.js";
 import path from "node:path";
@@ -39,7 +39,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-boundary-violations": {
 		speed: ["light", "full"],
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -48,7 +47,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-stale-suppressions": {
 		speed: ["light", "full"],
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -57,7 +55,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-workspace-diagnostic": {
 		speed: ["light", "full"],
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -66,7 +63,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-refactoring-targets": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -75,7 +71,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-duplicate-code": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -84,7 +79,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-triplicate-code": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -93,7 +87,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-unused-exports": {
 		speed: ["light", "full"],
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -102,7 +95,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-unused-files": {
 		speed: ["light", "full"],
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -111,7 +103,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-unused-dependencies": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -120,7 +111,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-circular-dependencies": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -129,7 +119,6 @@ const FALLOW_RULE_CAPABILITIES = {
 	"fallow-security-cwe": {
 		speed: "light",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: true,
@@ -378,6 +367,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {

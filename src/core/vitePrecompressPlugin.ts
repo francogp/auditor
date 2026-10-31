@@ -10,16 +10,17 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import util from 'node:util';
-import zlib from 'node:zlib';
 import { styleText } from 'node:util';
-import { toPosixRelative } from './safePath.ts';
+import zlib from 'node:zlib';
 
 import type { Plugin } from 'vite-plus';
+
 import type {
   AuditVitePlusPrecompressConfig,
   PrecompressServerTarget,
   VitePrecompressReportMode
 } from './auditConfigTypes.ts';
+import { toPosixRelative } from './safePath.ts';
 
 const asyncBrotliCompress = util.promisify(zlib.brotliCompress);
 const asyncGzip = util.promisify(zlib.gzip);
@@ -81,7 +82,7 @@ async function mapConcurrent<T, R>(
   concurrency: number,
   fn: (item: T) => Promise<R>
 ): Promise<R[]> {
-  const results: R[] = new Array(items.length);
+  const results: R[] = Array.from<R>({ length: items.length });
   let currentIndex = 0;
 
   async function worker(): Promise<void> {
@@ -328,7 +329,9 @@ function renderTableReport(
   }
 
   if (stats.length > MAX_TABLE_DISPLAY_ENTRIES) {
-    console.log(`│ … y ${stats.length - MAX_TABLE_DISPLAY_ENTRIES} archivos más`.padEnd(TABLE_WIDTH + 1) + '│');
+    console.log(
+      `│ … y ${stats.length - MAX_TABLE_DISPLAY_ENTRIES} archivos más`.padEnd(TABLE_WIDTH + 1) + '│'
+    );
   }
 
   console.log('├' + '─'.repeat(TABLE_WIDTH) + '┤');
@@ -376,10 +379,8 @@ export function vitePrecompressPlugin(userOptions: VitePrecompressOptions = {}):
 
       if (compressibleFiles.length === 0) return;
 
-      const statsResults = await mapConcurrent(
-        compressibleFiles,
-        DEFAULT_CONCURRENCY,
-        (filePath) => compressAsset(filePath, distDir, userOptions)
+      const statsResults = await mapConcurrent(compressibleFiles, DEFAULT_CONCURRENCY, (filePath) =>
+        compressAsset(filePath, distDir, userOptions)
       );
 
       const stats = statsResults.filter((s): s is AssetCompressionStat => s !== null);

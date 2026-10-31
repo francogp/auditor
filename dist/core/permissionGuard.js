@@ -24,6 +24,8 @@ function polyfillPermissionModelFsync() {
 		const proto = Object.getPrototypeOf(handle);
 		if (proto && typeof proto.sync === "function") proto.sync = async () => {};
 		await handle.close();
+	}).catch((err) => {
+		process.stderr.write(`[PermissionGuard] Failed to stub fsync: ${String(err)}\n`);
 	});
 }
 polyfillPermissionModelFsync();

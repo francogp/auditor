@@ -76,18 +76,22 @@ var ValidateScriptExtensionsAuditor = class extends BaseAuditor {
 		const effectiveProjectRoot = options.projectRoot ?? process.cwd();
 		const coverageIncludeGlobs = ["**/*.{mjs,cjs}", ...resolveScriptAndCliDirs(getAuditConfig(effectiveProjectRoot)).map((d) => `${d}/**/*.{js,jsx}`)];
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [
+				"banned-mjs-extension",
+				"banned-cjs-extension",
+				"banned-raw-js-script"
+			],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...SCRIPT_EXTENSIONS_RULES]),
-			fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
+			}),
 			id: "validate_script_extensions",
 			name: "Script & Module Extensions Validator",
 			description: "Validates TypeScript scripts and extensions",

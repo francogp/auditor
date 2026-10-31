@@ -10,7 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -18,6 +18,7 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { tryCatchSync } from '../core/safeUtils.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
 
 export interface SyncEnvOptions {
   targetDir?: string;
@@ -101,7 +102,11 @@ export function syncEnvScripts(options: SyncEnvOptions = {}): {
 
 const SYNC_ENV_ARGS = {
   ...COMMON_CLI_ARGS,
-  'dry-run': { type: 'boolean', default: false, description: 'Preview synchronization without writing' }
+  'dry-run': {
+    type: 'boolean',
+    default: false,
+    description: 'Preview synchronization without writing'
+  }
 } as const satisfies CittyArgsDef;
 
 // CLI entrypoint

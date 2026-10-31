@@ -10,17 +10,24 @@
  *   4. Flags duplicate entries and empty export lists.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { execSync } from 'node:child_process';
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { isPathContained, toPosixRelative } from '../../core/safePath.ts';
+import {
+  type CanonicalRuleSeverityLevel,
+  CANONICAL_RULE_SEVERITY_LEVELS
+} from '../../core/auditConfigTypes.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { isPathContained, toPosixRelative } from '../../core/safePath.ts';
 import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
-import { type CanonicalRuleSeverityLevel, CANONICAL_RULE_SEVERITY_LEVELS } from '../../core/auditConfigTypes.ts';
 
 enableCompileCache();
 
@@ -600,7 +607,6 @@ export function validateFallowWorkspaceDiagnostics(
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
-  readonly fix?: boolean;
 }
 
 export const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfigRuleId> = {
@@ -614,25 +620,11 @@ export const FALLOW_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<FallowConfi
 export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId> {
   public static readonly cachePaths = ['.fallow'] as const;
 
-  constructor(targetPathOrOptions?: string | ValidateFallowConfigOptions) {
-    let projectRoot: string;
-    let configPath: string;
-    let fix = false;
-
-    if (typeof targetPathOrOptions === 'object' && targetPathOrOptions !== null) {
-      projectRoot = targetPathOrOptions.projectRoot || process.cwd();
-      configPath = targetPathOrOptions.configFile
-        ? path.resolve(projectRoot, targetPathOrOptions.configFile)
-        : path.resolve(projectRoot, '.fallowrc.json');
-      fix = Boolean(targetPathOrOptions.fix);
-    } else {
-      const isJsonFile =
-        typeof targetPathOrOptions === 'string' && targetPathOrOptions.endsWith('.json');
-      projectRoot = isJsonFile
-        ? path.dirname(targetPathOrOptions)
-        : targetPathOrOptions || process.cwd();
-      configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, '.fallowrc.json');
-    }
+  public constructor(options: ValidateFallowConfigOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
+    const configPath = options.configFile
+      ? path.resolve(projectRoot, options.configFile)
+      : path.resolve(projectRoot, '.fallowrc.json');
 
     const relConfig = toPosixRelative(projectRoot, configPath) || '.fallowrc.json';
     const configRequirement: AuditorConfigFileRequirement<FallowConfigRuleId> = {
@@ -642,6 +634,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -649,39 +642,16 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         fallbackBehavior: 'violation',
         fallbackRuleId: 'fallow-config-workspace-diagnostic'
       },
-      ruleCapabilities: createRuleCapabilities(
-        FALLOW_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [
-          'fallow-config-missing',
-          'fallow-banned-entry-glob',
-          'fallow-stale-file',
-          'fallow-stale-export',
-          'fallow-empty-export-list',
-          'fallow-duplicate-entry',
-          'fallow-config-workspace-diagnostic'
-        ]
-      ),
-      fixableRuleIds: [
-        'fallow-config-missing',
-        'fallow-banned-entry-glob',
-        'fallow-stale-file',
-        'fallow-stale-export',
-        'fallow-empty-export-list',
-        'fallow-duplicate-entry',
-        'fallow-config-workspace-diagnostic'
-      ],
+      ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       configFiles: [configRequirement],
       cachePaths: ValidateFallowConfigAuditor.cachePaths,
-      fix,
       id: 'validate_fallow_config',
       name: 'Fallow Configuration & Exports Hygiene Validator',
       description: 'Validates .fallowrc.json integrity and ignoreExports',
@@ -798,11 +768,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       this.markRuleNotApplicable('fallow-stale-file', 'Sin ignoreExports en .fallowrc.json');
       this.markRuleNotApplicable('fallow-stale-export', 'Sin ignoreExports en .fallowrc.json');
     } else {
-      const { fileCount, exportCount, modified: ignoreModified } = validateFallowIgnoreExports(
-        validConfig,
-        this.projectRoot,
-        this
-      );
+      const {
+        fileCount,
+        exportCount,
+        modified: ignoreModified
+      } = validateFallowIgnoreExports(validConfig, this.projectRoot, this);
       if (ignoreModified) modified = true;
 
       this.context.setMetric('Archivos en ignoreExports', fileCount);

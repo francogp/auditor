@@ -7,9 +7,11 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import type { ResolvedTestCoverageConfig } from './auditConfig.ts';
-import { matchesAnyGlob } from './auditCoverage.ts';
-import { isPathIgnored, CANONICAL_IGNORE_DIRS } from './auditorBase.ts';
+import { isPathIgnored } from './auditorBase.ts';
+import { CANONICAL_IGNORE_DIRS } from './canonicalIgnoreRegistry.ts';
+import { isPathExempt } from './reportUtils.ts';
 import { toPosixRelative } from './safePath.ts';
 
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
@@ -138,7 +140,10 @@ export function compressLineRanges(lines: readonly number[]): string[] {
 
 interface RawIstanbulEntry {
   path?: string;
-  statementMap?: Record<string, { start: { line: number; column?: number }; end: { line: number; column?: number } }>;
+  statementMap?: Record<
+    string,
+    { start: { line: number; column?: number }; end: { line: number; column?: number } }
+  >;
   s?: Record<string, number>;
   fnMap?: Record<string, unknown>;
   f?: Record<string, number>;
@@ -304,21 +309,6 @@ function parseRawCoverageItem(
 }
 
 /**
- * Checks if a relative path matches an exempt glob or path pattern.
- */
-export function isPathExempt(relPath: string, exemptGlobs: readonly string[]): boolean {
-  if (exemptGlobs.length === 0) return false;
-  for (const glob of exemptGlobs) {
-    let cleanGlob = glob.startsWith('./') ? glob.slice(2) : glob;
-    if (cleanGlob.endsWith('/')) cleanGlob = cleanGlob.slice(0, -1);
-    if (relPath === cleanGlob || relPath.startsWith(`${cleanGlob}/`)) {
-      return true;
-    }
-  }
-  return matchesAnyGlob(relPath, exemptGlobs);
-}
-
-/**
  * Parses raw Istanbul JSON into structured FileCoverageResults and overall totals.
  */
 export function parseIstanbulCoverage(
@@ -344,12 +334,7 @@ export function parseIstanbulCoverage(
     }
     if (typeof value !== 'object' || value === null) continue;
 
-    const fileRes = parseRawCoverageItem(
-      key,
-      value as RawIstanbulEntry,
-      projectRoot,
-      config.threshold
-    );
+    const fileRes = parseRawCoverageItem(key, value, projectRoot, config.threshold);
 
     // Apply exemptGlobs
     if (isPathExempt(fileRes.relPath, config.exemptGlobs)) {

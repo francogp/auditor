@@ -1,32 +1,36 @@
+import { BaseEntityRegistry } from "../../core/baseRegistry.js";
 // src/analyzers/homebrew/homebrewRegistry.ts
-var HomebrewDetectorRegistry = class {
-	static detectors = /* @__PURE__ */ new Map();
-	static register(detector) {
-		this.detectors.set(detector.id, detector);
+/**
+* src/analyzers/homebrew/homebrewRegistry.ts
+*
+* Dynamic registry and runner coordinator for homebrew detectors.
+* Inherits directly from BaseEntityRegistry to unify in-memory lifecycle and isolation.
+*/
+var HomebrewDetectorRegistryImpl = class extends BaseEntityRegistry {
+	constructor() {
+		super((d) => d.id);
 	}
-	static unregister(id) {
-		return this.detectors.delete(id);
+	scanFile(file, context) {
+		const effectiveContext = context.filePath === file ? context : {
+			...context,
+			filePath: file
+		};
+		return this.run(effectiveContext);
 	}
-	static get(id) {
-		return this.detectors.get(id);
+	scanAll(context) {
+		return this.run(context);
 	}
-	static getAll() {
-		return Array.from(this.detectors.values());
-	}
-	static clear() {
-		this.detectors.clear();
-	}
-	static getRuleIds() {
+	getRuleIds() {
 		const ids = /* @__PURE__ */ new Set();
-		for (const d of this.detectors.values()) ids.add(d.ruleId);
+		for (const d of this.getAll()) ids.add(d.ruleId);
 		return Array.from(ids);
 	}
-	static getRuleDescriptions() {
+	getRuleDescriptions() {
 		const descriptions = {};
-		for (const d of this.detectors.values()) descriptions[d.ruleId] = d.ruleDescription;
+		for (const d of this.getAll()) descriptions[d.ruleId] = d.ruleDescription;
 		return descriptions;
 	}
-	static getRuleRemediations() {
+	getRuleRemediations() {
 		return {
 			"auditor-manual-package-json": "Use the canonical getPackageJson(projectRoot) utility from src/core/packageJson.ts instead of manually reading or parsing package.json.",
 			"auditor-manual-vue-sfc-regex": "Use AuditedDocument or parseVueSfc() from core to analyze Vue SFC blocks instead of fragile manual regular expressions.",
@@ -45,10 +49,10 @@ var HomebrewDetectorRegistry = class {
 			"auditor-inefficient-file-scan": "Avoid iterating rules before files or passing blind wildcards (**/*.ext) to external CLIs; use this.scanFilesSinglePass(), FileScanAuditor, or pass the list of files discovered by auditor."
 		};
 	}
-	static run(context, disabledDetectors = [], onDetectorDuration) {
+	run(context, disabledDetectors = [], onDetectorDuration) {
 		const disabledSet = new Set(disabledDetectors);
 		const findings = [];
-		for (const detector of this.detectors.values()) {
+		for (const detector of this.getAll()) {
 			if (disabledSet.has(detector.id)) continue;
 			const t0 = performance.now();
 			const detectorFindings = detector.detect(context);
@@ -58,4 +62,9 @@ var HomebrewDetectorRegistry = class {
 		return findings;
 	}
 };
-export { HomebrewDetectorRegistry };
+/**
+* Universal singleton instance for HomebrewDetectorRegistry.
+* Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+*/
+const HomebrewDetectorRegistry = new HomebrewDetectorRegistryImpl();
+export { HomebrewDetectorRegistry, HomebrewDetectorRegistryImpl };

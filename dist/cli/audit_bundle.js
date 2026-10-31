@@ -7,8 +7,8 @@ import "../core/safePath.js";
 import "../core/auditConfig.js";
 import "../core/auditContract.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { formatStatusBadge, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import { formatStatusBadge, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -189,9 +189,8 @@ function auditCompiledChunks(distDir, exemptPrefixes, budgets) {
 		chunkWarnings
 	};
 }
-function resolveDistDir(projectRoot, configuredDistDir) {
-	const configured = configuredDistDir ?? "dist/assets";
-	const resolved = path.resolve(projectRoot, configured);
+function resolveDistDir(projectRoot, configuredDistDir = "dist/assets") {
+	const resolved = path.resolve(projectRoot, configuredDistDir);
 	if (fs.existsSync(resolved)) return resolved;
 	const fallbackDist = path.resolve(projectRoot, "dist");
 	if (fs.existsSync(fallbackDist)) return fallbackDist;

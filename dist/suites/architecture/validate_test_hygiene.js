@@ -59,13 +59,13 @@ var TestHygieneAuditor = class extends FileScanAuditor {
 			...config.paths.testRoots
 		];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			projectRoot,
 			ruleCapabilities: createRuleCapabilities(TEST_HYGIENE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

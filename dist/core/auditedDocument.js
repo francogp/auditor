@@ -220,9 +220,12 @@ var AuditedDocument = class {
 		const clamped = Math.max(0, Math.min(this.rawContent.length, offset));
 		const lineIndex = binarySearchLineIndex(this.lineOffsets, clamped);
 		const lineStart = this.lineOffsets[lineIndex] ?? 0;
+		const line = lineIndex + 1;
+		const column = clamped - lineStart + 1;
 		return {
-			line: lineIndex + 1,
-			column: clamped - lineStart + 1,
+			line,
+			column,
+			col: column,
 			lineText: this.lines[lineIndex] ?? ""
 		};
 	}
@@ -330,13 +333,16 @@ var AuditedDocument = class {
 		if (!sourceFile) return {
 			line: 1,
 			column: 1,
+			col: 1,
 			lineText: ""
 		};
 		const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
 		const lineNum = line + 1;
+		const column = character + 1;
 		return {
 			line: lineNum,
-			column: character + 1,
+			column,
+			col: column,
 			lineText: this.lines[lineNum - 1] ?? ""
 		};
 	}

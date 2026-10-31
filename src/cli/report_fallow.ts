@@ -1,11 +1,13 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { execSync } from 'node:child_process';
 /**
  * src/cli/report_fallow.ts
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { styleText } from 'node:util';
+
+import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -13,19 +15,18 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { getAuditConfig, isInCodeRoots } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { toPosixRelative } from '../core/safePath.ts';
+import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
   resolveCoverageArgs,
   isMainModule,
   bootstrapCliProject
 } from './cliUtils.ts';
-import { runGuardReport } from './report_guard.ts';
 import { runFlagsReport } from './report_flags.ts';
-import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
+import { runGuardReport } from './report_guard.ts';
 
 const DEFAULT_TOP_LIMIT = 20;
 const RADIX_DECIMAL = 10;
@@ -61,10 +62,23 @@ const FALLOW_REPORT_ARGS = {
   category: { type: 'string', description: 'Fallow analysis category' },
   categoryPos: { type: 'positional', required: false, description: 'Fallow analysis category' },
   top: { type: 'string', default: '20', description: 'Maximum items to display' },
-  retirement: { type: 'boolean', default: false, description: 'Show retirement candidates for flags' }
+  retirement: {
+    type: 'boolean',
+    default: false,
+    description: 'Show retirement candidates for flags'
+  }
 } as const satisfies CittyArgsDef;
 
-function parseCommandLineArgs() {
+interface ParsedFallowCliArgs {
+  readonly category: string;
+  readonly top: number;
+  readonly jsonOutput: boolean;
+  readonly human: boolean;
+  readonly retirement: boolean;
+  readonly positionals: readonly string[];
+}
+
+function parseCommandLineArgs(): ParsedFallowCliArgs {
   const parsed = parseCittyArgs(FALLOW_REPORT_ARGS, getProcessCliArgs());
   const positionals = parsed._.map(String);
 
@@ -73,14 +87,15 @@ function parseCommandLineArgs() {
     VALID_CATEGORY_ALIASES.has(parsed.categoryPos.toLowerCase())
       ? parsed.categoryPos.toLowerCase()
       : '';
-  let category = typeof parsed.category === 'string' ? parsed.category.toLowerCase() : rawPosCategory;
+  let category =
+    typeof parsed.category === 'string' ? parsed.category.toLowerCase() : rawPosCategory;
   const rawTopStr = String(parsed.top || '20');
-  let top =
+  const top =
     rawTopStr === 'all'
       ? Number.MAX_SAFE_INTEGER
       : parseInt(rawTopStr, RADIX_DECIMAL) || DEFAULT_TOP_LIMIT;
-  let jsonOutput = Boolean(parsed.json);
-  let human = resolveHumanModeFromArgs(parsed);
+  const jsonOutput = Boolean(parsed.json);
+  const human = resolveHumanModeFromArgs(parsed);
 
   for (const pos of positionals) {
     const cleanPos = pos.toLowerCase();
@@ -169,27 +184,19 @@ function reportDupes(top: number, json: boolean, human = false): void {
       const locs = (g.instances || [])
         .map((i) => `${path.basename(i.path || i.file || '')}:${i.start_line || i.line || 0}`)
         .join(', ');
-      console.log(`  [Clone] tokens=${g.token_count || g.duplicated_tokens || 0} locations=${locs}`);
+      console.log(
+        `  [Clone] tokens=${g.token_count || g.duplicated_tokens || 0} locations=${locs}`
+      );
     }
     return;
   }
 
   console.log(
-    '\n' +
-      renderBanner(
-        'CODE DUPLICATION & CLONES (FALLOW)',
-        `Detected groups: ${groups.length}`
-      )
+    '\n' + renderBanner('CODE DUPLICATION & CLONES (FALLOW)', `Detected groups: ${groups.length}`)
   );
 
   if (groups.length === 0) {
-    console.log(
-      '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] Zero duplicate code blocks found.\n'
-        )
-    );
+    console.log('\n  ' + styleText(['bold', 'green'], '[OK] Zero duplicate code blocks found.\n'));
     return;
   }
 
@@ -258,7 +265,9 @@ function reportSecurity(top: number, json: boolean, human = false): void {
   if (!human) {
     console.log(`[Fallow] Security findings: ${findings.length}`);
     for (const f of findings.slice(0, top)) {
-      console.log(`  [Security] ${f.path}:${f.line} [CWE-${f.cwe || '?'}] ${f.evidence || f.kind || ''}`);
+      console.log(
+        `  [Security] ${f.path}:${f.line} [CWE-${f.cwe || '?'}] ${f.evidence || f.kind || ''}`
+      );
     }
     return;
   }
@@ -274,10 +283,7 @@ function reportSecurity(top: number, json: boolean, human = false): void {
   if (findings.length === 0) {
     console.log(
       '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] 0 security vulnerabilities detected in source code.\n'
-        )
+        styleText(['bold', 'green'], '[OK] 0 security vulnerabilities detected in source code.\n')
     );
     return;
   }
@@ -375,7 +381,30 @@ function getArrayField<T>(data: Record<string, unknown> | null, field: string): 
   return Array.isArray(val) ? (val as T[]) : [];
 }
 
-function parseDeadCodeStructural(data: Record<string, unknown> | null) {
+type DeadCodeStructuralData = Pick<
+  DeadCodeReportData,
+  | 'unusedFiles'
+  | 'unusedExports'
+  | 'unusedDeps'
+  | 'circular'
+  | 'boundaryViolations'
+  | 'unresolvedImports'
+>;
+
+type DeadCodeComponentData = Pick<
+  DeadCodeReportData,
+  | 'unusedStoreMembers'
+  | 'unusedClassMembers'
+  | 'unusedTypes'
+  | 'unusedEmits'
+  | 'unlistedDeps'
+  | 'duplicateExports'
+  | 'unusedProps'
+  | 'unrenderedComponents'
+  | 'unprovidedInjects'
+>;
+
+function parseDeadCodeStructural(data: Record<string, unknown> | null): DeadCodeStructuralData {
   return {
     unusedFiles: getArrayField<{ path: string }>(data, 'unused_files'),
     unusedExports: getArrayField<{ path: string; line: number; export_name: string }>(
@@ -399,7 +428,7 @@ function parseDeadCodeStructural(data: Record<string, unknown> | null) {
   };
 }
 
-function parseDeadCodeComponent(data: Record<string, unknown> | null) {
+function parseDeadCodeComponent(data: Record<string, unknown> | null): DeadCodeComponentData {
   return {
     unusedStoreMembers: getArrayField<{
       path: string;
@@ -549,67 +578,85 @@ function renderDeadCodeSummaryTable(report: DeadCodeReportData): void {
       category: 'Unresolved imports',
       count: String(report.unresolvedImports.length),
       status:
-        report.unresolvedImports.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.unresolvedImports.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused dependencies',
       count: String(report.unusedDeps.length),
-      status: report.unusedDeps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unusedDeps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused value exports',
       count: String(report.unusedExports.length),
-      status: report.unusedExports.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unusedExports.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused store members',
       count: String(report.unusedStoreMembers.length),
       status:
-        report.unusedStoreMembers.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.unusedStoreMembers.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused class members',
       count: String(report.unusedClassMembers.length),
       status:
-        report.unusedClassMembers.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.unusedClassMembers.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused exported types',
       count: String(report.unusedTypes.length),
-      status: report.unusedTypes.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unusedTypes.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Unlisted dependencies',
       count: String(report.unlistedDeps.length),
-      status: report.unlistedDeps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unlistedDeps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Duplicate exports',
       count: String(report.duplicateExports.length),
       status:
-        report.duplicateExports.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.duplicateExports.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     },
     {
       category: 'Component emits (Vue)',
       count: String(report.unusedEmits.length),
-      status: report.unusedEmits.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unusedEmits.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Unused props (Vue SFC)',
       count: String(report.unusedProps.length),
-      status: report.unusedProps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+      status:
+        report.unusedProps.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
     },
     {
       category: 'Unrendered components',
       count: String(report.unrenderedComponents.length),
       status:
-        report.unrenderedComponents.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.unrenderedComponents.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     },
     {
       category: 'Unprovided injections',
       count: String(report.unprovidedInjects.length),
       status:
-        report.unprovidedInjects.length === 0 ? styleText('green', 'OK') : styleText('yellow', 'WARN')
+        report.unprovidedInjects.length === 0
+          ? styleText('green', 'OK')
+          : styleText('yellow', 'WARN')
     }
   ];
 
@@ -750,10 +797,7 @@ function reportDeadCode(top: number, json: boolean, human = false): void {
 
   console.log(
     '\n' +
-      renderBanner(
-        'DEAD CODE & DEPENDENCIES (FALLOW)',
-        `Total findings: ${report.totalGranular}`
-      )
+      renderBanner('DEAD CODE & DEPENDENCIES (FALLOW)', `Total findings: ${report.totalGranular}`)
   );
   renderDeadCodeSummaryTable(report);
   printDeadCodeStructural(report, top);
@@ -787,10 +831,7 @@ function reportCircular(json: boolean, human = false): void {
   if (circular.length === 0) {
     console.log(
       '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] Zero circular dependencies detected in the project.\n'
-        )
+        styleText(['bold', 'green'], '[OK] Zero circular dependencies detected in the project.\n')
     );
     return;
   }
@@ -829,9 +870,7 @@ function reportExports(top: number, json: boolean, human = false): void {
   );
 
   if (unusedExports.length === 0) {
-    console.log(
-      '\n  ' + styleText(['bold', 'green'], '[OK] 0 unused exports detected.\n')
-    );
+    console.log('\n  ' + styleText(['bold', 'green'], '[OK] 0 unused exports detected.\n'));
     return;
   }
 
@@ -882,17 +921,16 @@ function reportBoundaries(json: boolean, human = false): void {
   if (!human) {
     console.log(`[Fallow] Architectural boundary violations: ${boundaries.length}`);
     for (const b of boundaries) {
-      console.log(`  [Boundary] ${b.from_zone} -> ${b.to_zone} in ${b.from_path}:${b.line} (${b.import_specifier || b.to_path})`);
+      console.log(
+        `  [Boundary] ${b.from_zone} -> ${b.to_zone} in ${b.from_path}:${b.line} (${b.import_specifier || b.to_path})`
+      );
     }
     return;
   }
 
   console.log(
     '\n' +
-      renderBanner(
-        'ARCHITECTURAL BOUNDARIES (FALLOW)',
-        `Violations detected: ${boundaries.length}`
-      )
+      renderBanner('ARCHITECTURAL BOUNDARIES (FALLOW)', `Violations detected: ${boundaries.length}`)
   );
 
   if (boundaries.length === 0) {
@@ -1062,9 +1100,7 @@ function printTableSummary(m: FallowSummaryMetrics, human = false): void {
   const maintStr = m.maintainability > 0 ? `${m.maintainability.toFixed(1)} / 100` : '-';
 
   if (!human) {
-    console.log(
-      `[Fallow] Maintainability: ${maintStr} | Quality Indicators: ${m.totalWarnings}`
-    );
+    console.log(`[Fallow] Maintainability: ${maintStr} | Quality Indicators: ${m.totalWarnings}`);
     console.log(
       `  • Complexity: ${m.complexityCount} hotspots | Large functions: ${m.largeCount} | Refactor targets: ${m.targetsCount} | Churn: ${m.hotspotsCount}`
     );
@@ -1079,10 +1115,7 @@ function printTableSummary(m: FallowSummaryMetrics, human = false): void {
 
   console.log(
     '\n' +
-      renderBanner(
-        'CODEBASE INTELLIGENCE DASHBOARD (FALLOW)',
-        `Maintainability Index: ${maintStr}`
-      )
+      renderBanner('CODEBASE INTELLIGENCE DASHBOARD (FALLOW)', `Maintainability Index: ${maintStr}`)
   );
 
   interface SummaryRow {
@@ -1198,17 +1231,12 @@ function reportCoverageGaps(top: number, json: boolean, human = false): void {
       ? `Coverage: ${summary.file_coverage_pct}% (${summary.covered_files}/${summary.runtime_files} files) • Gaps: ${gaps.length}`
       : `Reachable exports without tests: ${gaps.length}`;
 
-  console.log(
-    '\n' + renderBanner('TEST COVERAGE GAPS (FALLOW COVERAGE GAPS)', subtitle)
-  );
+  console.log('\n' + renderBanner('TEST COVERAGE GAPS (FALLOW COVERAGE GAPS)', subtitle));
 
   if (gaps.length === 0) {
     console.log(
       '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] No coverage gaps detected in reachable exports.\n'
-        )
+        styleText(['bold', 'green'], '[OK] No coverage gaps detected in reachable exports.\n')
     );
     return;
   }
@@ -1323,11 +1351,7 @@ function reportSuppressions(top: number, json: boolean, human = false): void {
 
   if (flattened.length === 0) {
     console.log(
-      '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] No active suppression comments or rules found.\n'
-        )
+      '\n  ' + styleText(['bold', 'green'], '[OK] No active suppression comments or rules found.\n')
     );
     return;
   }
@@ -1429,10 +1453,11 @@ function reportViz(json: boolean, human = false): void {
     }
 
     console.log(
-      '\n' +
-        renderBanner('INTERACTIVE CODEBASE MAP (FALLOW VIZ)', 'Interactive HTML visualization')
+      '\n' + renderBanner('INTERACTIVE CODEBASE MAP (FALLOW VIZ)', 'Interactive HTML visualization')
     );
-    console.log('\n  ' + styleText(['bold', 'green'], '[OK] Interactive map generated successfully!\n'));
+    console.log(
+      '\n  ' + styleText(['bold', 'green'], '[OK] Interactive map generated successfully!\n')
+    );
     console.log(`  Generated file: ${styleText('cyan', 'scratch/fallow_map.html')}`);
     console.log(`  Open it in your browser to inspect.\n`);
   } catch (err: unknown) {

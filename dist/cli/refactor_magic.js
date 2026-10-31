@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { MagicNumberHarness } from "../core/refactor/magicNumberHarness.js";
 import { MagicNumberExtractor } from "../core/refactor/magicNumberExtractor.js";
 import { applyPlanFileWithWorktreeVerification } from "../core/refactor/worktreeSandbox.js";
@@ -100,7 +100,7 @@ function handleMagicInspect(projectRoot, extractor, targetFile) {
 	console.log(styleText("gray", `• Total: ${packet.totalItems} | 0-Token: ${packet.zeroTokenCount} | Pending: ${packet.pendingAmbiguousCount}`));
 	console.log(styleText("green", `• Token Savings: ${packet.fullFileTokensBaseline} -> ${packet.superDiracBatchTokens} (${packet.tokenSavingsPercent}% savings)\n`));
 	console.log(JSON.stringify(packet, null, 2));
-	const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Date.now()}`, targetFile, items);
+	const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Temporal.Now.instant().epochMilliseconds}`, targetFile, items);
 	console.log(styleText("yellow", "\n[Plan] Suggested declarative plan ready to apply (--plan):\n"));
 	console.log(JSON.stringify(suggestedPlan, null, 2));
 	console.log(styleText("cyan", "\n[Notice] To apply this plan automatically:\n   1. Save the plan JSON to a file (e.g. scratch/magic_plan.json)\n   2. Run: npm run auditor:magic apply scratch/magic_plan.json --worktree\n"));
@@ -112,7 +112,8 @@ async function handleMagicApply(projectRoot, rawPlanPath, useWorktree) {
 async function executeMagicCli(parsed, createExtractor) {
 	const command = parsed.subcommand || "discover";
 	const targetArg = parsed.target || (typeof parsed.file === "string" ? parsed.file : void 0) || (typeof parsed.plan === "string" ? parsed.plan : void 0);
-	const projectRoot = path.resolve(String(parsed.project || process.cwd()));
+	const rawProject = typeof parsed.project === "string" ? parsed.project : process.cwd();
+	const projectRoot = path.resolve(rawProject);
 	if (parsed.help || command === "help") {
 		renderBanner("auditor-magic", "Deterministic Magic Numbers Governance & Refactoring");
 		console.log(`

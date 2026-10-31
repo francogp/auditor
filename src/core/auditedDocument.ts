@@ -11,14 +11,17 @@
  * 5. Deterministic auto-fix replacement register applying non-overlapping transformations from end-to-start.
  */
 
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
+
 import ts from 'typescript';
+
 import type { SharedAstContext } from './astContext.ts';
 
 export interface LineColumnPosition {
   readonly line: number;
   readonly column: number;
+  readonly col: number;
   readonly lineText: string;
 }
 
@@ -274,7 +277,13 @@ const REGEX_PRECEDING_CHARS = new Set([
 
 function tryFindRegexLiteralEnd(content: string, start: number, limit: number): number | null {
   let prevIdx = start - 1;
-  while (prevIdx >= 0 && (content[prevIdx] === ' ' || content[prevIdx] === '\t' || content[prevIdx] === '\r' || content[prevIdx] === '\n')) {
+  while (
+    prevIdx >= 0 &&
+    (content[prevIdx] === ' ' ||
+      content[prevIdx] === '\t' ||
+      content[prevIdx] === '\r' ||
+      content[prevIdx] === '\n')
+  ) {
     prevIdx--;
   }
   if (prevIdx >= 0 && !REGEX_PRECEDING_CHARS.has(content[prevIdx]!)) {
@@ -342,7 +351,7 @@ export class AuditedDocument {
   private cachedVueBlocks?: VueSfcBlocks | null;
   private readonly replacements: DocumentReplacement[] = [];
 
-  constructor(
+  public constructor(
     filePath: string,
     rawContent: string,
     relPath?: string,
@@ -375,7 +384,7 @@ export class AuditedDocument {
     const line = lineIndex + 1;
     const column = clamped - lineStart + 1;
     const lineText = this.lines[lineIndex] ?? '';
-    return { line, column, lineText };
+    return { line, column, col: column, lineText };
   }
 
   /**
@@ -517,13 +526,13 @@ export class AuditedDocument {
   public getNodeLineAndColumn(node: ts.Node, ast?: ts.SourceFile): LineColumnPosition {
     const sourceFile = ast ?? this.getAst();
     if (!sourceFile) {
-      return { line: 1, column: 1, lineText: '' };
+      return { line: 1, column: 1, col: 1, lineText: '' };
     }
     const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
     const lineNum = line + 1;
     const column = character + 1;
     const lineText = this.lines[lineNum - 1] ?? '';
-    return { line: lineNum, column, lineText };
+    return { line: lineNum, column, col: column, lineText };
   }
 
   /**

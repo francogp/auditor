@@ -31,7 +31,7 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateMarkdownLintConfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_markdown_lint_config');
       expect(auditor.family).toBe('documentation');
@@ -45,8 +45,8 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       const configPath = path.join(tmpDir, '.markdownlint.json');
       fs.writeFileSync(configPath, JSON.stringify(CANONICAL_MARKDOWNLINT_CONFIG, null, 2), 'utf8');
 
-      const auditor = new ValidateMarkdownLintConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -61,15 +61,15 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       expect(fs.existsSync(configPath)).toBe(false);
 
       // Check mode
-      const checkAuditor = new ValidateMarkdownLintConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('markdownlint-config-missing');
 
       // Fix mode
-      const fixAuditor = new ValidateMarkdownLintConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
       expect(fs.existsSync(configPath)).toBe(true);
@@ -83,8 +83,8 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       const configPath = path.join(tmpDir, '.markdownlint.json');
       fs.writeFileSync(configPath, '{ default: true, unclosed: }', 'utf8');
 
-      const auditor = new ValidateMarkdownLintConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       expect(result.findings.some((f) => f.ruleId === 'markdownlint-config-syntax')).toBe(true);
     });
@@ -98,8 +98,8 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       fs.writeFileSync(configPath, JSON.stringify(degraded, null, 2), 'utf8');
 
       // Check mode
-      const checkAuditor = new ValidateMarkdownLintConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       const violations = checkResult.findings.filter(
         (f) => f.ruleId === 'markdownlint-config-missing-strict-rule'
@@ -107,8 +107,8 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       expect(violations.length).toBeGreaterThanOrEqual(1);
 
       // Fix mode
-      const fixAuditor = new ValidateMarkdownLintConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const repaired = JSON.parse(fs.readFileSync(configPath, 'utf8')) as MarkdownLintConfigShape;

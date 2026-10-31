@@ -1,6 +1,7 @@
 import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { loadLockedSkills } from "./lockedSkills.js";
+import { BaseEntityRegistry } from "./baseRegistry.js";
 import path from "node:path";
 // src/core/canonicalIgnoreRegistry.ts
 /**
@@ -159,22 +160,16 @@ function getEffectiveUnignoreDirs(projectRoot = process.cwd()) {
 	}
 	return Array.from(derived);
 }
-/**
-* Registry where sub-auditors and host extensions declare their suggested ignore defaults
-* to be dynamically collected and injected into newly created or scaffolded audit.config.ts files.
-*/
-var SuiteIgnoreRegistry = class {
-	static requirements = /* @__PURE__ */ new Map();
-	static register(req) {
-		this.requirements.set(req.suiteId, req);
-	}
-	static getAll() {
-		return Array.from(this.requirements.values());
-	}
-	static reset() {
-		this.requirements.clear();
+var SuiteIgnoreRegistryImpl = class extends BaseEntityRegistry {
+	constructor() {
+		super((req) => req?.suiteId);
 	}
 };
+/**
+* Universal singleton instance for SuiteIgnoreRegistry.
+* Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+*/
+const SuiteIgnoreRegistry = new SuiteIgnoreRegistryImpl();
 /**
 * Returns a deduplicated array of glob patterns representing all active ignore directories
 * (each formatted as `${dir}/**`), merged with project-level `paths.ignoreGlobs`,
@@ -208,4 +203,4 @@ function getLockedSkillsIgnoreGlobs(projectRoot = process.cwd()) {
 	else globs.push(`**/${s}/**`);
 	return globs;
 }
-export { ALWAYS_IGNORE_DIRS, BUILTIN_TOOL_CACHE_PATHS, CANONICAL_BINARY_EXTENSIONS, CANONICAL_IGNORE_DIRS, SuiteIgnoreRegistry, clearDynamicCachePaths, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath };
+export { ALWAYS_IGNORE_DIRS, BUILTIN_TOOL_CACHE_PATHS, CANONICAL_BINARY_EXTENSIONS, CANONICAL_IGNORE_DIRS, SuiteIgnoreRegistry, SuiteIgnoreRegistryImpl, clearDynamicCachePaths, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath };

@@ -284,7 +284,7 @@ function detectLibraryDomainTypeDuplicates(files, libraryTypes) {
 			if (cand.kind === "array" && cand.isAsConst) continue;
 			const libInfo = libraryTypes.get(cand.signature);
 			if (libInfo) {
-				let msg = "";
+				let msg;
 				if (cand.kind === "array") msg = `Duplicate of library domain type: '${cand.name}' duplicates '${libInfo.typeName}' from '${libInfo.pkgName}' — import and use '${libInfo.typeName}' directly instead of reinventing it locally`;
 				else if (cand.kind === "type") msg = `Duplicate of library domain type: type '${cand.name}' duplicates '${libInfo.typeName}' from '${libInfo.pkgName}' — import and alias '${libInfo.typeName}' directly instead of re-declaring its union`;
 				else msg = `Duplicate of library domain type: property '${cand.name}' duplicates '${libInfo.typeName}' from '${libInfo.pkgName}' — import and use '${libInfo.typeName}' directly instead of re-declaring its union literals`;
@@ -420,19 +420,18 @@ function detectProjectDomainDuplicatesAndSubsets(files, domains, projectRoot) {
 	return findings;
 }
 var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
-	constructor(optionsOrTarget) {
-		const options = typeof optionsOrTarget === "string" ? { projectRoot: optionsOrTarget } : optionsOrTarget ?? {};
+	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
 		const config = getAuditConfig(projectRoot);
 		const effectiveRoots = options.roots ?? config.paths.srcRoots ?? [];
 		const effectiveIgnores = Array.from(getEffectiveIgnoreGlobs(projectRoot));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -528,7 +527,7 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 			severity: "error",
 			file: finding.file,
 			line: finding.line,
-			column: finding.col,
+			col: finding.col,
 			message: finding.message,
 			context: finding.snippet
 		});

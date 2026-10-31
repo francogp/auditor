@@ -1,4 +1,4 @@
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { applyAstReplacementsAcrossFiles, createUnifiedAstSourceFile } from "../astScriptExtractor.js";
 import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
 import fs from "node:fs";
@@ -57,8 +57,9 @@ function resolveFunctionReturnTypeInsertRange(node, sourceFile, sourceText) {
 var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-types";
 	configSectionKey = "types";
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof ValidateTypeAssertionHygieneAuditor ? auditorOrOptions : new ValidateTypeAssertionHygieneAuditor(typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot);
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new ValidateTypeAssertionHygieneAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

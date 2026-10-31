@@ -8,7 +8,7 @@ import fs from "node:fs";
 * Helper module for validating and synchronizing project SemVer and
 * @francogp/auditor version references across Markdown documentation.
 */
-const EXEMPT_MARKDOWN_FILENAMES = /* @__PURE__ */ new Set(["changelog.md", "v8-migration-guide.md"]);
+const EXEMPT_MARKDOWN_FILENAMES = /* @__PURE__ */ new Set(["changelog.md", "legacy-migration-guide.md"]);
 const HISTORICAL_OR_EXEMPT_LINE_PATTERNS = [/\b(?:since\s+version|from\s+version|prior\s+to|legacy|deprecated|migrating\s+from|upgraded?\s+from|salto|jump)\b/i, /\?\?\s*['"]\d+\.\d+\.\d+['"]/];
 function extractBaseSemver(versionStr) {
 	const match = /^v?(\d+\.\d+\.\d+)/.exec(versionStr.trim());

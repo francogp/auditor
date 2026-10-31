@@ -11,9 +11,10 @@
 
 import { spawn } from 'node:child_process';
 import { styleText } from 'node:util';
-import { formatDurationMs } from './unifiedTheme.ts';
+
 import { type AuditTaskDefinition, type SubAuditorReport } from './auditContract.ts';
 import { tryOrNull } from './safeUtils.ts';
+import { formatDurationMs } from './unifiedTheme.ts';
 
 export interface TaskStreamProgressParams {
   taskName: string;
@@ -84,7 +85,7 @@ export class TaskStreamCoordinator {
   private readonly mode: ConsoleOutputMode;
   private printLock: Promise<void> = Promise.resolve();
 
-  constructor(totalTasks: number, options?: TaskStreamCoordinatorOptions) {
+  public constructor(totalTasks: number, options?: TaskStreamCoordinatorOptions) {
     this.totalTasks = totalTasks;
     this.indent = options?.indent ?? '  ';
     this.mode = options?.mode ?? 'human';

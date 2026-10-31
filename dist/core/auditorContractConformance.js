@@ -300,7 +300,7 @@ function checkViolationVerification(testSource) {
 	return testSource.includes("status).toBe('failed')") || testSource.includes("severity).toBe('error')") || testSource.includes("severity: 'error'") || testSource.includes("summary.errors).toBeGreaterThan(") || testSource.includes("summary.errors).toBeGreaterThanOrEqual(") || testSource.includes("errors).toBeGreaterThan(") || testSource.includes("errors).toBeGreaterThanOrEqual(") || testSource.includes("errorsCount).toBeGreaterThan(") || testSource.includes("violations.length).toBeGreaterThan(") || testSource.includes("violations).not.toHaveLength(0)") || testSource.includes("errors).toBe(1)") || testSource.includes("errors).toEqual(1)") || testSource.includes("errors).toBe(2)") || testSource.includes("errors).toEqual(2)");
 }
 function checkFixVerification(testSource) {
-	return testSource.includes("fix: true") || testSource.includes("fix = true") || testSource.includes("'--fix'") || testSource.includes("\"--fix\"") || testSource.includes("isFixMode") || testSource.includes("auditZIndexParity(") || testSource.includes("fixZIndexLiteral") || testSource.includes("autoFix") || testSource.includes("applyAutoFix");
+	return testSource.includes(".fix(") || testSource.includes(".fix()") || testSource.includes("fix: true") || testSource.includes("fix = true") || testSource.includes("'--fix'") || testSource.includes("\"--fix\"") || testSource.includes("isFixMode") || testSource.includes("auditZIndexParity(") || testSource.includes("fixZIndexLiteral") || testSource.includes("autoFix") || testSource.includes("applyAutoFix");
 }
 /**
 * Validates that an auditor's dedicated test file adheres to the strict 6-point contract.
@@ -310,7 +310,7 @@ function validateAuditorTestFileContent(testSource, testFileRel, auditor) {
 	if (!checkConstructionVerification(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la construcción o metadatos de '${auditor.id}'.`);
 	if (!checkCleanVerification(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la ruta limpia (cero errores / status passed) de '${auditor.id}'.`);
 	if (!checkViolationVerification(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la detección de errores o fallos (status failed / severity error) de '${auditor.id}'.`);
-	if (auditor.capabilities.fix !== "none" && !checkFixVerification(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('fix: true') de '${auditor.id}'.`);
+	if (auditor.capabilities.fix !== "none" && !checkFixVerification(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('auditor.fix()') de '${auditor.id}'.`);
 	for (const rule of auditor.ruleIds) {
 		const escaped = rule.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 		if (!new RegExp(`(?:['"\`]${escaped}['"\`]|\\b${escaped}\\b)`).test(testSource)) errors.push(`El archivo de prueba '${testFileRel}' no verifica la regla declarada '${rule}' de '${auditor.id}'.`);

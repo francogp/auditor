@@ -7,7 +7,9 @@
  */
 
 import { styleText } from 'node:util';
+
 import boxen from 'boxen';
+
 import type { AuditTaskDefinition } from '../core/auditContract.ts';
 
 export interface GuideQueryMatch {
@@ -91,7 +93,10 @@ export function renderRuleGuideCard(match: GuideQueryMatch, isVerbose: boolean =
   return `${box}\n`;
 }
 
-export function renderSuiteGuideCards(task: AuditTaskDefinition, isVerbose: boolean = false): string {
+export function renderSuiteGuideCards(
+  task: AuditTaskDefinition,
+  isVerbose: boolean = false
+): string {
   const rules = task.ruleDescriptions ?? task.manifest?.rules ?? {};
   const remediations = task.ruleRemediations ?? task.manifest?.remediations ?? {};
   const ruleEntries = Object.entries(rules);
@@ -101,9 +106,7 @@ export function renderSuiteGuideCards(task: AuditTaskDefinition, isVerbose: bool
   }
 
   const output: string[] = [];
-  output.push(
-    styleText(['bold', 'cyan'], `\n🏛️ SUITE RULES GUIDE: ${task.name} [${task.id}]\n`)
-  );
+  output.push(styleText(['bold', 'cyan'], `\n🏛️ SUITE RULES GUIDE: ${task.name} [${task.id}]\n`));
 
   for (const [rId, rDesc] of ruleEntries) {
     output.push(
@@ -126,14 +129,12 @@ export function renderFamilyGuideIndex(
   family: string,
   tasksInFamily: readonly AuditTaskDefinition[]
 ): string {
-  const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
-  const boldWhite = (s: string) => styleText(['bold', 'white'], s);
-  const dim = (s: string) => styleText('dim', s);
+  const boldYellow = (s: string): string => styleText(['bold', 'yellow'], s);
+  const boldWhite = (s: string): string => styleText(['bold', 'white'], s);
+  const dim = (s: string): string => styleText('dim', s);
 
   const lines: string[] = [];
-  lines.push(
-    boldYellow(`\n📚 RULES & GUIDES CATALOG FOR FAMILY: ${family.toUpperCase()}\n`)
-  );
+  lines.push(boldYellow(`\n📚 RULES & GUIDES CATALOG FOR FAMILY: ${family.toUpperCase()}\n`));
 
   for (const task of tasksInFamily) {
     const rules = task.ruleDescriptions ?? task.manifest?.rules ?? {};

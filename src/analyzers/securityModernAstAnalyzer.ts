@@ -9,9 +9,10 @@
  * deterministic auto-fixes via MagicString.
  */
 
+import MagicString from 'magic-string';
 import ts from 'typescript';
 import { parseDocument, isMap, isSeq, isScalar, YAMLMap } from 'yaml';
-import MagicString from 'magic-string';
+
 import {
   type JsdomElementLocation,
   computeRawLineOffsets,
@@ -205,7 +206,7 @@ function checkPostMessageAstNode(
           ruleId: 'security-postmessage-origin-validation',
           line: span.line,
           message:
-            "Message event listener reads event.data without strict exact event.origin validation (never use includes/startsWith/endsWith).",
+            'Message event listener reads event.data without strict exact event.origin validation (never use includes/startsWith/endsWith).',
           fixable: false
         });
       }
@@ -215,7 +216,10 @@ function checkPostMessageAstNode(
   return false;
 }
 
-function isIdentityPassthroughFunction(fn: ts.FunctionLikeDeclarationBase, sf: ts.SourceFile): boolean {
+function isIdentityPassthroughFunction(
+  fn: ts.FunctionLikeDeclarationBase,
+  sf: ts.SourceFile
+): boolean {
   const firstParam = fn.parameters[0];
   if (!firstParam || !ts.isIdentifier(firstParam.name) || !fn.body) return false;
   const paramName = firstParam.name.text;
@@ -372,7 +376,7 @@ export function analyzeModernSecurityScriptAst(
 
 export function analyzeExternalSriHtml(
   htmlContent: string,
-  enableFix: boolean
+  enableFix = false
 ): ModernSecurityAnalysisResult {
   const dom = parseDomWithLocations(htmlContent);
   const doc = dom.window.document;
@@ -396,17 +400,20 @@ export function analyzeExternalSriHtml(
     const startTag = loc?.startTag;
     const line = startTag?.startLine ?? loc?.startLine ?? 1;
 
+    const canAutoFix = hasIntegrity && !hasCrossorigin && Boolean(startTag);
+
     findings.push({
       ruleId: 'security-external-sri-missing',
       line,
       message: !hasIntegrity
         ? `External CDN <${tagLower}> (${url}) lacks Subresource Integrity (integrity="sha384-...") and crossorigin="anonymous".`
         : `External CDN <${tagLower}> (${url}) with integrity attribute is missing crossorigin="anonymous".`,
-      fixable: hasIntegrity && !hasCrossorigin && Boolean(startTag)
+      fixable: canAutoFix
     });
 
-    if (ms && hasIntegrity && !hasCrossorigin && startTag) {
-      ms.appendLeft(startTag.startOffset + tagLower.length + 1, ' crossorigin="anonymous"');
+    if (ms && canAutoFix && startTag) {
+      const insertPos = startTag.endOffset - 1; // right before '>'
+      ms.appendRight(insertPos, ' crossorigin="anonymous"');
       mutated = true;
     }
   }
@@ -417,7 +424,8 @@ export function analyzeExternalSriHtml(
   };
 }
 
-const UNSAFE_GH_INTERPOLATION_REGEX = /\$\{\{\s*((?:inputs|github\.event)\.[a-zA-Z0-9_.-]+)\s*\}\}/g;
+const UNSAFE_GH_INTERPOLATION_REGEX =
+  /\$\{\{\s*((?:inputs|github\.event)\.[a-zA-Z0-9_.-]+)\s*\}\}/g;
 
 function exprToEnvVarName(expr: string): string {
   return (

@@ -52,12 +52,12 @@ function findLegacyEslintIgnores(projectRoot) {
 		if (!fs.existsSync(candidatePath)) continue;
 		const raw = safeReadFileSync(candidatePath);
 		if (raw) {
-			let extracted = [];
+			let extractedGlobs;
 			if (candidate.endsWith(".json")) {
 				const parsed = JSON.parse(raw);
-				extracted = (Array.isArray(parsed.ignorePatterns) ? parsed.ignorePatterns : Array.isArray(parsed.ignores) ? parsed.ignores : []).filter((item) => typeof item === "string");
-			} else extracted = extractEslintIgnoresFromAst(raw);
-			const globs = extracted.filter((candidateGlob) => !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob));
+				extractedGlobs = (Array.isArray(parsed.ignorePatterns) ? parsed.ignorePatterns : Array.isArray(parsed.ignores) ? parsed.ignores : []).filter((item) => typeof item === "string");
+			} else extractedGlobs = extractEslintIgnoresFromAst(raw);
+			const globs = extractedGlobs.filter((candidateGlob) => !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob));
 			if (globs.length > 0) return globs;
 		}
 	}
@@ -97,9 +97,7 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		}
 		testIgnores.push("**/*.spec.ts", "**/*.test.ts", "**/*.simulation.ts");
 	}
-	const degradationIgnores = (config.coverage?.acknowledgedDegradations ?? []).map((d) => d.glob);
 	const coverageExemptIgnores = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-	const testCoverageExemptIgnores = config.testCoverage?.exemptGlobs ?? [];
 	const dataDemoIgnores = [];
 	if (target === "lint") {
 		const dataRoots = (config.paths?.dataRoots ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
@@ -114,9 +112,7 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		...dirIgnores,
 		...patternIgnores,
 		...exemptFiles,
-		...degradationIgnores,
 		...coverageExemptIgnores,
-		...testCoverageExemptIgnores,
 		...dataDemoIgnores,
 		...testIgnores,
 		...legacyIgnores,
@@ -183,7 +179,7 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 function cleanLegacyConfigFiles(projectRoot) {
 	const viteConfigPath = path.resolve(projectRoot, "vite.config.ts");
 	if (!fs.existsSync(viteConfigPath)) return [];
-	let viteContent = "";
+	let viteContent;
 	try {
 		viteContent = fs.readFileSync(viteConfigPath, "utf-8");
 	} catch {
@@ -579,9 +575,9 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	if (!pkg) return false;
 	let modified = false;
 	const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : void 0;
-	const nextDevDeps = { ...pkg.devDependencies ?? {} };
-	const nextScripts = { ...pkg.scripts ?? {} };
-	const nextOverrides = { ...pkg.overrides ?? {} };
+	const nextDevDeps = { ...pkg.devDependencies };
+	const nextScripts = { ...pkg.scripts };
+	const nextOverrides = { ...pkg.overrides };
 	const minVersions = getAuditorMinimumVersions();
 	const canonicalOverrides = getAuditorCanonicalOverrides();
 	if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) modified = true;

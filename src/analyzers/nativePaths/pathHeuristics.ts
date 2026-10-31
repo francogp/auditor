@@ -348,7 +348,8 @@ export function isPathish(expr: ts.Expression, pathOriginNames: ReadonlySet<stri
   if (ts.isIdentifier(node)) return pathOriginNames.has(node.text) || isPathLikeName(node.text);
   if (ts.isPropertyAccessExpression(node)) return isPathLikeName(node.name.text);
   const mc = asMethodCall(node);
-  if (mc && STRING_PASSTHROUGH_METHODS.has(mc.method)) return isPathish(mc.receiver, pathOriginNames);
+  if (mc && STRING_PASSTHROUGH_METHODS.has(mc.method))
+    return isPathish(mc.receiver, pathOriginNames);
   return false;
 }
 
@@ -368,7 +369,8 @@ export function isUrlish(expr: ts.Expression): boolean {
 export function isFsSinkCall(call: ts.CallExpression): boolean {
   const callee = call.expression;
   if (ts.isIdentifier(callee)) return FS_SINK_METHODS.has(callee.text);
-  if (!ts.isPropertyAccessExpression(callee) || !FS_SINK_METHODS.has(callee.name.text)) return false;
+  if (!ts.isPropertyAccessExpression(callee) || !FS_SINK_METHODS.has(callee.name.text))
+    return false;
   const owner = unwrapExpression(callee.expression);
   if (ts.isIdentifier(owner)) return FS_OBJECTS.has(owner.text);
   return ts.isPropertyAccessExpression(owner) && owner.name.text === 'promises';

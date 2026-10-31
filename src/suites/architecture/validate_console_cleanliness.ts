@@ -15,15 +15,22 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* scripts/auditors/architecture/validate_console_cleanliness.ts
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
-  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import { getAuditConfig, isExemptFile, isScriptPath, isCliPath } from '../../core/auditConfig.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
 import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -47,9 +54,10 @@ function getExemptLoggingFiles(projectRoot?: string): ReadonlySet<string> {
 }
 
 export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlinessRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       roots: targetRoots,
@@ -57,7 +65,6 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
       ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -127,8 +134,9 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
                 ruleId: 'no-debugger-statement',
                 file: relPath,
                 line,
-                column,
-                message: 'Forbidden debugger statement found. Remove all debug breakpoints before committing.',
+                col: column,
+                message:
+                  'Forbidden debugger statement found. Remove all debug breakpoints before committing.',
                 severity: 'error'
               });
             } else if (
@@ -144,8 +152,9 @@ export class ConsoleCleanlinessAuditor extends FileScanAuditor<ConsoleCleanlines
                 ruleId: 'no-console-log-in-src',
                 file: relPath,
                 line,
-                column,
-                message: 'Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.',
+                col: column,
+                message:
+                  'Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.',
                 severity: 'error'
               });
             }

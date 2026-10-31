@@ -7,6 +7,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { styleText } from 'node:util';
+
 import type { AuditFinding } from './auditContract.ts';
 import { safeJsonParse } from './safeUtils.ts';
 
@@ -67,9 +68,7 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
           )
         );
       }
-      console.log(
-        '\n' + styleText('red', 'Fix these errors to ensure data integrity.')
-      );
+      console.log('\n' + styleText('red', 'Fix these errors to ensure data integrity.'));
     } else {
       console.log(styleText('green', '✅ All components passed validation successfully!'));
     }
@@ -151,13 +150,21 @@ export function normalizePosixPath(filePath: string, cwd: string = process.cwd()
  * Evaluates whether a relative file path matches any configured exemption pattern or prefix.
  * Supports exact matches, sub-directory prefixes, and glob wildcards (e.g. '/**' or '/*').
  */
-export function isPathExempt(relPath: string, exemptPaths?: readonly string[]): boolean {
+export function isPathExempt(
+  relPath: string,
+  exemptPaths?: readonly string[],
+  projectRoot: string = process.cwd()
+): boolean {
   if (!exemptPaths || exemptPaths.length === 0) return false;
-  const norm = normalizePosixPath(relPath);
+  const norm = normalizePosixPath(relPath, projectRoot);
   for (const p of exemptPaths) {
-    const normP = normalizePosixPath(p);
+    if (!p) continue;
+    const normP = normalizePosixPath(p, projectRoot);
     if (p.includes('*') || p.includes('?')) {
-      if (path.posix.matchesGlob(norm, normP) || path.posix.matchesGlob(norm, `**/${normP}`)) {
+      if (
+        path.posix.matchesGlob(norm, normP) ||
+        (normP.startsWith('**') && path.posix.matchesGlob(norm.replace(/^\.+[/\\]?/, ''), normP))
+      ) {
         return true;
       }
     }
@@ -165,11 +172,11 @@ export function isPathExempt(relPath: string, exemptPaths?: readonly string[]): 
     if (cleanPrefix.endsWith('/**')) cleanPrefix = cleanPrefix.slice(0, -3);
     else if (cleanPrefix.endsWith('/*')) cleanPrefix = cleanPrefix.slice(0, -2);
     else if (cleanPrefix.endsWith('/')) cleanPrefix = cleanPrefix.slice(0, -1);
+    const hasSlash = p.includes('/') || p.includes('\\');
     if (
       norm === cleanPrefix ||
       norm.startsWith(`${cleanPrefix}/`) ||
-      norm.includes(`/${cleanPrefix}/`) ||
-      norm.endsWith(`/${cleanPrefix}`)
+      (!hasSlash && (norm.includes(`/${cleanPrefix}/`) || norm.endsWith(`/${cleanPrefix}`)))
     ) {
       return true;
     }

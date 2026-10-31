@@ -73,7 +73,7 @@ describe('ValidateValibotParityAuditor', () => {
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -163,7 +163,7 @@ export function createInitialUser() {
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -222,7 +222,7 @@ export const profileSchema = object({
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -308,7 +308,7 @@ export function createInitialUser() {
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBeGreaterThan(0);
@@ -391,7 +391,7 @@ export const settingsSchema = object({
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const nestedViolation = result.findings.find(
@@ -448,7 +448,7 @@ export const profileSchema = object({
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const unknownViolation = result.findings.find(
@@ -507,7 +507,7 @@ export const profileSchema = object({
       );
 
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
       const warningFinding = result.findings.find(

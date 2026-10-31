@@ -59,6 +59,6 @@ export declare function parseCittyArgs<T extends ArgsDef>(argsDef: T, rawArgs?: 
 export declare function resolveHumanModeFromArgs(args?: {
   readonly human?: boolean;
   readonly verbose?: boolean;
-  readonly format?: ConsoleFormat | string;
+  readonly format?: string;
 }, rawArgs?: readonly string[]): boolean;
 export { type ArgDef, type ArgsDef, type CommandContext, type CommandDef, type ParsedArgs, defineCommand, runCommand, runMain };

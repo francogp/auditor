@@ -7,46 +7,30 @@
  */
 
 import type { AuditorConfigFileRequirement } from './auditContract.ts';
+import { BaseEntityRegistry, type IBaseEntityRegistry } from './baseRegistry.ts';
 
-export class ConfigFileRegistry {
-  private static readonly requirements: Map<string, AuditorConfigFileRequirement<string>> =
-    new Map();
+export type IConfigFileRegistry = IBaseEntityRegistry<AuditorConfigFileRequirement>;
 
-  /**
-   * Registers a single configuration file requirement.
-   */
-  public static register(requirement: AuditorConfigFileRequirement<string>): void {
-    if (!requirement || !requirement.id || !requirement.file) return;
-    this.requirements.set(requirement.id, requirement);
+export class ConfigFileRegistryImpl
+  extends BaseEntityRegistry<AuditorConfigFileRequirement>
+  implements IConfigFileRegistry
+{
+  public constructor() {
+    super((req) => req?.id);
   }
 
   /**
-   * Registers multiple configuration file requirements.
+   * Registers a single configuration file requirement with validation.
    */
-  public static registerMany(requirements: readonly AuditorConfigFileRequirement<string>[]): void {
-    for (const req of requirements) {
-      this.register(req);
-    }
-  }
-
-  /**
-   * Retrieves a registered configuration file requirement by its ID.
-   */
-  public static get(id: string): AuditorConfigFileRequirement<string> | undefined {
-    return this.requirements.get(id);
-  }
-
-  /**
-   * Returns all currently registered configuration file requirements.
-   */
-  public static getAll(): readonly AuditorConfigFileRequirement<string>[] {
-    return Array.from(this.requirements.values());
-  }
-
-  /**
-   * Clears all registered configuration requirements (used in test isolation).
-   */
-  public static reset(): void {
-    this.requirements.clear();
+  public override register(requirement: AuditorConfigFileRequirement): void {
+    if (!requirement?.file) return;
+    super.register(requirement);
   }
 }
+
+/**
+ * Universal singleton instance for ConfigFileRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export const ConfigFileRegistry: IConfigFileRegistry = new ConfigFileRegistryImpl();
+export type ConfigFileRegistry = IConfigFileRegistry;

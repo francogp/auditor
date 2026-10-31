@@ -4,10 +4,10 @@ import { safeJsonParse, safeReadFileSync, tryCatchSync, tryOrNull } from "../cor
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
-import { analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { syncDocumentationVersionReferences } from "../core/markdownVersionValidator.js";
+import { analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";

@@ -83,11 +83,11 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: createRuleCapabilities(['rule-a', 'rule-b'], {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -149,10 +149,10 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             ruleCapabilities: createRuleCapabilities(['scan-rule-1', 'scan-rule-2'], {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -241,11 +241,11 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             coverage: { include: ['src/**/*.ts'] },
             ruleCapabilities: createRuleCapabilities(['batch-1', 'batch-2'], {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -297,13 +297,9 @@ describe('Universal Sub-Auditor Timing Integrity', () => {
       expect(dur1!).toBeGreaterThanOrEqual(0);
       expect(dur2!).toBeGreaterThanOrEqual(0);
 
-      // Guarantees prohibited legacy batch methods fail loudly with blocking error
-      await expect(auditor.runSubAuditorsBatch(['batch-1'], async () => {})).rejects.toThrow(
-        /runSubAuditorsBatch.*strictly prohibited/
-      );
-      expect(() => auditor.runSubAuditorsBatchSync(['batch-2'], () => {})).toThrow(
-        /runSubAuditorsBatchSync.*strictly prohibited/
-      );
+      // Guarantees prohibited legacy batch methods are completely eradicated
+      expect(Reflect.has(auditor, 'runSubAuditorsBatch')).toBe(false);
+      expect(Reflect.has(auditor, 'runSubAuditorsBatchSync')).toBe(false);
     });
   });
 });

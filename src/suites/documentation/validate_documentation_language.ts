@@ -10,22 +10,29 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
+
 import { franc } from 'franc-min';
+
 import {
   extractContractSections,
   injectOrUpdateMandateInAgentsMd,
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, getEffectiveUnignoreDirs } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
-import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
-import { isTestPath } from '../../core/auditTestPredicates.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
+import type { RuleFixContext, AnyRuleFixerFn } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { getEffectiveUnignoreDirs } from '../../core/canonicalIgnoreRegistry.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
+import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
 export type DocumentationLanguageRuleId =
   | 'docs-unauthorized-language'
@@ -82,10 +89,9 @@ export function containsLanguageMandate(
 }
 
 export interface DocumentationLanguageOptions {
-  projectRoot?: string;
-  fix?: boolean;
-  language?: DocumentationLanguage;
-  exemptions?: readonly string[];
+  readonly projectRoot?: string;
+  readonly language?: DocumentationLanguage;
+  readonly exemptions?: readonly string[];
 }
 
 export interface ProseParagraph {
@@ -192,7 +198,11 @@ export function isLanguageExemptPath(relPath: string, exemptions: readonly strin
   return false;
 }
 
-function hasOpposingSentence(text: string, stopwords: RegExp, expectedOpposingLang: string): boolean {
+function hasOpposingSentence(
+  text: string,
+  stopwords: RegExp,
+  expectedOpposingLang: string
+): boolean {
   if (!stopwords.test(text)) return false;
   const sentences = text.split(/(?<=[.:?!])\s+/);
   for (const sentence of sentences) {
@@ -465,11 +475,26 @@ export function extractProseFromComments(
   return paragraphs;
 }
 
+export function fixDocsMissingLanguageMandate(
+  context: RuleFixContext<'docs-missing-language-mandate'>
+): boolean {
+  const auditor = new DocumentationLanguageAuditor({ projectRoot: context.projectRoot });
+  const config = getAuditConfig(context.projectRoot);
+  const targetLanguage = config.documentation?.language ?? 'en';
+  auditor.auditRootAgentsMandate(targetLanguage);
+  return true;
+}
+
+const DOCUMENTATION_LANGUAGE_FIXERS: Partial<Record<DocumentationLanguageRuleId, AnyRuleFixerFn>> =
+  {
+    'docs-missing-language-mandate': fixDocsMissingLanguageMandate
+  };
+
 export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLanguageRuleId> {
   private readonly rootDir: string;
   private readonly options?: DocumentationLanguageOptions;
 
-  constructor(options: DocumentationLanguageOptions = {}) {
+  public constructor(options: DocumentationLanguageOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
     const srcRoots = config.paths?.srcRoots ?? [];
@@ -479,23 +504,17 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       projectRoot
     ).include;
     super({
+      ruleFixers: DOCUMENTATION_LANGUAGE_FIXERS,
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        DOCUMENTATION_LANGUAGE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'priority',
-          md: true,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['docs-missing-language-mandate']
-      ),
-      fixableRuleIds: ['docs-missing-language-mandate'],
-      fix: options?.fix,
+      ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: true,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_documentation_language',
       name: 'Documentation Language Validator',
       description: 'Validates documentation language',
@@ -516,9 +535,9 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         'docs-unauthorized-language':
           '📖 REMEDIATION GUIDE: docs-unauthorized-language\n' +
           '1. Root Cause: A paragraph in a Markdown file was detected in a language other than the repository official language configured in `.auditor/audit.config.ts` (`config.documentation.language`).\n' +
-          '2. Diagnosis: Inspect the Markdown file and reported line. Compare text with the required language (e.g. Spanish text when config.documentation.language is \'en\').\n' +
+          "2. Diagnosis: Inspect the Markdown file and reported line. Compare text with the required language (e.g. Spanish text when config.documentation.language is 'en').\n" +
           '3. Canonical Solution:\n' +
-          '   a) Translate the paragraph into the official repository language (typically technical English for projects with config.documentation.language: \'en\').\n' +
+          "   a) Translate the paragraph into the official repository language (typically technical English for projects with config.documentation.language: 'en').\n" +
           '   b) If the file corresponds to a glossary, localized translation, or content that must remain in another language by design, add its path to `config.documentation.exemptions` in `.auditor/audit.config.ts` after consulting the human programmer.\n' +
           '4. Example:\n' +
           '   ❌ Incorrect: Non-English text in documentation paragraph\n' +
@@ -613,7 +632,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     }
   }
 
-  private auditRootAgentsMandate(targetLanguage: DocumentationLanguage): void {
+  public auditRootAgentsMandate(targetLanguage: DocumentationLanguage): void {
     const agentsMdPath = path.resolve(this.rootDir, 'AGENTS.md');
     this.recordScanned('AGENTS.md');
 
@@ -623,8 +642,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
         severity: 'error',
         file: 'AGENTS.md',
         line: 1,
-        message:
-          'Root AGENTS.md file not found to validate documentation language mandate.'
+        message: 'Root AGENTS.md file not found to validate documentation language mandate.'
       });
       return;
     }
@@ -638,7 +656,7 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       containsLanguageMandate(section, targetLanguage)
     );
     const lines = content.split('\n');
-    const isExistingLine = (l: string) =>
+    const isExistingLine = (l: string): boolean =>
       l.includes('validate_documentation_language') ||
       (l.includes('Documentation Default Mandate') && l.includes('Language Governance')) ||
       (l.includes('Mandato de Idioma de Documentación') && l.includes('Gobernanza de Lenguaje'));
@@ -716,7 +734,8 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
     this.redeclareCoverage({
       include: [
         '**/*.md', // include: coverage pattern
-        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir).include
+        ...deriveCoverageFromRoots(srcRoots, new Set(['.ts', '.tsx', '.vue', '.js']), this.rootDir)
+          .include
       ]
     });
 

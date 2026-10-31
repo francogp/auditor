@@ -301,6 +301,13 @@ function extractProseFromComments(rawComments) {
 	}
 	return paragraphs;
 }
+function fixDocsMissingLanguageMandate(context) {
+	const auditor = new DocumentationLanguageAuditor({ projectRoot: context.projectRoot });
+	const targetLanguage = getAuditConfig(context.projectRoot).documentation?.language ?? "en";
+	auditor.auditRootAgentsMandate(targetLanguage);
+	return true;
+}
+const DOCUMENTATION_LANGUAGE_FIXERS = { "docs-missing-language-mandate": fixDocsMissingLanguageMandate };
 var DocumentationLanguageAuditor = class extends BaseAuditor {
 	rootDir;
 	options;
@@ -314,19 +321,17 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			".js"
 		]), projectRoot).include;
 		super({
+			ruleFixers: DOCUMENTATION_LANGUAGE_FIXERS,
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOCUMENTATION_LANGUAGE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "priority",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["docs-missing-language-mandate"]),
-			fixableRuleIds: ["docs-missing-language-mandate"],
-			fix: options?.fix,
+			}),
 			id: "validate_documentation_language",
 			name: "Documentation Language Validator",
 			description: "Validates documentation language",
@@ -473,4 +478,4 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new DocumentationLanguageAuditor());
-export { CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN, CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES, DOCUMENTATION_LANGUAGE_RULES, DocumentationLanguageAuditor, containsLanguageMandate, evaluateParagraphLanguage, extractCommentsFromSource, extractProseFromComments, extractProseParagraphs, getCanonicalLanguageMandateSnippet, isLanguageExemptPath };
+export { CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN, CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES, DOCUMENTATION_LANGUAGE_RULES, DocumentationLanguageAuditor, containsLanguageMandate, evaluateParagraphLanguage, extractCommentsFromSource, extractProseFromComments, extractProseParagraphs, fixDocsMissingLanguageMandate, getCanonicalLanguageMandateSnippet, isLanguageExemptPath };

@@ -5,12 +5,20 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import { JSDOM } from 'jsdom';
-import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions,
-  getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
+
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 
 enableCompileCache();
 
@@ -73,23 +81,6 @@ export async function validateMermaid(diagramCode: string): Promise<MermaidValid
   }
 }
 
-/**
- * Validates diagram and returns or throws an Error (for backward compatibility).
- */
-export async function validate(
-  diagramCode: string,
-  parseOptions?: { suppressErrors?: boolean }
-): Promise<{ diagramType: string; valid: boolean } | false> {
-  const result = await validateMermaid(diagramCode);
-  if (!result.valid && result.error) {
-    if (parseOptions?.suppressErrors) {
-      return false;
-    }
-    throw new Error(`Parse error on line ${result.error.line}: ${result.error.message}`);
-  }
-  return { diagramType: result.diagramType ?? 'unknown', valid: true };
-}
-
 const UNQUOTED_EDGE_CHARS_REGEX = /[%&<>\u2260\u2265\u2264()/?!+:=#*~]/;
 const UNQUOTED_EDGE_LABEL_REGEX = /\|([^|"\n]+)\|/g;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b\w+\[([^\]"()\n]*[()][^\]"\n]*)\]/g;
@@ -98,27 +89,20 @@ const UNQUOTED_BRACE_NODE_REGEX =
 
 export class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
   public constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      () => ['.']
-    );
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, () => ['.']);
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['mermaid-unquoted-special-chars'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        MERMAID_SYNTAX_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: true,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['mermaid-unquoted-special-chars']
-      ),
-      fixableRuleIds: ['mermaid-unquoted-special-chars'],
+      ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: true,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_mermaid_syntax',
       name: 'Mermaid Diagram Syntax Auditor',
       description: 'Valid syntax and characters in Mermaid diagrams',

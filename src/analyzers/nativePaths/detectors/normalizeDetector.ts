@@ -62,7 +62,11 @@ function isSeparatorSwap(target: SeparatorSwapTarget, replacement: string): bool
   return target.hasSlashToken && replacement.includes(WIN_SEP);
 }
 
-function checkRegexReplace(info: RegexLiteralInfo, mc: MethodCall, ctx: NativePathScanContext): boolean {
+function checkRegexReplace(
+  info: RegexLiteralInfo,
+  mc: MethodCall,
+  ctx: NativePathScanContext
+): boolean {
   const replacementNode = mc.call.arguments[1];
   const replacement = replacementNode ? getStringValue(replacementNode) : undefined;
   if (isSeparatorRegex(info) && replacement !== undefined) {
@@ -87,7 +91,8 @@ function checkReplace(mc: MethodCall, ctx: NativePathScanContext): boolean {
   if (info) return checkRegexReplace(info, mc, ctx);
   const value = getStringValue(pattern);
   const replacementValue = replacement ? getStringValue(replacement) : undefined;
-  if (value === undefined || replacementValue === undefined || !isSeparatorOnly(value)) return false;
+  if (value === undefined || replacementValue === undefined || !isSeparatorOnly(value))
+    return false;
   return isSeparatorSwap(
     { hasBackslashToken: value.includes(WIN_SEP), hasSlashToken: value.includes(POSIX_SEP) },
     replacementValue
@@ -118,5 +123,7 @@ export const normalizeDetector: NativePathDetector = (node, ctx) => {
   const mc = asMethodCall(node);
   if (!mc || ctx.claimed.has(node)) return null;
   const matched = checkSplitJoin(mc, ctx) || checkReplace(mc, ctx);
-  return matched ? { ruleId: 'homebrew-path-manipulation', node, message: NORMALIZE_MESSAGE } : null;
+  return matched
+    ? { ruleId: 'homebrew-path-manipulation', node, message: NORMALIZE_MESSAGE }
+    : null;
 };

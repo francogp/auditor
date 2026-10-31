@@ -118,6 +118,7 @@ function parseNpmAuditReport(json, allowList, failOn = "critical") {
 var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -128,7 +129,6 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {
 				speed: ["heavy", "full"],
 				phase: "setup",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

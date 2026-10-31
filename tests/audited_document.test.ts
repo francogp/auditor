@@ -19,11 +19,11 @@ describe('AuditedDocument', () => {
 
       // Offset 0 -> line 1, col 1
       const pos0 = doc.getLineAndColumn(0);
-      expect(pos0).toEqual({ line: 1, column: 1, lineText: 'const a = 1;' });
+      expect(pos0).toEqual({ line: 1, column: 1, col: 1, lineText: 'const a = 1;' });
 
       // Offset 13 -> start of line 2
       const pos13 = doc.getLineAndColumn(13);
-      expect(pos13).toEqual({ line: 2, column: 1, lineText: 'const b = 2;' });
+      expect(pos13).toEqual({ line: 2, column: 1, col: 1, lineText: 'const b = 2;' });
 
       // Offset 20 -> inside line 2
       const pos20 = doc.getLineAndColumn(20);
@@ -41,9 +41,9 @@ describe('AuditedDocument', () => {
       const doc = new AuditedDocument('crlf.ts', crlfCode);
 
       expect(doc.lines).toEqual(['first', 'second', 'third']);
-      expect(doc.getLineAndColumn(0)).toEqual({ line: 1, column: 1, lineText: 'first' });
-      expect(doc.getLineAndColumn(7)).toEqual({ line: 2, column: 1, lineText: 'second' });
-      expect(doc.getLineAndColumn(15)).toEqual({ line: 3, column: 1, lineText: 'third' });
+      expect(doc.getLineAndColumn(0)).toEqual({ line: 1, column: 1, col: 1, lineText: 'first' });
+      expect(doc.getLineAndColumn(7)).toEqual({ line: 2, column: 1, col: 1, lineText: 'second' });
+      expect(doc.getLineAndColumn(15)).toEqual({ line: 3, column: 1, col: 1, lineText: 'third' });
     });
   });
 

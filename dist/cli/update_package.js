@@ -4,8 +4,8 @@ import { safeJsonParse, safeReadFileSync, tryOrNull } from "../core/safeUtils.js
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isMainModule } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { initAgentSkill } from "./init_agent.js";
 import { syncEnvScripts } from "./sync_env_scripts.js";
 import { ensureNpmrcAllowGit } from "../core/npmrcAllowGit.js";

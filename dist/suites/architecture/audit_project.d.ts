@@ -1,5 +1,6 @@
 import { AuditRule, Violation } from "../../analyzers/auditRuleTypes.js";
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
+import "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "./audit_rules.js";
 export declare function isInsideComment(content: string, index: number): boolean;
@@ -34,10 +35,10 @@ export declare function filterAndGroupViolations(rawViolations: Violation[], ctx
   typeGroups: Record<string, number>;
 };
 export declare function buildProjectTopFiles(fileGroups: Record<string, Violation[]>, topLimit: number): {
-  file: string;
-  errors: number;
-  warnings: number;
-  total: number;
+  readonly file: string;
+  readonly errors: number;
+  readonly warnings: number;
+  readonly total: number;
 }[];
 export declare function main(cliArgs?: string[], options?: ProjectMainRunOptions): Promise<Violation[]>;
 export declare function getProjectArchitectureRuleDescriptions(): Record<string, string>;
@@ -47,7 +48,7 @@ export interface AuditProjectOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
 }
-export declare class ProjectArchitectureAuditor extends BaseAuditor<string> {
+export declare class ProjectArchitectureAuditor extends BaseAuditor {
   private readonly effectiveRoots;
   constructor(options?: AuditProjectOptions);
   runAudit(): Promise<void>;

@@ -7,15 +7,16 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import MagicString from 'magic-string';
 import { Project, SourceFile } from 'ts-morph';
-import { parseVueSfcBlocks } from '../vueSfcParser.ts';
+
 import { toPosixRelative } from '../safePath.ts';
 import { tryOrNull, tryOrNullAsync } from '../safeUtils.ts';
+import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import type { RefactorPlan } from './refactorContracts.ts';
 
 type AstGrepModule = typeof import('@ast-grep/napi');
-type AstGrepLang = Parameters<AstGrepModule['parse']>[0];
 let cachedAstGrep: AstGrepModule | null = null;
 
 async function getAstGrep(): Promise<AstGrepModule | null> {
@@ -101,10 +102,7 @@ export class HybridHarnessEngine {
       !updatedScript.includes(`import { ${plan.functionName}`) &&
       !updatedScript.includes(`import ${plan.functionName}`)
     ) {
-      s.appendLeft(
-        scriptOffset,
-        `\nimport { ${plan.functionName} } from '${importSpecifier}';\n`
-      );
+      s.appendLeft(scriptOffset, `\nimport { ${plan.functionName} } from '${importSpecifier}';\n`);
     }
 
     fs.writeFileSync(absFile, s.toString(), 'utf8');
@@ -142,7 +140,10 @@ export class HybridHarnessEngine {
     await sourceFile.save();
   }
 
-  public static expandMetavariables(rewrite: string, match: any): string {
+  public static expandMetavariables(
+    rewrite: string,
+    match: { getMatch?: (name: string) => { text: () => string } | null }
+  ): string {
     let result = rewrite;
     const matches = rewrite.match(/\$[A-Z0-9_]+/g);
     if (matches) {
@@ -187,7 +188,7 @@ export class HybridHarnessEngine {
     const astGrep = await getAstGrep();
     if (astGrep) {
       const transformed = tryOrNull(() => {
-        const rootNode = astGrep.parse(lang as AstGrepLang, sourceCode).root();
+        const rootNode = astGrep.parse(lang, sourceCode).root();
         const matches = rootNode.findAll(pattern);
 
         if (matches.length > 0) {
@@ -197,7 +198,8 @@ export class HybridHarnessEngine {
 
           let updated = sourceCode;
           for (const edit of edits) {
-            updated = updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
+            updated =
+              updated.slice(0, edit.startPos) + edit.insertedText + updated.slice(edit.endPos);
           }
           return updated;
         }

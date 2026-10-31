@@ -7,7 +7,6 @@
  * for member accessibility, globalThis references, and void expressions.
  */
 
-import type { TableColumn } from '../core/unifiedTheme.ts';
 import { HygieneRefactorEngine } from '../core/refactor/hygieneRefactorEngine.ts';
 import {
   runRefactorCliHarness,
@@ -18,6 +17,7 @@ import type {
   HygieneFindingItem,
   HygieneRefactorPlan
 } from '../core/refactor/refactorContracts.ts';
+import type { TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
@@ -32,7 +32,8 @@ const hygieneCliDef: RefactorCliDefinition<HygieneFindingItem, HygieneRefactorPl
   toolName: 'auditor-hygiene',
   toolDescription: 'member accessibility, globalThis references, or redundant void expressions',
   bannerTitle: 'AUDITOR HYGIENE: CODE ACCESSIBILITY & STANDARDS REFACTORING',
-  bannerSubtitle: 'Deterministic auto-remediation of public modifiers, globalThis, and void statements',
+  bannerSubtitle:
+    'Deterministic auto-remediation of public modifiers, globalThis, and void statements',
   scanningMessage: 'Scanning accessibility, globals, and void expressions in',
   zeroFindingsMessage: 'Zero accessibility, legacy global, or void operator issues detected!',
   tableColumns: TABLE_COLUMNS,
@@ -40,21 +41,21 @@ const hygieneCliDef: RefactorCliDefinition<HygieneFindingItem, HygieneRefactorPl
   discoverInFile: (filePath) => HygieneRefactorEngine.discoverInFile(filePath),
   buildTableRow: (relFile, findings) => {
     const access = findings.filter((f) => f.kind === 'member-accessibility').length;
-    const globalThis = findings.filter((f) => f.kind === 'prefer-global-this').length;
+    const globalThisCount = findings.filter((f) => f.kind === 'prefer-global-this').length;
     const noVoid = findings.filter((f) => f.kind === 'no-void').length;
     return {
       file: formatCliRelativeFilePath(relFile),
       access: String(access),
-      globalThis: String(globalThis),
+      globalThis: String(globalThisCount),
       noVoid: String(noVoid),
       total: String(findings.length)
     };
   },
   buildSummaryMessage: (filesCount, allFindings) => {
     const access = allFindings.filter((f) => f.kind === 'member-accessibility').length;
-    const globalThis = allFindings.filter((f) => f.kind === 'prefer-global-this').length;
+    const globalThisCount = allFindings.filter((f) => f.kind === 'prefer-global-this').length;
     const noVoid = allFindings.filter((f) => f.kind === 'no-void').length;
-    return `Summary: ${filesCount} file(s) with ${allFindings.length} hygiene opportunities (${access} member accessibility, ${globalThis} globals -> globalThis, ${noVoid} void expressions).`;
+    return `Summary: ${filesCount} file(s) with ${allFindings.length} hygiene opportunities (${access} member accessibility, ${globalThisCount} globals -> globalThis, ${noVoid} void expressions).`;
   },
   toDiracItem: (f) => ({
     line: f.line,
@@ -85,10 +86,13 @@ USAGE EXAMPLES:
 `
 };
 
-export function runHygieneCli(): void {
-  runRefactorCliHarness(hygieneCliDef);
+export async function runHygieneCli(): Promise<void> {
+  await runRefactorCliHarness(hygieneCliDef);
 }
 
 if (isMainModule(import.meta.url, ['auditor-hygiene'])) {
-  runHygieneCli();
+  runHygieneCli().catch((err: unknown) => {
+    console.error(err);
+    process.exit(1);
+  });
 }

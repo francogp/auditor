@@ -1,6 +1,5 @@
-import { AuditEngineConfig } from "../auditConfigTypes.js";
 import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { HygieneFindingItem, HygieneRefactorPlan } from "./refactorContracts.js";
 import { AstTextReplacement } from "../astScriptExtractor.js";
 /**
@@ -10,13 +9,11 @@ export declare function inspectHygieneFile(filePath: string, sourceText: string)
   readonly findings: readonly HygieneFindingItem[];
   readonly replacements: readonly AstTextReplacement[];
 };
+export type HygieneRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
 export declare class HygieneRefactorEngine extends BaseRefactorEngine<HygieneFindingItem, HygieneRefactorPlan, OxlintAuditor> {
   readonly toolId = "auditor-hygiene";
   readonly configSectionKey: "oxlint";
-  constructor(auditorOrOptions?: OxlintAuditor | string | {
-    projectRoot?: string;
-    config?: AuditEngineConfig;
-  }, _explicitConfig?: AuditEngineConfig);
+  constructor(options?: HygieneRefactorEngineOptions);
   discoverInFile(filePath: string): readonly HygieneFindingItem[];
   createPlan(hygienePlanId: string, hygieneFindings: readonly HygieneFindingItem[]): HygieneRefactorPlan;
   applyPlan(projectRoot: string, plan: HygieneRefactorPlan): {

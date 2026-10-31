@@ -69,7 +69,7 @@ var SharedAstContext = class {
 		const openTagLength = match[0].indexOf(scriptContent);
 		const result = {
 			scriptContent,
-			offsetLine: (content.substring(0, match.index + (openTagLength >= 0 ? openTagLength : 0)).match(/\n/g) ?? []).length + 1
+			offsetLine: (content.substring(0, match.index + Math.max(openTagLength, 0)).match(/\n/g) ?? []).length + 1
 		};
 		this.extractedScripts.set(norm, result);
 		return result;

@@ -30,7 +30,7 @@ describe('ValidateFileEncodingAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_file_encoding');
       expect(auditor.family).toBe('architecture');
@@ -56,7 +56,7 @@ describe('ValidateFileEncodingAuditor', () => {
         }),
         tmpDir
       );
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
       const declaration = auditor.getCoverageRecorder().declaration;
       expect(declaration.exclude).toContain('database/backups/**');
       expect(declaration.exclude).toContain('legacy/vendor');
@@ -82,8 +82,8 @@ describe('ValidateFileEncodingAuditor', () => {
         'utf8'
       );
 
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -111,8 +111,8 @@ describe('ValidateFileEncodingAuditor', () => {
       fs.writeFileSync(vueFile, vueContent);
 
       // Check mode
-      const auditorCheck = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const checkResult = await auditorCheck.execute();
+      const auditorCheck = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const checkResult = await auditorCheck.audit();
 
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(2);
@@ -121,8 +121,8 @@ describe('ValidateFileEncodingAuditor', () => {
       expect(checkResult.findings[1]?.ruleId).toBe('file-encoding-unwanted-bom');
 
       // Fix mode
-      const auditorFix = new ValidateFileEncodingAuditor({ fix: true }, tmpDir);
-      const fixResult = await auditorFix.execute();
+      const auditorFix = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const fixResult = await auditorFix.fix();
 
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
@@ -151,16 +151,16 @@ describe('ValidateFileEncodingAuditor', () => {
       fs.writeFileSync(targetFile, fullBuffer);
 
       // Check mode
-      const auditorCheck = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const checkResult = await auditorCheck.execute();
+      const auditorCheck = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const checkResult = await auditorCheck.audit();
 
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('file-encoding-invalid-charset');
 
       // Fix mode
-      const auditorFix = new ValidateFileEncodingAuditor({ fix: true }, tmpDir);
-      const fixResult = await auditorFix.execute();
+      const auditorFix = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const fixResult = await auditorFix.fix();
 
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
@@ -185,8 +185,8 @@ describe('ValidateFileEncodingAuditor', () => {
 
       fs.writeFileSync(targetFile, fullBuffer);
 
-      const auditorFix = new ValidateFileEncodingAuditor({ fix: true }, tmpDir);
-      const fixResult = await auditorFix.execute();
+      const auditorFix = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const fixResult = await auditorFix.fix();
 
       expect(fixResult.status).toBe('passed');
       expect(fs.readFileSync(targetFile, 'utf8')).toBe('A\n');
@@ -202,14 +202,14 @@ describe('ValidateFileEncodingAuditor', () => {
 
       fs.writeFileSync(targetFile, latin1Bytes);
 
-      const auditorCheck = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const checkResult = await auditorCheck.execute();
+      const auditorCheck = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const checkResult = await auditorCheck.audit();
 
       expect(checkResult.status).toBe('failed');
       expect(checkResult.findings[0]?.ruleId).toBe('file-encoding-invalid-charset');
 
-      const auditorFix = new ValidateFileEncodingAuditor({ fix: true }, tmpDir);
-      const fixResult = await auditorFix.execute();
+      const auditorFix = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const fixResult = await auditorFix.fix();
 
       expect(fixResult.status).toBe('passed');
       expect(fs.readFileSync(targetFile, 'utf8')).toBe('café\n');
@@ -222,8 +222,8 @@ describe('ValidateFileEncodingAuditor', () => {
       const mojibakeFile = path.join(srcDir, 'mojibake.ts');
       fs.writeFileSync(mojibakeFile, "export const name = 'cafÃ©';\n", 'utf8');
 
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBe(1);
       expect(result.findings.some((f) => f.ruleId === 'file-encoding-mojibake-detected')).toBe(
@@ -242,8 +242,8 @@ describe('ValidateFileEncodingAuditor', () => {
         'utf8'
       );
 
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBeGreaterThan(0);
       expect(result.findings.length).toBeGreaterThan(0);
@@ -257,8 +257,8 @@ describe('ValidateFileEncodingAuditor', () => {
       // mojibake-ok is inside literal string, not comment
       fs.writeFileSync(rawCode, "const msg = 'PociÃ³n with mojibake-ok: in string';\n", 'utf8');
 
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.summary.warnings).toBe(1);
       expect(result.findings[0]?.ruleId).toBe('file-encoding-mojibake-detected');
@@ -281,8 +281,8 @@ describe('ValidateFileEncodingAuditor', () => {
       const binFile = path.join(srcDir, 'sample.unknown');
       fs.writeFileSync(binFile, Buffer.from([0x01, 0x02, 0x00, 0x03, 0x00, 0x00, 0x05]));
 
-      const auditor = new ValidateFileEncodingAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFileEncodingAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);

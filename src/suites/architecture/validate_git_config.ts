@@ -8,10 +8,11 @@
  * In --fix mode, automatically configures these settings locally via git config.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -73,25 +74,33 @@ export function setLocalGitConfig(key: string, value: string, projectRoot: strin
   }
 }
 
+const GIT_CONFIG_FIXERS: Partial<Record<GitConfigRuleId, (ctx: { projectRoot: string }) => void>> =
+  {
+    'git-config-filemode': ({ projectRoot }) => {
+      setLocalGitConfig('core.filemode', 'false', projectRoot);
+    },
+    'git-config-autocrlf': ({ projectRoot }) => {
+      setLocalGitConfig('core.autocrlf', 'input', projectRoot);
+    },
+    'git-config-eol': ({ projectRoot }) => {
+      setLocalGitConfig('core.eol', 'lf', projectRoot);
+    }
+  };
+
 export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
-  constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
+  public constructor(options: Partial<AuditorOptions<GitConfigRuleId>> = {}) {
     super({
       usesThirdPartyTool: false,
       requiredPermissions: ['--allow-child-process'],
-      ruleCapabilities: createRuleCapabilities(
-        GIT_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [...GIT_CONFIG_RULES]
-      ),
-      fixableRuleIds: [...GIT_CONFIG_RULES],
+      ruleCapabilities: createRuleCapabilities(GIT_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
+      ruleFixers: GIT_CONFIG_FIXERS,
       id: 'validate_git_config',
       name: 'Git Configuration Validator',
       description: 'Validates and synchronizes local Git configuration',

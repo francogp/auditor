@@ -113,6 +113,7 @@ var AuditorTestsAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		const { include, exclude } = deriveAuditorTestsCoverage(projectRoot);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			id: "validate_auditor_tests",
@@ -122,7 +123,6 @@ var AuditorTestsAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

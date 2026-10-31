@@ -14,8 +14,8 @@
  * In --fix mode, this plugin natively auto-repairs all lowercase occurrences on the PostCSS AST.
  */
 
-import stylelint from 'stylelint';
 import valueParser from 'postcss-value-parser';
+import stylelint from 'stylelint';
 
 export const SASS_TRAPS_RULE_NAME = 'sass-traps/collision-casing' as const;
 

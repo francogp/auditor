@@ -392,18 +392,18 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 		const effectiveRoot = options.projectRoot || process.cwd();
 		const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["markdown-outdated-project-version"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["markdown-outdated-project-version"]),
-			fixableRuleIds: ["markdown-outdated-project-version"],
+			}),
 			id: "validate_markdown_code_references",
 			name: "Markdown Code References Validator",
 			description: "Validates paths, scripts, casing, and skills in markdown",
@@ -529,6 +529,22 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 		});
 		this.context.setMetric("Scanned Markdown Files", mdFiles.length);
 		this.context.setMetric("Analyzed Code References", referencesChecked);
+	}
+	repairOutdatedVersionReferences() {
+		const versionInfo = resolveProjectVersionInfo(this.rootDir);
+		if (!versionInfo) return;
+		const mdFiles = this.collectMarkdownFiles();
+		for (const relFile of mdFiles) {
+			const fullPath = path.resolve(this.rootDir, relFile);
+			try {
+				const raw = fs.readFileSync(fullPath, "utf8");
+				const lines = raw.split(/\r?\n/);
+				const { updatedContent } = scanAndFixMarkdownProjectVersions(relFile, lines, versionInfo);
+				if (updatedContent !== null && updatedContent !== raw) fs.writeFileSync(fullPath, updatedContent, "utf8");
+			} catch (err) {
+				if (err.code !== "ENOENT") process.stderr.write(`[validate_markdown_code_references] Error reading ${relFile}: ${String(err)}\n`);
+			}
+		}
 	}
 	collectMarkdownFiles() {
 		return this.context.collectFiles(this.scanRoots, /* @__PURE__ */ new Set([".md"]));

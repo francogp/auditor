@@ -6,10 +6,12 @@
  * analyzes variable dataflow (parameters vs return values), and quantifies token savings.
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
+
 import ts from 'typescript';
+
 import { toPosixRelative } from '../safePath.ts';
 import {
   type FallowCloneGroup,
@@ -84,21 +86,20 @@ export class MicroContextExtractor {
       };
     });
 
-    const paramCandidates = Array.from(
-      new Set(instances.flatMap((i) => i.freeVariables))
-    ).filter((v) => !['console', 'Math', 'JSON', 'Object', 'Array', 'Promise'].includes(v));
-
-    const returnCandidates = Array.from(
-      new Set(instances.flatMap((i) => i.assignedVariables))
+    const paramCandidates = Array.from(new Set(instances.flatMap((i) => i.freeVariables))).filter(
+      (v) => !['console', 'Math', 'JSON', 'Object', 'Array', 'Promise'].includes(v)
     );
+
+    const returnCandidates = Array.from(new Set(instances.flatMap((i) => i.assignedVariables)));
 
     const microContextChars = instances.reduce((acc, i) => acc + i.contextSnippet.length, 0);
 
     const traditionalTokens = Math.round(fullFilesTotalChars * ESTIMATED_TOKENS_PER_CHAR);
     const microTokens = Math.round((microContextChars + 500) * ESTIMATED_TOKENS_PER_CHAR);
-    const savingsPct = traditionalTokens > 0
-      ? Math.max(0, Math.round(((traditionalTokens - microTokens) / traditionalTokens) * 100))
-      : 0;
+    const savingsPct =
+      traditionalTokens > 0
+        ? Math.max(0, Math.round(((traditionalTokens - microTokens) / traditionalTokens) * 100))
+        : 0;
 
     return {
       fingerprint: group.fingerprint,
@@ -128,11 +129,7 @@ export class MicroContextExtractor {
     let hasReturnOrBreak = false;
 
     const visit = (node: ts.Node): void => {
-      if (
-        ts.isReturnStatement(node) ||
-        ts.isBreakStatement(node) ||
-        ts.isContinueStatement(node)
-      ) {
+      if (ts.isReturnStatement(node) || ts.isBreakStatement(node) || ts.isContinueStatement(node)) {
         hasReturnOrBreak = true;
       }
 

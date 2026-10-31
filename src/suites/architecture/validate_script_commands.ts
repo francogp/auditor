@@ -15,10 +15,14 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import {
   loadPackageScriptsAndBins,
@@ -27,9 +31,9 @@ import {
   type NpmCommandValidationEnv,
   type GenericCommandViolationKind
 } from '../../core/npmCommandUtils.ts';
-import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
-import { tryOrNull } from '../../core/safeUtils.ts';
 import { isPathContained, normalizePosixPath } from '../../core/safePath.ts';
+import { tryOrNull } from '../../core/safeUtils.ts';
+import { extractScriptCommands } from '../../core/scriptCommandExtractors.ts';
 
 export type ScriptCommandsRuleId =
   | 'script-cmd-unregistered-npm'
@@ -140,7 +144,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
   private readonly scriptsRoots: readonly string[];
 
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
     const config = getAuditConfig(root);
     const scriptsRoots = config.paths?.scriptsRoots?.length
@@ -149,12 +153,12 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
     const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(SCRIPT_COMMANDS_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

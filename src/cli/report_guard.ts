@@ -9,6 +9,7 @@
  */
 
 import { styleText } from 'node:util';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -17,8 +18,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
 import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
+import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
 
 export interface GuardFileResult {
   readonly path: string;
@@ -83,7 +84,10 @@ function formatGuardTableRow(item: GuardFileResult): GuardTableRow {
   };
 }
 
-function renderGuardResultsTable(fileResults: readonly GuardFileResult[], options: GuardOptions = {}): void {
+function renderGuardResultsTable(
+  fileResults: readonly GuardFileResult[],
+  options: GuardOptions = {}
+): void {
   if (!isHumanConsoleMode(options)) {
     console.log(`[Guard] Architecture pre-flight for ${fileResults.length} file(s):`);
     for (const item of fileResults) {

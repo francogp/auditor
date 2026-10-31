@@ -190,7 +190,7 @@ Developers must consult architectural guidelines before introducing new dependen
     fs.writeFileSync(path.join(scratchDir, 'README.md'), englishMd, 'utf8');
 
     const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -207,7 +207,7 @@ Los desarrolladores deben consultar las directrices antes de introducir dependen
     fs.writeFileSync(path.join(scratchDir, 'README.md'), spanishMd, 'utf8');
 
     const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
@@ -253,7 +253,7 @@ Los desarrolladores deben consultar las directrices antes de introducir dependen
     fs.writeFileSync(path.join(scratchDir, 'README.md'), spanishMd, 'utf8');
 
     const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'es' });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -273,7 +273,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
       language: 'en',
       exemptions: ['SPANISH_GUIDE.md']
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -283,7 +283,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandateAgentsMd(), 'utf8');
 
     const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
@@ -297,7 +297,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
     fs.rmSync(path.join(scratchDir, 'AGENTS.md'));
 
     const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.status).toBe('failed');
@@ -309,10 +309,10 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
 
     const fixAuditor = new DocumentationLanguageAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'en'
     });
-    await fixAuditor.execute();
+    await fixAuditor.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain(
@@ -326,7 +326,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
       projectRoot: scratchDir,
       language: 'en'
     });
-    const verifyResult = await verifyAuditor.execute();
+    const verifyResult = await verifyAuditor.audit();
     expect(verifyResult.summary.errors).toBe(0);
     expect(verifyResult.status).toBe('passed');
   });
@@ -336,10 +336,10 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
 
     const fixAuditor = new DocumentationLanguageAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'en'
     });
-    await fixAuditor.execute();
+    await fixAuditor.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain('learning_proposal.md');
@@ -354,7 +354,7 @@ Todos los componentes siguen un diseño orientado a objetos estricto y arquitect
       projectRoot: scratchDir,
       language: 'en'
     });
-    const verifyResult = await verifyAuditor.execute();
+    const verifyResult = await verifyAuditor.audit();
     expect(verifyResult.summary.errors).toBe(0);
     expect(verifyResult.status).toBe('passed');
   });
@@ -389,10 +389,10 @@ Ingenieros de Arquitectura.
     // Run fix in Spanish mode
     const fixAuditorEs = new DocumentationLanguageAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'es'
     });
-    await fixAuditorEs.execute();
+    await fixAuditorEs.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain(
@@ -402,7 +402,7 @@ Ingenieros de Arquitectura.
 
     // Verification in Spanish mode passes cleanly
     const verifyEs = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'es' });
-    const resultEs = await verifyEs.execute();
+    const resultEs = await verifyEs.audit();
     expect(resultEs.summary.errors).toBe(0);
     expect(resultEs.status).toBe('passed');
   });
@@ -438,10 +438,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
     // Running fix in English mode replaces the Spanish mandate with English
     const fixAuditorEn = new DocumentationLanguageAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'en'
     });
-    await fixAuditorEn.execute();
+    await fixAuditorEn.fix();
 
     const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(finalContent).toContain(
@@ -450,7 +450,7 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
     expect(finalContent).not.toContain('Mandato de Idioma de Documentación en Español');
 
     const verifyEn = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-    const finalResult = await verifyEn.execute();
+    const finalResult = await verifyEn.audit();
     expect(finalResult.summary.errors).toBe(0);
     expect(finalResult.status).toBe('passed');
   });
@@ -461,10 +461,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
 
       const run1 = new DocumentationLanguageAuditor({
         projectRoot: scratchDir,
-        fix: true,
+
         language: 'en'
       });
-      await run1.execute();
+      await run1.fix();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
       const matchesRun1 = contentAfterRun1.match(
@@ -475,10 +475,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
       for (let i = 2; i <= 5; i++) {
         const auditor = new DocumentationLanguageAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await auditor.execute();
+        await auditor.fix();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
         const matches = current.match(
@@ -494,10 +494,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
 
       const run1 = new DocumentationLanguageAuditor({
         projectRoot: scratchDir,
-        fix: true,
+
         language: 'en'
       });
-      await run1.execute();
+      await run1.fix();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
       const matchesRun1 = contentAfterRun1.match(
@@ -508,10 +508,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_ES}
       for (let i = 2; i <= 5; i++) {
         const auditor = new DocumentationLanguageAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await auditor.execute();
+        await auditor.fix();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
         const matches = current.match(
@@ -543,10 +543,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
 
       const fixAuditor = new DocumentationLanguageAuditor({
         projectRoot: scratchDir,
-        fix: true,
+
         language: 'en'
       });
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -556,10 +556,10 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
       // Run fix again: must remain strictly 1
       const fixAuditor2 = new DocumentationLanguageAuditor({
         projectRoot: scratchDir,
-        fix: true,
+
         language: 'en'
       });
-      await fixAuditor2.execute();
+      await fixAuditor2.fix();
 
       const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -584,7 +584,7 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
       fs.writeFileSync(path.join(srcDir, 'module.ts'), badSource, 'utf8');
 
       const auditor = new DocumentationLanguageAuditor({ projectRoot: scratchDir, language: 'en' });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');

@@ -108,12 +108,12 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const root = options.projectRoot || process.cwd();
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: true,
 				ast: false,
 				changedOnly: false,

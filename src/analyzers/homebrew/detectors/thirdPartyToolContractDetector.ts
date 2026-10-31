@@ -84,7 +84,7 @@ export const thirdPartyToolContractDetector: HomebrewDetector = {
     const declaresFalse = /\busesThirdPartyTool\s*:\s*false\b/.test(context.content);
     const declaresPolicy = /\bthirdPartyToolPolicy\s*:\s*\{/.test(context.content);
 
-    const isClassHeader = (l: string) =>
+    const isClassHeader = (l: string): boolean =>
       l.includes('class ') &&
       (l.includes('extends BaseAuditor') || l.includes('extends FileScanAuditor'));
 

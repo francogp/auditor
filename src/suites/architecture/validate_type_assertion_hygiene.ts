@@ -12,13 +12,19 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
+
 import ts from 'typescript';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  FileScanAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
@@ -46,8 +52,8 @@ const P_FLOATING_PROMISE =
 const P_TYPECAST_READONLY_STRING_ARRAY = /\bas\s+(?:readonly\s+)?string\[\]/g;
 
 export interface ValidateTypeAssertionHygieneOptions {
-  projectRoot?: string;
-  roots?: readonly string[];
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
 }
 
 interface TypeAssertionIssue {
@@ -63,7 +69,10 @@ function isStringArrayType(typeNode: ts.TypeNode): boolean {
     return true;
   }
   if (ts.isTypeOperatorNode(typeNode) && typeNode.operator === ts.SyntaxKind.ReadonlyKeyword) {
-    return ts.isArrayTypeNode(typeNode.type) && typeNode.type.elementType.kind === ts.SyntaxKind.StringKeyword;
+    return (
+      ts.isArrayTypeNode(typeNode.type) &&
+      typeNode.type.elementType.kind === ts.SyntaxKind.StringKeyword
+    );
   }
   return false;
 }
@@ -79,7 +88,8 @@ function reportLooseArrayCast(
     ruleId: 'type-assertion-loose-array',
     line,
     column,
-    message: 'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`',
+    message:
+      'Typecast `as string[]` or `as readonly string[]` widens domain collection — preserve literal types with `as const`',
     context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
   });
 }
@@ -97,7 +107,8 @@ function checkAsExpression(
       ruleId: 'type-assertion-zero-any',
       line,
       column,
-      message: 'Type assertion `as any` degrades type safety — derive domain type or specify precise union',
+      message:
+        'Type assertion `as any` degrades type safety — derive domain type or specify precise union',
       context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
     });
   } else if (ts.isArrayTypeNode(typeNode)) {
@@ -122,7 +133,10 @@ function checkAsExpression(
   const inner = node.expression;
   if (ts.isAsExpression(inner)) {
     const innerType = inner.type;
-    if (innerType.kind === ts.SyntaxKind.UnknownKeyword || innerType.kind === ts.SyntaxKind.AnyKeyword) {
+    if (
+      innerType.kind === ts.SyntaxKind.UnknownKeyword ||
+      innerType.kind === ts.SyntaxKind.AnyKeyword
+    ) {
       const { line, column } = doc.getNodeLineAndColumn(node, ast);
       issues.push({
         ruleId: 'type-assertion-double-cast',
@@ -159,7 +173,10 @@ function checkBooleanLiteralAnnotation(
     if (lit.kind === ts.SyntaxKind.TrueKeyword || lit.kind === ts.SyntaxKind.FalseKeyword) {
       isBoolLit = true;
     }
-  } else if (typeNode.kind === ts.SyntaxKind.TrueKeyword || typeNode.kind === ts.SyntaxKind.FalseKeyword) {
+  } else if (
+    typeNode.kind === ts.SyntaxKind.TrueKeyword ||
+    typeNode.kind === ts.SyntaxKind.FalseKeyword
+  ) {
     isBoolLit = true;
   }
   if (!isBoolLit) return;
@@ -189,7 +206,8 @@ function checkBooleanLiteralAnnotation(
     ruleId: 'type-assertion-boolean-literal',
     line,
     column,
-    message: 'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state',
+    message:
+      'Type annotation with boolean literal `true` or `false` — use `boolean` type or domain state',
     context: node.getText(ast).slice(0, 100).replace(/\n/g, '↵')
   });
 }
@@ -223,27 +241,23 @@ function checkFloatingPromise(
 }
 
 export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAssertionRuleId> {
-  constructor(options?: string | ValidateTypeAssertionHygieneOptions) {
-    const rootPath = typeof options === 'string' ? options : options?.projectRoot;
+  public constructor(options: ValidateTypeAssertionHygieneOptions = {}) {
+    const rootPath = options.projectRoot ?? process.cwd();
     const cfg = getAuditConfig(rootPath);
-    const codeRoots =
-      typeof options === 'object' && options?.roots ? options.roots : (cfg.paths.codeRoots ?? []);
+    const codeRoots = options.roots ?? cfg.paths.codeRoots ?? [];
     const typeIgnores = Array.from(
       getEffectiveIgnoreGlobs(rootPath, {
-        extraGlobs: [
-          ...(cfg.types?.ignoreGlobs ?? []),
-          ...(cfg.types?.exemptPaths ?? [])
-        ]
+        extraGlobs: [...(cfg.types?.ignoreGlobs ?? []), ...(cfg.types?.exemptPaths ?? [])]
       })
     );
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -329,10 +343,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
 
   public override async scanFile(filePath: string, content: string): Promise<void> {
     const rel = toPosixRelative(this.projectRoot, filePath);
-    if (
-      isTestFileForCodeAudit(rel, this.projectRoot) ||
-      this.isPathExempt(rel)
-    ) {
+    if (isTestFileForCodeAudit(rel, this.projectRoot) || this.isPathExempt(rel)) {
       return;
     }
 
@@ -351,7 +362,7 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
               severity: 'error',
               file: rel,
               line: issue.line,
-              column: issue.column,
+              col: issue.column,
               message: issue.message,
               context: issue.context
             });
@@ -364,12 +375,8 @@ export class ValidateTypeAssertionHygieneAuditor extends FileScanAuditor<TypeAss
     this.scanRegexFallback(content, rel);
   }
 
-  private scanAst(
-    doc: AuditedDocument,
-    ast: ts.SourceFile,
-    issues: TypeAssertionIssue[]
-  ): void {
-    const visit = (node: ts.Node) => {
+  private scanAst(doc: AuditedDocument, ast: ts.SourceFile, issues: TypeAssertionIssue[]): void {
+    const visit = (node: ts.Node): void => {
       if (ts.isAsExpression(node)) {
         checkAsExpression(node, doc, ast, issues);
       } else {

@@ -56,7 +56,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -68,7 +68,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -80,7 +80,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -92,7 +92,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -104,7 +104,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -117,7 +117,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -129,7 +129,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -141,7 +141,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -154,7 +154,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -169,7 +169,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -184,7 +184,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -210,7 +210,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -227,7 +227,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -243,7 +243,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -261,7 +261,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -275,7 +275,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -291,7 +291,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -306,7 +306,7 @@ describe('ValidateMagicNumbersAuditor', () => {
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBeGreaterThan(0);
       expect(result.status).toBe('failed');
     });
@@ -329,7 +329,7 @@ export const COMPONENT_ID = 42;
 `;
       await fs.writeFile(path.join(srcDir, 'TestComponent.vue'), vueContent, 'utf-8');
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -346,7 +346,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -362,7 +362,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -379,7 +379,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -393,7 +393,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -407,7 +407,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -426,7 +426,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const timerFindings = result.findings.filter(
         (f) => f.ruleId === 'magic-number-naked' && f.message.includes('Naked numeric timer delay')
@@ -444,7 +444,7 @@ export const COMPONENT_ID = 42;
         'utf-8'
       );
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'magic-number-naked');
       expect(finding).toBeDefined();
@@ -467,7 +467,7 @@ if (count.value > 99) {
 `;
       await fs.writeFile(path.join(srcDir, 'BadComponent.vue'), vueContent, 'utf-8');
       const auditor = new ValidateMagicNumbersAuditor({ roots: [srcDir], projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('failed');
       const findings = result.findings.filter((f) => f.ruleId === 'magic-number-naked');
       expect(findings.length).toBeGreaterThanOrEqual(1);

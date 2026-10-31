@@ -143,7 +143,7 @@ describe('TestFragmentationAuditor', () => {
       process.argv.push('--summary');
       try {
         const auditor = new TestFragmentationAuditor();
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.status).toBe('passed');
       } finally {
         process.argv.pop();

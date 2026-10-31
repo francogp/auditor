@@ -6,11 +6,12 @@
  * Performs a standard, hermetic npm update without ad-hoc scripts or git cloning.
  */
 
+import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import childProcess from 'node:child_process';
 import { styleText } from 'node:util';
-import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+
+import { isSelfProviderProject } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -18,15 +19,15 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
-import { isSelfProviderProject } from '../core/auditConfig.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
-import { initAgentSkill } from './init_agent.ts';
+import { ensureNpmrcAllowGit } from '../core/npmrcAllowGit.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../core/safeUtils.ts';
-import { syncEnvScripts } from './sync_env_scripts.ts';
-import { syncPackageJsonForVitePlus } from '../core/vitePlusConfigSync.ts';
+import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import { AUDITOR_VERSION } from '../core/version.ts';
+import { syncPackageJsonForVitePlus } from '../core/vitePlusConfigSync.ts';
+import { isMainModule, bootstrapCliProject } from './cliUtils.ts';
+import { initAgentSkill } from './init_agent.ts';
+import { syncEnvScripts } from './sync_env_scripts.ts';
 
 export interface UpdateAuditorOptions {
   cwd?: string;
@@ -513,9 +514,7 @@ export function runCli(): void {
     { header: 'VALUE / STATUS', width: 48, render: (r: UpdateTableRow) => r.val }
   ];
 
-  const statusVal = result.updated
-    ? 'SUCCESSFULLY UPDATED'
-    : 'ALREADY UP TO DATE (NO CHANGES)';
+  const statusVal = result.updated ? 'SUCCESSFULLY UPDATED' : 'ALREADY UP TO DATE (NO CHANGES)';
 
   const rows: UpdateTableRow[] = [
     { param: 'Package', val: '@francogp/auditor' },

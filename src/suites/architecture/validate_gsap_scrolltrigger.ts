@@ -15,10 +15,16 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
-  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import { isExemptFile } from '../../core/auditConfig.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -38,10 +44,11 @@ export const GSAP_SCROLLTRIGGER_RULES: readonly GsapScrollTriggerRuleId[] = [
 ] as const;
 
 export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScrollTriggerRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       projectRoot: effectiveRoot,
@@ -58,7 +65,6 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       ruleCapabilities: createRuleCapabilities(GSAP_SCROLLTRIGGER_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -151,7 +157,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
 
       this.addViolationAtMatch({
         ruleId: 'gsap-scrolltrigger-in-timeline-child',
-        filePath: relPath,
+        file: relPath,
         content,
         matchIndex: m.index,
         message:
@@ -180,7 +186,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
       if (/\bscrub\s*:/i.test(blockBody) && /\btoggleActions\s*:/i.test(blockBody)) {
         this.addViolationAtMatch({
           ruleId: 'gsap-scrolltrigger-scrub-and-toggle',
-          filePath: relPath,
+          file: relPath,
           content,
           matchIndex,
           message:
@@ -204,7 +210,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         if (!hasDevGuard) {
           this.addViolationAtMatch({
             ruleId: 'gsap-scrolltrigger-markers-production',
-            filePath: relPath,
+            file: relPath,
             content,
             matchIndex,
             message:
@@ -225,7 +231,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
 
       this.addViolationAtMatch({
         ruleId: 'gsap-scrolltrigger-animating-pinned-element',
-        filePath: relPath,
+        file: relPath,
         content,
         matchIndex: m.index,
         message:
@@ -252,7 +258,7 @@ export class ValidateGsapScrollTriggerAuditor extends FileScanAuditor<GsapScroll
         if (easeMatch && easeMatch[1] !== 'none') {
           this.addViolationAtMatch({
             ruleId: 'gsap-scrolltrigger-container-animation-ease',
-            filePath: relPath,
+            file: relPath,
             content,
             matchIndex: defMatch.index,
             message: `The containerAnimation driving tween '${animVar}' must have 'ease: "none"' for linear scroll synchronization.`,

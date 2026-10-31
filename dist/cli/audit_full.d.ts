@@ -74,7 +74,7 @@ export interface FixableCountsResult {
  * In fix mode (isFixMode === true), any remaining error could not be resolved,
  * so fixableErrors and autoFixRecommended are always 0/false.
  */
-export declare const computeFixableViolations: typeof BaseAuditor.computeFixableViolations;
+export declare const computeFixableViolations: (...args: Parameters<typeof BaseAuditor.computeFixableViolations>) => ReturnType<typeof BaseAuditor.computeFixableViolations>;
 export declare function renderAndPersistMasterReport(ctx: MasterReportContext): Promise<boolean>;
 export interface CreateAuditBannerDetailsOptions {
   readonly cliOptions: AuditFullCliOptions;

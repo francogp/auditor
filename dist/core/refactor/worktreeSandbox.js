@@ -16,7 +16,7 @@ var WorktreeSandboxManager = class {
 	* Creates an isolated detached worktree from target repository HEAD.
 	* Links node_modules via directory junction (Windows) or symlink (Unix).
 	*/
-	static createSession(repoRoot, sessionName = `refactor-wt-${Date.now()}`) {
+	static createSession(repoRoot, sessionName = `refactor-wt-${Temporal.Now.instant().epochMilliseconds}`) {
 		const absRepo = path.resolve(repoRoot);
 		const sandboxBase = path.resolve(process.cwd(), "scratch", "refactor-sandbox");
 		fs.mkdirSync(sandboxBase, { recursive: true });

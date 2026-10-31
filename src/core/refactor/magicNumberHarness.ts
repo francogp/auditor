@@ -8,7 +8,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import MagicString from 'magic-string';
+
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import type { MagicRefactorPlan } from './magicContracts.ts';
 
@@ -51,7 +53,11 @@ export class ConstantHygieneGate {
    * 3. generic names ban
    */
   public static validateOrSanitize(name: string, _value: string | number): string {
-    let clean = name.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_');
+    let clean = name
+      .trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9_]/g, '_')
+      .replace(/_+/g, '_');
 
     // Rule 1 & 2: Remove trailing numeric literals like _100, _5000, _25
     clean = clean.replace(/_(\d+)$/, '');
@@ -104,9 +110,9 @@ export class MagicNumberHarness {
     const rawContent = fs.readFileSync(absPath, 'utf8');
     const s = new MagicString(rawContent);
 
-    const replacements = (plan.fileReplacements[relFile] ?? []).slice().sort(
-      (a, b) => b.startOffset - a.startOffset
-    );
+    const replacements = (plan.fileReplacements[relFile] ?? [])
+      .slice()
+      .sort((a, b) => b.startOffset - a.startOffset);
 
     for (const r of replacements) {
       s.overwrite(r.startOffset, r.endOffset, r.replacement);
@@ -145,4 +151,3 @@ export class MagicNumberHarness {
     }
   }
 }
-

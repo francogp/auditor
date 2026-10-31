@@ -252,10 +252,10 @@ describe('Official Locked Skills Isolation', () => {
         requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
+        ruleFixers: {},
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
@@ -314,10 +314,10 @@ describe('Official Locked Skills Isolation', () => {
         requiredPermissions: [],
         criticalConfig: {},
         usesThirdPartyTool: false,
+        ruleFixers: {},
         ruleCapabilities: createUniformRuleCapabilities(['test-rule'], {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,

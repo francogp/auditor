@@ -105,7 +105,6 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -296,7 +295,6 @@ export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId>
       ruleCapabilities: createUniformRuleCapabilities(GAME_DESIGN_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -443,7 +441,6 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
       ruleCapabilities: createUniformRuleCapabilities(UI_COLOR_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -535,7 +532,6 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
       ruleCapabilities: createUniformRuleCapabilities(SERVICE_RETURN_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -613,7 +609,6 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
       ruleCapabilities: createRuleCapabilities(ASSET_INTEGRITY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -808,7 +803,6 @@ export class MyAuditor extends FileScanAuditor<MyRuleId> {
       ruleCapabilities: createUniformRuleCapabilities(MY_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -840,7 +834,6 @@ export class MyAuditor extends BaseAuditor<MyRuleId> {
         {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,

@@ -27,6 +27,7 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		const codeRoots = getAuditConfig(effectiveRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			cachePaths: [
@@ -67,7 +68,6 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

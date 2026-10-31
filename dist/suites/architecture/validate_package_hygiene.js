@@ -304,6 +304,8 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["package-unused-dependency"],
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -314,14 +316,11 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
 				speed: ["heavy", "full"],
 				phase: "setup",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["package-unused-dependency"]),
-			fixableRuleIds: ["package-unused-dependency"],
-			fix: options.fix,
+			}),
 			id: "validate_package_hygiene",
 			name: "Package & Dependency Hygiene Auditor",
 			description: "Hygiene of orphaned and phantom dependencies",
@@ -504,7 +503,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		];
 		if (tier === "full") cliFlags.push("--include-libs");
 		if (tsconfigHasReferences(this.projectRoot)) cliFlags.push("--use-tsconfig-files");
-		if (this.fixMode) cliFlags.push("--fix", "--fix-type", "dependencies");
+		if (this.isFixActive()) cliFlags.push("--fix", "--fix-type", "dependencies");
 		const resolvedBin = resolvePackageBin("knip", {
 			projectRoot: this.projectRoot,
 			fallbackRelativeBin: "bin/knip.js"

@@ -17,7 +17,8 @@ const SAFE_ARGUMENT_NAMES: ReadonlySet<string> = new Set(['safeDevUrl', 'href'])
 
 function isSafeFetchArgument(arg: ts.Expression): boolean {
   const node = unwrapExpression(arg);
-  if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node) || isUrlConstruction(node)) return true;
+  if (ts.isStringLiteralLike(node) || ts.isTemplateExpression(node) || isUrlConstruction(node))
+    return true;
   if (ts.isCallExpression(node)) {
     const name = getExpressionName(node.expression);
     return name === 'toString' || name === 'safeDevUrl';
@@ -27,7 +28,11 @@ function isSafeFetchArgument(arg: ts.Expression): boolean {
 }
 
 export const fetchDetector: NativePathDetector = (node, ctx) => {
-  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'fetch') {
+  if (
+    !ts.isCallExpression(node) ||
+    !ts.isIdentifier(node.expression) ||
+    node.expression.text !== 'fetch'
+  ) {
     return null;
   }
   const arg = node.arguments[0];

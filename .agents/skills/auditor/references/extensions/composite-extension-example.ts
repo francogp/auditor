@@ -20,6 +20,7 @@ import {
   BaseAuditor,
   getAuditConfig,
   DEFAULT_AUDIT_CONFIG,
+  createRuleCapabilities,
   type AuditorConfigFileRequirement,
   type FileScanRootsOptions
 } from '@francogp/auditor';
@@ -58,6 +59,7 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots));
 
     super({
+      ruleFixers: {},
       id: 'validate_host_domain',
       name: 'Host Domain Invariants & Parity Validator',
       description: 'Valida sincronización de catálogos e invariantes del host',
@@ -65,12 +67,23 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       family: 'domain_data',
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
-      fixableRuleIds: ['host-missing-config'],
       ruleCapabilities: {
-        'host-catalog-sync': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
-        'host-schema-invariants': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
-        'host-state-consistency': { speed: 'heavy', phase: 'normal', fix: 'none', md: false, ast: true, changedOnly: true, critical: false },
-        'host-missing-config': { speed: 'heavy', phase: 'normal', fix: 'priority', md: false, ast: false, changedOnly: false, critical: false }
+        ...createRuleCapabilities(['host-catalog-sync', 'host-schema-invariants', 'host-state-consistency'], {
+          speed: 'heavy',
+          phase: 'normal',
+          md: false,
+          ast: true,
+          changedOnly: true,
+          critical: false
+        }),
+        ...createRuleCapabilities(['host-missing-config'], {
+          speed: 'heavy',
+          phase: 'normal',
+          md: false,
+          ast: false,
+          changedOnly: false,
+          critical: false
+        })
       },
       configKey: 'domain.hostDomain',
       defaultConfig: {

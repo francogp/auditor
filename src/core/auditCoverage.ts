@@ -7,19 +7,20 @@
  * uncovered files, declaration/observation drift and dormant rules (false-clean results).
  */
 
-import fs from 'node:fs/promises';
 import nodeFs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
+
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
+import { getAuditConfig } from './auditConfigLoader.ts';
 import {
   COVERAGE_SOURCES,
   type AuditorCoverageDeclaration,
   type CoverageLedger,
   type CoverageSource
 } from './auditContract.ts';
-import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from './safeUtils.ts';
 import { CANONICAL_BINARY_EXTENSIONS } from './canonicalIgnoreRegistry.ts';
-import { getAuditConfig } from './auditConfigLoader.ts';
-import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
+import { safeJsonParse, safeReadFileAsync, tryOrDefaultAsync } from './safeUtils.ts';
 
 export type { CoverageLedger };
 
@@ -198,7 +199,7 @@ export class CoverageRecorder {
   private externalScanCount = 0;
   private currentDeclaration: AuditorCoverageDeclaration;
 
-  constructor(projectRoot: string, declaration: AuditorCoverageDeclaration) {
+  public constructor(projectRoot: string, declaration: AuditorCoverageDeclaration) {
     this.projectRoot = projectRoot;
     this.currentDeclaration = declaration;
   }

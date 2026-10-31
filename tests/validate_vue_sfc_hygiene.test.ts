@@ -282,7 +282,7 @@ describe('VueSfcHygieneAuditor', () => {
       expect(violations).toHaveLength(0);
     });
 
-    it('detects ime-unsafe-enter-submit and vue-template-no-side-effects on fixture and auto-repairs via --fix', () => {
+    it('detects ime-unsafe-enter-submit and vue-template-no-side-effects on fixture and auto-repairs via --fix', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'vue-hygiene-fix-'));
       try {
         const fixtureContent = fs.readFileSync(
@@ -303,10 +303,9 @@ describe('VueSfcHygieneAuditor', () => {
 
         // Run in --fix mode
         const fixAuditor = new TestableVueSfcHygieneAuditor({
-          projectRoot: tempDir,
-          fix: true
+          projectRoot: tempDir
         });
-        fixAuditor.testScanFile('src/components/VueHygieneBroken.vue', fixtureContent);
+        await fixAuditor.fix();
 
         const fixedSfc = fs.readFileSync(targetFile, 'utf-8');
         expect(fixedSfc).toContain("e.key === 'Enter' && !e.isComposing");
@@ -369,7 +368,7 @@ describe('VueSfcHygieneAuditor', () => {
       auditor.testScanFile('src/components/CleanComponent.vue', sfc);
       expect(auditor.collectedViolations).toHaveLength(0);
 
-      const result = await auditor.execute();
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });

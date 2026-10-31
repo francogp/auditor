@@ -26,14 +26,19 @@ function containsSeparator(value) {
 	return value.includes(POSIX_SEP) || value.includes(WIN_SEP);
 }
 function isSeparatorOnly(value) {
-	return value.length > 0 && [...value].every(isSeparatorChar);
+	if (value.length === 0) return false;
+	for (let i = 0; i < value.length; i++) {
+		const ch = value.charAt(i);
+		if (ch !== POSIX_SEP && ch !== WIN_SEP) return false;
+	}
+	return true;
 }
 function startsWithUrlScheme(value) {
 	const lower = value.trimStart().toLowerCase();
 	return URL_SCHEMES.some((s) => lower.startsWith(s)) || lower.startsWith("//");
 }
 function hasWhitespace(value) {
-	return [...value].some((ch) => ch.trim() === "");
+	return /\s/.test(value);
 }
 /**
 * A literal fragment that looks like a filesystem path piece: contains a separator,
@@ -58,7 +63,8 @@ function hasFileExtensionTail(value) {
 	const dot = value.lastIndexOf(".");
 	if (dot <= 0 || dot === value.length - 1) return false;
 	const ext = value.slice(dot + 1);
-	if (ext.length > 5 || ![...ext].every((ch) => isAlnum(ch))) return false;
+	if (ext.length > 5) return false;
+	for (let i = 0; i < ext.length; i++) if (!isAlnum(ext.charAt(i))) return false;
 	return dot > Math.max(value.lastIndexOf(POSIX_SEP), value.lastIndexOf(WIN_SEP));
 }
 function getTemplateTexts(node) {

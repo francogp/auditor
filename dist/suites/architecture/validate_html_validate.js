@@ -104,6 +104,8 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			...config.paths.demoRoots ?? []
 		]));
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["html-validate-issue"],
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -114,13 +116,11 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: true
-			}, ["html-validate-issue"]),
-			fixableRuleIds: ["html-validate-issue"],
+			}),
 			id: "validate_html_validate",
 			name: "HTML5 Standards & Markup Hygiene Validator",
 			description: "Validates standards and obsolete elements with html-validate",
@@ -147,7 +147,7 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 	}
 	async runAudit() {
 		if (this.isSuiteGatingDisabled("HTML-Validate disabled in configuration")) return;
-		const isFixMode = this.isFixModeRequested();
+		const isFixMode = this.isFixActive();
 		const config = getAuditConfig(this.projectRoot);
 		const binPath = resolveNodeModuleBin(this.projectRoot, "html-validate/bin/html-validate.mjs");
 		const configFile = resolveHtmlValidateConfig(this.projectRoot);

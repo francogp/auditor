@@ -3,6 +3,13 @@ import { isMainModule } from "./cliUtils.js";
 import { formatCliRelativeFilePath, runRefactorCliHarness } from "../core/refactor/refactorCliHarness.js";
 import { HygieneRefactorEngine } from "../core/refactor/hygieneRefactorEngine.js";
 // src/cli/refactor_hygiene.ts
+/**
+* src/cli/refactor_hygiene.ts
+*
+* CANONICAL CODEBASE HYGIENE REFACTORING CLI (Node.js 26+ Native)
+* Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
+* for member accessibility, globalThis references, and void expressions.
+*/
 const hygieneCliDef = {
 	toolName: "auditor-hygiene",
 	toolDescription: "member accessibility, globalThis references, or redundant void expressions",
@@ -46,21 +53,21 @@ const hygieneCliDef = {
 	discoverInFile: (filePath) => HygieneRefactorEngine.discoverInFile(filePath),
 	buildTableRow: (relFile, findings) => {
 		const access = findings.filter((f) => f.kind === "member-accessibility").length;
-		const globalThis = findings.filter((f) => f.kind === "prefer-global-this").length;
+		const globalThisCount = findings.filter((f) => f.kind === "prefer-global-this").length;
 		const noVoid = findings.filter((f) => f.kind === "no-void").length;
 		return {
 			file: formatCliRelativeFilePath(relFile),
 			access: String(access),
-			globalThis: String(globalThis),
+			globalThis: String(globalThisCount),
 			noVoid: String(noVoid),
 			total: String(findings.length)
 		};
 	},
 	buildSummaryMessage: (filesCount, allFindings) => {
 		const access = allFindings.filter((f) => f.kind === "member-accessibility").length;
-		const globalThis = allFindings.filter((f) => f.kind === "prefer-global-this").length;
+		const globalThisCount = allFindings.filter((f) => f.kind === "prefer-global-this").length;
 		const noVoid = allFindings.filter((f) => f.kind === "no-void").length;
-		return `Summary: ${filesCount} file(s) with ${allFindings.length} hygiene opportunities (${access} member accessibility, ${globalThis} globals -> globalThis, ${noVoid} void expressions).`;
+		return `Summary: ${filesCount} file(s) with ${allFindings.length} hygiene opportunities (${access} member accessibility, ${globalThisCount} globals -> globalThis, ${noVoid} void expressions).`;
 	},
 	toDiracItem: (f) => ({
 		line: f.line,
@@ -90,8 +97,11 @@ USAGE EXAMPLES:
 ================================================================================
 `
 };
-function runHygieneCli() {
-	runRefactorCliHarness(hygieneCliDef);
+async function runHygieneCli() {
+	await runRefactorCliHarness(hygieneCliDef);
 }
-if (isMainModule(import.meta.url, ["auditor-hygiene"])) runHygieneCli();
+if (isMainModule(import.meta.url, ["auditor-hygiene"])) runHygieneCli().catch((err) => {
+	console.error(err);
+	process.exit(1);
+});
 export { runHygieneCli };

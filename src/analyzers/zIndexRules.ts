@@ -5,8 +5,9 @@
  */
 
 import path from 'node:path';
-import { safeReadFileSync } from '../core/safeUtils.ts';
+
 import { getAuditConfig, isExemptFile, Z_LAYERS } from '../core/auditConfig.ts';
+import { safeReadFileSync } from '../core/safeUtils.ts';
 import { type RuleDescriptor, type AuditRule, normalizeFilePath } from './auditRuleTypes.ts';
 
 export { Z_LAYERS };

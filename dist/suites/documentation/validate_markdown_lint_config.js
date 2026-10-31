@@ -41,29 +41,27 @@ const MARKDOWNLINT_CONFIG_REQUIREMENT = {
 	generateDefaultContent: () => JSON.stringify(CANONICAL_MARKDOWNLINT_CONFIG, null, 2) + "\n"
 };
 var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...MARKDOWNLINT_CONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(MARKDOWNLINT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["markdownlint-config-missing", "markdownlint-config-missing-strict-rule"],
 			configFiles: [configRequirement],
 			id: "validate_markdown_lint_config",
 			name: "Markdownlint Configuration Validator",
@@ -92,9 +90,7 @@ var ValidateMarkdownLintConfigAuditor = class extends BaseAuditor {
 				".markdownlint.yml",
 				".markdownlint-cli2.jsonc"
 			] },
-			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			projectRoot
 		});
 	}
 	async runAudit() {

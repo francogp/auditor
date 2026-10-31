@@ -187,14 +187,14 @@ describe('MarkdownSyntaxAuditor', () => {
       auditor.testScanFile('docs/clean.md', cleanContent);
       expect(auditor.collectedViolations).toHaveLength(0);
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
 
     it('auto-inserts a blank line before markdown tables when fix: true is active', async () => {
       const auditor = new TestableMarkdownSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
-      (auditor as unknown as { fixMode: boolean }).fixMode = true;
+      Reflect.set(auditor, 'currentFixActive', true);
       const content = [
         'Paragraph immediately before table.',
         '| Header 1 | Header 2 |',

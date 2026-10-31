@@ -106,10 +106,6 @@ interface RawIstanbulEntry {
  */
 export declare function extractUncoveredLines(raw: RawIstanbulEntry): string[];
 /**
- * Checks if a relative path matches an exempt glob or path pattern.
- */
-export declare function isPathExempt(relPath: string, exemptGlobs: readonly string[]): boolean;
-/**
  * Parses raw Istanbul JSON into structured FileCoverageResults and overall totals.
  */
 export declare function parseIstanbulCoverage(rawJson: Record<string, unknown>, projectRoot: string, config: ResolvedTestCoverageConfig): {

@@ -26,13 +26,13 @@ describe('Auditor Permissions Contract & Dynamic Script Assembly', () => {
           defaultConfig: {},
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           coverage: { include: ['src/**'] },
           remediationPhase: 'setup',
           requiredPermissions: ['--allow-addons', '--allow-child-process'],
           ruleCapabilities: createRuleCapabilities(['mock-rule'], {
             speed: 'light',
             phase: 'normal',
-            fix: 'none',
             md: false,
             ast: false,
             changedOnly: false,
@@ -75,7 +75,6 @@ describe('Auditor Permissions Contract & Dynamic Script Assembly', () => {
             ruleCapabilities: createRuleCapabilities(['mock-rule'], {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,

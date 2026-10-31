@@ -51,20 +51,6 @@ async function validateMermaid(diagramCode) {
 		};
 	}
 }
-/**
-* Validates diagram and returns or throws an Error (for backward compatibility).
-*/
-async function validate(diagramCode, parseOptions) {
-	const result = await validateMermaid(diagramCode);
-	if (!result.valid && result.error) {
-		if (parseOptions?.suppressErrors) return false;
-		throw new Error(`Parse error on line ${result.error.line}: ${result.error.message}`);
-	}
-	return {
-		diagramType: result.diagramType ?? "unknown",
-		valid: true
-	};
-}
 const UNQUOTED_EDGE_CHARS_REGEX = /[%&<>\u2260\u2265\u2264()/?!+:=#*~]/;
 const UNQUOTED_EDGE_LABEL_REGEX = /\|([^|"\n]+)\|/g;
 const UNQUOTED_SQUARE_NODE_REGEX = /\b\w+\[([^\]"()\n]*[()][^\]"\n]*)\]/g;
@@ -73,18 +59,18 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, () => ["."]);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["mermaid-unquoted-special-chars"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MERMAID_SYNTAX_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["mermaid-unquoted-special-chars"]),
-			fixableRuleIds: ["mermaid-unquoted-special-chars"],
+			}),
 			id: "validate_mermaid_syntax",
 			name: "Mermaid Diagram Syntax Auditor",
 			description: "Valid syntax and characters in Mermaid diagrams",
@@ -233,4 +219,4 @@ var ValidateMermaidSyntaxAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateMermaidSyntaxAuditor());
-export { MERMAID_SYNTAX_RULES, ValidateMermaidSyntaxAuditor, validate, validateMermaid };
+export { MERMAID_SYNTAX_RULES, ValidateMermaidSyntaxAuditor, validateMermaid };

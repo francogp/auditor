@@ -8,17 +8,19 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import ts from 'typescript';
-import {
-  type AuditEngineConfig,
-  type AcknowledgeableExemptionPolicy,
-  AUDIT_CONFIG_FILE
-} from './auditConfig.ts';
+
 import {
   extractExportedConfigObjectLiteral,
   dtoValueToTsExpression,
   formatTsNodeTwoSpaceIndent
 } from './astContext.ts';
+import {
+  type AuditEngineConfig,
+  type AcknowledgeableExemptionPolicy,
+  AUDIT_CONFIG_FILE
+} from './auditConfig.ts';
 import { normalizePosixPath } from './safePath.ts';
 import { tryCatchSync } from './safeUtils.ts';
 
@@ -213,11 +215,7 @@ export function applyAcknowledgedDegradationsFix(
 ): void {
   const tsPath = path.resolve(projectRoot, AUDIT_CONFIG_FILE);
   const jsonPath = path.resolve(projectRoot, '.auditor/audit.config.json');
-  const configFilePath = fs.existsSync(tsPath)
-    ? tsPath
-    : fs.existsSync(jsonPath)
-      ? jsonPath
-      : null;
+  const configFilePath = fs.existsSync(tsPath) ? tsPath : fs.existsSync(jsonPath) ? jsonPath : null;
   if (!configFilePath) return;
 
   const newEntries = missing.map((m) => ({
@@ -230,9 +228,9 @@ export function applyAcknowledgedDegradationsFix(
     tryCatchSync(() => {
       const code = fs.readFileSync(configFilePath, 'utf8');
       const json = JSON.parse(code) as Record<string, unknown>;
-      const coverage = (json.coverage && typeof json.coverage === 'object'
-        ? json.coverage
-        : {}) as Record<string, unknown>;
+      const coverage = (
+        json.coverage && typeof json.coverage === 'object' ? json.coverage : {}
+      ) as Record<string, unknown>;
       const existingAcks = Array.isArray(coverage.acknowledgedDegradations)
         ? (coverage.acknowledgedDegradations as Array<Record<string, unknown>>)
         : [];

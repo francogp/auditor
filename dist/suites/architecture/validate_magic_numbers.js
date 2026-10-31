@@ -190,12 +190,12 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 		const config = getAuditConfig(effectiveRoot);
 		const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MAGIC_NUMBERS_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -252,9 +252,9 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 					this.addViolation({
 						ruleId: "magic-number-naked",
 						severity: "error",
-						filePath: relPath,
+						file: relPath,
 						line: actualLine,
-						column: actualCol,
+						col: actualCol,
 						message,
 						context: lineText.trim() || String(val)
 					});

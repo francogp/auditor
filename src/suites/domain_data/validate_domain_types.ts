@@ -15,17 +15,25 @@
 
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, getEffectiveIgnoreGlobs, type FileScanRootsOptions } from '../../core/auditorBase.ts';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
+
+import ts from 'typescript';
+
+import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots, toPosixRelative } from '../../core/auditCoverage.ts';
-import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { matchesAnyRoot } from '../../core/auditRootMatcher.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
-import { isCommentLine } from '../../analyzers/auditRuleTypes.ts';
 import { isPositionInsideFunctionParams, stripComments } from '../../core/scannerUtils.ts';
-import ts from 'typescript';
 
 enableCompileCache();
 
@@ -238,7 +246,8 @@ const P_OBJECT_KEYS_CAST =
 const P_INLINE_ANONYMOUS_OBJECT_PARAM =
   /\(\s*[A-Za-z0-9_$,\s]*\b[A-Z_a-z]\w*\??\s*:\s*\{\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:\s*(?:string|number|boolean|unknown|any|[A-Z]\w*)(?:\[\])?\s*[,;]\s*(?:readonly\s+)?[A-Z_a-z]\w*\??\s*:[^\n}]*\}\s*[,)]/g;
 const P_UNBRANDED_DOMAIN_ID_ALIAS = /\b(?:export\s+)?type\s+[A-Z]\w*Id\s*=\s*string\s*;/g;
-const P_PARAM_WILDCARD_STRING_UNION = /\b([a-z_]\w*)\s*\??:\s*([A-Z]\w*)\s*\|\s*string\b/g;
+const P_PARAM_WILDCARD_STRING_UNION =
+  /\b([a-z_]\w*)\s*\??:\s*(?:\|\s*)?([A-Z]\w*)\s*\|\s*string\b/g;
 const P_PARAM_DOMAIN_ID_NULLABLE =
   /\b(\w{2,}[iI]d)\s*:\s*[A-Z]\w*Id\s*\|\s*(?:null|undefined)\b|\b(\w{2,}[iI]d)\s*:\s*(?:null|undefined)\s*\|\s*[A-Z]\w*Id\b/g;
 const P_DOMAIN_TYPE_NULLABLE =
@@ -308,8 +317,7 @@ function findMatches(
     const col = matchStart - lastNl;
     const line = lines[lineNum - 1] ?? '';
 
-    if (isCommentLine(line) || isTestFile(file))
-      continue;
+    if (isCommentLine(line) || isTestFile(file)) continue;
     if (filter && !filter(match, line, file)) continue;
 
     findings.push({
@@ -353,7 +361,10 @@ function auditDomainCollectionsAst(
 
   type DomainCollectionType = 'Set' | 'Map';
 
-  function hasExplicitDomainType(node: ts.NewExpression, containerName: DomainCollectionType): boolean {
+  function hasExplicitDomainType(
+    node: ts.NewExpression,
+    containerName: DomainCollectionType
+  ): boolean {
     if (node.typeArguments && node.typeArguments.length > 0) {
       const typeText = node.typeArguments[0]!.getText(ast).trim();
       if (typeText !== 'string' && typeText !== 'any' && typeText !== 'unknown') {
@@ -379,7 +390,10 @@ function auditDomainCollectionsAst(
     return false;
   }
 
-  function getLiteralCollectionArg(node: ts.NewExpression, kind: DomainCollectionType): ts.ArrayLiteralExpression | null {
+  function getLiteralCollectionArg(
+    node: ts.NewExpression,
+    kind: DomainCollectionType
+  ): ts.ArrayLiteralExpression | null {
     if (!node.arguments || node.arguments.length === 0) return null;
     const arg0 = node.arguments[0];
     if (!arg0 || !ts.isArrayLiteralExpression(arg0)) return null;
@@ -446,7 +460,7 @@ function auditDomainCollectionsAst(
     );
   }
 
-  function visit(node: ts.Node) {
+  function visit(node: ts.Node): void {
     if (ts.isNewExpression(node)) {
       const callee = node.expression.getText(ast);
       if (callee === 'Set') {
@@ -497,35 +511,24 @@ function extractVariableIdentifier(expr: ts.Expression): string | null {
   if (ts.isIdentifier(expr)) {
     return expr.text;
   }
-  if (
-    ts.isPropertyAccessExpression(expr) &&
-    ts.isIdentifier(expr.expression)
-  ) {
+  if (ts.isPropertyAccessExpression(expr) && ts.isIdentifier(expr.expression)) {
     return `${expr.expression.text}.${expr.name.text}`;
   }
   return null;
 }
 
-function extractLiteralEquality(
-  expr: ts.Expression
-): { varName: string; literal: string } | null {
+function extractLiteralEquality(expr: ts.Expression): { varName: string; literal: string } | null {
   const unwrapped = ts.isParenthesizedExpression(expr) ? expr.expression : expr;
   if (!ts.isBinaryExpression(unwrapped)) return null;
   const op = unwrapped.operatorToken.kind;
-  if (
-    op !== ts.SyntaxKind.EqualsEqualsEqualsToken &&
-    op !== ts.SyntaxKind.EqualsEqualsToken
-  ) {
+  if (op !== ts.SyntaxKind.EqualsEqualsEqualsToken && op !== ts.SyntaxKind.EqualsEqualsToken) {
     return null;
   }
 
   let varExpr: ts.Expression | null = null;
   let litExpr: ts.StringLiteralLike | null = null;
 
-  if (
-    ts.isStringLiteral(unwrapped.left) ||
-    ts.isNoSubstitutionTemplateLiteral(unwrapped.left)
-  ) {
+  if (ts.isStringLiteral(unwrapped.left) || ts.isNoSubstitutionTemplateLiteral(unwrapped.left)) {
     litExpr = unwrapped.left;
     varExpr = unwrapped.right;
   } else if (
@@ -582,7 +585,11 @@ function inspectChainedBinaryNode(
       file: rel,
       line,
       col: column,
-      pattern: `Chained literal comparison on "${varName}" (${literals.size} options: ${Array.from(literals).map((l) => `"${l}"`).join(', ')})`,
+      pattern: `Chained literal comparison on "${varName}" (${literals.size} options: ${Array.from(
+        literals
+      )
+        .map((l) => `"${l}"`)
+        .join(', ')})`,
       snippet,
       severity: 'ERROR',
       ruleId: 'domain-chained-literal-comparison'
@@ -655,7 +662,8 @@ export function auditFileContent(
           if (/allowedExtensions\s*:\s*$/i.test(prefix.trim())) return false;
           if (NON_DOMAIN_SET_PATTERN.test(prefix.trim())) return false;
           const suffix = content.slice(matchIdx, matchIdx + DOMAIN_COLLECTION_CONTEXT_WINDOW_CHARS);
-          if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(suffix)) return false;
+          if (/\bnew\s+Set\s*(?:<[^>]+>\s*)?\(\s*\[\s*['"`]\.[a-zA-Z0-9]/.test(suffix))
+            return false;
           return true;
         }
       )
@@ -941,10 +949,7 @@ export function auditFileContent(
       'ERROR',
       'domain-naked-string-primitive',
       (match) => {
-        if (!isFunctionParameterContext(content, match.index)) return false;
-        const typeName = match[2] ?? '';
-        if (/Auditor|Engine|Config|Harness|Options/.test(typeName)) return false;
-        return true;
+        return isFunctionParameterContext(content, match.index);
       }
     )
   );
@@ -1007,39 +1012,33 @@ export async function auditFile(
 }
 
 export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) =>
-        config.paths.includeTestsInCodeAudit
-          ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
-          : (config.paths.codeRoots ?? [])
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) =>
+      config.paths.includeTestsInCodeAudit
+        ? [...(config.paths.codeRoots ?? []), ...(config.paths.testRoots ?? [])]
+        : (config.paths.codeRoots ?? [])
     );
 
     const config = getAuditConfig(effectiveRoot);
     const domainIgnores = Array.from(
       getEffectiveIgnoreGlobs(effectiveRoot, {
-        extraGlobs: [
-          ...(config.domain?.ignoreGlobs ?? []),
-          ...(config.domain?.exemptPaths ?? [])
-        ]
+        extraGlobs: [...(config.domain?.ignoreGlobs ?? []), ...(config.domain?.exemptPaths ?? [])]
       })
     );
 
     super({
-      fix: options.fix,
+      ruleFixers: {},
+      fixableRuleIds: ['domain-naked-string-primitive'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOMAIN_TYPES_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'normal',
         md: false,
         ast: true,
         changedOnly: false,
         critical: true
       }),
-      fixableRuleIds: ['domain-naked-string-primitive'],
       id: 'validate_domain_types',
       name: 'Domain Types Integrity Audit',
       description: 'Raw string usage instead of domain types',
@@ -1144,7 +1143,8 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('Domain disabled in config')) {
       this.redeclareCoverage({
-        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
+        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot)
+          .include,
         source: 'declared-only'
       });
       return;
@@ -1153,9 +1153,10 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
     const filePaths = this.collectAuditableDomainFiles();
     if (filePaths.length === 0) return;
 
-    if (this.isFixModeRequested()) {
+    if (this.isFixActive()) {
       try {
-        const { remediateRecordKeysInFile } = await import('../../core/refactor/domainRecordKeyRemediator.ts');
+        const { remediateRecordKeysInFile } =
+          await import('../../core/refactor/domainRecordKeyRemediator.ts');
         for (const filePath of filePaths) {
           const rel = toPosixRelative(this.projectRoot, filePath);
           if (!isContractFile(rel, this.projectRoot)) continue;
@@ -1193,7 +1194,7 @@ export class DomainTypesAuditor extends BaseAuditor<DomainTypesRuleId> {
             severity: finding.severity === 'ERROR' ? 'error' : 'warning',
             file: finding.file,
             line: finding.line,
-            column: finding.col,
+            col: finding.col,
             message: finding.pattern,
             context: finding.snippet,
             fixable: finding.pattern.includes('Record<string,')

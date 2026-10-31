@@ -5,4 +5,4 @@
  * Provides interactive discovery, Dirac micro-context inspection, and safe worktree application
  * for member accessibility, globalThis references, and void expressions.
  */
-export declare function runHygieneCli(): void;
+export declare function runHygieneCli(): Promise<void>;

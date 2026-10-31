@@ -31,7 +31,8 @@ function isRawEnvOrArgv(expr: ts.Expression): boolean {
   }
   if (ts.isBinaryExpression(node)) {
     const kind = node.operatorToken.kind;
-    const isFallback = kind === ts.SyntaxKind.QuestionQuestionToken || kind === ts.SyntaxKind.BarBarToken;
+    const isFallback =
+      kind === ts.SyntaxKind.QuestionQuestionToken || kind === ts.SyntaxKind.BarBarToken;
     return isFallback && (isRawEnvOrArgv(node.left) || isRawEnvOrArgv(node.right));
   }
   return false;

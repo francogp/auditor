@@ -1,4 +1,4 @@
-import { FindingSeverity, GitIgnoreRequirement } from "../../core/auditContract.js";
+import { FindingSeverity, GitIgnoreRequirement, RuleFixContext } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import stylelint, { LintResult, LinterResult } from "stylelint";
 export declare const STYLELINT_RULES: readonly ["stylelint-issue", "css-duplicate-selectors", "css-duplicate-properties", "css-empty-blocks", "css-order-violation", "scss-syntax-issue", "scss-sass-collision-casing", "scss-strict-values"];
@@ -35,10 +35,11 @@ export declare function persistStylelintReport(projectRoot: string, suiteId: str
   totalErrors: number;
   totalWarnings: number;
 }, results: readonly LintResult[], durationMs: number): void;
+export declare function fixStylelint(context: RuleFixContext<StylelintRuleId>): Promise<boolean>;
 export interface StylelintAuditorOptions {
-  projectRoot?: string;
-  id?: string;
-  name?: string;
+  readonly projectRoot?: string;
+  readonly id?: string;
+  readonly name?: string;
 }
 export declare class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   private lastLinterResult;

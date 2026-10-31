@@ -16,14 +16,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
 import { deriveCoverageFromRequiredFiles, toPosixRelative } from '../src/core/auditCoverage.ts';
 import {
-  ALWAYS_IGNORE_DIRS,
-  CANONICAL_IGNORE_DIRS,
   isPathIgnored,
   collectRepositoryFiles,
   BaseAuditor,
   type AuditorOptions,
   type ViolationInput
 } from '../src/core/auditorBase.ts';
+import { ALWAYS_IGNORE_DIRS, CANONICAL_IGNORE_DIRS } from '../src/core/canonicalIgnoreRegistry.ts';
 
 describe('auditorBase infrastructure', () => {
   describe('SSoT Ignore Sets Integrity', () => {
@@ -121,7 +120,7 @@ describe('auditorBase infrastructure', () => {
 
     it('BaseAuditor scopes collection to custom projectRoot', async () => {
       class TestAuditor extends BaseAuditor<'test-rule'> {
-        constructor(root: string) {
+        constructor(options: { projectRoot?: string } = {}) {
           super({
             id: 'test_auditor',
             name: 'Test Auditor',
@@ -134,12 +133,12 @@ describe('auditorBase infrastructure', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             ruleIds: ['test-rule'],
             ruleCapabilities: {
               'test-rule': {
                 speed: 'light',
                 phase: 'normal',
-                fix: 'none',
                 md: false,
                 ast: false,
                 changedOnly: false,
@@ -158,7 +157,7 @@ describe('auditorBase infrastructure', () => {
             coverage: { include: ['src/**/*.ts'] },
             roots: ['src'],
             allowedExtensions: new Set(['.ts']),
-            projectRoot: root
+            projectRoot: options.projectRoot ?? process.cwd()
           });
         }
 
@@ -173,8 +172,8 @@ describe('auditorBase infrastructure', () => {
       }
 
       process.env.AUDIT_SUBPROCESS = 'true';
-      const auditor = new TestAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new TestAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
       delete process.env.AUDIT_SUBPROCESS;
 
       expect(result.metrics?.['Total Files Scanned']).toBe(1);
@@ -206,12 +205,12 @@ describe('auditorBase infrastructure', () => {
       ruleRemediations: { dummy: 'Guía de remediación para dummy' },
       ruleRemediationPhases: { dummy: 'hygiene' as const },
       usesThirdPartyTool: false,
+      ruleFixers: {},
       coverage: { include: ['src/**/*.ts'] },
       ruleCapabilities: {
         dummy: {
           speed: 'light' as const,
           phase: 'normal' as const,
-          fix: 'none' as const,
           md: false,
           ast: false,
           changedOnly: false,
@@ -321,13 +320,11 @@ describe('auditorBase infrastructure', () => {
           ruleCapabilities: {
             dummy: {
               ...validBaseOptions.ruleCapabilities.dummy,
-              fix: 'true' as unknown as 'none'
+              speed: 'super-sonic' as unknown as 'light'
             }
           }
         });
-      }).toThrow(
-        /must explicitly define 'ruleCapabilities\.dummy\.fix' as 'none' \| 'normal' \| 'priority'/
-      );
+      }).toThrow(/must explicitly define 'ruleCapabilities\.dummy\.speed'/);
 
       expect(() => {
         new MinimalAuditor({
@@ -369,7 +366,7 @@ describe('auditorBase infrastructure', () => {
 
   describe('Assertion and Collection Ergonomics', () => {
     class AssertionAuditor extends BaseAuditor<'rule-a' | 'rule-b'> {
-      constructor(projectRoot: string) {
+      constructor(options: { projectRoot?: string } = {}) {
         super({
           id: 'test_assertion_auditor',
           name: 'Assertion Tester',
@@ -382,11 +379,11 @@ describe('auditorBase infrastructure', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleCapabilities: {
             'rule-a': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -395,7 +392,6 @@ describe('auditorBase infrastructure', () => {
             'rule-b': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -416,7 +412,7 @@ describe('auditorBase infrastructure', () => {
             'rule-b': 'hygiene'
           },
           coverage: { include: ['src/**/*.ts'] },
-          projectRoot
+          projectRoot: options.projectRoot ?? process.cwd()
         });
       }
 
@@ -443,8 +439,8 @@ describe('auditorBase infrastructure', () => {
 
       try {
         process.env.AUDIT_SUBPROCESS = 'true';
-        const auditor = new AssertionAuditor(tempDir);
-        const result = await auditor.execute();
+        const auditor = new AssertionAuditor({ projectRoot: tempDir });
+        const result = await auditor.audit();
 
         expect(auditor.getCoverageRecorder().getEvaluations('rule-a')).toBe(1);
         expect(auditor.getCoverageRecorder().getEvaluations('rule-b')).toBe(1);
@@ -463,7 +459,7 @@ describe('auditorBase infrastructure', () => {
       await fs.writeFile(path.join(tempDir, 'src/b.ts'), 'export const b = 2;');
 
       try {
-        const auditor = new AssertionAuditor(tempDir);
+        const auditor = new AssertionAuditor({ projectRoot: tempDir });
         expect(auditor.getCoverageRecorder().scannedCount).toBe(0);
 
         const collected = auditor.testCollect(['src']);
@@ -509,6 +505,7 @@ describe('auditorBase infrastructure', () => {
             requiredPermissions: [],
             criticalConfig: {},
             usesThirdPartyTool: false,
+            ruleFixers: {},
             ruleIds: ['only-rule'],
             ruleDescriptions: {
               'only-rule': 'Regla única'
@@ -524,7 +521,6 @@ describe('auditorBase infrastructure', () => {
               'only-rule': {
                 speed: 'light',
                 phase: 'normal',
-                fix: 'none',
                 md: false,
                 ast: false,
                 changedOnly: false,
@@ -541,7 +537,7 @@ describe('auditorBase infrastructure', () => {
         loggedSteps.push(desc);
       });
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.status).toBe('passed');
       expect(result.subAuditors).toBeDefined();
       expect(result.subAuditors!.length).toBe(1);
@@ -570,6 +566,7 @@ describe('auditorBase infrastructure', () => {
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleIds: ['test-rule'],
           ruleDescriptions: { 'test-rule': 'Regla test' },
           ruleRemediations: { 'test-rule': 'Remediacion' },
@@ -579,7 +576,6 @@ describe('auditorBase infrastructure', () => {
             'test-rule': {
               speed: ['light', 'heavy', 'full'],
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -669,12 +665,12 @@ describe('auditorBase infrastructure', () => {
           ruleRemediations: { 'canary-forbidden': 'Remove canary token' },
           ruleRemediationPhases: { 'canary-forbidden': 'behavior' },
           usesThirdPartyTool: false,
+          ruleFixers: {},
           coverage: { include: ['src/**/*.ts'] },
           ruleCapabilities: {
             'canary-forbidden': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,

@@ -58,7 +58,7 @@ describe('BundleBudgetAuditor', () => {
       );
 
       const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
       expect(leak).toBeDefined();
@@ -75,7 +75,7 @@ describe('BundleBudgetAuditor', () => {
       );
 
       const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const heavy = result.findings.find((f) => f.ruleId === 'bundle-heavy-import');
       expect(heavy).toBeDefined();
@@ -91,7 +91,7 @@ describe('BundleBudgetAuditor', () => {
       await fs.writeFile(path.join(distAssetsDir, 'huge-chunk.js'), oversizeBuffer);
 
       const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const sizeViolation = result.findings.find((f) => f.ruleId === 'bundle-chunk-size');
       expect(sizeViolation).toBeDefined();
@@ -108,7 +108,7 @@ describe('BundleBudgetAuditor', () => {
       );
 
       const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const leak = result.findings.find((f) => f.ruleId === 'bundle-runtime-leak');
       expect(leak).toBeDefined();
@@ -126,7 +126,7 @@ describe('BundleBudgetAuditor', () => {
       );
 
       const auditor = new BundleBudgetAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');

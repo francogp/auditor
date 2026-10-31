@@ -19,16 +19,16 @@ export declare function scanAllAuditorTasks(projectRoot?: string): Promise<Disco
 /**
  * Finds the exported BaseAuditor subclass in a loaded module.
  */
-export declare function findAuditorClass(mod: Record<string, unknown>): (new (...args: unknown[]) => BaseAuditor<string>) | null;
+export declare function findAuditorClass(mod: Record<string, unknown>): (new (...args: unknown[]) => BaseAuditor) | null;
 /**
  * Safely instantiates an auditor class using canonical constructor signatures.
  * Mandate: Prohibits legacy positional arguments; strictly expects { projectRoot: tempDir } or ().
  */
-export declare function instantiateAuditorClass(Cls: new (...args: unknown[]) => BaseAuditor<string>, tempDir: string): BaseAuditor<string>;
+export declare function instantiateAuditorClass(Cls: new (...args: unknown[]) => BaseAuditor, tempDir: string): BaseAuditor;
 /**
  * Validates in-memory constructor contract and metadata for an instantiated auditor.
  */
-export declare function validateAuditorConstruction(auditor: BaseAuditor<string>, taskId?: string): string[];
+export declare function validateAuditorConstruction(auditor: BaseAuditor, taskId?: string): string[];
 /**
  * Finds dedicated test file(s) for an auditor across core and extension conventions.
  */
@@ -44,7 +44,7 @@ export declare function checkFixVerification(testSource: string): boolean;
 /**
  * Validates that an auditor's dedicated test file adheres to the strict 6-point contract.
  */
-export declare function validateAuditorTestFileContent(testSource: string, testFileRel: string, auditor: BaseAuditor<string>): string[];
+export declare function validateAuditorTestFileContent(testSource: string, testFileRel: string, auditor: BaseAuditor): string[];
 export interface ConformanceVitestHooks {
   readonly describe: typeof describe;
   readonly it: typeof it;

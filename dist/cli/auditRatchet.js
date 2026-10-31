@@ -74,9 +74,11 @@ function isBaselineEntry(value) {
 	return typeof v.fingerprint === "string" && FINGERPRINT_PATTERN.test(v.fingerprint) && typeof v.suiteId === "string" && typeof v.ruleId === "string" && (v.file === null || typeof v.file === "string");
 }
 function parseBaseline(raw, origin) {
-	const candidate = JSON.parse(raw);
-	if (candidate === null || candidate.schemaVersion !== BASELINE_SCHEMA_VERSION || !Array.isArray(candidate.warnings) || !candidate.warnings.every((e) => typeof e === "object" && e !== null && isBaselineEntry(e))) throw new Error(`[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`);
-	return candidate;
+	const data = JSON.parse(raw);
+	if (typeof data !== "object" || data === null) throw new Error(`[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`);
+	const candidate = data;
+	if (candidate.schemaVersion !== BASELINE_SCHEMA_VERSION || !Array.isArray(candidate.warnings) || !candidate.warnings.every((e) => typeof e === "object" && e !== null && isBaselineEntry(e))) throw new Error(`[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`);
+	return data;
 }
 /** Returns a human-readable defect for a malformed local baseline, or null when it is valid. */
 function describeBaselineDefect(projectRoot, baselineFile) {

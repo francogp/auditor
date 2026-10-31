@@ -100,9 +100,8 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
     );
 
     // 1. Run in fix mode
-    const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.runAudit();
-    await fixAuditor.finishAudit();
+    const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     // 2. Verify scripts were injected in package.json
     const updatedPkg = JSON.parse(fs.readFileSync(path.join(tempDir, 'package.json'), 'utf-8'));
@@ -111,8 +110,7 @@ describe('package_scripts_vite_plus (6 Canary Matrix)', () => {
 
     // 3. Re-run in check mode to verify clean path
     const checkAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
-    await checkAuditor.runAudit();
-    const checkResult = await checkAuditor.finishAudit();
+    const checkResult = await checkAuditor.audit();
 
     expect(checkResult.summary.errors).toBe(0);
     expect(checkResult.status).toBe('passed');

@@ -141,7 +141,7 @@ function checkArrayJoin(node, ctx) {
 }
 const concatDetector = (node, ctx) => {
 	if (ctx.claimed.has(node)) return null;
-	let matched = false;
+	let matched;
 	if (isOutermostPlus(node)) matched = checkPlusChain(node, ctx);
 	else if (ts.isBinaryExpression(node)) matched = checkCompoundAssignment(node, ctx);
 	else if (ts.isTemplateExpression(node)) matched = checkTemplate(node, ctx);

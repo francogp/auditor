@@ -5,12 +5,13 @@
  * Prevents directory traversal attacks (CWE-22) and SSRF (CWE-918).
  */
 
-import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import { getAuditConfig, sanitizePath } from './auditConfigLoader.ts';
-import { isLockedSkillPath } from './lockedSkills.ts';
 import { createDomainSet } from './domainCollections.ts';
+import { isLockedSkillPath } from './lockedSkills.ts';
 
 enableCompileCache();
 
@@ -146,10 +147,7 @@ export { normalizePosixPath };
  * Normalizes an absolute or relative path to a canonical POSIX path (forward slashes)
  * relative to baseDir. Strips redundant leading `./`.
  */
-export function toPosixPath(
-  filePath: string,
-  baseDir?: string
-): string {
+export function toPosixPath(filePath: string, baseDir?: string): string {
   const root = baseDir ?? getTargetRoot();
   return toPosixRelative(root, filePath);
 }
@@ -168,7 +166,9 @@ export function isPathContained(
   const resolvedParent = baseDir ? path.resolve(baseDir, parentDir) : path.resolve(parentDir);
   const resolvedChild = baseDir
     ? path.resolve(baseDir, candidateChild)
-    : (path.isAbsolute(candidateChild) ? candidateChild : path.resolve(resolvedParent, candidateChild));
+    : path.isAbsolute(candidateChild)
+      ? candidateChild
+      : path.resolve(resolvedParent, candidateChild);
   const rel = path.relative(resolvedParent, resolvedChild);
   return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
@@ -235,5 +235,3 @@ export function stripGlobSuffix(pattern: string): string {
   while (clean.endsWith('/')) clean = clean.slice(0, -1);
   return clean || (wildcardIdx === 0 ? '.' : '');
 }
-
-export { isPathExempt } from './reportUtils.ts';

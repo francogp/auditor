@@ -18,20 +18,27 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import stylelint, { type LinterResult, type LintResult } from 'stylelint';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type {
+  GitIgnoreRequirement,
+  FindingSeverity,
+  RuleFixContext,
+  AnyRuleFixerFn
+} from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  CANONICAL_IGNORE_DIRS,
   collectRepositoryFiles,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import type { GitIgnoreRequirement, FindingSeverity } from '../../core/auditContract.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { CANONICAL_IGNORE_DIRS } from '../../core/canonicalIgnoreRegistry.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
 import { sassTrapsPlugin, SASS_TRAPS_RULE_NAME } from './stylelintSassTrapsPlugin.ts';
@@ -368,10 +375,56 @@ export function persistStylelintReport(
   });
 }
 
+export async function fixStylelint(context: RuleFixContext<StylelintRuleId>): Promise<boolean> {
+  const config = getAuditConfig(context.projectRoot);
+  const roots = Array.from(
+    new Set([...(config.paths.srcRoots ?? []), ...(config.paths.stylesRoots ?? [])])
+  );
+  repairDeprecatedCssPropertiesInRoots(context.projectRoot, roots);
+
+  const configFile = path.resolve(context.projectRoot, '.stylelintrc.json');
+  const cacheDir = path.resolve(context.projectRoot, 'scratch/cache');
+  const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');
+  fs.mkdirSync(cacheDir, { recursive: true });
+
+  const stylelintConfig = tryOrNull(() => {
+    if (!fs.existsSync(configFile)) return null;
+    return JSON.parse(fs.readFileSync(configFile, 'utf8'));
+  });
+  const filesToLint = roots.map(
+    (r) => `${normalizePosixPath(r, context.projectRoot)}/**/*.{css,scss,sass,vue}`
+  );
+  const lintConfig = buildStylelintConfig(configFile, stylelintConfig?.rules);
+
+  try {
+    await stylelint.lint({
+      config: lintConfig,
+      files: filesToLint,
+      ignoreDisables: true,
+      reportNeedlessDisables: true,
+      cache: true,
+      cacheLocation,
+      cacheStrategy: 'content',
+      fix: true,
+      allowEmptyInput: true
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const STYLELINT_FIXERS: Partial<Record<StylelintRuleId, AnyRuleFixerFn>> = {
+  'stylelint-issue': fixStylelint,
+  'css-duplicate-properties': fixStylelint,
+  'css-empty-blocks': fixStylelint,
+  'css-order-violation': fixStylelint
+};
+
 export interface StylelintAuditorOptions {
-  projectRoot?: string;
-  id?: string;
-  name?: string;
+  readonly projectRoot?: string;
+  readonly id?: string;
+  readonly name?: string;
 }
 
 export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
@@ -388,14 +441,15 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
     }
   ];
 
-  constructor(options?: StylelintAuditorOptions) {
-    const projectRoot = options?.projectRoot;
+  public constructor(options: StylelintAuditorOptions = {}) {
+    const projectRoot = options.projectRoot;
     const config = getAuditConfig(projectRoot);
     const roots = Array.from(
       new Set([...(config.paths.srcRoots ?? []), ...(config.paths.stylesRoots ?? [])])
     );
 
     super({
+      ruleFixers: STYLELINT_FIXERS,
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -403,20 +457,14 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'stylelint-issue'
       },
-      ruleCapabilities: createRuleCapabilities(
-        STYLELINT_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: true
-        },
-        [...STYLELINT_RULES]
-      ),
-      fixableRuleIds: [...STYLELINT_RULES],
+      ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: true
+      }),
       gitIgnoreEntries: StylelintAuditor.gitIgnoreEntries,
       cachePaths: ['.stylelintcache'],
       id: options?.id || 'validate_stylelint',
@@ -567,7 +615,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         this.recordScanned(configFile);
       }
     }
-    const isFixMode = this.isFixModeRequested();
+    const isFixMode = this.isFixActive();
 
     const cacheDir = path.resolve(this.projectRoot, 'scratch/cache');
     const cacheLocation = path.resolve(cacheDir, 'stylelint_cache.json');

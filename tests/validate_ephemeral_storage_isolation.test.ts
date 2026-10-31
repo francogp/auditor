@@ -53,7 +53,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'src', 'logic', 'temp'), { recursive: true });
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -66,7 +66,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'scripts', 'tmp_fixtures'), { recursive: true });
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -78,7 +78,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'supabase', 'temp_supabase'), { recursive: true });
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -92,7 +92,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.mkdir(path.join(tempDir, 'supabase', 'migrations'), { recursive: true });
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -108,7 +108,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.writeFile(path.join(tempDir, 'database', 'AGENTS.md'), '# Database\n');
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -122,7 +122,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       await fs.writeFile(path.join(tempDir, 'database', 'stray_file.txt'), 'content');
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
@@ -145,7 +145,7 @@ supabase/temp_supabase/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
@@ -165,7 +165,7 @@ src/temp/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
@@ -185,7 +185,7 @@ dist/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
@@ -204,7 +204,7 @@ dist/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
@@ -221,7 +221,7 @@ dist/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
@@ -239,7 +239,7 @@ dist/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
@@ -263,7 +263,7 @@ dist/
       );
 
       const auditor = new EphemeralStorageIsolationAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'

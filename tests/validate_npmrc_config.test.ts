@@ -30,7 +30,7 @@ describe('ValidateNpmrcConfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateNpmrcConfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_npmrc_config');
       expect(auditor.family).toBe('architecture');
@@ -44,8 +44,8 @@ describe('ValidateNpmrcConfigAuditor', () => {
       const configPath = path.join(tmpDir, '.npmrc');
       fs.writeFileSync(configPath, CANONICAL_NPMRC_CONTENT, 'utf8');
 
-      const auditor = new ValidateNpmrcConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -60,15 +60,15 @@ describe('ValidateNpmrcConfigAuditor', () => {
       expect(fs.existsSync(configPath)).toBe(false);
 
       // Check mode
-      const checkAuditor = new ValidateNpmrcConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('npmrc-config-missing');
 
       // Fix mode
-      const fixAuditor = new ValidateNpmrcConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
       expect(fs.existsSync(configPath)).toBe(true);
@@ -88,8 +88,8 @@ describe('ValidateNpmrcConfigAuditor', () => {
       fs.writeFileSync(configPath, degraded, 'utf8');
 
       // Check mode
-      const checkAuditor = new ValidateNpmrcConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       const violations = checkResult.findings.filter(
         (f) => f.ruleId === 'npmrc-config-missing-setting'
@@ -98,8 +98,8 @@ describe('ValidateNpmrcConfigAuditor', () => {
       expect(violations.length).toBe(2);
 
       // Fix mode
-      const fixAuditor = new ValidateNpmrcConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const repaired = fs.readFileSync(configPath, 'utf8');

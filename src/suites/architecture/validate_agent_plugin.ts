@@ -9,27 +9,30 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import yaml from 'yaml';
+import path from 'node:path';
+
 import ts from 'typescript';
-import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
+import yaml from 'yaml';
+
+import { initAgentSkill } from '../../cli/init_agent.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
-import { isPathContained } from '../../core/safePath.ts';
-import {
-  isLockedSkillPath,
-  loadAuditorOwnedSkills,
-  SKILLS_LOCK_CANDIDATE_PATHS
-} from '../../core/lockedSkills.ts';
+import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { RuleFixContext } from '../../core/auditContract.ts';
+import { toPosixRelative } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   type AuditorOptions,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { toPosixRelative } from '../../core/auditCoverage.ts';
-import { getAuditConfig, loadAuditConfig, isSelfProviderProject } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { initAgentSkill } from '../../cli/init_agent.ts';
+import {
+  isLockedSkillPath,
+  loadAuditorOwnedSkills,
+  SKILLS_LOCK_CANDIDATE_PATHS
+} from '../../core/lockedSkills.ts';
+import { isPathContained } from '../../core/safePath.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -70,7 +73,11 @@ interface SkillFileContext {
   readonly isLocked: boolean;
 }
 
-function extractSkillName(absFile: string, projectRoot: string, skillsRoots: readonly string[]): string {
+function extractSkillName(
+  absFile: string,
+  projectRoot: string,
+  skillsRoots: readonly string[]
+): string {
   for (const root of skillsRoots) {
     const absRoot = path.resolve(projectRoot, root);
     if (isPathContained(absRoot, absFile)) {
@@ -95,18 +102,26 @@ function isPluginRegisteredInAgents(projectRoot: string, primaryAgentDir = '.age
     const data = safeJsonParse<{ entries?: Array<{ path: string }> }>(raw);
     if (!data || !Array.isArray(data.entries)) return false;
     return data.entries.some(
-      (e: { path: string }) => e.path.includes('@francogp/auditor') || e.path.includes('packages/auditor')
+      (e: { path: string }) =>
+        e.path.includes('@francogp/auditor') || e.path.includes('packages/auditor')
     );
   };
 
   return checkFile(pluginsJsonPath) && checkFile(skillsJsonPath);
 }
 
+export function fixMissingAgentPluginRegistration(
+  context: RuleFixContext<'missing-agent-plugin-registration'>
+): boolean {
+  const result = initAgentSkill({ targetDir: context.projectRoot });
+  return result.success;
+}
+
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private readonly skillsRoots: readonly string[];
   private readonly primaryAgentDir: string;
 
-  constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
+  public constructor(options: Partial<AuditorOptions<AgentPluginRuleId>> = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveRoot);
     const defaultRoots = DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? [];
@@ -119,30 +134,20 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     const skillsJsonRel = path.posix.join(primaryAgentDir, 'skills.json');
 
     super({
+      ruleFixers: {
+        'missing-agent-plugin-registration': fixMissingAgentPluginRegistration
+      },
+      fixableRuleIds: ['host-duplicate-auditor-skill', 'skill-invalid-yaml-frontmatter'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        AGENT_PLUGIN_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [
-          'missing-agent-plugin-registration',
-          'host-duplicate-auditor-skill',
-          'skill-invalid-yaml-frontmatter'
-        ]
-      ),
-      fixableRuleIds: [
-        'missing-agent-plugin-registration',
-        'host-duplicate-auditor-skill',
-        'skill-invalid-yaml-frontmatter'
-      ],
+      ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_agent_plugin',
       name: 'Agent Plugin & Skill Integration Validator',
       description: 'Verifies agent audit plugin registration',
@@ -244,10 +249,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         'skill-invalid-asset-syntax',
         'config.agentPlugin.enabled = false'
       );
-      this.markRuleNotApplicable(
-        'skill-exceeds-line-limit',
-        'config.agentPlugin.enabled = false'
-      );
+      this.markRuleNotApplicable('skill-exceeds-line-limit', 'config.agentPlugin.enabled = false');
       return true;
     }
     return false;
@@ -280,8 +282,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       severity: 'error',
       file: targetFile,
       line: 1,
-      message:
-        `Agent audit plugin and/or skills are not registered in ${pluginsJsonRel} and ${skillsJsonRel}. Run: npm run auditor:init-agent`,
+      message: `Agent audit plugin and/or skills are not registered in ${pluginsJsonRel} and ${skillsJsonRel}. Run: npm run auditor:init-agent`,
       context: 'auditor:init-agent',
       fixable: true
     });
@@ -329,7 +330,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     return {
       startLineIdx,
       endLineIdx,
-      rawValue: valueLines.join(' ').replace(/^[>|]-?[ \t]*/, '').trim()
+      rawValue: valueLines
+        .join(' ')
+        .replace(/^[>|]-?[ \t]*/, '')
+        .trim()
     };
   }
 
@@ -359,18 +363,12 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       const formatted = 'description: >-\n' + lines.join('\n');
 
       const fmLines = fmRaw.split(/\r?\n/);
-      fmLines.splice(
-        bounds.startLineIdx,
-        bounds.endLineIdx - bounds.startLineIdx + 1,
-        formatted
-      );
+      fmLines.splice(bounds.startLineIdx, bounds.endLineIdx - bounds.startLineIdx + 1, formatted);
       const updatedFm = fmLines.join('\n');
       const updated = fmMatch[1]! + updatedFm + fmMatch[3]! + content.slice(fmMatch[0].length);
       fs.writeFileSync(skillMdPath, updated, 'utf8');
       const targetLabel = path.posix.join(path.basename(path.dirname(skillMdPath)), 'SKILL.md');
-      this.context.logProgress(
-        `Auto-formatted 'description: >-' in ${targetLabel}`
-      );
+      this.context.logProgress(`Auto-formatted 'description: >-' in ${targetLabel}`);
       return true;
     } catch {
       return false;
@@ -513,7 +511,11 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   }
 
   private validateSkillDescription(ctx: SkillFileContext): void {
-    if (!ctx.parsed.description || typeof ctx.parsed.description !== 'string' || !ctx.parsed.description.trim()) {
+    if (
+      !ctx.parsed.description ||
+      typeof ctx.parsed.description !== 'string' ||
+      !ctx.parsed.description.trim()
+    ) {
       this.addViolation({
         ruleId: 'skill-invalid-yaml-frontmatter',
         severity: 'error',
@@ -606,7 +608,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
 
     if (!isStrictFolded || hasInvalidIndentation) {
       if (this.isFixActive()) {
-        const fixed = this.tryAutoFixSkillDescription(ctx.skillMdPath, ctx.parsed.description as string);
+        const fixed = this.tryAutoFixSkillDescription(
+          ctx.skillMdPath,
+          ctx.parsed.description as string
+        );
         if (fixed) return;
       }
 
@@ -753,7 +758,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     }
   }
 
-  private validateHostDuplicateAuditorSkills(): Set<string> {
+  public validateHostDuplicateAuditorSkills(): Set<string> {
     const removedOrDuplicateSkills = new Set<string>();
     const auditorOwnedSkills = loadAuditorOwnedSkills(this.projectRoot);
     if (auditorOwnedSkills.size === 0) return removedOrDuplicateSkills;
@@ -768,6 +773,16 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
     }
 
     return removedOrDuplicateSkills;
+  }
+
+  public repairSkillYamlFrontmatters(): void {
+    const collectedFiles = this.context.collectFiles(this.skillsRoots, new Set(['.md']));
+    for (const absFile of collectedFiles) {
+      if (path.basename(absFile) === 'SKILL.md') {
+        const skillName = extractSkillName(absFile, this.projectRoot, this.skillsRoots);
+        this.validateSkillFrontmatter(absFile, skillName);
+      }
+    }
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {

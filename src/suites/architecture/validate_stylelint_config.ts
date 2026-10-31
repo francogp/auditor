@@ -12,14 +12,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import 'stylelint-declaration-strict-value';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { toPosixRelative } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -100,8 +105,7 @@ export function validateOrderHasBlockPartitioning(order: unknown): {
   if (blockIncludeIndex === -1) {
     return {
       valid: false,
-      reason:
-        'Missing at-rule @include with hasBlock: true (mixins with block after declarations)'
+      reason: 'Missing at-rule @include with hasBlock: true (mixins with block after declarations)'
     };
   }
 
@@ -293,34 +297,26 @@ export function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boo
   return list.some((item) => typeof item === 'string' && item.includes('auditor'));
 }
 
+export interface StylelintConfigAuditorOptions {
+  readonly projectRoot?: string;
+}
+
 export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
-  constructor(
-    rootsOrOptions?: readonly string[] | { projectRoot?: string; fix?: boolean },
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as { projectRoot?: string; fix?: boolean })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: StylelintConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        STYLELINT_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [...STYLELINT_CONFIG_RULES]
-      ),
-      fixableRuleIds: [...STYLELINT_CONFIG_RULES],
+      ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       configFiles: [STYLELINT_CONFIG_REQUIREMENT],
       id: 'validate_stylelint_config',
       name: 'Stylelint Configuration Validator',
@@ -403,8 +399,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       coverage: {
         include: ['.stylelintrc*']
       },
-      projectRoot,
-      fix: optionsObj?.fix
+      projectRoot
     });
   }
 

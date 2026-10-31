@@ -48,15 +48,28 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       description: 'Validates project-specific domain and architectural invariants',
       icon: '🛡️',
       family: 'architecture',
+      // Explicit orthogonal rule capabilities:
+      // Zero Manual Booleans: 'fix' is computed automatically by BaseAuditor from registered ruleFixers
       ruleCapabilities: createUniformRuleCapabilities(MY_CUSTOM_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: true,
         critical: false
       }),
+      // Optional Contract-Driven Auto-Fix Map:
+      // Suites provide executable repair functions mapping ruleId -> ({ projectRoot, options }) => Promise<boolean | void>
+      // BaseAuditor automatically marks rules with registered fixers as fixable (capabilities.fix: 'normal').
+      // Rules without a fixer function are strictly fixable: false (Zero False-Fix Mandate).
+      // Function Identity Deduplication Mandate:
+      // If multiple rules reference the exact same fixer function, BaseAuditor executes it strictly ONCE per run.
+      // ruleFixers: {
+      //   'my-custom-rule-a': async ({ projectRoot, options }) => {
+      //     // Execute deterministic mechanical repair
+      //     return true;
+      //   }
+      // },
       ruleIds: MY_CUSTOM_RULES,
       packageName: 'HostProject',
       configKey: 'customRules.enabled',

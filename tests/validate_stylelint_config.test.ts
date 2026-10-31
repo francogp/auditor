@@ -123,7 +123,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -144,7 +144,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -155,7 +155,7 @@ describe('ValidateStylelintConfigAuditor', () => {
   describe('Violation Path: 100% Rule ID & Exhaustive Property Verification', () => {
     it('detects missing .stylelintrc.json (stylelint-config-missing)', async () => {
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing');
@@ -178,7 +178,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-plugin');
@@ -202,7 +202,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find(
@@ -229,7 +229,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find(
@@ -268,7 +268,7 @@ describe('ValidateStylelintConfigAuditor', () => {
           );
 
           const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-          const result = await auditor.execute();
+          const result = await auditor.audit();
 
           expect(result.status).toBe('failed');
           const finding = result.findings.find(
@@ -296,7 +296,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
@@ -324,7 +324,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
@@ -351,7 +351,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
@@ -379,7 +379,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
@@ -407,7 +407,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find((f) => f.ruleId === 'stylelint-config-missing-order');
@@ -425,8 +425,8 @@ describe('ValidateStylelintConfigAuditor', () => {
 
   describe('Auto-Fix Mode (--fix)', () => {
     it('automatically scaffolds .stylelintrc.json extending canonical auditor config when missing in fix mode', async () => {
-      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
-      const result = await fixAuditor.execute();
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await fixAuditor.fix();
 
       expect(result.summary.errors).toBe(0);
       const createdFile = path.join(tempDir, '.stylelintrc.json');
@@ -455,8 +455,8 @@ describe('ValidateStylelintConfigAuditor', () => {
         'utf-8'
       );
 
-      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
-      await fixAuditor.execute();
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       const repaired = JSON.parse(
         await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8')
@@ -468,7 +468,7 @@ describe('ValidateStylelintConfigAuditor', () => {
 
       // Subsequent check must pass cleanly
       const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const verifyResult = await verifyAuditor.execute();
+      const verifyResult = await verifyAuditor.audit();
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
     });
@@ -492,8 +492,8 @@ export default {
       await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), auditorConfig, 'utf-8');
 
       // Run in fix mode to scaffold/update .stylelintrc.json
-      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
-      await fixAuditor.execute();
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       const repaired = JSON.parse(
         await fs.readFile(path.join(tempDir, '.stylelintrc.json'), 'utf-8')
@@ -512,7 +512,7 @@ export default {
 
       // Subsequent check should pass cleanly
       const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const verifyResult = await verifyAuditor.execute();
+      const verifyResult = await verifyAuditor.audit();
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
     });
@@ -545,7 +545,7 @@ export default {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       const finding = result.findings.find(
@@ -573,8 +573,8 @@ export default {
         'utf-8'
       );
 
-      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir, fix: true });
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const repaired = JSON.parse(
@@ -588,7 +588,7 @@ export default {
       );
 
       const verifyAuditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const verifyResult = await verifyAuditor.execute();
+      const verifyResult = await verifyAuditor.audit();
       expect(verifyResult.status).toBe('passed');
       expect(verifyResult.summary.errors).toBe(0);
     });
@@ -621,7 +621,7 @@ export default {
       );
 
       const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);

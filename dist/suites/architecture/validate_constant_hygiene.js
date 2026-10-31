@@ -39,12 +39,12 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.srcRoots ?? []);
 		const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -105,7 +105,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 				const message = typeof rule.message === "function" ? rule.message(m[0]) : rule.message;
 				this.addViolationAtMatch({
 					ruleId,
-					filePath: relPath,
+					file: relPath,
 					content,
 					matchIndex: m.index,
 					message,
@@ -134,9 +134,9 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "constant-no-alias",
 					severity: "error",
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					message: `Redundant 1:1 constant/function redefinition: '${m[0].trim()}'. Use the canonical origin constant directly instead of declaring passthrough aliases.`,
 					context: m[0].trim()
 				});
@@ -174,7 +174,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 			for (const v of identicalViolations) this.addViolation({
 				ruleId: "duplicate-constant-identical",
 				severity: v.severity || "error",
-				filePath: v.file,
+				file: v.file,
 				line: v.line || 1,
 				message: v.message,
 				context: v.context
@@ -185,7 +185,7 @@ var ValidateConstantHygieneAuditor = class extends FileScanAuditor {
 			for (const v of divergentViolations) this.addViolation({
 				ruleId: "duplicate-constant-divergent",
 				severity: v.severity || "error",
-				filePath: v.file,
+				file: v.file,
 				line: v.line || 1,
 				message: v.message,
 				context: v.context

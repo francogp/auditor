@@ -1,14 +1,11 @@
-import { AuditEngineConfig } from "../auditConfigTypes.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { MotionFindingItem, MotionRefactorPlan } from "./refactorContracts.js";
 import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validate_gsap_animations.js";
+export type MotionRefactorEngineOptions = RefactorEngineOptions<ValidateGsapAnimationsAuditor>;
 export declare class MotionRefactorEngine extends BaseRefactorEngine<MotionFindingItem, MotionRefactorPlan, ValidateGsapAnimationsAuditor> {
   readonly toolId = "auditor-motion";
   readonly configSectionKey: "animation";
-  constructor(auditorOrOptions?: ValidateGsapAnimationsAuditor | string | {
-    projectRoot?: string;
-    config?: AuditEngineConfig;
-  }, _explicitConfig?: AuditEngineConfig);
+  constructor(options?: MotionRefactorEngineOptions);
   discoverInFile(filePath: string): readonly MotionFindingItem[];
   createPlan(id: string, findings: readonly MotionFindingItem[]): MotionRefactorPlan;
   applyPlan(projectRoot: string, plan: MotionRefactorPlan): {

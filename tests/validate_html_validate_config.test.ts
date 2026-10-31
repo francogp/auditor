@@ -44,7 +44,7 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
+      const auditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_html_validate_config');
       expect(auditor.family).toBe('architecture');
@@ -63,8 +63,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
         'utf-8'
       );
 
-      const auditor = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -75,8 +75,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
   describe('Canary Tests & Auto-Repair', () => {
     it('Canary 1 (Missing Config): reports error in check mode and scaffolds in fix mode', async () => {
       // 1. Check mode
-      const auditorCheck = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const resultCheck = await auditorCheck.execute();
+      const auditorCheck = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const resultCheck = await auditorCheck.audit();
 
       expect(resultCheck.status).toBe('failed');
       expect(resultCheck.findings.some((f) => f.ruleId === 'html-validate-config-missing')).toBe(
@@ -84,8 +84,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       );
 
       // 2. Fix mode
-      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir, fix: true });
-      const resultFix = await auditorFix.execute();
+      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const resultFix = await auditorFix.fix();
 
       expect(resultFix.status).toBe('passed');
       const createdPath = path.join(tmpDir, '.htmlvalidate.json');
@@ -100,8 +100,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       const configPath = path.join(tmpDir, '.htmlvalidate.json');
       fs.writeFileSync(configPath, '{\n  "elements": ["html5",\n', 'utf-8');
 
-      const auditor = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       expect(result.findings.some((f) => f.ruleId === 'html-validate-config-syntax')).toBe(true);
@@ -119,8 +119,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       fs.writeFileSync(configPath, JSON.stringify(degradedConfig, null, 2), 'utf-8');
 
       // Check mode flags error
-      const auditorCheck = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const resultCheck = await auditorCheck.execute();
+      const auditorCheck = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const resultCheck = await auditorCheck.audit();
 
       expect(resultCheck.status).toBe('failed');
       expect(
@@ -128,8 +128,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       ).toBe(true);
 
       // Fix mode restores mandatory strict baseline
-      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir, fix: true });
-      await auditorFix.execute();
+      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      await auditorFix.fix();
 
       const repaired = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(repaired.rules.deprecated).toBe('error');
@@ -147,8 +147,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       fs.writeFileSync(configPath, JSON.stringify(customConfig, null, 2), 'utf-8');
 
       // Check mode
-      const auditorCheck = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const resultCheck = await auditorCheck.execute();
+      const auditorCheck = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const resultCheck = await auditorCheck.audit();
 
       expect(resultCheck.status).toBe('failed');
       expect(
@@ -156,8 +156,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       ).toBe(true);
 
       // Fix mode
-      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir, fix: true });
-      await auditorFix.execute();
+      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      await auditorFix.fix();
 
       const repaired = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(repaired.rules['doctype-style']).toEqual(['error', { style: 'lowercase' }]);
@@ -182,8 +182,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       fs.writeFileSync(configPath, JSON.stringify(nonVueConfig, null, 2), 'utf-8');
 
       // Check mode
-      const auditorCheck = new ValidateHtmlValidateConfigAuditor(undefined, tmpDir);
-      const resultCheck = await auditorCheck.execute();
+      const auditorCheck = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const resultCheck = await auditorCheck.audit();
 
       expect(resultCheck.status).toBe('failed');
       expect(
@@ -194,8 +194,8 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       ).toBe(true);
 
       // Fix mode
-      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir, fix: true });
-      await auditorFix.execute();
+      const auditorFix = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      await auditorFix.fix();
 
       const repaired = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(repaired.plugins).toContain('html-validate-vue');

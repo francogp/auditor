@@ -13,17 +13,17 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
+
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-
 import { getPackageJson } from '../../core/packageJson.ts';
 import {
   findConfigRootObject,
@@ -95,53 +95,37 @@ export const PLAYWRIGHT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Playwri
   generateDefaultContent: () => CANONICAL_PLAYWRIGHT_CONFIG_CONTENT
 };
 
+export interface PlaywrightConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
+
 export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<PlaywrightConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<PlaywrightConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: PlaywrightConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<PlaywrightConfigRuleId> = {
       ...PLAYWRIGHT_CONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: false,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'playwright-config-missing',
-        'playwright-config-missing-setting'
-      ],
       configFiles: [configRequirement],
       id: 'validate_playwright_config',
       name: 'Playwright Configuration Validator',
@@ -177,9 +161,7 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       coverage: {
         include: ['playwright.config.*']
       },
-      projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      projectRoot
     });
   }
 
@@ -200,7 +182,10 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
         this.ensureConfigFile(PLAYWRIGHT_CONFIG_REQUIREMENT)
       );
       if (!ensured) {
-        this.markRuleNotApplicable('playwright-config-missing-setting', 'Missing playwright.config.ts file');
+        this.markRuleNotApplicable(
+          'playwright-config-missing-setting',
+          'Missing playwright.config.ts file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -234,7 +219,8 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
     let replaceNpxVite = false;
 
     const DEFAULT_PLAYWRIGHT_TIMEOUT_MS = 30000;
-    const currentRoot = () => ts.factory.createObjectLiteralExpression(rootProps, true);
+    const currentRoot = (): ts.ObjectLiteralExpression =>
+      ts.factory.createObjectLiteralExpression(rootProps, true);
 
     this.runSubAuditorSync('playwright-config-missing-setting', () => {
       // 1. Check timeout
@@ -244,7 +230,10 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
       if (!hasTimeout) {
         if (isFix && rootObj) {
           rootProps.push(
-            ts.factory.createPropertyAssignment('timeout', valueToAstExpression(DEFAULT_PLAYWRIGHT_TIMEOUT_MS))
+            ts.factory.createPropertyAssignment(
+              'timeout',
+              valueToAstExpression(DEFAULT_PLAYWRIGHT_TIMEOUT_MS)
+            )
           );
           modified = true;
         } else {
@@ -368,7 +357,10 @@ export class ValidatePlaywrightConfigAuditor extends BaseAuditor<PlaywrightConfi
             (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) &&
             /\bnpx\s+vite\b/.test(node.text)
           ) {
-            return ts.factory.createStringLiteral(node.text.replace(/\bnpx\s+vite\b/g, 'vp dev'), true);
+            return ts.factory.createStringLiteral(
+              node.text.replace(/\bnpx\s+vite\b/g, 'vp dev'),
+              true
+            );
           }
           return ts.visitEachChild(node, visit, context);
         };

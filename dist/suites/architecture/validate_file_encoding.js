@@ -203,11 +203,10 @@ function inspectBufferEncoding(buffer, options = {}) {
 	return null;
 }
 var ValidateFileEncodingAuditor = class extends FileScanAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(projectRoot);
-		const roots = optionsObj?.roots ?? (Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0) ?? [
+		const roots = options.roots ?? [
 			...config.paths.codeRoots,
 			...config.paths.testRoots,
 			...config.paths.scriptsRoots,
@@ -222,6 +221,8 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 			...config.encoding?.exemptFiles ?? []
 		];
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["file-encoding-invalid-charset", "file-encoding-unwanted-bom"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			id: "validate_file_encoding",
@@ -241,14 +242,12 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(FILE_ENCODING_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: true,
 				critical: true
 			}),
 			ruleIds: FILE_ENCODING_RULES,
-			fixableRuleIds: ["file-encoding-unwanted-bom", "file-encoding-invalid-charset"],
 			ruleDescriptions: FILE_ENCODING_RULE_DESCRIPTIONS,
 			ruleRemediations: FILE_ENCODING_RULE_REMEDIATIONS,
 			ruleRemediationPhases: FILE_ENCODING_RULE_REMEDIATION_PHASES,
@@ -260,8 +259,7 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 				...deriveCoverageFromRoots(roots, allowedExtensions, projectRoot),
 				exclude: encodingExcludes
 			},
-			projectRoot,
-			fix: optionsObj?.fix
+			projectRoot
 		});
 	}
 	async runAudit() {

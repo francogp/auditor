@@ -8,9 +8,11 @@
  */
 
 import path from 'node:path';
+
+import ts from 'typescript';
 import { parse as parseBash } from 'unbash';
 import { parseDocument, visit } from 'yaml';
-import ts from 'typescript';
+
 import {
   cleanTarget,
   isPlaceholder,
@@ -20,8 +22,8 @@ import {
   type ExtractedCommand,
   type CommandInvocationType
 } from './npmCommandUtils.ts';
-import { safeJsonParse } from './safeUtils.ts';
 import { normalizePosixPath } from './safePath.ts';
+import { safeJsonParse } from './safeUtils.ts';
 
 const SHELL_PREFIX_RUNNERS: ReadonlySet<string> = new Set([
   // runtime-set: Fast O(1) membership lookup set
@@ -210,7 +212,7 @@ export function extractCommandsFromShell(content: string): ExtractedCommand[] {
 
     const record = node as Record<string, unknown>;
     if (record.type === 'Command' && record.name) {
-      inspectBashCommandNode(record as CommandNode, content, rawLines, commands);
+      inspectBashCommandNode(record, content, rawLines, commands);
     }
 
     for (const k of Object.keys(record)) {
@@ -324,7 +326,7 @@ function parseExecJsonRun(
   out: ExtractedCommand[]
 ): boolean {
   if (!body.startsWith('[') || !body.endsWith(']')) return false;
-  const parsed = safeJsonParse<unknown>(body);
+  const parsed = safeJsonParse(body);
   if (Array.isArray(parsed) && parsed.length > 0) {
     const bin = String(parsed[0]);
     const args = parsed.slice(1).map(String);
@@ -633,7 +635,12 @@ export function extractCommandsFromTypeScript(
     if (ts.isCallExpression(node)) {
       const callee = getCalleeName(node.expression);
       if (callee && PROCESS_RUNNER_NAMES.has(callee) && node.arguments.length > 0) {
-        const spawnFamilyRunners: ReadonlySet<string> = new Set(['spawn', 'spawnSync', 'execFile', 'execFileSync']);
+        const spawnFamilyRunners: ReadonlySet<string> = new Set([
+          'spawn',
+          'spawnSync',
+          'execFile',
+          'execFileSync'
+        ]);
         if (spawnFamilyRunners.has(callee)) {
           handleSpawnCall(node, sf, rawLines, commands);
         } else {
@@ -663,7 +670,15 @@ export function extractCommandsFromTypeScript(
 function stripComments(line: string, ext: string): string {
   const lowerExt = ext.toLowerCase();
 
-  const hashCommentExts: ReadonlySet<string> = new Set(['.sh', '.bash', '.zsh', '.ps1', '.yml', '.yaml', 'containerfile']);
+  const hashCommentExts: ReadonlySet<string> = new Set([
+    '.sh',
+    '.bash',
+    '.zsh',
+    '.ps1',
+    '.yml',
+    '.yaml',
+    'containerfile'
+  ]);
   if (hashCommentExts.has(lowerExt) || lowerExt.includes('dockerfile')) {
     const hashIndex = line.indexOf('#');
     if (hashIndex !== -1) return line.slice(0, hashIndex);

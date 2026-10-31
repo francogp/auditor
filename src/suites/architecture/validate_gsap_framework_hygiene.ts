@@ -14,17 +14,24 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import ts from 'typescript';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities,
-  resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import {
   getAuditConfig,
   isInCodeRoots,
   isExemptFile,
   matchesAnyRoot
 } from '../../core/auditConfig.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath as normalizeFilePath } from '../../core/safePath.ts';
 import { scanBalancedParens } from '../../core/scannerUtils.ts';
 
@@ -70,10 +77,11 @@ function isInsideAnyScopeRange(index: number, ranges: readonly GsapScopeRange[])
 }
 
 export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFrameworkHygieneRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       projectRoot: effectiveRoot,
@@ -90,7 +98,6 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       ruleCapabilities: createRuleCapabilities(GSAP_FRAMEWORK_HYGIENE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -98,7 +105,10 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       }),
       allowedExtensions: new Set(['.ts', '.vue', '.tsx', '.jsx']),
       ruleIds: GSAP_FRAMEWORK_HYGIENE_RULES,
-      ruleRemediationPhases: createUniformRemediationPhases(GSAP_FRAMEWORK_HYGIENE_RULES, 'behavior'),
+      ruleRemediationPhases: createUniformRemediationPhases(
+        GSAP_FRAMEWORK_HYGIENE_RULES,
+        'behavior'
+      ),
       ruleDescriptions: {
         'gsap-unscoped-component-selectors': 'Unscoped global selector in UI',
         'gsap-missing-context-revert': 'Missing revert or cleanup on unmount',
@@ -233,7 +243,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
       if (!isScoped) {
         this.addViolationAtMatch({
           ruleId: 'gsap-unscoped-component-selectors',
-          filePath: relPath,
+          file: relPath,
           content,
           matchIndex: m.index,
           message: `Global selector '${selector}' in UI component without scoped context. Use 'gsap.context(..., rootRef.value)' or 'useGSAP()' to prevent leaks.`,
@@ -252,7 +262,7 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
     if (!hasRevert || !hasUnmountLifecycle) {
       this.addViolationAtMatch({
         ruleId: 'gsap-missing-context-revert',
-        filePath: relPath,
+        file: relPath,
         content,
         matchIndex: content.indexOf('gsap.context'),
         message:
@@ -265,25 +275,29 @@ export class ValidateGsapFrameworkHygieneAuditor extends FileScanAuditor<GsapFra
   private scanPluginRegistration(relPath: string, content: string, doc: AuditedDocument): void {
     const sf = doc.getAst();
     if (sf) {
-const KNOWN_GSAP_PLUGINS = [
-  'ScrollTrigger',
-  'Flip',
-  'Draggable',
-  'SplitText',
-  'Observer',
-  'ScrollSmoother',
-  'InertiaPlugin',
-  'MotionPathPlugin'
-] as const;
+      const KNOWN_GSAP_PLUGINS = [
+        'ScrollTrigger',
+        'Flip',
+        'Draggable',
+        'SplitText',
+        'Observer',
+        'ScrollSmoother',
+        'InertiaPlugin',
+        'MotionPathPlugin'
+      ] as const;
 
-type KnownGsapPlugin = typeof KNOWN_GSAP_PLUGINS[number];
-const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
+      type KnownGsapPlugin = (typeof KNOWN_GSAP_PLUGINS)[number];
+      const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
 
       const importedPlugins: Array<{ name: string; node: ts.Node }> = [];
       const registeredPlugins = new Set<string>();
 
       const checkNode = (node: ts.Node): void => {
-        if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text.startsWith('gsap/')) {
+        if (
+          ts.isImportDeclaration(node) &&
+          ts.isStringLiteral(node.moduleSpecifier) &&
+          node.moduleSpecifier.text.startsWith('gsap/')
+        ) {
           const named = node.importClause?.namedBindings;
           if (named && ts.isNamedImports(named)) {
             for (const el of named.elements) {
@@ -313,9 +327,9 @@ const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
           const { line, column } = doc.getNodeLineAndColumn(node, sf);
           this.addViolation({
             ruleId: 'gsap-missing-plugin-registration',
-            filePath: relPath,
+            file: relPath,
             line,
-            column,
+            col: column,
             message: `GSAP plugin '${name}' imported without calling 'gsap.registerPlugin(${name})'. Risk of tree-shaking elimination.`,
             severity: 'error'
           });
@@ -336,7 +350,7 @@ const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
       if (!hasRegister) {
         this.addViolationAtMatch({
           ruleId: 'gsap-missing-plugin-registration',
-          filePath: relPath,
+          file: relPath,
           content,
           matchIndex: pluginMatch.index,
           message: `GSAP plugin '${pluginName}' imported without calling 'gsap.registerPlugin(${pluginName})'. Risk of tree-shaking elimination.`,
@@ -366,9 +380,9 @@ const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
               const { line, column } = doc.getNodeLineAndColumn(node, sf);
               this.addViolation({
                 ruleId: 'gsap-banned-devtools-production',
-                filePath: relPath,
+                file: relPath,
                 line,
-                column,
+                col: column,
                 message: `Debugging tool '${toolName}' detected without 'import.meta.env.DEV' environment guard. Prohibited in production.`,
                 severity: 'error'
               });
@@ -396,7 +410,7 @@ const KNOWN_PLUGINS = new Set<KnownGsapPlugin>(KNOWN_GSAP_PLUGINS);
       if (!hasDevGuard) {
         this.addViolationAtMatch({
           ruleId: 'gsap-banned-devtools-production',
-          filePath: relPath,
+          file: relPath,
           content,
           matchIndex: devtoolsMatch.index,
           message: `Debugging tool '${toolName}' detected without 'import.meta.env.DEV' environment guard. Prohibited in production.`,

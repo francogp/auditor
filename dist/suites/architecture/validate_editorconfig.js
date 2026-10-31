@@ -49,29 +49,27 @@ const EDITORCONFIG_REQUIREMENT = {
 	generateDefaultContent: () => CANONICAL_EDITORCONFIG_CONTENT
 };
 var ValidateEditorconfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...EDITORCONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(EDITORCONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["editorconfig-missing", "editorconfig-missing-setting"],
 			configFiles: [configRequirement],
 			id: "validate_editorconfig",
 			name: "EditorConfig Validator",
@@ -93,9 +91,7 @@ var ValidateEditorconfigAuditor = class extends BaseAuditor {
 				"editorconfig-missing-setting": "📖 REMEDIATION GUIDE: editorconfig-missing-setting\n1. Root Cause: Mandatory directives are missing from `.editorconfig` (root=true, end_of_line=lf, charset=utf-8, etc.).\n2. Diagnosis: Inspect existing `.editorconfig` sections and directives against canonical standards.\n3. Canonical Solution: Run `npm run auditor:fix` or `auditor fix` to harmonize editor formatting directives.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: [".editorconfig"] },
-			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			projectRoot
 		});
 	}
 	async runAudit() {

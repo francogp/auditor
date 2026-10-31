@@ -5,6 +5,21 @@
  */
 
 import path from 'node:path';
+
+import {
+  assertNarrowCoverageGlob,
+  assertCoverageReason,
+  getExemptRootsForPolicy,
+  filterOutExemptRoots
+} from './auditConfigAntiAbuse.ts';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  DEFAULT_SIMILAR_CODE_THRESHOLD,
+  DEFAULT_TEST_COVERAGE_PERCENTAGE,
+  DEFAULT_TYPE_COVERAGE_AT_LEAST,
+  DEFAULT_PRECOMPRESS_THRESHOLD_BYTES,
+  collectDeclaredSubsystems
+} from './auditConfigDefaults.ts';
 import {
   type AuditEngineConfig,
   type DeepPartial,
@@ -24,6 +39,7 @@ import {
   type AuditHtmlValidateConfig,
   type BaseAuditSubsystemConfig,
   type CanonicalRuleSeverityLevel,
+  CANONICAL_RULE_SEVERITY_LEVELS,
   type AuditVitePlusConfig,
   type AuditVitePlusFmtConfig,
   type AuditVitePlusLintConfig,
@@ -59,33 +75,16 @@ import {
   type AuditTestCoverageConfig,
   type ResolvedTestCoverageConfig,
   type AuditValibotConfig,
-  type ValibotParityTarget,
   type AuditWebPerformanceConfig,
   type AuditQueryPerformanceConfig,
   type AuditSecurityHardeningConfig,
   type AuditCodeSimplificationConfig,
   type AuditScssArchitectureConfig,
-  type ChunkBudgetConfig,
-  type O1CatalogPatternConfig,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES,
   ACKNOWLEDGEABLE_EXEMPTION_POLICIES,
   AUDITOR_DIR
 } from './auditConfigTypes.ts';
 import { normalizePosixPath } from './reportUtils.ts';
-import {
-  assertNarrowCoverageGlob,
-  assertCoverageReason,
-  getExemptRootsForPolicy,
-  filterOutExemptRoots
-} from './auditConfigAntiAbuse.ts';
-import {
-  DEFAULT_AUDIT_CONFIG,
-  DEFAULT_SIMILAR_CODE_THRESHOLD,
-  DEFAULT_TEST_COVERAGE_PERCENTAGE,
-  DEFAULT_TYPE_COVERAGE_AT_LEAST,
-  DEFAULT_PRECOMPRESS_THRESHOLD_BYTES,
-  collectDeclaredSubsystems
-} from './auditConfigDefaults.ts';
 
 export function buildPathsConfig(
   raw?: DeepPartial<AuditEngineConfig['paths']>
@@ -128,7 +127,7 @@ export function buildDomainConfig(raw?: DeepPartial<AuditDomainConfig>): AuditDo
     ...DEFAULT_AUDIT_CONFIG.domain,
     ...d,
     enabled: d.enabled ?? true,
-    o1CatalogPatterns: (d.o1CatalogPatterns as readonly O1CatalogPatternConfig[] | undefined) ?? [],
+    o1CatalogPatterns: d.o1CatalogPatterns ?? [],
     caseNormalizationExemptTokens: d.caseNormalizationExemptTokens ?? [],
     allowedStoreSetterPrefixes: d.allowedStoreSetterPrefixes ?? ['set', 'update', 'clear'],
     allowedNumericConstantPrefixes:
@@ -177,8 +176,8 @@ function buildStandaloneStylelintConfig(
   const base = buildBaseSubsystemConfig<AuditStylelintConfig>(merged, true);
 
   const effectiveRules = {
-    ...(stylesStylelint?.rules ?? {}),
-    ...(stylelint?.rules ?? {})
+    ...stylesStylelint?.rules,
+    ...stylelint?.rules
   };
 
   const baseStrict = stylesStylelint?.strictValues;
@@ -190,10 +189,19 @@ function buildStandaloneStylelintConfig(
           properties: Array.from(
             new Set([...(baseStrict?.properties ?? []), ...(topStrict?.properties ?? [])])
           ),
-          ignoreValues: {
-            ...(baseStrict?.ignoreValues ?? {}),
-            ...(topStrict?.ignoreValues ?? {})
-          } as Record<string, readonly string[]>,
+          ignoreValues: (() => {
+            const rawCombined = {
+              ...baseStrict?.ignoreValues,
+              ...topStrict?.ignoreValues
+            };
+            const result: Record<string, readonly string[]> = {};
+            for (const [prop, val] of Object.entries(rawCombined)) {
+              if (Array.isArray(val)) {
+                result[prop] = val.filter((item): item is string => typeof item === 'string');
+              }
+            }
+            return result;
+          })(),
           ignoreAtRules: Array.from(
             new Set([...(baseStrict?.ignoreAtRules ?? []), ...(topStrict?.ignoreAtRules ?? [])])
           )
@@ -234,7 +242,14 @@ function buildZLayersSubConfig(s: DeepPartial<AuditStylesConfig>): ZLayersStyleS
     zLayersScssFile: s.zLayersScssFile,
     baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
     zLayersTsFile: s.zLayersTsFile,
-    zLayers: s.zLayers ? ({ ...s.zLayers } as Record<string, number>) : undefined
+    zLayers: (() => {
+      if (!s.zLayers) return undefined;
+      const map: Record<string, number> = {};
+      for (const [k, v] of Object.entries(s.zLayers)) {
+        if (typeof v === 'number') map[k] = v;
+      }
+      return map;
+    })()
   };
 }
 
@@ -277,18 +292,13 @@ export function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBu
     statsFile: b.statsFile ?? def?.statsFile,
     distDir: b.distDir ?? def?.distDir,
     exemptChunkPrefixes: b.exemptChunkPrefixes ?? [],
-    maxClientChunkWarnBytes:
-      b.maxClientChunkWarnBytes ?? def?.maxClientChunkWarnBytes,
-    maxClientChunkErrorBytes:
-      b.maxClientChunkErrorBytes ?? def?.maxClientChunkErrorBytes,
-    budgets: (b.budgets as readonly ChunkBudgetConfig[] | undefined) ?? [],
+    maxClientChunkWarnBytes: b.maxClientChunkWarnBytes ?? def?.maxClientChunkWarnBytes,
+    maxClientChunkErrorBytes: b.maxClientChunkErrorBytes ?? def?.maxClientChunkErrorBytes,
+    budgets: b.budgets ?? [],
     duplicateModuleThresholdBytes:
       b.duplicateModuleThresholdBytes ?? def?.duplicateModuleThresholdBytes,
     topModulesLimit: b.topModulesLimit ?? def?.topModulesLimit,
-    forbiddenUiImports:
-      (b.forbiddenUiImports as
-        | readonly { readonly module: string; readonly reason: string }[]
-        | undefined) ?? []
+    forbiddenUiImports: b.forbiddenUiImports ?? []
   };
 }
 
@@ -306,10 +316,7 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
     config.agentPlugin,
     DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
   );
-  const securityBase = buildBaseSubsystemConfig<AuditSecurityConfig>(
-    config.security,
-    secEnabled
-  );
+  const securityBase = buildBaseSubsystemConfig<AuditSecurityConfig>(config.security, secEnabled);
   const animationBase = buildBaseSubsystemConfig<AuditAnimationConfig>(
     config.animation,
     DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true
@@ -338,9 +345,15 @@ function buildConstantsSubConfig(c?: DeepPartial<AuditConstantsConfig>): AuditCo
   );
   return {
     ...base,
-    ignoredNames: c?.ignoredNames ? [...c.ignoredNames] : (DEFAULT_AUDIT_CONFIG.constants?.ignoredNames ?? []),
-    exemptMagicNumbers: c?.exemptMagicNumbers ? [...c.exemptMagicNumbers] : (DEFAULT_AUDIT_CONFIG.constants?.exemptMagicNumbers ?? []),
-    allowedNumericPrefixes: c?.allowedNumericPrefixes ? [...c.allowedNumericPrefixes] : (DEFAULT_AUDIT_CONFIG.constants?.allowedNumericPrefixes ?? []),
+    ignoredNames: c?.ignoredNames
+      ? [...c.ignoredNames]
+      : (DEFAULT_AUDIT_CONFIG.constants?.ignoredNames ?? []),
+    exemptMagicNumbers: c?.exemptMagicNumbers
+      ? [...c.exemptMagicNumbers]
+      : (DEFAULT_AUDIT_CONFIG.constants?.exemptMagicNumbers ?? []),
+    allowedNumericPrefixes: c?.allowedNumericPrefixes
+      ? [...c.allowedNumericPrefixes]
+      : (DEFAULT_AUDIT_CONFIG.constants?.allowedNumericPrefixes ?? []),
     exemptPaths: c?.exemptPaths ? [...c.exemptPaths] : (base.exemptPaths ?? []),
     exemptFiles: c?.exemptFiles ? [...c.exemptFiles] : (base.exemptFiles ?? []),
     ignoreGlobs: c?.ignoreGlobs ? [...c.ignoreGlobs] : (base.ignoreGlobs ?? [])
@@ -356,13 +369,23 @@ function buildDocumentationSubConfig(
   );
   return {
     ...base,
-    knownValidAbstractPaths: d?.knownValidAbstractPaths ? [...d.knownValidAbstractPaths] : (DEFAULT_AUDIT_CONFIG.documentation?.knownValidAbstractPaths ?? []),
-    skillsRoots: d?.skillsRoots ? [...d.skillsRoots] : (DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []),
-    unignoreDirs: d?.unignoreDirs ? [...d.unignoreDirs] : (DEFAULT_AUDIT_CONFIG.documentation?.unignoreDirs ?? []),
-    allowedNpxBinaries: d?.allowedNpxBinaries ? [...d.allowedNpxBinaries] : (DEFAULT_AUDIT_CONFIG.documentation?.allowedNpxBinaries ?? []),
+    knownValidAbstractPaths: d?.knownValidAbstractPaths
+      ? [...d.knownValidAbstractPaths]
+      : (DEFAULT_AUDIT_CONFIG.documentation?.knownValidAbstractPaths ?? []),
+    skillsRoots: d?.skillsRoots
+      ? [...d.skillsRoots]
+      : (DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []),
+    unignoreDirs: d?.unignoreDirs
+      ? [...d.unignoreDirs]
+      : (DEFAULT_AUDIT_CONFIG.documentation?.unignoreDirs ?? []),
+    allowedNpxBinaries: d?.allowedNpxBinaries
+      ? [...d.allowedNpxBinaries]
+      : (DEFAULT_AUDIT_CONFIG.documentation?.allowedNpxBinaries ?? []),
     language: d?.language ?? DEFAULT_AUDIT_CONFIG.documentation?.language ?? 'en',
     chatLanguage: d?.chatLanguage ?? DEFAULT_AUDIT_CONFIG.documentation?.chatLanguage ?? 'es',
-    languageExemptions: d?.languageExemptions ? [...d.languageExemptions] : (DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? [])
+    languageExemptions: d?.languageExemptions
+      ? [...d.languageExemptions]
+      : (DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? [])
   };
 }
 
@@ -391,7 +414,8 @@ export function buildConstantsAndDocConfig(config: DeepPartial<AuditEngineConfig
     },
     e2e: {
       ...e2eBase,
-      idLocatorsOnly: config.e2e?.idLocatorsOnly ?? DEFAULT_AUDIT_CONFIG.e2e?.idLocatorsOnly ?? false
+      idLocatorsOnly:
+        config.e2e?.idLocatorsOnly ?? DEFAULT_AUDIT_CONFIG.e2e?.idLocatorsOnly ?? false
     }
   };
 }
@@ -500,7 +524,7 @@ export function buildAuditorHygieneConfig(
   const base = buildBaseSubsystemConfig<AuditAuditorHygieneConfig>(p, def?.enabled ?? true);
   return {
     ...base,
-    roots: p.roots ? [...p.roots] : (def?.roots ? [...def.roots] : ['scripts/auditors']),
+    roots: p.roots ? [...p.roots] : def?.roots ? [...def.roots] : ['scripts/auditors'],
     exemptFiles: p.exemptFiles ? [...p.exemptFiles] : (def?.exemptFiles ?? []),
     disabledDetectors: p.disabledDetectors
       ? [...p.disabledDetectors]
@@ -580,9 +604,7 @@ export function buildScriptCommandsConfig(
   };
 }
 
-export function buildRatchetConfig(
-  raw?: DeepPartial<AuditRatchetConfig>
-): ResolvedRatchetConfig {
+export function buildRatchetConfig(raw?: DeepPartial<AuditRatchetConfig>): ResolvedRatchetConfig {
   const r = raw ?? {};
   if (r.enabled !== undefined && typeof r.enabled !== 'boolean') {
     throw new Error(
@@ -644,16 +666,29 @@ function validateTestCoverageRaw(t: DeepPartial<AuditTestCoverageConfig>): void 
 function resolveTestCoverageCollections(
   t: DeepPartial<AuditTestCoverageConfig>,
   def?: AuditTestCoverageConfig
-) {
+): {
+  readonly roots: readonly string[];
+  readonly extensions: readonly string[];
+  readonly exemptGlobs: readonly string[];
+  readonly directoryThresholds: Readonly<Record<string, number>>;
+} {
+  const dirThresholds: Record<string, number> = {};
+  const base = def?.directoryThresholds;
+  if (base) {
+    for (const [k, v] of Object.entries(base)) dirThresholds[k] = v;
+  }
+  if (t.directoryThresholds) {
+    for (const [k, v] of Object.entries(t.directoryThresholds)) {
+      if (typeof v === 'number') dirThresholds[k] = v;
+    }
+  }
   return {
     roots: t.roots ? [...t.roots] : (def?.roots ?? ['src']),
     extensions: t.extensions
       ? [...t.extensions]
       : (def?.extensions ?? ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']),
     exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : (def?.exemptGlobs ?? []),
-    directoryThresholds: t.directoryThresholds
-      ? ({ ...t.directoryThresholds } as Record<string, number>)
-      : (def?.directoryThresholds ?? {})
+    directoryThresholds: dirThresholds
   };
 }
 
@@ -670,12 +705,14 @@ export function buildTestCoverageConfig(
   validateTestCoverageRaw(t);
   const base = buildBaseSubsystemConfig<AuditTestCoverageConfig>(t, def?.enabled ?? true);
   const collections = resolveTestCoverageCollections(t, def);
-  const combinedExemptGlobs = Array.from(new Set([
-    ...collections.exemptGlobs.map((f) => normalizePosixPath(f)),
-    ...(base.ignoreGlobs?.map((f) => normalizePosixPath(f)) ?? []),
-    ...(base.exemptPaths?.map(normalizePathToPosixGlob) ?? []),
-    ...(base.exemptFiles?.map((f) => normalizePosixPath(f)) ?? [])
-  ]));
+  const combinedExemptGlobs = Array.from(
+    new Set([
+      ...collections.exemptGlobs.map((f) => normalizePosixPath(f)),
+      ...(base.ignoreGlobs?.map((f) => normalizePosixPath(f)) ?? []),
+      ...(base.exemptPaths?.map(normalizePathToPosixGlob) ?? []),
+      ...(base.exemptFiles?.map((f) => normalizePosixPath(f)) ?? [])
+    ])
+  );
   return {
     ...base,
     threshold: t.threshold ?? def?.threshold ?? DEFAULT_TEST_COVERAGE_PERCENTAGE,
@@ -738,9 +775,7 @@ export function buildGitIgnoreConfig(
   };
 }
 
-function extractStringArrayProperty(
-  arr: unknown
-): readonly string[] | undefined {
+function extractStringArrayProperty(arr: unknown): readonly string[] | undefined {
   if (!Array.isArray(arr)) return undefined;
   return arr.filter((x): x is string => typeof x === 'string');
 }
@@ -761,10 +796,7 @@ export function buildBaseSubsystemConfig<T extends BaseAuditSubsystemConfig>(
     ...(exemptFiles !== undefined ? { exemptFiles } : {})
   };
 
-  return {
-    ...raw,
-    ...base
-  } as T;
+  return Object.assign({}, raw, base) as T;
 }
 
 export function buildOxlintConfig(raw?: DeepPartial<AuditOxlintConfig>): AuditOxlintConfig {
@@ -836,9 +868,16 @@ function buildVitePlusLintConfig(
     typeAware: v.typeAware ?? def?.typeAware ?? true,
     typeCheck: v.typeCheck ?? def?.typeCheck ?? true,
     categories: v.categories ? { ...v.categories } : def?.categories,
-    rules: v.rules
-      ? ({ ...v.rules } as Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>)
-      : def?.rules,
+    rules: (() => {
+      if (!v.rules) return def?.rules;
+      const rulesMap: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]> = {};
+      for (const [r, val] of Object.entries(v.rules)) {
+        if (typeof val === 'string' || Array.isArray(val)) {
+          rulesMap[r] = val as 'error' | 'warn' | 'off' | readonly unknown[];
+        }
+      }
+      return rulesMap;
+    })(),
     ignorePatterns: v.ignorePatterns ? [...v.ignorePatterns] : (def?.ignorePatterns ?? []),
     overrides: v.overrides ? [...v.overrides] : (def?.overrides ?? [])
   };
@@ -860,11 +899,11 @@ function buildVitePlusStagedConfig(
         : true;
   const stagedRules: Record<string, string> =
     isStagedWithRules && stagedObj?.rules
-      ? (stagedObj.rules as Record<string, string>)
+      ? stagedObj.rules
       : isStagedObject && !('rules' in rawStaged)
         ? (rawStaged as Record<string, string>)
         : defStagedObj?.rules
-          ? (defStagedObj.rules as Record<string, string>)
+          ? defStagedObj.rules
           : { '*': 'vp check --fix' };
   return {
     enabled: stagedEnabled,
@@ -906,11 +945,26 @@ export function buildVitePlusConfig(raw?: DeepPartial<AuditVitePlusConfig>): Aud
     lint: buildVitePlusLintConfig(v.lint, def?.lint),
     test: buildVitePlusTestConfig(v.test, def?.test),
     staged: buildVitePlusStagedConfig(v.staged, def?.staged),
-    hooks: v.hooks ? { ...v.hooks, enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true } : def?.hooks,
-    vscode: v.vscode ? { ...v.vscode, enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true } : def?.vscode,
-    extraLintRules: v.extraLintRules ? ({ ...v.extraLintRules } as Record<string, CanonicalRuleSeverityLevel>) : def?.extraLintRules
+    hooks: v.hooks
+      ? { ...v.hooks, enabled: v.hooks.enabled ?? def?.hooks?.enabled ?? true }
+      : def?.hooks,
+    vscode: v.vscode
+      ? { ...v.vscode, enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true }
+      : def?.vscode,
+    extraLintRules: (() => {
+      if (!v.extraLintRules) return def?.extraLintRules;
+      const map: Record<string, CanonicalRuleSeverityLevel> = {};
+      for (const [r, val] of Object.entries(v.extraLintRules)) {
+        if (typeof val === 'string' && CANONICAL_SEVERITY_SET.has(val)) {
+          map[r] = val as CanonicalRuleSeverityLevel;
+        }
+      }
+      return map;
+    })()
   };
 }
+
+const CANONICAL_SEVERITY_SET: ReadonlySet<string> = new Set(CANONICAL_RULE_SEVERITY_LEVELS);
 
 export function buildVersionConfig(raw?: DeepPartial<AuditVersionConfig>): AuditVersionConfig {
   const def = DEFAULT_AUDIT_CONFIG.version;
@@ -944,7 +998,10 @@ export function buildDependencyVulnerabilitiesConfig(
 ): AuditDependencyVulnerabilitiesConfig {
   const def = DEFAULT_AUDIT_CONFIG.dependencyVulnerabilities;
   const d = raw ?? {};
-  const base = buildBaseSubsystemConfig<AuditDependencyVulnerabilitiesConfig>(d, def?.enabled ?? false);
+  const base = buildBaseSubsystemConfig<AuditDependencyVulnerabilitiesConfig>(
+    d,
+    def?.enabled ?? false
+  );
   return {
     ...base,
     failOn: d.failOn ?? def?.failOn ?? 'critical',
@@ -962,7 +1019,7 @@ function resolveCoverageExemptGlobs(
     const glob = entry?.glob ?? '';
     assertNarrowCoverageGlob('coverage.exemptGlobs', glob, protectedRoots);
     assertCoverageReason('coverage.exemptGlobs', glob, entry?.reason);
-    exemptGlobs.push({ glob, reason: entry!.reason! });
+    exemptGlobs.push({ glob, reason: entry.reason });
   }
   return exemptGlobs;
 }
@@ -987,7 +1044,7 @@ function resolveAcknowledgedDegradations(
       exemptRoots.length > 0 ? filterOutExemptRoots(protectedRoots, exemptRoots) : protectedRoots;
     assertNarrowCoverageGlob('coverage.acknowledgedDegradations', glob, effectiveProtectedRoots);
     assertCoverageReason('coverage.acknowledgedDegradations', glob, entry?.reason);
-    acknowledgedDegradations.push({ policy, glob, reason: entry!.reason! });
+    acknowledgedDegradations.push({ policy, glob, reason: entry.reason });
   }
   return acknowledgedDegradations;
 }
@@ -1025,7 +1082,7 @@ export function buildValibotConfig(
   );
   return {
     ...base,
-    targets: v.targets ? (v.targets as ValibotParityTarget[]) : []
+    targets: v.targets ? v.targets : []
   };
 }
 
@@ -1096,7 +1153,6 @@ export function buildScssArchitectureConfig(
     allowScopedColors: s.allowScopedColors ?? def.allowScopedColors
   };
 }
-
 
 function buildTypesConfig(types: DeepPartial<AuditTypesConfig> | undefined): AuditTypesConfig {
   return buildBaseSubsystemConfig<AuditTypesConfig>(

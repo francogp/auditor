@@ -8,17 +8,15 @@
  */
 
 import { styleText } from 'node:util';
-import type { TableColumn } from '../core/unifiedTheme.ts';
+
 import { MotionRefactorEngine } from '../core/refactor/motionRefactorEngine.ts';
 import {
   runRefactorCliHarness,
   formatCliRelativeFilePath,
   type RefactorCliDefinition
 } from '../core/refactor/refactorCliHarness.ts';
-import type {
-  MotionFindingItem,
-  MotionRefactorPlan
-} from '../core/refactor/refactorContracts.ts';
+import type { MotionFindingItem, MotionRefactorPlan } from '../core/refactor/refactorContracts.ts';
+import type { TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [

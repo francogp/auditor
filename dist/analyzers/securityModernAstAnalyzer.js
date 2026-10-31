@@ -194,7 +194,7 @@ function analyzeModernSecurityScriptAst(rawContent, sf, enableFix) {
 		return m1 || m2;
 	});
 }
-function analyzeExternalSriHtml(htmlContent, enableFix) {
+function analyzeExternalSriHtml(htmlContent, enableFix = false) {
 	const dom = parseDomWithLocations(htmlContent);
 	const doc = dom.window.document;
 	const ms = enableFix ? new MagicString(htmlContent) : null;
@@ -212,14 +212,16 @@ function analyzeExternalSriHtml(htmlContent, enableFix) {
 		const loc = dom.nodeLocation(el);
 		const startTag = loc?.startTag;
 		const line = startTag?.startLine ?? loc?.startLine ?? 1;
+		const canAutoFix = hasIntegrity && !hasCrossorigin && Boolean(startTag);
 		findings.push({
 			ruleId: "security-external-sri-missing",
 			line,
 			message: !hasIntegrity ? `External CDN <${tagLower}> (${url}) lacks Subresource Integrity (integrity="sha384-...") and crossorigin="anonymous".` : `External CDN <${tagLower}> (${url}) with integrity attribute is missing crossorigin="anonymous".`,
-			fixable: hasIntegrity && !hasCrossorigin && Boolean(startTag)
+			fixable: canAutoFix
 		});
-		if (ms && hasIntegrity && !hasCrossorigin && startTag) {
-			ms.appendLeft(startTag.startOffset + tagLower.length + 1, " crossorigin=\"anonymous\"");
+		if (ms && canAutoFix && startTag) {
+			const insertPos = startTag.endOffset - 1;
+			ms.appendRight(insertPos, " crossorigin=\"anonymous\"");
 			mutated = true;
 		}
 	}

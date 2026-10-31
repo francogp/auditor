@@ -42,15 +42,16 @@ graph TD
 
 ## 🏛️ Core Principles & Tooling Mandates
 
-### 1. Absolute Prohibition on Backward-Compatible Code & Loud Failure Mandate
+### 1. Absolute Prohibition on Backward-Compatible Code & Strict 3-Layer Interface Protection
 
-- Writing backward-compatible shims, deprecated aliases, or legacy fallback wrappers is **STRICTLY PROHIBITED**.
-- Outdated consumers, obsolete configs, and unmigrated calls MUST fail loudly with immediate, blocking errors (`throw new Error(...)` or exit code 1) forcing canonical upgrades.
+- Writing backward-compatible shims, deprecated aliases (e.g. `count()` on registries), or legacy fallback wrappers is **STRICTLY PROHIBITED**. Outdated calls MUST fail loudly with immediate, blocking errors (`throw new Error(...)`).
+- **Strict 3-Layer Interface Protection**: Registries and engines implement strict TypeScript interfaces (`IBaseEntityRegistry<TItem>`, `IRefactorEngine`). Singletons are exported masked with interfaces (`SuiteIgnoreRegistry: ISuiteIgnoreRegistry`), compile-time exact type invariance is proven via `VerifyExact` in test canaries, and runtime prototype purity is verified against `REGISTRY_ALLOWED_PROTO_METHODS`.
 
 ### 2. Prohibition on Modifying or Disabling Configurations Without Prior Human Authorization
 
 - **NEVER turn off, relax, revert, or modify auditor configuration** (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings.
-- Errors are **REAL ARCHITECTURAL DEFECTS** that must be resolved in source code or via `npm run auditor:fix`.
+- **SSoT & Zero Manual Derived Config Edits Mandate**: `.auditor/audit.config.ts` is the SOLE Single Source of Truth (SSoT). Developers and AI agents are **STRICTLY PROHIBITED from manually editing derived configuration files** (`vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`, `tsconfig.json`). All configuration directives must be declared in `.auditor/audit.config.ts` and synchronized deterministically by official setup suites (`npm run auditor:fix`, `validate_vite_plus_config`).
+- **Oxlint Linter Ownership & Zero Redundant Auditor Rules**: Oxlint (`vp lint` / `validate_oxlint`) is the sole, exclusive owner of code hygiene, syntax rules, and type `any` eradication (`@typescript-eslint/no-explicit-any`). The Auditor audits architecture, boundaries, and domain contracts, and is **STRICTLY FORBIDDEN from creating redundant linter rules** or auditing `: any` type annotations.
 - **Auto-Fix First Mandate (`auditor fix` Prior to Manual Edits)**: Whenever an audit reports auto-fixable findings (`(N auto-fixable)`) or suggests `npm run auditor:fix`, AI agents and developers are **STRICTLY PROHIBITED from manually editing files** to resolve those mechanical issues. They MUST invoke `npm run auditor:fix` (or `auditor fix`) FIRST before touching any code. Manual intervention bypasses deterministic AST/linter fixers, risks syntax deviations, and constitutes an operational violation.
 - If an agent believes a configuration genuinely requires adjustment, the agent **MUST HALT IMMEDIATELY AND EXPLICITLY CONSULT THE HUMAN PROGRAMMER** via `ask_question`, presenting the technical explanation, trade-offs, pros, and cons before modifying any configuration.
 
@@ -114,9 +115,9 @@ graph TD
 - `ruleDescriptions`: Concise English explanation for each rule ID. Composed `${packageName}: ${ruleDescription}` MUST be `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) without newlines.
 - Positive health phrasing for active checks (e.g. `'Similar-code engine health'`), reserving error phrasing for violation messages.
 
-### 13. Single Source of Truth Directory Ignores & Canonical Registry (`CanonicalIgnoreRegistry`, `isPathIgnored`)
+### 13. Single Source of Truth Directory Ignores & Canonical Registry (`SuiteIgnoreRegistry`, `isPathIgnored`)
 
-- **Canonical Ignore Registry (`CanonicalIgnoreRegistry`)**: Centralized Single Source of Truth (`src/core/canonicalIgnoreRegistry.ts`) for universal directory ignores (`ALWAYS_IGNORE_DIRS`), binary extensions (`CANONICAL_BINARY_EXTENSIONS`), dynamic caches, and configuration unignore resolution.
+- **Canonical Ignore Registry (`SuiteIgnoreRegistry`)**: Centralized Single Source of Truth (`src/core/canonicalIgnoreRegistry.ts`) for universal directory ignores (`ALWAYS_IGNORE_DIRS`), binary extensions (`CANONICAL_BINARY_EXTENSIONS`), dynamic caches, and configuration unignore resolution.
 - **Binary Governance for Ignored Paths**:
   1. **Universal Directories Without Auditor**: `.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `.auditor` belong strictly to `ALWAYS_IGNORE_DIRS`. Hardcoding application code roots in `ALWAYS_IGNORE_DIRS` is strictly prohibited.
   2. **Tool-Specific Caches (`cachePaths`)**: Caches created by specific tools outside `scratch/` (e.g. `.fallow`, `.oxlintcache`, `.stylelintcache`) MUST be declared by their governing sub-auditor in its constructor options via `cachePaths: readonly string[]`. `BaseAuditor` automatically registers these into `dynamicCachePaths` and `GitIgnoreRegistry`.
@@ -160,19 +161,24 @@ graph TD
 - All Fallow findings map strictly to `severity: 'error'`. Downgrading to warning is prohibited.
 - Governed by holistic Fallow Refactoring Targets (`fallow-refactoring-targets`, `config.fallow.enforceTargets: true`), eliminating artificial function fragmentation.
 
-### 21. Orthogonal 7-Field Rule Capabilities Contract (`AuditorRuleCapabilities`)
+### 21. Orthogonal Rule Capabilities Contract (`AuditorRuleCapabilities`)
 
 - Every sub-auditor declares capabilities on each rule individually via `ruleCapabilities: Record<TRuleId, AuditorRuleCapabilities>`.
 - Passing suite-level `capabilities` directly in constructor options is prohibited (`capabilities?: never`).
-- Each rule capability explicitly initializes all 7 orthogonal fields (the legacy contract field `changedSince` is completely eradicated in favor of `changedOnly: boolean`):
+- Each rule capability defines orthogonal properties (`speed`, `phase`, `md`, `ast`, `changedOnly`, `critical`), while `fix` is computed automatically by `BaseAuditor`:
   - `speed`: `'light' | 'heavy' | 'full' | readonly AuditExecutionSpeed[]` (`🐇` `'light'`, `🐢` `'heavy'`, `🐘` `'full'`, or array `['light', 'full']` for multi-tier CLI tools).
   - `phase`: `'normal' | 'post-run' | 'post-build'`.
-  - `fix`: `'none' | 'normal' | 'priority'` (`'priority'` executes first during `auditor fix` to bootstrap config/environment).
+  - `fix`: `'none' | 'normal' | 'priority'` (dynamically computed from registered fixers/patterns; manual declaration is optional and never required).
   - `md`: `boolean` (included in `auditor preset=md` / `npm run auditor:md`).
   - `ast`: `boolean` (preheats `SharedAstContext`).
   - `changedOnly`: `boolean` (supports differential scoping via `--changed-since`).
   - `critical`: `boolean` (indispensable for code correctness, typing, and syntax; bypasses speed ceiling in `auditor:lint` and `auditor:critical`).
-- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept explicit 7-field literals via `createUniformRuleCapabilities(RULES, { ... })` / `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIds)`.
+- Canonical templates export `LINT_RULE_CAPABILITIES` and `AST_RULE_CAPABILITIES`, or accept uniform presets via `createUniformRuleCapabilities(RULES, { ... })` / `createRuleCapabilities(RULES, baseCapabilities, fixableRuleIdsOrFixers)`.
+
+### 21.3 Contract-Driven Auto-Fix Protocol & Function Deduplication Mandate
+
+- **Contract-Driven Zero False-Fix Protocol**: Auto-fix is 100% contract-driven. If a rule lacks an automated deterministic repair algorithm, it is strictly NOT fixable (`fix: 'none'`). Suites register repair functions via `ruleFixers` in `AuditorOptions` or via sub-auditors (`declareFileSubAuditor({ audit, fix })`, `declarePatternSubAuditor({ regex, replace })`, or `configFiles`). Manual boolean/string declarations in capabilities are prohibited; `BaseAuditor` dynamically derives `fixableRuleIds` and `capabilities.fix`. Violations without registered fixers unconditionally report `fixable: false`.
+- **Function Identity Deduplication Mandate (`Set<Function>`)**: When multiple sub-auditors share the exact same `audit` or `fix` function across rules, the engine executes it strictly ONCE per document, eliminating redundant passes. When `audit === fix`, running in `--fix` mode executes the function strictly ONCE instead of running audit and fix sequentially. Similarly, shared `ruleFixers` execute strictly once per run.
 
 ### 21.1 Speed Engine: Ceiling vs. Exact Modes, Visual Icons (`🐇` / `🐢` / `🐘`) & Multi-Tier Mandates
 
@@ -333,7 +339,7 @@ Pre-formatted, production-ready templates conforming to all project standards:
   - **Inspection & Diagnosis Tool**: Always inspect via `auditor-dependencies` (or `npm run auditor:dependencies` / `auditor dependencies`). Use `auditor-dependencies --commands` to output ready-to-run grouped `npm install` and `npm install -D` commands.
   - **Conditional Scope**: Only libraries the host already declares are checked (declared range floor + `package-lock.json` version, `severity: 'error'`, lint-only); absent libraries are ignored.
   - **Prohibition on Ad-Hoc Discovery**: Writing ad-hoc `node -e` scripts or running manual `npm view` queries on arbitrary host dependencies is STRICTLY PROHIBITED; always use `auditor-dependencies`. To raise a floor upstream, edit the auditor `peerDependencies` and release a new `vX.Y.Z` tag.
-- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v10.2.8`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
+- **Updates (`auditor-update` / `npm run auditor:update [-- targetVersion]`)**: Pull upstream changes strictly via the official native CLI binary `auditor-update` (or `npm run auditor:update`). By default it resolves the latest tag upstream (including major version jumps like `v9.0.0`), or accepts an explicit version parameter (`npm run auditor:update -- v10.3.0`). It installs the pinned tag in `package.json`, updates `package-lock.json`, synchronizes `.agents/skills/`, updates setup scripts (`setup-windows.ps1`, `setup-linux.sh`), and runs `auditor fix`.
   - **Mandatory Post-Update Minimum Library Check & Upgrade**: Whenever the user asks to update the auditor, immediately AFTER `npm run auditor:update` completes, the AI agent MUST verify the new minimum library requirements via `npm run auditor:dependencies` (and `npm run auditor:dependencies -- commands`). If any project libraries fail to meet the new minimum floors (`dependency-below-minimum-range` or `dependency-below-minimum-installed`), the agent MUST immediately upgrade them using the exact `npm install` / `npm install -D` commands emitted by `auditor-dependencies --commands` before proceeding with downstream checks.
   - **Read-Only Version Checks vs. Prohibited Diagnostic Updating**: When analyzing dependencies, inspecting versions, or conducting read-only investigations, AI agents and developers are **STRICTLY PROHIBITED** from executing `auditor-update` or `npm run auditor:update`. To inspect current package or framework versions, use `npm run auditor:version` or `auditor --version`. To check if an update is available without modifying any files or running npm install, use `npm run auditor:update -- --check` (or `auditor-update --check`). Safe CLI usage manual can be viewed with `auditor-update --help`.
 - **Migration-First, Delete-Last Gate**: When migrating host configurations to unified Vite+ (`vite.config.ts`), `cleanLegacyConfigFiles` will NEVER delete legacy configuration files (`vitest.config.ts`, `eslint.config.js`, `tsdown.config.ts`) unless `vite.config.ts` actively contains verified `test:`, `lint:` and `pack:` blocks.
@@ -470,7 +476,7 @@ flowchart LR
 | [`references/setup-extension-guide.md`](./references/setup-extension-guide.md) | Environment setup script architecture and extension plugins for Linux and Windows. |
 | [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts) | Reference configuration for Enterprise applications (Supabase backend, strict types). |
 | [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts) | Reference configuration for Gaming applications (hybrid persistence, Web Workers). |
-| [`references/v8-migration-guide.md`](./references/v8-migration-guide.md) | Guía de modernización de aplicaciones anfitrionas a la versión 8 de `@francogp/auditor`. |
+| [`references/legacy-migration-guide.md`](./references/legacy-migration-guide.md) | Guía de modernización de aplicaciones anfitrionas desde versiones legadas a versiones modernas de `@francogp/auditor`. |
 | [`references/vite-plus-guide.md`](./references/vite-plus-guide.md) | Guía canónica de referencia de Vite+ (`vp`), comandos CLI, tutorial oficial y arquitectura de migración. |
 | [`references/citty-cli-governance-guide.md`](./references/citty-cli-governance-guide.md) | Canonical Citty CLI guide, isMainModule guard mandate, correct patterns, and anti-patterns. |
 | [`references/extensions/`](./references/extensions/) | Reference blueprints for host extension plugins. |

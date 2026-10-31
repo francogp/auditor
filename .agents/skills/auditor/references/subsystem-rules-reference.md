@@ -167,14 +167,24 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
 ## 11. Vite+ Unified Toolchain Governance (`validate_vite_plus_config`, `validate_oxlint`, `validate_oxfmt`)
 
 - **Dynamic Exclusion Synchronization (`syncViteConfigWithAuditConfig`)**:
-  Exclusion globs configured in `audit.config.ts` (`config.paths.ignoreGlobs`) are automatically projected into `lint.ignorePatterns` and `fmt.ignorePatterns` inside `vite.config.ts`. This guarantees third-party and scratch paths (`external/**`, `dist/**`, `scratch/**`) are never audited by Oxlint or Oxfmt, preventing false-positive violations.
+  Exclusion globs configured in `audit.config.ts` (`config.paths.ignoreGlobs`, `config.oxlint.ignoreGlobs`, `config.vitePlusConfig.lint.ignorePatterns`) are automatically projected into `lint.ignorePatterns` and `fmt.ignorePatterns` inside `vite.config.ts`. This guarantees third-party and scratch paths (`external/**`, `dist/**`, `scratch/**`) are never audited by Oxlint or Oxfmt, preventing false-positive violations.
+- **Isolated Subsystem Ignore Governance & Cross-Subsystem Isolation Architecture**:
+  Every subsystem maintains strictly isolated ignore and exemption configurations. The framework enforces a 4-tier filtering hierarchy:
+  1. **Level 1 (Global Ignores)**: `ALWAYS_IGNORE_DIRS` (`.git`, `node_modules`, `scratch`, `tmp`, `volumes`), `paths.ignoredDirs`, `paths.ignoreGlobs`, and `skills-lock.json`. Every sub-auditor and extension universally complies with Level 1.
+  2. **Level 2 (Hermetic Subsystem Isolation)**: Custom ignores and exemptions configured in a subsystem section in `.auditor/audit.config.ts` (e.g. `constants.ignoreGlobs`, `animation.ignoreGlobs`, `domain.ignoreGlobs`, `styles.ignoreGlobs`, `styles.exemptCssFiles`) apply EXCLUSIVELY to that sub-auditor. They never leak, affect, or mute any other sub-auditor.
+  3. **Level 3 (Extension Isolation)**: Extra patterns passed to an extension (`options.extraIgnorePatterns`, `options.exemptPaths`) apply solely to that instance.
+  4. **Level 4 (Specialized Subsystem Contracts)**:
+     - `coverage.acknowledgedDegradations` and `testCoverage.exemptGlobs` are strictly testing and test-coverage metrics contracts. They MUST NEVER contaminate or be projected into `lint.ignorePatterns` or `fmt.ignorePatterns`. Excluded testing coverage does NOT exempt application code from lint hygiene, syntax checks, or code formatting.
+     - Source code folders (`src/cli/**`, `src/core/**`, `src/analyzers/**`, `src/suites/**`) MUST NEVER be placed in `lint.ignorePatterns`.
+     - The AST synchronizer (`syncLintSectionAst` / `syncFmtSectionAst`) executes exact synchronization: any unauthorized or obsolete ignore pattern detected in `vite.config.ts` triggers `vite-plus-config-ts` and is automatically purged upon running `npm run auditor:fix` or `auditor fix`.
+  - Tested comprehensively against cross-contamination via `tests/auditor_subsystem_ignore_isolation.test.ts`.
 - **Mandatory Oxlint Injected Rules & Anti-Castration**:
   `validate_vite_plus_config` enforces that `vite.config.ts` declares:
   - `@typescript-eslint/no-explicit-any: 'error'`
   - `@typescript-eslint/ban-ts-comment: 'error'`
   - `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
   - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
-  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline.
+  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
 - **Source Code Formatting Hygiene (`validate_oxfmt`)**:
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:
@@ -279,7 +289,7 @@ Governed by `validate_markdown_code_references` and `src/core/markdownVersionVal
   2. Release tag examples (e.g. `` `#vX.Y.Z` ``) mentioning `@francogp/auditor` or release tags.
   3. `auditorVersion: 'X.Y.Z-build...'` properties in config examples.
   4. Explicit package version assertions `${pkgName}@X.Y.Z` or `${pkgName} vX.Y.Z`.
-- **Exemptions**: Explicit historical changelogs (`CHANGELOG.md`, `v8-migration-guide.md`) and sentences describing legacy/historical context (e.g. `Since version X.Y.Z`, `legacy vX`, `auditor-update vX.Y.Z`).
+- **Exemptions**: Explicit historical changelogs (`CHANGELOG.md`, `legacy-migration-guide.md`) and sentences describing legacy/historical context (e.g. `Since version X.Y.Z`, `legacy vX`, `auditor-update vX.Y.Z`).
 - **Automated Synchronization**: In `--fix` mode (`auditor fix`) and automatically during `auditor-version bump`, all references on disk are updated to the active SemVer.
 
 ---

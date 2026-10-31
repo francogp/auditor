@@ -185,8 +185,7 @@ describe('OxlintAuditor & parseOxlintResults', () => {
 
     it('supports fix: true mode and marks remaining unfixable findings as fixable: false', async () => {
       const auditor = new CleanOxlintAuditor();
-      Reflect.set(auditor, 'fixMode', true);
-      const result = await auditor.execute();
+      const result = await auditor.fix();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });

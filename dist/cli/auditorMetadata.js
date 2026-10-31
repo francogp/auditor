@@ -14,7 +14,10 @@ import { pathToFileURL } from "node:url";
 const DYNAMIC_IMPORT_TIMEOUT_MS = 2e3;
 function extractStaticMetadataFromFile(fullPath) {
 	const result = {
-		capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+		capabilities: {
+			...DEFAULT_AUDITOR_CAPABILITIES,
+			fix: "none"
+		},
 		gitIgnoreEntries: []
 	};
 	return tryOrDefault(() => {
@@ -104,6 +107,7 @@ function extractMetadataFromFunction(val, result) {
 	const withStatic = val;
 	if (withStatic.capabilities && typeof withStatic.capabilities === "object") result.capabilities = {
 		...DEFAULT_AUDITOR_CAPABILITIES,
+		fix: "none",
 		...withStatic.capabilities
 	};
 	if (typeof withStatic.icon === "string") result.icon = withStatic.icon;
@@ -123,7 +127,10 @@ async function extractAuditorMetadataFromFile(fullPath) {
 	const cached = metadataCache.get(fullPath);
 	if (cached) return cached;
 	const result = {
-		capabilities: DEFAULT_AUDITOR_CAPABILITIES,
+		capabilities: {
+			...DEFAULT_AUDITOR_CAPABILITIES,
+			fix: "none"
+		},
 		gitIgnoreEntries: []
 	};
 	const scriptArg = getProcessExecutedScript();

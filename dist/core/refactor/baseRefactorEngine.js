@@ -1,4 +1,6 @@
+import { isPathExempt } from "../reportUtils.js";
 import { getAuditConfig } from "../auditConfigLoader.js";
+import { isTestPath } from "../auditTestPredicates.js";
 import { isPathContained, stripGlobSuffix } from "../safePath.js";
 import "../auditConfig.js";
 import "../auditorBase.js";
@@ -15,6 +17,10 @@ import path from "node:path";
 * File discovery, roots, allowed extensions, and exclusions are delegated 100% to the sub-auditor,
 * guaranteeing absolute 1:1 parity between audit findings and refactoring tool targets.
 */
+function assertValidRefactorEngineOptions(options) {
+	if (typeof options === "string") throw new Error(`[BaseRefactorEngine Contract Violation]: Positional string shortcuts are strictly prohibited. Pass an options object: { projectRoot?: string; auditor?: TAuditor }`);
+	return options ?? {};
+}
 var BaseRefactorEngine = class {
 	auditor;
 	constructor(auditor) {
@@ -45,7 +51,9 @@ var BaseRefactorEngine = class {
 		return true;
 	}
 	resolveGlobalIgnorePatterns() {
-		return this.config.paths.ignoreGlobs ?? [];
+		const globs = this.config.paths?.ignoreGlobs ?? [];
+		const patterns = this.config.paths?.ignoredPatterns ?? [];
+		return Array.from(/* @__PURE__ */ new Set([...globs, ...patterns]));
 	}
 	resolveSectionIgnorePatterns() {
 		return this.auditor.extraIgnorePatterns;
@@ -76,14 +84,7 @@ var BaseRefactorEngine = class {
 	* enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
 	*/
 	getScannableFiles() {
-		const files = this.auditor.getScannableFiles();
-		const codeRoots = this.resolveTargetRoots();
-		let filtered = files;
-		if (codeRoots && codeRoots.length > 0) filtered = filtered.filter((f) => this.isPathInRoots(f, codeRoots));
-		if (this.shouldIncludeDataPaths()) return filtered;
-		const dataRoots = this.config.paths.dataRoots ?? [];
-		if (dataRoots.length === 0) return filtered;
-		return filtered.filter((f) => !this.isPathInRoots(f, dataRoots));
+		return this.auditor.getScannableFiles().filter((f) => this.isPathScannable(f));
 	}
 	/**
 	* Checks whether a given project-relative path is scannable by the sub-auditor,
@@ -91,8 +92,13 @@ var BaseRefactorEngine = class {
 	*/
 	isPathScannable(relPath) {
 		if (!this.auditor.isPathScannable(relPath)) return false;
+		if (!this.shouldIncludeTests() && isTestPath(relPath, this.projectRoot)) return false;
 		const codeRoots = this.resolveTargetRoots();
 		if (codeRoots && codeRoots.length > 0 && !this.isPathInRoots(relPath, codeRoots)) return false;
+		const combinedIgnores = this.resolveCombinedIgnorePatterns();
+		if (combinedIgnores.length > 0 && isPathExempt(relPath, combinedIgnores)) return false;
+		const exemptPaths = this.resolveSectionExemptPaths();
+		if (exemptPaths.length > 0 && isPathExempt(relPath, exemptPaths)) return false;
 		if (!this.shouldIncludeDataPaths()) {
 			const dataRoots = this.config.paths.dataRoots ?? [];
 			if (dataRoots.length > 0 && this.isPathInRoots(relPath, dataRoots)) return false;
@@ -117,4 +123,4 @@ var BaseRefactorEngine = class {
 		return results;
 	}
 };
-export { BaseRefactorEngine };
+export { BaseRefactorEngine, assertValidRefactorEngineOptions };

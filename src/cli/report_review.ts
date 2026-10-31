@@ -8,8 +8,9 @@
  * decisions, blast radius, public API changes, and code risk.
  */
 
-import { styleText } from 'node:util';
 import { spawnSync } from 'node:child_process';
+import { styleText } from 'node:util';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -18,8 +19,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { renderBanner } from '../core/unifiedTheme.ts';
-import { isMainModule } from './cliUtils.ts';
 import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
+import { isMainModule } from './cliUtils.ts';
 
 const REVIEW_CLI_ARGS = {
   ...COMMON_CLI_ARGS,
@@ -40,7 +41,7 @@ export function runReviewReport(projectRoot: string = process.cwd()): void {
   const isJson = Boolean(parsed.json);
   const args = ['review'];
 
-  const targetRef = (parsed.ref as string | undefined) ?? (parsed['changed-since'] as string | undefined);
+  const targetRef = parsed.ref ?? parsed['changed-since'];
   if (parsed.base) {
     args.push('--base', String(parsed.base));
   } else if (targetRef) {
@@ -54,10 +55,7 @@ export function runReviewReport(projectRoot: string = process.cwd()): void {
   const isHuman = resolveHumanModeFromArgs(parsed);
   if (!isJson && isHuman) {
     console.log(
-      renderBanner(
-        'CHANGE REVIEW (FALLOW REVIEW)',
-        'Structural decisions and blast radius'
-      )
+      renderBanner('CHANGE REVIEW (FALLOW REVIEW)', 'Structural decisions and blast radius')
     );
   }
 

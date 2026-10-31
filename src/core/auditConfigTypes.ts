@@ -146,9 +146,9 @@ export interface AuditStylelintConfig extends BaseAuditSubsystemConfig {
   readonly order?: AuditStylelintOrderConfig;
 }
 
-export interface AuditOxlintConfig extends BaseAuditSubsystemConfig {}
+export type AuditOxlintConfig = BaseAuditSubsystemConfig;
 
-export interface AuditHtmlValidateConfig extends BaseAuditSubsystemConfig {}
+export type AuditHtmlValidateConfig = BaseAuditSubsystemConfig;
 
 export interface AuditStylesConfig extends BaseAuditSubsystemConfig {
   readonly globalUtilityClasses?: readonly string[];
@@ -196,7 +196,7 @@ export interface AuditBundleConfig extends BaseAuditSubsystemConfig {
   readonly forbiddenUiImports?: readonly { readonly module: string; readonly reason: string }[];
 }
 
-export interface AuditAgentPluginConfig extends BaseAuditSubsystemConfig {}
+export type AuditAgentPluginConfig = BaseAuditSubsystemConfig;
 
 export interface AuditAnimationConfig extends BaseAuditSubsystemConfig {
   readonly customTimerFunctions?: readonly string[];
@@ -230,7 +230,7 @@ export interface AuditConstantsConfig extends BaseAuditSubsystemConfig {
   readonly ignoreGlobs?: readonly string[];
 }
 
-export interface AuditSecurityConfig extends BaseAuditSubsystemConfig {}
+export type AuditSecurityConfig = BaseAuditSubsystemConfig;
 
 export type DocumentationLanguage = 'en' | 'es';
 
@@ -478,7 +478,7 @@ export interface AuditValibotConfig extends BaseAuditSubsystemConfig {
   readonly targets?: readonly ValibotParityTarget[];
 }
 
-export interface AuditEnvironmentConfig extends BaseAuditSubsystemConfig {}
+export type AuditEnvironmentConfig = BaseAuditSubsystemConfig;
 
 export interface AuditAuditorHygieneConfig extends BaseAuditSubsystemConfig {
   readonly roots?: readonly string[];
@@ -504,7 +504,7 @@ export interface AuditQueryPerformanceConfig extends BaseAuditSubsystemConfig {
   readonly exemptSelectStarPaths?: readonly string[];
 }
 
-export interface AuditSecurityHardeningConfig extends BaseAuditSubsystemConfig {}
+export type AuditSecurityHardeningConfig = BaseAuditSubsystemConfig;
 
 export interface AuditCodeSimplificationConfig extends BaseAuditSubsystemConfig {
   readonly maxNestingDepth?: number;
@@ -575,7 +575,7 @@ export interface AuditVitePlusStagedConfig extends BaseAuditSubsystemConfig {
   readonly rules?: Record<string, string>;
 }
 
-export interface AuditVitePlusHooksConfig extends BaseAuditSubsystemConfig {}
+export type AuditVitePlusHooksConfig = BaseAuditSubsystemConfig;
 
 export interface AuditVitePlusVSCodeConfig extends BaseAuditSubsystemConfig {
   readonly formatOnSave?: boolean;
@@ -613,7 +613,7 @@ export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
   readonly extraLintRules?: Record<string, CanonicalRuleSeverityLevel>;
 }
 
-export interface AuditOxfmtConfig extends BaseAuditSubsystemConfig {}
+export type AuditOxfmtConfig = BaseAuditSubsystemConfig;
 
 export type DeepPartial<T> = {
   [P in keyof T]?: string extends P

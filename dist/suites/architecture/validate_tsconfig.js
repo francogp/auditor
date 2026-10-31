@@ -1,6 +1,6 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
-import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
+import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -82,23 +82,22 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			} : {}
 		};
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [
+				"tsconfig-missing-strict-compiler-option",
+				"tsconfig-banned-option",
+				"tsconfig-missing-source-include"
+			],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
-			ruleCapabilities: createUniformRuleCapabilities(TSCONFIG_RULES, {
+			ruleCapabilities: createRuleCapabilities(TSCONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: [
-				"tsconfig-missing",
-				"tsconfig-missing-strict-compiler-option",
-				"tsconfig-banned-option",
-				"tsconfig-missing-source-include"
-			],
 			configFiles: [configRequirement],
 			id: "validate_tsconfig",
 			name: "TypeScript Configuration Validator",
@@ -128,7 +127,6 @@ var ValidateTsconfigAuditor = class extends BaseAuditor {
 			coverage: { include: ["tsconfig*.json"] },
 			cachePaths: [".tsbuildinfo"],
 			projectRoot,
-			fix: options.fix,
 			...options
 		});
 	}

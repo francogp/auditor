@@ -6,14 +6,18 @@
 
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
+
 import { getAuditConfig, buildTestCoverageConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
+import { analyzeTestCoverage, resolveCoverageFile } from '../../core/testCoverageCore.ts';
 
 enableCompileCache();
 
@@ -36,6 +40,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
     const config = getAuditConfig(effectiveRoot);
     const codeRoots = config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       cachePaths: ['coverage', '.vitest-cache', 'test-results'],
@@ -99,7 +104,6 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       ruleCapabilities: createRuleCapabilities(TEST_COVERAGE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

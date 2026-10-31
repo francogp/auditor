@@ -77,7 +77,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
   describe('Non-Git Workspace (Not Applicable Path)', () => {
     it('gracefully passes with zero violations when workspace is not a Git repo', async () => {
       const auditor = new ValidateGitConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -94,7 +94,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       setLocalGitConfig('core.eol', 'lf', tempDir);
 
       const auditor = new ValidateGitConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
@@ -109,7 +109,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       setLocalGitConfig('core.filemode', 'true', tempDir);
 
       const auditor = new ValidateGitConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(3);
       expect(result.status).toBe('failed');
@@ -138,10 +138,9 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       setLocalGitConfig('core.filemode', 'true', tempDir);
 
       const auditor = new ValidateGitConfigAuditor({
-        projectRoot: tempDir,
-        fix: true
+        projectRoot: tempDir
       });
-      const result = await auditor.execute();
+      const result = await auditor.fix();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -160,7 +159,7 @@ describe('validate_git_config (Git Configuration Validator)', () => {
       setLocalGitConfig('core.filemode', 'true', tempDir);
 
       const auditor = new ValidateGitConfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);

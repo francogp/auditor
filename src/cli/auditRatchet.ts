@@ -7,13 +7,14 @@
  * production baseline is a NEW warning and fails the run. The local baseline can only shrink.
  */
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import { createHash } from 'node:crypto';
-import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
+
 import type { ResolvedRatchetConfig } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
+import type { AuditFinding, StandardAuditResult } from '../core/auditContract.ts';
 import { runGit } from '../core/configRatchet.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 
 const BASELINE_SCHEMA_VERSION = 1 as const;
 const FINGERPRINT_HEX_LENGTH = 16 as const;
@@ -34,7 +35,6 @@ interface AuditBaseline {
 interface FingerprintedWarning extends AuditBaselineEntry {
   readonly finding: AuditFinding;
 }
-
 
 export const RATCHET_SOURCES = ['production', 'local-bootstrap'] as const;
 export type RatchetSource = (typeof RATCHET_SOURCES)[number];
@@ -113,19 +113,26 @@ function isBaselineEntry(value: object): value is AuditBaselineEntry {
 }
 
 function parseBaseline(raw: string, origin: string): AuditBaseline {
-  const data: object | null = JSON.parse(raw);
-  const candidate = data as Partial<AuditBaseline> | null;
+  const data: unknown = JSON.parse(raw);
+  if (typeof data !== 'object' || data === null) {
+    throw new Error(
+      `[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`
+    );
+  }
+  const candidate = data as { schemaVersion?: unknown; warnings?: unknown };
   if (
-    candidate === null ||
     candidate.schemaVersion !== BASELINE_SCHEMA_VERSION ||
     !Array.isArray(candidate.warnings) ||
-    !candidate.warnings.every((e) => typeof e === 'object' && e !== null && isBaselineEntry(e))
+    !candidate.warnings.every(
+      (e: unknown): e is AuditBaselineEntry =>
+        typeof e === 'object' && e !== null && isBaselineEntry(e)
+    )
   ) {
     throw new Error(
       `[Ratchet] Invalid warning baseline at ${origin}: expected { schemaVersion: ${BASELINE_SCHEMA_VERSION}, warnings: [{ fingerprint, suiteId, ruleId, file }] }.`
     );
   }
-  return candidate as AuditBaseline;
+  return data as AuditBaseline;
 }
 
 /** Returns a human-readable defect for a malformed local baseline, or null when it is valid. */

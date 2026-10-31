@@ -5,12 +5,13 @@
  * in a hierarchical Box-Drawing tree format.
  */
 
-import { styleText } from 'node:util';
 import path from 'node:path';
+import { styleText } from 'node:util';
+
 import { type AuditFinding, type AuditFileSummary } from './auditContract.ts';
-import { padVisual } from './terminalVisuals.ts';
 import { formatNumber } from './durationFormatter.ts';
 import { toPosixRelative } from './safePath.ts';
+import { padVisual } from './terminalVisuals.ts';
 
 const DEFAULT_MAX_FINDINGS_PREVIEW = 30;
 const DEFAULT_MAX_FILES_TREE = 10;

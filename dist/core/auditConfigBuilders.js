@@ -1,4 +1,4 @@
-import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES } from "./auditConfigTypes.js";
+import { ACKNOWLEDGEABLE_EXEMPTION_POLICIES, CANONICAL_RULE_SEVERITY_LEVELS } from "./auditConfigTypes.js";
 import { assertCoverageReason, assertNarrowCoverageGlob, filterOutExemptRoots, getExemptRootsForPolicy } from "./auditConfigAntiAbuse.js";
 import { DEFAULT_AUDIT_CONFIG, collectDeclaredSubsystems } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
@@ -85,18 +85,23 @@ function buildStandaloneStylelintConfig(stylelint, stylesStylelint) {
 		exemptFiles: mergedExemptFiles.length > 0 ? mergedExemptFiles : void 0
 	}, true);
 	const effectiveRules = {
-		...stylesStylelint?.rules ?? {},
-		...stylelint?.rules ?? {}
+		...stylesStylelint?.rules,
+		...stylelint?.rules
 	};
 	const baseStrict = stylesStylelint?.strictValues;
 	const topStrict = stylelint?.strictValues;
 	const effectiveStrict = topStrict || baseStrict ? {
 		enabled: topStrict?.enabled ?? baseStrict?.enabled ?? true,
 		properties: Array.from(/* @__PURE__ */ new Set([...baseStrict?.properties ?? [], ...topStrict?.properties ?? []])),
-		ignoreValues: {
-			...baseStrict?.ignoreValues ?? {},
-			...topStrict?.ignoreValues ?? {}
-		},
+		ignoreValues: (() => {
+			const rawCombined = {
+				...baseStrict?.ignoreValues,
+				...topStrict?.ignoreValues
+			};
+			const result = {};
+			for (const [prop, val] of Object.entries(rawCombined)) if (Array.isArray(val)) result[prop] = val.filter((item) => typeof item === "string");
+			return result;
+		})(),
 		ignoreAtRules: Array.from(/* @__PURE__ */ new Set([...baseStrict?.ignoreAtRules ?? [], ...topStrict?.ignoreAtRules ?? []]))
 	} : void 0;
 	const effectiveConfigFile = stylelint?.configFile ?? stylesStylelint?.configFile;
@@ -119,7 +124,12 @@ function buildZLayersSubConfig(s) {
 		zLayersScssFile: s.zLayersScssFile,
 		baseScssFile: s.baseScssFile ?? s.zLayersScssFile,
 		zLayersTsFile: s.zLayersTsFile,
-		zLayers: s.zLayers ? { ...s.zLayers } : void 0
+		zLayers: (() => {
+			if (!s.zLayers) return void 0;
+			const map = {};
+			for (const [k, v] of Object.entries(s.zLayers)) if (typeof v === "number") map[k] = v;
+			return map;
+		})()
 	};
 }
 function buildStylesConfig(raw, rawStylelintTop) {
@@ -358,6 +368,12 @@ function validateTestCoverageRaw(t) {
 	if (t.enforceInAudit !== void 0 && typeof t.enforceInAudit !== "boolean") throw new Error(`[AuditConfig] 'testCoverage.enforceInAudit' must be a strict boolean, received '${String(t.enforceInAudit)}'.`);
 }
 function resolveTestCoverageCollections(t, def) {
+	const dirThresholds = {};
+	const base = def?.directoryThresholds;
+	if (base) for (const [k, v] of Object.entries(base)) dirThresholds[k] = v;
+	if (t.directoryThresholds) {
+		for (const [k, v] of Object.entries(t.directoryThresholds)) if (typeof v === "number") dirThresholds[k] = v;
+	}
 	return {
 		roots: t.roots ? [...t.roots] : def?.roots ?? ["src"],
 		extensions: t.extensions ? [...t.extensions] : def?.extensions ?? [
@@ -370,7 +386,7 @@ function resolveTestCoverageCollections(t, def) {
 			".cjs"
 		],
 		exemptGlobs: t.exemptGlobs ? [...t.exemptGlobs] : def?.exemptGlobs ?? [],
-		directoryThresholds: t.directoryThresholds ? { ...t.directoryThresholds } : def?.directoryThresholds ?? {}
+		directoryThresholds: dirThresholds
 	};
 }
 function normalizePathToPosixGlob(p) {
@@ -446,10 +462,7 @@ function buildBaseSubsystemConfig(raw, defaultEnabled = true) {
 		...exemptPaths !== void 0 ? { exemptPaths } : {},
 		...exemptFiles !== void 0 ? { exemptFiles } : {}
 	};
-	return {
-		...raw,
-		...base
-	};
+	return Object.assign({}, raw, base);
 }
 function buildOxlintConfig(raw) {
 	return buildBaseSubsystemConfig(raw, DEFAULT_AUDIT_CONFIG.oxlint?.enabled ?? true);
@@ -495,7 +508,12 @@ function buildVitePlusLintConfig(raw, def) {
 		typeAware: v.typeAware ?? def?.typeAware ?? true,
 		typeCheck: v.typeCheck ?? def?.typeCheck ?? true,
 		categories: v.categories ? { ...v.categories } : def?.categories,
-		rules: v.rules ? { ...v.rules } : def?.rules,
+		rules: (() => {
+			if (!v.rules) return def?.rules;
+			const rulesMap = {};
+			for (const [r, val] of Object.entries(v.rules)) if (typeof val === "string" || Array.isArray(val)) rulesMap[r] = val;
+			return rulesMap;
+		})(),
 		ignorePatterns: v.ignorePatterns ? [...v.ignorePatterns] : def?.ignorePatterns ?? [],
 		overrides: v.overrides ? [...v.overrides] : def?.overrides ?? []
 	};
@@ -538,9 +556,15 @@ function buildVitePlusConfig(raw) {
 			...v.vscode,
 			enabled: v.vscode.enabled ?? def?.vscode?.enabled ?? true
 		} : def?.vscode,
-		extraLintRules: v.extraLintRules ? { ...v.extraLintRules } : def?.extraLintRules
+		extraLintRules: (() => {
+			if (!v.extraLintRules) return def?.extraLintRules;
+			const map = {};
+			for (const [r, val] of Object.entries(v.extraLintRules)) if (typeof val === "string" && CANONICAL_SEVERITY_SET.has(val)) map[r] = val;
+			return map;
+		})()
 	};
 }
+const CANONICAL_SEVERITY_SET = new Set(CANONICAL_RULE_SEVERITY_LEVELS);
 function buildVersionConfig(raw) {
 	const def = DEFAULT_AUDIT_CONFIG.version;
 	const v = raw ?? {};

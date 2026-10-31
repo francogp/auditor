@@ -1,13 +1,23 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative, isPathContained, stripGlobSuffix } from '../../core/safePath.ts';
-import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
-import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import { DEFAULT_PRECOMPRESS_THRESHOLD_BYTES } from '../../core/auditConfigDefaults.ts';
+import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
+import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { toPosixRelative, isPathContained, stripGlobSuffix } from '../../core/safePath.ts';
+import {
+  extractParsedConfigSummary,
+  isRuleValueCompliant,
+  resolveVitestRoots,
+  type ParsedVitePlusConfigSummary
+} from '../../core/viteConfigAst.ts';
 import {
   buildCanonicalVitePlusConfig,
   repairVitePlusProject,
@@ -20,12 +30,6 @@ import {
   cleanHomebrewCompressionFiles,
   migrateHomebrewCompressionInViteConfig
 } from '../../core/vitePlusConfigSync.ts';
-import {
-  extractParsedConfigSummary,
-  isRuleValueCompliant,
-  resolveVitestRoots,
-  type ParsedVitePlusConfigSummary
-} from '../../core/viteConfigAst.ts';
 
 enableCompileCache();
 
@@ -42,7 +46,6 @@ export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
 export interface VitePlusConfigAuditOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
-  readonly fix?: boolean;
 }
 
 interface AntiCastrationRuleSpec {
@@ -933,10 +936,7 @@ function validateRequiredSections(
       context: 'fmt',
       message: `Missing 'fmt' section in vite.config.ts to govern native formatting with Oxfmt.`
     });
-  } else if (
-    summary.fmtConfig.sortImports !== true ||
-    summary.fmtConfig.sortPackageJson !== true
-  ) {
+  } else if (summary.fmtConfig.sortImports !== true || summary.fmtConfig.sortPackageJson !== true) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
@@ -1066,11 +1066,17 @@ function validateSynchronizedLintAndFmt(
   const missingLint = summary.hasSection('lint')
     ? lintIgnores.filter((g) => !summary.lintIgnorePatterns.includes(g))
     : lintIgnores;
+  const extraLint = summary.hasSection('lint')
+    ? summary.lintIgnorePatterns.filter((g) => !lintIgnores.includes(g))
+    : [];
 
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'fmt', projectRoot);
   const missingFmt = summary.hasSection('fmt')
     ? fmtIgnores.filter((g) => !summary.fmtIgnorePatterns.includes(g))
     : fmtIgnores;
+  const extraFmt = summary.hasSection('fmt')
+    ? summary.fmtIgnorePatterns.filter((g) => !fmtIgnores.includes(g))
+    : [];
 
   if (missingFmt.length > 0) {
     findings.push({
@@ -1087,6 +1093,21 @@ function validateSynchronizedLintAndFmt(
     });
   }
 
+  if (extraFmt.length > 0) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-fmt',
+      ruleDescription: 'Vite+: Formatting standards with Oxfmt',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'fmt.ignorePatterns',
+      message: `Unsynchronized exclusion patterns detected in fmt of vite.config.ts: [${extraFmt.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+    });
+  }
+
   if (missingLint.length > 0) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
@@ -1099,6 +1120,21 @@ function validateSynchronizedLintAndFmt(
       col: 1,
       context: 'lint.ignorePatterns',
       message: `Missing exclusion patterns required by audit.config.ts in lint of vite.config.ts: [${missingLint.join(', ')}]. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+    });
+  }
+
+  if (extraLint.length > 0) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-ts',
+      ruleDescription: 'Vite+: TypeScript and test synchronization',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'lint.ignorePatterns',
+      message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
     });
   }
 
@@ -1218,8 +1254,9 @@ function validateSynchronizedTest(
 
   const rawTestRoots = auditConfig.paths?.testRoots;
   const configuredProjects = auditConfig.vitePlusConfig?.test?.projects;
-  const hasConfiguredProjects =
-    Boolean(configuredProjects && Object.keys(configuredProjects).length > 0);
+  const hasConfiguredProjects = Boolean(
+    configuredProjects && Object.keys(configuredProjects).length > 0
+  );
 
   if (rawTestRoots && rawTestRoots.length > 0 && summary.hasSection('test')) {
     const testRoots = resolveVitestRoots(auditConfig);
@@ -1357,7 +1394,7 @@ const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
 };
 
 export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRuleId> {
-  constructor(options: VitePlusConfigAuditOptions = {}) {
+  public constructor(options: VitePlusConfigAuditOptions = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     const configRequirement: AuditorConfigFileRequirement<VitePlusConfigRuleId> = options.configFile
       ? {
@@ -1369,25 +1406,19 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       : VITE_PLUS_CONFIG_REQUIREMENT;
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        VITE_PLUS_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [...VITE_PLUS_CONFIG_RULES]
-      ),
-      fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
+      ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       configFiles: [configRequirement],
       cachePaths: ['dist', 'dev-dist'],
-      fix: options.fix,
       id: 'validate_vite_plus_config',
       name: 'Vite+ Unified Configuration Validator',
       description: 'Validates Vite+ configuration and domain rules',

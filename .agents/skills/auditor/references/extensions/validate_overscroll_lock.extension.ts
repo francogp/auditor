@@ -42,6 +42,7 @@ export class OverscrollLockAuditor extends FileScanAuditor<OverscrollLockRuleId>
       : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
 
     super({
+      ruleFixers: {},
       id: 'validate_overscroll_lock',
       name: 'Mobile Overscroll Behavior Lock Validator',
       description: 'Validates overscroll-behavior lock in mobile base styles',
@@ -50,7 +51,6 @@ export class OverscrollLockAuditor extends FileScanAuditor<OverscrollLockRuleId>
       ruleCapabilities: createUniformRuleCapabilities(OVERSCROLL_LOCK_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: true,

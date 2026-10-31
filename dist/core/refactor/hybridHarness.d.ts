@@ -4,7 +4,11 @@ export declare class HybridHarnessEngine {
   private static ensureSharedModule;
   private static rewriteVueSfc;
   private static rewriteTypeScriptFile;
-  static expandMetavariables(rewrite: string, match: any): string;
+  static expandMetavariables(rewrite: string, match: {
+    getMatch?: (name: string) => {
+      text: () => string;
+    } | null;
+  }): string;
   private static ensureNamedImport;
   private static applyAstGrepPatternRewrite;
 }

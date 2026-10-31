@@ -5,12 +5,10 @@
  */
 
 import path from 'node:path';
+
 import ts from 'typescript';
-import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
-import { safeReadFileAsync } from '../core/safeUtils.ts';
+
 import { SharedAstContext } from '../core/astContext.ts';
-import { isPathIgnored } from '../core/auditorBase.ts';
-import { isPathContained, toPosixRelative } from '../core/safePath.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -19,6 +17,10 @@ import {
   isDataPath,
   isDemoPath
 } from '../core/auditConfig.ts';
+import { isPathIgnored } from '../core/auditorBase.ts';
+import { isPathContained, toPosixRelative } from '../core/safePath.ts';
+import { safeReadFileAsync } from '../core/safeUtils.ts';
+import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rules.ts';
 
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',

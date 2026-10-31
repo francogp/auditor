@@ -10,8 +10,10 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -20,7 +22,6 @@ import {
   isPathIgnored,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
 import { getPackageJson, writePackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath, isPathContained } from '../../core/safePath.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
@@ -96,7 +97,7 @@ export function resolveScriptAndCliDirs(config: AuditEngineConfig): string[] {
 }
 
 export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtensionsRuleId> {
-  constructor(options: Partial<AuditorOptions<ScriptExtensionsRuleId>> = {}) {
+  public constructor(options: Partial<AuditorOptions<ScriptExtensionsRuleId>> = {}) {
     const effectiveProjectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(effectiveProjectRoot);
     const scriptAndCliDirs = resolveScriptAndCliDirs(config);
@@ -106,22 +107,18 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     ];
 
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['banned-mjs-extension', 'banned-cjs-extension', 'banned-raw-js-script'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        SCRIPT_EXTENSIONS_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [...SCRIPT_EXTENSIONS_RULES]
-      ),
-      fixableRuleIds: [...SCRIPT_EXTENSIONS_RULES],
+      ruleCapabilities: createRuleCapabilities(SCRIPT_EXTENSIONS_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_script_extensions',
       name: 'Script & Module Extensions Validator',
       description: 'Validates TypeScript scripts and extensions',
@@ -251,9 +248,7 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
         if (ext === '.js' || ext === '.jsx') {
           const relPath = toPosixRelative(this.projectRoot, fullPath);
           if (isExemptScriptFile(relPath, exemptFiles)) continue;
-          const isScriptDir = scriptAndCliDirs.some(
-            (dir) => isPathContained(dir, relPath)
-          );
+          const isScriptDir = scriptAndCliDirs.some((dir) => isPathContained(dir, relPath));
           if (isScriptDir) {
             const targetExt = ext === '.jsx' ? '.tsx' : '.ts';
             violations.push({
@@ -315,11 +310,12 @@ export class ValidateScriptExtensionsAuditor extends BaseAuditor<ScriptExtension
     }
 
     // 3. Also check top-level root directory entries for .mjs and .cjs
-    const rootEntries = tryOrNull(() =>
-      fs.existsSync(this.projectRoot)
-        ? fs.readdirSync(this.projectRoot, { withFileTypes: true })
-        : []
-    ) ?? [];
+    const rootEntries =
+      tryOrNull(() =>
+        fs.existsSync(this.projectRoot)
+          ? fs.readdirSync(this.projectRoot, { withFileTypes: true })
+          : []
+      ) ?? [];
     for (const entry of rootEntries) {
       if (!entry.isFile()) continue;
       const ext = path.extname(entry.name).toLowerCase();

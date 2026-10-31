@@ -137,7 +137,7 @@ describe('MarkdownLintAuditor', () => {
       vi.spyOn(cliUtils, 'executeNodeCli').mockReturnValue('[]');
 
       const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
@@ -158,19 +158,14 @@ describe('MarkdownLintAuditor', () => {
         ])
       );
 
-      process.argv.push('fix');
-      try {
-        const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
-        const result = await auditor.execute();
+      const auditor = new MarkdownLintAuditor({ projectRoot: PROJECT_ROOT });
+      const result = await auditor.fix();
 
-        expect(spy).toHaveBeenCalled();
-        const args = spy.mock.calls[0]![1];
-        expect(args).toContain('--fix');
-        expect(result.summary.errors).toBe(1);
-        expect(result.findings[0]!.file).toBe('README.md');
-      } finally {
-        process.argv.pop();
-      }
+      expect(spy).toHaveBeenCalled();
+      const args = spy.mock.calls[0]![1];
+      expect(args).toContain('--fix');
+      expect(result.summary.errors).toBe(1);
+      expect(result.findings[0]!.file).toBe('README.md');
     });
   });
 

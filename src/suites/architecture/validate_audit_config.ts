@@ -9,14 +9,16 @@
  */
 
 import fs from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { enableCompileCache } from 'node:module';
-import {
-  BaseAuditor,
-  createUniformRemediationPhases,
-  createRuleCapabilities
-} from '../../core/auditorBase.ts';
+
+import { SyntaxKind } from 'ts-morph';
+import ts from 'typescript';
+
+import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
+import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
+import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from '../../core/astContext.ts';
 import {
   loadAuditConfig,
   AUDITOR_DIR,
@@ -25,29 +27,28 @@ import {
   DEFAULT_AUDIT_CONFIG,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
+import { detectUnacknowledgedDegradations } from '../../core/auditConfigDegradations.ts';
 import type {
   GitIgnoreRequirement,
   AuditorConfigFileRequirement,
   AuditTaskDefinition,
   AuditorCriticalConfig
 } from '../../core/auditContract.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { auditConfigRatchet } from '../../core/configRatchet.ts';
 import {
   findMissingGitIgnoreRequirements,
   appendGitIgnoreEntries
 } from '../../core/gitignoreMatcher.ts';
-import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
-import { migrateLegacyAuditConfig } from '../../cli/migrateAuditConfig.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
-import { AUDITOR_VERSION } from '../../core/version.ts';
-import {
-  detectUnacknowledgedDegradations
-} from '../../core/auditConfigDegradations.ts';
-import { auditConfigRatchet } from '../../core/configRatchet.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
-import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from '../../core/astContext.ts';
 import { tryOrNull } from '../../core/safeUtils.ts';
-import ts from 'typescript';
-import { SyntaxKind } from 'ts-morph';
+import { AUDITOR_VERSION } from '../../core/version.ts';
 
 enableCompileCache();
 
@@ -157,7 +158,7 @@ export function buildTaskExpectedConfigTree(
       targetContainer = targetContainer[sub] as Record<string, unknown>;
     }
 
-    deepMergeDefaultsObject(targetContainer, task.defaultConfig as Record<string, unknown>);
+    deepMergeDefaultsObject(targetContainer, task.defaultConfig);
   }
 
   return byRoot;
@@ -233,11 +234,9 @@ export function createDefaultAuditConfigContent(
   const exportDecl = ts.factory.createExportAssignment(
     undefined,
     false,
-    ts.factory.createCallExpression(
-      ts.factory.createIdentifier('defineAuditConfig'),
-      undefined,
-      [dtoValueToTsExpression(defaultDto)]
-    )
+    ts.factory.createCallExpression(ts.factory.createIdentifier('defineAuditConfig'), undefined, [
+      dtoValueToTsExpression(defaultDto)
+    ])
   );
 
   const importCode = formatTsNodeTwoSpaceIndent(importDecl);
@@ -257,7 +256,7 @@ export function computeMissingConfigDiff(
   expected: unknown,
   current: unknown,
   isRootLevel = true
-): unknown | undefined {
+): unknown {
   if (current === undefined) {
     if (typeof expected === 'object' && expected !== null) {
       return structuredClone(expected);
@@ -426,8 +425,7 @@ export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
 ];
 
 export interface ValidateAuditConfigOptions {
-  projectRoot?: string;
-  fix?: boolean;
+  readonly projectRoot?: string;
 }
 
 export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigRuleId> = {
@@ -472,43 +470,28 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
 };
 
 export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
-  constructor(targetPathOrOptions?: string | ValidateAuditConfigOptions) {
-    const options =
-      typeof targetPathOrOptions === 'string'
-        ? { projectRoot: targetPathOrOptions }
-        : (targetPathOrOptions ?? {});
+  public constructor(options: ValidateAuditConfigOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
 
     super({
-      usesThirdPartyTool: false,
-      requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        AUDIT_CONFIG_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [
-          'audit-config-missing-section',
-          'audit-config-missing-file',
-          'audit-config-missing-gitignore-entry',
-          'audit-config-critical-violation',
-          'audit-config-unacknowledged-degradation'
-        ]
-      ),
+      ruleFixers: {},
       fixableRuleIds: [
         'audit-config-missing-section',
         'audit-config-missing-file',
         'audit-config-missing-gitignore-entry',
         'audit-config-critical-violation'
       ],
+      usesThirdPartyTool: false,
+      requiredPermissions: [],
+      ruleCapabilities: createRuleCapabilities(AUDIT_CONFIG_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       configFiles: [AUDIT_CONFIG_REQUIREMENT],
-      fix: options.fix,
       id: 'validate_audit_config',
       name: 'Audit Configuration Integrity Validator',
       description: 'Validates auditor configuration in .auditor/',
@@ -662,10 +645,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   }
 
   private verifyConfigRatchet(config: AuditEngineConfig): void {
-    const ratchetRes = auditConfigRatchet(
-      this.projectRoot,
-      (config._rawConfig ?? config) as Record<string, unknown>
-    );
+    const ratchetRes = auditConfigRatchet(this.projectRoot, config._rawConfig ?? config);
     if (!ratchetRes.passed) {
       for (const rel of ratchetRes.relaxations) {
         this.addViolation({
@@ -687,10 +667,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     const rawConfig = config._rawConfig ?? {};
     if (typeof rawConfig !== 'object' || rawConfig === null) return;
 
-    this.verifyUnknownTopLevelSections(rawConfig as Record<string, unknown>, tasks);
-    this.verifyUnknownPathsFields(rawConfig as Record<string, unknown>);
-    this.verifyUnknownConstantsFields(rawConfig as Record<string, unknown>);
-    this.verifyUnknownBundleFields(rawConfig as Record<string, unknown>);
+    this.verifyUnknownTopLevelSections(rawConfig, tasks);
+    this.verifyUnknownPathsFields(rawConfig);
+    this.verifyUnknownConstantsFields(rawConfig);
+    this.verifyUnknownBundleFields(rawConfig);
   }
 
   private verifyUnknownBundleFields(rawConfig: Record<string, unknown>): void {
@@ -867,10 +847,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (tasks.length === 0) return;
 
     const rawConfig = (config._rawConfig ?? {}) as Record<string, unknown>;
-    const missingByRootKey = collectMissingSections(
-      tasks as AuditTaskDefinition[],
-      rawConfig
-    );
+    const missingByRootKey = collectMissingSections(tasks, rawConfig);
     if (missingByRootKey.size === 0) return;
 
     if (this.isFixActive()) {
@@ -904,7 +881,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     for (const [rootKey, entry] of missingByRootKey.entries()) {
       const suiteNames = entry.tasks.map((t) => t.id).join(', ');
       const isEntireSectionMissing =
-        typeof rawConfig !== 'object' || rawConfig === null || Reflect.get(rawConfig, rootKey) === undefined;
+        typeof rawConfig !== 'object' ||
+        rawConfig === null ||
+        Reflect.get(rawConfig, rootKey) === undefined;
 
       if (isEntireSectionMissing) {
         this.addViolation({
@@ -1136,7 +1115,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
   ): Promise<void> {
     const rawConfig = (config._rawConfig ?? {}) as Record<string, unknown>;
     for (const task of tasks) {
-      await this.verifyTaskCriticalConfig(task as AuditTaskDefinition, rawConfig);
+      await this.verifyTaskCriticalConfig(task, rawConfig);
     }
   }
 
@@ -1397,38 +1376,188 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     return [];
   }
 
-  private checkExtensionStaticContract(targetFile: string, relTarget: string, normalized: string): boolean {
-    const fileContent = tryOrNull(() => fs.readFileSync(targetFile, 'utf-8'));
-    if (!fileContent) return true;
-    const hasContract =
-      fileContent.includes('ruleRemediationPhases') || fileContent.includes('remediationPhase');
-    if (!hasContract) {
-      this.addViolation({
-        ruleId: 'audit-config-invalid-extension',
-        severity: 'error',
-        file: AUDIT_CONFIG_FILE,
-        line: 1,
-        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add "remediationPhase: 'contracts'" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '${relTarget}'.`,
-        context: normalized
-      });
+  private reportInvalidExtension(relTarget: string, normalized: string, detail: string): void {
+    this.addViolation({
+      ruleId: 'audit-config-invalid-extension',
+      severity: 'error',
+      file: AUDIT_CONFIG_FILE,
+      line: 1,
+      message: `Configuration error in ${AUDIT_CONFIG_FILE}: Extension '${relTarget}' ${detail}`,
+      context: normalized
+    });
+  }
+
+  private validateConstructorParams(
+    member: ts.ConstructorDeclaration,
+    sourceFile: ts.SourceFile,
+    relTarget: string,
+    normalized: string
+  ): boolean {
+    if (member.parameters.length > 1) {
+      this.reportInvalidExtension(
+        relTarget,
+        normalized,
+        "violates Sub-Auditor Constructor Options Object Mandate (/architecture). Constructors must accept a single typed options object (e.g. 'options: FileScanRootsOptions = {}'). Positional constructor arguments are strictly prohibited."
+      );
+      return false;
+    }
+    if (member.parameters.length === 1) {
+      const paramName = member.parameters[0]?.name.getText(sourceFile);
+      if (paramName === 'roots' || paramName === 'projectRoot') {
+        this.reportInvalidExtension(
+          relTarget,
+          normalized,
+          "violates Sub-Auditor Constructor Options Object Mandate (/architecture). Constructors must accept a single typed options object (e.g. 'options: FileScanRootsOptions = {}'). Positional constructor arguments are strictly prohibited."
+        );
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private inspectSuperObjectLiteral(
+    arg: ts.ObjectLiteralExpression,
+    sourceFile: ts.SourceFile
+  ): { readonly hasPhases: boolean; readonly hasManualFix: boolean } {
+    let hasPhases = false;
+    let hasManualFix = false;
+
+    for (const prop of arg.properties) {
+      if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) continue;
+      const propName = prop.name.getText(sourceFile);
+      if (propName === 'remediationPhase' || propName === 'ruleRemediationPhases') {
+        hasPhases = true;
+      } else if (propName === 'fix') {
+        hasManualFix = true;
+      } else if (
+        (propName === 'capabilities' || propName === 'ruleCapabilities') &&
+        ts.isPropertyAssignment(prop) &&
+        ts.isObjectLiteralExpression(prop.initializer)
+      ) {
+        for (const capProp of prop.initializer.properties) {
+          if (capProp.name?.getText(sourceFile) === 'fix') {
+            hasManualFix = true;
+          }
+        }
+      }
+    }
+
+    return { hasPhases, hasManualFix };
+  }
+
+  private extractSuperCallProperties(
+    bodyNode: ts.Node,
+    sourceFile: ts.SourceFile
+  ): { readonly hasPhases: boolean; readonly hasManualFix: boolean } {
+    let hasPhases = false;
+    let hasManualFix = false;
+
+    if (ts.isCallExpression(bodyNode) && bodyNode.expression.kind === ts.SyntaxKind.SuperKeyword) {
+      const firstArg = bodyNode.arguments[0];
+      if (firstArg && ts.isObjectLiteralExpression(firstArg)) {
+        const inspected = this.inspectSuperObjectLiteral(firstArg, sourceFile);
+        hasPhases = hasPhases || inspected.hasPhases;
+        hasManualFix = hasManualFix || inspected.hasManualFix;
+      }
+    }
+
+    ts.forEachChild(bodyNode, (child) => {
+      const childProps = this.extractSuperCallProperties(child, sourceFile);
+      hasPhases = hasPhases || childProps.hasPhases;
+      hasManualFix = hasManualFix || childProps.hasManualFix;
+    });
+
+    return { hasPhases, hasManualFix };
+  }
+
+  private validateConstructorSuperCall(
+    member: ts.ConstructorDeclaration,
+    sourceFile: ts.SourceFile,
+    relTarget: string,
+    normalized: string
+  ): boolean {
+    if (!member.body) return true;
+    const { hasPhases, hasManualFix } = this.extractSuperCallProperties(member.body, sourceFile);
+
+    if (hasManualFix) {
+      this.reportInvalidExtension(
+        relTarget,
+        normalized,
+        "violates Zero Manual Fix Booleans Mandate (/architecture). Prohibited manual 'fix' declaration detected in constructor options or capabilities. Remove manual fix booleans; fixability is derived dynamically by BaseAuditor from registered 'ruleFixers'."
+      );
+      return false;
+    }
+    if (!hasPhases) {
+      this.reportInvalidExtension(
+        relTarget,
+        normalized,
+        "is missing mandatory 'remediationPhase' or 'ruleRemediationPhases' in its constructor options. Every extension must declare its strategic remediation classification. To remediate: add \"remediationPhase: 'contracts'\" (or 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish') inside super({ ... }) in '" +
+          relTarget +
+          "'."
+      );
       return false;
     }
     return true;
   }
 
-  private instantiateAuditorClass(AuditorClass: new (opts?: unknown) => BaseAuditor): void {
-    let firstErr: unknown;
-    try {
-      new AuditorClass(this.projectRoot);
-      return;
-    } catch (err: unknown) {
-      firstErr = err;
+  private isAuditorClassDeclaration(node: ts.ClassDeclaration, sourceFile: ts.SourceFile): boolean {
+    if (!node.heritageClauses) return false;
+    for (const clause of node.heritageClauses) {
+      if (clause.token === ts.SyntaxKind.ExtendsKeyword) {
+        for (const type of clause.types) {
+          const typeText = type.expression.getText(sourceFile);
+          if (
+            typeText.includes('Auditor') ||
+            typeText === 'BaseAuditor' ||
+            typeText === 'FileScanAuditor'
+          ) {
+            return true;
+          }
+        }
+      }
     }
-    try {
-      new AuditorClass({ projectRoot: this.projectRoot });
-    } catch {
-      throw firstErr;
-    }
+    return false;
+  }
+
+  private checkExtensionStaticContract(
+    targetFile: string,
+    relTarget: string,
+    normalized: string
+  ): boolean {
+    const fileContent = tryOrNull(() => fs.readFileSync(targetFile, 'utf-8'));
+    if (!fileContent) return true;
+
+    const doc = new AuditedDocument(targetFile, fileContent);
+    const sourceFile = doc.getAst();
+    if (!sourceFile) return true;
+
+    const visit = (node: ts.Node): boolean => {
+      if (ts.isClassDeclaration(node)) {
+        if (!this.isAuditorClassDeclaration(node, sourceFile)) {
+          return true;
+        }
+        for (const member of node.members) {
+          if (!ts.isConstructorDeclaration(member)) continue;
+          if (!this.validateConstructorParams(member, sourceFile, relTarget, normalized)) {
+            return false;
+          }
+          if (!this.validateConstructorSuperCall(member, sourceFile, relTarget, normalized)) {
+            return false;
+          }
+        }
+      }
+
+      let valid = true;
+      ts.forEachChild(node, (child) => {
+        if (!valid) return;
+        if (!visit(child)) {
+          valid = false;
+        }
+      });
+      return valid;
+    };
+
+    return visit(sourceFile);
   }
 
   private isAuditorConstructor(val: unknown): boolean {
@@ -1440,14 +1569,18 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     );
   }
 
-  private async verifyExtensionRuntime(targetFile: string, relTarget: string, normalized: string): Promise<void> {
+  private async verifyExtensionRuntime(
+    targetFile: string,
+    relTarget: string,
+    normalized: string
+  ): Promise<void> {
     try {
       const fileUrl = pathToFileURL(targetFile).href;
       const mod = (await import(fileUrl)) as Record<string, unknown>;
       for (const val of Object.values(mod)) {
         if (!this.isAuditorConstructor(val)) continue;
         const AuditorClass = val as new (opts?: unknown) => BaseAuditor;
-        this.instantiateAuditorClass(AuditorClass);
+        new AuditorClass({ projectRoot: this.projectRoot });
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -1455,7 +1588,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       if (errorMsg.includes('requiredPermissions')) {
         hint = " Hint: declare 'requiredPermissions: []' in constructor options.";
       } else if (errorMsg.includes('hasLineSuppression')) {
-        hint = " Hint: 'hasLineSuppression' was eradicated by Zero-Ignore Mandate; replace it with 'hasPrecedingComment'.";
+        hint =
+          " Hint: 'hasLineSuppression' was eradicated by Zero-Ignore Mandate; replace it with 'hasPrecedingComment'.";
       }
       this.addViolation({
         ruleId: 'audit-config-invalid-extension',
@@ -1493,7 +1627,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       if (!exists) continue;
 
       const resolved = path.resolve(this.projectRoot, normalized);
-      let targetFiles: string[] = [];
+      let targetFiles: string[];
       try {
         targetFiles = this.resolveExtensionFiles(resolved);
       } catch (err: unknown) {
@@ -1520,7 +1654,8 @@ export async function enforceCriticalConfigurations(
   tasks: readonly AuditTaskDefinition[]
 ): Promise<boolean> {
   try {
-    const auditor = new ValidateAuditConfigAuditor({ projectRoot, fix: true });
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot });
+    await auditor.fix();
     const config = await loadAuditConfig(projectRoot);
     await auditor.verifyCriticalConfigurations(config, tasks);
     return true;

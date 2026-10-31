@@ -38,7 +38,6 @@ export declare const BANNED_COMPILER_OPTIONS: readonly ["suppressImplicitAnyInde
 export declare const TSCONFIG_REQUIREMENT: AuditorConfigFileRequirement<TsConfigRuleId>;
 export interface ValidateTsconfigOptions {
   readonly projectRoot?: string;
-  readonly fix?: boolean;
   readonly configFile?: string;
 }
 export declare class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {

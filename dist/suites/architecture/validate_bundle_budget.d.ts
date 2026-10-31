@@ -1,5 +1,5 @@
-import { GitIgnoreRequirement } from "../../core/auditContract.js";
 import { SharedAstContext } from "../../core/astContext.js";
+import { GitIgnoreRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const BUNDLE_BUDGET_RULES: readonly ["bundle-runtime-leak", "bundle-heavy-import", "bundle-chunk-size"];
 export type BundleBudgetRuleId = (typeof BUNDLE_BUDGET_RULES)[number];

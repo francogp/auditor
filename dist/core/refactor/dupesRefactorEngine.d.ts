@@ -1,17 +1,14 @@
-import { AuditEngineConfig } from "../auditConfigTypes.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { CloneTopology, RefactorPlan, TriagedCloneCandidate } from "./refactorContracts.js";
 import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
 export declare function runFallowJson<T>(cmd: string, args: string[], projectRoot: string): T;
 export declare function determineTopology(files: readonly string[]): CloneTopology;
+export type DupesRefactorEngineOptions = RefactorEngineOptions<FallowArchitectureAuditor>;
 export declare class DupesRefactorEngine extends BaseRefactorEngine<TriagedCloneCandidate, RefactorPlan, FallowArchitectureAuditor> {
   readonly toolId = "auditor-dupes";
   readonly configSectionKey: "fallow";
   private readonly cachedCandidatesByMin;
-  constructor(auditorOrOptions?: FallowArchitectureAuditor | string | {
-    projectRoot?: string;
-    config?: AuditEngineConfig;
-  }, _explicitConfig?: AuditEngineConfig);
+  constructor(options?: DupesRefactorEngineOptions);
   discoverInFile(filePath: string): readonly TriagedCloneCandidate[];
   createPlan(id: string, findings: readonly TriagedCloneCandidate[]): RefactorPlan;
   applyPlan(projectRoot: string, plan: RefactorPlan): Promise<{

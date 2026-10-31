@@ -20,9 +20,7 @@ class CanonicalDomainSet<T extends string> extends Set<T> implements DomainSet<T
  * Creates an immutable ReadonlySet from a const tuple or array of domain literals.
  * Enforces compile-time type deduction of domain elements and provides a type-guard has() method.
  */
-export function createDomainSet<const T extends readonly string[]>(
-  items: T
-): DomainSet<T[number]> {
+export function createDomainSet<const T extends readonly string[]>(items: T): DomainSet<T[number]> {
   return new CanonicalDomainSet<T[number]>(items);
 }
 

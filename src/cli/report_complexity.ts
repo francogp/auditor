@@ -1,11 +1,13 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { execSync } from 'node:child_process';
 /**
  * src/cli/report_complexity.ts
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { styleText } from 'node:util';
+
+import { getAuditConfig } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -13,11 +15,10 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { getAuditConfig } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
+import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
 import {
   DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
   resolveCoverageArgs,
@@ -74,7 +75,14 @@ const COMPLEXITY_CLI_ARGS = {
   layer: { type: 'string', description: 'Filter hotspots by architectural layer' }
 } as const satisfies CittyArgsDef;
 
-function parseCommandLineArgs() {
+interface ParsedComplexityCliArgs {
+  readonly top: number;
+  readonly layerFilter: string | undefined;
+  readonly jsonOutput: boolean;
+  readonly isHuman: boolean;
+}
+
+function parseCommandLineArgs(): ParsedComplexityCliArgs {
   const parsed = parseCittyArgs(COMPLEXITY_CLI_ARGS, getProcessCliArgs());
 
   return {
@@ -291,10 +299,16 @@ function renderBoxReport(
       console.log(styleText('green', '[OK] 0 high complexity functions found.'));
       return;
     }
-    console.log(`\n[Complexity] Maintainability: ${maintainability.toFixed(1)}/100 | Functions exceeding threshold: ${findings.length}`);
-    console.log(`[Hotspots] Top ${Math.min(topLimit, filtered.length)} of ${filtered.length}${layerFilter ? ` (Filter: ${layerFilter})` : ''}:`);
+    console.log(
+      `\n[Complexity] Maintainability: ${maintainability.toFixed(1)}/100 | Functions exceeding threshold: ${findings.length}`
+    );
+    console.log(
+      `[Hotspots] Top ${Math.min(topLimit, filtered.length)} of ${filtered.length}${layerFilter ? ` (Filter: ${layerFilter})` : ''}:`
+    );
     for (const [idx, f] of filtered.slice(0, topLimit).entries()) {
-      console.log(`• ${idx + 1}. ${f.name} (${f.file}:${f.line}) [${f.layer}] - ${f.lines} LOC, cog: ${f.cog}, cyc: ${f.cyc}`);
+      console.log(
+        `• ${idx + 1}. ${f.name} (${f.file}:${f.line}) [${f.layer}] - ${f.lines} LOC, cog: ${f.cog}, cyc: ${f.cyc}`
+      );
     }
     console.log('');
     return;
@@ -306,8 +320,7 @@ function renderBoxReport(
       : `Functions exceeding threshold: ${findings.length}`;
 
   console.log(
-    '\n' +
-      renderBanner('CYCLOMATIC, COGNITIVE COMPLEXITY AND FUNCTION SIZE (FALLOW)', subtitle)
+    '\n' + renderBanner('CYCLOMATIC, COGNITIVE COMPLEXITY AND FUNCTION SIZE (FALLOW)', subtitle)
   );
 
   const distribution: Record<string, number> = {};
@@ -388,9 +401,7 @@ function renderBoxReport(
   console.log(renderBoxTable(hotspotCols, hotspotRows));
 
   if (targets.length > 0) {
-    console.log(
-      `\n[Notice] PRIORITY REFACTORING TARGETS (FALLOW - TOP ${targets.length}):\n`
-    );
+    console.log(`\n[Notice] PRIORITY REFACTORING TARGETS (FALLOW - TOP ${targets.length}):\n`);
 
     interface TargetRow {
       index: string;

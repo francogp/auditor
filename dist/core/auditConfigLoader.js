@@ -103,7 +103,7 @@ function resolveConfigModuleUrl(configPath, projectRoot, auditorRoot = path.reso
 			const rewritten = rawContent.replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`).replace(/import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g, `import('${auditorEntryUrl}')`);
 			const scratchDir = path.resolve(auditorRoot, "scratch");
 			if (!fs.existsSync(scratchDir)) fs.mkdirSync(scratchDir, { recursive: true });
-			const tempFilePath = path.resolve(scratchDir, `remote_config_${Date.now()}_${++dynamicImportCounter}.ts`);
+			const tempFilePath = path.resolve(scratchDir, `remote_config_${Temporal.Now.instant().epochMilliseconds}_${++dynamicImportCounter}.ts`);
 			fs.writeFileSync(tempFilePath, rewritten, "utf-8");
 			const tempUrl = pathToFileURL(tempFilePath);
 			tempUrl.searchParams.set("t", `${performance.now()}_${dynamicImportCounter}`);

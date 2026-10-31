@@ -16,22 +16,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
-export const EDITORCONFIG_RULES = [
-  'editorconfig-missing',
-  'editorconfig-missing-setting'
-] as const;
+export const EDITORCONFIG_RULES = ['editorconfig-missing', 'editorconfig-missing-setting'] as const;
 
 export type EditorConfigRuleId = (typeof EDITORCONFIG_RULES)[number];
 
@@ -65,53 +62,37 @@ export const EDITORCONFIG_REQUIREMENT: AuditorConfigFileRequirement<EditorConfig
   generateDefaultContent: () => CANONICAL_EDITORCONFIG_CONTENT
 };
 
+export interface EditorConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
+
 export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<EditorConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<EditorConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: EditorConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<EditorConfigRuleId> = {
       ...EDITORCONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(EDITORCONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: false,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'editorconfig-missing',
-        'editorconfig-missing-setting'
-      ],
       configFiles: [configRequirement],
       id: 'validate_editorconfig',
       name: 'EditorConfig Validator',
@@ -147,9 +128,7 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
       coverage: {
         include: ['.editorconfig']
       },
-      projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      projectRoot
     });
   }
 
@@ -173,8 +152,7 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
 
     const resolvedPath = configFile;
 
-    const relPath =
-      path.relative(this.projectRoot, resolvedPath) || EDITORCONFIG_REQUIREMENT.file;
+    const relPath = path.relative(this.projectRoot, resolvedPath) || EDITORCONFIG_REQUIREMENT.file;
     this.recordScanned(relPath);
     let rawContent: string;
     try {
@@ -199,7 +177,8 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
     this.runSubAuditorSync('editorconfig-missing-setting', () => {
       if (!/^\s*root\s*=\s*true\b/im.test(updatedContent)) {
         if (isFix) {
-          updatedContent = 'root = true\n\n' + updatedContent.replace(/^\s*root\s*=\s*[^\n]*\n?/im, '');
+          updatedContent =
+            'root = true\n\n' + updatedContent.replace(/^\s*root\s*=\s*[^\n]*\n?/im, '');
           modified = true;
         } else {
           this.addViolation({
@@ -216,7 +195,10 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
       if (!/^\s*end_of_line\s*=\s*lf\b/im.test(updatedContent)) {
         if (isFix) {
           if (/^\s*end_of_line\s*=/im.test(updatedContent)) {
-            updatedContent = updatedContent.replace(/^\s*end_of_line\s*=[^\n]*/im, 'end_of_line = lf');
+            updatedContent = updatedContent.replace(
+              /^\s*end_of_line\s*=[^\n]*/im,
+              'end_of_line = lf'
+            );
           } else {
             updatedContent = updatedContent.replace(/(\[\*\][^\n]*\n)/i, '$1end_of_line = lf\n');
           }
@@ -256,7 +238,10 @@ export class ValidateEditorconfigAuditor extends BaseAuditor<EditorConfigRuleId>
       if (!/^\s*indent_size\s*=\s*2\b/im.test(updatedContent)) {
         if (isFix) {
           if (/^\s*indent_size\s*=/im.test(updatedContent)) {
-            updatedContent = updatedContent.replace(/^\s*indent_size\s*=[^\n]*/im, 'indent_size = 2');
+            updatedContent = updatedContent.replace(
+              /^\s*indent_size\s*=[^\n]*/im,
+              'indent_size = 2'
+            );
           } else {
             updatedContent = updatedContent.replace(/(\[\*\][^\n]*\n)/i, '$1indent_size = 2\n');
           }

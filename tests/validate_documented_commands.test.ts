@@ -73,7 +73,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'README.md'), docContent);
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -100,7 +100,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
@@ -128,7 +128,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'SETUP.md'), content);
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
     expect(finding).toBeDefined();
@@ -153,7 +153,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'DOC.md'), 'Run `npm foo` to execute the foo task.');
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-invalid-npm-syntax');
     expect(finding).toBeDefined();
@@ -179,7 +179,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npx');
     expect(finding).toBeDefined();
@@ -205,7 +205,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -232,7 +232,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const finding = result.findings.find((f) => f.ruleId === 'documented-cmd-unregistered-npm');
@@ -270,7 +270,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -295,7 +295,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -333,7 +333,7 @@ describe('ValidateDocumentedCommandsAuditor', () => {
     );
 
     const auditor = new ValidateDocumentedCommandsAuditor({ projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');

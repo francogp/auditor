@@ -9,6 +9,7 @@ Architecture & Tooling Engineers.
 ## Local Contracts
 
 - **Dynamic Detector Registration**: All homebrew checks derive from `HomebrewDetector` instances registered in `HomebrewDetectorRegistry`.
+- **Entity Registry Inheritance & Canonical Scanning**: `HomebrewDetectorRegistry` inherits from `BaseEntityRegistry`, exposing canonical `scanFile(file, context)` and `scanAll(context)`. Legacy aliases `unregister(id)` and `clear()` are eradicated in favor of `delete(id)` and `reset()`.
 - **Zero Hardcoded Heuristics in Core**: Rules and detectors must be modular, self-contained, and exportable.
 - **Zero-Escape Policy**: No bypass directives or escape hatches are permitted. Detectors flag homebrew anti-patterns uniformly.
 

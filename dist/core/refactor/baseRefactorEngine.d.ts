@@ -5,7 +5,38 @@ export interface ScannedFileFindings<TFinding> {
   readonly fullPath: string;
   readonly findings: readonly TFinding[];
 }
-export declare abstract class BaseRefactorEngine<TFinding = unknown, TPlan = unknown, TAuditor extends BaseAuditor<any> = BaseAuditor<any>> {
+export interface RefactorEngineOptions<TAuditor extends BaseAuditor = BaseAuditor> {
+  readonly auditor?: TAuditor;
+  readonly projectRoot?: string;
+}
+export declare function assertValidRefactorEngineOptions<TAuditor extends BaseAuditor = BaseAuditor>(options?: RefactorEngineOptions<TAuditor>): RefactorEngineOptions<TAuditor>;
+export interface IRefactorEngine<TFinding = unknown, TPlan = unknown, TAuditor extends BaseAuditor = BaseAuditor> {
+  readonly toolId: string;
+  readonly configSectionKey?: keyof AuditEngineConfig;
+  readonly projectRoot: string;
+  readonly config: AuditEngineConfig;
+  readonly allowedExtensions: ReadonlySet<string>;
+  getAuditor(): TAuditor;
+  resolveTargetRoots(): readonly string[];
+  shouldIncludeTests(): boolean;
+  shouldIncludeDataPaths(): boolean;
+  resolveGlobalIgnorePatterns(): readonly string[];
+  resolveSectionIgnorePatterns(): readonly string[];
+  resolveCombinedIgnorePatterns(): readonly string[];
+  resolveSectionExemptPaths(): readonly string[];
+  isToolEnabled(): boolean;
+  getScannableFiles(): readonly string[];
+  isPathScannable(relPath: string): boolean;
+  discoverInFile(filePath: string): readonly TFinding[];
+  discoverAll(): readonly ScannedFileFindings<TFinding>[];
+  createPlan(id: string, findings: readonly TFinding[]): TPlan;
+  applyPlan(projectRoot: string, plan: TPlan): Promise<{
+    readonly modifiedFiles: readonly string[];
+  }> | {
+    readonly modifiedFiles: readonly string[];
+  };
+}
+export declare abstract class BaseRefactorEngine<TFinding = unknown, TPlan = unknown, TAuditor extends BaseAuditor = BaseAuditor> implements IRefactorEngine<TFinding, TPlan, TAuditor> {
   protected readonly auditor: TAuditor;
   /**
    * Unique identifier of this refactoring tool (e.g. 'auditor-magic', 'auditor-domain').

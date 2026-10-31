@@ -38,6 +38,7 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			...config.paths.composablesRoots ?? []
 		])) : config.paths.srcRoots ?? []);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			id: "validate_vue_router",
@@ -49,7 +50,6 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(VUE_ROUTER_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -97,9 +97,9 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 					const { line, column } = doc.getNodeLineAndColumn(nextParam, sf);
 					this.addViolation({
 						ruleId: "no-deprecated-router-next",
-						filePath: relPath,
+						file: relPath,
 						line,
-						column,
+						col: column,
 						message: `Deprecated 'next' argument in router navigation guard. Vue Router 4 mandates returning a boolean or route location object instead.`,
 						severity: "error"
 					});
@@ -118,9 +118,9 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 						const { line, column } = doc.getNodeLineAndColumn(node, sf);
 						this.addViolation({
 							ruleId: "no-define-async-component-in-router",
-							filePath: relPath,
+							file: relPath,
 							line,
-							column,
+							col: column,
 							message: `defineAsyncComponent used in router route definition. Use canonical dynamic import 'component: () => import(...)' instead.`,
 							severity: "error"
 						});
@@ -139,9 +139,9 @@ var ValidateVueRouterAuditor = class extends FileScanAuditor {
 			const { line, column } = doc.getNodeLineAndColumn(node, sf);
 			this.addViolation({
 				ruleId: "no-window-location-navigation",
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				message: `Direct SPA navigation with 'window.location'. Use useRouter().push(...) to preserve application state.`,
 				severity: "error"
 			});

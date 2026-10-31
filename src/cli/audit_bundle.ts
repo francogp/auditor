@@ -13,18 +13,25 @@
  */
 
 import fs from 'node:fs';
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import zlib from 'node:zlib';
-import { enableCompileCache } from 'node:module';
+
 import {
   loadAuditConfig,
   getAuditConfig,
   assertAuditConfigComplete,
   type ChunkBudgetConfig
 } from '../core/auditConfig.ts';
+import { type SubAuditorStatus } from '../core/auditContract.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  resolveHumanModeFromArgs
+} from '../core/cli/cittyHarness.ts';
 import { normalizePosixPath } from '../core/safePath.ts';
 import { tryOrUndefined, tryCatchSync, safeJsonParse, tryOrDefault } from '../core/safeUtils.ts';
-import { type SubAuditorStatus } from '../core/auditContract.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -32,12 +39,6 @@ import {
   type TableColumn
 } from '../core/unifiedTheme.ts';
 import { isMainModule, isHumanConsoleMode } from './cliUtils.ts';
-import {
-  COMMON_CLI_ARGS,
-  getProcessCliArgs,
-  parseCittyArgs,
-  resolveHumanModeFromArgs
-} from '../core/cli/cittyHarness.ts';
 
 enableCompileCache();
 
@@ -277,8 +278,7 @@ export function discoverCompiledChunks(targetDir: string): readonly DiscoveredCh
         !name.endsWith('.gz') &&
         !name.endsWith('.br')
       ) {
-        const parentPath =
-          (entry as { parentPath?: string }).parentPath ?? targetDir;
+        const parentPath = (entry as { parentPath?: string }).parentPath ?? targetDir;
         const fullPath = path.join(parentPath, name);
         const relName = normalizePosixPath(path.relative(targetDir, fullPath));
         chunks.push({ filename: relName, fullPath });
@@ -320,9 +320,8 @@ function auditCompiledChunks(
   return { chunkResults, chunkErrors, chunkWarnings };
 }
 
-export function resolveDistDir(projectRoot: string, configuredDistDir?: string): string {
-  const configured = configuredDistDir ?? 'dist/assets';
-  const resolved = path.resolve(projectRoot, configured);
+export function resolveDistDir(projectRoot: string, configuredDistDir = 'dist/assets'): string {
+  const resolved = path.resolve(projectRoot, configuredDistDir);
   if (fs.existsSync(resolved)) {
     return resolved;
   }
@@ -397,9 +396,7 @@ export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs(
   const isHuman = resolveHumanModeFromArgs(parsed) || isHumanConsoleMode(undefined, rawArgs);
 
   if (isHuman) {
-    console.log(
-      renderBanner('PRODUCTION BUNDLE & CHUNK AUDITOR', 'FrancoGP Auditor Framework')
-    );
+    console.log(renderBanner('PRODUCTION BUNDLE & CHUNK AUDITOR', 'FrancoGP Auditor Framework'));
   }
 
   await loadAuditConfig(projectRoot);
@@ -421,9 +418,7 @@ export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs(
   const distDir = resolveDistDir(projectRoot, bundleConfig?.distDir);
 
   if (!fs.existsSync(statsFilePath) && !fs.existsSync(distDir)) {
-    console.error(
-      '\n[FAIL] Error: No production build artifacts or dist directory found.'
-    );
+    console.error('\n[FAIL] Error: No production build artifacts or dist directory found.');
     console.error(`   - Expected dist directory: ${path.relative(projectRoot, distDir)}`);
     console.error('\nRun first: npm run build or vp pack\n');
     process.exit(1);
@@ -436,7 +431,9 @@ export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs(
       `[Bundle] Chunks: ${result.chunkResults.length} | Top Modules: ${result.topModules.length} | Duplicate Violations: ${result.duplicateViolations.length} | Errors: ${result.totalErrors}`
     );
     for (const c of result.chunkResults) {
-      console.log(`  [Chunk] ${c.filename}: ${c.sizeKB} KB (gzip: ${c.gzipKB ?? 'N/A'} KB) status=${c.status} note=${c.note}`);
+      console.log(
+        `  [Chunk] ${c.filename}: ${c.sizeKB} KB (gzip: ${c.gzipKB ?? 'N/A'} KB) status=${c.status} note=${c.note}`
+      );
     }
     if (result.duplicateViolations.length > 0) {
       for (const v of result.duplicateViolations) {
@@ -540,9 +537,7 @@ export async function executeCli(rawArgs: readonly string[] = getProcessCliArgs(
     process.exit(1);
   }
 
-  console.log(
-    '\n[OK] Bundle audit passed: Chunks and architectural budgets satisfied.\n'
-  );
+  console.log('\n[OK] Bundle audit passed: Chunks and architectural budgets satisfied.\n');
   process.exit(0);
 }
 

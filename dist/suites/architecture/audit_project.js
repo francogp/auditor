@@ -779,20 +779,26 @@ var ProjectArchitectureAuditor = class extends BaseAuditor {
 		const ruleRemediations = getProjectArchitectureRuleRemediations();
 		const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
 		const ruleIds = Object.keys(ruleDescriptions);
-		const fixableRuleIds = Object.entries(auditRulesConfig).filter(([, rule]) => typeof rule.fix === "function" || rule.fixable === true).map(([key, rule]) => rule.id || key);
+		const ruleFixers = {};
+		for (const [key, rule] of Object.entries(auditRulesConfig)) {
+			const r = rule;
+			const ruleId = r.id || key;
+			if (typeof r.fix === "function") ruleFixers[ruleId] = async () => {
+				await Promise.resolve(r.fix(projectRoot));
+			};
+		}
 		super({
 			usesThirdPartyTool: false,
 			requiredPermissions: ["--allow-child-process"],
 			ruleCapabilities: createRuleCapabilities(ruleIds, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: true,
 				changedOnly: true,
 				critical: false
-			}, fixableRuleIds),
-			fixableRuleIds,
+			}),
+			ruleFixers,
 			ruleIds,
 			ruleDescriptions,
 			ruleRemediations,

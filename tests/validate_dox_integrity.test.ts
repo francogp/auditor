@@ -98,7 +98,7 @@ describe('DoxIntegrityAuditor', () => {
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '# Root\n', 'utf-8');
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'dox-missing-agents-md');
       expect(violation).toBeDefined();
       expect(result.status).toBe('failed');
@@ -118,7 +118,7 @@ describe('DoxIntegrityAuditor', () => {
       );
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'dox-unregistered-child');
       expect(violation).toBeDefined();
     });
@@ -145,7 +145,7 @@ describe('DoxIntegrityAuditor', () => {
       );
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const unindexed = result.findings.find((f) => f.ruleId === 'dox-unindexed-file');
       expect(unindexed).toBeDefined();
       expect(unindexed?.context).toBe('paymentService.ts');
@@ -173,7 +173,7 @@ Architecture & Tooling Engineers.
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), incompleteDoc, 'utf-8');
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const missingWork = result.findings.find(
         (f) => f.ruleId === 'dox-missing-section' && f.context === '## Work Guidance'
       );
@@ -214,7 +214,7 @@ Architecture & Tooling Engineers.
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), disorderedDoc, 'utf-8');
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const orderViolation = result.findings.find((f) => f.ruleId === 'dox-section-order');
       expect(orderViolation).toBeDefined();
       expect(orderViolation?.message).toContain('must not appear after');
@@ -250,7 +250,7 @@ TODO: Add verification
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), placeholderDoc, 'utf-8');
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const emptyFindings = result.findings.filter((f) => f.ruleId === 'dox-empty-section');
       expect(emptyFindings.length).toBeGreaterThanOrEqual(2);
       expect(emptyFindings.some((f) => f.context === '## Work Guidance')).toBe(true);
@@ -277,7 +277,7 @@ TODO: Add verification
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), rootDoc, 'utf-8');
 
       const auditor = new DoxIntegrityAuditor({ projectRoot: scratchDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });

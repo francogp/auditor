@@ -1,11 +1,11 @@
 import { FallowTargetPriority, FallowTargetPriorityNamed } from "../../core/auditConfigTypes.js";
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
-import { AuditorCapabilities, FindingSeverity } from "../../core/auditContract.js";
+import { AuditorRuleCapabilities, FindingSeverity } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { AuditFindingAttribution } from "fallow/types";
 export declare const FALLOW_RULES: readonly ["fallow-refactoring-targets", "fallow-duplicate-code", "fallow-triplicate-code", "fallow-unused-exports", "fallow-unused-files", "fallow-unused-dependencies", "fallow-circular-dependencies", "fallow-boundary-violations", "fallow-stale-suppressions", "fallow-workspace-diagnostic", "fallow-security-cwe"];
 export type FallowRuleId = (typeof FALLOW_RULES)[number];
-export declare const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorCapabilities>;
+export declare const FALLOW_RULE_CAPABILITIES: Record<FallowRuleId, AuditorRuleCapabilities>;
 export declare const FALLOW_RULE_DESCRIPTIONS: Record<FallowRuleId, string>;
 export declare const FALLOW_RULE_REMEDIATIONS: Record<FallowRuleId, string>;
 export declare const FALLOW_RULE_REMEDIATION_PHASES: Record<FallowRuleId, RemediationPhaseId>;

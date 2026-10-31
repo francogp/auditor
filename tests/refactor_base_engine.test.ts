@@ -17,7 +17,11 @@ import { resetAuditConfig, setAuditConfig, defineAuditConfig } from '../src/core
 import type { AuditEngineConfig, DeepPartial } from '../src/core/auditConfigTypes.ts';
 import { FileScanAuditor, createRuleCapabilities } from '../src/core/auditorBase.ts';
 import { isDataPath, isDemoPath, isExemptFile } from '../src/core/auditPathPredicates.ts';
-import { BaseRefactorEngine } from '../src/core/refactor/baseRefactorEngine.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from '../src/core/refactor/baseRefactorEngine.ts';
 import { DomainRefactorEngine } from '../src/core/refactor/domainRefactorEngine.ts';
 import { DupesRefactorEngine } from '../src/core/refactor/dupesRefactorEngine.ts';
 import { MagicNumberExtractor } from '../src/core/refactor/magicNumberExtractor.ts';
@@ -27,9 +31,10 @@ import { TypesRefactorEngine } from '../src/core/refactor/typesRefactorEngine.ts
 import { toPosixRelative } from '../src/core/safePath.ts';
 
 class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
-  public constructor(projectRoot: string = process.cwd()) {
+  public constructor(options: { projectRoot?: string } = {}) {
     super({
       usesThirdPartyTool: false,
+      ruleFixers: {},
       id: 'dummy_auditor',
       name: 'Dummy Auditor',
       description: 'Dummy',
@@ -44,7 +49,6 @@ class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
       ruleCapabilities: createRuleCapabilities(['dummy-rule'], {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -56,7 +60,7 @@ class DummyAuditor extends FileScanAuditor<'dummy-rule'> {
       defaultConfig: { enabled: true },
       requiredPermissions: [],
       criticalConfig: {},
-      projectRoot
+      projectRoot: options.projectRoot ?? process.cwd()
     });
   }
 }
@@ -69,9 +73,9 @@ class DummyTestEngine extends BaseRefactorEngine<
   public override readonly toolId = 'dummy';
   public override readonly configSectionKey = 'codeSimplification';
 
-  public constructor(auditorOrRoot?: DummyAuditor | string) {
-    const auditor =
-      auditorOrRoot instanceof DummyAuditor ? auditorOrRoot : new DummyAuditor(auditorOrRoot);
+  public constructor(options: RefactorEngineOptions<DummyAuditor> = {}) {
+    const opts = assertValidRefactorEngineOptions<DummyAuditor>(options);
+    const auditor = opts.auditor ?? new DummyAuditor({ projectRoot: opts.projectRoot });
     super(auditor);
   }
 
@@ -139,13 +143,13 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
   describe('Inheritance & Type Contract', () => {
     it('all 6 refactor engines inherit from BaseRefactorEngine and bind subauditor', () => {
       configure({});
-      const dummy = new DummyTestEngine(tempDir);
-      const magic = new MagicNumberExtractor(tempDir);
-      const domain = new DomainRefactorEngine(tempDir);
-      const motion = new MotionRefactorEngine(tempDir);
-      const o1 = new O1RefactorEngine(tempDir);
-      const types = new TypesRefactorEngine(tempDir);
-      const dupes = new DupesRefactorEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
+      const magic = new MagicNumberExtractor({ projectRoot: tempDir });
+      const domain = new DomainRefactorEngine({ projectRoot: tempDir });
+      const motion = new MotionRefactorEngine({ projectRoot: tempDir });
+      const o1 = new O1RefactorEngine({ projectRoot: tempDir });
+      const types = new TypesRefactorEngine({ projectRoot: tempDir });
+      const dupes = new DupesRefactorEngine({ projectRoot: tempDir });
 
       expect(dummy).toBeInstanceOf(BaseRefactorEngine);
       expect(magic).toBeInstanceOf(BaseRefactorEngine);
@@ -163,6 +167,33 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
       expect(types.getAuditor()).toBeDefined();
       expect(dupes.getAuditor()).toBeDefined();
     });
+
+    it('throws loud error when any refactor engine receives a string instead of options', () => {
+      configure({});
+      const badArg = tempDir as unknown;
+
+      expect(() => new DummyTestEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new MagicNumberExtractor(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new DomainRefactorEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new MotionRefactorEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new O1RefactorEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new TypesRefactorEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+      expect(() => new DupesRefactorEngine(badArg as never)).toThrow(
+        '[BaseRefactorEngine Contract Violation]'
+      );
+    });
   });
 
   describe('Dynamic Target Roots & Code Roots Resolution', () => {
@@ -173,7 +204,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const engine = new DummyTestEngine(tempDir);
+      const engine = new DummyTestEngine({ projectRoot: tempDir });
       const files = engine.getScannableFiles();
       const relativeFiles = files;
 
@@ -189,7 +220,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const engine = new DummyTestEngine(tempDir);
+      const engine = new DummyTestEngine({ projectRoot: tempDir });
       const files = engine.getScannableFiles();
       const relativeFiles = files;
 
@@ -208,7 +239,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const engine = new DummyTestEngine(tempDir);
+      const engine = new DummyTestEngine({ projectRoot: tempDir });
       const files = engine.getScannableFiles();
 
       expect(files).toContain('src/main.ts');
@@ -227,7 +258,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const engine = new DummyTestEngine(tempDir);
+      const engine = new DummyTestEngine({ projectRoot: tempDir });
       const files = engine.getScannableFiles();
       const relativeFiles = files;
 
@@ -245,7 +276,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const engine = new DummyTestEngine(tempDir);
+      const engine = new DummyTestEngine({ projectRoot: tempDir });
       const files = engine.getScannableFiles();
       const relativeFiles = files;
 
@@ -264,7 +295,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const extractor = new MagicNumberExtractor(tempDir);
+      const extractor = new MagicNumberExtractor({ projectRoot: tempDir });
       const files = extractor.getScannableFiles();
       const relativeFiles = files;
 
@@ -280,7 +311,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const dummy = new DummyTestEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
       const files = dummy.getScannableFiles();
       const relativeFiles = files;
 
@@ -300,7 +331,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const extractor = new MagicNumberExtractor(tempDir);
+      const extractor = new MagicNumberExtractor({ projectRoot: tempDir });
       const files = extractor.getScannableFiles();
       const relativeFiles = files;
 
@@ -316,7 +347,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const dummy = new DummyTestEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
       const files = dummy.getScannableFiles();
       const relativeFiles = files;
 
@@ -338,11 +369,11 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const extractor = new MagicNumberExtractor(tempDir);
+      const extractor = new MagicNumberExtractor({ projectRoot: tempDir });
       const files = extractor.getScannableFiles();
       expect(files).toHaveLength(0);
 
-      const motion = new MotionRefactorEngine(tempDir);
+      const motion = new MotionRefactorEngine({ projectRoot: tempDir });
       const motionExempts = motion.resolveSectionExemptPaths();
       expect(motionExempts).toContain('src/style.scss');
     });
@@ -356,9 +387,9 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         public override readonly toolId = 'nosection';
         public override readonly configSectionKey = undefined;
 
-        public constructor(auditorOrRoot?: DummyAuditor | string) {
-          const auditor =
-            auditorOrRoot instanceof DummyAuditor ? auditorOrRoot : new DummyAuditor(auditorOrRoot);
+        public constructor(options: RefactorEngineOptions<DummyAuditor> = {}) {
+          const opts = assertValidRefactorEngineOptions<DummyAuditor>(options);
+          const auditor = opts.auditor ?? new DummyAuditor({ projectRoot: opts.projectRoot });
           super(auditor);
         }
 
@@ -373,10 +404,30 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       }
 
-      const noSection = new NoSectionEngine(tempDir);
+      const noSection = new NoSectionEngine({ projectRoot: tempDir });
       expect(noSection.resolveSectionIgnorePatterns()).toEqual([]);
       expect(noSection.resolveSectionExemptPaths()).toEqual([]);
       expect(noSection.isToolEnabled()).toBe(true);
+    });
+
+    it('actively excludes files matching ignoredPatterns and exemptPaths in both getScannableFiles and isPathScannable', () => {
+      configure({
+        paths: {
+          codeRoots: ['src'],
+          ignoredPatterns: ['src/component.vue']
+        },
+        constants: {
+          exemptPaths: ['src/main.ts']
+        }
+      });
+
+      const extractor = new MagicNumberExtractor({ projectRoot: tempDir });
+      const files = extractor.getScannableFiles();
+
+      expect(files).not.toContain('src/main.ts');
+      expect(files).not.toContain('src/component.vue');
+      expect(extractor.isPathScannable('src/main.ts')).toBe(false);
+      expect(extractor.isPathScannable('src/component.vue')).toBe(false);
     });
   });
 
@@ -388,7 +439,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const dummy = new DummyTestEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
       expect(dummy.isToolEnabled()).toBe(true);
     });
 
@@ -399,7 +450,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         }
       });
 
-      const dummy = new DummyTestEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
       expect(dummy.isToolEnabled()).toBe(false);
     });
   });
@@ -407,7 +458,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
   describe('Engine Execution & Plan Lifecycle', () => {
     it('executes discoverAll, createPlan and applyPlan through BaseRefactorEngine contract', async () => {
       configure({});
-      const dummy = new DummyTestEngine(tempDir);
+      const dummy = new DummyTestEngine({ projectRoot: tempDir });
       const allFindings = dummy.discoverAll();
       expect(allFindings.length).toBeGreaterThan(0);
 
@@ -428,14 +479,14 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new DomainRefactorEngine(tempDir);
+      const engine = new DomainRefactorEngine({ projectRoot: tempDir });
       const findings = engine.discoverInFile(domainFile);
       expect(findings.length).toBeGreaterThan(0);
 
       const plan = engine.createPlan('domain-plan', findings);
       expect(plan.planId).toBe('domain-plan');
 
-      const res = engine.applyPlan(tempDir, plan);
+      const res = await engine.applyPlan(tempDir, plan);
       const normalizedModified = res.modifiedFiles.map((f) => toPosixRelative(tempDir, f));
       expect(normalizedModified).toContain('src/domain.ts');
     });
@@ -449,14 +500,14 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new O1RefactorEngine(tempDir);
+      const engine = new O1RefactorEngine({ projectRoot: tempDir });
       const findings = engine.discoverInFile(o1File);
       expect(findings.length).toBeGreaterThan(0);
 
       const plan = engine.createPlan('o1-plan', findings);
       expect(plan.planId).toBe('o1-plan');
 
-      const res = engine.applyPlan(tempDir, plan);
+      const res = await engine.applyPlan(tempDir, plan);
       expect(res.modifiedFiles).toBeDefined();
     });
 
@@ -469,14 +520,14 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new TypesRefactorEngine(tempDir);
+      const engine = new TypesRefactorEngine({ projectRoot: tempDir });
       const findings = engine.discoverInFile(typesFile);
       expect(findings.length).toBeGreaterThan(0);
 
       const plan = engine.createPlan('types-plan', findings);
       expect(plan.planId).toBe('types-plan');
 
-      const res = engine.applyPlan(tempDir, plan);
+      const res = await engine.applyPlan(tempDir, plan);
       expect(res.modifiedFiles).toBeDefined();
     });
 
@@ -489,14 +540,14 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new MotionRefactorEngine(tempDir);
+      const engine = new MotionRefactorEngine({ projectRoot: tempDir });
       const findings = engine.discoverInFile(motionFile);
       expect(findings.length).toBeGreaterThan(0);
 
       const plan = engine.createPlan('motion-plan', findings);
       expect(plan.planId).toBe('motion-plan');
 
-      const res = engine.applyPlan(tempDir, plan);
+      const res = await engine.applyPlan(tempDir, plan);
       expect(res.modifiedFiles).toBeDefined();
     });
 
@@ -509,14 +560,14 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new MagicNumberExtractor(tempDir);
+      const engine = new MagicNumberExtractor({ projectRoot: tempDir });
       const findings = engine.discoverInFile(magicFile);
       expect(findings.length).toBeGreaterThan(0);
 
       const plan = engine.createPlan('magic-plan', findings);
       expect(plan.planId).toBe('magic-plan');
 
-      const res = engine.applyPlan(tempDir, plan);
+      const res = await engine.applyPlan(tempDir, plan);
       expect(res.modifiedFiles).toBeDefined();
     });
 
@@ -532,7 +583,7 @@ describe('BaseRefactorEngine & Inherited Refactor Engines', () => {
         'utf-8'
       );
 
-      const engine = new MagicNumberExtractor(tempDir);
+      const engine = new MagicNumberExtractor({ projectRoot: tempDir });
       const scssFindings = engine.discoverInFile(scssFile);
       expect(scssFindings.length).toBeGreaterThan(0);
 

@@ -8,19 +8,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { collectRepositoryFiles } from '../auditorBase.ts';
-import { parseVueSfcBlocks } from '../vueSfcParser.ts';
-
 import { getAuditConfig } from '../auditConfig.ts';
+import { collectRepositoryFiles } from '../auditorBase.ts';
 import { isTestPath, isExemptFile } from '../auditPathPredicates.ts';
 import { toPosixRelative } from '../safePath.ts';
+import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 
 const DEFAULT_REFACTOR_EXTENSIONS = new Set<string>(['.ts', '.vue', '.js']);
 
 /**
  * Checks if two path references resolve to the same underlying file in a cross-platform manner.
  */
-export function isSameFilePath(fileA: string, fileB: string, baseDir: string = process.cwd()): boolean {
+export function isSameFilePath(
+  fileA: string,
+  fileB: string,
+  baseDir: string = process.cwd()
+): boolean {
   const absA = path.isAbsolute(fileA) ? path.normalize(fileA) : path.resolve(baseDir, fileA);
   const absB = path.isAbsolute(fileB) ? path.normalize(fileB) : path.resolve(baseDir, fileB);
   return path.relative(absA, absB) === '' || absA.toLowerCase() === absB.toLowerCase();
@@ -39,7 +42,9 @@ export function scanProjectSourceFiles(
 
   const config = getAuditConfig(normalizedDir);
   const configuredRoots = config.paths.codeRoots ?? ['src', 'scripts'];
-  const hasConfiguredRoots = configuredRoots.some((r) => fs.existsSync(path.resolve(normalizedDir, r)));
+  const hasConfiguredRoots = configuredRoots.some((r) =>
+    fs.existsSync(path.resolve(normalizedDir, r))
+  );
   const roots = hasConfiguredRoots ? configuredRoots : ['.'];
   const combinedIgnores = [
     ...(config.paths.ignoreGlobs ?? []),
@@ -104,7 +109,12 @@ export function extractFileScriptContent(
  */
 export function forEachSourceScriptLine(
   filePath: string,
-  onLine: (line: string, actualLineNumber: number, lineIndex: number, allLines: readonly string[]) => void
+  onLine: (
+    line: string,
+    actualLineNumber: number,
+    lineIndex: number,
+    allLines: readonly string[]
+  ) => void
 ): boolean {
   const extracted = extractFileScriptContent(filePath);
   if (!extracted) return false;
@@ -140,7 +150,10 @@ export function applyFileTextReplacements(
   let content = initialContent;
   let count = 0;
   for (const rep of replacements) {
-    if (!isSameFilePath(rep.file, relFile, baseDir) && !isSameFilePath(rep.file, fullPath, baseDir)) {
+    if (
+      !isSameFilePath(rep.file, relFile, baseDir) &&
+      !isSameFilePath(rep.file, fullPath, baseDir)
+    ) {
       continue;
     }
     if (!content.includes(rep.original)) continue;
@@ -169,8 +182,10 @@ export function executePlanFileReplacements(
   let filesChanged = 0;
   let changesApplied = 0;
 
-  for (const relFile of (targetFiles ?? [])) {
-    const fullPath = path.isAbsolute(relFile) ? path.normalize(relFile) : path.resolve(baseDir, relFile);
+  for (const relFile of targetFiles ?? []) {
+    const fullPath = path.isAbsolute(relFile)
+      ? path.normalize(relFile)
+      : path.resolve(baseDir, relFile);
     if (!fs.existsSync(fullPath)) continue;
 
     let content = fs.readFileSync(fullPath, 'utf8');
@@ -197,4 +212,3 @@ export function executePlanFileReplacements(
 
   return { filesChanged, changesApplied };
 }
-

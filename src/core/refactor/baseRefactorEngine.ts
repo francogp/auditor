@@ -11,9 +11,12 @@
  */
 
 import path from 'node:path';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+
 import { getAuditConfig } from '../auditConfig.ts';
+import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { BaseAuditor } from '../auditorBase.ts';
+import { isTestPath } from '../auditTestPredicates.ts';
+import { isPathExempt } from '../reportUtils.ts';
 import { isPathContained, stripGlobSuffix } from '../safePath.ts';
 
 export interface ScannedFileFindings<TFinding> {
@@ -22,11 +25,60 @@ export interface ScannedFileFindings<TFinding> {
   readonly findings: readonly TFinding[];
 }
 
+export interface RefactorEngineOptions<TAuditor extends BaseAuditor = BaseAuditor> {
+  readonly auditor?: TAuditor;
+  readonly projectRoot?: string;
+}
+
+export function assertValidRefactorEngineOptions<TAuditor extends BaseAuditor = BaseAuditor>(
+  options?: RefactorEngineOptions<TAuditor>
+): RefactorEngineOptions<TAuditor> {
+  const isString = typeof options === 'string';
+  if (isString) {
+    throw new Error(
+      `[BaseRefactorEngine Contract Violation]: Positional string shortcuts are strictly prohibited. Pass an options object: { projectRoot?: string; auditor?: TAuditor }`
+    );
+  }
+  return options ?? {};
+}
+
+export interface IRefactorEngine<
+  TFinding = unknown,
+  TPlan = unknown,
+  TAuditor extends BaseAuditor = BaseAuditor
+> {
+  readonly toolId: string;
+  readonly configSectionKey?: keyof AuditEngineConfig;
+  readonly projectRoot: string;
+  readonly config: AuditEngineConfig;
+  readonly allowedExtensions: ReadonlySet<string>;
+  getAuditor(): TAuditor;
+  resolveTargetRoots(): readonly string[];
+  shouldIncludeTests(): boolean;
+  shouldIncludeDataPaths(): boolean;
+  resolveGlobalIgnorePatterns(): readonly string[];
+  resolveSectionIgnorePatterns(): readonly string[];
+  resolveCombinedIgnorePatterns(): readonly string[];
+  resolveSectionExemptPaths(): readonly string[];
+  isToolEnabled(): boolean;
+  getScannableFiles(): readonly string[];
+  isPathScannable(relPath: string): boolean;
+  discoverInFile(filePath: string): readonly TFinding[];
+  discoverAll(): readonly ScannedFileFindings<TFinding>[];
+  createPlan(id: string, findings: readonly TFinding[]): TPlan;
+  applyPlan(
+    projectRoot: string,
+    plan: TPlan
+  ):
+    | Promise<{ readonly modifiedFiles: readonly string[] }>
+    | { readonly modifiedFiles: readonly string[] };
+}
+
 export abstract class BaseRefactorEngine<
   TFinding = unknown,
   TPlan = unknown,
-  TAuditor extends BaseAuditor<any> = BaseAuditor<any>
-> {
+  TAuditor extends BaseAuditor = BaseAuditor
+> implements IRefactorEngine<TFinding, TPlan, TAuditor> {
   protected readonly auditor: TAuditor;
 
   /**
@@ -39,9 +91,11 @@ export abstract class BaseRefactorEngine<
    */
   public abstract readonly configSectionKey?: keyof AuditEngineConfig;
 
-  constructor(auditor: TAuditor) {
+  public constructor(auditor: TAuditor) {
     if (!auditor) {
-      throw new Error('[BaseRefactorEngine]: Constructor requires a canonical sub-auditor instance.');
+      throw new Error(
+        '[BaseRefactorEngine]: Constructor requires a canonical sub-auditor instance.'
+      );
     }
     this.auditor = auditor;
   }
@@ -79,7 +133,9 @@ export abstract class BaseRefactorEngine<
   }
 
   public resolveGlobalIgnorePatterns(): readonly string[] {
-    return this.config.paths.ignoreGlobs ?? [];
+    const globs = this.config.paths?.ignoreGlobs ?? [];
+    const patterns = this.config.paths?.ignoredPatterns ?? [];
+    return Array.from(new Set([...globs, ...patterns]));
   }
 
   public resolveSectionIgnorePatterns(): readonly string[] {
@@ -119,18 +175,7 @@ export abstract class BaseRefactorEngine<
    * enforcing target roots (paths.codeRoots) and data directory exclusions when shouldIncludeDataPaths is false.
    */
   public getScannableFiles(): readonly string[] {
-    const files = this.auditor.getScannableFiles();
-    const codeRoots = this.resolveTargetRoots();
-    let filtered = files;
-    if (codeRoots && codeRoots.length > 0) {
-      filtered = filtered.filter((f) => this.isPathInRoots(f, codeRoots));
-    }
-    if (this.shouldIncludeDataPaths()) {
-      return filtered;
-    }
-    const dataRoots = this.config.paths.dataRoots ?? [];
-    if (dataRoots.length === 0) return filtered;
-    return filtered.filter((f) => !this.isPathInRoots(f, dataRoots));
+    return this.auditor.getScannableFiles().filter((f) => this.isPathScannable(f));
   }
 
   /**
@@ -141,8 +186,19 @@ export abstract class BaseRefactorEngine<
     if (!this.auditor.isPathScannable(relPath)) {
       return false;
     }
+    if (!this.shouldIncludeTests() && isTestPath(relPath, this.projectRoot)) {
+      return false;
+    }
     const codeRoots = this.resolveTargetRoots();
     if (codeRoots && codeRoots.length > 0 && !this.isPathInRoots(relPath, codeRoots)) {
+      return false;
+    }
+    const combinedIgnores = this.resolveCombinedIgnorePatterns();
+    if (combinedIgnores.length > 0 && isPathExempt(relPath, combinedIgnores)) {
+      return false;
+    }
+    const exemptPaths = this.resolveSectionExemptPaths();
+    if (exemptPaths.length > 0 && isPathExempt(relPath, exemptPaths)) {
       return false;
     }
     if (!this.shouldIncludeDataPaths()) {
@@ -192,5 +248,7 @@ export abstract class BaseRefactorEngine<
   public abstract applyPlan(
     projectRoot: string,
     plan: TPlan
-  ): Promise<{ readonly modifiedFiles: readonly string[] }> | { readonly modifiedFiles: readonly string[] };
+  ):
+    | Promise<{ readonly modifiedFiles: readonly string[] }>
+    | { readonly modifiedFiles: readonly string[] };
 }

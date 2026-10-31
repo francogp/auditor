@@ -13,9 +13,16 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -116,18 +123,18 @@ function isTextSelectorCandidate(currentSelector: string, leafSelector: string):
 export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleId> {
   private totalRulesChecked = 0;
 
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths?.srcRoots ?? []
     );
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TYPOGRAPHY_LINE_HEIGHT_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -138,7 +145,10 @@ export class TypographyLineHeightAuditor extends FileScanAuditor<LineHeightRuleI
       description: 'Detects line-height collisions in multiline typography',
       family: 'architecture',
       ruleIds: TYPOGRAPHY_LINE_HEIGHT_RULES,
-      ruleRemediationPhases: createUniformRemediationPhases(TYPOGRAPHY_LINE_HEIGHT_RULES, 'behavior'),
+      ruleRemediationPhases: createUniformRemediationPhases(
+        TYPOGRAPHY_LINE_HEIGHT_RULES,
+        'behavior'
+      ),
       packageName: 'Typography',
       configKey: 'styles.enabled',
       defaultConfig: { enabled: true },

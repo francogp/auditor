@@ -14,11 +14,16 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
-import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
+import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
+import type { RuleFixContext, AnyRuleFixerFn } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { normalizePosixPath } from '../../core/reportUtils.ts';
 import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
 
@@ -37,19 +42,37 @@ function stripAnsiEscapes(text: string): string {
 const MAX_BUFFER_BYTES = 52428800 as const;
 const EXECUTION_TIMEOUT_MS = 0 as const;
 
+export async function fixOxfmt(context: RuleFixContext<'oxfmt-violation'>): Promise<boolean> {
+  const vpBin =
+    resolvePackageBin('vite-plus', {
+      projectRoot: context.projectRoot,
+      fallbackRelativeBin: 'bin/vp'
+    }) ?? path.resolve(context.projectRoot, 'node_modules/vite-plus/bin/vp');
+  try {
+    executeNodeCli(vpBin, ['fmt'], {
+      cwd: context.projectRoot,
+      maxBuffer: MAX_BUFFER_BYTES,
+      timeout: EXECUTION_TIMEOUT_MS
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const OXFMT_FIXERS: Partial<Record<OxfmtRuleId, AnyRuleFixerFn>> = {
+  'oxfmt-violation': fixOxfmt
+};
+
 export interface OxfmtAuditOptions {
-  projectRoot?: string;
-  fix?: boolean;
+  readonly projectRoot?: string;
 }
 
 export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
-  constructor(targetOrOptions?: string | OxfmtAuditOptions) {
-    const opts =
-      typeof targetOrOptions === 'string'
-        ? { projectRoot: targetOrOptions }
-        : (targetOrOptions ?? {});
-    const effectiveRoot = opts.projectRoot || process.cwd();
+  public constructor(options: OxfmtAuditOptions = {}) {
+    const effectiveRoot = options.projectRoot || process.cwd();
     super({
+      ruleFixers: OXFMT_FIXERS,
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -57,21 +80,14 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'oxfmt-violation'
       },
-      ruleCapabilities: createRuleCapabilities(
-        OXFMT_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: true
-        },
-        ['oxfmt-violation']
-      ),
-      fixableRuleIds: ['oxfmt-violation'],
-      fix: opts.fix,
+      ruleCapabilities: createRuleCapabilities(OXFMT_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: true
+      }),
       id: 'validate_oxfmt',
       name: 'Vite+ Oxfmt Code Formatting Validator',
       description: 'Validates code formatting with Vite+ Oxfmt',
@@ -116,7 +132,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       source: 'declared-only'
     });
 
-    const isFixMode = this.isFixModeRequested();
+    const isFixMode = this.isFixActive();
 
     const vpBin =
       resolvePackageBin('vite-plus', {
@@ -171,7 +187,7 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
           }
         }
 
-        let exists = false;
+        let exists: boolean;
         try {
           exists = fs.existsSync(fullCandidate) && fs.statSync(fullCandidate).isFile();
         } catch {

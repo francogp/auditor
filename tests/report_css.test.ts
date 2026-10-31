@@ -78,7 +78,7 @@ describe('report_css CLI Tool', () => {
 
   it('renders table with multiple finding categories and truncated text', async () => {
     const { StylelintAuditor } = await import('../src/suites/architecture/validate_stylelint.ts');
-    vi.spyOn(StylelintAuditor.prototype, 'execute').mockResolvedValueOnce({
+    vi.spyOn(StylelintAuditor.prototype, 'audit').mockResolvedValueOnce({
       id: 'validate_stylelint',
       name: 'Stylelint',
       description: 'Stylelint checks',

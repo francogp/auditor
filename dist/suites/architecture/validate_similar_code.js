@@ -6,8 +6,8 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { getProcessCliArgs } from "../../core/cli/cittyHarness.js";
-import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
+import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { isProductionEnvironment } from "../../core/auditorEnvironment.js";
 import { BaseAuditor, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -37,7 +37,6 @@ const SIMILAR_CODE_RULE_CAPABILITIES = {
 	"fallow-similar-code": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: false,
@@ -46,7 +45,6 @@ const SIMILAR_CODE_RULE_CAPABILITIES = {
 	"fallow-similar-code-failed": {
 		speed: "heavy",
 		phase: "normal",
-		fix: "none",
 		md: false,
 		ast: false,
 		changedOnly: false,
@@ -179,6 +177,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 		const projectRoot = options.projectRoot || process.cwd();
 		const codeRoots = getAuditConfig(projectRoot).paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots;
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {

@@ -293,7 +293,12 @@ describe('audit_full CLI orchestration helpers', () => {
       scriptPath: 'src/suites/architecture/test_task.ts',
       command: 'node',
       args: ['--quiet'],
-      capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedOnly: true, critical: false }
+      capabilities: {
+        ...DEFAULT_AUDITOR_CAPABILITIES,
+        fix: 'none',
+        changedOnly: true,
+        critical: false
+      }
     };
 
     it('appends extra flags based on CLI values', () => {
@@ -321,7 +326,12 @@ describe('audit_full CLI orchestration helpers', () => {
     it('does not append changed-since if capability is false', () => {
       const taskWithoutChanged: AuditTaskDefinition = {
         ...baseTask,
-        capabilities: { ...DEFAULT_AUDITOR_CAPABILITIES, changedOnly: false, critical: false }
+        capabilities: {
+          ...DEFAULT_AUDITOR_CAPABILITIES,
+          fix: 'none',
+          changedOnly: false,
+          critical: false
+        }
       };
       const args = buildTaskArgs(taskWithoutChanged, { 'changed-since': 'main' }, '');
       expect(args).not.toContain('--changed-since');

@@ -112,7 +112,7 @@ describe('ValidateAuditConfigAuditor', () => {
   });
 
   it('instantiates with correct metadata conforming to BaseAuditor contracts', () => {
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_audit_config');
     expect(auditor.family).toBe('architecture');
     expect(auditor.ruleIds).toEqual([
@@ -129,8 +129,8 @@ describe('ValidateAuditConfigAuditor', () => {
   });
 
   it('reports an error when audit.config.ts is missing from project root', async () => {
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBe(1);
@@ -152,8 +152,8 @@ describe('ValidateAuditConfigAuditor', () => {
     await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await auditor.fix();
 
     expect(
       await fs
@@ -181,8 +181,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.unlink(path.join(tempDir, '.gitignore'));
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const missingGitignore = result.findings.find(
@@ -208,8 +208,8 @@ export default defineAuditConfig({
     // Incomplete .gitignore with only node_modules
     await fs.writeFile(path.join(tempDir, '.gitignore'), 'node_modules/\n', 'utf-8');
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const missingEntries = result.findings.filter(
@@ -237,8 +237,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.writeFile(path.join(tempDir, '.gitignore'), 'node_modules/\n', 'utf-8');
 
-    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await auditor.fix();
 
     const repairedContent = await fs.readFile(path.join(tempDir, '.gitignore'), 'utf-8');
     expect(repairedContent).toContain('scratch/');
@@ -246,8 +246,8 @@ export default defineAuditConfig({
     expect(repairedContent).toContain('*.log');
 
     // Re-running in normal mode should pass without gitignore errors
-    const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const checkResult = await checkAuditor.execute();
+    const checkAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const checkResult = await checkAuditor.audit();
     const gitignoreFindings = checkResult.findings.filter(
       (f) => f.ruleId === 'audit-config-missing-gitignore-entry'
     );
@@ -267,8 +267,9 @@ export class CustomExtAuditor extends BaseAuditor {
     }
   ];
 
-  constructor() {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
+      ruleFixers: {},
       id: 'validate_custom_tool',
       name: 'Custom Tool Validator',
       description: 'Valida herramientas del usuario',
@@ -294,7 +295,6 @@ export class CustomExtAuditor extends BaseAuditor {
         'custom-tool-rule': {
           speed: 'light',
           phase: 'normal',
-          fix: 'none',
           md: false,
           ast: false,
           changedOnly: false,
@@ -326,8 +326,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // .gitignore currently only has baseline entries, missing .custom-tool-cache/
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const customMissing = result.findings.find((f) => f.context === '.custom-tool-cache/');
@@ -336,15 +336,15 @@ export default defineAuditConfig({
     expect(customMissing?.message).toContain('Caché de herramienta extendida por el usuario');
 
     // Fix mode appends the extension requirement to .gitignore
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     const repairedContent = await fs.readFile(path.join(tempDir, '.gitignore'), 'utf-8');
     expect(repairedContent).toContain('.custom-tool-cache/');
 
     // Re-verify clean run
-    const verifyAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const verifyResult = await verifyAuditor.execute();
+    const verifyAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const verifyResult = await verifyAuditor.audit();
     expect(verifyResult.summary.errors).toBe(0);
     expect(verifyResult.status).toBe('passed');
   });
@@ -369,8 +369,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBe(2);
@@ -404,8 +404,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src/stores'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'src/stores/authStore.ts'), '// auth', 'utf-8');
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const missingMigration = result.findings.find((f) => f.context === 'supabase/migrations');
@@ -436,8 +436,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const extFinding = result.findings.find((f) => f.ruleId === 'audit-config-invalid-extension');
@@ -493,8 +493,9 @@ export default defineAuditConfig({
       `
 import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
 export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
-  constructor(projectRoot = process.cwd()) {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
+      ruleFixers: {},
       id: 'custom',
       name: 'Custom Auditor',
       description: 'Custom Auditor desc',
@@ -507,14 +508,14 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       criticalConfig: {},
       usesThirdPartyTool: false,
       ruleCapabilities: {
-        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+        'custom-rule': { speed: 'light', phase: 'normal', md: false, ast: false, changedOnly: false, critical: false }
       },
       ruleIds: ['custom-rule'],
       ruleDescriptions: { 'custom-rule': 'Desc' },
       ruleRemediations: { 'custom-rule': 'Remediacion' },
       ruleRemediationPhases: { 'custom-rule': 'setup' },
       coverage: { include: ['src/**'] },
-      projectRoot
+      projectRoot: options.projectRoot
     });
   }
   public override async runAudit() {}
@@ -523,8 +524,8 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
       'utf-8'
     );
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     // Mandatory clean path verification per Hermetic Testing Mandate
     expect(result.summary.errors).toBe(0);
@@ -552,7 +553,7 @@ export default defineAuditConfig({
       `
 import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
 export class InvalidAuditor extends BaseAuditor {
-  constructor(projectRoot = process.cwd()) {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
       id: 'invalid_ext',
       name: 'Invalid',
@@ -568,7 +569,7 @@ export class InvalidAuditor extends BaseAuditor {
       ruleIds: [],
       ruleDescriptions: {},
       ruleRemediations: {},
-      projectRoot
+      projectRoot: options.projectRoot
     });
   }
   public override async runAudit() {}
@@ -577,8 +578,8 @@ export class InvalidAuditor extends BaseAuditor {
       'utf-8'
     );
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find((f) => f.ruleId === 'audit-config-invalid-extension');
@@ -634,8 +635,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const missingSections = result.findings.filter(
@@ -668,8 +669,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Verify it fails in check mode
-    const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const checkResult = await checkAuditor.execute();
+    const checkAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const checkResult = await checkAuditor.audit();
     expect(
       checkResult.findings.some(
         (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
@@ -678,8 +679,8 @@ export default defineAuditConfig({
 
     // Run in fix mode
     resetAuditConfig();
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     // Verify valibot was added to audit.config.ts
     const updatedContent = await fs.readFile(
@@ -691,8 +692,8 @@ export default defineAuditConfig({
 
     // Re-run check mode: should pass cleanly
     resetAuditConfig();
-    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const recheckResult = await recheckAuditor.execute();
+    const recheckAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const recheckResult = await recheckAuditor.audit();
     const valibotFinding = recheckResult.findings.find(
       (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
     );
@@ -722,8 +723,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Verify it fails in check mode detecting missing sub-configuration
-    const checkAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const checkResult = await checkAuditor.execute();
+    const checkAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const checkResult = await checkAuditor.audit();
     const missingSubFinding = checkResult.findings.find(
       (f) =>
         f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
@@ -733,8 +734,8 @@ export default defineAuditConfig({
 
     // Run in fix mode
     resetAuditConfig();
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     // Verify precompress was injected inside vitePlusConfig in audit.config.ts
     const updatedContent = await fs.readFile(
@@ -746,8 +747,8 @@ export default defineAuditConfig({
 
     // Re-run check mode: should pass cleanly
     resetAuditConfig();
-    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const recheckResult = await recheckAuditor.execute();
+    const recheckAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const recheckResult = await recheckAuditor.audit();
     const resolvedFinding = recheckResult.findings.find(
       (f) =>
         f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
@@ -779,8 +780,8 @@ export default defineAuditConfig({
 
     // Run in fix mode
     resetAuditConfig();
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     // Verify comma is placed before the comment, not at the end of the line
     const updatedContent = await fs.readFile(
@@ -792,8 +793,8 @@ export default defineAuditConfig({
 
     // Re-run check mode: should pass cleanly
     resetAuditConfig();
-    const recheckAuditor = new ValidateAuditConfigAuditor(tempDir);
-    const recheckResult = await recheckAuditor.execute();
+    const recheckAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const recheckResult = await recheckAuditor.audit();
     const resolvedFinding = recheckResult.findings.find(
       (f) =>
         f.ruleId === 'audit-config-missing-section' && f.context === 'vitePlusConfig.precompress'
@@ -806,8 +807,9 @@ export default defineAuditConfig({
 import { BaseAuditor } from '${BASE_AUDITOR_PATH}';
 
 export class CustomExtAuditor extends BaseAuditor {
-  constructor(opts) {
+  constructor(options: { projectRoot?: string } = {}) {
     super({
+      ruleFixers: {},
       id: 'custom_ext_suite',
       name: 'Custom Ext Suite',
       description: 'Custom extension description',
@@ -821,13 +823,13 @@ export class CustomExtAuditor extends BaseAuditor {
       requiredPermissions: [],
       criticalConfig: {},
       ruleCapabilities: {
-        'custom-rule': { speed: 'light', phase: 'normal', fix: 'none', md: false, ast: false, changedOnly: false, critical: false }
+        'custom-rule': { speed: 'light', phase: 'normal', md: false, ast: false, changedOnly: false, critical: false }
       },
       ruleDescriptions: { 'custom-rule': 'Regla de extension' },
       ruleRemediations: { 'custom-rule': 'Soluciona la regla custom-rule ajustando la configuración.' },
       ruleRemediationPhases: { 'custom-rule': 'setup' },
       usesThirdPartyTool: false,
-      projectRoot: opts?.projectRoot
+      projectRoot: options?.projectRoot
     });
   }
   public override async runAudit(): Promise<void> {}
@@ -850,8 +852,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
     // Extension declared, but customExt section is missing
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const extFinding = result.findings.find(
@@ -861,8 +863,8 @@ export default defineAuditConfig({
     expect(extFinding?.message).toContain('customExt');
 
     // Fix mode should auto-scaffold customExt section
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     const repairedContent = await fs.readFile(
       path.join(tempDir, '.auditor', 'audit.config.ts'),
@@ -886,8 +888,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find(
@@ -915,8 +917,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find(
@@ -942,8 +944,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find(
@@ -972,8 +974,8 @@ export default defineAuditConfig({
     await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find(
@@ -1003,8 +1005,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'scripts', 'build.ts'), 'export const a = 1;', 'utf-8');
 
-    const auditor = new ValidateAuditConfigAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const finding = result.findings.find(
@@ -1034,8 +1036,8 @@ export default defineAuditConfig({
     await fs.mkdir(path.join(tempDir, 'scripts'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'scripts', 'build.ts'), 'export const a = 1;', 'utf-8');
 
-    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir, fix: true });
-    const fixResult = await fixAuditor.execute();
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const fixResult = await fixAuditor.fix();
     const fixErrors = fixResult.findings.filter(
       (f) => f.ruleId === 'audit-config-unacknowledged-degradation'
     );

@@ -9,8 +9,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import semver from 'semver';
+
 import type { DependencyLocation } from 'fallow/types';
+import semver from 'semver';
+
 import { getPackageJson } from './packageJson.ts';
 
 export type AuditorMinimumVersions = Readonly<Record<string, string>>; // open-record: package name -> declared semver range
@@ -27,7 +29,8 @@ export const AUDITOR_MAXIMUM_VERSIONS: AuditorMaximumVersions = Object.freeze({
   typescript: {
     ceiling: '<7.0.0',
     prohibitedRange: '>=7.0.0',
-    reason: 'TypeScript 7+ is not permitted due to incompatibilities with the Vue component compiler.'
+    reason:
+      'TypeScript 7+ is not permitted due to incompatibilities with the Vue component compiler.'
   }
 });
 
@@ -56,7 +59,10 @@ function readAuditorPackageJsonSection(
   if (!fs.existsSync(auditorPackageJsonPath)) {
     return null;
   }
-  const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as Record<string, Record<string, string> | undefined>;
+  const data = JSON.parse(fs.readFileSync(auditorPackageJsonPath, 'utf8')) as Record<
+    string,
+    Record<string, string> | undefined
+  >;
   const section = data[sectionKey];
   return section && Object.keys(section).length > 0 ? section : null;
 }
@@ -206,7 +212,7 @@ export function evaluateProjectDependencies(
   const devUpdates: string[] = []; // no-domain: Dynamic npm install package specifier accumulator
 
   for (const [name, floor] of Object.entries(minimums)) {
-    const declared = pkg ? findDeclaredDependency(pkg as Record<string, unknown>, name) : null;
+    const declared = pkg ? findDeclaredDependency(pkg, name) : null;
     const requiredMin = semver.minVersion(floor);
     const installedVersion = readLockfileInstalledVersion(root, name);
 
@@ -270,9 +276,7 @@ export function evaluateProjectDependencies(
     satisfiedCount,
     outdatedCount,
     undeclaredCount,
-    prodInstallCommand:
-      prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined,
-    devInstallCommand:
-      devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined
+    prodInstallCommand: prodUpdates.length > 0 ? `npm install ${prodUpdates.join(' ')}` : undefined,
+    devInstallCommand: devUpdates.length > 0 ? `npm install -D ${devUpdates.join(' ')}` : undefined
   };
 }

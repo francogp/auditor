@@ -282,8 +282,8 @@ describe('ValidateAccessibilityAuditor & mapA11yRuleId', () => {
       expect(ruleSet.has('html-dialog-popover-exclusivity')).toBe(true);
 
       // Run in --fix mode
-      const fixAuditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir, fix: true });
-      await fixAuditor.runAudit();
+      const fixAuditor = new ValidateAccessibilityAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       const fixedSfc = fs.readFileSync(targetSfc, 'utf-8');
       expect(fixedSfc).toContain('tabindex="0"');

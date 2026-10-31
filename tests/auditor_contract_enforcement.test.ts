@@ -47,6 +47,7 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
   requiredPermissions: [],
   criticalConfig: {},
   usesThirdPartyTool: false,
+  ruleFixers: {},
   ruleIds: ['sample-rule-a', 'sample-rule-b'],
   ruleDescriptions: {
     'sample-rule-a': 'Primera regla obligatoria',
@@ -67,7 +68,6 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
     'sample-rule-a': {
       speed: 'light',
       phase: 'normal',
-      fix: 'none',
       md: false,
       ast: false,
       changedOnly: false,
@@ -76,7 +76,6 @@ const CANONICAL_VALID_OPTIONS: AuditorOptions<SampleRuleId> = {
     'sample-rule-b': {
       speed: 'light',
       phase: 'normal',
-      fix: 'none',
       md: false,
       ast: false,
       changedOnly: false,

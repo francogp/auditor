@@ -10,8 +10,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isMainModule } from './cliUtils.ts';
-import { runSetup } from './setup_env.ts';
+
 import {
   getProcessCliArgs,
   parseCittyArgs,
@@ -19,6 +18,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
+import { isMainModule } from './cliUtils.ts';
+import { runSetup } from './setup_env.ts';
 
 const CHECK_ENV_ARGS = {
   ...COMMON_CLI_ARGS,
@@ -161,9 +162,7 @@ function printEnvironmentRemediation(nodeReq: string, npmReq: string, npmDetecte
   console.error(`  - npm:     \x1b[33m${npmReq}\x1b[0m (Detected: v${npmDetected})\n`);
 
   console.error('\x1b[32m\x1b[1m💡 HOW TO RESOLVE WITHOUT AFFECTING OTHER PROJECTS:\x1b[0m');
-  console.error(
-    'Run the project setup script to activate the isolated environment:'
-  );
+  console.error('Run the project setup script to activate the isolated environment:');
   if (isWindows) {
     console.error('  .\\setup-windows.ps1');
     console.error('  (or run: vp env use ' + targetNodeVer + ')');

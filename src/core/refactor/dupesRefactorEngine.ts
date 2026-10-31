@@ -8,15 +8,19 @@
  * Inherits directly from BaseRefactorEngine with strict FallowArchitectureAuditor injection.
  */
 
-import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import { toPosixRelative } from '../safePath.ts';
-import { tryOrNull } from '../safeUtils.ts';
+import path from 'node:path';
+
 import { FallowArchitectureAuditor } from '../../suites/architecture/validate_fallow.ts';
 import { resolveFallowBinary } from '../../suites/architecture/validate_similar_code.ts';
+import { toPosixRelative } from '../safePath.ts';
+import { tryOrNull } from '../safeUtils.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
 import { HybridHarnessEngine } from './hybridHarness.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import type {
   FallowDupesOutput,
   FallowDeadCodeOutput,
@@ -56,6 +60,8 @@ export function determineTopology(files: readonly string[]): CloneTopology {
   return hasVue ? 'cross-file-vue-ts' : 'cross-file-ts';
 }
 
+export type DupesRefactorEngineOptions = RefactorEngineOptions<FallowArchitectureAuditor>;
+
 export class DupesRefactorEngine extends BaseRefactorEngine<
   TriagedCloneCandidate,
   RefactorPlan,
@@ -65,19 +71,13 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
   public readonly configSectionKey = 'fallow' as const;
   private readonly cachedCandidatesByMin = new Map<number, readonly TriagedCloneCandidate[]>();
 
-  constructor(
-    auditorOrOptions?: FallowArchitectureAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: DupesRefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<FallowArchitectureAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof FallowArchitectureAuditor
-        ? auditorOrOptions
-        : new FallowArchitectureAuditor({
-            projectRoot:
-              typeof auditorOrOptions === 'string'
-                ? auditorOrOptions
-                : auditorOrOptions?.projectRoot ?? process.cwd()
-          });
+      opts.auditor ??
+      new FallowArchitectureAuditor({
+        projectRoot: opts.projectRoot ?? process.cwd()
+      });
     super(auditor);
   }
 
@@ -87,10 +87,7 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
     return all.filter((c) => c.files.some((f) => toPosixRelative(this.projectRoot, f) === relNorm));
   }
 
-  public override createPlan(
-    id: string,
-    findings: readonly TriagedCloneCandidate[]
-  ): RefactorPlan {
+  public override createPlan(id: string, findings: readonly TriagedCloneCandidate[]): RefactorPlan {
     const targetFiles = Array.from(new Set(findings.flatMap((f) => f.files)));
     return {
       version: 1,
@@ -133,11 +130,7 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
     );
 
     const dead = tryOrNull(() =>
-      runFallowJson<FallowDeadCodeOutput>(
-        'dead-code',
-        ['--include-dupes'],
-        this.projectRoot
-      )
+      runFallowJson<FallowDeadCodeOutput>('dead-code', ['--include-dupes'], this.projectRoot)
     );
     const deadFiles = new Set(
       dead ? dead.unused_files.map((f) => toPosixRelative(this.projectRoot, f.path)) : []
@@ -184,4 +177,3 @@ export class DupesRefactorEngine extends BaseRefactorEngine<
     return sorted;
   }
 }
-

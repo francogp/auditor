@@ -55,12 +55,12 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 		]);
 		const config = getAuditConfig(effectiveRoot);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

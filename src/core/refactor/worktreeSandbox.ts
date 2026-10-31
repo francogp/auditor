@@ -6,10 +6,11 @@
  * without mutating the working tree or risking git regressions.
  */
 
+import { execSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
 import { styleText } from 'node:util';
+
 import { safeRmSync, tryOrNull } from '../safeUtils.ts';
 
 export interface WorktreeSession {
@@ -26,7 +27,7 @@ export class WorktreeSandboxManager {
    */
   public static createSession(
     repoRoot: string,
-    sessionName: string = `refactor-wt-${Date.now()}`
+    sessionName: string = `refactor-wt-${Temporal.Now.instant().epochMilliseconds}`
   ): WorktreeSession {
     const absRepo = path.resolve(repoRoot);
     const sandboxBase = path.resolve(process.cwd(), 'scratch', 'refactor-sandbox');
@@ -134,7 +135,9 @@ export async function executeInWorktreeWithVerification(
       execSync(verifyCommand, { cwd: session.worktreeDir, stdio: 'inherit' });
       await applyFn(projectRoot);
     } catch (err) {
-      throw new Error(`TypeScript verification failed in worktree sandbox: ${(err as Error).message}`);
+      throw new Error(
+        `TypeScript verification failed in worktree sandbox: ${(err as Error).message}`
+      );
     }
   } finally {
     session.cleanup();
@@ -153,7 +156,9 @@ export async function applyPlanFileWithWorktreeVerification<TPlan>(
   options: WorktreeVerificationOptions = {}
 ): Promise<void> {
   if (!rawPlanPath || !fs.existsSync(rawPlanPath)) {
-    console.error(styleText('red', `❌ Error: Debes especificar un archivo de plan: ${commandHelpHint}`));
+    console.error(
+      styleText('red', `❌ Error: Debes especificar un archivo de plan: ${commandHelpHint}`)
+    );
     process.exit(1);
   }
 
@@ -169,13 +174,22 @@ export async function applyPlanFileWithWorktreeVerification<TPlan>(
         },
         options
       );
-      console.log(styleText('green', '✅ Verificación exitosa en Worktree y cambios aplicados al repositorio.'));
+      console.log(
+        styleText(
+          'green',
+          '✅ Verificación exitosa en Worktree y cambios aplicados al repositorio.'
+        )
+      );
     } catch (err) {
-      console.error(styleText('red', `❌ Falló la verificación en el worktree: ${(err as Error).message}`));
+      console.error(
+        styleText('red', `❌ Falló la verificación en el worktree: ${(err as Error).message}`)
+      );
       process.exit(1);
     }
   } else {
-    console.log(styleText('yellow', '⚡ Aplicando refactorización directamente en el árbol de trabajo...'));
+    console.log(
+      styleText('yellow', '⚡ Aplicando refactorización directamente en el árbol de trabajo...')
+    );
     await applyFn(projectRoot, plan);
   }
 }

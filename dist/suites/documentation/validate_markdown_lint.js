@@ -2,9 +2,9 @@ import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
 import { isDeclaredByCoverage } from "../../core/auditCoverage.js";
-import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -117,6 +117,8 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["markdownlint-issue"],
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -127,13 +129,11 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["markdownlint-issue"]),
-			fixableRuleIds: ["markdownlint-issue"],
+			}),
 			id: "validate_markdown_lint",
 			name: "Markdownlint Style & Hygiene Validator",
 			description: "Style, spacing, and formatting in markdown documentation",
@@ -177,7 +177,7 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 			this.recordScanned(f);
 			this.markRuleEvaluated("markdownlint-issue");
 		}
-		const isFixMode = this.isFixModeRequested();
+		const isFixMode = this.isFixActive();
 		if (isFixMode && hasConfigFile) this.repairMarkdownLintConfig(configPath);
 		const binPath = resolveNodeModuleBin(this.projectRoot, "markdownlint-cli/markdownlint.js");
 		const relMdFiles = mdFiles.map((f) => toPosixRelative(this.projectRoot, f));

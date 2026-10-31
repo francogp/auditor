@@ -74,7 +74,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/types/user.ts'), strictCode, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -92,7 +92,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/untyped.ts'), code, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-untyped-collection');
@@ -110,7 +110,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/types/contract.ts'), code, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-naked-string-primitive');
@@ -124,7 +124,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/ambiguous.ts'), code, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-ambiguous-union');
@@ -138,7 +138,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(path.join(tempDir, 'src/unbranded.ts'), code, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-unbranded-id');
@@ -159,7 +159,7 @@ describe('DomainTypesAuditor', () => {
     await fs.writeFile(targetFile, code, 'utf-8');
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'domain-naked-string-primitive');
@@ -231,7 +231,7 @@ describe('DomainTypesAuditor', () => {
     );
 
     const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('skipped');
@@ -480,9 +480,11 @@ export function isQuoteOrDelimiter(char: string): boolean {
       expect(uri).toBe('/assets/sprite.png');
     });
 
-    it('supports auto-fix mode with fix: true', () => {
-      const auditor = new DomainTypesAuditor({ fix: true });
-      expect(auditor.isFixActive()).toBe(true);
+    it('supports auto-fix capability for fixable domain rules', async () => {
+      const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
+      expect(auditor.capabilities.fix).not.toBe('none');
+      const result = await auditor.fix();
+      expect(result).toBeDefined();
     });
   });
 });

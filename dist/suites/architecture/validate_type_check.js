@@ -99,6 +99,7 @@ var TypeCheckAuditor = class extends BaseAuditor {
 		const config = getAuditConfig(projectRoot);
 		const targetRoots = [...config.paths?.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...config.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -108,7 +109,6 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
 				speed: ["light", "full"],
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

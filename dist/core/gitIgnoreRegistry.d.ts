@@ -1,21 +1,17 @@
 import { GitIgnoreRequirement } from "./auditContract.js";
+import { BaseEntityRegistry, IBaseEntityRegistry } from "./baseRegistry.js";
 export declare const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[];
-export declare class GitIgnoreRegistry {
-  private static readonly requirements;
+export type IGitIgnoreRegistry = IBaseEntityRegistry<GitIgnoreRequirement>;
+export declare class GitIgnoreRegistryImpl extends BaseEntityRegistry<GitIgnoreRequirement> implements IGitIgnoreRegistry {
+  constructor();
   /**
-   * Registers a single gitignore requirement.
+   * Registers a single gitignore requirement with validation.
    */
-  static register(requirement: GitIgnoreRequirement): void;
-  /**
-   * Registers multiple gitignore requirements.
-   */
-  static registerMany(requirements: readonly GitIgnoreRequirement[]): void;
-  /**
-   * Returns all currently registered gitignore requirements.
-   */
-  static getRequirements(): GitIgnoreRequirement[];
-  /**
-   * Resets the registry back to core framework defaults.
-   */
-  static reset(): void;
+  register(requirement: GitIgnoreRequirement): void;
 }
+/**
+ * Universal singleton instance for GitIgnoreRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export declare const GitIgnoreRegistry: IGitIgnoreRegistry;
+export type GitIgnoreRegistry = IGitIgnoreRegistry;

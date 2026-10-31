@@ -4,10 +4,11 @@
  * Shared utilities for CLI tools and entrypoints.
  */
 
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+
 import { getAuditConfig, sanitizePath } from '../core/auditConfig.ts';
 import { parseJsonObjectOutput } from '../core/reportUtils.ts';
 import { safeReadFileSync, safeJsonParse, tryOrNull, tryOrDefault } from '../core/safeUtils.ts';

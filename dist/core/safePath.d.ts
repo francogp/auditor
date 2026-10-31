@@ -1,5 +1,5 @@
 import { sanitizePath } from "./auditConfigLoader.js";
-import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
 /**
  * Resolves absolute paths safely within project root boundary using native Node.js path APIs.
  * Prevents directory traversal attacks (CWE-22).
@@ -51,4 +51,4 @@ export declare function buildRepositoryFileIndex(rootDir: string, isIgnoredFn: (
  * Strips recursive glob wildcards and trailing slashes from path patterns.
  */
 export declare function stripGlobSuffix(pattern: string): string;
-export { isPathExempt, normalizePosixPath, sanitizePath };
+export { normalizePosixPath, sanitizePath };

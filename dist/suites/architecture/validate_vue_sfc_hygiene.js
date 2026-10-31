@@ -31,7 +31,6 @@ const VUE_SFC_HYGIENE_RULES = [
 	"vue-template-magic-calculation",
 	...MODERN_VUE_HYGIENE_RULES
 ];
-const FIXABLE_VUE_HYGIENE_RULES = [...MODERN_VUE_HYGIENE_RULES];
 const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 const OPTIONS_API_EXPORT_REGEX = /export\s+default\s*\{/g;
 const SCRIPT_SETUP_EXPORT_REGEX = /^\s*export\s+(?:const|let|var|function|type|interface|class|enum)\b/gm;
@@ -71,21 +70,20 @@ var VueSfcHygieneAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => [...cfg.paths.componentsRoots ?? [], ...cfg.paths.viewsRoots ?? []]);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["ime-unsafe-enter-submit", "vue-template-no-side-effects"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
-			fix: options.fix,
 			roots: targetRoots,
 			projectRoot: effectiveRoot,
 			ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
 				critical: false
-			}, FIXABLE_VUE_HYGIENE_RULES),
-			fixableRuleIds: FIXABLE_VUE_HYGIENE_RULES,
+			}),
 			id: "validate_vue_sfc_hygiene",
 			name: "Vue SFC & Script Setup Hygiene Auditor",
 			description: "Verifies Vue SFC standards and <script setup lang=\"ts\">",

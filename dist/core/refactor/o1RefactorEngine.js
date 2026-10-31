@@ -1,4 +1,4 @@
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 import { O1DataStructuresAuditor } from "../../suites/domain_data/validate_o1_data_structures.js";
 // src/core/refactor/o1RefactorEngine.ts
@@ -16,8 +16,9 @@ const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))
 var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-o1";
 	configSectionKey = "domain";
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof O1DataStructuresAuditor ? auditorOrOptions : new O1DataStructuresAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new O1DataStructuresAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {
@@ -152,8 +153,8 @@ var O1RefactorEngine = class O1RefactorEngine extends BaseRefactorEngine {
 			}
 			if (content.includes(`const ${hoist.setIdentifier}`)) continue;
 			const arrayDefRegex = new RegExp(`((?:export\\s+)?const\\s+${hoist.arrayIdentifier}\\s*=[^;]+;)`, "m");
-			if (arrayDefRegex.test(content)) content = content.replace(arrayDefRegex, `$1\nexport const ${hoist.setIdentifier}: ReadonlySet<any> = new Set(${hoist.arrayIdentifier});`);
-			else content = `const ${hoist.setIdentifier}: ReadonlySet<any> = new Set(${hoist.arrayIdentifier});\n${content}`;
+			if (arrayDefRegex.test(content)) content = content.replace(arrayDefRegex, `$1\nexport const ${hoist.setIdentifier}: ReadonlySet<unknown> = new Set(${hoist.arrayIdentifier});`);
+			else content = `const ${hoist.setIdentifier}: ReadonlySet<unknown> = new Set(${hoist.arrayIdentifier});\n${content}`;
 			count++;
 		}
 		return {

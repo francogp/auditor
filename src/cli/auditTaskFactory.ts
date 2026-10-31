@@ -6,21 +6,22 @@
  */
 
 import path from 'node:path';
+
+import { type loadAuditConfig } from '../core/auditConfig.ts';
 import {
   type AuditFamily,
   type AuditTaskDefinition,
-  type AuditorRuleCapabilities,
+  type AuditorCapabilities,
   type AuditExecutionSpeed,
   type AuditExecutionPhase,
   resolveEffectiveSpeed,
   resolveFamilyMetadata
 } from '../core/auditContract.ts';
-import { type loadAuditConfig } from '../core/auditConfig.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 import { PackageScriptRegistry } from '../core/packageScriptRegistry.ts';
-import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
-import { toPosixRelative, normalizePosixPath } from '../core/safePath.ts';
 import { DEFAULT_PERMISSIONS } from '../core/permissionGuard.ts';
+import { toPosixRelative, normalizePosixPath } from '../core/safePath.ts';
+import { extractAuditorMetadataFromFile } from './auditorMetadata.ts';
 export { DEFAULT_PERMISSIONS };
 
 const DEFAULT_TIMEOUT_MS = 0; // 0 = disabled: zero arbitrary timeouts by default
@@ -110,7 +111,7 @@ export function shouldSkipTaskByFilters(
 }
 
 export function shouldSkipTaskByCapabilities(
-  capabilities: Partial<AuditorRuleCapabilities> | undefined,
+  capabilities: Partial<AuditorCapabilities> | undefined,
   options: DiscoveryOptions
 ): boolean {
   const isPostBuildMode = Boolean(

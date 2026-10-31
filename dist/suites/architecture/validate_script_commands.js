@@ -93,12 +93,12 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 		const scriptsRoots = config.paths?.scriptsRoots?.length ? config.paths.scriptsRoots : DEFAULT_AUDIT_CONFIG.paths.scriptsRoots;
 		const scriptsGlobs = scriptsRoots.map((r) => `${r}/**/*.{ts,js,mjs,cjs}`);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(SCRIPT_COMMANDS_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

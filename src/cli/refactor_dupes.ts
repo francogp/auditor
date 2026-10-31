@@ -8,6 +8,7 @@
 
 import path from 'node:path';
 import { styleText } from 'node:util';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -26,10 +27,7 @@ import {
 import { isMainModule } from './cliUtils.ts';
 
 export const REFACTOR_DUPES_CLI_COMMAND = 'auditor:dupes';
-import {
-  DupesRefactorEngine,
-  runFallowJson
-} from '../core/refactor/dupesRefactorEngine.ts';
+import { DupesRefactorEngine, runFallowJson } from '../core/refactor/dupesRefactorEngine.ts';
 import { HybridHarnessEngine } from '../core/refactor/hybridHarness.ts';
 import { MicroContextExtractor } from '../core/refactor/microContextExtractor.ts';
 import type {
@@ -120,7 +118,9 @@ export function handleDupesDiscover(
   ];
 
   const rows: CandidateRow[] = candidates.slice(0, 20).map((c, i) => {
-    const statusLabel = c.isDeadCodeTarget ? styleText('red', 'DEAD') : styleText('green', 'ACTIVE');
+    const statusLabel = c.isDeadCodeTarget
+      ? styleText('red', 'DEAD')
+      : styleText('green', 'ACTIVE');
     const fileNames = c.files.map((f) => path.basename(f)).join(', ');
     return {
       index: String(i + 1),
@@ -148,7 +148,10 @@ export function handleDupesInspect(
 ): void {
   if (!fp) {
     console.error(
-      styleText('red', '[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>')
+      styleText(
+        'red',
+        '[Error] You must specify a fingerprint: auditor:dupes inspect <fingerprint>'
+      )
     );
     process.exit(1);
   }
@@ -235,12 +238,15 @@ export async function executeDupesCli(parsed: Record<string, unknown>): Promise<
     return;
   }
 
-  const projectRoot = path.resolve(String(parsed.project || '.'));
+  const rawProject = typeof parsed.project === 'string' ? parsed.project : '.';
+  const projectRoot = path.resolve(rawProject);
   const isJson = Boolean(parsed.json);
   const isVerbose = resolveHumanModeFromArgs(parsed);
 
   if (subCommand === 'discover') {
-    const minOcc = parseInt(String(parsed['min-occurrences'] || '2'), 10);
+    const rawMinOcc =
+      typeof parsed['min-occurrences'] === 'string' ? parsed['min-occurrences'] : '2';
+    const minOcc = parseInt(rawMinOcc, 10);
     const engine = new DupesRefactorEngine({ projectRoot });
     handleDupesDiscover(projectRoot, engine.triageCandidates(minOcc), isJson, isVerbose);
     return;

@@ -21,13 +21,19 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
+import path from 'node:path';
+
+import { scanNativePathAst } from '../../analyzers/nativePaths/nativePathScanner.ts';
 import {
-  CANONICAL_IGNORE_DIRS,
+  NATIVE_PATH_RULES,
+  type NativePathRuleId,
+  type NativePathViolation
+} from '../../analyzers/nativePaths/nativePathTypes.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { toPosixRelative } from '../../core/auditCoverage.ts';
+import {
   SCANNABLE_EXTENSIONS,
-  isPathIgnored,
   collectRepositoryFiles,
   getEffectiveScannableRoots,
   FileScanAuditor,
@@ -39,18 +45,10 @@ import {
   resolveFileScanRoots,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { toPosixRelative } from '../../core/auditCoverage.ts';
-import {
-  NATIVE_PATH_RULES,
-  type NativePathRuleId,
-  type NativePathViolation
-} from '../../analyzers/nativePaths/nativePathTypes.ts';
-import { scanNativePathAst } from '../../analyzers/nativePaths/nativePathScanner.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
-export { CANONICAL_IGNORE_DIRS, isPathIgnored, getEffectiveScannableRoots };
 export { NATIVE_PATH_RULES, type NativePathRuleId, type NativePathViolation };
 
 export interface NativePathAuditResult {
@@ -78,7 +76,10 @@ export function scanFileForNativePathViolations(
 }
 
 function createEmptyCounts(): Record<NativePathRuleId, number> {
-  return Object.fromEntries(NATIVE_PATH_RULES.map((r) => [r, 0])) as Record<NativePathRuleId, number>; // keys enumerated from NATIVE_PATH_RULES
+  return Object.fromEntries(NATIVE_PATH_RULES.map((r) => [r, 0])) as Record<
+    NativePathRuleId,
+    number
+  >; // keys enumerated from NATIVE_PATH_RULES
 }
 
 /**
@@ -224,18 +225,17 @@ const RULE_REMEDIATIONS: Record<NativePathRuleId, string> = {
 export class NativePathsAuditor extends FileScanAuditor<NativePathRuleId> {
   private readonly documentCache = new WeakMap<AuditedDocument, readonly NativePathViolation[]>();
 
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (cfg) => getEffectiveScannableRoots(cfg)
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) =>
+      getEffectiveScannableRoots(cfg)
     );
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(NATIVE_PATH_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,

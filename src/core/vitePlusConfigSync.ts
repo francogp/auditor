@@ -9,18 +9,19 @@
 import childProcess from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import semver from 'semver';
-import { safeReadFileSync, safeRmSync, tryOrNull } from './safeUtils.ts';
 
+import semver from 'semver';
 import { Project, SyntaxKind, QuoteKind, type SourceFile } from 'ts-morph';
+
 import { getAuditConfig, type AuditConfig } from './auditConfig.ts';
 import {
   getAuditorCanonicalOverrides,
   getAuditorMinimumVersions,
   normalizeToCaretRange
 } from './auditorMinimums.ts';
-import { toPosixRelative } from './safePath.ts';
 import { getPackageJson, writePackageJson } from './packageJson.ts';
+import { toPosixRelative } from './safePath.ts';
+import { safeReadFileSync, safeRmSync, tryOrNull } from './safeUtils.ts';
 import {
   buildCanonicalVitePlusAstSource,
   CANONICAL_LINT_RULES_MAP,
@@ -72,7 +73,7 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
 
     const raw = safeReadFileSync(candidatePath);
     if (raw) {
-      let extracted: string[] = []; // no-domain: Dynamic legacy ESLint ignore glob list
+      let extractedGlobs: readonly string[];
       if (candidate.endsWith('.json')) {
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         const rawList = Array.isArray(parsed.ignorePatterns)
@@ -80,11 +81,11 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
           : Array.isArray(parsed.ignores)
             ? parsed.ignores
             : [];
-        extracted = rawList.filter((item): item is string => typeof item === 'string');
+        extractedGlobs = rawList.filter((item): item is string => typeof item === 'string');
       } else {
-        extracted = extractEslintIgnoresFromAst(raw);
+        extractedGlobs = extractEslintIgnoresFromAst(raw);
       }
-      const globs = extracted.filter(
+      const globs = extractedGlobs.filter(
         (candidateGlob) => !LEGACY_CONFIG_FILES.some((f) => f === candidateGlob)
       );
       if (globs.length > 0) return globs;
@@ -134,9 +135,7 @@ export function resolveAuditConfigIgnoreGlobs(
     testIgnores.push('**/*.spec.ts', '**/*.test.ts', '**/*.simulation.ts');
   }
 
-  const degradationIgnores = (config.coverage?.acknowledgedDegradations ?? []).map((d) => d.glob);
   const coverageExemptIgnores = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-  const testCoverageExemptIgnores = config.testCoverage?.exemptGlobs ?? [];
 
   const dataDemoIgnores: string[] = []; // no-domain: Dynamic data/demo ignore glob accumulator
   if (target === 'lint') {
@@ -169,9 +168,7 @@ export function resolveAuditConfigIgnoreGlobs(
       ...dirIgnores,
       ...patternIgnores,
       ...exemptFiles,
-      ...degradationIgnores,
       ...coverageExemptIgnores,
-      ...testCoverageExemptIgnores,
       ...dataDemoIgnores,
       ...testIgnores,
       ...legacyIgnores,
@@ -266,7 +263,7 @@ export function cleanLegacyConfigFiles(projectRoot: string): readonly string[] {
     return [];
   }
 
-  let viteContent = '';
+  let viteContent: string;
   try {
     viteContent = fs.readFileSync(viteConfigPath, 'utf-8');
   } catch {
@@ -483,10 +480,7 @@ export function rewriteImportsToVitePlus(
         if (entry.name !== 'node_modules' && entry.name !== 'dist' && entry.name !== 'dev-dist') {
           walk(fullPath);
         }
-      } else if (
-        entry.isFile() &&
-        (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))
-      ) {
+      } else if (entry.isFile() && (entry.name.endsWith('.ts') || entry.name.endsWith('.js'))) {
         tryOrNull(() => {
           const raw = fs.readFileSync(fullPath, 'utf-8');
           const updated = rewriteModuleSpecifiersToVitePlusAst(raw, fullPath);
@@ -805,9 +799,9 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
 
   let modified = false;
   const nextDeps = pkg.dependencies ? { ...pkg.dependencies } : undefined;
-  const nextDevDeps: Record<string, string> = { ...(pkg.devDependencies ?? {}) };
-  const nextScripts: Record<string, string> = { ...(pkg.scripts ?? {}) };
-  const nextOverrides: Record<string, string> = { ...(pkg.overrides ?? {}) };
+  const nextDevDeps: Record<string, string> = { ...pkg.devDependencies };
+  const nextScripts: Record<string, string> = { ...pkg.scripts };
+  const nextOverrides: Record<string, string> = { ...pkg.overrides };
 
   const minVersions = getAuditorMinimumVersions();
   const canonicalOverrides = getAuditorCanonicalOverrides();

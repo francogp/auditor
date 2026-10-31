@@ -1,7 +1,7 @@
 import { toPosixRelative } from "./safePath.js";
 import "./auditContract.js";
-import { padVisual } from "./terminalVisuals.js";
 import { formatNumber } from "./durationFormatter.js";
+import { padVisual } from "./terminalVisuals.js";
 import path from "node:path";
 import { styleText } from "node:util";
 // src/core/fileTreeRenderer.ts

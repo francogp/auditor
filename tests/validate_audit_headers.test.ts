@@ -1,10 +1,10 @@
 import { describe, it, expect } from 'vite-plus/test';
 
+import { isPathIgnored } from '../src/core/auditorBase.ts';
 import {
   AuditHeadersAuditor,
   scanFileForIllegalHeaders,
-  auditAuditHeaders,
-  isPathIgnored
+  auditAuditHeaders
 } from '../src/suites/architecture/validate_audit_headers.ts';
 
 describe('validate_audit_headers (Illegal Audit Headers & File-Level Suppressions Auditor)', () => {

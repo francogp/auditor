@@ -15,7 +15,9 @@
  */
 
 import path from 'node:path';
+
 import { getAuditConfig } from './auditConfigLoader.ts';
+import { BaseEntityRegistry, type IBaseEntityRegistry } from './baseRegistry.ts';
 import { loadLockedSkills } from './lockedSkills.ts';
 import { normalizePosixPath } from './reportUtils.ts';
 
@@ -171,7 +173,9 @@ export function getEffectiveUnignoreDirs(projectRoot = process.cwd()): readonly 
   const derived = new Set<string>();
   if (config.documentation?.skillsRoots && config.documentation.skillsRoots.length > 0) {
     for (const r of config.documentation.skillsRoots) {
-      const topSegment = normalizePosixPath(path.relative(projectRoot, path.resolve(projectRoot, r))).split('/')[0];
+      const topSegment = normalizePosixPath(
+        path.relative(projectRoot, path.resolve(projectRoot, r))
+      ).split('/')[0];
       if (topSegment && topSegment !== '.') derived.add(topSegment);
     }
   }
@@ -192,25 +196,23 @@ export interface SuiteIgnoreRequirement {
   readonly reason?: string;
 }
 
-/**
- * Registry where sub-auditors and host extensions declare their suggested ignore defaults
- * to be dynamically collected and injected into newly created or scaffolded audit.config.ts files.
- */
-export class SuiteIgnoreRegistry {
-  private static readonly requirements = new Map<string, SuiteIgnoreRequirement>();
+export type ISuiteIgnoreRegistry = IBaseEntityRegistry<SuiteIgnoreRequirement>;
 
-  public static register(req: SuiteIgnoreRequirement): void {
-    this.requirements.set(req.suiteId, req);
-  }
-
-  public static getAll(): readonly SuiteIgnoreRequirement[] {
-    return Array.from(this.requirements.values());
-  }
-
-  public static reset(): void {
-    this.requirements.clear();
+export class SuiteIgnoreRegistryImpl
+  extends BaseEntityRegistry<SuiteIgnoreRequirement>
+  implements ISuiteIgnoreRegistry
+{
+  public constructor() {
+    super((req) => req?.suiteId);
   }
 }
+
+/**
+ * Universal singleton instance for SuiteIgnoreRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export const SuiteIgnoreRegistry: ISuiteIgnoreRegistry = new SuiteIgnoreRegistryImpl();
+export type SuiteIgnoreRegistry = ISuiteIgnoreRegistry;
 
 /**
  * Returns a deduplicated array of glob patterns representing all active ignore directories

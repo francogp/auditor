@@ -21,16 +21,17 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
+import path from 'node:path';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -128,16 +129,16 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
   private readonly allowedDatabaseDirs: ReadonlySet<string>;
   private readonly allowedDatabaseFiles: ReadonlySet<string>;
 
-  constructor(options: EphemeralStorageIsolationAuditorOptions = {}) {
+  public constructor(options: EphemeralStorageIsolationAuditorOptions = {}) {
     const effectiveRoots = options.roots ?? getEffectiveSourceRoots(options.projectRoot);
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(EPHEMERAL_STORAGE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -183,11 +184,11 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
           '1. Root Cause: Source code contains path literals or resolutions (`path.join`, `path.resolve`) targeting temporary directories inside `src/`, `scripts/`, `tests/`, or `database/`.\n' +
           '2. Diagnosis: Locate the temporary path reference at the reported line.\n' +
           '3. Canonical Solution:\n' +
-          '   a) Redirect paths to target `path.resolve(projectRoot, \'scratch\', ...)`.\n' +
+          "   a) Redirect paths to target `path.resolve(projectRoot, 'scratch', ...)`.\n" +
           '   b) For test fixtures, allocate temporary folders via `os.tmpdir()` (`fs.mkdtempSync`).\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Prohibited: `const dbPath = path.resolve(__dirname, \'temp\', \'test.db\');`\n' +
-          '   ✅ Canonical:  `const dbPath = path.resolve(process.cwd(), \'scratch\', \'test.db\');`'
+          "   ❌ Prohibited: `const dbPath = path.resolve(__dirname, 'temp', 'test.db');`\n" +
+          "   ✅ Canonical:  `const dbPath = path.resolve(process.cwd(), 'scratch', 'test.db');`"
       },
       coverage: {
         include: ['.gitignore', ...effectiveRoots.map((r) => `${r}/**/*.{ts,vue,js,sql,sh}`)],

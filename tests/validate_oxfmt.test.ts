@@ -26,7 +26,7 @@ describe('validate_oxfmt (4 Canary Matrix)', () => {
   });
 
   it('C-FMT-01: declares all expected canonical rules, 7-field capabilities, and remediations', () => {
-    const auditor = new OxfmtAuditor(tempDir);
+    const auditor = new OxfmtAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_oxfmt');
     expect(auditor.ruleIds).toEqual(OXFMT_RULES);
     expect(auditor.capabilities.speed).toBe('light');
@@ -72,7 +72,7 @@ describe('validate_oxfmt (4 Canary Matrix)', () => {
       'utf-8'
     );
 
-    const auditor = new OxfmtAuditor(tempDir);
+    const auditor = new OxfmtAuditor({ projectRoot: tempDir });
     await auditor.runAudit();
     const result = await auditor.finishAudit();
 
@@ -93,12 +93,11 @@ describe('validate_oxfmt (4 Canary Matrix)', () => {
     );
 
     // 1. Run in fix mode
-    const fixAuditor = new OxfmtAuditor({ projectRoot: tempDir, fix: true });
-    await fixAuditor.runAudit();
-    await fixAuditor.finishAudit();
+    const fixAuditor = new OxfmtAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
 
     // 2. Run in check mode to verify clean path
-    const checkAuditor = new OxfmtAuditor(tempDir);
+    const checkAuditor = new OxfmtAuditor({ projectRoot: tempDir });
     await checkAuditor.runAudit();
     const checkResult = await checkAuditor.finishAudit();
 

@@ -72,10 +72,10 @@ export declare function detectProjectDomainDuplicatesAndSubsets(files: Array<{
   list: CanonicalDomainInfo[];
 }, projectRoot?: string): CanonicalFinding[];
 export interface ValidateCanonicalDomainsOptions {
-  projectRoot?: string;
-  roots?: readonly string[];
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
 }
 export declare class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomainRuleId> {
-  constructor(optionsOrTarget?: string | ValidateCanonicalDomainsOptions);
+  constructor(options?: ValidateCanonicalDomainsOptions);
   runAudit(): Promise<void>;
 }

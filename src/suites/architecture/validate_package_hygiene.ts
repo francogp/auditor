@@ -1,17 +1,19 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import ts from 'typescript';
+
+import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
+import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
+import type { AuditConfig } from '../../core/auditConfigTypes.ts';
+import type { AuditFinding } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { getAuditConfig, AUDIT_CONFIG_FILE } from '../../core/auditConfig.ts';
-import type { AuditConfig } from '../../core/auditConfigTypes.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
-import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getPackageJson } from '../../core/packageJson.ts';
 import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { safeReadFileSync, safeJsonParse, safeRmSync, tryOrNull } from '../../core/safeUtils.ts';
@@ -195,10 +197,7 @@ export function parseKnipIssues(
 /**
  * Validates package-lock.json integrity, version standards, and absence of insecure HTTP registries.
  */
-export function verifyLockfileIntegrity(
-  projectRoot: string,
-  isFixMode = false
-): AuditFinding[] {
+export function verifyLockfileIntegrity(projectRoot: string, isFixMode = false): AuditFinding[] {
   const findings: AuditFinding[] = [];
   const lockfilePath = path.resolve(projectRoot, 'package-lock.json');
   const pkgJsonPath = path.resolve(projectRoot, 'package.json');
@@ -302,8 +301,7 @@ export function verifyLockfileIntegrity(
       file: 'package-lock.json',
       line: 1,
       context: 'insecure-http-resolved',
-      message:
-        'package-lock.json contains insecure package resolutions via unencrypted http://.'
+      message: 'package-lock.json contains insecure package resolutions via unencrypted http://.'
     });
   }
 
@@ -449,9 +447,11 @@ function toPosixGlobPattern(targetPath: string): string {
 }
 
 export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRuleId> {
-  constructor(options: { projectRoot?: string; fix?: boolean } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['package-unused-dependency'],
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -459,21 +459,14 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         fallbackBehavior: 'violation',
         fallbackRuleId: 'package-unlisted-dependency'
       },
-      ruleCapabilities: createRuleCapabilities(
-        PACKAGE_HYGIENE_RULES,
-        {
-          speed: ['heavy', 'full'],
-          phase: 'setup',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['package-unused-dependency']
-      ),
-      fixableRuleIds: ['package-unused-dependency'],
-      fix: options.fix,
+      ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
+        speed: ['heavy', 'full'],
+        phase: 'setup',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_package_hygiene',
       name: 'Package & Dependency Hygiene Auditor',
       description: 'Hygiene of orphaned and phantom dependencies',
@@ -698,7 +691,10 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
         'skills/**',
         '.agents/**',
         '**/*.d.ts',
-        ...(config.paths.ignoredDirs?.flatMap((d) => [toPosixGlobPattern(d), normalizePosixPath(d)]) ?? []),
+        ...(config.paths.ignoredDirs?.flatMap((d) => [
+          toPosixGlobPattern(d),
+          normalizePosixPath(d)
+        ]) ?? []),
         ...(config.paths.ignoredPatterns?.map((p) => normalizePosixPath(p)) ?? []),
         ...(config.paths.ignoreGlobs?.map((g) => normalizePosixPath(g)) ?? []),
         ...(this.extraIgnorePatterns?.map((g) => normalizePosixPath(g)) ?? []),
@@ -738,7 +734,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       cliFlags.push('--use-tsconfig-files');
     }
 
-    if (this.fixMode) {
+    if (this.isFixActive()) {
       cliFlags.push('--fix', '--fix-type', 'dependencies');
     }
 

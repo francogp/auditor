@@ -1,25 +1,26 @@
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import {
+  MODERN_WEB_PERF_RULES,
+  analyzeModernWebPerfMarkup,
+  analyzeModernWebPerfStyles,
+  type ModernWebPerfFinding
+} from '../../analyzers/webPerfModernAnalyzer.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   FileScanAuditor,
+  type FileScanRootsOptions,
   createRuleCapabilities,
   createUniformRemediationPhases,
   LIGHT_RULE_CAPABILITIES,
   resolveFileScanRoots
 } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { isPathExempt } from '../../core/safePath.ts';
+import { isPathExempt } from '../../core/reportUtils.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
-import {
-  MODERN_WEB_PERF_RULES,
-  analyzeModernWebPerfMarkup,
-  analyzeModernWebPerfStyles,
-  type ModernWebPerfFinding,
-  type ModernWebPerfRuleId
-} from '../../analyzers/webPerfModernAnalyzer.ts';
 
 enableCompileCache();
 
@@ -36,18 +37,23 @@ export const WEB_PERFORMANCE_RULES = [
 
 export type WebPerformanceRuleId = (typeof WEB_PERFORMANCE_RULES)[number];
 
-const FIXABLE_WEB_PERF_RULES: readonly WebPerformanceRuleId[] = [...MODERN_WEB_PERF_RULES];
-
 const SCANNABLE_EXTS = new Set(['.vue', '.html', '.htm', '.jsx', '.tsx', '.css', '.scss']);
 const MAX_RECOMMENDED_DOM_DEPTH = 16;
 
 export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanceRuleId> {
   private readonly exemptSvgPaths: readonly string[];
 
-  constructor(options: { projectRoot?: string; fix?: boolean; roots?: readonly string[] } = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const webRoots = resolveFileScanRoots(options);
     const webConfig = getAuditConfig(webRoots.effectiveRoot);
     super({
+      ruleFixers: {},
+      fixableRuleIds: [
+        'perf-lcp-lazy-conflict',
+        'perf-font-preload-crossorigin',
+        'perf-srcset-missing-sizes',
+        'perf-content-visibility-intrinsic-size'
+      ],
       id: 'validate_web_performance',
       name: 'Web Performance & Core Web Vitals Auditor',
       description: 'Web performance, Core Web Vitals, and frontend optimization',
@@ -59,7 +65,6 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
-      fix: options.fix,
       roots: webRoots.targetRoots,
       allowedExtensions: SCANNABLE_EXTS,
       ruleIds: WEB_PERFORMANCE_RULES,
@@ -169,12 +174,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
           '   ❌ Collapsed: `.section { content-visibility: auto; }`\n' +
           '   ✅ Reserved:  `.section { content-visibility: auto; contain-intrinsic-size: auto 500px; }`'
       },
-      ruleCapabilities: createRuleCapabilities(
-        WEB_PERFORMANCE_RULES,
-        LIGHT_RULE_CAPABILITIES,
-        FIXABLE_WEB_PERF_RULES
-      ),
-      fixableRuleIds: FIXABLE_WEB_PERF_RULES,
+      ruleCapabilities: createRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
       projectRoot: webRoots.effectiveRoot,
       coverage: deriveCoverageFromRoots(
         webRoots.targetRoots,
@@ -295,7 +295,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         for (const item of collectedFindings) {
           if (item.ruleId !== ruleId) continue;
           this.addViolation({
-            ruleId: item.ruleId as ModernWebPerfRuleId,
+            ruleId: item.ruleId,
             severity: 'error',
             message: item.message,
             file: relPath,
@@ -563,8 +563,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
         this.addViolation({
           ruleId: 'uncompressed-video',
           severity: 'error',
-          message:
-            'Video element with uncompressed container (.mov/.avi); use modern MP4 or WebM',
+          message: 'Video element with uncompressed container (.mov/.avi); use modern MP4 or WebM',
           file: relPath,
           line
         });

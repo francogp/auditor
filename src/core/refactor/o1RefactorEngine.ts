@@ -7,24 +7,26 @@
  * structuredClone migration, and ReadonlySet hoists.
  */
 
+import { O1DataStructuresAuditor } from '../../suites/domain_data/validate_o1_data_structures.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
+import type { O1FindingItem, O1RefactorPlan } from './refactorContracts.ts';
 import {
   executePlanFileReplacements,
   forEachSourceScriptLine,
   isSameFilePath
 } from './refactorFileScanner.ts';
-import type {
-  O1FindingItem,
-  O1RefactorPlan
-} from './refactorContracts.ts';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
-import { O1DataStructuresAuditor } from '../../suites/domain_data/validate_o1_data_structures.ts';
 
 const STATIC_ARRAY_INCLUDES_REGEX =
   /(?:\(\s*)?\b([A-Z][A-Z0-9_]+_(?:IDS|LIST|TYPES|CATEGORIES|NAMES|KINDS|ORDER|ERRORS|ITEMS|CONFIGS|DEFAULTS|FAMILIES|[A-Z0-9]+))(?:\s+as\s+[^)\s]+(?:\s+[^)\s]+)*)?(?:\s*\))?\.(includes|indexOf)\s*\(([^)]+)\)/g;
 
 const JSON_CLONE_REGEX = /\bJSON\.parse\s*\(\s*JSON\.stringify\s*\(([^)]+)\)\s*\)/g;
 const REDUNDANT_SPREAD_RETURN_REGEX = /return\s*\[\s*\.\.\.([\w$.]+(?:\([^)]*\))?)\s*\]\s*;/g;
+
+export type O1RefactorEngineOptions = RefactorEngineOptions<O1DataStructuresAuditor>;
 
 export class O1RefactorEngine extends BaseRefactorEngine<
   O1FindingItem,
@@ -34,19 +36,13 @@ export class O1RefactorEngine extends BaseRefactorEngine<
   public readonly toolId = 'auditor-o1';
   public readonly configSectionKey = 'domain' as const;
 
-  constructor(
-    auditorOrOptions?: O1DataStructuresAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: O1RefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<O1DataStructuresAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof O1DataStructuresAuditor
-        ? auditorOrOptions
-        : new O1DataStructuresAuditor({
-            projectRoot:
-              typeof auditorOrOptions === 'string'
-                ? auditorOrOptions
-                : auditorOrOptions?.projectRoot
-          });
+      opts.auditor ??
+      new O1DataStructuresAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 
@@ -124,9 +120,10 @@ export class O1RefactorEngine extends BaseRefactorEngine<
         if (!fullMatch || !arrayIdent || !method || !arg) continue;
 
         const setIdent = `${arrayIdent}_SET`;
-        const suggested = method === 'indexOf'
-          ? `(${setIdent}.has(${arg.trim()}) ? 0 : -1)`
-          : `${setIdent}.has(${arg.trim()})`;
+        const suggested =
+          method === 'indexOf'
+            ? `(${setIdent}.has(${arg.trim()}) ? 0 : -1)`
+            : `${setIdent}.has(${arg.trim()})`;
 
         findings.push({
           file: filePath,
@@ -221,10 +218,7 @@ export class O1RefactorEngine extends BaseRefactorEngine<
     };
   }
 
-  public static createPlan(
-    planId: string,
-    findings: readonly O1FindingItem[]
-  ): O1RefactorPlan {
+  public static createPlan(planId: string, findings: readonly O1FindingItem[]): O1RefactorPlan {
     return O1RefactorEngine.buildOptimizationPlan(planId, findings);
   }
 
@@ -239,7 +233,10 @@ export class O1RefactorEngine extends BaseRefactorEngine<
     let content = initialContent;
     let count = 0;
     for (const hoist of hoists) {
-      if (!isSameFilePath(hoist.file, relFile, baseDir) && !isSameFilePath(hoist.file, fullPath, baseDir)) {
+      if (
+        !isSameFilePath(hoist.file, relFile, baseDir) &&
+        !isSameFilePath(hoist.file, fullPath, baseDir)
+      ) {
         continue;
       }
 
@@ -258,10 +255,10 @@ export class O1RefactorEngine extends BaseRefactorEngine<
       if (arrayDefRegex.test(content)) {
         content = content.replace(
           arrayDefRegex,
-          `$1\nexport const ${hoist.setIdentifier}: ReadonlySet<any> = new Set(${hoist.arrayIdentifier});`
+          `$1\nexport const ${hoist.setIdentifier}: ReadonlySet<unknown> = new Set(${hoist.arrayIdentifier});`
         );
       } else {
-        content = `const ${hoist.setIdentifier}: ReadonlySet<any> = new Set(${hoist.arrayIdentifier});\n${content}`;
+        content = `const ${hoist.setIdentifier}: ReadonlySet<unknown> = new Set(${hoist.arrayIdentifier});\n${content}`;
       }
       count++;
     }

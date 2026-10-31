@@ -17,21 +17,20 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
+import path from 'node:path';
+
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   FileScanAuditor,
-  CANONICAL_IGNORE_DIRS,
-  isPathIgnored,
   getEffectiveScannableRoots,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -71,8 +70,6 @@ export interface AuditHeadersResult {
   readonly passed: boolean;
   readonly countsByRule: Record<string, number>;
 }
-
-export { CANONICAL_IGNORE_DIRS, isPathIgnored };
 
 const FALLOW_IGNORE_REGEX =
   /(?:\/\/|\/\*|<!--)\s*fallow-ignore(?:-file)?\b(?!\s*-(?:next-line|line)\b)/i;
@@ -225,11 +222,11 @@ export interface AuditHeadersOptions {
 export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
   private readonly collectedViolations: HeaderViolation[] = [];
 
-  constructor(options: AuditHeadersOptions = {}) {
+  public constructor(options: AuditHeadersOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
-    const headerRoots =
-      options.roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
+    const headerRoots = options.roots ?? getEffectiveScannableRoots(getAuditConfig(projectRoot));
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       roots: headerRoots,
@@ -237,7 +234,6 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
       ruleCapabilities: createRuleCapabilities(HEADER_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -294,7 +290,8 @@ export class AuditHeadersAuditor extends FileScanAuditor<HeaderRuleId> {
           '2. Diagnosis: Check for comments attempting to disable the magic numbers rule.\n' +
           '3. Canonical Solution: Extract numeric values into semantic constants or import them from design tokens.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   ❌ Banned:  /' + '/ magic-ok\n' +
+          '   ❌ Banned:  /' +
+          '/ magic-ok\n' +
           '   ✅ Clean:   export const NETWORK_RETRY_DELAY_MS = 5000;',
         'banned-style-suppression':
           '📖 REMEDIATION GUIDE: banned-style-suppression\n' +

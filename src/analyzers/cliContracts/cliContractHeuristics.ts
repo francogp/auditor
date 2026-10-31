@@ -15,15 +15,9 @@ export const GLOBAL_HOST_OBJECTS: ReadonlySet<string> = new Set([
   'self'
 ]); // runtime-set: O(1) global host lookup
 
-export const PROCESS_MODULE_SPECIFIERS: ReadonlySet<string> = new Set([
-  'process',
-  'node:process'
-]); // runtime-set: O(1) process module specifier lookup
+export const PROCESS_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(['process', 'node:process']); // runtime-set: O(1) process module specifier lookup
 
-export const UTIL_MODULE_SPECIFIERS: ReadonlySet<string> = new Set([
-  'util',
-  'node:util'
-]); // runtime-set: O(1) util module specifier lookup
+export const UTIL_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(['util', 'node:util']); // runtime-set: O(1) util module specifier lookup
 
 export const BANNED_CLI_PACKAGES: ReadonlySet<string> = new Set([
   'minimist',
@@ -93,10 +87,7 @@ export function unwrapCliExpression(expr: ts.Expression): ts.Expression {
 /**
  * Checks whether `process` is locally shadowed in an enclosing lexical scope.
  */
-function isProcessShadowedAt(
-  node: ts.Node,
-  shadowedScopes: ReadonlySet<ts.Node>
-): boolean {
+function isProcessShadowedAt(node: ts.Node, shadowedScopes: ReadonlySet<ts.Node>): boolean {
   if (shadowedScopes.size === 0) return false;
   let current: ts.Node | undefined = node.parent;
   while (current) {

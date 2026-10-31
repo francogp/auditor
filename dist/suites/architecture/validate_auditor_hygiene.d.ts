@@ -1,7 +1,8 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { AUDITOR_HOMEBREW_RULES, AuditorHomebrewRuleId } from "../../analyzers/homebrew/homebrewTypes.js";
+import "../../analyzers/homebrew/index.js";
 export declare class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
-  constructor(options?: string | {
+  constructor(options?: {
     projectRoot?: string;
   });
   private collectTargetFiles;

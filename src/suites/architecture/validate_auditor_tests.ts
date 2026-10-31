@@ -11,15 +11,19 @@
  *   3. At least one test verifying clean execution (0 errors, passed status).
  */
 
-import path from 'node:path';
 import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
 
 enableCompileCache();
 
@@ -142,51 +146,55 @@ function deriveAuditorTestsCoverage(projectRoot: string): { include: string[]; e
   const hasCoreSuites = fs.existsSync(path.join(projectRoot, suitesDir));
 
   const defaultAuditorRoots = DEFAULT_AUDIT_CONFIG.auditorHygiene?.roots ?? ['scripts/auditors'];
-  const auditorRoots = isSelfRepo && hasCoreSuites
-    ? [suitesDir]
-    : (config.auditorHygiene?.roots?.length ? config.auditorHygiene.roots : defaultAuditorRoots);
+  const auditorRoots =
+    isSelfRepo && hasCoreSuites
+      ? [suitesDir]
+      : config.auditorHygiene?.roots?.length
+        ? config.auditorHygiene.roots
+        : defaultAuditorRoots;
 
-  const testPatterns = isSelfRepo && hasCoreSuites
-    ? (tr: string) => [
-        path.posix.join(tr, '**', 'validate_*.test.ts'),
-        path.posix.join(tr, 'audit_project.test.ts')
-      ]
-    : (tr: string) => [
-        path.posix.join(tr, '**', '{validate,audit}_*.test.ts')
-      ];
+  const testPatterns =
+    isSelfRepo && hasCoreSuites
+      ? (tr: string) => [
+          path.posix.join(tr, '**', 'validate_*.test.ts'),
+          path.posix.join(tr, 'audit_project.test.ts')
+        ]
+      : (tr: string) => [path.posix.join(tr, '**', '{validate,audit}_*.test.ts')];
 
   const include = [
     ...auditorRoots.map((r: string) => `${r}/**/*.ts`),
     ...testRoots.flatMap((tr: string) => testPatterns(tr))
   ];
 
-  const exclude = isSelfRepo && hasCoreSuites
-    ? [
-        path.posix.join(suitesDir, 'architecture', 'audit_rules.ts'),
-        path.posix.join(suitesDir, 'architecture', 'stylelintSassTrapsPlugin.ts'),
-        ...testRoots.map((tr: string) => path.posix.join(tr, 'validate_critical_config.test.ts'))
-      ]
-    : [
-        ...auditorRoots.flatMap((r: string) => [
-          `${r}/**/_*`,
-          `${r}/**/report_*`,
-          `${r}/**/*Plugin.ts`,
-          `${r}/**/audit_rules.ts`
-        ]),
-        ...testRoots.flatMap((tr: string) => [
-          path.posix.join(tr, 'integration', '**'),
-          path.posix.join(tr, 'e2e', '**')
-        ])
-      ];
+  const exclude =
+    isSelfRepo && hasCoreSuites
+      ? [
+          path.posix.join(suitesDir, 'architecture', 'audit_rules.ts'),
+          path.posix.join(suitesDir, 'architecture', 'stylelintSassTrapsPlugin.ts'),
+          ...testRoots.map((tr: string) => path.posix.join(tr, 'validate_critical_config.test.ts'))
+        ]
+      : [
+          ...auditorRoots.flatMap((r: string) => [
+            `${r}/**/_*`,
+            `${r}/**/report_*`,
+            `${r}/**/*Plugin.ts`,
+            `${r}/**/audit_rules.ts`
+          ]),
+          ...testRoots.flatMap((tr: string) => [
+            path.posix.join(tr, 'integration', '**'),
+            path.posix.join(tr, 'e2e', '**')
+          ])
+        ];
 
   return { include, exclude };
 }
 
 export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
-  constructor(options: AuditorTestsAuditorOptions = {}) {
+  public constructor(options: AuditorTestsAuditorOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const { include, exclude } = deriveAuditorTestsCoverage(projectRoot);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       id: 'validate_auditor_tests',
@@ -196,7 +204,6 @@ export class AuditorTestsAuditor extends BaseAuditor<AuditorTestRuleId> {
       ruleCapabilities: createRuleCapabilities(AUDITOR_TEST_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

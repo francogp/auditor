@@ -15,7 +15,9 @@ const BACKSLASH_SEARCH_METHODS = /* @__PURE__ */ new Set([
 	"indexOf"
 ]);
 function isBackslashOnly(value) {
-	return value.length > 0 && [...value].every((ch) => ch === WIN_SEP);
+	if (value.length === 0) return false;
+	for (let i = 0; i < value.length; i++) if (value.charAt(i) !== WIN_SEP) return false;
+	return true;
 }
 function checkBackslashSearch(node, ctx) {
 	const mc = asMethodCall(node);

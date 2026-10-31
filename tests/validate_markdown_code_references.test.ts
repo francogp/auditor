@@ -66,7 +66,7 @@ Also check \`supabase/nonexistent_table.sql\`.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(2);
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -84,7 +84,7 @@ Also check \`packages/legacy_pkg\`.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(2);
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
@@ -108,7 +108,7 @@ Refer to \`src/data/items.ts\` or \`src/data/items\` for details.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
@@ -129,7 +129,7 @@ Refer to \`src/data/Items.ts\` for details.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
@@ -149,7 +149,7 @@ Refer to \`src/data/Items.ts\` for details.
     await fs.writeFile(path.join(sessionDir, 'AGENTS.md'), agentsContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
@@ -169,7 +169,7 @@ Path alias (ignored): @/components/Button.vue
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
@@ -192,7 +192,7 @@ import './src/nonexistent/sample.scss';
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
@@ -211,7 +211,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
       projectRoot: tempDir,
       knownValidAbstractPaths: ['scripts/.cache/']
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
     expect(brokenRefs.length).toBe(0);
@@ -226,7 +226,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(2);
     const versionFindings = result.findings.filter(
@@ -254,7 +254,7 @@ Refer to @/clean-code.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -271,7 +271,7 @@ Temporary artifacts are placed in \`scratch/bundle_stats.html\`.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
@@ -293,7 +293,7 @@ Refer to @/domain-type-first and @/auditor.
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
     expect(skillFindings).toHaveLength(0);
@@ -386,7 +386,7 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     await fs.writeFile(path.join(tempDir, 'README.md'), mdContent, 'utf-8');
 
     const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     const outdatedFindings = result.findings.filter(
       (f) => f.ruleId === 'markdown-outdated-project-version'
@@ -425,15 +425,9 @@ Upgrade command example: \`npm run auditor:update -- v9.0.0\`
     ].join('\n');
     await fs.writeFile(readmePath, mdContent, 'utf-8');
 
-    const prevArgv = [...process.argv];
-    process.argv = [...prevArgv, '--fix'];
-    try {
-      const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
-      const result = await auditor.execute();
-      expect(result.summary.errors).toBe(0);
-    } finally {
-      process.argv = prevArgv;
-    }
+    const auditor = new MarkdownCodeReferencesAuditor({ roots: ['.'], projectRoot: tempDir });
+    const result = await auditor.fix();
+    expect(result.summary.errors).toBe(0);
 
     const updated = await fs.readFile(readmePath, 'utf-8');
     expect(updated).toContain('(e.g. `#v8.7.1`)');

@@ -227,22 +227,20 @@ function extendsAuditorConfig(parsedConfig) {
 	return (Array.isArray(rawExtends) ? rawExtends : rawExtends ? [rawExtends] : []).some((item) => typeof item === "string" && item.includes("auditor"));
 }
 var ValidateStylelintConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(STYLELINT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [...STYLELINT_CONFIG_RULES]),
-			fixableRuleIds: [...STYLELINT_CONFIG_RULES],
+			}),
 			configFiles: [STYLELINT_CONFIG_REQUIREMENT],
 			id: "validate_stylelint_config",
 			name: "Stylelint Configuration Validator",
@@ -277,8 +275,7 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 				"stylelint-config-missing-order": "1. Root Cause:\nThe \"order/order\" rule is missing or does not define block partitioning (hasBlock: true/false) for SCSS mixins and at-rules.\nPartitioning guarantees that blockless mixins (@include theme) are declared before CSS properties, and block mixins (@include respond-to) are declared at the end alongside nested selectors.\n\n2. Diagnosis:\nInspect \"order/order\" in .stylelintrc.json rules. The auditor enforces a deterministic structure to prevent specificity leaks in compiled CSS.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to repair the configuration automatically.\n2. Alternatively, extend \"./node_modules/@francogp/auditor/.stylelintrc.json\" to inherit canonical mixin ordering.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix"
 			},
 			coverage: { include: [".stylelintrc*"] },
-			projectRoot,
-			fix: optionsObj?.fix
+			projectRoot
 		});
 	}
 	auditPlugin(parsedConfig, targetFile) {

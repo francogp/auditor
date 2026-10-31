@@ -9,6 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import { isPathContained, toPosixRelative } from './safePath.ts';
 
 export interface GitIgnoreRule {
@@ -62,7 +63,7 @@ export class GitIgnoreMatcher {
   private readonly rules: GitIgnoreRule[] = [];
   private readonly ignoredDirPrefixes: string[] = [];
 
-  constructor(rootDir: string = process.cwd(), customGitignorePath?: string) {
+  public constructor(rootDir: string = process.cwd(), customGitignorePath?: string) {
     this.rootDir = path.resolve(rootDir);
     const gitignorePath = customGitignorePath ?? path.join(this.rootDir, '.gitignore');
     this.loadRules(gitignorePath);

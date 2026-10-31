@@ -5,8 +5,8 @@ import "./safePath.js";
 import { extractExportedConfigObjectLiteral } from "./astContext.js";
 import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier.js";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import ts from "typescript";
+import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 // src/core/configRatchet.ts
 /**
@@ -268,7 +268,7 @@ function inspectLinterConfigChanges(file, onlineContent, localContent) {
 		if (onlineSev !== null && localSev !== null && localSev < onlineSev) relaxations.push({
 			file,
 			path: `rules.${rule}`,
-			description: `Demoted rule '${rule}' from severity '${onlineRuleVal}' to '${localRuleVal}'`,
+			description: `Demoted rule '${rule}' from severity '${String(onlineRuleVal)}' to '${String(localRuleVal)}'`,
 			onlineValue: onlineRuleVal,
 			localValue: localRuleVal
 		});

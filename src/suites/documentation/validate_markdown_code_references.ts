@@ -24,27 +24,30 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { tryOrDefault, tryOrNull } from '../../core/safeUtils.ts';
+import path from 'node:path';
+
+import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
-  getEffectiveUnignoreDirs,
-  getEffectiveIgnoreGlobs,
   isPathIgnored,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import type { FindingSeverity } from '../../core/auditContract.ts';
+import {
+  getEffectiveIgnoreGlobs,
+  getEffectiveUnignoreDirs
+} from '../../core/canonicalIgnoreRegistry.ts';
 import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
-import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 import {
   resolveProjectVersionInfo,
   scanAndFixMarkdownProjectVersions
 } from '../../core/markdownVersionValidator.ts';
+import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
+import { tryOrDefault, tryOrNull } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -83,7 +86,6 @@ interface ViolationEmitter {
     fixable?: boolean;
   }): void;
 }
-
 
 function getPersistenceDirs(config: ReturnType<typeof getAuditConfig>): string[] {
   if (config.persistence?.engine === 'none') return [];
@@ -633,32 +635,31 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
   private readonly customAbstractPaths?: ReadonlySet<string>;
 
-  constructor(options: MarkdownCodeReferencesOptions = {}) {
+  public constructor(options: MarkdownCodeReferencesOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     const effectiveScanRoots = resolveMarkdownScanDirectories(effectiveRoot, options.roots);
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['markdown-outdated-project-version'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        MARKDOWN_CODE_REFERENCE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: true,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        ['markdown-outdated-project-version']
-      ),
-      fixableRuleIds: ['markdown-outdated-project-version'],
+      ruleCapabilities: createRuleCapabilities(MARKDOWN_CODE_REFERENCE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: true,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_markdown_code_references',
       name: 'Markdown Code References Validator',
       description: 'Validates paths, scripts, casing, and skills in markdown',
       family: 'documentation',
       ruleIds: MARKDOWN_CODE_REFERENCE_RULES,
-      ruleRemediationPhases: createUniformRemediationPhases(MARKDOWN_CODE_REFERENCE_RULES, 'polish'),
+      ruleRemediationPhases: createUniformRemediationPhases(
+        MARKDOWN_CODE_REFERENCE_RULES,
+        'polish'
+      ),
       packageName: 'Doc',
       configKey: 'documentation.enabled',
       defaultConfig: { enabled: true },
@@ -829,7 +830,16 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
       if (relPath.endsWith('AGENTS.md')) {
         dirEntries = tryOrDefault(() => fs.readdirSync(fileDir), []);
       }
-      docs.push({ filePath, relPath, rawContent, rawLines, lines, isSkillDoc, fileDir, dirEntries });
+      docs.push({
+        filePath,
+        relPath,
+        rawContent,
+        rawLines,
+        lines,
+        isSkillDoc,
+        fileDir,
+        dirEntries
+      });
     }
 
     // 1. markdown-broken-source-ref
@@ -918,6 +928,29 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
 
     this.context.setMetric('Scanned Markdown Files', mdFiles.length);
     this.context.setMetric('Analyzed Code References', referencesChecked);
+  }
+
+  public repairOutdatedVersionReferences(): void {
+    const versionInfo = resolveProjectVersionInfo(this.rootDir);
+    if (!versionInfo) return;
+    const mdFiles = this.collectMarkdownFiles();
+    for (const relFile of mdFiles) {
+      const fullPath = path.resolve(this.rootDir, relFile);
+      try {
+        const raw = fs.readFileSync(fullPath, 'utf8');
+        const lines = raw.split(/\r?\n/);
+        const { updatedContent } = scanAndFixMarkdownProjectVersions(relFile, lines, versionInfo);
+        if (updatedContent !== null && updatedContent !== raw) {
+          fs.writeFileSync(fullPath, updatedContent, 'utf8');
+        }
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+          process.stderr.write(
+            `[validate_markdown_code_references] Error reading ${relFile}: ${String(err)}\n`
+          );
+        }
+      }
+    }
   }
 
   private collectMarkdownFiles(): string[] {

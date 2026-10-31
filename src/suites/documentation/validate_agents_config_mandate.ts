@@ -11,16 +11,21 @@
 
 import fsSync from 'node:fs';
 import path from 'node:path';
+
 import {
   extractContractSections,
   injectOrUpdateMandateInAgentsMd,
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
+import type { RuleFixContext, AnyRuleFixerFn } from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 
 export type AgentsConfigMandateRuleId =
   | 'agents-missing-config-mandate'
@@ -153,8 +158,7 @@ export function getCanonicalOfficialToolsSnippet(language: DocumentationLanguage
 
 export function getCanonicalArchitectureSnippet(language: DocumentationLanguage = 'en'): string {
   return (
-    CANONICAL_SNIPPET_REGISTRY.architecture[language] ??
-    CANONICAL_SNIPPET_REGISTRY.architecture.en
+    CANONICAL_SNIPPET_REGISTRY.architecture[language] ?? CANONICAL_SNIPPET_REGISTRY.architecture.en
   );
 }
 
@@ -558,37 +562,62 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
 ];
 
 export interface AgentsConfigMandateOptions {
-  projectRoot?: string;
-  fix?: boolean;
-  language?: DocumentationLanguage;
-  chatLanguage?: DocumentationLanguage;
+  readonly projectRoot?: string;
+  readonly language?: DocumentationLanguage;
+  readonly chatLanguage?: DocumentationLanguage;
 }
+
+export function fixSingleAgentsMandate(
+  context: RuleFixContext<AgentsConfigMandateRuleId>
+): boolean {
+  const mandate = MANDATE_DEFINITIONS.find((m) => m.ruleId === context.ruleId);
+  if (!mandate) return false;
+  const agentsMdPath = path.resolve(context.projectRoot, 'AGENTS.md');
+  if (!fsSync.existsSync(agentsMdPath)) return false;
+  const currentContent = fsSync.readFileSync(agentsMdPath, 'utf8');
+  const config = getAuditConfig(context.projectRoot);
+  const targetLanguage = config.documentation?.language ?? 'en';
+  const chatLanguage = config.documentation?.chatLanguage ?? 'es';
+
+  injectOrUpdateMandateInAgentsMd({
+    agentsMdPath,
+    content: currentContent,
+    canonicalSnippet: mandate.getSnippet(targetLanguage, chatLanguage),
+    isExistingLine: mandate.isExistingLine
+  });
+  return true;
+}
+
+const AGENTS_CONFIG_MANDATE_FIXERS: Partial<Record<AgentsConfigMandateRuleId, AnyRuleFixerFn>> = {
+  'agents-missing-config-mandate': fixSingleAgentsMandate,
+  'agents-missing-backward-compat-mandate': fixSingleAgentsMandate,
+  'agents-missing-fake-pass-mandate': fixSingleAgentsMandate,
+  'agents-missing-chat-language-mandate': fixSingleAgentsMandate,
+  'agents-missing-destructive-git-mandate': fixSingleAgentsMandate,
+  'agents-missing-official-tools-mandate': fixSingleAgentsMandate,
+  'agents-missing-architecture-mandate': fixSingleAgentsMandate,
+  'agents-missing-dependency-immutability-mandate': fixSingleAgentsMandate
+};
 
 export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
   private readonly rootDir: string;
   private readonly languageOption?: DocumentationLanguage;
   private readonly chatLanguageOption?: DocumentationLanguage;
 
-  constructor(options: AgentsConfigMandateOptions = {}) {
+  public constructor(options: AgentsConfigMandateOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     super({
+      ruleFixers: AGENTS_CONFIG_MANDATE_FIXERS,
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      ruleCapabilities: createRuleCapabilities(
-        AGENTS_CONFIG_MANDATE_RULES,
-        {
-          speed: 'light',
-          phase: 'setup',
-          fix: 'priority',
-          md: true,
-          ast: false,
-          changedOnly: false,
-          critical: false
-        },
-        [...AGENTS_CONFIG_MANDATE_RULES]
-      ),
-      fixableRuleIds: [...AGENTS_CONFIG_MANDATE_RULES],
-      fix: options?.fix,
+      ruleCapabilities: createRuleCapabilities(AGENTS_CONFIG_MANDATE_RULES, {
+        speed: 'light',
+        phase: 'setup',
+        md: true,
+        ast: false,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_agents_config_mandate',
       name: 'Root AGENTS.md Config Mandate Validator',
       description: 'Validates config and architecture mandates in AGENTS.md',
@@ -608,7 +637,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-destructive-git-mandate': 'Missing anti-destructive git mandate',
         'agents-missing-official-tools-mandate': 'Missing official tools priority mandate',
         'agents-missing-architecture-mandate': 'Missing architecture governance mandate',
-        'agents-missing-dependency-immutability-mandate': 'Missing node_modules immutability mandate'
+        'agents-missing-dependency-immutability-mandate':
+          'Missing node_modules immutability mandate'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -706,8 +736,7 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
             severity: 'error',
             file: 'AGENTS.md',
             line: 1,
-            message:
-              'AGENTS.md file not found at project root to validate architecture mandates.'
+            message: 'AGENTS.md file not found at project root to validate architecture mandates.'
           });
         });
       }

@@ -1,3 +1,4 @@
+import { BaseEntityRegistry } from "./baseRegistry.js";
 // src/core/gitIgnoreRegistry.ts
 const CORE_GITIGNORE_REQUIREMENTS = [
 	{
@@ -22,36 +23,23 @@ const CORE_GITIGNORE_REQUIREMENTS = [
 		isApplicable: () => true
 	}
 ];
-var GitIgnoreRegistry = class {
-	static requirements = /* @__PURE__ */ new Map();
-	static {
-		this.reset();
+var GitIgnoreRegistryImpl = class extends BaseEntityRegistry {
+	constructor() {
+		super((req) => req?.id, (reg) => {
+			for (const req of CORE_GITIGNORE_REQUIREMENTS) reg.register(req);
+		});
 	}
 	/**
-	* Registers a single gitignore requirement.
+	* Registers a single gitignore requirement with validation.
 	*/
-	static register(requirement) {
+	register(requirement) {
 		if (!requirement || !requirement.id || !requirement.pattern) return;
-		this.requirements.set(requirement.id, requirement);
-	}
-	/**
-	* Registers multiple gitignore requirements.
-	*/
-	static registerMany(requirements) {
-		for (const req of requirements) this.register(req);
-	}
-	/**
-	* Returns all currently registered gitignore requirements.
-	*/
-	static getRequirements() {
-		return Array.from(this.requirements.values());
-	}
-	/**
-	* Resets the registry back to core framework defaults.
-	*/
-	static reset() {
-		this.requirements.clear();
-		for (const req of CORE_GITIGNORE_REQUIREMENTS) this.requirements.set(req.id, req);
+		super.register(requirement);
 	}
 };
-export { CORE_GITIGNORE_REQUIREMENTS, GitIgnoreRegistry };
+/**
+* Universal singleton instance for GitIgnoreRegistry.
+* Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+*/
+const GitIgnoreRegistry = new GitIgnoreRegistryImpl();
+export { CORE_GITIGNORE_REQUIREMENTS, GitIgnoreRegistry, GitIgnoreRegistryImpl };

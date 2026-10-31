@@ -9,9 +9,9 @@
  * styles, and post-build bundle budget verification gates.
  */
 
+import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { isMainModule } from './cliUtils.ts';
-import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 import '../core/permissionGuard.ts';
 
 export function runBuildDeploy(extraArgs: readonly string[] = []): number {

@@ -32,6 +32,7 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		const migrationRoots = !excludeMigrations && migrationsDir ? [migrationsDir] : [];
 		const targetRoots = options.roots ?? [...config.paths?.srcRoots ?? [], ...migrationRoots];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			id: "validate_query_performance",

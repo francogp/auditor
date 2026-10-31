@@ -49,7 +49,7 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
   });
 
   it('fulfills point 1: metadata and BaseAuditor contract verification', () => {
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
     expect(auditor.id).toBe('validate_type_assertion_hygiene');
     expect(auditor.family).toBe('architecture');
     expect(auditor.packageName).toBe('Types');
@@ -71,8 +71,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/clean.ts'), cleanCode, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -87,8 +87,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/anyViolation.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     expect(result.summary.errors).toBeGreaterThanOrEqual(2);
@@ -105,8 +105,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/doubleCast.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-double-cast');
@@ -121,8 +121,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/boolLiteral.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-boolean-literal');
@@ -135,8 +135,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/floatingPromise.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-floating-promise');
@@ -149,8 +149,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/looseArray.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.status).toBe('failed');
     const findings = result.findings.filter((f) => f.ruleId === 'type-assertion-loose-array');
@@ -170,8 +170,8 @@ describe('ValidateTypeAssertionHygieneAuditor', () => {
 
     await fs.writeFile(path.join(tempDir, 'src/escaped.ts'), code, 'utf-8');
 
-    const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-    const result = await auditor.execute();
+    const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThanOrEqual(4);
     expect(result.status).toBe('failed');
@@ -188,8 +188,8 @@ export const parsed = (
 
       await fs.writeFile(path.join(tempDir, 'src/canaryPreceding.ts'), code, 'utf-8');
 
-      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBeGreaterThanOrEqual(1);
       expect(result.status).toBe('failed');
@@ -204,8 +204,8 @@ export const parsed = (
 
       await fs.writeFile(path.join(tempDir, 'src/canaryClosing.ts'), code, 'utf-8');
 
-      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(1);
       expect(result.status).toBe('failed');
@@ -220,8 +220,8 @@ export const parsed = (
 
       await fs.writeFile(path.join(tempDir, 'src/canaryActive.ts'), code, 'utf-8');
 
-      const auditor = new ValidateTypeAssertionHygieneAuditor(tempDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateTypeAssertionHygieneAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('failed');
       expect(result.summary.errors).toBe(1);

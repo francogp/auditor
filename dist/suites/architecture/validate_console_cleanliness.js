@@ -39,6 +39,7 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			roots: targetRoots,
@@ -46,7 +47,6 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(CONSOLE_CLEANLINESS_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -96,7 +96,7 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 							ruleId: "no-debugger-statement",
 							file: relPath,
 							line,
-							column,
+							col: column,
 							message: "Forbidden debugger statement found. Remove all debug breakpoints before committing.",
 							severity: "error"
 						});
@@ -106,7 +106,7 @@ var ConsoleCleanlinessAuditor = class extends FileScanAuditor {
 							ruleId: "no-console-log-in-src",
 							file: relPath,
 							line,
-							column,
+							col: column,
 							message: "Direct console.log() call detected in src/. Use console.warn/console.error for standard reporting or logger service for structured tracing.",
 							severity: "error"
 						});

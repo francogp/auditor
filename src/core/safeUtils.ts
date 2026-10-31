@@ -175,7 +175,10 @@ export async function tryCatchAsync<T, E = Error>(fn: () => Promise<T>): Promise
 /**
  * Safely reads a file asynchronously. Returns null if reading fails or file does not exist.
  */
-export async function safeReadFileAsync(filePath: string, options?: SafeReadOptions): Promise<string | null> {
+export async function safeReadFileAsync(
+  filePath: string,
+  options?: SafeReadOptions
+): Promise<string | null> {
   try {
     return await fs.promises.readFile(filePath, options?.encoding ?? 'utf-8');
   } catch {

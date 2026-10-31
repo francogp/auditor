@@ -9,8 +9,9 @@
  * powered by MagicString.
  */
 
-import valueParser from 'postcss-value-parser';
 import MagicString from 'magic-string';
+import valueParser from 'postcss-value-parser';
+
 import { advancePastStringOrComment, scanBalancedBraces } from '../core/scannerUtils.ts';
 import { computeRawLineOffsets, getLineFromRawOffsets } from './modernDomAstUtils.ts';
 
@@ -331,8 +332,7 @@ function checkOverflowClipMarginOnRule(
   findings.push({
     ruleId: 'scss-overflow-clip-margin-trap',
     line: lineOffset + clipMarginDecl.line - 1,
-    message:
-      'overflow-clip-margin has no effect unless overflow: clip is set on the same element.',
+    message: 'overflow-clip-margin has no effect unless overflow: clip is set on the same element.',
     fixable: true
   });
 

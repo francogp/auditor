@@ -1,6 +1,5 @@
 import { isPathExempt } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, LIGHT_RULE_CAPABILITIES, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
@@ -21,7 +20,6 @@ const WEB_PERFORMANCE_RULES = [
 	"uncompressed-video",
 	...MODERN_WEB_PERF_RULES
 ];
-const FIXABLE_WEB_PERF_RULES = [...MODERN_WEB_PERF_RULES];
 const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 	".vue",
 	".html",
@@ -38,6 +36,13 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 		const webRoots = resolveFileScanRoots(options);
 		const webConfig = getAuditConfig(webRoots.effectiveRoot);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [
+				"perf-lcp-lazy-conflict",
+				"perf-font-preload-crossorigin",
+				"perf-srcset-missing-sizes",
+				"perf-content-visibility-intrinsic-size"
+			],
 			id: "validate_web_performance",
 			name: "Web Performance & Core Web Vitals Auditor",
 			description: "Web performance, Core Web Vitals, and frontend optimization",
@@ -49,7 +54,6 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			requiredPermissions: [],
 			usesThirdPartyTool: false,
-			fix: options.fix,
 			roots: webRoots.targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: WEB_PERFORMANCE_RULES,
@@ -80,8 +84,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 				"perf-srcset-missing-sizes": "📖 REMEDIATION GUIDE: perf-srcset-missing-sizes\n1. Root Cause: An `<img>` or `<source>` uses width descriptors (`w`) in `srcset` without declaring a `sizes` attribute. Without `sizes`, browsers assume `100vw` and download oversized images.\n2. Diagnosis: Locate the `<img>` or `<source>` element with `srcset=\"... 400w, ...\"`.\n3. Canonical Solution: Add `sizes=\"auto\"` (for `loading=\"lazy\"` images) or an explicit viewport media `sizes` attribute. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Missing sizes: `<img src=\"/pic-800.webp\" srcset=\"/pic-400.webp 400w, /pic-800.webp 800w\" loading=\"lazy\" width=\"800\" height=\"600\" alt=\"Pic\">`\n   ✅ With sizes:    `<img src=\"/pic-800.webp\" srcset=\"/pic-400.webp 400w, /pic-800.webp 800w\" sizes=\"auto\" loading=\"lazy\" width=\"800\" height=\"600\" alt=\"Pic\">`",
 				"perf-content-visibility-intrinsic-size": "📖 REMEDIATION GUIDE: perf-content-visibility-intrinsic-size\n1. Root Cause: A CSS rule declares `content-visibility: auto` without `contain-intrinsic-size`, causing offscreen containers to collapse to `0px` height and making the scrollbar jump during scrolling.\n2. Diagnosis: Inspect the CSS rule with `content-visibility: auto`.\n3. Canonical Solution: Pair `content-visibility: auto` with `contain-intrinsic-size: auto 500px;`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Collapsed: `.section { content-visibility: auto; }`\n   ✅ Reserved:  `.section { content-visibility: auto; contain-intrinsic-size: auto 500px; }`"
 			},
-			ruleCapabilities: createRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES, FIXABLE_WEB_PERF_RULES),
-			fixableRuleIds: FIXABLE_WEB_PERF_RULES,
+			ruleCapabilities: createRuleCapabilities(WEB_PERFORMANCE_RULES, LIGHT_RULE_CAPABILITIES),
 			projectRoot: webRoots.effectiveRoot,
 			coverage: deriveCoverageFromRoots(webRoots.targetRoots, SCANNABLE_EXTS, webRoots.effectiveRoot),
 			exemptPaths: webConfig.webPerformance?.exemptPaths

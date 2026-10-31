@@ -7,6 +7,7 @@
  */
 
 import path from 'node:path';
+
 import { Project, type ClassDeclaration, type SourceFile } from 'ts-morph';
 
 export interface HoistingTarget {
@@ -28,7 +29,8 @@ export class ClassHierarchyHoister {
     const classDeclarations: ClassDeclaration[] = [];
 
     for (const filePath of targetFilePaths) {
-      const sourceFile = project.getSourceFile(filePath) ?? project.addSourceFileAtPathIfExists(filePath);
+      const sourceFile =
+        project.getSourceFile(filePath) ?? project.addSourceFileAtPathIfExists(filePath);
       if (!sourceFile) continue;
       const classes = sourceFile.getClasses();
       if (classes.length > 0) {

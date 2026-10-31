@@ -1,5 +1,6 @@
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-import { SemverVersion } from "../../cli/check_environment.js";
+import { AuditorEngineSpecs, SemverVersion } from "../../cli/check_environment.js";
+import { PackageJsonDTO } from "../../core/packageJson.js";
 export declare const ENVIRONMENT_ENGINES_RULES: readonly ["environment-engines-missing", "environment-engines-below-floor", "environment-runtime-mismatch"];
 export type EnvironmentEnginesRuleId = (typeof ENVIRONMENT_ENGINES_RULES)[number];
 export interface EnvironmentEnginesConfig {
@@ -22,6 +23,6 @@ export declare class ValidateEnvironmentEnginesAuditor extends BaseAuditor<Envir
   private auditMissingEngines;
   private auditEnginesBelowFloor;
   private auditRuntimeMismatch;
-  private repairEnginesInPackageJson;
+  repairEnginesInPackageJson(pkg: PackageJsonDTO, auditorEngines: AuditorEngineSpecs, minNodeReq: SemverVersion, minNpmReq: SemverVersion): PackageJsonDTO;
   runAudit(): Promise<void>;
 }

@@ -10,9 +10,15 @@
  * or executing host extensions.
  */
 
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { enableCompileCache } from 'node:module';
+
+import {
+  evaluateProjectDependencies,
+  type ProjectDependenciesReport,
+  type DependencyEvaluation
+} from '../core/auditorMinimums.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -20,11 +26,6 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
-import {
-  evaluateProjectDependencies,
-  type ProjectDependenciesReport,
-  type DependencyEvaluation
-} from '../core/auditorMinimums.ts';
 import {
   renderBanner,
   renderBoxTable,
@@ -58,7 +59,8 @@ export function parseCliArgs(
   const parsed = parseCittyArgs(DEPENDENCIES_CLI_ARGS, rawArgs);
 
   return {
-    project: typeof parsed.project === 'string' && parsed.project !== '.' ? parsed.project : undefined,
+    project:
+      typeof parsed.project === 'string' && parsed.project !== '.' ? parsed.project : undefined,
     json: Boolean(parsed.json),
     commandsOnly: Boolean(parsed.commands || parsed['install-cmd']),
     all: Boolean(parsed.all),

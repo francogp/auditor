@@ -48,6 +48,7 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
     requiredPermissions: [],
     criticalConfig: {},
     usesThirdPartyTool: false,
+    ruleFixers: {},
     ruleIds: ['probe-external', 'probe-internal'],
     ruleDescriptions: {
       'probe-external': 'Regla de herramienta externa',
@@ -64,7 +65,6 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
     ruleCapabilities: createUniformRuleCapabilities(['probe-external', 'probe-internal'], {
       speed: 'light',
       phase: 'normal',
-      fix: 'none',
       md: false,
       ast: false,
       changedOnly: false,

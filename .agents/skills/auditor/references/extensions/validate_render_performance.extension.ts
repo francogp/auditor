@@ -63,6 +63,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       config.paths.srcRoots ??
       DEFAULT_AUDIT_CONFIG.paths.srcRoots;
     super({
+      ruleFixers: {},
       id: 'validate_render_performance',
       name: 'Render & GPU Performance Hygiene Validator',
       description: 'Validates GPU hygiene and blend-modes in weather layers',
@@ -71,7 +72,6 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
       ruleCapabilities: createUniformRuleCapabilities(RENDER_PERFORMANCE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: true,

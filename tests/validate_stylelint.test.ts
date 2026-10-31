@@ -157,7 +157,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(vueFile, vueContent, 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       const duplicateSelectorFindings = result.findings.filter(
@@ -194,7 +194,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, scssContent, 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const orderViolations = result.findings.filter((f) => f.ruleId === 'css-order-violation');
       expect(orderViolations).toHaveLength(0);
@@ -219,7 +219,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, scssContent, 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const dupFindings = result.findings.filter((f) => f.ruleId === 'css-duplicate-selectors');
       expect(dupFindings.length).toBeGreaterThanOrEqual(1);
@@ -235,7 +235,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, scssContent, 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings.length).toBeGreaterThanOrEqual(1);
@@ -246,7 +246,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, '.btn { display: flex; }', 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      await auditor.execute();
+      await auditor.audit();
 
       const cachePath = path.join(tempDir, 'scratch/cache/stylelint_cache.json');
       const cacheExists = await fs
@@ -276,7 +276,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('skipped');
@@ -309,7 +309,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(scssFile, '.empty {}', 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings).toHaveLength(0);
@@ -338,7 +338,7 @@ describe('StylelintAuditor Suite', () => {
       await fs.writeFile(path.join(legacyDir, 'legacy_empty.scss'), '.legacy-empty {}', 'utf-8');
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const emptyFindings = result.findings.filter((f) => f.ruleId === 'css-empty-blocks');
       expect(emptyFindings).toHaveLength(0);
@@ -369,7 +369,7 @@ describe('StylelintAuditor Suite', () => {
       );
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const collisionFindings = result.findings.filter(
         (f) => f.ruleId === 'scss-sass-collision-casing'
@@ -390,20 +390,14 @@ describe('StylelintAuditor Suite', () => {
         'utf-8'
       );
 
-      const oldArgv = process.argv;
-      process.argv = ['node', 'validate_stylelint.ts', 'fix'];
-      try {
-        const auditor = new StylelintAuditor({ projectRoot: tempDir });
-        await auditor.execute();
+      const auditor = new StylelintAuditor({ projectRoot: tempDir });
+      await auditor.fix();
 
-        const repairedContent = await fs.readFile(scssFile, 'utf-8');
-        expect(repairedContent).toContain('Scale(1.1)');
-        expect(repairedContent).toContain('Saturate(0.9)');
-        expect(repairedContent).not.toContain('scale(1.1)');
-        expect(repairedContent).not.toContain('saturate(0.9)');
-      } finally {
-        process.argv = oldArgv;
-      }
+      const repairedContent = await fs.readFile(scssFile, 'utf-8');
+      expect(repairedContent).toContain('Scale(1.1)');
+      expect(repairedContent).toContain('Saturate(0.9)');
+      expect(repairedContent).not.toContain('scale(1.1)');
+      expect(repairedContent).not.toContain('saturate(0.9)');
     });
 
     it('accepts capitalized Sass Collision functions cleanly without function-name-case violations', async () => {
@@ -418,7 +412,7 @@ describe('StylelintAuditor Suite', () => {
       );
 
       const auditor = new StylelintAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const functionCaseErrors = result.findings.filter((f) =>
         f.message.includes('function-name-case')
@@ -434,7 +428,7 @@ describe('StylelintAuditor Suite', () => {
   describe('Clean Path Verification (StandardAuditResult)', () => {
     it('executes cleanly on source roots reporting passed status with 0 errors', async () => {
       const auditor = new StylelintAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result).toBeDefined();
       expect(result.id).toBe('validate_stylelint');
@@ -458,7 +452,7 @@ describe('StylelintAuditor Suite', () => {
           'utf-8'
         );
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.status).toBe('failed');
         expect(result.summary.errors).toBeGreaterThan(0);
         expect(result.findings.some((f) => f.severity === 'error')).toBe(true);
@@ -492,7 +486,7 @@ describe('StylelintAuditor Suite', () => {
           'utf-8'
         );
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.status).toBe('failed');
         const strictFindings = result.findings.filter((f) => f.ruleId === 'scss-strict-values');
         expect(strictFindings.length).toBe(13);
@@ -528,7 +522,7 @@ describe('StylelintAuditor Suite', () => {
           'utf-8'
         );
         const auditor = new StylelintAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         const strictFindings = result.findings.filter((f) => f.ruleId === 'scss-strict-values');
         expect(strictFindings).toHaveLength(0);
       } finally {

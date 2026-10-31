@@ -55,7 +55,7 @@ describe('ValidateFallowConfigAuditor', () => {
     });
 
     it('initializes with correct id and family', () => {
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
       expect(auditor.id).toBe('validate_fallow_config');
       expect(auditor.family).toBe('architecture');
     });
@@ -77,8 +77,8 @@ describe('ValidateFallowConfigAuditor', () => {
 
   describe('Violation Detection', () => {
     it('flags fallow-config-missing when .fallowrc.json does not exist', async () => {
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       expect(result.summary.errors).toBeGreaterThan(0);
       const violation = result.findings.find((f) => f.ruleId === 'fallow-config-missing');
       expect(violation).toBeDefined();
@@ -90,8 +90,8 @@ describe('ValidateFallowConfigAuditor', () => {
         '{ "entry": [invalid, ] }',
         'utf-8'
       );
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'fallow-config-syntax');
       expect(violation).toBeDefined();
     });
@@ -101,8 +101,8 @@ describe('ValidateFallowConfigAuditor', () => {
         entry: ['src/components/**/*.vue']
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'fallow-banned-entry-glob');
       expect(violation).toBeDefined();
     });
@@ -112,8 +112,8 @@ describe('ValidateFallowConfigAuditor', () => {
         ignoreExports: [{ file: 'src/logic/non_existent.ts', exports: ['foo'] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'fallow-stale-file');
       expect(violation).toBeDefined();
     });
@@ -123,8 +123,8 @@ describe('ValidateFallowConfigAuditor', () => {
         ignoreExports: [{ file: 'src/logic/existing.ts', exports: [] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'fallow-empty-export-list');
       expect(violation).toBeDefined();
     });
@@ -141,8 +141,8 @@ describe('ValidateFallowConfigAuditor', () => {
         ]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const dupes = result.findings.filter((f) => f.ruleId === 'fallow-duplicate-entry');
       expect(dupes.length).toBeGreaterThan(0);
     });
@@ -156,14 +156,14 @@ describe('ValidateFallowConfigAuditor', () => {
         ignoreExports: [{ file: 'src/logic/data.ts', exports: ['GHOST_EXPORT'] }]
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'fallow-stale-export');
       expect(violation).toBeDefined();
     });
 
     it('flags fallow-config-workspace-diagnostic when actionable workspace diagnostic is reported', async () => {
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
       const diagnostics = [
         {
           path: 'packages/core',
@@ -185,8 +185,8 @@ describe('ValidateFallowConfigAuditor', () => {
         JSON.stringify({ mutation: { runnerConfig: {} } }),
         'utf-8'
       );
-      const badAuditor = new ValidateFallowConfigAuditor(scratchDir);
-      const badResult = await badAuditor.execute();
+      const badAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const badResult = await badAuditor.audit();
       expect(badResult.findings.some((f) => f.ruleId === 'fallow-config-syntax')).toBe(true);
 
       fs.writeFileSync(
@@ -198,8 +198,8 @@ describe('ValidateFallowConfigAuditor', () => {
         }),
         'utf-8'
       );
-      const goodAuditor = new ValidateFallowConfigAuditor(scratchDir);
-      const goodResult = await goodAuditor.execute();
+      const goodAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const goodResult = await goodAuditor.audit();
       expect(goodResult.summary.errors).toBe(0);
     });
   });
@@ -220,8 +220,8 @@ describe('ValidateFallowConfigAuditor', () => {
       };
       fs.writeFileSync(path.join(scratchDir, '.fallowrc.json'), JSON.stringify(config), 'utf-8');
 
-      const auditor = new ValidateFallowConfigAuditor(scratchDir);
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -232,8 +232,8 @@ describe('ValidateFallowConfigAuditor', () => {
       const configPath = path.join(scratchDir, '.fallowrc.json');
       expect(fs.existsSync(configPath)).toBe(false);
 
-      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir, fix: true });
-      const result = await auditor.execute();
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const result = await auditor.fix();
 
       expect(fs.existsSync(configPath)).toBe(true);
       expect(result.summary.errors).toBe(0);
@@ -248,7 +248,8 @@ describe('ValidateFallowConfigAuditor', () => {
     });
 
     it('auto-prunes redundant entry, ignoreDependencies, and ignorePatterns diagnostics when fix: true is active', async () => {
-      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir, fix: true });
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(auditor, 'currentFixActive', true);
       const config = {
         entry: ['src/index.ts', '.auditor/audit.config.ts'],
         ignoreDependencies: ['fallow', 'knip'],

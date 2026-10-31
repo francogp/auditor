@@ -1,7 +1,7 @@
-import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig, sanitizePath } from "./auditConfigLoader.js";
-import { isLockedSkillPath } from "./lockedSkills.js";
 import { createDomainSet } from "./domainCollections.js";
+import { isLockedSkillPath } from "./lockedSkills.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -159,4 +159,4 @@ function stripGlobSuffix(pattern) {
 	while (clean.endsWith("/")) clean = clean.slice(0, -1);
 	return clean || (wildcardIdx === 0 ? "." : "");
 }
-export { buildRepositoryFileIndex, isPathContained, isPathExempt, normalizePosixPath, safeDevUrl, safeFetch, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };
+export { buildRepositoryFileIndex, isPathContained, normalizePosixPath, safeDevUrl, safeFetch, safeReadFile, safeResolve, safeWriteFile, safeWriteFileSync, sanitizePath, stripGlobSuffix, toPosixPath, toPosixRelative };

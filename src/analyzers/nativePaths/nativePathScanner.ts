@@ -10,6 +10,15 @@
 import ts from 'typescript';
 
 import type { AuditedDocument } from '../../core/auditedDocument.ts';
+import { concatDetector } from './detectors/concatDetector.ts';
+import { containmentDetector } from './detectors/containmentDetector.ts';
+import { envArgvDetector } from './detectors/envArgvDetector.ts';
+import { fetchDetector } from './detectors/fetchDetector.ts';
+import { fileUrlDetector } from './detectors/fileUrlDetector.ts';
+import { normalizeDetector } from './detectors/normalizeDetector.ts';
+import { parsingDetector } from './detectors/parsingDetector.ts';
+import { slashDetector } from './detectors/slashDetector.ts';
+import { urlParsingDetector } from './detectors/urlParsingDetector.ts';
 import {
   NODE_ONLY_RULES,
   type NativePathDetector,
@@ -17,16 +26,12 @@ import {
   type NativePathScanContext,
   type NativePathViolation
 } from './nativePathTypes.ts';
-import { getNodePathFunction, isFsSinkCall, isPathOriginChain, isUrlConstruction } from './pathHeuristics.ts';
-import { concatDetector } from './detectors/concatDetector.ts';
-import { normalizeDetector } from './detectors/normalizeDetector.ts';
-import { parsingDetector } from './detectors/parsingDetector.ts';
-import { containmentDetector } from './detectors/containmentDetector.ts';
-import { fileUrlDetector } from './detectors/fileUrlDetector.ts';
-import { urlParsingDetector } from './detectors/urlParsingDetector.ts';
-import { slashDetector } from './detectors/slashDetector.ts';
-import { envArgvDetector } from './detectors/envArgvDetector.ts';
-import { fetchDetector } from './detectors/fetchDetector.ts';
+import {
+  getNodePathFunction,
+  isFsSinkCall,
+  isPathOriginChain,
+  isUrlConstruction
+} from './pathHeuristics.ts';
 
 const DETECTORS: readonly NativePathDetector[] = [
   normalizeDetector,
@@ -81,7 +86,10 @@ function isNodeContextMarker(node: ts.Node): boolean {
   }
   if (ts.isPropertyAccessExpression(node)) {
     const owner = node.expression;
-    const isProcessMember = ts.isIdentifier(owner) && owner.text === 'process' && NODE_PROCESS_MEMBERS.has(node.name.text);
+    const isProcessMember =
+      ts.isIdentifier(owner) &&
+      owner.text === 'process' &&
+      NODE_PROCESS_MEMBERS.has(node.name.text);
     const isImportMetaPath =
       ts.isMetaProperty(owner) && (node.name.text === 'dirname' || node.name.text === 'filename');
     return isProcessMember || isImportMetaPath;
@@ -100,16 +108,27 @@ function collectFileFacts(sourceFile: ts.SourceFile): FileFacts {
       if (isPathOriginChain(node.initializer)) pathOriginNames.add(node.name.text);
     } else if (isUrlConstruction(node)) {
       hasUrlConstruction = true;
-    } else if (ts.isPropertyAccessExpression(node) && URL_VALIDATION_PROPERTIES.has(node.name.text)) {
+    } else if (
+      ts.isPropertyAccessExpression(node) &&
+      URL_VALIDATION_PROPERTIES.has(node.name.text)
+    ) {
       hasUrlPropertyCheck = true;
     }
     ts.forEachChild(node, visit);
   };
   visit(sourceFile);
-  return { pathOriginNames, hasUrlValidation: hasUrlConstruction && hasUrlPropertyCheck, isNodeContext };
+  return {
+    pathOriginNames,
+    hasUrlValidation: hasUrlConstruction && hasUrlPropertyCheck,
+    isNodeContext
+  };
 }
 
-function toViolation(doc: AuditedDocument, sourceFile: ts.SourceFile, finding: NativePathFinding): NativePathViolation {
+function toViolation(
+  doc: AuditedDocument,
+  sourceFile: ts.SourceFile,
+  finding: NativePathFinding
+): NativePathViolation {
   const pos = sourceFile.getLineAndCharacterOfPosition(finding.node.getStart(sourceFile));
   const line = pos.line + 1;
   return {

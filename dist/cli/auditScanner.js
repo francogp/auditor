@@ -151,7 +151,7 @@ async function collectAllGitIgnoreRequirements(projectRoot = process.cwd(), conf
 		reason: `Required entry configured in audit.config.ts (${entry})`
 	});
 	else if (entry && typeof entry === "object" && entry.id && entry.pattern) GitIgnoreRegistry.register(entry);
-	return GitIgnoreRegistry.getRequirements();
+	return Array.from(GitIgnoreRegistry.getAll());
 }
 /**
 * Dynamically collects package.json script requirements from all discovered subauditors,

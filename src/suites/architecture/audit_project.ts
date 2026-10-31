@@ -6,26 +6,30 @@
  * Final Safe Version: Context-aware GPU checking.
  */
 
+import { spawnSync } from 'node:child_process';
 import nodeFs from 'node:fs';
 import fs from 'node:fs/promises';
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { enableCompileCache } from 'node:module';
-import { spawnSync } from 'node:child_process';
-import {
-  COMMON_CLI_ARGS,
-  getProcessCliArgs,
-  parseCittyArgs,
-  type CittyArgsDef
-} from '../../core/cli/cittyHarness.ts';
+
+import { getAuditConfig, loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import type { RemediationPhaseId, AnyRuleFixerFn } from '../../core/auditContract.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   MAX_AUDITOR_DESCRIPTION_LENGTH,
   isPathIgnored,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import type { RemediationPhaseId } from '../../core/auditContract.ts';
+import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from '../../core/cli/cittyHarness.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 import {
   type AuditRule,
   type Violation,
@@ -33,9 +37,6 @@ import {
   matchesRule,
   auditRulesConfig as config
 } from './audit_rules.ts';
-import { getAuditConfig, loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
@@ -220,7 +221,7 @@ function auditLogicOrVueScript(params: {
 }): { content: string; modified: boolean } {
   let { content } = params;
   let modified = false;
-  const allConfigRules: AuditRule[] = Object.values(config) as AuditRule[];
+  const allConfigRules: AuditRule[] = Object.values(config);
   const candidateRules = params.activeConfigRules
     ? allConfigRules.filter((r) => params.activeConfigRules!.has(r))
     : allConfigRules;
@@ -595,7 +596,7 @@ export function extractSelectedRules(
 
 export function filterActiveConfigRules(selectedRules: Set<string>): Set<AuditRule> {
   const activeConfigRules = new Set<AuditRule>();
-  for (const rule of Object.values(config) as AuditRule[]) {
+  for (const rule of Object.values(config)) {
     if (matchesRule(rule, selectedRules)) {
       activeConfigRules.add(rule);
     }
@@ -851,10 +852,7 @@ function renderHumanTerminalReport(
   );
   printTerminal('======================================================');
   printTerminal(
-    styleText(
-      'dim',
-      `💾 Detailed report saved to: ${path.relative(process.cwd(), archJsonPath)}\n`
-    )
+    styleText('dim', `💾 Detailed report saved to: ${path.relative(process.cwd(), archJsonPath)}\n`)
   );
 }
 
@@ -913,7 +911,15 @@ async function executeProjectAuditPhases(
   return { all: astResult.violations, files: astResult.files };
 }
 
-export function buildProjectTopFiles(fileGroups: Record<string, Violation[]>, topLimit: number) {
+export function buildProjectTopFiles(
+  fileGroups: Record<string, Violation[]>,
+  topLimit: number
+): {
+  readonly file: string;
+  readonly errors: number;
+  readonly warnings: number;
+  readonly total: number;
+}[] {
   return Object.entries(fileGroups)
     .map(([file, violations]) => ({
       file,
@@ -934,7 +940,7 @@ function buildProjectJsonReport(params: {
   errorsCount: number;
   warningsCount: number;
   durationMs: number;
-}) {
+}): Record<string, unknown> {
   const { all, files, fileGroups, typeGroups, topFiles, errorsCount, warningsCount, durationMs } =
     params;
   return {
@@ -988,10 +994,7 @@ async function persistProjectReports(
 ): Promise<{ archJsonPath: string; jsonReportStr: string }> {
   const scratchArchDir = path.resolve(projectRoot, 'scratch/audits/architecture');
   const archJsonPath = path.join(scratchArchDir, 'audit_project.json');
-  const latestArchJsonPath = path.resolve(
-    projectRoot,
-    'scratch/audits/latest_audit_project.json'
-  );
+  const latestArchJsonPath = path.resolve(projectRoot, 'scratch/audits/latest_audit_project.json');
   const jsonReportStr = JSON.stringify(jsonReport, null, 2);
   if (!skipPersist) {
     await fs.mkdir(scratchArchDir, { recursive: true });
@@ -1010,7 +1013,7 @@ export async function main(
   const startTime = performance.now(); // CLI standalone runner execution timer
   const ctx = parseProjectCliContext(cliArgs);
 
-  function logProgress(msg: string) {
+  function logProgress(msg: string): void {
     if (process.env.AUDIT_SUBPROCESS === 'true') {
       return;
     }
@@ -1095,7 +1098,7 @@ export function getProjectArchitectureRuleDescriptions(): Record<string, string>
   const descriptions: Record<string, string> = {};
 
   for (const [key, rule] of Object.entries(config)) {
-    const r = rule as AuditRule;
+    const r = rule;
     const id = r.id ? r.id : key;
     const desc = resolveAuditRuleDescription(r, key);
     descriptions[id] = desc;
@@ -1107,8 +1110,7 @@ export function getProjectArchitectureRuleDescriptions(): Record<string, string>
 export function getProjectArchitectureRuleRemediations(): Record<string, string> {
   const remediations: Record<string, string> = {
     viewport: 'Configure and respect standard responsive viewport tags.',
-    hardcodedTimezone:
-      'Avoid hardcoded timezones; use canonical regional configuration.',
+    hardcodedTimezone: 'Avoid hardcoded timezones; use canonical regional configuration.',
     nodePrefix: 'Use "node:" prefix when importing built-in modules (e.g. "node:fs", "node:path").',
     esmExtensions: 'Ensure explicit extensions (.ts, .js) in relative imports under ESM.',
     timersPromises:
@@ -1119,8 +1121,7 @@ export function getProjectArchitectureRuleRemediations(): Record<string, string>
       'Avoid setTimeout(..., 0) in UI logic; use animation APIs or canonical nextTick().',
     jsonStringifyInWatch:
       'Avoid JSON.stringify in reactive Vue watchers to prevent performance degradation.',
-    intersectionObserverRoot:
-      'Provide an explicit root container for intersection observers.',
+    intersectionObserverRoot: 'Provide an explicit root container for intersection observers.',
     functionCallsInTemplates:
       'Avoid invoking expensive functions directly inside Vue templates; use computed properties.',
     forbiddenFallbacks: 'Remove unauthorized fallbacks and propagate errors deterministically.',
@@ -1139,11 +1140,24 @@ export function getProjectArchitectureRuleRemediations(): Record<string, string>
 export function getProjectArchitectureRuleRemediationPhases(): Record<string, RemediationPhaseId> {
   const phases: Record<string, RemediationPhaseId> = {};
   for (const [key, rule] of Object.entries(config)) {
-    const r = rule as AuditRule;
+    const r = rule;
     const id = r.id ? r.id : key;
-    if (['constantDuplicates', 'constantDisparities', 'constantAliases'].includes(id) || id.startsWith('constant')) {
+    if (
+      ['constantDuplicates', 'constantDisparities', 'constantAliases'].includes(id) ||
+      id.startsWith('constant')
+    ) {
       phases[id] = 'dedup';
-    } else if (['noAny', 'noDoubleCast', 'noStringCast', 'noDomainIdFallbacks', 'noDomainRawStrings', 'nodePrefix', 'noInlineTypeImports'].includes(id)) {
+    } else if (
+      [
+        'noAny',
+        'noDoubleCast',
+        'noStringCast',
+        'noDomainIdFallbacks',
+        'noDomainRawStrings',
+        'nodePrefix',
+        'noInlineTypeImports'
+      ].includes(id)
+    ) {
       phases[id] = 'contracts';
     } else if (['esmExtensions'].includes(id)) {
       phases[id] = 'polish';
@@ -1159,10 +1173,10 @@ export interface AuditProjectOptions {
   readonly roots?: readonly string[];
 }
 
-export class ProjectArchitectureAuditor extends BaseAuditor<string> {
+export class ProjectArchitectureAuditor extends BaseAuditor {
   private readonly effectiveRoots: readonly string[];
 
-  constructor(options: AuditProjectOptions = {}) {
+  public constructor(options: AuditProjectOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const cfg = getAuditConfig(projectRoot);
     const defaultCodeRoots = DEFAULT_AUDIT_CONFIG.paths?.codeRoots ?? [];
@@ -1170,35 +1184,37 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
     const resolvedRoots =
       options.roots && options.roots.length > 0
         ? options.roots
-        : [...(cfg.paths?.codeRoots ?? defaultCodeRoots), ...(cfg.paths?.testRoots ?? defaultTestRoots)];
+        : [
+            ...(cfg.paths?.codeRoots ?? defaultCodeRoots),
+            ...(cfg.paths?.testRoots ?? defaultTestRoots)
+          ];
     const ruleDescriptions = getProjectArchitectureRuleDescriptions();
     const ruleRemediations = getProjectArchitectureRuleRemediations();
     const ruleRemediationPhases = getProjectArchitectureRuleRemediationPhases();
     const ruleIds = Object.keys(ruleDescriptions);
-    const fixableRuleIds = Object.entries(config)
-      .filter(
-        ([, rule]) =>
-          typeof (rule as AuditRule).fix === 'function' || (rule as AuditRule).fixable === true
-      )
-      .map(([key, rule]) => (rule as AuditRule).id || key);
+    const ruleFixers: Partial<Record<string, AnyRuleFixerFn>> = {};
+    for (const [key, rule] of Object.entries(config)) {
+      const r = rule;
+      const ruleId = r.id || key;
+      if (typeof r.fix === 'function') {
+        ruleFixers[ruleId] = async () => {
+          await Promise.resolve(r.fix!(projectRoot));
+        };
+      }
+    }
 
     super({
       usesThirdPartyTool: false,
       requiredPermissions: ['--allow-child-process'],
-      ruleCapabilities: createRuleCapabilities(
-        ruleIds,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'normal',
-          md: true,
-          ast: true,
-          changedOnly: true,
-          critical: false
-        },
-        fixableRuleIds
-      ),
-      fixableRuleIds,
+      ruleCapabilities: createRuleCapabilities(ruleIds, {
+        speed: 'light',
+        phase: 'normal',
+        md: true,
+        ast: true,
+        changedOnly: true,
+        critical: false
+      }),
+      ruleFixers,
       ruleIds,
       ruleDescriptions,
       ruleRemediations,
@@ -1213,11 +1229,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
       criticalConfig: {},
       icon: '🏛️',
       coverage: {
-        ...deriveCoverageFromRoots(
-          resolvedRoots,
-          AUDIT_EXTENSIONS,
-          projectRoot
-        ),
+        ...deriveCoverageFromRoots(resolvedRoots, AUDIT_EXTENSIONS, projectRoot),
         exclude: [path.posix.join(AUDITOR_DIR, '**')]
       },
       projectRoot
@@ -1237,9 +1249,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor<string> {
         activeProjectRuleTimings.set(r, 0);
       }
     }
-    const cliArgs = this.isFixActive()
-      ? [...getProcessCliArgs(), '--fix']
-      : undefined;
+    const cliArgs = this.isFixActive() ? [...getProcessCliArgs(), '--fix'] : undefined;
     const isExternalProject = path.resolve(this.projectRoot) !== path.resolve(process.cwd());
     const violations = await main(cliArgs, {
       projectRoot: this.projectRoot,

@@ -136,18 +136,18 @@ function checkFloatingPromise(node, doc, ast, issues) {
 	});
 }
 var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
-	constructor(options) {
-		const rootPath = typeof options === "string" ? options : options?.projectRoot;
+	constructor(options = {}) {
+		const rootPath = options.projectRoot ?? process.cwd();
 		const cfg = getAuditConfig(rootPath);
-		const codeRoots = typeof options === "object" && options?.roots ? options.roots : cfg.paths.codeRoots ?? [];
+		const codeRoots = options.roots ?? cfg.paths.codeRoots ?? [];
 		const typeIgnores = Array.from(getEffectiveIgnoreGlobs(rootPath, { extraGlobs: [...cfg.types?.ignoreGlobs ?? [], ...cfg.types?.exemptPaths ?? []] }));
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(TYPE_ASSERTION_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -204,7 +204,7 @@ var ValidateTypeAssertionHygieneAuditor = class extends FileScanAuditor {
 						severity: "error",
 						file: rel,
 						line: issue.line,
-						column: issue.column,
+						col: issue.column,
 						message: issue.message,
 						context: issue.context
 					});

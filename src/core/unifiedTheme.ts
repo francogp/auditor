@@ -6,8 +6,9 @@
  * fixed-width column alignment, status badges, and Markdown generation.
  */
 
-import { styleText } from 'node:util';
 import path from 'node:path';
+import { styleText } from 'node:util';
+
 import boxen from 'boxen';
 import Table from 'cli-table3';
 
@@ -259,8 +260,7 @@ export function renderSampleFindings(
   if (findings.length === 0) return '';
   const limit = limitOrAll === 'all' ? findings.length : limitOrAll;
   const sample = limit >= findings.length ? findings : findings.slice(-limit);
-  const countLabel =
-    limit >= findings.length ? `all ${sample.length}` : `last ${sample.length}`;
+  const countLabel = limit >= findings.length ? `all ${sample.length}` : `last ${sample.length}`;
   const isOnlyWarnings = findings.length > 0 && findings.every((f) => f.severity === 'warning');
   const defaultHeader = isOnlyWarnings
     ? `\n⚠️  Sample of detected warnings (${countLabel} of ${findings.length}):\n`
@@ -303,11 +303,22 @@ export function renderBanner(
   if (!borderColor) {
     if (title.includes('REPAIR') || title.includes('REPARACIÓN')) {
       resolvedColor = 'magenta';
-    } else if (title.includes('CRITICAL') || title.includes('CRÍTIC') || title.includes('ERROR') || title.includes('FAIL') || title.includes('FALLO')) {
+    } else if (
+      title.includes('CRITICAL') ||
+      title.includes('CRÍTIC') ||
+      title.includes('ERROR') ||
+      title.includes('FAIL') ||
+      title.includes('FALLO')
+    ) {
       resolvedColor = 'red';
     } else if (title.includes('WARN') || title.includes('ADVERTENCIA')) {
       resolvedColor = 'yellow';
-    } else if (title.includes('PASS') || title.includes('APROBAD') || title.includes('SUCCESS') || title.includes('ÉXITO')) {
+    } else if (
+      title.includes('PASS') ||
+      title.includes('APROBAD') ||
+      title.includes('SUCCESS') ||
+      title.includes('ÉXITO')
+    ) {
       resolvedColor = 'green';
     }
   }
@@ -364,10 +375,7 @@ export function renderSimilarCodeWarningBanner(): string {
         ['bold', 'yellow'],
         'If Windows Smart App Control or Antivirus blocked the binary (error 4551):'
       ),
-      styleText(
-        'white',
-        '  1. In Windows notification: Click "More info" -> "Run anyway".'
-      ),
+      styleText('white', '  1. In Windows notification: Click "More info" -> "Run anyway".'),
       styleText('white', '  2. Or try auto-repair with: npm run auditor:fix'),
       ''
     );
@@ -404,10 +412,7 @@ export function renderAutoFixNoticeBanner(fixableErrors: number, fixableWarnings
     title: '🛠️  ATTENTION: AUTOMATICALLY REPAIRABLE ISSUES DETECTED',
     lines: [
       styleText('white', `Detected ${countStr} repairable via auto-fix.`),
-      styleText(
-        'dim',
-        'The auditor provides automated mechanisms to resolve the vast majority.'
-      ),
+      styleText('dim', 'The auditor provides automated mechanisms to resolve the vast majority.'),
       styleText(
         ['bold', 'yellow'],
         'IT IS CATEGORICALLY PROHIBITED TO SILENCE OR DISABLE RULES IN PANIC.'
@@ -498,11 +503,17 @@ export function renderSetupBlockingBanner(
   if (hints?.hasEngineMismatch) {
     lines.push(
       styleText(['bold', 'white'], 'Imperative Step 1 — Synchronize runtime engine version:'),
-      styleText(['bold', 'cyan'], '  👉  nvm use / fnm use   (or install required version in .node-version)')
+      styleText(
+        ['bold', 'cyan'],
+        '  👉  nvm use / fnm use   (or install required version in .node-version)'
+      )
     );
   } else if (hints?.hasLockfileMismatch) {
     lines.push(
-      styleText(['bold', 'white'], 'Imperative Step 1 — Synchronize dependencies with lockfile (Terminal):'),
+      styleText(
+        ['bold', 'white'],
+        'Imperative Step 1 — Synchronize dependencies with lockfile (Terminal):'
+      ),
       styleText(['bold', 'cyan'], '  👉  npm install'),
       '',
       styleText(['bold', 'white'], 'Subsequent Step 2 — Run auditor auto-repair:'),
@@ -515,7 +526,10 @@ export function renderSetupBlockingBanner(
     );
   } else {
     lines.push(
-      styleText(['bold', 'white'], 'Imperative Step 1 — Resolve configuration errors indicated in the table:'),
+      styleText(
+        ['bold', 'white'],
+        'Imperative Step 1 — Resolve configuration errors indicated in the table:'
+      ),
       styleText(['dim'], '  👉  npm run auditor:guide -- <ruleId>   (or auditor guide <ruleId>)')
     );
   }
@@ -568,12 +582,7 @@ export function renderAuditorsRegistryTable(
         )
       );
     } else {
-      output.push(
-        styleText(
-          'yellow',
-          '⚠️ No auditors found matching the specified filters.\n'
-        )
-      );
+      output.push(styleText('yellow', '⚠️ No auditors found matching the specified filters.\n'));
     }
     return output.join('\n');
   }
@@ -682,14 +691,9 @@ export function renderAuditorsRegistryTable(
   }
 
   output.push(
-    styleText(
-      'dim',
-      `\n💡 To view manual and configuration for a suite: auditor --info=<suiteId>`
-    )
+    styleText('dim', `\n💡 To view manual and configuration for a suite: auditor --info=<suiteId>`)
   );
-  output.push(
-    styleText('dim', `💡 To obtain full JSON specification: auditor --list --json\n`)
-  );
+  output.push(styleText('dim', `💡 To obtain full JSON specification: auditor --list --json\n`));
 
   return output.join('\n');
 }
@@ -705,10 +709,8 @@ function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): strin
     capList.push(styleText('green', '✔ Auto-Repair (--fix)'));
   }
   const speeds = normalizeSpeeds(caps?.speed ?? 'light');
-  if (speeds.includes('light'))
-    capList.push(styleText('cyan', '🐇 Fast Speed (speed=light)'));
-  if (speeds.includes('heavy'))
-    capList.push(styleText('yellow', '🐢 Heavy Speed (speed=heavy)'));
+  if (speeds.includes('light')) capList.push(styleText('cyan', '🐇 Fast Speed (speed=light)'));
+  if (speeds.includes('heavy')) capList.push(styleText('yellow', '🐢 Heavy Speed (speed=heavy)'));
   if (speeds.includes('full'))
     capList.push(styleText('magenta', '🐘 Exhaustive Speed (speed=full)'));
   if (caps?.md) capList.push(styleText('magenta', '✔ Markdown Preset (preset=md)'));
@@ -799,25 +801,41 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
     ) + '\n'
   );
 
-  const boldYellow = (s: string) => styleText(['bold', 'yellow'], s);
+  const boldYellow = (s: string): string => styleText(['bold', 'yellow'], s);
 
   lines.push(boldYellow('USAGE:'));
   lines.push('  auditor [options] [commands]  (or npm run auditor [options])');
-  lines.push('  ↳ npm note: use "npm run auditor:help" or "npm run auditor help" (npm intercepts "--help" directly).\n');
+  lines.push(
+    '  ↳ npm note: use "npm run auditor:help" or "npm run auditor help" (npm intercepts "--help" directly).\n'
+  );
 
   lines.push(boldYellow('DISCOVERY & INTROSPECTION COMMANDS:'));
   lines.push('  --list, list                 Lists all discovered suites and their capabilities.');
   lines.push('  --list --enabled             Lists exclusively active/enabled suites in config.');
-  lines.push('  --list --disabled            Lists exclusively deactivated/disabled suites in config.');
-  lines.push('  --list --json                Emits the complete catalog in structured JSON format.');
-  lines.push('  --info=<id>, info <id>       Shows technical card, evaluated rules, and configuration for a suite.');
-  lines.push('  --guide=<id>, guide <id>     Shows remediation guide and solutions for a rule or suite.');
+  lines.push(
+    '  --list --disabled            Lists exclusively deactivated/disabled suites in config.'
+  );
+  lines.push(
+    '  --list --json                Emits the complete catalog in structured JSON format.'
+  );
+  lines.push(
+    '  --info=<id>, info <id>       Shows technical card, evaluated rules, and configuration for a suite.'
+  );
+  lines.push(
+    '  --guide=<id>, guide <id>     Shows remediation guide and solutions for a rule or suite.'
+  );
   lines.push('  -h, --help, help             Shows this interactive help catalog.\n');
 
   lines.push(boldYellow('DETERMINISTIC REFACTORING ENGINES (ZERO LLM TOKENS):'));
-  lines.push('  npm run auditor:types        Remediation of as any, double casts, and return contracts.');
-  lines.push('  npm run auditor:domain       Remediation of naked strings, unbranded catalogs, and raw IDs.');
-  lines.push('  npm run auditor:hygiene      Remediation of member accessibility, globalThis, and void expressions.');
+  lines.push(
+    '  npm run auditor:types        Remediation of as any, double casts, and return contracts.'
+  );
+  lines.push(
+    '  npm run auditor:domain       Remediation of naked strings, unbranded catalogs, and raw IDs.'
+  );
+  lines.push(
+    '  npm run auditor:hygiene      Remediation of member accessibility, globalThis, and void expressions.'
+  );
   lines.push('  npm run auditor:dupes        Deduplication of syntactic clones and triplicates.');
   lines.push('  npm run auditor:magic        Extraction of magic numbers to design tokens.');
   lines.push('  npm run auditor:motion       Governance of UI animations and forbidden timers.');
@@ -826,7 +844,9 @@ export function renderCliHelp(activeFamilies: readonly string[]): string {
 
   lines.push(boldYellow('MODES, FORMATS & EXECUTION PHASES:'));
   lines.push('  format=compact (default)     Concise, direct output optimized for AI agents.');
-  lines.push('  human, format=human          Human interactive mode with full Box-Drawing tables (or npm run auditor:human).');
+  lines.push(
+    '  human, format=human          Human interactive mode with full Box-Drawing tables (or npm run auditor:human).'
+  );
   lines.push('  fix, --fix                   Repair mode: runs suites with auto-fix capability.');
   lines.push('  speed=light|heavy|full       Execution speed ceiling (default: heavy 🐢).');
   lines.push('  only-speed=light|heavy|full  Runs exclusively suites declaring that exact speed.');

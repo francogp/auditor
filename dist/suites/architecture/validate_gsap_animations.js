@@ -306,6 +306,7 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 		const config = getAuditConfig(effectiveRoot);
 		const stylesExempts = [...config.styles?.exemptPaths ?? [], ...config.styles?.exemptCssFiles ?? []];
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			projectRoot: effectiveRoot,
@@ -323,7 +324,6 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(GSAP_ANIMATION_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -464,9 +464,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-banned-css-animations",
 				message: `CSS animation or transition detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Using CSS animations or transitions instead of GSAP is strictly PROHIBITED. [🚨 SABOTAGE ALERT]: DELETING OR NULLIFYING THE TRANSITION TO SILENCE THE AUDITOR IS CATEGORICALLY PROHIBITED. All interactive transitions must be cleanly migrated to GSAP tweens (gsap.to, gsap.fromTo, useGSAP).`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -480,9 +480,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-empty-vue-transitions",
 				message: `Empty Vue transition detected: '${m[0].trim()}'. MANDATORY MIGRATION TO GSAP: Emptying transition classes to evade the auditor is prohibited.`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -496,9 +496,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-no-important-transforms",
 				message: `Use of '!important' in 'transform' detected: '${m[0]}'. Overrides GSAP runtime mutations.`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -512,9 +512,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-no-important-filters",
 				message: `Use of '!important' in 'filter' detected: '${m[0]}'. Invalidates GSAP effect animations.`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -534,9 +534,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-gpu-layer-promotion",
 					message: "Dynamic filter detected without 'will-change'. Consider adding GPU layer promotion.",
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -559,9 +559,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-banned-ui-timers",
 					message: `ANIMATION/UI timer detected: '${m[0]}'. MANDATORY MIGRATION TO GSAP: Prohibited in UI. Use gsap.delayedCall or deterministic promises.`,
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -594,9 +594,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-no-layout-properties",
 				message: `Animation of CSS layout properties in GSAP detected: '${propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
-				filePath: doc.relPath,
+				file: doc.relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 			return;
@@ -606,9 +606,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-kebab-case-properties",
 				message: `CSS property in kebab-case detected in GSAP tween: '${propName}'. Use camelCase according to GSAP standards.`,
-				filePath: doc.relPath,
+				file: doc.relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 			return;
@@ -618,9 +618,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-raw-transform-string",
 				message: `Use of raw CSS string 'transform' in GSAP detected: '${prop.initializer.text}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
-				filePath: doc.relPath,
+				file: doc.relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -640,9 +640,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-simultaneous-origin-conflict",
 				message: "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
-				filePath: doc.relPath,
+				file: doc.relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -678,9 +678,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-no-layout-properties",
 					message: `Animation of CSS layout properties in GSAP detected: '${foundLayout.propName}:'. Use GPU-accelerated properties (x, y, scale, rotation, opacity) or Flip Plugin.`,
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -695,9 +695,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-kebab-case-properties",
 					message: `CSS property in kebab-case detected in GSAP tween: '${kebabMatch[0]}'. Use camelCase according to GSAP standards.`,
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -711,9 +711,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-raw-transform-string",
 					message: `Use of raw CSS string 'transform' in GSAP detected: '${rawMatch[0]}'. Use optimized native GSAP aliases ('x', 'y', 'rotation', 'scale').`,
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -726,9 +726,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-simultaneous-origin-conflict",
 					message: "Conflicting SVG origins detected: do not declare 'svgOrigin' and 'transformOrigin' simultaneously in the same tween.",
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -744,9 +744,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-named-timer-constants",
 				message: `Magic number detected in GSAP animation delay: '${m[0].trim()}'. Define and use a semantic constant with '_SEC' suffix.`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -761,9 +761,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-timeline-constructor-duration",
 					message: `'duration' property in timeline constructor is ignored in GSAP 3. Use 'defaults: { duration: ... }'.`,
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "error"
 				});
 			}
@@ -777,9 +777,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 			this.addViolation({
 				ruleId: "gsap-legacy-ease-names",
 				message: `Legacy GSAP v2 ease '${m[0]}' detected. Use canonical GSAP 3 format (e.g. 'power2.out', 'none').`,
-				filePath: relPath,
+				file: relPath,
 				line,
-				column,
+				col: column,
 				severity: "error"
 			});
 		}
@@ -794,9 +794,9 @@ var ValidateGsapAnimationsAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "gsap-high-frequency-tween-creation",
 					message: "Tween creation with 'gsap.to()' inside continuous listener. In 'mousemove', etc. use 'gsap.quickTo()'.",
-					filePath: relPath,
+					file: relPath,
 					line,
-					column,
+					col: column,
 					severity: "warning"
 				});
 			}

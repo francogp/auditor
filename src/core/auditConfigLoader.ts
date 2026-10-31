@@ -7,6 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+
+import { defineAuditConfig } from './auditConfigBuilders.ts';
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import {
   type AuditEngineConfig,
   type DeepPartial,
@@ -14,8 +17,6 @@ import {
   AUDIT_CONFIG_JSON_FILE
 } from './auditConfigTypes.ts';
 import { assertNoLegacyRootConfig } from './auditConfigValidators.ts';
-import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
-import { defineAuditConfig } from './auditConfigBuilders.ts';
 import {
   safeReadFileSync,
   safeJsonParse,
@@ -150,8 +151,7 @@ export function resolveConfigModuleUrl(
   auditorRoot: string = path.resolve(import.meta.dirname, '..', '..')
 ): ResolvedConfigModuleUrl {
   const isInstalledInNodeModules = auditorRoot.split(path.sep).includes('node_modules');
-  const isRemoteProject =
-    !isInstalledInNodeModules && path.resolve(projectRoot) !== auditorRoot;
+  const isRemoteProject = !isInstalledInNodeModules && path.resolve(projectRoot) !== auditorRoot;
   const auditorEntryUrl = resolveCurrentAuditorEntryUrl();
 
   if (isRemoteProject && auditorEntryUrl) {
@@ -160,17 +160,14 @@ export function resolveConfigModuleUrl(
       if (!rawContent.includes('@francogp/auditor')) return null;
       const rewritten = rawContent
         .replace(/from\s+['"]@francogp\/auditor['"]/g, `from '${auditorEntryUrl}'`)
-        .replace(
-          /import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g,
-          `import('${auditorEntryUrl}')`
-        );
+        .replace(/import\s*\(\s*['"]@francogp\/auditor['"]\s*\)/g, `import('${auditorEntryUrl}')`);
       const scratchDir = path.resolve(auditorRoot, 'scratch');
       if (!fs.existsSync(scratchDir)) {
         fs.mkdirSync(scratchDir, { recursive: true });
       }
       const tempFilePath = path.resolve(
         scratchDir,
-        `remote_config_${Date.now()}_${++dynamicImportCounter}.ts`
+        `remote_config_${Temporal.Now.instant().epochMilliseconds}_${++dynamicImportCounter}.ts`
       );
       fs.writeFileSync(tempFilePath, rewritten, 'utf-8');
       const tempUrl = pathToFileURL(tempFilePath);

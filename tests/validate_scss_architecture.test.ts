@@ -341,7 +341,8 @@ describe('ValidateScssArchitectureAuditor Conformance & Rule Detection', () => {
       expect(ruleSet.has('dark-mode-color-scheme-missing')).toBe(true);
 
       // Run in --fix mode
-      const fixAuditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir, fix: true });
+      const fixAuditor = new ValidateScssArchitectureAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
       fixAuditor.testScanFile('src/styles/ScssBroken.scss', fixtureContent);
 
       const fixedCss = fs.readFileSync(targetFile, 'utf-8');

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { buildNoticeBox, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
+import { buildNoticeBox, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { evaluateProjectDependencies } from "../core/auditorMinimums.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";

@@ -12,11 +12,8 @@ import path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vite-plus/test';
 
 import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core/auditConfig.ts';
-import {
-  CANONICAL_IGNORE_DIRS,
-  isPathIgnored,
-  collectRepositoryFiles
-} from '../src/core/auditorBase.ts';
+import { isPathIgnored, collectRepositoryFiles } from '../src/core/auditorBase.ts';
+import { CANONICAL_IGNORE_DIRS } from '../src/core/canonicalIgnoreRegistry.ts';
 import {
   safeResolve,
   safeWriteFileSync,

@@ -1,8 +1,8 @@
 import { AUDIT_CONFIG_FILE } from "../../core/auditConfigTypes.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
-import { isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
+import { isAuditableCodebaseFile, isDeclaredByCoverage, readCoverageLedgers, resolveActiveCoverageRunId } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { getMatchingExemptionPolicies } from "../../core/exemptionPolicies.js";
 import { enableCompileCache } from "node:module";
@@ -183,12 +183,12 @@ function listTrackedFiles(projectRoot) {
 var AuditCoverageAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AUDIT_COVERAGE_RULES, {
 				speed: "light",
 				phase: "post-run",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

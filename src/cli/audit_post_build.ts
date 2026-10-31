@@ -8,13 +8,14 @@
  */
 
 import { spawn } from 'node:child_process';
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isMainModule } from './cliUtils.ts';
+
 import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
-import '../core/permissionGuard.ts';
 import { DEFAULT_PERMISSIONS } from './auditTaskFactory.ts';
+import '../core/permissionGuard.ts';
+import { isMainModule } from './cliUtils.ts';
 
 export async function runAuditPostBuild(extraArgs: readonly string[] = []): Promise<number> {
   parseCittyArgs(COMMON_CLI_ARGS, extraArgs);

@@ -9,11 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import {
-  renderBanner,
-  renderBoxTable
-} from '../unifiedTheme.ts';
-import type { TableColumn } from '../unifiedTheme.ts';
+
 import {
   COMMON_CLI_ARGS,
   defineCommand,
@@ -23,9 +19,11 @@ import {
   type ArgsDef,
   type CommandDef
 } from '../cli/cittyHarness.ts';
+import { renderBanner, renderBoxTable } from '../unifiedTheme.ts';
+import type { TableColumn } from '../unifiedTheme.ts';
+import type { BaseRefactorEngine } from './baseRefactorEngine.ts';
 import { scanProjectSourceFiles } from './refactorFileScanner.ts';
 import { applyPlanFileWithWorktreeVerification } from './worktreeSandbox.ts';
-import type { BaseRefactorEngine } from './baseRefactorEngine.ts';
 
 export interface DiracInspectionItem {
   readonly line: number;
@@ -45,20 +43,21 @@ export interface RefactorCliDefinition<TFinding, TPlan> {
   readonly tableColumns: readonly TableColumn[];
   readonly engineFactory?: (projectRoot: string) => BaseRefactorEngine<TFinding, TPlan>;
   readonly discoverInFile: (filePath: string) => readonly TFinding[];
-  readonly buildTableRow: (relFile: string, fileFindings: readonly TFinding[]) => Record<string, string>;
+  readonly buildTableRow: (
+    relFile: string,
+    fileFindings: readonly TFinding[]
+  ) => Record<string, string>;
   readonly buildSummaryMessage: (filesCount: number, allFindings: readonly TFinding[]) => string;
   readonly toDiracItem: (finding: TFinding) => DiracInspectionItem;
   readonly createPlan: (planId: string, findings: readonly TFinding[]) => TPlan;
-  readonly applyPlan: (targetDir: string, plan: TPlan) => { readonly filesChanged: number; readonly changesApplied: number };
+  readonly applyPlan: (
+    targetDir: string,
+    plan: TPlan
+  ) => { readonly filesChanged: number; readonly changesApplied: number };
   readonly extendedHelp?: string;
 }
 
-export {
-  applyPlanFileWithWorktreeVerification,
-  renderBanner,
-  renderBoxTable,
-  type TableColumn
-};
+export { applyPlanFileWithWorktreeVerification, renderBanner, renderBoxTable, type TableColumn };
 
 const MAX_DISPLAY_FILE_PATH_LENGTH = 44;
 
@@ -172,9 +171,13 @@ function handleDiscoverCommand<TFinding, TPlan>(
   if (isHuman) {
     console.log(styleText('cyan', `🔍 ${def.scanningMessage}: ${projectRoot}...\n`));
     console.log(renderBoxTable([...def.tableColumns], tableRows));
-    console.log(styleText('yellow', `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`));
+    console.log(
+      styleText('yellow', `\n📊 ${def.buildSummaryMessage(tableRows.length, allFindings)}\n`)
+    );
   } else {
-    console.log(`🔍 ${def.toolName} discover: ${allFindings.length} opportunity(ies) across ${tableRows.length} file(s):\n`);
+    console.log(
+      `🔍 ${def.toolName} discover: ${allFindings.length} opportunity(ies) across ${tableRows.length} file(s):\n`
+    );
     for (const item of fileSummaryList) {
       console.log(`• ${item.file}: ${item.count} item(s)`);
     }
@@ -225,7 +228,10 @@ function handleInspectCommand<TFinding, TPlan>(
     console.log(`     Explanation:  ${d.explanation}\n`);
   }
 
-  const plan = def.createPlan(`${def.toolName}-plan-${Date.now()}`, findings);
+  const plan = def.createPlan(
+    `${def.toolName}-plan-${Temporal.Now.instant().epochMilliseconds}`,
+    findings
+  );
   console.log(styleText('yellow', '[Plan] Suggested declarative plan (--plan):\n'));
   console.log(JSON.stringify(plan, null, 2));
 }
@@ -303,7 +309,8 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     return;
   }
 
-  const rawProject = typeof parsed.project === 'string' && parsed.project.length > 0 ? parsed.project : '.';
+  const rawProject =
+    typeof parsed.project === 'string' && parsed.project.length > 0 ? parsed.project : '.';
   const projectRoot = path.resolve(rawProject);
   const engine = def.engineFactory?.(projectRoot);
 

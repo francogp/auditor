@@ -17,12 +17,19 @@
  */
 
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { renderBoxTable } from '../../core/unifiedTheme.ts';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { getProcessCliArgs, parseCittyArgs } from '../../core/cli/cittyHarness.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
+import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
 enableCompileCache();
 
@@ -64,23 +71,20 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
     totalTestLines: 0
   };
 
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) => [
-        ...(config.paths.testRoots ?? []),
-        ...(config.paths.integrationRoots ?? []),
-        ...(config.paths.e2eRoots ?? [])
-      ]
-    );
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [
+      ...(config.paths.testRoots ?? []),
+      ...(config.paths.integrationRoots ?? []),
+      ...(config.paths.e2eRoots ?? [])
+    ]);
     const config = getAuditConfig(effectiveRoot);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TEST_FRAGMENTATION_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,
@@ -203,7 +207,9 @@ export class TestFragmentationAuditor extends FileScanAuditor<TestFragmentationR
       /\b(?:document\b|window\b|localStorage\b|sessionStorage\b|navigator\b|HTMLElement\b|customElements\b|MutationObserver\b|ResizeObserver\b|IntersectionObserver\b|Worker\b|indexedDB\b|Blob\b|FileReader\b|location\b|self\b)/.test(
         content
       );
-    const hasWorkerGlobals = /\bself\.(?:onmessage|postMessage|importScripts|location)\b/.test(content);
+    const hasWorkerGlobals = /\bself\.(?:onmessage|postMessage|importScripts|location)\b/.test(
+      content
+    );
 
     if (!hasVueMount && !hasDomGlobals && !hasWorkerGlobals) {
       const line = this.getLineNumber(content, jsdomMatch.index);

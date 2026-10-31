@@ -14,9 +14,17 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import ts from 'typescript';
-import { BaseAuditor,
-  createUniformRemediationPhases, FileScanAuditor, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  FileScanAuditor,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 
 enableCompileCache();
 
@@ -45,13 +53,14 @@ function hasOnceOption(node: ts.CallExpression): boolean {
 }
 
 export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const scanRoots = resolveFileScanRoots(options, (cfg) => [
       ...(cfg.paths.componentsRoots ?? []),
       ...(cfg.paths.viewsRoots ?? []),
       ...(cfg.paths.composablesRoots ?? [])
     ]);
     super({
+      ruleFixers: {},
       id: 'validate_reactive_leaks',
       name: 'Reactive & DOM Event Leak Auditor',
       description: 'Detects potential memory leaks and uncleaned listeners',
@@ -63,7 +72,6 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
       ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -183,7 +191,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
     const hasClearInterval = content.includes('clearInterval');
 
     this.runSubAuditorSync('dom-event-leak', () => {
-      const visitEvents = (node: ts.Node) => {
+      const visitEvents = (node: ts.Node): void => {
         if (ts.isCallExpression(node)) {
           this.checkEventListenerLeak(node, sf, relPath, {
             hasRemoveEventListener,
@@ -196,7 +204,7 @@ export class ReactiveLeaksAuditor extends FileScanAuditor<ReactiveLeakRuleId> {
     });
 
     this.runSubAuditorSync('interval-leak', () => {
-      const visitIntervals = (node: ts.Node) => {
+      const visitIntervals = (node: ts.Node): void => {
         if (ts.isCallExpression(node)) {
           this.checkIntervalLeak(node, sf, relPath, hasClearInterval);
         }

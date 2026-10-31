@@ -45,7 +45,7 @@ describe('validate_dependency_minimums', () => {
   }
 
   async function run() {
-    return new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir }).execute();
+    return new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir }).audit();
   }
 
   beforeEach(async () => {
@@ -109,8 +109,8 @@ describe('validate_dependency_minimums', () => {
 
   it('auto-fixes declared range below minimum or above maximum when fix: true', async () => {
     await writeProject({ 'html-validate': '^1.0.0', typescript: '^7.0.0' });
-    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir, fix: true });
-    const result = await auditor.execute();
+    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
+    const result = await auditor.fix();
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
 
@@ -168,8 +168,8 @@ describe('validate_dependency_minimums', () => {
 
   it('auto-repairs exact pinned version to caret range in fix mode', async () => {
     await writeProject({ 'html-validate': htmlValidateMin });
-    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir, fix: true });
-    const result = await auditor.execute();
+    const auditor = new ValidateDependencyMinimumsAuditor({ projectRoot: tempDir });
+    const result = await auditor.fix();
     expect(result.status).toBe('passed');
     const content = await fs.readFile(path.join(tempDir, 'package.json'), 'utf-8');
     const parsed = JSON.parse(content);

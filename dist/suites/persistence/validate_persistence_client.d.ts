@@ -2,10 +2,10 @@ import { FileScanAuditor } from "../../core/auditorBase.js";
 export declare const PERSISTENCE_CLIENT_RULES: readonly ["persistence-client-uncoordinated-save", "persistence-client-untyped-key", "persistence-client-unhandled-quota-error"];
 export type PersistenceClientRuleId = (typeof PERSISTENCE_CLIENT_RULES)[number];
 export interface ValidatePersistenceClientOptions {
-  projectRoot?: string;
-  roots?: readonly string[];
-  authorizedSaveFiles?: readonly string[];
-  saveKeyPrefixes?: readonly string[];
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
+  readonly authorizedSaveFiles?: readonly string[];
+  readonly saveKeyPrefixes?: readonly string[];
 }
 export interface StorageAccessContext {
   readonly rawKeyArg: string;
@@ -17,7 +17,7 @@ export interface StorageAccessContext {
 export declare class ValidatePersistenceClientAuditor extends FileScanAuditor<PersistenceClientRuleId> {
   private readonly authorizedSaveFiles;
   private readonly saveKeyPrefixes;
-  constructor(options?: string | ValidatePersistenceClientOptions);
+  constructor(options?: ValidatePersistenceClientOptions);
   protected scanFile(file: string, content: string): void;
   private forEachStorageAccess;
   private scanUncoordinatedSave;

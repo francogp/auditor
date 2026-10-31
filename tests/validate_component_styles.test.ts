@@ -131,7 +131,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');
         expect(auditor.getViolations()).toHaveLength(0);
@@ -192,7 +192,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.summary.errors).toBeGreaterThanOrEqual(4);
         const ruleIds = result.findings.map((f) => f.ruleId);
@@ -236,7 +236,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');
         expect(auditor.getViolations()).toHaveLength(0);
@@ -278,7 +278,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.summary.errors).toBe(2);
         expect(result.status).toBe('failed');
         const violations = auditor.getViolations();
@@ -313,7 +313,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.summary.errors).toBe(1);
         const violations = auditor.getViolations();
         expect(violations[0]?.type).toBe('banned_raw_css_file');
@@ -349,13 +349,13 @@ describe('ComponentStylesAuditor', () => {
 
         // 1. Audit in lint mode: reports 2 fixable errors
         const lintAuditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const lintResult = await lintAuditor.execute();
+        const lintResult = await lintAuditor.audit();
         expect(lintResult.summary.errors).toBe(2);
         expect(lintAuditor.getFixableErrors()).toBe(2);
 
         // 2. Audit in fix mode: applies the fix on disk
-        const fixAuditor = new ComponentStylesAuditor({ projectRoot: tempDir, fix: true });
-        const fixResult = await fixAuditor.execute();
+        const fixAuditor = new ComponentStylesAuditor({ projectRoot: tempDir });
+        const fixResult = await fixAuditor.fix();
         expect(fixResult.summary.errors).toBe(0);
         expect(fixResult.status).toBe('passed');
 
@@ -368,7 +368,7 @@ describe('ComponentStylesAuditor', () => {
 
         // 4. Re-run in lint mode: completely clean
         const recheckAuditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const recheckResult = await recheckAuditor.execute();
+        const recheckResult = await recheckAuditor.audit();
         expect(recheckResult.summary.errors).toBe(0);
         expect(recheckResult.status).toBe('passed');
       } finally {
@@ -401,7 +401,7 @@ describe('ComponentStylesAuditor', () => {
         );
 
         const auditor = new ComponentStylesAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');
       } finally {

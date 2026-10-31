@@ -30,6 +30,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			projectRoot: effectiveRoot,
@@ -46,7 +47,6 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(GSAP_SCROLLTRIGGER_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,
@@ -107,7 +107,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 			if (this.isLineInComment(content, m.index)) continue;
 			this.addViolationAtMatch({
 				ruleId: "gsap-scrolltrigger-in-timeline-child",
-				filePath: relPath,
+				file: relPath,
 				content,
 				matchIndex: m.index,
 				message: "Declaring 'scrollTrigger' on a child tween in a timeline breaks sequence timing. Declare it in 'gsap.timeline({ scrollTrigger: ... })'.",
@@ -129,7 +129,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 		this.scanScrollTriggerBlocks(content, (blockBody, matchIndex) => {
 			if (/\bscrub\s*:/i.test(blockBody) && /\btoggleActions\s*:/i.test(blockBody)) this.addViolationAtMatch({
 				ruleId: "gsap-scrolltrigger-scrub-and-toggle",
-				filePath: relPath,
+				file: relPath,
 				content,
 				matchIndex,
 				message: "Conflict in ScrollTrigger: 'scrub' and 'toggleActions' cannot coexist. 'scrub' neutralizes toggleActions.",
@@ -143,7 +143,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 				const surroundingWindow = content.slice(Math.max(0, matchIndex - 100), Math.min(content.length, matchIndex + 200));
 				if (!/import\.meta\.env\.DEV|NODE_ENV\s*!==\s*['"]production['"]/i.test(surroundingWindow)) this.addViolationAtMatch({
 					ruleId: "gsap-scrolltrigger-markers-production",
-					filePath: relPath,
+					file: relPath,
 					content,
 					matchIndex,
 					message: "Using 'markers: true' in production code. Remove markers or guard them with 'import.meta.env.DEV'.",
@@ -159,7 +159,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 			if (this.isLineInComment(content, m.index)) continue;
 			this.addViolationAtMatch({
 				ruleId: "gsap-scrolltrigger-animating-pinned-element",
-				filePath: relPath,
+				file: relPath,
 				content,
 				matchIndex: m.index,
 				message: "Transform animation on pinned element ('pin: true') distorts pin-spacer. Pin the outer parent container instead.",
@@ -179,7 +179,7 @@ var ValidateGsapScrollTriggerAuditor = class extends FileScanAuditor {
 				const easeMatch = /\bease\s*:\s*['"]([^'"]+)['"]/.exec(tweenBody);
 				if (easeMatch && easeMatch[1] !== "none") this.addViolationAtMatch({
 					ruleId: "gsap-scrolltrigger-container-animation-ease",
-					filePath: relPath,
+					file: relPath,
 					content,
 					matchIndex: defMatch.index,
 					message: `The containerAnimation driving tween '${animVar}' must have 'ease: "none"' for linear scroll synchronization.`,

@@ -25,11 +25,11 @@ export declare const AUDITOR_STYLELINT_EXTENDS_PATH = "./node_modules/@francogp/
 export declare const CANONICAL_STYLELINT_CONFIG_CONTENT: string;
 export declare const STYLELINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<StylelintConfigRuleId>;
 export declare function extendsAuditorConfig(parsedConfig: Record<string, unknown>): boolean;
+export interface StylelintConfigAuditorOptions {
+  readonly projectRoot?: string;
+}
 export declare class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigRuleId> {
-  constructor(rootsOrOptions?: readonly string[] | {
-    projectRoot?: string;
-    fix?: boolean;
-  }, maybeProjectRoot?: string);
+  constructor(options?: StylelintConfigAuditorOptions);
   private auditPlugin;
   private auditOrderRule;
   private auditStrictRule;

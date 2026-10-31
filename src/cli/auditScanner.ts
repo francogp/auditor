@@ -7,9 +7,11 @@
  * are ever left behind from the orchestrator.
  */
 
-import fs from 'node:fs/promises';
 import fsSync from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
+
+import { loadAuditConfig } from '../core/auditConfig.ts';
 import {
   type AuditFamily,
   type AuditTaskDefinition,
@@ -19,13 +21,12 @@ import {
   getActiveFamilies,
   FALLBACK_FAMILY_ORDER
 } from '../core/auditContract.ts';
-import { loadAuditConfig } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
 import { GitIgnoreRegistry } from '../core/gitIgnoreRegistry.ts';
 import {
   PackageScriptRegistry,
   CORE_PACKAGE_SCRIPT_REQUIREMENTS
 } from '../core/packageScriptRegistry.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import { tryOrNullAsync } from '../core/safeUtils.ts';
 export { isSimilarCodeSkipped } from '../suites/architecture/validate_similar_code.ts';
 
@@ -322,7 +323,7 @@ export async function collectAllGitIgnoreRequirements(
     }
   }
 
-  return GitIgnoreRegistry.getRequirements();
+  return Array.from(GitIgnoreRegistry.getAll());
 }
 
 /**

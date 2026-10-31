@@ -1,5 +1,6 @@
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
-import { AuditorOptions, FileScanAuditor } from "../../core/auditorBase.js";
+import "../../core/auditContract.js";
+import { FileScanAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
 export declare const FILE_ENCODING_RULES: readonly ["file-encoding-invalid-charset", "file-encoding-unwanted-bom", "file-encoding-mojibake-detected"];
 export type FileEncodingRuleId = (typeof FILE_ENCODING_RULES)[number];
 export declare const FILE_ENCODING_RULE_DESCRIPTIONS: Record<FileEncodingRuleId, string>;
@@ -24,10 +25,7 @@ export declare function inspectBufferEncoding(buffer: Buffer, options?: {
   detectMojibake?: boolean;
 }): EncodingInspectionIssue | null;
 export declare class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRuleId> {
-  constructor(rootsOrOptions?: readonly string[] | (Partial<AuditorOptions<FileEncodingRuleId>> & {
-    projectRoot?: string;
-    fix?: boolean;
-  }), maybeProjectRoot?: string);
+  constructor(options?: FileScanRootsOptions);
   runAudit(): Promise<void>;
   private applyRepair;
 }

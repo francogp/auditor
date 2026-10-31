@@ -36,18 +36,18 @@ var MarkdownSyntaxAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, () => ["."]);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["markdown-table-preceding-blank-line"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_SYNTAX_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: true,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["markdown-table-preceding-blank-line"]),
-			fixableRuleIds: ["markdown-table-preceding-blank-line"],
+			}),
 			id: "validate_markdown_syntax",
 			name: "Markdown Syntax & NPM Script SSoT Validator",
 			description: "Unauthorized commands or malformed tables in docs",

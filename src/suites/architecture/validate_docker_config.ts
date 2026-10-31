@@ -16,15 +16,15 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
@@ -79,53 +79,37 @@ export const DOCKER_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<DockerConfi
   generateDefaultContent: () => CANONICAL_DOCKERIGNORE_CONTENT
 };
 
+export interface DockerConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
+
 export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<DockerConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<DockerConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: DockerConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<DockerConfigRuleId> = {
       ...DOCKER_CONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(DOCKER_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: false,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'dockerignore-missing',
-        'dockerignore-missing-pattern'
-      ],
       configFiles: [configRequirement],
       id: 'validate_docker_config',
       name: 'Docker Configuration Validator',
@@ -161,9 +145,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
       coverage: {
         include: ['.dockerignore']
       },
-      projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      projectRoot
     });
   }
 
@@ -192,8 +174,7 @@ export class ValidateDockerConfigAuditor extends BaseAuditor<DockerConfigRuleId>
 
     const resolvedPath = configFile;
 
-    const relPath =
-      path.relative(this.projectRoot, resolvedPath) || DOCKER_CONFIG_REQUIREMENT.file;
+    const relPath = path.relative(this.projectRoot, resolvedPath) || DOCKER_CONFIG_REQUIREMENT.file;
     this.recordScanned(relPath);
     let rawContent: string;
     try {

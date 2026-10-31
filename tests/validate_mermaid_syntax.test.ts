@@ -13,7 +13,6 @@ import {
   ValidateMermaidSyntaxAuditor,
   MERMAID_SYNTAX_RULES,
   validateMermaid,
-  validate,
   type MermaidSyntaxRuleId
 } from '../src/suites/documentation/validate_mermaid_syntax.ts';
 
@@ -206,15 +205,6 @@ describe('ValidateMermaidSyntaxAuditor', () => {
       const res = await validateMermaid('pie title Test\n    "InvalidSlice" : not_a_number');
       expect(res.valid).toBe(false);
       expect(res.error?.message).toMatch(/Parse error/i);
-    });
-
-    it('supports backward-compatible validate async helper', async () => {
-      const validRes = await validate('graph TD\n    A --> B');
-      expect(validRes).toEqual({ diagramType: 'flowchart-v2', valid: true });
-
-      await expect(validate('graph TD\n    A --->>> B')).rejects.toThrow(/Parse error/i);
-      const suppressed = await validate('graph TD\n    A --->>> B', { suppressErrors: true });
-      expect(suppressed).toBe(false);
     });
   });
 
@@ -426,7 +416,7 @@ describe('ValidateMermaidSyntaxAuditor', () => {
 
     it('auto-quotes special characters in Mermaid labels when fix: true is active', async () => {
       const auditor = new TestableMermaidSyntaxAuditor({ roots: [], projectRoot: PROJECT_ROOT });
-      (auditor as unknown as { fixMode: boolean }).fixMode = true;
+      Reflect.set(auditor, 'currentFixActive', true);
       const content = [
         '# Document',
         '```mermaid',

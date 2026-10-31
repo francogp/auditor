@@ -102,6 +102,20 @@ function auditZIndexParity(scssContent, isFixMode, layers = Z_LAYERS) {
 }
 const HARDCODED_Z_INDEX_REGEX = /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi;
 const ISOLATED_Z_INDEX_CONST_REGEX = /const\s+(\w*Z_INDEX\w*)\s*=\s*(?:'[^']+'|"[^"]+"|\d+)/gi;
+async function fixZIndexVariables(context) {
+	const scssPath = resolveZLayersScssPath(context.projectRoot);
+	if (!scssPath) return false;
+	try {
+		const result = auditZIndexParity(await fs$1.readFile(scssPath, "utf-8"), true, getEffectiveZLayers(context.projectRoot));
+		if (result.modified) {
+			await fs$1.writeFile(scssPath, result.scssContent, "utf-8");
+			return true;
+		}
+	} catch {
+		return false;
+	}
+	return false;
+}
 var ZIndexAuditor = class extends FileScanAuditor {
 	scssPath;
 	isExplicit;
@@ -109,26 +123,21 @@ var ZIndexAuditor = class extends FileScanAuditor {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => options.scssPath ? [path.dirname(options.scssPath)] : config.paths.srcRoots);
 		const config = getAuditConfig(effectiveRoot);
 		super({
+			ruleFixers: {
+				"z-index-missing-var": fixZIndexVariables,
+				"z-index-mismatch": fixZIndexVariables
+			},
+			fixableRuleIds: ["z-index-hardcoded-literal"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(Z_INDEX_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [
-				"z-index-missing-var",
-				"z-index-mismatch",
-				"z-index-hardcoded-literal"
-			]),
-			fixableRuleIds: [
-				"z-index-missing-var",
-				"z-index-mismatch",
-				"z-index-hardcoded-literal"
-			],
+			}),
 			id: "validate_z_index",
 			name: "Z-Index Consistency Validator",
 			description: "Validates parity between Z_LAYERS and CSS variables (SCSS)",
@@ -206,9 +215,9 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				this.addViolation({
 					ruleId: "z-index-hardcoded-literal",
 					severity: "error",
-					filePath: doc.relPath,
+					file: doc.relPath,
 					line: pos.line,
-					column: pos.column,
+					col: pos.col,
 					message: msg,
 					context: m[0],
 					fixable: canFix
@@ -240,9 +249,9 @@ var ZIndexAuditor = class extends FileScanAuditor {
 						this.addViolation({
 							ruleId: "z-index-isolated-constant",
 							severity: "error",
-							filePath: doc.relPath,
+							file: doc.relPath,
 							line: pos.line,
-							column: pos.column,
+							col: pos.col,
 							message: `Isolated Z-Index constant declaration detected: '${cMatch[0]}'. Declaring Z-Index constants outside Z_LAYERS is PROHIBITED. Register the layer in Z_LAYERS or consume 'Z_LAYERS.<LAYER>'.`,
 							context: cMatch[0],
 							fixable: false
@@ -281,7 +290,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			include: Array.from(/* @__PURE__ */ new Set([relTarget, ...rootsCoverage.include])),
 			source: "runtime"
 		});
-		const isFixMode = this.isFixModeRequested();
+		const isFixMode = this.isFixActive();
 		let scssContent = null;
 		let readErr = null;
 		try {
@@ -342,4 +351,4 @@ var ZIndexAuditor = class extends FileScanAuditor {
 	}
 };
 await FileScanAuditor.runCliIfMain(import.meta.url, new ZIndexAuditor());
-export { HARDCODED_Z_INDEX_REGEX, ISOLATED_Z_INDEX_CONST_REGEX, ZIndexAuditor, Z_INDEX_RULES, auditZIndexParity, fixZIndexLiteral as fixZIndexLiteralMatch };
+export { HARDCODED_Z_INDEX_REGEX, ISOLATED_Z_INDEX_CONST_REGEX, ZIndexAuditor, Z_INDEX_RULES, auditZIndexParity, fixZIndexLiteral as fixZIndexLiteralMatch, fixZIndexVariables };

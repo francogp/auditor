@@ -159,6 +159,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
           requiredPermissions: [],
           criticalConfig: {},
           usesThirdPartyTool: false,
+          ruleFixers: {},
           ruleIds: ['r-light', 'r-heavy', 'r-multi'],
           ruleDescriptions: {
             'r-light': 'Light rule',
@@ -180,7 +181,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
             'r-light': {
               speed: 'light',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -189,7 +189,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
             'r-heavy': {
               speed: 'heavy',
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,
@@ -198,7 +197,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
             'r-multi': {
               speed: ['light', 'full'],
               phase: 'normal',
-              fix: 'none',
               md: false,
               ast: false,
               changedOnly: false,

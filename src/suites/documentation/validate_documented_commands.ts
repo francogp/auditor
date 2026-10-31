@@ -10,13 +10,15 @@
  */
 
 import path from 'node:path';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import { isAuditableCodebaseFile } from '../../core/auditCoverage.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
+import { GitIgnoreMatcher } from '../../core/gitignoreMatcher.ts';
 import {
   loadPackageScriptsAndBins,
   extractCommandsFromLine,
@@ -24,6 +26,8 @@ import {
   type ExtractedCommand,
   type NpmCommandValidationEnv
 } from '../../core/npmCommandUtils.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
+import { safeReadFileSync } from '../../core/safeUtils.ts';
 
 export {
   VALID_NPM_BUILTINS,
@@ -177,15 +181,15 @@ export class ValidateDocumentedCommandsAuditor extends BaseAuditor<DocumentedCom
   private readonly rootDir: string;
   private readonly gitIgnoreMatcher: GitIgnoreMatcher;
 
-  constructor(options: { projectRoot?: string } = {}) {
+  public constructor(options: { projectRoot?: string } = {}) {
     const root = options.projectRoot || process.cwd();
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(DOCUMENTED_COMMANDS_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: true,
         ast: false,
         changedOnly: false,

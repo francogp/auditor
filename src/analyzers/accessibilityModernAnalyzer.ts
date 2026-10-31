@@ -11,6 +11,7 @@
 import type { JSDOM } from 'jsdom';
 import MagicString from 'magic-string';
 import ts from 'typescript';
+
 import {
   type JsdomElementLocation,
   getAttrLocation,
@@ -52,7 +53,10 @@ const NATIVE_INTERACTIVE_FORM_TAGS: ReadonlySet<string> = new Set([
 const IDENTIFIER_INPUT_TOKEN_REGEX =
   /(?:^|[-_.\s])(?:postal[-_]?code|zip[-_]?code|zip|cc[-_]?number|card[-_]?number|tel|phone|telefono|celular|otp|one[-_]?time[-_]?code|dni|cuit|cuil|cbu)(?:$|[-_.\s])/i;
 
-function extractElementContext(template: string, loc: JsdomElementLocation | null | undefined): string {
+function extractElementContext(
+  template: string,
+  loc: JsdomElementLocation | null | undefined
+): string {
   if (!loc) return '';
   const start = loc.startTag?.startOffset ?? loc.startOffset;
   const end = loc.startTag?.endOffset ?? Math.min(loc.endOffset, start + 120);
@@ -60,11 +64,7 @@ function extractElementContext(template: string, loc: JsdomElementLocation | nul
 }
 
 function hasDynamicOrStaticAttr(el: Element, name: string): boolean {
-  return (
-    el.hasAttribute(name) ||
-    el.hasAttribute(`:${name}`) ||
-    el.hasAttribute(`v-bind:${name}`)
-  );
+  return el.hasAttribute(name) || el.hasAttribute(`:${name}`) || el.hasAttribute(`v-bind:${name}`);
 }
 
 function checkPositiveTabindex(
@@ -489,14 +489,7 @@ export function analyzeModernAccessibility(
   const m4 = checkIframeAccessibility(doc, dom, templateContent, lineOffset, ms, findings);
   const m5 = checkFormIdentifierInputs(doc, dom, templateContent, lineOffset, ms, findings);
   const m6 = checkFormAutocompleteHygiene(doc, dom, templateContent, lineOffset, ms, findings);
-  checkDialogPopoverAndSummarySemantics(
-    doc,
-    dom,
-    templateContent,
-    scriptAst,
-    lineOffset,
-    findings
-  );
+  checkDialogPopoverAndSummarySemantics(doc, dom, templateContent, scriptAst, lineOffset, findings);
 
   const mutated = m1 || m2 || m3 || m4 || m5 || m6;
   return {

@@ -7,6 +7,7 @@
  */
 
 import path from 'node:path';
+
 import ts from 'typescript';
 
 import type { AuditedDocument } from '../../core/auditedDocument.ts';
@@ -114,10 +115,7 @@ function collectDynamicCallbackParamUsages(
   collectParamRefs(fn.body ?? fn);
 }
 
-function inspectCliImportFact(
-  node: ts.ImportDeclaration,
-  processAliases: Set<string>
-): void {
+function inspectCliImportFact(node: ts.ImportDeclaration, processAliases: Set<string>): void {
   const spec = getStaticStringValue(node.moduleSpecifier);
   if (spec && PROCESS_MODULE_SPECIFIERS.has(spec)) {
     const clause = node.importClause;

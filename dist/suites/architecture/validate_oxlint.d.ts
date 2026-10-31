@@ -1,4 +1,4 @@
-import { AuditFinding, GitIgnoreRequirement } from "../../core/auditContract.js";
+import { AuditFinding, GitIgnoreRequirement, RuleFixContext } from "../../core/auditContract.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const OXLINT_RULES: readonly ["oxlint-violation"];
@@ -36,6 +36,7 @@ export declare function isOxlintRuleFixable(ruleName: string): boolean;
  * Elevates all diagnostics to severity: 'error' (Zero-Warning Policy).
  */
 export declare function parseOxlintResults(input: string | object | object[], cwd?: string): AuditFinding[];
+export declare function fixOxlint(context: RuleFixContext<'oxlint-violation'>): Promise<boolean>;
 export interface OxlintAuditorOptions {
   readonly projectRoot?: string;
 }

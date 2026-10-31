@@ -353,19 +353,18 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			...config.paths.stylesRoots ?? []
 		]));
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["banned-plain-css-style", "banned-raw-css-file"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(COMPONENT_STYLE_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["banned-plain-css-style", "banned-raw-css-file"]),
-			fixableRuleIds: ["banned-plain-css-style", "banned-raw-css-file"],
-			fix: options.fix,
+			}),
 			id: "validate_component_styles",
 			name: "Vue Component Style Linkage & SCSS Auditor",
 			description: "Validates component style links and orphaned SCSS",

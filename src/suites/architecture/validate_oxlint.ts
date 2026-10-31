@@ -13,13 +13,21 @@
  *   vp check
  */
 
-import path from 'node:path';
-import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities } from '../../core/auditorBase.ts';
-import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
-import type { AuditFinding, GitIgnoreRequirement } from '../../core/auditContract.ts';
+import path from 'node:path';
+
+import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
+import type {
+  AuditFinding,
+  GitIgnoreRequirement,
+  RuleFixContext,
+  AnyRuleFixerFn
+} from '../../core/auditContract.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import {
   parseLintResultsToFindings,
   normalizePosixPath,
@@ -27,6 +35,7 @@ import {
   type RawLintMessage,
   type RawLintFileReport
 } from '../../core/reportUtils.ts';
+import { getVitePlusDefaultExcludeGlobs } from '../../core/vitePlusConfigSync.ts';
 
 enableCompileCache();
 
@@ -460,7 +469,7 @@ export const OXLINT_FIXABLE_RULES_LIST = [
   'import/newline-after-import',
   'newline-after-import',
   'import/no-duplicates',
-  'no-duplicates',
+  'no-duplicates'
 ] as const;
 
 export type OxlintFixableRule = (typeof OXLINT_FIXABLE_RULES_LIST)[number];
@@ -472,9 +481,7 @@ export const OXLINT_FIXABLE_RULES: ReadonlySet<string> = new Set<string>(OXLINT_
  */
 export function isOxlintRuleFixable(ruleName: string): boolean {
   if (!ruleName) return false;
-  const normalized = ruleName
-    .replace(/\(([^)]+)\)/, '/$1')
-    .replace(/^eslint\//, '');
+  const normalized = ruleName.replace(/\(([^)]+)\)/, '/$1').replace(/^eslint\//, '');
   if (OXLINT_FIXABLE_RULES.has(normalized)) return true;
   const bareName = normalized.includes('/') ? normalized.split('/')[1] : normalized;
   if (bareName && OXLINT_FIXABLE_RULES.has(bareName)) return true;
@@ -527,6 +534,30 @@ export function parseOxlintResults(
   });
 }
 
+export async function fixOxlint(context: RuleFixContext<'oxlint-violation'>): Promise<boolean> {
+  const vpBin =
+    resolvePackageBin('vite-plus', {
+      projectRoot: context.projectRoot,
+      fallbackRelativeBin: 'bin/vp'
+    }) ?? path.resolve(context.projectRoot, 'node_modules/vite-plus/bin/vp');
+
+  const args: string[] = ['lint', '--fix'];
+  try {
+    executeNodeCli(vpBin, args, {
+      cwd: context.projectRoot,
+      maxBuffer: MAX_BUFFER_BYTES,
+      timeout: EXECUTION_TIMEOUT_MS
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const OXLINT_FIXERS: Partial<Record<OxlintRuleId, AnyRuleFixerFn>> = {
+  'oxlint-violation': fixOxlint
+};
+
 export interface OxlintAuditorOptions {
   readonly projectRoot?: string;
 }
@@ -542,9 +573,10 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     }
   ];
 
-  constructor(options: OxlintAuditorOptions = {}) {
+  public constructor(options: OxlintAuditorOptions = {}) {
     const effectiveRoot = options.projectRoot || process.cwd();
     super({
+      ruleFixers: OXLINT_FIXERS,
       usesThirdPartyTool: true,
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
@@ -552,20 +584,14 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         fallbackBehavior: 'violation',
         fallbackRuleId: 'oxlint-violation'
       },
-      ruleCapabilities: createRuleCapabilities(
-        OXLINT_RULES,
-        {
-          speed: ['light', 'full'],
-          phase: 'normal',
-          fix: 'normal',
-          md: false,
-          ast: false,
-          changedOnly: false,
-          critical: true
-        },
-        ['oxlint-violation']
-      ),
-      fixableRuleIds: ['oxlint-violation'],
+      ruleCapabilities: createRuleCapabilities(OXLINT_RULES, {
+        speed: ['light', 'full'],
+        phase: 'normal',
+        md: false,
+        ast: false,
+        changedOnly: false,
+        critical: true
+      }),
       gitIgnoreEntries: OxlintAuditor.gitIgnoreEntries,
       cachePaths: ['.oxlintcache'],
       id: 'validate_oxlint',
@@ -585,7 +611,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       ruleRemediations: {
         'oxlint-violation':
           '1. Root Cause:\n' +
-          'A linter rule violation, syntax error, or code anti-pattern was detected by Vite+\'s high-speed static Oxlint engine.\n' +
+          "A linter rule violation, syntax error, or code anti-pattern was detected by Vite+'s high-speed static Oxlint engine.\n" +
           'Oxlint validates strict TypeScript standards (@typescript-eslint), modern code hygiene (unicorn), testing best practices (vitest), component structure (vue), and general JavaScript standards.\n\n' +
           '2. Diagnosis:\n' +
           'The violation message indicates the exact rule code (e.g. @typescript-eslint/no-unused-vars, unicorn/prefer-string-starts-ends-with) and the line of the offending file.\n\n' +
@@ -614,7 +640,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       source: 'declared-only'
     });
 
-    const isFixMode = this.isFixModeRequested();
+    const isFixMode = this.isFixActive();
     const tier = this.getExecutionTier();
 
     const vpBin =

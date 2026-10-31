@@ -8,25 +8,19 @@
  *   2. Always writes 100% complete structured JSON to scratch/audits/<family>/<id>.json.
  */
 
-import fs from 'node:fs/promises';
 import nodeFs from 'node:fs';
+import fs from 'node:fs/promises';
+import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { enableCompileCache } from 'node:module';
-import { safeStatSync } from './safeUtils.ts';
-import {
-  COMMON_CLI_ARGS,
-  getProcessCliArgs,
-  parseCittyArgs,
-  type CittyArgsDef
-} from './cli/cittyHarness.ts';
-import './permissionGuard.ts';
+
 import {
   type AuditFamily,
   type AuditFinding,
   type FindingSeverity,
   type StandardAuditResult,
   type ICompositeAuditor,
+  type AuditorExecutable,
   type SubAuditorStep,
   type SubAuditorReport,
   type SubAuditorStatus,
@@ -34,7 +28,7 @@ import {
   type AuditExecutionPhase,
   type AuditFixCapability,
   type AuditorRuleCapabilities,
-  type AuditorCapabilities,
+  type AuditorComputedCapabilities,
   type AuditorCoverageDeclaration,
   type GitIgnoreRequirement,
   type AuditorConfigFileRequirement,
@@ -48,9 +42,12 @@ import {
   type DualCommandProfile,
   type TieredCommandProfile,
   type ThirdPartyToolFailurePolicy,
+  type RuleFixContext,
+  type RuleFixerFn,
+  type AnyRuleFixerFn,
+  type RuleFixersMap,
   AUDIT_EXECUTION_SPEEDS,
   AUDIT_EXECUTION_PHASES,
-  AUDIT_FIX_CAPABILITIES,
   SPEED_RANK,
   normalizeSpeeds,
   resolveEffectiveSpeed,
@@ -59,13 +56,21 @@ import {
   computeResultsFixableViolations
 } from './auditContract.ts';
 import {
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef
+} from './cli/cittyHarness.ts';
+import './permissionGuard.ts';
+import { ConfigFileRegistry } from './configFileRegistry.ts';
+import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
+import { PackageScriptRegistry } from './packageScriptRegistry.ts';
+import {
   type RemediationPhaseId,
   REMEDIATION_PHASE_IDS,
   isRemediationPhaseId
 } from './remediationPhases.ts';
-import { GitIgnoreRegistry } from './gitIgnoreRegistry.ts';
-import { ConfigFileRegistry } from './configFileRegistry.ts';
-import { PackageScriptRegistry } from './packageScriptRegistry.ts';
+import { safeStatSync } from './safeUtils.ts';
 
 export {
   deriveCanonicalAuditorScript,
@@ -74,6 +79,17 @@ export {
   type RemediationPhaseId,
   REMEDIATION_PHASE_IDS
 };
+import ts from 'typescript';
+
+import { isMainModule } from '../cli/cliUtils.ts';
+import type { SharedAstContext } from './astContext.ts';
+import {
+  type AuditEngineConfig,
+  type BaseAuditSubsystemConfig,
+  getAuditConfig,
+  loadAuditConfig
+} from './auditConfig.ts';
+import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import {
   CoverageRecorder,
   deriveCoverageFromRoots,
@@ -84,59 +100,54 @@ import {
   validateCoverageDeclaration,
   writeCoverageLedger
 } from './auditCoverage.ts';
-import { normalizePosixPath } from './reportUtils.ts';
+import {
+  AuditedDocument,
+  type DocumentReplacement,
+  type LineColumnPosition
+} from './auditedDocument.ts';
+import { isTestFileForCodeAudit } from './auditTestPredicates.ts';
+import { formatDurationMs } from './durationFormatter.ts';
+import { isPathExempt, normalizePosixPath } from './reportUtils.ts';
+import { evaluateSuiteStatus } from './suiteGating.ts';
 import {
   renderBanner,
   renderAuditTaskRow,
   renderFindingsDetail,
   renderSimilarCodeWarningBanner
 } from './unifiedTheme.ts';
-import { isMainModule } from '../cli/cliUtils.ts';
-import { type AuditEngineConfig, type BaseAuditSubsystemConfig, getAuditConfig, loadAuditConfig } from './auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
-import { evaluateSuiteStatus } from './suiteGating.ts';
-import type { SharedAstContext } from './astContext.ts';
-import ts from 'typescript';
-import { formatDurationMs } from './durationFormatter.ts';
-import {
+
+export interface FixableAuditorInstance {
+  fix(...args: readonly unknown[]): Promise<unknown>;
+}
+
+export type FixableAuditorConstructor = new (
+  options?: Readonly<Record<string, unknown>>
+) => FixableAuditorInstance;
+
+export type AuditorConstructor<TRuleId extends string = string> = new (
+  options?: Readonly<Record<string, unknown>>
+) => BaseAuditor<TRuleId>;
+
+export {
   AuditedDocument,
   type DocumentReplacement,
-  type LineColumnPosition
-} from './auditedDocument.ts';
-import { isPathExempt } from './reportUtils.ts';
-import { isTestFileForCodeAudit } from './auditTestPredicates.ts';
-
-export { AuditedDocument, type DocumentReplacement, type LineColumnPosition, isPathExempt };
+  type LineColumnPosition,
+  type RuleFixContext,
+  type RuleFixerFn,
+  type AnyRuleFixerFn,
+  type RuleFixersMap,
+  type AuditorComputedCapabilities
+};
 
 enableCompileCache();
 
 import {
   ALWAYS_IGNORE_DIRS,
-  CANONICAL_IGNORE_DIRS,
-  getEffectiveIgnoreDirs,
-  getEffectiveUnignoreDirs,
-  getEffectiveIgnoreGlobs,
-  getLockedSkillsIgnoreGlobs,
-  registerDynamicCachePath,
   getDynamicCachePaths,
-  SuiteIgnoreRegistry,
-  type SuiteIgnoreRequirement,
-  type EffectiveIgnoreGlobsOptions
+  getEffectiveUnignoreDirs,
+  registerDynamicCachePath,
+  SuiteIgnoreRegistry
 } from './canonicalIgnoreRegistry.ts';
-
-export {
-  ALWAYS_IGNORE_DIRS,
-  CANONICAL_IGNORE_DIRS,
-  getEffectiveIgnoreDirs,
-  getEffectiveUnignoreDirs,
-  getEffectiveIgnoreGlobs,
-  getLockedSkillsIgnoreGlobs,
-  registerDynamicCachePath,
-  getDynamicCachePaths,
-  SuiteIgnoreRegistry,
-  type SuiteIgnoreRequirement,
-  type EffectiveIgnoreGlobsOptions
-};
 
 export const SCANNABLE_EXTENSIONS: ReadonlySet<string> = new Set([
   '.ts',
@@ -159,10 +170,7 @@ function resolvePersistenceExtraRoots(config: ReturnType<typeof getAuditConfig>)
 
 function resolveDeclaredPathRoots(paths?: AuditEngineConfig['paths']): string[] {
   if (!paths) {
-    return [
-      ...DEFAULT_AUDIT_CONFIG.paths.codeRoots,
-      ...DEFAULT_AUDIT_CONFIG.paths.testRoots
-    ];
+    return [...DEFAULT_AUDIT_CONFIG.paths.codeRoots, ...DEFAULT_AUDIT_CONFIG.paths.testRoots];
   }
   return [
     ...(paths.codeRoots ?? DEFAULT_AUDIT_CONFIG.paths.codeRoots),
@@ -218,7 +226,7 @@ export function resolveSubsystemConfig(
       let current: unknown = topSection;
       for (let i = 1; i < parts.length - 1; i++) {
         if (current && typeof current === 'object' && parts[i]! in current) {
-          current = Reflect.get(current as object, parts[i]!);
+          current = Reflect.get(current, parts[i]!);
         } else {
           break;
         }
@@ -243,12 +251,7 @@ import {
   isLockedSkillPath
 } from './lockedSkills.ts';
 
-export {
-  clearLockedSkillsCache,
-  SKILLS_LOCK_CANDIDATE_PATHS,
-  loadLockedSkills,
-  isLockedSkillPath
-};
+export { clearLockedSkillsCache, SKILLS_LOCK_CANDIDATE_PATHS, loadLockedSkills, isLockedSkillPath };
 
 function matchesDirectorySegments(
   normalized: string,
@@ -330,9 +333,7 @@ export function isPathIgnored(
     return true;
   }
 
-  const effectiveRelPath = path.isAbsolute(relPath)
-    ? path.relative(projectRoot, relPath)
-    : relPath;
+  const effectiveRelPath = path.isAbsolute(relPath) ? path.relative(projectRoot, relPath) : relPath;
 
   const normalized = normalizePosixPath(effectiveRelPath).toLowerCase();
   const segments = normalized.split('/');
@@ -611,7 +612,11 @@ export function clearWorkspaceFileCache(): void {
 const SUB_AUDITOR_CLI_ARGS = {
   ...COMMON_CLI_ARGS,
   output: { type: 'string', alias: 'o', description: 'Output JSON file path' },
-  'errors-only': { type: 'boolean', default: false, description: 'Report only error-severity findings' },
+  'errors-only': {
+    type: 'boolean',
+    default: false,
+    description: 'Report only error-severity findings'
+  },
   speed: { type: 'string', description: 'Execution speed tier ceiling' },
   'only-speed': { type: 'string', description: 'Exact execution speed tier' },
   fix: { type: 'boolean', default: false, description: 'Run in automatic repair mode' },
@@ -643,7 +648,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
     | undefined;
 
   return {
-    values: values as AuditorContext['values'],
+    values: values,
     ignorePatterns: combinedIgnores,
     unignoreDirs,
     isPathIgnored: (relPath: string) =>
@@ -863,7 +868,6 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 export const DEFAULT_AUDITOR_CAPABILITIES: AuditorRuleCapabilities = Object.freeze({
   speed: 'light',
   phase: 'normal',
-  fix: 'none',
   md: false,
   ast: false,
   changedOnly: false,
@@ -877,13 +881,14 @@ export const MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH = 60;
  * Derives aggregate suite-level capabilities from the logical union of all its sub-auditor ruleCapabilities.
  */
 export function deriveSuiteCapabilities(
-  ruleCapabilities: Readonly<Record<string, AuditorRuleCapabilities>> | undefined
-): AuditorRuleCapabilities {
+  ruleCapabilities: Readonly<Record<string, AuditorRuleCapabilities>> | undefined,
+  fixableRuleIds?: ReadonlySet<string>
+): AuditorComputedCapabilities {
   if (!ruleCapabilities || typeof ruleCapabilities !== 'object') {
-    return { ...DEFAULT_AUDITOR_CAPABILITIES };
+    return { ...DEFAULT_AUDITOR_CAPABILITIES, fix: 'none' };
   }
   const entries = Object.values(ruleCapabilities);
-  if (entries.length === 0) return { ...DEFAULT_AUDITOR_CAPABILITIES };
+  if (entries.length === 0) return { ...DEFAULT_AUDITOR_CAPABILITIES, fix: 'none' };
 
   const distinctSpeeds: AuditExecutionSpeed[] = [];
   for (const s of AUDIT_EXECUTION_SPEEDS) {
@@ -906,11 +911,12 @@ export function deriveSuiteCapabilities(
         ? 'setup'
         : 'normal';
 
-  const effectiveFix: AuditFixCapability = entries.some((c) => c.fix === 'priority')
-    ? 'priority'
-    : entries.some((c) => c.fix === 'normal')
-      ? 'normal'
-      : 'none';
+  const isFixable = fixableRuleIds ? fixableRuleIds.size > 0 : false;
+  const effectiveFix: AuditFixCapability = isFixable
+    ? effectivePhase === 'setup'
+      ? 'priority'
+      : 'normal'
+    : 'none';
 
   return {
     speed: effectiveSpeed,
@@ -924,23 +930,22 @@ export function deriveSuiteCapabilities(
 }
 
 /**
- * Creates individual rule capabilities for suites, automatically adjusting
- * the `fix` capability per rule based on declared fixableRuleIds.
+ * Creates individual rule capabilities for suites. Manual fix booleans are strictly forbidden.
  */
 export function createRuleCapabilities<TRuleId extends string>(
   ruleIds: readonly TRuleId[],
-  baseCapabilities: AuditorRuleCapabilities,
-  fixableRuleIds?: readonly TRuleId[]
+  baseCapabilities: AuditorRuleCapabilities
 ): Record<TRuleId, AuditorRuleCapabilities> {
-  const isBaseFix = baseCapabilities.fix !== 'none';
-  const fixType: AuditFixCapability = baseCapabilities.fix === 'priority' ? 'priority' : 'normal';
-  const fixableSet = new Set(fixableRuleIds ?? (isBaseFix ? ruleIds : []));
+  if (baseCapabilities && 'fix' in (baseCapabilities as object)) {
+    throw new Error(
+      `[Auditor Contract Violation] Manual 'fix' passed to createRuleCapabilities. ` +
+        `Manual fix capabilities are strictly prohibited under the Zero Manual Fix Booleans Mandate (/architecture). ` +
+        `BaseAuditor derives fixability dynamically from registered fixer functions; remove 'fix' from your capability declaration.`
+    );
+  }
   const result: Partial<Record<TRuleId, AuditorRuleCapabilities>> = {};
   for (const id of ruleIds) {
-    result[id] = {
-      ...baseCapabilities,
-      fix: fixableSet.has(id) ? fixType : 'none'
-    };
+    result[id] = baseCapabilities;
   }
   return result as Record<TRuleId, AuditorRuleCapabilities>;
 }
@@ -972,13 +977,12 @@ export function createUniformRemediationPhases<TRuleId extends string>(
 }
 
 /**
- * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal', fix: 'none').
+ * Canonical capability template for standard fast/light rules (speed: 'light', phase: 'normal').
  */
 export const LIGHT_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities> = Object.freeze({
   ...DEFAULT_AUDITOR_CAPABILITIES,
   speed: 'light',
-  phase: 'normal',
-  fix: 'none'
+  phase: 'normal'
 });
 
 /**
@@ -988,14 +992,12 @@ export const AST_RULE_CAPABILITIES: Readonly<AuditorRuleCapabilities> = Object.f
   ...DEFAULT_AUDITOR_CAPABILITIES,
   speed: 'light',
   phase: 'normal',
-  fix: 'none',
   ast: true
 });
 
 export interface FileScanRootsOptions {
   readonly projectRoot?: string;
   readonly roots?: readonly string[];
-  readonly fix?: boolean;
 }
 
 /**
@@ -1028,10 +1030,20 @@ export interface AuditorOptions<TRuleId extends string = string> {
   readonly family: AuditFamily;
   readonly packageName: string;
   readonly icon: string;
-  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
-  readonly capabilities?: never;
+  readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorRuleCapabilities>>;
+  /**
+   * Mandatory map of executable auto-repair functions by ruleId.
+   * If a rule defines a fixer here, the framework automatically derives capabilities.fix
+   * and registers the rule as auto-fixable. Pass an empty object `{}` if the suite has no automated fixers.
+   */
+  readonly ruleFixers: Partial<Record<TRuleId, RuleFixerFn<TRuleId> | AnyRuleFixerFn>>;
+  /**
+   * Optional list of rule IDs that are mechanically repaired by the suite itself during fix mode
+   * (e.g. inside `runAudit()` when `isFixActive()` is true, or by overriding `fix()`).
+   * When declared, the framework automatically derives capabilities.fix for these rules
+   * without requiring fine-grained ruleFixers micro-functions.
+   */
   readonly fixableRuleIds?: readonly TRuleId[];
-  readonly fix?: boolean;
   readonly gitIgnoreEntries?: readonly GitIgnoreRequirement[];
   /**
    * Custom cache or temporary directories/files produced by this suite or underlying tool
@@ -1071,7 +1083,6 @@ export interface AuditorOptions<TRuleId extends string = string> {
    * 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish'.
    */
   readonly ruleRemediationPhases?: Readonly<Record<TRuleId, RemediationPhaseId>>;
-  readonly subAuditors?: readonly SubAuditorStep[];
   readonly roots?: readonly string[];
   readonly allowedExtensions?: ReadonlySet<string>;
   readonly extraIgnorePatterns?: readonly string[];
@@ -1117,10 +1128,8 @@ export interface ViolationInput<TRuleId extends string = string> {
   readonly ruleDescription?: string;
   readonly severity: FindingSeverity;
   readonly file?: string;
-  readonly filePath?: string;
   readonly line?: number;
   readonly col?: number;
-  readonly column?: number;
   readonly message: string;
   readonly context?: string;
   readonly fixable?: boolean;
@@ -1274,7 +1283,6 @@ function validateAuditorCriticalConfig<TRuleId extends string>(
 export const MANDATORY_AUDITOR_CAPABILITY_KEYS = [
   'speed',
   'phase',
-  'fix',
   'md',
   'ast',
   'changedOnly',
@@ -1324,9 +1332,11 @@ function validateAuditorRuleCapabilities<TRuleId extends string>(
         `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.phase' as ${AUDIT_EXECUTION_PHASES.map((p) => `'${p}'`).join(' | ')}.`
       );
     }
-    if (typeof caps.fix !== 'string' || !AUDIT_FIX_CAPABILITIES.some((f) => f === caps.fix)) {
+    if ('fix' in caps) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define 'ruleCapabilities.${ruleId}.fix' as ${AUDIT_FIX_CAPABILITIES.map((f) => `'${f}'`).join(' | ')}.`
+        `[Auditor Contract Violation] Auditor [${options.id}] declared manual 'fix' in 'ruleCapabilities.${ruleId}'. ` +
+          `Declaring manual fix booleans in rule capabilities is strictly prohibited under the Zero Manual Fix Booleans Mandate (/architecture). ` +
+          `Remove 'fix' from ruleCapabilities; BaseAuditor derives fixability dynamically from registered fixer functions.`
       );
     }
     for (const key of MANDATORY_BOOLEAN_CAPABILITY_KEYS) {
@@ -1358,33 +1368,56 @@ function validateAuditorRuleCapabilities<TRuleId extends string>(
 }
 
 function validateAuditorFixContract<TRuleId extends string>(
-  options: AuditorOptions<TRuleId>,
-  capabilities: AuditorRuleCapabilities
+  options: AuditorOptions<TRuleId>
 ): void {
-  const isFix = capabilities.fix !== 'none';
-  const fixableList = options.fixableRuleIds ?? [];
-  const configFilesWithFix = (options.configFiles ?? []).filter((c) =>
-    Boolean(c.ruleId && c.generateDefaultContent)
-  );
-
-  if (isFix) {
-    if (fixableList.length === 0 && configFilesWithFix.length === 0) {
+  if (
+    options.ruleFixers === undefined ||
+    typeof options.ruleFixers !== 'object' ||
+    options.ruleFixers === null
+  ) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] must explicitly define mandatory 'ruleFixers' object in constructor options (pass {} if no automated repair algorithms exist).`
+    );
+  }
+  const rawFix = (options as { fix?: unknown }).fix;
+  if (typeof rawFix === 'string' || typeof rawFix === 'boolean') {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] declared manual fix capabilities ('fix: ${String(rawFix)}') in constructor options. ` +
+        `Manual fix declarations are strictly prohibited under the Contract-Driven Auto-Fix Protocol (/architecture). ` +
+        `Register executable repair functions via 'ruleFixers', 'fixableRuleIds', 'configFiles', or sub-auditor fix handlers.`
+    );
+  }
+  if (options.fixableRuleIds !== undefined) {
+    if (!Array.isArray(options.fixableRuleIds)) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] declared capabilities.fix !== 'none' (${capabilities.fix}) but failed to explicitly initialize 'fixableRuleIds' in its constructor. ` +
-          `Every auto-repairing suite must explicitly declare which ruleIds it can mechanically fix.`
+        `[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' but it is not an array.`
       );
     }
-    for (const ruleId of fixableList) {
+    for (const ruleId of options.fixableRuleIds) {
       if (!options.ruleIds.includes(ruleId)) {
         throw new Error(
-          `[Auditor Contract Violation] Auditor [${options.id}] declared fixable rule '${ruleId}', but it is not registered in 'ruleIds'.`
+          `[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' for '${ruleId}', but that rule is not declared in 'ruleIds'.`
         );
       }
     }
-  } else {
-    if (fixableList.length > 0) {
+  }
+  if ('_allowDeferredFixers' in (options as object)) {
+    throw new Error(
+      `[Auditor Contract Violation] Auditor [${options.id}] declared forbidden internal property '_allowDeferredFixers'.`
+    );
+  }
+  const fixerRules = Object.keys(options.ruleFixers ?? {}) as TRuleId[];
+  for (const ruleId of fixerRules) {
+    if (!options.ruleIds.includes(ruleId)) {
       throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] declared 'fixableRuleIds' (${fixableList.join(', ')}) but capabilities.fix is 'none'.`
+        `[Auditor Contract Violation] Auditor [${options.id}] registered a ruleFixer for '${ruleId}', but that rule is not declared in 'ruleIds'.`
+      );
+    }
+  }
+  for (const cfg of options.configFiles ?? []) {
+    if (cfg.ruleId && !options.ruleIds.includes(cfg.ruleId)) {
+      throw new Error(
+        `[Auditor Contract Violation] Auditor [${options.id}] configured configFile requirement for '${String(cfg.ruleId)}', but that rule is not declared in 'ruleIds'.`
       );
     }
   }
@@ -1414,7 +1447,7 @@ function validateAuditorRules<TRuleId extends string>(options: AuditorOptions<TR
     }
   }
   for (const ruleId of Object.keys(options.ruleDescriptions)) {
-    if (!options.ruleIds.includes(ruleId as TRuleId)) {
+    if (!options.ruleIds.includes(ruleId)) {
       throw new Error(
         `Auditor [${options.id}] defines description for rule '${ruleId}' in 'ruleDescriptions' that is not declared in 'ruleIds'.`
       );
@@ -1463,11 +1496,13 @@ function validateAuditorRuleRemediations<TRuleId extends string>(
 function validateAuditorRuleRemediationPhases<TRuleId extends string>(
   options: AuditorOptions<TRuleId>
 ): void {
-  const hasSuitePhase = Boolean(options.remediationPhase && isRemediationPhaseId(options.remediationPhase));
+  const hasSuitePhase = Boolean(
+    options.remediationPhase && isRemediationPhaseId(options.remediationPhase)
+  );
   const hasRulePhases = Boolean(
     options.ruleRemediationPhases &&
-      typeof options.ruleRemediationPhases === 'object' &&
-      Object.keys(options.ruleRemediationPhases).length > 0
+    typeof options.ruleRemediationPhases === 'object' &&
+    Object.keys(options.ruleRemediationPhases).length > 0
   );
 
   if (!hasSuitePhase && !hasRulePhases) {
@@ -1484,7 +1519,10 @@ function validateAuditorRuleRemediationPhases<TRuleId extends string>(
     );
   }
 
-  const phases = (options.ruleRemediationPhases ?? {}) as Record<string, RemediationPhaseId | undefined>;
+  const phases = (options.ruleRemediationPhases ?? {}) as Record<
+    string,
+    RemediationPhaseId | undefined
+  >;
   for (const ruleId of options.ruleIds) {
     const phase = phases[ruleId] ?? options.remediationPhase;
     if (!phase || !isRemediationPhaseId(phase)) {
@@ -1570,7 +1608,7 @@ function validateAuditorThirdPartyToolContract<TRuleId extends string>(
           `[Auditor Contract Violation] Auditor [${options.id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`
         );
       }
-      if (!options.ruleIds.includes(policy.fallbackRuleId as TRuleId)) {
+      if (!options.ruleIds.includes(policy.fallbackRuleId)) {
         throw new Error(
           `[Auditor Contract Violation] Auditor [${options.id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`
         );
@@ -1596,10 +1634,7 @@ function validateAuditorRequiredPermissions<TRuleId extends string>(
   }
 }
 
-function validateAuditorOptions<TRuleId extends string>(
-  options: AuditorOptions<TRuleId>,
-  effectiveCapabilities: AuditorCapabilities
-): void {
+function validateAuditorOptions<TRuleId extends string>(options: AuditorOptions<TRuleId>): void {
   validateAuditorIdentity(options);
   validateAuditorConfigKey(options);
   validateAuditorDefaultConfig(options);
@@ -1608,7 +1643,7 @@ function validateAuditorOptions<TRuleId extends string>(
   validateAuditorRequiredPermissions(options);
   validateAuditorRules(options);
   validateAuditorRuleCapabilities(options);
-  validateAuditorFixContract(options, effectiveCapabilities);
+  validateAuditorFixContract(options);
   validateAuditorRuleRemediations(options);
   validateAuditorRuleRemediationPhases(options);
   validateAuditorScripts(options);
@@ -1652,20 +1687,24 @@ function extractStringList(candidate: unknown): readonly string[] {
 }
 
 function resolveSubsystemIgnoresAndExemptions(
-  options: AuditorOptions<string>,
+  options: AuditorOptions,
   config: AuditEngineConfig
 ): { extraIgnorePatterns: readonly string[]; exemptPaths: readonly string[] } {
   const section = resolveSubsystemConfig(config, options.configKey);
-  const effectiveSection =
-    section && typeof section === 'object' ? section : options.defaultConfig;
+  const effectiveSection = section && typeof section === 'object' ? section : options.defaultConfig;
   const sectionObj =
     effectiveSection && typeof effectiveSection === 'object'
       ? (effectiveSection as Record<string, unknown>)
       : {};
-  const ignoreGlobs = extractStringList(sectionObj.ignoreGlobs);
+  const ignoreGlobs = [
+    ...extractStringList(sectionObj.ignoreGlobs),
+    ...extractStringList(sectionObj.ignorePatterns)
+  ];
   const exemptPaths = [
     ...extractStringList(sectionObj.exemptPaths),
-    ...extractStringList(sectionObj.exemptFiles)
+    ...extractStringList(sectionObj.exemptFiles),
+    ...extractStringList(sectionObj.exemptCssFiles),
+    ...extractStringList(sectionObj.exemptGlobs)
   ];
   return {
     extraIgnorePatterns: Array.from(
@@ -1678,37 +1717,35 @@ function resolveSubsystemIgnoresAndExemptions(
 function resolveRulePhases<TRuleId extends string>(
   options: AuditorOptions<TRuleId>
 ): Readonly<Record<TRuleId, RemediationPhaseId>> {
-  const resolvedPhases: Record<TRuleId, RemediationPhaseId> = {} as Record<
-    TRuleId,
-    RemediationPhaseId
-  >;
-  for (const ruleId of options.ruleIds) {
-    resolvedPhases[ruleId] = options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase!;
-  }
-  return Object.freeze(resolvedPhases);
+  const entries = options.ruleIds.map(
+    (ruleId) =>
+      [ruleId, options.ruleRemediationPhases?.[ruleId] ?? options.remediationPhase!] as const
+  );
+  return Object.freeze(Object.fromEntries(entries) as Record<TRuleId, RemediationPhaseId>);
 }
 
 function resolveFixableRuleIds<TRuleId extends string>(
   options: AuditorOptions<TRuleId>
 ): Set<TRuleId> {
+  const fixerRules = Object.keys(options.ruleFixers ?? {}) as TRuleId[];
   const configFixableRules = (options.configFiles ?? [])
     .filter((c) => Boolean(c.ruleId && c.generateDefaultContent))
-    .map((c) => c.ruleId as TRuleId);
-  return new Set<TRuleId>([
-    ...(options.fixableRuleIds ?? []),
-    ...configFixableRules
-  ]);
+    .map((c) => c.ruleId);
+  const suiteFixableRules = (options.fixableRuleIds ?? []) as TRuleId[];
+  return new Set<TRuleId>([...fixerRules, ...configFixableRules, ...suiteFixableRules]);
 }
 
-export abstract class BaseAuditor<TRuleId extends string = string> implements ICompositeAuditor {
+export abstract class BaseAuditor<TRuleId extends string = string>
+  implements ICompositeAuditor, AuditorExecutable
+{
   public readonly id: string;
   public readonly name: string;
   public readonly description: string;
   public readonly family: AuditFamily;
   public readonly packageName: string;
   public readonly icon: string;
-  public readonly capabilities: AuditorCapabilities;
-  public readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorCapabilities>>;
+  public capabilities: AuditorComputedCapabilities;
+  public readonly ruleCapabilities: Readonly<Record<TRuleId, AuditorComputedCapabilities>>;
   public readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   public readonly cachePaths: readonly string[];
   public readonly configFiles: readonly AuditorConfigFileRequirement<TRuleId>[];
@@ -1718,7 +1755,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly ruleDescriptions: Readonly<Record<TRuleId, string>>;
   public readonly ruleRemediations: Readonly<Record<TRuleId, string>>;
   public readonly ruleRemediationPhases: Readonly<Record<TRuleId, RemediationPhaseId>>;
-  public readonly explicitSubAuditors?: readonly SubAuditorStep[];
   public readonly roots: readonly string[];
   public readonly allowedExtensions: ReadonlySet<string>;
   public readonly extraIgnorePatterns: readonly string[];
@@ -1732,7 +1768,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   public readonly criticalConfig: AuditorCriticalConfig;
   public readonly usesThirdPartyTool: boolean;
   public readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
-  protected readonly fixableRuleIds: ReadonlySet<TRuleId>;
+  public readonly ruleFixers?: Readonly<Partial<Record<string, RuleFixerFn | AnyRuleFixerFn>>>;
+  protected readonly fixableRuleIds: Set<TRuleId>;
   protected readonly durationsByRule: Map<TRuleId, number> = new Map();
   protected auditExecutionDurationMs?: number;
   protected readonly instanceStartTime: number = performance.now();
@@ -1746,12 +1783,33 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   protected readonly fixableWarningsByRule: Map<TRuleId, number> = new Map();
   protected readonly subAuditorReports: SubAuditorReport[] = [];
   protected readonly coverageRecorder: CoverageRecorder;
-  protected readonly fixMode: boolean;
+  private currentFixActive = false;
   protected isSkipped = false;
   protected skipReason?: string;
 
   public getFixableRuleIds(): readonly TRuleId[] {
     return Array.from(this.fixableRuleIds);
+  }
+
+  /**
+   * Executes registered rule fixers for this suite in deterministic order.
+   * If multiple rules share the exact same fixer function reference, the function
+   * is executed strictly once (deduplicated via Set<Function>).
+   */
+  public async executeRuleFixers(
+    context: Readonly<{ readonly projectRoot: string }> = { projectRoot: this.projectRoot }
+  ): Promise<void> {
+    if (!this.ruleFixers) return;
+    const executedFixers = new Set<AnyRuleFixerFn>();
+    for (const [ruleId, fixer] of Object.entries(this.ruleFixers)) {
+      if (!fixer || typeof fixer !== 'function') continue;
+      if (executedFixers.has(fixer)) continue;
+      executedFixers.add(fixer);
+      await fixer({
+        ...context,
+        ruleId: ruleId as never
+      });
+    }
   }
 
   public recordRuleDuration(ruleId: TRuleId, durationMs: number): void {
@@ -1803,33 +1861,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     } finally {
       this.recordRuleDuration(ruleId, performance.now() - start);
     }
-  }
-
-  /**
-   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-   */
-  public async runSubAuditorsBatch(
-    ruleIds: readonly TRuleId[],
-    _action: () => Promise<void> | void
-  ): Promise<void> {
-    throw new Error(
-      `[BaseAuditor] 'runSubAuditorsBatch' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
-        `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
-        `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
-    );
-  }
-
-  /**
-   * @deprecated Prohibited under the Universal Empirical Individual Timing Contract.
-   * Batch duration duplication is strictly forbidden. Measure rules individually with runSubAuditorSync or runSubAuditor.
-   */
-  public runSubAuditorsBatchSync(ruleIds: readonly TRuleId[], _action: () => void): void {
-    throw new Error(
-      `[BaseAuditor] 'runSubAuditorsBatchSync' is strictly prohibited under the Universal Empirical Individual Timing Contract. ` +
-        `Batch stamping duplicates elapsed time across [${ruleIds.join(', ')}]. ` +
-        `Measure each rule individually using 'this.runSubAuditorSync(ruleId, () => ...)' or 'await this.runSubAuditor(ruleId, async () => ...)'.`
-    );
   }
 
   public getRuleDuration(ruleId: TRuleId): number | undefined {
@@ -1898,7 +1929,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
    * Returns the active execution tier ('light', 'heavy', 'full', 'md', 'fix', or 'post-build').
    */
   public getExecutionTier(): AuditorExecutionTier {
-    if (this.fixMode || this.isFixModeRequested()) return 'fix';
+    if (this.isFixActive()) return 'fix';
     if (process.env.AUDITOR_PRESET === 'md') return 'md';
     if (
       process.env.AUDITOR_PHASE === 'post-build' ||
@@ -2074,9 +2105,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       }
     }
     if (options.configFiles && options.configFiles.length > 0) {
-      ConfigFileRegistry.registerMany(
-        options.configFiles as readonly AuditorConfigFileRequirement<string>[]
-      );
+      ConfigFileRegistry.registerMany(options.configFiles);
     }
     if (effectiveScripts && effectiveScripts.length > 0) {
       PackageScriptRegistry.registerMany(effectiveScripts, options.id);
@@ -2125,7 +2154,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
   }
 
-  constructor(options: AuditorOptions<TRuleId>) {
+  public constructor(options: AuditorOptions<TRuleId>) {
     if (Object.hasOwn(options, 'capabilities')) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${options.id}] passed redundant 'capabilities' to constructor options. ` +
@@ -2137,13 +2166,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     const effectiveCoverage = this.resolveEffectiveCoverage(options, effectiveProjectRoot);
     const effectiveScripts = this.resolveEffectiveScripts(options);
     const effectiveCapabilities = deriveSuiteCapabilities(options.ruleCapabilities);
-    validateAuditorOptions(
-      { ...options, coverage: effectiveCoverage, scripts: effectiveScripts },
-      effectiveCapabilities
-    );
+    validateAuditorOptions({ ...options, coverage: effectiveCoverage, scripts: effectiveScripts });
 
-    this.ruleCapabilities = options.ruleCapabilities;
-    this.capabilities = effectiveCapabilities;
     this.requiresAst = effectiveCapabilities.ast;
     this.packageName = options.packageName;
     this.icon = options.icon;
@@ -2162,16 +2186,17 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.scripts = effectiveScripts;
     this.requiredPermissions = options.requiredPermissions ?? [];
     this.registerAuditorDependencies(options, effectiveScripts);
-    this.fixMode = Boolean(options.fix);
     this.ruleIds = options.ruleIds;
     this.ruleDescriptions = options.ruleDescriptions;
     this.ruleRemediations = options.ruleRemediations;
     this.ruleRemediationPhases = resolveRulePhases(options);
-    this.explicitSubAuditors = options.subAuditors;
     const config = getAuditConfig(effectiveProjectRoot);
     this.roots = options.roots ?? getEffectiveScannableRoots(config);
     this.allowedExtensions = options.allowedExtensions ?? SCANNABLE_EXTENSIONS;
-    const { extraIgnorePatterns, exemptPaths } = resolveSubsystemIgnoresAndExemptions(options, config);
+    const { extraIgnorePatterns, exemptPaths } = resolveSubsystemIgnoresAndExemptions(
+      options,
+      config
+    );
     this.extraIgnorePatterns = extraIgnorePatterns;
     this.exemptPaths = exemptPaths;
     this.unignoreDirs =
@@ -2180,7 +2205,36 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.requiredFiles = options.requiredFiles ?? [];
     this.projectRoot = effectiveProjectRoot;
     this.coverageRecorder = new CoverageRecorder(this.projectRoot, effectiveCoverage!);
+    this.ruleFixers = options.ruleFixers;
     this.fixableRuleIds = resolveFixableRuleIds(options);
+
+    // Synchronize suite-level and rule-level capabilities with computed fixableRuleIds
+    const fixableList = Array.from(this.fixableRuleIds);
+    const hasFixables = fixableList.length > 0;
+    const defaultFixTier: AuditFixCapability =
+      effectiveCapabilities.phase === 'setup' ? 'priority' : 'normal';
+
+    const updatedRuleCaps: Record<string, AuditorComputedCapabilities> = {};
+    for (const ruleId of this.ruleIds) {
+      const existing = options.ruleCapabilities[ruleId];
+      if (existing) {
+        const isRuleFixable = this.fixableRuleIds.has(ruleId);
+        updatedRuleCaps[ruleId] = {
+          ...existing,
+          fix: isRuleFixable ? defaultFixTier : 'none'
+        };
+      }
+    }
+    this.ruleCapabilities = updatedRuleCaps as Readonly<
+      Record<TRuleId, AuditorComputedCapabilities>
+    >;
+
+    const effectiveSuiteFix: AuditFixCapability = hasFixables ? defaultFixTier : 'none';
+
+    this.capabilities = {
+      ...effectiveCapabilities,
+      fix: effectiveSuiteFix
+    };
 
     validateAuditorRuleDescriptions(options, (r, d) => this.formatRuleDescription(r, d));
     this.initRuleLedger();
@@ -2310,16 +2364,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     this.coverageRecorder.markRuleEvaluated(ruleId, count);
   }
 
-  /**
-   * Loud failure for obsolete v3 method name.
-   * Enforces the Loud Failure Mandate under AGENTS.md.
-   */
-  protected recordRuleEvaluation(ruleId: string): never {
-    throw new Error(
-      `[BaseAuditor]: Method 'recordRuleEvaluation' is obsolete and was removed in v4+. Use 'this.markRuleEvaluated("${ruleId}")' instead.`
-    );
-  }
-
   /** Explicitly declares a rule as non-applicable for this run; never silent, always justified. */
   public markRuleNotApplicable(ruleId: TRuleId, reason: string): void {
     this.coverageRecorder.markRuleNotApplicable(ruleId, reason);
@@ -2375,9 +2419,6 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public getSubAuditors(): readonly SubAuditorStep[] {
-    if (this.explicitSubAuditors && this.explicitSubAuditors.length > 0) {
-      return this.explicitSubAuditors;
-    }
     return this.ruleIds.map((ruleId) => ({
       id: ruleId,
       name: this.formatRuleDescription(ruleId),
@@ -2518,7 +2559,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
       );
     }
 
-    const targetFile = v.file ?? v.filePath;
+    const targetFile = v.file;
     const normalizedFile = targetFile ? toPosixRelative(this.projectRoot, targetFile) : targetFile;
 
     if (normalizedFile && this.isViolationSuppressed(normalizedFile)) {
@@ -2527,8 +2568,8 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
     const current = this.countsByRule.get(v.ruleId) ?? 0;
     this.countsByRule.set(v.ruleId, current + 1);
-    const isFixable =
-      v.fixable !== undefined ? Boolean(v.fixable) : this.fixableRuleIds.has(v.ruleId);
+    const hasFixer = this.fixableRuleIds.has(v.ruleId);
+    const isFixable = hasFixer && (v.fixable !== undefined ? Boolean(v.fixable) : true);
 
     if (v.severity === 'error') {
       const errCurrent = this.errorsByRule.get(v.ruleId) ?? 0;
@@ -2547,7 +2588,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     }
 
     const ruleDesc = this.formatRuleDescription(v.ruleId, v.ruleDescription);
-    const targetCol = v.col ?? v.column;
+    const targetCol = v.col;
 
     const effectiveRemediation = v.remediation ?? this.ruleRemediations?.[v.ruleId];
     const effectiveRemediationPhase = v.remediationPhase ?? this.ruleRemediationPhases?.[v.ruleId];
@@ -2590,19 +2631,7 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 
   public isFixActive(): boolean {
-    return this.fixMode || this.isFixModeRequested();
-  }
-
-  protected isFixModeRequested(): boolean {
-    const rawValues = this.context.values as Record<string, unknown> | undefined; // open-record: Generic parsed CLI flags and options dictionary
-    const cliTokens = getProcessCliArgs();
-    return (
-      this.fixMode ||
-      cliTokens.includes('fix') ||
-      cliTokens.includes('--fix') ||
-      process.env.AUDIT_FIX === 'true' ||
-      Boolean(rawValues?.fix)
-    );
+    return this.currentFixActive;
   }
 
   /**
@@ -2821,37 +2850,62 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
     Object.assign(this.context.values, parsed);
   }
 
-  public async execute(astContext?: SharedAstContext): Promise<StandardAuditResult> {
-    await loadAuditConfig(this.projectRoot);
-    await this.context.checkFiles();
-    for (const rf of this.requiredFiles) {
-      const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
-      const stats = safeStatSync(abs);
-      if (stats && !stats.isDirectory()) {
-        this.recordScanned(toPosixRelative(this.projectRoot, rf));
-      }
-    }
-    let effectiveAst = astContext;
-    if (!effectiveAst && this.requiresAst) {
-      const { SharedAstContext } = await import('./astContext.ts');
-      effectiveAst = new SharedAstContext();
-    }
-    const auditExecutionStart = performance.now();
-    await this.runAudit(effectiveAst);
-    this.auditExecutionDurationMs = Math.max(0, performance.now() - auditExecutionStart);
-    if (this.ruleIds.length === 1) {
-      const singleRuleId = this.ruleIds[0]!;
-      if (!this.durationsByRule.has(singleRuleId)) {
-        this.durationsByRule.set(singleRuleId, this.auditExecutionDurationMs);
-      }
-    }
+  public async audit(astContext?: SharedAstContext): Promise<StandardAuditResult> {
+    return this.executeCore(astContext, false);
+  }
 
-    this.context.setMetric('Files Scanned', this.filesScannedCount);
-    for (const [ruleId, count] of this.countsByRule.entries()) {
-      this.context.setMetric(`Rule: ${ruleId}`, count);
-    }
+  public async fix(astContext?: SharedAstContext): Promise<StandardAuditResult> {
+    return this.executeCore(astContext, true);
+  }
 
-    return this.finishAudit();
+  protected async executeCore(
+    astContext?: SharedAstContext,
+    isFix = false
+  ): Promise<StandardAuditResult> {
+    this.currentFixActive = isFix;
+    try {
+      await loadAuditConfig(this.projectRoot);
+      if (isFix) {
+        await this.executeRuleFixers();
+      }
+      await this.context.checkFiles();
+      for (const rf of this.requiredFiles) {
+        const abs = path.isAbsolute(rf) ? rf : path.resolve(this.projectRoot, rf);
+        const stats = safeStatSync(abs);
+        if (stats && !stats.isDirectory()) {
+          this.recordScanned(toPosixRelative(this.projectRoot, rf));
+        }
+      }
+      let effectiveAst = astContext;
+      if (!effectiveAst && this.requiresAst) {
+        const { SharedAstContext } = await import('./astContext.ts');
+        effectiveAst = new SharedAstContext();
+      }
+      const auditExecutionStart = performance.now();
+      await this.runAudit(effectiveAst);
+      this.auditExecutionDurationMs = Math.max(0, performance.now() - auditExecutionStart);
+      if (this.ruleIds.length === 1) {
+        const singleRuleId = this.ruleIds[0]!;
+        if (!this.durationsByRule.has(singleRuleId)) {
+          this.durationsByRule.set(singleRuleId, this.auditExecutionDurationMs);
+        }
+      }
+
+      this.context.setMetric('Files Scanned', this.filesScannedCount);
+      for (const [ruleId, count] of this.countsByRule.entries()) {
+        this.context.setMetric(`Rule: ${ruleId}`, count);
+      }
+
+      return await this.finishAudit();
+    } finally {
+      this.currentFixActive = false;
+    }
+  }
+
+  public execute(_astContext?: SharedAstContext): Promise<StandardAuditResult> {
+    throw new Error(
+      `[BaseAuditor]: Method 'execute' was eradicated in favor of dedicated methods. Use 'await auditor.audit()' for inspection or 'await auditor.fix()' for auto-repair.`
+    );
   }
 
   public async finishAudit(): Promise<StandardAuditResult> {
@@ -3081,18 +3135,25 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 
   private static isExecutingCli = false;
 
-  public static async runCli(auditor: BaseAuditor<string>): Promise<void> {
+  public static async runCli(auditor: BaseAuditor): Promise<void> {
     if (BaseAuditor.isExecutingCli) return;
     BaseAuditor.isExecutingCli = true;
     try {
-      const result = await auditor.execute();
+      const cliTokens = getProcessCliArgs();
+      const rawValues = auditor.context?.values as Record<string, unknown> | undefined;
+      const isFix =
+        cliTokens.includes('fix') ||
+        cliTokens.includes('--fix') ||
+        process.env.AUDIT_FIX === 'true' ||
+        Boolean(rawValues?.fix);
+      const result = isFix ? await auditor.fix() : await auditor.audit();
       process.exit(result.summary.errors > 0 ? 1 : 0);
     } finally {
       BaseAuditor.isExecutingCli = false;
     }
   }
 
-  public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor<string>): Promise<void> {
+  public static async runCliIfMain(metaUrl: string, auditor: BaseAuditor): Promise<void> {
     if (isMainModule(metaUrl)) {
       // Decouple CLI execution from synchronous ESM evaluation graph
       // prevents unsettled top-level await deadlock cycles in Node.js 26+
@@ -3103,6 +3164,22 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
   }
 }
 
+export interface PatternSubAuditorOptions {
+  readonly regex: RegExp;
+  readonly message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+  readonly severity?: FindingSeverity;
+  readonly skipComments?: boolean;
+  readonly skipStrings?: boolean;
+  readonly replace?: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
+  readonly onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
+}
+
+interface DeclaredFileSubAuditorEntry<TRuleId extends string> {
+  ruleId: TRuleId;
+  audit: (doc: AuditedDocument) => void | Promise<void>;
+  fix?: (doc: AuditedDocument) => void | Promise<void>;
+}
+
 /**
  * Specialized File-Scanning Auditor.
  * Automates recursive file discovery, ignore filtering, reading, and line-by-line scanning dispatch.
@@ -3110,44 +3187,67 @@ export abstract class BaseAuditor<TRuleId extends string = string> implements IC
 export abstract class FileScanAuditor<
   TRuleId extends string = string
 > extends BaseAuditor<TRuleId> {
-  protected readonly declaredFileSubAuditors: Map<
-    TRuleId,
-    (doc: AuditedDocument) => void | Promise<void>
-  > = new Map();
+  protected readonly declaredFileSubAuditorsList: DeclaredFileSubAuditorEntry<TRuleId>[] = [];
 
-  /**
-   * Primary file scanning entry point receiving an immutable AuditedDocument.
-   * Automatically executes declared file sub-auditors measuring their runtimes
-   * before delegating to scanFile(relPath, content, sourceFile, doc).
-   */
-  protected scanDocument(doc: AuditedDocument): void | Promise<void> {
-    if (isPathExempt(doc.relPath, this.exemptPaths)) {
-      return;
-    }
-    const pending: Promise<void>[] = [];
-    for (const [ruleId, handler] of this.declaredFileSubAuditors.entries()) {
-      this.markRuleEvaluated(ruleId);
-      const start = performance.now();
-      try {
-        const res = handler(doc);
-        if (res instanceof Promise) {
-          pending.push(
-            res.finally(() => {
-              this.recordRuleDuration(ruleId, performance.now() - start);
-            })
-          );
-        } else {
-          this.recordRuleDuration(ruleId, performance.now() - start);
-        }
-      } catch (err) {
+  private executeDocumentPass(
+    ruleId: TRuleId,
+    fn: (doc: AuditedDocument) => void | Promise<void>,
+    doc: AuditedDocument,
+    pending: Promise<void>[]
+  ): void {
+    const start = performance.now();
+    try {
+      const res = fn(doc);
+      if (res instanceof Promise) {
+        pending.push(
+          res.finally(() => {
+            this.recordRuleDuration(ruleId, performance.now() - start);
+          })
+        );
+      } else {
         this.recordRuleDuration(ruleId, performance.now() - start);
-        throw err;
+      }
+    } catch (err) {
+      this.recordRuleDuration(ruleId, performance.now() - start);
+      throw err;
+    }
+  }
+
+  private dispatchDeclaredSubAuditors(
+    doc: AuditedDocument,
+    isFixing: boolean,
+    pending: Promise<void>[]
+  ): void {
+    if (this.declaredFileSubAuditorsList.length === 0) return;
+    const executedAuditFns = new Set<Function>();
+    const executedFixFns = new Set<Function>();
+
+    for (const entry of this.declaredFileSubAuditorsList) {
+      this.markRuleEvaluated(entry.ruleId);
+
+      // 1. Audit pass (deduplicated by function identity)
+      if (!executedAuditFns.has(entry.audit)) {
+        executedAuditFns.add(entry.audit);
+        if (isFixing && entry.fix && entry.audit === entry.fix) {
+          executedFixFns.add(entry.fix);
+        }
+        this.executeDocumentPass(entry.ruleId, entry.audit, doc, pending);
+      }
+
+      // 2. Fix pass (deduplicated by function identity)
+      if (isFixing && entry.fix && !executedFixFns.has(entry.fix)) {
+        executedFixFns.add(entry.fix);
+        this.executeDocumentPass(entry.ruleId, entry.fix, doc, pending);
       }
     }
+  }
+
+  private dispatchDirectScanFile(doc: AuditedDocument, pending: Promise<void>[]): void {
     const singleRuleId =
-      this.declaredFileSubAuditors.size === 0 && this.ruleIds.length === 1
+      this.declaredFileSubAuditorsList.length === 0 && this.ruleIds.length === 1
         ? this.ruleIds[0]
         : undefined;
+
     const startScan = singleRuleId ? performance.now() : 0;
     const scanFileRes = this.scanFile(
       doc.relPath,
@@ -3168,6 +3268,23 @@ export abstract class FileScanAuditor<
     } else if (scanFileRes instanceof Promise) {
       pending.push(scanFileRes);
     }
+  }
+
+  /**
+   * Primary file scanning entry point receiving an immutable AuditedDocument.
+   * Automatically executes declared file sub-auditors measuring runtimes and
+   * deduplicating shared audit and fix functions (Set<Function>) to run them strictly once per document.
+   */
+  protected scanDocument(doc: AuditedDocument): void | Promise<void> {
+    if (isPathExempt(doc.relPath, this.exemptPaths)) {
+      return;
+    }
+    const pending: Promise<void>[] = [];
+    const isFixing = this.isFixActive();
+
+    this.dispatchDeclaredSubAuditors(doc, isFixing, pending);
+    this.dispatchDirectScanFile(doc, pending);
+
     if (pending.length > 0) {
       return Promise.all(pending).then(() => {});
     }
@@ -3187,6 +3304,9 @@ export abstract class FileScanAuditor<
       0
     );
     const finishScan = (): void => {
+      if (this.isFixActive() && doc.hasFixes()) {
+        doc.applyFixesToFile();
+      }
       this.recordScanned(relPath);
       const newTotalEvals = this.getRuleCatalog().reduce(
         (acc, r) => acc + this.getEvaluations(r),
@@ -3207,37 +3327,78 @@ export abstract class FileScanAuditor<
 
   /**
    * Declares a file-scoped sub-auditor tied to a declared rule.
-   * The superclass executes the handler for each audited file and empirically accumulates duration.
+   * If a handler object with `fix` is provided, the rule is automatically marked as fixable.
+   * Otherwise, the rule is classified as unfixable (fixable: false).
    */
+  private syncDynamicRuleFixability(ruleId: TRuleId, isFixable: boolean): void {
+    const curCap = this.ruleCapabilities[ruleId];
+    if (isFixable) {
+      this.fixableRuleIds.add(ruleId);
+      if (curCap) {
+        (this.ruleCapabilities as Record<string, AuditorComputedCapabilities>)[ruleId] = {
+          ...curCap,
+          fix: curCap.fix && curCap.fix !== 'none' ? curCap.fix : 'normal'
+        };
+      }
+      if (this.capabilities.fix === 'none') {
+        this.capabilities = { ...this.capabilities, fix: 'normal' };
+      }
+    } else {
+      this.fixableRuleIds.delete(ruleId);
+      if (curCap) {
+        (this.ruleCapabilities as Record<string, AuditorComputedCapabilities>)[ruleId] = {
+          ...curCap,
+          fix: 'none'
+        };
+      }
+      if (this.fixableRuleIds.size === 0) {
+        this.capabilities = { ...this.capabilities, fix: 'none' };
+      }
+    }
+  }
+
   public declareFileSubAuditor(
     ruleId: TRuleId,
-    handler: (doc: AuditedDocument) => void | Promise<void>
+    handlerOrSpec:
+      | ((doc: AuditedDocument) => void | Promise<void>)
+      | {
+          audit: (doc: AuditedDocument) => void | Promise<void>;
+          fix?: (doc: AuditedDocument) => void | Promise<void>;
+        }
   ): void {
     if (!this.ruleIds.includes(ruleId)) {
       throw new Error(
         `[Auditor Contract Violation] Auditor [${this.id}] attempted to declare file sub-auditor for '${ruleId}', but that rule is not registered in 'ruleIds'.`
       );
     }
-    this.declaredFileSubAuditors.set(ruleId, handler);
+    const auditFn = typeof handlerOrSpec === 'function' ? handlerOrSpec : handlerOrSpec.audit;
+    const fixFn =
+      typeof handlerOrSpec !== 'function' && typeof handlerOrSpec.fix === 'function'
+        ? handlerOrSpec.fix
+        : undefined;
+
+    this.syncDynamicRuleFixability(ruleId, fixFn !== undefined);
+
+    this.declaredFileSubAuditorsList.push({
+      ruleId,
+      audit: auditFn,
+      fix: fixFn
+    });
   }
 
   /**
    * Declares a regex pattern sub-auditor tied to a declared rule.
    * Scans safe patterns skipping comments and strings automatically.
+   * If `replace` is provided, the rule is automatically marked as fixable and registers replacements.
    */
-  public declarePatternSubAuditor(
-    ruleId: TRuleId,
-    options: {
-      regex: RegExp;
-      message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
-      severity?: FindingSeverity;
-      skipComments?: boolean;
-      skipStrings?: boolean;
-      fixable?: boolean;
-      onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void;
+  public declarePatternSubAuditor(ruleId: TRuleId, options: PatternSubAuditorOptions): void {
+    const hasReplace = Boolean(options.replace);
+    if (hasReplace) {
+      this.fixableRuleIds.add(ruleId);
+    } else {
+      this.fixableRuleIds.delete(ruleId);
     }
-  ): void {
-    this.declareFileSubAuditor(ruleId, (doc) => {
+    const auditHandler = (doc: AuditedDocument): void => {
       this.scanSafePattern(
         doc,
         {
@@ -3247,11 +3408,20 @@ export abstract class FileScanAuditor<
           severity: options.severity,
           skipComments: options.skipComments,
           skipStrings: options.skipStrings,
-          fixable: options.fixable
+          replace: options.replace
         },
         options.onMatch
       );
-    });
+    };
+
+    if (hasReplace) {
+      this.declareFileSubAuditor(ruleId, {
+        audit: auditHandler,
+        fix: auditHandler
+      });
+    } else {
+      this.declareFileSubAuditor(ruleId, auditHandler);
+    }
   }
 
   /**
@@ -3266,12 +3436,15 @@ export abstract class FileScanAuditor<
     // Can be overridden by subclasses
   }
 
-  constructor(options: AuditorOptions<TRuleId>) {
+  public constructor(options: AuditorOptions<TRuleId>) {
     const config = getAuditConfig(options.projectRoot);
     super(
       options.coverage || options.roots !== undefined
         ? options
-        : { ...options, roots: getEffectiveScannableRoots(config) }
+        : {
+            ...options,
+            roots: getEffectiveScannableRoots(config)
+          }
     );
   }
 
@@ -3294,7 +3467,7 @@ export abstract class FileScanAuditor<
    */
   protected addViolationAtMatch(params: {
     ruleId: TRuleId;
-    filePath: string;
+    file: string;
     content: string;
     matchIndex: number;
     message: string;
@@ -3308,16 +3481,16 @@ export abstract class FileScanAuditor<
       : (() => {
           const preceding = params.content.slice(0, params.matchIndex);
           const line = preceding.split('\n').length;
-          const column = (preceding.split('\n').pop()?.length ?? 0) + 1;
-          return { line, column, lineText: params.context ?? '' };
+          const col = (preceding.split('\n').pop()?.length ?? 0) + 1;
+          return { line, column: col, col, lineText: params.context ?? '' };
         })();
 
     this.addViolation({
       ruleId: params.ruleId,
       severity: params.severity ?? 'error',
-      filePath: params.filePath,
+      file: params.file,
       line: pos.line,
-      column: pos.column,
+      col: pos.col,
       message: params.message,
       context: params.context ?? pos.lineText.trim(),
       fixable: params.fixable
@@ -3330,15 +3503,7 @@ export abstract class FileScanAuditor<
    */
   protected scanSafePattern(
     doc: AuditedDocument,
-    options: {
-      regex: RegExp;
-      ruleId: TRuleId;
-      message: string | ((match: RegExpExecArray, pos: LineColumnPosition) => string);
-      severity?: FindingSeverity;
-      skipComments?: boolean;
-      skipStrings?: boolean;
-      fixable?: boolean;
-    },
+    options: PatternSubAuditorOptions & { ruleId: TRuleId },
     onMatch?: (match: RegExpExecArray, pos: LineColumnPosition) => boolean | void
   ): void {
     const start = performance.now();
@@ -3370,15 +3535,28 @@ export abstract class FileScanAuditor<
 
         const msg =
           typeof options.message === 'function' ? options.message(m, pos) : options.message;
+
+        if (options.replace !== undefined && this.isFixActive()) {
+          const repText =
+            typeof options.replace === 'function' ? options.replace(m, pos) : options.replace;
+          doc.registerFix({
+            start: matchIdx,
+            end: matchIdx + m[0].length,
+            newText: repText,
+            ruleId: options.ruleId,
+            description: msg
+          });
+        }
+
         this.addViolation({
           ruleId: options.ruleId,
-          filePath: doc.relPath,
+          file: doc.relPath,
           line: pos.line,
-          column: pos.column,
+          col: pos.col,
           message: msg,
           severity: options.severity ?? 'error',
           context: pos.lineText.trim(),
-          fixable: options.fixable
+          fixable: options.replace !== undefined
         });
       }
     } finally {
@@ -3427,7 +3605,7 @@ export abstract class FileScanAuditor<
           severity,
           file,
           line: lineNum,
-          column: col,
+          col,
           message: msg,
           context: match[0].trim()
         });

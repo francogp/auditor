@@ -132,10 +132,7 @@ export interface RefactorPlan {
   readonly astRewrite: string;
 }
 
-export type MotionFindingKind =
-  | 'banned-ui-timer'
-  | 'layout-property'
-  | 'legacy-ease';
+export type MotionFindingKind = 'banned-ui-timer' | 'layout-property' | 'legacy-ease';
 
 export interface MotionFindingItem {
   readonly file: string;
@@ -216,10 +213,7 @@ export interface O1RefactorPlan {
   }[];
 }
 
-export type TypesFindingKind =
-  | 'as-any'
-  | 'double-assertion'
-  | 'missing-return-type';
+export type TypesFindingKind = 'as-any' | 'double-assertion' | 'missing-return-type';
 
 export interface TypesFindingItem {
   readonly file: string;
@@ -296,10 +290,7 @@ export interface DomainRefactorPlan {
   }[];
 }
 
-export type HygieneFindingKind =
-  | 'member-accessibility'
-  | 'prefer-global-this'
-  | 'no-void';
+export type HygieneFindingKind = 'member-accessibility' | 'prefer-global-this' | 'no-void';
 
 export interface HygieneFindingItem {
   readonly file: string;
@@ -334,5 +325,3 @@ export interface HygieneRefactorPlan {
     readonly replacementSnippet: string;
   }[];
 }
-
-

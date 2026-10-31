@@ -6,9 +6,9 @@ import "../core/auditConfig.js";
 import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "../core/remediationPhases.js";
 import { ONE_MINUTE_MS, groupFindingsByFileMap, sortFindingsByFileAndLine } from "../core/auditContract.js";
 import { COMMON_CLI_ARGS, CONSOLE_FORMAT_VALUES, defineCommand, getProcessCliArgs, getProcessExecutedScript, parseCittyArgs, resolveHumanModeFromArgs, runMain } from "../core/cli/cittyHarness.js";
+import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { renderFindingsByFileTree } from "../core/fileTreeRenderer.js";
 import { buildNoticeBox, renderBanner, renderFindingsBreakdownTable, renderSampleFindings } from "../core/unifiedTheme.js";
-import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -238,6 +238,7 @@ function parseScopeFilter(raw) {
 }
 function parseTopOption(raw) {
 	if (raw === void 0 || raw === null || raw === "") return DEFAULT_TOP_LIMIT;
+	if (typeof raw !== "string" && typeof raw !== "number") return DEFAULT_TOP_LIMIT;
 	const str = String(raw).trim().toLowerCase();
 	if (str === "all" || str === "0") return "all";
 	const num = Number(str);
@@ -982,6 +983,9 @@ const reportFindingsCommand = defineCommand({
 });
 if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
-	runMain(reportFindingsCommand);
+	runMain(reportFindingsCommand).catch((err) => {
+		console.error(err);
+		process.exit(1);
+	});
 }
 export { renderActivePhaseFocusBanner, reportFindingsCommand, resolveActiveRemediationPhase, runReport };

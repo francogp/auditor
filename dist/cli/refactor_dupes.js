@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
-import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { isMainModule } from "./cliUtils.js";
+import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { HybridHarnessEngine } from "../core/refactor/hybridHarness.js";
 import { DupesRefactorEngine, runFallowJson } from "../core/refactor/dupesRefactorEngine.js";
 import { MicroContextExtractor } from "../core/refactor/microContextExtractor.js";
@@ -149,11 +149,13 @@ async function executeDupesCli(parsed) {
 		console.log("Available commands: discover, inspect, apply (see also auditor:magic)");
 		return;
 	}
-	const projectRoot = path.resolve(String(parsed.project || "."));
+	const rawProject = typeof parsed.project === "string" ? parsed.project : ".";
+	const projectRoot = path.resolve(rawProject);
 	const isJson = Boolean(parsed.json);
 	const isVerbose = resolveHumanModeFromArgs(parsed);
 	if (subCommand === "discover") {
-		const minOcc = parseInt(String(parsed["min-occurrences"] || "2"), 10);
+		const rawMinOcc = typeof parsed["min-occurrences"] === "string" ? parsed["min-occurrences"] : "2";
+		const minOcc = parseInt(rawMinOcc, 10);
 		handleDupesDiscover(projectRoot, new DupesRefactorEngine({ projectRoot }).triageCandidates(minOcc), isJson, isVerbose);
 		return;
 	}

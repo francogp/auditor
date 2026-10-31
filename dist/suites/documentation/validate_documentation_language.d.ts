@@ -1,4 +1,5 @@
 import { DocumentationLanguage } from "../../core/auditConfigTypes.js";
+import { RuleFixContext } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export type DocumentationLanguageRuleId = 'docs-unauthorized-language' | 'docs-missing-language-mandate' | 'code-comment-unauthorized-language';
 export declare const DOCUMENTATION_LANGUAGE_RULES: readonly DocumentationLanguageRuleId[];
@@ -10,10 +11,9 @@ export declare function getCanonicalLanguageMandateSnippet(language?: Documentat
  */
 export declare function containsLanguageMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
 export interface DocumentationLanguageOptions {
-  projectRoot?: string;
-  fix?: boolean;
-  language?: DocumentationLanguage;
-  exemptions?: readonly string[];
+  readonly projectRoot?: string;
+  readonly language?: DocumentationLanguage;
+  readonly exemptions?: readonly string[];
 }
 export interface ProseParagraph {
   readonly startLine: number;
@@ -38,6 +38,7 @@ export interface ExtractedCodeComment {
 }
 export declare function extractCommentsFromSource(content: string, ext: string): ExtractedCodeComment[];
 export declare function extractProseFromComments(rawComments: readonly ExtractedCodeComment[]): ProseParagraph[];
+export declare function fixDocsMissingLanguageMandate(context: RuleFixContext<'docs-missing-language-mandate'>): boolean;
 export declare class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLanguageRuleId> {
   private readonly rootDir;
   private readonly options?;
@@ -45,7 +46,7 @@ export declare class DocumentationLanguageAuditor extends BaseAuditor<Documentat
   private reportUnauthorizedLanguageViolation;
   private auditParagraph;
   private auditMarkdownFile;
-  private auditRootAgentsMandate;
+  auditRootAgentsMandate(targetLanguage: DocumentationLanguage): void;
   private auditCodeFileComments;
   runAudit(): Promise<void>;
 }

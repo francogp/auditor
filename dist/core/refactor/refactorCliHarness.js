@@ -137,7 +137,7 @@ function handleInspectCommand(def, projectRoot, targetFile) {
 		console.log(`     Suggestion:   ${styleText("green", d.suggestedReplacement)}`);
 		console.log(`     Explanation:  ${d.explanation}\n`);
 	}
-	const plan = def.createPlan(`${def.toolName}-plan-${Date.now()}`, findings);
+	const plan = def.createPlan(`${def.toolName}-plan-${Temporal.Now.instant().epochMilliseconds}`, findings);
 	console.log(styleText("yellow", "[Plan] Suggested declarative plan (--plan):\n"));
 	console.log(JSON.stringify(plan, null, 2));
 }

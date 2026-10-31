@@ -14,10 +14,9 @@
  *   node --permission --experimental-strip-types --allow-fs-read=* src/suites/architecture/validate_constant_hygiene.ts
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { detectDuplicateConstants } from '../../analyzers/constantAnalyzer.ts';
 import {
   badConstantNames,
@@ -25,8 +24,15 @@ import {
   noLiteralSuffixInConstantName
 } from '../../analyzers/constantRules.ts';
 import { type SharedAstContext } from '../../core/astContext.ts';
-import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
+import {
+  FileScanAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
 import { parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
@@ -45,7 +51,7 @@ const P_EXPORT_REDUNDANT_ALIAS = /^\s*export\s+const\s+([A-Z_a-z]\w*)\s*=\s*([A-
 export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygieneRuleId> {
   private readonly scannedAbsFiles: string[] = [];
 
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths.srcRoots ?? []
@@ -53,12 +59,12 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
     const effectiveRoots = targetRoots.map((r) => toPosixRelative(effectiveRoot, r));
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(CONSTANT_HYGIENE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -151,7 +157,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
           const message = typeof rule.message === 'function' ? rule.message(m[0]) : rule.message;
           this.addViolationAtMatch({
             ruleId,
-            filePath: relPath,
+            file: relPath,
             content,
             matchIndex: m.index,
             message,
@@ -194,9 +200,9 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         this.addViolation({
           ruleId: 'constant-no-alias',
           severity: 'error',
-          filePath: relPath,
+          file: relPath,
           line,
-          column,
+          col: column,
           message: `Redundant 1:1 constant/function redefinition: '${m[0].trim()}'. Use the canonical origin constant directly instead of declaring passthrough aliases.`,
           context: m[0].trim()
         });
@@ -256,7 +262,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         this.addViolation({
           ruleId: 'duplicate-constant-identical',
           severity: v.severity || 'error',
-          filePath: v.file,
+          file: v.file,
           line: v.line || 1,
           message: v.message,
           context: v.context
@@ -275,7 +281,7 @@ export class ValidateConstantHygieneAuditor extends FileScanAuditor<ConstantHygi
         this.addViolation({
           ruleId: 'duplicate-constant-divergent',
           severity: v.severity || 'error',
-          filePath: v.file,
+          file: v.file,
           line: v.line || 1,
           message: v.message,
           context: v.context

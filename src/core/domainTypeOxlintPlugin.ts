@@ -227,8 +227,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description:
-            'Forbids string literal arrays without as const or canonical domain typing'
+          description: 'Forbids string literal arrays without as const or canonical domain typing'
         }
       },
       create(context: OxlintRuleContext) {
@@ -355,8 +354,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description:
-            'Forbids domain identifier aliases (type XId = string) without nominal Brand'
+          description: 'Forbids domain identifier aliases (type XId = string) without nominal Brand'
         }
       },
       create(context: OxlintRuleContext) {
@@ -445,8 +443,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description:
-            'Forbids explicit boolean literal type annotations (: true or : false)'
+          description: 'Forbids explicit boolean literal type annotations (: true or : false)'
         }
       },
       create(context: OxlintRuleContext) {
@@ -476,8 +473,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description:
-            'Forbids async callbacks inside computed() in Vue 3'
+          description: 'Forbids async callbacks inside computed() in Vue 3'
         }
       },
       create(context: OxlintRuleContext) {
@@ -493,7 +489,8 @@ export const domainTypeOxlintPlugin = {
               const callback = args[0];
               if (
                 callback &&
-                (callback.type === 'ArrowFunctionExpression' || callback.type === 'FunctionExpression')
+                (callback.type === 'ArrowFunctionExpression' ||
+                  callback.type === 'FunctionExpression')
               ) {
                 if (callback.async) {
                   context.report({
@@ -530,7 +527,7 @@ export const domainTypeOxlintPlugin = {
               const target = args[0];
               if (target?.type === 'MemberExpression') {
                 const obj = target.object;
-                if (obj?.name === 'props' || obj?.type === 'Identifier' && obj.name === 'props') {
+                if (obj?.name === 'props' || (obj?.type === 'Identifier' && obj.name === 'props')) {
                   context.report({
                     node,
                     message:
@@ -548,8 +545,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description:
-            'Forbids destructuring reactive() objects directly without toRefs()'
+          description: 'Forbids destructuring reactive() objects directly without toRefs()'
         }
       },
       create(context: OxlintRuleContext) {

@@ -9,8 +9,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
-import { isMainModule } from './cliUtils.ts';
+
 import { isSelfProviderProject } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
@@ -18,6 +17,8 @@ import {
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
+import { isMainModule } from './cliUtils.ts';
 
 export interface InitAgentOptions {
   targetDir?: string;
@@ -106,8 +107,16 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
 
 const INIT_AGENT_ARGS = {
   ...COMMON_CLI_ARGS,
-  'dry-run': { type: 'boolean', default: false, description: 'Preview registration without writing' },
-  'from-postinstall': { type: 'boolean', default: false, description: 'Invoked from npm postinstall hook' }
+  'dry-run': {
+    type: 'boolean',
+    default: false,
+    description: 'Preview registration without writing'
+  },
+  'from-postinstall': {
+    type: 'boolean',
+    default: false,
+    description: 'Invoked from npm postinstall hook'
+  }
 } as const satisfies CittyArgsDef;
 
 // CLI entrypoint

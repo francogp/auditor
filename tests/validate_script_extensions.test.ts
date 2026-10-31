@@ -102,7 +102,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         fs.writeFileSync(path.join(tempDir, 'eslint.config.js'), 'export default [];\n');
 
         const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.findings).toHaveLength(0);
         expect(result.summary.errors).toBe(0);
@@ -125,7 +125,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         );
 
         const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.findings.length).toBeGreaterThan(0);
         const mjsViolation = result.findings.find((v) => v.ruleId === 'banned-mjs-extension');
@@ -146,7 +146,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         fs.writeFileSync(path.join(tempDir, 'src', 'legacy.cjs'), 'module.exports = {};\n');
 
         const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.findings.length).toBeGreaterThan(0);
         const cjsViolation = result.findings.find((v) => v.ruleId === 'banned-cjs-extension');
@@ -166,7 +166,7 @@ describe('ValidateScriptExtensionsAuditor', () => {
         fs.writeFileSync(path.join(tempDir, 'scripts', 'runner.js'), 'console.log("running");\n');
 
         const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-        const result = await auditor.execute();
+        const result = await auditor.audit();
 
         expect(result.findings.length).toBeGreaterThan(0);
         const jsViolation = result.findings.find((v) => v.ruleId === 'banned-raw-js-script');
@@ -216,8 +216,8 @@ describe('ValidateScriptExtensionsAuditor', () => {
         );
 
         // Execute auditor in fix mode
-        const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir, fix: true });
-        await auditor.execute();
+        const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
+        await auditor.fix();
 
         // 1. Old .mjs must be gone, new .ts must exist
         expect(fs.existsSync(mjsPath)).toBe(false);
@@ -254,8 +254,8 @@ describe('ValidateScriptExtensionsAuditor', () => {
         fs.writeFileSync(mjsPath, 'export const mjsContent = true;\n');
         fs.writeFileSync(tsPath, 'export const originalTsContent = true;\n');
 
-        const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir, fix: true });
-        const result = await auditor.execute();
+        const auditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
+        const result = await auditor.fix();
 
         // Original .ts must be preserved intact!
         expect(fs.existsSync(mjsPath)).toBe(true);

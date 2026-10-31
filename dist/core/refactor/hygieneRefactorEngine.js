@@ -1,5 +1,5 @@
 import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { applyAstReplacementsAcrossFiles, createUnifiedAstSourceFile } from "../astScriptExtractor.js";
 import fs from "node:fs";
 import ts from "typescript";
@@ -196,8 +196,9 @@ function inspectHygieneFile(filePath, sourceText) {
 var HygieneRefactorEngine = class HygieneRefactorEngine extends BaseRefactorEngine {
 	toolId = "auditor-hygiene";
 	configSectionKey = "oxlint";
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof OxlintAuditor ? auditorOrOptions : new OxlintAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot });
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new OxlintAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

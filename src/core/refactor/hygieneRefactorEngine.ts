@@ -11,20 +11,21 @@
  */
 
 import fs from 'node:fs';
+
 import ts from 'typescript';
 
-import type {
-  HygieneFindingItem,
-  HygieneRefactorPlan
-} from './refactorContracts.ts';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { OxlintAuditor } from '../../suites/architecture/validate_oxlint.ts';
 import {
   createUnifiedAstSourceFile,
   applyAstReplacementsAcrossFiles,
   type AstTextReplacement
 } from '../astScriptExtractor.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
+import type { HygieneFindingItem, HygieneRefactorPlan } from './refactorContracts.ts';
 
 const TARGET_GLOBAL_NAMES: ReadonlySet<string> = new Set(['window', 'self', 'global']);
 
@@ -85,7 +86,9 @@ function inspectClassMember(
   const startPos = member.getStart(sourceFile);
   const line = ts.getLineAndCharacterOfPosition(sourceFile, startPos).line + 1;
   const nameText = member.name ? member.name.getText(sourceFile) : 'constructor';
-  const snippet = sourceText.slice(startPos, Math.min(startPos + 40, sourceText.length)).replace(/\n[\s\S]*/, '');
+  const snippet = sourceText
+    .slice(startPos, Math.min(startPos + 40, sourceText.length))
+    .replace(/\n[\s\S]*/, '');
 
   return {
     finding: {
@@ -114,7 +117,9 @@ function isShadowedIdentifier(node: ts.Identifier): boolean {
       ts.isFunctionExpression(currentScope) ||
       ts.isMethodDeclaration(currentScope)
     ) {
-      if (currentScope.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === node.text)) {
+      if (
+        currentScope.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === node.text)
+      ) {
         return true;
       }
     }
@@ -192,7 +197,8 @@ function inspectVoidNode(
         kind: 'no-void',
         originalSnippet: node.getText(sourceFile),
         suggestedReplacement: replacementText,
-        explanation: 'Arrow function uses "void" in concise body. Convert to standard block statement.'
+        explanation:
+          'Arrow function uses "void" in concise body. Convert to standard block statement.'
       },
       replacement: {
         start: startPos,
@@ -225,7 +231,10 @@ function inspectVoidNode(
 export function inspectHygieneFile(
   filePath: string,
   sourceText: string
-): { readonly findings: readonly HygieneFindingItem[]; readonly replacements: readonly AstTextReplacement[] } {
+): {
+  readonly findings: readonly HygieneFindingItem[];
+  readonly replacements: readonly AstTextReplacement[];
+} {
   const { sourceFile } = createUnifiedAstSourceFile(filePath, sourceText);
   const findings: HygieneFindingItem[] = [];
   const replacements: AstTextReplacement[] = [];
@@ -264,6 +273,8 @@ export function inspectHygieneFile(
   return { findings, replacements };
 }
 
+export type HygieneRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
+
 export class HygieneRefactorEngine extends BaseRefactorEngine<
   HygieneFindingItem,
   HygieneRefactorPlan,
@@ -272,19 +283,13 @@ export class HygieneRefactorEngine extends BaseRefactorEngine<
   public readonly toolId = 'auditor-hygiene';
   public readonly configSectionKey = 'oxlint' as const;
 
-  constructor(
-    auditorOrOptions?: OxlintAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: HygieneRefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<OxlintAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof OxlintAuditor
-        ? auditorOrOptions
-        : new OxlintAuditor({
-            projectRoot:
-              typeof auditorOrOptions === 'string'
-                ? auditorOrOptions
-                : auditorOrOptions?.projectRoot
-          });
+      opts.auditor ??
+      new OxlintAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 

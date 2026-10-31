@@ -9,20 +9,18 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import ts from 'typescript';
 
+import { ValidateGsapAnimationsAuditor } from '../../suites/architecture/validate_gsap_animations.ts';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import {
-  executePlanFileReplacements,
-  isSameFilePath
-} from './refactorFileScanner.ts';
-import type {
-  MotionFindingItem,
-  MotionRefactorPlan
-} from './refactorContracts.ts';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
-import { ValidateGsapAnimationsAuditor } from '../../suites/architecture/validate_gsap_animations.ts';
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
+import type { MotionFindingItem, MotionRefactorPlan } from './refactorContracts.ts';
+import { executePlanFileReplacements, isSameFilePath } from './refactorFileScanner.ts';
 
 const LAYOUT_PROP_MAP: Readonly<Record<string, string>> = {
   left: 'x',
@@ -133,7 +131,8 @@ function inspectTimerCall(
   } else if (
     ts.isPropertyAccessExpression(node.expression) &&
     ts.isIdentifier(node.expression.expression) &&
-    (node.expression.expression.text === 'window' || node.expression.expression.text === 'globalThis') &&
+    (node.expression.expression.text === 'window' ||
+      node.expression.expression.text === 'globalThis') &&
     ts.isIdentifier(node.expression.name)
   ) {
     timerFnName = node.expression.name.text;
@@ -249,7 +248,7 @@ function inspectLegacyEaseAccess(
   if (ts.isIdentifier(node.expression) && ts.isIdentifier(node.name)) {
     const text = `${node.expression.text}.${node.name.text}`;
     if (LEGACY_EASE_MAP[text]) {
-      const canonicalEase = LEGACY_EASE_MAP[text]!;
+      const canonicalEase = LEGACY_EASE_MAP[text];
       const { line } = sf.getLineAndCharacterOfPosition(node.getStart(sf));
       const actualLine = line + lineOffset + 1;
       findings.push({
@@ -286,6 +285,8 @@ function inspectSourceFile(
   ts.forEachChild(sf, walk);
 }
 
+export type MotionRefactorEngineOptions = RefactorEngineOptions<ValidateGsapAnimationsAuditor>;
+
 export class MotionRefactorEngine extends BaseRefactorEngine<
   MotionFindingItem,
   MotionRefactorPlan,
@@ -294,19 +295,13 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
   public readonly toolId = 'auditor-motion';
   public readonly configSectionKey = 'animation' as const;
 
-  constructor(
-    auditorOrOptions?: ValidateGsapAnimationsAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: MotionRefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<ValidateGsapAnimationsAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof ValidateGsapAnimationsAuditor
-        ? auditorOrOptions
-        : new ValidateGsapAnimationsAuditor({
-            projectRoot:
-              typeof auditorOrOptions === 'string'
-                ? auditorOrOptions
-                : auditorOrOptions?.projectRoot
-          });
+      opts.auditor ??
+      new ValidateGsapAnimationsAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 
@@ -314,7 +309,10 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
     return MotionRefactorEngine.discoverInFile(filePath);
   }
 
-  public override createPlan(id: string, findings: readonly MotionFindingItem[]): MotionRefactorPlan {
+  public override createPlan(
+    id: string,
+    findings: readonly MotionFindingItem[]
+  ): MotionRefactorPlan {
     return MotionRefactorEngine.createPlan(id, findings);
   }
 
@@ -336,7 +334,7 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
       return [];
     }
 
-    let fileContent = '';
+    let fileContent: string;
     try {
       fileContent = fs.readFileSync(filePath, 'utf-8');
     } catch {
@@ -382,9 +380,24 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
     findings: readonly MotionFindingItem[]
   ): MotionRefactorPlan {
     const files = [...new Set(findings.map((f) => f.file))];
-    const timerReplacements: Array<{ file: string; line: number; originalCall: string; replacementCall: string }> = [];
-    const propertyReplacements: Array<{ file: string; line: number; fromProp: string; toProp: string }> = [];
-    const easeReplacements: Array<{ file: string; line: number; fromEase: string; toEase: string }> = [];
+    const timerReplacements: Array<{
+      file: string;
+      line: number;
+      originalCall: string;
+      replacementCall: string;
+    }> = [];
+    const propertyReplacements: Array<{
+      file: string;
+      line: number;
+      fromProp: string;
+      toProp: string;
+    }> = [];
+    const easeReplacements: Array<{
+      file: string;
+      line: number;
+      fromEase: string;
+      toEase: string;
+    }> = [];
     const importInjections: Array<{ file: string; importStatement: string }> = [];
 
     for (const f of findings) {
@@ -451,7 +464,10 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
     const lines = initialContent.split('\n');
     let count = 0;
     for (const rep of reps) {
-      if (!isSameFilePath(rep.file, relFile, baseDir) && !isSameFilePath(rep.file, fullPath, baseDir)) {
+      if (
+        !isSameFilePath(rep.file, relFile, baseDir) &&
+        !isSameFilePath(rep.file, fullPath, baseDir)
+      ) {
         continue;
       }
       if (rep.line && rep.line >= 1 && rep.line <= lines.length) {
@@ -487,7 +503,10 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
     let content = initialContent;
     let count = 0;
     for (const inj of injections) {
-      if (!isSameFilePath(inj.file, relFile, baseDir) && !isSameFilePath(inj.file, fullPath, baseDir)) {
+      if (
+        !isSameFilePath(inj.file, relFile, baseDir) &&
+        !isSameFilePath(inj.file, fullPath, baseDir)
+      ) {
         continue;
       }
       if (content.includes(inj.importStatement)) continue;
@@ -527,7 +546,13 @@ export class MotionRefactorEngine extends BaseRefactorEngine<
       [easeTextItems, timerTextItems],
       [
         (content, relFile, fullPath, bDir) =>
-          this.applyPropertyReplacements(content, relFile, fullPath, bDir, plan.propertyReplacements),
+          this.applyPropertyReplacements(
+            content,
+            relFile,
+            fullPath,
+            bDir,
+            plan.propertyReplacements
+          ),
         (content, relFile, fullPath, bDir) =>
           this.applyImportInjections(content, relFile, fullPath, bDir, plan.importInjections)
       ]

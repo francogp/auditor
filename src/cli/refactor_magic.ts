@@ -8,12 +8,16 @@
 
 import path from 'node:path';
 import { styleText } from 'node:util';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import type { MagicRefactorPlan } from '../core/refactor/magicContracts.ts';
+import { MagicNumberExtractor } from '../core/refactor/magicNumberExtractor.ts';
+import { MagicNumberHarness } from '../core/refactor/magicNumberHarness.ts';
 import {
   applyPlanFileWithWorktreeVerification,
   formatCliRelativeFilePath,
@@ -23,9 +27,6 @@ import {
   renderBoxTable,
   type TableColumn
 } from '../core/refactor/refactorCliHarness.ts';
-import { MagicNumberExtractor } from '../core/refactor/magicNumberExtractor.ts';
-import { MagicNumberHarness } from '../core/refactor/magicNumberHarness.ts';
-import type { MagicRefactorPlan } from '../core/refactor/magicContracts.ts';
 import { isMainModule } from './cliUtils.ts';
 import { REFACTOR_DUPES_CLI_COMMAND } from './refactor_dupes.ts';
 
@@ -133,8 +134,14 @@ export function handleMagicInspect(
 
   console.log(JSON.stringify(packet, null, 2));
 
-  const suggestedPlan = extractor.createRefactorPlan(`magic-plan-${Date.now()}`, targetFile, items);
-  console.log(styleText('yellow', '\n[Plan] Suggested declarative plan ready to apply (--plan):\n'));
+  const suggestedPlan = extractor.createRefactorPlan(
+    `magic-plan-${Temporal.Now.instant().epochMilliseconds}`,
+    targetFile,
+    items
+  );
+  console.log(
+    styleText('yellow', '\n[Plan] Suggested declarative plan ready to apply (--plan):\n')
+  );
   console.log(JSON.stringify(suggestedPlan, null, 2));
   console.log(
     styleText(
@@ -171,7 +178,8 @@ export async function executeMagicCli(
     (typeof parsed.file === 'string' ? parsed.file : undefined) ||
     (typeof parsed.plan === 'string' ? parsed.plan : undefined);
 
-  const projectRoot = path.resolve(String(parsed.project || process.cwd()));
+  const rawProject = typeof parsed.project === 'string' ? parsed.project : process.cwd();
+  const projectRoot = path.resolve(rawProject);
 
   if (parsed.help || command === 'help') {
     renderBanner('auditor-magic', 'Deterministic Magic Numbers Governance & Refactoring');

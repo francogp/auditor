@@ -1,36 +1,20 @@
+import { BaseEntityRegistry } from "./baseRegistry.js";
 // src/core/configFileRegistry.ts
-var ConfigFileRegistry = class {
-	static requirements = /* @__PURE__ */ new Map();
-	/**
-	* Registers a single configuration file requirement.
-	*/
-	static register(requirement) {
-		if (!requirement || !requirement.id || !requirement.file) return;
-		this.requirements.set(requirement.id, requirement);
+var ConfigFileRegistryImpl = class extends BaseEntityRegistry {
+	constructor() {
+		super((req) => req?.id);
 	}
 	/**
-	* Registers multiple configuration file requirements.
+	* Registers a single configuration file requirement with validation.
 	*/
-	static registerMany(requirements) {
-		for (const req of requirements) this.register(req);
-	}
-	/**
-	* Retrieves a registered configuration file requirement by its ID.
-	*/
-	static get(id) {
-		return this.requirements.get(id);
-	}
-	/**
-	* Returns all currently registered configuration file requirements.
-	*/
-	static getAll() {
-		return Array.from(this.requirements.values());
-	}
-	/**
-	* Clears all registered configuration requirements (used in test isolation).
-	*/
-	static reset() {
-		this.requirements.clear();
+	register(requirement) {
+		if (!requirement?.file) return;
+		super.register(requirement);
 	}
 };
-export { ConfigFileRegistry };
+/**
+* Universal singleton instance for ConfigFileRegistry.
+* Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+*/
+const ConfigFileRegistry = new ConfigFileRegistryImpl();
+export { ConfigFileRegistry, ConfigFileRegistryImpl };

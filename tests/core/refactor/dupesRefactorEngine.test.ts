@@ -27,15 +27,21 @@ describe('DupesRefactorEngine', () => {
   });
 
   it('inherits from BaseRefactorEngine and instantiates with canonical subauditor', () => {
-    const engine = new DupesRefactorEngine(tmpDir);
+    const engine = new DupesRefactorEngine({ projectRoot: tmpDir });
     expect(engine).toBeInstanceOf(BaseRefactorEngine);
     expect(engine.toolId).toBe('auditor-dupes');
     expect(engine.configSectionKey).toBe('fallow');
     expect(engine.getAuditor()).toBeInstanceOf(FallowArchitectureAuditor);
   });
 
+  it('rejects positional string argument with loud contract violation error', () => {
+    expect(
+      () => new (DupesRefactorEngine as unknown as new (arg: string) => DupesRefactorEngine)(tmpDir)
+    ).toThrow('[BaseRefactorEngine Contract Violation]');
+  });
+
   it('creates a canonical RefactorPlan from TriagedCloneCandidate', () => {
-    const engine = new DupesRefactorEngine(tmpDir);
+    const engine = new DupesRefactorEngine({ projectRoot: tmpDir });
     const candidate: TriagedCloneCandidate = {
       fingerprint: 'fp-123',
       topology: 'cross-file-ts',
@@ -63,7 +69,7 @@ describe('DupesRefactorEngine', () => {
 
   it('handles discoverInFile and applyPlan safely', async () => {
     fs.mkdirSync(path.join(tmpDir, 'src/shared'), { recursive: true });
-    const engine = new DupesRefactorEngine(tmpDir);
+    const engine = new DupesRefactorEngine({ projectRoot: tmpDir });
     const plan = engine.createPlan('plan-empty', []);
     const res = await engine.applyPlan(tmpDir, plan);
     expect(res.modifiedFiles).toEqual([]);

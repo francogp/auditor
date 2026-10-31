@@ -48,7 +48,7 @@ async function getAllFiles(dir) {
 	})).filter((entry) => entry.isFile()).map((entry) => path.join(entry.parentPath, entry.name));
 }
 async function mapConcurrent(items, concurrency, fn) {
-	const results = new Array(items.length);
+	const results = Array.from({ length: items.length });
 	let currentIndex = 0;
 	async function worker() {
 		while (currentIndex < items.length) {

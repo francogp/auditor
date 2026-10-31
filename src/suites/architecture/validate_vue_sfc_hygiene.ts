@@ -14,10 +14,18 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import type ts from 'typescript';
+
+import {
+  MODERN_VUE_HYGIENE_RULES,
+  analyzeImeSafeEnterInScriptAst,
+  analyzeTemplateSideEffectsAst
+} from '../../analyzers/vueModernHygieneAnalyzer.ts';
 import { SharedAstContext } from '../../core/astContext.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -26,13 +34,7 @@ import {
   resolveFileScanRoots,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import { parseVueSfc, parseVueSfcBlocks } from '../../core/vueSfcParser.ts';
-import {
-  MODERN_VUE_HYGIENE_RULES,
-  analyzeImeSafeEnterInScriptAst,
-  analyzeTemplateSideEffectsAst
-} from '../../analyzers/vueModernHygieneAnalyzer.ts';
 
 enableCompileCache();
 
@@ -46,8 +48,6 @@ export const VUE_SFC_HYGIENE_RULES = [
 ] as const;
 
 export type VueSfcHygieneRuleId = (typeof VUE_SFC_HYGIENE_RULES)[number];
-
-const FIXABLE_VUE_HYGIENE_RULES: readonly VueSfcHygieneRuleId[] = [...MODERN_VUE_HYGIENE_RULES];
 
 export const SCRIPT_TAG_CONTEXT_MAX_CHARS = 80;
 
@@ -107,31 +107,26 @@ function detectTemplateMagicCalculation(expression: string): string | null {
 export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
   private readonly astCache = new SharedAstContext();
 
-  constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (cfg) => [...(cfg.paths.componentsRoots ?? []), ...(cfg.paths.viewsRoots ?? [])]
-    );
+  public constructor(options: FileScanRootsOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => [
+      ...(cfg.paths.componentsRoots ?? []),
+      ...(cfg.paths.viewsRoots ?? [])
+    ]);
     super({
+      ruleFixers: {},
+      fixableRuleIds: ['ime-unsafe-enter-submit', 'vue-template-no-side-effects'],
       usesThirdPartyTool: false,
       requiredPermissions: [],
-      fix: options.fix,
       roots: targetRoots,
       projectRoot: effectiveRoot,
-      ruleCapabilities: createRuleCapabilities(
-        VUE_SFC_HYGIENE_RULES,
-        {
-          speed: 'light',
-          phase: 'normal',
-          fix: 'none',
-          md: false,
-          ast: true,
-          changedOnly: false,
-          critical: false
-        },
-        FIXABLE_VUE_HYGIENE_RULES
-      ),
-      fixableRuleIds: FIXABLE_VUE_HYGIENE_RULES,
+      ruleCapabilities: createRuleCapabilities(VUE_SFC_HYGIENE_RULES, {
+        speed: 'light',
+        phase: 'normal',
+        md: false,
+        ast: true,
+        changedOnly: false,
+        critical: false
+      }),
       id: 'validate_vue_sfc_hygiene',
       name: 'Vue SFC & Script Setup Hygiene Auditor',
       description: 'Verifies Vue SFC standards and <script setup lang="ts">',
@@ -270,11 +265,7 @@ export class VueSfcHygieneAuditor extends FileScanAuditor<VueSfcHygieneRuleId> {
     });
   }
 
-  protected override scanFile(
-    relPath: string,
-    content: string,
-    sourceFile?: ts.SourceFile
-  ): void {
+  protected override scanFile(relPath: string, content: string, sourceFile?: ts.SourceFile): void {
     // 1. Audit Script Setup requirement and Options API prohibition
     this.runSubAuditorSync('script-setup-required', () => {
       this.auditScriptSetup(relPath, content);

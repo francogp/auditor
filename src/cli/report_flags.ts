@@ -9,6 +9,7 @@
  */
 
 import { styleText } from 'node:util';
+
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -17,8 +18,8 @@ import {
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
 import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
 import { resolveFallowBinary } from '../suites/architecture/validate_similar_code.ts';
+import { isMainModule, executeFallowJsonCommand, isHumanConsoleMode } from './cliUtils.ts';
 
 const RADIX_DECIMAL = 10;
 const DEFAULT_TOP_LIMIT = 20;
@@ -94,10 +95,7 @@ function renderRetirementFlagsView(
   if (displayed.length === 0) {
     console.log(
       '\n  ' +
-        styleText(
-          ['bold', 'green'],
-          '[OK] No feature flags candidate for retirement detected.\n'
-        )
+        styleText(['bold', 'green'], '[OK] No feature flags candidate for retirement detected.\n')
     );
     return;
   }
@@ -107,7 +105,9 @@ function renderRetirementFlagsView(
     for (const item of displayed) {
       const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
       const reasonsStr = reasonsList.length > 0 ? reasonsList.join(', ') : 'none';
-      console.log(`• ${item.name} (${item.age_days !== undefined ? `${item.age_days}d` : 'n/a'}, ${item.read_sites ?? 0} sites): ${reasonsStr}`);
+      console.log(
+        `• ${item.name} (${item.age_days !== undefined ? `${item.age_days}d` : 'n/a'}, ${item.read_sites ?? 0} sites): ${reasonsStr}`
+      );
     }
     console.log('');
     return;
@@ -120,8 +120,7 @@ function renderRetirementFlagsView(
     const sitesStr =
       item.read_sites !== undefined ? String(item.read_sites) : styleText('dim', '0');
     const reasonsList = (item.reasons ?? []).map(formatRetirementReason);
-    const reasonsStr =
-      reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'none');
+    const reasonsStr = reasonsList.length > 0 ? reasonsList.join(', ') : styleText('dim', 'none');
 
     return {
       name: styleText('cyan', item.name),

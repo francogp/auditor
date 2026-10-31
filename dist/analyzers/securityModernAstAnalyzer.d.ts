@@ -13,6 +13,6 @@ export interface ModernSecurityAnalysisResult {
   readonly fixedContent?: string;
 }
 export declare function analyzeModernSecurityScriptAst(rawContent: string, sf: ts.SourceFile, enableFix: boolean): ModernSecurityAnalysisResult;
-export declare function analyzeExternalSriHtml(htmlContent: string, enableFix: boolean): ModernSecurityAnalysisResult;
+export declare function analyzeExternalSriHtml(htmlContent: string, enableFix?: boolean): ModernSecurityAnalysisResult;
 export declare function analyzeGithubActionsWorkflowYaml(yamlContent: string, enableFix: boolean): ModernSecurityAnalysisResult;
 export { computeRawLineOffsets, getRawSpanFromAstNode };

@@ -30,7 +30,7 @@ describe('ValidatePlaywrightConfigAuditor', () => {
 
   describe('Contract Conformance & Metadata', () => {
     it('fulfills BaseAuditor metadata and construction contract', () => {
-      const auditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
+      const auditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
       validateAuditorConstruction(auditor);
       expect(auditor.id).toBe('validate_playwright_config');
       expect(auditor.family).toBe('architecture');
@@ -41,8 +41,8 @@ describe('ValidatePlaywrightConfigAuditor', () => {
 
   describe('Conditional Applicability', () => {
     it('skips cleanly without errors or findings if no Playwright dependency or e2e folder exists', async () => {
-      const auditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('skipped');
       expect(result.summary.errors).toBe(0);
@@ -63,8 +63,8 @@ describe('ValidatePlaywrightConfigAuditor', () => {
         'utf8'
       );
 
-      const auditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
-      const result = await auditor.execute();
+      const auditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
@@ -84,15 +84,15 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       expect(fs.existsSync(configPath)).toBe(false);
 
       // Check mode
-      const checkAuditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       expect(checkResult.summary.errors).toBe(1);
       expect(checkResult.findings[0]?.ruleId).toBe('playwright-config-missing');
 
       // Fix mode
-      const fixAuditor = new ValidatePlaywrightConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
       expect(fs.existsSync(configPath)).toBe(true);
@@ -114,8 +114,8 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       fs.writeFileSync(configPath, degraded, 'utf8');
 
       // Check mode
-      const checkAuditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       const violations = checkResult.findings.filter(
         (f) => f.ruleId === 'playwright-config-missing-setting'
@@ -124,8 +124,8 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       expect(violations.length).toBe(3);
 
       // Fix mode
-      const fixAuditor = new ValidatePlaywrightConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.summary.errors).toBe(0);
 
       const repaired = fs.readFileSync(configPath, 'utf8');
@@ -144,15 +144,15 @@ describe('ValidatePlaywrightConfigAuditor', () => {
       );
       fs.writeFileSync(configPath, legacyConfig, 'utf8');
 
-      const checkAuditor = new ValidatePlaywrightConfigAuditor(undefined, tmpDir);
-      const checkResult = await checkAuditor.execute();
+      const checkAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
       expect(checkResult.status).toBe('failed');
       expect(
         checkResult.findings.some((f) => f.ruleId === 'playwright-config-missing-setting')
       ).toBe(true);
 
-      const fixAuditor = new ValidatePlaywrightConfigAuditor({ fix: true }, tmpDir);
-      const fixResult = await fixAuditor.execute();
+      const fixAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });
+      const fixResult = await fixAuditor.fix();
       expect(fixResult.status).toBe('passed');
       expect(fixResult.summary.errors).toBe(0);
 

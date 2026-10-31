@@ -72,7 +72,7 @@ describe('SqlAntiPatternsAuditor', () => {
       }
 
       const auditor = new TestableAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'sql-no-positional-arrays');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
@@ -99,7 +99,7 @@ describe('SqlAntiPatternsAuditor', () => {
       }
 
       const auditor = new TestableAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'sql-plpgsql-declared-variables');
       expect(violation).toBeDefined();
     });
@@ -117,7 +117,7 @@ describe('SqlAntiPatternsAuditor', () => {
       }
 
       const auditor = new TestableAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'sql-rls-policy-grant-integrity');
       expect(violation).toBeDefined();
     });
@@ -166,7 +166,7 @@ describe('SqlAntiPatternsAuditor', () => {
       }
 
       const auditor = new TestableAuditor();
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       const rlsViolations = result.findings.filter(
         (f) => f.ruleId === 'sql-rls-policy-grant-integrity'

@@ -17,11 +17,18 @@
  *   npm run validate:template-ids
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { FileScanAuditor, BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '../../core/auditorBase.ts';
+import path from 'node:path';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '../../core/auditorBase.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
 
 enableCompileCache();
@@ -181,22 +188,19 @@ export class TemplateIdAuditor extends FileScanAuditor<TemplateIdRuleId> {
   private readonly globalIdMap = new Map<string, IdOccurrence[]>();
   private readonly requireInputIds: boolean;
 
-  constructor(options: TemplateIdAuditorOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
-      options,
-      (config) => [
-        ...(config.paths.componentsRoots ?? []),
-        ...(config.paths.viewsRoots ?? [])
-      ]
-    );
+  public constructor(options: TemplateIdAuditorOptions = {}) {
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [
+      ...(config.paths.componentsRoots ?? []),
+      ...(config.paths.viewsRoots ?? [])
+    ]);
     const config = getAuditConfig(effectiveRoot);
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

@@ -400,19 +400,9 @@ const FALLOW_CONFIG_REQUIREMENT = {
 };
 var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends BaseAuditor {
 	static cachePaths = [".fallow"];
-	constructor(targetPathOrOptions) {
-		let projectRoot;
-		let configPath;
-		let fix = false;
-		if (typeof targetPathOrOptions === "object" && targetPathOrOptions !== null) {
-			projectRoot = targetPathOrOptions.projectRoot || process.cwd();
-			configPath = targetPathOrOptions.configFile ? path.resolve(projectRoot, targetPathOrOptions.configFile) : path.resolve(projectRoot, ".fallowrc.json");
-			fix = Boolean(targetPathOrOptions.fix);
-		} else {
-			const isJsonFile = typeof targetPathOrOptions === "string" && targetPathOrOptions.endsWith(".json");
-			projectRoot = isJsonFile ? path.dirname(targetPathOrOptions) : targetPathOrOptions || process.cwd();
-			configPath = isJsonFile ? targetPathOrOptions : path.resolve(projectRoot, ".fallowrc.json");
-		}
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
+		const configPath = options.configFile ? path.resolve(projectRoot, options.configFile) : path.resolve(projectRoot, ".fallowrc.json");
 		const relConfig = toPosixRelative(projectRoot, configPath) || ".fallowrc.json";
 		const configRequirement = {
 			...FALLOW_CONFIG_REQUIREMENT,
@@ -420,6 +410,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			candidateFiles: [relConfig]
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -430,32 +421,13 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [
-				"fallow-config-missing",
-				"fallow-banned-entry-glob",
-				"fallow-stale-file",
-				"fallow-stale-export",
-				"fallow-empty-export-list",
-				"fallow-duplicate-entry",
-				"fallow-config-workspace-diagnostic"
-			]),
-			fixableRuleIds: [
-				"fallow-config-missing",
-				"fallow-banned-entry-glob",
-				"fallow-stale-file",
-				"fallow-stale-export",
-				"fallow-empty-export-list",
-				"fallow-duplicate-entry",
-				"fallow-config-workspace-diagnostic"
-			],
+			}),
 			configFiles: [configRequirement],
 			cachePaths: ValidateFallowConfigAuditor.cachePaths,
-			fix,
 			id: "validate_fallow_config",
 			name: "Fallow Configuration & Exports Hygiene Validator",
 			description: "Validates .fallowrc.json integrity and ignoreExports",

@@ -110,12 +110,12 @@ var TemplateIdAuditor = class extends FileScanAuditor {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => [...config.paths.componentsRoots ?? [], ...config.paths.viewsRoots ?? []]);
 		const config = getAuditConfig(effectiveRoot);
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(TEMPLATE_ID_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: false,
 				changedOnly: false,

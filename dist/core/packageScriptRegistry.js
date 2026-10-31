@@ -1,3 +1,4 @@
+import { BaseEntityRegistry } from "./baseRegistry.js";
 // src/core/packageScriptRegistry.ts
 const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 	{
@@ -403,62 +404,44 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		isApplicable: (config) => config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false && config.oxfmt?.enabled !== false
 	}
 ];
-var PackageScriptRegistry = class {
-	static requirements = /* @__PURE__ */ new Map();
-	static {
-		this.reset();
+var PackageScriptRegistryImpl = class extends BaseEntityRegistry {
+	constructor() {
+		super((req) => req?.name, (reg) => {
+			for (const req of CORE_PACKAGE_SCRIPT_REQUIREMENTS) reg.register({
+				...req,
+				sourceId: "framework:core"
+			});
+		});
 	}
 	/**
-	* Registers a single package script requirement.
+	* Registers a single package script requirement with command collision verification.
 	* Throws an explicit error if a script name collides with another registered command.
 	*/
-	static register(requirement, sourceId) {
+	register(requirement, sourceId) {
 		if (!requirement || !requirement.name || !requirement.command) return;
-		const existing = this.requirements.get(requirement.name);
+		const existing = this.get(requirement.name);
 		if (existing) {
-			if (existing.requirement.command === requirement.command) return;
-			throw new Error(`[COMMAND COLLISION] Script command '${requirement.name}' is duplicated between '${existing.sourceId ?? "core"}' ('${existing.requirement.command}') and '${sourceId ?? "unknown"}' ('${requirement.command}'). Each sub-auditor and extension MUST declare unique command names in package.json. Rename the command to resolve the collision.`);
+			if (existing.command === requirement.command) return;
+			throw new Error(`[COMMAND COLLISION] Script command '${requirement.name}' is duplicated between '${existing.sourceId ?? "core"}' ('${existing.command}') and '${sourceId ?? requirement.sourceId ?? "unknown"}' ('${requirement.command}'). Each sub-auditor and extension MUST declare unique command names in package.json. Rename the command to resolve the collision.`);
 		}
-		this.requirements.set(requirement.name, {
-			requirement,
+		const item = sourceId ? {
+			...requirement,
 			sourceId
-		});
+		} : requirement;
+		super.register(item);
 	}
 	/**
 	* Registers multiple package script requirements.
 	*/
-	static registerMany(requirements, sourceId) {
+	registerMany(requirements, sourceId) {
 		for (const req of requirements) this.register(req, sourceId);
 	}
-	/**
-	* Retrieves a registered package script requirement by script name.
-	*/
-	static get(name) {
-		return this.requirements.get(name)?.requirement;
-	}
-	/**
-	* Checks whether a package script requirement is already registered.
-	*/
-	static has(name) {
-		return this.requirements.has(name);
-	}
-	/**
-	* Returns all currently registered package script requirements.
-	*/
-	static getAll() {
-		return Array.from(this.requirements.values()).map((v) => v.requirement);
-	}
-	/**
-	* Resets the registry back to core framework defaults.
-	*/
-	static reset() {
-		this.requirements.clear();
-		for (const req of CORE_PACKAGE_SCRIPT_REQUIREMENTS) this.requirements.set(req.name, {
-			requirement: req,
-			sourceId: "framework:core"
-		});
-	}
 };
+/**
+* Universal singleton instance for PackageScriptRegistry.
+* Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+*/
+const PackageScriptRegistry = new PackageScriptRegistryImpl();
 /**
 * Builds the canonical runner command for an AuditorPackageScriptRequirement,
 * dynamically appending required runtime flags or permissions (e.g. --allow-addons) if specified.
@@ -471,4 +454,4 @@ function buildCanonicalRunnerCommand(requirement) {
 	}
 	return cmd;
 }
-export { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry, buildCanonicalRunnerCommand };
+export { CORE_PACKAGE_SCRIPT_REQUIREMENTS, PackageScriptRegistry, PackageScriptRegistryImpl, buildCanonicalRunnerCommand };

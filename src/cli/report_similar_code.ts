@@ -8,9 +8,11 @@
  * detected via local vector embeddings.
  */
 
+import { execSync } from 'node:child_process';
 import path from 'node:path';
 import { styleText } from 'node:util';
-import { execSync } from 'node:child_process';
+
+import { getAuditConfig } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -18,19 +20,13 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { toPosixRelative } from '../core/safePath.ts';
 import {
   renderBanner,
   renderBoxTable,
   renderSimilarCodeWarningBanner,
   type TableColumn
 } from '../core/unifiedTheme.ts';
-import { getAuditConfig } from '../core/auditConfig.ts';
-import { toPosixRelative } from '../core/safePath.ts';
-import {
-  isMainModule,
-  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
-  bootstrapCliProject
-} from './cliUtils.ts';
 import {
   resolveFallowBinary,
   checkOrInitializeModel,
@@ -38,6 +34,11 @@ import {
   type SimilarCodeOutput,
   type SimilarCodeCandidate
 } from '../suites/architecture/validate_similar_code.ts';
+import {
+  isMainModule,
+  DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES,
+  bootstrapCliProject
+} from './cliUtils.ts';
 
 const MAX_FUNCTION_NAME_COL_WIDTH = 16;
 const MAX_LOCATION_COL_WIDTH = 20;
@@ -95,10 +96,7 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   const isHuman = resolveHumanModeFromArgs(parsed);
   if (!isJson && isHuman) {
     console.log(
-      renderBanner(
-        'SEMANTIC SIMILARITY REPORT (FALLOW SIMILAR-CODE)',
-        'Vector function embeddings'
-      )
+      renderBanner('SEMANTIC SIMILARITY REPORT (FALLOW SIMILAR-CODE)', 'Vector function embeddings')
     );
     console.log(
       styleText(
@@ -154,11 +152,15 @@ export function runSimilarCodeReport(projectRoot: string = process.cwd()): void 
   }
 
   if (!isHuman) {
-    console.log(`[SimilarCode] Found ${candidates.length} semantic clone pair(s) (threshold: ${(threshold * 100).toFixed(0)}%):`);
+    console.log(
+      `[SimilarCode] Found ${candidates.length} semantic clone pair(s) (threshold: ${(threshold * 100).toFixed(0)}%):`
+    );
     for (const [idx, c] of candidates.entries()) {
       const leftFile = path.basename(c.left.path);
       const rightFile = path.basename(c.right.path);
-      console.log(`• Pair ${idx + 1} (${(c.similarity * 100).toFixed(1)}%): ${c.left.name} (${leftFile}:${c.left.start_line}) ~ ${c.right.name} (${rightFile}:${c.right.start_line})`);
+      console.log(
+        `• Pair ${idx + 1} (${(c.similarity * 100).toFixed(1)}%): ${c.left.name} (${leftFile}:${c.left.start_line}) ~ ${c.right.name} (${rightFile}:${c.right.start_line})`
+      );
     }
     console.log('');
     return;

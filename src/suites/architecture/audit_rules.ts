@@ -236,7 +236,8 @@ export const noDomainIdFallbacks: AuditRule = {
 
     const matchText = match[0] || '';
     // Exclude boolean conditions like !name || !condition, or comparisons like name === x || id === y
-    if (/(?:===|!==|==|!=)/.test(matchText) || /!\s*(?:name|description|title)\b/.test(matchText)) return false;
+    if (/(?:===|!==|==|!=)/.test(matchText) || /!\s*(?:name|description|title)\b/.test(matchText))
+      return false;
 
     const infraWhitelist = [
       ...CANONICAL_INFRA_ID_WHITELIST,
@@ -284,7 +285,10 @@ function resolveRelativeTargetExtension(importSpec: string, importerFile?: strin
   if (/\.(?:js|mjs|cjs)$/i.test(importSpec)) return importSpec.replace(/\.(?:js|mjs|cjs)$/i, '.ts');
   if (/\.css$/i.test(importSpec)) {
     if (importerFile && fs.existsSync(importerFile)) {
-      const scssTarget = path.resolve(path.dirname(importerFile), importSpec.replace(/\.css$/i, '.scss'));
+      const scssTarget = path.resolve(
+        path.dirname(importerFile),
+        importSpec.replace(/\.css$/i, '.scss')
+      );
       if (!fs.existsSync(scssTarget)) return null;
     }
     return importSpec.replace(/\.css$/i, '.scss');
@@ -458,8 +462,8 @@ export const functionCallsInTemplates: AuditRule = {
 
       const prohibitedDb =
         getAuditConfig().persistence?.prohibitedTemplateIdentifiers &&
-        getAuditConfig().persistence!.prohibitedTemplateIdentifiers!.length > 0
-          ? getAuditConfig().persistence!.prohibitedTemplateIdentifiers!
+        getAuditConfig().persistence.prohibitedTemplateIdentifiers!.length > 0
+          ? getAuditConfig().persistence.prohibitedTemplateIdentifiers!
           : getAuditConfig().persistence?.engine === 'none'
             ? []
             : ['supabase', 'db'];
@@ -659,7 +663,7 @@ export const strictDomainParamTypes: AuditRule = {
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     const config = getAuditConfig();
     if (!isDomainAuditTarget(filePath, config)) return false;
-    if (isAllowedDatabaseFile(filePath!, config)) return false;
+    if (isAllowedDatabaseFile(filePath, config)) return false;
 
     const idParamName = match[1];
     if (!idParamName) return false;
@@ -696,13 +700,15 @@ export const noInlineTypeImports: AuditRule = {
   id: 'noInlineTypeImports',
   name: 'No Inline Type Imports',
   regex: /:\s*import\(['"][^'"]+['"]\)\.\w+/g,
-  message: (match: string) => `[CLEAN IMPORTS MANDATE] Usage of inline type import '${match}' detected.
+  message: (
+    match: string
+  ) => `[CLEAN IMPORTS MANDATE] Usage of inline type import '${match}' detected.
    RULE: Importing types inline in parameters or properties inside source code (.ts/.vue) is prohibited.
    SOLUTION: Add explicit 'import type { ... } from "..."' in the file header and use the named type directly in the signature to keep code readable and dependency trees clear. (Only ambient .d.ts files are exempt).`,
   severity: 'error',
   check: (_content: string, _match: RegExpExecArray, filePath?: string) => {
     if (!isAuditableCodeFile(filePath)) return false;
-    const norm = normalizeFilePath(filePath!);
+    const norm = normalizeFilePath(filePath);
     if (norm.endsWith('.d.ts')) return false; // Allowed in ambient .d.ts declaration files
     return true;
   },
@@ -797,7 +803,7 @@ export const auditRulesConfig = {
 
 // Ensure every rule in auditRulesConfig has its descriptor fields populated dynamically
 for (const [key, rule] of Object.entries(auditRulesConfig)) {
-  const r = rule as AuditRule;
+  const r = rule;
   if (!r.id) {
     (r as { id: string }).id = key;
   }

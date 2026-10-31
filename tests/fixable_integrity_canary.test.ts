@@ -209,7 +209,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: must report violation marked fixable: true
       const checkAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const tableFinding = checkResult.findings.find(
         (f) => f.ruleId === 'markdown-table-preceding-blank-line'
@@ -219,8 +219,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: repairs file on disk
       const fixAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repairedContent = fs.readFileSync(docFile, 'utf-8');
       expect(repairedContent).toContain(
@@ -229,7 +228,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 3. Post-repair check pass: verify zero violations
       const postAuditor = new MarkdownSyntaxAuditor({ roots: [tempDir], projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
 
       const postTableFinding = postResult.findings.find(
         (f) => f.ruleId === 'markdown-table-preceding-blank-line'
@@ -257,7 +256,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         roots: [tempDir],
         projectRoot: tempDir
       });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const unquotedFindings = checkResult.findings.filter(
         (f) => f.ruleId === 'mermaid-unquoted-special-chars'
@@ -272,8 +271,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         roots: [tempDir],
         projectRoot: tempDir
       });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repairedContent = fs.readFileSync(docFile, 'utf-8');
       expect(repairedContent).toContain('A["Step 1 (Setup)"]');
@@ -284,7 +282,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         roots: [tempDir],
         projectRoot: tempDir
       });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
 
       const remainingFindings = postResult.findings.filter(
         (f) => f.ruleId === 'mermaid-unquoted-special-chars'
@@ -308,7 +306,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: emits fixable: true for missing strict compiler options
       const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const strictOptionFinding = checkResult.findings.find(
         (f) => f.ruleId === 'tsconfig-missing-strict-compiler-option'
@@ -318,8 +316,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: repairs tsconfig.json on disk
       const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repaired = JSON.parse(fs.readFileSync(tsconfigPath, 'utf-8'));
       expect(repaired.compilerOptions.strict).toBe(true);
@@ -327,7 +324,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 3. Post-fix check: verify 0 fixable errors
       const postAuditor = new ValidateTsconfigAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remainingStrict = postResult.findings.filter(
         (f) => f.ruleId === 'tsconfig-missing-strict-compiler-option'
       );
@@ -342,7 +339,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(tsconfigPath, '{ compilerOptions: { corrupt json', 'utf-8');
 
       const auditor = new ValidateTsconfigAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const syntaxFinding = result.findings.find((f) => f.ruleId === 'tsconfig-syntax');
       expect(syntaxFinding).toBeDefined();
@@ -369,7 +366,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: reports missing recommended scripts as fixable: true
       const checkAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const missingScriptFinding = checkResult.findings.find(
         (f) => f.ruleId === 'package-scripts-missing-recommended'
@@ -379,15 +376,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: injects recommended scripts into package.json
       const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repaired = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
       expect(repaired.scripts['auditor:fix']).toBeDefined();
 
       // 3. Post-fix check: verify remaining count of missing recommended is 0
       const postAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'package-scripts-missing-recommended'
       );
@@ -402,7 +398,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: reports missing mandate as fixable: true
       const checkAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const mandateFinding = checkResult.findings.find(
         (f) => f.ruleId === 'agents-missing-config-mandate'
@@ -412,15 +408,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: injects mandate into AGENTS.md
       const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repaired = fs.readFileSync(agentsPath, 'utf-8');
       expect(repaired).toContain('Prohibition on Modifying or Disabling Configurations');
 
       // 3. Post-fix check: verify mandate is present and finding is gone
       const postAuditor = new AgentsConfigMandateAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'agents-missing-config-mandate'
       );
@@ -435,7 +430,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: reports missing language mandate as fixable: true
       const checkAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const langFinding = checkResult.findings.find(
         (f) => f.ruleId === 'docs-missing-language-mandate'
@@ -445,15 +440,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: injects language mandate into AGENTS.md
       const fixAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       const repaired = fs.readFileSync(agentsPath, 'utf-8');
       expect(repaired).toContain('Universal English Documentation Default Mandate');
 
       // 3. Post-fix check: verify finding is gone
       const postAuditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'docs-missing-language-mandate'
       );
@@ -470,7 +464,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       );
 
       const auditor = new DocumentationLanguageAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       const unauthFinding = result.findings.find((f) => f.ruleId === 'docs-unauthorized-language');
       if (unauthFinding) {
@@ -483,7 +477,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
     it('auto-creates missing .editorconfig and reports 0 post-fix errors', async () => {
       // 1. Check mode: reports missing .editorconfig as fixable: true
       const checkAuditor = new ValidateEditorconfigAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const missingFinding = checkResult.findings.find((f) => f.ruleId === 'editorconfig-missing');
       expect(missingFinding).toBeDefined();
@@ -491,14 +485,13 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: creates .editorconfig on disk
       const fixAuditor = new ValidateEditorconfigAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       expect(fs.existsSync(path.join(tempDir, '.editorconfig'))).toBe(true);
 
       // 3. Post-fix check: verify 0 errors
       const postAuditor = new ValidateEditorconfigAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter((f) => f.ruleId === 'editorconfig-missing');
       expect(remaining).toHaveLength(0);
     });
@@ -508,7 +501,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
     it('auto-creates missing .npmrc and reports 0 post-fix errors', async () => {
       // 1. Check mode: reports missing .npmrc as fixable: true
       const checkAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const missingFinding = checkResult.findings.find((f) => f.ruleId === 'npmrc-config-missing');
       expect(missingFinding).toBeDefined();
@@ -516,14 +509,13 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: creates .npmrc on disk
       const fixAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       expect(fs.existsSync(path.join(tempDir, '.npmrc'))).toBe(true);
 
       // 3. Post-fix check: verify finding is gone
       const postAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter((f) => f.ruleId === 'npmrc-config-missing');
       expect(remaining).toHaveLength(0);
     });
@@ -532,7 +524,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
   describe('11. HTML-Validate Configuration Validator', () => {
     it('auto-creates missing .htmlvalidate.json and reports 0 post-fix errors', async () => {
       const checkAuditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const missingFinding = checkResult.findings.find(
         (f) => f.ruleId === 'html-validate-config-missing'
@@ -541,13 +533,12 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(missingFinding!.fixable).toBe(true);
 
       const fixAuditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       expect(fs.existsSync(path.join(tempDir, '.htmlvalidate.json'))).toBe(true);
 
       const postAuditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'html-validate-config-missing'
       );
@@ -558,7 +549,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
   describe('12. MarkdownLint Configuration Validator', () => {
     it('auto-creates missing .markdownlint.json and reports 0 post-fix errors', async () => {
       const checkAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const missingFinding = checkResult.findings.find(
         (f) => f.ruleId === 'markdownlint-config-missing'
@@ -567,13 +558,12 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       expect(missingFinding!.fixable).toBe(true);
 
       const fixAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       expect(fs.existsSync(path.join(tempDir, '.markdownlint.json'))).toBe(true);
 
       const postAuditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter(
         (f) => f.ruleId === 'markdownlint-config-missing'
       );
@@ -601,7 +591,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
         roots: [tempDir],
         projectRoot: tempDir
       });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const versionFinding = checkResult.findings.find(
         (f) => f.ruleId === 'markdown-outdated-project-version'
@@ -613,8 +603,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
           roots: [tempDir],
           projectRoot: tempDir
         });
-        Reflect.set(fixAuditor, 'fixMode', true);
-        await fixAuditor.execute();
+        await fixAuditor.fix();
 
         const repaired = fs.readFileSync(readmePath, 'utf-8');
         expect(repaired).toContain('@francogp/auditor@9.2.0');
@@ -631,7 +620,7 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 1. Check mode: reports banned-mjs-extension as fixable: true
       const checkAuditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const mjsFinding = checkResult.findings.find((f) => f.ruleId === 'banned-mjs-extension');
       expect(mjsFinding).toBeDefined();
@@ -639,15 +628,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
 
       // 2. Fix mode: renames to .ts
       const fixAuditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-      Reflect.set(fixAuditor, 'fixMode', true);
-      await fixAuditor.execute();
+      await fixAuditor.fix();
 
       expect(fs.existsSync(path.join(scriptsDir, 'deploy.ts'))).toBe(true);
       expect(fs.existsSync(mjsFile)).toBe(false);
 
       // 3. Post-fix check: finding is gone
       const postAuditor = new ValidateScriptExtensionsAuditor({ projectRoot: tempDir });
-      const postResult = await postAuditor.execute();
+      const postResult = await postAuditor.audit();
       const remaining = postResult.findings.filter((f) => f.ruleId === 'banned-mjs-extension');
       expect(remaining).toHaveLength(0);
     });
@@ -661,15 +649,14 @@ describe('Fixability & Post-Fix Integrity Canary', () => {
       fs.writeFileSync(cssFile, '.modal { z-index: 1000; }\n', 'utf-8');
 
       const checkAuditor = new ZIndexAuditor({ roots: [tempDir], projectRoot: tempDir });
-      const checkResult = await checkAuditor.execute();
+      const checkResult = await checkAuditor.audit();
 
       const zFinding = checkResult.findings.find((f) => f.ruleId === 'z-index-hardcoded-literal');
       if (zFinding) {
         expect(zFinding.fixable).toBe(true);
 
         const fixAuditor = new ZIndexAuditor({ roots: [tempDir], projectRoot: tempDir });
-        Reflect.set(fixAuditor, 'fixMode', true);
-        await fixAuditor.execute();
+        await fixAuditor.fix();
 
         const repaired = fs.readFileSync(cssFile, 'utf-8');
         expect(repaired).toContain('var(');

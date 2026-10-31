@@ -53,6 +53,7 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
     const defaultRoots = candidateRoots.length > 0 ? candidateRoots : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
 
     super({
+      ruleFixers: {},
       id: 'validate_button_governance',
       name: 'Button Governance Validator (Rule 23)',
       description: 'Validates button governance and canonical variants',
@@ -61,7 +62,6 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
       ruleCapabilities: createUniformRuleCapabilities(BUTTON_GOVERNANCE_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: true,

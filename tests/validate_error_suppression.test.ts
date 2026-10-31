@@ -156,16 +156,18 @@ describe('ErrorSuppressionAuditor', () => {
       expect(auditor.getCountsByRule().get('no-empty-catch') ?? 0).toBe(0);
       expect(auditor.getCountsByRule().get('strict-catch-narrowing') ?? 0).toBe(0);
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
   });
 
   describe('Auto-Fix Support', () => {
-    it('supports auto-fix mode with fix: true', () => {
-      const auditor = new ErrorSuppressionAuditor({ fix: true });
-      expect(auditor.isFixActive()).toBe(true);
+    it('supports auto-fix capability for fixable error suppression rules', async () => {
+      const auditor = new ErrorSuppressionAuditor({ roots: [] });
+      expect(auditor.capabilities.fix).not.toBe('none');
+      const result = await auditor.fix();
+      expect(result).toBeDefined();
     });
   });
 });

@@ -3,7 +3,9 @@
  * AST parsing and configuration rewrite utilities for .auditor/audit.config.ts and .json.
  */
 import fs from 'node:fs';
+
 import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
+
 import { safeReadFileSync, safeJsonParse, tryCatchSync } from './safeUtils.ts';
 
 function isPlainRecord(val: unknown): val is Record<string, unknown> {
@@ -47,7 +49,8 @@ function valueToTsMorphInitializer(val: unknown): string {
   if (typeof val === 'string') return `'${val.replaceAll("'", "\\'")}'`;
   if (typeof val === 'number' || typeof val === 'boolean') return String(val);
   if (val === null || val === undefined) return 'undefined';
-  if (Array.isArray(val)) return `[${val.map((item) => valueToTsMorphInitializer(item)).join(', ')}]`;
+  if (Array.isArray(val))
+    return `[${val.map((item) => valueToTsMorphInitializer(item)).join(', ')}]`;
   if (isPlainRecord(val)) {
     const entries = Object.entries(val).filter(([, v]) => v !== undefined);
     const lines = entries.map(([k, v]) => {
@@ -76,7 +79,10 @@ function syncMissingPropsWithTsMorph(
     }
     if (!existing) {
       const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : JSON.stringify(key);
-      obj.addPropertyAssignment({ name: safeName, initializer: valueToTsMorphInitializer(missingVal) });
+      obj.addPropertyAssignment({
+        name: safeName,
+        initializer: valueToTsMorphInitializer(missingVal)
+      });
       mutated = true;
     }
   }
@@ -122,7 +128,10 @@ export function syncAuditorVersionInTsFile(configFilePath: string, version: stri
   return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
     const existingProp = targetObj.getProperty('auditorVersion');
     if (existingProp && existingProp.isKind(SyntaxKind.PropertyAssignment)) {
-      const currentVal = existingProp.getInitializer()?.getText().replace(/^['"]|['"]$/g, '');
+      const currentVal = existingProp
+        .getInitializer()
+        ?.getText()
+        .replace(/^['"]|['"]$/g, '');
       if (currentVal === version) return false;
       existingProp.setInitializer(`'${version}'`);
       return true;
@@ -130,7 +139,10 @@ export function syncAuditorVersionInTsFile(configFilePath: string, version: stri
     const nameProp = targetObj.getProperty('name');
     const idx =
       nameProp && nameProp.isKind(SyntaxKind.PropertyAssignment) ? nameProp.getChildIndex() + 1 : 0;
-    targetObj.insertPropertyAssignment(idx, { name: 'auditorVersion', initializer: `'${version}'` });
+    targetObj.insertPropertyAssignment(idx, {
+      name: 'auditorVersion',
+      initializer: `'${version}'`
+    });
     return true;
   });
 }

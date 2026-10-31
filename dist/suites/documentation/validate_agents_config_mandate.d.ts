@@ -1,4 +1,5 @@
 import { DocumentationLanguage } from "../../core/auditConfigTypes.js";
+import { RuleFixContext } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export type AgentsConfigMandateRuleId = 'agents-missing-config-mandate' | 'agents-missing-backward-compat-mandate' | 'agents-missing-fake-pass-mandate' | 'agents-missing-chat-language-mandate' | 'agents-missing-destructive-git-mandate' | 'agents-missing-official-tools-mandate' | 'agents-missing-architecture-mandate' | 'agents-missing-dependency-immutability-mandate';
 export declare const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[];
@@ -61,11 +62,11 @@ export declare function containsArchitectureMandate(text: string, expectedLangua
  */
 export declare function containsDependencyImmutabilityMandate(text: string, expectedLanguage?: DocumentationLanguage): boolean;
 export interface AgentsConfigMandateOptions {
-  projectRoot?: string;
-  fix?: boolean;
-  language?: DocumentationLanguage;
-  chatLanguage?: DocumentationLanguage;
+  readonly projectRoot?: string;
+  readonly language?: DocumentationLanguage;
+  readonly chatLanguage?: DocumentationLanguage;
 }
+export declare function fixSingleAgentsMandate(context: RuleFixContext<AgentsConfigMandateRuleId>): boolean;
 export declare class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
   private readonly rootDir;
   private readonly languageOption?;

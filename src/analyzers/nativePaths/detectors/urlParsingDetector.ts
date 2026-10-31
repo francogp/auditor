@@ -56,7 +56,11 @@ function checkRegexUsage(mc: MethodCall): boolean {
 }
 
 function checkRegexDeclaration(node: ts.Node): boolean {
-  return ts.isVariableDeclaration(node) && node.initializer !== undefined && isQueryRegex(node.initializer);
+  return (
+    ts.isVariableDeclaration(node) &&
+    node.initializer !== undefined &&
+    isQueryRegex(node.initializer)
+  );
 }
 
 function checkPathJoinOnUrl(node: ts.Node, ctx: NativePathScanContext): boolean {
@@ -72,7 +76,8 @@ function checkConcatInsideUrl(node: ts.Node): boolean {
   if (!first) return false;
   const arg = unwrapExpression(first);
   if (ts.isTemplateExpression(arg)) return getTemplateTexts(arg).some(isPathFragment);
-  if (!ts.isBinaryExpression(arg) || arg.operatorToken.kind !== ts.SyntaxKind.PlusToken) return false;
+  if (!ts.isBinaryExpression(arg) || arg.operatorToken.kind !== ts.SyntaxKind.PlusToken)
+    return false;
   return flattenPlusChain(arg).some((op) => isPathFragment(getStringValue(op) ?? ''));
 }
 
@@ -80,7 +85,11 @@ const URL_MODULE_SPECIFIERS: ReadonlySet<string> = new Set(['url', 'node:url']);
 
 function isRequireUrl(expr: ts.Expression): boolean {
   const node = unwrapExpression(expr);
-  if (!ts.isCallExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'require') {
+  if (
+    !ts.isCallExpression(node) ||
+    !ts.isIdentifier(node.expression) ||
+    node.expression.text !== 'require'
+  ) {
     return false;
   }
   const specifier = node.arguments[0] ? getStringValue(node.arguments[0]) : undefined;
@@ -94,10 +103,13 @@ function checkLegacyUrlParse(mc: MethodCall): boolean {
 }
 
 export const urlParsingDetector: NativePathDetector = (node, ctx) => {
-  let matched = checkRegexDeclaration(node) || checkPathJoinOnUrl(node, ctx) || checkConcatInsideUrl(node);
+  let matched =
+    checkRegexDeclaration(node) || checkPathJoinOnUrl(node, ctx) || checkConcatInsideUrl(node);
   if (!matched) {
     const mc = asMethodCall(node);
-    matched = mc !== undefined && (checkDelimiterSplit(mc) || checkRegexUsage(mc) || checkLegacyUrlParse(mc));
+    matched =
+      mc !== undefined &&
+      (checkDelimiterSplit(mc) || checkRegexUsage(mc) || checkLegacyUrlParse(mc));
   }
   return matched ? { ruleId: 'homebrew-url-parsing', node, message: URL_PARSING_MESSAGE } : null;
 };

@@ -43,7 +43,8 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 	constructor(options = {}) {
 		const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (cfg) => cfg.paths.codeRoots);
 		super({
-			fix: options.fix,
+			ruleFixers: {},
+			fixableRuleIds: ["no-empty-catch", "no-silent-promise-catch"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			roots: targetRoots,
@@ -51,13 +52,11 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(ERROR_SUPPRESSION_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: true,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["no-empty-catch", "no-silent-promise-catch"],
 			id: "validate_error_suppression",
 			name: "Zero Error Suppression Auditor",
 			description: "Prohibits error suppression, empty catches, and fallbacks",
@@ -116,7 +115,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 								severity: "error",
 								file: relPath,
 								line,
-								column,
+								col: column,
 								message: `Empty catch block detected. Swallowing errors violates the Zero Error Suppression Mandate. Fail loudly or log with reason.`,
 								context: node.getText(sf).slice(0, 100),
 								fixable: true
@@ -149,7 +148,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 								severity: "error",
 								file: relPath,
 								line,
-								column,
+								col: column,
 								message: `Caught error '${varName}' accessed without strict type narrowing. Verify '${varName} instanceof Error' before reading properties.`,
 								context: `catch (${varName})`
 							});
@@ -167,7 +166,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 							severity: "error",
 							file: relPath,
 							line,
-							column,
+							col: column,
 							message: `Schema fallback detected via fallback(). Runtime schema auto-heal is prohibited; data schemas must fail loud on invalid shapes.`,
 							context: node.getText(sf).slice(0, 100)
 						});
@@ -197,7 +196,7 @@ var ErrorSuppressionAuditor = class extends FileScanAuditor {
 										severity: "error",
 										file: relPath,
 										line,
-										column,
+										col: column,
 										message: `Silent promise .catch() handler detected. Swallowing rejections silently is strictly forbidden. Log or handle the rejection explicitly.`,
 										context: node.getText(sf).slice(0, 100),
 										fixable: true

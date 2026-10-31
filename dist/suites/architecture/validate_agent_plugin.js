@@ -62,6 +62,9 @@ function isPluginRegisteredInAgents(projectRoot, primaryAgentDir = ".agents") {
 	};
 	return checkFile(pluginsJsonPath) && checkFile(skillsJsonPath);
 }
+function fixMissingAgentPluginRegistration(context) {
+	return initAgentSkill({ targetDir: context.projectRoot }).success;
+}
 var AgentPluginAuditor = class extends BaseAuditor {
 	skillsRoots;
 	primaryAgentDir;
@@ -75,26 +78,18 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		const pluginsJsonRel = path.posix.join(primaryAgentDir, "plugins.json");
 		const skillsJsonRel = path.posix.join(primaryAgentDir, "skills.json");
 		super({
+			ruleFixers: { "missing-agent-plugin-registration": fixMissingAgentPluginRegistration },
+			fixableRuleIds: ["host-duplicate-auditor-skill", "skill-invalid-yaml-frontmatter"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(AGENT_PLUGIN_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, [
-				"missing-agent-plugin-registration",
-				"host-duplicate-auditor-skill",
-				"skill-invalid-yaml-frontmatter"
-			]),
-			fixableRuleIds: [
-				"missing-agent-plugin-registration",
-				"host-duplicate-auditor-skill",
-				"skill-invalid-yaml-frontmatter"
-			],
+			}),
 			id: "validate_agent_plugin",
 			name: "Agent Plugin & Skill Integration Validator",
 			description: "Verifies agent audit plugin registration",
@@ -537,6 +532,13 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		}
 		return removedOrDuplicateSkills;
 	}
+	repairSkillYamlFrontmatters() {
+		const collectedFiles = this.context.collectFiles(this.skillsRoots, /* @__PURE__ */ new Set([".md"]));
+		for (const absFile of collectedFiles) if (path.basename(absFile) === "SKILL.md") {
+			const skillName = extractSkillName(absFile, this.projectRoot, this.skillsRoots);
+			this.validateSkillFrontmatter(absFile, skillName);
+		}
+	}
 	async runAudit(astContext) {
 		if (await this.checkGating()) return;
 		const pluginsJsonRel = path.posix.join(this.primaryAgentDir, "plugins.json");
@@ -595,4 +597,4 @@ var AgentPluginAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AgentPluginAuditor());
-export { AGENT_PLUGIN_RULES, AgentPluginAuditor };
+export { AGENT_PLUGIN_RULES, AgentPluginAuditor, fixMissingAgentPluginRegistration };

@@ -7,6 +7,7 @@
  */
 
 import type { GitIgnoreRequirement } from './auditContract.ts';
+import { BaseEntityRegistry, type IBaseEntityRegistry } from './baseRegistry.ts';
 
 export const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[] = [
   {
@@ -32,44 +33,35 @@ export const CORE_GITIGNORE_REQUIREMENTS: readonly GitIgnoreRequirement[] = [
   }
 ];
 
-export class GitIgnoreRegistry {
-  private static readonly requirements: Map<string, GitIgnoreRequirement> = new Map();
+export type IGitIgnoreRegistry = IBaseEntityRegistry<GitIgnoreRequirement>;
 
-  static {
-    this.reset();
+export class GitIgnoreRegistryImpl
+  extends BaseEntityRegistry<GitIgnoreRequirement>
+  implements IGitIgnoreRegistry
+{
+  public constructor() {
+    super(
+      (req) => req?.id,
+      (reg) => {
+        for (const req of CORE_GITIGNORE_REQUIREMENTS) {
+          reg.register(req);
+        }
+      }
+    );
   }
 
   /**
-   * Registers a single gitignore requirement.
+   * Registers a single gitignore requirement with validation.
    */
-  public static register(requirement: GitIgnoreRequirement): void {
+  public override register(requirement: GitIgnoreRequirement): void {
     if (!requirement || !requirement.id || !requirement.pattern) return;
-    this.requirements.set(requirement.id, requirement);
-  }
-
-  /**
-   * Registers multiple gitignore requirements.
-   */
-  public static registerMany(requirements: readonly GitIgnoreRequirement[]): void {
-    for (const req of requirements) {
-      this.register(req);
-    }
-  }
-
-  /**
-   * Returns all currently registered gitignore requirements.
-   */
-  public static getRequirements(): GitIgnoreRequirement[] {
-    return Array.from(this.requirements.values());
-  }
-
-  /**
-   * Resets the registry back to core framework defaults.
-   */
-  public static reset(): void {
-    this.requirements.clear();
-    for (const req of CORE_GITIGNORE_REQUIREMENTS) {
-      this.requirements.set(req.id, req);
-    }
+    super.register(requirement);
   }
 }
+
+/**
+ * Universal singleton instance for GitIgnoreRegistry.
+ * Inherits directly from BaseEntityRegistry to eliminate Middle Man delegation.
+ */
+export const GitIgnoreRegistry: IGitIgnoreRegistry = new GitIgnoreRegistryImpl();
+export type GitIgnoreRegistry = IGitIgnoreRegistry;

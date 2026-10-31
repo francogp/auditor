@@ -9,18 +9,14 @@
 
 import path from 'node:path';
 import { styleText } from 'node:util';
+
 import { loadAuditConfig, type AuditEngineConfig } from '../core/auditConfig.ts';
 import {
   readLatestCoverageLedgers,
   readCoverageLedgers,
   type CoverageLedger
 } from '../core/auditCoverage.ts';
-import { getMatchingExemptionPolicies, type ExemptionPolicy } from '../core/exemptionPolicies.ts';
-import { listTrackedFiles, isCoveredBy } from '../suites/architecture/validate_audit_coverage.ts';
-import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
-import { AUDITOR_VERSION } from '../core/version.ts';
 import { isPathIgnored } from '../core/auditorBase.ts';
-import { isMainModule, isHumanConsoleMode } from './cliUtils.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -28,6 +24,11 @@ import {
   resolveHumanModeFromArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { getMatchingExemptionPolicies, type ExemptionPolicy } from '../core/exemptionPolicies.ts';
+import { renderBanner, renderBoxTable, type TableColumn } from '../core/unifiedTheme.ts';
+import { AUDITOR_VERSION } from '../core/version.ts';
+import { listTrackedFiles, isCoveredBy } from '../suites/architecture/validate_audit_coverage.ts';
+import { isMainModule, isHumanConsoleMode } from './cliUtils.ts';
 import '../core/permissionGuard.ts';
 
 const PERCENT_SCALE_FACTOR = 1000 as const;
@@ -85,11 +86,7 @@ const COVERAGE_MAP_ARGS = {
   'run-id': { type: 'string', description: 'Specific coverage run ID to inspect' }
 } as const satisfies CittyArgsDef;
 
-const COVERAGE_MAP_BARE_BOOLEANS: ReadonlySet<string> = new Set([
-  'files',
-  'uncovered',
-  'degraded'
-]); // runtime-set: O(1) bare boolean token lookup
+const COVERAGE_MAP_BARE_BOOLEANS: ReadonlySet<string> = new Set(['files', 'uncovered', 'degraded']); // runtime-set: O(1) bare boolean token lookup
 
 export function parseCoverageMapCliArgs(
   rawInputArgs: readonly string[] = getProcessCliArgs()
@@ -384,10 +381,7 @@ export function renderFilesTable(files: readonly FileCoverageEntry[]): string {
   return renderBoxTable(columns, rows, { footerRows: [footerRow] });
 }
 
-function renderCoverageMapCompact(
-  result: CoverageMapResult,
-  options: CoverageMapCliOptions
-): void {
+function renderCoverageMapCompact(result: CoverageMapResult, options: CoverageMapCliOptions): void {
   if (options.uncoveredOnly) {
     const uncovered = result.files.filter((f) => f.status === 'uncovered');
     console.log(`[CoverageMap] Uncovered files (${uncovered.length}):`);
@@ -451,18 +445,12 @@ export async function runCoverageMapReport(
     ? `Run ID: ${result.runId}`
     : 'No active ledgers (run npm run auditor)';
   console.log(
-    renderBanner(
-      'AUDIT COVERAGE MAP & BLIND SPOTS',
-      `v${AUDITOR_VERSION}  |  ${runSubtitle}`
-    )
+    renderBanner('AUDIT COVERAGE MAP & BLIND SPOTS', `v${AUDITOR_VERSION}  |  ${runSubtitle}`)
   );
 
   if (!result.runId) {
     console.log(
-      styleText(
-        'yellow',
-        '\n[Warning] No coverage ledgers found in scratch/audits/coverage.'
-      )
+      styleText('yellow', '\n[Warning] No coverage ledgers found in scratch/audits/coverage.')
     );
     console.log(
       styleText(
@@ -494,17 +482,11 @@ export async function runCoverageMapReport(
   if (options.degradedOnly) {
     const degraded = result.files.filter((f) => f.status === 'degraded');
     console.log(
-      styleText(
-        'bold',
-        `\n[Warning] Files with silenced / degraded rules (${degraded.length}):\n`
-      )
+      styleText('bold', `\n[Warning] Files with silenced / degraded rules (${degraded.length}):\n`)
     );
     if (degraded.length === 0) {
       console.log(
-        styleText(
-          'green',
-          '[OK] Zero degraded files. No silenced rules in active files.\n'
-        )
+        styleText('green', '[OK] Zero degraded files. No silenced rules in active files.\n')
       );
     } else {
       console.log(renderFilesTable(degraded));
@@ -526,10 +508,7 @@ export async function runCoverageMapReport(
 
   if (result.totalUncovered > 0) {
     console.log(
-      styleText(
-        'red',
-        `[Error] Detected ${result.totalUncovered} file(s) without audit coverage.`
-      )
+      styleText('red', `[Error] Detected ${result.totalUncovered} file(s) without audit coverage.`)
     );
     console.log(
       styleText(

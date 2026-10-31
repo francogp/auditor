@@ -13,15 +13,21 @@
 import fs from 'node:fs/promises';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
+
 import ts from 'typescript';
-import { AuditedDocument } from '../../core/auditedDocument.ts';
-import { safeReadFileAsync, safeJsonParse, tryOrNullAsync } from '../../core/safeUtils.ts';
-import { BaseAuditor,
-  createUniformRemediationPhases, createRuleCapabilities, getEffectiveIgnoreGlobs } from '../../core/auditorBase.ts';
+
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import { AuditedDocument } from '../../core/auditedDocument.ts';
+import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities
+} from '../../core/auditorBase.ts';
 import { isTestFileForCodeAudit } from '../../core/auditTestPredicates.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
+import { safeReadFileAsync, safeJsonParse, tryOrNullAsync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -250,7 +256,12 @@ function collectPropertyCandidates(
   doc: AuditedDocument,
   candidates: AstDomainCandidate[]
 ): void {
-  if ((!ts.isPropertySignature(node) && !ts.isPropertyDeclaration(node)) || !node.type || !ts.isUnionTypeNode(node.type)) return;
+  if (
+    (!ts.isPropertySignature(node) && !ts.isPropertyDeclaration(node)) ||
+    !node.type ||
+    !ts.isUnionTypeNode(node.type)
+  )
+    return;
   const literals = extractStringLiteralsFromUnion(node.type);
   if (literals) {
     const name = node.name ? node.name.getText(sf) : 'anonymous';
@@ -445,7 +456,7 @@ export function detectLibraryDomainTypeDuplicates(
 
       const libInfo = libraryTypes.get(cand.signature);
       if (libInfo) {
-        let msg = '';
+        let msg: string;
         if (cand.kind === 'array') {
           msg = `Duplicate of library domain type: '${cand.name}' duplicates '${libInfo.typeName}' from '${libInfo.pkgName}' — import and use '${libInfo.typeName}' directly instead of reinventing it locally`;
         } else if (cand.kind === 'type') {
@@ -684,28 +695,24 @@ export function detectProjectDomainDuplicatesAndSubsets(
 }
 
 export interface ValidateCanonicalDomainsOptions {
-  projectRoot?: string;
-  roots?: readonly string[];
+  readonly projectRoot?: string;
+  readonly roots?: readonly string[];
 }
 
 export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomainRuleId> {
-  constructor(optionsOrTarget?: string | ValidateCanonicalDomainsOptions) {
-    const options =
-      typeof optionsOrTarget === 'string'
-        ? { projectRoot: optionsOrTarget }
-        : (optionsOrTarget ?? {});
+  public constructor(options: ValidateCanonicalDomainsOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
     const config = getAuditConfig(projectRoot);
     const effectiveRoots = options.roots ?? config.paths.srcRoots ?? [];
     const effectiveIgnores = Array.from(getEffectiveIgnoreGlobs(projectRoot));
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(CANONICAL_DOMAIN_RULES, {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: true,
         changedOnly: false,
@@ -788,7 +795,8 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('Dominio desactivado en config')) {
       this.redeclareCoverage({
-        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
+        include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot)
+          .include,
         source: 'declared-only'
       });
       return;
@@ -866,7 +874,7 @@ export class ValidateCanonicalDomainsAuditor extends BaseAuditor<CanonicalDomain
         severity: 'error',
         file: finding.file,
         line: finding.line,
-        column: finding.col,
+        col: finding.col,
         message: finding.message,
         context: finding.snippet
       });

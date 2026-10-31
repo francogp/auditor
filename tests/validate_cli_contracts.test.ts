@@ -160,7 +160,7 @@ describe('CliContractsAuditor', () => {
         );
 
         const auditorCheck = new CliContractsAuditor({ projectRoot: tempDir });
-        const checkResult = await auditorCheck.execute();
+        const checkResult = await auditorCheck.audit();
         const depViolation = checkResult.findings.find(
           (f) => f.ruleId === 'cli-contracts-missing-citty-dependency'
         );
@@ -168,8 +168,8 @@ describe('CliContractsAuditor', () => {
         expect(depViolation?.message).toContain("Missing 'citty' dependency");
 
         // Run in fix mode
-        const auditorFix = new CliContractsAuditor({ projectRoot: tempDir, fix: true });
-        await auditorFix.execute();
+        const auditorFix = new CliContractsAuditor({ projectRoot: tempDir });
+        await auditorFix.fix();
 
         const updatedRaw = await fs.promises.readFile(path.join(tempDir, 'package.json'), 'utf8');
         const updatedPkg = JSON.parse(updatedRaw);

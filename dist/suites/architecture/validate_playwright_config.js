@@ -62,29 +62,27 @@ const PLAYWRIGHT_CONFIG_REQUIREMENT = {
 	generateDefaultContent: () => CANONICAL_PLAYWRIGHT_CONFIG_CONTENT
 };
 var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
-	constructor(rootsOrOptions, maybeProjectRoot) {
-		const optionsObj = rootsOrOptions && !Array.isArray(rootsOrOptions) ? rootsOrOptions : void 0;
-		const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+	constructor(options = {}) {
+		const projectRoot = options.projectRoot ?? process.cwd();
 		const configRequirement = {
 			...PLAYWRIGHT_CONFIG_REQUIREMENT,
-			...optionsObj?.configFile ? {
-				file: optionsObj.configFile,
-				candidateFiles: [optionsObj.configFile]
+			...options.configFile ? {
+				file: options.configFile,
+				candidateFiles: [options.configFile]
 			} : {}
 		};
 		super({
+			ruleFixers: {},
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createUniformRuleCapabilities(PLAYWRIGHT_CONFIG_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
 			}),
-			fixableRuleIds: ["playwright-config-missing", "playwright-config-missing-setting"],
 			configFiles: [configRequirement],
 			id: "validate_playwright_config",
 			name: "Playwright Configuration Validator",
@@ -106,9 +104,7 @@ var ValidatePlaywrightConfigAuditor = class extends BaseAuditor {
 				"playwright-config-missing-setting": "📖 REMEDIATION GUIDE: playwright-config-missing-setting\n1. Root Cause: Mandatory timeout or reporter directives are missing from `playwright.config.ts`.\n2. Diagnosis: Inspect `playwright.config.ts` settings against required baseline.\n3. Canonical Solution: Configure `timeout`, `reporter`, and `use.trace` in `playwright.config.ts` or run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`"
 			},
 			coverage: { include: ["playwright.config.*"] },
-			projectRoot,
-			fix: optionsObj?.fix,
-			...optionsObj
+			projectRoot
 		});
 	}
 	async runAudit() {

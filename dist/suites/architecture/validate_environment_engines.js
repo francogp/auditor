@@ -52,18 +52,18 @@ function syncNodeVersion(projectRoot, targetNodeEngine) {
 var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		super({
+			ruleFixers: {},
+			fixableRuleIds: ["environment-engines-missing", "environment-engines-below-floor"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(ENVIRONMENT_ENGINES_RULES, {
 				speed: "light",
 				phase: "setup",
-				fix: "priority",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: false
-			}, ["environment-engines-missing", "environment-engines-below-floor"]),
-			fixableRuleIds: ["environment-engines-missing", "environment-engines-below-floor"],
+			}),
 			id: "validate_environment_engines",
 			name: "Environment Engines & Runtime Validator",
 			description: "Validates Node.js and npm versions in package.json",
@@ -188,7 +188,7 @@ var ValidateEnvironmentEnginesAuditor = class extends BaseAuditor {
 			return pkg;
 		}
 		const updatedEngines = {
-			...pkg.engines ?? {},
+			...pkg.engines,
 			node: isNodeOk ? currentNode : auditorEngines.node,
 			npm: isNpmOk ? currentNpm : auditorEngines.npm
 		};

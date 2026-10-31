@@ -35,6 +35,7 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			...cfg.paths.composablesRoots ?? []
 		]);
 		super({
+			ruleFixers: {},
 			id: "validate_reactive_leaks",
 			name: "Reactive & DOM Event Leak Auditor",
 			description: "Detects potential memory leaks and uncleaned listeners",
@@ -46,7 +47,6 @@ var ReactiveLeaksAuditor = class extends FileScanAuditor {
 			ruleCapabilities: createRuleCapabilities(REACTIVE_LEAK_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "none",
 				md: false,
 				ast: true,
 				changedOnly: false,

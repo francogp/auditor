@@ -8,8 +8,20 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import ts from 'typescript';
+
+import {
+  resolveSignedNumericLiteral,
+  ValidateMagicNumbersAuditor
+} from '../../suites/architecture/validate_magic_numbers.ts';
+import { tryOrNull, safeReadFileSync } from '../safeUtils.ts';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
+import {
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
 import type {
   DiscoveredMagicItem,
   ExistingConstantEntry,
@@ -21,22 +33,16 @@ import type {
   ConstantDeclarationSpec,
   SpanReplacementSpec
 } from './magicContracts.ts';
-import { ESTIMATED_TOKENS_PER_CHAR } from './refactorContracts.ts';
-import {
-  resolveSignedNumericLiteral,
-  ValidateMagicNumbersAuditor
-} from '../../suites/architecture/validate_magic_numbers.ts';
-
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import { tryOrNull, safeReadFileSync } from '../safeUtils.ts';
 import { MagicNumberHarness } from './magicNumberHarness.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
+import { ESTIMATED_TOKENS_PER_CHAR } from './refactorContracts.ts';
 
 const UNIVERSAL_SENTINELS = new Set<number>([
   -1, 0, 0.5, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024
 ]);
 
 const STANDARD_RADIX = new Set<number>([2, 8, 10, 16, 32, 36]);
+
+export type MagicNumberExtractorOptions = RefactorEngineOptions<ValidateMagicNumbersAuditor>;
 
 export class MagicNumberExtractor extends BaseRefactorEngine<
   DiscoveredMagicItem,
@@ -46,28 +52,19 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
   public readonly toolId = 'auditor-magic';
   public readonly configSectionKey = 'constants' as const;
   public override get allowedExtensions(): ReadonlySet<string> {
-    return new Set<string>([
-      ...this.auditor.allowedExtensions,
-      '.scss',
-      '.css'
-    ]);
+    return new Set<string>([...this.auditor.allowedExtensions, '.scss', '.css']);
   }
 
   private readonly existingConstants: ExistingConstantEntry[] = [];
   private readonly cssVariables: Map<string, string> = new Map();
 
-  constructor(
-    auditorOrOptions?: ValidateMagicNumbersAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: MagicNumberExtractorOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<ValidateMagicNumbersAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof ValidateMagicNumbersAuditor
-        ? auditorOrOptions
-        : new ValidateMagicNumbersAuditor(
-            typeof auditorOrOptions === 'string'
-              ? { projectRoot: auditorOrOptions }
-              : auditorOrOptions
-          );
+      opts.auditor ??
+      new ValidateMagicNumbersAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 
@@ -119,11 +116,11 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
     return this.createRefactorPlan(id, targetFile, findings);
   }
 
-  public applyPlan(
+  public async applyPlan(
     projectRoot: string,
     plan: MagicRefactorPlan
-  ): { readonly modifiedFiles: readonly string[] } {
-    MagicNumberHarness.execute(projectRoot, plan);
+  ): Promise<{ readonly modifiedFiles: readonly string[] }> {
+    await MagicNumberHarness.execute(projectRoot, plan);
     return { modifiedFiles: plan.targetFiles };
   }
 
@@ -386,7 +383,8 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
     if (!p) return false;
 
     // Radix args (parseInt(x, 10))
-    if (STANDARD_RADIX.has(val) && ts.isCallExpression(p) && p.arguments[1] === reported) return true;
+    if (STANDARD_RADIX.has(val) && ts.isCallExpression(p) && p.arguments[1] === reported)
+      return true;
 
     // Array indexing arr[0]
     if (ts.isElementAccessExpression(p) && p.argumentExpression === reported) return true;
@@ -546,7 +544,7 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
     }
 
     const batchItems: SuperDiracBatchItem[] = Array.from(clusteredMap.entries()).map(
-      ([_, entry], idx) => {
+      ([, entry], idx) => {
         const first = entry.items[0]!;
         const locs = entry.items.map((i) => `L${i.line}`).join(',');
         return {
@@ -634,4 +632,3 @@ export class MagicNumberExtractor extends BaseRefactorEngine<
     };
   }
 }
-

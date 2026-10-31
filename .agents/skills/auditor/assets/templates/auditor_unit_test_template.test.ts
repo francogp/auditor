@@ -64,7 +64,7 @@ describe('MyFeatureAuditor', () => {
       projectRoot: TEST_DIR,
       roots: [TEST_DIR]
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -84,7 +84,7 @@ describe('MyFeatureAuditor', () => {
       projectRoot: TEST_DIR,
       roots: [TEST_DIR]
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
     const violation = result.findings.find(f => f.ruleId === 'my-feature-forbidden-pattern');
@@ -102,7 +102,7 @@ describe('MyFeatureAuditor', () => {
       roots: [TEST_DIR],
       exemptPaths: ['exempt.ts']
     });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.findings.length).toBe(0);

@@ -9,26 +9,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {
-  forEachSourceScriptLine,
-  isSameFilePath
-} from './refactorFileScanner.ts';
-import type {
-  DomainFindingItem,
-  DomainRefactorPlan
-} from './refactorContracts.ts';
-import { BaseRefactorEngine } from './baseRefactorEngine.ts';
-import type { AuditEngineConfig } from '../auditConfigTypes.ts';
 import { DomainTypesAuditor } from '../../suites/domain_data/validate_domain_types.ts';
 import {
-  discoverRecordKeyFindings,
-  injectImportStatement
-} from './domainRecordKeyRemediator.ts';
+  BaseRefactorEngine,
+  assertValidRefactorEngineOptions,
+  type RefactorEngineOptions
+} from './baseRefactorEngine.ts';
+import { discoverRecordKeyFindings, injectImportStatement } from './domainRecordKeyRemediator.ts';
+import type { DomainFindingItem, DomainRefactorPlan } from './refactorContracts.ts';
+import { forEachSourceScriptLine, isSameFilePath } from './refactorFileScanner.ts';
 
 const UNFROZEN_ARRAY_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\[[^\]]+\])\s*;/m;
 const UNFROZEN_OBJECT_REGEX = /^(\s*export\s+const\s+([A-Z0-9_]+)\s*=\s*\{[^}]+\})\s*;/m;
-const NAKED_PARAM_REGEX = /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
+const NAKED_PARAM_REGEX =
+  /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
 const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\s*;/m;
+
+export type DomainRefactorEngineOptions = RefactorEngineOptions<DomainTypesAuditor>;
 
 export class DomainRefactorEngine extends BaseRefactorEngine<
   DomainFindingItem,
@@ -38,19 +35,13 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
   public readonly toolId = 'auditor-domain';
   public readonly configSectionKey = 'domain' as const;
 
-  constructor(
-    auditorOrOptions?: DomainTypesAuditor | string | { projectRoot?: string; config?: AuditEngineConfig },
-    _explicitConfig?: AuditEngineConfig
-  ) {
+  public constructor(options: DomainRefactorEngineOptions = {}) {
+    const opts = assertValidRefactorEngineOptions<DomainTypesAuditor>(options);
     const auditor =
-      auditorOrOptions instanceof DomainTypesAuditor
-        ? auditorOrOptions
-        : new DomainTypesAuditor({
-            projectRoot:
-              typeof auditorOrOptions === 'string'
-                ? auditorOrOptions
-                : auditorOrOptions?.projectRoot
-          });
+      opts.auditor ??
+      new DomainTypesAuditor({
+        projectRoot: opts.projectRoot
+      });
     super(auditor);
   }
 
@@ -100,7 +91,11 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
       }
 
       // 2. Detect unfrozen catalog arrays or objects
-      if (line.includes('export const ') && !line.includes('as const') && !line.includes('satisfies')) {
+      if (
+        line.includes('export const ') &&
+        !line.includes('as const') &&
+        !line.includes('satisfies')
+      ) {
         const arrayMatch = UNFROZEN_ARRAY_REGEX.exec(line);
         if (arrayMatch && arrayMatch[1] && arrayMatch[2]) {
           const originalSnippet = arrayMatch[0].trim();
@@ -261,7 +256,11 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
 
   private static applySnippetReplacements(
     content: string,
-    items: readonly { readonly file: string; readonly original: string; readonly replacement: string }[],
+    items: readonly {
+      readonly file: string;
+      readonly original: string;
+      readonly replacement: string;
+    }[],
     relFile: string,
     targetDir: string
   ): { content: string; count: number } {
@@ -278,14 +277,22 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
 
   private static applyRecordKeyPlanReplacements(
     content: string,
-    items: readonly { readonly file: string; readonly originalTypeRef: string; readonly replacementTypeRef: string; readonly importToAdd?: string }[],
+    items: readonly {
+      readonly file: string;
+      readonly originalTypeRef: string;
+      readonly replacementTypeRef: string;
+      readonly importToAdd?: string;
+    }[],
     relFile: string,
     targetDir: string
   ): { content: string; count: number } {
     let current = content;
     let count = 0;
     for (const item of items) {
-      if (!isSameFilePath(item.file, relFile, targetDir) || !current.includes(item.originalTypeRef)) {
+      if (
+        !isSameFilePath(item.file, relFile, targetDir) ||
+        !current.includes(item.originalTypeRef)
+      ) {
         continue;
       }
       current = current.replace(item.originalTypeRef, item.replacementTypeRef);
@@ -308,7 +315,7 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
     let filesChanged = 0;
     let changesApplied = 0;
 
-    for (const relFile of (plan.targetFiles ?? [])) {
+    for (const relFile of plan.targetFiles ?? []) {
       const fullPath = path.resolve(targetDir, relFile);
       if (!fs.existsSync(fullPath)) continue;
       const initialContent = fs.readFileSync(fullPath, 'utf-8');
@@ -319,7 +326,12 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
         original: i.originalDeclaration,
         replacement: i.replacementDeclaration
       }));
-      const constRes = DomainRefactorEngine.applySnippetReplacements(currentContent, constItems, relFile, targetDir);
+      const constRes = DomainRefactorEngine.applySnippetReplacements(
+        currentContent,
+        constItems,
+        relFile,
+        targetDir
+      );
       currentContent = constRes.content;
       changesApplied += constRes.count;
 
@@ -328,7 +340,12 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
         original: i.originalTypeDef,
         replacement: i.replacementTypeDef
       }));
-      const brandRes = DomainRefactorEngine.applySnippetReplacements(currentContent, brandItems, relFile, targetDir);
+      const brandRes = DomainRefactorEngine.applySnippetReplacements(
+        currentContent,
+        brandItems,
+        relFile,
+        targetDir
+      );
       currentContent = brandRes.content;
       changesApplied += brandRes.count;
 
@@ -337,7 +354,12 @@ export class DomainRefactorEngine extends BaseRefactorEngine<
         original: i.originalParameter,
         replacement: i.replacementParameter
       }));
-      const paramRes = DomainRefactorEngine.applySnippetReplacements(currentContent, paramItems, relFile, targetDir);
+      const paramRes = DomainRefactorEngine.applySnippetReplacements(
+        currentContent,
+        paramItems,
+        relFile,
+        targetDir
+      );
       currentContent = paramRes.content;
       changesApplied += paramRes.count;
 

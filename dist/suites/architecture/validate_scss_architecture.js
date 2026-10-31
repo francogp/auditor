@@ -18,7 +18,6 @@ const SCSS_ARCHITECTURE_RULES = [
 	"excessive-scss-nesting",
 	...MODERN_SCSS_RULES
 ];
-const FIXABLE_SCSS_RULES = [...MODERN_SCSS_RULES];
 const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 	".scss",
 	".vue",
@@ -29,6 +28,8 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 		const scssRoots = resolveFileScanRoots(options);
 		const scssConfig = getAuditConfig(scssRoots.effectiveRoot);
 		super({
+			ruleFixers: {},
+			fixableRuleIds: [...MODERN_SCSS_RULES],
 			id: "validate_scss_architecture",
 			name: "SCSS Architecture & Distinctive Design Validator",
 			description: "SCSS architecture, tokenization, and distinctive styling",
@@ -40,7 +41,6 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 			criticalConfig: {},
 			requiredPermissions: [],
 			usesThirdPartyTool: false,
-			fix: options.fix,
 			roots: scssRoots.targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,
 			ruleIds: SCSS_ARCHITECTURE_RULES,
@@ -75,8 +75,7 @@ var ValidateScssArchitectureAuditor = class extends FileScanAuditor {
 				"scss-universal-expensive-selectors": "📖 REMEDIATION GUIDE: scss-universal-expensive-selectors\n1. Root Cause: An expensive layout or compositor property (`text-wrap: balance/pretty` or `will-change`) is applied to the universal selector `*`, degrading rendering performance.\n2. Diagnosis: Inspect the `*` rule in the stylesheet.\n3. Canonical Solution: Scope `text-wrap: balance` strictly to headings (`h1, h2, h3, h4, h5, h6`) and `will-change` only to active animated elements. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Expensive: `* { text-wrap: balance; }`\n   ✅ Scoped:    `h1, h2, h3, h4, h5, h6 { text-wrap: balance; }`",
 				"dark-mode-color-scheme-missing": "📖 REMEDIATION GUIDE: dark-mode-color-scheme-missing\n1. Root Cause: The stylesheet defines `@media (prefers-color-scheme: dark)` rules but `:root` lacks `color-scheme: light dark`, leaving native scrollbars, form controls, and system UI surfaces in light mode.\n2. Diagnosis: Check the `:root` rule in the main stylesheet.\n3. Canonical Solution: Add `color-scheme: light dark;` to `:root`. Run `npm run auditor:fix`.\n4. Example / Auto-fix command:\n   ❌ Incomplete: `:root { --bg: #fff; }`\n   ✅ Complete:   `:root { color-scheme: light dark; --bg: #fff; }`"
 			},
-			ruleCapabilities: createRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES, FIXABLE_SCSS_RULES),
-			fixableRuleIds: FIXABLE_SCSS_RULES,
+			ruleCapabilities: createRuleCapabilities(SCSS_ARCHITECTURE_RULES, LIGHT_RULE_CAPABILITIES),
 			projectRoot: scssRoots.effectiveRoot,
 			coverage: deriveCoverageFromRoots(scssRoots.targetRoots, SCANNABLE_EXTS, scssRoots.effectiveRoot),
 			exemptPaths: scssConfig.scssArchitecture?.exemptPaths

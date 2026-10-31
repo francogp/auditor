@@ -29,11 +29,28 @@ function stripAnsiEscapes(text) {
 }
 const MAX_BUFFER_BYTES = 52428800;
 const EXECUTION_TIMEOUT_MS = 0;
+async function fixOxfmt(context) {
+	const vpBin = resolvePackageBin("vite-plus", {
+		projectRoot: context.projectRoot,
+		fallbackRelativeBin: "bin/vp"
+	}) ?? path.resolve(context.projectRoot, "node_modules/vite-plus/bin/vp");
+	try {
+		executeNodeCli(vpBin, ["fmt"], {
+			cwd: context.projectRoot,
+			maxBuffer: MAX_BUFFER_BYTES,
+			timeout: EXECUTION_TIMEOUT_MS
+		});
+		return true;
+	} catch {
+		return false;
+	}
+}
+const OXFMT_FIXERS = { "oxfmt-violation": fixOxfmt };
 var OxfmtAuditor = class extends BaseAuditor {
-	constructor(targetOrOptions) {
-		const opts = typeof targetOrOptions === "string" ? { projectRoot: targetOrOptions } : targetOrOptions ?? {};
-		const effectiveRoot = opts.projectRoot || process.cwd();
+	constructor(options = {}) {
+		const effectiveRoot = options.projectRoot || process.cwd();
 		super({
+			ruleFixers: OXFMT_FIXERS,
 			usesThirdPartyTool: true,
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
@@ -44,14 +61,11 @@ var OxfmtAuditor = class extends BaseAuditor {
 			ruleCapabilities: createRuleCapabilities(OXFMT_RULES, {
 				speed: "light",
 				phase: "normal",
-				fix: "normal",
 				md: false,
 				ast: false,
 				changedOnly: false,
 				critical: true
-			}, ["oxfmt-violation"]),
-			fixableRuleIds: ["oxfmt-violation"],
-			fix: opts.fix,
+			}),
 			id: "validate_oxfmt",
 			name: "Vite+ Oxfmt Code Formatting Validator",
 			description: "Validates code formatting with Vite+ Oxfmt",
@@ -80,7 +94,7 @@ var OxfmtAuditor = class extends BaseAuditor {
 			exclude: excludeGlobs,
 			source: "declared-only"
 		});
-		const isFixMode = this.isFixModeRequested();
+		const isFixMode = this.isFixActive();
 		const vpBin = resolvePackageBin("vite-plus", {
 			projectRoot: this.projectRoot,
 			fallbackRelativeBin: "bin/vp"
@@ -109,7 +123,7 @@ var OxfmtAuditor = class extends BaseAuditor {
 					const fromCwd = path.resolve(process.cwd(), plainLine);
 					if (fs.existsSync(fromCwd)) fullCandidate = fromCwd;
 				}
-				let exists = false;
+				let exists;
 				try {
 					exists = fs.existsSync(fullCandidate) && fs.statSync(fullCandidate).isFile();
 				} catch {
@@ -136,4 +150,4 @@ var OxfmtAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new OxfmtAuditor());
-export { OXFMT_RULES, OxfmtAuditor };
+export { OXFMT_RULES, OxfmtAuditor, fixOxfmt };

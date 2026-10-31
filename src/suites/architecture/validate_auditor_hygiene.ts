@@ -10,35 +10,33 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import {
-  BaseAuditor,
-  createRuleCapabilities,
-  createUniformRemediationPhases
-} from '../../core/auditorBase.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
-import { isTestPath } from '../../core/auditTestPredicates.ts';
-import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
+import path from 'node:path';
+
 import {
   AUDITOR_HOMEBREW_RULES,
   type AuditorHomebrewRuleId,
   type HomebrewInspectionContext,
   HomebrewDetectorRegistry
 } from '../../analyzers/homebrew/index.ts';
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
+import {
+  BaseAuditor,
+  createRuleCapabilities,
+  createUniformRemediationPhases
+} from '../../core/auditorBase.ts';
+import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
+import { isTestPath } from '../../core/auditTestPredicates.ts';
+import { normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 
 export { AUDITOR_HOMEBREW_RULES, type AuditorHomebrewRuleId };
 
 export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
-  constructor(options?: string | { projectRoot?: string }) {
-    const projectRoot =
-      typeof options === 'string'
-        ? options
-        : options?.projectRoot ?? process.cwd();
+  public constructor(options: { projectRoot?: string } = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const configuredRoots =
       config.auditorHygiene?.roots && config.auditorHygiene.roots.length > 0
@@ -48,6 +46,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
           : ['scripts/auditors'];
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       id: 'validate_auditor_hygiene',
@@ -72,7 +71,6 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
       ruleCapabilities: createRuleCapabilities(HomebrewDetectorRegistry.getRuleIds(), {
         speed: 'light',
         phase: 'normal',
-        fix: 'none',
         md: false,
         ast: false,
         changedOnly: false,

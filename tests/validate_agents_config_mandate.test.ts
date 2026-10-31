@@ -308,7 +308,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createValidAgentsMd(), 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
@@ -319,7 +319,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(8);
     expect(result.status).toBe('failed');
@@ -350,7 +350,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-backward-compat-mandate');
@@ -361,7 +361,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-fake-pass-mandate');
@@ -372,7 +372,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-chat-language-mandate');
@@ -383,7 +383,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-destructive-git-mandate');
@@ -394,7 +394,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-official-tools-mandate');
@@ -405,7 +405,7 @@ describe('AgentsConfigMandateAuditor', () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), content, 'utf8');
 
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(1);
     expect(result.findings[0]?.ruleId).toBe('agents-missing-architecture-mandate');
@@ -413,7 +413,7 @@ describe('AgentsConfigMandateAuditor', () => {
 
   it('fails with all mandate errors when root AGENTS.md does not exist', async () => {
     const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const result = await auditor.execute();
+    const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(8);
     expect(result.status).toBe('failed');
@@ -425,8 +425,8 @@ describe('AgentsConfigMandateAuditor', () => {
   it('auto-repairs missing mandates when running in fix mode', async () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
 
-    const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+    await fixAuditor.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain(
@@ -451,7 +451,7 @@ describe('AgentsConfigMandateAuditor', () => {
 
     // Subsequent audit on repaired file should pass cleanly
     const verifyAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const verifyResult = await verifyAuditor.execute();
+    const verifyResult = await verifyAuditor.audit();
     expect(verifyResult.summary.errors).toBe(0);
     expect(verifyResult.status).toBe('passed');
   });
@@ -459,8 +459,8 @@ describe('AgentsConfigMandateAuditor', () => {
   it('auto-repairs outdated mandates in fix mode replacing in place', async () => {
     fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createOutdatedMandatesAgentsMd(), 'utf8');
 
-    const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-    await fixAuditor.execute();
+    const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+    await fixAuditor.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain('trade-offs, pros, and cons');
@@ -480,7 +480,7 @@ describe('AgentsConfigMandateAuditor', () => {
 
     // Subsequent audit on repaired file should pass cleanly
     const verifyAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
-    const verifyResult = await verifyAuditor.execute();
+    const verifyResult = await verifyAuditor.audit();
     expect(verifyResult.summary.errors).toBe(0);
     expect(verifyResult.status).toBe('passed');
   });
@@ -491,10 +491,10 @@ describe('AgentsConfigMandateAuditor', () => {
     // Run fix in Spanish mode
     const fixAuditorEs = new AgentsConfigMandateAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'es'
     });
-    await fixAuditorEs.execute();
+    await fixAuditorEs.fix();
 
     const updatedContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(updatedContent).toContain(
@@ -518,22 +518,22 @@ describe('AgentsConfigMandateAuditor', () => {
 
     // Verification in Spanish mode passes cleanly
     const verifyEs = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, language: 'es' });
-    const resultEs = await verifyEs.execute();
+    const resultEs = await verifyEs.audit();
     expect(resultEs.summary.errors).toBe(0);
     expect(resultEs.status).toBe('passed');
 
     // But verification in English mode fails for all 8 mandates
     const verifyEn = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, language: 'en' });
-    const resultEn = await verifyEn.execute();
+    const resultEn = await verifyEn.audit();
     expect(resultEn.summary.errors).toBe(8);
 
     // Running fix in English mode updates all mandates to English
     const fixAuditorEn = new AgentsConfigMandateAuditor({
       projectRoot: scratchDir,
-      fix: true,
+
       language: 'en'
     });
-    await fixAuditorEn.execute();
+    await fixAuditorEn.fix();
 
     const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
     expect(finalContent).toContain(
@@ -557,7 +557,7 @@ describe('AgentsConfigMandateAuditor', () => {
       projectRoot: scratchDir,
       language: 'en'
     });
-    const finalVerify = await verifyAuditorEn.execute();
+    const finalVerify = await verifyAuditorEn.audit();
     expect(finalVerify.summary.errors).toBe(0);
   });
 
@@ -567,8 +567,8 @@ describe('AgentsConfigMandateAuditor', () => {
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), initial, 'utf8');
 
       for (let i = 0; i < 5; i++) {
-        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-        const result = await auditor.execute();
+        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+        const result = await auditor.fix();
         expect(result.summary.errors).toBe(0);
         expect(result.status).toBe('passed');
 
@@ -592,8 +592,8 @@ describe('AgentsConfigMandateAuditor', () => {
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), createMissingMandatesAgentsMd(), 'utf8');
 
       // First run injects the missing mandates
-      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-      await auditorRun1.execute();
+      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+      await auditorRun1.fix();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
       expect(
@@ -613,8 +613,8 @@ describe('AgentsConfigMandateAuditor', () => {
 
       // Runs 2 to 5 must keep content completely identical without injecting any duplicates
       for (let i = 2; i <= 5; i++) {
-        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-        const result = await auditor.execute();
+        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+        const result = await auditor.fix();
         expect(result.summary.errors).toBe(0);
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
@@ -636,8 +636,8 @@ describe('AgentsConfigMandateAuditor', () => {
     it('guarantees zero duplicate mandates when running fix mode 5 consecutive times from completely empty AGENTS.md', async () => {
       fs.writeFileSync(path.join(scratchDir, 'AGENTS.md'), '', 'utf8');
 
-      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-      await auditorRun1.execute();
+      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+      await auditorRun1.fix();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
       expect(
@@ -656,8 +656,8 @@ describe('AgentsConfigMandateAuditor', () => {
       expect(countOccurrences(contentAfterRun1, '## Local Contracts')).toBe(1);
 
       for (let i = 2; i <= 5; i++) {
-        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-        await auditor.execute();
+        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+        await auditor.fix();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
         expect(
@@ -682,8 +682,8 @@ describe('AgentsConfigMandateAuditor', () => {
         'utf8'
       );
 
-      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-      await auditorRun1.execute();
+      const auditorRun1 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+      await auditorRun1.fix();
       const contentAfterRun1 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
 
       expect(
@@ -706,8 +706,8 @@ describe('AgentsConfigMandateAuditor', () => {
       expect(contentAfterRun1).not.toContain('Suppressing Rules**: Rules');
 
       for (let i = 2; i <= 4; i++) {
-        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-        await auditor.execute();
+        const auditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+        await auditor.fix();
 
         const current = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
         expect(
@@ -758,8 +758,8 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       expect(countOccurrences(beforeFix, 'AI Agent Chat Communication')).toBe(2);
 
       // Run fix mode: must prune duplicates to exactly 1 of each
-      const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-      await fixAuditor.execute();
+      const fixAuditor = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+      await fixAuditor.fix();
 
       const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -775,8 +775,8 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       expect(countOccurrences(afterFix, '## Local Contracts')).toBe(1);
 
       // Subsequent fix run must remain stable at exactly 1
-      const fixAuditor2 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir, fix: true });
-      await fixAuditor2.execute();
+      const fixAuditor2 = new AgentsConfigMandateAuditor({ projectRoot: scratchDir });
+      await fixAuditor2.fix();
 
       const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -799,10 +799,10 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       for (let i = 0; i < 2; i++) {
         const auditor = new AgentsConfigMandateAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await auditor.execute();
+        await auditor.fix();
       }
       let content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -816,10 +816,10 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       for (let i = 0; i < 2; i++) {
         const auditor = new AgentsConfigMandateAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'es'
         });
-        await auditor.execute();
+        await auditor.fix();
       }
       content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(countOccurrences(content, 'Prohibición de Modificar o Desactivar')).toBe(1);
@@ -835,10 +835,10 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       for (let i = 0; i < 2; i++) {
         const auditor = new AgentsConfigMandateAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await auditor.execute();
+        await auditor.fix();
       }
       content = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
@@ -861,17 +861,17 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
       for (let cycle = 1; cycle <= 3; cycle++) {
         const mandateAuditor = new AgentsConfigMandateAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await mandateAuditor.execute();
+        await mandateAuditor.fix();
 
         const langAuditor = new DocumentationLanguageAuditor({
           projectRoot: scratchDir,
-          fix: true,
+
           language: 'en'
         });
-        await langAuditor.execute();
+        await langAuditor.fix();
       }
 
       const finalContent = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
@@ -898,7 +898,7 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
         projectRoot: scratchDir,
         language: 'en'
       });
-      const mandateResult = await verifyMandate.execute();
+      const mandateResult = await verifyMandate.audit();
       expect(mandateResult.summary.errors).toBe(0);
       expect(mandateResult.status).toBe('passed');
 
@@ -906,7 +906,7 @@ ${CANONICAL_CHAT_LANGUAGE_SNIPPET_EN_CHAT_ES}
         projectRoot: scratchDir,
         language: 'en'
       });
-      const langResult = await verifyLang.execute();
+      const langResult = await verifyLang.audit();
       expect(langResult.summary.errors).toBe(0);
       expect(langResult.status).toBe('passed');
     });

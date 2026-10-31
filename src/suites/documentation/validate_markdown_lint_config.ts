@@ -15,15 +15,15 @@
  */
 
 import fs from 'node:fs';
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
+import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
-  type AuditorOptions,
   createUniformRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 
 enableCompileCache();
 
@@ -70,53 +70,37 @@ export const MARKDOWNLINT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<Markd
     generateDefaultContent: () => JSON.stringify(CANONICAL_MARKDOWNLINT_CONFIG, null, 2) + '\n'
   };
 
+export interface MarkdownLintConfigAuditorOptions {
+  readonly projectRoot?: string;
+  readonly configFile?: string;
+}
+
 export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintConfigRuleId> {
-  constructor(
-    rootsOrOptions?:
-      | readonly string[]
-      | (Partial<AuditorOptions<MarkdownLintConfigRuleId>> & {
-          projectRoot?: string;
-          fix?: boolean;
-          configFile?: string;
-        }),
-    maybeProjectRoot?: string
-  ) {
-    const optionsObj =
-      rootsOrOptions && !Array.isArray(rootsOrOptions)
-        ? (rootsOrOptions as Partial<AuditorOptions<MarkdownLintConfigRuleId>> & {
-            projectRoot?: string;
-            fix?: boolean;
-            configFile?: string;
-          })
-        : undefined;
-    const projectRoot = optionsObj?.projectRoot ?? maybeProjectRoot ?? process.cwd();
+  public constructor(options: MarkdownLintConfigAuditorOptions = {}) {
+    const projectRoot = options.projectRoot ?? process.cwd();
 
     const configRequirement: AuditorConfigFileRequirement<MarkdownLintConfigRuleId> = {
       ...MARKDOWNLINT_CONFIG_REQUIREMENT,
-      ...(optionsObj?.configFile
+      ...(options.configFile
         ? {
-            file: optionsObj.configFile,
-            candidateFiles: [optionsObj.configFile]
+            file: options.configFile,
+            candidateFiles: [options.configFile]
           }
         : {})
     };
 
     super({
+      ruleFixers: {},
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createUniformRuleCapabilities(MARKDOWNLINT_CONFIG_RULES, {
         speed: 'light',
         phase: 'setup',
-        fix: 'priority',
         md: true,
         ast: false,
         changedOnly: false,
         critical: false
       }),
-      fixableRuleIds: [
-        'markdownlint-config-missing',
-        'markdownlint-config-missing-strict-rule'
-      ],
       configFiles: [configRequirement],
       id: 'validate_markdown_lint_config',
       name: 'Markdownlint Configuration Validator',
@@ -167,9 +151,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
           '.markdownlint-cli2.jsonc'
         ]
       },
-      projectRoot,
-      fix: optionsObj?.fix,
-      ...optionsObj
+      projectRoot
     });
   }
 
@@ -186,7 +168,10 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       );
       if (!ensured) {
         this.markRuleNotApplicable('markdownlint-config-syntax', 'Missing .markdownlint.json file');
-        this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Missing .markdownlint.json file');
+        this.markRuleNotApplicable(
+          'markdownlint-config-missing-strict-rule',
+          'Missing .markdownlint.json file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -202,7 +187,10 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       rawContent = fs.readFileSync(resolvedPath, 'utf8');
     } catch {
       this.markRuleNotApplicable('markdownlint-config-syntax', 'No se pudo leer el archivo');
-      this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'No se pudo leer el archivo');
+      this.markRuleNotApplicable(
+        'markdownlint-config-missing-strict-rule',
+        'No se pudo leer el archivo'
+      );
       return;
     }
 
@@ -271,8 +259,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
 
       // Check MD024 (siblings_only: true)
       const md024 = parsedConfig.MD024;
-      const isMd024Ok =
-        typeof md024 === 'object' && md024 !== null && md024.siblings_only === true;
+      const isMd024Ok = typeof md024 === 'object' && md024 !== null && md024.siblings_only === true;
 
       if (!isMd024Ok && md024 !== false) {
         if (isFix) {
@@ -284,15 +271,15 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             severity: 'error',
             file: relPath,
             line: 1,
-            message: 'MD024 must configure siblings_only: true to allow duplicate headings across different sections.'
+            message:
+              'MD024 must configure siblings_only: true to allow duplicate headings across different sections.'
           });
         }
       }
 
       // Check MD007 (indent: 2)
       const md007 = parsedConfig.MD007;
-      const isMd007Ok =
-        typeof md007 === 'object' && md007 !== null && md007.indent === 2;
+      const isMd007Ok = typeof md007 === 'object' && md007 !== null && md007.indent === 2;
 
       if (!isMd007Ok && md007 !== false) {
         if (isFix) {

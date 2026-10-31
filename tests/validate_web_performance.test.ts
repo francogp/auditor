@@ -440,8 +440,8 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
       expect(ruleSet.has('perf-content-visibility-intrinsic-size')).toBe(true);
 
       // Run in --fix mode
-      const fixAuditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir, fix: true });
-      fixAuditor.testScanFile('src/views/WebPerfBroken.vue', fixtureContent);
+      const fixAuditor = new ValidateWebPerformanceAuditor({ projectRoot: tempDir });
+      await fixAuditor.fix();
 
       const fixedSfc = fs.readFileSync(targetFile, 'utf-8');
       expect(fixedSfc).toContain('crossorigin="anonymous"');

@@ -148,7 +148,7 @@ describe('AuditorTestsAuditor', () => {
       // Do NOT create packages/auditor/tests/validate_dummy.test.ts
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const missingViolation = result.findings.find(
         (f) => f.ruleId === 'missing-auditor-test' && f.context === 'validate_dummy'
       );
@@ -209,7 +209,7 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const untestedViolation = result.findings.find(
         (f) => f.ruleId === 'untested-auditor-rule' && f.context === 'untested-rule'
       );
@@ -268,7 +268,7 @@ describe('AuditorTestsAuditor', () => {
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
 
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const errClean = result.findings.find(
         (f) => f.ruleId === 'missing-clean-auditor-test' && f.context === 'validate_dummy'
       );
@@ -316,7 +316,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const missingViolation = result.findings.find(
         (f) => f.ruleId === 'missing-auditor-test' && f.context === 'validate_custom_ext'
       );
@@ -387,7 +387,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find(
         (f) => f.ruleId === 'missing-construction-auditor-test'
       );
@@ -457,7 +457,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       const violation = result.findings.find((f) => f.ruleId === 'missing-violation-auditor-test');
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
@@ -529,7 +529,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
     });
@@ -617,7 +617,7 @@ describe('AuditorTestsAuditor', () => {
       );
 
       const auditor = new AuditorTestsAuditor({ projectRoot: tempDir });
-      const result = await auditor.execute();
+      const result = await auditor.audit();
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');

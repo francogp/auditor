@@ -26,7 +26,11 @@ const SLASH_MESSAGE =
 const BACKSLASH_SEARCH_METHODS: ReadonlySet<string> = new Set(['split', 'lastIndexOf', 'indexOf']); // runtime-set: O(1) lookup
 
 function isBackslashOnly(value: string): boolean {
-  return value.length > 0 && [...value].every((ch) => ch === WIN_SEP);
+  if (value.length === 0) return false;
+  for (let i = 0; i < value.length; i++) {
+    if (value.charAt(i) !== WIN_SEP) return false;
+  }
+  return true;
 }
 
 function checkBackslashSearch(node: ts.Node, ctx: NativePathScanContext): boolean {
@@ -44,11 +48,16 @@ function isPathContextParent(literal: ts.Node): boolean {
     child = parent;
     parent = parent.parent;
   }
-  if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken) return true;
+  if (ts.isBinaryExpression(parent) && parent.operatorToken.kind === ts.SyntaxKind.PlusToken)
+    return true;
   if (ts.isCallExpression(parent) && parent.arguments.some((a) => a === child)) {
     return isFsSinkCall(parent) || isPathBuilderCall(parent);
   }
-  return ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name) && isPathLikeName(parent.name.text);
+  return (
+    ts.isVariableDeclaration(parent) &&
+    ts.isIdentifier(parent.name) &&
+    isPathLikeName(parent.name.text)
+  );
 }
 
 function checkDriveLiteral(node: ts.Node): boolean {
@@ -70,6 +79,7 @@ function checkTemplateDrive(node: ts.Node): boolean {
 }
 
 export const slashDetector: NativePathDetector = (node, ctx) => {
-  const matched = checkBackslashSearch(node, ctx) || checkDriveLiteral(node) || checkTemplateDrive(node);
+  const matched =
+    checkBackslashSearch(node, ctx) || checkDriveLiteral(node) || checkTemplateDrive(node);
   return matched ? { ruleId: 'hardcoded-slash-path', node, message: SLASH_MESSAGE } : null;
 };

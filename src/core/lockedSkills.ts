@@ -8,9 +8,10 @@
 
 import nodeFs from 'node:fs';
 import path from 'node:path';
+
 import { getAuditConfig } from './auditConfigLoader.ts';
-import { safeReadFileSync, safeJsonParse, tryOrNull } from './safeUtils.ts';
 import { normalizePosixPath } from './reportUtils.ts';
+import { safeReadFileSync, safeJsonParse, tryOrNull } from './safeUtils.ts';
 
 let lockedSkillsCache: Set<string> | null = null;
 let lockedSkillsCacheRoot: string | null = null;

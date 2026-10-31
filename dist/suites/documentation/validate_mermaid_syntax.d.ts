@@ -13,15 +13,6 @@ export interface MermaidValidationResult {
  * Validates syntax of a Mermaid diagram block using the official Mermaid parser.
  */
 export declare function validateMermaid(diagramCode: string): Promise<MermaidValidationResult>;
-/**
- * Validates diagram and returns or throws an Error (for backward compatibility).
- */
-export declare function validate(diagramCode: string, parseOptions?: {
-  suppressErrors?: boolean;
-}): Promise<{
-  diagramType: string;
-  valid: boolean;
-} | false>;
 export declare class ValidateMermaidSyntaxAuditor extends FileScanAuditor<MermaidSyntaxRuleId> {
   constructor(options?: FileScanRootsOptions);
   private fixMermaidLine;

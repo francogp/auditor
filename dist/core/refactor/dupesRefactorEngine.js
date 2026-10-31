@@ -1,7 +1,7 @@
 import { tryOrNull } from "../safeUtils.js";
 import { toPosixRelative } from "../safePath.js";
 import { resolveFallowBinary } from "../../suites/architecture/validate_similar_code.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { FallowArchitectureAuditor } from "../../suites/architecture/validate_fallow.js";
 import { HybridHarnessEngine } from "./hybridHarness.js";
 import path from "node:path";
@@ -45,8 +45,9 @@ var DupesRefactorEngine = class extends BaseRefactorEngine {
 	toolId = "auditor-dupes";
 	configSectionKey = "fallow";
 	cachedCandidatesByMin = /* @__PURE__ */ new Map();
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof FallowArchitectureAuditor ? auditorOrOptions : new FallowArchitectureAuditor({ projectRoot: typeof auditorOrOptions === "string" ? auditorOrOptions : auditorOrOptions?.projectRoot ?? process.cwd() });
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new FallowArchitectureAuditor({ projectRoot: opts.projectRoot ?? process.cwd() });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

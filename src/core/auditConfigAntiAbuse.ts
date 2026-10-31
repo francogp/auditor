@@ -6,6 +6,7 @@
  */
 
 import path from 'node:path';
+
 import type { AuditEngineConfig } from './auditConfigTypes.ts';
 
 export const FORBIDDEN_PRODUCTION_ROOTS: readonly string[] = [

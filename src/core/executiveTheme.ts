@@ -6,8 +6,9 @@
  */
 
 import { styleText } from 'node:util';
-import { formatDurationMs, formatNumber } from './durationFormatter.ts';
+
 import type { RemediationPhaseId, StandardAuditResult } from './auditContract.ts';
+import { formatDurationMs, formatNumber } from './durationFormatter.ts';
 
 export interface ExecutivePassSummaryParams {
   totalSuites: number;
@@ -211,7 +212,7 @@ export function renderExecutiveFixSummary(params: ExecutiveFixSummaryParams): st
     );
   }
 
-  const nextAction = '  Next Action: Run \'npm run auditor\' to verify clean pass.';
+  const nextAction = "  Next Action: Run 'npm run auditor' to verify clean pass.";
   const reportLine = styleText('dim', `  Full Report: ${latestAuditJsonPath}`);
 
   const lines = [header, details];

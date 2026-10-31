@@ -1,8 +1,8 @@
-import { AuditorCapabilities } from "../../core/auditContract.js";
+import { AuditorRuleCapabilities } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const SIMILAR_CODE_RULES: readonly ["fallow-similar-code", "fallow-similar-code-failed"];
 export type SimilarCodeRuleId = (typeof SIMILAR_CODE_RULES)[number];
-export declare const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorCapabilities>;
+export declare const SIMILAR_CODE_RULE_CAPABILITIES: Record<SimilarCodeRuleId, AuditorRuleCapabilities>;
 export declare const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export declare const WINDOWS_UNBLOCK_TIMEOUT_MS = 5000;
 export interface SimilarCodeCandidateLocation {

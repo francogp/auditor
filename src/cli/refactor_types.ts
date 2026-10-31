@@ -8,17 +8,15 @@
  */
 
 import { styleText } from 'node:util';
-import type { TableColumn } from '../core/unifiedTheme.ts';
-import { TypesRefactorEngine } from '../core/refactor/typesRefactorEngine.ts';
+
 import {
   runRefactorCliHarness,
   formatCliRelativeFilePath,
   type RefactorCliDefinition
 } from '../core/refactor/refactorCliHarness.ts';
-import type {
-  TypesFindingItem,
-  TypesRefactorPlan
-} from '../core/refactor/refactorContracts.ts';
+import type { TypesFindingItem, TypesRefactorPlan } from '../core/refactor/refactorContracts.ts';
+import { TypesRefactorEngine } from '../core/refactor/typesRefactorEngine.ts';
+import type { TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [

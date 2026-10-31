@@ -1,9 +1,9 @@
 import { safeReadFileSync, tryOrNull } from "../safeUtils.js";
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
-import { BaseRefactorEngine } from "./baseRefactorEngine.js";
-import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
+import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { MagicNumbersAuditor as ValidateMagicNumbersAuditor, resolveSignedNumericLiteral } from "../../suites/architecture/validate_magic_numbers.js";
 import { MagicNumberHarness } from "./magicNumberHarness.js";
+import { ESTIMATED_TOKENS_PER_CHAR } from "./refactorContracts.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -52,8 +52,9 @@ var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine
 	}
 	existingConstants = [];
 	cssVariables = /* @__PURE__ */ new Map();
-	constructor(auditorOrOptions, _explicitConfig) {
-		const auditor = auditorOrOptions instanceof ValidateMagicNumbersAuditor ? auditorOrOptions : new ValidateMagicNumbersAuditor(typeof auditorOrOptions === "string" ? { projectRoot: auditorOrOptions } : auditorOrOptions);
+	constructor(options = {}) {
+		const opts = assertValidRefactorEngineOptions(options);
+		const auditor = opts.auditor ?? new ValidateMagicNumbersAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	/**
@@ -91,8 +92,8 @@ var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine
 		const targetFile = findings[0]?.file ?? "unknown";
 		return this.createRefactorPlan(id, targetFile, findings);
 	}
-	applyPlan(projectRoot, plan) {
-		MagicNumberHarness.execute(projectRoot, plan);
+	async applyPlan(projectRoot, plan) {
+		await MagicNumberHarness.execute(projectRoot, plan);
 		return { modifiedFiles: plan.targetFiles };
 	}
 	indexVariableDeclaration(decl, isExported, absPath) {
@@ -384,7 +385,7 @@ var MagicNumberExtractor = class MagicNumberExtractor extends BaseRefactorEngine
 				candidate: item.autoCandidateName ?? "PENDING_NAME"
 			});
 		}
-		const batchItems = Array.from(clusteredMap.entries()).map(([_, entry], idx) => {
+		const batchItems = Array.from(clusteredMap.entries()).map(([, entry], idx) => {
 			const first = entry.items[0];
 			const locs = entry.items.map((i) => `L${i.line}`).join(",");
 			return {
