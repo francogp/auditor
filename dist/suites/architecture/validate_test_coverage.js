@@ -40,7 +40,7 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 			description: "Governance of actual unit test coverage",
 			family: "architecture",
 			packageName: "Coverage",
-			configKey: "testCoverage.enforceInAudit",
+			configKey: "testCoverage.enabled",
 			defaultConfig: {
 				enabled: true,
 				enforceInAudit: true,

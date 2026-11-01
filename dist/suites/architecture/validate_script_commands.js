@@ -109,7 +109,7 @@ var ValidateScriptCommandsAuditor = class extends BaseAuditor {
 			description: "Validates npm and npx commands in scripts and CI/CD",
 			family: "architecture",
 			packageName: "ScriptCommands",
-			configKey: "paths",
+			configKey: "scriptCommands.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},
 			icon: "🐚",

@@ -82,7 +82,9 @@ function buildTaskExpectedConfigTree(tasks) {
 		}
 		entry.tasks.push(task);
 		const subParts = parts.slice(1);
-		if (subParts.length > 0 && (subParts[subParts.length - 1] === "enabled" || subParts[subParts.length - 1] === "enforceInAudit" || subParts[subParts.length - 1] === "zLayersEnabled")) subParts.pop();
+		if (subParts.length > 0) {
+			if (subParts[subParts.length - 1] in task.defaultConfig) subParts.pop();
+		}
 		let targetContainer = entry.expectedTree;
 		for (const sub of subParts) {
 			if (typeof targetContainer[sub] !== "object" || targetContainer[sub] === null || Array.isArray(targetContainer[sub])) targetContainer[sub] = {};
@@ -133,23 +135,45 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
 	return `${formatTsNodeTwoSpaceIndent(importDecl)}\n\n${formatTsNodeTwoSpaceIndent(exportDecl)}\n`;
 }
-function computeMissingConfigDiff(expected, current, isRootLevel = true) {
+function computePropertyMissingDiff(expectedVal, currentVal) {
+	if (currentVal === void 0) {
+		if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, void 0, false);
+		return expectedVal;
+	}
+	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, currentVal, false);
+}
+function filterEmptyDefaults(expected) {
+	const filtered = {};
+	for (const [k, v] of Object.entries(expected)) {
+		if (v === void 0) continue;
+		if (Array.isArray(v) && v.length === 0) continue;
+		if (typeof v === "object" && v !== null && !Array.isArray(v) && Object.keys(v).length === 0) continue;
+		filtered[k] = structuredClone(v);
+	}
+	return Object.keys(filtered).length > 0 ? filtered : void 0;
+}
+function isSectionDisabled(current) {
+	if (typeof current !== "object" || current === null) return false;
+	const c = current;
+	return c.enabled === false || c.engine === "none";
+}
+function diffObjectProperties(expected, current) {
+	const missingObj = {};
+	for (const [key, expectedVal] of Object.entries(expected)) {
+		if (expectedVal === void 0) continue;
+		if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
+		const diff = computePropertyMissingDiff(expectedVal, Reflect.get(current, key));
+		if (diff !== void 0) missingObj[key] = diff;
+	}
+	return Object.keys(missingObj).length > 0 ? missingObj : void 0;
+}
+function computeMissingConfigDiff(expected, current, _isRootLevel = true) {
 	if (current === void 0) {
-		if (typeof expected === "object" && expected !== null) return structuredClone(expected);
+		if (typeof expected === "object" && expected !== null && !Array.isArray(expected)) return filterEmptyDefaults(expected);
 		return expected;
 	}
-	if (typeof current === "object" && current !== null && (current.enabled === false || current.engine === "none")) return;
-	if (typeof expected === "object" && expected !== null && !Array.isArray(expected) && typeof current === "object" && current !== null && !Array.isArray(current)) {
-		const missingObj = {};
-		for (const [key, expectedVal] of Object.entries(expected)) {
-			if (expectedVal === void 0) continue;
-			const currentVal = Reflect.get(current, key);
-			if (isRootLevel && !(typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal))) continue;
-			const diff = computeMissingConfigDiff(expectedVal, currentVal, false);
-			if (diff !== void 0) missingObj[key] = diff;
-		}
-		return Object.keys(missingObj).length > 0 ? missingObj : void 0;
-	}
+	if (isSectionDisabled(current)) return;
+	if (typeof expected === "object" && expected !== null && !Array.isArray(expected) && typeof current === "object" && current !== null && !Array.isArray(current)) return diffObjectProperties(expected, current);
 }
 function extractMissingConfigPaths(prefix, missingTree, currentVal) {
 	const paths = [];
@@ -242,6 +266,7 @@ const AUDIT_CONFIG_REQUIREMENT = {
 	}
 };
 var ValidateAuditConfigAuditor = class extends BaseAuditor {
+	providedTasks;
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
 		super({
@@ -299,6 +324,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			coverage: { include: [path.posix.join(AUDITOR_DIR, "*.{ts,json}"), ".gitignore"] },
 			projectRoot
 		});
+		this.providedTasks = options.tasks;
 	}
 	async runAudit() {
 		let ensured = null;
@@ -312,7 +338,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		const config = await loadAuditConfig(this.projectRoot);
 		const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(".auditor", "audit-baseline.json");
 		if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) this.recordScanned(baselineFile);
-		const tasks = await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
+		const tasks = this.providedTasks ?? await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
 		await this.runSubAuditor("audit-config-missing-section", async () => {
 			await this.verifyRequiredSections(config, tasks);
 		});

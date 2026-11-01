@@ -46,7 +46,7 @@ const BASE_TEST_CONFIG_SECTIONS = `
   dependencyVulnerabilities: { enabled: false },
   constants: { enabled: false },
   documentation: { enabled: false },
-  templates: { requireInputIds: false },
+  templates: { enabled: false, requireInputIds: false },
   agentPlugin: { enabled: false },
   environment: { enabled: false },
   coverage: { enabled: false },
@@ -61,7 +61,10 @@ const BASE_TEST_CONFIG_SECTIONS = `
   animation: { enabled: false },
   types: { enabled: false },
   dox: { enabled: false },
-  encoding: { enabled: false }
+  encoding: { enabled: false },
+  gitSafety: { enabled: false },
+  gitIgnore: { enabled: false },
+  scriptCommands: { enabled: false }
 `;
 
 describe('ValidateAuditConfigAuditor', () => {

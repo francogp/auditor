@@ -16,6 +16,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { DEFAULT_SIMILAR_CODE_THRESHOLD } from '../../core/auditConfigDefaults.ts';
 import {
   type CanonicalRuleSeverityLevel,
   type FallowTypeAwareRequirePolicy,
@@ -937,7 +938,38 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       ruleRemediationPhases: createUniformRemediationPhases(FALLOW_CONFIG_RULES, 'setup'),
       packageName: 'Fallow',
       configKey: 'fallow.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        enforceTargets: true,
+        maxTargetPriority: 'high',
+        typeAware: true,
+        showCascade: true,
+        duplicates: {
+          enabled: true,
+          nearMiss: true,
+          mode: 'strict'
+        },
+        similarCode: {
+          enabled: true,
+          threshold: DEFAULT_SIMILAR_CODE_THRESHOLD,
+          ignoreSameFile: true,
+          minLines: 3
+        },
+        flags: {
+          enabled: true,
+          trackRetirement: true
+        },
+        coverage: {
+          enabled: true
+        },
+        security: {
+          enabled: true
+        },
+        viz: {
+          enabled: true,
+          outputPath: 'scratch/fallow_map.html'
+        }
+      },
       criticalConfig: {},
       icon: '🌾',
       ruleDescriptions: {

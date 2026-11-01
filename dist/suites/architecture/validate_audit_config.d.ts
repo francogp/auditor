@@ -15,7 +15,7 @@ export interface MissingSectionEntry {
   missingTree: Record<string, unknown>;
   missingPaths: string[];
 }
-export declare function computeMissingConfigDiff(expected: unknown, current: unknown, isRootLevel?: boolean): unknown;
+export declare function computeMissingConfigDiff(expected: unknown, current: unknown, _isRootLevel?: boolean): unknown;
 export declare function extractMissingConfigPaths(prefix: string, missingTree: Record<string, unknown>, currentVal?: unknown): string[];
 export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown): Map<string, MissingSectionEntry>;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation' | 'audit-config-ratchet-relaxation';
@@ -23,9 +23,11 @@ export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];
 export interface ValidateAuditConfigOptions {
   readonly projectRoot?: string;
+  readonly tasks?: readonly AuditTaskDefinition[];
 }
 export declare const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigRuleId>;
 export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
+  private readonly providedTasks?;
   constructor(options?: ValidateAuditConfigOptions);
   runAudit(): Promise<void>;
   private verifyConfigRatchet;

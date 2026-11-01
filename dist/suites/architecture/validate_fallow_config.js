@@ -1,4 +1,5 @@
 import { CANONICAL_RULE_SEVERITY_LEVELS } from "../../core/auditConfigTypes.js";
+import { DEFAULT_SIMILAR_CODE_THRESHOLD } from "../../core/auditConfigDefaults.js";
 import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
@@ -593,7 +594,34 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			ruleRemediationPhases: createUniformRemediationPhases(FALLOW_CONFIG_RULES, "setup"),
 			packageName: "Fallow",
 			configKey: "fallow.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				enforceTargets: true,
+				maxTargetPriority: "high",
+				typeAware: true,
+				showCascade: true,
+				duplicates: {
+					enabled: true,
+					nearMiss: true,
+					mode: "strict"
+				},
+				similarCode: {
+					enabled: true,
+					threshold: DEFAULT_SIMILAR_CODE_THRESHOLD,
+					ignoreSameFile: true,
+					minLines: 3
+				},
+				flags: {
+					enabled: true,
+					trackRetirement: true
+				},
+				coverage: { enabled: true },
+				security: { enabled: true },
+				viz: {
+					enabled: true,
+					outputPath: "scratch/fallow_map.html"
+				}
+			},
 			criticalConfig: {},
 			icon: "🌾",
 			ruleDescriptions: {

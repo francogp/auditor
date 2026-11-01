@@ -108,8 +108,11 @@ export class ValidateGitConfigAuditor extends BaseAuditor<GitConfigRuleId> {
       ruleIds: GIT_CONFIG_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(GIT_CONFIG_RULES, 'setup'),
       packageName: 'Git',
-      configKey: 'paths',
-      defaultConfig: {},
+      configKey: 'gitSafety.enabled',
+      defaultConfig: {
+        enabled: true,
+        preventDestructiveCommands: true
+      },
       criticalConfig: {},
       icon: '🌿',
       ruleDescriptions: {

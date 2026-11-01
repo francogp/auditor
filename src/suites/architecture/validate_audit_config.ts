@@ -137,13 +137,11 @@ export function buildTaskExpectedConfigTree(
     entry.tasks.push(task);
 
     const subParts = parts.slice(1);
-    if (
-      subParts.length > 0 &&
-      (subParts[subParts.length - 1] === 'enabled' ||
-        subParts[subParts.length - 1] === 'enforceInAudit' ||
-        subParts[subParts.length - 1] === 'zLayersEnabled')
-    ) {
-      subParts.pop();
+    if (subParts.length > 0) {
+      const lastToken = subParts[subParts.length - 1]!;
+      if (lastToken in task.defaultConfig) {
+        subParts.pop();
+      }
     }
 
     let targetContainer = entry.expectedTree;
@@ -252,25 +250,68 @@ export interface MissingSectionEntry {
   missingPaths: string[]; // List of dot-separated paths for missing sections or sub-configurations
 }
 
+function computePropertyMissingDiff(expectedVal: unknown, currentVal: unknown): unknown {
+  if (currentVal === undefined) {
+    if (typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal)) {
+      return computeMissingConfigDiff(expectedVal, undefined, false);
+    }
+    return expectedVal;
+  }
+  if (typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal)) {
+    return computeMissingConfigDiff(expectedVal, currentVal, false);
+  }
+  return undefined;
+}
+
+function filterEmptyDefaults(expected: Record<string, unknown>): unknown {
+  const filtered: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(expected)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    if (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.keys(v).length === 0)
+      continue;
+    filtered[k] = structuredClone(v);
+  }
+  return Object.keys(filtered).length > 0 ? filtered : undefined;
+}
+
+function isSectionDisabled(current: unknown): boolean {
+  if (typeof current !== 'object' || current === null) return false;
+  const c = current as Record<string, unknown>;
+  return c.enabled === false || c.engine === 'none';
+}
+
+function diffObjectProperties(
+  expected: Record<string, unknown>,
+  current: Record<string, unknown>
+): Record<string, unknown> | undefined {
+  const missingObj: Record<string, unknown> = {};
+  for (const [key, expectedVal] of Object.entries(expected)) {
+    if (expectedVal === undefined) continue;
+    if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
+
+    const currentVal = Reflect.get(current, key);
+    const diff = computePropertyMissingDiff(expectedVal, currentVal);
+    if (diff !== undefined) {
+      missingObj[key] = diff;
+    }
+  }
+  return Object.keys(missingObj).length > 0 ? missingObj : undefined;
+}
+
 export function computeMissingConfigDiff(
   expected: unknown,
   current: unknown,
-  isRootLevel = true
+  _isRootLevel = true
 ): unknown {
   if (current === undefined) {
-    if (typeof expected === 'object' && expected !== null) {
-      return structuredClone(expected);
+    if (typeof expected === 'object' && expected !== null && !Array.isArray(expected)) {
+      return filterEmptyDefaults(expected as Record<string, unknown>);
     }
     return expected;
   }
 
-  // If the user explicitly disabled this block/sub-block (enabled: false or engine: 'none'), respect the deactivation
-  if (
-    typeof current === 'object' &&
-    current !== null &&
-    ((current as Record<string, unknown>).enabled === false ||
-      (current as Record<string, unknown>).engine === 'none')
-  ) {
+  if (isSectionDisabled(current)) {
     return undefined;
   }
 
@@ -282,25 +323,10 @@ export function computeMissingConfigDiff(
     current !== null &&
     !Array.isArray(current)
   ) {
-    const missingObj: Record<string, unknown> = {};
-    for (const [key, expectedVal] of Object.entries(expected)) {
-      if (expectedVal === undefined) continue;
-      const currentVal = Reflect.get(current, key);
-
-      const isSubConfiguration =
-        typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal);
-
-      if (isRootLevel && !isSubConfiguration) {
-        // Scalar options of an already configured section are optional and not treated as missing sub-configurations
-        continue;
-      }
-
-      const diff = computeMissingConfigDiff(expectedVal, currentVal, false);
-      if (diff !== undefined) {
-        missingObj[key] = diff;
-      }
-    }
-    return Object.keys(missingObj).length > 0 ? missingObj : undefined;
+    return diffObjectProperties(
+      expected as Record<string, unknown>,
+      current as Record<string, unknown>
+    );
   }
 
   return undefined;
@@ -426,6 +452,7 @@ export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
 
 export interface ValidateAuditConfigOptions {
   readonly projectRoot?: string;
+  readonly tasks?: readonly AuditTaskDefinition[];
 }
 
 export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigRuleId> = {
@@ -470,6 +497,8 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
 };
 
 export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
+  private readonly providedTasks?: readonly AuditTaskDefinition[];
+
   public constructor(options: ValidateAuditConfigOptions = {}) {
     const projectRoot = options.projectRoot || process.cwd();
 
@@ -584,6 +613,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       },
       projectRoot
     });
+    this.providedTasks = options.tasks;
   }
 
   public override async runAudit(): Promise<void> {
@@ -607,7 +637,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       this.recordScanned(baselineFile);
     }
 
-    const tasks = await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
+    const tasks =
+      this.providedTasks ??
+      (await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []));
 
     await this.runSubAuditor('audit-config-missing-section', async () => {
       await this.verifyRequiredSections(config, tasks);

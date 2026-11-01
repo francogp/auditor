@@ -114,7 +114,10 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			},
 			packageName: "Agent",
 			configKey: "agentPlugin.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				gitSafetyHook: true
+			},
 			criticalConfig: {},
 			icon: "🤖",
 			ruleDescriptions: {

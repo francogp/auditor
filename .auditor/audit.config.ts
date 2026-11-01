@@ -131,7 +131,8 @@ export default defineAuditConfig({
     zLayersEnabled: false,
     stylelint: {
       enabled: true
-    }
+    },
+    enforceScss: true
   },
   templates: {
     enabled: true,
@@ -145,7 +146,8 @@ export default defineAuditConfig({
     ignoreDependencies: ['markdownlint-cli', 'stylelint-scss']
   },
   secretLeaks: {
-    enabled: true
+    enabled: true,
+    maskSecrets: true
   },
   dependencyVulnerabilities: {
     enabled: true,
@@ -161,10 +163,12 @@ export default defineAuditConfig({
   testCoverage: {
     enabled: true,
     threshold: 82, // Ratcheted threshold elevated from 80% to 82%
-    enforceInAudit: true
+    enforceInAudit: true,
+    path: 'scratch/coverage/coverage-final.json'
   },
   agentPlugin: {
-    enabled: true
+    enabled: true,
+    gitSafetyHook: true
   },
   documentation: {
     enabled: true,
@@ -200,7 +204,8 @@ export default defineAuditConfig({
     similarCode: {
       enabled: true,
       threshold: 0.95,
-      ignoreSameFile: true
+      ignoreSameFile: true,
+      minLines: 3
     },
     duplicates: {
       enabled: true,
@@ -210,6 +215,15 @@ export default defineAuditConfig({
     viz: {
       enabled: true,
       outputPath: 'scratch/fallow_map.html'
+    },
+    typeAware: true,
+    showCascade: true,
+    flags: {
+      enabled: true,
+      trackRetirement: true
+    },
+    coverage: {
+      enabled: true
     }
   },
   constants: {
@@ -276,10 +290,16 @@ export default defineAuditConfig({
     roots: ['src/suites', 'src/analyzers', 'src/core', 'scripts/auditors']
   },
   packageScripts: {
-    enabled: true
+    enabled: true,
+    enforceBuildAudit: true,
+    recommendedScripts: true
   },
   scriptExtensions: {
-    enabled: true
+    enabled: true,
+    enforceTypeScript: true,
+    allowMjs: false,
+    allowCjs: false,
+    allowJsScripts: false
   },
   webPerformance: {
     enabled: true
@@ -308,7 +328,10 @@ export default defineAuditConfig({
     enabled: true
   },
   encoding: {
-    enabled: true
+    enabled: true,
+    defaultEncoding: 'utf-8',
+    prohibitBom: true,
+    detectMojibake: true
   },
   stylelint: {
     enabled: true,
@@ -316,5 +339,15 @@ export default defineAuditConfig({
       enabled: true,
       enforceHasBlockPartitioning: true
     }
+  },
+  gitIgnore: {
+    enabled: true
+  },
+  gitSafety: {
+    enabled: true,
+    preventDestructiveCommands: true
+  },
+  scriptCommands: {
+    enabled: true
   }
 });

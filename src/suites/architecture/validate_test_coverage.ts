@@ -49,7 +49,7 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       description: 'Governance of actual unit test coverage',
       family: 'architecture',
       packageName: 'Coverage',
-      configKey: 'testCoverage.enforceInAudit',
+      configKey: 'testCoverage.enabled',
       defaultConfig: {
         enabled: true,
         enforceInAudit: true,

@@ -169,7 +169,7 @@ export class ValidateScriptCommandsAuditor extends BaseAuditor<ScriptCommandsRul
       description: 'Validates npm and npx commands in scripts and CI/CD',
       family: 'architecture',
       packageName: 'ScriptCommands',
-      configKey: 'paths',
+      configKey: 'scriptCommands.enabled',
       defaultConfig: { enabled: true },
       criticalConfig: {},
       icon: '🐚',
