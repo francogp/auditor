@@ -122,7 +122,12 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       family: 'architecture',
       packageName: 'Types',
       configKey: 'typeCoverage.enabled',
-      defaultConfig: { enabled: true, atLeast: DEFAULT_TYPE_COVERAGE_THRESHOLD },
+      defaultConfig: {
+        enabled: true,
+        atLeast: DEFAULT_TYPE_COVERAGE_THRESHOLD,
+        strict: true,
+        ignoreFiles: []
+      },
       criticalConfig: {},
       icon: '📊',
       ruleIds: TYPE_COVERAGE_RULES,

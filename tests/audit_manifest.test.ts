@@ -22,7 +22,7 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.capabilities.speed).toBe('light');
     expect(manifest.capabilities.phase).toBe('setup');
 
-    expect(manifest.configKey).toBe('paths');
+    expect(manifest.configKey).toBe('gitIgnore.enabled');
 
     expect(manifest.rules['audit-config-missing-path']).toBe('Configured path does not exist');
     expect(manifest.rules['audit-config-missing-section']).toBe('Missing section in audit.config');

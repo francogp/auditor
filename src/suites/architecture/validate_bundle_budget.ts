@@ -21,7 +21,12 @@ import path from 'node:path';
 import ts from 'typescript';
 
 import { SharedAstContext } from '../../core/astContext.ts';
-import { getAuditConfig, isTestPath, type AuditEngineConfig } from '../../core/auditConfig.ts';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  getAuditConfig,
+  isTestPath,
+  type AuditEngineConfig
+} from '../../core/auditConfig.ts';
 import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
@@ -300,7 +305,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
       ruleRemediationPhases: createUniformRemediationPhases(BUNDLE_BUDGET_RULES, 'polish'),
       packageName: 'Bundle',
       configKey: 'bundle.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: DEFAULT_AUDIT_CONFIG.bundle ?? { enabled: true },
       criticalConfig: {},
       icon: '📦',
       coverage: {

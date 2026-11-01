@@ -1,3 +1,4 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeReadFileSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
@@ -337,11 +338,12 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 			description: "Validates documentation language",
 			family: "documentation",
 			packageName: "DOCS",
-			configKey: "documentation",
+			configKey: "documentation.enabled",
 			defaultConfig: {
 				enabled: true,
 				language: "en",
-				chatLanguage: "es"
+				chatLanguage: "es",
+				skillsRoots: DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []
 			},
 			criticalConfig: {},
 			icon: "🌐",

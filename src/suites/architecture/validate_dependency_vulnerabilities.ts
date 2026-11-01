@@ -237,7 +237,12 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
         include: ['package.json', 'package-lock.json']
       },
       configKey: 'dependencyVulnerabilities.enabled',
-      defaultConfig: { enabled: true, failOn: 'critical' },
+      defaultConfig: {
+        enabled: true,
+        failOn: 'critical',
+        allowList: [],
+        includeDev: false
+      },
       criticalConfig: {}
     });
   }

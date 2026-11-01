@@ -143,7 +143,11 @@ async function discoverAuditors(options = {}) {
 */
 async function collectAllGitIgnoreRequirements(projectRoot = process.cwd(), config) {
 	const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
-	await discoverAuditors({ projectRoot });
+	await discoverAuditors({
+		projectRoot,
+		withBuild: true,
+		speed: "full"
+	});
 	const customEntries = effectiveConfig.gitIgnore?.extraRequiredEntries ?? [];
 	for (const entry of customEntries) if (typeof entry === "string") GitIgnoreRegistry.register({
 		id: entry,
@@ -160,7 +164,11 @@ async function collectAllGitIgnoreRequirements(projectRoot = process.cwd(), conf
 */
 async function collectAllPackageScriptRequirements(projectRoot = process.cwd(), config) {
 	const effectiveConfig = config ?? await loadAuditConfig(projectRoot);
-	const tasks = await discoverAuditors({ projectRoot });
+	const tasks = await discoverAuditors({
+		projectRoot,
+		withBuild: true,
+		speed: "full"
+	});
 	const seenScriptNames = /* @__PURE__ */ new Set();
 	const collected = [];
 	const addRequirement = (req) => {

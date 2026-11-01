@@ -475,7 +475,9 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
     const pkg = tryOrNull(() => getPackageJson(ctx.projectRoot));
     const pkgName = pkg?.name ?? ctx.packageName ?? 'Project';
     const tasks = await import('../../cli/auditScanner.ts')
-      .then((m) => m.discoverAuditors({ projectRoot: ctx.projectRoot }))
+      .then((m) =>
+        m.discoverAuditors({ projectRoot: ctx.projectRoot, withBuild: true, speed: 'full' })
+      )
       .catch(() => []);
     return createDefaultAuditConfigContent(pkgName, tasks);
   },
@@ -529,8 +531,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       ruleRemediationPhases: createUniformRemediationPhases(AUDIT_CONFIG_RULES, 'setup'),
       packageName: 'Config',
       icon: '⚙️',
-      configKey: 'paths',
-      defaultConfig: {},
+      configKey: 'gitIgnore.enabled',
+      defaultConfig: {
+        enabled: true,
+        extraRequiredEntries: []
+      },
       criticalConfig: {},
       ruleDescriptions: {
         'audit-config-missing-path': 'Configured path does not exist',
@@ -639,7 +644,11 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
 
     const tasks =
       this.providedTasks ??
-      (await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []));
+      (await discoverAuditors({
+        projectRoot: this.projectRoot,
+        withBuild: true,
+        speed: 'full'
+      }).catch(() => []));
 
     await this.runSubAuditor('audit-config-missing-section', async () => {
       await this.verifyRequiredSections(config, tasks);

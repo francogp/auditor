@@ -1,3 +1,4 @@
+import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
@@ -200,7 +201,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 			ruleRemediationPhases: createUniformRemediationPhases(BUNDLE_BUDGET_RULES, "polish"),
 			packageName: "Bundle",
 			configKey: "bundle.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: DEFAULT_AUDIT_CONFIG.bundle ?? { enabled: true },
 			criticalConfig: {},
 			icon: "📦",
 			coverage: { include: [...deriveCoverageFromRoots(srcRoots, /* @__PURE__ */ new Set([

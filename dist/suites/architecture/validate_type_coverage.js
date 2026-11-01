@@ -85,7 +85,9 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 			configKey: "typeCoverage.enabled",
 			defaultConfig: {
 				enabled: true,
-				atLeast: 95
+				atLeast: 95,
+				strict: true,
+				ignoreFiles: []
 			},
 			criticalConfig: {},
 			icon: "📊",

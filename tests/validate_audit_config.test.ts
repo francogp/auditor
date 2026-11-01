@@ -31,7 +31,16 @@ const BASE_TEST_CONFIG_SECTIONS = `
   valibot: { enabled: true, targets: [] },
   oxlint: { enabled: true },
   oxfmt: { enabled: true },
-  vitePlusConfig: { enabled: true, precompress: { enabled: false } },
+  vitePlusConfig: {
+    enabled: true,
+    precompress: { enabled: false },
+    fmt: { enabled: false },
+    lint: { enabled: false },
+    test: { enabled: false },
+    staged: { enabled: false },
+    hooks: { enabled: false },
+    vscode: { enabled: false }
+  },
   htmlValidate: { enabled: true },
   pinia: { enabled: false },
   domain: { enabled: false },
@@ -714,8 +723,8 @@ export default defineAuditConfig({
     `;
     // Replace vitePlusConfig to not have precompress
     const configWithoutPrecompress = configContent.replace(
-      'vitePlusConfig: { enabled: true, precompress: { enabled: false } },',
-      'vitePlusConfig: { enabled: true },'
+      'precompress: { enabled: false },\n',
+      ''
     );
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
     await fs.writeFile(
@@ -766,7 +775,7 @@ export default defineAuditConfig({
   name: 'test-app',
   paths: { srcRoots: ['src'] },
   ${BASE_TEST_CONFIG_SECTIONS.replace(
-    'vitePlusConfig: { enabled: true, precompress: { enabled: false } },',
+    /vitePlusConfig:\s*\{[\s\S]*?\n  \},/,
     `vitePlusConfig: {
     enabled: true // Line comment without trailing comma
   },`

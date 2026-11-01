@@ -42,7 +42,12 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 			packageName: "DBQuery",
 			icon: "⚡",
 			configKey: "queryPerformance.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				excludeMigrationsDir: true,
+				exemptSelectStarPaths: [],
+				exemptPaths: []
+			},
 			criticalConfig: {},
 			roots: targetRoots,
 			allowedExtensions: SCANNABLE_EXTS,

@@ -157,7 +157,9 @@ var ValidateDependencyVulnerabilitiesAuditor = class extends BaseAuditor {
 			configKey: "dependencyVulnerabilities.enabled",
 			defaultConfig: {
 				enabled: true,
-				failOn: "critical"
+				failOn: "critical",
+				allowList: [],
+				includeDev: false
 			},
 			criticalConfig: {}
 		});

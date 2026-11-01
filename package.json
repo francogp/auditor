@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.5.2-build.20261101-153553",
+  "version": "10.5.3-build.20261101-164055",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -286,7 +286,8 @@
     "auditor:post-build": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts phase=post-build",
     "build:deploy": "node --experimental-strip-types src/cli/build_deploy.ts",
     "auditor:file-encoding": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_file_encoding",
-    "auditor:cli-contracts": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_cli_contracts"
+    "auditor:cli-contracts": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_cli_contracts",
+    "auditor:bundle-budget": "node --disable-warning=PERM0002 --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/audit_full.ts task=validate_bundle_budget"
   },
   "dependencies": {
     "@ast-grep/napi": "^0.51.0",

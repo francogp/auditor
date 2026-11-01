@@ -3,10 +3,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import {
-  DEFAULT_PRECOMPRESS_THRESHOLD_BYTES,
-  DEFAULT_AUDIT_CONFIG
-} from '../../core/auditConfigDefaults.ts';
+import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -1495,16 +1492,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       family: 'architecture',
       packageName: 'Vite+',
       configKey: 'vitePlusConfig.enabled',
-      defaultConfig: {
-        enabled: true,
-        precompress: {
-          enabled: true,
-          server: 'nginx',
-          spa: true,
-          report: 'summary',
-          threshold: DEFAULT_PRECOMPRESS_THRESHOLD_BYTES
-        }
-      },
+      defaultConfig: DEFAULT_AUDIT_CONFIG.vitePlusConfig ?? { enabled: true },
       criticalConfig: {},
       icon: '⚡',
       ruleIds: VITE_PLUS_CONFIG_RULES,

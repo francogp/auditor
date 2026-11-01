@@ -19,7 +19,7 @@ import {
   matchesMandateLanguage,
   findLocalContractsHeaderLine
 } from '../../analyzers/agentsMandateAnalyzer.ts';
-import { getAuditConfig } from '../../core/auditConfig.ts';
+import { getAuditConfig, DEFAULT_AUDIT_CONFIG } from '../../core/auditConfig.ts';
 import type { DocumentationLanguage } from '../../core/auditConfigTypes.ts';
 import type { RuleFixContext, AnyRuleFixerFn } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
@@ -520,8 +520,13 @@ export class DocumentationLanguageAuditor extends BaseAuditor<DocumentationLangu
       description: 'Validates documentation language',
       family: 'documentation',
       packageName: 'DOCS',
-      configKey: 'documentation',
-      defaultConfig: { enabled: true, language: 'en', chatLanguage: 'es' },
+      configKey: 'documentation.enabled',
+      defaultConfig: {
+        enabled: true,
+        language: 'en',
+        chatLanguage: 'es',
+        skillsRoots: DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []
+      },
       criticalConfig: {},
       icon: '🌐',
       ruleIds: DOCUMENTATION_LANGUAGE_RULES,

@@ -1216,16 +1216,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			family: "architecture",
 			packageName: "Vite+",
 			configKey: "vitePlusConfig.enabled",
-			defaultConfig: {
-				enabled: true,
-				precompress: {
-					enabled: true,
-					server: "nginx",
-					spa: true,
-					report: "summary",
-					threshold: 512
-				}
-			},
+			defaultConfig: DEFAULT_AUDIT_CONFIG.vitePlusConfig ?? { enabled: true },
 			criticalConfig: {},
 			icon: "⚡",
 			ruleIds: VITE_PLUS_CONFIG_RULES,

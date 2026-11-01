@@ -95,7 +95,10 @@ export class ValidateSecurityHardeningAuditor extends FileScanAuditor<SecurityHa
       packageName: 'SecHarden',
       icon: '🛡️',
       configKey: 'securityHardening.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        exemptPaths: []
+      },
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,

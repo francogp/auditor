@@ -43,9 +43,22 @@ var ValidateTestCoverageAuditor = class extends BaseAuditor {
 			configKey: "testCoverage.enabled",
 			defaultConfig: {
 				enabled: true,
-				enforceInAudit: true,
 				threshold: 80,
-				path: "scratch/coverage/coverage-final.json"
+				path: "scratch/coverage/coverage-final.json",
+				runCommand: "vp test --coverage",
+				roots: DEFAULT_AUDIT_CONFIG.testCoverage?.roots ?? ["src"],
+				extensions: DEFAULT_AUDIT_CONFIG.testCoverage?.extensions ?? [
+					".ts",
+					".vue",
+					".js",
+					".jsx",
+					".tsx",
+					".mjs",
+					".cjs"
+				],
+				exemptGlobs: [],
+				directoryThresholds: {},
+				enforceInAudit: true
 			},
 			criticalConfig: {},
 			icon: "🧪",

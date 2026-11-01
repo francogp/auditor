@@ -52,9 +52,22 @@ export class ValidateTestCoverageAuditor extends BaseAuditor<TestCoverageRuleId>
       configKey: 'testCoverage.enabled',
       defaultConfig: {
         enabled: true,
-        enforceInAudit: true,
         threshold: DEFAULT_COVERAGE_THRESHOLD,
-        path: 'scratch/coverage/coverage-final.json'
+        path: 'scratch/coverage/coverage-final.json',
+        runCommand: 'vp test --coverage',
+        roots: DEFAULT_AUDIT_CONFIG.testCoverage?.roots ?? ['src'],
+        extensions: DEFAULT_AUDIT_CONFIG.testCoverage?.extensions ?? [
+          '.ts',
+          '.vue',
+          '.js',
+          '.jsx',
+          '.tsx',
+          '.mjs',
+          '.cjs'
+        ],
+        exemptGlobs: [],
+        directoryThresholds: {},
+        enforceInAudit: true
       },
       criticalConfig: {},
       icon: '🧪',

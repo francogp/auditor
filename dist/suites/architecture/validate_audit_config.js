@@ -254,7 +254,11 @@ const AUDIT_CONFIG_REQUIREMENT = {
 			const migratedPath = path.resolve(ctx.projectRoot, AUDIT_CONFIG_FILE);
 			if (fs.existsSync(migratedPath)) return fs.readFileSync(migratedPath, "utf-8");
 		}
-		return createDefaultAuditConfigContent(tryOrNull(() => getPackageJson(ctx.projectRoot))?.name ?? ctx.packageName ?? "Project", await import("../../cli/auditScanner.js").then((m) => m.discoverAuditors({ projectRoot: ctx.projectRoot })).catch(() => []));
+		return createDefaultAuditConfigContent(tryOrNull(() => getPackageJson(ctx.projectRoot))?.name ?? ctx.packageName ?? "Project", await import("../../cli/auditScanner.js").then((m) => m.discoverAuditors({
+			projectRoot: ctx.projectRoot,
+			withBuild: true,
+			speed: "full"
+		})).catch(() => []));
 	},
 	customMissingMessage: (ctx, file) => {
 		const legacy = LEGACY_ROOT_CONFIG_FILES.find((f) => fs.existsSync(path.resolve(ctx.projectRoot, f)));
@@ -296,8 +300,11 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			ruleRemediationPhases: createUniformRemediationPhases(AUDIT_CONFIG_RULES, "setup"),
 			packageName: "Config",
 			icon: "⚙️",
-			configKey: "paths",
-			defaultConfig: {},
+			configKey: "gitIgnore.enabled",
+			defaultConfig: {
+				enabled: true,
+				extraRequiredEntries: []
+			},
 			criticalConfig: {},
 			ruleDescriptions: {
 				"audit-config-missing-path": "Configured path does not exist",
@@ -338,7 +345,11 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		const config = await loadAuditConfig(this.projectRoot);
 		const baselineFile = config.ratchet?.baselineFile ?? path.posix.join(".auditor", "audit-baseline.json");
 		if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) this.recordScanned(baselineFile);
-		const tasks = this.providedTasks ?? await discoverAuditors({ projectRoot: this.projectRoot }).catch(() => []);
+		const tasks = this.providedTasks ?? await discoverAuditors({
+			projectRoot: this.projectRoot,
+			withBuild: true,
+			speed: "full"
+		}).catch(() => []);
 		await this.runSubAuditor("audit-config-missing-section", async () => {
 			await this.verifyRequiredSections(config, tasks);
 		});

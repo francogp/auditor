@@ -84,7 +84,7 @@ function handleLegacyConfigMigration(projectRoot: string): void {
 }
 
 async function safeDiscoverAuditors(projectRoot: string): Promise<readonly AuditTaskDefinition[]> {
-  return discoverAuditors({ projectRoot }).catch(() => []);
+  return discoverAuditors({ projectRoot, withBuild: true, speed: 'full' }).catch(() => []);
 }
 
 function resolvePackageName(projectRoot: string): string {

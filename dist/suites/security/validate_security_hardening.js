@@ -67,7 +67,10 @@ var ValidateSecurityHardeningAuditor = class extends FileScanAuditor {
 			packageName: "SecHarden",
 			icon: "🛡️",
 			configKey: "securityHardening.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				exemptPaths: []
+			},
 			criticalConfig: {},
 			requiredPermissions: [],
 			usesThirdPartyTool: false,

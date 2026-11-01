@@ -308,7 +308,7 @@ export async function collectAllGitIgnoreRequirements(
   config?: Awaited<ReturnType<typeof loadAuditConfig>>
 ): Promise<GitIgnoreRequirement[]> {
   const effectiveConfig = config ?? (await loadAuditConfig(projectRoot));
-  await discoverAuditors({ projectRoot });
+  await discoverAuditors({ projectRoot, withBuild: true, speed: 'full' });
 
   const customEntries = effectiveConfig.gitIgnore?.extraRequiredEntries ?? [];
   for (const entry of customEntries) {
@@ -336,7 +336,7 @@ export async function collectAllPackageScriptRequirements(
   config?: Awaited<ReturnType<typeof loadAuditConfig>>
 ): Promise<readonly AuditorPackageScriptRequirement[]> {
   const effectiveConfig = config ?? (await loadAuditConfig(projectRoot));
-  const tasks = await discoverAuditors({ projectRoot });
+  const tasks = await discoverAuditors({ projectRoot, withBuild: true, speed: 'full' });
 
   const seenScriptNames = new Set<string>();
   const collected: AuditorPackageScriptRequirement[] = [];

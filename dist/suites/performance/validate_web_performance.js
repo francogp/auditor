@@ -30,6 +30,7 @@ const SCANNABLE_EXTS = /* @__PURE__ */ new Set([
 	".scss"
 ]);
 const MAX_RECOMMENDED_DOM_DEPTH = 16;
+const DEFAULT_MAX_INLINE_SVG_SIZE = 2048;
 var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 	exemptSvgPaths;
 	constructor(options = {}) {
@@ -50,7 +51,14 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 			packageName: "WebPerf",
 			icon: "⚡",
 			configKey: "webPerformance.enabled",
-			defaultConfig: { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				maxDomDepth: MAX_RECOMMENDED_DOM_DEPTH,
+				maxInlineSvgSize: DEFAULT_MAX_INLINE_SVG_SIZE,
+				exemptSvgPaths: [],
+				exemptImgClasses: [],
+				exemptPaths: []
+			},
 			criticalConfig: {},
 			requiredPermissions: [],
 			usesThirdPartyTool: false,
@@ -233,7 +241,7 @@ var ValidateWebPerformanceAuditor = class extends FileScanAuditor {
 	}
 	auditInlineSvgBloat(relPath, content) {
 		if (isPathExempt(relPath, this.exemptSvgPaths)) return;
-		const maxSvgSize = getAuditConfig(this.projectRoot).webPerformance?.maxInlineSvgSize ?? 2048;
+		const maxSvgSize = getAuditConfig(this.projectRoot).webPerformance?.maxInlineSvgSize ?? DEFAULT_MAX_INLINE_SVG_SIZE;
 		const svgRegex = /<svg[\s>][\s\S]*?<\/svg>/gi;
 		let match;
 		while ((match = svgRegex.exec(content)) !== null) {

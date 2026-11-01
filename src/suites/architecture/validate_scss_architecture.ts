@@ -48,7 +48,15 @@ export class ValidateScssArchitectureAuditor extends FileScanAuditor<ScssArchite
       packageName: 'SCSSArch',
       icon: '🎨',
       configKey: 'scssArchitecture.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        maxNestingDepth: 3,
+        scopedMaxNestingDepth: 4,
+        allowPixelArtSpacing: false,
+        allowedSpacingUnits: [],
+        allowScopedColors: false,
+        exemptPaths: []
+      },
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,

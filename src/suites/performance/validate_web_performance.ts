@@ -39,6 +39,7 @@ export type WebPerformanceRuleId = (typeof WEB_PERFORMANCE_RULES)[number];
 
 const SCANNABLE_EXTS = new Set(['.vue', '.html', '.htm', '.jsx', '.tsx', '.css', '.scss']);
 const MAX_RECOMMENDED_DOM_DEPTH = 16;
+const DEFAULT_MAX_INLINE_SVG_SIZE = 2048;
 
 export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanceRuleId> {
   private readonly exemptSvgPaths: readonly string[];
@@ -61,7 +62,14 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
       packageName: 'WebPerf',
       icon: '⚡',
       configKey: 'webPerformance.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        maxDomDepth: MAX_RECOMMENDED_DOM_DEPTH,
+        maxInlineSvgSize: DEFAULT_MAX_INLINE_SVG_SIZE,
+        exemptSvgPaths: [],
+        exemptImgClasses: [],
+        exemptPaths: []
+      },
       criticalConfig: {},
       requiredPermissions: [],
       usesThirdPartyTool: false,
@@ -356,7 +364,7 @@ export class ValidateWebPerformanceAuditor extends FileScanAuditor<WebPerformanc
   private auditInlineSvgBloat(relPath: string, content: string): void {
     if (isPathExempt(relPath, this.exemptSvgPaths)) return;
     const config = getAuditConfig(this.projectRoot);
-    const maxSvgSize = config.webPerformance?.maxInlineSvgSize ?? 2048;
+    const maxSvgSize = config.webPerformance?.maxInlineSvgSize ?? DEFAULT_MAX_INLINE_SVG_SIZE;
 
     const svgRegex = /<svg[\s>][\s\S]*?<\/svg>/gi;
     let match: RegExpExecArray | null;

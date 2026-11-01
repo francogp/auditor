@@ -58,7 +58,12 @@ export class ValidateCodeSimplificationAuditor extends FileScanAuditor<CodeSimpl
       allowedExtensions: SCANNABLE_EXTS,
       exemptPaths: simplificationConfig.codeSimplification?.exemptPaths,
       configKey: 'codeSimplification.enabled',
-      defaultConfig: { enabled: true },
+      defaultConfig: {
+        enabled: true,
+        maxNestingDepth: 4,
+        allowMatrixLoops: false,
+        exemptPaths: []
+      },
       criticalConfig: {},
       ruleIds: CODE_SIMPLIFICATION_RULES,
       ruleRemediationPhases: createUniformRemediationPhases(CODE_SIMPLIFICATION_RULES, 'hygiene'),

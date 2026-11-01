@@ -121,10 +121,31 @@ export default defineAuditConfig({
       'candidate_id',
       'requiredSuiteId',
       'rule_id'
-    ]
+    ],
+    timezoneVariable: 'APP_TIMEZONE',
+    allowedNumericConstantPrefixes: [
+      'GEN_',
+      'ISO_',
+      'UTF_8',
+      'BASE_64',
+      'RGB_',
+      'RGBA_',
+      'WASM_',
+      'HTML_5',
+      'CSS_3',
+      'HTTP_',
+      'D3_'
+    ],
+    allowedStoreSetterPrefixes: ['set', 'update', 'clear']
   },
   bundle: {
-    enabled: true
+    enabled: true,
+    statsFile: 'scratch/bundle_stats.html',
+    distDir: 'dist/assets',
+    maxClientChunkWarnBytes: 1228800,
+    maxClientChunkErrorBytes: 2048000,
+    duplicateModuleThresholdBytes: 512000,
+    topModulesLimit: 15
   },
   styles: {
     enabled: true,
@@ -151,20 +172,25 @@ export default defineAuditConfig({
   },
   dependencyVulnerabilities: {
     enabled: true,
-    failOn: 'critical'
+    failOn: 'critical',
+    includeDev: false
   },
   accessibility: {
     enabled: false // CLI tool without interactive SFC Vue frontend views
   },
   typeCoverage: {
     enabled: true,
-    atLeast: 98
+    atLeast: 98,
+    strict: true
   },
   testCoverage: {
     enabled: true,
     threshold: 82, // Ratcheted threshold elevated from 80% to 82%
     enforceInAudit: true,
-    path: 'scratch/coverage/coverage-final.json'
+    path: 'scratch/coverage/coverage-final.json',
+    runCommand: 'vp test --coverage',
+    roots: ['src'],
+    extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs']
   },
   agentPlugin: {
     enabled: true,
@@ -176,7 +202,8 @@ export default defineAuditConfig({
     chatLanguage: 'es',
     knownValidAbstractPaths: ['scripts/auditors/'],
     allowedNpxBinaries: ['@modelcontextprotocol/inspector', 'playwright'],
-    languageExemptions: ['docs/**']
+    languageExemptions: ['docs/**'],
+    skillsRoots: ['.agents/skills']
   },
   dox: {
     enabled: true,
@@ -268,7 +295,33 @@ export default defineAuditConfig({
         'vue/no-required-prop-with-default': 'error',
         'vue/no-deprecated-model-definition': 'error',
         'no-useless-assignment': 'error'
+      },
+      typeAware: true,
+      typeCheck: true
+    },
+    fmt: {
+      enabled: true,
+      singleQuote: true,
+      semi: true,
+      trailingComma: 'none',
+      sortPackageJson: true
+    },
+    test: {
+      enabled: true
+    },
+    staged: {
+      enabled: true,
+      rules: {
+        '*': 'vp check --fix'
       }
+    },
+    hooks: {
+      enabled: true
+    },
+    vscode: {
+      enabled: true,
+      formatOnSave: true,
+      defaultFormatter: 'oxc.oxc-vscode'
     }
   },
   htmlValidate: {
@@ -302,19 +355,28 @@ export default defineAuditConfig({
     allowJsScripts: false
   },
   webPerformance: {
-    enabled: true
+    enabled: true,
+    maxDomDepth: 16,
+    maxInlineSvgSize: 2048
   },
   queryPerformance: {
-    enabled: true
+    enabled: true,
+    excludeMigrationsDir: true
   },
   securityHardening: {
     enabled: true
   },
   codeSimplification: {
-    enabled: true
+    enabled: true,
+    maxNestingDepth: 4,
+    allowMatrixLoops: false
   },
   scssArchitecture: {
-    enabled: true
+    enabled: true,
+    maxNestingDepth: 3,
+    scopedMaxNestingDepth: 4,
+    allowPixelArtSpacing: false,
+    allowScopedColors: false
   },
   runner: {
     enabled: true,
