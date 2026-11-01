@@ -50,7 +50,7 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('HTML');
       expect(auditor.ruleIds).toEqual(HTML_VALIDATE_CONFIG_RULES);
-      expect(auditor.ruleIds.length).toBe(6);
+      expect(auditor.ruleIds.length).toBe(7);
     });
   });
 
@@ -200,6 +200,28 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       const repaired = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(repaired.plugins).toContain('html-validate-vue');
       expect(repaired.transform['^.*\\.vue$']).toBe('html-validate-vue');
+    });
+
+    it('Canary 6 (Undeclared Entry): detects unauthorized rule in .htmlvalidate.json', async () => {
+      const configPath = path.join(tmpDir, '.htmlvalidate.json');
+      const tamperedConfig = {
+        ...CANONICAL_HTML_VALIDATE_CONFIG,
+        rules: {
+          ...CANONICAL_HTML_VALIDATE_CONFIG.rules,
+          'unauthorized-html-rule': 'off'
+        }
+      };
+      fs.writeFileSync(configPath, JSON.stringify(tamperedConfig, null, 2), 'utf-8');
+
+      const auditor = new ValidateHtmlValidateConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
+
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'html-validate-undeclared-config-entry'
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.context).toBe('unauthorized-html-rule');
     });
   });
 });

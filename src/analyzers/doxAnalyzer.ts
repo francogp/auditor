@@ -315,7 +315,7 @@ function createSectionOrderViolation(
     fixable: false,
     packageName: 'DOX',
     ruleId: 'dox-section-order',
-    ruleDescription: 'Orden incorrecto de secciones en AGENTS.md'
+    ruleDescription: 'Incorrect section order in AGENTS.md'
   };
 }
 

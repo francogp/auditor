@@ -29,7 +29,7 @@ export const NPMRC_CONFIG_RULES = ['npmrc-config-missing', 'npmrc-config-missing
 export type NpmrcConfigRuleId = (typeof NPMRC_CONFIG_RULES)[number];
 
 export const CANONICAL_NPMRC_LINES = [
-  '# Estandares de reproducibilidad de paquetes (francogp/auditor)',
+  '# Package reproducibility standards (francogp/auditor)',
   'engine-strict=true',
   'package-lock=true',
   ''

@@ -280,25 +280,25 @@ function evaluateBumpRationale(metrics: DiffMetrics): {
   if (metrics.hasBreakingChanges) {
     return {
       recommendedBump: 'major',
-      rationale: 'Cambio de ruptura (breaking change) declarado explícitamente en el commit.'
+      rationale: 'Breaking change declared explicitly in the commit.'
     };
   }
   if (metrics.hasCoreChanges && metrics.totalLinesChanged >= MAJOR_CORE_LINES_THRESHOLD) {
     return {
       recommendedBump: 'major',
-      rationale: `Refactorización profunda en el núcleo (src/core) con ${metrics.totalLinesChanged} líneas modificadas.`
+      rationale: `Deep refactoring in core (src/core) with ${metrics.totalLinesChanged} modified lines.`
     };
   }
   if (metrics.totalLinesChanged >= MAJOR_DIFF_LINES_THRESHOLD) {
     return {
       recommendedBump: 'major',
-      rationale: `Transformación arquitectónica de gran escala (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`
+      rationale: `Large-scale architectural transformation (${metrics.totalLinesChanged} lines in ${metrics.filesChanged} files).`
     };
   }
   if (metrics.hasNewFeatures) {
     return {
       recommendedBump: 'minor',
-      rationale: 'Nueva funcionalidad, suite o skill incorporada al repositorio.'
+      rationale: 'New feature, suite, or skill added to the repository.'
     };
   }
   if (
@@ -307,12 +307,12 @@ function evaluateBumpRationale(metrics: DiffMetrics): {
   ) {
     return {
       recommendedBump: 'minor',
-      rationale: `Ampliación de capacidades con ${metrics.totalLinesChanged} líneas modificadas y nuevos archivos.`
+      rationale: `Capability expansion with ${metrics.totalLinesChanged} modified lines and new files.`
     };
   }
   return {
     recommendedBump: 'patch',
-    rationale: `Ajustes menores, correcciones o mantenimiento (${metrics.totalLinesChanged} líneas en ${metrics.filesChanged} archivos).`
+    rationale: `Minor adjustments, bug fixes, or maintenance (${metrics.totalLinesChanged} lines in ${metrics.filesChanged} files).`
   };
 }
 

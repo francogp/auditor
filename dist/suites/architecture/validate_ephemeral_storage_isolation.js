@@ -241,7 +241,7 @@ var EphemeralStorageIsolationAuditor = class extends BaseAuditor {
 			".sh"
 		]));
 		if (scannableFiles.length === 0) {
-			this.markRuleNotApplicable("ephemeral-no-source-temp-references", "No se encontraron archivos de código fuente");
+			this.markRuleNotApplicable("ephemeral-no-source-temp-references", "No source code files found");
 			return;
 		}
 		for (const filePath of scannableFiles) {

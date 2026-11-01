@@ -1,9 +1,12 @@
-import { tryOrNullAsync } from "../../core/safeUtils.js";
+import { tryOrNull, tryOrNullAsync } from "../../core/safeUtils.js";
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/auditConfig.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, matchesSinglePattern } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
+import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import { lintSource } from "@secretlint/core";
 import { rules } from "@secretlint/secretlint-rule-preset-recommend";
 // src/suites/architecture/validate_secret_leaks.ts
@@ -39,6 +42,54 @@ function buildSecretLintConfig(allows) {
 	})) };
 }
 /**
+* Detects staged git files that may contain secrets using git diff --cached with -G and --name-only.
+* Returns only the matching file names to ensure raw secrets never leak into terminal output or agent tool logs.
+*/
+function detectStagedSecretFiles(projectRoot = process.cwd()) {
+	try {
+		const proc = spawnSync("git", [
+			"diff",
+			"--cached",
+			"-i",
+			"-Gpassword|secret|api_key|token",
+			"--name-only"
+		], {
+			cwd: projectRoot,
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"ignore"
+			]
+		});
+		if (proc.status !== 0 || !proc.stdout) return [];
+		return proc.stdout.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+	} catch {
+		return [];
+	}
+}
+/**
+* Reads a staged blob directly from the Git index using `git show :<path>`.
+* Returns the staged file content, or null if unresolvable.
+*/
+function readGitStagedBlob(projectRoot, relPath) {
+	const normalized = normalizePosixPath(relPath);
+	try {
+		const res = spawnSync("git", ["show", `:${normalized}`], {
+			cwd: projectRoot,
+			encoding: "utf8",
+			stdio: [
+				"ignore",
+				"pipe",
+				"ignore"
+			]
+		});
+		return res.status === 0 && typeof res.stdout === "string" ? res.stdout : null;
+	} catch {
+		return null;
+	}
+}
+/**
 * Maps a single secretlint message to a canonical AuditFinding.
 */
 function mapSecretLintMessageToFinding(msg, relPath) {
@@ -57,6 +108,7 @@ function mapSecretLintMessageToFinding(msg, relPath) {
 }
 var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 	secretLintConfig;
+	scannedFiles = /* @__PURE__ */ new Set();
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		super({
@@ -100,10 +152,26 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 		this.secretLintConfig = buildSecretLintConfig();
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Secret leaks audit desactivado en config")) return;
+		if (this.isSuiteGatingDisabled("Secret leaks audit disabled in config")) return;
+		this.scannedFiles.clear();
 		await super.runAudit();
+		const stagedFiles = detectStagedSecretFiles(this.projectRoot);
+		for (const stagedFile of stagedFiles) {
+			const relPath = normalizePosixPath(stagedFile);
+			if (this.scannedFiles.has(relPath)) continue;
+			const stagedContent = readGitStagedBlob(this.projectRoot, relPath);
+			if (stagedContent !== null) await this.scanFile(relPath, stagedContent);
+			else {
+				const fullPath = path.resolve(this.projectRoot, stagedFile);
+				if (fs.existsSync(fullPath)) {
+					const content = tryOrNull(() => fs.readFileSync(fullPath, "utf8"));
+					if (content) await this.scanFile(relPath, content);
+				}
+			}
+		}
 	}
 	async scanFile(relPath, content) {
+		this.scannedFiles.add(normalizePosixPath(relPath));
 		const config = getAuditConfig(this.projectRoot);
 		const exemptGlobs = config.secretLeaks?.exemptGlobs ?? [];
 		for (const glob of exemptGlobs) if (matchesSinglePattern(relPath, glob)) return;
@@ -158,4 +226,4 @@ var ValidateSecretLeaksAuditor = class extends FileScanAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateSecretLeaksAuditor());
-export { SECRET_LEAKS_RULES, SECRET_SCAN_EXTENSIONS, ValidateSecretLeaksAuditor, buildSecretLintConfig, mapSecretLintMessageToFinding };
+export { SECRET_LEAKS_RULES, SECRET_SCAN_EXTENSIONS, ValidateSecretLeaksAuditor, buildSecretLintConfig, detectStagedSecretFiles, mapSecretLintMessageToFinding, readGitStagedBlob };

@@ -19,10 +19,12 @@ metadata:
 # Safe Commit Workflow (@francogp/auditor Edition)
 
 > [!CAUTION]
-> **PRIMORDIAL & FOUNDATIONAL MANDATE: ABSOLUTE PROHIBITION ON DISABLING OR MODIFYING CONFIGURATION TO BYPASS ERRORS WITHOUT EXPLICIT PROGRAMMER CONSULTATION**
+> **PRIMORDIAL & FOUNDATIONAL MANDATE: ABSOLUTE PROHIBITION ON DISABLING OR MODIFYING CONFIGURATION TO BYPASS ERRORS & ABSOLUTE BAN ON DESTRUCTIVE GIT CHECKOUTS**
 > You MUST NEVER turn off, disable, relax, revert, or modify auditor configuration (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`, etc.) because a verification suite reported errors or warnings. If a check fails (even with hundreds or thousands of errors), **THEY ARE REAL DEFECTS**.
 >
-> Making changes to configurations to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run auditor:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
+> Executing `git checkout --`, `git restore`, or discarding working tree changes pre-existing before the session is **CATEGORICALLY FORBIDDEN**. Pre-existing uncommitted modifications belong exclusively to the programmer. Furthermore, manual editing of hashes in `skills-lock.json` is strictly prohibited—updating skills MUST be executed deterministically via `npm exec --yes -- skills update -p -y`.
+>
+> Making changes to configurations or reverting working tree files to produce a "fake pass" is **STRICTLY AND CATEGORICALLY PROHIBITED**. If defects cannot be legitimately resolved in the source code or via canonical auto-repair (`npm run auditor:fix`), the agent **MUST HALT SAFE-COMMIT IMMEDIATELY**, report the exact defects truthfully, and **OBLIGATORILY CONSULT THE HUMAN PROGRAMMER** before touching any configuration.
 
 ---
 
@@ -42,7 +44,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 | **One command per turn** | Issue one tool call, read its output, then decide the next step. Never batch. |
 | **Read before continuing** | "I ran it" ≠ "I verified the result." Read every output before proceeding. |
 | **No optional phases** | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN. |
-| **Config Ratchet Pre-Flight Integrity Gate (`validate_audit_config`)** | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor suite=validate_audit_config`. The online configuration ratchet automatically compares local configuration against `ratchet.productionRef` (default `origin/main`). If ANY rule relaxation or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight. |
+| **Config Ratchet & Setup Pre-Flight Integrity Gate (`auditor:setup`)** | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor:setup` (or `npm run auditor phase=setup`). All setup phase suites run to validate the online configuration ratchet against `ratchet.productionRef` (default `origin/main`) and verify that 100% of satellite configurations (.fallowrc.json, .stylelintrc.json, vite.config.ts, tsconfig.json, .htmlvalidate.json, .markdownlint.json) are synchronized with zero undeclared exemptions or relaxations. If ANY rule relaxation, satellite desynchronization, or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight. |
 | **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
 | **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code. |
 | **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
@@ -63,7 +65,7 @@ This workflow is a **strict state machine**, not a loose checklist. Each step pr
 
 ```mermaid
 graph TD
-    PRE["Gate 0.0\nPre-Flight Config Ratchet\nnpm run auditor suite=validate_audit_config"] -->|"Ratchet Relaxation / Setup Error 🛑"| STOP_PRE{"🛑 HALT SAFE-COMMIT\nUnauthorized config relaxation (RELAX code required)"}
+    PRE["Gate 0.0\nPre-Flight Setup & Ratchet\nnpm run auditor:setup"] -->|"Ratchet Relaxation / Setup Error 🛑"| STOP_PRE{"🛑 HALT SAFE-COMMIT\nUnauthorized config relaxation or satellite desync"}
     PRE -->|"Passed (Exit 0) ✅"| A0["Phase 0\nCreate task.md"]
     A0 --> A1["Phase 1\nTest Gaps + Safety Backup\n+ Version Bump Decision"]
     A1 --> LOOP
@@ -97,28 +99,29 @@ graph TD
 
 ---
 
-## Phase 0: Pre-Flight Configuration Ratchet Gate & Artifact Initialization
+## Phase 0: Pre-Flight Configuration Ratchet & Setup Gate & Artifact Initialization
 
 > [!CAUTION]
-> **GATE 0.0 PRE-FLIGHT RATCHET BLOCKING**: Before creating `task.md`, before running any script, and before touching anything, the agent MUST run the configuration ratchet gate (`validate_audit_config`). If any unauthorized rule relaxation or config tampering exists, safe-commit MUST NOT START.
+> **GATE 0.0 PRE-FLIGHT SETUP & RATCHET BLOCKING**: Before creating `task.md`, before running any script, and before touching anything, the agent MUST run all setup suites (`npm run auditor:setup` or `npm run auditor phase=setup`). If any unauthorized rule relaxation, config tampering, or satellite configuration desynchronization (undeclared entries, diverged configs in `.fallowrc.json`, `.stylelintrc.json`, etc.) exists, safe-commit MUST NOT START.
 
-**Step 0.0** — Pre-Flight Configuration Ratchet Gate (Blocking Pre-Condition)
+**Step 0.0** — Pre-Flight Configuration Ratchet & Setup Gate (Blocking Pre-Condition)
 
-1. Execute the canonical setup suite evaluating the online configuration ratchet:
+1. Execute the canonical setup phase evaluating the online configuration ratchet and satellite configuration alignment:
 
    ```bash
-   npm run auditor suite=validate_audit_config
+   npm run auditor:setup
+   # or: npm run auditor phase=setup
    ```
 
 2. **Evaluation & Immediate Blocking Mandate**:
-   - **Passed (Exit 0 ✅)**: The configuration ratchet compared local configuration against `ratchet.productionRef` (default `origin/main`), confirmed zero rule relaxations, verified `.gitignore`, and validated all setup constraints. Proceed immediately to Step 0.1.
-   - **🛑 FORBIDDEN & IMMEDIATE PRE-FLIGHT HALT**: If `validate_audit_config` fails with `audit-config-ratchet-relaxation` (or any setup error in `phase: 'setup'`):
+   - **Passed (Exit 0 ✅)**: The setup phase validated the online configuration ratchet against `ratchet.productionRef` (default `origin/main`), confirmed zero rule relaxations, verified satellite config synchronization (.fallowrc.json, .stylelintrc.json, vite.config.ts, tsconfig.json, .htmlvalidate.json, .markdownlint.json), verified `.gitignore`, and validated all setup constraints. Proceed immediately to Step 0.1.
+   - **🛑 FORBIDDEN & IMMEDIATE PRE-FLIGHT HALT**: If `auditor:setup` fails with `audit-config-ratchet-relaxation`, `fallow-undeclared-config-entry`, `stylelint-undeclared-config-entry`, `tsconfig-undeclared-config-entry`, `vite-plus-undeclared-config-entry`, `html-validate-undeclared-config-entry`, `markdownlint-undeclared-config-entry`, or any setup error in `phase: 'setup'`:
      - **DO NOT PROCEED TO STEP 0.1**.
      - **DO NOT CREATE `task.md`**.
      - **DO NOT RUN TESTS, BUILDS, OR VERSION BUMPS**.
-     - The configuration ratchet detected that a rule or threshold was weakened or altered compared to `origin/main` without verified Antigravity user authorization.
-     - Halt immediately. Display the Red Boxen Alert with the detected relaxation, the specific path, and the required authorization code (`RELAX-<8hex>`).
-     - Instruct the user that they must explicitly approve the relaxation code in chat to proceed, or revert the configuration modifications back to `origin/main`.
+     - A rule was weakened or a satellite configuration was desynchronized from the Single Source of Truth (`.auditor/audit.config.ts`) without authorization.
+     - Halt immediately. Display the Red Boxen Alert with the detected error, the specific path or file, and any required authorization code (`RELAX-<8hex>`).
+     - Instruct the user that they must explicitly approve the relaxation code or resolve the desynchronization before safe-commit can begin.
 
 **Step 0.1** — Initialize `task.md` (Strict Overwrite)
 
@@ -305,7 +308,9 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
 Once the user approves:
 
 - **Step 4.1**: Apply approved lessons and modernizations across targeted `AGENTS.md` files and affected documentation.
-- **Step 4.2**: Run pre-commit sanity check: `npm run auditor:md`.
+- **Step 4.2**: Run pre-commit sanity checks:
+  1. Documentation hygiene: `npm run auditor:md`.
+  2. Staged secret leak check: `git diff --cached -i -G'password|secret|api_key|token' --name-only` (prints exclusively matching file names without leaking raw secrets or tokens into terminal logs or agent histories; if any file name is printed, inspect and unstage/clean before committing).
 - **Step 4.3**: Synthesize the final commit message following [commit-standards.md](./references/commit-standards.md).
 - **Step 4.4**: **Single Atomic Commit & Tag**:
   - If version was bumped in Step 1.4, write the synthesized message to a temporary file (`scratch/release_notes.txt`) and run the atomic chained command:

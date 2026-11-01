@@ -14,7 +14,7 @@ import path from "node:path";
 const Z_INDEX_CONSISTENCY_DESCRIPTOR = {
 	id: "z-index-parity",
 	name: "Z-Index Parity (Design System Layers)",
-	category: "Z-Index fuera de estándar",
+	category: "Z-Index outside standard",
 	aliases: [
 		"z-index",
 		"zindex",
@@ -110,7 +110,7 @@ function fixZIndexLiteral(match) {
 const zIndexAudit = {
 	id: "zIndexAudit",
 	name: "Z-Index Audit",
-	category: "Z-Index fuera de estándar",
+	category: "Z-Index outside standard",
 	aliases: [
 		"z-index",
 		"zindex",

@@ -464,7 +464,7 @@ var MarkdownCodeReferencesAuditor = class extends BaseAuditor {
 		const allSkills = discoverRegisteredSkills(this.rootDir);
 		const mdFiles = this.collectMarkdownFiles();
 		if (mdFiles.length === 0) {
-			for (const r of MARKDOWN_CODE_REFERENCE_RULES) this.markRuleNotApplicable(r, "No se encontraron archivos markdown");
+			for (const r of MARKDOWN_CODE_REFERENCE_RULES) this.markRuleNotApplicable(r, "No markdown files found");
 			return;
 		}
 		let referencesChecked = 0;

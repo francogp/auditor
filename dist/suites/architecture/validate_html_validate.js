@@ -4,6 +4,7 @@ import { extractJsonReportFilePaths, normalizePosixPath, parseLintResultsToFindi
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, isPathIgnored } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -111,7 +112,8 @@ var HtmlValidateAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "html-validate",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "html-validate-issue"
+				fallbackRuleId: "html-validate-issue",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.htmlValidate
 			},
 			ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
 				speed: "light",

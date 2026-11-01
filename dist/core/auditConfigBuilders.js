@@ -209,7 +209,11 @@ function buildDocumentationSubConfig(d) {
 		allowedNpxBinaries: d?.allowedNpxBinaries ? [...d.allowedNpxBinaries] : DEFAULT_AUDIT_CONFIG.documentation?.allowedNpxBinaries ?? [],
 		language: d?.language ?? DEFAULT_AUDIT_CONFIG.documentation?.language ?? "en",
 		chatLanguage: d?.chatLanguage ?? DEFAULT_AUDIT_CONFIG.documentation?.chatLanguage ?? "es",
-		languageExemptions: d?.languageExemptions ? [...d.languageExemptions] : DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? []
+		languageExemptions: d?.languageExemptions ? [...d.languageExemptions] : DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? [],
+		markdownLint: d?.markdownLint ? {
+			rules: d.markdownLint.rules ? { ...d.markdownLint.rules } : void 0,
+			disabledRules: d.markdownLint.disabledRules ? d.markdownLint.disabledRules.filter((r) => typeof r === "string") : void 0
+		} : void 0
 	};
 }
 function buildConstantsAndDocConfig(config) {
@@ -278,7 +282,11 @@ function buildFallowConfig(raw, rootSecurity) {
 		viz: {
 			enabled: f.viz?.enabled ?? def?.viz?.enabled ?? true,
 			outputPath: f.viz?.outputPath ?? def?.viz?.outputPath ?? "scratch/fallow_map.html"
-		}
+		},
+		...f.ignoreGlobs ? { ignoreGlobs: f.ignoreGlobs } : {},
+		...f.ignorePatterns ? { ignorePatterns: f.ignorePatterns } : {},
+		...f.ignoreDependencies ? { ignoreDependencies: f.ignoreDependencies } : {},
+		...f.exemptDependencies ? { exemptDependencies: f.exemptDependencies } : {}
 	};
 }
 function buildPackageHygieneConfig(raw) {
@@ -421,7 +429,7 @@ function buildAccessibilityConfig(raw) {
 	const parsedRules = {};
 	const sourceRules = a.rules ?? def?.rules ?? {};
 	for (const [key, val] of Object.entries(sourceRules)) {
-		if (typeof val !== "boolean") throw new Error(`[AuditConfig] Error de tipo en 'accessibility.rules.${key}': se recibió '${String(val)}'. Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'error' está estrictamente prohibido.`);
+		if (typeof val !== "boolean") throw new Error(`[AuditConfig] Type error in 'accessibility.rules.${key}': received '${String(val)}'. Must be a strict boolean value (true or false). The use of strings like 'off' or 'error' is strictly prohibited.`);
 		parsedRules[key] = val;
 	}
 	return {
@@ -471,7 +479,12 @@ function buildOxfmtConfig(raw) {
 	return buildBaseSubsystemConfig(raw, DEFAULT_AUDIT_CONFIG.oxfmt?.enabled ?? true);
 }
 function buildHtmlValidateConfig(raw) {
-	return buildBaseSubsystemConfig(raw, DEFAULT_AUDIT_CONFIG.htmlValidate?.enabled ?? true);
+	return {
+		...buildBaseSubsystemConfig(raw, DEFAULT_AUDIT_CONFIG.htmlValidate?.enabled ?? true),
+		rules: raw?.rules ? { ...raw.rules } : void 0,
+		disabledRules: raw?.disabledRules ? raw.disabledRules.filter((r) => typeof r === "string") : void 0,
+		extraPlugins: raw?.extraPlugins ? raw.extraPlugins.filter((p) => typeof p === "string") : void 0
+	};
 }
 function buildVitePlusPrecompressConfig(raw, def) {
 	const v = raw ?? {};
@@ -612,7 +625,7 @@ function resolveAcknowledgedDegradations(rawDegradations, paths, protectedRoots)
 	for (const entry of rawDegradations ?? []) {
 		const glob = entry?.glob ?? "";
 		const policy = entry?.policy;
-		if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) throw new Error(`[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(", ")}.`);
+		if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) throw new Error(`[AuditConfig] 'coverage.acknowledgedDegradations' declares an unknown policy '${String(policy)}'. Valid: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(", ")}.`);
 		const exemptRoots = getExemptRootsForPolicy(policy, paths);
 		const effectiveProtectedRoots = exemptRoots.length > 0 ? filterOutExemptRoots(protectedRoots, exemptRoots) : protectedRoots;
 		assertNarrowCoverageGlob("coverage.acknowledgedDegradations", glob, effectiveProtectedRoots);

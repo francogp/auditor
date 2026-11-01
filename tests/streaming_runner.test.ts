@@ -8,11 +8,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test'
 
 import type { AuditTaskDefinition } from '../src/core/auditContract.ts';
 import {
-  TaskStreamCoordinator,
-  isNodeInternalWarning,
-  executeAuditorStreaming,
-  type TaskStreamProgressParams
-} from '../src/core/streamingRunner.ts';
+  type TaskStreamProgressParams,
+  isSubAuditorFailed,
+  isSubAuditorWarning,
+  resolveEffectiveErrorsCount,
+  resolveEffectiveWarningsCount
+} from '../src/core/streamingFormat.ts';
+import { isNodeInternalWarning, executeAuditorStreaming } from '../src/core/streamingRunner.ts';
+import { TaskStreamCoordinator } from '../src/core/taskStreamCoordinator.ts';
 
 describe('streamingRunner Core Utility', () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
@@ -227,7 +230,7 @@ describe('streamingRunner Core Utility', () => {
       expect(consoleLogSpy).not.toHaveBeenCalled();
     });
 
-    it('emits early alert line when a suite fails in compact mode without dumping sub-lines', async () => {
+    it('emits early alert line when a suite fails in compact mode without dumping sub-lines and includes error count', async () => {
       const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
 
       const failingParams: TaskStreamProgressParams = {
@@ -237,6 +240,7 @@ describe('streamingRunner Core Utility', () => {
         isSuccess: false,
         hasWarnings: false,
         isSkipped: false,
+        errorsCount: 1,
         subLines: [
           '🔍 [1/8] Config: Ruta configurada no existe [🐛 1] 🐇 (5 ms)',
           '🔍 [2/8] Config: Archivo no existe 🐇 (0 ms)'
@@ -249,7 +253,129 @@ describe('streamingRunner Core Utility', () => {
       const logCall = consoleLogSpy.mock.calls[0]?.[0] as string;
       expect(logCall).toContain('Audit Config');
       expect(logCall).toContain('validate_audit_config');
+      expect(logCall).toContain('(1 error)');
       expect(logCall).not.toContain('Config: Ruta configurada no existe');
+    });
+
+    it('emits warning line with warning count in compact mode', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
+
+      const warningParams: TaskStreamProgressParams = {
+        taskId: 'validate_audit_config',
+        taskName: 'Audit Config',
+        durationMs: 30,
+        isSuccess: true,
+        hasWarnings: true,
+        isSkipped: false,
+        warningsCount: 3,
+        subLines: []
+      };
+
+      await coordinator.onTaskComplete(warningParams);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      const logCall = consoleLogSpy.mock.calls[0]?.[0] as string;
+      expect(logCall).toContain('Audit Config');
+      expect(logCall).toContain('validate_audit_config');
+      expect(logCall).toContain('(3 warnings)');
+      expect(logCall).toContain('⚠️');
+    });
+
+    it('emits mixed errors and warnings count badge in compact mode', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
+
+      const mixedParams: TaskStreamProgressParams = {
+        taskId: 'validate_audit_config',
+        taskName: 'Audit Config',
+        durationMs: 40,
+        isSuccess: false,
+        hasWarnings: true,
+        isSkipped: false,
+        errorsCount: 2,
+        warningsCount: 3,
+        subLines: []
+      };
+
+      await coordinator.onTaskComplete(mixedParams);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      const logCall = consoleLogSpy.mock.calls[0]?.[0] as string;
+      expect(logCall).toContain('Audit Config');
+      expect(logCall).toContain('validate_audit_config');
+      expect(logCall).toContain('(2 errors, 3 warnings)');
+      expect(logCall).toContain('❌');
+    });
+
+    it('emits warning badge and never error icon when suite has warnings and zero errors', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'compact' });
+
+      // Even if isSuccess was false due to status === 'warning', zero errors + hasWarnings must emit ⚠️
+      const warningOnlyParams: TaskStreamProgressParams = {
+        taskId: 'validate_package_hygiene',
+        taskName: 'Package Hygiene',
+        durationMs: 25,
+        isSuccess: false,
+        hasWarnings: true,
+        isSkipped: false,
+        errorsCount: 0,
+        warningsCount: 2,
+        subLines: []
+      };
+
+      await coordinator.onTaskComplete(warningOnlyParams);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(1);
+      const logCall = consoleLogSpy.mock.calls[0]?.[0] as string;
+      expect(logCall).toContain('Package Hygiene');
+      expect(logCall).toContain('⚠️');
+      expect(logCall).not.toContain('❌');
+      expect(logCall).toContain('(2 warnings)');
+    });
+
+    it('evaluates isSubAuditorFailed and isSubAuditorWarning correctly', () => {
+      expect(isSubAuditorFailed({ errorsCount: 1, status: 'passed' })).toBe(true);
+      expect(isSubAuditorFailed({ errorsCount: 0, status: 'failed' })).toBe(true);
+      expect(isSubAuditorFailed({ errorsCount: 0, status: 'passed' })).toBe(false);
+
+      expect(isSubAuditorWarning({ warningsCount: 1, status: 'passed' })).toBe(true);
+      expect(isSubAuditorWarning({ warningsCount: 0, status: 'warning' })).toBe(true);
+      expect(isSubAuditorWarning({ warningsCount: 0, status: 'passed' })).toBe(false);
+    });
+
+    it('resolves effective errors and warnings count correctly', () => {
+      expect(resolveEffectiveErrorsCount({ errorsCount: 3 }, 5)).toBe(3);
+      expect(resolveEffectiveErrorsCount({ errorsCount: 0, warningsCount: 2 }, 2)).toBe(0);
+      expect(resolveEffectiveErrorsCount({ status: 'failed' }, 4)).toBe(4);
+
+      expect(resolveEffectiveWarningsCount({ warningsCount: 2 }, 5)).toBe(2);
+      expect(resolveEffectiveWarningsCount({ errorsCount: 3, warningsCount: 0 }, 3)).toBe(0);
+      expect(resolveEffectiveWarningsCount({ status: 'warning' }, 3)).toBe(3);
+    });
+
+    it('emits warning badge and never error icon in human mode when suite has warnings and zero errors', async () => {
+      const coordinator = new TaskStreamCoordinator(5, { mode: 'human' });
+
+      const warningParams: TaskStreamProgressParams = {
+        taskId: 'validate_package_hygiene',
+        taskName: 'Package Hygiene',
+        durationMs: 25,
+        isSuccess: false,
+        hasWarnings: true,
+        isSkipped: false,
+        errorsCount: 0,
+        warningsCount: 2,
+        subLines: ['⚠️ [1/2] Package: Missing peer dependency 🐇 (2 ms)']
+      };
+
+      await coordinator.onTaskComplete(warningParams);
+
+      expect(consoleLogSpy).toHaveBeenCalledTimes(2);
+      const headerLine = String(consoleLogSpy.mock.calls[0]?.[0]);
+      expect(headerLine).toContain('Package Hygiene');
+      expect(headerLine).toContain('⚠️');
+      expect(headerLine).not.toContain('❌');
+      const subLine = String(consoleLogSpy.mock.calls[1]?.[0]);
+      expect(subLine).toContain('Missing peer dependency');
     });
 
     it('emits full progress bar and all sub-lines in human mode', async () => {

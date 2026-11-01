@@ -1,8 +1,9 @@
+import { createDomainSet } from "./domainCollections.js";
 import { safeReadFileSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import { createDomainSet } from "./domainCollections.js";
 import "./safePath.js";
 import { extractExportedConfigObjectLiteral } from "./astContext.js";
+import { isPatternContainedInGlobs } from "./globContainment.js";
 import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier.js";
 import path from "node:path";
 import ts from "typescript";
@@ -119,16 +120,76 @@ function toStringSet(val) {
 	if (val && typeof val === "object" && val instanceof Set) return new Set(Array.from(val).map(String));
 	return /* @__PURE__ */ new Set();
 }
+const DISCRETE_EXEMPTION_FIELDS = createDomainSet([
+	"disabledDetectors",
+	"infraIdWhitelist",
+	"exemptMagicNumbers",
+	"testFragmentationWhitelist",
+	"ignoreDependencies",
+	"exemptDependencies",
+	"ignoreBinaries",
+	"exemptSignatures",
+	"exemptCollections"
+]);
+const PATH_EXEMPTION_FIELDS = createDomainSet([
+	"dataRoots",
+	"demoRoots",
+	"cliRoots",
+	"exemptFiles",
+	"exemptCssFiles",
+	"ignoreGlobs",
+	"exemptGlobs",
+	"ignorePatterns"
+]);
+const EXEMPTION_FIELD_NAMES = createDomainSet([...DISCRETE_EXEMPTION_FIELDS, ...PATH_EXEMPTION_FIELDS]);
+function addNonEmptyStrings(items, targetSet) {
+	for (const item of items) if (typeof item === "string" && item.trim().length > 0) targetSet.add(item.trim());
+}
+/**
+* Recursively collects all path and glob exemptions present anywhere in the online baseline configuration.
+* Gathers paths.ignoreGlobs, paths.dataRoots, paths.demoRoots, and every subsystem's
+* exemptGlobs, exemptFiles, exemptCssFiles, ignoreGlobs, and ignorePatterns.
+*/
+function collectAllOnlinePathExemptions(onlineConfig) {
+	const allOnlinePaths = /* @__PURE__ */ new Set();
+	function collectFromObject(obj) {
+		if (!obj || typeof obj !== "object" || Array.isArray(obj)) return;
+		const record = obj;
+		for (const [key, val] of Object.entries(record)) if (PATH_EXEMPTION_FIELDS.has(key) && Array.isArray(val)) addNonEmptyStrings(val, allOnlinePaths);
+		else if (val && typeof val === "object" && !Array.isArray(val)) collectFromObject(val);
+	}
+	collectFromObject(onlineConfig);
+	return allOnlinePaths;
+}
+/**
+* Evaluates whether a local path or glob is already covered / subsumed by online exemption entries.
+* Checks both the field-level online set and the repository-wide online path exemptions.
+* If localPath is inside any online path (e.g. 'database/migrations/save.sql' inside 'database/migrations/**'),
+* narrowing or moving the exemption to a specific file is a hardening pass and does NOT constitute a relaxation.
+*/
+function isPathCoveredByOnlineExemptions(localPath, fieldOnlineSet, allOnlinePathExemptions) {
+	if (isPatternContainedInGlobs(localPath, fieldOnlineSet, [])) return true;
+	if (allOnlinePathExemptions && isPatternContainedInGlobs(localPath, allOnlinePathExemptions, [])) return true;
+	return false;
+}
+/**
+* Extracts the trailing property identifier from a dot-delimited configuration property path.
+*/
+function extractPropertyKey(propertyChain) {
+	const lastDot = propertyChain.lastIndexOf(".");
+	return lastDot === -1 ? propertyChain : propertyChain.slice(lastDot + 1);
+}
 /**
 * Compares exemption list entries. Adding new exemptions is a relaxation.
 */
-function compareExemptionLists(file, fieldPath, onlineVal, localVal, relaxations) {
+function compareExemptionLists(file, configPropPath, onlineVal, localVal, relaxations, allOnlinePathExemptions) {
 	const onlineSet = toStringSet(onlineVal);
 	const localSet = toStringSet(localVal);
-	const added = Array.from(localSet).filter((x) => !onlineSet.has(x));
+	const propKey = extractPropertyKey(configPropPath);
+	const added = PATH_EXEMPTION_FIELDS.has(propKey) ? Array.from(localSet).filter((pathEntry) => !isPathCoveredByOnlineExemptions(pathEntry, onlineSet, allOnlinePathExemptions)) : Array.from(localSet).filter((entry) => !onlineSet.has(entry));
 	if (added.length > 0) relaxations.push({
 		file,
-		path: fieldPath,
+		path: configPropPath,
 		description: `Added ${added.length} new exemption(s): ${added.slice(0, 3).join(", ")}${added.length > 3 ? "..." : ""}`,
 		onlineValue: Array.from(onlineSet),
 		localValue: Array.from(localSet)
@@ -157,24 +218,12 @@ const CEILING_METRIC_KEYS = createDomainSet([
 	"maxNestingDepth",
 	"maxLines"
 ]);
-const EXEMPTION_FIELD_NAMES = createDomainSet([
-	"exemptGlobs",
-	"exemptFiles",
-	"ignoreGlobs",
-	"dataRoots",
-	"demoRoots",
-	"cliRoots",
-	"infraIdWhitelist",
-	"disabledDetectors",
-	"exemptMagicNumbers",
-	"exemptCssFiles",
-	"testFragmentationWhitelist"
-]);
 /**
 * Recursively inspects parsed config objects to detect added exemptions, lowered floors, or disabled suites.
 */
 function inspectAuditConfigChanges(onlineConfig, localConfig, configFile = ".auditor/audit.config.ts") {
 	const relaxations = [];
+	const allOnlinePathExemptions = collectAllOnlinePathExemptions(onlineConfig);
 	function evaluateNumericLimit(fieldPath, key, onlineVal, localVal) {
 		if (typeof onlineVal !== "number") return false;
 		if (fieldPath.includes("complexity") || CEILING_METRIC_KEYS.has(key)) {
@@ -202,7 +251,7 @@ function inspectAuditConfigChanges(onlineConfig, localConfig, configFile = ".aud
 		if (key !== "acknowledgedDegradations" || !localVal || typeof localVal !== "object") return false;
 		const onlineDeg = onlineVal && typeof onlineVal === "object" ? onlineVal : {};
 		const localDeg = localVal;
-		for (const policy of Object.keys(localDeg)) compareExemptionLists(configFile, `${fieldPath}.${policy}`, onlineDeg[policy], localDeg[policy], relaxations);
+		for (const policy of Object.keys(localDeg)) compareExemptionLists(configFile, `${fieldPath}.${policy}`, onlineDeg[policy], localDeg[policy], relaxations, allOnlinePathExemptions);
 		return true;
 	}
 	function scanObject(onlineObj, localObj, prefix = "") {
@@ -212,7 +261,7 @@ function inspectAuditConfigChanges(onlineConfig, localConfig, configFile = ".aud
 			const onlineVal = onlineObj[key];
 			const localVal = localObj[key];
 			if (EXEMPTION_FIELD_NAMES.has(key)) {
-				compareExemptionLists(configFile, fieldPath, onlineVal, localVal, relaxations);
+				compareExemptionLists(configFile, fieldPath, onlineVal, localVal, relaxations, allOnlinePathExemptions);
 				continue;
 			}
 			if (evaluateNumericLimit(fieldPath, key, onlineVal, localVal)) continue;
@@ -345,4 +394,4 @@ function auditConfigRatchet(projectRoot, localConfig, options = {}) {
 		message: `Unauthorized rule relaxation detected relative to '${effectiveRef}'.\nTo authorize this relaxation, confirm code '${relaxationCode}' in the Antigravity chat.`
 	};
 }
-export { auditConfigRatchet, computeRelaxationCode, inspectAuditConfigChanges, inspectLinterConfigChanges, readGitFile, resolveProductionRef, runGit };
+export { auditConfigRatchet, collectAllOnlinePathExemptions, computeRelaxationCode, inspectAuditConfigChanges, inspectLinterConfigChanges, isPathCoveredByOnlineExemptions, readGitFile, resolveProductionRef, runGit };

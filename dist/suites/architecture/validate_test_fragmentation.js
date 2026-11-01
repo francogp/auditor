@@ -146,12 +146,12 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 	}
 	async runAudit() {
 		await super.runAudit();
-		this.context.setMetric("Suites Ideales (300-800L)", this.distribution.target);
-		this.context.setMetric("Suites Pequeñas (60-299L)", this.distribution.small);
+		this.context.setMetric("Ideal Suites (300-800L)", this.distribution.target);
+		this.context.setMetric("Small Suites (60-299L)", this.distribution.small);
 		this.context.setMetric("Micro-suites (<60L)", this.distribution.micro);
-		this.context.setMetric("Sobredimensionadas (>1200L)", this.distribution.oversized);
-		this.context.setMetric("Total Archivos Test", this.distribution.totalTestFiles);
-		this.context.setMetric("Total Líneas Test", this.distribution.totalTestLines);
+		this.context.setMetric("Oversized Suites (>1200L)", this.distribution.oversized);
+		this.context.setMetric("Total Test Files", this.distribution.totalTestFiles);
+		this.context.setMetric("Total Test Lines", this.distribution.totalTestLines);
 		if (parseCittyArgs({ summary: {
 			type: "boolean",
 			default: false
@@ -160,40 +160,40 @@ var TestFragmentationAuditor = class extends FileScanAuditor {
 	printDistributionSummary() {
 		const d = this.distribution;
 		const tableStr = renderBoxTable([{
-			header: "DISTRIBUCIÓN DE SUITES",
+			header: "SUITE DISTRIBUTION",
 			width: 35,
 			key: "category"
 		}, {
-			header: "CANTIDAD",
+			header: "COUNT",
 			width: 15,
 			align: "right",
 			key: "count"
 		}], [
 			{
-				category: "Micro-archivos (<60 líns)",
+				category: "Micro-files (<60 lines)",
 				count: String(d.micro)
 			},
 			{
-				category: "Suites Pequeñas (60-299 líns)",
+				category: "Small Suites (60-299 lines)",
 				count: String(d.small)
 			},
 			{
-				category: "Suites Objetivo (300-800 líns)",
+				category: "Target Suites (300-800 lines)",
 				count: `${d.target} (Ideal)`
 			},
 			{
-				category: "Suites Medias (801-1200 líns)",
+				category: "Medium Suites (801-1200 lines)",
 				count: String(d.other)
 			},
 			{
-				category: "Sobredimensionadas (>1200 líns)",
+				category: "Oversized Suites (>1200 lines)",
 				count: String(d.oversized)
 			}
 		], { footerRows: [{
-			category: "Total Archivos de Test",
+			category: "Total Test Files",
 			count: String(d.totalTestFiles)
 		}, {
-			category: "Total Líneas de Código Test",
+			category: "Total Test Code Lines",
 			count: String(d.totalTestLines)
 		}] });
 		process.stdout.write(`\n${tableStr}\n\n`);

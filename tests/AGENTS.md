@@ -48,6 +48,7 @@ Architecture & Tooling Engineers.
 - [`cli_permission_execution.test.ts`](./cli_permission_execution.test.ts): Tests for Node.js Permission Model flag propagation and PERM0002 suppression.
 - [`config_file_registry.test.ts`](./config_file_registry.test.ts): Tests for centralized `ConfigFileRegistry`, declarative sub-auditor configuration requirements, and auto-scaffolding in fix mode.
 - [`config_ratchet.test.ts`](./config_ratchet.test.ts): Tests for unidirectional config ratchet, relaxation code hashing, and branded types.
+- [`config_ratchet_hardening_subsumption.test.ts`](./config_ratchet_hardening_subsumption.test.ts): Tests for spatial path containment, discrete exemption subsets, and ratchet relaxation prevention on tightening.
 - [`entity_registries_ssot.test.ts`](./entity_registries_ssot.test.ts): Tests asserting entity registry inheritance and zero legacy alias methods.
 - [`function_identity_deduplication.test.ts`](./function_identity_deduplication.test.ts): Tests verifying single execution for shared sub-auditor audit and fix functions.
 - [`markdown_lint_config_remediations.test.ts`](./markdown_lint_config_remediations.test.ts): Tests for markdownlint configuration remediation and MD033 table line break auto-injection.
@@ -56,8 +57,11 @@ Architecture & Tooling Engineers.
 - [`refactor_harness_compact.test.ts`](./refactor_harness_compact.test.ts): Tests for refactoring harness execution under compact console mode.
 - [`report_coverage_map.test.ts`](./report_coverage_map.test.ts): Tests for audit coverage map CLI and reporting.
 - [`report_test_coverage.test.ts`](./report_test_coverage.test.ts): Tests for test execution coverage reporting CLI.
+- [`satellite_config_undeclared_entries.test.ts`](./satellite_config_undeclared_entries.test.ts): Tests for all 6 satellite configs (`tsconfig.json`, `vite.config.ts`, `.stylelintrc.json`, `.htmlvalidate.json`, `.markdownlint.json`, `.fallowrc.json`) verifying detection and auto-fix of undeclared entries in `phase: 'setup'`.
 - [`scanner_utils.test.ts`](./scanner_utils.test.ts): Tests for lexical scanner utilities, delimiter balancing, and multiline comment lookbacks.
 - [`script_command_extractors.test.ts`](./script_command_extractors.test.ts): Tests for AST and syntax-aware command extraction across Shell, YAML, Dockerfile, PowerShell, and TypeScript scripts.
+- [`third_party_tool_contract.test.ts`](./third_party_tool_contract.test.ts): Tests for `usesThirdPartyTool: true` requiring `explainSatelliteConfig`, fail-loud instantiation rejection on omission, and clean path with external configurations and `undefined`.
+- [`transcript_authorization_tampering_precision.test.ts`](./transcript_authorization_tampering_precision.test.ts): Tests for anti-tamper precision in `transcriptAuthorizationVerifier.ts`, ensuring read-only tool calls and inline node inspection scripts do not trigger false tampering flags.
 - [`similar_code_audit_target.test.ts`](./similar_code_audit_target.test.ts): Tests for similar-code package.json and audit.config.ts target attribute resolution.
 - [`streaming_row_colorization.test.ts`](./streaming_row_colorization.test.ts): Tests for streaming row colorization based on error vs warning presence.
 - [`streaming_runner.test.ts`](./streaming_runner.test.ts): Tests for out-of-order immediate console streaming and atomic print lock.

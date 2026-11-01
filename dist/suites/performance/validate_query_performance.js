@@ -74,11 +74,11 @@ var ValidateQueryPerformanceAuditor = class extends FileScanAuditor {
 		this.excludeMigrationsDir = excludeMigrations;
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Rendimiento de consultas desactivado en config")) return;
+		if (this.isSuiteGatingDisabled("Query performance disabled in config")) return;
 		if (getAuditConfig(this.projectRoot).persistence?.engine === "none") {
 			this.markSkipped("Persistence engine configured as none");
 			for (const ruleId of this.ruleIds) this.runSubAuditorSync(ruleId, () => {
-				this.markRuleNotApplicable(ruleId, "Persistence engine configured as none; no aplica análisis de base de datos");
+				this.markRuleNotApplicable(ruleId, "Persistence engine configured as none; database analysis not applicable");
 			});
 			return;
 		}

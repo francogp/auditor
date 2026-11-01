@@ -20,14 +20,22 @@ import {
   type CanonicalRuleSeverityLevel,
   CANONICAL_RULE_SEVERITY_LEVELS
 } from '../../core/auditConfigTypes.ts';
-import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
+import {
+  type AuditorConfigFileRequirement,
+  SATELLITE_CONFIG_EXPLANATIONS
+} from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { isPathContained, toPosixRelative } from '../../core/safePath.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
+import { isPathContained, toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
+import {
+  validateSatelliteUndeclaredEntries,
+  getAllowedSatellitePathExcludes
+} from '../../core/satelliteGlobMatcher.ts';
 
 enableCompileCache();
 
@@ -39,7 +47,8 @@ export type FallowConfigRuleId =
   | 'fallow-stale-export'
   | 'fallow-empty-export-list'
   | 'fallow-duplicate-entry'
-  | 'fallow-config-workspace-diagnostic';
+  | 'fallow-config-workspace-diagnostic'
+  | 'fallow-undeclared-config-entry';
 
 export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-config-missing',
@@ -49,7 +58,8 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-stale-export',
   'fallow-empty-export-list',
   'fallow-duplicate-entry',
-  'fallow-config-workspace-diagnostic'
+  'fallow-config-workspace-diagnostic',
+  'fallow-undeclared-config-entry'
 ] as const;
 
 export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
@@ -604,6 +614,65 @@ export function validateFallowWorkspaceDiagnostics(
   return modified;
 }
 
+export function validateUndeclaredFallowEntries(
+  config: FallowConfigSchema,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  const auditConfig = getAuditConfig(auditor.projectRoot);
+
+  if (Array.isArray(config.ignorePatterns)) {
+    const testGlobs = (auditConfig.paths?.testRoots ?? []).map(
+      (t) => `${normalizePosixPath(t)}/**`
+    );
+    const effectiveGlobs = getEffectiveIgnoreGlobs(auditor.projectRoot, {
+      extraGlobs: testGlobs
+    });
+    const allowedGlobs = new Set<string>([
+      ...getAllowedSatellitePathExcludes(auditConfig, auditor.projectRoot),
+      ...(auditConfig.fallow?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+      ...(auditConfig.fallow?.ignorePatterns ?? []).map((p) => normalizePosixPath(p)),
+      ...(auditConfig.fallow?.exemptPaths ?? []).map((p) => normalizePosixPath(p))
+    ]);
+
+    validateSatelliteUndeclaredEntries(
+      config.ignorePatterns,
+      allowedGlobs,
+      effectiveGlobs,
+      (pattern, index) => {
+        auditor.addViolation({
+          ruleId: 'fallow-undeclared-config-entry',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: index + 1,
+          message: `Undeclared ignore pattern '${pattern}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreGlobs' or 'paths.ignoreGlobs', or remove it from .fallowrc.json.`,
+          context: pattern
+        });
+      }
+    );
+  }
+
+  if (Array.isArray(config.ignoreDependencies)) {
+    const allowedDeps = new Set<string>([
+      ...(auditConfig.fallow?.ignoreDependencies ?? []),
+      ...(auditConfig.fallow?.exemptDependencies ?? [])
+    ]);
+
+    for (let i = 0; i < config.ignoreDependencies.length; i++) {
+      const dep = config.ignoreDependencies[i]!;
+      if (!allowedDeps.has(dep)) {
+        auditor.addViolation({
+          ruleId: 'fallow-undeclared-config-entry',
+          severity: 'error',
+          file: '.fallowrc.json',
+          line: i + 1,
+          message: `Undeclared dependency exemption '${dep}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreDependencies', or remove it from .fallowrc.json.`,
+          context: dep
+        });
+      }
+    }
+  }
+}
+
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;
@@ -640,7 +709,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'fallow-config-workspace-diagnostic'
+        fallbackRuleId: 'fallow-config-workspace-diagnostic',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
       },
       ruleCapabilities: createRuleCapabilities(FALLOW_CONFIG_RULES, {
         speed: 'light',
@@ -671,7 +741,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         'fallow-stale-export': 'Non-existent export in config',
         'fallow-empty-export-list': 'Empty entry in ignoreExports',
         'fallow-duplicate-entry': 'Duplicate entry or export',
-        'fallow-config-workspace-diagnostic': 'Workspace diagnostic'
+        'fallow-config-workspace-diagnostic': 'Workspace diagnostic',
+        'fallow-undeclared-config-entry': 'Undeclared entry in config'
       },
       ruleRemediations: {
         'fallow-config-missing':
@@ -729,7 +800,14 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
           '2. Diagnosis: Inspect the diagnostic message emitted by the Fallow engine in the report.\n' +
           '3. Canonical Solution: Run npm run auditor:fix to automatically prune redundant config entries (entry-pattern-redundant, ignore-dependencies-entry-redundant, ignore-patterns-entry-redundant), or adjust package/boundary settings in .fallowrc.json.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   npm run auditor:fix'
+          '   npm run auditor:fix',
+        'fallow-undeclared-config-entry':
+          '📖 REMEDIATION GUIDE: fallow-undeclared-config-entry\n' +
+          '1. Root Cause: .fallowrc.json declares ignorePatterns or ignoreDependencies that are not authorized in .auditor/audit.config.ts (SSoT violation).\n' +
+          '2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern or dependency.\n' +
+          '3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts (under fallow.ignoreGlobs, paths.ignoreGlobs, or fallow.ignoreDependencies). Otherwise, remove it from .fallowrc.json.\n' +
+          '4. Example / Auto-fix command:\n' +
+          "   Declare in .auditor/audit.config.ts: fallow: { ignoreGlobs: ['path/**'] }"
       },
       coverage: {
         include: ['.fallowrc.json']
@@ -762,11 +840,15 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       }
     });
 
+    this.runSubAuditorSync('fallow-undeclared-config-entry', () => {
+      validateUndeclaredFallowEntries(validConfig, this);
+    });
+
     if (!Array.isArray(validConfig.ignoreExports) || validConfig.ignoreExports.length === 0) {
-      this.markRuleNotApplicable('fallow-duplicate-entry', 'Sin ignoreExports en .fallowrc.json');
-      this.markRuleNotApplicable('fallow-empty-export-list', 'Sin ignoreExports en .fallowrc.json');
-      this.markRuleNotApplicable('fallow-stale-file', 'Sin ignoreExports en .fallowrc.json');
-      this.markRuleNotApplicable('fallow-stale-export', 'Sin ignoreExports en .fallowrc.json');
+      this.markRuleNotApplicable('fallow-duplicate-entry', 'No ignoreExports in .fallowrc.json');
+      this.markRuleNotApplicable('fallow-empty-export-list', 'No ignoreExports in .fallowrc.json');
+      this.markRuleNotApplicable('fallow-stale-file', 'No ignoreExports in .fallowrc.json');
+      this.markRuleNotApplicable('fallow-stale-export', 'No ignoreExports in .fallowrc.json');
     } else {
       const {
         fileCount,
@@ -775,8 +857,8 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       } = validateFallowIgnoreExports(validConfig, this.projectRoot, this);
       if (ignoreModified) modified = true;
 
-      this.context.setMetric('Archivos en ignoreExports', fileCount);
-      this.context.setMetric('Exports Validados', exportCount);
+      this.context.setMetric('Files in ignoreExports', fileCount);
+      this.context.setMetric('Validated Exports', exportCount);
     }
 
     if (modified && this.isFixActive()) {

@@ -1,7 +1,7 @@
 import { AuditEngineConfig } from "../core/auditConfigTypes.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
 import { BaseAuditor } from "../core/auditorBase.js";
-import { ConsoleOutputMode } from "../core/streamingRunner.js";
+import { ConsoleOutputMode } from "../core/streamingFormat.js";
 import { TieredFindingsPhaseGroup } from "../core/unifiedTheme.js";
 import { AuditPresetName } from "./auditScanner.js";
 export interface AuditFullCliOptions {

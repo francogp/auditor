@@ -25,7 +25,7 @@ import type { Violation, RuleDescriptor } from '../suites/architecture/audit_rul
 export const CONSTANT_ANALYZER_DESCRIPTOR: RuleDescriptor = {
   id: 'duplicate-constants',
   name: 'Duplicate Constants Across Modules',
-  category: 'Constantes duplicadas entre módulos',
+  category: 'Duplicate constants across modules',
   aliases: ['duplicate-constants', 'constants', 'constantes', 'constantes-duplicadas']
 };
 
@@ -335,7 +335,7 @@ export async function detectDuplicateConstants(
   const astEngine = astContext ?? new SharedAstContext();
 
   const config = getAuditConfig(projectRoot);
-  const targetConstantsDir = 'un módulo compartido de constantes';
+  const targetConstantsDir = 'a shared constants module';
   const effectiveIgnored = getEffectiveIgnoredConstantNames(projectRoot);
 
   for (const filePath of files) {

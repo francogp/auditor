@@ -19,7 +19,8 @@ import {
   getActiveFamilies,
   AUDIT_EXECUTION_SPEEDS,
   AUDIT_EXECUTION_PHASES,
-  AUDIT_FIX_CAPABILITIES
+  AUDIT_FIX_CAPABILITIES,
+  collectAuditorThirdPartyToolErrors
 } from './auditContract.ts';
 import { BaseAuditor, MAX_AUDITOR_DESCRIPTION_LENGTH } from './auditorBase.ts';
 import { toPosixRelative } from './safePath.ts';
@@ -192,31 +193,31 @@ export function instantiateAuditorClass(
   }
 
   throw new Error(
-    `[Auditor Contract Violation] No se pudo instanciar la clase ${Cls.name}. Debe soportar la firma canónica de opciones ({ projectRoot?: string }) o el constructor por defecto sin argumentos.`
+    `[Auditor Contract Violation] Could not instantiate class ${Cls.name}. It must support the canonical options signature ({ projectRoot?: string }) or default no-argument constructor.`
   );
 }
 
 function validateBasicMetadata(auditor: BaseAuditor, taskId: string, errors: string[]): void {
   if (!auditor.id || typeof auditor.id !== 'string') {
-    errors.push(`Auditor [${taskId}] no define un 'id' válido.`);
+    errors.push(`Auditor [${taskId}] does not define a valid 'id'.`);
   } else if (auditor.id !== taskId) {
-    errors.push(`Auditor [${taskId}] id '${auditor.id}' no coincide con el taskId '${taskId}'.`);
+    errors.push(`Auditor [${taskId}] id '${auditor.id}' does not match taskId '${taskId}'.`);
   }
 
   if (!auditor.name || typeof auditor.name !== 'string') {
-    errors.push(`Auditor [${taskId}] no define un 'name' válido.`);
+    errors.push(`Auditor [${taskId}] does not define a valid 'name'.`);
   }
 
   if (!auditor.description || typeof auditor.description !== 'string') {
-    errors.push(`Auditor [${taskId}] no define una 'description' válida.`);
+    errors.push(`Auditor [${taskId}] does not define a valid 'description'.`);
   } else if (auditor.description.length > MAX_TASK_DESCRIPTION_LENGTH) {
     errors.push(
-      `Auditor [${taskId}] description ('${auditor.description}') excede ${MAX_TASK_DESCRIPTION_LENGTH} caracteres (${auditor.description.length}).`
+      `Auditor [${taskId}] description ('${auditor.description}') exceeds ${MAX_TASK_DESCRIPTION_LENGTH} characters (${auditor.description.length}).`
     );
   }
 
   if (!auditor.packageName || typeof auditor.packageName !== 'string') {
-    errors.push(`Auditor [${taskId}] no define un 'packageName' obligatorio.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory 'packageName'.`);
   }
 }
 
@@ -224,10 +225,10 @@ function validateAuditorManifest(auditor: BaseAuditor, taskId: string, errors: s
   try {
     const manifest = auditor.toManifest();
     if (typeof manifest.id !== 'string' || manifest.id !== auditor.id) {
-      errors.push(`Auditor [${taskId}] toManifest() devuelve manifest con ID inválido.`);
+      errors.push(`Auditor [${taskId}] toManifest() returned manifest with invalid ID.`);
     }
   } catch (err) {
-    errors.push(`Auditor [${taskId}] falló al generar toManifest(): ${String(err)}`);
+    errors.push(`Auditor [${taskId}] failed to generate toManifest(): ${String(err)}`);
   }
 }
 
@@ -245,12 +246,12 @@ export function validateAuditorConstruction(
   const activeFamilies = getActiveFamilies();
   if (!activeFamilies.includes(auditor.family)) {
     errors.push(
-      `Auditor [${taskId}] familia '${auditor.family}' no es una familia arquitectónica válida.`
+      `Auditor [${taskId}] family '${auditor.family}' is not a valid architectural family.`
     );
   }
 
   if (!Array.isArray(auditor.ruleIds) || auditor.ruleIds.length === 0) {
-    errors.push(`Auditor [${taskId}] no declara reglas en 'ruleIds'.`);
+    errors.push(`Auditor [${taskId}] does not declare rules in 'ruleIds'.`);
   }
 
   validateRuleDescriptions(auditor, taskId, errors);
@@ -271,46 +272,8 @@ function validateAuditorThirdPartyToolContract(
   taskId: string,
   errors: string[]
 ): void {
-  if (typeof auditor.usesThirdPartyTool !== 'boolean') {
-    errors.push(`Auditor [${taskId}] no define 'usesThirdPartyTool' como un booleano obligatorio.`);
-    return;
-  }
-  if (auditor.usesThirdPartyTool) {
-    if (!auditor.thirdPartyToolPolicy || typeof auditor.thirdPartyToolPolicy !== 'object') {
-      errors.push(
-        `Auditor [${taskId}] declaró usesThirdPartyTool: true pero omitió 'thirdPartyToolPolicy'.`
-      );
-      return;
-    }
-    const policy = auditor.thirdPartyToolPolicy;
-    if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
-      errors.push(
-        `Auditor [${taskId}] 'thirdPartyToolPolicy.toolName' debe ser un string no vacío.`
-      );
-    }
-    if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
-      errors.push(
-        `Auditor [${taskId}] 'thirdPartyToolPolicy.fallbackBehavior' debe ser 'throw' o 'violation'.`
-      );
-    }
-    if (policy.fallbackBehavior === 'violation') {
-      if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
-        errors.push(
-          `Auditor [${taskId}] declaró fallbackBehavior: 'violation' pero omitió 'fallbackRuleId'.`
-        );
-      } else if (!auditor.ruleIds.includes(policy.fallbackRuleId)) {
-        errors.push(
-          `Auditor [${taskId}] fallbackRuleId '${policy.fallbackRuleId}' no pertenece a 'ruleIds'.`
-        );
-      }
-    }
-  } else {
-    if (auditor.thirdPartyToolPolicy !== undefined) {
-      errors.push(
-        `Auditor [${taskId}] declaró usesThirdPartyTool: false pero proveyó 'thirdPartyToolPolicy'.`
-      );
-    }
-  }
+  const contractErrors = collectAuditorThirdPartyToolErrors(auditor, taskId);
+  errors.push(...contractErrors);
 }
 
 function validateAuditorRuleRemediationsContract(
@@ -319,18 +282,18 @@ function validateAuditorRuleRemediationsContract(
   errors: string[]
 ): void {
   if (!auditor.ruleRemediations || typeof auditor.ruleRemediations !== 'object') {
-    errors.push(`Auditor [${taskId}] no define el mapa obligatorio de 'ruleRemediations'.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory map 'ruleRemediations'.`);
     return;
   }
   for (const ruleId of auditor.ruleIds) {
     const guide = auditor.getRuleRemediation(ruleId);
     if (!guide || typeof guide !== 'string' || guide.trim() === '') {
       errors.push(
-        `Auditor [${taskId}] no define 'ruleRemediations' obligatoria para la regla '${ruleId}'.`
+        `Auditor [${taskId}] does not define mandatory 'ruleRemediations' for rule '${ruleId}'.`
       );
     } else if (/^Guía de diagnóstico y remediación para/i.test(guide.trim())) {
       errors.push(
-        `Auditor [${taskId}] define una guía placeholder para la regla '${ruleId}'. Debe proveer diagnóstico y solución accionables.`
+        `Auditor [${taskId}] defines a placeholder remediation guide for rule '${ruleId}'. Must provide actionable diagnosis and remediation.`
       );
     }
   }
@@ -353,18 +316,18 @@ function validateSixFieldCapabilities(
 ): void {
   if (!validateSpeedValue(caps.speed)) {
     errors.push(
-      `${label}.speed debe ser ${AUDIT_EXECUTION_SPEEDS.join(', ')} o un arreglo no vacío de ellos.`
+      `${label}.speed must be ${AUDIT_EXECUTION_SPEEDS.join(', ')} or a non-empty array of them.`
     );
   }
   if (!AUDIT_EXECUTION_PHASES.some((p) => p === caps.phase)) {
-    errors.push(`${label}.phase debe ser ${AUDIT_EXECUTION_PHASES.join(', ')}.`);
+    errors.push(`${label}.phase must be ${AUDIT_EXECUTION_PHASES.join(', ')}.`);
   }
   if (!AUDIT_FIX_CAPABILITIES.some((f) => f === caps.fix)) {
-    errors.push(`${label}.fix debe ser ${AUDIT_FIX_CAPABILITIES.join(', ')}.`);
+    errors.push(`${label}.fix must be ${AUDIT_FIX_CAPABILITIES.join(', ')}.`);
   }
   for (const boolKey of ['md', 'ast', 'changedOnly', 'critical'] as const) {
     if (typeof caps[boolKey] !== 'boolean') {
-      errors.push(`${label}.${boolKey} debe ser explícitamente booleano (true o false).`);
+      errors.push(`${label}.${boolKey} must be explicitly boolean (true or false).`);
     }
   }
 }
@@ -376,7 +339,7 @@ function validateAuditorRuleCapabilitiesContract(
 ): void {
   if (!auditor.ruleCapabilities || typeof auditor.ruleCapabilities !== 'object') {
     errors.push(
-      `Auditor [${taskId}] no define el mapa obligatorio de 'ruleCapabilities' por sub-auditor.`
+      `Auditor [${taskId}] does not define mandatory map 'ruleCapabilities' per sub-auditor.`
     );
     return;
   }
@@ -385,7 +348,7 @@ function validateAuditorRuleCapabilitiesContract(
     const caps = auditor.ruleCapabilities[ruleId];
     if (!caps || typeof caps !== 'object') {
       errors.push(
-        `Auditor [${taskId}] no define 'ruleCapabilities' para la regla declarada '${ruleId}'.`
+        `Auditor [${taskId}] does not define 'ruleCapabilities' for declared rule '${ruleId}'.`
       );
       continue;
     }
@@ -403,11 +366,11 @@ function validateAuditorCriticalConfigContract(
   errors: string[]
 ): void {
   if (auditor.criticalConfig === undefined) {
-    errors.push(`Auditor [${taskId}] no define 'criticalConfig' obligatorio en su constructor.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory 'criticalConfig' in constructor.`);
     return;
   }
   if (typeof auditor.criticalConfig !== 'object' || auditor.criticalConfig === null) {
-    errors.push(`Auditor [${taskId}] define 'criticalConfig' inválido (debe ser un objeto).`);
+    errors.push(`Auditor [${taskId}] defines invalid 'criticalConfig' (must be an object).`);
     return;
   }
   const { rationale, requiredMinimums, forbiddenOverrides, validate } = auditor.criticalConfig;
@@ -418,7 +381,7 @@ function validateAuditorCriticalConfigContract(
 
   if (hasConstraints && (!rationale || typeof rationale !== 'string' || rationale.trim() === '')) {
     errors.push(
-      `Auditor [${taskId}] criticalConfig debe definir un 'rationale' no vacío cuando declara restricciones críticas.`
+      `Auditor [${taskId}] criticalConfig must define a non-empty 'rationale' when declaring critical constraints.`
     );
   }
 }
@@ -429,15 +392,15 @@ function validateAuditorConfigContract(
   errors: string[]
 ): void {
   if (!auditor.configKey || typeof auditor.configKey !== 'string') {
-    errors.push(`Auditor [${taskId}] no define un 'configKey' obligatorio.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory 'configKey'.`);
   }
 
   if (!auditor.defaultConfig || typeof auditor.defaultConfig !== 'object') {
-    errors.push(`Auditor [${taskId}] no define un 'defaultConfig' obligatorio.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory 'defaultConfig'.`);
   } else if (auditor.configKey !== 'paths' && auditor.configKey !== 'core') {
     if (typeof (auditor.defaultConfig as Record<string, unknown>).enabled !== 'boolean') {
       errors.push(
-        `Auditor [${taskId}] defaultConfig.enabled debe ser explícitamente booleano (true o false).`
+        `Auditor [${taskId}] defaultConfig.enabled must be explicitly boolean (true or false).`
       );
     }
   }
@@ -449,7 +412,7 @@ function validateAuditorCapabilitiesContract(
   errors: string[]
 ): void {
   if (!auditor.capabilities || typeof auditor.capabilities !== 'object') {
-    errors.push(`Auditor [${taskId}] no define un objeto de 'capabilities' obligatorio.`);
+    errors.push(`Auditor [${taskId}] does not define mandatory 'capabilities' object.`);
     return;
   }
 
@@ -459,19 +422,19 @@ function validateAuditorCapabilitiesContract(
   if (auditor.capabilities.fix !== 'none') {
     if (fixableRules.length === 0) {
       errors.push(
-        `Auditor [${taskId}] declara capabilities.fix !== 'none' pero getFixableRuleIds() está vacío.`
+        `Auditor [${taskId}] declares capabilities.fix !== 'none' but getFixableRuleIds() is empty.`
       );
     }
     for (const r of fixableRules) {
       if (!auditor.ruleIds.includes(r)) {
         errors.push(
-          `Auditor [${taskId}] declara regla corregible '${r}' que no existe en 'ruleIds'.`
+          `Auditor [${taskId}] declares fixable rule '${r}' that does not exist in 'ruleIds'.`
         );
       }
     }
   } else if (fixableRules.length > 0) {
     errors.push(
-      `Auditor [${taskId}] declara reglas corregibles (${fixableRules.join(', ')}) pero capabilities.fix es 'none'.`
+      `Auditor [${taskId}] declares fixable rules (${fixableRules.join(', ')}) but capabilities.fix is 'none'.`
     );
   }
 }
@@ -483,14 +446,14 @@ function validateAuditorScriptsContract(
 ): void {
   if (!Array.isArray(auditor.scripts) || auditor.scripts.length === 0) {
     errors.push(
-      `Auditor [${taskId}] no define el contrato obligatorio de comandos de ejecución en 'scripts'.`
+      `Auditor [${taskId}] does not define mandatory execution command contract in 'scripts'.`
     );
     return;
   }
   for (const s of auditor.scripts) {
     if (!s.name || !s.command || !s.description) {
       errors.push(
-        `Auditor [${taskId}] define un script inválido en 'scripts' (faltan campos obligatorios name, command o description).`
+        `Auditor [${taskId}] defines invalid script in 'scripts' (missing mandatory name, command, or description).`
       );
     }
   }
@@ -498,23 +461,23 @@ function validateAuditorScriptsContract(
 
 function validateRuleDescriptions(auditor: BaseAuditor, taskId: string, errors: string[]): void {
   if (!auditor.ruleDescriptions || typeof auditor.ruleDescriptions !== 'object') {
-    errors.push(`Auditor [${taskId}] no define un mapa de 'ruleDescriptions'.`);
+    errors.push(`Auditor [${taskId}] does not define map 'ruleDescriptions'.`);
     return;
   }
   for (const rule of auditor.ruleIds) {
     const desc = auditor.ruleDescriptions[rule];
     if (!desc) {
       errors.push(
-        `Auditor [${taskId}] falta descripción en ruleDescriptions para la regla '${rule}'.`
+        `Auditor [${taskId}] missing description in ruleDescriptions for rule '${rule}'.`
       );
     } else {
       if (desc.includes('\n') || desc.includes('\r')) {
-        errors.push(`Auditor [${taskId}] descripción de regla '${rule}' contiene saltos de línea.`);
+        errors.push(`Auditor [${taskId}] rule description for '${rule}' contains line breaks.`);
       }
       const combined = `${auditor.packageName}: ${desc}`;
       if (combined.length > MAX_AUDITOR_DESCRIPTION_LENGTH) {
         errors.push(
-          `Auditor [${taskId}] descripción combinada '${combined}' excede ${MAX_AUDITOR_DESCRIPTION_LENGTH} caracteres (${combined.length}).`
+          `Auditor [${taskId}] combined description '${combined}' exceeds ${MAX_AUDITOR_DESCRIPTION_LENGTH} characters (${combined.length}).`
         );
       }
     }
@@ -639,25 +602,25 @@ export function validateAuditorTestFileContent(
 
   if (!checkConstructionVerification(testSource)) {
     errors.push(
-      `El archivo de prueba '${testFileRel}' no verifica la construcción o metadatos de '${auditor.id}'.`
+      `Test file '${testFileRel}' does not verify construction or metadata for '${auditor.id}'.`
     );
   }
 
   if (!checkCleanVerification(testSource)) {
     errors.push(
-      `El archivo de prueba '${testFileRel}' no verifica la ruta limpia (cero errores / status passed) de '${auditor.id}'.`
+      `Test file '${testFileRel}' does not verify clean execution path (zero errors / status passed) for '${auditor.id}'.`
     );
   }
 
   if (!checkViolationVerification(testSource)) {
     errors.push(
-      `El archivo de prueba '${testFileRel}' no verifica la detección de errores o fallos (status failed / severity error) de '${auditor.id}'.`
+      `Test file '${testFileRel}' does not verify violation detection (status failed / severity error) for '${auditor.id}'.`
     );
   }
 
   if (auditor.capabilities.fix !== 'none' && !checkFixVerification(testSource)) {
     errors.push(
-      `El archivo de prueba '${testFileRel}' no verifica la capacidad de auto-fix ('auditor.fix()') de '${auditor.id}'.`
+      `Test file '${testFileRel}' does not verify auto-fix capability ('auditor.fix()') for '${auditor.id}'.`
     );
   }
 
@@ -666,7 +629,7 @@ export function validateAuditorTestFileContent(
     const ruleRegex = new RegExp(`(?:['"\`]${escaped}['"\`]|\\b${escaped}\\b)`);
     if (!ruleRegex.test(testSource)) {
       errors.push(
-        `El archivo de prueba '${testFileRel}' no verifica la regla declarada '${rule}' de '${auditor.id}'.`
+        `Test file '${testFileRel}' does not verify declared rule '${rule}' for '${auditor.id}'.`
       );
     }
   }
@@ -688,26 +651,26 @@ async function evaluateTaskContract(
     : path.resolve(projectRoot, task.scriptPath);
 
   if (!fs.existsSync(suitePath)) {
-    return [`No se encontró el archivo de código fuente del auditor en '${suitePath}'.`];
+    return [`Auditor source code file not found at '${suitePath}'.`];
   }
 
   let mod: Record<string, unknown>;
   try {
     mod = await import(suitePath);
   } catch (err) {
-    return [`Error al importar el módulo '${suitePath}': ${String(err)}`];
+    return [`Error importing module '${suitePath}': ${String(err)}`];
   }
 
   const Cls = findAuditorClass(mod);
   if (!Cls) {
-    return [`El módulo '${suitePath}' no exporta una subclase válida de BaseAuditor.`];
+    return [`Module '${suitePath}' does not export a valid BaseAuditor subclass.`];
   }
 
   let auditor: BaseAuditor;
   try {
     auditor = instantiateAuditorClass(Cls, tempDir);
   } catch (err) {
-    return [`Error al instanciar '${task.id}': ${String(err)}`];
+    return [`Error instantiating '${task.id}': ${String(err)}`];
   }
 
   const constructionErrors = validateAuditorConstruction(auditor, task.id);
@@ -720,7 +683,7 @@ async function evaluateTaskContract(
   if (!testFileAbs) {
     return [
       ...constructionErrors,
-      `Falta archivo de prueba dedicado para '${task.id}'. Se esperaba '${testFileRel}'.`
+      `Missing dedicated test file for '${task.id}'. Expected '${testFileRel}'.`
     ];
   }
 
@@ -791,7 +754,7 @@ function registerConformanceSuite(hooks: ConformanceVitestHooks, projectRoot: st
             .map((f) => `❌ Auditor [${f.taskId}]:\n  - ${f.errors.join('\n  - ')}`)
             .join('\n\n');
           throw new Error(
-            `Se encontraron ${allFailures.length} sub-auditor(es) que no cumplen el contrato estricto de testing:\n\n${failureSummary}`
+            `Found ${allFailures.length} sub-auditor(s) that do not satisfy the strict testing contract:\n\n${failureSummary}`
           );
         }
 
@@ -843,9 +806,9 @@ export function runAuditorContractConformanceTests(
       registerConformanceSuite(vt, projectRoot);
     } catch {
       throw new Error(
-        'runAuditorContractConformanceTests() requiere un entorno de prueba Vite+ / Vitest. ' +
-          "Asegúrate de ejecutar tus tests con Vite+ ('vp test') " +
-          'o pasa las funciones de prueba explícitamente: runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } }).'
+        'runAuditorContractConformanceTests() requires a Vite+ / Vitest test environment. ' +
+          "Make sure to run your tests with Vite+ ('vp test') " +
+          'or supply test functions explicitly: runAuditorContractConformanceTests({ vitest: { describe, it, expect, beforeAll, afterAll } }).'
       );
     }
   })();

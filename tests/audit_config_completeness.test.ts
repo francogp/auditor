@@ -188,7 +188,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       fallow: { maxTargetPriority: 'ultra' as any }
     });
     expect(() => assertAuditConfigComplete(invalidStrConfig)).toThrowError(
-      /fallow.*Prioridad de objetivo no válida/i
+      /fallow.*Invalid target priority/i
     );
 
     // Invalid negative number
@@ -197,7 +197,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       fallow: { maxTargetPriority: -5 as any }
     });
     expect(() => assertAuditConfigComplete(invalidNegConfig)).toThrowError(
-      /fallow.*Prioridad de objetivo no válida/i
+      /fallow.*Invalid target priority/i
     );
 
     // Invalid number > 100
@@ -206,7 +206,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       fallow: { maxTargetPriority: 150 as any }
     });
     expect(() => assertAuditConfigComplete(invalidOverConfig)).toThrowError(
-      /fallow.*Prioridad de objetivo no válida/i
+      /fallow.*Invalid target priority/i
     );
   });
 
@@ -232,7 +232,7 @@ describe('Audit Configuration Completeness & Mandato de Configuración Activa po
       expect(msg).toContain('styles');
       expect(msg).toContain('templates');
       expect(msg).toContain('agentPlugin');
-      expect(msg).toContain('Mandato de Configuración Activa por Defecto');
+      expect(msg).toContain('Active-by-Default Configuration Mandate');
     }
   });
 

@@ -263,7 +263,7 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Validación de codificación desactivada en config")) return;
+		if (this.isSuiteGatingDisabled("File encoding validation disabled in config")) return;
 		const encodingConfig = getAuditConfig(this.projectRoot).encoding;
 		const prohibitBom = encodingConfig?.prohibitBom ?? true;
 		const detectMojibake = encodingConfig?.detectMojibake ?? true;
@@ -313,8 +313,8 @@ var ValidateFileEncodingAuditor = class extends FileScanAuditor {
 				context: issue.context
 			});
 		}
-		this.context.setMetric("Archivos analizados", scannedCount);
-		if (repairedCount > 0) this.context.setMetric("Archivos corregidos", repairedCount);
+		this.context.setMetric("Files Scanned", scannedCount);
+		if (repairedCount > 0) this.context.setMetric("Files Repaired", repairedCount);
 		for (const ruleId of FILE_ENCODING_RULES) this.markRuleEvaluated(ruleId);
 	}
 	applyRepair(filePath, buffer, action) {

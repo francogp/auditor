@@ -9,20 +9,24 @@ import { styleText } from "node:util";
 */
 const PHASE_NAME_PAD_LENGTH = 12;
 function renderExecutivePassSummary(params) {
-	const { totalSuites, passedSuites, skippedSuites = 0, totalErrors, totalWarnings, durationMs, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetOk = true } = params;
+	const { totalSuites, passedSuites, skippedSuites = 0, totalErrors, totalWarnings, durationMs, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetStatus } = params;
 	const skippedText = skippedSuites > 0 ? ` (${skippedSuites} skipped)` : "";
-	const ratchetText = ratchetOk ? " | Ratchet: OK" : "";
+	const ratchetText = ratchetStatus === "passed" ? " | Ratchet: OK" : ratchetStatus === "initialized" ? " | Ratchet: INIT" : "";
 	const isWarningPass = totalWarnings > 0;
 	const title = isWarningPass ? `[WARN] AUDIT PASSED WITH WARNINGS [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}` : `[OK] AUDIT PASSED [${passedSuites}/${totalSuites} suites${skippedText}] in ${formatDurationMs(durationMs)}`;
 	return `${styleText(isWarningPass ? ["bold", "yellow"] : ["bold", "green"], title)}\n${`  Errors: ${totalErrors} | Warnings: ${totalWarnings}${ratchetText}`}\n${styleText("dim", `  Report: ${latestAuditJsonPath}`)}\n`;
 }
 function renderExecutiveFailSummary(params) {
-	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, fixableWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json" } = params;
+	const { totalSuites, failedSuites, totalErrors, totalWarnings, durationMs, phaseBreakdown, fixableErrors = 0, fixableWarnings = 0, latestAuditJsonPath = "scratch/audits/latest_audit.json", ratchetVerdict } = params;
 	const totalFixable = fixableErrors + fixableWarnings;
 	const fixableText = totalFixable > 0 ? ` (${totalFixable} auto-fixable)` : "";
 	const suiteText = failedSuites > 0 ? ` in ${failedSuites} suite(s)` : "";
 	const header = styleText(["bold", "red"], `[FAIL] AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
-	const status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
+	let status;
+	if (totalErrors === 0 && ratchetVerdict?.status === "failed") {
+		const errorDetail = ratchetVerdict.error ? `: ${ratchetVerdict.error}` : ` (+${formatNumber(ratchetVerdict.newWarnings)} new warning(s) relative to '${ratchetVerdict.productionRef}')`;
+		status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s) — 🔒 Ratchet threshold exceeded${errorDetail}${fixableText}${suiteText}`;
+	} else status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
 	const phaseLines = ["  Breakdown by Phase:"];
 	for (const p of phaseBreakdown) {
 		const counts = [p.errors > 0 ? `${p.errors} error(s)` : "", p.warnings > 0 ? `${p.warnings} warning(s)` : ""].filter(Boolean).join(", ");

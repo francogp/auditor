@@ -18,7 +18,7 @@ import fs from "node:fs";
 enableCompileCache();
 const NPMRC_CONFIG_RULES = ["npmrc-config-missing", "npmrc-config-missing-setting"];
 const CANONICAL_NPMRC_LINES = [
-	"# Estandares de reproducibilidad de paquetes (francogp/auditor)",
+	"# Package reproducibility standards (francogp/auditor)",
 	"engine-strict=true",
 	"package-lock=true",
 	""

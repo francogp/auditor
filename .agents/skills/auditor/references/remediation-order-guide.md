@@ -92,6 +92,16 @@ Because `validate_audit_config` belongs to `phase: 'setup'`, this finding **trig
 - **All downstream application code findings are suppressed** to prevent false positives.
 - Modifying application code is strictly prohibited until extensions are repaired and compile cleanly.
 
+### 3.1 Phase 1 (Setup) Satellite Config Sovereignty & Prohibition of Manual Satellite Edits
+
+When Phase 1 (`setup`) reports configuration mismatches, undeclared entries, or workspace diagnostics across satellite tools (such as `fallow-undeclared-config-entry`, `stylelint-undeclared-config-entry`, `tsconfig-undeclared-config-entry`, `vite-plus-undeclared-config-entry`, `html-validate-undeclared-config-entry`, `markdownlint-undeclared-config-entry`, `fallow-workspace-diagnostic`), AI agents and developers are **STRICTLY AND CATEGORICALLY PROHIBITED from proposing in work plans or executing manual edits** on satellite files (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`).
+
+1. **Sole SSoT**: `.auditor/audit.config.ts` is the only Single Source of Truth.
+2. **Canonical Auto-Repair**: Run `npm run auditor:fix`. Setup suites execute first (`resolveFixOrderWeight < 200`) to repair and synchronize all satellite configuration files deterministically.
+3. **Legitimate Governance Changes**: If an architectural exception is legitimately required, consult the programmer via `ask_question`, declare it in `.auditor/audit.config.ts`, and run `npm run auditor:fix`.
+
+📘 **Detailed Architectural Guide**: See [satellite-configs-sovereignty-guide.md](./satellite-configs-sovereignty-guide.md).
+
 ---
 
 ## 4. Console Visualization & Grouped Sub-Tables

@@ -147,7 +147,7 @@ describe('Audit Findings Grouped By File and Line Contract', () => {
     const plain = stripVTControlCharacters(rendered);
 
     expect(plain).toContain('📄 src/a.ts (1 error)');
-    expect(plain).toContain('📄 src/b.ts (2 errores, 1 advertencia)');
+    expect(plain).toContain('📄 src/b.ts (2 errors, 1 warning)');
     expect(plain).toContain('[GLOBAL]');
     expect(plain).toContain('L12');
     expect(plain).toContain('L45');
@@ -164,11 +164,11 @@ describe('Audit Findings Grouped By File and Line Contract', () => {
     const oneFileRender = renderFindingsByFileTree(summaries, { maxFiles: 1 });
     expect(oneFileRender).toContain('src/a.ts');
     expect(oneFileRender).not.toContain('src/b.ts');
-    expect(oneFileRender).toContain('... y 1 archivo(s) más con incidencias');
+    expect(oneFileRender).toContain('... and 1 more file(s) with findings');
 
     // Limit to 1 finding per file
     const oneFindingRender = renderFindingsByFileTree(summaries, { maxFindingsPerFile: 1 });
-    expect(oneFindingRender).toContain('... y 2 incidencia(s) más en este archivo');
+    expect(oneFindingRender).toContain('... and 2 more finding(s) in this file');
   });
 
   it('handles clean files without throwing or producing corrupt output', () => {

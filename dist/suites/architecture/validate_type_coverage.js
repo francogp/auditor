@@ -3,6 +3,7 @@ import { safeRmSync } from "../../core/safeUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeCliAndReadJson, resolvePackageBin } from "../../cli/cliUtils.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
@@ -65,7 +66,8 @@ var ValidateTypeCoverageAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "type-coverage",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "type-coverage-below-threshold"
+				fallbackRuleId: "type-coverage-below-threshold",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.tsconfig
 			},
 			ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
 				speed: ["heavy", "full"],

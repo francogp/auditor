@@ -142,13 +142,19 @@ export interface AuditStylelintConfig extends BaseAuditSubsystemConfig {
   readonly configFile?: string;
   readonly rules?: Record<string, unknown>;
   readonly ignoreGlobs?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly exemptFiles?: readonly string[];
   readonly strictValues?: AuditStylelintStrictValuesConfig;
   readonly order?: AuditStylelintOrderConfig;
 }
 
 export type AuditOxlintConfig = BaseAuditSubsystemConfig;
 
-export type AuditHtmlValidateConfig = BaseAuditSubsystemConfig;
+export interface AuditHtmlValidateConfig extends BaseAuditSubsystemConfig {
+  readonly rules?: Readonly<Record<string, unknown>>;
+  readonly disabledRules?: readonly string[];
+  readonly extraPlugins?: readonly string[];
+}
 
 export interface AuditStylesConfig extends BaseAuditSubsystemConfig {
   readonly globalUtilityClasses?: readonly string[];
@@ -246,6 +252,10 @@ export interface AuditDocumentationConfig extends BaseAuditSubsystemConfig {
   readonly unignoreDirs?: readonly string[];
   readonly allowedNpxBinaries?: readonly string[];
   readonly languageExemptions?: readonly string[];
+  readonly markdownLint?: {
+    readonly rules?: Readonly<Record<string, unknown>>;
+    readonly disabledRules?: readonly string[];
+  };
 }
 
 export interface AuditPiniaConfig extends BaseAuditSubsystemConfig {
@@ -303,6 +313,11 @@ export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly showCascade?: boolean;
   readonly duplicates?: AuditFallowDuplicatesConfig;
   readonly viz?: AuditFallowVizConfig;
+  readonly ignoreGlobs?: readonly string[];
+  readonly ignorePatterns?: readonly string[];
+  readonly exemptPaths?: readonly string[];
+  readonly ignoreDependencies?: readonly string[];
+  readonly exemptDependencies?: readonly string[];
 }
 
 export const DEFAULT_MAX_AUDIT_STALENESS_MINUTES = 5;

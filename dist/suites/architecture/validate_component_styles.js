@@ -450,8 +450,8 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 			auditRawCssFiles(initialCssFiles, this.projectRoot, exemptCssFiles, this);
 		});
 		else {
-			this.markRuleNotApplicable("banned-plain-css-style", "SCSS no está forzado en configuración (styles.enforceScss: false)");
-			this.markRuleNotApplicable("banned-raw-css-file", "SCSS no está forzado en configuración (styles.enforceScss: false)");
+			this.markRuleNotApplicable("banned-plain-css-style", "SCSS is not enforced in config (styles.enforceScss: false)");
+			this.markRuleNotApplicable("banned-raw-css-file", "SCSS is not enforced in config (styles.enforceScss: false)");
 		}
 		const vueFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".vue"]));
 		const scssFiles = this.context.collectFiles(this.roots, /* @__PURE__ */ new Set([".scss"]));
@@ -460,13 +460,13 @@ var ComponentStylesAuditor = class extends BaseAuditor {
 		this.scssCount = scssFiles.length;
 		this.cssCount = cssFiles.length;
 		if (vueFiles.length === 0) {
-			this.markRuleNotApplicable("broken-style-link", "No se encontraron componentes .vue");
-			this.markRuleNotApplicable("missing-style-tag", "No se encontraron componentes .vue");
-			this.markRuleNotApplicable("banned-style-inherited", "No se encontraron componentes .vue");
-			this.markRuleNotApplicable("ad-hoc-button-styles", "No se encontraron componentes .vue");
-			if (enforceScss) this.markRuleNotApplicable("banned-plain-css-style", "No se encontraron componentes .vue");
+			this.markRuleNotApplicable("broken-style-link", "No .vue components found");
+			this.markRuleNotApplicable("missing-style-tag", "No .vue components found");
+			this.markRuleNotApplicable("banned-style-inherited", "No .vue components found");
+			this.markRuleNotApplicable("ad-hoc-button-styles", "No .vue components found");
+			if (enforceScss) this.markRuleNotApplicable("banned-plain-css-style", "No .vue components found");
 		}
-		if (scssFiles.length === 0) this.markRuleNotApplicable("orphaned-scss", "No se encontraron archivos .scss");
+		if (scssFiles.length === 0) this.markRuleNotApplicable("orphaned-scss", "No .scss files found");
 		const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);
 		const stylesRoots = config.paths.stylesRoots ?? [];
 		seedRootScssGraph(stylesRoots, this.projectRoot, trackScssFile);

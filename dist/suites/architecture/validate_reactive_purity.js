@@ -126,7 +126,7 @@ var ReactivePurityAuditor = class extends FileScanAuditor {
 					const op = child.operatorToken.kind;
 					if (op >= ts.SyntaxKind.FirstAssignment && op <= ts.SyntaxKind.LastAssignment) {
 						const leftText = child.left.getText(sourceFile);
-						if (leftText.includes(".value") || leftText.startsWith("state.") || leftText.startsWith("this.") || leftText.includes("Store.")) this.reportComputedViolation(child, sourceFile, relPath, fullContent, "computed-state-mutation", `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`);
+						if (leftText.includes(".value") || leftText.startsWith("state.") || leftText.startsWith("this.") || leftText.includes("Store.")) this.reportComputedViolation(child, sourceFile, relPath, fullContent, "computed-state-mutation", `Impure mutation inside 'computed()': '${child.getText(sourceFile)}'. Computed properties must be pure functions.`);
 					}
 				}
 			}

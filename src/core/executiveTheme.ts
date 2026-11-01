@@ -7,7 +7,7 @@
 
 import { styleText } from 'node:util';
 
-import type { RemediationPhaseId, StandardAuditResult } from './auditContract.ts';
+import type { RatchetStatus, RemediationPhaseId, StandardAuditResult } from './auditContract.ts';
 import { formatDurationMs, formatNumber } from './durationFormatter.ts';
 
 export interface ExecutivePassSummaryParams {
@@ -18,7 +18,7 @@ export interface ExecutivePassSummaryParams {
   totalWarnings: number;
   durationMs: number;
   latestAuditJsonPath?: string;
-  ratchetOk?: boolean;
+  ratchetStatus?: RatchetStatus;
 }
 
 export interface ExecutiveFailPhaseBreakdown {
@@ -37,6 +37,12 @@ export interface ExecutiveFailSummaryParams {
   fixableErrors?: number;
   fixableWarnings?: number;
   latestAuditJsonPath?: string;
+  ratchetVerdict?: {
+    status: RatchetStatus;
+    newWarnings: number;
+    productionRef: string;
+    error?: string;
+  };
 }
 
 export interface ExecutiveSetupBlockingSummaryParams {
@@ -69,11 +75,16 @@ export function renderExecutivePassSummary(params: ExecutivePassSummaryParams): 
     totalWarnings,
     durationMs,
     latestAuditJsonPath = 'scratch/audits/latest_audit.json',
-    ratchetOk = true
+    ratchetStatus
   } = params;
 
   const skippedText = skippedSuites > 0 ? ` (${skippedSuites} skipped)` : '';
-  const ratchetText = ratchetOk ? ' | Ratchet: OK' : '';
+  const ratchetText =
+    ratchetStatus === 'passed'
+      ? ' | Ratchet: OK'
+      : ratchetStatus === 'initialized'
+        ? ' | Ratchet: INIT'
+        : '';
 
   const isWarningPass = totalWarnings > 0;
   const title = isWarningPass
@@ -98,7 +109,8 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     phaseBreakdown,
     fixableErrors = 0,
     fixableWarnings = 0,
-    latestAuditJsonPath = 'scratch/audits/latest_audit.json'
+    latestAuditJsonPath = 'scratch/audits/latest_audit.json',
+    ratchetVerdict
   } = params;
 
   const totalFixable = fixableErrors + fixableWarnings;
@@ -109,7 +121,15 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     ['bold', 'red'],
     `[FAIL] AUDIT FAILED [${totalSuites} suites] in ${formatDurationMs(durationMs)}`
   );
-  const status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
+  let status: string;
+  if (totalErrors === 0 && ratchetVerdict?.status === 'failed') {
+    const errorDetail = ratchetVerdict.error
+      ? `: ${ratchetVerdict.error}`
+      : ` (+${formatNumber(ratchetVerdict.newWarnings)} new warning(s) relative to '${ratchetVerdict.productionRef}')`;
+    status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s) — 🔒 Ratchet threshold exceeded${errorDetail}${fixableText}${suiteText}`;
+  } else {
+    status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
+  }
 
   // no-domain: Non-domain utility collection or data structure
   const phaseLines: string[] = ['  Breakdown by Phase:'];

@@ -52,8 +52,8 @@ function renderFindingsDetail(findings, maxLimit = DEFAULT_MAX_FINDINGS_PREVIEW)
 	return lines.join("\n");
 }
 function formatFileHeaderLine(fs) {
-	const badges = [fs.errors > 0 ? styleText("red", `${formatNumber(fs.errors)} error${fs.errors > 1 ? "es" : ""}`) : "", fs.warnings > 0 ? styleText("yellow", `${formatNumber(fs.warnings)} advertencia${fs.warnings > 1 ? "s" : ""}`) : ""].filter(Boolean).join(", ");
-	const badgeText = badges ? ` (${badges})` : ` (${formatNumber(fs.findings.length)} incidencia${fs.findings.length > 1 ? "s" : ""})`;
+	const badges = [fs.errors > 0 ? styleText("red", `${formatNumber(fs.errors)} error${fs.errors > 1 ? "s" : ""}`) : "", fs.warnings > 0 ? styleText("yellow", `${formatNumber(fs.warnings)} warning${fs.warnings > 1 ? "s" : ""}`) : ""].filter(Boolean).join(", ");
+	const badgeText = badges ? ` (${badges})` : ` (${formatNumber(fs.findings.length)} finding${fs.findings.length > 1 ? "s" : ""})`;
 	return `\n  📄 ${styleText("bold", fs.file)}${badgeText}`;
 }
 function formatFindingBranchLine(item, isLast) {
@@ -74,7 +74,7 @@ function renderSingleFileFindingsLines(fs, maxFindingsPerFile) {
 		const isLast = i === displayedFindings.length - 1 && displayedFindings.length === fs.findings.length;
 		lines.push(formatFindingBranchLine(item, isLast));
 	}
-	if (fs.findings.length > displayedFindings.length) lines.push(`     ${styleText("dim", "└── ")}... y ${formatNumber(fs.findings.length - displayedFindings.length)} incidencia(s) más en este archivo.`);
+	if (fs.findings.length > displayedFindings.length) lines.push(`     ${styleText("dim", "└── ")}... and ${formatNumber(fs.findings.length - displayedFindings.length)} more finding(s) in this file.`);
 	return lines;
 }
 /**
@@ -89,24 +89,24 @@ function renderFindingsByFileTree(fileSummaries, options = {}) {
 		lines.push(formatFileHeaderLine(fs));
 		lines.push(...renderSingleFileFindingsLines(fs, options.maxFindingsPerFile));
 	}
-	if (fileSummaries.length > displayedFiles.length) lines.push(styleText("dim", `\n  ... y ${formatNumber(fileSummaries.length - displayedFiles.length)} archivo(s) más con incidencias. Usa top=all o filtra con file=<patron>.`));
+	if (fileSummaries.length > displayedFiles.length) lines.push(styleText("dim", `\n  ... and ${formatNumber(fileSummaries.length - displayedFiles.length)} more file(s) with findings. Use top=all or filter with file=<pattern>.`));
 	return lines.join("\n");
 }
 function formatSampleErrorLine(err, index) {
-	const fileInfo = err.file ? err.line ? `${err.file}:${err.line}` : err.file : "desconocido";
+	const fileInfo = err.file ? err.line ? `${err.file}:${err.line}` : err.file : "unknown";
 	const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
 	const ruleTag = err.ruleId ? `[${err.ruleId}] ` : "";
 	const contextStr = err.context ? ` ("${err.context}")` : "";
 	const mainLine = `    ${formatNumber(index + 1)}. ${styleText("red", relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
-	if (err.ruleId) return `${mainLine}\n${styleText("dim", `       👉 Guía: auditor guide ${err.ruleId}`)}`;
+	if (err.ruleId) return `${mainLine}\n${styleText("dim", `       👉 Guide: auditor guide ${err.ruleId}`)}`;
 	return mainLine;
 }
 function renderSampleErrors(errorFindings) {
 	const lines = [];
 	const sampleErrors = errorFindings.slice(0, 5);
-	lines.push(styleText("bold", `\n  ❌ Muestra de errores detectados (primeros ${formatNumber(sampleErrors.length)}):`));
+	lines.push(styleText("bold", `\n  ❌ Sample of detected errors (first ${formatNumber(sampleErrors.length)}):`));
 	for (let i = 0; i < sampleErrors.length; i++) lines.push(formatSampleErrorLine(sampleErrors[i], i));
-	if (errorFindings.length > 5) lines.push(styleText("dim", `    ... y ${formatNumber(errorFindings.length - 5)} error(es) más (ver reporte JSON completo).`));
+	if (errorFindings.length > 5) lines.push(styleText("dim", `    ... and ${formatNumber(errorFindings.length - 5)} more error(s) (see full JSON report).`));
 	return lines;
 }
 export { formatFindingEntry, formatSampleErrorLine, groupFindingsByFile, renderFindingsByFileTree, renderFindingsDetail, renderSampleErrors };

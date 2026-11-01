@@ -218,7 +218,7 @@ export class ReactivePurityAuditor extends FileScanAuditor<ReactivePurityRuleId>
                 relPath,
                 fullContent,
                 'computed-state-mutation',
-                `Mutación impura dentro de 'computed()': '${child.getText(sourceFile)}'. Los computed deben ser funciones puras.`
+                `Impure mutation inside 'computed()': '${child.getText(sourceFile)}'. Computed properties must be pure functions.`
               );
             }
           }

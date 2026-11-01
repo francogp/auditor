@@ -379,6 +379,77 @@ export interface AuditorCriticalConfig<TConfig = unknown> {
   readonly repair?: (currentConfig: TConfig, projectRoot: string) => TConfig | Promise<TConfig>;
 }
 /**
+ * Mandatory explanation contract for satellite tool configuration files.
+ */
+export interface SatelliteConfigFileExplanation {
+  /** Relative path or canonical filename of the satellite configuration (e.g. '.stylelintrc.json', '.htmlvalidate.json') */
+  readonly configFile: string;
+  /** Section in .auditor/audit.config.ts that serves as the Single Source of Truth (SSoT) (e.g. 'stylelint', 'htmlValidate') */
+  readonly ssotKey: string;
+  /** Designated rule ID that flags undeclared entries or exemptions (e.g. 'stylelint-undeclared-config-entry') */
+  readonly undeclaredEntryRuleId: string;
+  /** ID of the companion setup-phase configuration validator suite (e.g. 'validate_stylelint_config') */
+  readonly configSuiteId: string;
+  /** Optional documentation or explanation of how the satellite config is derived from SSoT */
+  readonly description?: string;
+}
+export type SatelliteConfigExplanationFn = () => SatelliteConfigFileExplanation | undefined;
+/**
+ * Predicate verifying that an object satisfies the mandatory SatelliteConfigFileExplanation contract.
+ */
+export declare function isValidSatelliteConfigExplanation(expl: unknown): expl is SatelliteConfigFileExplanation;
+/**
+ * Canonical SSoT satellite configuration explanations for built-in sub-auditors and tools.
+ */
+export declare const SATELLITE_CONFIG_EXPLANATIONS: {
+  readonly fallow: {
+    readonly configFile: ".fallowrc.json";
+    readonly ssotKey: "fallow";
+    readonly undeclaredEntryRuleId: "fallow-undeclared-config-entry";
+    readonly configSuiteId: "validate_fallow_config";
+  };
+  readonly vitePlus: {
+    readonly configFile: "vite.config.ts";
+    readonly ssotKey: "vitePlus";
+    readonly undeclaredEntryRuleId: "vite-plus-undeclared-config-entry";
+    readonly configSuiteId: "validate_vite_plus_config";
+  };
+  readonly stylelint: {
+    readonly configFile: ".stylelintrc.json";
+    readonly ssotKey: "stylelint";
+    readonly undeclaredEntryRuleId: "stylelint-undeclared-config-entry";
+    readonly configSuiteId: "validate_stylelint_config";
+  };
+  readonly htmlValidate: {
+    readonly configFile: ".htmlvalidate.json";
+    readonly ssotKey: "htmlValidate";
+    readonly undeclaredEntryRuleId: "html-validate-undeclared-config-entry";
+    readonly configSuiteId: "validate_html_validate_config";
+  };
+  readonly markdownLint: {
+    readonly configFile: ".markdownlint.json";
+    readonly ssotKey: "documentation.markdownLint";
+    readonly undeclaredEntryRuleId: "markdownlint-undeclared-config-entry";
+    readonly configSuiteId: "validate_markdown_lint_config";
+  };
+  readonly tsconfig: {
+    readonly configFile: "tsconfig.json";
+    readonly ssotKey: "tsconfig";
+    readonly undeclaredEntryRuleId: "tsconfig-undeclared-config-entry";
+    readonly configSuiteId: "validate_tsconfig";
+  };
+};
+export interface AuditorThirdPartyToolValidationTarget {
+  readonly usesThirdPartyTool?: unknown;
+  readonly thirdPartyToolPolicy?: unknown;
+  readonly ruleIds?: readonly string[];
+}
+/**
+ * Validates the thirdPartyToolPolicy contract on an auditor instance or options definition.
+ * Returns an array of human-readable error messages explaining any missing or invalid contracts.
+ */
+export declare function collectAuditorThirdPartyToolErrors(target: AuditorThirdPartyToolValidationTarget, id: string): readonly string[];
+/**
  * Declared failure policy when a sub-auditor or extension delegates to third-party tools or binaries.
  */
 export interface ThirdPartyToolFailurePolicy<TRuleId extends string = string> {
@@ -395,6 +466,13 @@ export interface ThirdPartyToolFailurePolicy<TRuleId extends string = string> {
    * Mandatory when fallbackBehavior === 'violation'. Must be in the suite's ruleIds catalog.
    */
   readonly fallbackRuleId?: TRuleId;
+  /**
+   * Mandatory satellite configuration explanation for third-party tools.
+   * Explains how the satellite configuration is linked to SSoT, its undeclared entries rule,
+   * and companion setup-phase configuration suite.
+   * For tools without satellite configuration files (e.g. npm audit), set explicitly to undefined.
+   */
+  readonly explainSatelliteConfig?: SatelliteConfigFileExplanation | SatelliteConfigExplanationFn | undefined;
 }
 /**
  * Derives the canonical package.json script requirement for any auditor by convention.

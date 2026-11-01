@@ -146,7 +146,7 @@ async function compressAsset(
     };
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.warn(`[vite-precompress] Error al comprimir ${path.basename(filePath)}:`, msg);
+    console.warn(`[vite-precompress] Error compressing ${path.basename(filePath)}:`, msg);
     return null;
   }
 }
@@ -171,23 +171,23 @@ export function buildApacheHtaccess(spa = true): string {
     RewriteEngine On
     RewriteBase /
 
-    # 1. Servir Brotli (.br) si el navegador lo soporta y el archivo existe
+    # 1. Serve Brotli (.br) if browser supports it and file exists
     RewriteCond %{HTTP:Accept-Encoding} \\bbr\\b
     RewriteCond %{REQUEST_FILENAME}\\.br -s
     RewriteRule ^(.+)$ $1\\.br [L]
 
-    # 2. Servir Gzip (.gz) como fallback si el archivo existe
+    # 2. Serve Gzip (.gz) as fallback if file exists
     RewriteCond %{HTTP:Accept-Encoding} \\bgzip\\b
     RewriteCond %{REQUEST_FILENAME}\\.gz -s
     RewriteRule ^(.+)$ $1\\.gz [L]
 ${spaDirectives}</IfModule>
 
-# Deshabilitar MultiViews para evitar conflictos de nombres con extensiones .br/.gz
+# Disable MultiViews to avoid name conflicts with .br/.gz extensions
 <FilesMatch "\\.(br|gz)$">
     Options -MultiViews
 </FilesMatch>
 
-# Asignar Content-Encoding y Content-Type correctos para archivos comprimidos
+# Assign correct Content-Encoding and Content-Type for compressed files
 <IfModule mod_headers.c>
     # Brotli Headers
     <FilesMatch "\\.html\\.br$">
@@ -241,15 +241,15 @@ ${spaDirectives}</IfModule>
         Header set Content-Type "application/wasm"
     </FilesMatch>
 
-    # Informar a proxies y CDNs que la respuesta varía según Accept-Encoding
+    # Inform proxies and CDNs that response varies by Accept-Encoding
     Header append Vary Accept-Encoding
 
-    # Cache inmutable para activos con hash
+    # Immutable cache for hashed assets
     <FilesMatch "\\.(js|mjs|css|svg|wasm|json|png|jpg|webp|woff2)$">
         Header set Cache-Control "max-age=31536000, immutable"
     </FilesMatch>
 
-    # Anti-stale para index.html
+    # Anti-stale cache for index.html
     <FilesMatch "index\\.html$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
     </FilesMatch>
@@ -330,12 +330,12 @@ function renderTableReport(
 
   if (stats.length > MAX_TABLE_DISPLAY_ENTRIES) {
     console.log(
-      `│ … y ${stats.length - MAX_TABLE_DISPLAY_ENTRIES} archivos más`.padEnd(TABLE_WIDTH + 1) + '│'
+      `│ … and ${stats.length - MAX_TABLE_DISPLAY_ENTRIES} more files`.padEnd(TABLE_WIDTH + 1) + '│'
     );
   }
 
   console.log('├' + '─'.repeat(TABLE_WIDTH) + '┤');
-  const totName = `TOTAL (${stats.length} archivos)`.padEnd(34);
+  const totName = `TOTAL (${stats.length} files)`.padEnd(34);
   const totOrig = formatBytes(totalOrig).padStart(10);
   const totGz = formatBytes(totalGzip).padStart(10);
   const totBr = formatBytes(totalBrotli).padStart(10);

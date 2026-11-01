@@ -128,23 +128,23 @@ async function executeInWorktreeWithVerification(projectRoot, applyFn, options =
 */
 async function applyPlanFileWithWorktreeVerification(projectRoot, rawPlanPath, useWorktree, applyFn, commandHelpHint, options = {}) {
 	if (!rawPlanPath || !fs.existsSync(rawPlanPath)) {
-		console.error(styleText("red", `❌ Error: Debes especificar un archivo de plan: ${commandHelpHint}`));
+		console.error(styleText("red", `❌ Error: You must specify a plan file: ${commandHelpHint}`));
 		process.exit(1);
 	}
 	const plan = JSON.parse(fs.readFileSync(rawPlanPath, "utf8"));
 	if (useWorktree) {
-		console.log(styleText("cyan", "🌿 Creando Git Worktree efímero para verificación aislada..."));
+		console.log(styleText("cyan", "🌿 Creating ephemeral Git Worktree for isolated verification..."));
 		try {
 			await executeInWorktreeWithVerification(projectRoot, async (dir) => {
 				await applyFn(dir, plan);
 			}, options);
-			console.log(styleText("green", "✅ Verificación exitosa en Worktree y cambios aplicados al repositorio."));
+			console.log(styleText("green", "✅ Verification successful in Worktree and changes applied to repository."));
 		} catch (err) {
-			console.error(styleText("red", `❌ Falló la verificación en el worktree: ${err.message}`));
+			console.error(styleText("red", `❌ Worktree verification failed: ${err.message}`));
 			process.exit(1);
 		}
 	} else {
-		console.log(styleText("yellow", "⚡ Aplicando refactorización directamente en el árbol de trabajo..."));
+		console.log(styleText("yellow", "⚡ Applying refactor directly in working tree..."));
 		await applyFn(projectRoot, plan);
 	}
 }

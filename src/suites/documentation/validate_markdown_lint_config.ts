@@ -18,6 +18,8 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
+import { getAuditConfig } from '../../core/auditConfig.ts';
+import { isConfigRuleDisabled } from '../../core/auditConfigLayout.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -30,7 +32,8 @@ enableCompileCache();
 export const MARKDOWNLINT_CONFIG_RULES = [
   'markdownlint-config-missing',
   'markdownlint-config-syntax',
-  'markdownlint-config-missing-strict-rule'
+  'markdownlint-config-missing-strict-rule',
+  'markdownlint-undeclared-config-entry'
 ] as const;
 
 export type MarkdownLintConfigRuleId = (typeof MARKDOWNLINT_CONFIG_RULES)[number];
@@ -118,7 +121,8 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
       ruleDescriptions: {
         'markdownlint-config-missing': 'Missing .markdownlint.json file',
         'markdownlint-config-syntax': 'Configuration syntax error',
-        'markdownlint-config-missing-strict-rule': 'Missing mandatory strict rule'
+        'markdownlint-config-missing-strict-rule': 'Missing mandatory strict rule',
+        'markdownlint-undeclared-config-entry': 'Undeclared entry in config'
       },
       ruleRemediations: {
         'markdownlint-config-missing':
@@ -141,7 +145,22 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
           '2. Diagnosis: Compare `.markdownlint.json` against required rules from framework documentation standards.\n' +
           '3. Canonical Solution: Restore strict baseline rules by running auditor mechanical auto-repair.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   - Run: `npm run auditor:fix` or `auditor fix`'
+          '   - Run: `npm run auditor:fix` or `auditor fix`',
+        'markdownlint-undeclared-config-entry':
+          '📖 REMEDIATION GUIDE: markdownlint-undeclared-config-entry\n' +
+          '1. Root Cause: `.markdownlint.json` contains rules or overrides that are not part of the canonical baseline and are not declared in `.auditor/audit.config.ts`.\n' +
+          '2. Diagnosis: Check which rule in `.markdownlint.json` is undeclared.\n' +
+          '3. Canonical Solution: Declare authorized overrides in `.auditor/audit.config.ts` under `documentation.markdownLint.rules` or `documentation.markdownLint.disabledRules`, or run `npm run auditor:fix` to synchronize.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Declare in `.auditor/audit.config.ts`:\n' +
+          '   ```ts\n' +
+          '   documentation: {\n' +
+          '     markdownLint: {\n' +
+          '       rules: { "MD041": false },\n' +
+          '       disabledRules: ["MD041"]\n' +
+          '     }\n' +
+          '   }\n' +
+          '   ```'
       },
       coverage: {
         include: [
@@ -172,6 +191,10 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
           'markdownlint-config-missing-strict-rule',
           'Missing .markdownlint.json file'
         );
+        this.markRuleNotApplicable(
+          'markdownlint-undeclared-config-entry',
+          'Missing .markdownlint.json file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -186,10 +209,14 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
     try {
       rawContent = fs.readFileSync(resolvedPath, 'utf8');
     } catch {
-      this.markRuleNotApplicable('markdownlint-config-syntax', 'No se pudo leer el archivo');
+      this.markRuleNotApplicable('markdownlint-config-syntax', 'Could not read configuration file');
       this.markRuleNotApplicable(
         'markdownlint-config-missing-strict-rule',
-        'No se pudo leer el archivo'
+        'Could not read configuration file'
+      );
+      this.markRuleNotApplicable(
+        'markdownlint-undeclared-config-entry',
+        'Could not read configuration file'
       );
       return;
     }
@@ -211,6 +238,7 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
 
     if (!parsed || typeof parsed !== 'object') {
       this.markRuleNotApplicable('markdownlint-config-missing-strict-rule', 'Invalid JSON syntax');
+      this.markRuleNotApplicable('markdownlint-undeclared-config-entry', 'Invalid JSON syntax');
       return;
     }
 
@@ -293,6 +321,47 @@ export class ValidateMarkdownLintConfigAuditor extends BaseAuditor<MarkdownLintC
             line: 1,
             message: 'MD007 must configure indent: 2 according to markdown style standards.'
           });
+        }
+      }
+    });
+
+    // Check for undeclared entries / disabled rules (Anti-Tamper & SSoT Sovereignty)
+    this.runSubAuditorSync('markdownlint-undeclared-config-entry', () => {
+      const config = getAuditConfig(this.projectRoot);
+      const authorizedRules = new Set<string>(Object.keys(CANONICAL_MARKDOWNLINT_CONFIG));
+      const configuredRules = config.documentation?.markdownLint?.rules ?? {};
+      for (const rule of Object.keys(configuredRules)) {
+        authorizedRules.add(rule);
+      }
+      for (const rule of config.documentation?.markdownLint?.disabledRules ?? []) {
+        authorizedRules.add(rule);
+      }
+
+      for (const [key, val] of Object.entries(parsedConfig)) {
+        if (key === 'default' || key === '$schema') continue;
+        if (!authorizedRules.has(key)) {
+          this.addViolation({
+            ruleId: 'markdownlint-undeclared-config-entry',
+            severity: 'error',
+            file: relPath,
+            line: 1,
+            message: `Undeclared rule "${key}" in ${relPath}. Any custom rule or override in .markdownlint.json must be authorized in .auditor/audit.config.ts under 'documentation.markdownLint.rules' or 'documentation.markdownLint.disabledRules'.`,
+            context: key
+          });
+        } else if (isConfigRuleDisabled(val)) {
+          const canonicalVal = (CANONICAL_MARKDOWNLINT_CONFIG as Record<string, unknown>)[key];
+          const isCanonicallyDisabled = isConfigRuleDisabled(canonicalVal);
+          const allowedDisabled = new Set(config.documentation?.markdownLint?.disabledRules ?? []);
+          if (!isCanonicallyDisabled && !allowedDisabled.has(key)) {
+            this.addViolation({
+              ruleId: 'markdownlint-undeclared-config-entry',
+              severity: 'error',
+              file: relPath,
+              line: 1,
+              message: `Unauthorized disabled rule "${key}" in ${relPath}. Disabling a canonical rule requires authorization in .auditor/audit.config.ts under 'documentation.markdownLint.disabledRules'.`,
+              context: key
+            });
+          }
         }
       }
     });

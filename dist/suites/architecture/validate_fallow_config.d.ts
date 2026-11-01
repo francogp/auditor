@@ -1,7 +1,7 @@
 import { CanonicalRuleSeverityLevel } from "../../core/auditConfigTypes.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic';
+export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic' | 'fallow-undeclared-config-entry';
 export declare const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[];
 export declare function getBannedEntryGlobs(projectRoot?: string): readonly string[];
 export declare const BANNED_ENTRY_GLOBS: readonly string[];
@@ -57,6 +57,7 @@ export interface FallowWorkspaceDiagnosticItem {
 export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant"];
 export type FallowRedundantConfigDiagnosticKind = (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
 export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor, config?: FallowConfigSchema): boolean;
+export declare function validateUndeclaredFallowEntries(config: FallowConfigSchema, auditor: ValidateFallowConfigAuditor): void;
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;

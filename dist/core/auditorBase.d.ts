@@ -1,7 +1,7 @@
 import { AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
 import { SharedAstContext } from "./astContext.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
-import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
+import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, SatelliteConfigExplanationFn, SatelliteConfigFileExplanation, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
 import { CoverageRecorder } from "./auditCoverage.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
@@ -55,7 +55,7 @@ export interface AuditorContext {
   isPathIgnored: (relPath: string) => boolean;
   collectFiles: (roots?: readonly string[], allowedExtensions?: ReadonlySet<string>) => string[];
   logProgress: (msg: string) => void;
-  logStep: (stepNumber: number, totalSteps: number, description: string) => void;
+  logStep: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void;
   addFinding: (finding: AuditFinding) => void;
   addError: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
   addWarning: (message: string, file?: string, line?: number, context?: string, ruleId?: string, ruleDescription?: string, suiteId?: string, suiteName?: string) => void;
@@ -64,7 +64,7 @@ export interface AuditorContext {
   checkFiles: () => Promise<void>;
   finish: (finalMetrics?: Record<string, number | string>, extra?: Partial<StandardAuditResult>) => Promise<StandardAuditResult>;
   getFindings: () => readonly AuditFinding[];
-  setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string) => void) => void;
+  setStepLogger?: (logger: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void) => void;
   setProgressLogger?: (logger: (msg: string) => void) => void;
 }
 /**
@@ -257,6 +257,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly criticalConfig: AuditorCriticalConfig;
   readonly usesThirdPartyTool: boolean;
   readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
+  readonly satelliteConfig?: SatelliteConfigFileExplanation;
   readonly ruleFixers?: Readonly<Partial<Record<string, RuleFixerFn | AnyRuleFixerFn>>>;
   protected readonly fixableRuleIds: Set<TRuleId>;
   protected readonly durationsByRule: Map<TRuleId, number>;
@@ -275,6 +276,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   protected isSkipped: boolean;
   protected skipReason?: string;
   getFixableRuleIds(): readonly TRuleId[];
+  explainSatelliteConfig(): SatelliteConfigFileExplanation | undefined;
   /**
    * Executes registered rule fixers for this suite in deterministic order.
    * If multiple rules share the exact same fixer function reference, the function
@@ -382,6 +384,10 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   assertRule(ruleId: TRuleId, condition: boolean, violation: Omit<ViolationInput<TRuleId>, 'ruleId'>): void;
   /** Refines the coverage declaration at runtime (e.g. from config-driven roots loaded after construction). */
   protected redeclareCoverage(declaration: AuditorCoverageDeclaration): void;
+  /**
+   * Checks whether the suite is gated by configuration and redeclares root coverage as 'declared-only'.
+   */
+  protected isDomainSuiteGated(reason: string, roots: readonly string[], extensions: ReadonlySet<string>): boolean;
   /** For `declared-only` suites whose external engine reports a file count but no file list. */
   protected recordExternalScanCount(count: number): void;
   /** Adds dynamically discovered rule ids (rule engines without static ruleIds) to the dormancy catalog. */
@@ -460,7 +466,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   finishAudit(): Promise<StandardAuditResult>;
   protected ensureSubAuditorsLogged(): void;
   importAuditFindings(findings: readonly AuditFinding[], fallbackRuleId: TRuleId, fallbackContext?: string): void;
-  setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string) => void): void;
+  setStepLogger(logger: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void): void;
   setProgressLogger(logger: (msg: string) => void): void;
   /**
    * Generates the canonical AuditorManifestDTO for clean and typed introspection,
@@ -573,4 +579,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   private scanSingleDiscoveredFile;
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-export { type AnyRuleFixerFn, AuditedDocument, type AuditorComputedCapabilities, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RuleFixContext, type RuleFixerFn, type RuleFixersMap, SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };
+export { type AnyRuleFixerFn, AuditedDocument, type AuditorComputedCapabilities, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RuleFixContext, type RuleFixerFn, type RuleFixersMap, SKILLS_LOCK_CANDIDATE_PATHS, type SatelliteConfigExplanationFn, type SatelliteConfigFileExplanation, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };

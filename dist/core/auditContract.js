@@ -149,6 +149,95 @@ const SUB_AUDITOR_STATUSES = [
 ];
 const COVERAGE_SOURCES = ["runtime", "declared-only"];
 /**
+* Predicate verifying that an object satisfies the mandatory SatelliteConfigFileExplanation contract.
+*/
+function isValidSatelliteConfigExplanation(expl) {
+	if (typeof expl !== "object" || expl === null) return false;
+	const target = expl;
+	return typeof target.configFile === "string" && target.configFile.trim().length > 0 && typeof target.ssotKey === "string" && target.ssotKey.trim().length > 0 && typeof target.undeclaredEntryRuleId === "string" && target.undeclaredEntryRuleId.trim().length > 0 && typeof target.configSuiteId === "string" && target.configSuiteId.trim().length > 0;
+}
+/**
+* Canonical SSoT satellite configuration explanations for built-in sub-auditors and tools.
+*/
+const SATELLITE_CONFIG_EXPLANATIONS = {
+	fallow: {
+		configFile: ".fallowrc.json",
+		ssotKey: "fallow",
+		undeclaredEntryRuleId: "fallow-undeclared-config-entry",
+		configSuiteId: "validate_fallow_config"
+	},
+	vitePlus: {
+		configFile: "vite.config.ts",
+		ssotKey: "vitePlus",
+		undeclaredEntryRuleId: "vite-plus-undeclared-config-entry",
+		configSuiteId: "validate_vite_plus_config"
+	},
+	stylelint: {
+		configFile: ".stylelintrc.json",
+		ssotKey: "stylelint",
+		undeclaredEntryRuleId: "stylelint-undeclared-config-entry",
+		configSuiteId: "validate_stylelint_config"
+	},
+	htmlValidate: {
+		configFile: ".htmlvalidate.json",
+		ssotKey: "htmlValidate",
+		undeclaredEntryRuleId: "html-validate-undeclared-config-entry",
+		configSuiteId: "validate_html_validate_config"
+	},
+	markdownLint: {
+		configFile: ".markdownlint.json",
+		ssotKey: "documentation.markdownLint",
+		undeclaredEntryRuleId: "markdownlint-undeclared-config-entry",
+		configSuiteId: "validate_markdown_lint_config"
+	},
+	tsconfig: {
+		configFile: "tsconfig.json",
+		ssotKey: "tsconfig",
+		undeclaredEntryRuleId: "tsconfig-undeclared-config-entry",
+		configSuiteId: "validate_tsconfig"
+	}
+};
+function validateThirdPartyToolName(policy, id) {
+	if (!policy.toolName || typeof policy.toolName !== "string" || policy.toolName.trim() === "") return [`Auditor [${id}] 'thirdPartyToolPolicy.toolName' must be a non-empty string naming the external tool.`];
+	return [];
+}
+function validateThirdPartyFallback(policy, target, id) {
+	const errors = [];
+	if (policy.fallbackBehavior !== "throw" && policy.fallbackBehavior !== "violation") errors.push(`Auditor [${id}] 'thirdPartyToolPolicy.fallbackBehavior' must be either 'throw' or 'violation'.`);
+	if (policy.fallbackBehavior === "violation") {
+		if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== "string") errors.push(`Auditor [${id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`);
+		else if (target.ruleIds && !target.ruleIds.includes(policy.fallbackRuleId)) errors.push(`Auditor [${id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`);
+	}
+	return errors;
+}
+function validateThirdPartySatelliteExplanation(policy, id) {
+	if (!("explainSatelliteConfig" in policy)) return [`Auditor [${id}] declared usesThirdPartyTool: true but failed to declare mandatory 'explainSatelliteConfig'. Declare { configFile, ssotKey, undeclaredEntryRuleId, configSuiteId } or explicit 'explainSatelliteConfig: undefined'.`];
+	if (policy.explainSatelliteConfig !== void 0) {
+		const expl = typeof policy.explainSatelliteConfig === "function" ? policy.explainSatelliteConfig() : policy.explainSatelliteConfig;
+		if (expl !== void 0 && !isValidSatelliteConfigExplanation(expl)) return [`Auditor [${id}] 'thirdPartyToolPolicy.explainSatelliteConfig' must return or define an object with non-empty 'configFile', 'ssotKey', 'undeclaredEntryRuleId', and 'configSuiteId'.`];
+	}
+	return [];
+}
+function validateActiveThirdPartyToolPolicy(target, id) {
+	if (!target.thirdPartyToolPolicy || typeof target.thirdPartyToolPolicy !== "object") return [`Auditor [${id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'.`];
+	const policy = target.thirdPartyToolPolicy;
+	return [
+		...validateThirdPartyToolName(policy, id),
+		...validateThirdPartyFallback(policy, target, id),
+		...validateThirdPartySatelliteExplanation(policy, id)
+	];
+}
+/**
+* Validates the thirdPartyToolPolicy contract on an auditor instance or options definition.
+* Returns an array of human-readable error messages explaining any missing or invalid contracts.
+*/
+function collectAuditorThirdPartyToolErrors(target, id) {
+	if (typeof target.usesThirdPartyTool !== "boolean") return [`Auditor [${id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false).`];
+	if (target.usesThirdPartyTool) return validateActiveThirdPartyToolPolicy(target, id);
+	if (target.thirdPartyToolPolicy !== void 0) return [`Auditor [${id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`];
+	return [];
+}
+/**
 * Derives the canonical package.json script requirement for any auditor by convention.
 */
 function deriveCanonicalAuditorScript(id, description, overrides) {
@@ -233,11 +322,11 @@ function assertAuditFreshness(meta, consumerName, options) {
 		if (now.since(auditInstant).total({ unit: "millisecond" }) > maxAge) {
 			const elapsedMins = Math.max(1, Math.round(now.since(auditInstant).total({ unit: "minute" })));
 			const limitMins = Math.round(maxAge / ONE_MINUTE_MS);
-			throw new Error(`[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run auditor' para refrescar el reporte.`);
+			throw new Error(`[${consumerName}] scratch/audits/latest_audit.json is STALE (${elapsedMins} minutes old, limit: ${limitMins} min). Source code may have changed since the last audit. 👉 You MUST run 'npm run auditor' to refresh the report.`);
 		}
 	} catch (err) {
-		if (err.message.includes("OBSOLETO")) throw err;
-		throw new Error(`[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run auditor' para regenerarlo.`, { cause: err });
+		if (err.message.includes("STALE") || err.message.includes("OBSOLETO")) throw err;
+		throw new Error(`[${consumerName}] scratch/audits/latest_audit.json contains an invalid timestamp ('${meta.timestamp}'). Run 'npm run auditor' to regenerate it.`, { cause: err });
 	}
 }
 function assertAuditSuiteExecuted(meta, requiredSuiteId, consumerName) {
@@ -245,7 +334,7 @@ function assertAuditSuiteExecuted(meta, requiredSuiteId, consumerName) {
 	const wasOmitted = Array.isArray(meta.omittedSuites) && meta.omittedSuites.includes(requiredSuiteId);
 	if (!wasExecuted || wasOmitted) {
 		const modeDesc = meta.runMode === "preset" ? `preset=${meta.preset}` : meta.runMode === "family" ? `family=${meta.targetFamily}` : meta.runMode;
-		throw new Error(`[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). 👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${requiredSuiteId}' para obtener datos válidos.`);
+		throw new Error(`[${consumerName}] Required suite '${requiredSuiteId}' was NOT executed in the last audit. latest_audit.json was generated by a PARTIAL run (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites executed). 👉 You MUST run 'npm run auditor' (full) or 'npm run auditor task=${requiredSuiteId}' to obtain valid data.`);
 	}
 }
 /**
@@ -255,7 +344,7 @@ function assertAuditSuiteExecuted(meta, requiredSuiteId, consumerName) {
 * or the report is stale.
 */
 function assertAuditorExecuted(report, requiredSuiteId, consumerName, options = {}) {
-	if (!report || !report.meta) throw new Error(`[${consumerName}] scratch/audits/latest_audit.json no contiene la cabecera de metadatos 'meta'. Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run auditor' para regenerarlo.`);
+	if (!report || !report.meta) throw new Error(`[${consumerName}] scratch/audits/latest_audit.json does not contain the 'meta' header. It may come from an obsolete version or be corrupt. Run 'npm run auditor' to regenerate it.`);
 	assertAuditFreshness(report.meta, consumerName, options);
 	assertAuditSuiteExecuted(report.meta, requiredSuiteId, consumerName);
 }
@@ -312,4 +401,4 @@ function computeResultsFixableViolations(results, isFixMode = false) {
 		autoFixRecommended: fixableErrors > 0 || fixableWarnings > 0
 	};
 }
-export { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, AUDIT_STATUSES, BUILTIN_AUDIT_FAMILIES, COVERAGE_SOURCES, DEFAULT_CUSTOM_FAMILY_ORDER, FALLBACK_FAMILY_ORDER, FAMILY_METADATA, FINDING_SEVERITIES, MAX_AUDIT_STALENESS_MS, ONE_MINUTE_MS, RATCHET_STATUSES, REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, SPEED_RANK, SUB_AUDITOR_STATUSES, assertAuditorExecuted, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, getActiveFamilies, getRemediationPhaseMetadata, groupFindingsByFileMap, groupResultsByFamily, isRemediationPhaseId, normalizeFindingPath, normalizeSpeeds, resolveEffectiveSpeed, resolveFamilyMetadata, sortFindingsByFileAndLine };
+export { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, AUDIT_FIX_CAPABILITIES, AUDIT_STATUSES, BUILTIN_AUDIT_FAMILIES, COVERAGE_SOURCES, DEFAULT_CUSTOM_FAMILY_ORDER, FALLBACK_FAMILY_ORDER, FAMILY_METADATA, FINDING_SEVERITIES, MAX_AUDIT_STALENESS_MS, ONE_MINUTE_MS, RATCHET_STATUSES, REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, SATELLITE_CONFIG_EXPLANATIONS, SPEED_RANK, SUB_AUDITOR_STATUSES, assertAuditorExecuted, collectAuditorThirdPartyToolErrors, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, getActiveFamilies, getRemediationPhaseMetadata, groupFindingsByFileMap, groupResultsByFamily, isRemediationPhaseId, isValidSatelliteConfigExplanation, normalizeFindingPath, normalizeSpeeds, resolveEffectiveSpeed, resolveFamilyMetadata, sortFindingsByFileAndLine };

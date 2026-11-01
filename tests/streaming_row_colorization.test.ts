@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeAll, afterEach, vi } from 'vite-plus/test';
 
 import type { SubAuditorReport } from '../src/core/auditContract.ts';
-import { colorizeStreamSubLine, TaskStreamCoordinator } from '../src/core/streamingRunner.ts';
+import { colorizeStreamSubLine } from '../src/core/streamingFormat.ts';
+import { TaskStreamCoordinator } from '../src/core/taskStreamCoordinator.ts';
 
 beforeAll(() => {
   process.env.FORCE_COLOR = '1';

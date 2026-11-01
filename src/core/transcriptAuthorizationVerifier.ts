@@ -81,26 +81,74 @@ export interface TranscriptToolCall {
   readonly args?: Record<string, unknown>;
 }
 
+const MUTATION_TOOL_NAMES: ReadonlySet<string> = new Set(['write_file', 'edit_file']);
+
+function hasShellTranscriptRedirection(normalizedCommand: string): boolean {
+  // Shell redirection into transcript (e.g. `> transcript.jsonl`, `>> transcript.jsonl`, `1> transcript.jsonl`).
+  // Excludes `=>`, `->`, and `>=` which are JavaScript operators inside node -e scripts.
+  return /(?<![=>-])(?:>>?|1>|2>)\s*[^|&;"'\r\n]*transcript(?:_full)?\.jsonl/i.test(
+    normalizedCommand
+  );
+}
+
+function hasShellTranscriptFileDeletionOrWrite(normalizedCommand: string): boolean {
+  // Shell / PowerShell write and delete cmdlets targeting transcript at command or pipeline start.
+  return /(?:^|[;&|\r\n])\s*(?:remove-item|del|rm|erase|unlink|set-content|add-content|out-file|truncate)\b[^|&;\r\n]*transcript(?:_full)?\.jsonl/i.test(
+    normalizedCommand
+  );
+}
+
+function hasScriptTranscriptFileMutation(normalizedCommand: string): boolean {
+  // Script / Node write operations mutating transcript (e.g. fs.writeFileSync('...transcript.jsonl', ...)).
+  return /\b(?:writefile|writefilesync|appendfile|appendfilesync|createwritestream)\s*\([^)]*transcript(?:_full)?\.jsonl/i.test(
+    normalizedCommand
+  );
+}
+
 /**
- * Checks if a model tool call attempted to write or edit transcript files or system logs.
+ * Checks if a shell command attempted to write, redirect into, or delete transcript files.
+ * Read-only commands (node reading via createReadStream, Get-Content, cat) do NOT constitute tampering.
  */
-function isTamperingToolCall(toolCall: TranscriptToolCall): boolean {
+function isShellTranscriptMutation(commandLine: string): boolean {
+  const normalizedCommand = commandLine.toLowerCase();
+  const hasTranscript =
+    normalizedCommand.includes('transcript.jsonl') ||
+    normalizedCommand.includes('transcript_full.jsonl');
+  if (!hasTranscript) return false;
+
+  return (
+    hasShellTranscriptRedirection(normalizedCommand) ||
+    hasShellTranscriptFileDeletionOrWrite(normalizedCommand) ||
+    hasScriptTranscriptFileMutation(normalizedCommand)
+  );
+}
+
+/**
+ * Checks if a model tool call attempted to write or mutate transcript files.
+ * Read-only operations (read_file) and background task log reads (.system_generated/tasks/*.log)
+ * are completely safe and do NOT constitute tampering.
+ */
+export function isTamperingToolCall(toolCall: TranscriptToolCall): boolean {
+  const toolName = (toolCall.name ?? '').toLowerCase();
   const args = toolCall.args;
   if (!args) return false;
 
-  const rawPath = args.Path ?? args.path;
-  const targetPath = typeof rawPath === 'string' ? rawPath : '';
+  // 1. Direct file write or edit mutation tools
+  if (MUTATION_TOOL_NAMES.has(toolName)) {
+    const rawPath = args.Path ?? args.path;
+    const targetPath = (typeof rawPath === 'string' ? rawPath : '').toLowerCase();
+    if (targetPath.includes('transcript.jsonl') || targetPath.includes('transcript_full.jsonl')) {
+      return true;
+    }
+  }
 
-  const rawCommand = args.CommandLine ?? args.commandLine;
-  const commandLine = typeof rawCommand === 'string' ? rawCommand : '';
-
-  const serialized = `${targetPath} ${commandLine}`.toLowerCase();
-  if (
-    serialized.includes('transcript.jsonl') ||
-    serialized.includes('transcript_full.jsonl') ||
-    serialized.includes('.system_generated')
-  ) {
-    return true;
+  // 2. Shell command execution attempting to mutate transcript files
+  if (toolName === 'run_command') {
+    const rawCommand = args.CommandLine ?? args.commandLine;
+    const commandLine = typeof rawCommand === 'string' ? rawCommand : '';
+    if (isShellTranscriptMutation(commandLine)) {
+      return true;
+    }
   }
 
   return false;
@@ -197,7 +245,7 @@ export function verifyTranscriptAuthorization(
         verified: false,
         tamperingDetected: true,
         transcriptPath,
-        reason: 'Tampering detected: model attempted to modify .system_generated or transcript logs'
+        reason: 'Tampering detected: model attempted to mutate transcript logs'
       };
     }
 

@@ -311,7 +311,8 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "knip",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "package-unlisted-dependency"
+				fallbackRuleId: "package-unlisted-dependency",
+				explainSatelliteConfig: void 0
 			},
 			ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
 				speed: ["heavy", "full"],
@@ -349,7 +350,7 @@ var ValidatePackageHygieneAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Package hygiene desactivado en config")) return;
+		if (this.isSuiteGatingDisabled("Package hygiene disabled in config")) return;
 		this.recordScanned("package.json");
 		if (fs.existsSync(path.resolve(this.projectRoot, "package-lock.json"))) this.recordScanned("package-lock.json");
 		this.runSubAuditorSync("package-lockfile-integrity", () => {

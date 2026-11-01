@@ -24,7 +24,12 @@ import {
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
+import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
+import {
+  validateSatelliteUndeclaredEntries,
+  getAllowedSatellitePathExcludes
+} from '../../core/satelliteGlobMatcher.ts';
 
 enableCompileCache();
 
@@ -32,13 +37,15 @@ export type StylelintConfigRuleId =
   | 'stylelint-config-missing'
   | 'stylelint-config-missing-plugin'
   | 'stylelint-config-missing-strict-value'
-  | 'stylelint-config-missing-order';
+  | 'stylelint-config-missing-order'
+  | 'stylelint-undeclared-config-entry';
 
 export const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[] = [
   'stylelint-config-missing',
   'stylelint-config-missing-plugin',
   'stylelint-config-missing-strict-value',
-  'stylelint-config-missing-order'
+  'stylelint-config-missing-order',
+  'stylelint-undeclared-config-entry'
 ] as const;
 
 export const REQUIRED_STYLELINT_PLUGIN = 'stylelint-declaration-strict-value';
@@ -345,7 +352,8 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         'stylelint-config-missing': 'Missing .stylelintrc.json',
         'stylelint-config-missing-plugin': 'Missing stylelint plugin',
         'stylelint-config-missing-strict-value': 'Missing strict-value rule',
-        'stylelint-config-missing-order': 'Missing order/order rule'
+        'stylelint-config-missing-order': 'Missing order/order rule',
+        'stylelint-undeclared-config-entry': 'Undeclared entry in config'
       },
       ruleRemediations: {
         'stylelint-config-missing':
@@ -394,7 +402,16 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
           '1. Run "npm run auditor:fix" to repair the configuration automatically.\n' +
           '2. Alternatively, extend "./node_modules/@francogp/auditor/.stylelintrc.json" to inherit canonical mixin ordering.\n\n' +
           '4. Example / Auto-fix command:\n' +
-          'npm run auditor:fix'
+          'npm run auditor:fix',
+        'stylelint-undeclared-config-entry':
+          '1. Root Cause:\n' +
+          '.stylelintrc.json contains strict properties or rules that are not declared in .auditor/audit.config.ts (SSoT violation).\n\n' +
+          '2. Diagnosis:\n' +
+          'Check the finding message for the undeclared property in .stylelintrc.json.\n\n' +
+          '3. Canonical Solution:\n' +
+          'Declare the property in .auditor/audit.config.ts under stylelint.strictValues.properties, or remove it from .stylelintrc.json.\n\n' +
+          '4. Example / Auto-fix command:\n' +
+          "Declare in .auditor/audit.config.ts: stylelint: { strictValues: { properties: ['my-prop'] } }"
       },
       coverage: {
         include: ['.stylelintrc*']
@@ -526,6 +543,135 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
     return false;
   }
 
+  private auditUndeclaredIgnoreFiles(
+    parsedConfig: Record<string, unknown>,
+    targetFile: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): void {
+    if (parsedConfig.ignoreFiles === undefined) return;
+
+    const rawIgnoreFiles = Array.isArray(parsedConfig.ignoreFiles)
+      ? parsedConfig.ignoreFiles
+      : typeof parsedConfig.ignoreFiles === 'string'
+        ? [parsedConfig.ignoreFiles]
+        : [];
+
+    const effectiveGlobs = getEffectiveIgnoreGlobs(this.projectRoot);
+    const allowedGlobs = new Set<string>([
+      ...getAllowedSatellitePathExcludes(config, this.projectRoot),
+      ...(config.stylelint?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.stylelint?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.stylelint?.exemptFiles ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.styles?.stylelint?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.styles?.stylelint?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.styles?.stylelint?.exemptFiles ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.styles?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+      ...(config.styles?.exemptCssFiles ?? []).map((p) => normalizePosixPath(p))
+    ]);
+
+    validateSatelliteUndeclaredEntries(rawIgnoreFiles, allowedGlobs, effectiveGlobs, (pattern) => {
+      this.addViolation({
+        ruleId: 'stylelint-undeclared-config-entry',
+        severity: 'error',
+        file: toPosixRelative(this.projectRoot, targetFile),
+        line: 1,
+        message: `Undeclared ignore pattern '${pattern}' in ignoreFiles of ${path.basename(targetFile)}. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'stylelint.ignoreGlobs' or 'paths.ignoreGlobs', or remove it from ${path.basename(targetFile)}.`,
+        context: pattern
+      });
+    });
+  }
+
+  private auditUndeclaredStrictProperties(
+    strictRule: unknown,
+    targetFile: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): void {
+    if (!Array.isArray(strictRule) || !Array.isArray(strictRule[0])) return;
+
+    const allowedStrictProps = new Set<string>(getMergedStrictProperties(config));
+    for (const item of strictRule[0]) {
+      if (typeof item === 'string' && !allowedStrictProps.has(item)) {
+        this.addViolation({
+          ruleId: 'stylelint-undeclared-config-entry',
+          severity: 'error',
+          file: toPosixRelative(this.projectRoot, targetFile),
+          line: 1,
+          message: `Undeclared strict property '${item}' in ${path.basename(targetFile)}. To legitimize this property, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.properties', or remove it from ${path.basename(targetFile)}.`,
+          context: item
+        });
+      }
+    }
+  }
+
+  private auditUndeclaredIgnoreValues(
+    optionsObj: Record<string, unknown> | undefined,
+    targetFile: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): void {
+    if (
+      !optionsObj ||
+      typeof optionsObj.ignoreValues !== 'object' ||
+      optionsObj.ignoreValues === null
+    ) {
+      return;
+    }
+
+    const allowedIgnoreValues = getMergedIgnoreValues(config);
+    const ignoreValuesObj = optionsObj.ignoreValues as Record<string, unknown>;
+
+    for (const [prop, vals] of Object.entries(ignoreValuesObj)) {
+      if (!(prop in allowedIgnoreValues)) {
+        this.addViolation({
+          ruleId: 'stylelint-undeclared-config-entry',
+          severity: 'error',
+          file: toPosixRelative(this.projectRoot, targetFile),
+          line: 1,
+          message: `Undeclared ignoreValues property '${prop}' in ${path.basename(targetFile)}. To legitimize this property, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.ignoreValues', or remove it from ${path.basename(targetFile)}.`,
+          context: prop
+        });
+      }
+
+      const allowedVals = new Set(allowedIgnoreValues[prop] ?? []);
+      const rawVals = Array.isArray(vals) ? vals : typeof vals === 'string' ? [vals] : [];
+
+      for (const val of rawVals) {
+        if (typeof val === 'string' && !allowedVals.has(val)) {
+          this.addViolation({
+            ruleId: 'stylelint-undeclared-config-entry',
+            severity: 'error',
+            file: toPosixRelative(this.projectRoot, targetFile),
+            line: 1,
+            message: `Undeclared ignoreValue '${val}' for property '${prop}' in ${path.basename(targetFile)}. To legitimize this value, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.ignoreValues', or remove it from ${path.basename(targetFile)}.`,
+            context: `${prop}:${val}`
+          });
+        }
+      }
+    }
+  }
+
+  private auditUndeclaredEntries(
+    parsedConfig: Record<string, unknown>,
+    targetFile: string,
+    config: ReturnType<typeof getAuditConfig>
+  ): void {
+    this.auditUndeclaredIgnoreFiles(parsedConfig, targetFile, config);
+
+    const rules =
+      typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null
+        ? (parsedConfig.rules as Record<string, unknown>)
+        : {};
+
+    const strictRule = rules[REQUIRED_STRICT_VALUE_RULE];
+    this.auditUndeclaredStrictProperties(strictRule, targetFile, config);
+
+    const optionsObj =
+      Array.isArray(strictRule) && strictRule[1] && typeof strictRule[1] === 'object'
+        ? (strictRule[1] as Record<string, unknown>)
+        : undefined;
+
+    this.auditUndeclaredIgnoreValues(optionsObj, targetFile, config);
+  }
+
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
     if (config.stylelint?.enabled === false && config.styles?.stylelint?.enabled === false) {
@@ -575,7 +721,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
         'stylelint-config-missing-order'
       ] as const) {
         this.runSubAuditorSync(r, () => {
-          this.markRuleNotApplicable(r, 'Archivo .stylelintrc.json inválido o corrupto');
+          this.markRuleNotApplicable(r, 'Invalid or corrupt .stylelintrc.json');
         });
       }
       return;
@@ -591,6 +737,10 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
     });
 
+    this.runSubAuditorSync('stylelint-undeclared-config-entry', () => {
+      this.auditUndeclaredEntries(parsedConfig, targetFile, config);
+    });
+
     const orderEnabled =
       config.stylelint?.order?.enforceHasBlockPartitioning ??
       config.styles?.stylelint?.order?.enforceHasBlockPartitioning ??
@@ -604,7 +754,7 @@ export class ValidateStylelintConfigAuditor extends BaseAuditor<StylelintConfigR
       this.runSubAuditorSync('stylelint-config-missing-order', () => {
         this.markRuleNotApplicable(
           'stylelint-config-missing-order',
-          'Orden de mixins desactivado en configuración'
+          'Order of mixins disabled in config'
         );
       });
     }

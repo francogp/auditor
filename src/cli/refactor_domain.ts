@@ -20,7 +20,7 @@ import type { TableColumn } from '../core/unifiedTheme.ts';
 import { isMainModule } from './cliUtils.ts';
 
 const TABLE_COLUMNS: readonly TableColumn[] = [
-  { key: 'file', header: 'Archivo', width: 36, align: 'left' },
+  { key: 'file', header: 'File', width: 36, align: 'left' },
   { key: 'naked', header: 'NakedStr', width: 9, align: 'right' },
   { key: 'unfrozen', header: 'Unfrozen', width: 9, align: 'right' },
   { key: 'unbranded', header: 'Unbranded', width: 10, align: 'right' },

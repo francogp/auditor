@@ -571,6 +571,196 @@ export interface AuditorCriticalConfig<TConfig = unknown> {
 }
 
 /**
+ * Mandatory explanation contract for satellite tool configuration files.
+ */
+export interface SatelliteConfigFileExplanation {
+  /** Relative path or canonical filename of the satellite configuration (e.g. '.stylelintrc.json', '.htmlvalidate.json') */
+  readonly configFile: string;
+  /** Section in .auditor/audit.config.ts that serves as the Single Source of Truth (SSoT) (e.g. 'stylelint', 'htmlValidate') */
+  readonly ssotKey: string;
+  /** Designated rule ID that flags undeclared entries or exemptions (e.g. 'stylelint-undeclared-config-entry') */
+  readonly undeclaredEntryRuleId: string;
+  /** ID of the companion setup-phase configuration validator suite (e.g. 'validate_stylelint_config') */
+  readonly configSuiteId: string;
+  /** Optional documentation or explanation of how the satellite config is derived from SSoT */
+  readonly description?: string;
+}
+
+export type SatelliteConfigExplanationFn = () => SatelliteConfigFileExplanation | undefined;
+
+/**
+ * Predicate verifying that an object satisfies the mandatory SatelliteConfigFileExplanation contract.
+ */
+export function isValidSatelliteConfigExplanation(
+  expl: unknown
+): expl is SatelliteConfigFileExplanation {
+  if (typeof expl !== 'object' || expl === null) return false;
+  const target = expl as Record<string, unknown>;
+  return (
+    typeof target.configFile === 'string' &&
+    target.configFile.trim().length > 0 &&
+    typeof target.ssotKey === 'string' &&
+    target.ssotKey.trim().length > 0 &&
+    typeof target.undeclaredEntryRuleId === 'string' &&
+    target.undeclaredEntryRuleId.trim().length > 0 &&
+    typeof target.configSuiteId === 'string' &&
+    target.configSuiteId.trim().length > 0
+  );
+}
+
+/**
+ * Canonical SSoT satellite configuration explanations for built-in sub-auditors and tools.
+ */
+export const SATELLITE_CONFIG_EXPLANATIONS = {
+  fallow: {
+    configFile: '.fallowrc.json',
+    ssotKey: 'fallow',
+    undeclaredEntryRuleId: 'fallow-undeclared-config-entry',
+    configSuiteId: 'validate_fallow_config'
+  },
+  vitePlus: {
+    configFile: 'vite.config.ts',
+    ssotKey: 'vitePlus',
+    undeclaredEntryRuleId: 'vite-plus-undeclared-config-entry',
+    configSuiteId: 'validate_vite_plus_config'
+  },
+  stylelint: {
+    configFile: '.stylelintrc.json',
+    ssotKey: 'stylelint',
+    undeclaredEntryRuleId: 'stylelint-undeclared-config-entry',
+    configSuiteId: 'validate_stylelint_config'
+  },
+  htmlValidate: {
+    configFile: '.htmlvalidate.json',
+    ssotKey: 'htmlValidate',
+    undeclaredEntryRuleId: 'html-validate-undeclared-config-entry',
+    configSuiteId: 'validate_html_validate_config'
+  },
+  markdownLint: {
+    configFile: '.markdownlint.json',
+    ssotKey: 'documentation.markdownLint',
+    undeclaredEntryRuleId: 'markdownlint-undeclared-config-entry',
+    configSuiteId: 'validate_markdown_lint_config'
+  },
+  tsconfig: {
+    configFile: 'tsconfig.json',
+    ssotKey: 'tsconfig',
+    undeclaredEntryRuleId: 'tsconfig-undeclared-config-entry',
+    configSuiteId: 'validate_tsconfig'
+  }
+} as const satisfies Record<string, SatelliteConfigFileExplanation>;
+
+export interface AuditorThirdPartyToolValidationTarget {
+  readonly usesThirdPartyTool?: unknown;
+  readonly thirdPartyToolPolicy?: unknown;
+  readonly ruleIds?: readonly string[];
+}
+
+function validateThirdPartyToolName(
+  policy: Record<string, unknown>,
+  id: string
+): readonly string[] {
+  if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
+    return [
+      `Auditor [${id}] 'thirdPartyToolPolicy.toolName' must be a non-empty string naming the external tool.`
+    ];
+  }
+  return [];
+}
+
+function validateThirdPartyFallback(
+  policy: Record<string, unknown>,
+  target: AuditorThirdPartyToolValidationTarget,
+  id: string
+): readonly string[] {
+  const errors: string[] = [];
+  if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
+    errors.push(
+      `Auditor [${id}] 'thirdPartyToolPolicy.fallbackBehavior' must be either 'throw' or 'violation'.`
+    );
+  }
+  if (policy.fallbackBehavior === 'violation') {
+    if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
+      errors.push(
+        `Auditor [${id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`
+      );
+    } else if (target.ruleIds && !target.ruleIds.includes(policy.fallbackRuleId)) {
+      errors.push(
+        `Auditor [${id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`
+      );
+    }
+  }
+  return errors;
+}
+
+function validateThirdPartySatelliteExplanation(
+  policy: Record<string, unknown>,
+  id: string
+): readonly string[] {
+  if (!('explainSatelliteConfig' in policy)) {
+    return [
+      `Auditor [${id}] declared usesThirdPartyTool: true but failed to declare mandatory 'explainSatelliteConfig'. Declare { configFile, ssotKey, undeclaredEntryRuleId, configSuiteId } or explicit 'explainSatelliteConfig: undefined'.`
+    ];
+  }
+  if (policy.explainSatelliteConfig !== undefined) {
+    const expl =
+      typeof policy.explainSatelliteConfig === 'function'
+        ? policy.explainSatelliteConfig()
+        : policy.explainSatelliteConfig;
+    if (expl !== undefined && !isValidSatelliteConfigExplanation(expl)) {
+      return [
+        `Auditor [${id}] 'thirdPartyToolPolicy.explainSatelliteConfig' must return or define an object with non-empty 'configFile', 'ssotKey', 'undeclaredEntryRuleId', and 'configSuiteId'.`
+      ];
+    }
+  }
+  return [];
+}
+
+function validateActiveThirdPartyToolPolicy(
+  target: AuditorThirdPartyToolValidationTarget,
+  id: string
+): readonly string[] {
+  if (!target.thirdPartyToolPolicy || typeof target.thirdPartyToolPolicy !== 'object') {
+    return [
+      `Auditor [${id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'.`
+    ];
+  }
+  const policy = target.thirdPartyToolPolicy as Record<string, unknown>;
+  return [
+    ...validateThirdPartyToolName(policy, id),
+    ...validateThirdPartyFallback(policy, target, id),
+    ...validateThirdPartySatelliteExplanation(policy, id)
+  ];
+}
+
+/**
+ * Validates the thirdPartyToolPolicy contract on an auditor instance or options definition.
+ * Returns an array of human-readable error messages explaining any missing or invalid contracts.
+ */
+export function collectAuditorThirdPartyToolErrors(
+  target: AuditorThirdPartyToolValidationTarget,
+  id: string
+): readonly string[] {
+  if (typeof target.usesThirdPartyTool !== 'boolean') {
+    return [
+      `Auditor [${id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false).`
+    ];
+  }
+
+  if (target.usesThirdPartyTool) {
+    return validateActiveThirdPartyToolPolicy(target, id);
+  }
+
+  if (target.thirdPartyToolPolicy !== undefined) {
+    return [
+      `Auditor [${id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`
+    ];
+  }
+
+  return [];
+}
+
+/**
  * Declared failure policy when a sub-auditor or extension delegates to third-party tools or binaries.
  */
 export interface ThirdPartyToolFailurePolicy<TRuleId extends string = string> {
@@ -587,6 +777,16 @@ export interface ThirdPartyToolFailurePolicy<TRuleId extends string = string> {
    * Mandatory when fallbackBehavior === 'violation'. Must be in the suite's ruleIds catalog.
    */
   readonly fallbackRuleId?: TRuleId;
+  /**
+   * Mandatory satellite configuration explanation for third-party tools.
+   * Explains how the satellite configuration is linked to SSoT, its undeclared entries rule,
+   * and companion setup-phase configuration suite.
+   * For tools without satellite configuration files (e.g. npm audit), set explicitly to undefined.
+   */
+  readonly explainSatelliteConfig?:
+    | SatelliteConfigFileExplanation
+    | SatelliteConfigExplanationFn
+    | undefined;
 }
 
 /**
@@ -858,14 +1058,15 @@ function assertAuditFreshness(
       );
       const limitMins = Math.round(maxAge / ONE_MINUTE_MS);
       throw new Error(
-        `[${consumerName}] scratch/audits/latest_audit.json está OBSOLETO (${elapsedMins} minutos de antigüedad, límite: ${limitMins} min). ` +
-          `El código fuente puede haber cambiado desde la última auditoría. 👉 DEBES ejecutar 'npm run auditor' para refrescar el reporte.`
+        `[${consumerName}] scratch/audits/latest_audit.json is STALE (${elapsedMins} minutes old, limit: ${limitMins} min). ` +
+          `Source code may have changed since the last audit. 👉 You MUST run 'npm run auditor' to refresh the report.`
       );
     }
   } catch (err) {
-    if ((err as Error).message.includes('OBSOLETO')) throw err;
+    if ((err as Error).message.includes('STALE') || (err as Error).message.includes('OBSOLETO'))
+      throw err;
     throw new Error(
-      `[${consumerName}] scratch/audits/latest_audit.json contiene un timestamp inválido ('${meta.timestamp}'). Ejecuta 'npm run auditor' para regenerarlo.`,
+      `[${consumerName}] scratch/audits/latest_audit.json contains an invalid timestamp ('${meta.timestamp}'). Run 'npm run auditor' to regenerate it.`,
       { cause: err }
     );
   }
@@ -889,9 +1090,9 @@ function assertAuditSuiteExecuted(
           ? `family=${meta.targetFamily}`
           : meta.runMode;
     throw new Error(
-      `[${consumerName}] La suite requerida '${requiredSuiteId}' NO fue ejecutada en la última auditoría. ` +
-        `latest_audit.json fue generado por una corrida PARCIAL (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites ejecutadas). ` +
-        `👉 DEBES ejecutar 'npm run auditor' (completo) o 'npm run auditor task=${requiredSuiteId}' para obtener datos válidos.`
+      `[${consumerName}] Required suite '${requiredSuiteId}' was NOT executed in the last audit. ` +
+        `latest_audit.json was generated by a PARTIAL run (${modeDesc}, ${meta.executedSuiteCount}/${meta.totalDiscoveredSuites} suites executed). ` +
+        `👉 You MUST run 'npm run auditor' (full) or 'npm run auditor task=${requiredSuiteId}' to obtain valid data.`
     );
   }
 }
@@ -910,8 +1111,8 @@ export function assertAuditorExecuted(
 ): void {
   if (!report || !report.meta) {
     throw new Error(
-      `[${consumerName}] scratch/audits/latest_audit.json no contiene la cabecera de metadatos 'meta'. ` +
-        `Es posible que provenga de una versión obsoleta o esté corrupto. Ejecuta 'npm run auditor' para regenerarlo.`
+      `[${consumerName}] scratch/audits/latest_audit.json does not contain the 'meta' header. ` +
+        `It may come from an obsolete version or be corrupt. Run 'npm run auditor' to regenerate it.`
     );
   }
 

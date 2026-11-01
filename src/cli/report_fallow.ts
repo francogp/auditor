@@ -1,5 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
-import { execSync } from 'node:child_process';
+import { execSync, spawnSync } from 'node:child_process';
 /**
  * src/cli/report_fallow.ts
  */
@@ -54,6 +54,8 @@ const VALID_CATEGORY_ALIASES = new Set([
   'suppressions',
   'stale-suppressions',
   'viz',
+  'cloud',
+  'inspect',
   'all'
 ]);
 
@@ -66,6 +68,15 @@ const FALLOW_REPORT_ARGS = {
     type: 'boolean',
     default: false,
     description: 'Show retirement candidates for flags'
+  },
+  cloud: {
+    type: 'boolean',
+    default: false,
+    description: 'Fetch analysis or metrics from Fallow Cloud'
+  },
+  repo: {
+    type: 'string',
+    description: 'Target GitHub repository slug (e.g. owner/repo) for Cloud inspection'
   }
 } as const satisfies CittyArgsDef;
 
@@ -75,6 +86,8 @@ interface ParsedFallowCliArgs {
   readonly jsonOutput: boolean;
   readonly human: boolean;
   readonly retirement: boolean;
+  readonly cloud: boolean;
+  readonly repo?: string;
   readonly positionals: readonly string[];
 }
 
@@ -104,12 +117,21 @@ function parseCommandLineArgs(): ParsedFallowCliArgs {
     }
   }
 
+  if (!category && parsed.cloud) {
+    category = 'cloud';
+  }
+
   return {
     category: category.length > 0 ? category : 'all',
     top,
     jsonOutput,
     human,
     retirement: Boolean(parsed.retirement),
+    cloud: Boolean(parsed.cloud),
+    repo:
+      typeof parsed.repo === 'string' && parsed.repo.trim().length > 0
+        ? parsed.repo.trim()
+        : undefined,
     positionals
   };
 }
@@ -1160,6 +1182,7 @@ function printTableSummary(m: FallowSummaryMetrics, human = false): void {
   console.log('  • npm run auditor:fallow:security    → Security and CWE audit');
   console.log('  • npm run auditor:fallow:dead-code   → Dead code and dependencies detection');
   console.log('  • npm run auditor:fallow:boundaries  → Architectural boundaries audit');
+  console.log('  • npm run auditor:fallow:cloud       → Fallow Cloud device login and status');
   console.log('  • npm run auditor                    → Unified audit suite');
   console.log('─────────────────────────────────────────────────────────────────────────────\n');
 }
@@ -1480,11 +1503,158 @@ function reportViz(json: boolean, human = false): void {
   }
 }
 
+function runCustomCloudRunner(
+  subAction: string,
+  extra: { repo?: string },
+  json: boolean,
+  human: boolean
+): boolean {
+  if (!customFallowRunner) return false;
+  const extraArgs = [subAction, ...(extra.repo ? ['--repo', extra.repo] : [])];
+  const res = customFallowRunner('cloud', extraArgs);
+  if (res === null) {
+    process.exitCode = 1;
+    if (json) {
+      console.log(JSON.stringify({ success: false, error: 'Cloud operation failed' }, null, 2));
+    } else {
+      console.error(styleText('red', '[Fallow Cloud] Operation failed'));
+    }
+    return true;
+  }
+  if (json) {
+    console.log(JSON.stringify(res, null, 2));
+  } else {
+    if (human) {
+      console.log(
+        '\n' +
+          renderBanner(
+            'FALLOW CLOUD & PRODUCTION TELEMETRY',
+            'Device-flow authentication and status'
+          )
+      );
+    }
+    console.log(
+      `[Fallow Cloud] Executing '${subAction}'${extra.repo ? ` for repo '${extra.repo}'` : ''} via Fallow CLI...`
+    );
+  }
+  return true;
+}
+
+export interface FallowCloudReportOptions {
+  readonly fallowBin: string;
+  readonly subAction: string;
+  readonly repo?: string;
+  readonly json: boolean;
+  readonly human: boolean;
+}
+
+function executeCloudJson(options: FallowCloudReportOptions): void {
+  try {
+    const args = [
+      options.fallowBin,
+      'cloud',
+      options.subAction,
+      ...(options.repo ? ['--repo', options.repo] : []),
+      '--format',
+      'json'
+    ];
+    const proc = spawnSync(process.execPath, args, {
+      cwd: process.cwd(),
+      encoding: 'utf8',
+      stdio: ['pipe', 'pipe', 'pipe']
+    });
+    if (proc.status !== 0) {
+      process.exitCode = 1;
+      const errorMsg = proc.stderr?.trim() || proc.error?.message || 'Cloud operation failed';
+      console.log(JSON.stringify({ success: false, error: errorMsg }, null, 2));
+      return;
+    }
+    console.log((proc.stdout ?? '').trim());
+  } catch (e: unknown) {
+    process.exitCode = 1;
+    console.log(
+      JSON.stringify({ success: false, error: e instanceof Error ? e.message : String(e) }, null, 2)
+    );
+  }
+}
+
+function executeCloudTerminal(options: FallowCloudReportOptions): void {
+  if (options.human) {
+    console.log(
+      '\n' +
+        renderBanner('FALLOW CLOUD & PRODUCTION TELEMETRY', 'Device-flow authentication and status')
+    );
+  }
+  console.log(
+    `[Fallow Cloud] Executing '${options.subAction}'${options.repo ? ` for repo '${options.repo}'` : ''} via Fallow CLI...`
+  );
+  try {
+    const args = [
+      options.fallowBin,
+      'cloud',
+      options.subAction,
+      ...(options.repo ? ['--repo', options.repo] : [])
+    ];
+    const proc = spawnSync(process.execPath, args, {
+      cwd: process.cwd(),
+      stdio: 'inherit'
+    });
+    if (proc.status !== 0) {
+      process.exitCode = 1;
+      console.error(
+        styleText(
+          'red',
+          `[Fallow Cloud] Operation failed: ${proc.error?.message ?? `Exit code ${proc.status}`}`
+        )
+      );
+    }
+  } catch (err: unknown) {
+    process.exitCode = 1;
+    console.error(
+      styleText(
+        'red',
+        `[Fallow Cloud] Operation failed: ${err instanceof Error ? err.message : String(err)}`
+      )
+    );
+  }
+}
+
+function reportCloud(
+  json: boolean,
+  human = false,
+  extra: { positionals: readonly string[]; repo?: string } = { positionals: [] }
+): void {
+  const fallowBin =
+    resolveFallowBinary(process.cwd()) ??
+    path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow');
+
+  const subAction = extra.positionals.find((p) => p === 'logout' || p === 'login') ?? 'login';
+
+  if (runCustomCloudRunner(subAction, extra, json, human)) {
+    return;
+  }
+
+  const options: FallowCloudReportOptions = {
+    fallowBin,
+    subAction,
+    repo: extra.repo,
+    json,
+    human
+  };
+
+  if (json) {
+    executeCloudJson(options);
+    return;
+  }
+
+  executeCloudTerminal(options);
+}
+
 type FallowReportHandler = (
   top: number,
   jsonOutput: boolean,
   human: boolean,
-  extra: { retirement: boolean; positionals: readonly string[] }
+  extra: { retirement: boolean; positionals: readonly string[]; repo?: string }
 ) => number | void;
 
 const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
@@ -1519,15 +1689,17 @@ const REPORT_DISPATCH_MAP: Record<string, FallowReportHandler> = {
   suppressions: (top, json, human) => reportSuppressions(top, json, human),
   'stale-suppressions': (top, json, human) => reportSuppressions(top, json, human),
   viz: (_top, json, human) => reportViz(json, human),
+  cloud: (_top, json, human, extra) => reportCloud(json, human, extra),
   complexity: (_top, json) => executeComplexityReport(json)
 };
 
 export function runFallowReportCli(): void {
-  const { category, top, jsonOutput, human, retirement, positionals } = parseCommandLineArgs();
+  const { category, top, jsonOutput, human, retirement, positionals, repo } =
+    parseCommandLineArgs();
   const handler = REPORT_DISPATCH_MAP[category];
   const exitCode = handler
-    ? (handler(top, jsonOutput, human, { retirement, positionals }) ?? 0)
-    : (reportAllSummary(jsonOutput, human), 0);
+    ? (handler(top, jsonOutput, human, { retirement, positionals, repo }) ?? process.exitCode ?? 0)
+    : (reportAllSummary(jsonOutput, human), process.exitCode ?? 0);
 
   if (exitCode !== 0) {
     process.exit(exitCode);

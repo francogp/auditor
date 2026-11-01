@@ -17,11 +17,12 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
-import type {
-  AuditFinding,
-  GitIgnoreRequirement,
-  RuleFixContext,
-  AnyRuleFixerFn
+import {
+  type AuditFinding,
+  type GitIgnoreRequirement,
+  type RuleFixContext,
+  type AnyRuleFixerFn,
+  SATELLITE_CONFIG_EXPLANATIONS
 } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -582,7 +583,8 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'Vite+ Oxlint',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'oxlint-violation'
+        fallbackRuleId: 'oxlint-violation',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.vitePlus
       },
       ruleCapabilities: createRuleCapabilities(OXLINT_RULES, {
         speed: ['light', 'full'],

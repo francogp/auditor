@@ -36,9 +36,9 @@ function renderMarkdownFamilyRow(t: StandardAuditResult): string {
 
 function renderSingleFamilySection(familyKey: string, tasks: StandardAuditResult[]): string {
   const meta = FAMILY_METADATA[familyKey];
-  const familyTitle = meta ? `${meta.icon} Familia ${meta.order}: ${meta.title}` : familyKey;
+  const familyTitle = meta ? `${meta.icon} Family ${meta.order}: ${meta.title}` : familyKey;
   let section = `## ${familyTitle}\n\n`;
-  section += `| Estado | Auditoría | Duración | Métrica Principal | Errores | Advertencias |\n`;
+  section += `| Status | Auditor | Duration | Primary Metric | Errors | Warnings |\n`;
   section += `| :---: | :--- | :---: | :--- | :---: | :---: |\n`;
   for (const t of tasks) {
     section += renderMarkdownFamilyRow(t);
@@ -56,8 +56,8 @@ function renderMarkdownFamilyTables(byFamily: Map<string, StandardAuditResult[]>
 
 function renderMarkdownFindingsTable(allFindings: readonly AuditFinding[]): string {
   if (allFindings.length === 0) return '';
-  let md = `## 📋 Detalle de Incidencias\n\n`;
-  md += `| Severidad | Archivo | Línea | Regla | Mensaje |\n`;
+  let md = `## 📋 Findings Details\n\n`;
+  md += `| Severity | File | Line | Rule | Message |\n`;
   md += `| :---: | :--- | :---: | :--- | :--- |\n`;
   for (const f of allFindings.slice(0, 100)) {
     const sevIcon = f.severity === 'error' ? '❌ Error' : '⚠️ Warn';
@@ -67,7 +67,7 @@ function renderMarkdownFindingsTable(allFindings: readonly AuditFinding[]): stri
     md += `| ${sevIcon} | ${filePath} | ${lineStr} | ${ruleStr} | ${f.message.replace(/\|/g, '\\|')} |\n`;
   }
   if (allFindings.length > 100) {
-    md += `\n*... y 🐛 ${formatNumber(allFindings.length - 100)} más truncadas por longitud.*\n`;
+    md += `\n*... and 🐛 ${formatNumber(allFindings.length - 100)} more truncated for length.*\n`;
   }
   return md;
 }
@@ -81,11 +81,11 @@ export function renderMarkdownReport(
   const totalWarnings = results.reduce((acc, r) => acc + r.summary.warnings, 0);
   const isPassed = totalErrors === 0;
 
-  let md = `# 🛡️ Reporte Consolidado de Auditoría Global\n\n`;
-  md += `**Estado**: ${isPassed ? '✅ Aprobado' : '❌ Fallido'}\n`;
-  md += `**Duración Total**: \`${formatDurationMs(totalDurationMs)}\`\n`;
-  md += `**Suites**: \`${formatNumber(suitesPassed)} / ${formatNumber(results.length)} Aprobadas\`\n`;
-  md += `**Errores**: \`${formatNumber(totalErrors)}\` | **Advertencias**: \`${formatNumber(totalWarnings)}\`\n\n`;
+  let md = `# 🛡️ Consolidated Global Audit Report\n\n`;
+  md += `**Status**: ${isPassed ? '✅ Passed' : '❌ Failed'}\n`;
+  md += `**Total Duration**: \`${formatDurationMs(totalDurationMs)}\`\n`;
+  md += `**Suites**: \`${formatNumber(suitesPassed)} / ${formatNumber(results.length)} Passed\`\n`;
+  md += `**Errors**: \`${formatNumber(totalErrors)}\` | **Warnings**: \`${formatNumber(totalWarnings)}\`\n\n`;
 
   const byFamily = groupResultsByFamily(results);
   md += renderMarkdownFamilyTables(byFamily);

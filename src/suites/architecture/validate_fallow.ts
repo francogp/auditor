@@ -23,11 +23,12 @@ import type {
   FallowTargetPriority,
   FallowTargetPriorityNamed
 } from '../../core/auditConfigTypes.ts';
-import type {
-  FindingSeverity,
-  AuditorRuleCapabilities,
-  TieredCommandProfile,
-  RemediationPhaseId
+import {
+  type FindingSeverity,
+  type AuditorRuleCapabilities,
+  type TieredCommandProfile,
+  type RemediationPhaseId,
+  SATELLITE_CONFIG_EXPLANATIONS
 } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { BaseAuditor } from '../../core/auditorBase.ts';
@@ -662,6 +663,22 @@ function mapHealthFindings(data: FallowAuditData, projectRoot: string): FallowFi
     }
   }
 
+  const rawComplexityList = data.complexity?.findings ?? data.findings ?? [];
+  for (const cf of rawComplexityList) {
+    if (cf.rule_id === 'complexity-file-lines' || cf.rule_id === 'fallow/long-file') {
+      findings.push({
+        file: path.resolve(projectRoot, cf.path),
+        line: cf.line || 1,
+        message:
+          cf.message ||
+          `File length exceeds configured threshold (Fallow [${cf.line_count ?? 'N/A'} lines])`,
+        context: 'fallow-file-lines',
+        ruleId: 'fallow-refactoring-targets',
+        severity: 'warning'
+      });
+    }
+  }
+
   return findings;
 }
 
@@ -710,7 +727,8 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'fallow-workspace-diagnostic'
+        fallbackRuleId: 'fallow-workspace-diagnostic',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
       },
       ruleCapabilities: FALLOW_RULE_CAPABILITIES,
       id: 'validate_fallow',

@@ -1,0 +1,43 @@
+{
+  "skill_name": "learn-with-docs",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Durante la sesión actual refactorizamos el sub-auditor auditor-dupes. Inicialmente me sugeriste usar regex para encontrar clones de funciones, pero en el paso 4 te corregí diciendo 'Nunca uses expresiones regulares para parsear código en TypeScript'. Más tarde en el paso 8 volviste a sugerir 'podríamos usar regex para nombres de funciones', y te dije tajantemente: 'Ya te dije que todo análisis de código debe usar el AST oficial de TypeScript Compiler API (ts.createSourceFile) y nada de regex'. Ejecuta /learn-with-docs para persistir este aprendizaje.",
+      "expected_output": "The skill creates learning_proposal.md with RequestFeedback: true, targeting the child AGENTS.md under ## Local Contracts. The proposed contract establishes the AST Traversing Mandate based strictly on the latest directive, completely discarding earlier superseded statements. It halts immediately at the interactive hard stop without committing.",
+      "files": [],
+      "expectations": [
+        "The output generates a learning proposal artifact at <appDataDir>/brain/<conversation-id>/learning_proposal.md",
+        "The artifact metadata has RequestFeedback set to true and UserFacing set to true",
+        "The proposed contract mandates official TypeScript AST parsers (ts.createSourceFile) and strictly bans regex for code traversal",
+        "The latest directive is used, ignoring the earlier superseded statement (Latest Directive Precedence)",
+        "The contract is targeted to the specific child AGENTS.md rather than default root AGENTS.md",
+        "The execution halts immediately at the hard stop without running git commit or git push"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Estamos ejecutando dentro de un loop autónomo /goal para sincronización documental. En la iteración anterior ya se aplicaron todas las reglas arquitectónicas pendientes en AGENTS.md, los nuevos comandos de package.json ya están documentados en README.md, y no existen contradicciones ni directivas del usuario sin persistir en el espacio de trabajo. Ejecuta learn-with-docs.",
+      "expected_output": "The skill verifies that zero delta exists across all 3 pillars, skips generating learning_proposal.md, bypasses the interactive hard-stop, and outputs a terminal completion message in chatLanguage confirming that all documentation is synchronized and no further learning is required.",
+      "files": [],
+      "expectations": [
+        "The execution does NOT create a learning_proposal.md artifact",
+        "The execution does NOT pause or trigger RequestFeedback: true",
+        "The output emits the canonical loop termination message in chatLanguage confirming zero remaining delta",
+        "The turn terminates cleanly without hanging, enabling the /goal orchestrator to conclude"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "En esta sesión modificamos package.json agregando el script 'auditor:motion': 'node src/cli/refactor_motion.ts', creamos el binario CLI en src/cli/refactor_motion.ts usando citty, y además refactorizamos internamente varias funciones privadas y algoritmos matemáticos en src/utils/animationMath.ts. Ejecuta /learn-with-docs.",
+      "expected_output": "The skill generates a proposal that updates README.md's script table for 'auditor:motion' and updates src/cli/AGENTS.md with canonical CLI governance. Crucially, it completely ignores private helpers in src/utils/animationMath.ts, enforcing the rule that internal code is never documented for its own sake.",
+      "files": [],
+      "expectations": [
+        "The proposal includes updating README.md to document the new 'auditor:motion' package script and CLI usage",
+        "The proposal targets the child AGENTS.md in src/cli for CLI contracts",
+        "The proposal does NOT propose documenting internal implementation code, math algorithms, or private functions from src/utils/animationMath.ts",
+        "The proposal actively checks for and purges any legacy script flags or obsolete command references"
+      ]
+    }
+  ]
+}

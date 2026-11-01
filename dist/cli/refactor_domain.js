@@ -21,7 +21,7 @@ const domainCliDef = {
 	tableColumns: [
 		{
 			key: "file",
-			header: "Archivo",
+			header: "File",
 			width: 36,
 			align: "left"
 		},

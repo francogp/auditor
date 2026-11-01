@@ -141,8 +141,8 @@ function buildDegradedPolicyFindings(
         'coverage-degraded-file',
         files,
         (count) =>
-          `${count} archivo(s) con reglas silenciadas por '${policy.configKey}' (${policy.silences})`,
-        `Corrige '${policy.configKey}' o declara coverage.acknowledgedDegradations (policy: '${policyId}')`
+          `${count} file(s) with rules silenced by '${policy.configKey}' (${policy.silences})`,
+        `Fix '${policy.configKey}' or declare coverage.acknowledgedDegradations (policy: '${policyId}')`
       )
     );
   }

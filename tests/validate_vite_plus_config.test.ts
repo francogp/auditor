@@ -39,9 +39,9 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       expect(auditor.capabilities.fix).not.toBe('none');
     });
 
-    it('verifies rule descriptions and remediations for all 5 canonical rules', () => {
+    it('verifies rule descriptions and remediations for all canonical rules', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(5);
+      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(6);
       for (const rule of VITE_PLUS_CONFIG_RULES) {
         expect(auditor.ruleDescriptions[rule]).toBeDefined();
         expect(auditor.ruleRemediations[rule]).toBeDefined();
@@ -886,7 +886,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
     it('C-CFG-56: CANARY: 100% of declared rules have descriptions and remediations <= 50 chars', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(5);
+      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(6);
 
       for (const ruleId of VITE_PLUS_CONFIG_RULES) {
         expect(auditor.ruleDescriptions[ruleId]).toBeDefined();
@@ -1289,7 +1289,8 @@ export default defineConfig({
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
       const auditResult = await auditor.audit();
       const extraFindings = auditResult.findings.filter(
-        (f) => f.ruleId === 'vite-plus-config-ts' && f.context === 'lint.ignorePatterns'
+        (f) =>
+          f.ruleId === 'vite-plus-undeclared-config-entry' && f.context === 'lint.ignorePatterns'
       );
       const unsyncedFinding = extraFindings.find((f) =>
         f.message.includes('Unsynchronized exclusion patterns detected')
@@ -1302,7 +1303,7 @@ export default defineConfig({
       const secondAudit = await secondAuditor.audit();
       const remainingUnsynced = secondAudit.findings.filter(
         (f) =>
-          f.ruleId === 'vite-plus-config-ts' &&
+          f.ruleId === 'vite-plus-undeclared-config-entry' &&
           f.context === 'lint.ignorePatterns' &&
           f.message.includes('Unsynchronized exclusion patterns detected')
       );

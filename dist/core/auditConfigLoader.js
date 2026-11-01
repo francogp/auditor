@@ -1,5 +1,5 @@
 import { AUDIT_CONFIG_JSON_FILE } from "./auditConfigTypes.js";
-import { assertNoLegacyRootConfig } from "./auditConfigValidators.js";
+import { assertNoLegacyRootConfig } from "./auditConfigLayout.js";
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileSync, safeRmSync, tryCatchSync, tryOrNull } from "./safeUtils.js";
 import { defineAuditConfig } from "./auditConfigBuilders.js";

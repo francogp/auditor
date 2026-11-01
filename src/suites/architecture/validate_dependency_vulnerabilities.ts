@@ -169,7 +169,8 @@ export class ValidateDependencyVulnerabilitiesAuditor extends BaseAuditor<Depend
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'npm audit',
-        fallbackBehavior: 'throw'
+        fallbackBehavior: 'throw',
+        explainSatelliteConfig: undefined
       },
       projectRoot: options.projectRoot,
       ruleCapabilities: createRuleCapabilities(DEPENDENCY_VULNERABILITIES_RULES, {

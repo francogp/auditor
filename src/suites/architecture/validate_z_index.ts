@@ -72,7 +72,7 @@ function checkOrFixMissingVar(
   errors: string[],
   violations: ZIndexAuditViolation[]
 ): { updatedContent: string; wasModified: boolean } {
-  const msg = `Falta variable CSS '${varName}' (debe ser ${value})`;
+  const msg = `Missing CSS variable '${varName}' (must be ${value})`;
   errors.push(msg);
 
   if (isFixMode && content.includes(':root {')) {
@@ -101,7 +101,7 @@ function checkOrFixMismatchVar(
     return { updatedContent: content, wasModified: false };
   }
 
-  const msg = `Desincronización en '${varName}': TS=${value}, SCSS=${matchStr}`;
+  const msg = `Desynchronization in '${varName}': TS=${value}, SCSS=${matchStr}`;
   errors.push(msg);
 
   if (isFixMode) {
@@ -283,7 +283,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       this.isExplicit = !!(config.styles?.zLayersScssFile ?? config.styles?.baseScssFile);
     }
 
-    // 1. Declaración canónica de sub-auditor para literales numéricos hardcodeados
+    // 1. Canonical sub-auditor declaration for hardcoded numeric literals
     this.declareFileSubAuditor('z-index-hardcoded-literal', (doc) => {
       const isTest = isTestPath(doc.relPath);
       const isExempt = isExemptFile(doc.relPath);
@@ -344,7 +344,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       }
     });
 
-    // 2. Declaración canónica de sub-auditor para constantes aisladas fuera de Z_LAYERS
+    // 2. Canonical sub-auditor declaration for isolated constants outside Z_LAYERS
     this.declareFileSubAuditor('z-index-isolated-constant', (doc) => {
       const norm = normalizePosixPath(doc.relPath).toLowerCase();
       const isTest = isTestPath(doc.relPath);
@@ -405,7 +405,7 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
         'z-index-isolated-constant'
       ] as const) {
         this.runSubAuditorSync(r, () => {
-          this.markRuleNotApplicable(r, 'Z-Layers no configurado en proyecto');
+          this.markRuleNotApplicable(r, 'Z-Layers not configured in project');
         });
       }
       return;
@@ -487,14 +487,14 @@ export class ZIndexAuditor extends FileScanAuditor<ZIndexRuleId> {
       this.context.setMetric('Status', result.modified ? 'Auto-fixed' : 'Synced');
     } else {
       this.runSubAuditorSync('z-index-missing-var', () => {
-        this.markRuleNotApplicable('z-index-missing-var', 'Archivo SCSS no legible');
+        this.markRuleNotApplicable('z-index-missing-var', 'Unreadable SCSS file');
       });
       this.runSubAuditorSync('z-index-mismatch', () => {
-        this.markRuleNotApplicable('z-index-mismatch', 'Archivo SCSS no legible');
+        this.markRuleNotApplicable('z-index-mismatch', 'Unreadable SCSS file');
       });
     }
 
-    // Escanear los archivos de código y estilos mediante las sub-herramientas declaradas
+    // Scan code and style files using declared sub-auditors
     await super.runAudit();
   }
 }

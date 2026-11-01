@@ -37,7 +37,7 @@ export function printConsoleSummary(summary: ValidationSummary, verbose: boolean
     console.log(
       styleText(
         'cyan',
-        `\n[INFO] Modo resumen activo: ${summary.errors.length} errores, ${summary.warnings.length} advertencias.`
+        `\n[INFO] Summary mode active: ${summary.errors.length} errors, ${summary.warnings.length} warnings.`
       )
     );
   } else {
@@ -92,7 +92,7 @@ export async function writeReportFile(
   ];
 
   await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
-  console.log(styleText('cyan', `\n✨ Reporte completo escrito en: ${outputPathArg}`));
+  console.log(styleText('cyan', `\n✨ Full report written to: ${outputPathArg}`));
 }
 
 /**
@@ -126,9 +126,9 @@ export function parseJsonArrayOutput<T = unknown>(
     return JSON.parse(trimmed.substring(startIdx, endIdx + 1)) as T[];
   } catch (err) {
     if (options?.throwOnError) {
-      const toolSuffix = options.toolName ? ` de ${options.toolName}` : '';
+      const toolSuffix = options.toolName ? ` from ${options.toolName}` : '';
       throw new Error(
-        `Error al procesar salida JSON${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`,
+        `Failed to parse JSON output${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`,
         { cause: err }
       );
     }

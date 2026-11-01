@@ -772,11 +772,11 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     } else {
       this.markRuleNotApplicable(
         'banned-plain-css-style',
-        'SCSS no está forzado en configuración (styles.enforceScss: false)'
+        'SCSS is not enforced in config (styles.enforceScss: false)'
       );
       this.markRuleNotApplicable(
         'banned-raw-css-file',
-        'SCSS no está forzado en configuración (styles.enforceScss: false)'
+        'SCSS is not enforced in config (styles.enforceScss: false)'
       );
     }
 
@@ -789,17 +789,17 @@ export class ComponentStylesAuditor extends BaseAuditor<ComponentStyleRuleId> {
     this.cssCount = cssFiles.length;
 
     if (vueFiles.length === 0) {
-      this.markRuleNotApplicable('broken-style-link', 'No se encontraron componentes .vue');
-      this.markRuleNotApplicable('missing-style-tag', 'No se encontraron componentes .vue');
-      this.markRuleNotApplicable('banned-style-inherited', 'No se encontraron componentes .vue');
-      this.markRuleNotApplicable('ad-hoc-button-styles', 'No se encontraron componentes .vue');
+      this.markRuleNotApplicable('broken-style-link', 'No .vue components found');
+      this.markRuleNotApplicable('missing-style-tag', 'No .vue components found');
+      this.markRuleNotApplicable('banned-style-inherited', 'No .vue components found');
+      this.markRuleNotApplicable('ad-hoc-button-styles', 'No .vue components found');
       if (enforceScss) {
-        this.markRuleNotApplicable('banned-plain-css-style', 'No se encontraron componentes .vue');
+        this.markRuleNotApplicable('banned-plain-css-style', 'No .vue components found');
       }
     }
 
     if (scssFiles.length === 0) {
-      this.markRuleNotApplicable('orphaned-scss', 'No se encontraron archivos .scss');
+      this.markRuleNotApplicable('orphaned-scss', 'No .scss files found');
     }
 
     const { importedScssFiles, trackScssFile } = createScssTracker(srcDir);

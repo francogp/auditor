@@ -1,4 +1,5 @@
 import { normalizePosixPath, parseJsonObjectOutput, parseLintResultsToFindings } from "../../core/reportUtils.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
@@ -499,7 +500,8 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "Vite+ Oxlint",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "oxlint-violation"
+				fallbackRuleId: "oxlint-violation",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.vitePlus
 			},
 			ruleCapabilities: createRuleCapabilities(OXLINT_RULES, {
 				speed: ["light", "full"],

@@ -59,11 +59,11 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
   describe('assertAuditorExecuted', () => {
     it('throws when report is null or undefined', () => {
       expect(() => assertAuditorExecuted(null, 'audit_project', 'TestConsumer')).toThrowError(
-        /no contiene la cabecera de metadatos 'meta'/
+        /does not contain the 'meta' header/
       );
 
       expect(() => assertAuditorExecuted(undefined, 'audit_project', 'TestConsumer')).toThrowError(
-        /no contiene la cabecera de metadatos 'meta'/
+        /does not contain the 'meta' header/
       );
     });
 
@@ -71,7 +71,7 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
       const corruptReport = { status: 'passed' as const };
       expect(() =>
         assertAuditorExecuted(corruptReport, 'audit_project', 'TestConsumer')
-      ).toThrowError(/no contiene la cabecera de metadatos 'meta'/);
+      ).toThrowError(/does not contain the 'meta' header/);
     });
 
     it('throws when suite was omitted in a partial audit (runMode: preset)', () => {
@@ -86,9 +86,7 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
 
       expect(() =>
         assertAuditorExecuted(partialReport, 'audit_project', 'ComplexityReport')
-      ).toThrowError(
-        /\[ComplexityReport\] La suite requerida 'audit_project' NO fue ejecutada en la última auditoría/
-      );
+      ).toThrowError(/\[ComplexityReport\] Required suite 'audit_project' was NOT executed/);
     });
 
     it('throws when suite is not in executedSuites even if omittedSuites is empty', () => {
@@ -100,7 +98,7 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
       });
 
       expect(() => assertAuditorExecuted(report, 'audit_project', 'FallowReport')).toThrowError(
-        /\[FallowReport\] La suite requerida 'audit_project' NO fue ejecutada/
+        /\[FallowReport\] Required suite 'audit_project' was NOT executed/
       );
     });
 
@@ -110,9 +108,7 @@ describe('Audit Metadata & Anti-Staleness Contract', () => {
 
       expect(() =>
         assertAuditorExecuted(staleReport, 'audit_project', 'ComplexityReport')
-      ).toThrowError(
-        /\[ComplexityReport\] scratch\/audits\/latest_audit\.json está OBSOLETO \(6 minutos de antigüedad, límite: 5 min\)/
-      );
+      ).toThrowError(/\[ComplexityReport\] scratch\/audits\/latest_audit\.json is STALE/);
     });
 
     it('allows stale report if allowStale option is explicitly set to true', () => {

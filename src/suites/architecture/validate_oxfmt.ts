@@ -18,7 +18,11 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
-import type { RuleFixContext, AnyRuleFixerFn } from '../../core/auditContract.ts';
+import {
+  type RuleFixContext,
+  type AnyRuleFixerFn,
+  SATELLITE_CONFIG_EXPLANATIONS
+} from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -78,7 +82,8 @@ export class OxfmtAuditor extends BaseAuditor<OxfmtRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'Vite+ Oxfmt',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'oxfmt-violation'
+        fallbackRuleId: 'oxfmt-violation',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.vitePlus
       },
       ruleCapabilities: createRuleCapabilities(OXFMT_RULES, {
         speed: 'light',

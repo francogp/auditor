@@ -15,7 +15,7 @@ export { Z_LAYERS };
 export const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor = {
   id: 'z-index-parity',
   name: 'Z-Index Parity (Design System Layers)',
-  category: 'Z-Index fuera de estándar',
+  category: 'Z-Index outside standard',
   aliases: ['z-index', 'zindex', 'visuals', 'parity', 'z-index-parity']
 };
 
@@ -137,7 +137,7 @@ export function fixZIndexLiteral(match: string): string {
 export const zIndexAudit: AuditRule = {
   id: 'zIndexAudit',
   name: 'Z-Index Audit',
-  category: 'Z-Index fuera de estándar',
+  category: 'Z-Index outside standard',
   aliases: ['z-index', 'zindex', 'z_index'],
   // Matches both CSS `z-index: N` and JS inline-style `zIndex: N`
   regex: /(?:z-index|zIndex)\s*:\s*(-?\d+)\b/gi,

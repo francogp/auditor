@@ -809,7 +809,7 @@ export class MarkdownCodeReferencesAuditor extends BaseAuditor<MarkdownCodeRefer
 
     if (mdFiles.length === 0) {
       for (const r of MARKDOWN_CODE_REFERENCE_RULES) {
-        this.markRuleNotApplicable(r, 'No se encontraron archivos markdown');
+        this.markRuleNotApplicable(r, 'No markdown files found');
       }
       return;
     }

@@ -25,6 +25,7 @@ import ts from 'typescript';
 import { extractExportedConfigObjectLiteral } from './astContext.ts';
 import type { AuditRatchetConfig } from './auditConfigTypes.ts';
 import { createDomainSet } from './domainCollections.ts';
+import { isPatternContainedInGlobs } from './globContainment.ts';
 import { normalizePosixPath } from './safePath.ts';
 import { safeReadFileSync } from './safeUtils.ts';
 import {
@@ -177,24 +178,127 @@ function toStringSet(val: unknown): Set<string> {
   return new Set();
 }
 
+const DISCRETE_EXEMPTION_FIELDS = createDomainSet([
+  'disabledDetectors',
+  'infraIdWhitelist',
+  'exemptMagicNumbers',
+  'testFragmentationWhitelist',
+  'ignoreDependencies',
+  'exemptDependencies',
+  'ignoreBinaries',
+  'exemptSignatures',
+  'exemptCollections'
+] as const);
+
+const PATH_EXEMPTION_FIELDS = createDomainSet([
+  'dataRoots',
+  'demoRoots',
+  'cliRoots',
+  'exemptFiles',
+  'exemptCssFiles',
+  'ignoreGlobs',
+  'exemptGlobs',
+  'ignorePatterns'
+] as const);
+
+const EXEMPTION_FIELD_NAMES = createDomainSet([
+  ...DISCRETE_EXEMPTION_FIELDS,
+  ...PATH_EXEMPTION_FIELDS
+] as const);
+
+function addNonEmptyStrings(items: readonly unknown[], targetSet: Set<string>): void {
+  for (const item of items) {
+    if (typeof item === 'string' && item.trim().length > 0) {
+      targetSet.add(item.trim());
+    }
+  }
+}
+
+/**
+ * Recursively collects all path and glob exemptions present anywhere in the online baseline configuration.
+ * Gathers paths.ignoreGlobs, paths.dataRoots, paths.demoRoots, and every subsystem's
+ * exemptGlobs, exemptFiles, exemptCssFiles, ignoreGlobs, and ignorePatterns.
+ */
+export function collectAllOnlinePathExemptions(
+  onlineConfig: Record<string, unknown>
+): ReadonlySet<string> {
+  const allOnlinePaths = new Set<string>();
+
+  function collectFromObject(obj: unknown): void {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+    const record = obj as Record<string, unknown>;
+    for (const [key, val] of Object.entries(record)) {
+      if (PATH_EXEMPTION_FIELDS.has(key) && Array.isArray(val)) {
+        addNonEmptyStrings(val, allOnlinePaths);
+      } else if (val && typeof val === 'object' && !Array.isArray(val)) {
+        collectFromObject(val);
+      }
+    }
+  }
+
+  collectFromObject(onlineConfig);
+  return allOnlinePaths;
+}
+
+/**
+ * Evaluates whether a local path or glob is already covered / subsumed by online exemption entries.
+ * Checks both the field-level online set and the repository-wide online path exemptions.
+ * If localPath is inside any online path (e.g. 'database/migrations/save.sql' inside 'database/migrations/**'),
+ * narrowing or moving the exemption to a specific file is a hardening pass and does NOT constitute a relaxation.
+ */
+export function isPathCoveredByOnlineExemptions(
+  localPath: string,
+  fieldOnlineSet: ReadonlySet<string>,
+  allOnlinePathExemptions?: ReadonlySet<string>
+): boolean {
+  if (isPatternContainedInGlobs(localPath, fieldOnlineSet, [])) {
+    return true;
+  }
+  if (
+    allOnlinePathExemptions &&
+    isPatternContainedInGlobs(localPath, allOnlinePathExemptions, [])
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Extracts the trailing property identifier from a dot-delimited configuration property path.
+ */
+function extractPropertyKey(propertyChain: string): string {
+  const lastDot = propertyChain.lastIndexOf('.');
+  return lastDot === -1 ? propertyChain : propertyChain.slice(lastDot + 1);
+}
+
 /**
  * Compares exemption list entries. Adding new exemptions is a relaxation.
  */
 function compareExemptionLists(
   file: string,
-  fieldPath: string,
+  configPropPath: string,
   onlineVal: unknown,
   localVal: unknown,
-  relaxations: ConfigRelaxation[]
+  relaxations: ConfigRelaxation[],
+  allOnlinePathExemptions?: ReadonlySet<string>
 ): void {
   const onlineSet = toStringSet(onlineVal);
   const localSet = toStringSet(localVal);
 
-  const added = Array.from(localSet).filter((x) => !onlineSet.has(x));
+  const propKey = extractPropertyKey(configPropPath);
+  const isPathField = PATH_EXEMPTION_FIELDS.has(propKey);
+
+  const added = isPathField
+    ? Array.from(localSet).filter(
+        (pathEntry) =>
+          !isPathCoveredByOnlineExemptions(pathEntry, onlineSet, allOnlinePathExemptions)
+      )
+    : Array.from(localSet).filter((entry) => !onlineSet.has(entry));
+
   if (added.length > 0) {
     relaxations.push({
       file,
-      path: fieldPath,
+      path: configPropPath,
       description: `Added ${added.length} new exemption(s): ${added.slice(0, 3).join(', ')}${added.length > 3 ? '...' : ''}`,
       onlineValue: Array.from(onlineSet),
       localValue: Array.from(localSet)
@@ -238,20 +342,6 @@ const CEILING_METRIC_KEYS = createDomainSet([
   'maxLines'
 ] as const);
 
-const EXEMPTION_FIELD_NAMES = createDomainSet([
-  'exemptGlobs',
-  'exemptFiles',
-  'ignoreGlobs',
-  'dataRoots',
-  'demoRoots',
-  'cliRoots',
-  'infraIdWhitelist',
-  'disabledDetectors',
-  'exemptMagicNumbers',
-  'exemptCssFiles',
-  'testFragmentationWhitelist'
-] as const);
-
 /**
  * Recursively inspects parsed config objects to detect added exemptions, lowered floors, or disabled suites.
  */
@@ -261,6 +351,7 @@ export function inspectAuditConfigChanges(
   configFile = '.auditor/audit.config.ts'
 ): ConfigRelaxation[] {
   const relaxations: ConfigRelaxation[] = [];
+  const allOnlinePathExemptions = collectAllOnlinePathExemptions(onlineConfig);
 
   function evaluateNumericLimit(
     fieldPath: string,
@@ -331,7 +422,8 @@ export function inspectAuditConfigChanges(
         `${fieldPath}.${policy}`,
         onlineDeg[policy],
         localDeg[policy],
-        relaxations
+        relaxations,
+        allOnlinePathExemptions
       );
     }
     return true;
@@ -350,7 +442,14 @@ export function inspectAuditConfigChanges(
       const localVal = localObj[key];
 
       if (EXEMPTION_FIELD_NAMES.has(key)) {
-        compareExemptionLists(configFile, fieldPath, onlineVal, localVal, relaxations);
+        compareExemptionLists(
+          configFile,
+          fieldPath,
+          onlineVal,
+          localVal,
+          relaxations,
+          allOnlinePathExemptions
+        );
         continue;
       }
 

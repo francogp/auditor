@@ -1655,6 +1655,8 @@ export async function enforceCriticalConfigurations(
 ): Promise<boolean> {
   try {
     const auditor = new ValidateAuditConfigAuditor({ projectRoot });
+    auditor.setStepLogger(() => {});
+    auditor.setProgressLogger(() => {});
     await auditor.fix();
     const config = await loadAuditConfig(projectRoot);
     await auditor.verifyCriticalConfigurations(config, tasks);

@@ -78,7 +78,7 @@ export const noLiteralSuffixInConstantName: AuditRule = {
 export const badConstantNames: AuditRule = {
   regex: /^\s*(?:export\s+)?const\s+([A-Z0-9_]+?_\d+)\b/gm,
   message: (match: string) =>
-    `Nombre de constante antipatrón detectado en declaración: '${match.trim()}'. Está PROHIBIDO incluir el valor numérico en el nombre de la constante (ej: usa MAX_RETRY_COUNT en lugar de MAX_RETRY_COUNT_LIMIT). Describe el propósito semántico o la intención de dominio.`,
+    `Antipattern constant name detected in declaration: '${match.trim()}'. It is PROHIBITED to include numeric values in the constant name (e.g. use MAX_RETRY_COUNT instead of MAX_RETRY_COUNT_LIMIT). Describe semantic purpose or domain intent.`,
   severity: 'error',
   check: (_content: string, match: RegExpExecArray, filePath?: string) => {
     if (isTestOrNodeModules(filePath)) return false;

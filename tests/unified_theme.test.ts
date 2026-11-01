@@ -238,11 +238,11 @@ describe('unifiedTheme Terminal & Reporting Engine', () => {
       ];
 
       const md = renderMarkdownReport(results, 0, 352);
-      expect(md).toContain('# 🛡️ Reporte Consolidado de Auditoría Global');
+      expect(md).toContain('# 🛡️ Consolidated Global Audit Report');
       expect(md).toContain('Architecture Suite');
-      expect(md).toContain('## 📋 Detalle de Incidencias');
+      expect(md).toContain('## 📋 Findings Details');
       // Truncation over 100 items test
-      expect(md).toContain('truncadas por longitud');
+      expect(md).toContain('truncated for length');
     });
   });
 

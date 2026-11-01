@@ -471,17 +471,11 @@ var ValidateCanonicalDomainsAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Dominio desactivado en config")) {
-			this.redeclareCoverage({
-				include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
-				source: "declared-only"
-			});
-			return;
-		}
+		if (this.isDomainSuiteGated("Domain disabled in config", this.roots, this.allowedExtensions)) return;
 		const filePaths = this.context.collectFiles(this.roots, this.allowedExtensions);
 		if (filePaths.length === 0) {
 			for (const r of CANONICAL_DOMAIN_RULES) this.runSubAuditorSync(r, () => {
-				this.markRuleNotApplicable(r, "No se encontraron archivos de código candidatos");
+				this.markRuleNotApplicable(r, "No candidate code files found");
 			});
 			return;
 		}

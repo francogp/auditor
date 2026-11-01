@@ -250,7 +250,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
       for (const r of PACKAGE_SCRIPTS_RULES) {
         if (r !== 'package-scripts-missing-file') {
           this.runSubAuditorSync(r, () => {
-            this.markRuleNotApplicable(r, 'package.json no disponible o inválido');
+            this.markRuleNotApplicable(r, 'Missing or invalid package.json');
           });
         }
       }

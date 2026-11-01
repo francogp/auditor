@@ -67,7 +67,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(STYLELINT_CONFIG_RULES);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(4);
+      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
     });
 
     it('enforces exact 13 canonical design token properties in REQUIRED_STRICT_PROPERTIES', () => {
@@ -625,6 +625,70 @@ export default {
 
       expect(result.status).toBe('passed');
       expect(result.summary.errors).toBe(0);
+    });
+
+    it('flags stylelint-undeclared-config-entry when .stylelintrc.json contains undeclared strict properties', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: [REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: [
+            ['unauthorized-strict-prop', ...EXPECTED_CANONICAL_13_PROPERTIES],
+            { ignoreValues: {} }
+          ]
+        }
+      };
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
+
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'stylelint-undeclared-config-entry'
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.severity).toBe('error');
+      expect(violations[0]?.message).toContain(
+        "Undeclared strict property 'unauthorized-strict-prop'"
+      );
+    });
+
+    it('flags stylelint-undeclared-config-entry when .stylelintrc.json contains undeclared ignoreValues', async () => {
+      const config = {
+        extends: ['stylelint-config-standard'],
+        plugins: [REQUIRED_STYLELINT_PLUGIN],
+        rules: {
+          [REQUIRED_STRICT_VALUE_RULE]: [
+            EXPECTED_CANONICAL_13_PROPERTIES,
+            {
+              ignoreValues: {
+                'z-index': ['auto', 'unauthorized-z-val']
+              }
+            }
+          ]
+        }
+      };
+      await fs.writeFile(
+        path.join(tempDir, '.stylelintrc.json'),
+        JSON.stringify(config, null, 2),
+        'utf-8'
+      );
+
+      const auditor = new ValidateStylelintConfigAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
+
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'stylelint-undeclared-config-entry'
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.severity).toBe('error');
+      expect(violations[0]?.message).toContain(
+        "Undeclared ignoreValue 'unauthorized-z-val' for property 'z-index'"
+      );
     });
   });
 });

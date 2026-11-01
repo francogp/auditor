@@ -10,6 +10,8 @@
  *   - secret-leak-private-key: Detects unencrypted private cryptographic keys (RSA, EC, OPENSSH).
  */
 
+import { spawnSync } from 'node:child_process';
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
@@ -25,7 +27,8 @@ import {
   matchesSinglePattern,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { tryOrNullAsync } from '../../core/safeUtils.ts';
+import { normalizePosixPath } from '../../core/reportUtils.ts';
+import { tryOrNull, tryOrNullAsync } from '../../core/safeUtils.ts';
 
 enableCompileCache();
 
@@ -55,6 +58,51 @@ export function buildSecretLintConfig(allows?: readonly string[]): SecretLintCon
       options: ruleOptions
     }))
   };
+}
+
+/**
+ * Detects staged git files that may contain secrets using git diff --cached with -G and --name-only.
+ * Returns only the matching file names to ensure raw secrets never leak into terminal output or agent tool logs.
+ */
+export function detectStagedSecretFiles(projectRoot: string = process.cwd()): readonly string[] {
+  try {
+    const proc = spawnSync(
+      'git',
+      ['diff', '--cached', '-i', '-Gpassword|secret|api_key|token', '--name-only'],
+      {
+        cwd: projectRoot,
+        encoding: 'utf8',
+        stdio: ['pipe', 'pipe', 'ignore']
+      }
+    );
+    if (proc.status !== 0 || !proc.stdout) {
+      return [];
+    }
+    return proc.stdout
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Reads a staged blob directly from the Git index using `git show :<path>`.
+ * Returns the staged file content, or null if unresolvable.
+ */
+export function readGitStagedBlob(projectRoot: string, relPath: string): string | null {
+  const normalized = normalizePosixPath(relPath);
+  try {
+    const res = spawnSync('git', ['show', `:${normalized}`], {
+      cwd: projectRoot,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+    return res.status === 0 && typeof res.stdout === 'string' ? res.stdout : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -90,6 +138,7 @@ export function mapSecretLintMessageToFinding(
 
 export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleId> {
   private readonly secretLintConfig: SecretLintConfig;
+  private readonly scannedFiles: Set<string> = new Set<string>();
 
   public constructor(options: { projectRoot?: string; roots?: readonly string[] } = {}) {
     const effectiveRoot = options.projectRoot ?? process.cwd();
@@ -157,13 +206,33 @@ export class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleI
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Secret leaks audit desactivado en config')) {
+    if (this.isSuiteGatingDisabled('Secret leaks audit disabled in config')) {
       return;
     }
+    this.scannedFiles.clear();
     await super.runAudit();
+
+    const stagedFiles = detectStagedSecretFiles(this.projectRoot);
+    for (const stagedFile of stagedFiles) {
+      const relPath = normalizePosixPath(stagedFile);
+      if (this.scannedFiles.has(relPath)) continue;
+      const stagedContent = readGitStagedBlob(this.projectRoot, relPath);
+      if (stagedContent !== null) {
+        await this.scanFile(relPath, stagedContent);
+      } else {
+        const fullPath = path.resolve(this.projectRoot, stagedFile);
+        if (fs.existsSync(fullPath)) {
+          const content = tryOrNull(() => fs.readFileSync(fullPath, 'utf8'));
+          if (content) {
+            await this.scanFile(relPath, content);
+          }
+        }
+      }
+    }
   }
 
   protected override async scanFile(relPath: string, content: string): Promise<void> {
+    this.scannedFiles.add(normalizePosixPath(relPath));
     const config = getAuditConfig(this.projectRoot);
     const exemptGlobs = config.secretLeaks?.exemptGlobs ?? [];
     for (const glob of exemptGlobs) {

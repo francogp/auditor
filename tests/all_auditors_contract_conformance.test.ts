@@ -112,7 +112,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
       const auditor = new MockAuditor();
       const errors = validateAuditorConstruction(auditor, 'different_id');
-      expect(errors.some((e) => e.includes('no coincide con el taskId'))).toBe(true);
+      expect(errors.some((e) => e.includes('does not match taskId'))).toBe(true);
     });
 
     it('detects missing rule in ruleDescriptions at BaseAuditor construction', () => {
@@ -394,7 +394,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         'tests/mock_compliant.test.ts',
         auditor
       );
-      expect(errors.some((e) => e.includes('no verifica la construcción o metadatos'))).toBe(true);
+      expect(errors.some((e) => e.includes('does not verify construction or metadata'))).toBe(true);
     });
 
     it('detects missing clean verification in test file', () => {
@@ -418,7 +418,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         'tests/mock_compliant.test.ts',
         auditor
       );
-      expect(errors.some((e) => e.includes('no verifica la ruta limpia'))).toBe(true);
+      expect(errors.some((e) => e.includes('does not verify clean execution path'))).toBe(true);
     });
 
     it('detects missing violation detection in test file', () => {
@@ -442,9 +442,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         'tests/mock_compliant.test.ts',
         auditor
       );
-      expect(errors.some((e) => e.includes('no verifica la detección de errores o fallos'))).toBe(
-        true
-      );
+      expect(errors.some((e) => e.includes('does not verify violation detection'))).toBe(true);
     });
 
     it('detects untested declared rules', () => {
@@ -472,9 +470,9 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
         'tests/mock_compliant.test.ts',
         auditor
       );
-      expect(
-        errors.some((e) => e.includes("no verifica la regla declarada 'test-rule-beta'"))
-      ).toBe(true);
+      expect(errors.some((e) => e.includes("does not verify declared rule 'test-rule-beta'"))).toBe(
+        true
+      );
     });
 
     it('passes cleanly when test contains all 5 mandatory blocks and 100% of declared rules', () => {
@@ -570,6 +568,87 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
       expect(itCalledCount).toBe(2);
       expect(beforeAllCalled).toBe(true);
       expect(afterAllCalled).toBe(true);
+    });
+  });
+
+  describe('third-party tool contract validation', () => {
+    it('throws immediately when usesThirdPartyTool: true but explainSatelliteConfig is omitted', () => {
+      class MockBrokenAuditor extends BaseAuditor<string> {
+        public constructor() {
+          super({
+            id: 'mock_broken_third_party',
+            name: 'Mock Broken Auditor',
+            description: 'Fails third-party contract',
+            family: 'architecture',
+            packageName: 'Mock',
+            icon: '🛠️',
+            configKey: 'core',
+            defaultConfig: {},
+            requiredPermissions: [],
+            criticalConfig: {},
+            coverage: { include: ['src/**'] },
+            ruleIds: ['mock-rule'],
+            ruleDescriptions: { 'mock-rule': 'Mock rule description' },
+            ruleRemediations: { 'mock-rule': 'Mock remediation guide with all four sections' },
+            ruleRemediationPhases: { 'mock-rule': 'hygiene' },
+            ruleCapabilities: { 'mock-rule': BASE_MOCK_CAPS },
+            ruleFixers: {},
+            usesThirdPartyTool: true,
+            thirdPartyToolPolicy: {
+              toolName: 'BrokenTool',
+              fallbackBehavior: 'throw'
+              // explainSatelliteConfig is deliberately omitted!
+            } as never
+          });
+        }
+        public override async runAudit(): Promise<void> {}
+      }
+
+      expect(() => new MockBrokenAuditor()).toThrow(
+        /declared usesThirdPartyTool: true but failed to declare mandatory 'explainSatelliteConfig'/
+      );
+    });
+
+    it('throws immediately when explainSatelliteConfig has invalid empty properties', () => {
+      class MockBrokenPolicyAuditor extends BaseAuditor<string> {
+        public constructor() {
+          super({
+            id: 'mock_broken_policy',
+            name: 'Mock Broken Policy Auditor',
+            description: 'Fails conformance policy check',
+            family: 'architecture',
+            packageName: 'Mock',
+            icon: '🛠️',
+            configKey: 'core',
+            defaultConfig: {},
+            requiredPermissions: [],
+            criticalConfig: {},
+            coverage: { include: ['src/**'] },
+            ruleIds: ['mock-rule'],
+            ruleDescriptions: { 'mock-rule': 'Mock rule description' },
+            ruleRemediations: { 'mock-rule': 'Mock remediation guide with all four sections' },
+            ruleRemediationPhases: { 'mock-rule': 'hygiene' },
+            ruleCapabilities: { 'mock-rule': BASE_MOCK_CAPS },
+            ruleFixers: {},
+            usesThirdPartyTool: true,
+            thirdPartyToolPolicy: {
+              toolName: 'BrokenTool',
+              fallbackBehavior: 'throw',
+              explainSatelliteConfig: {
+                configFile: '',
+                ssotKey: '',
+                undeclaredEntryRuleId: '',
+                configSuiteId: ''
+              }
+            } as never
+          });
+        }
+        public override async runAudit(): Promise<void> {}
+      }
+
+      expect(() => new MockBrokenPolicyAuditor()).toThrow(
+        /must return or define an object with non-empty/
+      );
     });
   });
 });

@@ -379,11 +379,14 @@ function extractTestSummaryFromAst(testExpr, sf) {
 	let hasRootTestInclude = false;
 	let rootTestInclude = [];
 	const testProjects = [];
+	let testCoverageExclude = [];
 	if (testExpr && ts.isObjectLiteralExpression(testExpr)) {
 		if (findPropertyAssignment(testExpr, "include", sf)) {
 			hasRootTestInclude = true;
 			rootTestInclude = extractStringArrayProp(testExpr, "include", sf);
 		}
+		const coverageProp = findPropertyAssignment(testExpr, "coverage", sf);
+		if (coverageProp && ts.isObjectLiteralExpression(coverageProp.initializer)) testCoverageExclude = extractStringArrayProp(coverageProp.initializer, "exclude", sf);
 		const projectsProp = findPropertyAssignment(testExpr, "projects", sf);
 		if (projectsProp && ts.isArrayLiteralExpression(projectsProp.initializer)) for (const el of projectsProp.initializer.elements) {
 			if (!ts.isObjectLiteralExpression(el)) continue;
@@ -401,7 +404,8 @@ function extractTestSummaryFromAst(testExpr, sf) {
 		rootTestInclude,
 		testProjects,
 		hasTestProjects,
-		testInclude
+		testInclude,
+		testCoverageExclude
 	};
 }
 function extractParsedConfigSummary(fileContent) {
@@ -411,7 +415,7 @@ function extractParsedConfigSummary(fileContent) {
 	const { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
 	const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get("fmt"), sf);
 	const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get("pack"), sf);
-	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude } = extractTestSummaryFromAst(sections.get("test"), sf);
+	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude, testCoverageExclude } = extractTestSummaryFromAst(sections.get("test"), sf);
 	return {
 		definesFromVitePlus,
 		hasSection: (name) => sections.has(name),
@@ -427,7 +431,8 @@ function extractParsedConfigSummary(fileContent) {
 		testProjects,
 		hasTestProjects,
 		hasRootTestInclude,
-		rootTestInclude
+		rootTestInclude,
+		testCoverageExclude
 	};
 }
 function extractEslintIgnoresFromAst(rawContent) {

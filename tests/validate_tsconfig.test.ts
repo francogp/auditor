@@ -312,5 +312,26 @@ describe('ValidateTsconfigAuditor', () => {
       expect(repaired.compilerOptions?.allowImportingTsExtensions).toBe(true);
       expect(repaired.compilerOptions?.noEmit).toBe(true);
     });
+
+    it('Canary 10 (Undeclared Exclude): detects undeclared exclusion patterns in exclude and reports tsconfig-undeclared-config-entry', async () => {
+      const tsconfigPath = path.join(tmpDir, 'tsconfig.json');
+      const tsconfigWithExclude: TsConfigShape = {
+        ...CANONICAL_TSCONFIG,
+        exclude: ['src/unauthorized_broken_dir/**']
+      };
+      fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfigWithExclude, null, 2), 'utf8');
+
+      const checkAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
+      const checkResult = await checkAuditor.audit();
+      expect(checkResult.status).toBe('failed');
+      const violations = checkResult.findings.filter(
+        (f) => f.ruleId === 'tsconfig-undeclared-config-entry'
+      );
+      expect(violations).toHaveLength(1);
+      expect(violations[0]?.severity).toBe('error');
+      expect(violations[0]?.message).toContain(
+        "Undeclared exclusion 'src/unauthorized_broken_dir/**'"
+      );
+    });
   });
 });

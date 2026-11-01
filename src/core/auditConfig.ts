@@ -8,6 +8,8 @@
 
 export * from './auditConfigTypes.ts';
 export * from './auditConfigAntiAbuse.ts';
+export * from './auditConfigLayout.ts';
+export * from './auditConfigSubsystems.ts';
 export * from './auditConfigValidators.ts';
 export * from './auditConfigDefaults.ts';
 export * from './auditConfigBuilders.ts';

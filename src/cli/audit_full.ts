@@ -76,11 +76,15 @@ import {
 import { safeJsonParse, safeRmSync, safeReadFileAsync } from '../core/safeUtils.ts';
 import {
   type ConsoleOutputMode,
-  executeAuditorStreaming,
-  isNodeInternalWarning,
-  TaskStreamCoordinator
-} from '../core/streamingRunner.ts';
+  formatFindingCountBadge,
+  isSubAuditorFailed,
+  isSubAuditorWarning,
+  resolveEffectiveErrorsCount,
+  resolveEffectiveWarningsCount
+} from '../core/streamingFormat.ts';
+import { executeAuditorStreaming, isNodeInternalWarning } from '../core/streamingRunner.ts';
 import { evaluateSuiteStatus } from '../core/suiteGating.ts';
+import { TaskStreamCoordinator } from '../core/taskStreamCoordinator.ts';
 import {
   stringWidth,
   renderBanner,
@@ -465,8 +469,8 @@ async function executeTaskInProcess(
       const auditor = new AuditorClass();
       auditor.applyTaskCliArgs(taskArgs);
       if (onSubLine) {
-        auditor.setStepLogger((stepNumber, totalSteps, description) => {
-          onSubLine(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+        auditor.setStepLogger((stepNumber, totalSteps, description, icon) => {
+          onSubLine(`${icon ?? '🔍'} [${stepNumber}/${totalSteps}] ${description}`);
         });
         auditor.setProgressLogger((msg) => {
           onSubLine(msg);
@@ -949,7 +953,7 @@ async function exportCustomOutputReport(
     );
     await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
   }
-  console.log(styleText('cyan', `✨ Reporte exportado en: ${outputPath}\n`));
+  console.log(styleText('cyan', `✨ Report exported to: ${outputPath}\n`));
 }
 
 type RatchetVerdict = NonNullable<AuditRunMetadata['ratchet']>;
@@ -1374,7 +1378,7 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
             totalErrors,
             totalWarnings,
             durationMs: totalDuration,
-            ratchetOk: ratchet?.status !== 'failed'
+            ratchetStatus: ratchet?.status
           })
       );
     } else {
@@ -1390,7 +1394,8 @@ export async function renderAndPersistMasterReport(ctx: MasterReportContext): Pr
             durationMs: totalDuration,
             phaseBreakdown,
             fixableErrors,
-            fixableWarnings
+            fixableWarnings,
+            ratchetVerdict: ratchet
           })
       );
     }
@@ -1935,16 +1940,25 @@ function resolveSpeedEmoji(speed?: string): string {
   return '';
 }
 
-function buildSubAuditorLine(s: SubAuditorReport, index: number, total: number): string {
-  const badge = s.count > 0 ? ` [🐛 ${formatNumber(s.count)}]` : '';
-  const speedEmoji = resolveSpeedEmoji(s.speed);
+function buildSubAuditorLine(report: SubAuditorReport, index: number, total: number): string {
+  const isError = isSubAuditorFailed(report);
+  const isWarning = isSubAuditorWarning(report);
+  const icon = isError ? '❌' : isWarning ? '⚠️' : '🔍';
+  const countBadge = formatFindingCountBadge(
+    resolveEffectiveErrorsCount(report, report.count),
+    resolveEffectiveWarningsCount(report, report.count)
+  );
+  const speedEmoji = resolveSpeedEmoji(report.speed);
   const durationBadge =
-    s.durationMs !== undefined && s.durationMs >= 0 ? ` (${formatDurationMs(s.durationMs)})` : '';
-  return `🔍 [${index + 1}/${total}] ${s.name}${badge}${speedEmoji}${durationBadge}`;
+    report.durationMs !== undefined && report.durationMs >= 0
+      ? ` (${formatDurationMs(report.durationMs)})`
+      : '';
+  return `${icon} [${index + 1}/${total}] ${report.name}${countBadge}${speedEmoji}${durationBadge}`;
 }
 
 function populateSubAuditorSubLines(result: StandardAuditResult, subLines: string[]): void {
-  if (subLines.length > 0 || !result.subAuditors || result.subAuditors.length === 0) return;
+  if (!result.subAuditors || result.subAuditors.length === 0) return;
+  subLines.length = 0;
   const total = result.subAuditors.length;
   for (let i = 0; i < total; i++) {
     subLines.push(buildSubAuditorLine(result.subAuditors[i]!, i, total));
@@ -1954,11 +1968,11 @@ function populateSubAuditorSubLines(result: StandardAuditResult, subLines: strin
 function normalizeTaskSummaryAndSubLines(result: StandardAuditResult, subLines: string[]): boolean {
   ensureTaskSummary(result);
 
-  const isSkipped = result.status === 'skipped' || result.metrics?.['Estado'] === 'OMITIDO ⏭️';
+  const isSkipped = result.status === 'skipped' || result.metrics?.['Status'] === 'SKIPPED ⏭️';
   if (isSkipped) {
     result.status = 'skipped';
     subLines.length = 0;
-    const reason = (result.metrics?.['Skip-Reason'] as string) || 'Análisis omitido';
+    const reason = (result.metrics?.['Skip-Reason'] as string) || 'Analysis skipped';
     subLines.push(`⏭️  ${reason}`);
     return true;
   }
@@ -1976,18 +1990,24 @@ async function executeSingleAuditTask(
   const { result, durationMs } = await runTaskExecution(task, ctx, subLines);
   const isSkipped = normalizeTaskSummaryAndSubLines(result, subLines);
 
+  const errorsCount = result.summary?.errors ?? (result.status === 'failed' ? 1 : 0);
+  const warningsCount = result.summary?.warnings ?? 0;
+  const isSuccess = result.status === 'passed';
+
   await ctx.coordinator.onTaskComplete({
     taskName: task.name,
     taskId: task.id,
     subLines,
     durationMs,
-    isSuccess: result.status === 'passed',
-    hasWarnings: (result.summary?.warnings ?? 0) > 0,
+    isSuccess,
+    hasWarnings: warningsCount > 0,
     isSkipped,
     isBuiltin: task.isBuiltin !== false,
     icon: result.icon ?? task.icon,
     taskIndex,
-    subAuditors: result.subAuditors
+    subAuditors: result.subAuditors,
+    errorsCount,
+    warningsCount
   });
   return result;
 }

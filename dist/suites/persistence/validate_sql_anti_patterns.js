@@ -154,21 +154,21 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 		});
 		this.runSubAuditorSync("sql-no-positional-arrays", () => {
 			if (sqlMigrations.length === 0) {
-				this.markRuleNotApplicable("sql-no-positional-arrays", "No se encontraron archivos .sql en migraciones o schemas");
+				this.markRuleNotApplicable("sql-no-positional-arrays", "No .sql files found in migrations or schemas");
 				return;
 			}
 			this.scanPositionalArrays(sqlMigrations);
 		});
 		this.runSubAuditorSync("sql-plpgsql-declared-variables", () => {
 			if (sqlMigrations.length === 0) {
-				this.markRuleNotApplicable("sql-plpgsql-declared-variables", "No se encontraron archivos .sql en migraciones o schemas");
+				this.markRuleNotApplicable("sql-plpgsql-declared-variables", "No .sql files found in migrations or schemas");
 				return;
 			}
 			this.scanPlpgsqlVariables(sqlMigrations);
 		});
 		this.runSubAuditorSync("sql-rls-policy-grant-integrity", () => {
 			if (sqlMigrations.length === 0) {
-				this.markRuleNotApplicable("sql-rls-policy-grant-integrity", "No se encontraron archivos .sql en migraciones o schemas");
+				this.markRuleNotApplicable("sql-rls-policy-grant-integrity", "No .sql files found in migrations or schemas");
 				return;
 			}
 			this.scanRlsPolicyIntegrity(sqlMigrations);
@@ -231,7 +231,7 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 	scanSourceFiles(srcRoots) {
 		const srcFiles = this.context.collectFiles([...srcRoots], /* @__PURE__ */ new Set([".ts", ".vue"]));
 		if (srcFiles.length === 0) {
-			this.markRuleNotApplicable("db-payload-snake-case", "No se encontraron archivos de código fuente");
+			this.markRuleNotApplicable("db-payload-snake-case", "No source code files found");
 			return;
 		}
 		for (const file of srcFiles) {

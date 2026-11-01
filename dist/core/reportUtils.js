@@ -18,7 +18,7 @@ function printConsoleSummary(summary, verbose = true) {
 	console.log(`════════════════════════════════════`);
 	for (const [key, value] of Object.entries(summary.scannedMetrics)) console.log(`📦 ${key}: ${value}`);
 	console.log(`════════════════════════════════════\n`);
-	if (!verbose) console.log(styleText("cyan", `\n[INFO] Modo resumen activo: ${summary.errors.length} errores, ${summary.warnings.length} advertencias.`));
+	if (!verbose) console.log(styleText("cyan", `\n[INFO] Summary mode active: ${summary.errors.length} errors, ${summary.warnings.length} warnings.`));
 	else {
 		if (summary.warnings.length) {
 			console.log(styleText("yellow", `⚠️  WARNINGS (${summary.warnings.length}):`));
@@ -48,7 +48,7 @@ async function writeReportFile(outputPathArg, summary) {
 		...summary.warnings.map((w) => `  - ${w}`)
 	];
 	await fs.writeFile(outputPath, lines.join("\n"), "utf-8");
-	console.log(styleText("cyan", `\n✨ Reporte completo escrito en: ${outputPathArg}`));
+	console.log(styleText("cyan", `\n✨ Full report written to: ${outputPathArg}`));
 }
 /**
 * Parses raw JSON output containing an array, stripping Node.js permission and runtime noise.
@@ -66,8 +66,8 @@ function parseJsonArrayOutput(input, options) {
 		return JSON.parse(trimmed.substring(startIdx, endIdx + 1));
 	} catch (err) {
 		if (options?.throwOnError) {
-			const toolSuffix = options.toolName ? ` de ${options.toolName}` : "";
-			throw new Error(`Error al procesar salida JSON${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
+			const toolSuffix = options.toolName ? ` from ${options.toolName}` : "";
+			throw new Error(`Failed to parse JSON output${toolSuffix}: ${err instanceof Error ? err.message : String(err)}`, { cause: err });
 		}
 		return [];
 	}

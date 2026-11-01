@@ -5,7 +5,7 @@ import path from 'node:path';
 import { executeCliAndReadJson, resolvePackageBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
@@ -105,7 +105,8 @@ export class ValidateTypeCoverageAuditor extends BaseAuditor<TypeCoverageRuleId>
       thirdPartyToolPolicy: {
         toolName: 'type-coverage',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'type-coverage-below-threshold'
+        fallbackRuleId: 'type-coverage-below-threshold',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.tsconfig
       },
       ruleCapabilities: createRuleCapabilities(TYPE_COVERAGE_RULES, {
         speed: ['heavy', 'full'],

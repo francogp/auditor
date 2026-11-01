@@ -29,6 +29,7 @@ export interface ParsedVitePlusConfigSummary {
   readonly hasTestProjects: boolean;
   readonly hasRootTestInclude: boolean;
   readonly rootTestInclude: readonly string[];
+  readonly testCoverageExclude: readonly string[];
 }
 export declare function extractParsedConfigSummary(fileContent: string): ParsedVitePlusConfigSummary;
 export declare function extractEslintIgnoresFromAst(rawContent: string): string[];

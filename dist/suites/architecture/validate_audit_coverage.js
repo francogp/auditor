@@ -69,7 +69,7 @@ function buildDegradedPolicyFindings(degradedByPolicy, config) {
 	const findings = [];
 	for (const [policyId, files] of degradedByPolicy) {
 		const policy = getMatchingExemptionPolicies(files[0], config).find((p) => p.id === policyId);
-		findings.push(...directoryFindings("coverage-degraded-file", files, (count) => `${count} archivo(s) con reglas silenciadas por '${policy.configKey}' (${policy.silences})`, `Corrige '${policy.configKey}' o declara coverage.acknowledgedDegradations (policy: '${policyId}')`));
+		findings.push(...directoryFindings("coverage-degraded-file", files, (count) => `${count} file(s) with rules silenced by '${policy.configKey}' (${policy.silences})`, `Fix '${policy.configKey}' or declare coverage.acknowledgedDegradations (policy: '${policyId}')`));
 	}
 	return findings;
 }

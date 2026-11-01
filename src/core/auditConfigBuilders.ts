@@ -385,7 +385,15 @@ function buildDocumentationSubConfig(
     chatLanguage: d?.chatLanguage ?? DEFAULT_AUDIT_CONFIG.documentation?.chatLanguage ?? 'es',
     languageExemptions: d?.languageExemptions
       ? [...d.languageExemptions]
-      : (DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? [])
+      : (DEFAULT_AUDIT_CONFIG.documentation?.languageExemptions ?? []),
+    markdownLint: d?.markdownLint
+      ? {
+          rules: d.markdownLint.rules ? { ...d.markdownLint.rules } : undefined,
+          disabledRules: d.markdownLint.disabledRules
+            ? d.markdownLint.disabledRules.filter((r): r is string => typeof r === 'string')
+            : undefined
+        }
+      : undefined
   };
 }
 
@@ -488,7 +496,11 @@ export function buildFallowConfig(
     viz: {
       enabled: f.viz?.enabled ?? def?.viz?.enabled ?? true,
       outputPath: f.viz?.outputPath ?? def?.viz?.outputPath ?? 'scratch/fallow_map.html'
-    }
+    },
+    ...(f.ignoreGlobs ? { ignoreGlobs: f.ignoreGlobs } : {}),
+    ...(f.ignorePatterns ? { ignorePatterns: f.ignorePatterns } : {}),
+    ...(f.ignoreDependencies ? { ignoreDependencies: f.ignoreDependencies } : {}),
+    ...(f.exemptDependencies ? { exemptDependencies: f.exemptDependencies } : {})
   };
 }
 
@@ -734,8 +746,8 @@ export function buildAccessibilityConfig(
   for (const [key, val] of Object.entries(sourceRules)) {
     if (typeof val !== 'boolean') {
       throw new Error(
-        `[AuditConfig] Error de tipo en 'accessibility.rules.${key}': se recibió '${String(val)}'. ` +
-          `Debe ser un valor booleano estricto (true o false). El uso de cadenas como 'off' o 'error' está estrictamente prohibido.`
+        `[AuditConfig] Type error in 'accessibility.rules.${key}': received '${String(val)}'. ` +
+          `Must be a strict boolean value (true or false). The use of strings like 'off' or 'error' is strictly prohibited.`
       );
     }
     parsedRules[key] = val;
@@ -816,10 +828,20 @@ export function buildOxfmtConfig(raw?: DeepPartial<AuditOxfmtConfig>): AuditOxfm
 export function buildHtmlValidateConfig(
   raw?: DeepPartial<AuditHtmlValidateConfig>
 ): AuditHtmlValidateConfig {
-  return buildBaseSubsystemConfig<AuditHtmlValidateConfig>(
+  const base = buildBaseSubsystemConfig<AuditHtmlValidateConfig>(
     raw,
     DEFAULT_AUDIT_CONFIG.htmlValidate?.enabled ?? true
   );
+  return {
+    ...base,
+    rules: raw?.rules ? { ...raw.rules } : undefined,
+    disabledRules: raw?.disabledRules
+      ? raw.disabledRules.filter((r): r is string => typeof r === 'string')
+      : undefined,
+    extraPlugins: raw?.extraPlugins
+      ? raw.extraPlugins.filter((p): p is string => typeof p === 'string')
+      : undefined
+  };
 }
 
 function buildVitePlusPrecompressConfig(
@@ -1035,8 +1057,8 @@ function resolveAcknowledgedDegradations(
     const policy = entry?.policy;
     if (!policy || !ACKNOWLEDGEABLE_EXEMPTION_POLICIES.includes(policy)) {
       throw new Error(
-        `[AuditConfig] 'coverage.acknowledgedDegradations' declara una política desconocida '${String(policy)}'. ` +
-          `Válidas: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
+        `[AuditConfig] 'coverage.acknowledgedDegradations' declares an unknown policy '${String(policy)}'. ` +
+          `Valid: ${ACKNOWLEDGEABLE_EXEMPTION_POLICIES.join(', ')}.`
       );
     }
     const exemptRoots = getExemptRootsForPolicy(policy, paths);

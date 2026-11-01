@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.3.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.4.0 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -232,13 +232,18 @@ The root environment initialization scripts `setup-linux.sh` and `setup-windows.
 
 ---
 
-## 10. Prohibition on Modifying or Disabling Configurations Without Prior Programmer Consultation
+## 10. Prohibition on Modifying Configurations & Auditor Exclusive SSoT Sovereignty
 
 > [!CAUTION]
-> **Mandatory Consultation Gate**:
-> Developers and AI agents are strictly prohibited from disabling, turning off, altering, or modifying auditor configurations (`.auditor/audit.config.ts`, `vite.config.ts`, `.stylelintrc.json`, `.fallowrc.json`) when encountering errors or warnings without consulting and obtaining explicit prior authorization from the human programmer.
+> **Mandatory Consultation Gate & Auditor Exclusive SSoT Sovereignty**
 >
-> When requesting authorization, the agent must provide a comprehensive technical explanation detailing why the modification is necessary, explicitly justifying the trade-offs, pros, and cons.
+> The framework enforces strict separation between the central source of truth and satellite configuration files:
+>
+> 1. **Sole Single Source of Truth**: `.auditor/audit.config.ts` is the SOLE Single Source of Truth (SSoT) for repository architecture, rules, and boundaries. All satellite configuration files (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`) are derived artifacts owned exclusively by `@francogp/auditor`.
+> 2. **Prohibition of Manual Satellite Config Edits & Plans**: AI agents and developers are **STRICTLY AND CATEGORICALLY PROHIBITED** from proposing in work plans (`/plan`, `/brainstorming`) or executing manual edits (`write_file`, `edit_file`) on satellite configuration files. Whenever an audit flags satellite config diagnostics (such as `*-undeclared-config-entry` or `fallow-workspace-diagnostic`), the ONLY canonical action is running `npm run auditor:fix`.
+> 3. **Mandatory Human Consultation for Policy Changes**: Developers and AI agents are strictly prohibited from disabling, turning off, relaxing, or altering `.auditor/audit.config.ts` to silence errors without consulting and obtaining explicit prior authorization from the human programmer via `ask_question`. When requesting authorization, provide a comprehensive technical explanation detailing pros, cons, and trade-offs. Once approved, declare changes strictly in `.auditor/audit.config.ts` and synchronize with `npm run auditor:fix`.
+>
+> 📘 **Detailed Architectural Guide**: See [satellite-configs-sovereignty-guide.md](./satellite-configs-sovereignty-guide.md).
 
 ---
 

@@ -36,17 +36,43 @@ function discoverTranscriptFiles(customBrainDir) {
 	}
 	return candidates.sort((a, b) => b.mtime - a.mtime).map((c) => c.path);
 }
+const MUTATION_TOOL_NAMES = /* @__PURE__ */ new Set(["write_file", "edit_file"]);
+function hasShellTranscriptRedirection(normalizedCommand) {
+	return /(?<![=>-])(?:>>?|1>|2>)\s*[^|&;"'\r\n]*transcript(?:_full)?\.jsonl/i.test(normalizedCommand);
+}
+function hasShellTranscriptFileDeletionOrWrite(normalizedCommand) {
+	return /(?:^|[;&|\r\n])\s*(?:remove-item|del|rm|erase|unlink|set-content|add-content|out-file|truncate)\b[^|&;\r\n]*transcript(?:_full)?\.jsonl/i.test(normalizedCommand);
+}
+function hasScriptTranscriptFileMutation(normalizedCommand) {
+	return /\b(?:writefile|writefilesync|appendfile|appendfilesync|createwritestream)\s*\([^)]*transcript(?:_full)?\.jsonl/i.test(normalizedCommand);
+}
 /**
-* Checks if a model tool call attempted to write or edit transcript files or system logs.
+* Checks if a shell command attempted to write, redirect into, or delete transcript files.
+* Read-only commands (node reading via createReadStream, Get-Content, cat) do NOT constitute tampering.
+*/
+function isShellTranscriptMutation(commandLine) {
+	const normalizedCommand = commandLine.toLowerCase();
+	if (!(normalizedCommand.includes("transcript.jsonl") || normalizedCommand.includes("transcript_full.jsonl"))) return false;
+	return hasShellTranscriptRedirection(normalizedCommand) || hasShellTranscriptFileDeletionOrWrite(normalizedCommand) || hasScriptTranscriptFileMutation(normalizedCommand);
+}
+/**
+* Checks if a model tool call attempted to write or mutate transcript files.
+* Read-only operations (read_file) and background task log reads (.system_generated/tasks/*.log)
+* are completely safe and do NOT constitute tampering.
 */
 function isTamperingToolCall(toolCall) {
+	const toolName = (toolCall.name ?? "").toLowerCase();
 	const args = toolCall.args;
 	if (!args) return false;
-	const rawPath = args.Path ?? args.path;
-	const targetPath = typeof rawPath === "string" ? rawPath : "";
-	const rawCommand = args.CommandLine ?? args.commandLine;
-	const serialized = `${targetPath} ${typeof rawCommand === "string" ? rawCommand : ""}`.toLowerCase();
-	if (serialized.includes("transcript.jsonl") || serialized.includes("transcript_full.jsonl") || serialized.includes(".system_generated")) return true;
+	if (MUTATION_TOOL_NAMES.has(toolName)) {
+		const rawPath = args.Path ?? args.path;
+		const targetPath = (typeof rawPath === "string" ? rawPath : "").toLowerCase();
+		if (targetPath.includes("transcript.jsonl") || targetPath.includes("transcript_full.jsonl")) return true;
+	}
+	if (toolName === "run_command") {
+		const rawCommand = args.CommandLine ?? args.commandLine;
+		if (isShellTranscriptMutation(typeof rawCommand === "string" ? rawCommand : "")) return true;
+	}
 	return false;
 }
 function detectToolTampering(toolCalls) {
@@ -110,7 +136,7 @@ function verifyTranscriptAuthorization(relaxationCode, options = {}) {
 			verified: false,
 			tamperingDetected: true,
 			transcriptPath,
-			reason: "Tampering detected: model attempted to modify .system_generated or transcript logs"
+			reason: "Tampering detected: model attempted to mutate transcript logs"
 		};
 		if (summary.codeFoundInUserExplicit) return {
 			verified: true,
@@ -125,4 +151,4 @@ function verifyTranscriptAuthorization(relaxationCode, options = {}) {
 		reason: `Relaxation code '${cleanCode}' was not found in any USER_EXPLICIT transcript step`
 	};
 }
-export { discoverTranscriptFiles, isRelaxationCode, verifyTranscriptAuthorization };
+export { discoverTranscriptFiles, isRelaxationCode, isTamperingToolCall, verifyTranscriptAuthorization };

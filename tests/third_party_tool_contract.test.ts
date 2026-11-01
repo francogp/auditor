@@ -179,7 +179,7 @@ describe('Third-Party Tool Failure Contract', () => {
       expect(auditor.thirdPartyToolPolicy).toBeUndefined();
     });
 
-    it('instantiates cleanly with usesThirdPartyTool: true and fallbackBehavior: throw', () => {
+    it('throws when usesThirdPartyTool is true but explainSatelliteConfig is omitted', () => {
       const opts = createMockOptions({
         usesThirdPartyTool: true,
         thirdPartyToolPolicy: {
@@ -187,12 +187,65 @@ describe('Third-Party Tool Failure Contract', () => {
           fallbackBehavior: 'throw'
         }
       });
+      expect(() => new TestAuditorInstance(opts)).toThrow(
+        /failed to declare mandatory 'explainSatelliteConfig'/
+      );
+    });
+
+    it('throws when explainSatelliteConfig returns an incomplete explanation', () => {
+      const opts = createMockOptions({
+        usesThirdPartyTool: true,
+        thirdPartyToolPolicy: {
+          toolName: 'TypeScript',
+          fallbackBehavior: 'throw',
+          explainSatelliteConfig: () =>
+            ({
+              configFile: 'tsconfig.json'
+            }) as never
+        }
+      });
+      expect(() => new TestAuditorInstance(opts)).toThrow(
+        /'thirdPartyToolPolicy.explainSatelliteConfig' must return or define an object/
+      );
+    });
+
+    it('instantiates cleanly with usesThirdPartyTool: true and fallbackBehavior: throw', () => {
+      const opts = createMockOptions({
+        usesThirdPartyTool: true,
+        thirdPartyToolPolicy: {
+          toolName: 'TypeScript',
+          fallbackBehavior: 'throw',
+          explainSatelliteConfig: () => ({
+            configFile: 'tsconfig.json',
+            ssotKey: 'paths',
+            undeclaredEntryRuleId: 'probe-external',
+            configSuiteId: 'validate_mock_config'
+          })
+        }
+      });
       const auditor = new TestAuditorInstance(opts);
       expect(auditor.usesThirdPartyTool).toBe(true);
-      expect(auditor.thirdPartyToolPolicy).toEqual({
-        toolName: 'TypeScript',
-        fallbackBehavior: 'throw'
+      expect(auditor.thirdPartyToolPolicy?.toolName).toBe('TypeScript');
+      expect(auditor.explainSatelliteConfig()).toEqual({
+        configFile: 'tsconfig.json',
+        ssotKey: 'paths',
+        undeclaredEntryRuleId: 'probe-external',
+        configSuiteId: 'validate_mock_config'
       });
+    });
+
+    it('instantiates cleanly with usesThirdPartyTool: true and explainSatelliteConfig: undefined', () => {
+      const opts = createMockOptions({
+        usesThirdPartyTool: true,
+        thirdPartyToolPolicy: {
+          toolName: 'npm audit',
+          fallbackBehavior: 'throw',
+          explainSatelliteConfig: undefined
+        }
+      });
+      const auditor = new TestAuditorInstance(opts);
+      expect(auditor.usesThirdPartyTool).toBe(true);
+      expect(auditor.explainSatelliteConfig()).toBeUndefined();
     });
 
     it('instantiates cleanly with usesThirdPartyTool: true and fallbackBehavior: violation', () => {
@@ -201,7 +254,13 @@ describe('Third-Party Tool Failure Contract', () => {
         thirdPartyToolPolicy: {
           toolName: 'ESLint',
           fallbackBehavior: 'violation',
-          fallbackRuleId: 'probe-external'
+          fallbackRuleId: 'probe-external',
+          explainSatelliteConfig: () => ({
+            configFile: '.eslintrc.json',
+            ssotKey: 'eslint',
+            undeclaredEntryRuleId: 'probe-external',
+            configSuiteId: 'validate_mock_config'
+          })
         }
       });
       const auditor = new TestAuditorInstance(opts);
@@ -209,7 +268,8 @@ describe('Third-Party Tool Failure Contract', () => {
       expect(auditor.thirdPartyToolPolicy).toEqual({
         toolName: 'ESLint',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'probe-external'
+        fallbackRuleId: 'probe-external',
+        explainSatelliteConfig: expect.any(Function)
       });
       const manifest = auditor.toManifest();
       expect(manifest.usesThirdPartyTool).toBe(true);
@@ -230,7 +290,13 @@ describe('Third-Party Tool Failure Contract', () => {
         thirdPartyToolPolicy: {
           toolName: 'Fallow',
           fallbackBehavior: 'violation',
-          fallbackRuleId: 'probe-external'
+          fallbackRuleId: 'probe-external',
+          explainSatelliteConfig: () => ({
+            configFile: '.fallowrc.json',
+            ssotKey: 'fallow',
+            undeclaredEntryRuleId: 'probe-external',
+            configSuiteId: 'validate_mock_config'
+          })
         }
       });
       const errors = validateAuditorConstruction(auditor);
@@ -307,7 +373,30 @@ export class FakeAuditor extends BaseAuditor {
       expect(findings[0]?.context).toBe('missing-usesThirdPartyTool');
     });
 
-    it('passes cleanly when third-party tool is invoked and usesThirdPartyTool: true with policy is declared', () => {
+    it('detects missing explainSatelliteConfig in thirdPartyToolPolicy', () => {
+      const code = `
+export class FakeAuditor extends BaseAuditor {
+  constructor() {
+    super({
+      usesThirdPartyTool: true,
+      thirdPartyToolPolicy: {
+        toolName: 'ESLint',
+        fallbackBehavior: 'throw'
+      }
+    });
+  }
+  run() {
+    executeNodeCli('bin', []);
+  }
+}
+      `;
+      const findings = thirdPartyToolContractDetector.detect(createContext(code));
+      expect(findings.length).toBe(1);
+      expect(findings[0]?.ruleId).toBe('auditor-third-party-tool-contract');
+      expect(findings[0]?.context).toBe('missing-explainSatelliteConfig');
+    });
+
+    it('passes cleanly when third-party tool is invoked and usesThirdPartyTool: true with policy and explainSatelliteConfig is declared', () => {
       const code = `
 export class FakeAuditor extends BaseAuditor {
   constructor() {
@@ -316,7 +405,8 @@ export class FakeAuditor extends BaseAuditor {
       thirdPartyToolPolicy: {
         toolName: 'ESLint',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'fake-rule'
+        fallbackRuleId: 'fake-rule',
+        explainSatelliteConfig: undefined
       }
     });
   }

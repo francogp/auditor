@@ -3,6 +3,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { isCliPath } from "../../core/auditCodeRoots.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
@@ -340,6 +341,15 @@ function mapHealthFindings(data, projectRoot) {
 			});
 		}
 	}
+	const rawComplexityList = data.complexity?.findings ?? data.findings ?? [];
+	for (const cf of rawComplexityList) if (cf.rule_id === "complexity-file-lines" || cf.rule_id === "fallow/long-file") findings.push({
+		file: path.resolve(projectRoot, cf.path),
+		line: cf.line || 1,
+		message: cf.message || `File length exceeds configured threshold (Fallow [${cf.line_count ?? "N/A"} lines])`,
+		context: "fallow-file-lines",
+		ruleId: "fallow-refactoring-targets",
+		severity: "warning"
+	});
 	return findings;
 }
 function mapFallowJson(command, data, projectRoot = process.cwd()) {
@@ -373,7 +383,8 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "Fallow",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "fallow-workspace-diagnostic"
+				fallbackRuleId: "fallow-workspace-diagnostic",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
 			},
 			ruleCapabilities: FALLOW_RULE_CAPABILITIES,
 			id: "validate_fallow",

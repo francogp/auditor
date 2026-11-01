@@ -20,7 +20,7 @@ import path from 'node:path';
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
@@ -174,7 +174,8 @@ export class HtmlValidateAuditor extends BaseAuditor<HtmlValidateRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'html-validate',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'html-validate-issue'
+        fallbackRuleId: 'html-validate-issue',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.htmlValidate
       },
       ruleCapabilities: createRuleCapabilities(HTML_VALIDATE_RULES, {
         speed: 'light',

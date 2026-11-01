@@ -1,0 +1,82 @@
+[
+  {
+    "query": "Acabamos de resolver un bug complejo de desincronización en las migraciones de SQLite y PostgreSQL en tests/migrations.test.ts. Por favor corre /learn-with-docs para que quede registrado el contrato arquitectónico en AGENTS.md y no vuelva a ocurrir.",
+    "should_trigger": true
+  },
+  {
+    "query": "/learn la directiva que te di antes: nunca uses process.argv directamente, todos los scripts deben usar citty@^0.2.2 según el mandato de CLI governance.",
+    "should_trigger": true
+  },
+  {
+    "query": "Ya terminamos de implementar la nueva suite validate_oxlint.ts y pasaron todos los tests. Ahora antes de hacer commit necesitamos alinear la documentación y extraer las lecciones aprendidas en esta sesión.",
+    "should_trigger": true
+  },
+  {
+    "query": "Guarda como regla en los índices DOX lo que me acabas de corregir sobre el orden de los mixins en stylelint, y asegúrate de que ningún template viejo tenga la sintaxis previa.",
+    "should_trigger": true
+  },
+  {
+    "query": "Ejecuta learn-with-docs para revisar los cambios de este último commit en git diff y verificar si hay que actualizar el README.md o alguna de las skills afectadas.",
+    "should_trigger": true
+  },
+  {
+    "query": "En esta sesión te advertí varias veces que no tocaras node_modules. Necesito que persistas este invariante de inmutabilidad de dependencias en el AGENTS.md correspondiente.",
+    "should_trigger": true
+  },
+  {
+    "query": "Estamos en la Fase 3 de /safe-commit. Procede con el barrido de documentación y extracción de lecciones de la sesión actual.",
+    "should_trigger": true
+  },
+  {
+    "query": "Revisa el walkthrough.md y los últimos prompts donde te señalé malas prácticas para armar la propuesta de aprendizaje y corregir las referencias que quedaron obsoletas.",
+    "should_trigger": true
+  },
+  {
+    "query": "Acabo de agregar un nuevo comando 'auditor:types' en package.json y modifiqué auditConfigDefaults.ts. Corre /learn para que se actualice la documentación y se reflejen estos cambios.",
+    "should_trigger": true
+  },
+  {
+    "query": "En este goal autónomo, chequea si queda algún aprendizaje o contrato pendiente de persistir en los 3 pilares documentales.",
+    "should_trigger": true
+  },
+  {
+    "query": "Haz un git commit de todos los cambios con el mensaje 'feat(core): add streaming runner timing metrics' y súbelo a origin main.",
+    "should_trigger": false
+  },
+  {
+    "query": "Refactoriza la función parseCittyArgs en src/core/cli/cittyHarness.ts para simplificar el bucle reduciendo la complejidad ciclomática sin cambiar su comportamiento.",
+    "should_trigger": false
+  },
+  {
+    "query": "Haz un code review exhaustivo de los cambios entre HEAD y main revisando que cumpla los estándares de arquitectura y no haya código muerto.",
+    "should_trigger": false
+  },
+  {
+    "query": "Corre npm run auditor:md para verificar si hay algún encabezado o enlace roto en la documentación de docs/.",
+    "should_trigger": false
+  },
+  {
+    "query": "El test tests/streaming_runner.test.ts está fallando con un AssertionError en la línea 45. Investiga el stack trace y encuentra la causa raíz del error.",
+    "should_trigger": false
+  },
+  {
+    "query": "Quiero que busquemos dónde está definido el contrato AuditorRuleCapabilities y qué archivos de src/suites lo están implementando actualmente.",
+    "should_trigger": false
+  },
+  {
+    "query": "Vamos a diseñar desde cero la arquitectura para un nuevo sub-auditor llamado auditor-motion. ¿Qué interfaces y estructuras de datos deberíamos definir?",
+    "should_trigger": false
+  },
+  {
+    "query": "Ejecuta la suite de verificación de tipos estáticos con vp check y muéstrame los diagnósticos que encuentre.",
+    "should_trigger": false
+  },
+  {
+    "query": "Ajusta los estilos SCSS en src/components/AuditHeader.vue para cambiar el espaciado interno a 12px y usar variables de color-mix.",
+    "should_trigger": false
+  },
+  {
+    "query": "Crea una nueva migración SQL para agregar la columna last_analyzed_at en la tabla repository_audits usando SQLite.",
+    "should_trigger": false
+  }
+]

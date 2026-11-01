@@ -19,7 +19,7 @@ import path from 'node:path';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
@@ -148,7 +148,8 @@ export class TypeCheckAuditor extends BaseAuditor<TypeCheckRuleId> {
       requiredPermissions: ['--allow-child-process'],
       thirdPartyToolPolicy: {
         toolName: 'TypeScript',
-        fallbackBehavior: 'throw'
+        fallbackBehavior: 'throw',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.tsconfig
       },
       ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
         speed: ['light', 'full'],

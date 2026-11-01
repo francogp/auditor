@@ -5,6 +5,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { getProcessCliArgs } from "../../core/cli/cittyHarness.js";
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES, resolvePackageBin } from "../../cli/cliUtils.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
@@ -183,7 +184,8 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "Fallow",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "fallow-similar-code-failed"
+				fallbackRuleId: "fallow-similar-code-failed",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
 			},
 			ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
 			id: "validate_similar_code",
@@ -330,7 +332,7 @@ var ValidateSimilarCodeAuditor = class extends BaseAuditor {
 			return;
 		}
 		if (isSimilarCodeSkipped()) {
-			this.markSkipped("Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)");
+			this.markSkipped("Skipped by environment variable (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)");
 			return;
 		}
 		if (isFastPresetActive()) {

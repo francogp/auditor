@@ -384,7 +384,7 @@ function checkPackageMatchViolation(
       linkText: '',
       rawUrl: `packages/${pkgSubpath}`,
       resolvedPath: candidateRel,
-      error: `Referencia a workspace package inexistente en disco: "packages/${pkgSubpath}" (RULE: No mantener rutas a paquetes de workspace eliminados)`,
+      error: `Reference to non-existent workspace package on disk: "packages/${pkgSubpath}" (RULE: Do not maintain paths to deleted workspace packages)`,
       ruleId: 'markdown-broken-workspace-package',
       line: lineNum
     };
@@ -628,7 +628,7 @@ export class MarkdownLinkAuditor extends BaseAuditor<MarkdownLinkRuleId> {
     const mdFiles = this.context.collectFiles(this.scanRoots, new Set(['.md']));
     if (mdFiles.length === 0) {
       for (const r of MARKDOWN_LINK_RULES) {
-        this.markRuleNotApplicable(r, 'No se encontraron archivos markdown');
+        this.markRuleNotApplicable(r, 'No markdown files found');
       }
       return;
     }

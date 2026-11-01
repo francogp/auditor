@@ -3,7 +3,10 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_PRECOMPRESS_THRESHOLD_BYTES } from '../../core/auditConfigDefaults.ts';
+import {
+  DEFAULT_PRECOMPRESS_THRESHOLD_BYTES,
+  DEFAULT_AUDIT_CONFIG
+} from '../../core/auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -11,11 +14,18 @@ import {
   createUniformRemediationPhases,
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
-import { toPosixRelative, isPathContained, stripGlobSuffix } from '../../core/safePath.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
+import { toPosixRelative, isPathContained, normalizePosixPath } from '../../core/safePath.ts';
+import {
+  stripGlobSuffix,
+  isPatternContainedInGlobs,
+  getAllowedSatellitePathExcludes
+} from '../../core/satelliteGlobMatcher.ts';
 import {
   extractParsedConfigSummary,
   isRuleValueCompliant,
   resolveVitestRoots,
+  CANONICAL_LINT_RULES_MAP,
   type ParsedVitePlusConfigSummary
 } from '../../core/viteConfigAst.ts';
 import {
@@ -38,7 +48,8 @@ export const VITE_PLUS_CONFIG_RULES = [
   'vite-plus-config-lint',
   'vite-plus-config-fmt',
   'vite-plus-config-pack',
-  'vite-plus-config-ts'
+  'vite-plus-config-ts',
+  'vite-plus-undeclared-config-entry'
 ] as const;
 
 export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
@@ -902,7 +913,7 @@ function validateAntiCastrationRules(
         suiteId: 'validate_vite_plus_config',
         suiteName: 'Vite+ Unified Configuration Validator',
         ruleId: 'vite-plus-config-lint',
-        ruleDescription: 'Vite+: Estándares estrictos de linter y Oxlint',
+        ruleDescription: 'Strict linter and Oxlint standards',
         severity: 'error',
         file: fileName,
         line: 1,
@@ -1097,14 +1108,14 @@ function validateSynchronizedLintAndFmt(
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
-      ruleId: 'vite-plus-config-fmt',
-      ruleDescription: 'Vite+: Formatting standards with Oxfmt',
+      ruleId: 'vite-plus-undeclared-config-entry',
+      ruleDescription: 'Vite+: Undeclared entry in config',
       severity: 'error',
       file: fileName,
       line: 1,
       col: 1,
       context: 'fmt.ignorePatterns',
-      message: `Unsynchronized exclusion patterns detected in fmt of vite.config.ts: [${extraFmt.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+      message: `Unsynchronized exclusion patterns detected in fmt of vite.config.ts: [${extraFmt.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize these exclusions, declare them in .auditor/audit.config.ts under 'paths.ignoreGlobs' or 'oxfmt.ignoreGlobs', or remove them from vite.config.ts.`
     });
   }
 
@@ -1127,15 +1138,66 @@ function validateSynchronizedLintAndFmt(
     findings.push({
       suiteId: 'validate_vite_plus_config',
       suiteName: 'Vite+ Unified Configuration Validator',
-      ruleId: 'vite-plus-config-ts',
-      ruleDescription: 'Vite+: TypeScript and test synchronization',
+      ruleId: 'vite-plus-undeclared-config-entry',
+      ruleDescription: 'Vite+: Undeclared entry in config',
       severity: 'error',
       file: fileName,
       line: 1,
       col: 1,
       context: 'lint.ignorePatterns',
-      message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
+      message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(', ')}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize these exclusions, declare them in .auditor/audit.config.ts under 'paths.ignoreGlobs' or 'oxlint.ignoreGlobs', or remove them from vite.config.ts.`
     });
+  }
+
+  const authorizedCustomRules = new Set<string>(
+    Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
+  );
+  for (const [ruleName] of summary.lintRules.entries()) {
+    if (!(ruleName in CANONICAL_LINT_RULES_MAP) && !authorizedCustomRules.has(ruleName)) {
+      findings.push({
+        suiteId: 'validate_vite_plus_config',
+        suiteName: 'Vite+ Unified Configuration Validator',
+        ruleId: 'vite-plus-undeclared-config-entry',
+        ruleDescription: 'Vite+: Undeclared entry in config',
+        severity: 'error',
+        file: fileName,
+        line: 1,
+        col: 1,
+        context: ruleName,
+        message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
+      });
+    }
+  }
+
+  if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
+    const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
+    const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+    const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
+    const rawAllowedGlobs: string[] = [
+      '**/*.d.ts',
+      ...srcRoots.map((r) => `${normalizePosixPath(r)}/**/*.d.ts`),
+      ...getAllowedSatellitePathExcludes(auditConfig, projectRoot ?? process.cwd()),
+      ...(auditConfig.testCoverage?.exemptGlobs ?? []).map((p) => normalizePosixPath(p)),
+      ...coverageExemptGlobs.map((p) => normalizePosixPath(p))
+    ];
+    const allowedCoverageExcludes = new Set<string>(rawAllowedGlobs);
+
+    for (const pattern of summary.testCoverageExclude) {
+      if (!isPatternContainedInGlobs(pattern, allowedCoverageExcludes, effectiveGlobs)) {
+        findings.push({
+          suiteId: 'validate_vite_plus_config',
+          suiteName: 'Vite+ Unified Configuration Validator',
+          ruleId: 'vite-plus-undeclared-config-entry',
+          ruleDescription: 'Vite+: Undeclared entry in config',
+          severity: 'error',
+          file: fileName,
+          line: 1,
+          col: 1,
+          context: 'test.coverage.exclude',
+          message: `Unsynchronized exclusion pattern '${pattern}' detected in test.coverage.exclude of vite.config.ts. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize this exclusion, declare it in .auditor/audit.config.ts under 'testCoverage.exclude' or 'paths.ignoreGlobs', or remove it from vite.config.ts.`
+        });
+      }
+    }
   }
 
   return findings;
@@ -1337,11 +1399,12 @@ export const VITE_PLUS_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<VitePlus
 };
 
 const RULE_DESCRIPTIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
-  'vite-plus-config-core': 'Estructura raíz y secciones base de Vite+',
-  'vite-plus-config-lint': 'Estándares estrictos de linter y Oxlint',
-  'vite-plus-config-fmt': 'Estándares de formato con Oxfmt',
-  'vite-plus-config-pack': 'Estándares de empaquetado y distribución',
-  'vite-plus-config-ts': 'Sincronización de TypeScript y pruebas'
+  'vite-plus-config-core': 'Root structure and core Vite+ sections',
+  'vite-plus-config-lint': 'Strict linter and Oxlint standards',
+  'vite-plus-config-fmt': 'Oxfmt code formatting standards',
+  'vite-plus-config-pack': 'Packaging and distribution standards',
+  'vite-plus-config-ts': 'TypeScript and test sync standards',
+  'vite-plus-undeclared-config-entry': 'Undeclared entry in config'
 };
 
 const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
@@ -1390,7 +1453,14 @@ const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
     '2. Check if a project uses Vitest Workspace projects ("projects: [...]") while retaining a root "test.include", which contaminates isolated runners.\n\n' +
     'Canonical Solution:\n' +
     '1. Run "npm run auditor:fix" or "auditor fix". The auditor automatically synchronizes test projects, purges root includes in multi-project configs, and aligns ignore patterns.\n' +
-    '2. If using multiple test runners (e.g. unit and node), declare "vitePlusConfig.test.projects" in .auditor/audit.config.ts.'
+    '2. If using multiple test runners (e.g. unit and node), declare "vitePlusConfig.test.projects" in .auditor/audit.config.ts.',
+  'vite-plus-undeclared-config-entry':
+    '📖 REMEDIATION GUIDE: vite-plus-undeclared-config-entry\n' +
+    '1. Root Cause: vite.config.ts contains ignore patterns, coverage exclusions, or custom linter rules that are not authorized in .auditor/audit.config.ts (SSoT violation).\n' +
+    '2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern, exclusion, or rule in vite.config.ts.\n' +
+    '3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`, `testCoverage.excludeGlobs`, or `vitePlusConfig.lint.rules`. Otherwise, remove it from vite.config.ts.\n' +
+    '4. Example / Auto-fix command:\n' +
+    "   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }"
 };
 
 export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRuleId> {
@@ -1577,7 +1647,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       ];
       for (const ruleId of remaining) {
         this.runSubAuditorSync(ruleId, () => {
-          this.markRuleNotApplicable(ruleId, 'Archivo vite.config.ts no encontrado');
+          this.markRuleNotApplicable(ruleId, 'Missing vite.config.ts file');
         });
       }
       return;
@@ -1639,6 +1709,21 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
           context: f.context ?? 'vite-plus-config-ts',
           message: f.message,
           fixable: true
+        });
+      }
+    });
+
+    // Rule 6: vite-plus-undeclared-config-entry
+    this.runSubAuditorSync('vite-plus-undeclared-config-entry', () => {
+      for (const f of findings.filter((x) => x.ruleId === 'vite-plus-undeclared-config-entry')) {
+        this.addViolation({
+          ruleId: 'vite-plus-undeclared-config-entry',
+          severity: 'error',
+          file: relFileName,
+          line: f.line ?? 1,
+          context: f.context ?? 'vite-plus-undeclared-config-entry',
+          message: f.message,
+          fixable: false
         });
       }
     });

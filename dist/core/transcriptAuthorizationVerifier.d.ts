@@ -30,6 +30,12 @@ export interface TranscriptToolCall {
   readonly args?: Record<string, unknown>;
 }
 /**
+ * Checks if a model tool call attempted to write or mutate transcript files.
+ * Read-only operations (read_file) and background task log reads (.system_generated/tasks/*.log)
+ * are completely safe and do NOT constitute tampering.
+ */
+export declare function isTamperingToolCall(toolCall: TranscriptToolCall): boolean;
+/**
  * Type guard for boundary verification of untrusted inputs.
  */
 export declare function isRelaxationCode(code: string): code is RelaxationCode;

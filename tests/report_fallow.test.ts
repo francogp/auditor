@@ -245,4 +245,26 @@ describe('report_fallow CLI Tool', () => {
     process.argv = ['node', 'report_fallow.ts', 'category=unknown'];
     expect(() => runFallowReportCli()).not.toThrow();
   });
+
+  it('supports --cloud flag and category=cloud with --repo option', () => {
+    process.argv = ['node', 'report_fallow.ts', '--cloud', '--repo=owner/repo', '--json'];
+    expect(() => runFallowReportCli()).not.toThrow();
+
+    process.argv = ['node', 'report_fallow.ts', 'category=cloud', 'human'];
+    expect(() => runFallowReportCli()).not.toThrow();
+  });
+
+  it('propagates exitCode 1 when cloud command fails', () => {
+    setFallowCommandRunner(() => null);
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as never);
+    try {
+      process.exitCode = 0;
+      process.argv = ['node', 'report_fallow.ts', '--cloud'];
+      runFallowReportCli();
+      expect(process.exitCode).toBe(1);
+    } finally {
+      process.exitCode = 0;
+      exitSpy.mockRestore();
+    }
+  });
 });

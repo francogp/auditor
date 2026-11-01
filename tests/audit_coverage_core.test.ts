@@ -265,7 +265,7 @@ describe('coverage config anti-abuse', () => {
           acknowledgedDegradations: [{ policy: 'test' as 'cli', glob: 'tests/x/**', reason }]
         }
       })
-    ).toThrow(/política desconocida/);
+    ).toThrow(/unknown policy/);
   });
 });
 

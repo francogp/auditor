@@ -457,7 +457,8 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
       thirdPartyToolPolicy: {
         toolName: 'knip',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'package-unlisted-dependency'
+        fallbackRuleId: 'package-unlisted-dependency',
+        explainSatelliteConfig: undefined
       },
       ruleCapabilities: createRuleCapabilities(PACKAGE_HYGIENE_RULES, {
         speed: ['heavy', 'full'],
@@ -522,7 +523,7 @@ export class ValidatePackageHygieneAuditor extends BaseAuditor<PackageHygieneRul
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Package hygiene desactivado en config')) {
+    if (this.isSuiteGatingDisabled('Package hygiene disabled in config')) {
       return;
     }
 

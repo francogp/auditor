@@ -142,16 +142,7 @@ export default defineAuditConfig({
   },
   packageHygiene: {
     enabled: true,
-    ignoreDependencies: [
-      '@arethetypeswrong/core',
-      'html-validate',
-      'html-validate-vue',
-      'markdownlint-cli',
-      'postcss-html',
-      'publint',
-      'stylelint-scss',
-      'type-coverage'
-    ]
+    ignoreDependencies: ['markdownlint-cli', 'stylelint-scss']
   },
   secretLeaks: {
     enabled: true
@@ -161,7 +152,7 @@ export default defineAuditConfig({
     failOn: 'critical'
   },
   accessibility: {
-    enabled: false // Herramienta CLI sin vistas SFC Vue interactivas en frontend
+    enabled: false // CLI tool without interactive SFC Vue frontend views
   },
   typeCoverage: {
     enabled: true,
@@ -189,8 +180,20 @@ export default defineAuditConfig({
   },
   fallow: {
     enabled: true,
+    ignoreGlobs: ['.agents/**'],
+    ignoreDependencies: [
+      '@arethetypeswrong/core',
+      'html-validate',
+      'html-validate-vue',
+      'knip',
+      'postcss-html',
+      'publint',
+      'stylelint-config-standard-scss',
+      'stylelint-config-standard-vue',
+      'type-coverage'
+    ],
     security: {
-      enabled: false // Herramienta CLI sin servidores ni endpoints de red
+      enabled: false // CLI tool without server or network endpoints
     },
     enforceTargets: true,
     maxTargetPriority: 'medium',
@@ -222,7 +225,7 @@ export default defineAuditConfig({
   vitePlusConfig: {
     enabled: true,
     precompress: {
-      enabled: false // Herramienta CLI/librería de Node.js sin bundle web cliente para producción
+      enabled: false // Node.js CLI tool/library without production client web bundle
     },
     lint: {
       enabled: true,
@@ -259,7 +262,7 @@ export default defineAuditConfig({
   },
   pinia: {
     enabled: false,
-    authorizedMutationFiles: [] // Herramienta CLI de Node.js sin stores ni frontend Vue
+    authorizedMutationFiles: [] // Node.js CLI tool without stores or Vue frontend
   },
   valibot: {
     enabled: true,
@@ -295,7 +298,7 @@ export default defineAuditConfig({
   },
   runner: {
     enabled: true,
-    timeoutMs: 0 // 0 = disabled: permite a todas las suites completar sin timeouts arbitrarios
+    timeoutMs: 0 // 0 = disabled: allows all suites to complete without arbitrary timeouts
   },
 
   animation: {

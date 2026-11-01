@@ -4,6 +4,7 @@ import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";
@@ -104,7 +105,8 @@ var TypeCheckAuditor = class extends BaseAuditor {
 			requiredPermissions: ["--allow-child-process"],
 			thirdPartyToolPolicy: {
 				toolName: "TypeScript",
-				fallbackBehavior: "throw"
+				fallbackBehavior: "throw",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.tsconfig
 			},
 			ruleCapabilities: createRuleCapabilities(TYPE_CHECK_RULES, {
 				speed: ["light", "full"],

@@ -286,7 +286,7 @@ function collectRuleViolations(rule, content, filePath, getLineNo, violations) {
 			fixable: Boolean(rule.fix),
 			packageName: rule.packageName,
 			ruleId: rule.id,
-			ruleDescription: resolveAuditRuleDescription(rule, rule.id ?? "Regla")
+			ruleDescription: resolveAuditRuleDescription(rule, rule.id ?? "Rule")
 		});
 	}
 }
@@ -364,7 +364,7 @@ function getChangedFiles(ref, projectRoot = process.cwd()) {
 		if (proc.status !== 0 || !proc.stdout) throw new Error(`git diff failed for ref ${ref}`);
 		return proc.stdout.split("\n").map((f) => f.trim()).filter((f) => f !== "" && AUDIT_EXTENSIONS.has(path.extname(f)) && !isPathIgnored(f, [], [], projectRoot)).map((f) => path.resolve(projectRoot, f));
 	} catch {
-		process.stderr.write(styleText("yellow", `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`));
+		process.stderr.write(styleText("yellow", `⚠️ Could not retrieve the list of modified files from git for ref: '${ref}'. Auditing entire project.\n`));
 		return [];
 	}
 }
@@ -480,20 +480,20 @@ async function runAstFileScans(ctx, logProgress, options) {
 	};
 	if (options?.precollectedFiles) {
 		files = options.precollectedFiles.map((f) => path.isAbsolute(f) ? f : path.resolve(baseRoot, f));
-		logProgress(styleText("cyan", `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`));
+		logProgress(styleText("cyan", `[3/6] 🔍 Auditing AST and code rules across ${files.length} files...`));
 	} else if (changedSince) {
 		files = getChangedFiles(changedSince, baseRoot);
-		logProgress(styleText("cyan", `[3/6] 🔍 Auditando archivos modificados desde: '${changedSince}' (${files.length} archivos)...`));
+		logProgress(styleText("cyan", `[3/6] 🔍 Auditing files modified since: '${changedSince}' (${files.length} files)...`));
 	} else {
 		files = await getFilesToAudit(path.resolve(baseRoot, ctx.values.path));
-		logProgress(styleText("cyan", `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`));
+		logProgress(styleText("cyan", `[3/6] 🔍 Auditing AST and code rules across ${files.length} files...`));
 	}
 	let processed = 0;
 	const total = files.length;
 	const AST_PROGRESS_BATCH_SIZE = 200;
 	for (const f of files) {
 		processed++;
-		if (processed % AST_PROGRESS_BATCH_SIZE === 0 || processed === total) logProgress(styleText("cyan", `   ⏳ Progreso AST: ${processed}/${total} archivos (${Math.round(processed / total * 100)}%)`));
+		if (processed % AST_PROGRESS_BATCH_SIZE === 0 || processed === total) logProgress(styleText("cyan", `   ⏳ AST Progress: ${processed}/${total} files (${Math.round(processed / total * 100)}%)`));
 		violations = violations.concat(await auditFile(f, Boolean(ctx.values.fix), ctx.activeConfigRules));
 	}
 	return {
@@ -587,17 +587,17 @@ async function exportProjectReportOutput(values, jsonReport, all, fileGroups, ty
 	const outputPath = path.resolve(process.cwd(), values.output);
 	if (outputPath.endsWith(".json")) await fs$1.writeFile(outputPath, JSON.stringify(jsonReport, null, 2), "utf-8");
 	else if (outputPath.endsWith(".md")) {
-		let md = `# Reporte de Auditoría del Proyecto\n\n`;
-		md += `**Estado**: ${errorsCount === 0 ? "✅ Aprobado" : "❌ Fallido"}\n\n`;
-		md += `| Métrica | Valor |\n| :--- | :--- |\n`;
-		md += `| **Errores** | \`${errorsCount}\` |\n`;
-		md += `| **Advertencias** | \`${warningsCount}\` |\n`;
-		md += `| **Archivos Afectados** | \`${Object.keys(fileGroups).length}\` |\n\n`;
-		md += `## 📊 Desglose por Categoría\n\n| Categoría | Cantidad |\n| :--- | :---: |\n`;
+		let md = `# Project Audit Report\n\n`;
+		md += `**Status**: ${errorsCount === 0 ? "✅ Passed" : "❌ Failed"}\n\n`;
+		md += `| Metric | Value |\n| :--- | :--- |\n`;
+		md += `| **Errors** | \`${errorsCount}\` |\n`;
+		md += `| **Warnings** | \`${warningsCount}\` |\n`;
+		md += `| **Affected Files** | \`${Object.keys(fileGroups).length}\` |\n\n`;
+		md += `## 📊 Breakdown by Category\n\n| Category | Count |\n| :--- | :---: |\n`;
 		Object.entries(typeGroups).sort((a, b) => b[1] - a[1]).forEach(([cat, count]) => {
 			md += `| ${cat} | ${count} |\n`;
 		});
-		md += `\n## 📁 Top Archivos con Más Avisos\n\n| Archivo | Errores | Advertencias | Total |\n| :--- | :---: | :---: | :---: |\n`;
+		md += `\n## 📁 Top Files with Most Warnings\n\n| File | Errors | Warnings | Total |\n| :--- | :---: | :---: | :---: |\n`;
 		topFiles.forEach((f) => {
 			md += `| \`${f.file}\` | ${f.errors} | ${f.warnings} | ${f.total} |\n`;
 		});
@@ -606,7 +606,7 @@ async function exportProjectReportOutput(values, jsonReport, all, fileGroups, ty
 		const lines = all.map((v) => `[${v.severity.toUpperCase()}] ${path.relative(process.cwd(), v.file)}:${v.line} -> [${getViolationCategory(v)}] ${v.message} ("${sanitizeContext(v.context)}")`);
 		await fs$1.writeFile(outputPath, lines.join("\n"), "utf-8");
 	}
-	logProgress(styleText("cyan", `✨ Reporte completo escrito en: ${outputPath}`));
+	logProgress(styleText("cyan", `✨ Full report written to: ${outputPath}`));
 }
 async function executeProjectAuditPhases(ctx, logProgress, options) {
 	const astResult = await runAstFileScans(ctx, logProgress, options);
@@ -632,8 +632,8 @@ function buildProjectJsonReport(params) {
 		status: errorsCount > 0 ? "failed" : "passed",
 		durationMs,
 		metrics: {
-			"Archivos Escaneados": files.length,
-			"Archivos Afectados": Object.keys(fileGroups).length
+			"Files Scanned": files.length,
+			"Files Affected": Object.keys(fileGroups).length
 		},
 		findings: all.map((v) => ({
 			severity: v.severity,
@@ -688,8 +688,8 @@ async function main(cliArgs, options) {
 		if (ctx.isHumanMode) printTerminal(msg);
 		else process.stderr.write(msg + "\n");
 	}
-	logProgress(styleText("bold", "--- 🔎 REGLAS DE CÓDIGO Y ESTRUCTURA DOX (audit_project.ts) ---"));
-	if (ctx.selectedRules.size > 0) logProgress(styleText("cyan", `🎯 Ejecución selectiva de reglas: [ ${Array.from(ctx.selectedRules).join(", ")} ]`));
+	logProgress(styleText("bold", "--- 🔎 CODE RULES & DOX STRUCTURE (audit_project.ts) ---"));
+	if (ctx.selectedRules.size > 0) logProgress(styleText("cyan", `🎯 Selective rule execution: [ ${Array.from(ctx.selectedRules).join(", ")} ]`));
 	const { all: rawAll, files } = await executeProjectAuditPhases(ctx, logProgress, options);
 	const { all, fileGroups, typeGroups } = filterAndGroupViolations(rawAll, ctx);
 	const topLimit = ctx.values.top ? parseInt(ctx.values.top, 10) : DEFAULT_TOP_LIMIT;

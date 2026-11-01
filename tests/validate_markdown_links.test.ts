@@ -152,7 +152,7 @@ describe('MarkdownLinkAuditor', () => {
         (b) => b.ruleId === 'markdown-broken-workspace-package'
       );
       expect(pkgViolations.length).toBeGreaterThanOrEqual(1);
-      expect(pkgViolations.some((b) => b.error.includes('workspace package inexistente'))).toBe(
+      expect(pkgViolations.some((b) => b.error.includes('non-existent workspace package'))).toBe(
         true
       );
     });

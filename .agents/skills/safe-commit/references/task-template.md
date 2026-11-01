@@ -7,8 +7,8 @@
 
 ## Task Progress Checklist
 
-- [ ] **Phase 0: Pre-Flight Configuration Ratchet Gate & Artifact Initialization**
-  - [ ] Gate 0.0: Pre-Flight Configuration Ratchet Gate (`npm run auditor suite=validate_audit_config`; zero unauthorized relaxations)
+- [ ] **Phase 0: Pre-Flight Configuration Ratchet & Setup Gate & Artifact Initialization**
+  - [ ] Gate 0.0: Pre-Flight Setup & Ratchet Gate (`npm run auditor:setup` / `npm run auditor phase=setup`; zero unauthorized relaxations or satellite config desync)
   - [ ] Step 0.1: Write `<appDataDir>/brain/<conversation-id>/task.md` with complete checklist
   - [ ] Step 0.2: Note scratch directory path: `<appDataDir>/brain/<conversation-id>/scratch/`
 - [ ] **Phase 1: Test Gap Analysis & Zero-Commit Safety Backup**
@@ -35,7 +35,7 @@
   - [ ] 🛑 HARD STOP (Mandatory stop: await user approval on learning_proposal.md before advancing to Phase 4)
 - [ ] **Phase 4: Single Atomic Certified Commit & Completion**
   - [ ] Apply approved lessons and modernizations to `AGENTS.md` and documentation
-  - [ ] Pre-commit Sanity Check (`npm run auditor:md`)
+  - [ ] Pre-commit Sanity Check (`npm run auditor:md` & staged secret leak scan)
   - [ ] Synthesize final Elegant Protocol commit message
   - [ ] Atomic Commit & Tag:
     - [ ] If version bumped: `git add . ; git commit -F scratch/release_notes.txt ; git tag -a v<base_version> -F scratch/release_notes.txt` (or `&&` in Bash)

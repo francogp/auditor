@@ -37,7 +37,7 @@ const Z_INDEX_RULES = [
 	"z-index-isolated-constant"
 ];
 function checkOrFixMissingVar(varName, value, content, isFixMode, errors, violations) {
-	const msg = `Falta variable CSS '${varName}' (debe ser ${value})`;
+	const msg = `Missing CSS variable '${varName}' (must be ${value})`;
 	errors.push(msg);
 	if (isFixMode && content.includes(":root {")) return {
 		updatedContent: content.replace(/\}\s*$/, `  ${varName}: ${value};\n}\n`),
@@ -58,7 +58,7 @@ function checkOrFixMismatchVar(varName, value, parsedValue, matchStr, regex, con
 		updatedContent: content,
 		wasModified: false
 	};
-	const msg = `Desincronización en '${varName}': TS=${value}, SCSS=${matchStr}`;
+	const msg = `Desynchronization in '${varName}': TS=${value}, SCSS=${matchStr}`;
 	errors.push(msg);
 	if (isFixMode) return {
 		updatedContent: content.replace(regex, `${varName}: ${value}`),
@@ -280,7 +280,7 @@ var ZIndexAuditor = class extends FileScanAuditor {
 				"z-index-hardcoded-literal",
 				"z-index-isolated-constant"
 			]) this.runSubAuditorSync(r, () => {
-				this.markRuleNotApplicable(r, "Z-Layers no configurado en proyecto");
+				this.markRuleNotApplicable(r, "Z-Layers not configured in project");
 			});
 			return;
 		}
@@ -341,10 +341,10 @@ var ZIndexAuditor = class extends FileScanAuditor {
 			this.context.setMetric("Status", result.modified ? "Auto-fixed" : "Synced");
 		} else {
 			this.runSubAuditorSync("z-index-missing-var", () => {
-				this.markRuleNotApplicable("z-index-missing-var", "Archivo SCSS no legible");
+				this.markRuleNotApplicable("z-index-missing-var", "Unreadable SCSS file");
 			});
 			this.runSubAuditorSync("z-index-mismatch", () => {
-				this.markRuleNotApplicable("z-index-mismatch", "Archivo SCSS no legible");
+				this.markRuleNotApplicable("z-index-mismatch", "Unreadable SCSS file");
 			});
 		}
 		await super.runAudit();

@@ -42,6 +42,8 @@ import {
   type DualCommandProfile,
   type TieredCommandProfile,
   type ThirdPartyToolFailurePolicy,
+  type SatelliteConfigFileExplanation,
+  type SatelliteConfigExplanationFn,
   type RuleFixContext,
   type RuleFixerFn,
   type AnyRuleFixerFn,
@@ -52,9 +54,12 @@ import {
   normalizeSpeeds,
   resolveEffectiveSpeed,
   deriveCanonicalAuditorScript,
+  collectAuditorThirdPartyToolErrors,
   countFixableFindings,
   computeResultsFixableViolations
 } from './auditContract.ts';
+
+export type { SatelliteConfigFileExplanation, SatelliteConfigExplanationFn };
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -108,6 +113,7 @@ import {
 import { isTestFileForCodeAudit } from './auditTestPredicates.ts';
 import { formatDurationMs } from './durationFormatter.ts';
 import { isPathExempt, normalizePosixPath } from './reportUtils.ts';
+import { formatFindingCountBadge } from './streamingFormat.ts';
 import { evaluateSuiteStatus } from './suiteGating.ts';
 import {
   renderBanner,
@@ -483,7 +489,7 @@ export interface AuditorContext {
   isPathIgnored: (relPath: string) => boolean;
   collectFiles: (roots?: readonly string[], allowedExtensions?: ReadonlySet<string>) => string[];
   logProgress: (msg: string) => void;
-  logStep: (stepNumber: number, totalSteps: number, description: string) => void;
+  logStep: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void;
   addFinding: (finding: AuditFinding) => void;
   addError: (
     message: string,
@@ -514,7 +520,7 @@ export interface AuditorContext {
   ) => Promise<StandardAuditResult>;
   getFindings: () => readonly AuditFinding[];
   setStepLogger?: (
-    logger: (stepNumber: number, totalSteps: number, description: string) => void
+    logger: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void
   ) => void;
   setProgressLogger?: (logger: (msg: string) => void) => void;
 }
@@ -576,16 +582,16 @@ function renderConsoleSummary(
   }
 
   if (result.status === 'skipped') {
-    const reason = (result.metrics?.['Skip-Reason'] as string) || 'Omitido';
-    console.log(styleText('cyan', `\n⏭️ Auditoría omitida: ${reason}\n`));
+    const reason = (result.metrics?.['Skip-Reason'] as string) || 'Skipped';
+    console.log(styleText('cyan', `\n⏭️ Audit skipped: ${reason}\n`));
     return;
   }
 
   const relPath = path.relative(process.cwd(), targetJsonPath);
   console.log(
-    `\n${result.status === 'passed' ? styleText('green', '✨ Auditoría completada con éxito.') : styleText('red', '🚨 Auditoría finalizada con errores.')}`
+    `\n${result.status === 'passed' ? styleText('green', '✨ Audit completed successfully.') : styleText('red', '🚨 Audit finished with errors.')}`
   );
-  console.log(styleText('dim', `💾 Reporte detallado guardado en: ${relPath}\n`));
+  console.log(styleText('dim', `💾 Detailed report saved at: ${relPath}\n`));
 }
 
 function normalizeAuditorFilePath(
@@ -644,7 +650,7 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
 
   let customLogProgress: ((msg: string) => void) | undefined;
   let customLogStep:
-    | ((stepNumber: number, totalSteps: number, description: string) => void)
+    | ((stepNumber: number, totalSteps: number, description: string, icon?: string) => void)
     | undefined;
 
   return {
@@ -699,15 +705,22 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         console.log(msg);
       }
     },
-    logStep: (stepNumber: number, totalSteps: number, description: string) => {
+    logStep: (stepNumber: number, totalSteps: number, description: string, icon?: string) => {
       if (customLogStep) {
-        customLogStep(stepNumber, totalSteps, description);
+        customLogStep(stepNumber, totalSteps, description, icon);
       } else {
-        console.log(`🔍 [${stepNumber}/${totalSteps}] ${description}`);
+        const isHuman =
+          process.env.AUDITOR_CONSOLE_MODE === 'human' ||
+          Boolean(values.human) ||
+          values.format === 'human';
+        if (isHuman) {
+          const stepIcon = icon ?? '🔍';
+          console.log(`${stepIcon} [${stepNumber}/${totalSteps}] ${description}`);
+        }
       }
     },
     setStepLogger: (
-      logger: (stepNumber: number, totalSteps: number, description: string) => void
+      logger: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void
     ) => {
       customLogStep = logger;
     },
@@ -801,14 +814,13 @@ export function setupAuditor(config: AuditorConfig): AuditorContext {
         console.error(
           styleText(
             'red',
-            `❌ Archivos requeridos no encontrados o no accesibles:\n${config.requiredFiles.map((f) => `   - ${f}`).join('\n')}`
+            `❌ Required files not found or inaccessible:\n${config.requiredFiles.map((f) => `   - ${f}`).join('\n')}`
           )
         );
         if (isSubprocess) {
-          throw new Error(
-            `Archivos requeridos no encontrados: ${config.requiredFiles.join(', ')}`,
-            { cause: _err }
-          );
+          throw new Error(`Required files not found: ${config.requiredFiles.join(', ')}`, {
+            cause: _err
+          });
         }
         process.exit(1);
       }
@@ -1577,50 +1589,9 @@ function validateAuditorScripts<TRuleId extends string>(options: AuditorOptions<
 function validateAuditorThirdPartyToolContract<TRuleId extends string>(
   options: AuditorOptions<TRuleId>
 ): void {
-  if (typeof options.usesThirdPartyTool !== 'boolean') {
-    throw new Error(
-      `[Auditor Contract Violation] Auditor [${options.id}] must define mandatory 'usesThirdPartyTool' as a boolean (true or false). ` +
-        `Every sub-auditor and host extension must explicitly declare whether it delegates to third-party tools or binaries.`
-    );
-  }
-
-  if (options.usesThirdPartyTool) {
-    if (!options.thirdPartyToolPolicy || typeof options.thirdPartyToolPolicy !== 'object') {
-      throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: true but failed to provide mandatory 'thirdPartyToolPolicy'. ` +
-          `Every suite using third-party tools must declare what happens on failure or when output cannot be parsed.`
-      );
-    }
-    const policy = options.thirdPartyToolPolicy;
-    if (!policy.toolName || typeof policy.toolName !== 'string' || policy.toolName.trim() === '') {
-      throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.toolName' must be a non-empty string naming the external tool.`
-      );
-    }
-    if (policy.fallbackBehavior !== 'throw' && policy.fallbackBehavior !== 'violation') {
-      throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] 'thirdPartyToolPolicy.fallbackBehavior' must be either 'throw' or 'violation'.`
-      );
-    }
-    if (policy.fallbackBehavior === 'violation') {
-      if (!policy.fallbackRuleId || typeof policy.fallbackRuleId !== 'string') {
-        throw new Error(
-          `[Auditor Contract Violation] Auditor [${options.id}] declared fallbackBehavior: 'violation' but omitted mandatory 'fallbackRuleId'.`
-        );
-      }
-      if (!options.ruleIds.includes(policy.fallbackRuleId)) {
-        throw new Error(
-          `[Auditor Contract Violation] Auditor [${options.id}] designated fallbackRuleId '${policy.fallbackRuleId}' which is not in declared 'ruleIds'.`
-        );
-      }
-    }
-  } else {
-    if (options.thirdPartyToolPolicy !== undefined) {
-      throw new Error(
-        `[Auditor Contract Violation] Auditor [${options.id}] declared usesThirdPartyTool: false but provided 'thirdPartyToolPolicy'. ` +
-          `Suites that do not use third-party tools must not declare a thirdPartyToolPolicy.`
-      );
-    }
+  const errors = collectAuditorThirdPartyToolErrors(options, options.id);
+  if (errors.length > 0) {
+    throw new Error(`[Auditor Contract Violation] ${errors.join('\n')}`);
   }
 }
 
@@ -1768,6 +1739,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   public readonly criticalConfig: AuditorCriticalConfig;
   public readonly usesThirdPartyTool: boolean;
   public readonly thirdPartyToolPolicy?: ThirdPartyToolFailurePolicy<TRuleId>;
+  public readonly satelliteConfig?: SatelliteConfigFileExplanation;
   public readonly ruleFixers?: Readonly<Partial<Record<string, RuleFixerFn | AnyRuleFixerFn>>>;
   protected readonly fixableRuleIds: Set<TRuleId>;
   protected readonly durationsByRule: Map<TRuleId, number> = new Map();
@@ -1789,6 +1761,10 @@ export abstract class BaseAuditor<TRuleId extends string = string>
 
   public getFixableRuleIds(): readonly TRuleId[] {
     return Array.from(this.fixableRuleIds);
+  }
+
+  public explainSatelliteConfig(): SatelliteConfigFileExplanation | undefined {
+    return this.satelliteConfig;
   }
 
   /**
@@ -2180,6 +2156,9 @@ export abstract class BaseAuditor<TRuleId extends string = string>
     this.criticalConfig = options.criticalConfig;
     this.usesThirdPartyTool = options.usesThirdPartyTool;
     this.thirdPartyToolPolicy = options.thirdPartyToolPolicy;
+    const rawSatelliteExpl = options.thirdPartyToolPolicy?.explainSatelliteConfig;
+    this.satelliteConfig =
+      typeof rawSatelliteExpl === 'function' ? rawSatelliteExpl() : rawSatelliteExpl;
     this.gitIgnoreEntries = options.gitIgnoreEntries ?? [];
     this.cachePaths = options.cachePaths ?? [];
     this.configFiles = options.configFiles ?? [];
@@ -2349,6 +2328,24 @@ export abstract class BaseAuditor<TRuleId extends string = string>
     this.coverageRecorder.redeclare(this.id, declaration);
   }
 
+  /**
+   * Checks whether the suite is gated by configuration and redeclares root coverage as 'declared-only'.
+   */
+  protected isDomainSuiteGated(
+    reason: string,
+    roots: readonly string[],
+    extensions: ReadonlySet<string>
+  ): boolean {
+    if (!this.isSuiteGatingDisabled(reason)) {
+      return false;
+    }
+    this.redeclareCoverage({
+      include: deriveCoverageFromRoots(roots, extensions, this.projectRoot).include,
+      source: 'declared-only'
+    });
+    return true;
+  }
+
   /** For `declared-only` suites whose external engine reports a file count but no file list. */
   protected recordExternalScanCount(count: number): void {
     this.coverageRecorder.recordExternalScanCount(count);
@@ -2376,7 +2373,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
    * Evaluates suite gating against configuration and marks rules not applicable and suite skipped if disabled.
    * Returns true if the suite is disabled, allowing an immediate clean early return.
    */
-  protected isSuiteGatingDisabled(defaultReason = 'Suite desactivada en config'): boolean {
+  protected isSuiteGatingDisabled(defaultReason = 'Suite disabled in config'): boolean {
     const config = getAuditConfig(this.projectRoot);
     const gating = evaluateSuiteStatus(this.id, config, this.configKey);
     if (!gating.enabled) {
@@ -2437,9 +2434,15 @@ export abstract class BaseAuditor<TRuleId extends string = string>
     return 'passed';
   }
 
-  private formatSubAuditorBadge(result: number | string): string {
+  private formatSubAuditorBadge(
+    result: number | string,
+    errorsCount = 0,
+    warningsCount = 0
+  ): string {
     if (typeof result === 'number') {
-      return result > 0 ? ` [🐛 ${result}]` : '';
+      const effectiveErrors = errorsCount > 0 ? errorsCount : warningsCount === 0 ? result : 0;
+      const effectiveWarnings = Math.max(0, warningsCount);
+      return formatFindingCountBadge(effectiveErrors, effectiveWarnings);
     }
     return result !== 'passed' ? ` [${result}]` : '';
   }
@@ -2469,11 +2472,12 @@ export abstract class BaseAuditor<TRuleId extends string = string>
           : result
         : 0);
     const warningsCount = counts?.warnings ?? 0;
-    const badge = this.formatSubAuditorBadge(result);
+    const badge = this.formatSubAuditorBadge(result, errorsCount, warningsCount);
     const speedBadge = speed === 'light' ? ' 🐇' : speed === 'heavy' ? ' 🐢' : ' 🐘';
     const extra = detail ? ` (${detail})` : '';
-    this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`);
     const status = this.resolveSubAuditorStatus(result, count, errorsCount, warningsCount);
+    const icon = status === 'failed' ? '❌' : status === 'warning' ? '⚠️' : '🔍';
+    this.context.logStep(stepNumber, totalSteps, `${name}${badge}${speedBadge}${extra}`, icon);
     this.subAuditorReports.push({
       id: `${this.id}_step_${stepNumber}`,
       name,
@@ -2690,7 +2694,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
       typeof requirement.customMissingMessage === 'function'
         ? requirement.customMissingMessage(fixCtx, requirement.file)
         : (requirement.customMissingMessage ??
-          `No se encontró el archivo de configuración requerido '${requirement.file}' (${requirement.description}). Ejecuta con --fix para inicializarlo.`);
+          `Required configuration file '${requirement.file}' not found (${requirement.description}). Run with --fix to initialize it.`);
     const reportedFile = requirement.customMissingFile
       ? requirement.customMissingFile(fixCtx, requirement.file)
       : requirement.file;
@@ -2911,9 +2915,9 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   public async finishAudit(): Promise<StandardAuditResult> {
     await this.persistCoverageLedger();
     if (this.isSkipped) {
-      const skipMessage = this.skipReason || 'Omitido';
+      const skipMessage = this.skipReason || 'Skipped';
       this.context.logProgress(`⏭️  ${skipMessage}`);
-      this.context.setMetric('Estado', 'OMITIDO ⏭️');
+      this.context.setMetric('Status', 'SKIPPED ⏭️');
       if (this.skipReason) {
         this.context.setMetric('Skip-Reason', this.skipReason);
       }
@@ -3015,7 +3019,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   }
 
   public setStepLogger(
-    logger: (stepNumber: number, totalSteps: number, description: string) => void
+    logger: (stepNumber: number, totalSteps: number, description: string, icon?: string) => void
   ): void {
     this.context.setStepLogger?.(logger);
   }
@@ -3599,7 +3603,7 @@ export abstract class FileScanAuditor<
         const msg =
           typeof message === 'function'
             ? message(match, line)
-            : (message ?? `Violación de regla ${ruleId}`);
+            : (message ?? `Violation of rule ${ruleId}`);
         this.addViolation({
           ruleId,
           severity,

@@ -400,6 +400,7 @@ export interface ParsedVitePlusConfigSummary {
   readonly hasTestProjects: boolean;
   readonly hasRootTestInclude: boolean;
   readonly rootTestInclude: readonly string[];
+  readonly testCoverageExclude: readonly string[];
 }
 
 function extractStringProp(
@@ -561,16 +562,23 @@ function extractTestSummaryFromAst(
   testProjects: ParsedVitestProjectSummary[];
   hasTestProjects: boolean;
   testInclude: string[];
+  testCoverageExclude: string[];
 } {
   let hasRootTestInclude = false;
   let rootTestInclude: string[] = [];
   const testProjects: ParsedVitestProjectSummary[] = [];
+  let testCoverageExclude: string[] = [];
 
   if (testExpr && ts.isObjectLiteralExpression(testExpr)) {
     const incProp = findPropertyAssignment(testExpr, 'include', sf);
     if (incProp) {
       hasRootTestInclude = true;
       rootTestInclude = extractStringArrayProp(testExpr, 'include', sf);
+    }
+
+    const coverageProp = findPropertyAssignment(testExpr, 'coverage', sf);
+    if (coverageProp && ts.isObjectLiteralExpression(coverageProp.initializer)) {
+      testCoverageExclude = extractStringArrayProp(coverageProp.initializer, 'exclude', sf);
     }
 
     const projectsProp = findPropertyAssignment(testExpr, 'projects', sf);
@@ -599,7 +607,8 @@ function extractTestSummaryFromAst(
     rootTestInclude,
     testProjects,
     hasTestProjects,
-    testInclude
+    testInclude,
+    testCoverageExclude
   };
 }
 
@@ -619,8 +628,14 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
   );
   const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get('fmt'), sf);
   const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get('pack'), sf);
-  const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude } =
-    extractTestSummaryFromAst(sections.get('test'), sf);
+  const {
+    hasRootTestInclude,
+    rootTestInclude,
+    testProjects,
+    hasTestProjects,
+    testInclude,
+    testCoverageExclude
+  } = extractTestSummaryFromAst(sections.get('test'), sf);
 
   return {
     definesFromVitePlus,
@@ -637,7 +652,8 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
     testProjects,
     hasTestProjects,
     hasRootTestInclude,
-    rootTestInclude
+    rootTestInclude,
+    testCoverageExclude
   };
 }
 

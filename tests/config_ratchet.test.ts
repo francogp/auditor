@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vite-plus/test';
 import {
   auditConfigRatchet,
   computeRelaxationCode,
+  inspectAuditConfigChanges,
   readGitFile,
   type ConfigRelaxation,
   type RelaxationCode
@@ -143,5 +144,66 @@ export default defineAuditConfig({
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
+  });
+
+  describe('hierarchical path exemptions vs discrete exemptions', () => {
+    it('allows narrowing and sub-partitioning of path exemptions without triggering relaxations', () => {
+      const onlineConfig = {
+        paths: {
+          dataRoots: ['src/data', 'test_aventura/data']
+        }
+      };
+      const localHardenedConfig = {
+        paths: {
+          dataRoots: ['src/data/pokemon', 'src/data/inventory', 'test_aventura/data/fixtures']
+        }
+      };
+
+      const relaxations = inspectAuditConfigChanges(onlineConfig, localHardenedConfig);
+      expect(relaxations).toHaveLength(0);
+    });
+
+    it('blocks when a new path is added outside the existing online baseline', () => {
+      const onlineConfig = {
+        paths: {
+          dataRoots: ['src/data']
+        }
+      };
+      const localRelaxedConfig = {
+        paths: {
+          dataRoots: ['src/data/pokemon', 'src/services']
+        }
+      };
+
+      const relaxations = inspectAuditConfigChanges(onlineConfig, localRelaxedConfig);
+      expect(relaxations).toHaveLength(1);
+      expect(relaxations[0]?.path).toBe('paths.dataRoots');
+      expect(relaxations[0]?.description).toContain('src/services');
+      expect(relaxations[0]?.description).not.toContain('src/data/pokemon');
+    });
+
+    it('enforces exact token identity for discrete non-path exemptions', () => {
+      const onlineConfig = {
+        magicNumbers: {
+          exemptMagicNumbers: [0, 1, 2]
+        },
+        analyzers: {
+          disabledDetectors: ['foo-detector']
+        }
+      };
+      const localConfig = {
+        magicNumbers: {
+          exemptMagicNumbers: [0, 1, 2, 42]
+        },
+        analyzers: {
+          disabledDetectors: ['foo-detector', 'bar-detector']
+        }
+      };
+
+      const relaxations = inspectAuditConfigChanges(onlineConfig, localConfig);
+      expect(relaxations).toHaveLength(2);
+      expect(relaxations.some((r) => r.path === 'magicNumbers.exemptMagicNumbers')).toBe(true);
+      expect(relaxations.some((r) => r.path === 'analyzers.disabledDetectors')).toBe(true);
+    });
   });
 });

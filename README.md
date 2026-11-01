@@ -45,6 +45,10 @@ Provides the `BaseAuditor` and `FileScanAuditor` object-oriented frameworks, str
 - **Child Process Stream Isolation (`executeCliAndReadJson`)**: External subprocesses pipe stdout directly to ephemeral file descriptors, preventing output truncation and heap exhaustion.
 - **Declarative CLI Contracts & Citty Governance (`validate_cli_contracts`, `citty@^0.2.2`)**: Eliminates homebrew argument parsing and brittle `process.argv` checks across all CLI binaries, tools, and extensions. Standardizes on `citty` with declarative argument typing, automatic non-hyphenated token normalization (`human` -> `--human`, `key=val` -> `--key=val`), and subcommands.
 - **UnifiedTheme Box-Drawing Output**: 80-column terminal tables with exact Unicode visual width measurement (`getVisualWidth`), live progress badges, and mandatory `TOTAL CONSOLIDADO` footer row.
+- **Universal Satellite Configuration Sovereignty (`*-undeclared-config-entry`)**: Centralizes ownership of all 6 root satellite tool configuration files (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`) in `.auditor/audit.config.ts`. Automatically synchronizes them via `npm run auditor:fix`, strictly prohibiting manual edits. Every satellite config validator declares a non-destructively failing rule in `phase: 'setup'` that imperatively blocks Gate 0.0 (`npm run auditor:setup`).
+- **Mandatory Third-Party Tool Satellite Config Explanation Contract (`explainSatelliteConfig`)**: Every sub-auditor or extension declaring `usesThirdPartyTool: true` MUST declare `explainSatelliteConfig` in its constructor `thirdPartyToolPolicy` ({ `configFile`, `ssotKey`, `undeclaredEntryRuleId`, `configSuiteId` }) or `explainSatelliteConfig: undefined` explicitly. Fail-loud validation at instantiation ensures external tools never bypass configuration governance.
+- **Dual-Standard Streaming Console Output & Zero-Nesting Compact Mandate**: By default (Compact mode for machines and AI), clean suites are completely silent and failed/warned suites output strictly a single flat line (`❌ <TaskName> (<taskId>) (<N> errors) <duration>`) with zero nested sub-rule lines. Interactive Human mode (`human`, `--human`) renders full Box-Drawing trees and live percentages.
+- **Config Ratchet Hierarchical Path Containment & Anti-Tamper Precision**: Evaluates spatial path containment (`isPathContained`) to ensure narrowing path exemptions is accepted as an architectural tightening, while exact subset containment governs discrete sets (`ignoreDependencies`, etc.). Anti-tamper verification disambiguates shell redirections (`>` / `>>`) from JavaScript operators (`=>`, `>=`) in inline commands like `node -e`.
 
 ---
 
@@ -88,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.3.0`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.4.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.3.0 --allow-git=all
+npm install -D github:francogp/auditor#v10.4.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -101,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.3.0"
+    "@francogp/auditor": "github:francogp/auditor#v10.4.0"
   }
 }
 ```
@@ -136,9 +140,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.3.0
+npm run auditor:update -- v10.4.0
 # or directly:
-auditor-update v10.3.0
+auditor-update v10.4.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -201,7 +205,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.3.0-build.20261031-001051',
+  auditorVersion: '10.4.0-build.20261101-020703',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -258,7 +262,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.3.0"`), or install via `npm install -D github:francogp/auditor#v10.3.0 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.4.0"`), or install via `npm install -D github:francogp/auditor#v10.4.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -300,7 +304,11 @@ AI agents and developers are strictly forbidden from suppressing, disabling, or 
 
 ### 4.1. AI-Friendly Compact Mode (Default) vs. Human Mode (`:human`)
 
-By default, all auditor commands execute in an **AI-friendly compact mode** that outputs a concise, non-polluting 3-line status in English:
+By default, all auditor commands execute in an **AI-friendly compact mode** designed for token efficiency, machine parseability, and zero console spam:
+
+- **Clean Suites**: Suites that encounter zero errors and zero warnings are completely silent.
+- **Suite Findings**: Suites with errors or warnings emit strictly **one flat single line** (`❌ <TaskName> (<taskId>) (<N> errors) <duration>` or `⚠️ <TaskName> (<taskId>) (<N> warnings) <duration>`), completely eliminating nested or indented sub-rule lines underneath.
+- **Status Verdict**: Upon completion, a concise 3-line English status block summarizes the result:
 
 ```text
 ✔ AUDIT PASSED [73/80 suites] in 1.42s
@@ -326,7 +334,22 @@ auditor --human
 
 Node.js native permission warnings (`PERM0002`) are cleanly silenced using `--disable-warning=PERM0002` while preserving 100% of real actionable warnings.
 
-### 4.2. Default Project Audit (`speed=heavy` `🐢`) & Exhaustive Audit (`auditor:full` / `speed=full` `🐘`)
+### 4.2. Pre-Flight Setup & Ratchet Gate (`npm run auditor:setup` / `auditor phase=setup`)
+
+The setup phase evaluates all configuration, dependency, and project bootstrap suites (`phase: 'setup'`):
+
+```bash
+npm run auditor:setup
+# or directly:
+auditor phase=setup
+```
+
+- **Gate 0.0 in `/safe-commit`**: Must pass cleanly with exit code 0 before any code refactoring, version bumping, or git commits are permitted.
+- **Imperative Setup Blocking**: If ANY setup suite emits an error, the console terminal renders a prominent double-bordered Red Boxen Alert and **postpones all downstream application code findings**, completely eradicating induced false positives.
+- **Universal Satellite Verification**: Verifies that 100% of root satellite configuration files (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, `tsconfig.json`, `.htmlvalidate.json`, `.markdownlint.json`) contain zero undeclared exclusions or exemptions (`*-undeclared-config-entry`).
+- **Online Config Ratchet**: Compares local `.auditor/audit.config.ts` against `origin/main`. Hardening rules passes silently; relaxing rules requires an explicit user confirmation code (`RELAX-<8hex>`) in the conversation transcript.
+
+### 4.3. Default Project Audit (`speed=heavy` `🐢`) & Exhaustive Audit (`auditor:full` / `speed=full` `🐘`)
 
 The 3-tier speed engine classifies rules across `light` (`🐇`), `heavy` (`🐢`), and `full` (`🐘`), supporting both **cumulative ceiling mode** (`speed=<tier>`) and **exact tier isolation** (`only-speed=<tier>`):
 
@@ -595,6 +618,23 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 | **TypeScript Config**         | `validate_tsconfig`                                                          | Strict compiler configuration (`tsconfig.json`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                             |
 | **MarkdownLint Config**       | `validate_markdown_lint_config`                                              | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                       |
 
+### 6.1. Universal Satellite Configuration Sovereignty & SSoT Governance
+
+In projects governed by `@francogp/auditor`, `.auditor/audit.config.ts` is the **SOLE Single Source of Truth (SSoT)**. Root satellite configuration files are projected artifacts owned and synchronized exclusively by the Auditor:
+
+| Satellite Configuration File | Governing Setup Suite (`phase: 'setup'`) | SSoT Key in `.auditor/audit.config.ts`                                     | Blocking Undeclared Entries Rule        |
+| :--------------------------- | :--------------------------------------- | :------------------------------------------------------------------------- | :-------------------------------------- |
+| `.fallowrc.json`             | `validate_fallow_config`                 | `config.fallow.ignoreGlobs`, `config.fallow.ignoreDependencies`            | `fallow-undeclared-config-entry`        |
+| `vite.config.ts`             | `validate_vite_plus_config`              | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage` | `vite-plus-undeclared-config-entry`     |
+| `.stylelintrc.json`          | `validate_stylelint_config`              | `config.stylelint.strictValues.properties`, `ignoreValues`                 | `stylelint-undeclared-config-entry`     |
+| `tsconfig.json`              | `validate_tsconfig`                      | `config.paths.ignoreGlobs`, `config.paths.dataRoots` (dynamic)             | `tsconfig-undeclared-config-entry`      |
+| `.htmlvalidate.json`         | `validate_html_validate_config`          | `config.htmlValidate.rules`, `disabledRules`, `extraPlugins`               | `html-validate-undeclared-config-entry` |
+| `.markdownlint.json`         | `validate_markdown_lint_config`          | `config.documentation.markdownLint.rules`, `disabledRules`                 | `markdownlint-undeclared-config-entry`  |
+
+- **Zero Manual Edits**: AI agents and developers are **strictly prohibited** from proposing work plans or executing manual edits on satellite configuration files.
+- **Deterministic Auto-Sync**: The ONLY canonical way to update satellite files is running `npm run auditor:fix`. Setup suites execute first (`resolveFixOrderWeight < 200`) and synchronize all 6 satellite configs deterministically.
+- **Immediate Pre-Flight Blocking**: If any undeclared exclusion, ignored pattern, or custom rule is present in a satellite file without being declared in `.auditor/audit.config.ts`, `npm run auditor:setup` (Gate 0.0) fails with a blocking error.
+
 ---
 
 ## 7. Bundle & Performance Packaging with Vite+
@@ -773,6 +813,27 @@ export class NoInlineSqlAuditor extends FileScanAuditor<NoInlineSqlRuleId> {
 // Canonical CLI Entrypoint (delegates argument parsing to Citty via BaseAuditor)
 await BaseAuditor.runCliIfMain(import.meta.url, new NoInlineSqlAuditor());
 ```
+
+> [!IMPORTANT]
+> **Mandatory Third-Party Tool Satellite Config Contract**:
+> When authoring a sub-auditor or extension that delegates execution to an external binary or third-party linter (`usesThirdPartyTool: true`), `thirdPartyToolPolicy` is mandatory and MUST declare `explainSatelliteConfig`:
+>
+> ```typescript
+> usesThirdPartyTool: true,
+> thirdPartyToolPolicy: {
+>   toolName: 'MyTool',
+>   fallbackBehavior: 'violation',
+>   fallbackRuleId: 'my-tool-issue',
+>   explainSatelliteConfig: () => ({
+>     configFile: '.mytoolrc.json',
+>     ssotKey: 'myTool',
+>     undeclaredEntryRuleId: 'my-tool-undeclared-config-entry',
+>     configSuiteId: 'validate_my_tool_config'
+>   })
+> }
+> ```
+>
+> If the third-party tool requires no satellite configuration file (e.g. `npm audit`), declare `explainSatelliteConfig: undefined` explicitly. If omitted, `BaseAuditor` throws an immediate blocking runtime `Error` during instantiation.
 
 ---
 

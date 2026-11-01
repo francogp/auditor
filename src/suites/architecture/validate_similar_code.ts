@@ -32,7 +32,10 @@ import {
   type AuditFallowSimilarCodeConfig
 } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { AuditorRuleCapabilities } from '../../core/auditContract.ts';
+import {
+  type AuditorRuleCapabilities,
+  SATELLITE_CONFIG_EXPLANATIONS
+} from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import { BaseAuditor, createUniformRemediationPhases } from '../../core/auditorBase.ts';
 import { isProductionEnvironment } from '../../core/auditorEnvironment.ts';
@@ -314,7 +317,8 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'Fallow',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'fallow-similar-code-failed'
+        fallbackRuleId: 'fallow-similar-code-failed',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.fallow
       },
       ruleCapabilities: SIMILAR_CODE_RULE_CAPABILITIES,
       id: 'validate_similar_code',
@@ -505,7 +509,7 @@ export class ValidateSimilarCodeAuditor extends BaseAuditor<SimilarCodeRuleId> {
 
     if (isSimilarCodeSkipped()) {
       this.markSkipped(
-        'Omitido por variable de entorno (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)'
+        'Skipped by environment variable (AUDITOR_SKIP_SIMILAR_CODE_VECTOR_ANALYSIS)'
       );
       return;
     }

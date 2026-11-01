@@ -130,7 +130,7 @@ export class AuditorHygieneAuditor extends BaseAuditor<AuditorHomebrewRuleId> {
     if (targetFiles.length === 0) {
       for (const r of this.ruleIds) {
         this.runSubAuditorSync(r, () => {
-          this.markRuleNotApplicable(r, 'No se encontraron archivos de auditor');
+          this.markRuleNotApplicable(r, 'No auditor files found');
         });
       }
       return;

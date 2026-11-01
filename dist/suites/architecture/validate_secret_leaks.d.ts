@@ -7,6 +7,16 @@ export declare const SECRET_SCAN_EXTENSIONS: ReadonlySet<string>;
 type SecretLintConfig = SecretLintSourceOptions['options']['config'];
 export declare function buildSecretLintConfig(allows?: readonly string[]): SecretLintConfig;
 /**
+ * Detects staged git files that may contain secrets using git diff --cached with -G and --name-only.
+ * Returns only the matching file names to ensure raw secrets never leak into terminal output or agent tool logs.
+ */
+export declare function detectStagedSecretFiles(projectRoot?: string): readonly string[];
+/**
+ * Reads a staged blob directly from the Git index using `git show :<path>`.
+ * Returns the staged file content, or null if unresolvable.
+ */
+export declare function readGitStagedBlob(projectRoot: string, relPath: string): string | null;
+/**
  * Maps a single secretlint message to a canonical AuditFinding.
  */
 export declare function mapSecretLintMessageToFinding(msg: {
@@ -22,6 +32,7 @@ export declare function mapSecretLintMessageToFinding(msg: {
 }, relPath: string): AuditFinding;
 export declare class ValidateSecretLeaksAuditor extends FileScanAuditor<SecretLeaksRuleId> {
   private readonly secretLintConfig;
+  private readonly scannedFiles;
   constructor(options?: {
     projectRoot?: string;
     roots?: readonly string[];

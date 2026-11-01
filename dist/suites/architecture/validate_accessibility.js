@@ -195,7 +195,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 		});
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Accesibilidad desactivada en config")) return;
+		if (this.isSuiteGatingDisabled("Accessibility disabled in config")) return;
 		const config = getAuditConfig(this.projectRoot);
 		const scannableRoots = [
 			...config.paths.componentsRoots ?? [],
@@ -209,7 +209,7 @@ var ValidateAccessibilityAuditor = class extends BaseAuditor {
 		const vueFiles = this.context.collectFiles(scannableRoots, /* @__PURE__ */ new Set([".vue"]));
 		if (vueFiles.length === 0) {
 			for (const ruleId of TEMPLATE_BACKED_RULES) this.runSubAuditorSync(ruleId, () => {
-				this.markRuleNotApplicable(ruleId, "No hay archivos .vue en las raíces configuradas");
+				this.markRuleNotApplicable(ruleId, "No .vue files in configured roots");
 			});
 			return;
 		}

@@ -888,6 +888,8 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 async function enforceCriticalConfigurations(projectRoot, tasks) {
 	try {
 		const auditor = new ValidateAuditConfigAuditor({ projectRoot });
+		auditor.setStepLogger(() => {});
+		auditor.setProgressLogger(() => {});
 		await auditor.fix();
 		const config = await loadAuditConfig(projectRoot);
 		await auditor.verifyCriticalConfigurations(config, tasks);

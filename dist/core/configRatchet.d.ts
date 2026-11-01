@@ -30,6 +30,19 @@ export declare function runGit(projectRoot: string, args: readonly string[]): {
 export declare function resolveProductionRef(projectRoot: string, configuredRef?: string, skipNetwork?: boolean): string | null;
 export declare function readGitFile(projectRoot: string, ref: string, relPath: string): string | null;
 /**
+ * Recursively collects all path and glob exemptions present anywhere in the online baseline configuration.
+ * Gathers paths.ignoreGlobs, paths.dataRoots, paths.demoRoots, and every subsystem's
+ * exemptGlobs, exemptFiles, exemptCssFiles, ignoreGlobs, and ignorePatterns.
+ */
+export declare function collectAllOnlinePathExemptions(onlineConfig: Record<string, unknown>): ReadonlySet<string>;
+/**
+ * Evaluates whether a local path or glob is already covered / subsumed by online exemption entries.
+ * Checks both the field-level online set and the repository-wide online path exemptions.
+ * If localPath is inside any online path (e.g. 'database/migrations/save.sql' inside 'database/migrations/**'),
+ * narrowing or moving the exemption to a specific file is a hardening pass and does NOT constitute a relaxation.
+ */
+export declare function isPathCoveredByOnlineExemptions(localPath: string, fieldOnlineSet: ReadonlySet<string>, allOnlinePathExemptions?: ReadonlySet<string>): boolean;
+/**
  * Recursively inspects parsed config objects to detect added exemptions, lowered floors, or disabled suites.
  */
 export declare function inspectAuditConfigChanges(onlineConfig: Record<string, unknown>, localConfig: Record<string, unknown>, configFile?: string): ConfigRelaxation[];

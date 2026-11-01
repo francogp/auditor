@@ -13,7 +13,7 @@ import { runGuardReport } from "./report_guard.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
-import { execSync } from "node:child_process";
+import { execSync, spawnSync } from "node:child_process";
 // src/cli/report_fallow.ts
 /**
 * src/cli/report_fallow.ts
@@ -43,6 +43,8 @@ const VALID_CATEGORY_ALIASES = /* @__PURE__ */ new Set([
 	"suppressions",
 	"stale-suppressions",
 	"viz",
+	"cloud",
+	"inspect",
 	"all"
 ]);
 const FALLOW_REPORT_ARGS = {
@@ -65,6 +67,15 @@ const FALLOW_REPORT_ARGS = {
 		type: "boolean",
 		default: false,
 		description: "Show retirement candidates for flags"
+	},
+	cloud: {
+		type: "boolean",
+		default: false,
+		description: "Fetch analysis or metrics from Fallow Cloud"
+	},
+	repo: {
+		type: "string",
+		description: "Target GitHub repository slug (e.g. owner/repo) for Cloud inspection"
 	}
 };
 function parseCommandLineArgs() {
@@ -80,12 +91,15 @@ function parseCommandLineArgs() {
 		const cleanPos = pos.toLowerCase();
 		if (!category && VALID_CATEGORY_ALIASES.has(cleanPos)) category = cleanPos;
 	}
+	if (!category && parsed.cloud) category = "cloud";
 	return {
 		category: category.length > 0 ? category : "all",
 		top,
 		jsonOutput,
 		human,
 		retirement: Boolean(parsed.retirement),
+		cloud: Boolean(parsed.cloud),
+		repo: typeof parsed.repo === "string" && parsed.repo.trim().length > 0 ? parsed.repo.trim() : void 0,
 		positionals
 	};
 }
@@ -784,6 +798,7 @@ function printTableSummary(m, human = false) {
 	console.log("  • npm run auditor:fallow:security    → Security and CWE audit");
 	console.log("  • npm run auditor:fallow:dead-code   → Dead code and dependencies detection");
 	console.log("  • npm run auditor:fallow:boundaries  → Architectural boundaries audit");
+	console.log("  • npm run auditor:fallow:cloud       → Fallow Cloud device login and status");
 	console.log("  • npm run auditor                    → Unified audit suite");
 	console.log("─────────────────────────────────────────────────────────────────────────────\n");
 }
@@ -995,6 +1010,103 @@ function reportViz(json, human = false) {
 		console.error(styleText("red", `Error generating fallow viz: ${err instanceof Error ? err.message : String(err)}`));
 	}
 }
+function runCustomCloudRunner(subAction, extra, json, human) {
+	if (!customFallowRunner) return false;
+	const extraArgs = [subAction, ...extra.repo ? ["--repo", extra.repo] : []];
+	const res = customFallowRunner("cloud", extraArgs);
+	if (res === null) {
+		process.exitCode = 1;
+		if (json) console.log(JSON.stringify({
+			success: false,
+			error: "Cloud operation failed"
+		}, null, 2));
+		else console.error(styleText("red", "[Fallow Cloud] Operation failed"));
+		return true;
+	}
+	if (json) console.log(JSON.stringify(res, null, 2));
+	else {
+		if (human) console.log("\n" + renderBanner("FALLOW CLOUD & PRODUCTION TELEMETRY", "Device-flow authentication and status"));
+		console.log(`[Fallow Cloud] Executing '${subAction}'${extra.repo ? ` for repo '${extra.repo}'` : ""} via Fallow CLI...`);
+	}
+	return true;
+}
+function executeCloudJson(options) {
+	try {
+		const args = [
+			options.fallowBin,
+			"cloud",
+			options.subAction,
+			...options.repo ? ["--repo", options.repo] : [],
+			"--format",
+			"json"
+		];
+		const proc = spawnSync(process.execPath, args, {
+			cwd: process.cwd(),
+			encoding: "utf8",
+			stdio: [
+				"pipe",
+				"pipe",
+				"pipe"
+			]
+		});
+		if (proc.status !== 0) {
+			process.exitCode = 1;
+			const errorMsg = proc.stderr?.trim() || proc.error?.message || "Cloud operation failed";
+			console.log(JSON.stringify({
+				success: false,
+				error: errorMsg
+			}, null, 2));
+			return;
+		}
+		console.log((proc.stdout ?? "").trim());
+	} catch (e) {
+		process.exitCode = 1;
+		console.log(JSON.stringify({
+			success: false,
+			error: e instanceof Error ? e.message : String(e)
+		}, null, 2));
+	}
+}
+function executeCloudTerminal(options) {
+	if (options.human) console.log("\n" + renderBanner("FALLOW CLOUD & PRODUCTION TELEMETRY", "Device-flow authentication and status"));
+	console.log(`[Fallow Cloud] Executing '${options.subAction}'${options.repo ? ` for repo '${options.repo}'` : ""} via Fallow CLI...`);
+	try {
+		const args = [
+			options.fallowBin,
+			"cloud",
+			options.subAction,
+			...options.repo ? ["--repo", options.repo] : []
+		];
+		const proc = spawnSync(process.execPath, args, {
+			cwd: process.cwd(),
+			stdio: "inherit"
+		});
+		if (proc.status !== 0) {
+			process.exitCode = 1;
+			console.error(styleText("red", `[Fallow Cloud] Operation failed: ${proc.error?.message ?? `Exit code ${proc.status}`}`));
+		}
+	} catch (err) {
+		process.exitCode = 1;
+		console.error(styleText("red", `[Fallow Cloud] Operation failed: ${err instanceof Error ? err.message : String(err)}`));
+	}
+}
+function reportCloud(json, human = false, extra = { positionals: [] }) {
+	const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), "node_modules/fallow/bin/fallow");
+	const subAction = extra.positionals.find((p) => p === "logout" || p === "login") ?? "login";
+	if (runCustomCloudRunner(subAction, extra, json, human)) return;
+	const options = {
+		fallowBin,
+		subAction,
+		repo: extra.repo,
+		json,
+		human
+	};
+	if (json) {
+		executeCloudJson(options);
+		return;
+	}
+	executeCloudTerminal(options);
+}
 const REPORT_DISPATCH_MAP = {
 	dupes: (top, json, human) => reportDupes(top, json, human),
 	duplicates: (top, json, human) => reportDupes(top, json, human),
@@ -1027,15 +1139,17 @@ const REPORT_DISPATCH_MAP = {
 	suppressions: (top, json, human) => reportSuppressions(top, json, human),
 	"stale-suppressions": (top, json, human) => reportSuppressions(top, json, human),
 	viz: (_top, json, human) => reportViz(json, human),
+	cloud: (_top, json, human, extra) => reportCloud(json, human, extra),
 	complexity: (_top, json) => executeComplexityReport(json)
 };
 function runFallowReportCli() {
-	const { category, top, jsonOutput, human, retirement, positionals } = parseCommandLineArgs();
+	const { category, top, jsonOutput, human, retirement, positionals, repo } = parseCommandLineArgs();
 	const handler = REPORT_DISPATCH_MAP[category];
 	const exitCode = handler ? handler(top, jsonOutput, human, {
 		retirement,
-		positionals
-	}) ?? 0 : (reportAllSummary(jsonOutput, human), 0);
+		positionals,
+		repo
+	}) ?? process.exitCode ?? 0 : (reportAllSummary(jsonOutput, human), process.exitCode ?? 0);
 	if (exitCode !== 0) process.exit(exitCode);
 }
 if (isMainModule(import.meta.url)) {

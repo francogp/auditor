@@ -223,7 +223,7 @@ var BundleBudgetAuditor = class BundleBudgetAuditor extends BaseAuditor {
 		});
 	}
 	async runAudit(astContext) {
-		if (this.isSuiteGatingDisabled("Bundle audit desactivado en config")) {
+		if (this.isSuiteGatingDisabled("Bundle audit disabled in config")) {
 			this.context.setMetric("Bundle Status", "Disabled");
 			return;
 		}

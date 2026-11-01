@@ -18,6 +18,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
+import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -25,7 +26,12 @@ import {
   createRuleCapabilities,
   createUniformRemediationPhases
 } from '../../core/auditorBase.ts';
+import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { safeReadFileSync, tryOrNull } from '../../core/safeUtils.ts';
+import {
+  validateSatelliteUndeclaredEntries,
+  getAllowedSatellitePathExcludes
+} from '../../core/satelliteGlobMatcher.ts';
 
 enableCompileCache();
 
@@ -34,7 +40,8 @@ export const TSCONFIG_RULES = [
   'tsconfig-syntax',
   'tsconfig-missing-strict-compiler-option',
   'tsconfig-banned-option',
-  'tsconfig-missing-source-include'
+  'tsconfig-missing-source-include',
+  'tsconfig-undeclared-config-entry'
 ] as const;
 
 export type TsConfigRuleId = (typeof TSCONFIG_RULES)[number];
@@ -165,7 +172,8 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
         'tsconfig-syntax': 'Syntax error in tsconfig.json',
         'tsconfig-missing-strict-compiler-option': 'Missing strict compiler option',
         'tsconfig-banned-option': 'Banned option in tsconfig',
-        'tsconfig-missing-source-include': 'Include does not cover src sources'
+        'tsconfig-missing-source-include': 'Include does not cover src sources',
+        'tsconfig-undeclared-config-entry': 'Undeclared entry in config'
       },
       ruleRemediations: {
         'tsconfig-missing':
@@ -202,7 +210,14 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
           '2. Diagnosis: Check the `include` glob patterns in `tsconfig.json`.\n' +
           '3. Canonical Solution: Add `"src/**/*"` to `include` in `tsconfig.json` or run `npm run auditor:fix`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   `npm run auditor:fix`',
+        'tsconfig-undeclared-config-entry':
+          '📖 REMEDIATION GUIDE: tsconfig-undeclared-config-entry\n' +
+          '1. Root Cause: tsconfig.json declares exclusions in `exclude` that are not authorized in .auditor/audit.config.ts (SSoT violation).\n' +
+          '2. Diagnosis: Inspect the diagnostic message to identify the undeclared exclusion pattern in tsconfig.json.\n' +
+          '3. Canonical Solution: If the exclusion is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`. Otherwise, remove it from tsconfig.json.\n' +
+          '4. Example / Auto-fix command:\n' +
+          "   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }"
       },
       coverage: {
         include: ['tsconfig*.json']
@@ -232,6 +247,10 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
         );
         this.markRuleNotApplicable('tsconfig-banned-option', 'Missing tsconfig.json file');
         this.markRuleNotApplicable('tsconfig-missing-source-include', 'Missing tsconfig.json file');
+        this.markRuleNotApplicable(
+          'tsconfig-undeclared-config-entry',
+          'Missing tsconfig.json file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -257,6 +276,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       this.markRuleNotApplicable('tsconfig-missing-strict-compiler-option', 'Could not read file');
       this.markRuleNotApplicable('tsconfig-banned-option', 'Could not read file');
       this.markRuleNotApplicable('tsconfig-missing-source-include', 'Could not read file');
+      this.markRuleNotApplicable('tsconfig-undeclared-config-entry', 'Could not read file');
       return;
     }
 
@@ -308,6 +328,7 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       this.markRuleNotApplicable('tsconfig-missing-strict-compiler-option', 'Invalid JSON syntax');
       this.markRuleNotApplicable('tsconfig-banned-option', 'Invalid JSON syntax');
       this.markRuleNotApplicable('tsconfig-missing-source-include', 'Invalid JSON syntax');
+      this.markRuleNotApplicable('tsconfig-undeclared-config-entry', 'Invalid JSON syntax');
       return;
     }
 
@@ -507,11 +528,42 @@ export class ValidateTsconfigAuditor extends BaseAuditor<TsConfigRuleId> {
       }
     });
 
+    // 5. Check undeclared exclusions
+    this.runSubAuditorSync('tsconfig-undeclared-config-entry', () => {
+      validateUndeclaredTsconfigEntries(parsedConfig, relPath, this);
+      for (const [extraFile, extraCfg] of extraParsed.entries()) {
+        validateUndeclaredTsconfigEntries(extraCfg, extraFile, this);
+      }
+    });
+
     if (isFix && modified) {
       parsedConfig.compilerOptions = compilerOptions;
       fs.writeFileSync(resolvedPath, JSON.stringify(parsedConfig, null, 2) + '\n', 'utf8');
     }
   }
+}
+
+function validateUndeclaredTsconfigEntries(
+  config: TsConfigShape,
+  relFile: string,
+  auditor: ValidateTsconfigAuditor
+): void {
+  if (!Array.isArray(config.exclude)) return;
+
+  const auditConfig = getAuditConfig(auditor.projectRoot);
+  const effectiveGlobs = getEffectiveIgnoreGlobs(auditor.projectRoot);
+  const allowedExcludes = getAllowedSatellitePathExcludes(auditConfig, auditor.projectRoot);
+
+  validateSatelliteUndeclaredEntries(config.exclude, allowedExcludes, effectiveGlobs, (entry) => {
+    auditor.addViolation({
+      ruleId: 'tsconfig-undeclared-config-entry',
+      severity: 'error',
+      file: relFile,
+      line: 1,
+      message: `Undeclared exclusion '${entry}' in ${path.basename(relFile)}. To legitimize this exclusion, declare it in .auditor/audit.config.ts under 'paths.ignoreGlobs', or remove it from ${path.basename(relFile)}.`,
+      context: entry
+    });
+  });
 }
 
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateTsconfigAuditor());

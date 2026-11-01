@@ -22,6 +22,7 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
+import { isConfigRuleDisabled } from '../../core/auditConfigLayout.ts';
 import type { AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
@@ -41,7 +42,8 @@ export type HtmlValidateConfigRuleId =
   | 'html-validate-config-missing-strict-rule'
   | 'html-validate-config-missing-plugin'
   | 'html-validate-config-missing-transform'
-  | 'html-validate-config-missing-doctype-style';
+  | 'html-validate-config-missing-doctype-style'
+  | 'html-validate-undeclared-config-entry';
 
 export const HTML_VALIDATE_CONFIG_RULES: readonly HtmlValidateConfigRuleId[] = [
   'html-validate-config-missing',
@@ -49,7 +51,8 @@ export const HTML_VALIDATE_CONFIG_RULES: readonly HtmlValidateConfigRuleId[] = [
   'html-validate-config-missing-strict-rule',
   'html-validate-config-missing-plugin',
   'html-validate-config-missing-transform',
-  'html-validate-config-missing-doctype-style'
+  'html-validate-config-missing-doctype-style',
+  'html-validate-undeclared-config-entry'
 ] as const;
 
 export const MANDATORY_STRICT_HTML_RULES = [
@@ -174,7 +177,8 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
         'html-validate-config-missing-strict-rule': 'Missing mandatory strict rule',
         'html-validate-config-missing-plugin': 'Missing html-validate-vue plugin',
         'html-validate-config-missing-transform': 'Missing transform for Vue files',
-        'html-validate-config-missing-doctype-style': 'Missing lowercase doctype-style'
+        'html-validate-config-missing-doctype-style': 'Missing lowercase doctype-style',
+        'html-validate-undeclared-config-entry': 'Undeclared entry in config'
       },
       ruleRemediations: {
         'html-validate-config-missing':
@@ -218,7 +222,20 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
           '2. Diagnosis: Check rule `"doctype-style"` in `.htmlvalidate.json`.\n' +
           '3. Canonical Solution: Configure `"doctype-style": ["error", { "style": "lowercase" }]` or run `npm run auditor:fix`.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   `npm run auditor:fix`'
+          '   `npm run auditor:fix`',
+        'html-validate-undeclared-config-entry':
+          '📖 REMEDIATION GUIDE: html-validate-undeclared-config-entry\n' +
+          '1. Root Cause: `.htmlvalidate.json` contains rules, plugins, or transforms that are not part of the canonical baseline and are not declared in `.auditor/audit.config.ts`.\n' +
+          '2. Diagnosis: Check which rule, plugin, or transform in `.htmlvalidate.json` is undeclared.\n' +
+          '3. Canonical Solution: Declare the rule or plugin in `.auditor/audit.config.ts` under `htmlValidate.rules`, `htmlValidate.disabledRules`, or `htmlValidate.extraPlugins`, or remove the unauthorized entry.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Declare authorized overrides in `.auditor/audit.config.ts`:\n' +
+          '   ```ts\n' +
+          '   htmlValidate: {\n' +
+          '     rules: { "some-custom-rule": "error" },\n' +
+          '     disabledRules: ["some-rule-to-disable"]\n' +
+          '   }\n' +
+          '   ```'
       },
       coverage: {
         include: ['.htmlvalidate*']
@@ -228,7 +245,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('HTML-Validate deshabilitado en configuración')) return;
+    if (this.isSuiteGatingDisabled('HTML-Validate disabled in config')) return;
 
     let configFile: string | null = null;
     this.runSubAuditorSync('html-validate-config-missing', () => {
@@ -260,6 +277,10 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
           'html-validate-config-missing-doctype-style',
           'Missing .htmlvalidate.json file'
         );
+        this.markRuleNotApplicable(
+          'html-validate-undeclared-config-entry',
+          'Missing .htmlvalidate.json file'
+        );
         return;
       }
       configFile = ensured.resolvedPath;
@@ -273,22 +294,29 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
     try {
       rawContent = fs.readFileSync(resolvedFile, 'utf-8');
     } catch {
-      this.markRuleNotApplicable('html-validate-config-syntax', 'No se pudo leer el archivo');
+      this.markRuleNotApplicable(
+        'html-validate-config-syntax',
+        'Could not read configuration file'
+      );
       this.markRuleNotApplicable(
         'html-validate-config-missing-strict-rule',
-        'No se pudo leer el archivo'
+        'Could not read configuration file'
       );
       this.markRuleNotApplicable(
         'html-validate-config-missing-plugin',
-        'No se pudo leer el archivo'
+        'Could not read configuration file'
       );
       this.markRuleNotApplicable(
         'html-validate-config-missing-transform',
-        'No se pudo leer el archivo'
+        'Could not read configuration file'
       );
       this.markRuleNotApplicable(
         'html-validate-config-missing-doctype-style',
-        'No se pudo leer el archivo'
+        'Could not read configuration file'
+      );
+      this.markRuleNotApplicable(
+        'html-validate-undeclared-config-entry',
+        'Could not read configuration file'
       );
       return;
     }
@@ -317,6 +345,7 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
         'html-validate-config-missing-doctype-style',
         'Invalid JSON syntax'
       );
+      this.markRuleNotApplicable('html-validate-undeclared-config-entry', 'Invalid JSON syntax');
       return;
     }
 
@@ -467,6 +496,75 @@ export class ValidateHtmlValidateConfigAuditor extends BaseAuditor<HtmlValidateC
             line: 1,
             message: `The "doctype-style" rule in ${path.basename(resolvedFile)} must be configured as ["error", { "style": "lowercase" }] to harmonize with Vite+ (oxfmt). Run "npm run auditor:fix" or "auditor fix" to auto-fix it.`,
             context: 'doctype-style'
+          });
+        }
+      }
+    });
+
+    // 5. Undeclared entries detection (Anti-Tamper & SSoT Sovereignty)
+    this.runSubAuditorSync('html-validate-undeclared-config-entry', () => {
+      const config = getAuditConfig(this.projectRoot);
+      const authorizedRules = new Set<string>(Object.keys(CANONICAL_HTML_VALIDATE_CONFIG.rules));
+      const configuredRules = config.htmlValidate?.rules ?? {};
+      for (const rule of Object.keys(configuredRules)) {
+        authorizedRules.add(rule);
+      }
+      for (const rule of config.htmlValidate?.disabledRules ?? []) {
+        authorizedRules.add(rule);
+      }
+
+      const fileRules =
+        typeof parsedConfig.rules === 'object' && parsedConfig.rules !== null
+          ? (parsedConfig.rules as Record<string, unknown>)
+          : {};
+
+      for (const [ruleName, ruleValue] of Object.entries(fileRules)) {
+        if (!authorizedRules.has(ruleName)) {
+          this.addViolation({
+            ruleId: 'html-validate-undeclared-config-entry',
+            severity: 'error',
+            file: relPath,
+            line: 1,
+            message: `Undeclared rule "${ruleName}" in ${path.basename(resolvedFile)}. Any custom or overridden rule in .htmlvalidate.json must be authorized in .auditor/audit.config.ts under 'htmlValidate.rules' or 'htmlValidate.disabledRules'.`,
+            context: ruleName
+          });
+        } else {
+          const canonicalRuleVal = (
+            CANONICAL_HTML_VALIDATE_CONFIG.rules as Record<string, unknown>
+          )[ruleName];
+          const isCanonicallyDisabled = isConfigRuleDisabled(canonicalRuleVal);
+          const isDisabled = isConfigRuleDisabled(ruleValue);
+          const allowedDisabled = new Set(config.htmlValidate?.disabledRules ?? []);
+          if (isDisabled && !isCanonicallyDisabled && !allowedDisabled.has(ruleName)) {
+            this.addViolation({
+              ruleId: 'html-validate-undeclared-config-entry',
+              severity: 'error',
+              file: relPath,
+              line: 1,
+              message: `Unauthorized disabled rule "${ruleName}" in ${path.basename(resolvedFile)}. Disabling a canonical rule requires authorization in .auditor/audit.config.ts under 'htmlValidate.disabledRules'.`,
+              context: ruleName
+            });
+          }
+        }
+      }
+
+      // Check for undeclared plugins
+      const authorizedPlugins = new Set<string>([
+        ...CANONICAL_HTML_VALIDATE_CONFIG.plugins,
+        ...(config.htmlValidate?.extraPlugins ?? [])
+      ]);
+      const filePlugins = Array.isArray(parsedConfig.plugins)
+        ? parsedConfig.plugins.filter((p): p is string => typeof p === 'string')
+        : [];
+      for (const plugin of filePlugins) {
+        if (!authorizedPlugins.has(plugin)) {
+          this.addViolation({
+            ruleId: 'html-validate-undeclared-config-entry',
+            severity: 'error',
+            file: relPath,
+            line: 1,
+            message: `Undeclared plugin "${plugin}" in ${path.basename(resolvedFile)}. Custom plugins in .htmlvalidate.json must be authorized in .auditor/audit.config.ts under 'htmlValidate.extraPlugins'.`,
+            context: plugin
           });
         }
       }

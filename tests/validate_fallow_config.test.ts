@@ -21,7 +21,8 @@ import {
   ValidateFallowConfigAuditor,
   FALLOW_CONFIG_RULES,
   isSymbolExportedInContent,
-  validateFallowWorkspaceDiagnostics
+  validateFallowWorkspaceDiagnostics,
+  validateUndeclaredFallowEntries
 } from '../src/suites/architecture/validate_fallow_config.ts';
 
 describe('ValidateFallowConfigAuditor', () => {
@@ -282,6 +283,23 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(config.entry).toEqual(['.auditor/audit.config.ts']);
       expect(config.ignoreDependencies).toEqual(['knip']);
       expect(config.ignorePatterns).toEqual(['tests/**']);
+    });
+
+    it('flags fallow-undeclared-config-entry when .fallowrc.json contains undeclared entries', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const config = {
+        entry: ['.auditor/audit.config.ts'],
+        ignorePatterns: ['unauthorized-glob/**'],
+        ignoreDependencies: ['unauthorized-dep']
+      };
+      validateUndeclaredFallowEntries(config, auditor);
+      const result = await auditor.finishAudit();
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'fallow-undeclared-config-entry'
+      );
+      expect(violations).toHaveLength(2);
+      expect(violations[0]?.message).toContain('unauthorized-glob/**');
+      expect(violations[1]?.message).toContain('unauthorized-dep');
     });
   });
 });

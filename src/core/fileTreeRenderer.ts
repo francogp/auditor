@@ -81,16 +81,16 @@ export interface RenderByFileTreeOptions {
 function formatFileHeaderLine(fs: AuditFileSummary): string {
   const errorBadge =
     fs.errors > 0
-      ? styleText('red', `${formatNumber(fs.errors)} error${fs.errors > 1 ? 'es' : ''}`)
+      ? styleText('red', `${formatNumber(fs.errors)} error${fs.errors > 1 ? 's' : ''}`)
       : '';
   const warnBadge =
     fs.warnings > 0
-      ? styleText('yellow', `${formatNumber(fs.warnings)} advertencia${fs.warnings > 1 ? 's' : ''}`)
+      ? styleText('yellow', `${formatNumber(fs.warnings)} warning${fs.warnings > 1 ? 's' : ''}`)
       : '';
   const badges = [errorBadge, warnBadge].filter(Boolean).join(', ');
   const badgeText = badges
     ? ` (${badges})`
-    : ` (${formatNumber(fs.findings.length)} incidencia${fs.findings.length > 1 ? 's' : ''})`;
+    : ` (${formatNumber(fs.findings.length)} finding${fs.findings.length > 1 ? 's' : ''})`;
   return `\n  📄 ${styleText('bold', fs.file)}${badgeText}`;
 }
 
@@ -131,7 +131,7 @@ function renderSingleFileFindingsLines(
 
   if (fs.findings.length > displayedFindings.length) {
     lines.push(
-      `     ${styleText('dim', '└── ')}... y ${formatNumber(fs.findings.length - displayedFindings.length)} incidencia(s) más en este archivo.`
+      `     ${styleText('dim', '└── ')}... and ${formatNumber(fs.findings.length - displayedFindings.length)} more finding(s) in this file.`
     );
   }
   return lines;
@@ -163,7 +163,7 @@ export function renderFindingsByFileTree(
     lines.push(
       styleText(
         'dim',
-        `\n  ... y ${formatNumber(fileSummaries.length - displayedFiles.length)} archivo(s) más con incidencias. Usa top=all o filtra con file=<patron>.`
+        `\n  ... and ${formatNumber(fileSummaries.length - displayedFiles.length)} more file(s) with findings. Use top=all or filter with file=<pattern>.`
       )
     );
   }
@@ -172,13 +172,13 @@ export function renderFindingsByFileTree(
 }
 
 export function formatSampleErrorLine(err: AuditFinding, index: number): string {
-  const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'desconocido';
+  const fileInfo = err.file ? (err.line ? `${err.file}:${err.line}` : err.file) : 'unknown';
   const relPosixFile = toPosixRelative(process.cwd(), fileInfo) || fileInfo;
   const ruleTag = err.ruleId ? `[${err.ruleId}] ` : '';
   const contextStr = err.context ? ` ("${err.context}")` : '';
   const mainLine = `    ${formatNumber(index + 1)}. ${styleText('red', relPosixFile)}: ${ruleTag}${err.message}${contextStr}`;
   if (err.ruleId) {
-    const guideLine = styleText('dim', `       👉 Guía: auditor guide ${err.ruleId}`);
+    const guideLine = styleText('dim', `       👉 Guide: auditor guide ${err.ruleId}`);
     return `${mainLine}\n${guideLine}`;
   }
   return mainLine;
@@ -190,7 +190,7 @@ export function renderSampleErrors(errorFindings: readonly AuditFinding[]): stri
   lines.push(
     styleText(
       'bold',
-      `\n  ❌ Muestra de errores detectados (primeros ${formatNumber(sampleErrors.length)}):`
+      `\n  ❌ Sample of detected errors (first ${formatNumber(sampleErrors.length)}):`
     )
   );
   for (let i = 0; i < sampleErrors.length; i++) {
@@ -200,7 +200,7 @@ export function renderSampleErrors(errorFindings: readonly AuditFinding[]): stri
     lines.push(
       styleText(
         'dim',
-        `    ... y ${formatNumber(errorFindings.length - 5)} error(es) más (ver reporte JSON completo).`
+        `    ... and ${formatNumber(errorFindings.length - 5)} more error(s) (see full JSON report).`
       )
     );
   }

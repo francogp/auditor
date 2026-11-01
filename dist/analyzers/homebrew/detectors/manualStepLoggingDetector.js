@@ -17,7 +17,7 @@ const manualStepLoggingDetector = createLineDetector({
 		const match = /\bcontext\.logStep\s*\(/.exec(line);
 		if (!match) return null;
 		if (isInsideStringLiteral(line, match.index)) return null;
-		return "Llamada manual a 'this.context.logStep()'. El framework ya imprime una línea '🔍 [n/m]' por regla con su duración real. Elimina el log manual y mide cada regla con 'this.runSubAuditorSync(ruleId, ...)', 'await this.runSubAuditor(ruleId, ...)' o 'declareFileSubAuditor(ruleId, handler)'.";
+		return "Manual call to 'this.context.logStep()'. The framework already prints a '🔍 [n/m]' line per rule with its real duration. Remove manual logging and measure each rule with 'this.runSubAuditorSync(ruleId, ...)', 'await this.runSubAuditor(ruleId, ...)' or 'declareFileSubAuditor(ruleId, handler)'.";
 	}
 });
 export { manualStepLoggingDetector };

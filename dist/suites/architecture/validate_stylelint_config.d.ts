@@ -2,7 +2,7 @@ import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "stylelint-declaration-strict-value";
-export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-config-missing-plugin' | 'stylelint-config-missing-strict-value' | 'stylelint-config-missing-order';
+export type StylelintConfigRuleId = 'stylelint-config-missing' | 'stylelint-config-missing-plugin' | 'stylelint-config-missing-strict-value' | 'stylelint-config-missing-order' | 'stylelint-undeclared-config-entry';
 export declare const STYLELINT_CONFIG_RULES: readonly StylelintConfigRuleId[];
 export declare const REQUIRED_STYLELINT_PLUGIN = "stylelint-declaration-strict-value";
 export declare const REQUIRED_ORDER_PLUGIN = "stylelint-order";
@@ -33,6 +33,10 @@ export declare class ValidateStylelintConfigAuditor extends BaseAuditor<Stylelin
   private auditPlugin;
   private auditOrderRule;
   private auditStrictRule;
+  private auditUndeclaredIgnoreFiles;
+  private auditUndeclaredStrictProperties;
+  private auditUndeclaredIgnoreValues;
+  private auditUndeclaredEntries;
   runAudit(): Promise<void>;
 }
 export { ValidateStylelintConfigAuditor as StylelintConfigAuditor };

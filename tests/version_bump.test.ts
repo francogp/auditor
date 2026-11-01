@@ -103,7 +103,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(analysis.recommendedBump).toBe('major');
       expect(analysis.baseVersion).toBe('1.2.0');
       expect(analysis.recommendedVersion).toContain('2.0.0-build.');
-      expect(analysis.rationale).toContain('breaking change');
+      expect(analysis.rationale.toLowerCase()).toContain('breaking change');
     });
 
     it('recommends minor when conventional commit has feat prefix', () => {

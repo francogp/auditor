@@ -25,11 +25,12 @@ import stylelint, { type LinterResult, type LintResult } from 'stylelint';
 
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type {
-  GitIgnoreRequirement,
-  FindingSeverity,
-  RuleFixContext,
-  AnyRuleFixerFn
+import {
+  type GitIgnoreRequirement,
+  type FindingSeverity,
+  type RuleFixContext,
+  type AnyRuleFixerFn,
+  SATELLITE_CONFIG_EXPLANATIONS
 } from '../../core/auditContract.ts';
 import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
@@ -455,7 +456,8 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'Stylelint',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'stylelint-issue'
+        fallbackRuleId: 'stylelint-issue',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.stylelint
       },
       ruleCapabilities: createRuleCapabilities(STYLELINT_RULES, {
         speed: 'light',
@@ -578,7 +580,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Stylelint desactivado en config')) return;
+    if (this.isSuiteGatingDisabled('Stylelint disabled in config')) return;
 
     const config = getAuditConfig(this.projectRoot);
     const stylelintConfig = config.stylelint ?? config.styles?.stylelint;
@@ -658,7 +660,7 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
         severity: 'error',
         file: configFile,
         line: 1,
-        message: `Fallo al ejecutar Stylelint: ${errorMsg}`,
+        message: `Failed to execute Stylelint: ${errorMsg}`,
         context: 'stylelint-engine-error'
       });
       for (const r of STYLELINT_RULES) {
@@ -703,10 +705,10 @@ export class StylelintAuditor extends BaseAuditor<StylelintRuleId> {
       Math.round(this.durationsByRule.get('stylelint-issue') ?? 0)
     );
 
-    this.context.setMetric('Archivos Escaneados', this.filesScannedCount);
-    this.context.setMetric('Errores CSS', totalErrors);
-    this.context.setMetric('Advertencias CSS', totalWarnings);
-    this.context.setMetric('Modo', isFixMode ? 'fix' : 'check');
+    this.context.setMetric('Files Scanned', this.filesScannedCount);
+    this.context.setMetric('CSS Errors', totalErrors);
+    this.context.setMetric('CSS Warnings', totalWarnings);
+    this.context.setMetric('Mode', isFixMode ? 'fix' : 'check');
   }
 }
 

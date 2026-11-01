@@ -360,7 +360,7 @@ export class EphemeralStorageIsolationAuditor extends BaseAuditor<EphemeralStora
     if (scannableFiles.length === 0) {
       this.markRuleNotApplicable(
         'ephemeral-no-source-temp-references',
-        'No se encontraron archivos de código fuente'
+        'No source code files found'
       );
       return;
     }

@@ -1,4 +1,5 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolvePackageBin } from "../../cli/cliUtils.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getVitePlusDefaultExcludeGlobs } from "../../core/vitePlusConfigSync.js";
@@ -56,7 +57,8 @@ var OxfmtAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "Vite+ Oxfmt",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "oxfmt-violation"
+				fallbackRuleId: "oxfmt-violation",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.vitePlus
 			},
 			ruleCapabilities: createRuleCapabilities(OXFMT_RULES, {
 				speed: "light",

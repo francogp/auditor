@@ -1,6 +1,6 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-export declare const TSCONFIG_RULES: readonly ["tsconfig-missing", "tsconfig-syntax", "tsconfig-missing-strict-compiler-option", "tsconfig-banned-option", "tsconfig-missing-source-include"];
+export declare const TSCONFIG_RULES: readonly ["tsconfig-missing", "tsconfig-syntax", "tsconfig-missing-strict-compiler-option", "tsconfig-banned-option", "tsconfig-missing-source-include", "tsconfig-undeclared-config-entry"];
 export type TsConfigRuleId = (typeof TSCONFIG_RULES)[number];
 export interface TsCompilerOptionsShape {
   target?: string;

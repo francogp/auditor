@@ -332,7 +332,7 @@ describe('ValidateSimilarCodeAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('skipped');
-      expect(result.metrics['Estado']).toBe('OMITIDO ⏭️');
+      expect(result.metrics['Status'] ?? result.metrics['Estado']).toBe('SKIPPED ⏭️');
     });
 
     it('excludes validate_similar_code from discovery when skipSimilar is true', async () => {

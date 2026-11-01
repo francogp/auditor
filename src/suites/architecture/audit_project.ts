@@ -418,7 +418,7 @@ function collectRuleViolations(
       fixable: Boolean(rule.fix),
       packageName: rule.packageName,
       ruleId: rule.id,
-      ruleDescription: resolveAuditRuleDescription(rule, rule.id ?? 'Regla')
+      ruleDescription: resolveAuditRuleDescription(rule, rule.id ?? 'Rule')
     });
   }
 }
@@ -533,7 +533,7 @@ function getChangedFiles(ref: string, projectRoot = process.cwd()): string[] {
     process.stderr.write(
       styleText(
         'yellow',
-        `⚠️ No se pudo obtener la lista de archivos modificados desde git para ref: '${ref}'. Se auditará el proyecto completo.\n`
+        `⚠️ Could not retrieve the list of modified files from git for ref: '${ref}'. Auditing entire project.\n`
       )
     );
     return [];
@@ -668,20 +668,20 @@ async function runAstFileScans(
       path.isAbsolute(f) ? f : path.resolve(baseRoot, f)
     );
     logProgress(
-      styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`)
+      styleText('cyan', `[3/6] 🔍 Auditing AST and code rules across ${files.length} files...`)
     );
   } else if (changedSince) {
     files = getChangedFiles(changedSince, baseRoot);
     logProgress(
       styleText(
         'cyan',
-        `[3/6] 🔍 Auditando archivos modificados desde: '${changedSince}' (${files.length} archivos)...`
+        `[3/6] 🔍 Auditing files modified since: '${changedSince}' (${files.length} files)...`
       )
     );
   } else {
     files = await getFilesToAudit(path.resolve(baseRoot, ctx.values.path as string));
     logProgress(
-      styleText('cyan', `[3/6] 🔍 Auditando AST y reglas de código en ${files.length} archivos...`)
+      styleText('cyan', `[3/6] 🔍 Auditing AST and code rules across ${files.length} files...`)
     );
   }
 
@@ -694,7 +694,7 @@ async function runAstFileScans(
       logProgress(
         styleText(
           'cyan',
-          `   ⏳ Progreso AST: ${processed}/${total} archivos (${Math.round((processed / total) * 100)}%)`
+          `   ⏳ AST Progress: ${processed}/${total} files (${Math.round((processed / total) * 100)}%)`
         )
       );
     }
@@ -872,21 +872,21 @@ async function exportProjectReportOutput(
   if (outputPath.endsWith('.json')) {
     await fs.writeFile(outputPath, JSON.stringify(jsonReport, null, 2), 'utf-8');
   } else if (outputPath.endsWith('.md')) {
-    let md = `# Reporte de Auditoría del Proyecto\n\n`;
-    md += `**Estado**: ${errorsCount === 0 ? '✅ Aprobado' : '❌ Fallido'}\n\n`;
-    md += `| Métrica | Valor |\n| :--- | :--- |\n`;
-    md += `| **Errores** | \`${errorsCount}\` |\n`;
-    md += `| **Advertencias** | \`${warningsCount}\` |\n`;
-    md += `| **Archivos Afectados** | \`${Object.keys(fileGroups).length}\` |\n\n`;
+    let md = `# Project Audit Report\n\n`;
+    md += `**Status**: ${errorsCount === 0 ? '✅ Passed' : '❌ Failed'}\n\n`;
+    md += `| Metric | Value |\n| :--- | :--- |\n`;
+    md += `| **Errors** | \`${errorsCount}\` |\n`;
+    md += `| **Warnings** | \`${warningsCount}\` |\n`;
+    md += `| **Affected Files** | \`${Object.keys(fileGroups).length}\` |\n\n`;
 
-    md += `## 📊 Desglose por Categoría\n\n| Categoría | Cantidad |\n| :--- | :---: |\n`;
+    md += `## 📊 Breakdown by Category\n\n| Category | Count |\n| :--- | :---: |\n`;
     Object.entries(typeGroups)
       .sort((a, b) => b[1] - a[1])
       .forEach(([cat, count]) => {
         md += `| ${cat} | ${count} |\n`;
       });
 
-    md += `\n## 📁 Top Archivos con Más Avisos\n\n| Archivo | Errores | Advertencias | Total |\n| :--- | :---: | :---: | :---: |\n`;
+    md += `\n## 📁 Top Files with Most Warnings\n\n| File | Errors | Warnings | Total |\n| :--- | :---: | :---: | :---: |\n`;
     topFiles.forEach((f) => {
       md += `| \`${f.file}\` | ${f.errors} | ${f.warnings} | ${f.total} |\n`;
     });
@@ -899,7 +899,7 @@ async function exportProjectReportOutput(
     );
     await fs.writeFile(outputPath, lines.join('\n'), 'utf-8');
   }
-  logProgress(styleText('cyan', `✨ Reporte completo escrito en: ${outputPath}`));
+  logProgress(styleText('cyan', `✨ Full report written to: ${outputPath}`));
 }
 
 async function executeProjectAuditPhases(
@@ -950,8 +950,8 @@ function buildProjectJsonReport(params: {
     status: errorsCount > 0 ? 'failed' : 'passed',
     durationMs,
     metrics: {
-      'Archivos Escaneados': files.length,
-      'Archivos Afectados': Object.keys(fileGroups).length
+      'Files Scanned': files.length,
+      'Files Affected': Object.keys(fileGroups).length
     },
     findings: all.map((v) => ({
       severity: v.severity,
@@ -1024,12 +1024,12 @@ export async function main(
     }
   }
 
-  logProgress(styleText('bold', '--- 🔎 REGLAS DE CÓDIGO Y ESTRUCTURA DOX (audit_project.ts) ---'));
+  logProgress(styleText('bold', '--- 🔎 CODE RULES & DOX STRUCTURE (audit_project.ts) ---'));
   if (ctx.selectedRules.size > 0) {
     logProgress(
       styleText(
         'cyan',
-        `🎯 Ejecución selectiva de reglas: [ ${Array.from(ctx.selectedRules).join(', ')} ]`
+        `🎯 Selective rule execution: [ ${Array.from(ctx.selectedRules).join(', ')} ]`
       )
     );
   }

@@ -127,7 +127,7 @@ describe('reportUtils', () => {
     it('throws error when throwOnError is true and json is malformed', () => {
       expect(() =>
         parseJsonArrayOutput('[{invalid}]', { throwOnError: true, toolName: 'test-tool' })
-      ).toThrow(/Error al procesar salida JSON/);
+      ).toThrow(/Failed to parse JSON output/);
     });
   });
 

@@ -395,7 +395,7 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Validación de codificación desactivada en config')) {
+    if (this.isSuiteGatingDisabled('File encoding validation disabled in config')) {
       return;
     }
 
@@ -465,9 +465,9 @@ export class ValidateFileEncodingAuditor extends FileScanAuditor<FileEncodingRul
       });
     }
 
-    this.context.setMetric('Archivos analizados', scannedCount);
+    this.context.setMetric('Files Scanned', scannedCount);
     if (repairedCount > 0) {
-      this.context.setMetric('Archivos corregidos', repairedCount);
+      this.context.setMetric('Files Repaired', repairedCount);
     }
 
     for (const ruleId of FILE_ENCODING_RULES) {

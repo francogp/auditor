@@ -29,7 +29,7 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/context-engineering/SKILL.md",
-      "computedHash": "e02e84c9af9e5ba8b22161cc2c60517062a13bcc7d4e8763478257cae992e137"
+      "computedHash": "7cea895d30d9b519abb3ddd7562d26ef91590ab4022d1460fed6ad70c264599a"
     },
     "create-adaptable-composable": {
       "source": "vuejs-ai/skills",
@@ -59,13 +59,13 @@
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow/SKILL.md",
-      "computedHash": "d3b42f956bdbd5a5422226077a6c398b7e7efb12d0b462575f634efa02c5ea04"
+      "computedHash": "0724422ddb877fcbe2783da2f0cd2f0335cb57a03f4078324a49643cf19310f9"
     },
     "fallow-review": {
       "source": "fallow-rs/fallow-skills",
       "sourceType": "github",
       "skillPath": "fallow/skills/fallow-review/SKILL.md",
-      "computedHash": "1fa972e3ce32a2c8973a016c8670db52a08ceea3a42c9106ee75a37a08e4029e"
+      "computedHash": "3bba2a68b34d59a00848bf4042bd3af2865d00167b27c2629128fc3cf0222df6"
     },
     "fallow-setup": {
       "source": "fallow-rs/fallow-skills",
@@ -191,7 +191,7 @@
       "source": "microsoft/playwright-cli",
       "sourceType": "github",
       "skillPath": "skills/playwright-cli/SKILL.md",
-      "computedHash": "ffbd59a973d4e2c19c6ecc31254a14497069c362f1d1820b6a6cfbe62de34a73"
+      "computedHash": "56941c3c0464ad22ccdf3ec975fc4bd518c5daea34b73329c232bc1f37f9a6b7"
     },
     "ponytail": {
       "source": "DietrichGebert/ponytail",
@@ -233,7 +233,7 @@
       "source": "addyosmani/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/security-and-hardening/SKILL.md",
-      "computedHash": "dbab1f4697ece5cab24a90911ae052320d8f8b191324df7f836aa42344699b89"
+      "computedHash": "f79bc2010272830c6d65400cfa5e860edc37af8607f1439a0a88aa3cea111ef1"
     },
     "security-review": {
       "source": "getsentry/skills",

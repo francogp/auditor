@@ -2,6 +2,7 @@ import { normalizePosixPath, parseJsonArrayOutput } from "../../core/reportUtils
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { executeNodeCli, resolveNodeModuleBin } from "../../cli/cliUtils.js";
 import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
 import { isDeclaredByCoverage } from "../../core/auditCoverage.js";
@@ -124,7 +125,8 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 			thirdPartyToolPolicy: {
 				toolName: "markdownlint",
 				fallbackBehavior: "violation",
-				fallbackRuleId: "markdownlint-issue"
+				fallbackRuleId: "markdownlint-issue",
+				explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.markdownLint
 			},
 			ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
 				speed: "light",
@@ -170,7 +172,7 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 		if (hasConfigFile) this.recordScanned(configPath);
 		const mdFiles = this.context.collectFiles(["."], /* @__PURE__ */ new Set([".md"])).filter((f) => isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration));
 		if (mdFiles.length === 0) {
-			this.markRuleNotApplicable("markdownlint-issue", "No se encontraron archivos markdown");
+			this.markRuleNotApplicable("markdownlint-issue", "No markdown files found");
 			return;
 		}
 		for (const f of mdFiles) {

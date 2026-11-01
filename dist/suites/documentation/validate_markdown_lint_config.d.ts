@@ -1,6 +1,6 @@
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-export declare const MARKDOWNLINT_CONFIG_RULES: readonly ["markdownlint-config-missing", "markdownlint-config-syntax", "markdownlint-config-missing-strict-rule"];
+export declare const MARKDOWNLINT_CONFIG_RULES: readonly ["markdownlint-config-missing", "markdownlint-config-syntax", "markdownlint-config-missing-strict-rule", "markdownlint-undeclared-config-entry"];
 export type MarkdownLintConfigRuleId = (typeof MARKDOWNLINT_CONFIG_RULES)[number];
 export interface MarkdownLintConfigShape {
   default?: boolean;

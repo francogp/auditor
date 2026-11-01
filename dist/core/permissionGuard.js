@@ -56,8 +56,8 @@ function checkRequiredPermissions(requirements) {
 function assertRequiredPermissions(requirements) {
 	const missingFlags = checkRequiredPermissions(requirements);
 	if (missingFlags.length > 0) {
-		console.error(styleText("red", "\n❌ [PermissionGuard] Permisos requeridos de Node.js 26 ausentes:"));
-		console.error(styleText("yellow", `   Por favor ejecuta el comando agregando: ${missingFlags.join(" ")}\n`));
+		console.error(styleText("red", "\n❌ [PermissionGuard] Required Node.js 26 permissions missing:"));
+		console.error(styleText("yellow", `   Please run the command adding: ${missingFlags.join(" ")}\n`));
 		process.exit(1);
 	}
 }

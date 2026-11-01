@@ -232,7 +232,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       if (sqlMigrations.length === 0) {
         this.markRuleNotApplicable(
           'sql-no-positional-arrays',
-          'No se encontraron archivos .sql en migraciones o schemas'
+          'No .sql files found in migrations or schemas'
         );
         return;
       }
@@ -243,7 +243,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       if (sqlMigrations.length === 0) {
         this.markRuleNotApplicable(
           'sql-plpgsql-declared-variables',
-          'No se encontraron archivos .sql en migraciones o schemas'
+          'No .sql files found in migrations or schemas'
         );
         return;
       }
@@ -254,7 +254,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
       if (sqlMigrations.length === 0) {
         this.markRuleNotApplicable(
           'sql-rls-policy-grant-integrity',
-          'No se encontraron archivos .sql en migraciones o schemas'
+          'No .sql files found in migrations or schemas'
         );
         return;
       }
@@ -343,10 +343,7 @@ export class SqlAntiPatternsAuditor extends BaseAuditor<SqlAntiPatternRuleId> {
   private scanSourceFiles(srcRoots: readonly string[]): void {
     const srcFiles = this.context.collectFiles([...srcRoots], new Set(['.ts', '.vue']));
     if (srcFiles.length === 0) {
-      this.markRuleNotApplicable(
-        'db-payload-snake-case',
-        'No se encontraron archivos de código fuente'
-      );
+      this.markRuleNotApplicable('db-payload-snake-case', 'No source code files found');
       return;
     }
 

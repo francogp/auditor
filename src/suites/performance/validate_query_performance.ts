@@ -132,7 +132,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Rendimiento de consultas desactivado en config')) {
+    if (this.isSuiteGatingDisabled('Query performance disabled in config')) {
       return;
     }
 
@@ -143,7 +143,7 @@ export class ValidateQueryPerformanceAuditor extends FileScanAuditor<QueryPerfor
         this.runSubAuditorSync(ruleId, () => {
           this.markRuleNotApplicable(
             ruleId,
-            'Persistence engine configured as none; no aplica análisis de base de datos'
+            'Persistence engine configured as none; database analysis not applicable'
           );
         });
       }

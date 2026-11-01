@@ -111,7 +111,7 @@ describe('MarkdownLintAuditor', () => {
     it('throws descriptive error on malformed JSON string', () => {
       const malformed = '[(node:123) { invalid json }]';
       expect(() => parseMarkdownLintIssues(malformed, PROJECT_ROOT)).toThrow(
-        'Error al procesar salida JSON de markdownlint'
+        'Failed to parse JSON output from markdownlint'
       );
     });
   });

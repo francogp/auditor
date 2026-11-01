@@ -29,42 +29,42 @@ const EXEMPTION_POLICIES = [
 		id: "cli",
 		kind: "configured",
 		configKey: "paths.cliRoots",
-		silences: "consola, seguridad CWE y reglas de producción",
+		silences: "console, CWE security, and production rules",
 		matches: (p, config) => isCodeFile(p) && isCliPath(p, config)
 	},
 	{
 		id: "scripts",
 		kind: "configured",
 		configKey: "paths.scriptsRoots",
-		silences: "consola, constantes duplicadas y reglas de producción",
+		silences: "console, duplicate constants, and production rules",
 		matches: (p, config) => isCodeFile(p) && isScriptPath(p, config)
 	},
 	{
 		id: "data",
 		kind: "configured",
 		configKey: "paths.dataRoots",
-		silences: "complejidad, LOC y números mágicos",
+		silences: "complexity, LOC, and magic numbers",
 		matches: (p) => isCodeFile(p) && isDataPath(p)
 	},
 	{
 		id: "demo",
 		kind: "configured",
 		configKey: "paths.demoRoots",
-		silences: "complejidad, LOC y números mágicos",
+		silences: "complexity, LOC, and magic numbers",
 		matches: (p) => isCodeFile(p) && isDemoPath(p)
 	},
 	{
 		id: "exemptFiles",
 		kind: "configured",
 		configKey: "paths.exemptFiles",
-		silences: "reglas de dominio, fechas y timezone",
+		silences: "domain, date, and timezone rules",
 		matches: (p, config) => isCodeFile(p) && isExemptFile(p, config)
 	},
 	{
 		id: "test",
 		kind: "structural",
 		configKey: "paths.testRoots",
-		silences: "reglas de código de producción",
+		silences: "production code rules",
 		matches: (p) => isCodeFile(p) && isTestPath(p)
 	}
 ];

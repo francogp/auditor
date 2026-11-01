@@ -1,7 +1,10 @@
+import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
+import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -24,7 +27,8 @@ const STYLELINT_CONFIG_RULES = [
 	"stylelint-config-missing",
 	"stylelint-config-missing-plugin",
 	"stylelint-config-missing-strict-value",
-	"stylelint-config-missing-order"
+	"stylelint-config-missing-order",
+	"stylelint-undeclared-config-entry"
 ];
 const REQUIRED_STYLELINT_PLUGIN = "stylelint-declaration-strict-value";
 const REQUIRED_ORDER_PLUGIN = "stylelint-order";
@@ -266,13 +270,15 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 				"stylelint-config-missing": "Missing .stylelintrc.json",
 				"stylelint-config-missing-plugin": "Missing stylelint plugin",
 				"stylelint-config-missing-strict-value": "Missing strict-value rule",
-				"stylelint-config-missing-order": "Missing order/order rule"
+				"stylelint-config-missing-order": "Missing order/order rule",
+				"stylelint-undeclared-config-entry": "Undeclared entry in config"
 			},
 			ruleRemediations: {
 				"stylelint-config-missing": "1. Root Cause:\nThe canonical .stylelintrc.json configuration file was not found in the project root.\nWithout this configuration, Stylelint cannot verify architectural stylesheet rules or enforce zero magic values.\n\n2. Diagnosis:\nCheck for legacy files like stylelint.config.js or .stylelintrc.js. The unified framework requires .stylelintrc.json extending the base configuration from @francogp/auditor.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor will automatically generate .stylelintrc.json extending \"./node_modules/@francogp/auditor/.stylelintrc.json\".\n2. Or manually create .stylelintrc.json with:\n   {\n     \"$schema\": \"https://json.schemastore.org/stylelintrc\",\n     \"extends\": [\"./node_modules/@francogp/auditor/.stylelintrc.json\"]\n   }\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
 				"stylelint-config-missing-plugin": "1. Root Cause:\nThe local .stylelintrc.json file does not extend the auditor configuration and omits essential plugins like \"stylelint-declaration-strict-value\" or \"stylelint-order\".\n\n2. Diagnosis:\nInspect the \"plugins\" array in .stylelintrc.json. Mandatory plugins for design variable governance and mixin/selector ordering are missing.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to automatically inject the missing plugins.\n2. The recommended approach is extending \"./node_modules/@francogp/auditor/.stylelintrc.json\" in \"extends\", which inherits all canonical plugins.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
 				"stylelint-config-missing-strict-value": "1. Root Cause:\nThe \"scale-unlimited/declaration-strict-value\" rule is missing or fails to cover all mandatory design properties of the strict baseline (Anti-Castration Mandate).\nRequired properties: color, font-size, z-index, box-shadow, border-radius, font-family, transition-duration, animation-duration, gap, row-gap, column-gap, font-weight, transition-timing-function.\n\n2. Diagnosis:\nVerify whether declaration-strict-value in .stylelintrc.json was disabled, degraded, or omitted required design tokens.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\". The auditor will regenerate the full rule with all required properties and safe exempted values (none, transparent, inherit, etc.).\n2. Do not disable properties in this rule; instead, use SCSS ($my-color) or CSS (var(--my-color)) variables in stylesheets.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
-				"stylelint-config-missing-order": "1. Root Cause:\nThe \"order/order\" rule is missing or does not define block partitioning (hasBlock: true/false) for SCSS mixins and at-rules.\nPartitioning guarantees that blockless mixins (@include theme) are declared before CSS properties, and block mixins (@include respond-to) are declared at the end alongside nested selectors.\n\n2. Diagnosis:\nInspect \"order/order\" in .stylelintrc.json rules. The auditor enforces a deterministic structure to prevent specificity leaks in compiled CSS.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to repair the configuration automatically.\n2. Alternatively, extend \"./node_modules/@francogp/auditor/.stylelintrc.json\" to inherit canonical mixin ordering.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix"
+				"stylelint-config-missing-order": "1. Root Cause:\nThe \"order/order\" rule is missing or does not define block partitioning (hasBlock: true/false) for SCSS mixins and at-rules.\nPartitioning guarantees that blockless mixins (@include theme) are declared before CSS properties, and block mixins (@include respond-to) are declared at the end alongside nested selectors.\n\n2. Diagnosis:\nInspect \"order/order\" in .stylelintrc.json rules. The auditor enforces a deterministic structure to prevent specificity leaks in compiled CSS.\n\n3. Canonical Solution:\n1. Run \"npm run auditor:fix\" to repair the configuration automatically.\n2. Alternatively, extend \"./node_modules/@francogp/auditor/.stylelintrc.json\" to inherit canonical mixin ordering.\n\n4. Example / Auto-fix command:\nnpm run auditor:fix",
+				"stylelint-undeclared-config-entry": "1. Root Cause:\n.stylelintrc.json contains strict properties or rules that are not declared in .auditor/audit.config.ts (SSoT violation).\n\n2. Diagnosis:\nCheck the finding message for the undeclared property in .stylelintrc.json.\n\n3. Canonical Solution:\nDeclare the property in .auditor/audit.config.ts under stylelint.strictValues.properties, or remove it from .stylelintrc.json.\n\n4. Example / Auto-fix command:\nDeclare in .auditor/audit.config.ts: stylelint: { strictValues: { properties: ['my-prop'] } }"
 			},
 			coverage: { include: [".stylelintrc*"] },
 			projectRoot
@@ -350,6 +356,76 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 		});
 		return false;
 	}
+	auditUndeclaredIgnoreFiles(parsedConfig, targetFile, config) {
+		if (parsedConfig.ignoreFiles === void 0) return;
+		const rawIgnoreFiles = Array.isArray(parsedConfig.ignoreFiles) ? parsedConfig.ignoreFiles : typeof parsedConfig.ignoreFiles === "string" ? [parsedConfig.ignoreFiles] : [];
+		const effectiveGlobs = getEffectiveIgnoreGlobs(this.projectRoot);
+		const allowedGlobs = /* @__PURE__ */ new Set([
+			...getAllowedSatellitePathExcludes(config, this.projectRoot),
+			...(config.stylelint?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+			...(config.stylelint?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+			...(config.stylelint?.exemptFiles ?? []).map((p) => normalizePosixPath(p)),
+			...(config.styles?.stylelint?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+			...(config.styles?.stylelint?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+			...(config.styles?.stylelint?.exemptFiles ?? []).map((p) => normalizePosixPath(p)),
+			...(config.styles?.exemptPaths ?? []).map((p) => normalizePosixPath(p)),
+			...(config.styles?.exemptCssFiles ?? []).map((p) => normalizePosixPath(p))
+		]);
+		validateSatelliteUndeclaredEntries(rawIgnoreFiles, allowedGlobs, effectiveGlobs, (pattern) => {
+			this.addViolation({
+				ruleId: "stylelint-undeclared-config-entry",
+				severity: "error",
+				file: toPosixRelative(this.projectRoot, targetFile),
+				line: 1,
+				message: `Undeclared ignore pattern '${pattern}' in ignoreFiles of ${path.basename(targetFile)}. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'stylelint.ignoreGlobs' or 'paths.ignoreGlobs', or remove it from ${path.basename(targetFile)}.`,
+				context: pattern
+			});
+		});
+	}
+	auditUndeclaredStrictProperties(strictRule, targetFile, config) {
+		if (!Array.isArray(strictRule) || !Array.isArray(strictRule[0])) return;
+		const allowedStrictProps = new Set(getMergedStrictProperties(config));
+		for (const item of strictRule[0]) if (typeof item === "string" && !allowedStrictProps.has(item)) this.addViolation({
+			ruleId: "stylelint-undeclared-config-entry",
+			severity: "error",
+			file: toPosixRelative(this.projectRoot, targetFile),
+			line: 1,
+			message: `Undeclared strict property '${item}' in ${path.basename(targetFile)}. To legitimize this property, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.properties', or remove it from ${path.basename(targetFile)}.`,
+			context: item
+		});
+	}
+	auditUndeclaredIgnoreValues(optionsObj, targetFile, config) {
+		if (!optionsObj || typeof optionsObj.ignoreValues !== "object" || optionsObj.ignoreValues === null) return;
+		const allowedIgnoreValues = getMergedIgnoreValues(config);
+		const ignoreValuesObj = optionsObj.ignoreValues;
+		for (const [prop, vals] of Object.entries(ignoreValuesObj)) {
+			if (!(prop in allowedIgnoreValues)) this.addViolation({
+				ruleId: "stylelint-undeclared-config-entry",
+				severity: "error",
+				file: toPosixRelative(this.projectRoot, targetFile),
+				line: 1,
+				message: `Undeclared ignoreValues property '${prop}' in ${path.basename(targetFile)}. To legitimize this property, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.ignoreValues', or remove it from ${path.basename(targetFile)}.`,
+				context: prop
+			});
+			const allowedVals = new Set(allowedIgnoreValues[prop] ?? []);
+			const rawVals = Array.isArray(vals) ? vals : typeof vals === "string" ? [vals] : [];
+			for (const val of rawVals) if (typeof val === "string" && !allowedVals.has(val)) this.addViolation({
+				ruleId: "stylelint-undeclared-config-entry",
+				severity: "error",
+				file: toPosixRelative(this.projectRoot, targetFile),
+				line: 1,
+				message: `Undeclared ignoreValue '${val}' for property '${prop}' in ${path.basename(targetFile)}. To legitimize this value, declare it in .auditor/audit.config.ts under 'stylelint.strictValues.ignoreValues', or remove it from ${path.basename(targetFile)}.`,
+				context: `${prop}:${val}`
+			});
+		}
+	}
+	auditUndeclaredEntries(parsedConfig, targetFile, config) {
+		this.auditUndeclaredIgnoreFiles(parsedConfig, targetFile, config);
+		const strictRule = (typeof parsedConfig.rules === "object" && parsedConfig.rules !== null ? parsedConfig.rules : {})[REQUIRED_STRICT_VALUE_RULE];
+		this.auditUndeclaredStrictProperties(strictRule, targetFile, config);
+		const optionsObj = Array.isArray(strictRule) && strictRule[1] && typeof strictRule[1] === "object" ? strictRule[1] : void 0;
+		this.auditUndeclaredIgnoreValues(optionsObj, targetFile, config);
+	}
 	async runAudit() {
 		const config = getAuditConfig(this.projectRoot);
 		if (config.stylelint?.enabled === false && config.styles?.stylelint?.enabled === false) {
@@ -390,7 +466,7 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 				"stylelint-config-missing-strict-value",
 				"stylelint-config-missing-order"
 			]) this.runSubAuditorSync(r, () => {
-				this.markRuleNotApplicable(r, "Archivo .stylelintrc.json inválido o corrupto");
+				this.markRuleNotApplicable(r, "Invalid or corrupt .stylelintrc.json");
 			});
 			return;
 		}
@@ -402,13 +478,16 @@ var ValidateStylelintConfigAuditor = class extends BaseAuditor {
 		this.runSubAuditorSync("stylelint-config-missing-strict-value", () => {
 			strictModified = this.auditStrictRule(parsedConfig, targetFile, config);
 		});
+		this.runSubAuditorSync("stylelint-undeclared-config-entry", () => {
+			this.auditUndeclaredEntries(parsedConfig, targetFile, config);
+		});
 		const orderEnabled = config.stylelint?.order?.enforceHasBlockPartitioning ?? config.styles?.stylelint?.order?.enforceHasBlockPartitioning ?? true;
 		let orderModified = false;
 		if (orderEnabled !== false) this.runSubAuditorSync("stylelint-config-missing-order", () => {
 			orderModified = this.auditOrderRule(parsedConfig, targetFile);
 		});
 		else this.runSubAuditorSync("stylelint-config-missing-order", () => {
-			this.markRuleNotApplicable("stylelint-config-missing-order", "Orden de mixins desactivado en configuración");
+			this.markRuleNotApplicable("stylelint-config-missing-order", "Order of mixins disabled in config");
 		});
 		if ((pluginModified || strictModified || orderModified) && this.isFixActive()) fs.writeFileSync(targetFile, JSON.stringify(parsedConfig, null, 2) + "\n", "utf-8");
 	}

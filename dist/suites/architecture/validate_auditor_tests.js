@@ -36,11 +36,11 @@ const AUDITOR_TEST_DESCRIPTIONS = {
 	"missing-violation-auditor-test": "Missing violation test"
 };
 const AUDITOR_TEST_REMEDIATIONS = {
-	"missing-auditor-test": "Crea un archivo de test dedicado en tests/ para el subauditor siguiendo el contrato de 5 puntos (ej. tests/<nombre_auditor>.test.ts).",
-	"untested-auditor-rule": "Agrega aserciones de prueba en el archivo de test que ejerciten y comprueben explícitamente el ruleId indicado (mencionando su ID literal o constante).",
-	"missing-clean-auditor-test": "Incluye un test de ejecución limpia que compruebe errors === 0, status === \"passed\" y findings.length === 0 con código válido.",
-	"missing-construction-auditor-test": "Ejecuta validateAuditorConstruction(auditor) en el test unitario para verificar que el constructor declare metadata y capacidades canónicas.",
-	"missing-violation-auditor-test": "Agrega un caso de prueba con código que infrinja la regla para verificar que el auditor detecte la violación y retorne severity: \"error\"."
+	"missing-auditor-test": "Create a dedicated test file in tests/ for the sub-auditor following the 5-point contract (e.g. tests/<auditor_name>.test.ts).",
+	"untested-auditor-rule": "Add test assertions in the test file that explicitly exercise and verify the indicated ruleId (referencing its literal ID or constant).",
+	"missing-clean-auditor-test": "Include a clean execution test that verifies errors === 0, status === \"passed\", and findings.length === 0 with valid code.",
+	"missing-construction-auditor-test": "Execute validateAuditorConstruction(auditor) in the unit test to verify that the constructor declares canonical metadata and capabilities.",
+	"missing-violation-auditor-test": "Add a test case with code violating the rule to verify that the auditor detects the violation and returns severity: \"error\"."
 };
 function extractSuiteDeclaredRules(source) {
 	const rules = /* @__PURE__ */ new Set();

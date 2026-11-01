@@ -245,13 +245,13 @@ var ValidateValibotParityAuditor = class extends BaseAuditor {
 		const targets = getAuditConfig(this.projectRoot).valibot?.targets ?? [];
 		if (targets.length === 0) {
 			this.markSkipped("No targets configured in valibot.targets");
-			for (const rule of VALIBOT_PARITY_RULES) this.markRuleNotApplicable(rule, "No hay objetivos de paridad Valibot configurados en audit.config.ts");
-			this.context.setMetric("Objetivos Auditados", 0);
+			for (const rule of VALIBOT_PARITY_RULES) this.markRuleNotApplicable(rule, "No Valibot parity targets configured in audit.config.ts");
+			this.context.setMetric("Audited Targets", 0);
 			return;
 		}
 		const astEngine = astContext ?? new SharedAstContext();
 		for (let i = 0; i < targets.length; i++) this.auditSingleTarget(targets[i], astEngine);
-		this.context.setMetric("Objetivos Auditados", targets.length);
+		this.context.setMetric("Audited Targets", targets.length);
 	}
 	auditSingleTarget(target, astEngine) {
 		const absTypes = path.resolve(this.projectRoot, target.typesFile);

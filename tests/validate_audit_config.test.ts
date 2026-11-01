@@ -620,7 +620,7 @@ export class InvalidAuditor extends BaseAuditor {
         styles: { zLayersEnabled: false },
         accessibility: { rules: { 'alt-text': 'off' as unknown as boolean } }
       });
-    }).toThrow(/Error de tipo en 'accessibility\.rules\.alt-text'/);
+    }).toThrow(/Type error in 'accessibility\.rules\.alt-text'/);
   });
 
   it('reports errors when required configuration sections are missing from audit.config.ts', async () => {

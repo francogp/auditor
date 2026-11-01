@@ -19,23 +19,54 @@ import {
 
 describe('Executive Console Output & AI-Friendly Theme', () => {
   describe('renderExecutivePassSummary', () => {
-    it('emits ultra-compact pass verdict in exactly 3 lines with zero Box-Drawing frames', () => {
+    it('omits Ratchet label when ratchetStatus is undefined (partial runs, speed=light, filters)', () => {
       const output = renderExecutivePassSummary({
         totalSuites: 80,
         passedSuites: 80,
         totalErrors: 0,
-        totalWarnings: 0,
+        totalWarnings: 2,
         durationMs: 10400,
         latestAuditJsonPath: 'scratch/audits/latest_audit.json'
       });
 
       const lines = output.trim().split('\n');
       expect(lines.length).toBe(3);
-      expect(lines[0]).toContain('[OK] AUDIT PASSED [80/80 suites]');
-      expect(lines[1]).toContain('Errors: 0 | Warnings: 0 | Ratchet: OK');
+      expect(lines[0]).toContain('[WARN] AUDIT PASSED WITH WARNINGS [80/80 suites]');
+      expect(lines[1]).toBe('  Errors: 0 | Warnings: 2');
+      expect(lines[1]).not.toContain('Ratchet');
       expect(lines[2]).toContain('Report: scratch/audits/latest_audit.json');
       expect(output).not.toContain('╔');
       expect(output).not.toContain('┌');
+    });
+
+    it('emits Ratchet: OK only when ratchetStatus is passed', () => {
+      const output = renderExecutivePassSummary({
+        totalSuites: 80,
+        passedSuites: 80,
+        totalErrors: 0,
+        totalWarnings: 1,
+        durationMs: 10400,
+        latestAuditJsonPath: 'scratch/audits/latest_audit.json',
+        ratchetStatus: 'passed'
+      });
+
+      const lines = output.trim().split('\n');
+      expect(lines[1]).toBe('  Errors: 0 | Warnings: 1 | Ratchet: OK');
+    });
+
+    it('emits Ratchet: INIT when ratchetStatus is initialized', () => {
+      const output = renderExecutivePassSummary({
+        totalSuites: 80,
+        passedSuites: 80,
+        totalErrors: 0,
+        totalWarnings: 1,
+        durationMs: 10400,
+        latestAuditJsonPath: 'scratch/audits/latest_audit.json',
+        ratchetStatus: 'initialized'
+      });
+
+      const lines = output.trim().split('\n');
+      expect(lines[1]).toBe('  Errors: 0 | Warnings: 1 | Ratchet: INIT');
     });
 
     it('notes skipped suites cleanly when suites are omitted', () => {
@@ -115,6 +146,27 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       expect(output).toContain('Next Actions for AI:');
       expect(output).toContain('Mandatory Auto-Fix: npm run auditor:fix (2 auto-fixable)');
       expect(output).not.toContain('npm run auditor:next');
+    });
+
+    it('emits explicit ratchet threshold exceeded explanation when run fails with 0 errors but ratchet status is failed', () => {
+      const output = renderExecutiveFailSummary({
+        totalSuites: 80,
+        failedSuites: 0,
+        totalErrors: 0,
+        totalWarnings: 2,
+        durationMs: 4000,
+        phaseBreakdown: [{ phase: 'polish', errors: 0, warnings: 2 }],
+        ratchetVerdict: {
+          status: 'failed',
+          newWarnings: 1,
+          productionRef: 'origin/main'
+        }
+      });
+
+      expect(output).toContain('[FAIL] AUDIT FAILED [80 suites]');
+      expect(output).toContain(
+        "Status: 0 error(s), 2 warning(s) — 🔒 Ratchet threshold exceeded (+1 new warning(s) relative to 'origin/main')"
+      );
     });
   });
 

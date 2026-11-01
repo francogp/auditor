@@ -17,7 +17,7 @@ import ts from "typescript";
 const CONSTANT_ANALYZER_DESCRIPTOR = {
 	id: "duplicate-constants",
 	name: "Duplicate Constants Across Modules",
-	category: "Constantes duplicadas entre módulos",
+	category: "Duplicate constants across modules",
 	aliases: [
 		"duplicate-constants",
 		"constants",
@@ -219,7 +219,7 @@ async function detectDuplicateConstants(files, astContext, projectRoot = process
 	const declarations = /* @__PURE__ */ new Map();
 	const astEngine = astContext ?? new SharedAstContext();
 	const config = getAuditConfig(projectRoot);
-	const targetConstantsDir = "un módulo compartido de constantes";
+	const targetConstantsDir = "a shared constants module";
 	const effectiveIgnored = getEffectiveIgnoredConstantNames(projectRoot);
 	for (const filePath of files) {
 		if (!isConstantAuditCandidate(filePath, projectRoot, config)) continue;

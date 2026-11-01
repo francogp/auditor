@@ -82,24 +82,16 @@ function evaluateCommandViolation(cmd, relPosix, env) {
 	const genericViolation = evaluateGenericCommandViolation(cmd, env);
 	if (!genericViolation) return null;
 	let ruleId;
-	let message;
-	if (genericViolation.kind === "unregistered-npm") {
-		ruleId = "documented-cmd-unregistered-npm";
-		message = cmd.type === "npm-run" ? `El comando documentado 'npm run ${cmd.target}' no está registrado en package.json.scripts.` : `El comando documentado 'npm test' requiere un script 'test' en package.json.`;
-	} else if (genericViolation.kind === "invalid-npm-syntax") {
-		ruleId = "documented-cmd-invalid-npm-syntax";
-		message = genericViolation.message;
-	} else {
-		ruleId = "documented-cmd-unregistered-npx";
-		message = `El binario documentado 'npx ${cmd.target}' no existe en node_modules/.bin ni está declarado en package.json ni en config.documentation.allowedNpxBinaries.`;
-	}
+	if (genericViolation.kind === "unregistered-npm") ruleId = "documented-cmd-unregistered-npm";
+	else if (genericViolation.kind === "invalid-npm-syntax") ruleId = "documented-cmd-invalid-npm-syntax";
+	else ruleId = "documented-cmd-unregistered-npx";
 	return {
 		ruleId,
 		severity: "error",
 		file: relPosix,
-		line: cmd.lineNum,
-		message,
-		context: cmd.rawText
+		line: genericViolation.line,
+		message: genericViolation.message,
+		context: genericViolation.context
 	};
 }
 var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
@@ -150,7 +142,7 @@ var ValidateDocumentedCommandsAuditor = class extends BaseAuditor {
 		const { scripts, declaredBins, installedBins } = loadPackageScriptsAndBins(this.rootDir);
 		const mdFiles = this.context.collectFiles(["."], /* @__PURE__ */ new Set([".md"]));
 		if (mdFiles.length === 0) {
-			for (const rule of DOCUMENTED_COMMANDS_RULES) this.markRuleNotApplicable(rule, "No se encontraron archivos markdown para auditar");
+			for (const rule of DOCUMENTED_COMMANDS_RULES) this.markRuleNotApplicable(rule, "No markdown files found to audit");
 			return;
 		}
 		const config = getAuditConfig(this.rootDir);

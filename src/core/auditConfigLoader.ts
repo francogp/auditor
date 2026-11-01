@@ -10,13 +10,13 @@ import { pathToFileURL } from 'node:url';
 
 import { defineAuditConfig } from './auditConfigBuilders.ts';
 import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
+import { assertNoLegacyRootConfig } from './auditConfigLayout.ts';
 import {
   type AuditEngineConfig,
   type DeepPartial,
   AUDIT_CONFIG_FILE,
   AUDIT_CONFIG_JSON_FILE
 } from './auditConfigTypes.ts';
-import { assertNoLegacyRootConfig } from './auditConfigValidators.ts';
 import {
   safeReadFileSync,
   safeJsonParse,

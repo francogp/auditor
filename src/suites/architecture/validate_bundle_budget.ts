@@ -355,7 +355,7 @@ export class BundleBudgetAuditor extends BaseAuditor<BundleBudgetRuleId> {
   }
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
-    if (this.isSuiteGatingDisabled('Bundle audit desactivado en config')) {
+    if (this.isSuiteGatingDisabled('Bundle audit disabled in config')) {
       this.context.setMetric('Bundle Status', 'Disabled');
       return;
     }

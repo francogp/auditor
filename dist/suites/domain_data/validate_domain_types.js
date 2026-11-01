@@ -541,13 +541,7 @@ var DomainTypesAuditor = class extends BaseAuditor {
 		return files;
 	}
 	async runAudit() {
-		if (this.isSuiteGatingDisabled("Domain disabled in config")) {
-			this.redeclareCoverage({
-				include: deriveCoverageFromRoots(this.roots, this.allowedExtensions, this.projectRoot).include,
-				source: "declared-only"
-			});
-			return;
-		}
+		if (this.isDomainSuiteGated("Domain disabled in config", this.roots, this.allowedExtensions)) return;
 		const filePaths = this.collectAuditableDomainFiles();
 		if (filePaths.length === 0) return;
 		if (this.isFixActive()) try {

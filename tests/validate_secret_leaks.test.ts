@@ -8,7 +8,9 @@ import { setAuditConfig, resetAuditConfig, defineAuditConfig } from '../src/core
 import {
   ValidateSecretLeaksAuditor,
   SECRET_LEAKS_RULES,
-  mapSecretLintMessageToFinding
+  mapSecretLintMessageToFinding,
+  detectStagedSecretFiles,
+  readGitStagedBlob
 } from '../src/suites/architecture/validate_secret_leaks.ts';
 
 describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
@@ -324,6 +326,44 @@ describe('ValidateSecretLeaksAuditor & mapSecretLintMessageToFinding', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
+    });
+
+    it('scans staged files discovered by detectStagedSecretFiles without failure', async () => {
+      const extraDir = path.join(tempDir, 'external');
+      fs.mkdirSync(extraDir, { recursive: true });
+      fs.writeFileSync(path.join(extraDir, 'clean.ts'), 'export const value = 42;\n');
+
+      setAuditConfig(
+        defineAuditConfig({
+          name: 'Clean Staged Test Project',
+          secretLeaks: { enabled: true },
+          persistence: { engine: 'none' },
+          bundle: { enabled: false }
+        })
+      );
+
+      const auditor = new ValidateSecretLeaksAuditor({
+        projectRoot: tempDir,
+        roots: ['src']
+      });
+
+      await auditor.runAudit();
+      const result = await auditor.finishAudit();
+      expect(result.summary.errors).toBe(0);
+      expect(result.status).toBe('passed');
+    });
+  });
+
+  describe('Git Staging Helpers', () => {
+    it('returns empty array when detectStagedSecretFiles is executed in non-git directory', () => {
+      const files = detectStagedSecretFiles(tempDir);
+      expect(Array.isArray(files)).toBe(true);
+      expect(files).toHaveLength(0);
+    });
+
+    it('returns null when readGitStagedBlob is executed for nonexistent or non-git path', () => {
+      const content = readGitStagedBlob(tempDir, 'nonexistent.ts');
+      expect(content).toBeNull();
     });
   });
 });

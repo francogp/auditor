@@ -19,7 +19,7 @@ import path from 'node:path';
 
 import { executeNodeCli, resolveNodeModuleBin } from '../../cli/cliUtils.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
-import type { AuditFinding } from '../../core/auditContract.ts';
+import { type AuditFinding, SATELLITE_CONFIG_EXPLANATIONS } from '../../core/auditContract.ts';
 import { isDeclaredByCoverage, toPosixRelative } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
@@ -178,7 +178,8 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       thirdPartyToolPolicy: {
         toolName: 'markdownlint',
         fallbackBehavior: 'violation',
-        fallbackRuleId: 'markdownlint-issue'
+        fallbackRuleId: 'markdownlint-issue',
+        explainSatelliteConfig: SATELLITE_CONFIG_EXPLANATIONS.markdownLint
       },
       ruleCapabilities: createRuleCapabilities(MARKDOWN_LINT_RULES, {
         speed: 'light',
@@ -247,7 +248,7 @@ export class MarkdownLintAuditor extends BaseAuditor<MarkdownLintRuleId> {
       isDeclaredByCoverage(toPosixRelative(this.projectRoot, f), this.coverageRecorder.declaration)
     );
     if (mdFiles.length === 0) {
-      this.markRuleNotApplicable('markdownlint-issue', 'No se encontraron archivos markdown');
+      this.markRuleNotApplicable('markdownlint-issue', 'No markdown files found');
       return;
     }
     for (const f of mdFiles) {

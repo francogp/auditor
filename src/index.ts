@@ -7,6 +7,10 @@
 
 export * from './core/auditContract.ts';
 export * from './core/auditConfig.ts';
+export * from './core/auditConfigLayout.ts';
+export * from './core/auditConfigInfra.ts';
+export * from './core/auditConfigUi.ts';
+export * from './core/auditConfigSubsystems.ts';
 export * from './core/auditorBase.ts';
 export {
   type AuditorConstructor,
@@ -15,11 +19,16 @@ export {
 } from './core/auditorBase.ts';
 export * from './core/auditedDocument.ts';
 export * from './core/astContext.ts';
+export * from './core/streamingFormat.ts';
+export * from './core/subAuditorSeverity.ts';
+export * from './core/taskStreamCoordinator.ts';
 export * from './core/streamingRunner.ts';
 export * from './core/unifiedTheme.ts';
 export * from './core/suiteGating.ts';
 export * from './core/reportUtils.ts';
 export * from './core/safePath.ts';
+export * from './core/globContainment.ts';
+export * from './core/satelliteGlobMatcher.ts';
 export * from './core/auditPathPredicates.ts';
 export * from './core/auditRootMatcher.ts';
 export * from './core/auditTestPredicates.ts';

@@ -117,5 +117,23 @@ describe('ValidateMarkdownLintConfigAuditor', () => {
       expect(repaired.MD024).toEqual({ siblings_only: true });
       expect(repaired.MD007).toEqual({ indent: 2 });
     });
+
+    it('Canary 4 (Undeclared Entry): detects unauthorized rule in .markdownlint.json', async () => {
+      const configPath = path.join(tmpDir, '.markdownlint.json');
+      const tampered: MarkdownLintConfigShape = {
+        ...CANONICAL_MARKDOWNLINT_CONFIG,
+        MD041: false
+      };
+      fs.writeFileSync(configPath, JSON.stringify(tampered, null, 2), 'utf8');
+
+      const auditor = new ValidateMarkdownLintConfigAuditor({ projectRoot: tmpDir });
+      const result = await auditor.audit();
+      expect(result.status).toBe('failed');
+      const finding = result.findings.find(
+        (f) => f.ruleId === 'markdownlint-undeclared-config-entry'
+      );
+      expect(finding).toBeDefined();
+      expect(finding?.context).toBe('MD041');
+    });
   });
 });

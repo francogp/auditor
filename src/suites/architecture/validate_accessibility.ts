@@ -324,7 +324,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
   }
 
   public override async runAudit(): Promise<void> {
-    if (this.isSuiteGatingDisabled('Accesibilidad desactivada en config')) {
+    if (this.isSuiteGatingDisabled('Accessibility disabled in config')) {
       return;
     }
 
@@ -346,7 +346,7 @@ export class ValidateAccessibilityAuditor extends BaseAuditor<AccessibilityRuleI
     if (vueFiles.length === 0) {
       for (const ruleId of TEMPLATE_BACKED_RULES) {
         this.runSubAuditorSync(ruleId, () => {
-          this.markRuleNotApplicable(ruleId, 'No hay archivos .vue en las raíces configuradas');
+          this.markRuleNotApplicable(ruleId, 'No .vue files in configured roots');
         });
       }
       return;

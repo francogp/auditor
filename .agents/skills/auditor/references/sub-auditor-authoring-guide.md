@@ -1236,7 +1236,7 @@ Under the v5 architecture, it is mathematically impossible to instantiate a sub-
 | `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object dynamically collected by `auditor fix` to scaffold `.auditor/audit.config.ts`. For all subsystems, `enabled: boolean` is mandatory. |
 | `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
 | `usesThirdPartyTool` | `boolean` | `true` or `false` | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. Oxlint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error. |
-| `thirdPartyToolPolicy` | `ThirdPartyToolFailurePolicy` | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId }`. Prohibited if `usesThirdPartyTool: false`. |
+| `thirdPartyToolPolicy` | `ThirdPartyToolFailurePolicy` | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId, explainSatelliteConfig?: SatelliteConfigFileExplanation \| SatelliteConfigExplanationFn }`. Prohibited if `usesThirdPartyTool: false`. If the external tool has no satellite configuration file (e.g. `npm audit`), `explainSatelliteConfig: undefined` must be declared explicitly. |
 
 If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
 
@@ -1455,9 +1455,9 @@ All sub-auditors in `@francogp/auditor` and host project extensions (`scripts/au
     - ❌ **Prohibited**: Calling `this.markRuleEvaluated(ruleId)` immediately before a measuring wrapper for the same rule.
     - ✅ **Canonical**: Omit the manual mark; all timing wrappers mark rules evaluated internally.
 
-16. **Mandatory Third-Party Tool Policy Contract (`auditor-third-party-tool-contract`)**:
-    - ❌ **Prohibited**: Spawning external tools without declaring `usesThirdPartyTool: true` and `thirdPartyToolPolicy`, or declaring `thirdPartyToolPolicy` when `usesThirdPartyTool: false`.
-    - ✅ **Canonical**: Explicitly align `usesThirdPartyTool` and `thirdPartyToolPolicy` in `super({ ... })`.
+16. **Mandatory Third-Party Tool Policy & Satellite Config Contract (`auditor-third-party-tool-contract`)**:
+    - ❌ **Prohibited**: Spawning external tools without declaring `usesThirdPartyTool: true` and `thirdPartyToolPolicy`, or declaring `thirdPartyToolPolicy` when `usesThirdPartyTool: false`, or omitting `explainSatelliteConfig` when `usesThirdPartyTool: true`.
+    - ✅ **Canonical**: Explicitly align `usesThirdPartyTool` and `thirdPartyToolPolicy` in `super({ ... })`, declaring `explainSatelliteConfig` ({ `configFile`, `ssotKey`, `undeclaredEntryRuleId`, `configSuiteId` }) linking external tools to their SSoT configuration governance (or `explainSatelliteConfig: undefined` if the tool requires no satellite configuration file).
 
 17. **Zero Inefficient Multi-Pass File Scans (`auditor-inefficient-file-scan`)**:
     - ❌ **Prohibited**: Nested rule-over-files loops re-reading files from disk (`fs.readFileSync`) per rule, or blind wildcard arguments in external CLI calls.

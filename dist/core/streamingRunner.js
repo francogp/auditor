@@ -1,8 +1,5 @@
 import { tryOrNull } from "./safeUtils.js";
 import "./auditContract.js";
-import { formatDurationMs } from "./durationFormatter.js";
-import "./unifiedTheme.js";
-import { styleText } from "node:util";
 import { spawn } from "node:child_process";
 // src/core/streamingRunner.ts
 /**
@@ -15,78 +12,6 @@ import { spawn } from "node:child_process";
 *   3. Strict timeout enforcement with SIGKILL escalation.
 *   4. Clean structured output resolution for orchestrators.
 */
-const STREAM_LINE_SEVERITY_COLORS = [
-	"red",
-	"yellow",
-	"dim"
-];
-function getColorFromSubAuditor(line, subAuditors) {
-	if (!subAuditors) return null;
-	const match = line.match(/\[(\d+)\/(\d+)\]/);
-	if (!match) return null;
-	const report = subAuditors[parseInt(match[1], 10) - 1];
-	if (!report) return null;
-	if ((report.errorsCount ?? 0) > 0 || report.status === "failed") return "red";
-	if ((report.warningsCount ?? 0) > 0 || report.status === "warning") return "yellow";
-	if (report.count === 0 && report.status === "passed") return "dim";
-	return null;
-}
-function getColorFromLineHeuristic(line, isSuccess) {
-	if (line.includes("🐛") || line.includes("❌") || line.includes("(failed)")) return isSuccess ? "yellow" : "red";
-	if (line.includes("⚠️") || line.includes("(warning)")) return "yellow";
-	return "dim";
-}
-function colorizeStreamSubLine(line, params) {
-	const color = getColorFromSubAuditor(line, params.subAuditors) ?? getColorFromLineHeuristic(line, params.isSuccess);
-	if (color === "red") return styleText("red", line);
-	if (color === "yellow") return styleText("yellow", line);
-	return styleText("dim", line);
-}
-var TaskStreamCoordinator = class {
-	completedCount = 0;
-	totalTasks;
-	indent;
-	mode;
-	printLock = Promise.resolve();
-	constructor(totalTasks, options) {
-		this.totalTasks = totalTasks;
-		this.indent = options?.indent ?? "  ";
-		this.mode = options?.mode ?? "human";
-	}
-	async onTaskComplete(params) {
-		const previousLock = this.printLock;
-		let releaseLock = () => {};
-		this.printLock = new Promise((resolve) => {
-			releaseLock = resolve;
-		});
-		await previousLock;
-		try {
-			this.printTaskItem(params, ++this.completedCount);
-		} finally {
-			releaseLock();
-		}
-	}
-	printTaskItem(params, currentStep) {
-		if (this.mode === "compact") {
-			if (params.isSkipped || params.isSuccess && !params.hasWarnings) return;
-			const badge = params.isSuccess ? styleText("yellow", "⚠️ ") : styleText("red", "❌");
-			console.log(`${badge} ${styleText("bold", params.taskName)} ${styleText("dim", `(${params.taskId})`)} ${styleText("dim", formatDurationMs(params.durationMs))}`);
-			return;
-		}
-		const pct = Math.round(currentStep / this.totalTasks * 100);
-		const stepStr = String(currentStep).padStart(2, "0");
-		const totalStr = String(this.totalTasks).padStart(2, "0");
-		const pctStr = `${pct}%`.padStart(4, " ");
-		const statusBadge = params.isSkipped ? styleText("cyan", "⏭️  SKIP") : params.isSuccess ? params.hasWarnings ? styleText("yellow", "⚠️ ") : styleText("green", "✅") : styleText("red", "❌");
-		const taskIcon = params.icon ?? (params.isBuiltin === false ? "🧩" : "⚙️");
-		console.log(`${this.indent}${styleText("dim", `[ ${stepStr}/${totalStr} │ ${pctStr} ]`)} ${taskIcon}  ${styleText("cyan", params.taskName)} ${styleText("dim", `(${params.taskId})`)}... ${statusBadge} ${styleText("dim", formatDurationMs(params.durationMs))}`);
-		const subIndent = `${this.indent}   `;
-		for (const line of params.subLines) {
-			const coloredLine = colorizeStreamSubLine(line, params);
-			console.log(`${subIndent}${styleText("dim", "│")}  ${coloredLine}`);
-		}
-	}
-};
 function isNodeInternalWarning(line) {
 	if (/^\s*\^+\s*$/.test(line)) return true;
 	if (/^\s*await BaseAuditor\.runCli/i.test(line)) return true;
@@ -191,4 +116,4 @@ function executeAuditorStreaming(task, args, onSubProgress) {
 		});
 	});
 }
-export { STREAM_LINE_SEVERITY_COLORS, TaskStreamCoordinator, colorizeStreamSubLine, executeAuditorStreaming, isNodeInternalWarning };
+export { executeAuditorStreaming, isNodeInternalWarning };

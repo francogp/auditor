@@ -1,39 +1,4 @@
-import { AuditTaskDefinition, SubAuditorReport } from "./auditContract.js";
-export interface TaskStreamProgressParams {
-  taskName: string;
-  taskId: string;
-  subLines: readonly string[];
-  durationMs: number;
-  isSuccess: boolean;
-  hasWarnings?: boolean;
-  isSkipped?: boolean;
-  isBuiltin?: boolean;
-  icon?: string;
-  taskIndex?: number;
-  subAuditors?: readonly SubAuditorReport[];
-}
-export declare const STREAM_LINE_SEVERITY_COLORS: readonly ["red", "yellow", "dim"];
-export type StreamLineSeverityColor = (typeof STREAM_LINE_SEVERITY_COLORS)[number];
-export declare function colorizeStreamSubLine(line: string, params: {
-  isSuccess: boolean;
-  hasWarnings?: boolean;
-  subAuditors?: readonly SubAuditorReport[];
-}): string;
-export type ConsoleOutputMode = 'compact' | 'human';
-export interface TaskStreamCoordinatorOptions {
-  indent?: string;
-  mode?: ConsoleOutputMode;
-}
-export declare class TaskStreamCoordinator {
-  private completedCount;
-  private readonly totalTasks;
-  private readonly indent;
-  private readonly mode;
-  private printLock;
-  constructor(totalTasks: number, options?: TaskStreamCoordinatorOptions);
-  onTaskComplete(params: TaskStreamProgressParams): Promise<void>;
-  private printTaskItem;
-}
+import { AuditTaskDefinition } from "./auditContract.js";
 export declare function isNodeInternalWarning(line: string): boolean;
 export interface ExecutedTaskOutput {
   status: number | null;

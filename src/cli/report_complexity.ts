@@ -147,7 +147,7 @@ function ingestLargeFunctions(
     const key = `${relPath}:${lf.line}:${lf.name}`;
 
     findingsMap.set(key, {
-      name: lf.name || '<anónima>',
+      name: lf.name || '<anonymous>',
       file: relPath,
       line: lf.line || 1,
       lines: lf.line_count || 0,
@@ -183,7 +183,7 @@ function ingestComplexityFindings(
       existing.exceeded = 'both';
     } else {
       findingsMap.set(key, {
-        name: f.name || '<anónima>',
+        name: f.name || '<anonymous>',
         file: relPath,
         line: f.line || 1,
         lines,
@@ -207,7 +207,7 @@ function parseAuditFindingContext(context?: string): {
     /^([^\s(]+)\s*\(cog:\s*(\d+),\s*cyc:\s*(\d+),\s*(\d+)\s*lines\)/
   );
   return {
-    name: match?.[1] || '<función>',
+    name: match?.[1] || '<function>',
     cog: match?.[2] ? parseInt(match[2], RADIX_DECIMAL) : 0,
     cyc: match?.[3] ? parseInt(match[3], RADIX_DECIMAL) : 0,
     lines: match?.[4] ? parseInt(match[4], RADIX_DECIMAL) : 0
