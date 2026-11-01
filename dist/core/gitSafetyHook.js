@@ -220,10 +220,6 @@ function syncGitSafetyHook(projectRoot, primaryAgentDir = ".agents") {
 		fs.writeFileSync(scriptPath, CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT, "utf8");
 		scriptWritten = true;
 	}
-	const mirrorDir = path.join(agentsDir, primaryAgentDir, "scripts");
-	const mirrorScriptPath = path.join(mirrorDir, "prevent_destructive_git.js");
-	if (!fs.existsSync(mirrorDir)) fs.mkdirSync(mirrorDir, { recursive: true });
-	if ((fs.existsSync(mirrorScriptPath) ? safeReadFileSync(mirrorScriptPath) : null) !== CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT) fs.writeFileSync(mirrorScriptPath, CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT, "utf8");
 	let hookMerged = false;
 	let hooksConfig = {};
 	if (fs.existsSync(hooksJsonPath)) {

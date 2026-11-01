@@ -313,17 +313,6 @@ export function syncGitSafetyHook(
     scriptWritten = true;
   }
 
-  // Also ensure mirror shim in .agents/.agents/scripts/ for compatibility with sessions caching old relative path
-  const mirrorDir = path.join(agentsDir, primaryAgentDir, 'scripts');
-  const mirrorScriptPath = path.join(mirrorDir, 'prevent_destructive_git.js');
-  if (!fs.existsSync(mirrorDir)) {
-    fs.mkdirSync(mirrorDir, { recursive: true });
-  }
-  const currentMirror = fs.existsSync(mirrorScriptPath) ? safeReadFileSync(mirrorScriptPath) : null;
-  if (currentMirror !== CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT) {
-    fs.writeFileSync(mirrorScriptPath, CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT, 'utf8');
-  }
-
   let hookMerged = false;
   let hooksConfig: Record<string, unknown> = {};
   if (fs.existsSync(hooksJsonPath)) {
