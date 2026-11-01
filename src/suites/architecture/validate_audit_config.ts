@@ -635,6 +635,13 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore')))
       this.recordScanned('.gitignore');
 
+    if (this.isFixActive()) {
+      const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+      if (fs.existsSync(configFilePath)) {
+        appendMissingSectionsToConfigFile(configFilePath, {});
+      }
+    }
+
     const config = await loadAuditConfig(this.projectRoot);
     const baselineFile =
       config.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');

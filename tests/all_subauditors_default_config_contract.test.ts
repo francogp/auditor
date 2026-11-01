@@ -191,4 +191,36 @@ export default defineAuditConfig({
     );
     expect(missingSectionViolations).toHaveLength(0);
   });
+
+  it('is strictly idempotent and deduplicates pre-existing identical keys with quotes like staged.rules["*"]', async () => {
+    const duplicateKeyConfig = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+
+export default defineAuditConfig({
+  name: 'quoted-keys-test',
+  paths: { srcRoots: ['src'], testRoots: ['tests'], scriptsRoots: ['scripts'] },
+  vitePlusConfig: {
+    enabled: true,
+    staged: {
+      enabled: true,
+      rules: {
+        '*': 'vp check --fix',
+        '*': 'vp check --fix'
+      }
+    }
+  }
+});
+`;
+    const configPath = path.join(tempDir, '.auditor', 'audit.config.ts');
+    await fs.mkdir(path.dirname(configPath), { recursive: true });
+    await fs.writeFile(configPath, duplicateKeyConfig, 'utf-8');
+    await fs.writeFile(path.join(tempDir, '.gitignore'), 'node_modules/\n', 'utf-8');
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await auditor.fix();
+
+    const fixedContent = await fs.readFile(configPath, 'utf-8');
+    const starMatches = fixedContent.match(/'\*':/g) ?? [];
+    expect(starMatches).toHaveLength(1);
+  });
 });

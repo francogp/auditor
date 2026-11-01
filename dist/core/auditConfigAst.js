@@ -40,18 +40,44 @@ function valueToTsMorphInitializer(val) {
 	}).join(",\n")}\n}`;
 	return "undefined";
 }
+function getNormalizedPropName(prop) {
+	if ((prop.isKind(SyntaxKind.PropertyAssignment) || prop.isKind(SyntaxKind.ShorthandPropertyAssignment)) && typeof prop.getName === "function") return prop.getName().replace(/^['"]|['"]$/g, "");
+	return "";
+}
+function deduplicateObjectLiteralProperties(obj) {
+	let mutated = false;
+	const seenKeys = /* @__PURE__ */ new Set();
+	for (const prop of [...obj.getProperties()]) {
+		const key = getNormalizedPropName(prop);
+		if (!key) continue;
+		if (seenKeys.has(key)) {
+			if ("remove" in prop && typeof prop.remove === "function") {
+				prop.remove();
+				mutated = true;
+			}
+		} else {
+			seenKeys.add(key);
+			if (prop.isKind(SyntaxKind.PropertyAssignment)) {
+				const init = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+				if (init && deduplicateObjectLiteralProperties(init)) mutated = true;
+			}
+		}
+	}
+	return mutated;
+}
 function syncMissingPropsWithTsMorph(obj, missingProps) {
 	let mutated = false;
+	if (deduplicateObjectLiteralProperties(obj)) mutated = true;
 	for (const [key, missingVal] of Object.entries(missingProps)) {
 		if (missingVal === void 0) continue;
-		const existing = obj.getProperty(key);
+		const existing = obj.getProperty((prop) => getNormalizedPropName(prop) === key);
 		if (existing?.isKind(SyntaxKind.PropertyAssignment)) {
 			const init = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
 			if (init && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(init, missingVal)) mutated = true;
 			continue;
 		}
 		if (!existing) {
-			const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : JSON.stringify(key);
+			const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
 			obj.addPropertyAssignment({
 				name: safeName,
 				initializer: valueToTsMorphInitializer(missingVal)
@@ -108,6 +134,10 @@ function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 		appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
 		return;
 	}
-	mutateAuditConfigFileAst(configFilePath, (targetObj) => syncMissingPropsWithTsMorph(targetObj, sectionsToInsert));
+	mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+		const dedupMutated = deduplicateObjectLiteralProperties(targetObj);
+		const syncMutated = syncMissingPropsWithTsMorph(targetObj, sectionsToInsert);
+		return dedupMutated || syncMutated;
+	});
 }
 export { appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, deepMergeMissingJson, findTargetAuditConfigObject, mutateAuditConfigFileAst, syncAuditorVersionInTsFile };

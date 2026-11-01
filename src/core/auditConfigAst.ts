@@ -62,14 +62,59 @@ function valueToTsMorphInitializer(val: unknown): string {
   return 'undefined';
 }
 
+function getNormalizedPropName(prop: {
+  isKind: (kind: SyntaxKind) => boolean;
+  getName?: () => string;
+}): string {
+  if (
+    (prop.isKind(SyntaxKind.PropertyAssignment) ||
+      prop.isKind(SyntaxKind.ShorthandPropertyAssignment)) &&
+    typeof prop.getName === 'function'
+  ) {
+    return prop.getName().replace(/^['"]|['"]$/g, '');
+  }
+  return '';
+}
+
+function deduplicateObjectLiteralProperties(obj: ObjectLiteralExpression): boolean {
+  let mutated = false;
+  const seenKeys = new Set<string>();
+  for (const prop of [...obj.getProperties()]) {
+    const key = getNormalizedPropName(prop);
+    if (!key) continue;
+    if (seenKeys.has(key)) {
+      if ('remove' in prop && typeof prop.remove === 'function') {
+        prop.remove();
+        mutated = true;
+      }
+    } else {
+      seenKeys.add(key);
+      if (prop.isKind(SyntaxKind.PropertyAssignment)) {
+        const init = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+        if (init && deduplicateObjectLiteralProperties(init)) {
+          mutated = true;
+        }
+      }
+    }
+  }
+  return mutated;
+}
+
 function syncMissingPropsWithTsMorph(
   obj: ObjectLiteralExpression,
   missingProps: Record<string, unknown>
 ): boolean {
   let mutated = false;
+
+  // 1. Deduplicate any existing properties with duplicate normalized keys
+  if (deduplicateObjectLiteralProperties(obj)) {
+    mutated = true;
+  }
+
+  // 2. Add missing properties without duplicating existing ones (including quoted keys)
   for (const [key, missingVal] of Object.entries(missingProps)) {
     if (missingVal === undefined) continue;
-    const existing = obj.getProperty(key);
+    const existing = obj.getProperty((prop) => getNormalizedPropName(prop) === key);
     if (existing?.isKind(SyntaxKind.PropertyAssignment)) {
       const init = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
       if (init && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(init, missingVal)) {
@@ -78,7 +123,7 @@ function syncMissingPropsWithTsMorph(
       continue;
     }
     if (!existing) {
-      const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : JSON.stringify(key);
+      const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
       obj.addPropertyAssignment({
         name: safeName,
         initializer: valueToTsMorphInitializer(missingVal)
@@ -155,7 +200,9 @@ export function appendMissingSectionsToConfigFile(
     appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert);
     return;
   }
-  mutateAuditConfigFileAst(configFilePath, (targetObj) =>
-    syncMissingPropsWithTsMorph(targetObj, sectionsToInsert)
-  );
+  mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+    const dedupMutated = deduplicateObjectLiteralProperties(targetObj);
+    const syncMutated = syncMissingPropsWithTsMorph(targetObj, sectionsToInsert);
+    return dedupMutated || syncMutated;
+  });
 }
