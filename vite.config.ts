@@ -189,7 +189,8 @@ export default defineConfig({
             ],
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/ban-ts-comment': 'error'
-        }
+        },
+        plugins: ['vitest', 'node']
     },
     fmt: {
         sortImports: true,

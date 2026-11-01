@@ -1314,5 +1314,98 @@ export default defineConfig({
       expect(fixedContent).not.toContain("'src/core/**'");
       expect(fixedContent).toContain("'dist/**'");
     });
+
+    it('C-CFG-67: flags missing lint.plugins (vitest, node) and synchronizes them on auto-fix', async () => {
+      const config = defineAuditConfig({
+        name: 'Lint Plugins Test',
+        paths: { srcRoots: ['src'], testRoots: ['tests'], scriptsRoots: ['scripts'] },
+        vitePlusConfig: {
+          enabled: true,
+          lint: {
+            enabled: true,
+            typeAware: true,
+            typeCheck: true,
+            plugins: ['vitest', 'node']
+          }
+        }
+      });
+      setAuditConfig(config);
+
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            options: { typeAware: true, typeCheck: true },
+            jsPlugins: ['@francogp/auditor/domain-type-plugin'],
+            rules: {}
+          },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const pluginFindings = auditResult.findings.filter(
+        (f) => f.ruleId === 'vite-plus-config-lint' && f.context?.startsWith('lint.plugins.')
+      );
+      expect(pluginFindings.length).toBe(2);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.vitest')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.node')).toBe(true);
+
+      await auditor.fix();
+      const fixedContent = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(fixedContent).toContain("'vitest'");
+      expect(fixedContent).toContain("'node'");
+
+      const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const secondAudit = await secondAuditor.audit();
+      const remainingPluginFindings = secondAudit.findings.filter(
+        (f) => f.ruleId === 'vite-plus-config-lint' && f.context?.startsWith('lint.plugins.')
+      );
+      expect(remainingPluginFindings).toHaveLength(0);
+    });
+
+    it('C-CFG-68: flags undeclared plugins in vite.config.ts when not declared in audit.config.ts', async () => {
+      const config = defineAuditConfig({
+        name: 'Undeclared Plugins Test',
+        paths: { srcRoots: ['src'], testRoots: ['tests'], scriptsRoots: ['scripts'] },
+        vitePlusConfig: {
+          enabled: true,
+          lint: {
+            enabled: true,
+            plugins: ['vitest', 'node']
+          }
+        }
+      });
+      setAuditConfig(config);
+
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            options: { typeAware: true, typeCheck: true },
+            plugins: ['vitest', 'node', 'react'],
+            jsPlugins: ['@francogp/auditor/domain-type-plugin'],
+            rules: {}
+          },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const undeclaredPluginFinding = auditResult.findings.find(
+        (f) =>
+          f.ruleId === 'vite-plus-undeclared-config-entry' && f.context === 'lint.plugins.react'
+      );
+      expect(undeclaredPluginFinding).toBeDefined();
+      expect(undeclaredPluginFinding?.message).toContain("Undeclared linter plugin 'react'");
+    });
   });
 });

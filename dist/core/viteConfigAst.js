@@ -297,6 +297,7 @@ function extractStringArrayProp(obj, propName, sf) {
 function extractLintSummaryFromAst(lintExpr, sf) {
 	const lintRules = /* @__PURE__ */ new Map();
 	let lintOptions = {};
+	let lintPlugins = [];
 	let lintJsPlugins = [];
 	let lintIgnorePatterns = [];
 	if (lintExpr && ts.isObjectLiteralExpression(lintExpr)) {
@@ -306,12 +307,14 @@ function extractLintSummaryFromAst(lintExpr, sf) {
 		}
 		const optProp = findPropertyAssignment(lintExpr, "options", sf);
 		if (optProp && ts.isObjectLiteralExpression(optProp.initializer)) lintOptions = astExpressionToValue(optProp.initializer, sf);
+		lintPlugins = extractStringArrayProp(lintExpr, "plugins", sf);
 		lintJsPlugins = extractStringArrayProp(lintExpr, "jsPlugins", sf);
 		lintIgnorePatterns = extractStringArrayProp(lintExpr, "ignorePatterns", sf);
 	}
 	return {
 		lintRules,
 		lintOptions,
+		lintPlugins,
 		lintJsPlugins,
 		lintIgnorePatterns
 	};
@@ -412,7 +415,7 @@ function extractParsedConfigSummary(fileContent) {
 	const sf = parseTsSourceFile(fileContent);
 	const definesFromVitePlus = sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite-plus");
 	const sections = collectConfigSections(sf);
-	const { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
+	const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(sections.get("lint"), sf);
 	const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get("fmt"), sf);
 	const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get("pack"), sf);
 	const { hasRootTestInclude, rootTestInclude, testProjects, hasTestProjects, testInclude, testCoverageExclude } = extractTestSummaryFromAst(sections.get("test"), sf);
@@ -421,6 +424,7 @@ function extractParsedConfigSummary(fileContent) {
 		hasSection: (name) => sections.has(name),
 		lintRules,
 		lintOptions,
+		lintPlugins,
 		lintJsPlugins,
 		lintIgnorePatterns,
 		fmtConfig,
@@ -485,6 +489,8 @@ function buildLintAstObject(auditConfig, lintIgnores) {
 		typeCheck
 	}))];
 	if (lintCfg?.categories && Object.keys(lintCfg.categories).length > 0) props.push(ts.factory.createPropertyAssignment("categories", valueToAstExpression(lintCfg.categories, true)));
+	const configuredPlugins = lintCfg?.plugins ?? ["vitest", "node"];
+	if (configuredPlugins.length > 0) props.push(ts.factory.createPropertyAssignment("plugins", valueToAstExpression([...configuredPlugins])));
 	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", valueToAstExpression(lintIgnores)));
 	if (lintCfg?.overrides && lintCfg.overrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(lintCfg.overrides)));
 	return ts.factory.createObjectLiteralExpression(props, true);
@@ -783,6 +789,14 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 				typeAware,
 				typeCheck
 			}), sf);
+			modified = true;
+		}
+	}
+	const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"];
+	if (requiredPlugins.length > 0) {
+		const linterPluginSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "plugins", sf), requiredPlugins, sf);
+		if (linterPluginSync.modified) {
+			props = updateObjectProperty(props, "plugins", linterPluginSync.expr, sf);
 			modified = true;
 		}
 	}

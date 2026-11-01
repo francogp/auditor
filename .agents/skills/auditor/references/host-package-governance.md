@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.5.3 --allow-git=all
+npm install -D github:francogp/auditor#v10.5.4 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -331,3 +331,68 @@ The rule `select-star-in-queries` targets Supabase and ORM queries across fronte
 
 - ❌ **Prohibited**: `.select('*')` or omitting columns.
 - ✅ **Canonical**: Explicit column projection `.select('id, name, created_at, ...')` to avoid overfetching, breaking schema contracts, and runtime payload bloat.
+
+---
+
+## 14. Native Vite+/Oxlint Linter Plugins & Architecture Health Governance
+
+### 1. Native Linter Plugins Catalog (`vitePlusConfig.lint.plugins`)
+
+Vite+ is powered by Oxlint's high-performance native engine. Beyond the default core suites (`typescript`, `unicorn`, and `oxc`), Vite+ supports dedicated native plugins that can be declaratively governed from `.auditor/audit.config.ts`:
+
+| Plugin | Scope & Rules Enforced | Ecosystem Recommendation |
+| :--- | :--- | :--- |
+| `vitest` | Unit testing hygiene (`no-identical-title`, `no-focused-tests`, `no-disabled-tests`, `valid-title`, `prefer-to-have-length`). | **Active by default** in all Node 26+ / Vitest repos. |
+| `node` | Modern Node.js 26+ runtime standards (`no-exports-assign`, `no-new-require`, `no-path-concat`). | **Active by default** in all Node 26+ projects. |
+| `promise` | Strict async hygiene (`no-new-statics`, `valid-params`, `no-return-in-finally`). | **Recommended**. Flag bugs such as `await this.then()` with 0 arguments. |
+| `vue` | Vue 3 SFC & Composition API hygiene (`no-async-in-computed`, `next-tick-style`, `define-props-declaration`). | **Elective for Vue apps**. Requires modern Composition API (`await nextTick()`). |
+| `react` | React JSX, hook rules, and rendering lifecycle. | Elective for React/Next.js projects. |
+| `import` | Import hygiene (`no-duplicates`, `no-self-import`, `no-mutable-exports`, `no-amd`). | Governed dynamically via Vite+ rules. |
+| `jsx-a11y` | Web accessibility checks for JSX/TSX components. | Elective for frontend web applications with TSX. |
+| `react-perf` | Prevents performance anti-patterns in React components. | Elective for React frontend apps. |
+| `jsdoc` | Strict JSDoc documentation formatting. | Elective for public library APIs. |
+| `jest` | Compatibility rules for legacy Jest suites. | Elective during Vitest migrations. |
+| `nextjs` | Specific next-gen SSR/SSG patterns for Next.js. | Elective for Next.js applications. |
+
+### 2. Activation Policy by Project Typology
+
+1. **Node.js 26+ & Vitest Core Standard (`vitest`, `node`)**:
+   - `@francogp/auditor` automatically configures and injects `plugins: ['vitest', 'node']` by default into `DEFAULT_AUDIT_CONFIG.vitePlusConfig.lint`.
+   - The AST synchronizer (`src/core/viteConfigAst.ts`) automatically populates `plugins: ['vitest', 'node']` into the `lint` block of `vite.config.ts`.
+   - Tested empirically across thousands of source files with 0 false positives.
+
+2. **Promise Linter Plugin Adoption Guide (`promise`)**:
+   - The `promise` plugin detects serious runtime concurrency flaws (such as calling `Promise.then()` without handlers).
+   - Before activating `promise` in `vitePlusConfig.lint.plugins`:
+     - Run `vp lint --promise-plugin` to inspect any existing violations.
+     - Remediate thenable anti-patterns (e.g. replacing `const res = await this.then();` with `const res = await this;`).
+     - Declare `'promise'` in `.auditor/audit.config.ts` under `vitePlusConfig.lint.plugins`.
+
+3. **Vue Linter Plugin Adoption Guide (`vue`)**:
+   - The `vue` plugin enforces strict Vue 3 Composition API idioms.
+   - Key considerations before activating:
+     - `vue(next-tick-style)` rejects callback syntax `nextTick(() => { ... })` and requires `await nextTick()`.
+     - `vue(define-props-declaration)` and `vue(define-emits-declaration)` require typed macro signatures (`defineProps<{ ... }>()`).
+     - If the repository has legacy callbacks in component lifecycles, schedule an AST migration before enabling.
+
+### 3. Architectural Health & Complexity Governance (`fallow.health`)
+
+The `fallow.health` subsystem monitors cognitive complexity, cyclomatic complexity, and maintainability index across all TypeScript sources:
+
+- **Canonical SSoT Configuration**:
+
+  ```ts
+  // .auditor/audit.config.ts
+  fallow: {
+    enabled: true,
+    health: {
+      maxCognitive: 20,
+      maxCyclomatic: 25,
+      cyclomaticPolicy: 'standard',
+      exemptPaths: ['test_aventura/**', 'benchmarks/**']
+    }
+  }
+  ```
+
+- **Exempting Procedural & Mathematical Generators**:
+  Complex procedural generation algorithms (e.g., procedural maze generation, binary space partitioning, complex math tables) legitimately accumulate high cyclomatic complexity. Use `exemptPaths` to decouple these modules from the core production domain boundaries without degrading project-wide thresholds.

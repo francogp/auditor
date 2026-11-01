@@ -924,7 +924,7 @@ function validateRequiredSections(summary, fileName, auditConfig) {
 	}
 	return findings;
 }
-function validateLintOptionsAndPlugins(summary, fileName) {
+function validateLintOptionsAndPlugins(summary, fileName, auditConfig) {
 	const findings = [];
 	if (!summary.lintJsPlugins.includes("@francogp/auditor/domain-type-plugin")) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -937,6 +937,19 @@ function validateLintOptionsAndPlugins(summary, fileName) {
 		col: 1,
 		context: "domain-type-plugin",
 		message: `Missing jsPlugins: ['@francogp/auditor/domain-type-plugin'] registration in the 'lint' section of vite.config.ts.`
+	});
+	const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"];
+	for (const plugin of expectedPlugins) if (!summary.lintPlugins.includes(plugin)) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-config-lint",
+		ruleDescription: "Vite+: Strict linter and Oxlint standards",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: `lint.plugins.${plugin}`,
+		message: `Missing plugin '${plugin}' registration in the 'lint.plugins' section of vite.config.ts. Run 'npm run auditor:fix' or 'auditor fix' to synchronize automatically.`
 	});
 	if (summary.hasSection("lint") && summary.lintOptions.typeAware === void 0) findings.push({
 		suiteId: "validate_vite_plus_config",
@@ -1020,6 +1033,19 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		col: 1,
 		context: ruleName,
 		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
+	});
+	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"]);
+	for (const plugin of summary.lintPlugins) if (!authorizedPlugins.has(plugin)) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-undeclared-config-entry",
+		ruleDescription: "Vite+: Undeclared entry in config",
+		severity: "error",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: `lint.plugins.${plugin}`,
+		message: `Undeclared linter plugin '${plugin}' in vite.config.ts. To legitimize this plugin, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.plugins', or remove it from vite.config.ts.`
 	});
 	if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
 		const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
@@ -1158,7 +1184,7 @@ function auditVitePlusConfigContent(content, fileName, auditConfig, projectRoot)
 	const findings = [
 		...validateAntiCastrationRules(summary, fileName),
 		...validateRequiredSections(summary, fileName, auditConfig),
-		...validateLintOptionsAndPlugins(summary, fileName)
+		...validateLintOptionsAndPlugins(summary, fileName, auditConfig)
 	];
 	if (auditConfig) findings.push(...validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot));
 	return findings;

@@ -389,6 +389,7 @@ export interface ParsedVitePlusConfigSummary {
   readonly hasSection: (name: string) => boolean;
   readonly lintRules: ReadonlyMap<string, unknown>;
   readonly lintOptions: Readonly<Record<string, unknown>>;
+  readonly lintPlugins: readonly string[];
   readonly lintJsPlugins: readonly string[];
   readonly lintIgnorePatterns: readonly string[];
   readonly fmtConfig: Readonly<Record<string, unknown>>;
@@ -438,11 +439,13 @@ function extractLintSummaryFromAst(
 ): {
   lintRules: Map<string, unknown>;
   lintOptions: Record<string, unknown>;
+  lintPlugins: string[];
   lintJsPlugins: string[];
   lintIgnorePatterns: string[];
 } {
   const lintRules = new Map<string, unknown>();
   let lintOptions: Record<string, unknown> = {};
+  let lintPlugins: string[] = []; // no-domain: Dynamic AST string list
   let lintJsPlugins: string[] = []; // no-domain: Dynamic AST string list
   let lintIgnorePatterns: string[] = []; // no-domain: Dynamic AST string list
 
@@ -462,11 +465,12 @@ function extractLintSummaryFromAst(
     if (optProp && ts.isObjectLiteralExpression(optProp.initializer)) {
       lintOptions = astExpressionToValue(optProp.initializer, sf) as Record<string, unknown>;
     }
+    lintPlugins = extractStringArrayProp(lintExpr, 'plugins', sf);
     lintJsPlugins = extractStringArrayProp(lintExpr, 'jsPlugins', sf);
     lintIgnorePatterns = extractStringArrayProp(lintExpr, 'ignorePatterns', sf);
   }
 
-  return { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns };
+  return { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns };
 }
 
 function collectConfigSections(sf: ts.SourceFile): Map<string, ts.Expression> {
@@ -622,10 +626,8 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
   );
 
   const sections = collectConfigSections(sf);
-  const { lintRules, lintOptions, lintJsPlugins, lintIgnorePatterns } = extractLintSummaryFromAst(
-    sections.get('lint'),
-    sf
-  );
+  const { lintRules, lintOptions, lintPlugins, lintJsPlugins, lintIgnorePatterns } =
+    extractLintSummaryFromAst(sections.get('lint'), sf);
   const { fmtConfig, fmtIgnorePatterns } = extractFmtSummaryFromAst(sections.get('fmt'), sf);
   const { packConfig, hasPackAttw } = extractPackSummaryFromAst(sections.get('pack'), sf);
   const {
@@ -642,6 +644,7 @@ export function extractParsedConfigSummary(fileContent: string): ParsedVitePlusC
     hasSection: (name: string) => sections.has(name),
     lintRules,
     lintOptions,
+    lintPlugins,
     lintJsPlugins,
     lintIgnorePatterns,
     fmtConfig,
@@ -760,6 +763,13 @@ export function buildLintAstObject(
         'categories',
         valueToAstExpression(lintCfg.categories, true)
       )
+    );
+  }
+
+  const configuredPlugins = lintCfg?.plugins ?? ['vitest', 'node'];
+  if (configuredPlugins.length > 0) {
+    props.push(
+      ts.factory.createPropertyAssignment('plugins', valueToAstExpression([...configuredPlugins]))
     );
   }
 
@@ -1264,7 +1274,22 @@ function syncLintSectionAst(
     }
   }
 
-  // 2. jsPlugins
+  // 2. plugins
+  const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? ['vitest', 'node'];
+  if (requiredPlugins.length > 0) {
+    const linterPluginsProp = findPropertyAssignment(
+      ts.factory.createObjectLiteralExpression(props, true),
+      'plugins',
+      sf
+    );
+    const linterPluginSync = syncStringArrayExpression(linterPluginsProp, requiredPlugins, sf);
+    if (linterPluginSync.modified) {
+      props = updateObjectProperty(props, 'plugins', linterPluginSync.expr, sf);
+      modified = true;
+    }
+  }
+
+  // 3. jsPlugins
   const pluginsProp = findPropertyAssignment(
     ts.factory.createObjectLiteralExpression(props, true),
     'jsPlugins',

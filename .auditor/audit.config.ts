@@ -297,7 +297,8 @@ export default defineAuditConfig({
         'no-useless-assignment': 'error'
       },
       typeAware: true,
-      typeCheck: true
+      typeCheck: true,
+      plugins: ['vitest', 'node']
     },
     fmt: {
       enabled: true,

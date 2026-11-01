@@ -152,7 +152,8 @@ const DEFAULT_AUDIT_CONFIG = {
 		lint: {
 			enabled: true,
 			typeAware: true,
-			typeCheck: true
+			typeCheck: true,
+			plugins: ["vitest", "node"]
 		},
 		test: {
 			enabled: true,

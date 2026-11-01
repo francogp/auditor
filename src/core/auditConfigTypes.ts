@@ -601,6 +601,22 @@ export interface AuditVitePlusFmtConfig extends BaseAuditSubsystemConfig {
   readonly overrides?: readonly VitePlusFmtOverrideConfig[];
 }
 
+export const VITE_PLUS_NATIVE_LINTER_PLUGINS = [
+  'vitest',
+  'node',
+  'promise',
+  'vue',
+  'react',
+  'import',
+  'jsdoc',
+  'jest',
+  'jsx-a11y',
+  'nextjs',
+  'react-perf'
+] as const;
+
+export type VitePlusNativeLinterPlugin = (typeof VITE_PLUS_NATIVE_LINTER_PLUGINS)[number];
+
 export interface VitePlusLintOverrideConfig {
   readonly files: readonly string[];
   readonly rules: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
@@ -609,6 +625,7 @@ export interface VitePlusLintOverrideConfig {
 export interface AuditVitePlusLintConfig extends BaseAuditSubsystemConfig {
   readonly typeAware?: boolean;
   readonly typeCheck?: boolean;
+  readonly plugins?: readonly (VitePlusNativeLinterPlugin | string)[];
   readonly categories?: OxlintCategoriesConfig;
   readonly rules?: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
   readonly ignorePatterns?: readonly string[];

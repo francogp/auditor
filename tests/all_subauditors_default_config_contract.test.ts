@@ -48,7 +48,8 @@ describe('All Sub-auditors Default Configuration Contract & Dynamic Injection', 
         lint: expect.objectContaining({
           enabled: true,
           typeAware: true,
-          typeCheck: true
+          typeCheck: true,
+          plugins: ['vitest', 'node']
         }),
         fmt: expect.objectContaining({
           enabled: true,
@@ -127,9 +128,10 @@ export default defineAuditConfig({
     expect(updatedContent).toContain('gitIgnore: {');
     expect(updatedContent).toContain('enabled: true');
 
-    // 2. vitePlusConfig.lint.typeAware and typeCheck must be injected without erasing existing rules
+    // 2. vitePlusConfig.lint.typeAware, typeCheck, and plugins must be injected without erasing existing rules
     expect(updatedContent).toContain('typeAware: true');
     expect(updatedContent).toContain('typeCheck: true');
+    expect(updatedContent).toContain("plugins: ['vitest', 'node']");
     expect(updatedContent).toContain("'unicorn/prefer-node-protocol': 'error'");
 
     // 3. vitePlusConfig.staged, hooks, vscode must be injected

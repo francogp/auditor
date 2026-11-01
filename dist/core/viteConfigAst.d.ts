@@ -18,6 +18,7 @@ export interface ParsedVitePlusConfigSummary {
   readonly hasSection: (name: string) => boolean;
   readonly lintRules: ReadonlyMap<string, unknown>;
   readonly lintOptions: Readonly<Record<string, unknown>>;
+  readonly lintPlugins: readonly string[];
   readonly lintJsPlugins: readonly string[];
   readonly lintIgnorePatterns: readonly string[];
   readonly fmtConfig: Readonly<Record<string, unknown>>;
