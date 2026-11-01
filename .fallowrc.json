@@ -15,5 +15,12 @@
   ],
   "health": {
     "maxCrap": 0
+  },
+  "duplicates": {
+    "nearMiss": true,
+    "mode": "strict"
+  },
+  "typeAware": {
+    "enabled": true
   }
 }

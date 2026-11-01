@@ -185,7 +185,12 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     topModulesLimit: 15
   },
   agentPlugin: {
-    enabled: true
+    enabled: true,
+    gitSafetyHook: true
+  },
+  gitSafety: {
+    enabled: true,
+    preventDestructiveCommands: true
   },
   security: {
     enabled: true
@@ -413,6 +418,7 @@ export function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>
     'templates',
     'bundle',
     'agentPlugin',
+    'gitSafety',
     'security',
     'fallow',
     'packageDistribution',

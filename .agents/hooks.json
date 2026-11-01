@@ -1,0 +1,15 @@
+{
+  "git-safety-gate": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command|write_file|edit_file",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/prevent_destructive_git.js"
+          }
+        ]
+      }
+    ]
+  }
+}

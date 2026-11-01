@@ -184,7 +184,18 @@ export interface AuditBundleConfig extends BaseAuditSubsystemConfig {
     readonly reason: string;
   }[];
 }
-export type AuditAgentPluginConfig = BaseAuditSubsystemConfig;
+export interface AuditAgentPluginConfig extends BaseAuditSubsystemConfig {
+  readonly gitSafetyHook?: boolean;
+  readonly preventDestructiveGit?: boolean;
+}
+export interface AuditGitSafetyConfig extends BaseAuditSubsystemConfig {
+  /**
+   * Whether to enforce the Git Safety Gate hook in .agents/hooks.json
+   * to hard-block destructive git commands executed by AI agents.
+   * Default: true
+   */
+  readonly preventDestructiveCommands?: boolean;
+}
 export interface AuditAnimationConfig extends BaseAuditSubsystemConfig {
   readonly customTimerFunctions?: readonly string[];
   readonly exemptPaths?: readonly string[];
@@ -261,6 +272,19 @@ export interface AuditFallowVizConfig extends BaseAuditSubsystemConfig {
 export declare const FALLOW_TARGET_PRIORITIES: readonly ["critical", "high", "medium", "moderate", "low", "all"];
 export type FallowTargetPriorityNamed = (typeof FALLOW_TARGET_PRIORITIES)[number];
 export type FallowTargetPriority = FallowTargetPriorityNamed | number;
+export interface AuditFallowHealthConfig {
+  readonly maxCrap?: number;
+  readonly maxCyclomatic?: number;
+  readonly maxCognitive?: number;
+  readonly cyclomaticPolicy?: 'standard' | 'literal-membership';
+}
+export declare const FALLOW_TYPE_AWARE_REQUIRE_POLICIES: readonly ["best-effort", "complete"];
+export type FallowTypeAwareRequirePolicy = (typeof FALLOW_TYPE_AWARE_REQUIRE_POLICIES)[number];
+export interface AuditFallowTypeAwareConfig {
+  readonly enabled?: boolean;
+  readonly projects?: readonly string[];
+  readonly require?: FallowTypeAwareRequirePolicy;
+}
 export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly security?: AuditSecurityConfig;
   readonly enforceTargets?: boolean;
@@ -268,9 +292,10 @@ export interface AuditFallowConfig extends BaseAuditSubsystemConfig {
   readonly similarCode?: AuditFallowSimilarCodeConfig;
   readonly flags?: AuditFallowFlagsConfig;
   readonly coverage?: AuditFallowCoverageConfig;
-  readonly typeAware?: boolean;
+  readonly typeAware?: boolean | AuditFallowTypeAwareConfig;
   readonly showCascade?: boolean;
   readonly duplicates?: AuditFallowDuplicatesConfig;
+  readonly health?: AuditFallowHealthConfig;
   readonly viz?: AuditFallowVizConfig;
   readonly ignoreGlobs?: readonly string[];
   readonly ignorePatterns?: readonly string[];
@@ -546,6 +571,7 @@ export interface AuditEngineConfig {
   readonly auditorHygiene?: AuditAuditorHygieneConfig;
   readonly scriptExtensions?: AuditScriptExtensionsConfig;
   readonly gitIgnore?: AuditGitIgnoreConfig;
+  readonly gitSafety?: AuditGitSafetyConfig;
   readonly templates?: AuditTemplatesConfig;
   readonly styles?: AuditStylesConfig;
   readonly stylelint?: AuditStylelintConfig;

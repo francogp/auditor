@@ -1,9 +1,10 @@
 import { SharedAstContext } from "../../core/astContext.js";
 import { RuleFixContext } from "../../core/auditContract.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
-export type AgentPluginRuleId = 'missing-agent-plugin-registration' | 'host-duplicate-auditor-skill' | 'skill-invalid-yaml-frontmatter' | 'skill-invalid-asset-syntax' | 'skill-exceeds-line-limit';
+export type AgentPluginRuleId = 'missing-agent-plugin-registration' | 'missing-agent-git-safety-hook' | 'host-duplicate-auditor-skill' | 'skill-invalid-yaml-frontmatter' | 'skill-invalid-asset-syntax' | 'skill-exceeds-line-limit';
 export declare const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[];
 export declare function fixMissingAgentPluginRegistration(context: RuleFixContext<'missing-agent-plugin-registration'>): boolean;
+export declare function fixMissingAgentGitSafetyHook(context: RuleFixContext<'missing-agent-git-safety-hook'>): boolean;
 export declare class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private readonly skillsRoots;
   private readonly primaryAgentDir;
@@ -11,6 +12,7 @@ export declare class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private checkGating;
   private tryAutoFixPlugin;
   private reportMissingPluginViolation;
+  private reportMissingGitSafetyHookViolation;
   private validateSkillLineLimit;
   private findDescriptionBlockBounds;
   private tryAutoFixSkillDescription;

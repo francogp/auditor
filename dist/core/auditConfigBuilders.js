@@ -174,10 +174,19 @@ function buildBundleConfig(raw) {
 function buildAgentAndSecurityConfig(config) {
 	const secEnabled = config.fallow?.security?.enabled ?? config.security?.enabled ?? DEFAULT_AUDIT_CONFIG.security?.enabled ?? true;
 	const agentPluginBase = buildBaseSubsystemConfig(config.agentPlugin, DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true);
+	const gitSafetyBase = buildBaseSubsystemConfig(config.gitSafety, DEFAULT_AUDIT_CONFIG.gitSafety?.enabled ?? true);
 	const securityBase = buildBaseSubsystemConfig(config.security, secEnabled);
 	const animationBase = buildBaseSubsystemConfig(config.animation, DEFAULT_AUDIT_CONFIG.animation?.enabled ?? true);
 	return {
-		agentPlugin: { ...agentPluginBase },
+		agentPlugin: {
+			...agentPluginBase,
+			gitSafetyHook: config.agentPlugin?.gitSafetyHook ?? DEFAULT_AUDIT_CONFIG.agentPlugin?.gitSafetyHook ?? true,
+			preventDestructiveGit: config.agentPlugin?.preventDestructiveGit
+		},
+		gitSafety: {
+			...gitSafetyBase,
+			preventDestructiveCommands: config.gitSafety?.preventDestructiveCommands ?? DEFAULT_AUDIT_CONFIG.gitSafety?.preventDestructiveCommands ?? true
+		},
 		security: {
 			...securityBase,
 			enabled: secEnabled

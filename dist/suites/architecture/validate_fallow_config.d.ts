@@ -1,4 +1,5 @@
-import { CanonicalRuleSeverityLevel } from "../../core/auditConfigTypes.js";
+import { CanonicalRuleSeverityLevel, FallowTypeAwareRequirePolicy } from "../../core/auditConfigTypes.js";
+import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic' | 'fallow-undeclared-config-entry';
@@ -16,6 +17,11 @@ export interface FallowIgnoreExportEntry {
 }
 export declare const FALLOW_CYCLOMATIC_POLICIES: readonly ["standard", "literal-membership"];
 export type FallowCyclomaticPolicy = (typeof FALLOW_CYCLOMATIC_POLICIES)[number];
+export interface FallowTypeAwareConfig {
+  enabled?: boolean;
+  projects?: string[];
+  require?: FallowTypeAwareRequirePolicy;
+}
 export interface FallowConfigSchema {
   $schema?: string;
   entry?: string[];
@@ -24,7 +30,7 @@ export interface FallowConfigSchema {
   ignoreExports?: FallowIgnoreExportEntry[];
   markupExtensions?: string[];
   rules?: Record<string, string>;
-  typeAware?: boolean;
+  typeAware?: boolean | FallowTypeAwareConfig;
   duplicates?: {
     mode?: string;
     nearMiss?: boolean;
@@ -57,7 +63,8 @@ export interface FallowWorkspaceDiagnosticItem {
 export declare const FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS: readonly ["entry-pattern-redundant", "ignore-dependencies-entry-redundant", "ignore-patterns-entry-redundant"];
 export type FallowRedundantConfigDiagnosticKind = (typeof FALLOW_REDUNDANT_CONFIG_DIAGNOSTIC_KINDS)[number];
 export declare function validateFallowWorkspaceDiagnostics(diagnostics: readonly FallowWorkspaceDiagnosticItem[] | undefined, auditor: ValidateFallowConfigAuditor, config?: FallowConfigSchema): boolean;
-export declare function validateUndeclaredFallowEntries(config: FallowConfigSchema, auditor: ValidateFallowConfigAuditor): void;
+export declare function projectFallowConfigFromAuditConfig(auditConfig: ReturnType<typeof getAuditConfig>): Partial<FallowConfigSchema>;
+export declare function validateUndeclaredFallowEntries(config: FallowConfigSchema, auditor: ValidateFallowConfigAuditor): boolean;
 export interface ValidateFallowConfigOptions {
   readonly projectRoot?: string;
   readonly configFile?: string;

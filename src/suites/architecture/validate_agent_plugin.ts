@@ -27,6 +27,11 @@ import {
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import {
+  inspectGitSafetyHook,
+  isGitSafetyHookActive,
+  syncGitSafetyHook
+} from '../../core/gitSafetyHook.ts';
+import {
   isLockedSkillPath,
   loadAuditorOwnedSkills,
   SKILLS_LOCK_CANDIDATE_PATHS
@@ -38,6 +43,7 @@ enableCompileCache();
 
 export type AgentPluginRuleId =
   | 'missing-agent-plugin-registration'
+  | 'missing-agent-git-safety-hook'
   | 'host-duplicate-auditor-skill'
   | 'skill-invalid-yaml-frontmatter'
   | 'skill-invalid-asset-syntax'
@@ -45,6 +51,7 @@ export type AgentPluginRuleId =
 
 export const AGENT_PLUGIN_RULES: readonly AgentPluginRuleId[] = [
   'missing-agent-plugin-registration',
+  'missing-agent-git-safety-hook',
   'host-duplicate-auditor-skill',
   'skill-invalid-yaml-frontmatter',
   'skill-invalid-asset-syntax',
@@ -117,6 +124,13 @@ export function fixMissingAgentPluginRegistration(
   return result.success;
 }
 
+export function fixMissingAgentGitSafetyHook(
+  context: RuleFixContext<'missing-agent-git-safety-hook'>
+): boolean {
+  const result = syncGitSafetyHook(context.projectRoot);
+  return result.scriptWritten || result.hookMerged;
+}
+
 export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
   private readonly skillsRoots: readonly string[];
   private readonly primaryAgentDir: string;
@@ -135,7 +149,8 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
 
     super({
       ruleFixers: {
-        'missing-agent-plugin-registration': fixMissingAgentPluginRegistration
+        'missing-agent-plugin-registration': fixMissingAgentPluginRegistration,
+        'missing-agent-git-safety-hook': fixMissingAgentGitSafetyHook
       },
       fixableRuleIds: ['host-duplicate-auditor-skill', 'skill-invalid-yaml-frontmatter'],
       usesThirdPartyTool: false,
@@ -155,6 +170,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       ruleIds: AGENT_PLUGIN_RULES,
       ruleRemediationPhases: {
         'missing-agent-plugin-registration': 'setup',
+        'missing-agent-git-safety-hook': 'setup',
         'host-duplicate-auditor-skill': 'setup',
         'skill-invalid-yaml-frontmatter': 'hygiene',
         'skill-invalid-asset-syntax': 'hygiene',
@@ -167,6 +183,7 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       icon: '🤖',
       ruleDescriptions: {
         'missing-agent-plugin-registration': 'Plugin/skills unregistered in .agents',
+        'missing-agent-git-safety-hook': 'Git Safety Gate hook missing or out of sync',
         'host-duplicate-auditor-skill': 'Host duplicates auditor-owned skill',
         'skill-invalid-yaml-frontmatter': 'Invalid YAML frontmatter in SKILL.md',
         'skill-invalid-asset-syntax': 'Syntax error in skill asset file (JSON/TS)',
@@ -180,6 +197,15 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
           '3. Canonical Solution:\n' +
           '   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically register the plugin and sync skills.\n' +
           '   b) Or run `auditor-init` in the host project.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
+        'missing-agent-git-safety-hook':
+          '📖 REMEDIATION GUIDE: missing-agent-git-safety-hook\n' +
+          '1. Root Cause: The project does not have the Git Safety Gate hook installed or synchronized in `.agents/hooks.json` and `.agents/scripts/prevent_destructive_git.js`. The hook is required to protect the working tree from destructive git commands.\n' +
+          '2. Diagnosis: Check if `.agents/hooks.json` contains "git-safety-gate" and `.agents/scripts/prevent_destructive_git.js` exists.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject and synchronize the Git Safety Gate hook.\n' +
+          '   b) Or run `npm run auditor:init-agent` in the host project.\n' +
           '4. Example / Auto-fix command:\n' +
           '   `npm run auditor:fix`',
         'host-duplicate-auditor-skill':
@@ -215,6 +241,8 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
         include: [
           pluginsJsonRel,
           skillsJsonRel,
+          path.posix.join(primaryAgentDir, 'hooks.json'),
+          path.posix.join(primaryAgentDir, 'scripts/prevent_destructive_git.js'),
           ...SKILLS_LOCK_CANDIDATE_PATHS,
           ...skillsCoverageGlobs
         ]
@@ -235,6 +263,10 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       this.context.setMetric('Agent Plugin Status', 'Disabled');
       this.markRuleNotApplicable(
         'missing-agent-plugin-registration',
+        'config.agentPlugin.enabled = false'
+      );
+      this.markRuleNotApplicable(
+        'missing-agent-git-safety-hook',
         'config.agentPlugin.enabled = false'
       );
       this.markRuleNotApplicable(
@@ -287,6 +319,20 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
       fixable: true
     });
     this.context.setMetric('Agent Plugin Status', 'Missing');
+  }
+
+  private reportMissingGitSafetyHookViolation(): void {
+    const hooksJsonRel = path.posix.join(this.primaryAgentDir, 'hooks.json');
+    this.addViolation({
+      ruleId: 'missing-agent-git-safety-hook',
+      severity: 'error',
+      file: hooksJsonRel,
+      line: 1,
+      message: `Git Safety Gate hook is missing or out of sync in ${hooksJsonRel}. Required to hard-block destructive git commands (git checkout --, git restore, git reset --hard, etc.). Run: npm run auditor:fix`,
+      context: 'git-safety-gate',
+      fixable: true
+    });
+    this.context.setMetric('Git Safety Gate Status', 'Missing');
   }
 
   private validateSkillLineLimit(skillMdPath: string, skillName: string): void {
@@ -790,10 +836,57 @@ export class AgentPluginAuditor extends BaseAuditor<AgentPluginRuleId> {
 
     const pluginsJsonRel = path.posix.join(this.primaryAgentDir, 'plugins.json');
     const skillsJsonRel = path.posix.join(this.primaryAgentDir, 'skills.json');
-    for (const registryFile of [pluginsJsonRel, skillsJsonRel, ...SKILLS_LOCK_CANDIDATE_PATHS]) {
+    const hooksJsonRel = path.posix.join(this.primaryAgentDir, 'hooks.json');
+    const hookScriptRel = path.posix.join(
+      this.primaryAgentDir,
+      'scripts',
+      'prevent_destructive_git.js'
+    );
+    for (const registryFile of [
+      pluginsJsonRel,
+      skillsJsonRel,
+      hooksJsonRel,
+      hookScriptRel,
+      ...SKILLS_LOCK_CANDIDATE_PATHS
+    ]) {
       if (fs.existsSync(path.join(this.projectRoot, registryFile))) {
         this.recordScanned(registryFile);
       }
+    }
+
+    const config =
+      this.projectRoot !== process.cwd()
+        ? await loadAuditConfig(this.projectRoot)
+        : getAuditConfig();
+
+    const isGitSafetyActive = isGitSafetyHookActive(config);
+    if (!isGitSafetyActive) {
+      this.markRuleNotApplicable(
+        'missing-agent-git-safety-hook',
+        'Git safety gate disabled in configuration'
+      );
+    } else {
+      this.runSubAuditorSync('missing-agent-git-safety-hook', () => {
+        const { isComplete } = inspectGitSafetyHook(this.projectRoot, this.primaryAgentDir);
+        if (isComplete) {
+          this.context.setMetric('Git Safety Gate Status', 'Active');
+          return;
+        }
+
+        if (this.isFixActive()) {
+          this.context.logProgress('Auto-fixing missing Git Safety Gate hook...');
+          const fixResult = syncGitSafetyHook(this.projectRoot, this.primaryAgentDir);
+          if (fixResult.scriptWritten || fixResult.hookMerged) {
+            this.context.logProgress(
+              '✅ Injected and synchronized Git Safety Gate hook in .agents/hooks.json'
+            );
+            this.context.setMetric('Git Safety Gate Status', 'Auto-Fixed');
+            return;
+          }
+        }
+
+        this.reportMissingGitSafetyHookViolation();
+      });
     }
 
     const isProvider = isSelfProviderProject(this.projectRoot);

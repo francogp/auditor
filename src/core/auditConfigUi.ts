@@ -21,6 +21,9 @@ export function checkUiSubsystems(config: AuditEngineConfig): readonly string[] 
   if (typeof config.agentPlugin?.enabled !== 'boolean') {
     missing.push("  - 'agentPlugin': Field 'enabled' must be boolean (true or false).");
   }
+  if (config.gitSafety?.enabled !== undefined && typeof config.gitSafety.enabled !== 'boolean') {
+    missing.push("  - 'gitSafety': Field 'enabled' must be boolean (true or false).");
+  }
   if (config.fallow?.maxTargetPriority !== undefined) {
     const val = config.fallow.maxTargetPriority;
     const isValidString = typeof val === 'string' && FALLOW_TARGET_PRIORITIES_SET.has(val);

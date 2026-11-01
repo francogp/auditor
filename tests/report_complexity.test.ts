@@ -6,7 +6,7 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vite-plus/test';
 
-import { runComplexityReport } from '../src/cli/report_complexity.ts';
+import { runComplexityReport, setFallowHealthRunner } from '../src/cli/report_complexity.ts';
 
 describe('report_complexity CLI Tool', () => {
   let originalArgv: string[];
@@ -15,10 +15,48 @@ describe('report_complexity CLI Tool', () => {
   beforeEach(() => {
     originalArgv = [...process.argv];
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    setFallowHealthRunner(() => ({
+      findings: [
+        {
+          path: 'src/cli/report_complexity.ts',
+          name: 'runComplexityReport',
+          line: 100,
+          cognitive: 15,
+          cyclomatic: 10,
+          line_count: 50,
+          exceeded: 'none'
+        },
+        {
+          path: 'src/core/auditConfig.ts',
+          name: 'getAuditConfig',
+          line: 50,
+          cognitive: 8,
+          cyclomatic: 6,
+          line_count: 30,
+          exceeded: 'none'
+        }
+      ],
+      large_functions: [],
+      targets: [
+        {
+          path: 'src/cli/report_complexity.ts',
+          priority: 5,
+          recommendation: 'Good',
+          category: 'low'
+        }
+      ],
+      summary: {
+        average_maintainability: 85,
+        maintainability_index: 80,
+        analyzed_functions: 2
+      }
+    }));
   });
 
   afterEach(() => {
     process.argv = originalArgv;
+    setFallowHealthRunner(null);
     vi.restoreAllMocks();
   });
 

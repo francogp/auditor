@@ -243,7 +243,7 @@ describe('ValidateFallowConfigAuditor', () => {
       const createdContent = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(createdContent.entry).toContain('src/index.ts');
       expect(createdContent.ignorePatterns).toContain('dist/**');
-      expect(createdContent.typeAware).toBe(true);
+      expect(createdContent.typeAware).toEqual({ enabled: true });
       expect(createdContent.duplicates?.nearMiss).toBe(true);
       expect(createdContent.duplicates?.mode).toBe('strict');
     });
@@ -300,6 +300,58 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(violations).toHaveLength(2);
       expect(violations[0]?.message).toContain('unauthorized-glob/**');
       expect(violations[1]?.message).toContain('unauthorized-dep');
+    });
+
+    it('flags fallow-undeclared-config-entry when .fallowrc.json contains unapproved subconfigurations in duplicates or health', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      const config = {
+        entry: ['.auditor/audit.config.ts'],
+        duplicates: {
+          nearMiss: true,
+          mode: 'strict',
+          minLines: 20,
+          minTokens: 120
+        },
+        health: {
+          maxCrap: 500
+        }
+      };
+
+      validateUndeclaredFallowEntries(config as any, auditor);
+      const result = await auditor.finishAudit();
+      const violations = result.findings.filter(
+        (f) => f.ruleId === 'fallow-undeclared-config-entry'
+      );
+
+      // Expecting violations for minLines, minTokens and maxCrap
+      expect(violations.length).toBeGreaterThanOrEqual(3);
+      expect(violations.some((v) => v.message.includes('duplicates.minLines'))).toBe(true);
+      expect(violations.some((v) => v.message.includes('duplicates.minTokens'))).toBe(true);
+      expect(violations.some((v) => v.message.includes('health.maxCrap'))).toBe(true);
+    });
+
+    it('auto-synchronizes duplicates and health subconfigurations when fix: true is active', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(auditor, 'currentFixActive', true);
+
+      const config: any = {
+        $schema: 'https://fallow.tools/schema/config.json',
+        duplicates: {
+          nearMiss: true,
+          mode: 'lenient',
+          minLines: 20
+        },
+        health: {
+          maxCrap: 500
+        }
+      };
+
+      const modified = validateUndeclaredFallowEntries(config, auditor);
+      expect(modified).toBe(true);
+      // Canonical defaults in auditor: nearMiss: true, mode: 'strict', maxCrap: 0, minLines removed
+      expect(config.duplicates.mode).toBe('strict');
+      expect(config.duplicates.minLines).toBeUndefined();
+      expect(config.health.maxCrap).toBe(0);
     });
   });
 });

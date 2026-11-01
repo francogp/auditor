@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { syncGitSafetyHook } from '../src/core/gitSafetyHook.ts';
 import {
   AgentPluginAuditor,
   AGENT_PLUGIN_RULES
@@ -60,6 +61,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
         'utf8'
       );
+      syncGitSafetyHook(tempDir);
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
       const result = await auditor.audit();
@@ -89,6 +91,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         JSON.stringify({ entries: [{ path: 'node_modules/unrelated-plugin' }] }, null, 2),
         'utf8'
       );
+      syncGitSafetyHook(tempDir);
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
       const result = await auditor.audit();
@@ -99,6 +102,74 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       );
       expect(violation).toBeDefined();
       expect(violation?.severity).toBe('error');
+    });
+
+    it('detects missing Git Safety Gate hook when .agents/hooks.json does not exist', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const agentsDir = path.join(tempDir, '.agents');
+      await fs.mkdir(agentsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(agentsDir, 'plugins.json'),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
+        'utf8'
+      );
+      await fs.writeFile(
+        path.join(agentsDir, 'skills.json'),
+        JSON.stringify(
+          { entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const result = await auditor.audit();
+
+      expect(result.summary.errors).toBe(1);
+      expect(result.status).toBe('failed');
+      const violation = result.findings.find((f) => f.ruleId === 'missing-agent-git-safety-hook');
+      expect(violation).toBeDefined();
+      expect(violation?.file).toBe('.agents/hooks.json');
+      expect(violation?.severity).toBe('error');
+    });
+
+    it('auto-fixes missing Git Safety Gate hook in fix mode', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ name: 'my-host-app', version: '1.0.0' }, null, 2),
+        'utf8'
+      );
+      const agentsDir = path.join(tempDir, '.agents');
+      await fs.mkdir(agentsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(agentsDir, 'plugins.json'),
+        JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
+        'utf8'
+      );
+      await fs.writeFile(
+        path.join(agentsDir, 'skills.json'),
+        JSON.stringify(
+          { entries: [{ path: 'node_modules/@francogp/auditor/.agents/skills' }] },
+          null,
+          2
+        ),
+        'utf8'
+      );
+
+      const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
+      const fixResult = await auditor.fix();
+
+      expect(fixResult.summary.errors).toBe(0);
+      expect(fixResult.status).toBe('passed');
+      expect(await fs.stat(path.join(agentsDir, 'hooks.json'))).toBeDefined();
+      expect(
+        await fs.stat(path.join(agentsDir, 'scripts', 'prevent_destructive_git.js'))
+      ).toBeDefined();
     });
   });
 
@@ -125,6 +196,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         ),
         'utf8'
       );
+      syncGitSafetyHook(tempDir);
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
       const result = await auditor.audit();
@@ -146,6 +218,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
         JSON.stringify({ entries: [{ path: 'node_modules/@francogp/auditor' }] }, null, 2),
         'utf8'
       );
+      syncGitSafetyHook(tempDir);
 
       const auditor = new AgentPluginAuditor({ projectRoot: tempDir });
       const result = await auditor.audit();

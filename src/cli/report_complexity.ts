@@ -112,7 +112,17 @@ interface FallowHealthRaw {
   };
 }
 
+export type FallowHealthRunner = () => FallowHealthRaw;
+let customFallowHealthRunner: FallowHealthRunner | null = null;
+
+export function setFallowHealthRunner(runner: FallowHealthRunner | null): void {
+  customFallowHealthRunner = runner;
+}
+
 function runFallowHealth(): FallowHealthRaw {
+  if (customFallowHealthRunner) {
+    return customFallowHealthRunner();
+  }
   try {
     const candidates = [
       path.resolve(process.cwd(), 'node_modules/fallow/bin/fallow'),

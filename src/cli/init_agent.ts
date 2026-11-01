@@ -10,13 +10,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { isSelfProviderProject } from '../core/auditConfig.ts';
+import { getAuditConfig, isSelfProviderProject } from '../core/auditConfig.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
   type CittyArgsDef
 } from '../core/cli/cittyHarness.ts';
+import { isGitSafetyHookActive, syncGitSafetyHook } from '../core/gitSafetyHook.ts';
 import { safeReadFileSync, safeJsonParse } from '../core/safeUtils.ts';
 import { isMainModule } from './cliUtils.ts';
 
@@ -93,10 +94,17 @@ export function initAgentSkill(options: InitAgentOptions = {}): {
     options.dryRun
   );
 
-  const anyCreated = pluginCreated || skillsCreated;
+  const config = getAuditConfig(targetDir);
+  let hookCreated = false;
+  if (!options.dryRun && isGitSafetyHookActive(config)) {
+    const hookSync = syncGitSafetyHook(targetDir);
+    hookCreated = hookSync.scriptWritten || hookSync.hookMerged;
+  }
+
+  const anyCreated = pluginCreated || skillsCreated || hookCreated;
   const message = anyCreated
-    ? `Successfully registered @francogp/auditor in .agents/plugins.json and .agents/skills.json`
-    : `@francogp/auditor plugin and skills are already registered in .agents`;
+    ? `Successfully registered @francogp/auditor plugin, skills and Git Safety Gate in .agents/`
+    : `@francogp/auditor plugin, skills and Git Safety Gate are already registered in .agents`;
 
   return {
     success: true,

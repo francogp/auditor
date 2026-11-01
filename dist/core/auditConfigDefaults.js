@@ -180,7 +180,14 @@ const DEFAULT_AUDIT_CONFIG = {
 		duplicateModuleThresholdBytes: 512e3,
 		topModulesLimit: 15
 	},
-	agentPlugin: { enabled: true },
+	agentPlugin: {
+		enabled: true,
+		gitSafetyHook: true
+	},
+	gitSafety: {
+		enabled: true,
+		preventDestructiveCommands: true
+	},
 	security: { enabled: true },
 	documentation: {
 		enabled: true,
@@ -406,6 +413,7 @@ function collectDeclaredSubsystems(config) {
 		"templates",
 		"bundle",
 		"agentPlugin",
+		"gitSafety",
 		"security",
 		"fallow",
 		"packageDistribution",

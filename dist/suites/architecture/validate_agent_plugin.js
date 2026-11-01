@@ -8,6 +8,7 @@ import "../../core/auditConfig.js";
 import "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { SharedAstContext } from "../../core/astContext.js";
+import { inspectGitSafetyHook, isGitSafetyHookActive, syncGitSafetyHook } from "../../core/gitSafetyHook.js";
 import { initAgentSkill } from "../../cli/init_agent.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -27,6 +28,7 @@ import yaml from "yaml";
 enableCompileCache();
 const AGENT_PLUGIN_RULES = [
 	"missing-agent-plugin-registration",
+	"missing-agent-git-safety-hook",
 	"host-duplicate-auditor-skill",
 	"skill-invalid-yaml-frontmatter",
 	"skill-invalid-asset-syntax",
@@ -65,6 +67,10 @@ function isPluginRegisteredInAgents(projectRoot, primaryAgentDir = ".agents") {
 function fixMissingAgentPluginRegistration(context) {
 	return initAgentSkill({ targetDir: context.projectRoot }).success;
 }
+function fixMissingAgentGitSafetyHook(context) {
+	const result = syncGitSafetyHook(context.projectRoot);
+	return result.scriptWritten || result.hookMerged;
+}
 var AgentPluginAuditor = class extends BaseAuditor {
 	skillsRoots;
 	primaryAgentDir;
@@ -78,7 +84,10 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		const pluginsJsonRel = path.posix.join(primaryAgentDir, "plugins.json");
 		const skillsJsonRel = path.posix.join(primaryAgentDir, "skills.json");
 		super({
-			ruleFixers: { "missing-agent-plugin-registration": fixMissingAgentPluginRegistration },
+			ruleFixers: {
+				"missing-agent-plugin-registration": fixMissingAgentPluginRegistration,
+				"missing-agent-git-safety-hook": fixMissingAgentGitSafetyHook
+			},
 			fixableRuleIds: ["host-duplicate-auditor-skill", "skill-invalid-yaml-frontmatter"],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
@@ -97,6 +106,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			ruleIds: AGENT_PLUGIN_RULES,
 			ruleRemediationPhases: {
 				"missing-agent-plugin-registration": "setup",
+				"missing-agent-git-safety-hook": "setup",
 				"host-duplicate-auditor-skill": "setup",
 				"skill-invalid-yaml-frontmatter": "hygiene",
 				"skill-invalid-asset-syntax": "hygiene",
@@ -109,6 +119,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			icon: "🤖",
 			ruleDescriptions: {
 				"missing-agent-plugin-registration": "Plugin/skills unregistered in .agents",
+				"missing-agent-git-safety-hook": "Git Safety Gate hook missing or out of sync",
 				"host-duplicate-auditor-skill": "Host duplicates auditor-owned skill",
 				"skill-invalid-yaml-frontmatter": "Invalid YAML frontmatter in SKILL.md",
 				"skill-invalid-asset-syntax": "Syntax error in skill asset file (JSON/TS)",
@@ -116,6 +127,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			},
 			ruleRemediations: {
 				"missing-agent-plugin-registration": "📖 REMEDIATION GUIDE: missing-agent-plugin-registration\n1. Root Cause: The host project does not have the `@francogp/auditor` plugin registered in `.agents/plugins.json` or lacks the corresponding skills catalog in `.agents/skills/`.\n2. Diagnosis: Check if `.agents/plugins.json` exists and references the auditor plugin.\n3. Canonical Solution:\n   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically register the plugin and sync skills.\n   b) Or run `auditor-init` in the host project.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
+				"missing-agent-git-safety-hook": "📖 REMEDIATION GUIDE: missing-agent-git-safety-hook\n1. Root Cause: The project does not have the Git Safety Gate hook installed or synchronized in `.agents/hooks.json` and `.agents/scripts/prevent_destructive_git.js`. The hook is required to protect the working tree from destructive git commands.\n2. Diagnosis: Check if `.agents/hooks.json` contains \"git-safety-gate\" and `.agents/scripts/prevent_destructive_git.js` exists.\n3. Canonical Solution:\n   a) Run canonical auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject and synchronize the Git Safety Gate hook.\n   b) Or run `npm run auditor:init-agent` in the host project.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"host-duplicate-auditor-skill": "📖 REMEDIATION GUIDE: host-duplicate-auditor-skill\n1. Root Cause: A consumer host project cloned, updated, or registered in its local `.agents/skills/` or `skills-lock.json` a skill that belongs to `@francogp/auditor` (e.g. `fallow`, `gsap-*`, `vue-*`, `vitest`, `valibot`, `pinia`, `architecture`, `auditor`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=host-duplicate-auditor-skill` to inspect the duplicated skill directory or lock entry.\n3. Canonical Solution: Each project may ONLY manage or lock its own project-local skills. Consumer host projects must never update or duplicate skills distributed by `@francogp/auditor` (ask the `@francogp/auditor` maintainer to update auditor skills upstream). Run `npm run auditor:fix` to remove the duplicate host skill or lock entry.\n4. Example / Auto-fix command:\n   `npm run auditor:fix`",
 				"skill-invalid-yaml-frontmatter": "📖 REMEDIATION GUIDE: skill-invalid-yaml-frontmatter\n1. Root Cause: A `SKILL.md` file contains syntax errors in its YAML frontmatter, lacks required `name` or `description`, or in custom in-house skills fails to use folded block scalar (`description: >-`).\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-yaml-frontmatter` to identify the specific skill and YAML validation error.\n3. Canonical Solution: Use the folded block scalar `description: >-` with 2-space indentation (Invariant #15 of /architecture). Ensure `name: <name>` matches the directory name.\n4. Example / Auto-fix command:\n   `npm run auditor:fix` (auto-formats unquoted/quoted descriptions into canonical `description: >-`).",
 				"skill-invalid-asset-syntax": "📖 REMEDIATION GUIDE: skill-invalid-asset-syntax\n1. Root Cause: A secondary asset file within an agent skill (such as an evaluation schema in evals/*.json, blueprint *.json, or code template/example *.ts) contains malformed JSON or TypeScript syntax errors.\n2. Diagnosis: Run `npm run auditor:findings -- rule=skill-invalid-asset-syntax` to inspect the reported file and parser error message.\n3. Canonical Solution: Repair the JSON syntax (ensure double quotes on keys, remove trailing commas) or fix TypeScript syntax errors in the reported template/example file.\n4. Example / Auto-fix command:\n   Inspect and repair syntax in the target file, then verify with `npm run auditor:agent-plugin`.",
@@ -124,6 +136,8 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			coverage: { include: [
 				pluginsJsonRel,
 				skillsJsonRel,
+				path.posix.join(primaryAgentDir, "hooks.json"),
+				path.posix.join(primaryAgentDir, "scripts/prevent_destructive_git.js"),
 				...SKILLS_LOCK_CANDIDATE_PATHS,
 				...skillsCoverageGlobs
 			] },
@@ -137,6 +151,7 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		if ((this.projectRoot !== process.cwd() ? await loadAuditConfig(this.projectRoot) : getAuditConfig()).agentPlugin?.enabled === false) {
 			this.context.setMetric("Agent Plugin Status", "Disabled");
 			this.markRuleNotApplicable("missing-agent-plugin-registration", "config.agentPlugin.enabled = false");
+			this.markRuleNotApplicable("missing-agent-git-safety-hook", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("host-duplicate-auditor-skill", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("skill-invalid-yaml-frontmatter", "config.agentPlugin.enabled = false");
 			this.markRuleNotApplicable("skill-invalid-asset-syntax", "config.agentPlugin.enabled = false");
@@ -175,6 +190,19 @@ var AgentPluginAuditor = class extends BaseAuditor {
 			fixable: true
 		});
 		this.context.setMetric("Agent Plugin Status", "Missing");
+	}
+	reportMissingGitSafetyHookViolation() {
+		const hooksJsonRel = path.posix.join(this.primaryAgentDir, "hooks.json");
+		this.addViolation({
+			ruleId: "missing-agent-git-safety-hook",
+			severity: "error",
+			file: hooksJsonRel,
+			line: 1,
+			message: `Git Safety Gate hook is missing or out of sync in ${hooksJsonRel}. Required to hard-block destructive git commands (git checkout --, git restore, git reset --hard, etc.). Run: npm run auditor:fix`,
+			context: "git-safety-gate",
+			fixable: true
+		});
+		this.context.setMetric("Git Safety Gate Status", "Missing");
 	}
 	validateSkillLineLimit(skillMdPath, skillName) {
 		if (isLockedSkillPath(skillMdPath, this.projectRoot)) return;
@@ -543,11 +571,34 @@ var AgentPluginAuditor = class extends BaseAuditor {
 		if (await this.checkGating()) return;
 		const pluginsJsonRel = path.posix.join(this.primaryAgentDir, "plugins.json");
 		const skillsJsonRel = path.posix.join(this.primaryAgentDir, "skills.json");
+		const hooksJsonRel = path.posix.join(this.primaryAgentDir, "hooks.json");
+		const hookScriptRel = path.posix.join(this.primaryAgentDir, "scripts", "prevent_destructive_git.js");
 		for (const registryFile of [
 			pluginsJsonRel,
 			skillsJsonRel,
+			hooksJsonRel,
+			hookScriptRel,
 			...SKILLS_LOCK_CANDIDATE_PATHS
 		]) if (fs.existsSync(path.join(this.projectRoot, registryFile))) this.recordScanned(registryFile);
+		const config = this.projectRoot !== process.cwd() ? await loadAuditConfig(this.projectRoot) : getAuditConfig();
+		if (!isGitSafetyHookActive(config)) this.markRuleNotApplicable("missing-agent-git-safety-hook", "Git safety gate disabled in configuration");
+		else this.runSubAuditorSync("missing-agent-git-safety-hook", () => {
+			const { isComplete } = inspectGitSafetyHook(this.projectRoot, this.primaryAgentDir);
+			if (isComplete) {
+				this.context.setMetric("Git Safety Gate Status", "Active");
+				return;
+			}
+			if (this.isFixActive()) {
+				this.context.logProgress("Auto-fixing missing Git Safety Gate hook...");
+				const fixResult = syncGitSafetyHook(this.projectRoot, this.primaryAgentDir);
+				if (fixResult.scriptWritten || fixResult.hookMerged) {
+					this.context.logProgress("✅ Injected and synchronized Git Safety Gate hook in .agents/hooks.json");
+					this.context.setMetric("Git Safety Gate Status", "Auto-Fixed");
+					return;
+				}
+			}
+			this.reportMissingGitSafetyHookViolation();
+		});
 		const isProvider = isSelfProviderProject(this.projectRoot);
 		if (isProvider) {
 			this.context.setMetric("Agent Plugin Status", "Provider Validated");
@@ -597,4 +648,4 @@ var AgentPluginAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new AgentPluginAuditor());
-export { AGENT_PLUGIN_RULES, AgentPluginAuditor, fixMissingAgentPluginRegistration };
+export { AGENT_PLUGIN_RULES, AgentPluginAuditor, fixMissingAgentGitSafetyHook, fixMissingAgentPluginRegistration };

@@ -18,6 +18,7 @@ import path from 'node:path';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import {
   type CanonicalRuleSeverityLevel,
+  type FallowTypeAwareRequirePolicy,
   CANONICAL_RULE_SEVERITY_LEVELS
 } from '../../core/auditConfigTypes.ts';
 import {
@@ -32,6 +33,10 @@ import {
 import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { isPathContained, toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 import { tryCatchSync, safeJsonParse } from '../../core/safeUtils.ts';
+import {
+  deepCompareSatelliteConfig,
+  mergeSatelliteConfigProjection
+} from '../../core/satelliteConfigParity.ts';
 import {
   validateSatelliteUndeclaredEntries,
   getAllowedSatellitePathExcludes
@@ -111,6 +116,12 @@ export const FALLOW_CYCLOMATIC_POLICIES = ['standard', 'literal-membership'] as 
 export type FallowCyclomaticPolicy = (typeof FALLOW_CYCLOMATIC_POLICIES)[number];
 const VALID_CYCLOMATIC_POLICIES: ReadonlySet<string> = new Set<string>(FALLOW_CYCLOMATIC_POLICIES);
 
+export interface FallowTypeAwareConfig {
+  enabled?: boolean;
+  projects?: string[];
+  require?: FallowTypeAwareRequirePolicy;
+}
+
 export interface FallowConfigSchema {
   $schema?: string;
   entry?: string[];
@@ -119,7 +130,7 @@ export interface FallowConfigSchema {
   ignoreExports?: FallowIgnoreExportEntry[];
   markupExtensions?: string[];
   rules?: Record<string, string>;
-  typeAware?: boolean;
+  typeAware?: boolean | FallowTypeAwareConfig;
   duplicates?: {
     mode?: string;
     nearMiss?: boolean;
@@ -150,7 +161,9 @@ export function createDefaultFallowConfigContent(): string {
         $schema: 'https://fallow.tools/schema/config.json',
         entry: ['src/index.ts'],
         ignorePatterns: ['dist/**', 'scratch/**', 'tests/**'],
-        typeAware: true,
+        typeAware: {
+          enabled: true
+        },
         duplicates: {
           nearMiss: true,
           mode: 'strict'
@@ -614,63 +627,257 @@ export function validateFallowWorkspaceDiagnostics(
   return modified;
 }
 
+export function projectFallowConfigFromAuditConfig(
+  auditConfig: ReturnType<typeof getAuditConfig>
+): Partial<FallowConfigSchema> {
+  const duplicatesCfg: Record<string, unknown> = {
+    nearMiss: auditConfig.fallow?.duplicates?.nearMiss ?? true,
+    mode: auditConfig.fallow?.duplicates?.mode ?? 'strict'
+  };
+  if (auditConfig.fallow?.duplicates?.minLines !== undefined) {
+    duplicatesCfg['minLines'] = auditConfig.fallow.duplicates.minLines;
+  }
+  if (auditConfig.fallow?.duplicates?.minTokens !== undefined) {
+    duplicatesCfg['minTokens'] = auditConfig.fallow.duplicates.minTokens;
+  }
+  if (auditConfig.fallow?.duplicates?.minOccurrences !== undefined) {
+    duplicatesCfg['minOccurrences'] = auditConfig.fallow.duplicates.minOccurrences;
+  }
+
+  const healthCfg: Record<string, unknown> = {
+    maxCrap: auditConfig.fallow?.health?.maxCrap ?? 0
+  };
+  if (auditConfig.fallow?.health?.maxCyclomatic !== undefined) {
+    healthCfg['maxCyclomatic'] = auditConfig.fallow.health.maxCyclomatic;
+  }
+  if (auditConfig.fallow?.health?.maxCognitive !== undefined) {
+    healthCfg['maxCognitive'] = auditConfig.fallow.health.maxCognitive;
+  }
+  if (auditConfig.fallow?.health?.cyclomaticPolicy !== undefined) {
+    healthCfg['cyclomaticPolicy'] = auditConfig.fallow.health.cyclomaticPolicy;
+  }
+
+  let typeAwareCfg: FallowTypeAwareConfig;
+  if (auditConfig.fallow?.typeAware !== undefined) {
+    if (typeof auditConfig.fallow.typeAware === 'boolean') {
+      typeAwareCfg = { enabled: auditConfig.fallow.typeAware };
+    } else {
+      typeAwareCfg = {
+        enabled: auditConfig.fallow.typeAware.enabled,
+        projects: auditConfig.fallow.typeAware.projects
+          ? [...auditConfig.fallow.typeAware.projects]
+          : undefined,
+        require: auditConfig.fallow.typeAware.require
+      };
+    }
+  } else {
+    typeAwareCfg = { enabled: true };
+  }
+
+  return {
+    typeAware: typeAwareCfg,
+    duplicates: duplicatesCfg,
+    health: healthCfg
+  };
+}
+
+function applyFallowConfigFixes(
+  config: FallowConfigSchema,
+  projected: Partial<FallowConfigSchema>
+): boolean {
+  const patch: Record<string, unknown> = {};
+  if (projected.duplicates) patch['duplicates'] = projected.duplicates;
+  if (projected.health) patch['health'] = projected.health;
+  if (projected.typeAware !== undefined) patch['typeAware'] = projected.typeAware;
+
+  return mergeSatelliteConfigProjection(config as Record<string, unknown>, patch);
+}
+
+function validateUndeclaredTypeAware(
+  config: FallowConfigSchema,
+  projected: Partial<FallowConfigSchema>,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (config.typeAware === undefined) return;
+
+  if (
+    typeof config.typeAware !== 'object' ||
+    config.typeAware === null ||
+    Array.isArray(config.typeAware)
+  ) {
+    auditor.addViolation({
+      ruleId: 'fallow-undeclared-config-entry',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: `Invalid typeAware in .fallowrc.json: expected object { enabled: boolean }, found ${typeof config.typeAware}.`,
+      context: 'typeAware',
+      fixable: true
+    });
+    return;
+  }
+
+  const typeAwareDiffs = deepCompareSatelliteConfig({
+    ssotProjection: projected.typeAware,
+    actualConfig: config.typeAware,
+    pathPrefix: 'typeAware'
+  });
+  for (const diff of typeAwareDiffs) {
+    auditor.addViolation({
+      ruleId: 'fallow-undeclared-config-entry',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: diff.message,
+      context: diff.path,
+      fixable: true
+    });
+  }
+}
+
+function validateUndeclaredDuplicates(
+  config: FallowConfigSchema,
+  projected: Partial<FallowConfigSchema>,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (!config.duplicates) return;
+
+  const dupDiffs = deepCompareSatelliteConfig({
+    ssotProjection: projected.duplicates,
+    actualConfig: config.duplicates,
+    pathPrefix: 'duplicates'
+  });
+  for (const diff of dupDiffs) {
+    auditor.addViolation({
+      ruleId: 'fallow-undeclared-config-entry',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: diff.message,
+      context: diff.path,
+      fixable: true
+    });
+  }
+}
+
+function validateUndeclaredHealth(
+  config: FallowConfigSchema,
+  projected: Partial<FallowConfigSchema>,
+  auditConfig: ReturnType<typeof getAuditConfig>,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (!config.health) return;
+
+  const allowedHealthKeys = new Set<string>();
+  if (
+    config.health.cyclomaticPolicy &&
+    VALID_CYCLOMATIC_POLICIES.has(config.health.cyclomaticPolicy) &&
+    auditConfig.fallow?.health?.cyclomaticPolicy === undefined
+  ) {
+    allowedHealthKeys.add('cyclomaticPolicy');
+  }
+
+  const healthDiffs = deepCompareSatelliteConfig({
+    ssotProjection: projected.health,
+    actualConfig: config.health,
+    allowedExtraKeys: allowedHealthKeys,
+    pathPrefix: 'health'
+  });
+  for (const diff of healthDiffs) {
+    auditor.addViolation({
+      ruleId: 'fallow-undeclared-config-entry',
+      severity: 'error',
+      file: '.fallowrc.json',
+      line: 1,
+      message: diff.message,
+      context: diff.path,
+      fixable: true
+    });
+  }
+}
+
+function validateUndeclaredIgnorePatterns(
+  config: FallowConfigSchema,
+  auditConfig: ReturnType<typeof getAuditConfig>,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (!Array.isArray(config.ignorePatterns)) return;
+
+  const testGlobs = (auditConfig.paths?.testRoots ?? []).map((t) => `${normalizePosixPath(t)}/**`);
+  const effectiveGlobs = getEffectiveIgnoreGlobs(auditor.projectRoot, {
+    extraGlobs: testGlobs
+  });
+  const allowedGlobs = new Set<string>([
+    ...getAllowedSatellitePathExcludes(auditConfig, auditor.projectRoot),
+    ...(auditConfig.fallow?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
+    ...(auditConfig.fallow?.ignorePatterns ?? []).map((p) => normalizePosixPath(p)),
+    ...(auditConfig.fallow?.exemptPaths ?? []).map((p) => normalizePosixPath(p))
+  ]);
+
+  validateSatelliteUndeclaredEntries(
+    config.ignorePatterns,
+    allowedGlobs,
+    effectiveGlobs,
+    (pattern, index) => {
+      auditor.addViolation({
+        ruleId: 'fallow-undeclared-config-entry',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: index + 1,
+        message: `Undeclared ignore pattern '${pattern}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreGlobs' or 'paths.ignoreGlobs', or remove it from .fallowrc.json.`,
+        context: pattern
+      });
+    }
+  );
+}
+
+function validateUndeclaredIgnoreDependencies(
+  config: FallowConfigSchema,
+  auditConfig: ReturnType<typeof getAuditConfig>,
+  auditor: ValidateFallowConfigAuditor
+): void {
+  if (!Array.isArray(config.ignoreDependencies)) return;
+
+  const allowedDeps = new Set<string>([
+    ...(auditConfig.fallow?.ignoreDependencies ?? []),
+    ...(auditConfig.fallow?.exemptDependencies ?? [])
+  ]);
+
+  for (let i = 0; i < config.ignoreDependencies.length; i++) {
+    const dep = config.ignoreDependencies[i]!;
+    if (!allowedDeps.has(dep)) {
+      auditor.addViolation({
+        ruleId: 'fallow-undeclared-config-entry',
+        severity: 'error',
+        file: '.fallowrc.json',
+        line: i + 1,
+        message: `Undeclared dependency exemption '${dep}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreDependencies', or remove it from .fallowrc.json.`,
+        context: dep
+      });
+    }
+  }
+}
+
 export function validateUndeclaredFallowEntries(
   config: FallowConfigSchema,
   auditor: ValidateFallowConfigAuditor
-): void {
+): boolean {
   const auditConfig = getAuditConfig(auditor.projectRoot);
+  const projected = projectFallowConfigFromAuditConfig(auditConfig);
+  let modified = false;
 
-  if (Array.isArray(config.ignorePatterns)) {
-    const testGlobs = (auditConfig.paths?.testRoots ?? []).map(
-      (t) => `${normalizePosixPath(t)}/**`
-    );
-    const effectiveGlobs = getEffectiveIgnoreGlobs(auditor.projectRoot, {
-      extraGlobs: testGlobs
-    });
-    const allowedGlobs = new Set<string>([
-      ...getAllowedSatellitePathExcludes(auditConfig, auditor.projectRoot),
-      ...(auditConfig.fallow?.ignoreGlobs ?? []).map((p) => normalizePosixPath(p)),
-      ...(auditConfig.fallow?.ignorePatterns ?? []).map((p) => normalizePosixPath(p)),
-      ...(auditConfig.fallow?.exemptPaths ?? []).map((p) => normalizePosixPath(p))
-    ]);
-
-    validateSatelliteUndeclaredEntries(
-      config.ignorePatterns,
-      allowedGlobs,
-      effectiveGlobs,
-      (pattern, index) => {
-        auditor.addViolation({
-          ruleId: 'fallow-undeclared-config-entry',
-          severity: 'error',
-          file: '.fallowrc.json',
-          line: index + 1,
-          message: `Undeclared ignore pattern '${pattern}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreGlobs' or 'paths.ignoreGlobs', or remove it from .fallowrc.json.`,
-          context: pattern
-        });
-      }
-    );
+  if (auditor.isFixActive()) {
+    modified = applyFallowConfigFixes(config, projected);
+  } else {
+    validateUndeclaredTypeAware(config, projected, auditor);
+    validateUndeclaredDuplicates(config, projected, auditor);
+    validateUndeclaredHealth(config, projected, auditConfig, auditor);
   }
 
-  if (Array.isArray(config.ignoreDependencies)) {
-    const allowedDeps = new Set<string>([
-      ...(auditConfig.fallow?.ignoreDependencies ?? []),
-      ...(auditConfig.fallow?.exemptDependencies ?? [])
-    ]);
+  validateUndeclaredIgnorePatterns(config, auditConfig, auditor);
+  validateUndeclaredIgnoreDependencies(config, auditConfig, auditor);
 
-    for (let i = 0; i < config.ignoreDependencies.length; i++) {
-      const dep = config.ignoreDependencies[i]!;
-      if (!allowedDeps.has(dep)) {
-        auditor.addViolation({
-          ruleId: 'fallow-undeclared-config-entry',
-          severity: 'error',
-          file: '.fallowrc.json',
-          line: i + 1,
-          message: `Undeclared dependency exemption '${dep}' in .fallowrc.json. To legitimize this exemption, declare it in .auditor/audit.config.ts under 'fallow.ignoreDependencies', or remove it from .fallowrc.json.`,
-          context: dep
-        });
-      }
-    }
-  }
+  return modified;
 }
 
 export interface ValidateFallowConfigOptions {
@@ -841,7 +1048,9 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
     });
 
     this.runSubAuditorSync('fallow-undeclared-config-entry', () => {
-      validateUndeclaredFallowEntries(validConfig, this);
+      if (validateUndeclaredFallowEntries(validConfig, this)) {
+        modified = true;
+      }
     });
 
     if (!Array.isArray(validConfig.ignoreExports) || validConfig.ignoreExports.length === 0) {

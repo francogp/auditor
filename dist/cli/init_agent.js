@@ -1,9 +1,11 @@
 #!/usr/bin/env -S node --experimental-strip-types
 import { safeJsonParse, safeReadFileSync } from "../core/safeUtils.js";
+import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../core/auditProjectIdentity.js";
 import "../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import { isMainModule } from "./cliUtils.js";
+import { isGitSafetyHookActive, syncGitSafetyHook } from "../core/gitSafetyHook.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/cli/init_agent.ts
@@ -41,10 +43,16 @@ function initAgentSkill(options = {}) {
 	if (!fs.existsSync(agentsDir) && !options.dryRun) fs.mkdirSync(agentsDir, { recursive: true });
 	const pluginCreated = registerAgentEntry(path.join(agentsDir, "plugins.json"), "node_modules/@francogp/auditor", (p) => p === "node_modules/@francogp/auditor" || p.endsWith("@francogp/auditor"), options.dryRun);
 	const skillsCreated = registerAgentEntry(path.join(agentsDir, "skills.json"), "node_modules/@francogp/auditor/.agents/skills", (p) => p === "node_modules/@francogp/auditor/.agents/skills" || p.includes("@francogp/auditor"), options.dryRun);
-	const anyCreated = pluginCreated || skillsCreated;
+	const config = getAuditConfig(targetDir);
+	let hookCreated = false;
+	if (!options.dryRun && isGitSafetyHookActive(config)) {
+		const hookSync = syncGitSafetyHook(targetDir);
+		hookCreated = hookSync.scriptWritten || hookSync.hookMerged;
+	}
+	const anyCreated = pluginCreated || skillsCreated || hookCreated;
 	return {
 		success: true,
-		message: anyCreated ? `Successfully registered @francogp/auditor in .agents/plugins.json and .agents/skills.json` : `@francogp/auditor plugin and skills are already registered in .agents`,
+		message: anyCreated ? `Successfully registered @francogp/auditor plugin, skills and Git Safety Gate in .agents/` : `@francogp/auditor plugin, skills and Git Safety Gate are already registered in .agents`,
 		created: anyCreated
 	};
 }

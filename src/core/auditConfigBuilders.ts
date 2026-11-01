@@ -48,6 +48,7 @@ import {
   type AuditVitePlusStagedConfig,
   type AuditBundleConfig,
   type AuditAgentPluginConfig,
+  type AuditGitSafetyConfig,
   type AuditAnimationConfig,
   type AuditConstantsConfig,
   type AuditSecurityConfig,
@@ -304,6 +305,7 @@ export function buildBundleConfig(raw?: DeepPartial<AuditBundleConfig>): AuditBu
 
 export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfig>): {
   agentPlugin: AuditAgentPluginConfig;
+  gitSafety: AuditGitSafetyConfig;
   security: AuditSecurityConfig;
   animation: AuditAnimationConfig;
 } {
@@ -316,6 +318,10 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
     config.agentPlugin,
     DEFAULT_AUDIT_CONFIG.agentPlugin?.enabled ?? true
   );
+  const gitSafetyBase = buildBaseSubsystemConfig<AuditGitSafetyConfig>(
+    config.gitSafety,
+    DEFAULT_AUDIT_CONFIG.gitSafety?.enabled ?? true
+  );
   const securityBase = buildBaseSubsystemConfig<AuditSecurityConfig>(config.security, secEnabled);
   const animationBase = buildBaseSubsystemConfig<AuditAnimationConfig>(
     config.animation,
@@ -323,7 +329,19 @@ export function buildAgentAndSecurityConfig(config: DeepPartial<AuditEngineConfi
   );
   return {
     agentPlugin: {
-      ...agentPluginBase
+      ...agentPluginBase,
+      gitSafetyHook:
+        config.agentPlugin?.gitSafetyHook ??
+        DEFAULT_AUDIT_CONFIG.agentPlugin?.gitSafetyHook ??
+        true,
+      preventDestructiveGit: config.agentPlugin?.preventDestructiveGit
+    },
+    gitSafety: {
+      ...gitSafetyBase,
+      preventDestructiveCommands:
+        config.gitSafety?.preventDestructiveCommands ??
+        DEFAULT_AUDIT_CONFIG.gitSafety?.preventDestructiveCommands ??
+        true
     },
     security: {
       ...securityBase,

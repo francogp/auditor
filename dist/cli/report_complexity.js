@@ -60,7 +60,12 @@ function parseCommandLineArgs() {
 		isHuman: resolveHumanModeFromArgs(parsed)
 	};
 }
+let customFallowHealthRunner = null;
+function setFallowHealthRunner(runner) {
+	customFallowHealthRunner = runner;
+}
 function runFallowHealth() {
+	if (customFallowHealthRunner) return customFallowHealthRunner();
 	try {
 		const candidates = [
 			path.resolve(process.cwd(), "node_modules/fallow/bin/fallow"),
@@ -344,4 +349,4 @@ if (isMainModule(import.meta.url)) {
 	bootstrapCliProject();
 	runComplexityReport();
 }
-export { FILE_PATH_TAIL_CHARS, MAX_FILE_PATH_DISPLAY_LENGTH, MAX_FUNCTION_NAME_CHARS, MAX_RECOMMENDATION_CHARS, MAX_RECOMMENDED_COGNITIVE, MAX_RECOMMENDED_CYCLOMATIC, MAX_RECOMMENDED_LOC, runComplexityReport };
+export { FILE_PATH_TAIL_CHARS, MAX_FILE_PATH_DISPLAY_LENGTH, MAX_FUNCTION_NAME_CHARS, MAX_RECOMMENDATION_CHARS, MAX_RECOMMENDED_COGNITIVE, MAX_RECOMMENDED_CYCLOMATIC, MAX_RECOMMENDED_LOC, runComplexityReport, setFallowHealthRunner };
