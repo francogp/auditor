@@ -52,7 +52,9 @@ function executeAuditorStreaming(task, args, onSubProgress) {
 		let stderrBuffer = "";
 		let stderrLineBuffer = "";
 		let stdoutLineBuffer = "";
+		const workingDir = task.cwd ?? process.env.AUDIT_PROJECT_ROOT ?? process.cwd();
 		const child = spawn(task.command, args, {
+			cwd: workingDir,
 			stdio: [
 				"ignore",
 				"pipe",
@@ -61,7 +63,8 @@ function executeAuditorStreaming(task, args, onSubProgress) {
 			shell: task.shell ?? false,
 			env: {
 				...process.env,
-				AUDIT_SUBPROCESS: "true"
+				AUDIT_SUBPROCESS: "true",
+				AUDIT_PROJECT_ROOT: workingDir
 			}
 		});
 		const timeoutLimit = task.timeoutMs !== void 0 ? task.timeoutMs : DEFAULT_RUNNER_TIMEOUT_MS;

@@ -100,12 +100,16 @@ export function executeAuditorStreaming(
     let stderrLineBuffer = '';
     let stdoutLineBuffer = '';
 
+    const workingDir = task.cwd ?? process.env.AUDIT_PROJECT_ROOT ?? process.cwd();
+
     const child = spawn(task.command, args, {
+      cwd: workingDir,
       stdio: ['ignore', 'pipe', 'pipe'],
       shell: task.shell ?? false,
       env: {
         ...process.env,
-        AUDIT_SUBPROCESS: 'true'
+        AUDIT_SUBPROCESS: 'true',
+        AUDIT_PROJECT_ROOT: workingDir
       }
     });
 

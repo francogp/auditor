@@ -486,6 +486,7 @@ export interface AuditTaskDefinition {
   scriptPath: string;
   command: string;
   args: string[];
+  cwd?: string;
   fast?: boolean;
   order?: number;
   timeoutMs?: number;

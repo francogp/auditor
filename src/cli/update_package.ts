@@ -44,6 +44,7 @@ export interface UpdateAuditorResult {
   newVersion: string;
   updated: boolean;
   updateAvailable?: boolean;
+  setupHealthy?: boolean;
   error?: string;
 }
 
@@ -287,62 +288,116 @@ export function updateAuditorPackage(options: UpdateAuditorOptions = {}): Update
   }
 
   runAuditorFixAutoRemediation(projectRoot, options.silent);
+  const setupHealthy = runAuditorSetupCheck(projectRoot, options.silent);
+
+  if (!options.silent) {
+    if (setupHealthy) {
+      console.log(
+        styleText(
+          'green',
+          '[OK] Phase setup verification passed: Project infrastructure and satellite configurations are healthy.\n'
+        )
+      );
+    } else {
+      console.log(
+        styleText(
+          'yellow',
+          '[Warning] Phase setup reported unresolved configuration issues. Run "npm run auditor:setup" to inspect.\n'
+        )
+      );
+    }
+    console.log(
+      styleText(
+        'cyan',
+        '[Tip] Run "npm run auditor:config" to discover new hardening opportunities and default settings for your project.\n'
+      )
+    );
+  }
 
   return {
     success: true,
     projectRoot,
     previousVersion,
     newVersion,
-    updated
+    updated,
+    setupHealthy
   };
+}
+
+function runHostAuditorSubprocess(
+  projectRoot: string,
+  options: {
+    readonly scriptName: string;
+    readonly directCliArg: string;
+    readonly logMessage: string;
+    readonly silent?: boolean;
+  }
+): childProcess.SpawnSyncReturns<string> {
+  const isSelf = isSelfProviderProject(projectRoot);
+  if (!options.silent) {
+    console.log(styleText('cyan', options.logMessage));
+  }
+
+  const hostAuditorPkg = path.join(
+    projectRoot,
+    'node_modules/@francogp/auditor/dist/cli/audit_full.js'
+  );
+
+  let cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  let args = ['run', options.scriptName];
+
+  if (!isSelf && fs.existsSync(hostAuditorPkg)) {
+    cmd = 'node';
+    args = [
+      '--permission',
+      '--allow-fs-read=*',
+      '--allow-fs-write=*',
+      '--allow-child-process',
+      '--allow-addons',
+      hostAuditorPkg,
+      options.directCliArg
+    ];
+  }
+
+  const isWindows = process.platform === 'win32';
+  return childProcess.spawnSync(cmd, args, {
+    cwd: projectRoot,
+    stdio: options.silent ? 'pipe' : 'inherit',
+    encoding: 'utf-8',
+    shell: cmd === 'npm.cmd' && isWindows
+  });
+}
+
+export function runAuditorSetupCheck(projectRoot: string, silent?: boolean): boolean {
+  try {
+    const proc = runHostAuditorSubprocess(projectRoot, {
+      scriptName: 'auditor:setup',
+      directCliArg: 'phase=setup',
+      logMessage:
+        '[Setup] Running auditor phase=setup verification to ensure infrastructure health...\n',
+      silent
+    });
+    return proc.status === 0;
+  } catch {
+    return false;
+  }
 }
 
 export function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean {
   try {
-    const isSelf = isSelfProviderProject(projectRoot);
-    if (!silent) {
-      console.log(
-        styleText(
-          'cyan',
-          '[Fix] Running auditor fix automatically to synchronize scripts and configs...\n'
-        )
-      );
-    }
-
-    const hostAuditorPkg = path.join(
-      projectRoot,
-      'node_modules/@francogp/auditor/dist/cli/audit_full.js'
-    );
-
-    let cmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-    let args = ['run', 'auditor:fix'];
-
-    if (!isSelf && fs.existsSync(hostAuditorPkg)) {
-      cmd = 'node';
-      args = [
-        '--permission',
-        '--allow-fs-read=*',
-        '--allow-fs-write=*',
-        '--allow-child-process',
-        '--allow-addons',
-        hostAuditorPkg,
-        'fix'
-      ];
-    }
-
     const pkgPath = path.join(projectRoot, 'package.json');
     const pkgBefore = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, 'utf-8') : '';
 
-    const isWindows = process.platform === 'win32';
-    const proc = childProcess.spawnSync(cmd, args, {
-      cwd: projectRoot,
-      stdio: silent ? 'pipe' : 'inherit',
-      encoding: 'utf-8',
-      shell: cmd === 'npm.cmd' && isWindows
+    const proc = runHostAuditorSubprocess(projectRoot, {
+      scriptName: 'auditor:fix',
+      directCliArg: 'fix',
+      logMessage: '[Fix] Running auditor fix automatically to synchronize scripts and configs...\n',
+      silent
     });
 
     const pkgAfter = fs.existsSync(pkgPath) ? fs.readFileSync(pkgPath, 'utf-8') : '';
     if (pkgBefore && pkgAfter && pkgBefore !== pkgAfter) {
+      const isWindows = process.platform === 'win32';
       const npmCmd = isWindows ? 'npm.cmd' : 'npm';
       childProcess.spawnSync(npmCmd, ['install', '--ignore-scripts', '--no-audit', '--no-fund'], {
         cwd: projectRoot,
@@ -529,6 +584,12 @@ export function runCli(): void {
       styleText(
         'green',
         `\n[OK] @francogp/auditor was successfully updated from v${result.previousVersion} to v${result.newVersion}.\n`
+      )
+    );
+    console.log(
+      styleText(
+        'cyan',
+        '[Tip] Run "npm run auditor:config" to evaluate recommended defaults and configuration hardening.\n'
       )
     );
   } else {

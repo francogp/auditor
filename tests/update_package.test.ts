@@ -19,6 +19,7 @@ import {
   readInstalledAuditorVersion,
   updateAuditorPackage,
   runAuditorFixAutoRemediation,
+  runAuditorSetupCheck,
   resolveLatestAuditorTag,
   parseTagSemver,
   compareTagsDescending,
@@ -420,6 +421,44 @@ describe('update_package CLI', () => {
 
       expect(success).toBe(true);
       expect(executedCmd).toBe('node');
+    });
+  });
+
+  describe('runAuditorSetupCheck', () => {
+    it('executes auditor phase=setup in host project successfully', () => {
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        return {
+          status: 0,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from(''),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const success = runAuditorSetupCheck(sandboxDir, true);
+      spy.mockRestore();
+
+      expect(success).toBe(true);
+    });
+
+    it('returns false when phase=setup verification fails with non-zero exit code', () => {
+      const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation(() => {
+        return {
+          status: 1,
+          stdout: Buffer.from(''),
+          stderr: Buffer.from('Setup errors detected'),
+          output: [],
+          pid: 1234,
+          signal: null
+        };
+      });
+
+      const success = runAuditorSetupCheck(sandboxDir, true);
+      spy.mockRestore();
+
+      expect(success).toBe(false);
     });
   });
 

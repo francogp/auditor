@@ -294,6 +294,7 @@ export async function createAuditTaskDefinition(
     scriptPath: effectiveScriptPath,
     command: 'node',
     args: taskArgs,
+    cwd: options.projectRoot ?? process.env.AUDIT_PROJECT_ROOT ?? process.cwd(),
     fast: isFast,
     timeoutMs: getTimeoutForTask(filename, config.runner?.timeoutMs),
     order: familyMeta.order,

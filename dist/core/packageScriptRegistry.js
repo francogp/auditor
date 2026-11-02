@@ -110,6 +110,18 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		category: "core"
 	},
 	{
+		name: "auditor:setup",
+		command: "auditor phase=setup",
+		description: "Pre-flight setup, configuration ratchet, and satellite sync verification",
+		category: "core"
+	},
+	{
+		name: "auditor:config",
+		command: "auditor-config",
+		description: "Interactive configuration hardening advisor comparing settings against canonical defaults",
+		category: "core"
+	},
+	{
 		name: "test:coverage",
 		command: "vp test --coverage",
 		description: "Unit test execution with coverage report generation in scratch/coverage/",

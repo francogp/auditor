@@ -18,6 +18,7 @@ export interface UpdateAuditorResult {
   newVersion: string;
   updated: boolean;
   updateAvailable?: boolean;
+  setupHealthy?: boolean;
   error?: string;
 }
 export declare function findHostProjectRoot(startDir?: string, stopAt?: string): string;
@@ -33,6 +34,7 @@ export declare function extractTagsFromLsRemote(stdout: string): string[];
 export declare function resolveLatestAuditorTag(repoUrl?: string): string;
 export declare function preSyncHostPackageJson(projectRoot: string): boolean;
 export declare function updateAuditorPackage(options?: UpdateAuditorOptions): UpdateAuditorResult;
+export declare function runAuditorSetupCheck(projectRoot: string, silent?: boolean): boolean;
 export declare function runAuditorFixAutoRemediation(projectRoot: string, silent?: boolean): boolean;
 export declare function renderUpdateHelp(): string;
 export declare function runCli(): void;

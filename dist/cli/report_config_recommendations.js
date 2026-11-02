@@ -48,21 +48,42 @@ function parseCliArgs(rawArgs = getProcessCliArgs()) {
 		help: Boolean(parsed.help)
 	};
 }
+const PREFERRED_PREVIEW_KEYS = /* @__PURE__ */ new Set([
+	"policy",
+	"name",
+	"glob",
+	"rule"
+]);
+function formatObjectElementPreview(item) {
+	const keys = Object.keys(item);
+	const sampleKey = keys.find((k) => PREFERRED_PREVIEW_KEYS.has(k)) ?? keys[0];
+	const sampleVal = sampleKey ? item[sampleKey] : void 0;
+	return sampleKey && sampleVal !== void 0 ? `{ ${sampleKey}: '${typeof sampleVal === "string" || typeof sampleVal === "number" || typeof sampleVal === "boolean" ? String(sampleVal) : "..."}' }` : "{ ... }";
+}
+function formatArrayPreview(val) {
+	if (val.length === 0) return "[]";
+	const first = val[0];
+	if (typeof first === "object" && first !== null) {
+		const preview = formatObjectElementPreview(first);
+		return val.length === 1 ? `[${preview}]` : `[${val.length} items: ${preview}, ...]`;
+	}
+	const strItems = val.map((item) => String(item));
+	if (strItems.length <= 3) return `[${strItems.join(", ")}]`;
+	return `[${strItems.slice(0, 2).join(", ")}, +${strItems.length - 2} more]`;
+}
+function formatObjectPreview(val) {
+	const keys = Object.keys(val);
+	if (keys.length === 0) return "{ }";
+	return `{ ${keys.slice(0, 2).join(", ")}${keys.length > 2 ? "..." : ""} }`;
+}
 function formatValuePreview(val) {
 	if (val === void 0) return styleText("dim", "undefined");
 	if (val === null) return styleText("dim", "null");
 	if (typeof val === "boolean") return val ? styleText("green", "true") : styleText("red", "false");
 	if (typeof val === "number") return styleText("yellow", String(val));
 	if (typeof val === "string") return styleText("cyan", val);
-	if (Array.isArray(val)) {
-		const strItems = val.map((item) => typeof item === "object" && item !== null ? JSON.stringify(item) : String(item));
-		if (strItems.length <= 3) return `[${strItems.join(", ")}]`;
-		return `[${strItems.slice(0, 2).join(", ")}, +${strItems.length - 2} more]`;
-	}
-	if (typeof val === "object") {
-		const keys = Object.keys(val);
-		return `{ ${keys.slice(0, 2).join(", ")}${keys.length > 2 ? "..." : ""} }`;
-	}
+	if (Array.isArray(val)) return formatArrayPreview(val);
+	if (typeof val === "object") return formatObjectPreview(val);
 	return typeof val === "symbol" || typeof val === "function" ? val.toString() : JSON.stringify(val) ?? "";
 }
 function renderRecommendationsTable(recommendations) {
@@ -112,13 +133,13 @@ function renderHardenedTable(hardened) {
 			header: "PROJECT VAL",
 			width: 14,
 			align: "center",
-			render: (row) => styleText("yellow", String(row.currentValue))
+			render: (row) => formatValuePreview(row.currentValue)
 		},
 		{
 			header: "DEFAULT",
 			width: 14,
 			align: "center",
-			render: (row) => styleText("dim", String(row.defaultValue))
+			render: (row) => formatValuePreview(row.defaultValue)
 		},
 		{
 			header: "STATUS",

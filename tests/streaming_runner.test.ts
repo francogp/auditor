@@ -209,6 +209,28 @@ describe('streamingRunner Core Utility', () => {
       expect(result.status).toBe(-1);
       expect(result.stderr).toBeDefined();
     });
+
+    it('propagates task.cwd and AUDIT_PROJECT_ROOT to spawned process environment', async () => {
+      const task: AuditTaskDefinition = {
+        id: 'test_env_cwd',
+        name: 'Test Env CWD',
+        command: 'node',
+        family: 'architecture',
+        scriptPath: '',
+        args: [],
+        cwd: process.cwd()
+      };
+
+      const result = await executeAuditorStreaming(task, [
+        '-e',
+        'console.log(JSON.stringify({ cwd: process.cwd(), envRoot: process.env.AUDIT_PROJECT_ROOT }))'
+      ]);
+
+      expect(result.status).toBe(0);
+      const parsed = JSON.parse(result.stdout.trim());
+      expect(parsed.cwd).toBe(process.cwd());
+      expect(parsed.envRoot).toBe(process.cwd());
+    });
   });
 
   describe('TaskStreamCoordinator Streaming Mode Contract', () => {

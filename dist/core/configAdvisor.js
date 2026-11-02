@@ -116,13 +116,16 @@ function handleArrayProperty(subsystem, currentPath, expectedVal, localVal, reco
 		});
 	}
 	const extraItems = localVal.filter((item) => !expectedVal.map(itemKey).includes(itemKey(item)));
-	if (extraItems.length > 0) hardenedSettings.push({
-		path: currentPath,
-		subsystem,
-		currentValue: localVal,
-		defaultValue: expectedVal,
-		reason: `Project configured ${extraItems.length} additional custom item(s): [${extraItems.map(itemKey).join(", ")}]. Stricter than default baseline.`
-	});
+	if (extraItems.length > 0) {
+		const formattedSummary = extraItems.length <= 3 && extraItems.every((i) => typeof i !== "object" || i === null) ? `[${extraItems.map(itemKey).join(", ")}]` : `[+${extraItems.length} custom item(s)]`;
+		hardenedSettings.push({
+			path: currentPath,
+			subsystem,
+			currentValue: localVal,
+			defaultValue: expectedVal,
+			reason: `Project configured ${extraItems.length} additional custom item(s): ${formattedSummary}. Stricter than default baseline.`
+		});
+	}
 }
 function handleNumericProperty(subsystem, currentPath, expectedVal, localVal, recommendations, hardenedSettings) {
 	const pathTokens = currentPath.split(".");
