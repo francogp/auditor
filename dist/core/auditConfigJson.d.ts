@@ -1,0 +1,2 @@
+export declare function deepMergeMissingJson(target: Record<string, unknown>, missing: Record<string, unknown>): boolean;
+export declare function appendMissingSectionsToJsonFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;

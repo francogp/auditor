@@ -1,113 +1,11 @@
-import { safeJsonParse, safeReadFileSync, tryCatchSync } from "./safeUtils.js";
-import fs from "node:fs";
+import { deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer } from "./auditConfigAstMutation.js";
+import { appendMissingSectionsToJsonFile, deepMergeMissingJson } from "./auditConfigJson.js";
 import { Project, SyntaxKind } from "ts-morph";
 // src/core/auditConfigAst.ts
 /**
 * src/core/auditConfigAst.ts
 * AST parsing and configuration rewrite utilities for .auditor/audit.config.ts and .json.
 */
-function isPlainRecord(val) {
-	return typeof val === "object" && val !== null && !Array.isArray(val);
-}
-function deepMergeMissingJson(target, missing) {
-	let modified = false;
-	for (const [key, val] of Object.entries(missing)) {
-		if (val === void 0) continue;
-		const curr = target[key];
-		if (curr === void 0) {
-			target[key] = val;
-			modified = true;
-		} else if (isPlainRecord(curr) && isPlainRecord(val) && deepMergeMissingJson(curr, val)) modified = true;
-	}
-	return modified;
-}
-function appendMissingSectionsToJsonFile(configFilePath, sectionsToInsert) {
-	const code = safeReadFileSync(configFilePath);
-	if (!code) return;
-	const json = safeJsonParse(code);
-	if (!isPlainRecord(json)) return;
-	if (deepMergeMissingJson(json, sectionsToInsert)) tryCatchSync(() => {
-		fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + "\n", "utf8");
-	});
-}
-function valueToTsMorphInitializer(val) {
-	if (typeof val === "string") return `'${val.replaceAll("'", "\\'")}'`;
-	if (typeof val === "number" || typeof val === "boolean") return String(val);
-	if (val === null || val === void 0) return "undefined";
-	if (Array.isArray(val)) return `[${val.map((item) => valueToTsMorphInitializer(item)).join(", ")}]`;
-	if (isPlainRecord(val)) return `{\n${Object.entries(val).filter(([, v]) => v !== void 0).map(([k, v]) => {
-		return `${/^[a-z_$][\w$]*$/i.test(k) ? k : `'${k.replaceAll("'", "\\'")}'`}: ${valueToTsMorphInitializer(v)}`;
-	}).join(",\n")}\n}`;
-	return "undefined";
-}
-function getNormalizedPropName(prop) {
-	if ((prop.isKind(SyntaxKind.PropertyAssignment) || prop.isKind(SyntaxKind.ShorthandPropertyAssignment)) && typeof prop.getName === "function") return prop.getName().replace(/^['"]|['"]$/g, "");
-	return "";
-}
-function deduplicateObjectLiteralProperties(obj) {
-	let mutated = false;
-	const seenKeys = /* @__PURE__ */ new Set();
-	for (const prop of obj.getProperties()) {
-		const key = getNormalizedPropName(prop);
-		if (!key) continue;
-		if (seenKeys.has(key)) {
-			if ("remove" in prop && typeof prop.remove === "function") {
-				prop.remove();
-				mutated = true;
-			}
-		} else {
-			seenKeys.add(key);
-			if (prop.isKind(SyntaxKind.PropertyAssignment)) {
-				const init = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
-				if (init && deduplicateObjectLiteralProperties(init)) mutated = true;
-			}
-		}
-	}
-	return mutated;
-}
-function syncArrayElementsWithTsMorph(arrInit, missingVal) {
-	let mutated = false;
-	const existingTexts = new Set(arrInit.getElements().map((el) => el.getText().replace(/^['"]|['"]$/g, "")));
-	for (const item of missingVal) if (typeof item === "string" && !existingTexts.has(item)) {
-		arrInit.addElement(`'${item.replaceAll("'", "\\'")}'`);
-		existingTexts.add(item);
-		mutated = true;
-	}
-	return mutated;
-}
-function syncMissingPropsWithTsMorph(obj, missingProps) {
-	let mutated = false;
-	if (deduplicateObjectLiteralProperties(obj)) mutated = true;
-	for (const [key, missingVal] of Object.entries(missingProps)) {
-		if (missingVal === void 0) continue;
-		const existing = obj.getProperty((prop) => getNormalizedPropName(prop) === key);
-		if (existing?.isKind(SyntaxKind.PropertyAssignment)) {
-			const objInit = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
-			if (objInit && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(objInit, missingVal)) mutated = true;
-			const arrInit = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
-			if (arrInit && Array.isArray(missingVal) && syncArrayElementsWithTsMorph(arrInit, missingVal)) mutated = true;
-			continue;
-		}
-		if (!existing) {
-			const safeName = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
-			obj.addPropertyAssignment({
-				name: safeName,
-				initializer: valueToTsMorphInitializer(missingVal)
-			});
-			mutated = true;
-		}
-	}
-	return mutated;
-}
-function findTargetAuditConfigObject(sourceFile) {
-	for (const call of sourceFile.getDescendantsOfKind(SyntaxKind.CallExpression)) if (call.getExpression().getText() === "defineAuditConfig") {
-		const arg = call.getArguments()[0];
-		if (arg && arg.isKind(SyntaxKind.ObjectLiteralExpression)) return arg;
-	}
-	const expr = sourceFile.getDescendantsOfKind(SyntaxKind.ExportAssignment)[0]?.getExpression();
-	if (expr && expr.isKind(SyntaxKind.ObjectLiteralExpression)) return expr;
-	return sourceFile.getDescendantsOfKind(SyntaxKind.ObjectLiteralExpression)[0];
-}
 function mutateAuditConfigFileAst(configFilePath, mutator) {
 	try {
 		const sourceFile = new Project({
@@ -152,4 +50,4 @@ function appendMissingSectionsToConfigFile(configFilePath, sectionsToInsert) {
 		return dedupMutated || syncMutated;
 	});
 }
-export { appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, deepMergeMissingJson, findTargetAuditConfigObject, mutateAuditConfigFileAst, syncAuditorVersionInTsFile };
+export { appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, mutateAuditConfigFileAst, syncArrayElementsWithTsMorph, syncAuditorVersionInTsFile, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };

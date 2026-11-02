@@ -127,8 +127,11 @@ async function ensureMissingSectionsInjected(
   const sectionsToInsert: Record<string, Record<string, unknown>> = {};
 
   for (const [rootKey, entry] of missing.entries()) {
-    sectionsToInsert[rootKey] =
-      Object.keys(entry.defaultConfig).length > 0 ? entry.defaultConfig : { enabled: true };
+    const payload =
+      entry.missingTree && Object.keys(entry.missingTree).length > 0
+        ? entry.missingTree
+        : entry.defaultConfig;
+    sectionsToInsert[rootKey] = Object.keys(payload).length > 0 ? payload : { enabled: true };
     injectedKeys.push(rootKey);
   }
 

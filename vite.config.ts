@@ -188,7 +188,26 @@ export default defineConfig({
                 { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }
             ],
             '@typescript-eslint/no-explicit-any': 'error',
-            '@typescript-eslint/ban-ts-comment': 'error'
+            '@typescript-eslint/ban-ts-comment': 'error',
+            'typescript/prefer-as-const': 'error',
+            'typescript/no-for-in-array': 'error',
+            'typescript/no-duplicate-enum-values': 'error',
+            'typescript/no-duplicate-type-constituents': 'error',
+            'typescript/no-extra-non-null-assertion': 'error',
+            'typescript/no-useless-empty-export': 'error',
+            'typescript/no-wrapper-object-types': 'error',
+            'typescript/no-unnecessary-type-assertion': 'error',
+            'oxc/const-comparisons': 'error',
+            'oxc/missing-throw': 'error',
+            'oxc/uninvoked-array-callback': 'error',
+            'unicorn/no-new-array': 'error',
+            'unicorn/prefer-set-size': 'error',
+            'unicorn/no-instanceof-array': 'error',
+            'unicorn/no-useless-fallback-in-spread': 'error',
+            'jsx-a11y/aria-props': 'error',
+            'jsx-a11y/aria-unsupported-elements': 'error',
+            'jsx-a11y/no-aria-hidden-on-focusable': 'error',
+            'jsx-a11y/no-redundant-roles': 'error'
         },
         plugins: [
             'vitest',

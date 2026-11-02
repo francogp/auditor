@@ -46,6 +46,7 @@ Architecture & Tooling Engineers.
 - [`base_registry.test.ts`](./base_registry.test.ts): Tests for BaseEntityRegistry lifecycle, unregistration, and disposal.
 - [`canonical_ignore_registry.test.ts`](./canonical_ignore_registry.test.ts): Tests for canonical ignore registry, dynamic cache registration, and ignore predicates.
 - [`cli_permission_execution.test.ts`](./cli_permission_execution.test.ts): Tests for Node.js Permission Model flag propagation and PERM0002 suppression.
+- [`config_advisor.test.ts`](./config_advisor.test.ts): Tests for interactive configuration hardening advisor (`auditor:config`) dynamic recommendations and AST diff generation.
 - [`config_file_registry.test.ts`](./config_file_registry.test.ts): Tests for centralized `ConfigFileRegistry`, declarative sub-auditor configuration requirements, and auto-scaffolding in fix mode.
 - [`config_ratchet.test.ts`](./config_ratchet.test.ts): Tests for unidirectional config ratchet, relaxation code hashing, and branded types.
 - [`config_ratchet_hardening_subsumption.test.ts`](./config_ratchet_hardening_subsumption.test.ts): Tests for spatial path containment, discrete exemption subsets, and ratchet relaxation prevention on tightening.

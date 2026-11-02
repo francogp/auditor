@@ -394,4 +394,4 @@ function auditConfigRatchet(projectRoot, localConfig, options = {}) {
 		message: `Unauthorized rule relaxation detected relative to '${effectiveRef}'.\nTo authorize this relaxation, confirm code '${relaxationCode}' in the Antigravity chat.`
 	};
 }
-export { auditConfigRatchet, collectAllOnlinePathExemptions, computeRelaxationCode, inspectAuditConfigChanges, inspectLinterConfigChanges, isPathCoveredByOnlineExemptions, readGitFile, resolveProductionRef, runGit };
+export { astExpressionToPlainValue, auditConfigRatchet, collectAllOnlinePathExemptions, computeRelaxationCode, inspectAuditConfigChanges, inspectLinterConfigChanges, isPathCoveredByOnlineExemptions, parseAuditConfigTextToRecord, readGitFile, resolveProductionRef, runGit };

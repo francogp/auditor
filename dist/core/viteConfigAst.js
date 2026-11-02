@@ -1,4 +1,4 @@
-import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS } from "./auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import ts from "typescript";
@@ -16,153 +16,6 @@ function normalizePosixRoot(rawRoot) {
 function isPathUnderRoot(candidatePath, rootDir, baseDir = process.cwd()) {
 	return isPathContained(normalizePosixRoot(rootDir), normalizePosixRoot(candidatePath), baseDir);
 }
-const CANONICAL_LINT_RULES_MAP = {
-	"@typescript-eslint/no-explicit-any": "error",
-	"@typescript-eslint/ban-ts-comment": "error",
-	"@typescript-eslint/consistent-type-assertions": ["error", {
-		assertionStyle: "as",
-		objectLiteralTypeAssertions: "never"
-	}],
-	"@typescript-eslint/no-floating-promises": "error",
-	"@francogp/domain-type/no-double-cast-unknown": "error",
-	"@francogp/domain-type/no-legacy-date": "error",
-	"unicorn/prefer-node-protocol": "error",
-	"no-debugger": "error",
-	"no-else-return": "error",
-	"no-empty": ["error", { allowEmptyCatch: false }],
-	"max-depth": ["error", 4],
-	"import/no-duplicates": "error",
-	eqeqeq: ["error", "always"],
-	"prefer-const": "error",
-	"no-var": "error",
-	"no-self-compare": "error",
-	"no-eval": "error",
-	"unicode-bom": "error",
-	"vue/no-async-in-computed-properties": "error",
-	"vue/no-side-effects-in-computed-properties": "error",
-	"vue/no-export-in-script-setup": "error",
-	"vue/no-lifecycle-after-await": "error",
-	"vue/no-watch-after-await": "error",
-	"vue/prefer-import-from-vue": "error",
-	"vitest/no-identical-title": "error",
-	"vitest/no-focused-tests": "error",
-	"vitest/no-disabled-tests": "error",
-	"vitest/prefer-to-have-length": "error",
-	"vitest/valid-title": "error",
-	"import/no-self-import": "error",
-	"import/no-empty-named-blocks": "error",
-	"no-useless-catch": "error",
-	"no-useless-rename": "error",
-	"no-sparse-arrays": "error",
-	"no-shadow-restricted-names": "error",
-	"unicorn/prefer-string-starts-ends-with": "error",
-	"unicorn/throw-new-error": "error",
-	"unicorn/no-useless-spread": "error",
-	"@typescript-eslint/no-unnecessary-type-assertion": "error",
-	"@typescript-eslint/consistent-indexed-object-style": "error",
-	"@typescript-eslint/no-empty-object-type": "error",
-	"@typescript-eslint/no-unnecessary-template-expression": "error",
-	"@typescript-eslint/no-unnecessary-type-arguments": "error",
-	"@typescript-eslint/no-unnecessary-type-constraint": "error",
-	"@typescript-eslint/prefer-function-type": "error",
-	"@typescript-eslint/prefer-return-this-type": "error",
-	"@typescript-eslint/ban-tslint-comment": "error",
-	"import/no-mutable-exports": "error",
-	"no-extend-native": "error",
-	"no-proto": "error",
-	"no-iterator": "error",
-	"prefer-object-has-own": "error",
-	"no-useless-computed-key": "error",
-	"node/no-exports-assign": "error",
-	"import/no-webpack-loader-syntax": "error",
-	"import/no-dynamic-require": "error",
-	"import/no-amd": "error",
-	"import/no-named-default": "error",
-	"no-new-wrappers": "error",
-	"no-array-constructor": "error",
-	"no-caller": "error",
-	"unicorn/no-new-buffer": "error",
-	"no-implied-eval": "error",
-	"no-new-func": "error",
-	"no-script-url": "error",
-	"default-case-last": "error",
-	radix: "error",
-	"no-return-assign": "error",
-	"no-multi-assign": "error",
-	"no-sequences": "error",
-	"no-labels": "error",
-	"no-useless-call": "error",
-	yoda: "error",
-	"no-unneeded-ternary": "error",
-	"promise/no-new-statics": "error",
-	"promise/valid-params": "error",
-	"promise/no-return-in-finally": "error",
-	"node/no-new-require": "error",
-	"node/no-path-concat": "error",
-	"unicorn/no-unnecessary-array-flat-depth": "error",
-	"unicorn/no-unnecessary-array-splice-count": "error",
-	"unicorn/no-unreadable-iife": "error",
-	"unicorn/no-useless-switch-case": "error",
-	"unicorn/no-useless-promise-resolve-reject": "error",
-	"unicorn/prefer-array-some": "error",
-	"unicorn/no-unnecessary-slice-end": "error",
-	"unicorn/explicit-timer-delay": "error",
-	"unicorn/prefer-date-now": "error",
-	"unicorn/prefer-math-min-max": "error",
-	"unicorn/prefer-math-trunc": "error",
-	"unicorn/prefer-prototype-methods": "error",
-	"unicorn/prefer-regexp-test": "error",
-	"unicorn/prefer-default-parameters": "error",
-	"unicorn/prefer-global-this": "error",
-	"unicorn/prefer-optional-catch-binding": "error",
-	"unicorn/prefer-string-trim-start-end": "error",
-	"prefer-exponentiation-operator": "error",
-	"prefer-numeric-literals": "error",
-	"prefer-rest-params": "error",
-	"vitest/no-duplicate-hooks": "error",
-	"vitest/no-test-prefixes": "error",
-	"vitest/no-test-return-statement": "error",
-	"vitest/prefer-to-contain": "error",
-	"vitest/prefer-to-be": "error",
-	"vitest/prefer-comparison-matcher": "error",
-	"vitest/no-import-node-test": "error",
-	"vitest/no-interpolation-in-snapshots": "error",
-	"vitest/prefer-expect-resolves": "error",
-	"vitest/prefer-mock-promise-shorthand": "error",
-	"vitest/prefer-mock-return-shorthand": "error",
-	"vitest/prefer-strict-equal": "error",
-	"vitest/prefer-to-be-truthy": "error",
-	"vitest/prefer-to-be-falsy": "error",
-	"vitest/prefer-to-be-object": "error",
-	"vitest/prefer-todo": "error",
-	"vue/no-expose-after-await": "error",
-	"vue/return-in-computed-property": "error",
-	"vue/no-import-compiler-macros": "error",
-	"vue/valid-next-tick": "error",
-	"vue/no-deprecated-destroyed-lifecycle": "error",
-	"vue/component-definition-name-casing": "error",
-	"vue/define-emits-declaration": "error",
-	"vue/define-props-declaration": "error",
-	"vue/next-tick-style": "error",
-	"vue/prop-name-casing": "error",
-	"vue/require-direct-export": "error",
-	"vue/require-typed-ref": "error",
-	"@typescript-eslint/explicit-member-accessibility": ["error", { accessibility: "explicit" }],
-	"@typescript-eslint/explicit-function-return-type": ["error", {
-		allowExpressions: true,
-		allowTypedFunctionExpressions: true,
-		allowHigherOrderFunctions: true,
-		allowDirectConstAssertionInArrowFunctions: true
-	}],
-	"@typescript-eslint/no-unused-vars": ["error", {
-		argsIgnorePattern: "^_",
-		varsIgnorePattern: "^_",
-		caughtErrorsIgnorePattern: "^_"
-	}],
-	"vue/no-required-prop-with-default": "error",
-	"vue/no-deprecated-model-definition": "error",
-	"no-useless-assignment": "error"
-};
 function parseTsSourceFile(fileContent, fileName = "vite.config.ts") {
 	return ts.createSourceFile(fileName, fileContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
@@ -481,7 +334,7 @@ function buildLintAstObject(auditConfig, lintIgnores) {
 	const lintCfg = auditConfig.vitePlusConfig?.lint;
 	const typeAware = lintCfg?.typeAware ?? true;
 	const typeCheck = lintCfg?.typeCheck ?? true;
-	const mergedRules = { ...CANONICAL_LINT_RULES_MAP };
+	const mergedRules = { ...DEFAULT_CANONICAL_LINT_RULES };
 	if (auditConfig.vitePlusConfig?.extraLintRules) for (const [k, v] of Object.entries(auditConfig.vitePlusConfig.extraLintRules)) mergedRules[k] = v;
 	if (lintCfg?.rules) for (const [k, v] of Object.entries(lintCfg.rules)) mergedRules[k] = v;
 	const props = [ts.factory.createPropertyAssignment("options", valueToAstExpression({
@@ -489,7 +342,7 @@ function buildLintAstObject(auditConfig, lintIgnores) {
 		typeCheck
 	}))];
 	if (lintCfg?.categories && Object.keys(lintCfg.categories).length > 0) props.push(ts.factory.createPropertyAssignment("categories", valueToAstExpression(lintCfg.categories, true)));
-	const configuredPlugins = lintCfg?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
+	const configuredPlugins = lintCfg?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? [];
 	if (configuredPlugins.length > 0) props.push(ts.factory.createPropertyAssignment("plugins", valueToAstExpression([...configuredPlugins])));
 	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", valueToAstExpression(lintIgnores)));
 	if (lintCfg?.overrides && lintCfg.overrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(lintCfg.overrides)));
@@ -718,7 +571,7 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 	} else rulesModified = true;
 	const currentRuleMap = /* @__PURE__ */ new Map();
 	for (const rp of rulesProps) if (ts.isPropertyAssignment(rp)) currentRuleMap.set(getPropertyKeyName(rp.name, sf), astExpressionToValue(rp.initializer, sf));
-	for (const [ruleName, canonicalVal] of Object.entries(CANONICAL_LINT_RULES_MAP)) if (!isRuleValueCompliant(ruleName, currentRuleMap.get(ruleName))) {
+	for (const [ruleName, canonicalVal] of Object.entries(DEFAULT_CANONICAL_LINT_RULES)) if (!isRuleValueCompliant(ruleName, currentRuleMap.get(ruleName))) {
 		rulesProps = updateObjectProperty(rulesProps, ruleName, valueToAstExpression(canonicalVal), sf, true);
 		currentRuleMap.set(ruleName, canonicalVal);
 		rulesModified = true;
@@ -738,7 +591,7 @@ function syncLintRulesAst(rulesProp, auditConfig, sf) {
 		}
 	}
 	const allowedRuleKeys = /* @__PURE__ */ new Set([
-		...Object.keys(CANONICAL_LINT_RULES_MAP),
+		...Object.keys(DEFAULT_CANONICAL_LINT_RULES),
 		...Object.keys(auditConfig.vitePlusConfig?.extraLintRules ?? {}),
 		...Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {})
 	]);
@@ -792,7 +645,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 			modified = true;
 		}
 	}
-	const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
+	const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? [];
 	if (requiredPlugins.length > 0) {
 		const linterPluginSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "plugins", sf), requiredPlugins, sf);
 		if (linterPluginSync.modified) {
@@ -1128,4 +981,4 @@ function rewriteModuleSpecifiersToVitePlusAst(content, fileName) {
 	for (const r of replacements) updated = updated.slice(0, r.start) + r.text + updated.slice(r.end);
 	return updated;
 }
-export { CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };

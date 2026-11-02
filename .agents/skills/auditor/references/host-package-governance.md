@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.5.6 --allow-git=all
+npm install -D github:francogp/auditor#v10.6.0 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -344,21 +344,23 @@ Vite+ is powered by Oxlint's high-performance native engine. Beyond the default 
 | :--- | :--- | :--- |
 | `vitest` | Unit testing hygiene (`no-identical-title`, `no-focused-tests`, `no-disabled-tests`, `valid-title`, `prefer-to-have-length`). | **Active by default** in all Node 26+ / Vitest repos. |
 | `node` | Modern Node.js 26+ runtime standards (`no-exports-assign`, `no-new-require`, `no-path-concat`). | **Active by default** in all Node 26+ projects. |
-| `promise` | Strict async hygiene (`no-new-statics`, `valid-params`, `no-return-in-finally`). | **Recommended**. Flag bugs such as `await this.then()` with 0 arguments. |
-| `vue` | Vue 3 SFC & Composition API hygiene (`no-async-in-computed`, `next-tick-style`, `define-props-declaration`). | **Elective for Vue apps**. Requires modern Composition API (`await nextTick()`). |
+| `promise` | Strict async hygiene (`no-new-statics`, `valid-params`, `no-return-in-finally`). | **Active by default** in all Node 26+ projects. |
+| `unicorn` | Codebase modernization and node protocol standards (`prefer-node-protocol`). | **Active by default** in all Node 26+ projects. |
+| `typescript` | TypeScript strict type checking and import rules. | **Active by default** in all Node 26+ projects. |
+| `vue` | Vue 3 SFC & Composition API hygiene (`no-async-in-computed`, `next-tick-style`, `define-props-declaration`). | **Active by default** in all Node 26+ projects. |
+| `import` | Import hygiene (`no-duplicates`, `no-self-import`, `no-mutable-exports`, `no-amd`). | **Active by default** in all Node 26+ projects. |
+| `jsx-a11y` | Web accessibility checks for JSX/TSX components and templates. | **Active by default** in all Node 26+ projects. |
 | `react` | React JSX, hook rules, and rendering lifecycle. | Elective for React/Next.js projects. |
-| `import` | Import hygiene (`no-duplicates`, `no-self-import`, `no-mutable-exports`, `no-amd`). | Governed dynamically via Vite+ rules. |
-| `jsx-a11y` | Web accessibility checks for JSX/TSX components. | Elective for frontend web applications with TSX. |
 | `react-perf` | Prevents performance anti-patterns in React components. | Elective for React frontend apps. |
 | `jsdoc` | Strict JSDoc documentation formatting. | Elective for public library APIs. |
 | `jest` | Compatibility rules for legacy Jest suites. | Elective during Vitest migrations. |
 | `nextjs` | Specific next-gen SSR/SSG patterns for Next.js. | Elective for Next.js applications. |
 
-### 2. Activation Policy by Project Typology
+### 2. Canonical 8-Plugin Standard (`vitePlusConfig.lint.plugins`)
 
-1. **Node.js 26+ & Vitest Core Standard (`vitest`, `node`)**:
-   - `@francogp/auditor` automatically configures and injects `plugins: ['vitest', 'node']` by default into `DEFAULT_AUDIT_CONFIG.vitePlusConfig.lint`.
-   - The AST synchronizer (`src/core/viteConfigAst.ts`) automatically populates `plugins: ['vitest', 'node']` into the `lint` block of `vite.config.ts`.
+1. **Universal Canonical Suite**:
+   - In all repositories under `@francogp/auditor`, `plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y']` is configured by default in `DEFAULT_AUDIT_CONFIG.vitePlusConfig.lint`.
+   - The AST synchronizer (`src/core/viteConfigAst.ts`) automatically populates these 8 plugins into the `lint` block of `vite.config.ts`.
    - Tested empirically across thousands of source files with 0 false positives.
 
 2. **Promise Linter Plugin Adoption Guide (`promise`)**:

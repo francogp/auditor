@@ -31,11 +31,11 @@ flowchart TD
 
 ### Direct Comparison Matrix
 
-| Property | CI Static Quality Gates (`auditor`) | Interactive Refactor Engines (`auditor:<tool>`) |
+| Property | CI Static Quality Gates (`auditor`) | Interactive Refactor Engines & Advisors (`auditor:<tool>`) |
 | :--- | :--- | :--- |
-| **Primary Binaries** | `auditor`, `auditor-findings`, `auditor-fallow` | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene` |
-| **Package Scripts** | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types`, `auditor:domain`, `auditor:hygiene` |
-| **Base Abstraction** | `BaseAuditor`, `FileScanAuditor` | `BaseRefactorEngine<TFinding, TPlan>` |
+| **Primary Binaries** | `auditor`, `auditor-findings`, `auditor-fallow` | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene`, `auditor-config`, `auditor-dependencies` |
+| **Package Scripts** | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types`, `auditor:domain`, `auditor:hygiene`, `auditor:config`, `auditor:dependencies` |
+| **Base Abstraction** | `BaseAuditor`, `FileScanAuditor` | `BaseRefactorEngine<TFinding, TPlan>`, `configAdvisor`, `auditorMinimums` |
 | **Purpose** | Enforces mandatory repository laws and invariants | Assists developers in elective code surgery and modernization |
 | **Execution Trigger** | Automatic in CI/CD, pre-commit, and safe-commit gates | On-demand explicit invocation by developer or AI agent |
 | **Run in `npm run auditor`?** | **YES** (runs 100% of applicable suites) | **NEVER** (strictly separate standalone CLI tools) |

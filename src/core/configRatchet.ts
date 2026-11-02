@@ -33,7 +33,7 @@ import {
   type TranscriptVerifierOptions
 } from './transcriptAuthorizationVerifier.ts';
 
-function astExpressionToPlainValue(expr: ts.Expression): unknown {
+export function astExpressionToPlainValue(expr: ts.Expression): unknown {
   if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
   if (ts.isNumericLiteral(expr)) return Number(expr.text);
   if (
@@ -63,7 +63,7 @@ function astExpressionToPlainValue(expr: ts.Expression): unknown {
   return undefined;
 }
 
-function parseAuditConfigTextToRecord(code: string): Record<string, unknown> | null {
+export function parseAuditConfigTextToRecord(code: string): Record<string, unknown> | null {
   try {
     const source = ts.createSourceFile(
       'audit.config.ts',

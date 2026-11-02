@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.5.6-build.20261101-204849",
+  "version": "10.6.0-build.20261101-233816",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -19,6 +19,7 @@
     "auditor-by-rule": "dist/cli/report_findings.js",
     "auditor-check-env": "dist/cli/check_environment.js",
     "auditor-complexity": "dist/cli/report_complexity.js",
+    "auditor-config": "dist/cli/report_config_recommendations.js",
     "auditor-coverage": "dist/cli/report_test_coverage.js",
     "auditor-coverage-map": "dist/cli/report_coverage_map.js",
     "auditor-css": "dist/cli/report_css.js",
@@ -117,6 +118,7 @@
     "check:fix": "vp check --fix",
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
+    "auditor:config": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_config_recommendations.ts",
     "auditor:coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:test-coverage": "node --experimental-strip-types src/cli/report_test_coverage.ts",
     "auditor:coverage-map": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* --allow-child-process src/cli/report_coverage_map.ts",

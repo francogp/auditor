@@ -1,4 +1,4 @@
-import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
@@ -7,7 +7,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import { getAllowedSatellitePathExcludes } from "../../core/satelliteGlobMatcher.js";
-import { CANONICAL_LINT_RULES_MAP, extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
+import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -788,6 +788,126 @@ const ANTI_CASTRATION_SPECS = [
 		ruleId: "vite-plus-config-no-useless-assignment-missing",
 		description: "Missing no-useless-assignment",
 		message: `The 'no-useless-assignment' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/prefer-as-const",
+		ruleId: "vite-plus-config-ts-prefer-as-const-missing",
+		description: "Missing typescript/prefer-as-const",
+		message: `The 'typescript/prefer-as-const' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-for-in-array",
+		ruleId: "vite-plus-config-ts-no-for-in-array-missing",
+		description: "Missing typescript/no-for-in-array",
+		message: `The 'typescript/no-for-in-array' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-duplicate-enum-values",
+		ruleId: "vite-plus-config-ts-no-dup-enum-values-missing",
+		description: "Missing typescript/no-duplicate-enum-values",
+		message: `The 'typescript/no-duplicate-enum-values' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-duplicate-type-constituents",
+		ruleId: "vite-plus-config-ts-no-dup-type-constituents-missing",
+		description: "Missing typescript/no-duplicate-type-constituents",
+		message: `The 'typescript/no-duplicate-type-constituents' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-extra-non-null-assertion",
+		ruleId: "vite-plus-config-ts-no-extra-non-null-assertion-missing",
+		description: "Missing typescript/no-extra-non-null-assertion",
+		message: `The 'typescript/no-extra-non-null-assertion' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-useless-empty-export",
+		ruleId: "vite-plus-config-ts-no-useless-empty-export-missing",
+		description: "Missing typescript/no-useless-empty-export",
+		message: `The 'typescript/no-useless-empty-export' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "oxc/const-comparisons",
+		ruleId: "vite-plus-config-oxc-const-comparisons-missing",
+		description: "Missing oxc/const-comparisons",
+		message: `The 'oxc/const-comparisons' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "oxc/missing-throw",
+		ruleId: "vite-plus-config-oxc-missing-throw-missing",
+		description: "Missing oxc/missing-throw",
+		message: `The 'oxc/missing-throw' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "oxc/uninvoked-array-callback",
+		ruleId: "vite-plus-config-oxc-uninvoked-array-callback-missing",
+		description: "Missing oxc/uninvoked-array-callback",
+		message: `The 'oxc/uninvoked-array-callback' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "unicorn/no-new-array",
+		ruleId: "vite-plus-config-unicorn-no-new-array-missing",
+		description: "Missing unicorn/no-new-array",
+		message: `The 'unicorn/no-new-array' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "unicorn/prefer-set-size",
+		ruleId: "vite-plus-config-unicorn-prefer-set-size-missing",
+		description: "Missing unicorn/prefer-set-size",
+		message: `The 'unicorn/prefer-set-size' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-wrapper-object-types",
+		ruleId: "vite-plus-config-ts-no-wrapper-object-types-missing",
+		description: "Missing typescript/no-wrapper-object-types",
+		message: `The 'typescript/no-wrapper-object-types' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "typescript/no-unnecessary-type-assertion",
+		ruleId: "vite-plus-config-ts-no-unnecessary-type-assertion-missing",
+		description: "Missing typescript/no-unnecessary-type-assertion",
+		message: `The 'typescript/no-unnecessary-type-assertion' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "unicorn/no-instanceof-array",
+		ruleId: "vite-plus-config-unicorn-no-instanceof-array-missing",
+		description: "Missing unicorn/no-instanceof-array",
+		message: `The 'unicorn/no-instanceof-array' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "unicorn/no-useless-fallback-in-spread",
+		ruleId: "vite-plus-config-unicorn-no-useless-fallback-in-spread-missing",
+		description: "Missing unicorn/no-useless-fallback-in-spread",
+		message: `The 'unicorn/no-useless-fallback-in-spread' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "import/no-duplicates",
+		ruleId: "vite-plus-config-import-no-duplicates-missing",
+		description: "Missing import/no-duplicates",
+		message: `The 'import/no-duplicates' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "jsx-a11y/aria-props",
+		ruleId: "vite-plus-config-jsx-a11y-aria-props-missing",
+		description: "Missing jsx-a11y/aria-props",
+		message: `The 'jsx-a11y/aria-props' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "jsx-a11y/aria-unsupported-elements",
+		ruleId: "vite-plus-config-jsx-a11y-aria-unsupported-elements-missing",
+		description: "Missing jsx-a11y/aria-unsupported-elements",
+		message: `The 'jsx-a11y/aria-unsupported-elements' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "jsx-a11y/no-aria-hidden-on-focusable",
+		ruleId: "vite-plus-config-jsx-a11y-no-aria-hidden-on-focusable-missing",
+		description: "Missing jsx-a11y/no-aria-hidden-on-focusable",
+		message: `The 'jsx-a11y/no-aria-hidden-on-focusable' rule must be configured as 'error' in vite.config.ts.`
+	},
+	{
+		oxlintRule: "jsx-a11y/no-redundant-roles",
+		ruleId: "vite-plus-config-jsx-a11y-no-redundant-roles-missing",
+		description: "Missing jsx-a11y/no-redundant-roles",
+		message: `The 'jsx-a11y/no-redundant-roles' rule must be configured as 'error' in vite.config.ts.`
 	}
 ];
 function validateSpecialAntiCastrationRules(summary, fileName) {
@@ -938,7 +1058,7 @@ function validateLintOptionsAndPlugins(summary, fileName, auditConfig) {
 		context: "domain-type-plugin",
 		message: `Missing jsPlugins: ['@francogp/auditor/domain-type-plugin'] registration in the 'lint' section of vite.config.ts.`
 	});
-	const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
+	const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? [];
 	for (const plugin of expectedPlugins) if (!summary.lintPlugins.includes(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -1022,7 +1142,7 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		message: `Unsynchronized exclusion patterns detected in lint of vite.config.ts: [${extraLint.join(", ")}]. .auditor/audit.config.ts is the Single Source of Truth (SSoT). To legitimize these exclusions, declare them in .auditor/audit.config.ts under 'paths.ignoreGlobs' or 'oxlint.ignoreGlobs', or remove them from vite.config.ts.`
 	});
 	const authorizedCustomRules = new Set(Object.keys(auditConfig.vitePlusConfig?.lint?.rules ?? {}));
-	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in CANONICAL_LINT_RULES_MAP) && !authorizedCustomRules.has(ruleName)) findings.push({
+	for (const [ruleName] of summary.lintRules.entries()) if (!(ruleName in DEFAULT_CANONICAL_LINT_RULES) && !authorizedCustomRules.has(ruleName)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
 		ruleId: "vite-plus-undeclared-config-entry",
@@ -1034,7 +1154,7 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: ruleName,
 		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
 	});
-	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS);
+	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? []);
 	for (const plugin of summary.lintPlugins) if (!authorizedPlugins.has(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",

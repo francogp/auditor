@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.5.6`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.6.0`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.5.6 --allow-git=all
+npm install -D github:francogp/auditor#v10.6.0 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.5.6"
+    "@francogp/auditor": "github:francogp/auditor#v10.6.0"
   }
 }
 ```
@@ -140,9 +140,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.5.6
+npm run auditor:update -- v10.6.0
 # or directly:
-auditor-update v10.5.6
+auditor-update v10.6.0
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -195,6 +195,29 @@ Supported options:
 - `--strict`: Exit with code 1 if any declared dependency is outdated (ideal for CI pipelines).
 - `--project=<path>`: Inspect dependencies of a specific host project directory.
 
+#### Advising & Hardening Configuration Settings CLI (`auditor:config` / `auditor-config`)
+
+To inspect your project's `.auditor/audit.config.ts`, compare it dynamically against canonical framework defaults and sovereign subauditor contracts, and discover hardening opportunities under the **Unidirectional Config Ratchet**:
+
+```bash
+npm run auditor:config
+# or directly:
+auditor-config
+```
+
+Supported options:
+
+- `--human`: Render interactive Box-Drawing tables with `SUBSYSTEM`, `SETTING`, `CURRENT`, `RECOMMENDED`, `RATIONALE`, and preserved strict rules table.
+- `--diff`: Display proposed configuration changes in TypeScript/JSON format without modifying files on disk.
+- `--apply`: Safely and additively write missing sections and recommended hardening into `.auditor/audit.config.ts` via AST (`appendMissingSectionsToConfigFile`).
+- `--subsystem=<name>`: Restrict evaluation to a single configuration section (e.g. `subsystem=fallow` or `subsystem=vitePlusConfig`).
+- `--json`: Emit structured JSON report (`ConfigAdvisorReport`) for automated pipelines and AI agents.
+- `--help`: Display usage manual and CLI flags.
+
+> [!NOTE]
+> **The Unidirectional Config Ratchet Guarantee**:
+> If your project already configures stricter thresholds (e.g. `maxCognitive: 12` vs default 20) or higher coverage floors (`threshold: 95` vs default 80), `auditor:config` **NEVER recommends relaxing them**. It honors and preserves all preexisting strict settings.
+
 ### 3.2. Auditor Configuration Architecture & SSoT (`.auditor/audit.config.ts`)
 
 Every host project is governed by a Single Source of Truth configuration file located strictly at `.auditor/audit.config.ts` (or `.auditor/audit.config.json`):
@@ -205,7 +228,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.5.6-build.20261101-204849',
+  auditorVersion: '10.6.0-build.20261101-233816',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -262,7 +285,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.5.6"`), or install via `npm install -D github:francogp/auditor#v10.5.6 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.6.0"`), or install via `npm install -D github:francogp/auditor#v10.6.0 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -566,6 +589,7 @@ npm run auditor:by-file
 All repositories governed by `@francogp/auditor` enforce strict `/domain-type-first` principles:
 
 1. **Unified Configuration (`vite.config.ts`)**:
+   - Mandatory Canonical 8-Plugin Suite: `['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y']` active by default across all Node 26+, Vitest, and Vue projects.
    - `@typescript-eslint/no-explicit-any: 'error'`
    - `@typescript-eslint/ban-ts-comment: 'error'`
    - Double casting restriction (`as unknown as`) and legacy `new Date()` / `Date.now()` ban.

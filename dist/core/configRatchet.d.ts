@@ -1,4 +1,7 @@
 import { TranscriptVerifierOptions } from "./transcriptAuthorizationVerifier.js";
+import ts from "typescript";
+export declare function astExpressionToPlainValue(expr: ts.Expression): unknown;
+export declare function parseAuditConfigTextToRecord(code: string): Record<string, unknown> | null;
 export type RelaxationCode = `RELAX-${string}` & {
   readonly __brand?: 'RelaxationCode';
 };

@@ -1,6 +1,6 @@
 import { AuditConfig } from "./auditConfigTypes.js";
+import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
 import ts from "typescript";
-export declare const CANONICAL_LINT_RULES_MAP: Readonly<Record<string, unknown>>;
 export declare function parseTsSourceFile(fileContent: string, fileName?: string): ts.SourceFile;
 export declare function getPropertyKeyName(name: ts.PropertyName, sf: ts.SourceFile): string;
 export declare function createPropertyNameNode(key: string, forceQuote?: boolean): ts.PropertyName;
@@ -55,3 +55,4 @@ export declare function synchronizeViteConfigAst(fileContent: string, auditConfi
  * strictly via TypeScript Compiler AST spans (never touching string literals inside code or comments).
  */
 export declare function rewriteModuleSpecifiersToVitePlusAst(content: string, fileName: string): string;
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP };

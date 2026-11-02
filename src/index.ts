@@ -96,3 +96,5 @@ export * from './core/safeUtils.ts';
 export * from './core/gitSafetyHook.ts';
 export * from './core/satelliteConfigParity.ts';
 export * from './core/domainCollections.ts';
+export * from './core/configAdvisor.ts';
+export * from './cli/report_config_recommendations.ts';

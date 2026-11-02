@@ -1,10 +1,11 @@
+import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
 import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
-import { CANONICAL_LINT_RULES_MAP, buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
+import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
@@ -36,7 +37,7 @@ const LEGACY_CONFIG_FILES = [
 	".oxlintrc.json",
 	".oxfmtrc.json"
 ];
-const STRICT_RULE_CHECKS = Object.keys(CANONICAL_LINT_RULES_MAP);
+const STRICT_RULE_CHECKS = Object.keys(DEFAULT_CANONICAL_LINT_RULES);
 /**
 * Scans for legacy ESLint configuration files and extracts globalIgnores entries
 * using native JSON parsing (.eslintrc.json) and TypeScript Compiler AST (.js/.mjs/.ts).
