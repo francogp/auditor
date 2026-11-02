@@ -181,10 +181,7 @@ describe('Auditor Architecture Conformance', () => {
           desc.length,
           `Description "${desc}" in ${relPath} exceeds ${MAX_LENGTH} characters (${desc.length} chars)`
         ).toBeLessThanOrEqual(MAX_LENGTH);
-        expect(
-          desc.includes('\n'),
-          `Description in ${relPath} must be a single line without newlines`
-        ).toBe(false);
+        expect(desc).not.toContain('\n');
       });
 
       it(`${filename} declares single-line ruleDescriptions under ${MAX_LENGTH} chars when present`, () => {
@@ -201,10 +198,7 @@ describe('Auditor Architecture Conformance', () => {
                 ruleDesc.length,
                 `Rule description "${ruleDesc}" in ${relPath} exceeds ${MAX_LENGTH} characters`
               ).toBeLessThanOrEqual(MAX_LENGTH);
-              expect(
-                ruleDesc.includes('\n'),
-                `Rule description in ${relPath} cannot contain newlines`
-              ).toBe(false);
+              expect(ruleDesc).not.toContain('\n');
             }
           }
         }

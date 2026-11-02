@@ -172,7 +172,7 @@ describe('SqlAntiPatternsAuditor', () => {
         (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
       );
       expect(rlsViolations).toHaveLength(0);
-      expect(rlsViolations.length).toBe(0);
+      expect(rlsViolations).toHaveLength(0);
     });
   });
 });

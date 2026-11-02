@@ -21,6 +21,7 @@ Template interpolation `{{ }}` and directive bindings evaluate JavaScript expres
 - [ ] Use `v-if`/`v-else` directives for conditional rendering
 
 **Incorrect:**
+
 ```vue
 <template>
   <!-- ERROR: Variable declaration is a statement, not expression -->
@@ -42,26 +43,27 @@ Template interpolation `{{ }}` and directive bindings evaluate JavaScript expres
 ```
 
 **Correct:**
+
 ```vue
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed } from 'vue';
 
-const ok = ref(true)
-const message = ref('Hello')
-const user = ref({ name: 'Alice' })
-const score = ref(85)
+const ok = ref(true);
+const message = ref('Hello');
+const user = ref({ name: 'Alice' });
+const score = ref(85);
 
 // Move complex logic to computed properties
 const greeting = computed(() => {
   if (user.value) {
-    return `Welcome back, ${user.value.name}!`
+    return `Welcome back, ${user.value.name}!`;
   }
-  return 'Hello, Guest!'
-})
+  return 'Hello, Guest!';
+});
 
 // Or use methods for reusable logic
 function formatDate(date) {
-  return new Date(date).toLocaleDateString()
+  return new Date(date).toLocaleDateString();
 }
 </script>
 
@@ -78,7 +80,7 @@ function formatDate(date) {
 
   <!-- OK: Method/function calls -->
   <p>{{ formatDate(date) }}</p>
-  <p>{{ items.filter(i => i.active).length }}</p>
+  <p>{{ items.filter((i) => i.active).length }}</p>
 
   <!-- OK: Chained expressions -->
   <p>{{ message.split('').reverse().join('') }}</p>
@@ -110,5 +112,6 @@ function formatDate(date) {
 ```
 
 ## Reference
+
 - [Vue.js Template Syntax - Using JavaScript Expressions](https://vuejs.org/guide/essentials/template-syntax.html#using-javascript-expressions)
 - [Vue.js Conditional Rendering](https://vuejs.org/guide/essentials/conditional.html)

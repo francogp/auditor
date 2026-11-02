@@ -36,14 +36,14 @@ Whenever making architectural decisions, designing subsystems, restructuring mod
 
 Before writing code, defining interfaces, or finalizing system designs, invoke and satisfy the design pillars:
 
-| Pillar | Skill Command | Mandatory Invariant |
-| :--- | :--- | :--- |
-| **1. Domain Typing** | [`/domain-type-first`](../domain-type-first/SKILL.md) | **Zero loose strings, zero `any`, zero `unknown`**. All finite sets, parameters, states, and IDs must derive from canonical compile-time domain unions. |
-| **2. Clean Code** | [`/clean-code`](../clean-code/SKILL.md) | **Single Responsibility & Cognitive Simplicity**. Max cognitive complexity ≤ 20, cyclomatic ≤ 25. Flat logic over deep nesting, early guard clauses. |
-| **3. DOX Indexation** | [`/dox-navigator`](../dox-navigator/SKILL.md) | **Single Source of Truth in `AGENTS.md`**. Every new file, directory, and architectural boundary must be indexed in its local DOX hierarchy with relative links. |
-| **4. Anti-Overengineering** | [`/ponytail`](../ponytail/SKILL.md) | **Shortest path that actually works (YAGNI & KISS)**. Standard library and native platform APIs before dependencies. One clean function before fifty layers. |
-| **5. Static Governance & Tools Priority** | [`/auditor`](../auditor/SKILL.md) | **First Official CLI Tools, Zero Premature Scratch Scripts**. Always use `npm run auditor:next`, `auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:types`, `auditor:domain`. Scratch scripts are strictly a last resort. |
-| **6. Code Intelligence & Boundaries** | [`/fallow`](../fallow/SKILL.md) | **Architecture Boundaries & Zero Dead Code**. Circular dependency detection, semantic duplication, complexity hotspots, and blast-radius risk scoring before merging. |
+| Pillar                                    | Skill Command                                         | Mandatory Invariant                                                                                                                                                                                                                                                                    |
+| :---------------------------------------- | :---------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Domain Typing**                      | [`/domain-type-first`](../domain-type-first/SKILL.md) | **Zero loose strings, zero `any`, zero `unknown`**. All finite sets, parameters, states, and IDs must derive from canonical compile-time domain unions.                                                                                                                                |
+| **2. Clean Code**                         | [`/clean-code`](../clean-code/SKILL.md)               | **Single Responsibility & Cognitive Simplicity**. Max cognitive complexity ≤ 20, cyclomatic ≤ 25. Flat logic over deep nesting, early guard clauses.                                                                                                                                   |
+| **3. DOX Indexation**                     | [`/dox-navigator`](../dox-navigator/SKILL.md)         | **Single Source of Truth in `AGENTS.md`**. Every new file, directory, and architectural boundary must be indexed in its local DOX hierarchy with relative links.                                                                                                                       |
+| **4. Anti-Overengineering**               | [`/ponytail`](../ponytail/SKILL.md)                   | **Shortest path that actually works (YAGNI & KISS)**. Standard library and native platform APIs before dependencies. One clean function before fifty layers.                                                                                                                           |
+| **5. Static Governance & Tools Priority** | [`/auditor`](../auditor/SKILL.md)                     | **First Official CLI Tools, Zero Premature Scratch Scripts**. Always use `npm run auditor:next`, `auditor:findings`, `auditor:rules`, `auditor:dupes`, `auditor:magic`, `auditor:motion`, `auditor:o1`, `auditor:types`, `auditor:domain`. Scratch scripts are strictly a last resort. |
+| **6. Code Intelligence & Boundaries**     | [`/fallow`](../fallow/SKILL.md)                       | **Architecture Boundaries & Zero Dead Code**. Circular dependency detection, semantic duplication, complexity hotspots, and blast-radius risk scoring before merging.                                                                                                                  |
 
 ---
 
@@ -51,8 +51,8 @@ Before writing code, defining interfaces, or finalizing system designs, invoke a
 
 Whenever a bug, regression, test failure, runtime crash, or unexpected behavior is detected or reported:
 
-| Discipline | Skill Command | Mandatory Protocol |
-| :--- | :--- | :--- |
+| Discipline                 | Skill Command                                               | Mandatory Protocol                                                                                                                                                                                                                                                                       |
+| :------------------------- | :---------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Primary Debug & Triage** | [`/systematic-debugging`](../systematic-debugging/SKILL.md) | **RED-GREEN ante todo (Gate 1 Inviolable)**. Modifying `src/` without an isolated reproduction test failing deterministically in RED is STRICTLY PROHIBITED. Enforces the 4-phase reactive lifecycle, dual consultation gate, zero silent catch/fallbacks, and closed-loop verification. |
 
 ---
@@ -61,9 +61,9 @@ Whenever a bug, regression, test failure, runtime crash, or unexpected behavior 
 
 For specialized architectural needs, delegate to and complement with:
 
-- **[`codebase-design`](../codebase-design/SKILL.md)**: Deep modules, clear interface boundaries (*seams*), and hiding implementation complexity behind simple public APIs.
+- **[`codebase-design`](../codebase-design/SKILL.md)**: Deep modules, clear interface boundaries (_seams_), and hiding implementation complexity behind simple public APIs.
 - **[`domain-modeling`](../domain-modeling/SKILL.md)**: Formal domain modeling, ubiquitous language, and Architecture Decision Records (ADRs).
-- **[`database-migrations`](../database-migrations/SKILL.md)**: Relational schema design, RLS performance, multi-host parity, and 100% immutable *forward-only* SQL migrations (complemented by the Supabase plugin).
+- **[`database-migrations`](../database-migrations/SKILL.md)**: Relational schema design, RLS performance, multi-host parity, and 100% immutable _forward-only_ SQL migrations (complemented by the Supabase plugin).
 
 ---
 

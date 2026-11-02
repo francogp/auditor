@@ -41,11 +41,12 @@ To prevent infinite loops and token waste:
    **Failing Test**: `tests/node/.../reproduce_xxx.test.ts`
 
    **Hypotheses & Fixes Attempted**:
-   1. *Attempt 1*: [Summary of approach and resulting error]
-   2. *Attempt 2*: [Summary]
-   3. *Attempt 3*: [Summary]
-   4. *Attempt 4*: [Summary]
-   5. *Attempt 5*: [Summary]
+
+   1. _Attempt 1_: [Summary of approach and resulting error]
+   2. _Attempt 2_: [Summary]
+   3. _Attempt 3_: [Summary]
+   4. _Attempt 4_: [Summary]
+   5. _Attempt 5_: [Summary]
 
    **Current Blocker**: [Why the root cause resists repair]
    **Next Steps / User Input Requested**: [Specific architectural question or recommendation]
@@ -96,6 +97,7 @@ If the bug affected UI, GSAP animations, or view interactions:
    ```
 
    Ensures domain types, vue-tsc type checking, Oxlint / Vite+, and markdownlint pass cleanly.
+
 2. **Documentation & DOX Audit**:
 
    ```bash

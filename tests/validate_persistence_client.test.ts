@@ -233,7 +233,7 @@ describe('ValidatePersistenceClientAuditor', () => {
     const saveViolations = result.findings.filter(
       (f) => f.ruleId === 'persistence-client-uncoordinated-save'
     );
-    expect(saveViolations.length).toBe(1);
+    expect(saveViolations).toHaveLength(1);
     expect(saveViolations[0]?.severity).toBe('error');
   });
 
@@ -299,6 +299,6 @@ describe('ValidatePersistenceClientAuditor', () => {
     const quotaViolations = result.findings.filter(
       (f) => f.ruleId === 'persistence-client-unhandled-quota-error'
     );
-    expect(quotaViolations.length).toBe(1);
+    expect(quotaViolations).toHaveLength(1);
   });
 });

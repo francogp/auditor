@@ -43,6 +43,12 @@ export declare function clearDynamicCachePaths(): void;
  */
 export declare const CANONICAL_IGNORE_DIRS: ReadonlySet<string>;
 /**
+ * Canonical system ignore globs derived deterministically from CANONICAL_IGNORE_DIRS.
+ * Used across tool satellite configs (e.g. Vite+, Oxlint, Stylelint) to ensure consistent
+ * system-level ignoring without hardcoded ad-hoc arrays.
+ */
+export declare const CANONICAL_SYSTEM_IGNORE_GLOBS: readonly string[];
+/**
  * Returns the effective set of ignore directories combining canonical defaults,
  * dynamically registered tool caches, and audit.config.ts `paths.ignoredDirs`.
  */

@@ -49,7 +49,7 @@ export type StatusId = (typeof WEATHER_IDS)[number];
 ```typescript
 export const ITEM_DATA = {
   potion: { price: 300 },
-  superpotion: { price: 700 },
+  superpotion: { price: 700 }
 } as const;
 
 export type ItemId = keyof typeof ITEM_DATA;
@@ -61,13 +61,13 @@ export type ItemId = keyof typeof ITEM_DATA;
 // Full coverage (every domain member MUST be present)
 export const ROLE_LABELS = {
   admin: 'Administrator',
-  editor: 'Content Editor',
+  editor: 'Content Editor'
 } satisfies Record<UserRole, string>;
 
 // Partial coverage (intentional subset only)
 export const WEATHER_BONUSES = {
   rain: 1.2,
-  storm: 1.5,
+  storm: 1.5
 } satisfies Partial<Record<StatusId, number>>;
 ```
 
@@ -104,7 +104,7 @@ export function parseUserDto(raw: unknown): User {
   const record = raw as Record<string, unknown>;
   return {
     id: makeUserId(String(record.id)),
-    email: requireValidEmail(String(record.email)),
+    email: requireValidEmail(String(record.email))
   };
 }
 ```

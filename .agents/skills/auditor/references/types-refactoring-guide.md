@@ -120,9 +120,7 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 {
   "version": 1,
   "planId": "auditor-types-plan-1792371365006",
-  "targetFiles": [
-    "src/services/authService.ts"
-  ],
+  "targetFiles": ["src/services/authService.ts"],
   "assertionReplacements": [
     {
       "file": "src/services/authService.ts",
@@ -155,7 +153,7 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 
 ### Scenario B: Elective Type Modernization (`auditor:types`)
 
-- **Trigger**: User requests *"add return types to functions"*, *"remove as any"*, or *"reinforce TypeScript contracts"*.
+- **Trigger**: User requests _"add return types to functions"_, _"remove as any"_, or _"reinforce TypeScript contracts"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:types discover`, inspect specific candidate files via `auditor:types inspect <file>`, generate `scratch/types-plan.json`, and apply with `--worktree`.
 
@@ -169,12 +167,14 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 # Correction Plan: type-assertion-as-any in webhookHandler.ts
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: `contracts` (Phase 4)
 - **Suite**: `validate_type_assertion_hygiene`
 - **Location**: `src/api/webhookHandler.ts:L37`
 - **Violation**: Direct casting `payload as any` to access dynamic event properties.
 
 ## 2. Canonical Solution
+
 1. Define a discriminated union type or schema validation (`WebhookPayload`).
 2. Safely cast or narrow the type using `unknown`:
 
@@ -193,14 +193,16 @@ const body = payload as unknown as WebhookPayload; // or domain type guard check
 # Improvement Plan: Explicit Return Types in authService.ts
 
 ## 1. Scope & Motivation
+
 - **Tool**: `auditor-types`
 - **Objective**: Add explicit return type annotations on exported functions to accelerate compiler type-checking and secure public API contracts.
 - **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| File | Line | Current Header | Proposed Return Type |
-| :--- | :--- | :--- | :--- |
-| `src/services/authService.ts` | L85 | `export function validateSession(token: string)` | `Promise<SessionState>` |
+
+| File                          | Line | Current Header                                   | Proposed Return Type    |
+| :---------------------------- | :--- | :----------------------------------------------- | :---------------------- |
+| `src/services/authService.ts` | L85  | `export function validateSession(token: string)` | `Promise<SessionState>` |
 
 ## 3. Declarative Plan (`scratch/types-plan.json`)
 

@@ -9,15 +9,9 @@ Reactive [pointer lock](https://developer.mozilla.org/en-US/docs/Web/API/Pointer
 ## Basic Usage
 
 ```ts
-import { usePointerLock } from '@vueuse/core'
+import { usePointerLock } from '@vueuse/core';
 
-const {
-  isSupported,
-  lock,
-  unlock,
-  element,
-  triggerElement
-} = usePointerLock()
+const { isSupported, lock, unlock, element, triggerElement } = usePointerLock();
 ```
 
 ## Component Usage
@@ -26,9 +20,7 @@ const {
 <template>
   <UsePointerLock v-slot="{ lock }">
     <canvas />
-    <button @click="lock">
-      Lock Pointer on Canvas
-    </button>
+    <button @click="lock">Lock Pointer on Canvas</button>
   </UsePointerLock>
 </template>
 ```
@@ -38,10 +30,10 @@ const {
 ```ts
 export interface UsePointerLockOptions extends ConfigurableDocument {}
 export interface UsePointerLockReturn extends Supportable {
-  element: ShallowRef<MaybeElement>
-  triggerElement: ShallowRef<MaybeElement>
-  lock: (e: MaybeElementRef | Event) => Promise<MaybeElement>
-  unlock: () => Promise<boolean>
+  element: ShallowRef<MaybeElement>;
+  triggerElement: ShallowRef<MaybeElement>;
+  lock: (e: MaybeElementRef | Event) => Promise<MaybeElement>;
+  unlock: () => Promise<boolean>;
 }
 /**
  * Reactive pointer lock.
@@ -54,6 +46,6 @@ export interface UsePointerLockReturn extends Supportable {
  */
 export declare function usePointerLock(
   target?: MaybeElementRef,
-  options?: UsePointerLockOptions,
-): UsePointerLockReturn
+  options?: UsePointerLockOptions
+): UsePointerLockReturn;
 ```

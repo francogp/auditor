@@ -67,7 +67,7 @@ describe('ValidateStylelintConfigAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(STYLELINT_CONFIG_RULES);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
+      expect(Object.keys(auditor.ruleDescriptions)).toHaveLength(5);
     });
 
     it('enforces exact 13 canonical design token properties in REQUIRED_STRICT_PROPERTIES', () => {

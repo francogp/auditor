@@ -111,7 +111,10 @@ export default defineAuditConfig({
       { pattern: 'vendor', maxBytes: 2000 * 1024, warnBytes: 1500 * 1024 } // Shared vendor dependencies chunk budget
     ],
     forbiddenUiImports: [
-      { module: 'xlsx', reason: 'Heavy spreadsheet parser must be loaded dynamically on demand or in a worker.' }
+      {
+        module: 'xlsx',
+        reason: 'Heavy spreadsheet parser must be loaded dynamically on demand or in a worker.'
+      }
     ]
   },
 
@@ -181,7 +184,8 @@ export default defineAuditConfig({
       {
         policy: 'exemptFiles',
         glob: 'src/logic/services/errorLoggingService.ts',
-        reason: 'Central error logging service with justified console access and global error handling'
+        reason:
+          'Central error logging service with justified console access and global error handling'
       }
     ]
   },
@@ -344,7 +348,17 @@ export default defineAuditConfig({
     caseNormalizationExemptTokens: ['iso', 'cuit', 'dni', 'vat', 'kw', 'kwh', 'v', 'a'], // Acronyms and units exempt from casing warnings
     allowedStoreSetterPrefixes: ['set', 'update', 'assign'], // Authorized semantic prefixes for Pinia store mutator methods
     allowedNumericConstantPrefixes: [
-      'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_'
+      'GEN_',
+      'ISO_',
+      'UTF_8',
+      'BASE_64',
+      'RGB_',
+      'RGBA_',
+      'WASM_',
+      'HTML_5',
+      'CSS_3',
+      'HTTP_',
+      'D3_'
     ], // Authorized prefixes in numeric constant identifiers
     finiteDomainTypes: [
       'TariffId',

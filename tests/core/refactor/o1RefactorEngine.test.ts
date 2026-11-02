@@ -36,7 +36,7 @@ export function cloneState(state: any): any {
       );
 
       const findings = O1RefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.kind).toBe('json-clone');
       expect(findings[0]?.suggestedReplacement).toBe('structuredClone(state)');
     });
@@ -53,7 +53,7 @@ export function getItems(arr: string[]): readonly string[] {
       );
 
       const findings = O1RefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.kind).toBe('redundant-spread');
       expect(findings[0]?.suggestedReplacement).toBe('return arr;');
     });
@@ -72,7 +72,7 @@ export function isAllowed(role: string): boolean {
       );
 
       const findings = O1RefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.kind).toBe('linear-membership');
       expect(findings[0]?.identifier).toBe('ALLOWED_ROLES_LIST');
       expect(findings[0]?.suggestedReplacement).toBe('ALLOWED_ROLES_LIST_SET.has(role)');
@@ -113,7 +113,7 @@ export function duplicate(data: any): any {
       );
 
       const findings = O1RefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(2);
+      expect(findings).toHaveLength(2);
 
       const plan = O1RefactorEngine.createPlan('test-o1-plan', findings);
       expect(plan.membershipHoists?.length).toBe(1);

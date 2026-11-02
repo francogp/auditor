@@ -170,6 +170,7 @@ Three graph facts feed the composition. Only a `test_reach` note can add an item
   - For `status: "no-tests"`, write one orientation line, not one line per export.
   - For `masking: "capped"`, the graph cannot see mocks. The absence of `mocked-only` rows proves nothing.
   - End-to-end tests do not import files. In a project with an end-to-end runner, a `none-file` row can still have end-to-end tests. Ask, do not assume.
+
 - `digest.partition.independent_slices` lists the connected components of the inter-unit dependency graph, each a sorted list of module directories. It is present only when there are two or more slices; absent means the change is one connected piece. When `digest.triage.risk_class` is `high` and the field is present, name them as an orientation fact: "this change splits into K independent slices along a graph-proven seam". It is never a demand to split; the author owns that call.
 
 Two rules govern the prose. Leverage first: one structural decision plus ten small notes means the decision IS the review; the notes ride below it or not at all. Numbers, not adjectives: every `framing` cites at least one number or path from the guide (a consumer count, an out-of-diff path, a `scoring_budget`). "Could be slow" is not a finding; "imported by 14 modules, 9 outside this diff" is.
@@ -195,8 +196,18 @@ The human owns the taste; you only carry the note. fallow validates the ANCHOR (
    {
      "graph_snapshot_hash": "<echo from guide.json>",
      "judgments": [
-       { "signal_id": "<an emitted decision signal>", "framing": "<the human's verdict/note>", "action": "address", "concern": "<optional>" },
-       { "change_anchor": "<an emitted chg: id>", "framing": "<the human's note on this region>", "action": "consider", "concern": "<optional>" }
+       {
+         "signal_id": "<an emitted decision signal>",
+         "framing": "<the human's verdict/note>",
+         "action": "address",
+         "concern": "<optional>"
+       },
+       {
+         "change_anchor": "<an emitted chg: id>",
+         "framing": "<the human's note on this region>",
+         "action": "consider",
+         "concern": "<optional>"
+       }
      ]
    }
    ```
@@ -215,16 +226,16 @@ The guarantee: the human cannot anchor a note to a signal or region fallow did n
 
 ## Rationalizations the loop rejects
 
-| Rationalization | Reality |
-|---|---|
-| "I can see dead code in the diff, I'll flag it quickly" | Subtract already owns it; a second derivation is noise and can be wrong. Relay the brief's count. |
-| "This `signal_id` looks right" | Only `emitted_signal_ids` exist. Anything else is a hallucination fallow rejects as `unanchored-signal-id`. |
-| "Five trade-offs is the target" | Five is the ceiling. `abstained: true` with an empty list is a valid, complete answer. |
-| "The question is open, I'll just mention the fix" | A named fix is a prescription. Reframe to the open decision, or list two or more options with real costs. |
-| "The tree moved a little, the guide is probably still fine" | It is `stale-snapshot`. Re-fetch the guide and redo the judgments. |
-| "Tests are green, so the change is good" | Green is a verification fact, not a verdict on the decision surface. The decisions still need the human's call. |
-| "A test imports this file, so it is tested" | `test_adjacency` sees only the import. A `mocked-only`, `none` or `none-file` row says that no test reaches the real export through imports. Ask for the verification story. |
-| "Production never called it, so delete it" | Check `period_tracking_state` and `evidence_window.observed_hours`. A short window or a rare path means "not visited", not "dead". |
+| Rationalization                                             | Reality                                                                                                                                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "I can see dead code in the diff, I'll flag it quickly"     | Subtract already owns it; a second derivation is noise and can be wrong. Relay the brief's count.                                                                            |
+| "This `signal_id` looks right"                              | Only `emitted_signal_ids` exist. Anything else is a hallucination fallow rejects as `unanchored-signal-id`.                                                                  |
+| "Five trade-offs is the target"                             | Five is the ceiling. `abstained: true` with an empty list is a valid, complete answer.                                                                                       |
+| "The question is open, I'll just mention the fix"           | A named fix is a prescription. Reframe to the open decision, or list two or more options with real costs.                                                                    |
+| "The tree moved a little, the guide is probably still fine" | It is `stale-snapshot`. Re-fetch the guide and redo the judgments.                                                                                                           |
+| "Tests are green, so the change is good"                    | Green is a verification fact, not a verdict on the decision surface. The decisions still need the human's call.                                                              |
+| "A test imports this file, so it is tested"                 | `test_adjacency` sees only the import. A `mocked-only`, `none` or `none-file` row says that no test reaches the real export through imports. Ask for the verification story. |
+| "Production never called it, so delete it"                  | Check `period_tracking_state` and `evidence_window.observed_hours`. A short window or a rare path means "not visited", not "dead".                                           |
 
 ## Notes
 

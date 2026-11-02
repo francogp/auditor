@@ -218,9 +218,9 @@ describe('Refactor CLI Handlers', () => {
     const oldArgv = process.argv;
     process.argv = ['node', 'refactor_dupes.ts', 'inspect', '--project', tmpDir];
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit called');
-    }) as any);
+    });
 
     await expect(runRefactorCli()).rejects.toThrow('exit called');
 
@@ -450,9 +450,9 @@ describe('Refactor CLI Handlers', () => {
 
   it('exits with error when inspect is invoked without target file', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit called');
-    }) as any);
+    });
 
     await expect(runRefactorMotionCli(['inspect', '--project', tmpDir])).rejects.toThrow(
       'exit called'
@@ -464,9 +464,9 @@ describe('Refactor CLI Handlers', () => {
 
   it('exits with error when apply is invoked without plan file', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit called');
-    }) as any);
+    });
 
     await expect(runRefactorMotionCli(['apply', '--project', tmpDir])).rejects.toThrow(
       'exit called'
@@ -478,9 +478,9 @@ describe('Refactor CLI Handlers', () => {
 
   it('exits with error on unknown command in harness', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit called');
-    }) as any);
+    });
 
     await expect(runRefactorMotionCli(['invalid_command', '--project', tmpDir])).rejects.toThrow(
       'exit called'
@@ -492,9 +492,9 @@ describe('Refactor CLI Handlers', () => {
 
   it('exits with error when inspect target file does not exist', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('exit called');
-    }) as any);
+    });
 
     await expect(
       runRefactorMotionCli(['inspect', '--file', 'non_existent_file.ts', '--project', tmpDir])

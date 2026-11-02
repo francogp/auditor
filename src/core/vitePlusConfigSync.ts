@@ -19,6 +19,10 @@ import {
   getAuditorMinimumVersions,
   normalizeToCaretRange
 } from './auditorMinimums.ts';
+import {
+  CANONICAL_SYSTEM_IGNORE_GLOBS,
+  getLockedSkillsIgnoreGlobs
+} from './canonicalIgnoreRegistry.ts';
 import { getPackageJson, writePackageJson } from './packageJson.ts';
 import { toPosixRelative } from './safePath.ts';
 import { safeReadFileSync, safeRmSync, tryOrNull } from './safeUtils.ts';
@@ -98,22 +102,20 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
 
 /**
  * Resolves all canonical ignore globs derived from audit.config.ts (SSoT).
+ *
+ * Strict Isolation Mandate:
+ * Only CANONICAL_SYSTEM_IGNORE_GLOBS, config.paths (ignoreGlobs, ignoredDirs, ignoredPatterns, exemptFiles),
+ * and target-specific config (vitePlusConfig.lint.ignorePatterns / oxlint.ignoreGlobs for lint,
+ * vitePlusConfig.fmt.ignorePatterns / oxfmt.ignoreGlobs for fmt) are included.
+ * Cross-subsystem pollutions (dataRoots, demoRoots, testRoots, coverage.exemptGlobs, legacy ignores)
+ * are CATEGORICALLY EXCLUDED.
  */
 export function resolveAuditConfigIgnoreGlobs(
   config: AuditConfig,
   target: VitePlusSyncTarget = 'lint',
-  projectRoot?: string
+  projectRoot: string = process.cwd()
 ): string[] {
-  const baseIgnores = [
-    'dist/**',
-    'dev-dist/**',
-    'node_modules/**',
-    'scratch/**',
-    'tmp/**',
-    '.agents/**',
-    'coverage/**',
-    '**/*.d.ts'
-  ];
+  const baseIgnores: string[] = [...CANONICAL_SYSTEM_IGNORE_GLOBS, '**/*.d.ts'];
   if (target === 'fmt') {
     baseIgnores.push('package-lock.json');
   }
@@ -124,33 +126,7 @@ export function resolveAuditConfigIgnoreGlobs(
   );
   const patternIgnores = config.paths?.ignoredPatterns ?? [];
   const exemptFiles = config.paths?.exemptFiles ?? [];
-
-  const testIgnores: string[] = []; // no-domain: Dynamic test ignore glob accumulator
-  if (target === 'lint' && config.paths?.includeTestsInCodeAudit === false) {
-    const testRoots = config.paths.testRoots ?? ['tests'];
-    const e2eRoots = config.paths.e2eRoots ?? [];
-    const integrationRoots = config.paths.integrationRoots ?? [];
-    for (const r of [...testRoots, ...e2eRoots, ...integrationRoots]) {
-      const glob = r.endsWith('/**') ? r : `${r}/**`;
-      testIgnores.push(glob);
-    }
-    testIgnores.push('**/*.spec.ts', '**/*.test.ts', '**/*.simulation.ts');
-  }
-
-  const coverageExemptIgnores = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-
-  const dataDemoIgnores: string[] = []; // no-domain: Dynamic data/demo ignore glob accumulator
-  if (target === 'lint') {
-    const dataRoots = (config.paths?.dataRoots ?? []).map((d) =>
-      d.endsWith('/**') ? d : `${d}/**`
-    );
-    const demoRoots = (config.paths?.demoRoots ?? []).map((d) =>
-      d.endsWith('/**') ? d : `${d}/**`
-    );
-    dataDemoIgnores.push(...dataRoots, ...demoRoots);
-  }
-
-  const legacyIgnores: string[] = projectRoot ? findLegacyEslintIgnores(projectRoot) : []; // no-domain: Dynamic legacy ignore glob list
+  const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
 
   const specificTargetIgnores =
     target === 'lint'
@@ -170,10 +146,7 @@ export function resolveAuditConfigIgnoreGlobs(
       ...dirIgnores,
       ...patternIgnores,
       ...exemptFiles,
-      ...coverageExemptIgnores,
-      ...dataDemoIgnores,
-      ...testIgnores,
-      ...legacyIgnores,
+      ...lockedSkillsIgnores,
       ...specificTargetIgnores
     ])
   );

@@ -6,24 +6,24 @@ This reference provides the comprehensive CLI manual, filtering parameters, and 
 
 ## 1. Supported CLI Options & Flags
 
-| Flag / Parameter | Description | Example Usage |
-| :--- | :--- | :--- |
-| `rules` / `by-rule` | Renders a consolidated Box-Drawing table of findings grouped and sorted by rule ID (`ruleId`) with `TOTAL CONSOLIDADO`. | `npm run auditor:rules` o `npm run auditor:findings rules` |
-| `rule=<id>` / `ruleId=<id>` | Filters findings strictly by rule identifier or rule description. | `npm run auditor:findings rule=domain-naked-string-primitive` |
-| `flat` / `raw` | Emits an exhaustive line-by-line list of findings (`file:line [ruleId] message`) without truncating to sample limits. | `npm run auditor:findings file=src/combat.ts flat` |
-| `file=<path1>,<path2>` | Filters by one or more comma-separated file paths or substrings. | `npm run auditor:findings file=combat.ts,items.ts` |
-| `partial` | Allows inspecting partial runs (non-blocking by default; warns with executed suite count). | `npm run auditor:findings partial dir=src/` |
-| `breakdown` / `by-dir` / `dirs` | Renders a consolidated Box-Drawing table of findings grouped by directory/scope with `TOTAL CONSOLIDADO`. | `npm run auditor:findings breakdown` |
-| `dir=<path>` / `folder=<path>` | Filters findings by directory or file path substring across both category breakdown tables and finding samples. | `npm run auditor:findings dir=src/` |
-| `scope=<host\|packages\|all>` | Isolates application code (`host`) from reusable engine code (`packages`) in category tables and sample lists. | `npm run auditor:findings scope=host` |
-| `category=<name>` / `<name>` | Filters by rule or category name. | `npm run auditor:findings category=seguridad` |
-| `files` | Lists affected files sorted by error density with category banners and total sums. | `npm run auditor:findings category=cwe files top=10` |
-| `stale` / `allow-stale` | Bypasses the freshness check for investigative read-only inspection. | `npm run auditor:findings breakdown stale` |
-| `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`). | `npm run auditor:findings severity=error` |
-| `top=<N\|all>` | Limits displayed items (default: 20). | `npm run auditor:findings top=all` |
-| `search=<term>` | Searches within finding messages and context snippets. | `npm run auditor:findings search=token` |
-| `json` / `--json` | Emits structured JSON including `breakdownByDir` and `files` maps. | `npm run auditor:findings json` |
-| `human` / `--human` / `-H` | Enables aesthetic 80-column Box-Drawing terminal mode across any audit, reporter, or refactor CLI tool. | `npm run auditor:human`, `npm run auditor:findings:human`, `auditor-motion human` |
+| Flag / Parameter                 | Description                                                                                                             | Example Usage                                                                     |
+| :------------------------------- | :---------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------- |
+| `rules` / `by-rule`              | Renders a consolidated Box-Drawing table of findings grouped and sorted by rule ID (`ruleId`) with `TOTAL CONSOLIDADO`. | `npm run auditor:rules` o `npm run auditor:findings rules`                        |
+| `rule=<id>` / `ruleId=<id>`      | Filters findings strictly by rule identifier or rule description.                                                       | `npm run auditor:findings rule=domain-naked-string-primitive`                     |
+| `flat` / `raw`                   | Emits an exhaustive line-by-line list of findings (`file:line [ruleId] message`) without truncating to sample limits.   | `npm run auditor:findings file=src/combat.ts flat`                                |
+| `file=<path1>,<path2>`           | Filters by one or more comma-separated file paths or substrings.                                                        | `npm run auditor:findings file=combat.ts,items.ts`                                |
+| `partial`                        | Allows inspecting partial runs (non-blocking by default; warns with executed suite count).                              | `npm run auditor:findings partial dir=src/`                                       |
+| `breakdown` / `by-dir` / `dirs`  | Renders a consolidated Box-Drawing table of findings grouped by directory/scope with `TOTAL CONSOLIDADO`.               | `npm run auditor:findings breakdown`                                              |
+| `dir=<path>` / `folder=<path>`   | Filters findings by directory or file path substring across both category breakdown tables and finding samples.         | `npm run auditor:findings dir=src/`                                               |
+| `scope=<host\|packages\|all>`    | Isolates application code (`host`) from reusable engine code (`packages`) in category tables and sample lists.          | `npm run auditor:findings scope=host`                                             |
+| `category=<name>` / `<name>`     | Filters by rule or category name.                                                                                       | `npm run auditor:findings category=seguridad`                                     |
+| `files`                          | Lists affected files sorted by error density with category banners and total sums.                                      | `npm run auditor:findings category=cwe files top=10`                              |
+| `stale` / `allow-stale`          | Bypasses the freshness check for investigative read-only inspection.                                                    | `npm run auditor:findings breakdown stale`                                        |
+| `severity=<error\|warning\|all>` | Filters findings by severity level (`error`, `warning`, `all`).                                                         | `npm run auditor:findings severity=error`                                         |
+| `top=<N\|all>`                   | Limits displayed items (default: 20).                                                                                   | `npm run auditor:findings top=all`                                                |
+| `search=<term>`                  | Searches within finding messages and context snippets.                                                                  | `npm run auditor:findings search=token`                                           |
+| `json` / `--json`                | Emits structured JSON including `breakdownByDir` and `files` maps.                                                      | `npm run auditor:findings json`                                                   |
+| `human` / `--human` / `-H`       | Enables aesthetic 80-column Box-Drawing terminal mode across any audit, reporter, or refactor CLI tool.                 | `npm run auditor:human`, `npm run auditor:findings:human`, `auditor-motion human` |
 
 ---
 
@@ -60,12 +60,12 @@ Whenever analyzing, inspecting, or querying `scratch/audits/latest_audit.json` o
 
 The auditor streaming runner (`streamingRunner.ts`) and summary tables display 4 explicit execution states:
 
-| Status Badge | Color | Description |
-| :--- | :--- | :--- |
-| `✅ PASS` | Green | Suite completed successfully with 0 errors and 0 warnings. |
-| `⚠️  WARN` | Yellow | Suite completed with warnings but 0 blocking errors. |
-| `❌ FAIL` | Red | Suite encountered one or more blocking architectural violations (`severity: 'error'`). |
-| `⏭️  SKIP` | Cyan | Suite was intentionally bypassed (via environment guard, configuration, or fast preset). Displays reason and suite thematic icon. |
+| Status Badge | Color  | Description                                                                                                                       |
+| :----------- | :----- | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `✅ PASS`    | Green  | Suite completed successfully with 0 errors and 0 warnings.                                                                        |
+| `⚠️  WARN`   | Yellow | Suite completed with warnings but 0 blocking errors.                                                                              |
+| `❌ FAIL`    | Red    | Suite encountered one or more blocking architectural violations (`severity: 'error'`).                                            |
+| `⏭️  SKIP`   | Cyan   | Suite was intentionally bypassed (via environment guard, configuration, or fast preset). Displays reason and suite thematic icon. |
 
 ### Vector Semantic Duplication Governance (`validate_similar_code`)
 

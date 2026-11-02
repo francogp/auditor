@@ -94,7 +94,7 @@ app.config.globalProperties.$myPlugin = {
 You can inspect all global properties for debugging:
 
 ```typescript
-console.log(app.config.globalProperties)
+console.log(app.config.globalProperties);
 ```
 
 ## When Global Properties Are Acceptable

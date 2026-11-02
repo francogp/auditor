@@ -427,7 +427,7 @@ describe('Version Analyzer & SemVer Heuristics', () => {
         runBumpCli([]);
         runBumpCli(['-v']);
         runBumpCli(['--version']);
-        expect(logs.length).toBe(3);
+        expect(logs).toHaveLength(3);
         expect(logs.every((l) => l.includes('@francogp/auditor'))).toBe(true);
       } finally {
         logSpy.mockRestore();

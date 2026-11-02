@@ -47,7 +47,7 @@ describe('ZIndexAuditor', () => {
         'z-index-isolated-constant'
       ]);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
+      expect(Object.keys(auditor.ruleDescriptions)).toHaveLength(5);
     });
   });
 

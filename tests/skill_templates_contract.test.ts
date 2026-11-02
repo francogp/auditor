@@ -46,7 +46,7 @@ describe('skill templates and blueprints contract (ruleRemediations)', () => {
       const source = fs.readFileSync(file, 'utf-8');
       if (!source.includes(DESCRIPTIONS_KEY)) continue;
       it(`${path.relative(SKILL_ROOT, file)} declares ruleRemediations alongside ruleDescriptions`, () => {
-        expect(source.includes(`${REMEDIATIONS_KEY}`)).toBe(true);
+        expect(source).toContain(REMEDIATIONS_KEY);
       });
     }
   }
@@ -72,7 +72,7 @@ describe('skill templates and blueprints contract (ruleRemediations)', () => {
 
   it('detects a snippet that omits ruleRemediations (violation path)', () => {
     const snippet = `super({ ${DESCRIPTIONS_KEY}: { 'a': 'b' } });`;
-    expect(snippet.includes(REMEDIATIONS_KEY)).toBe(false);
+    expect(snippet).not.toContain(REMEDIATIONS_KEY);
   });
 
   for (const dir of TEMPLATE_DIRS) {
@@ -83,7 +83,7 @@ describe('skill templates and blueprints contract (ruleRemediations)', () => {
       const source = fs.readFileSync(file, 'utf-8');
       if (!source.includes(DESCRIPTIONS_KEY)) continue;
       it(`${path.relative(SKILL_ROOT, file)} declares usesThirdPartyTool in constructor`, () => {
-        expect(source.includes('usesThirdPartyTool:')).toBe(true);
+        expect(source).toContain('usesThirdPartyTool:');
       });
     }
   }

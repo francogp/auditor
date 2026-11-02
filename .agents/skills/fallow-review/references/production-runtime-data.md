@@ -15,12 +15,12 @@ request.
 
 ## Pick the smallest read
 
-| Question | CLI | MCP tool |
-|---|---|---|
-| Is a changed function hot, cold, or tested? | `fallow coverage review-packet --repo <owner/repo>` | `get_cloud_review_packet` |
-| Did the last deploy change what runs? | `fallow coverage deployment-changes --repo <owner/repo>` | `get_cloud_deployment_changes` |
-| Full runtime picture of the whole project | `fallow coverage analyze --cloud --repo <owner/repo> --format json --quiet` | `get_cloud_runtime_context` |
-| Static findings and production data of one file | `fallow inspect --file <path> --cloud --format json --quiet` | none |
+| Question                                        | CLI                                                                         | MCP tool                       |
+| ----------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------ |
+| Is a changed function hot, cold, or tested?     | `fallow coverage review-packet --repo <owner/repo>`                         | `get_cloud_review_packet`      |
+| Did the last deploy change what runs?           | `fallow coverage deployment-changes --repo <owner/repo>`                    | `get_cloud_deployment_changes` |
+| Full runtime picture of the whole project       | `fallow coverage analyze --cloud --repo <owner/repo> --format json --quiet` | `get_cloud_runtime_context`    |
+| Static findings and production data of one file | `fallow inspect --file <path> --cloud --format json --quiet`                | none                           |
 
 `fallow inspect --file <path> --cloud` adds a `cloud` section to the inspect
 evidence: calls, errors, CPU time and never-run ranges per function of the
@@ -66,13 +66,13 @@ The four shared tools have the same names and arguments on both servers:
 
 The hosted-only tools:
 
-| Question | Hosted tool | Main arguments |
-|---|---|---|
-| What does production say about this file? Call it when you open or change a file. | `get_file_context` | `repo`, `path`, `format`, `period_days`, `commit_sha`, `max_output_bytes` |
-| Did the changed functions run after a deploy, with new errors or a CPU change? | `verify_deployment` | `repo`, `sha`, `functions` or `files`, `base` |
-| Which errors does production throw? | `list_errors` | `repo`, `file`, `stable_id`, `sha`, `period_days`, `limit`, `cursor` |
-| Which branches of a file never ran? Use it before you change a condition or remove a branch. | `get_branch_usage` | `repo`, `path`, `commit_sha`, `period_days` |
-| Which npm packages ran in production? | `get_runtime_dependencies` | `repo`, `declared`, `commit_sha`, `period_days` |
+| Question                                                                                     | Hosted tool                | Main arguments                                                            |
+| -------------------------------------------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------- |
+| What does production say about this file? Call it when you open or change a file.            | `get_file_context`         | `repo`, `path`, `format`, `period_days`, `commit_sha`, `max_output_bytes` |
+| Did the changed functions run after a deploy, with new errors or a CPU change?               | `verify_deployment`        | `repo`, `sha`, `functions` or `files`, `base`                             |
+| Which errors does production throw?                                                          | `list_errors`              | `repo`, `file`, `stable_id`, `sha`, `period_days`, `limit`, `cursor`      |
+| Which branches of a file never ran? Use it before you change a condition or remove a branch. | `get_branch_usage`         | `repo`, `path`, `commit_sha`, `period_days`                               |
+| Which npm packages ran in production?                                                        | `get_runtime_dependencies` | `repo`, `declared`, `commit_sha`, `period_days`                           |
 
 Every hosted tool is read-only. Every tool except `list_repos` takes `repo`.
 Get the `repo` value from `list_repos`. `verify_deployment` gives a verdict of

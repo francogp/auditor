@@ -374,7 +374,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
   describe('Clean Path & Auto-Fix Canaries (C-CFG-10 and C-CFG-11)', () => {
     it('C-CFG-10: executes cleanly with 0 errors on 100% compliant canonical config', async () => {
-      const canonicalConfig = buildCanonicalVitePlusConfig(getAuditConfig(tempDir));
+      const canonicalConfig = buildCanonicalVitePlusConfig(getAuditConfig(tempDir), tempDir);
       fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), canonicalConfig);
 
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
@@ -418,16 +418,19 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
       const globs = resolveAuditConfigIgnoreGlobs(mockAuditConfig, 'lint', tempDir);
 
+      // Global path ignores and system defaults must be present
       expect(globs).toContain('supabase/**');
       expect(globs).toContain('custom-folder/**');
       expect(globs).toContain('build-cache/**');
       expect(globs).toContain('temp_data/**');
-      expect(globs).toContain('tests/**');
-      expect(globs).toContain('test_aventura/tests/**');
-      expect(globs).toContain('e2e/**');
-      expect(globs).toContain('legacy_legacy/**');
-      expect(globs).toContain('**/*.test.ts');
       expect(globs).toContain('dist/**');
+
+      // Tests and legacy files must NEVER contaminate lint ignores
+      expect(globs).not.toContain('tests/**');
+      expect(globs).not.toContain('test_aventura/tests/**');
+      expect(globs).not.toContain('e2e/**');
+      expect(globs).not.toContain('legacy_legacy/**');
+      expect(globs).not.toContain('**/*.test.ts');
 
       // Test synchronization with existing vite.config.ts
       const initialViteConfig = `
@@ -456,7 +459,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
       const synced = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
       expect(synced).toContain('ignorePatterns: [');
       expect(synced).toContain("'supabase/**'");
-      expect(synced).toContain("'tests/**'");
+      expect(synced).not.toContain("'tests/**'");
       expect(synced).toContain("'build-cache/**'");
     });
 
@@ -674,12 +677,13 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
       const globs = resolveAuditConfigIgnoreGlobs(mockAuditConfig, 'lint', tempDir);
 
-      // Subsystem isolation: coverage degradations must NEVER contaminate lint ignores
+      // Subsystem isolation: coverage degradations, dataRoots, demoRoots, and fixtures must NEVER contaminate lint ignores
       expect(globs).not.toContain('scripts/**');
-      expect(globs).toContain('src/generated/**');
-      expect(globs).toContain('data/**');
-      expect(globs).toContain('fixtures/**');
-      expect(globs).toContain('demo/**');
+      expect(globs).not.toContain('src/generated/**');
+      expect(globs).not.toContain('data/**');
+      expect(globs).not.toContain('fixtures/**');
+      expect(globs).not.toContain('demo/**');
+      expect(globs).not.toContain('src/legacy/**');
     });
 
     it('C-CFG-21: synchronizes custom vitePlusConfig.lint.rules (e.g. no-record-string-key: off) to vite.config.ts', () => {
@@ -890,12 +894,12 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
       for (const ruleId of VITE_PLUS_CONFIG_RULES) {
         expect(auditor.ruleDescriptions[ruleId]).toBeDefined();
-        expect(auditor.ruleDescriptions[ruleId]!.length).toBeGreaterThan(0);
+        expect(auditor.ruleDescriptions[ruleId].length).toBeGreaterThan(0);
         // Formatted description: "Vite+: <desc>" <= 50 chars
         expect(`Vite+: ${auditor.ruleDescriptions[ruleId]}`.length).toBeLessThanOrEqual(50);
 
         expect(auditor.ruleRemediations[ruleId]).toBeDefined();
-        expect(auditor.ruleRemediations[ruleId]!.length).toBeGreaterThan(10);
+        expect(auditor.ruleRemediations[ruleId].length).toBeGreaterThan(10);
       }
     });
 
@@ -1351,7 +1355,7 @@ export default defineConfig({
       const pluginFindings = auditResult.findings.filter(
         (f) => f.ruleId === 'vite-plus-config-lint' && f.context?.startsWith('lint.plugins.')
       );
-      expect(pluginFindings.length).toBe(8);
+      expect(pluginFindings).toHaveLength(8);
       expect(pluginFindings.some((f) => f.context === 'lint.plugins.vitest')).toBe(true);
       expect(pluginFindings.some((f) => f.context === 'lint.plugins.node')).toBe(true);
       expect(pluginFindings.some((f) => f.context === 'lint.plugins.promise')).toBe(true);
@@ -1808,6 +1812,91 @@ export default defineConfig({
       const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
       expect(updatedConfig).toContain("'@typescript-eslint/explicit-function-return-type'");
       expect(updatedConfig).toContain('allowExpressions: false');
+    });
+
+    it('C-CFG-74: syncViteConfigWithAuditConfig generates explicit return type on outExtensions arrow function for Java-style strong typing', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          pack: {
+            entry: ['src/**/*.ts'],
+            unbundle: true,
+            format: ['esm'],
+            target: 'node26',
+            dts: true,
+            clean: true,
+            publint: true,
+            attw: { profile: 'esm-only' },
+            outExtensions: () => ({ js: '.js', dts: '.d.ts' })
+          },
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const mockConfig = defineAuditConfig({
+        packageDistribution: { enabled: true }
+      });
+      setAuditConfig(mockConfig, tempDir);
+
+      syncViteConfigWithAuditConfig(tempDir, mockConfig);
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toMatch(
+        /outExtensions:\s*\(\)\s*:\s*\{\s*js:\s*string;?\s*dts:\s*string;?\s*\}\s*=>/
+      );
+    });
+
+    it('C-CFG-75: synchronizeViteConfigAst injects explicit return types on onwarn, bypass, outExtensions, and manualChunks in vite.config.ts', () => {
+      const initialConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          pack: {
+            outExtensions: () => ({ js: '.js', dts: '.dts' })
+          },
+          server: {
+            proxy: {
+              '/api': {
+                bypass: (req) => {
+                  if (req.url) return req.url;
+                  return undefined;
+                }
+              }
+            }
+          },
+          build: {
+            rollupOptions: {
+              onwarn(warning, warn) {
+                if (warning.code === 'EVAL') return;
+                warn(warning);
+              },
+              output: {
+                manualChunks(id) {
+                  if (id.includes('node_modules')) return 'vendor';
+                  return undefined;
+                }
+              }
+            }
+          },
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      const auditConfig = defineAuditConfig({});
+      const synced = synchronizeViteConfigAst(initialConfig, auditConfig, [], [], null);
+
+      expect(synced.modified).toBe(true);
+      expect(synced.content).toMatch(/onwarn\s*\(warning,\s*warn\)\s*:\s*void/);
+      expect(synced.content).toMatch(/bypass\s*:\s*\(req\)\s*:\s*string\s*\|\s*undefined\s*=>/);
+      expect(synced.content).toMatch(/manualChunks\s*\(id\)\s*:\s*string\s*\|\s*undefined/);
+      expect(synced.content).toMatch(
+        /outExtensions\s*:\s*\(\)\s*:\s*\{\s*js:\s*string;\s*dts:\s*string;\s*\}\s*=>/
+      );
     });
   });
 });

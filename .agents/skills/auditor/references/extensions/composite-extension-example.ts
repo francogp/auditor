@@ -54,9 +54,11 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
-    const domainRoots = options.roots ?? (config.paths.logicRoots?.length
-      ? config.paths.logicRoots
-      : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots));
+    const domainRoots =
+      options.roots ??
+      (config.paths.logicRoots?.length
+        ? config.paths.logicRoots
+        : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots));
 
     super({
       ruleFixers: {},
@@ -68,14 +70,17 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
       packageName: 'HostDomain',
       ruleIds: HOST_DOMAIN_RULES,
       ruleCapabilities: {
-        ...createRuleCapabilities(['host-catalog-sync', 'host-schema-invariants', 'host-state-consistency'], {
-          speed: 'heavy',
-          phase: 'normal',
-          md: false,
-          ast: true,
-          changedOnly: true,
-          critical: false
-        }),
+        ...createRuleCapabilities(
+          ['host-catalog-sync', 'host-schema-invariants', 'host-state-consistency'],
+          {
+            speed: 'heavy',
+            phase: 'normal',
+            md: false,
+            ast: true,
+            changedOnly: true,
+            critical: false
+          }
+        ),
         ...createRuleCapabilities(['host-missing-config'], {
           speed: 'heavy',
           phase: 'normal',

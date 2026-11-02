@@ -184,57 +184,74 @@ Render section headers and narrative text dynamically in `config.documentation.c
 # Learning Proposal & Documentation Synchronization
 
 ## 1. Context & Extracted Lessons
+
 ### 1.1 User Guidance & Corrections (Session Prompts)
+
 - **Flagged Bad Practices / Corrected Errors**: <What the user corrected or warned against>
 - **Key Advice & Directives**: <Key advice, tips, or guidelines provided by the user>
 
 ### 1.2 Implementation Invariants (Git Diff & Work Plans)
+
 - **Key Changes**: <Summary of code changes, new scripts, or resolved root causes>
 - **Established Invariant**: <Enforceable rule statement>
 
 ## 2. Primary DOX Boundary (Target AGENTS.md)
+
 - `path/to/target/AGENTS.md` (under `## Local Contracts`)
 
 ### Proposed Contract (Diff)
+
 ```markdown
 - **<Contract Name>**: <Enforceable rule text in documentation language>
 ```
 
 ## 3. Host Program & Repository Documentation Modernization (`README.md`, `docs/**`)
+
 <!-- If none pending, write that repository documentation is already synchronized -->
+
 - **Target File**: `README.md`
 - **Reason**: <Document new command, remove legacy flag, or update script table>
 - **Modernization Diff**:
+
 ```markdown
 <<<<
 <Old or legacy text>
 ====
+
 <New modernized text>
 >>>>
 ```
 
 ## 4. Agent Skills & Bundled Resources Harmonization (`.agents/skills/**`)
+
 <!-- If none pending, write that agent skills are already synchronized -->
+
 - **Affected Skill / Resource**: `.agents/skills/<skill-name>/...`
 - **Reason**: <Update instructions, references, examples, or templates to match new reality>
 - **Harmonization Diff**:
+
 ```markdown
 <<<<
 <Old instructions or deprecated code>
 ====
+
 <New instructions or updated examples>
 >>>>
 ```
 
 ## 5. Contradiction & Legacy/Deprecated Purge
+
 <!-- If none detected, write that no legacy fragments or contradictions were detected -->
+
 - **Conflicting File**: `path/to/conflicting/file.md`
 - **Detected Conflict / Deprecated Pattern**: <Explain why it is legacy, deprecated, or contradictory>
 - **Purge / Remediation Diff**:
+
 ```markdown
 <<<<
 <Obsolete or contradictory content>
 ====
+
 <Clean or harmonized content>
 >>>>
 ```

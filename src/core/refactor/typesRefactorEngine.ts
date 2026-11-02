@@ -188,26 +188,51 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
       }
     }
 
-    // 2. AST-based scan for missing function return types
+    // 2. AST-based scan for missing function return types and untyped parameters
     function visit(node: ts.Node): void {
       if (isUntypedFunctionDeclaration(node)) {
         const fnName = TypesRefactorEngine.resolveFunctionName(node, sourceFile);
         const inferredType = TypesRefactorEngine.inferFunctionReturnType(node, sourceFile);
+        const startPos = node.getStart(sourceFile);
+        const line = ts.getLineAndCharacterOfPosition(sourceFile, startPos).line + 1;
+        const header = TypesRefactorEngine.getFunctionHeader(node, sourceFile);
 
-        if (inferredType) {
-          const startPos = node.getStart(sourceFile);
-          const line = ts.getLineAndCharacterOfPosition(sourceFile, startPos).line + 1;
-          const header = TypesRefactorEngine.getFunctionHeader(node, sourceFile);
+        findings.push({
+          file: filePath,
+          line,
+          kind: 'missing-return-type',
+          identifier: fnName,
+          originalSnippet: header,
+          suggestedReplacement: inferredType ?? 'unknown',
+          explanation: inferredType
+            ? `Function "${fnName}" lacks explicit return type. Inferred contract: "${inferredType}".`
+            : `Function "${fnName}" lacks explicit return type. Return contract could not be inferred; explicit domain contract required.`
+        });
+      }
 
-          findings.push({
-            file: filePath,
-            line,
-            kind: 'missing-return-type',
-            identifier: fnName,
-            originalSnippet: header,
-            suggestedReplacement: inferredType,
-            explanation: `Function "${fnName}" lacks explicit return type. Inferred contract: "${inferredType}".`
-          });
+      // Check parameters of functions, arrow functions, methods, and constructors
+      if (
+        ts.isFunctionDeclaration(node) ||
+        ts.isArrowFunction(node) ||
+        ts.isFunctionExpression(node) ||
+        ts.isMethodDeclaration(node) ||
+        ts.isConstructorDeclaration(node)
+      ) {
+        for (const param of node.parameters) {
+          if (!param.type) {
+            const paramPos = param.name.getStart(sourceFile);
+            const line = ts.getLineAndCharacterOfPosition(sourceFile, paramPos).line + 1;
+            const paramName = param.name.getText(sourceFile);
+            findings.push({
+              file: filePath,
+              line,
+              kind: 'missing-param-type',
+              identifier: paramName,
+              originalSnippet: paramName,
+              suggestedReplacement: `${paramName}: unknown`,
+              explanation: `Parameter "${paramName}" lacks explicit type annotation.`
+            });
+          }
         }
       }
 
@@ -632,6 +657,12 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
       originalHeader: string;
       replacementHeader: string;
     }[] = [];
+    const parameterInjections: {
+      file: string;
+      line: number;
+      originalParameter: string;
+      replacementParameter: string;
+    }[] = [];
 
     for (const f of findings) {
       if (f.kind === 'as-any' || f.kind === 'double-assertion') {
@@ -648,6 +679,13 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
           originalHeader: f.originalSnippet,
           replacementHeader: f.suggestedReplacement
         });
+      } else if (f.kind === 'missing-param-type') {
+        parameterInjections.push({
+          file: f.file,
+          line: f.line,
+          originalParameter: f.originalSnippet,
+          replacementParameter: f.suggestedReplacement
+        });
       }
     }
 
@@ -656,7 +694,8 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
       planId,
       targetFiles,
       assertionReplacements,
-      returnTypeInjections
+      returnTypeInjections,
+      parameterInjections
     };
   }
 
@@ -724,6 +763,55 @@ export class TypesRefactorEngine extends BaseRefactorEngine<
       }
 
       visit(sourceFile);
+    }
+
+    // 3. Apply parameter type injections using AST coordinates
+    const fileParams =
+      plan.parameterInjections?.filter(
+        (item) => item.file === fullPath || fullPath.endsWith(item.file)
+      ) || [];
+    if (fileParams.length > 0) {
+      const paramsByKey = new Map<string, { original: string; replacement: string }>();
+      for (const item of fileParams) {
+        paramsByKey.set(`${item.line}:${item.originalParameter}`, {
+          original: item.originalParameter,
+          replacement: item.replacementParameter
+        });
+      }
+
+      function visitParams(node: ts.Node): void {
+        if (
+          ts.isFunctionDeclaration(node) ||
+          ts.isArrowFunction(node) ||
+          ts.isFunctionExpression(node) ||
+          ts.isMethodDeclaration(node) ||
+          ts.isConstructorDeclaration(node)
+        ) {
+          for (const param of node.parameters) {
+            if (!param.type) {
+              const paramNameNode = param.name;
+              const namePos = paramNameNode.getStart(sourceFile);
+              const line = ts.getLineAndCharacterOfPosition(sourceFile, namePos).line + 1;
+              const paramName = paramNameNode.getText(sourceFile);
+              const match = paramsByKey.get(`${line}:${paramName}`);
+              if (match) {
+                // If replacement is formatted as "name: type", inject ": type" right after the parameter name
+                // to cleanly preserve default values (e.g. "param = 5" -> "param: type = 5") and rest tokens
+                const colonIdx = match.replacement.indexOf(':');
+                const typeText = colonIdx !== -1 ? match.replacement.slice(colonIdx) : ': unknown';
+                replacements.push({
+                  start: paramNameNode.getEnd(),
+                  end: paramNameNode.getEnd(),
+                  text: typeText
+                });
+              }
+            }
+          }
+        }
+        ts.forEachChild(node, visitParams);
+      }
+
+      visitParams(sourceFile);
     }
 
     return replacements;

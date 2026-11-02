@@ -48,7 +48,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       expect(auditor.id).toBe('validate_gsap_scrolltrigger');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(GSAP_SCROLLTRIGGER_RULES);
-      expect(auditor.ruleIds.length).toBe(5);
+      expect(auditor.ruleIds).toHaveLength(5);
     });
   });
 
@@ -119,7 +119,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-in-timeline-child'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -137,7 +137,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-scrub-and-toggle'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -155,7 +155,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-markers-production'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -169,7 +169,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-animating-pinned-element'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -187,7 +187,7 @@ describe('ValidateGsapScrollTriggerAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-scrolltrigger-container-animation-ease'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
   });

@@ -49,7 +49,7 @@ describe('ValidateVueRouterAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Router');
       expect(auditor.ruleIds).toEqual(VUE_ROUTER_RULES);
-      expect(auditor.ruleIds.length).toBe(3);
+      expect(auditor.ruleIds).toHaveLength(3);
     });
   });
 

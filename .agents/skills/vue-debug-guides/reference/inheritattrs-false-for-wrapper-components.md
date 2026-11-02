@@ -48,11 +48,11 @@ defineProps(['label'])
 ```vue
 <!-- BaseInput.vue - CORRECT: attrs bound to input element -->
 <script setup>
-defineProps(['label'])
+defineProps(['label']);
 
 defineOptions({
   inheritAttrs: false
-})
+});
 </script>
 
 <template>
@@ -88,7 +88,7 @@ defineOptions({
 <script setup>
 defineOptions({
   inheritAttrs: false
-})
+});
 </script>
 ```
 
@@ -98,7 +98,7 @@ defineOptions({
 <script>
 export default {
   inheritAttrs: false
-}
+};
 </script>
 
 <script setup>
@@ -111,9 +111,9 @@ export default {
 ```vue
 <script>
 export default {
-  inheritAttrs: false,
+  inheritAttrs: false
   // other options...
-}
+};
 </script>
 ```
 
@@ -123,24 +123,24 @@ export default {
 
 ```vue
 <script setup>
-import { useAttrs, computed } from 'vue'
+import { useAttrs, computed } from 'vue';
 
 defineProps({
   label: String,
   error: String
-})
+});
 
 defineOptions({
   inheritAttrs: false
-})
+});
 
-const attrs = useAttrs()
+const attrs = useAttrs();
 
 // Separate class/style for wrapper vs input
 const inputAttrs = computed(() => {
-  const { class: _, style: __, ...rest } = attrs
-  return rest
-})
+  const { class: _, style: __, ...rest } = attrs;
+  return rest;
+});
 </script>
 
 <template>
@@ -162,11 +162,11 @@ defineProps({
     type: String,
     default: 'left'
   }
-})
+});
 
 defineOptions({
   inheritAttrs: false
-})
+});
 </script>
 
 <template>
@@ -185,21 +185,15 @@ defineOptions({
 defineProps({
   to: String,
   external: Boolean
-})
+});
 
 defineOptions({
   inheritAttrs: false
-})
+});
 </script>
 
 <template>
-  <a
-    v-if="external"
-    :href="to"
-    target="_blank"
-    rel="noopener noreferrer"
-    v-bind="$attrs"
-  >
+  <a v-if="external" :href="to" target="_blank" rel="noopener noreferrer" v-bind="$attrs">
     <slot />
   </a>
   <router-link v-else :to="to" v-bind="$attrs">

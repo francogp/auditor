@@ -9,18 +9,21 @@ license: MIT
 This skill sets up the code-quality toolchain of a JavaScript or TypeScript repository. Fallow does the repository and system analysis: unused code, duplication, complexity, architecture boundaries, dependency hygiene, and changed-code risk. The skill keeps the tools that the project already uses.
 
 ## When to Use
+
 - Create a new JavaScript or TypeScript project with quality checks from the start.
 - Add code-health checks or a CI quality gate to an existing repository.
 - Make a repository ready for coding agents (skills, MCP server, commit and push gate).
 - Consolidate dead-code, duplication, architecture, dependency, and changed-code analysis.
 
 ## When NOT to Use
+
 - Formatting-only tasks. Formatting belongs to the formatter.
 - Tasks that only add or change lint rules. Local lint rules belong to the linter.
 - TypeScript type errors. Type correctness belongs to the TypeScript compiler.
 - Analysis of a repository that is already set up. Use the `fallow` skill for that.
 
 ## Rules
+
 1. Resolve every flag from `fallow --help` and `fallow <command> --help`. Do not use flags from memory.
 2. Use `--format json --quiet` for machine-readable output. Do not hide the exit status.
 3. Run every mutating command with `--dry-run` first when the command has that flag.
@@ -45,6 +48,7 @@ This skill sets up the code-quality toolchain of a JavaScript or TypeScript repo
    In an existing project, keep the current formatter and linter. Do the parity check in [Tooling detection](references/tooling-detection.md#parity-check) before you remove an overlapping tool.
 
 ## References
+
 - [Tooling detection](references/tooling-detection.md): the files to inspect, the responsibility split, and the parity check.
 - [Configure and install](references/configure-and-install.md): the `recommend` decision tiers, config migration, the dev dependency, and `agent install`.
 - [CI gate](references/ci-gate.md): the GitHub Action, the GitLab template, the CLI gate, and baselines.

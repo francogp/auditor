@@ -18,12 +18,12 @@ You MUST cross-reference the complete `git diff HEAD` and `git status` with the 
 
 The project mandates **Atomic Commits**. A commit is never created until all tests, audits, typechecks, builds, and documentation approvals are complete.
 
-| Phase | Action | Purpose | Output |
-|:---|:---|:---|:---|
+| Phase       | Action                    | Purpose                                      | Output                                              |
+| :---------- | :------------------------ | :------------------------------------------- | :-------------------------------------------------- |
 | **Phase 1** | Safety Backup & Pre-Draft | Safe local recovery & early message drafting | Patch file in `scratch/backups/` (Zero git commits) |
-| **Phase 2** | Active Verification Loop | Verify and repair code in workspace | Clean code, 0 errors, 0 new warnings, build exit 0 |
-| **Phase 3** | Documentation & Approval | Document lessons & get user review | `AGENTS.md` and walkthrough updated |
-| **Phase 4** | Single Atomic Commit | Consolidate entire verified unit of work | Exactly ONE elegant commit in Git history |
+| **Phase 2** | Active Verification Loop  | Verify and repair code in workspace          | Clean code, 0 errors, 0 new warnings, build exit 0  |
+| **Phase 3** | Documentation & Approval  | Document lessons & get user review           | `AGENTS.md` and walkthrough updated                 |
+| **Phase 4** | Single Atomic Commit      | Consolidate entire verified unit of work     | Exactly ONE elegant commit in Git history           |
 
 ## Structure (The Elegant Protocol)
 
@@ -40,7 +40,7 @@ The project mandates **Atomic Commits**. A commit is never created until all tes
 **Rules**:
 
 - The header line is the commit summary — make it clear, concise, and descriptive across the primary modified scopes. Never artificially truncate or cripple header clarity for arbitrary character limits.
-- Every bullet must specify *what* changed and *why* it matters technically.
+- Every bullet must specify _what_ changed and _why_ it matters technically.
 - For changes across 2+ files, a bulleted list is MANDATORY.
 
 ## Hierarchical Synthesis for Large Working Trees
@@ -57,14 +57,17 @@ When the working tree contains extensive, multi-subsystem changes across multipl
 feat(core,bundle): integrate production chunk bottleneck analyzer and expand budget config
 
 Core Engine & AST Parsers:
+
 - src/core/auditConfig.ts: add ChunkBudgetConfig and extend AuditBundleConfig with custom budget matchers
 - src/core/unifiedTheme.ts: format 80-column Box-Drawing tables for bundle and chunk metrics
 
 Bundle & Production Chunks:
+
 - src/cli/audit_bundle.ts: inspect dist chunk sizes and compute real-time gzip compression metrics via node:zlib
 - tests/audit_bundle.test.ts: verify hermetic chunk size budget validation and duplicate module detection
 
 DOX & Framework Governance:
+
 - AGENTS.md: document canonical production bundle gatekeeper contracts
 ```
 

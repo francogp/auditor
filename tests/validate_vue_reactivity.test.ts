@@ -49,7 +49,7 @@ describe('ValidateVueReactivityAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('Vue');
       expect(auditor.ruleIds).toEqual(VUE_REACTIVITY_RULES);
-      expect(auditor.ruleIds.length).toBe(4);
+      expect(auditor.ruleIds).toHaveLength(4);
     });
   });
 

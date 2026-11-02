@@ -116,7 +116,7 @@ describe('auditor-dependencies CLI reporter', () => {
     await writeProject({ devDependencies: { 'html-validate': htmlValidateFloor } });
     const report = evaluateProjectDependencies(tempDir);
     const undeclared = report.evaluated.filter((e) => e.status === 'undeclared');
-    expect(undeclared.length).toBe(report.totalGoverned - 1);
+    expect(undeclared).toHaveLength(report.totalGoverned - 1);
     const tsEval = undeclared.find((e) => e.name === 'typescript');
     expect(tsEval?.declaredRange).toBeNull();
   });

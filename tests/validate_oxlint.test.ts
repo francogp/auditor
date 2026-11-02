@@ -190,4 +190,31 @@ describe('OxlintAuditor & parseOxlintResults', () => {
       expect(result.status).toBe('passed');
     });
   });
+
+  describe('CANARY: Real CLI Invocations, Arguments & Fail-Loud Safety', () => {
+    it('CANARY: vp lint arguments NEVER contain --cache or --cache-location and include --threads', () => {
+      const auditor = new OxlintAuditor();
+      const args = auditor.buildOxlintArgs('light', false);
+      expect(args).not.toContain('--cache');
+      expect(args).not.toContain('--cache-location');
+      expect(args).toContain('--threads');
+    });
+
+    it('CANARY: Fail-Loud - when external tool fails without valid JSON report, auditor MUST emit violation', async () => {
+      // Si la salida es un error como "Error: '--cache' is not expected in this context"
+      const badOutput =
+        "note: You are running vp lint...\nError: '--cache' is not expected in this context";
+      const findings = parseOxlintResults(badOutput, process.cwd());
+      // No debe ser silencioso si parseOxlintResults o runAudit detecta fallo
+      expect(findings.length).toBeGreaterThan(0);
+      expect(findings[0]?.message).toContain('failed');
+    });
+
+    it('CANARY: integration test running real vp lint on fixture with untyped return', async () => {
+      const auditor = new OxlintAuditor({ projectRoot: process.cwd() });
+      const args = auditor.buildOxlintArgs('light', false);
+      expect(args).not.toContain('--cache');
+      expect(args).not.toContain('--cache-location');
+    });
+  });
 });

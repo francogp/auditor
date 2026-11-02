@@ -168,7 +168,7 @@ export default defineAuditConfig({
     const secondResult = await ensureProjectBootstrapped({ projectRoot: tempDir, force: true });
     expect(secondResult.configCreated).toBe(false);
     expect(secondResult.configUpdated).toBe(false);
-    expect(secondResult.sectionsInjected.length).toBe(0);
+    expect(secondResult.sectionsInjected).toHaveLength(0);
 
     const secondContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
     expect(secondContent).toBe(firstContent);

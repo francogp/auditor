@@ -94,7 +94,7 @@ describe('ValidateEditorconfigAuditor', () => {
         (f) => f.ruleId === 'editorconfig-missing-setting'
       );
       // missing root=true (1), end_of_line=crlf (1), indent_size=4 (1) => 3
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
 
       // Fix mode
       const fixAuditor = new ValidateEditorconfigAuditor({ projectRoot: tmpDir });

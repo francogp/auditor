@@ -45,7 +45,7 @@ describe('ValidateConstantHygieneAuditor', () => {
       expect(auditor.ruleIds).toEqual(CONSTANT_HYGIENE_RULES);
       expect(auditor.capabilities.speed).toBe('light');
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(5);
+      expect(Object.keys(auditor.ruleDescriptions)).toHaveLength(5);
     });
   });
 

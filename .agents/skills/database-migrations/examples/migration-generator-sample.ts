@@ -26,8 +26,8 @@ export function buildRoleSyncMigration(timestamp = '20261015140000'): GeneratorO
   const filename = `${timestamp}_sync_system_roles_whitelist.sql`;
   const sqliteFilename = `${timestamp}_sync_system_roles_whitelist.sqlite.sql`;
 
-  const pgRoleList = SYSTEM_ROLES_WHITELIST.map(r => `'${r}'`).join(', ');
-  const sqliteRoleList = SYSTEM_ROLES_WHITELIST.map(r => `'${r}'`).join(', ');
+  const pgRoleList = SYSTEM_ROLES_WHITELIST.map((r) => `'${r}'`).join(', ');
+  const sqliteRoleList = SYSTEM_ROLES_WHITELIST.map((r) => `'${r}'`).join(', ');
 
   // PostgreSQL DDL with declarative check constraint & system_config update
   const pgSql = `-- ====================================================================

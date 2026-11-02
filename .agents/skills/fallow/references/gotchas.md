@@ -36,6 +36,7 @@ fallow dead-code --format json --quiet
 ```
 
 Only create a config when you need to:
+
 - Change rule severity levels for incremental adoption
 - Add custom ignore patterns or ignore dependencies
 - Specify additional entry points not auto-detected
@@ -144,13 +145,13 @@ Fallow fully resolves `export *` and named re-export chains through barrel files
 
 ```typescript
 // src/utils.ts
-export const helper = () => {};  // NOT flagged, used via barrel chain
+export const helper = () => {}; // NOT flagged, used via barrel chain
 
 // src/index.ts (barrel)
 export * from './utils';
 
 // src/app.ts
-import { helper } from './index';  // Resolves through the chain
+import { helper } from './index'; // Resolves through the chain
 ```
 
 A re-export alone does not prove that an export is used. If Fallow reports an export from a barrel, trace its consumers before removal. Dynamic imports and external callers may be outside static analysis.
@@ -159,11 +160,11 @@ A re-export alone does not prove that an export is used. If Fallow reports an ex
 
 ## Exit Code 1 vs 2
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| 0 | No error-severity issues | Success |
-| 1 | Error-severity issues found | Review findings |
-| 2 | Runtime error (`fix` without `--yes` in non-TTY, invalid config) | Fix config or add `--yes` |
+| Code | Meaning                                                          | Action                    |
+| ---- | ---------------------------------------------------------------- | ------------------------- |
+| 0    | No error-severity issues                                         | Success                   |
+| 1    | Error-severity issues found                                      | Review findings           |
+| 2    | Runtime error (`fix` without `--yes` in non-TTY, invalid config) | Fix config or add `--yes` |
 
 Error-severity findings can trigger exit code 1. Default severity varies by rule: some rules default to `"warn"` or `"off"`. Use the rules system to control which findings fail CI:
 
@@ -411,7 +412,7 @@ Fallow detects `// fallow-ignore` comments and `@expected-unused` JSDoc tags tha
 ```typescript
 // STALE: the export below is actually used now
 // fallow-ignore-next-line unused-export
-export const helper = () => {};  // imported in app.ts
+export const helper = () => {}; // imported in app.ts
 ```
 
 Use `--stale-suppressions` to filter for only stale suppression findings. The `stale-suppressions` rule defaults to `warn`. Set to `error` in CI to enforce suppression hygiene:
@@ -483,7 +484,9 @@ export const Layout = () => (
       <link rel="stylesheet" href="/static/style.css" />
       <script src="/static/app.js"></script>
     </head>
-    <body><h1>Hello</h1></body>
+    <body>
+      <h1>Hello</h1>
+    </body>
   </html>
 );
 ```
@@ -572,8 +575,12 @@ Fallow tracks class member usage through instance variables. If you instantiate 
 
 ```typescript
 class MyService {
-  greet() { return 'hello'; }   // NOT flagged: used via instance
-  unused() { return 'bye'; }    // Flagged: never called
+  greet() {
+    return 'hello';
+  } // NOT flagged: used via instance
+  unused() {
+    return 'bye';
+  } // Flagged: never called
 }
 
 const svc = new MyService();
@@ -590,10 +597,9 @@ In `--production` mode, fallow detects production dependencies that are only imp
 
 ```typescript
 // If "zod" is in dependencies (not devDependencies):
-import type { ZodSchema } from 'zod';  // Flagged as type-only dependency
-
+import type { ZodSchema } from 'zod'; // Flagged as type-only dependency
 // This is a real import, not type-only:
-import { z } from 'zod';  // NOT flagged
+import { z } from 'zod'; // NOT flagged
 ```
 
 ```bash
@@ -615,7 +621,7 @@ Fallow detects production dependencies that are only imported from test files (`
 ```typescript
 // If "msw" is in dependencies (not devDependencies):
 // src/handlers.test.ts
-import { setupServer } from 'msw/node';  // Flagged as test-only dependency
+import { setupServer } from 'msw/node'; // Flagged as test-only dependency
 
 // src/app.ts: no imports of "msw" here
 ```
@@ -642,17 +648,17 @@ These are separate features and can be used independently or together:
 ```yaml
 # WRONG: expecting inline review comments from FALLOW_COMMENT
 variables:
-  FALLOW_COMMENT: "true"
+  FALLOW_COMMENT: 'true'
 # This only posts a summary comment, not inline annotations
 
 # CORRECT: use FALLOW_REVIEW for inline diff comments
 variables:
-  FALLOW_REVIEW: "true"
+  FALLOW_REVIEW: 'true'
 
 # CORRECT: use both for summary + inline
 variables:
-  FALLOW_COMMENT: "true"
-  FALLOW_REVIEW: "true"
+  FALLOW_COMMENT: 'true'
+  FALLOW_REVIEW: 'true'
 ```
 
 Both require a `GITLAB_TOKEN` CI/CD variable (project access token with `api` scope). `CI_JOB_TOKEN` is read-only for MR notes in the official GitLab API, so it is not enough for summary comments or inline discussions.
@@ -669,12 +675,12 @@ fallow license refresh: your stored license is too stale to refresh: set FALLOW_
 
 Stable codes the CLI surfaces today:
 
-| Code | Operation | Meaning |
-|------|-----------|---------|
-| `token_stale` | `refresh` | Stored JWT is more than 45 days past its `exp`. Surfaced only when no full-access API key was available to retry with. |
-| `invalid_token` | `refresh` | Stored JWT is missing required claims (e.g. `sub`). Reactivate. |
-| `unauthorized` | `refresh` or `trial` | Auth failed. Reactivate. |
-| `rate_limit_exceeded` | `trial` | Trial endpoint is capped at 5 per hour per IP. Wait or use a different network. |
+| Code                  | Operation            | Meaning                                                                                                                |
+| --------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `token_stale`         | `refresh`            | Stored JWT is more than 45 days past its `exp`. Surfaced only when no full-access API key was available to retry with. |
+| `invalid_token`       | `refresh`            | Stored JWT is missing required claims (e.g. `sub`). Reactivate.                                                        |
+| `unauthorized`        | `refresh` or `trial` | Auth failed. Reactivate.                                                                                               |
+| `rate_limit_exceeded` | `trial`              | Trial endpoint is capped at 5 per hour per IP. Wait or use a different network.                                        |
 
 To detect a rate-limited trial signup in CI:
 
@@ -695,7 +701,7 @@ The official GitLab CI template automatically sets `--changed-since origin/$CI_M
 ```yaml
 # UNNECESSARY: changed-since is auto-detected in MR pipelines
 variables:
-  FALLOW_CHANGED_SINCE: "origin/main"
+  FALLOW_CHANGED_SINCE: 'origin/main'
 
 # CORRECT: let the template auto-detect
 # (no FALLOW_CHANGED_SINCE needed, it reads the MR target branch)

@@ -48,7 +48,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       expect(auditor.id).toBe('validate_gsap_animations');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(GSAP_ANIMATION_RULES);
-      expect(auditor.ruleIds.length).toBe(14);
+      expect(auditor.ruleIds).toHaveLength(14);
     });
   });
 
@@ -143,7 +143,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -158,7 +158,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-named-timer-constants'
       );
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -172,7 +172,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-empty-vue-transitions'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -186,7 +186,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-important-transforms'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -197,7 +197,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-important-filters'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -214,7 +214,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-gpu-layer-promotion'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -228,7 +228,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-timeline-constructor-duration'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -242,7 +242,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-kebab-case-properties'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -256,7 +256,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-kebab-case-properties'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
     });
 
     it('permits instantaneous layout styles in gsap.set() without violations', () => {
@@ -269,7 +269,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
     });
 
     it('permits canonical collapsible accordion height transitions in GSAP tweens', () => {
@@ -283,7 +283,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-no-layout-properties'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
     });
 
     it('detects raw transform string in GSAP tweens', () => {
@@ -296,7 +296,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-raw-transform-string'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -310,7 +310,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-simultaneous-origin-conflict'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -324,7 +324,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-legacy-ease-names'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -340,7 +340,7 @@ describe('ValidateGsapAnimationsAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-high-frequency-tween-creation'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('warning');
     });
   });
@@ -600,7 +600,7 @@ const inlineComment = true; // No need for clearInterval here
         const layoutViolations = auditor.recordedViolations.filter(
           (v) => v.ruleId === 'gsap-no-layout-properties'
         );
-        expect(layoutViolations.length).toBe(3);
+        expect(layoutViolations).toHaveLength(3);
       });
     });
   });

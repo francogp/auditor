@@ -19,47 +19,47 @@ npm install -D @modelcontextprotocol/client typescript tsx @types/node @types/ex
 ### A Server in One Screen
 
 ```typescript
-import { McpServer } from "@modelcontextprotocol/server";
-import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import * as z from "zod/v4";
+import { McpServer } from '@modelcontextprotocol/server';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import * as z from 'zod/v4';
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: "example-mcp-server", version: "1.0.0" });
+  const server = new McpServer({ name: 'example-mcp-server', version: '1.0.0' });
 
   server.registerTool(
-    "example_greet",
+    'example_greet',
     {
-      title: "Greet",
-      description: "Greet someone by name",
-      inputSchema: z.object({ name: z.string().describe("Who to greet") }),
+      title: 'Greet',
+      description: 'Greet someone by name',
+      inputSchema: z.object({ name: z.string().describe('Who to greet') }),
       annotations: { readOnlyHint: true }
     },
-    async ({ name }) => ({ content: [{ type: "text", text: `Hello, ${name}!` }] })
+    async ({ name }) => ({ content: [{ type: 'text', text: `Hello, ${name}!` }] })
   );
 
   return server;
 }
 
 serveStdio(createServer);
-console.error("example-mcp-server running on stdio"); // stderr: stdout carries the protocol
+console.error('example-mcp-server running on stdio'); // stderr: stdout carries the protocol
 ```
 
 ### v1 → v2 at a Glance
 
 Most published examples and training data show v1 code. Translate it before use:
 
-| v1 (`@modelcontextprotocol/sdk`) | v2 |
-|---|---|
-| `import ... from "@modelcontextprotocol/sdk/server/mcp.js"` | `import ... from "@modelcontextprotocol/server"` |
-| `import ... from "@modelcontextprotocol/sdk/server/stdio.js"` | `import ... from "@modelcontextprotocol/server/stdio"` |
-| `zod ^3`, `import { z } from "zod"` | `zod ^4.2.0`, `import * as z from "zod/v4"` |
-| `inputSchema: { q: z.string() }` (raw shape) | `inputSchema: z.object({ q: z.string() })` |
-| `server.tool(...)`, `server.resource(...)`, `server.prompt(...)` | Removed: use `registerTool`, `registerResource`, `registerPrompt` |
-| `new StdioServerTransport()` + `server.connect(transport)` | `serveStdio(createServer)` (`StdioServerTransport` from `@modelcontextprotocol/server/stdio` also still works) |
-| Per-request `StreamableHTTPServerTransport` + `express.json()` | `createMcpHandler(createServer)` + `createMcpExpressApp()` + `toNodeHandler()` |
-| Handler `extra.signal`, `extra.authInfo` | Handler `ctx.mcpReq.signal`, `ctx.http?.authInfo` |
-| `McpError`, `ErrorCode` | `ProtocolError`, `ProtocolErrorCode` |
-| Node.js 18+ | Node.js 20+ |
+| v1 (`@modelcontextprotocol/sdk`)                                 | v2                                                                                                             |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `import ... from "@modelcontextprotocol/sdk/server/mcp.js"`      | `import ... from "@modelcontextprotocol/server"`                                                               |
+| `import ... from "@modelcontextprotocol/sdk/server/stdio.js"`    | `import ... from "@modelcontextprotocol/server/stdio"`                                                         |
+| `zod ^3`, `import { z } from "zod"`                              | `zod ^4.2.0`, `import * as z from "zod/v4"`                                                                    |
+| `inputSchema: { q: z.string() }` (raw shape)                     | `inputSchema: z.object({ q: z.string() })`                                                                     |
+| `server.tool(...)`, `server.resource(...)`, `server.prompt(...)` | Removed: use `registerTool`, `registerResource`, `registerPrompt`                                              |
+| `new StdioServerTransport()` + `server.connect(transport)`       | `serveStdio(createServer)` (`StdioServerTransport` from `@modelcontextprotocol/server/stdio` also still works) |
+| Per-request `StreamableHTTPServerTransport` + `express.json()`   | `createMcpHandler(createServer)` + `createMcpExpressApp()` + `toNodeHandler()`                                 |
+| Handler `extra.signal`, `extra.authInfo`                         | Handler `ctx.mcpReq.signal`, `ctx.http?.authInfo`                                                              |
+| `McpError`, `ErrorCode`                                          | `ProtocolError`, `ProtocolErrorCode`                                                                           |
+| Node.js 18+                                                      | Node.js 20+                                                                                                    |
 
 Do not use imports from `@modelcontextprotocol/sdk/...`, raw-shape schemas, Zod 3 or `zod/v3`, hand-wired `StreamableHTTPServerTransport` instances, or a shared `McpServer` instance returned from the factory (one created at module scope and reused across HTTP requests) in a v2 server.
 
@@ -165,7 +165,7 @@ Put the upstream API client at module scope, in one `apiRequest` helper that eve
 
 ```typescript
 const response = await fetch(url, {
-  headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" },
+  headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' },
   // Aborts when the client cancels the call, or after 30 seconds
   signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)])
 });
@@ -192,12 +192,12 @@ if (!response.ok) throw new ApiError(response.status);
 
 Annotations are hints for clients, for example to auto-approve read-only tools or to confirm destructive ones. They never change how the SDK runs the tool.
 
-| Annotation | Set to `true` when the tool... |
-|---|---|
-| `readOnlyHint` | does not modify anything |
-| `destructiveHint` | may delete or overwrite data |
-| `idempotentHint` | can be repeated with the same arguments with no extra effect |
-| `openWorldHint` | talks to an external system (most API tools) |
+| Annotation        | Set to `true` when the tool...                               |
+| ----------------- | ------------------------------------------------------------ |
+| `readOnlyHint`    | does not modify anything                                     |
+| `destructiveHint` | may delete or overwrite data                                 |
+| `idempotentHint`  | can be repeated with the same arguments with no extra effect |
+| `openWorldHint`   | talks to an external system (most API tools)                 |
 
 ### Input Schemas
 
@@ -205,10 +205,12 @@ Annotations are hints for clients, for example to auto-approve read-only tools o
 
 ```typescript
 const SearchInput = z.strictObject({
-  query: z.string().min(2).max(200).describe("Text to match against user names and emails"),
-  limit: z.number().int().min(1).max(100).default(20).describe("Maximum number of users to return"),
-  offset: z.number().int().min(0).default(0).describe("Number of matches to skip, for pagination"),
-  response_format: z.enum(ResponseFormat).default(ResponseFormat.MARKDOWN)
+  query: z.string().min(2).max(200).describe('Text to match against user names and emails'),
+  limit: z.number().int().min(1).max(100).default(20).describe('Maximum number of users to return'),
+  offset: z.number().int().min(0).default(0).describe('Number of matches to skip, for pagination'),
+  response_format: z
+    .enum(ResponseFormat)
+    .default(ResponseFormat.MARKDOWN)
     .describe("'markdown' for readable text, 'json' for structured data")
 });
 ```
@@ -285,18 +287,18 @@ One file, two tools, both transports. `example_search_users` shows pagination, t
  * MCP server for the Example API.
  * Serves stdio by default, Streamable HTTP when TRANSPORT=http.
  */
-import { createMcpExpressApp } from "@modelcontextprotocol/express";
-import { toNodeHandler } from "@modelcontextprotocol/node";
-import { createMcpHandler, McpServer } from "@modelcontextprotocol/server";
-import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import * as z from "zod/v4";
+import { createMcpExpressApp } from '@modelcontextprotocol/express';
+import { toNodeHandler } from '@modelcontextprotocol/node';
+import { createMcpHandler, McpServer } from '@modelcontextprotocol/server';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import * as z from 'zod/v4';
 
-const API_BASE_URL = "https://api.example.com/v1";
+const API_BASE_URL = 'https://api.example.com/v1';
 const API_KEY = process.env.EXAMPLE_API_KEY;
 const CHARACTER_LIMIT = 25_000;
 
 if (!API_KEY) {
-  console.error("EXAMPLE_API_KEY environment variable is required");
+  console.error('EXAMPLE_API_KEY environment variable is required');
   process.exit(1);
 }
 
@@ -313,13 +315,15 @@ async function apiRequest<T>(
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { Authorization: `Bearer ${API_KEY}`, Accept: "application/json" },
+      headers: { Authorization: `Bearer ${API_KEY}`, Accept: 'application/json' },
       // Aborts when the client cancels the call, or after 30 seconds
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)])
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error("The Example API did not respond within 30 seconds. Try again, or narrow the query.");
+    if (error instanceof DOMException && error.name === 'TimeoutError') {
+      throw new Error(
+        'The Example API did not respond within 30 seconds. Try again, or narrow the query.'
+      );
     }
     throw error;
   }
@@ -331,13 +335,13 @@ async function apiRequest<T>(
 function httpErrorMessage(status: number): string {
   switch (status) {
     case 401:
-      return "The Example API rejected the API key. Check that EXAMPLE_API_KEY is valid.";
+      return 'The Example API rejected the API key. Check that EXAMPLE_API_KEY is valid.';
     case 403:
-      return "Permission denied: this API key cannot access that resource.";
+      return 'Permission denied: this API key cannot access that resource.';
     case 404:
-      return "Not found. Check the ID; example_search_users returns valid user IDs.";
+      return 'Not found. Check the ID; example_search_users returns valid user IDs.';
     case 429:
-      return "Rate limit exceeded. Wait a minute before making more requests.";
+      return 'Rate limit exceeded. Wait a minute before making more requests.';
     default:
       return `The Example API returned HTTP ${status}.`;
   }
@@ -353,8 +357,8 @@ class ApiError extends Error {
 // ---- Schemas and formatting ----
 
 enum ResponseFormat {
-  MARKDOWN = "markdown",
-  JSON = "json"
+  MARKDOWN = 'markdown',
+  JSON = 'json'
 }
 
 const UserSchema = z.object({
@@ -375,19 +379,19 @@ const UserPageSchema = z.object({
 function formatUser(user: User): string {
   const lines = [`## ${user.name} (${user.id})`, `- Email: ${user.email}`];
   if (user.team) lines.push(`- Team: ${user.team}`);
-  if (!user.active) lines.push("- Inactive");
-  return lines.join("\n");
+  if (!user.active) lines.push('- Inactive');
+  return lines.join('\n');
 }
 
 // ---- Server factory: serveStdio calls it per connection, createMcpHandler per HTTP request ----
 
 function createServer(): McpServer {
-  const server = new McpServer({ name: "example-mcp-server", version: "1.0.0" });
+  const server = new McpServer({ name: 'example-mcp-server', version: '1.0.0' });
 
   server.registerTool(
-    "example_search_users",
+    'example_search_users',
     {
-      title: "Search Users",
+      title: 'Search Users',
       description: `Search Example users by name or email.
 
 Returns one page of matches. When more matches exist, the result says so and gives next_offset; call again with that offset for the next page.
@@ -397,16 +401,38 @@ Examples:
   - "Look up john@acme.com" -> query="john@acme.com"
 Use example_get_user instead when you already have a user ID.`,
       inputSchema: z.strictObject({
-        query: z.string().min(2).max(200).describe("Text to match against user names and emails"),
-        limit: z.number().int().min(1).max(100).default(20).describe("Maximum number of users to return"),
-        offset: z.number().int().min(0).default(0).describe("Number of matches to skip, for pagination"),
-        response_format: z.enum(ResponseFormat).default(ResponseFormat.MARKDOWN)
+        query: z.string().min(2).max(200).describe('Text to match against user names and emails'),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .default(20)
+          .describe('Maximum number of users to return'),
+        offset: z
+          .number()
+          .int()
+          .min(0)
+          .default(0)
+          .describe('Number of matches to skip, for pagination'),
+        response_format: z
+          .enum(ResponseFormat)
+          .default(ResponseFormat.MARKDOWN)
           .describe("'markdown' for readable text, 'json' for structured data")
       }),
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true
+      }
     },
     async ({ query, limit, offset, response_format }, ctx) => {
-      const raw = await apiRequest<unknown>("users/search", { q: query, limit, offset }, ctx.mcpReq.signal);
+      const raw = await apiRequest<unknown>(
+        'users/search',
+        { q: query, limit, offset },
+        ctx.mcpReq.signal
+      );
       const data = UserPageSchema.parse(raw); // Validates the upstream data and drops fields outside the schema
 
       // Builds the page for these users and its text in the requested format
@@ -421,11 +447,16 @@ Use example_get_user instead when you already have a user ID.`,
           has_more: hasMore,
           ...(hasMore ? { next_offset: nextOffset } : {})
         };
-        if (response_format === ResponseFormat.JSON) return { page, text: JSON.stringify(page, null, 2) };
-        const lines = [`# Users matching '${query}'`, `Showing ${users.length} of ${data.total}.`, ""];
-        lines.push(users.map(formatUser).join("\n\n"));
-        if (hasMore) lines.push("", `More results: call again with offset=${nextOffset}.`);
-        return { page, text: lines.join("\n") };
+        if (response_format === ResponseFormat.JSON)
+          return { page, text: JSON.stringify(page, null, 2) };
+        const lines = [
+          `# Users matching '${query}'`,
+          `Showing ${users.length} of ${data.total}.`,
+          ''
+        ];
+        lines.push(users.map(formatUser).join('\n\n'));
+        if (hasMore) lines.push('', `More results: call again with offset=${nextOffset}.`);
+        return { page, text: lines.join('\n') };
       };
 
       // Stay under CHARACTER_LIMIT by returning fewer users; next_offset then points at the first one left out
@@ -437,31 +468,44 @@ Use example_get_user instead when you already have a user ID.`,
       }
 
       if (response_format === ResponseFormat.JSON) {
-        return { content: [{ type: "text", text: result.text }], structuredContent: result.page };
+        return { content: [{ type: 'text', text: result.text }], structuredContent: result.page };
       }
       if (users.length === 0) {
-        return { content: [{ type: "text", text: `No users match '${query}'. Try a shorter or different query.` }] };
+        return {
+          content: [
+            { type: 'text', text: `No users match '${query}'. Try a shorter or different query.` }
+          ]
+        };
       }
-      return { content: [{ type: "text", text: result.text }] };
+      return { content: [{ type: 'text', text: result.text }] };
     }
   );
 
   server.registerTool(
-    "example_get_user",
+    'example_get_user',
     {
-      title: "Get User",
-      description: "Get one Example user by ID. Use example_search_users to find IDs.",
+      title: 'Get User',
+      description: 'Get one Example user by ID. Use example_search_users to find IDs.',
       inputSchema: z.strictObject({
         user_id: z.string().min(1).describe("User ID, e.g. 'U123456789'")
       }),
       outputSchema: UserSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true }
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true
+      }
     },
     async ({ user_id }, ctx) => {
-      const raw = await apiRequest<unknown>(`users/${encodeURIComponent(user_id)}`, {}, ctx.mcpReq.signal);
+      const raw = await apiRequest<unknown>(
+        `users/${encodeURIComponent(user_id)}`,
+        {},
+        ctx.mcpReq.signal
+      );
       const user = UserSchema.parse(raw); // Validates the upstream data and drops fields outside the schema
       return {
-        content: [{ type: "text", text: JSON.stringify(user, null, 2) }],
+        content: [{ type: 'text', text: JSON.stringify(user, null, 2) }],
         structuredContent: user
       };
     }
@@ -472,19 +516,19 @@ Use example_get_user instead when you already have a user ID.`,
 
 // ---- Transport selection ----
 
-if (process.env.TRANSPORT === "http") {
+if (process.env.TRANSPORT === 'http') {
   const handler = createMcpHandler(createServer);
   const app = createMcpExpressApp(); // express.json() plus Host/Origin checks for localhost
   const nodeHandler = toNodeHandler(handler);
-  app.all("/mcp", (req, res) => void nodeHandler(req, res, req.body));
+  app.all('/mcp', (req, res) => void nodeHandler(req, res, req.body));
 
   const port = Number(process.env.PORT ?? 3000);
-  app.listen(port, "127.0.0.1", () => {
+  app.listen(port, '127.0.0.1', () => {
     console.error(`example-mcp-server listening on http://127.0.0.1:${port}/mcp`);
   });
 } else {
   serveStdio(createServer);
-  console.error("example-mcp-server running on stdio");
+  console.error('example-mcp-server running on stdio');
 }
 ```
 
@@ -504,8 +548,8 @@ if (process.env.TRANSPORT === "http") {
 const handler = createMcpHandler(createServer);
 const app = createMcpExpressApp();
 const nodeHandler = toNodeHandler(handler);
-app.all("/mcp", (req, res) => void nodeHandler(req, res, req.body));
-app.listen(3000, "127.0.0.1");
+app.all('/mcp', (req, res) => void nodeHandler(req, res, req.body));
+app.listen(3000, '127.0.0.1');
 ```
 
 - It serves clients on the 2026-07-28 protocol revision and older 2025-era clients from the same factory, with no sessions for either
@@ -518,16 +562,20 @@ app.listen(3000, "127.0.0.1");
 The handler verifies no tokens. For a server exposed beyond localhost, put `requireBearerAuth` in front of the route:
 
 ```typescript
-import { createMcpExpressApp, requireBearerAuth, type OAuthTokenVerifier } from "@modelcontextprotocol/express";
-import { OAuthError, OAuthErrorCode, type AuthInfo } from "@modelcontextprotocol/server";
+import {
+  createMcpExpressApp,
+  requireBearerAuth,
+  type OAuthTokenVerifier
+} from '@modelcontextprotocol/express';
+import { OAuthError, OAuthErrorCode, type AuthInfo } from '@modelcontextprotocol/server';
 
-const serverUrl = new URL("https://mcp.example.com/mcp");
+const serverUrl = new URL('https://mcp.example.com/mcp');
 
 const verifier: OAuthTokenVerifier = {
   async verifyAccessToken(token): Promise<AuthInfo> {
     // Replace with JWT verification or token introspection against your authorization server
     const claims = await verifyWithYourAuthServer(token);
-    if (!claims) throw new OAuthError(OAuthErrorCode.InvalidToken, "Unknown or expired token");
+    if (!claims) throw new OAuthError(OAuthErrorCode.InvalidToken, 'Unknown or expired token');
     return {
       token,
       clientId: claims.clientId,
@@ -538,9 +586,13 @@ const verifier: OAuthTokenVerifier = {
   }
 };
 
-const app = createMcpExpressApp({ host: "0.0.0.0", allowedHosts: ["mcp.example.com"] });
-const requireAuth = requireBearerAuth({ verifier, requiredScopes: ["mcp"], expectedResource: serverUrl });
-app.all("/mcp", requireAuth, (req, res) => void nodeHandler(req, res, req.body));
+const app = createMcpExpressApp({ host: '0.0.0.0', allowedHosts: ['mcp.example.com'] });
+const requireAuth = requireBearerAuth({
+  verifier,
+  requiredScopes: ['mcp'],
+  expectedResource: serverUrl
+});
+app.all('/mcp', requireAuth, (req, res) => void nodeHandler(req, res, req.body));
 ```
 
 - `expectedResource` accepts only tokens issued for this server, so a token meant for another service is refused
@@ -556,54 +608,79 @@ app.all("/mcp", requireAuth, (req, res) => void nodeHandler(req, res, req.body))
 Resources expose read-only data at a URI that the client application reads and attaches as context. Prompts are message templates a user invokes by name. Tools are for anything the model should call, including operations with side effects.
 
 ```typescript
-import { completable, ProtocolError, ProtocolErrorCode, ResourceNotFoundError, ResourceTemplate } from "@modelcontextprotocol/server";
+import {
+  completable,
+  ProtocolError,
+  ProtocolErrorCode,
+  ResourceNotFoundError,
+  ResourceTemplate
+} from '@modelcontextprotocol/server';
 
 // A resource at a fixed URI
 server.registerResource(
-  "example-teams",
-  "example://teams",
-  { title: "Teams", description: "Every team in the Example workspace", mimeType: "application/json" },
+  'example-teams',
+  'example://teams',
+  {
+    title: 'Teams',
+    description: 'Every team in the Example workspace',
+    mimeType: 'application/json'
+  },
   async (uri, ctx) => {
-    const teams = await apiRequest<unknown>("teams", {}, ctx.mcpReq.signal);
-    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(teams) }] };
+    const teams = await apiRequest<unknown>('teams', {}, ctx.mcpReq.signal);
+    return {
+      contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(teams) }]
+    };
   }
 );
 
 // A URI template: the matched variables arrive as the second argument
 server.registerResource(
-  "example-user",
-  new ResourceTemplate("example://users/{userId}", { list: undefined }),
-  { title: "User profile", description: "One Example user by ID", mimeType: "application/json" },
+  'example-user',
+  new ResourceTemplate('example://users/{userId}', { list: undefined }),
+  { title: 'User profile', description: 'One Example user by ID', mimeType: 'application/json' },
   async (uri, { userId }, ctx) => {
     if (!/^U\d+$/.test(String(userId))) {
-      throw new ProtocolError(ProtocolErrorCode.InvalidParams, `User IDs look like U123, got "${userId}"`);
+      throw new ProtocolError(
+        ProtocolErrorCode.InvalidParams,
+        `User IDs look like U123, got "${userId}"`
+      );
     }
-    const user = await apiRequest<unknown>(`users/${userId}`, {}, ctx.mcpReq.signal).catch((error: unknown) => {
-      // Only a 404 means the resource is missing; a 401, 429, or timeout keeps its own error
-      if (error instanceof ApiError && error.status === 404) throw new ResourceNotFoundError(uri.href);
-      throw error;
-    });
-    return { contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(user) }] };
+    const user = await apiRequest<unknown>(`users/${userId}`, {}, ctx.mcpReq.signal).catch(
+      (error: unknown) => {
+        // Only a 404 means the resource is missing; a 401, 429, or timeout keeps its own error
+        if (error instanceof ApiError && error.status === 404)
+          throw new ResourceNotFoundError(uri.href);
+        throw error;
+      }
+    );
+    return {
+      contents: [{ uri: uri.href, mimeType: 'application/json', text: JSON.stringify(user) }]
+    };
   }
 );
 
 // A prompt; completable() lets clients autocomplete the argument as the user types
-const TEAMS = ["engineering", "marketing", "sales"];
+const TEAMS = ['engineering', 'marketing', 'sales'];
 
 server.registerPrompt(
-  "example_team_report",
+  'example_team_report',
   {
-    title: "Team report",
-    description: "Summarize who is on a team",
+    title: 'Team report',
+    description: 'Summarize who is on a team',
     argsSchema: z.object({
-      team: completable(z.string().describe("Team name"), value => TEAMS.filter(team => team.startsWith(value)))
+      team: completable(z.string().describe('Team name'), (value) =>
+        TEAMS.filter((team) => team.startsWith(value))
+      )
     })
   },
   async ({ team }) => ({
     messages: [
       {
-        role: "user",
-        content: { type: "text", text: `Use example_search_users to find everyone on the ${team} team, then summarize the team in a short table.` }
+        role: 'user',
+        content: {
+          type: 'text',
+          text: `Use example_search_users to find everyone on the ${team} team, then summarize the team in a short table.`
+        }
       }
     ]
   })
@@ -619,9 +696,9 @@ The handles returned by `registerTool`, `registerResource`, and `registerPrompt`
 
 ```typescript
 const exportTool = server.registerTool(
-  "example_export_data",
-  { description: "Export workspace data (export-enabled plans only)" },
-  async () => ({ content: [{ type: "text", text: "Export started" }] })
+  'example_export_data',
+  { description: 'Export workspace data (export-enabled plans only)' },
+  async () => ({ content: [{ type: 'text', text: 'Export started' }] })
 );
 exportTool.disable(); // Sends notifications/tools/list_changed
 exportTool.enable(); // So do enable(), update(), and remove()
@@ -640,42 +717,49 @@ Write a self-check script that starts the built server, calls its tools as a cli
  * Self-check: starts the built server over stdio, calls its tools, and exits non-zero on any failure.
  * Run with: npm run build && npm run smoke
  */
-import { strict as assert } from "node:assert";
-import { Client } from "@modelcontextprotocol/client";
-import { getDefaultEnvironment, StdioClientTransport } from "@modelcontextprotocol/client/stdio";
+import { strict as assert } from 'node:assert';
 
-const client = new Client({ name: "smoke-test", version: "1.0.0" });
+import { Client } from '@modelcontextprotocol/client';
+import { getDefaultEnvironment, StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+
+const client = new Client({ name: 'smoke-test', version: '1.0.0' });
 await client.connect(
   new StdioClientTransport({
-    command: "node",
-    args: ["dist/index.js"],
+    command: 'node',
+    args: ['dist/index.js'],
     // The child gets only a safe default environment; pass the server's own variables explicitly
-    env: { ...getDefaultEnvironment(), EXAMPLE_API_KEY: process.env.EXAMPLE_API_KEY ?? "" }
+    env: { ...getDefaultEnvironment(), EXAMPLE_API_KEY: process.env.EXAMPLE_API_KEY ?? '' }
   })
 );
 
 const { tools } = await client.listTools();
-assert.deepEqual(tools.map(tool => tool.name).sort(), ["example_get_user", "example_search_users"]);
+assert.deepEqual(tools.map((tool) => tool.name).sort(), [
+  'example_get_user',
+  'example_search_users'
+]);
 
 const search = await client.callTool({
-  name: "example_search_users",
-  arguments: { query: "john", limit: 5, response_format: "json" }
+  name: 'example_search_users',
+  arguments: { query: 'john', limit: 5, response_format: 'json' }
 });
 assert.ok(!search.isError, `search failed: ${JSON.stringify(search.content)}`);
 const page = search.structuredContent as { users: { id: string }[]; total: number };
-assert.ok(Array.isArray(page.users), "search should return a users array");
+assert.ok(Array.isArray(page.users), 'search should return a users array');
 
 if (page.users.length > 0) {
-  const user = await client.callTool({ name: "example_get_user", arguments: { user_id: page.users[0].id } });
+  const user = await client.callTool({
+    name: 'example_get_user',
+    arguments: { user_id: page.users[0].id }
+  });
   assert.ok(!user.isError, `get_user failed: ${JSON.stringify(user.content)}`);
 }
 
 // Invalid arguments must come back as a tool error the model can read
-const invalid = await client.callTool({ name: "example_search_users", arguments: { query: "j" } });
-assert.equal(invalid.isError, true, "a one-character query should be rejected");
+const invalid = await client.callTool({ name: 'example_search_users', arguments: { query: 'j' } });
+assert.equal(invalid.isError, true, 'a one-character query should be rejected');
 
 await client.close();
-console.error("Smoke test passed");
+console.error('Smoke test passed');
 ```
 
 - Call read-only tools with realistic arguments; check that one invalid input is rejected
@@ -690,17 +774,17 @@ console.error("Smoke test passed");
 
 Each linked example is a runnable server and client pair from the SDK repository:
 
-| To... | See |
-|---|---|
-| Report progress, send log messages, and handle cancellation in long-running tools | [streaming](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/streaming) |
-| Ask the user for input mid-call (elicitation) | [elicitation](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/elicitation) |
-| Notify subscribed clients when resources change | [subscriptions](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/subscriptions) |
-| Add OAuth login (authorization code flow) | [oauth](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/oauth) |
-| Accept machine-to-machine OAuth (client credentials) | [oauth-client-credentials](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/oauth-client-credentials) |
-| Require different scopes for different tools | [scoped-tools](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/scoped-tools) |
-| Serve on Hono or another web-standard runtime | [hono](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/hono), [bearer-auth-web](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/bearer-auth-web) |
-| Run sessionful 2025-era HTTP deployments | [standalone-get](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/standalone-get), [sse-polling](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/sse-polling) |
-| See every server feature in one reference server | [todos-server](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/todos-server) |
+| To...                                                                             | See                                                                                                                                                                                                              |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Report progress, send log messages, and handle cancellation in long-running tools | [streaming](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/streaming)                                                                                                                 |
+| Ask the user for input mid-call (elicitation)                                     | [elicitation](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/elicitation)                                                                                                             |
+| Notify subscribed clients when resources change                                   | [subscriptions](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/subscriptions)                                                                                                         |
+| Add OAuth login (authorization code flow)                                         | [oauth](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/oauth)                                                                                                                         |
+| Accept machine-to-machine OAuth (client credentials)                              | [oauth-client-credentials](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/oauth-client-credentials)                                                                                   |
+| Require different scopes for different tools                                      | [scoped-tools](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/scoped-tools)                                                                                                           |
+| Serve on Hono or another web-standard runtime                                     | [hono](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/hono), [bearer-auth-web](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/bearer-auth-web)             |
+| Run sessionful 2025-era HTTP deployments                                          | [standalone-get](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/standalone-get), [sse-polling](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/sse-polling) |
+| See every server feature in one reference server                                  | [todos-server](https://github.com/modelcontextprotocol/typescript-sdk/tree/main/examples/todos-server)                                                                                                           |
 
 ---
 
@@ -721,6 +805,7 @@ The codemod rewrites imports, `package.json`, registration calls, and handler co
 ## Quality Checklist
 
 ### Tool Design
+
 - [ ] Tools enable complete workflows, not just API endpoint wrappers
 - [ ] Tool names are snake_case with a service prefix
 - [ ] Every tool has a `title`, a `description` that says when to use it, and correct `annotations`
@@ -731,6 +816,7 @@ The codemod rewrites imports, `package.json`, registration calls, and handler co
 - [ ] Error messages say what went wrong and how to recover
 
 ### Implementation
+
 - [ ] `createServer()` returns a new `McpServer` on every call, with everything registered inside it; shared clients live at module scope
 - [ ] Upstream requests pass `ctx.mcpReq.signal` and have a timeout
 - [ ] Strict TypeScript; no `any`; upstream data validated where it feeds `structuredContent`
@@ -738,10 +824,12 @@ The codemod rewrites imports, `package.json`, registration calls, and handler co
 - [ ] HTTP servers keep Host/Origin validation, and add bearer auth when exposed beyond localhost
 
 ### Project
+
 - [ ] `package.json` depends on `@modelcontextprotocol/server` (not `@modelcontextprotocol/sdk`) and `zod` `^4.2.0` or later
 - [ ] No imports from `@modelcontextprotocol/sdk/...` or `zod/v3`
 - [ ] `bin` points at `dist/index.js`, and `src/index.ts` starts with `#!/usr/bin/env node`
 
 ### Verification
+
 - [ ] `npm run build` completes without errors
 - [ ] The self-check script passes against the built server

@@ -40,7 +40,7 @@ export function schedulePopup(): void {
       );
 
       const findings = MotionRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(2);
+      expect(findings).toHaveLength(2);
 
       const setT = findings.find((f) => f.originalSnippet.includes('setTimeout'));
       expect(setT).toBeDefined();
@@ -89,7 +89,7 @@ function open(): void {
       );
 
       const findings = MotionRefactorEngine.discoverInFile(vueFile);
-      expect(findings.length).toBe(2);
+      expect(findings).toHaveLength(2);
 
       const layoutFinding = findings.find((f) => f.kind === 'layout-property');
       expect(layoutFinding).toBeDefined();
@@ -114,7 +114,7 @@ export function run(): void {
       );
 
       const findings = MotionRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
 
       const plan = MotionRefactorEngine.createPlan('test-plan-1', findings);
       expect(plan.timerReplacements?.length).toBe(1);

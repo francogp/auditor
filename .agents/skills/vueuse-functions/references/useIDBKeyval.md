@@ -15,26 +15,29 @@ npm install idb-keyval@^6
 ## Usage
 
 ```ts
-import { useIDBKeyval } from '@vueuse/integrations/useIDBKeyval'
+import { useIDBKeyval } from '@vueuse/integrations/useIDBKeyval';
 
 // bind object
-const { data: storedObject, isFinished } = useIDBKeyval('my-idb-keyval-store', { hello: 'hi', greeting: 'Hello' })
+const { data: storedObject, isFinished } = useIDBKeyval('my-idb-keyval-store', {
+  hello: 'hi',
+  greeting: 'Hello'
+});
 
 // update object
-storedObject.value.hello = 'hola'
+storedObject.value.hello = 'hola';
 
 // bind boolean
-const flag = useIDBKeyval('my-flag', true) // returns Ref<boolean>
+const flag = useIDBKeyval('my-flag', true); // returns Ref<boolean>
 
 // bind number
-const count = useIDBKeyval('my-count', 0) // returns Ref<number>
+const count = useIDBKeyval('my-count', 0); // returns Ref<number>
 
 // awaiting IDB transaction
-await count.set(10)
-console.log('IDB transaction finished!')
+await count.set(10);
+console.log('IDB transaction finished!');
 
 // delete data from idb storage
-storedObject.value = null
+storedObject.value = null;
 ```
 
 ## Cross-tab syncing
@@ -43,59 +46,58 @@ Changes are automatically synced across browser tabs using the [`BroadcastChanne
 
 ```ts
 // disable cross-tab syncing
-const { data } = useIDBKeyval('my-key', 'default', { listenToStorageChanges: false })
+const { data } = useIDBKeyval('my-key', 'default', { listenToStorageChanges: false });
 ```
 
 ## Type Declarations
 
 ```ts
 interface Serializer<T> {
-  read: (raw: unknown) => T
-  write: (value: T) => unknown
+  read: (raw: unknown) => T;
+  write: (value: T) => unknown;
 }
-export interface UseIDBOptions<T>
-  extends ConfigurableFlush, ConfigurableWindow {
+export interface UseIDBOptions<T> extends ConfigurableFlush, ConfigurableWindow {
   /**
    * Watch for deep changes
    *
    * @default true
    */
-  deep?: boolean
+  deep?: boolean;
   /**
    * On error callback
    *
    * Default log error to `console.error`
    */
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void;
   /**
    * Use shallow ref as reference
    *
    * @default false
    */
-  shallow?: boolean
+  shallow?: boolean;
   /**
    * Write the default value to the storage when it does not exist
    *
    * @default true
    */
-  writeDefaults?: boolean
+  writeDefaults?: boolean;
   /**
    * Custom data serialization
    */
-  serializer?: Serializer<T>
+  serializer?: Serializer<T>;
   /**
    * Listen to storage changes from other tabs via BroadcastChannel,
    * useful for multiple tabs applications
    *
    * @default true
    */
-  listenToStorageChanges?: boolean
+  listenToStorageChanges?: boolean;
 }
 export interface UseIDBKeyvalReturn<T> {
-  data: RemovableRef<T>
-  isFinished: ShallowRef<boolean>
-  isSupported: ComputedRef<boolean>
-  set: (value: T) => Promise<void>
+  data: RemovableRef<T>;
+  isFinished: ShallowRef<boolean>;
+  isSupported: ComputedRef<boolean>;
+  set: (value: T) => Promise<void>;
 }
 /**
  *
@@ -106,6 +108,6 @@ export interface UseIDBKeyvalReturn<T> {
 export declare function useIDBKeyval<T>(
   key: IDBValidKey,
   initialValue: MaybeRefOrGetter<T>,
-  options?: UseIDBOptions<T>,
-): UseIDBKeyvalReturn<T>
+  options?: UseIDBOptions<T>
+): UseIDBKeyvalReturn<T>;
 ```

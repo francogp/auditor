@@ -71,7 +71,7 @@ Vendor skills are tracked declaratively in `skills-lock.json`. The framework sea
 flowchart TD
     A["skills-lock.json"] --> B["loadLockedSkills(projectRoot)"]
     B --> C["isLockedSkillPath(filePath)"]
-    
+
     C -->|Match Found| G1["1. File Scanner (isPathIgnored)\nStrictly Excluded"]
     C -->|Match Found| G2["2. AST/Linter Findings\nSilently Dropped"]
     C -->|Match Found| G3["3. safeWriteFile / safeWriteFileSync\nThrows Immutability Violation"]
@@ -96,7 +96,9 @@ function assertNotLockedSkill(filePath: string): string {
   const resolved = safeResolve(filePath);
   const root = path.resolve(process.cwd());
   if (isLockedSkillPath(resolved, root)) {
-    throw new Error(`Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`);
+    throw new Error(
+      `Security / Immutability Violation: Cannot write to official locked skill: '${resolved}'`
+    );
   }
   return resolved;
 }
@@ -132,14 +134,14 @@ When an AI agent is instructed to audit skills, review governance rules, or chec
 
 ## 4. Custom In-House Skills vs. Official Locked Skills
 
-| Attribute | Official Locked Skills | Custom In-House Skills |
-| :--- | :--- | :--- |
-| **Tracked in** | `skills-lock.json` | Not in `skills-lock.json` |
-| **Examples** | `gsap-*`, `vitest`, `fallow`, `vue-*`, `grill-with-docs`, `to-spec` | `architecture`, `auditor`, `safe-commit`, `dox-navigator`, `learn-with-docs` |
-| **Ownership** | External vendor / upstream ecosystem | Repository authors & tooling engineers |
-| **Immutability** | Strictly immutable (write protected) | Maintainable, editable, and evolvable |
-| **Audit Status** | Skipped by scanners, findings dropped | 100% audited by `@francogp/auditor` |
-| **Governance** | Upstream upstream maintainer rules | Local repository DOX & contracts |
+| Attribute        | Official Locked Skills                                              | Custom In-House Skills                                                       |
+| :--------------- | :------------------------------------------------------------------ | :--------------------------------------------------------------------------- |
+| **Tracked in**   | `skills-lock.json`                                                  | Not in `skills-lock.json`                                                    |
+| **Examples**     | `gsap-*`, `vitest`, `fallow`, `vue-*`, `grill-with-docs`, `to-spec` | `architecture`, `auditor`, `safe-commit`, `dox-navigator`, `learn-with-docs` |
+| **Ownership**    | External vendor / upstream ecosystem                                | Repository authors & tooling engineers                                       |
+| **Immutability** | Strictly immutable (write protected)                                | Maintainable, editable, and evolvable                                        |
+| **Audit Status** | Skipped by scanners, findings dropped                               | 100% audited by `@francogp/auditor`                                          |
+| **Governance**   | Upstream upstream maintainer rules                                  | Local repository DOX & contracts                                             |
 
 ---
 
@@ -150,7 +152,7 @@ When an AI agent is instructed to audit skills, review governance rules, or chec
 
    ```typescript
    import { loadLockedSkills, isLockedSkillPath } from '@francogp/auditor';
-   
+
    const locked = loadLockedSkills();
    const isLocked = locked.has('gsap-core'); // true
    const isCustom = !locked.has('safe-commit'); // true
@@ -234,22 +236,22 @@ When upgrading, bumping, or adding libraries in `package.json`, developers and A
 
 ### 7.1 Dependency-to-Skill Mapping Matrix (`@francogp/auditor` Owned Catalog)
 
-| Library / Package (`package.json`) | Associated Agent Skill(s) | Upstream Repository Source |
-| :--- | :--- | :--- |
-| `vite-plus`, `@voidzero-dev/vite-plus-core` | Packaged `node_modules/vite-plus/AGENTS.md` (injected into `AGENTS.md` via `vp config`), [`vite`](../../vite/SKILL.md), [`vitest`](../../vitest/SKILL.md) | `voidzero-dev/vite-plus` (`https://viteplus.dev/llms-full.txt`), `antfu/skills` |
-| `fallow` | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md), [`fallow-setup`](../../fallow-setup/SKILL.md) | `fallow-rs/fallow-skills` |
-| `vitest`, `@vitest/*` | [`vitest`](../../vitest/SKILL.md) | `antfu/skills` |
-| `vite`, `rolldown` | [`vite`](../../vite/SKILL.md) | `antfu/skills` |
-| `valibot` | [`valibot`](../../valibot/SKILL.md) | `open-circle/agent-skills` |
-| `pinia` | [`pinia`](../../pinia/SKILL.md), [`vue-pinia-best-practices`](../../vue-pinia-best-practices/SKILL.md) | `antfu/skills`, `vuejs-ai/skills` |
-| `vue`, `vue-router` | [`vue-best-practices`](../../vue-best-practices/SKILL.md), [`vue-debug-guides`](../../vue-debug-guides/SKILL.md), [`vue-jsx-best-practices`](../../vue-jsx-best-practices/SKILL.md), [`vue-options-api-best-practices`](../../vue-options-api-best-practices/SKILL.md), [`vue-router-best-practices`](../../vue-router-best-practices/SKILL.md), [`vue-testing-best-practices`](../../vue-testing-best-practices/SKILL.md), [`create-adaptable-composable`](../../create-adaptable-composable/SKILL.md) | `vuejs-ai/skills` |
-| `gsap` | [`gsap-core`](../../gsap-core/SKILL.md), [`gsap-frameworks`](../../gsap-frameworks/SKILL.md), [`gsap-performance`](../../gsap-performance/SKILL.md), [`gsap-plugins`](../../gsap-plugins/SKILL.md), [`gsap-react`](../../gsap-react/SKILL.md), [`gsap-scrolltrigger`](../../gsap-scrolltrigger/SKILL.md), [`gsap-timeline`](../../gsap-timeline/SKILL.md), [`gsap-utils`](../../gsap-utils/SKILL.md) | `greensock/gsap-skills` |
-| `@playwright/test`, `playwright` | [`playwright-cli`](../../playwright-cli/SKILL.md) | `microsoft/playwright-cli` |
-| `@vueuse/core`, `vueuse` | [`vueuse-functions`](../../vueuse-functions/SKILL.md) | `vueuse/skills` |
+| Library / Package (`package.json`)          | Associated Agent Skill(s)                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Upstream Repository Source                                                      |
+| :------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------ |
+| `vite-plus`, `@voidzero-dev/vite-plus-core` | Packaged `node_modules/vite-plus/AGENTS.md` (injected into `AGENTS.md` via `vp config`), [`vite`](../../vite/SKILL.md), [`vitest`](../../vitest/SKILL.md)                                                                                                                                                                                                                                                                                                                                               | `voidzero-dev/vite-plus` (`https://viteplus.dev/llms-full.txt`), `antfu/skills` |
+| `fallow`                                    | [`fallow`](../../fallow/SKILL.md), [`fallow-review`](../../fallow-review/SKILL.md), [`fallow-setup`](../../fallow-setup/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                       | `fallow-rs/fallow-skills`                                                       |
+| `vitest`, `@vitest/*`                       | [`vitest`](../../vitest/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `antfu/skills`                                                                  |
+| `vite`, `rolldown`                          | [`vite`](../../vite/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | `antfu/skills`                                                                  |
+| `valibot`                                   | [`valibot`](../../valibot/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `open-circle/agent-skills`                                                      |
+| `pinia`                                     | [`pinia`](../../pinia/SKILL.md), [`vue-pinia-best-practices`](../../vue-pinia-best-practices/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                  | `antfu/skills`, `vuejs-ai/skills`                                               |
+| `vue`, `vue-router`                         | [`vue-best-practices`](../../vue-best-practices/SKILL.md), [`vue-debug-guides`](../../vue-debug-guides/SKILL.md), [`vue-jsx-best-practices`](../../vue-jsx-best-practices/SKILL.md), [`vue-options-api-best-practices`](../../vue-options-api-best-practices/SKILL.md), [`vue-router-best-practices`](../../vue-router-best-practices/SKILL.md), [`vue-testing-best-practices`](../../vue-testing-best-practices/SKILL.md), [`create-adaptable-composable`](../../create-adaptable-composable/SKILL.md) | `vuejs-ai/skills`                                                               |
+| `gsap`                                      | [`gsap-core`](../../gsap-core/SKILL.md), [`gsap-frameworks`](../../gsap-frameworks/SKILL.md), [`gsap-performance`](../../gsap-performance/SKILL.md), [`gsap-plugins`](../../gsap-plugins/SKILL.md), [`gsap-react`](../../gsap-react/SKILL.md), [`gsap-scrolltrigger`](../../gsap-scrolltrigger/SKILL.md), [`gsap-timeline`](../../gsap-timeline/SKILL.md), [`gsap-utils`](../../gsap-utils/SKILL.md)                                                                                                    | `greensock/gsap-skills`                                                         |
+| `@playwright/test`, `playwright`            | [`playwright-cli`](../../playwright-cli/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `microsoft/playwright-cli`                                                      |
+| `@vueuse/core`, `vueuse`                    | [`vueuse-functions`](../../vueuse-functions/SKILL.md)                                                                                                                                                                                                                                                                                                                                                                                                                                                   | `vueuse/skills`                                                                 |
 
 ### 7.2 Coupled Update Protocol
 
-When the user asks to update dependencies (e.g. *"actualizar dependencias"*, *"update fallow"*, *"upgrade vitest"*, *"upgrade vite-plus"*):
+When the user asks to update dependencies (e.g. _"actualizar dependencias"_, _"update fallow"_, _"upgrade vitest"_, _"upgrade vite-plus"_):
 
 1. **Update Library**: Bump the package version in `package.json` and install dependencies.
 2. **Check Skill Ownership Scope**:

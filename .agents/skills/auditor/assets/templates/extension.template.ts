@@ -82,7 +82,7 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
       // Optional: Custom tool cache paths outside scratch/ (auto-injected into .gitignore and ignored by scanners):
       // cachePaths: ['.mycustomcache'],
       // Mandatory strategic remediation phase (e.g. 'setup' | 'prune' | 'dedup' | 'contracts' | 'behavior' | 'hygiene' | 'polish')
-      remediationPhase: 'contracts' as RemediationPhaseId,
+      remediationPhase: 'contracts',
       usesThirdPartyTool: false,
       ruleDescriptions: {
         'my-custom-rule-a': 'Violation of custom project architectural rule A',

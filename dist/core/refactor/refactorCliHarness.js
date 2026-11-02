@@ -17,6 +17,7 @@ const MAX_DISPLAY_FILE_PATH_LENGTH = 44;
 const REFACTOR_SUBCOMMANDS = /* @__PURE__ */ new Set([
 	"discover",
 	"inspect",
+	"plan",
 	"apply",
 	"help"
 ]);
@@ -24,13 +25,13 @@ const REFACTOR_POSITIONAL_CLI_ARGS = {
 	subcommand: {
 		type: "positional",
 		required: false,
-		description: "Subcommand to execute (discover, inspect, apply, help)",
+		description: "Subcommand to execute (discover, inspect, plan, apply, help)",
 		default: "discover"
 	},
 	target: {
 		type: "positional",
 		required: false,
-		description: "Target file to inspect or plan JSON to apply"
+		description: "Target file to inspect/plan or plan JSON to apply"
 	}
 };
 const REFACTOR_HARNESS_ARGS = {
@@ -38,11 +39,15 @@ const REFACTOR_HARNESS_ARGS = {
 	...REFACTOR_POSITIONAL_CLI_ARGS,
 	file: {
 		type: "string",
-		description: "Target file path to inspect"
+		description: "Target file path to inspect or plan"
 	},
 	plan: {
 		type: "string",
 		description: "Path to declarative refactor plan JSON"
+	},
+	write: {
+		type: "string",
+		description: "Output file path to save the generated declarative plan JSON"
 	},
 	worktree: {
 		type: "boolean",
@@ -61,12 +66,14 @@ function renderHarnessHelp(def) {
 Direct usage (binary in node_modules/.bin):
   ${def.toolName} discover [--project <path>] [--human]
   ${def.toolName} inspect <file> [--project <path>]
+  ${def.toolName} plan [<file>] [--write <path>] [--project <path>]
   ${def.toolName} apply <plan.json> [--worktree] [--project <path>]
   ${def.toolName} help
 
 Usage via project npm scripts:
   npm run ${scriptAlias} discover
   npm run ${scriptAlias} inspect <file>
+  npm run ${scriptAlias} plan [<file>] [--write <path>]
   npm run ${scriptAlias} apply <plan.json>
   npm run ${scriptAlias} help
 
@@ -141,6 +148,40 @@ function handleInspectCommand(def, projectRoot, targetFile) {
 	console.log(styleText("yellow", "[Plan] Suggested declarative plan (--plan):\n"));
 	console.log(JSON.stringify(plan, null, 2));
 }
+function handlePlanCommand(def, projectRoot, engine, targetFile, outputPath) {
+	const allFindings = [];
+	const filesScanned = [];
+	if (targetFile) {
+		const fullPath = path.isAbsolute(targetFile) ? path.normalize(targetFile) : path.resolve(projectRoot, targetFile);
+		if (!fs.existsSync(fullPath)) {
+			console.error(styleText("red", `[Error] File not found: ${fullPath}`));
+			process.exit(1);
+		}
+		const findings = def.discoverInFile(fullPath);
+		if (findings.length > 0) {
+			filesScanned.push(fullPath);
+			allFindings.push(...findings);
+		}
+	} else {
+		const files = engine ? engine.getScannableFiles() : scanProjectSourceFiles(projectRoot);
+		for (const file of files) {
+			const fullPath = path.isAbsolute(file) ? file : path.resolve(projectRoot, file);
+			const findings = def.discoverInFile(fullPath);
+			if (findings.length > 0) {
+				filesScanned.push(fullPath);
+				allFindings.push(...findings);
+			}
+		}
+	}
+	const planId = `${def.toolName.replace(/^auditor[-:]/, "")}-plan-${Temporal.Now.instant().epochMilliseconds}`;
+	const plan = def.createPlan(planId, allFindings);
+	if (outputPath) {
+		const resolvedOutput = path.isAbsolute(outputPath) ? outputPath : path.resolve(projectRoot, outputPath);
+		fs.mkdirSync(path.dirname(resolvedOutput), { recursive: true });
+		fs.writeFileSync(resolvedOutput, JSON.stringify(plan, null, 2), "utf-8");
+		console.log(styleText("green", `[OK] Plan written to ${resolvedOutput} (${allFindings.length} finding(s) across ${filesScanned.length} file(s)).`));
+	} else console.log(JSON.stringify(plan, null, 2));
+}
 async function handleApplyCommand(def, projectRoot, planFile, worktree = false) {
 	if (!planFile) {
 		console.error(styleText("red", `[Error] You must specify a plan file to apply. E.g.: ${def.toolName} apply plan.json or --plan <path>`));
@@ -191,6 +232,9 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 			break;
 		case "inspect":
 			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0));
+			break;
+		case "plan":
+			handlePlanCommand(def, projectRoot, engine, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0), typeof parsed.write === "string" && parsed.write ? parsed.write : void 0);
 			break;
 		case "apply":
 			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0), Boolean(parsed.worktree));

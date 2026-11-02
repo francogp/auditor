@@ -157,7 +157,7 @@ const testVar = 42;
       const statements = ast?.statements ?? [];
       expect(statements.length).toBeGreaterThan(0);
       const stmt = statements[0];
-      const startPos = doc.getNodeLineAndColumn(stmt!, ast!);
+      const startPos = doc.getNodeLineAndColumn(stmt!, ast);
       expect(startPos.line).toBe(6); // Lines 1-4 are template, 5 is script tag, 6 is testVar
       expect(startPos.lineText).toBe('const testVar = 42;');
     });

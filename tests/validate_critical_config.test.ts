@@ -126,7 +126,7 @@ class TestProbeAuditor extends BaseAuditor<SampleRuleId> {
       },
       projectRoot,
       ...restOptions
-    } as AuditorOptions<SampleRuleId>);
+    });
   }
 
   public override async runAudit(): Promise<void> {

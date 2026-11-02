@@ -11,11 +11,11 @@ Run expensive functions without blocking the UI, using a simple syntax that make
 ### Basic example
 
 ```ts
-import { useWebWorkerFn } from '@vueuse/core'
+import { useWebWorkerFn } from '@vueuse/core';
 
 const { workerFn } = useWebWorkerFn(() => {
   // some heavy works to do in web worker
-})
+});
 ```
 
 ### With dependencies
@@ -61,28 +61,27 @@ This function is a Vue port of https://github.com/alewin/useWorker by Alessio Ko
 ## Type Declarations
 
 ```ts
-export type WebWorkerStatus =
-  "PENDING" | "SUCCESS" | "RUNNING" | "ERROR" | "TIMEOUT_EXPIRED"
+export type WebWorkerStatus = 'PENDING' | 'SUCCESS' | 'RUNNING' | 'ERROR' | 'TIMEOUT_EXPIRED';
 export interface UseWebWorkerOptions extends ConfigurableWindow {
   /**
    * Number of milliseconds before killing the worker
    *
    * @default undefined
    */
-  timeout?: number
+  timeout?: number;
   /**
    * An array that contains the external dependencies needed to run the worker
    */
-  dependencies?: string[]
+  dependencies?: string[];
   /**
    * An array that contains the local dependencies needed to run the worker
    */
-  localDependencies?: Function[]
+  localDependencies?: Function[];
 }
 export interface UseWebWorkerFnReturn<T extends (...fnArgs: any[]) => any> {
-  workerFn: (...fnArgs: Parameters<T>) => Promise<ReturnType<T>>
-  workerStatus: ShallowRef<WebWorkerStatus>
-  workerTerminate: (status?: WebWorkerStatus) => void
+  workerFn: (...fnArgs: Parameters<T>) => Promise<ReturnType<T>>;
+  workerStatus: ShallowRef<WebWorkerStatus>;
+  workerTerminate: (status?: WebWorkerStatus) => void;
 }
 /**
  * Run expensive function without blocking the UI, using a simple syntax that makes use of Promise.
@@ -93,6 +92,6 @@ export interface UseWebWorkerFnReturn<T extends (...fnArgs: any[]) => any> {
  */
 export declare function useWebWorkerFn<T extends (...fnArgs: any[]) => any>(
   fn: T,
-  options?: UseWebWorkerOptions,
-): UseWebWorkerFnReturn<T>
+  options?: UseWebWorkerOptions
+): UseWebWorkerFnReturn<T>;
 ```

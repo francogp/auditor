@@ -151,7 +151,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     ];
 
     const duplicates = detectLibraryDomainTypeDuplicates(files, libraryTypes);
-    expect(duplicates.length).toBe(1);
+    expect(duplicates).toHaveLength(1);
     expect(duplicates[0]?.ruleId).toBe('canonical-domain-library-duplicate');
     expect(duplicates[0]?.message).toContain('Duplicate of library domain type');
   });
@@ -202,7 +202,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     const { bySignature, list, collisions } = extractProjectCanonicalDomains(files, tempDir);
     expect(collisions).toHaveLength(0);
     expect(bySignature.size).toBe(1);
-    expect(list.length).toBe(1);
+    expect(list).toHaveLength(1);
 
     const libMap = extractLibraryDomainTypes(tempDir);
     expect(libMap).toBeDefined();
@@ -279,7 +279,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     ];
 
     const findings = detectLibraryDomainTypeDuplicates(scanned, libMap);
-    expect(findings.length).toBe(3); // array, prop, type (keyof is skipped)
+    expect(findings).toHaveLength(3); // array, prop, type (keyof is skipped)
     expect(findings.some((f) => f.message.includes("WIDGET_LIST' duplicates 'WidgetStatus"))).toBe(
       true
     );
@@ -412,7 +412,7 @@ describe('ValidateCanonicalDomainsAuditor', () => {
     ];
 
     const findings = detectProjectDomainDuplicatesAndSubsets(files, domains);
-    expect(findings.length).toBe(2);
+    expect(findings).toHaveLength(2);
     expect(findings[0]?.message).toContain('BIG_SUBSET');
     expect(findings[1]?.message).toContain('SMALL_SUBSET');
   });

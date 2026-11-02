@@ -32,10 +32,10 @@ describe('astScriptExtractor', () => {
     const extracted = extractUnifiedScriptBuffer(vueCode, true);
 
     // Exact length match guarantees 1:1 character index parity
-    expect(extracted.length).toBe(vueCode.length);
+    expect(extracted).toHaveLength(vueCode.length);
 
     // Line count match guarantees line number parity
-    expect(extracted.split('\n').length).toBe(vueCode.split('\n').length);
+    expect(extracted.split('\n')).toHaveLength(vueCode.split('\n').length);
 
     // Script content is strictly preserved in its original coordinates
     expect(extracted).toContain('const count = 42;');

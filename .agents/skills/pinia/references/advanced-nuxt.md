@@ -16,6 +16,7 @@ npx nuxi@latest module add pinia
 This installs both `@pinia/nuxt` and `pinia`. If `pinia` isn't installed, add it manually along with `@vue/devtools-api`, which since Pinia v4 is a **required peer dependency** used by the devtools integration: `npm i pinia @vue/devtools-api`.
 
 > **npm users:** If you get `ERESOLVE unable to resolve dependency tree`, add to `package.json`:
+>
 > ```json
 > "overrides": { "vue": "latest" }
 > ```
@@ -25,13 +26,14 @@ This installs both `@pinia/nuxt` and `pinia`. If `pinia` isn't installed, add it
 ```ts
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['@pinia/nuxt'],
-})
+  modules: ['@pinia/nuxt']
+});
 ```
 
 ## Auto Imports
 
 These are automatically available:
+
 - `usePinia()` - get pinia instance
 - `defineStore()` - define stores
 - `storeToRefs()` - extract reactive refs
@@ -46,9 +48,9 @@ These are automatically available:
 export default defineNuxtConfig({
   modules: ['@pinia/nuxt'],
   pinia: {
-    storesDirs: ['./stores/**', './custom-folder/stores/**'],
-  },
-})
+    storesDirs: ['./stores/**', './custom-folder/stores/**']
+  }
+});
 ```
 
 ## Fetching Data in Pages
@@ -57,10 +59,10 @@ Use `callOnce()` for SSR-friendly data fetching:
 
 ```vue
 <script setup>
-const store = useStore()
+const store = useStore();
 
 // Run once, data persists across navigations
-await callOnce('user', () => store.fetchUser())
+await callOnce('user', () => store.fetchUser());
 </script>
 ```
 
@@ -68,10 +70,10 @@ await callOnce('user', () => store.fetchUser())
 
 ```vue
 <script setup>
-const store = useStore()
+const store = useStore();
 
 // Refetch on every navigation (like useFetch)
-await callOnce('user', () => store.fetchUser(), { mode: 'navigation' })
+await callOnce('user', () => store.fetchUser(), { mode: 'navigation' });
 </script>
 ```
 
@@ -82,13 +84,13 @@ In navigation guards, middlewares, or other stores, pass the `pinia` instance:
 ```ts
 // middleware/auth.ts
 export default defineNuxtRouteMiddleware((to) => {
-  const nuxtApp = useNuxtApp()
-  const store = useStore(nuxtApp.$pinia)
+  const nuxtApp = useNuxtApp();
+  const store = useStore(nuxtApp.$pinia);
 
   if (to.meta.requiresAuth && !store.isLoggedIn) {
-    return navigateTo('/login')
+    return navigateTo('/login');
   }
-})
+});
 ```
 
 Most of the time, you don't need this - just use stores in components or other injection-aware contexts.
@@ -99,18 +101,18 @@ Create a Nuxt plugin:
 
 ```ts
 // plugins/myPiniaPlugin.ts
-import { PiniaPluginContext } from 'pinia'
+import { PiniaPluginContext } from 'pinia';
 
 function MyPiniaPlugin({ store }: PiniaPluginContext) {
   store.$subscribe((mutation) => {
-    console.log(`[🍍 ${mutation.storeId}]: ${mutation.type}`)
-  })
-  return { creationTime: new Date() }
+    console.log(`[🍍 ${mutation.storeId}]: ${mutation.type}`);
+  });
+  return { creationTime: new Date() };
 }
 
 export default defineNuxtPlugin(({ $pinia }) => {
-  $pinia.use(MyPiniaPlugin)
-})
+  $pinia.use(MyPiniaPlugin);
+});
 ```
 
 <!--

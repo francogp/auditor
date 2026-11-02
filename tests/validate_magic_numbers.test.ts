@@ -44,7 +44,7 @@ describe('ValidateMagicNumbersAuditor', () => {
       expect(auditor.requiresAst).toBe(true);
       expect(auditor.ruleIds).toEqual(MAGIC_NUMBERS_RULES);
       expect(auditor.ruleDescriptions).toBeDefined();
-      expect(Object.keys(auditor.ruleDescriptions!)).toHaveLength(1);
+      expect(Object.keys(auditor.ruleDescriptions)).toHaveLength(1);
     });
   });
 

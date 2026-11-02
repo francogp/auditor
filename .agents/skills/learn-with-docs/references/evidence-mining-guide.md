@@ -44,11 +44,11 @@ When reviewing prompts across a multi-turn conversation, if the user provides an
 
 Transform raw user feedback into high-leverage, permanent engineering contracts:
 
-| Feedback Category | Anti-Pattern | Formulated Enforceable Invariant |
-| :--- | :--- | :--- |
+| Feedback Category         | Anti-Pattern                             | Formulated Enforceable Invariant                                                                                                                                                               |
+| :------------------------ | :--------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Code Traversal Correction | Brittle textual pattern matching on code | **AST Traversing Mandate**: All TypeScript code inspection must use official AST parsers (`ts.createSourceFile`, AST visitors); regular expressions are strictly forbidden for code traversal. |
-| CLI Parsing Advice | Inconsistent or homebrew CLI parsing | **Canonical CLI Governance Mandate**: All CLI executables must use `citty` harnesses (`defineCommand`, `runMain`); direct access to `process.argv` or unapproved parsers is forbidden. |
-| Dependency Isolation | Patching external runtime artifacts | **Dependency Immutability Mandate**: Dependencies in `node_modules/` are strictly immutable; bugs must be resolved upstream or via canonical package scripts. |
+| CLI Parsing Advice        | Inconsistent or homebrew CLI parsing     | **Canonical CLI Governance Mandate**: All CLI executables must use `citty` harnesses (`defineCommand`, `runMain`); direct access to `process.argv` or unapproved parsers is forbidden.         |
+| Dependency Isolation      | Patching external runtime artifacts      | **Dependency Immutability Mandate**: Dependencies in `node_modules/` are strictly immutable; bugs must be resolved upstream or via canonical package scripts.                                  |
 
 ---
 

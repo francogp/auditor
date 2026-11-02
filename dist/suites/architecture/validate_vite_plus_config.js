@@ -1360,8 +1360,14 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			candidateFiles: [options.configFile],
 			generateDefaultContent: () => buildCanonicalVitePlusConfig(getAuditConfig(effectiveRoot))
 		} : VITE_PLUS_CONFIG_REQUIREMENT;
+		const syncFixer = (ctx) => {
+			syncViteConfigWithAuditConfig(ctx.projectRoot);
+			repairVitePlusProject(ctx.projectRoot);
+		};
+		const ruleFixers = {};
+		for (const ruleId of VITE_PLUS_CONFIG_RULES) ruleFixers[ruleId] = syncFixer;
 		super({
-			ruleFixers: {},
+			ruleFixers,
 			fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],

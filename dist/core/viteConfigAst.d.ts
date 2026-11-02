@@ -34,6 +34,7 @@ export interface ParsedVitePlusConfigSummary {
 }
 export declare function extractParsedConfigSummary(fileContent: string): ParsedVitePlusConfigSummary;
 export declare function extractEslintIgnoresFromAst(rawContent: string): string[];
+export declare function resolveKnownViteFunctionReturnType(name: string): ts.TypeNode | null;
 export declare function buildPackAstObject(): ts.ObjectLiteralExpression;
 export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[]): ts.ObjectLiteralExpression;
 export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[]): ts.ObjectLiteralExpression;
@@ -48,6 +49,10 @@ export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts
 export declare function isRuleValueCompliant(ruleName: string, val: unknown): boolean;
 export declare function buildAllowedCoverageExcludes(auditConfig: AuditConfig, projectRoot?: string): Set<string>;
 export declare function printTransformedSourceFile(sf: ts.SourceFile, transformer: ts.TransformerFactory<ts.SourceFile>): string;
+export declare function applyViteConfigAstTransformations(sf: ts.SourceFile, rootObj: ts.ObjectLiteralExpression, updatedRootObj: ts.ObjectLiteralExpression): {
+  transformedContent: string;
+  modified: boolean;
+};
 export declare function synchronizeViteConfigAst(fileContent: string, auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProp: ts.PropertyAssignment | null, projectRoot?: string): {
   content: string;
   modified: boolean;

@@ -2,7 +2,7 @@
 
 Jhey Tompkins (@jh3yy) is a design engineer known for pushing the boundaries of CSS and creative coding. His approach emphasizes **playful experimentation** — learning through building whimsical projects where the joy of creation drives skill development.
 
-This file is Jhey's **philosophy and decision frameworks** — the judgment for *creative expression* and *easing personality*. Implementation code lives in `motion-cookbook.md` (cross-referenced below).
+This file is Jhey's **philosophy and decision frameworks** — the judgment for _creative expression_ and _easing personality_. Implementation code lives in `motion-cookbook.md` (cross-referenced below).
 
 ---
 
@@ -55,6 +55,7 @@ Each easing curve communicates something. **Context matters more than rules.**
 Brand personality should drive easing choices — a playful brand can use bouncy/elastic easing, a professional brand should use subtle springs or `ease-out`.
 
 **When NOT to use bouncy/elastic easing:**
+
 - Professional/enterprise applications
 - Frequently repeated interactions (gets tiresome)
 - Error states or serious UI
@@ -66,16 +67,16 @@ Brand personality should drive easing choices — a playful brand can use bouncy
 
 ## Signature Techniques (decision context — code in cookbook)
 
-| Technique | When Jhey reaches for it | Cookbook |
-|-----------|--------------------------|----------|
-| `linear()` function | Pure-CSS bounce, elastic, spring effects without JS | §2 |
-| `@property` | Animating CSS custom properties — type declaration unlocks interpolation | §7 |
-| Decomposed transforms | Curved motion paths impossible with a monolithic transform | §7 |
-| `animation-fill-mode` | Delayed fade-in sequences — `backwards` prevents the pre-animation flash | §1 |
-| Negative delays | "Already in progress" stagger effects | §2 |
-| Scoped CSS variables | Varied behavior from a single animation definition | §7 |
-| 3D CSS ("think in cubes") | Decompose 3D objects into cuboids; `preserve-3d` + `perspective` | §8 |
-| Scroll-driven with duration | Decouple animation timing from scroll speed | §14 |
+| Technique                   | When Jhey reaches for it                                                 | Cookbook |
+| --------------------------- | ------------------------------------------------------------------------ | -------- |
+| `linear()` function         | Pure-CSS bounce, elastic, spring effects without JS                      | §2       |
+| `@property`                 | Animating CSS custom properties — type declaration unlocks interpolation | §7       |
+| Decomposed transforms       | Curved motion paths impossible with a monolithic transform               | §7       |
+| `animation-fill-mode`       | Delayed fade-in sequences — `backwards` prevents the pre-animation flash | §1       |
+| Negative delays             | "Already in progress" stagger effects                                    | §2       |
+| Scoped CSS variables        | Varied behavior from a single animation definition                       | §7       |
+| 3D CSS ("think in cubes")   | Decompose 3D objects into cuboids; `preserve-3d` + `perspective`         | §8       |
+| Scroll-driven with duration | Decouple animation timing from scroll speed                              | §14      |
 
 ---
 
@@ -87,13 +88,13 @@ CSS art teaches real skills that transfer to production: clip-path mastery, bord
 
 ## When to Experiment vs. Ship
 
-| Situation | Approach |
-|-----------|----------|
-| Learning a new CSS feature | Build something weird and fun |
-| Portfolio piece | Push boundaries, show creativity |
-| Personal project | Follow your joy |
-| Client work | Apply Jakub's production polish instead |
-| High-frequency tool | Apply Emil's restraint instead |
+| Situation                  | Approach                                |
+| -------------------------- | --------------------------------------- |
+| Learning a new CSS feature | Build something weird and fun           |
+| Portfolio piece            | Push boundaries, show creativity        |
+| Personal project           | Follow your joy                         |
+| Client work                | Apply Jakub's production polish instead |
+| High-frequency tool        | Apply Emil's restraint instead          |
 
 The playful approach is for **learning and exploration**. For production, switch to Jakub or Emil's mindset.
 
@@ -112,11 +113,11 @@ The playful approach is for **learning and exploration**. For production, switch
 
 ## Jhey vs. Emil vs. Jakub
 
-| Aspect | Jhey | Emil | Jakub |
-|--------|------|------|-------|
-| **Focus** | Playful experimentation | Restraint & speed | Subtle polish |
-| **Key question** | "What could this become?" | "Should this animate?" | "Is this subtle enough?" |
-| **Signature technique** | CSS custom properties | Frequency-based decisions | Blur + opacity + translateY |
-| **Ideal context** | Learning & exploration | High-frequency tools | Production polish |
+| Aspect                  | Jhey                      | Emil                      | Jakub                       |
+| ----------------------- | ------------------------- | ------------------------- | --------------------------- |
+| **Focus**               | Playful experimentation   | Restraint & speed         | Subtle polish               |
+| **Key question**        | "What could this become?" | "Should this animate?"    | "Is this subtle enough?"    |
+| **Signature technique** | CSS custom properties     | Frequency-based decisions | Blur + opacity + translateY |
+| **Ideal context**       | Learning & exploration    | High-frequency tools      | Production polish           |
 
 **When to use Jhey**: You're building something where delight is the goal, exploring what's possible, or learning a new technique. The skills transfer to production work later.

@@ -76,7 +76,7 @@ flowchart TD
    - **Calculation & Parser Failures**: Extract failing calculation inputs, serialized payload records, precision metrics, numerical indicators, or diverging tolerance delta ($|calc - expected| > \epsilon$).
    - **Database & Persistence Failures**: Detect whether the failure originates from SQL syntax, migrations, schema discrepancies, RLS policies, or Supabase client queries.
    - **Verbal / Informal Reports**: If the report lacks traces, prompt the user for minimal context: (1) exact reproduction steps, (2) domain entity/input data, and (3) observed error message in DevTools console.
-   - *Detailed extraction guide: [Trace Ingestion & Bug Triage Guide](./references/trace_ingestion_and_triage.md)*.
+   - _Detailed extraction guide: [Trace Ingestion & Bug Triage Guide](./references/trace_ingestion_and_triage.md)_.
 
 2. **Map to Authoritative DOX Contract (`dox-navigator`)**:
    - Identify the owning module in `src/` (e.g. `src/logic/`, `src/stores/`, `src/components/`, `supabase/`).
@@ -91,11 +91,11 @@ flowchart TD
 
 Create deterministic reproduction tests before touching `src/`:
 
-| Testing Tier | Scope & Trigger Condition | Target Location | Template |
-| :--- | :--- | :--- | :--- |
-| **Tier 1: Unit Test (Mandatory)** | Isolated logic, pure functions, state actions, schema parsing, SQL queries. | `tests/node/<domain>/reproduce_<slug>.test.ts` or `tests/unit/` | [Unit Template](./templates/reproduction_unit_test.template.ts) |
-| **Tier 2: Integrity Test (Mandatory)** | Cross-boundary contracts, state engine parity, Supabase roundtrips, SQL migrations. | `tests/node/<domain>/` | [Integration Template](./templates/reproduction_integration_test.template.ts) |
-| **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `tests/unit/views/reproduce_<slug>.test.ts` | [Unit Template](./templates/reproduction_unit_test.template.ts) |
+| Testing Tier                                  | Scope & Trigger Condition                                                                           | Target Location                                                 | Template                                                                      |
+| :-------------------------------------------- | :-------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- | :---------------------------------------------------------------------------- |
+| **Tier 1: Unit Test (Mandatory)**             | Isolated logic, pure functions, state actions, schema parsing, SQL queries.                         | `tests/node/<domain>/reproduce_<slug>.test.ts` or `tests/unit/` | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
+| **Tier 2: Integrity Test (Mandatory)**        | Cross-boundary contracts, state engine parity, Supabase roundtrips, SQL migrations.                 | `tests/node/<domain>/`                                          | [Integration Template](./templates/reproduction_integration_test.template.ts) |
+| **Tier 3: UI Interaction Test (Conditional)** | **ONLY IF** the bug affects UI interaction, GSAP animations, dashboard metrics, or page navigation. | `tests/unit/views/reproduce_<slug>.test.ts`                     | [Unit Template](./templates/reproduction_unit_test.template.ts)               |
 
 #### Rules for Reproduction Tests
 
@@ -129,7 +129,7 @@ Before modifying `src/` or `database/`, evaluate the invocation context:
 2. **Automatic Mode (Invoked Autonomously via Subagent, CI, or Simulation Self-Healing)**:
    - Proceed autonomously choosing the most minimalist Ponytail solution.
    - Log all decisions into the final execution ledger under `## Critical Decisions`.
-   - *Detailed consultation rules: [Consultation & Redesign Rules](./references/consultation_and_redesign_rules.md)*.
+   - _Detailed consultation rules: [Consultation & Redesign Rules](./references/consultation_and_redesign_rules.md)_.
 
 ---
 
@@ -165,7 +165,7 @@ Verify all test tiers in strict sequential order. If any test fails, re-enter Ph
 
 5. **Iteration Cap Escalation**:
    - If after 5 attempts the tests do not pass, HALT immediately and emit the structured blocker report detailing all failed hypotheses.
-   - *Detailed verification loop protocol: [Verification & Repair Loop Protocol](./references/verification_and_repair_loop.md)*.
+   - _Detailed verification loop protocol: [Verification & Repair Loop Protocol](./references/verification_and_repair_loop.md)_.
 
 ---
 

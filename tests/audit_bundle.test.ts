@@ -62,7 +62,7 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       };
 
       const result = aggregateModuleSizes(mockData);
-      expect(result.length).toBe(1);
+      expect(result).toHaveLength(1);
       expect(result[0]?.id).toBe('node_modules/lodash/index.js');
       expect(result[0]?.rendered).toBe(40 * 1024);
       expect(result[0]?.heavyChunkCount).toBe(2);
@@ -121,8 +121,8 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       const summary = await runBundleAudit(tempDir);
       expect(summary.success).toBe(true);
       expect(summary.totalErrors).toBe(0);
-      expect(summary.topModules.length).toBe(1);
-      expect(summary.chunkResults.length).toBe(1);
+      expect(summary.topModules).toHaveLength(1);
+      expect(summary.chunkResults).toHaveLength(1);
     });
 
     it('passes with zero errors using only compiled dist artifacts without bundle_stats.html', async () => {
@@ -135,7 +135,7 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       const summary = await runBundleAudit(tempDir);
       expect(summary.success).toBe(true);
       expect(summary.totalErrors).toBe(0);
-      expect(summary.chunkResults.length).toBe(1);
+      expect(summary.chunkResults).toHaveLength(1);
       expect(summary.chunkResults[0]?.gzipBytes).toBeGreaterThan(0);
       expect(summary.chunkResults[0]?.compressionRatio).toBeDefined();
     });
@@ -157,7 +157,7 @@ describe('Production Bundle Auditor (audit_bundle.ts)', () => {
       const summary = await runBundleAudit(tempDir);
       expect(summary.success).toBe(false);
       expect(summary.totalErrors).toBeGreaterThanOrEqual(1);
-      expect(summary.duplicateViolations.length).toBe(1);
+      expect(summary.duplicateViolations).toHaveLength(1);
       expect(summary.duplicateViolations[0]).toContain('huge-shared-lib.js');
     });
 

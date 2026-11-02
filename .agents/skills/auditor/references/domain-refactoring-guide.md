@@ -143,10 +143,7 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 {
   "version": 1,
   "planId": "auditor-domain-plan-1792371376841",
-  "targetFiles": [
-    "src/data/catalogs.ts",
-    "src/types/identifiers.ts"
-  ],
+  "targetFiles": ["src/data/catalogs.ts", "src/types/identifiers.ts"],
   "constAssertions": [
     {
       "file": "src/data/catalogs.ts",
@@ -196,7 +193,7 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 
 ### Scenario B: Elective Domain Modernization (`auditor:domain`)
 
-- **Trigger**: User requests *"brand identifiers with Brand"*, *"eliminate naked strings in functions"*, or *"modernize domain model"*.
+- **Trigger**: User requests _"brand identifiers with Brand"_, _"eliminate naked strings in functions"_, or _"modernize domain model"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:domain discover`, inspect candidate files via `auditor:domain inspect <file>`, generate `scratch/domain-plan.json`, and apply with `--worktree`.
 
@@ -210,6 +207,7 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 # Correction Plan: Repeated String Union in player.ts and match.ts
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: `contracts` (Phase 4)
 - **Suite**: `validate_canonical_domains`
 - **Affected Files**:
@@ -218,6 +216,7 @@ npm run auditor:domain apply scratch/domain-plan.json --worktree
 - **Violation**: Duplicate inline literal union instead of importing a single SSoT type.
 
 ## 2. Canonical Solution
+
 1. Define canonical type in `src/types/account.ts`:
 
 ```ts
@@ -238,15 +237,17 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 # Improvement Plan: Branded IDs and Domain Parameters in heroService.ts
 
 ## 1. Scope & Motivation
+
 - **Tool**: `auditor-domain`
 - **Objective**: Introduce nominal type safety for `HeroId` and prevent arbitrary strings from reaching `fetchHeroDetails`.
 - **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| File | Current Parameter | Proposed Type | Rationale |
-| :--- | :--- | :--- | :--- |
-| `src/services/heroService.ts:L34` | `heroId: string` | `heroId: HeroId` | Naked string parameter |
-| `src/types/hero.ts:L8` | `type HeroId = string` | `Brand<string, 'HeroId'>` | Nominal branded ID |
+
+| File                              | Current Parameter      | Proposed Type             | Rationale              |
+| :-------------------------------- | :--------------------- | :------------------------ | :--------------------- |
+| `src/services/heroService.ts:L34` | `heroId: string`       | `heroId: HeroId`          | Naked string parameter |
+| `src/types/hero.ts:L8`            | `type HeroId = string` | `Brand<string, 'HeroId'>` | Nominal branded ID     |
 
 ## 3. Declarative Plan (`scratch/domain-plan.json`)
 
@@ -254,10 +255,7 @@ export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
 {
   "version": 1,
   "planId": "domain-plan-hero-branding",
-  "targetFiles": [
-    "src/types/hero.ts",
-    "src/services/heroService.ts"
-  ],
+  "targetFiles": ["src/types/hero.ts", "src/services/heroService.ts"],
   "brandWrappers": [
     {
       "file": "src/types/hero.ts",

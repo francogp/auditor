@@ -93,7 +93,7 @@ describe('Auditor Parity Verification Harness', () => {
     const filesPass2 = auditor2['context'].collectFiles(['src'], new Set(['.ts']));
 
     expect(filesPass2).toEqual(filesPass1);
-    expect(filesPass2.length).toBe(2);
+    expect(filesPass2).toHaveLength(2);
     expect(filesPass2.every((f) => f.endsWith('.ts'))).toBe(true);
   });
 
@@ -191,7 +191,7 @@ describe('Auditor Parity Verification Harness', () => {
     const result = await auditor.audit();
 
     // Verify exact findings count and rule distribution
-    expect(result.findings.length).toBe(directFindings.length);
+    expect(result.findings).toHaveLength(directFindings.length);
 
     for (const df of directFindings) {
       const match = result.findings.find(

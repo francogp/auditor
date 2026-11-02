@@ -138,7 +138,7 @@ Scan the codebase for all hygiene opportunities without modifying disk:
 npm run auditor:hygiene discover
 ```
 
-*Console Output*:
+_Console Output_:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -161,7 +161,7 @@ Inspect a specific file and emit a compact Dirac packet:
 npm run auditor:hygiene inspect src/network/socketClient.ts
 ```
 
-*Output (`scratch/hygiene_plan.json`)*:
+_Output (`scratch/hygiene_plan.json`)_:
 
 ```json
 {

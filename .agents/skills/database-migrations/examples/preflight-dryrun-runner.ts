@@ -26,7 +26,9 @@ export function executePreflightDryRun(
     return;
   }
 
-  console.log(`🔍 [Pre-flight] Running transactional dry-run on ${pendingMigrations.length} migration(s)...`);
+  console.log(
+    `🔍 [Pre-flight] Running transactional dry-run on ${pendingMigrations.length} migration(s)...`
+  );
 
   // Phase 1: Validate each file individually inside an isolated rollback transaction
   for (const m of pendingMigrations) {
@@ -36,7 +38,7 @@ export function executePreflightDryRun(
     if (res.status !== 0) {
       throw new Error(
         `\n❌ PRE-FLIGHT FAILED on migration '${m.name}':\n${res.output}\n` +
-        `🛡️  Active database was NOT modified (zero side-effects). Fix SQL before retrying.`
+          `🛡️  Active database was NOT modified (zero side-effects). Fix SQL before retrying.`
       );
     }
     console.log(`   ✔ Individual pre-flight passed: ${m.name}`);
@@ -54,10 +56,12 @@ export function executePreflightDryRun(
     if (cumulativeRes.status !== 0) {
       throw new Error(
         `\n❌ PRE-FLIGHT FAILED on cumulative interaction of pending migrations:\n${cumulativeRes.output}\n` +
-        `🛡️  Active database was NOT modified.`
+          `🛡️  Active database was NOT modified.`
       );
     }
-    console.log(`   ✔ Cumulative sequence pre-flight passed (${pendingMigrations.length} migrations).`);
+    console.log(
+      `   ✔ Cumulative sequence pre-flight passed (${pendingMigrations.length} migrations).`
+    );
   }
 
   console.log('✨ [Pre-flight] SUCCESS: All pending migrations are valid, safe, and compatible.');
@@ -79,7 +83,10 @@ if (isMainModule(import.meta.url)) {
 
   const samplePending: MigrationFile[] = [
     { name: '20261010120000_add_teams.sql', sql: 'CREATE TABLE teams (id text primary key);' },
-    { name: '20261010130000_add_members.sql', sql: 'ALTER TABLE teams ADD COLUMN member_count int;' }
+    {
+      name: '20261010130000_add_members.sql',
+      sql: 'ALTER TABLE teams ADD COLUMN member_count int;'
+    }
   ];
 
   executePreflightDryRun(samplePending, mockValidDriver);

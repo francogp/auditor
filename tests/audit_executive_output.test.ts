@@ -30,7 +30,7 @@ describe('Executive Console Output & AI-Friendly Theme', () => {
       });
 
       const lines = output.trim().split('\n');
-      expect(lines.length).toBe(3);
+      expect(lines).toHaveLength(3);
       expect(lines[0]).toContain('[WARN] AUDIT PASSED WITH WARNINGS [80/80 suites]');
       expect(lines[1]).toBe('  Errors: 0 | Warnings: 2');
       expect(lines[1]).not.toContain('Ratchet');

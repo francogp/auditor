@@ -22,14 +22,14 @@ tags: [vue3, typescript, props, boolean, defineProps]
 ```vue
 <script setup lang="ts">
 interface Props {
-  disabled?: boolean  // TypeScript sees: boolean | undefined
+  disabled?: boolean; // TypeScript sees: boolean | undefined
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 // TypeScript thinks props.disabled could be undefined
 if (props.disabled === undefined) {
-  console.log('This will NEVER run!')
+  console.log('This will NEVER run!');
   // Vue's boolean casting means disabled is false, not undefined
 }
 </script>
@@ -59,6 +59,7 @@ Vue has special "boolean casting" behavior inherited from HTML boolean attribute
 ```
 
 This is by design to match how HTML works:
+
 ```html
 <!-- HTML: presence means true, absence means false -->
 <button disabled>Can't click</button>
@@ -74,13 +75,13 @@ Make your intention clear:
 ```vue
 <script setup lang="ts">
 interface Props {
-  disabled?: boolean
+  disabled?: boolean;
 }
 
 // Explicitly document the default
 const props = withDefaults(defineProps<Props>(), {
-  disabled: false  // Now it's clear this defaults to false
-})
+  disabled: false // Now it's clear this defaults to false
+});
 </script>
 ```
 
@@ -92,16 +93,16 @@ If you actually need to distinguish "not set" from "explicitly false":
 <script setup lang="ts">
 interface Props {
   // Use a union type instead of optional boolean
-  state?: 'enabled' | 'disabled' | undefined
+  state?: 'enabled' | 'disabled' | undefined;
 
   // Or use undefined explicitly
-  toggleState?: boolean | undefined
+  toggleState?: boolean | undefined;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  state: undefined,  // Can actually be undefined
+  state: undefined, // Can actually be undefined
   toggleState: undefined
-})
+});
 
 // Now you can check for undefined
 if (props.state === undefined) {
@@ -118,20 +119,20 @@ if (props.state === undefined) {
 <script setup lang="ts">
 interface Props {
   // null = not set, false = explicitly off, true = explicitly on
-  selected: boolean | null
+  selected: boolean | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selected: null
-})
+});
 
 // Three distinct states
 if (props.selected === null) {
-  console.log('Selection not specified')
+  console.log('Selection not specified');
 } else if (props.selected) {
-  console.log('Selected')
+  console.log('Selected');
 } else {
-  console.log('Explicitly not selected')
+  console.log('Explicitly not selected');
 }
 </script>
 ```
@@ -145,7 +146,7 @@ Vue also has special behavior when Boolean and String are both valid:
 defineProps({
   // Boolean first: empty string becomes true
   disabled: [Boolean, String]
-})
+});
 
 // <MyComponent disabled /> → disabled = true
 // <MyComponent disabled="" /> → disabled = true
@@ -155,7 +156,7 @@ defineProps({
 defineProps({
   // String first: empty string stays as string
   disabled: [String, Boolean]
-})
+});
 
 // <MyComponent disabled /> → disabled = ''
 // <MyComponent disabled="" /> → disabled = ''
@@ -170,12 +171,12 @@ With type-based declaration, Boolean always takes priority for absent props.
 <script setup lang="ts">
 const userPreferences = ref({
   darkMode: undefined as boolean | undefined
-})
+});
 
 // Fetch preferences...
 onMounted(async () => {
-  userPreferences.value = await fetchPreferences()
-})
+  userPreferences.value = await fetchPreferences();
+});
 </script>
 
 <template>
@@ -189,10 +190,10 @@ onMounted(async () => {
 ```vue
 <script setup lang="ts">
 const userPreferences = ref<{
-  darkMode: boolean | null
+  darkMode: boolean | null;
 }>({
-  darkMode: null  // Use null for "not yet loaded"
-})
+  darkMode: null // Use null for "not yet loaded"
+});
 </script>
 
 <template>
@@ -207,10 +208,10 @@ The Vue type system handles this, but it can be confusing:
 
 ```typescript
 interface Props {
-  disabled?: boolean
+  disabled?: boolean;
 }
 
-const props = defineProps<Props>()
+const props = defineProps<Props>();
 
 // At compile time: boolean | undefined
 // At runtime: boolean (never undefined due to Vue's boolean casting)
@@ -220,6 +221,7 @@ const props = defineProps<Props>()
 ```
 
 ## Reference
+
 - [Vue.js Props - Boolean Casting](https://vuejs.org/guide/components/props.html#boolean-casting)
 - [GitHub Issue: Boolean props default to false](https://github.com/vuejs/core/issues/8576)
 - [TypeScript Vue 3 Props](https://madewithlove.com/blog/typescript-vue-3-and-strongly-typed-props/)

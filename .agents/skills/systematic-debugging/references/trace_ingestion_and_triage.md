@@ -29,7 +29,7 @@ When an algorithmic pipeline, fuzzer, or replay test crashes (`vp test`, `npm te
 
 ### C. Manual or Verbal Bug Reports
 
-When a user reports a bug verbally without a stack trace (e.g. *"Permission calculation fixed quota is miscalculating on Tier 2"*):
+When a user reports a bug verbally without a stack trace (e.g. _"Permission calculation fixed quota is miscalculating on Tier 2"_):
 
 1. **Pre-Execution Check**: DO NOT immediately change code.
 2. **Request Minimal Context**: Prompt the user for the 3 minimal missing items:

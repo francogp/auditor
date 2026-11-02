@@ -212,7 +212,7 @@ onMounted(() => {
 
       // Verify layout transform suggestions
       const layoutFindings = findings.filter((f) => f.ruleId === 'gsap-no-layout-properties');
-      expect(layoutFindings.length).toBe(2);
+      expect(layoutFindings).toHaveLength(2);
       expect(layoutFindings.some((f) => f.suggestedReplacement === 'x:')).toBe(true);
       expect(layoutFindings.some((f) => f.suggestedReplacement === 'y:')).toBe(true);
 

@@ -7,6 +7,7 @@ Serialization converts objects into transferable data formats, while deserializa
 ## The Risk
 
 When an application deserializes untrusted data:
+
 1. Attacker crafts malicious serialized data
 2. Application deserializes it, instantiating objects
 3. Object constructors/destructors execute attacker-controlled code
@@ -256,7 +257,7 @@ var obj = serialize.unserialize(untrustedData);
 
 // VULNERABLE: js-yaml (unsafe by default in older versions)
 var yaml = require('js-yaml');
-var obj = yaml.load(untrustedData);  // Can execute code
+var obj = yaml.load(untrustedData); // Can execute code
 
 // VULNERABLE: eval-based parsing
 var obj = eval('(' + untrustedData + ')');

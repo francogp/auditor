@@ -26,14 +26,14 @@ Architectural framework and operational standards for building, testing, and ver
 
 Read ONLY the specific reference file needed for your current task:
 
-| Reference / Asset | Focus Area | When to Read |
-| :--- | :--- | :--- |
-| [`references/incremental-patching-and-generators.md`](./references/incremental-patching-and-generators.md) | DDL vs Generator-driven migrations, 14-digit naming, manifest compilation | Creating or generating new migrations |
-| [`references/dual-engine-and-multi-protocol.md`](./references/dual-engine-and-multi-protocol.md) | PostgreSQL + SQLite sync, `DBRouter`, `ProxyQuery`, `.sqlite.sql` companions | Dual-persistence or offline/online apps |
-| [`references/common-version-tracking-table.md`](./references/common-version-tracking-table.md) | Two-tier versioning, `system_config.db_version`, $O(1)$ startup checks | Versioning or tracking schema state |
-| [`references/in-memory-fixture-testing.md`](./references/in-memory-fixture-testing.md) | Fast (5–20ms) testing on ancient fixtures with `node:sqlite`, schema parity | Writing unit tests for migrations |
-| [`references/fail-loud-and-dox-guardrails.md`](./references/fail-loud-and-dox-guardrails.md) | Fail-Loud Mandate, no `EXCEPTION`, `ON_ERROR_STOP=1`, PostgreSQL syntax traps | Reviewing or debugging SQL migrations |
-| [`references/preflight-and-ephemeral-testing.md`](./references/preflight-and-ephemeral-testing.md) | Transactional dry-runs (`BEGIN...ROLLBACK`), ephemeral Docker PostgreSQL testing | Staging/deploy validation pipelines |
+| Reference / Asset                                                                                          | Focus Area                                                                       | When to Read                            |
+| :--------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------- | :-------------------------------------- |
+| [`references/incremental-patching-and-generators.md`](./references/incremental-patching-and-generators.md) | DDL vs Generator-driven migrations, 14-digit naming, manifest compilation        | Creating or generating new migrations   |
+| [`references/dual-engine-and-multi-protocol.md`](./references/dual-engine-and-multi-protocol.md)           | PostgreSQL + SQLite sync, `DBRouter`, `ProxyQuery`, `.sqlite.sql` companions     | Dual-persistence or offline/online apps |
+| [`references/common-version-tracking-table.md`](./references/common-version-tracking-table.md)             | Two-tier versioning, `system_config.db_version`, $O(1)$ startup checks           | Versioning or tracking schema state     |
+| [`references/in-memory-fixture-testing.md`](./references/in-memory-fixture-testing.md)                     | Fast (5–20ms) testing on ancient fixtures with `node:sqlite`, schema parity      | Writing unit tests for migrations       |
+| [`references/fail-loud-and-dox-guardrails.md`](./references/fail-loud-and-dox-guardrails.md)               | Fail-Loud Mandate, no `EXCEPTION`, `ON_ERROR_STOP=1`, PostgreSQL syntax traps    | Reviewing or debugging SQL migrations   |
+| [`references/preflight-and-ephemeral-testing.md`](./references/preflight-and-ephemeral-testing.md)         | Transactional dry-runs (`BEGIN...ROLLBACK`), ephemeral Docker PostgreSQL testing | Staging/deploy validation pipelines     |
 
 ### 🛠️ Executable Code Examples
 
@@ -103,12 +103,12 @@ Every migration pipeline MUST be verified against an ancient production snapshot
 
 Choose the appropriate testing harness based on the execution context:
 
-| Context | Recommended Harness | Engine | Execution Time | Scope |
-| :--- | :--- | :--- | :--- | :--- |
-| **Unit Tests & Fast In-Dev Checks** | In-Memory Step-by-Step (`examples/in-memory-step-test.ts`) | `node:sqlite` (`DatabaseSync`) | ~2–10ms | Hermetic fixture data migration, schema parity, data validation |
-| **Pre-Commit Migration Certification** | Static AST Auditor (`examples/static-migration-auditor.ts`) | Pure Node.js Regex/AST | ~5ms | Monotonicity, syntax guardrails, return types, `db_version` sync |
-| **Pre-Deployment Dry-Run** | Pre-Flight Transactional (`examples/preflight-dryrun-runner.ts`) | Live DB Connection | ~50–200ms | Tests `BEGIN ... ROLLBACK` on active DB with zero state mutation |
-| **Full Regression / CI Testing** | Live Ephemeral Container (`references/preflight-and-ephemeral-testing.md`) | Docker PostgreSQL 16+ | ~1–5s | Full sequential execution from `baseline_schema.sql` to latest |
+| Context                                | Recommended Harness                                                        | Engine                         | Execution Time | Scope                                                            |
+| :------------------------------------- | :------------------------------------------------------------------------- | :----------------------------- | :------------- | :--------------------------------------------------------------- |
+| **Unit Tests & Fast In-Dev Checks**    | In-Memory Step-by-Step (`examples/in-memory-step-test.ts`)                 | `node:sqlite` (`DatabaseSync`) | ~2–10ms        | Hermetic fixture data migration, schema parity, data validation  |
+| **Pre-Commit Migration Certification** | Static AST Auditor (`examples/static-migration-auditor.ts`)                | Pure Node.js Regex/AST         | ~5ms           | Monotonicity, syntax guardrails, return types, `db_version` sync |
+| **Pre-Deployment Dry-Run**             | Pre-Flight Transactional (`examples/preflight-dryrun-runner.ts`)           | Live DB Connection             | ~50–200ms      | Tests `BEGIN ... ROLLBACK` on active DB with zero state mutation |
+| **Full Regression / CI Testing**       | Live Ephemeral Container (`references/preflight-and-ephemeral-testing.md`) | Docker PostgreSQL 16+          | ~1–5s          | Full sequential execution from `baseline_schema.sql` to latest   |
 
 ---
 

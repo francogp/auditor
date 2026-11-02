@@ -21,24 +21,24 @@ metadata:
 
 ## Core Principles
 
-| Principle | Rule |
-| :--- | :--- |
-| **SRP** | Single Responsibility - each function/class does ONE thing |
-| **DRY** | Don't Repeat Yourself - reuse existing systems, classes, and patterns |
-| **KISS** | Keep It Simple - simplest solution that works |
-| **YAGNI** | You Aren't Gonna Need It - don't build unused features |
-| **Boy Scout** | Leave code cleaner than you found it |
+| Principle     | Rule                                                                  |
+| :------------ | :-------------------------------------------------------------------- |
+| **SRP**       | Single Responsibility - each function/class does ONE thing            |
+| **DRY**       | Don't Repeat Yourself - reuse existing systems, classes, and patterns |
+| **KISS**      | Keep It Simple - simplest solution that works                         |
+| **YAGNI**     | You Aren't Gonna Need It - don't build unused features                |
+| **Boy Scout** | Leave code cleaner than you found it                                  |
 
 ---
 
 ## Naming Rules
 
-| Element | Convention |
-| :--- | :--- |
-| **Variables** | Reveal intent: `userCount` not `n` |
-| **Functions** | Verb + noun: `getUserById()` not `user()` |
-| **Booleans** | Question form: `isActive`, `hasPermission`, `canEdit` |
-| **Constants** | SCREAMING_SNAKE: `MAX_RETRY_COUNT` |
+| Element       | Convention                                            |
+| :------------ | :---------------------------------------------------- |
+| **Variables** | Reveal intent: `userCount` not `n`                    |
+| **Functions** | Verb + noun: `getUserById()` not `user()`             |
+| **Booleans**  | Question form: `isActive`, `hasPermission`, `canEdit` |
+| **Constants** | SCREAMING_SNAKE: `MAX_RETRY_COUNT`                    |
 
 > **Rule:** If you need a comment to explain a name, rename it.
 
@@ -46,67 +46,67 @@ metadata:
 
 ## Function Rules
 
-| Rule | Description |
-| :--- | :--- |
-| **Small** | Max 20 lines, ideally 5-10 |
-| **One Thing** | Does one thing, does it well |
-| **One Level** | One level of abstraction per function |
-| **Few Args** | Max 3 arguments, prefer 0-2 |
-| **No Side Effects** | Don't mutate inputs unexpectedly |
+| Rule                | Description                           |
+| :------------------ | :------------------------------------ |
+| **Small**           | Max 20 lines, ideally 5-10            |
+| **One Thing**       | Does one thing, does it well          |
+| **One Level**       | One level of abstraction per function |
+| **Few Args**        | Max 3 arguments, prefer 0-2           |
+| **No Side Effects** | Don't mutate inputs unexpectedly      |
 
 ---
 
 ## Code Structure
 
-| Pattern | Apply |
-| :--- | :--- |
-| **Guard Clauses** | Early returns for edge cases |
-| **Flat > Nested** | Avoid deep nesting (max 2 levels) |
-| **Composition** | Small functions composed together |
-| **Modularity** | **Fallow Quality Governance**: Maintain low cognitive and cyclomatic complexity according to project auditor options (configured dynamically in `.auditor/audit.config.ts`), and follow Fallow refactoring targets. Modularize based on Single Responsibility and cognitive load, eliminating arbitrary line limits. |
-| **Colocation** | Keep related code close |
-| **Layout Centering** | Use `display: flex` + `justify-content` + `align-items` for centering. Avoid `position: absolute` with `translate(-50%, -50%)` as it creates sub-pixel blurring and breaks layout flow. |
-| **Stable Sorting** | When using `Array.prototype.sort()`, ensure the comparison function returns stable and predictable values (1, -1, 0). Use a unique identifier (like `uid`) as a final tie-breaker. ALWAYS filter out null/undefined slots BEFORE sorting to prevent runtime type errors. |
-| **Reactive State** | Use `reactive()` for complex filter/form objects (5+ properties) instead of multiple `ref()` calls. This simplifies cross-property dependency logic (e.g., `hasActiveFilters`) and ensures consistent HMR and testing behavior. |
+| Pattern              | Apply                                                                                                                                                                                                                                                                                                                |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Guard Clauses**    | Early returns for edge cases                                                                                                                                                                                                                                                                                         |
+| **Flat > Nested**    | Avoid deep nesting (max 2 levels)                                                                                                                                                                                                                                                                                    |
+| **Composition**      | Small functions composed together                                                                                                                                                                                                                                                                                    |
+| **Modularity**       | **Fallow Quality Governance**: Maintain low cognitive and cyclomatic complexity according to project auditor options (configured dynamically in `.auditor/audit.config.ts`), and follow Fallow refactoring targets. Modularize based on Single Responsibility and cognitive load, eliminating arbitrary line limits. |
+| **Colocation**       | Keep related code close                                                                                                                                                                                                                                                                                              |
+| **Layout Centering** | Use `display: flex` + `justify-content` + `align-items` for centering. Avoid `position: absolute` with `translate(-50%, -50%)` as it creates sub-pixel blurring and breaks layout flow.                                                                                                                              |
+| **Stable Sorting**   | When using `Array.prototype.sort()`, ensure the comparison function returns stable and predictable values (1, -1, 0). Use a unique identifier (like `uid`) as a final tie-breaker. ALWAYS filter out null/undefined slots BEFORE sorting to prevent runtime type errors.                                             |
+| **Reactive State**   | Use `reactive()` for complex filter/form objects (5+ properties) instead of multiple `ref()` calls. This simplifies cross-property dependency logic (e.g., `hasActiveFilters`) and ensures consistent HMR and testing behavior.                                                                                      |
 
 ---
 
 ## Async Code
 
-| Rule | Description |
-| :--- | :--- |
-| **Await Rejections** | Always `await` async calls inside `try/catch` to ensure rejections are caught. |
-| **Fail-Safe** | Use try-catch boundaries to return standard objects (e.g., `{data, error}`) in logic layers. |
+| Rule                 | Description                                                                                  |
+| :------------------- | :------------------------------------------------------------------------------------------- |
+| **Await Rejections** | Always `await` async calls inside `try/catch` to ensure rejections are caught.               |
+| **Fail-Safe**        | Use try-catch boundaries to return standard objects (e.g., `{data, error}`) in logic layers. |
 
 ---
 
 ## AI Coding Style
 
-| Situation | Action |
-| :--- | :--- |
-| User asks for feature | Write it directly |
-| User reports bug | Fix it, don't explain |
-| No clear requirement | Ask, don't assume |
+| Situation                       | Action                                                                                                              |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------------ |
+| User asks for feature           | Write it directly                                                                                                   |
+| User reports bug                | Fix it, don't explain                                                                                               |
+| No clear requirement            | Ask, don't assume                                                                                                   |
 | Complex refactor / Tool failure | Prioritize `write_to_file` over partial edits to ensure 100% parity and avoid "phantom" bugs from silent mismatches |
 
 ---
 
 ## Anti-Patterns (DON'T)
 
-| ❌ Pattern | ✅ Fix |
-| :--- | :--- |
-| Comment every line | Delete obvious comments |
-| Helper for one-liner | Inline the code |
-| Factory for 2 objects | Direct instantiation |
-| utils.ts with 1 function | Put code where used |
-| Reinventing the wheel | Use existing systems (e.g. `BaseModal`) |
-| "First we import..." | Just write code |
-| Deep nesting | Guard clauses |
-| Magic numbers | Named constants |
-| God functions | Split by responsibility |
-| Empty rulesets | Remove blocks containing only comments |
-| Generating reports or logs in arbitrary directories | Write temporary files/reports exclusively to the `scratch/` folder and clean them up when done |
-| Misformatted Markdown tables | Ensure Markdown tables have a preceding blank line before the table header to prevent parsing and rendering bugs |
+| ❌ Pattern                                          | ✅ Fix                                                                                                           |
+| :-------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| Comment every line                                  | Delete obvious comments                                                                                          |
+| Helper for one-liner                                | Inline the code                                                                                                  |
+| Factory for 2 objects                               | Direct instantiation                                                                                             |
+| utils.ts with 1 function                            | Put code where used                                                                                              |
+| Reinventing the wheel                               | Use existing systems (e.g. `BaseModal`)                                                                          |
+| "First we import..."                                | Just write code                                                                                                  |
+| Deep nesting                                        | Guard clauses                                                                                                    |
+| Magic numbers                                       | Named constants                                                                                                  |
+| God functions                                       | Split by responsibility                                                                                          |
+| Empty rulesets                                      | Remove blocks containing only comments                                                                           |
+| Generating reports or logs in arbitrary directories | Write temporary files/reports exclusively to the `scratch/` folder and clean them up when done                   |
+| Misformatted Markdown tables                        | Ensure Markdown tables have a preceding blank line before the table header to prevent parsing and rendering bugs |
 
 ---
 
@@ -114,11 +114,11 @@ metadata:
 
 **Before changing a file, ask yourself:**
 
-| Question | Why |
-| :--- | :--- |
-| **What imports this file?** | They might break |
-| **What does this file import?** | Interface changes |
-| **What tests cover this?** | Tests might fail |
+| Question                        | Why                      |
+| :------------------------------ | :----------------------- |
+| **What imports this file?**     | They might break         |
+| **What does this file import?** | Interface changes        |
+| **What tests cover this?**      | Tests might fail         |
 | **Is this a shared component?** | Multiple places affected |
 
 **Quick Check:**
@@ -143,14 +143,14 @@ File to edit: UserService.ts
 
 ## Summary
 
-| Do | Don't |
-| :--- | :--- |
-| Write code directly | Write tutorials |
-| Let code self-document | Add obvious comments |
-| Fix bugs immediately | Explain the fix first |
-| Inline small things | Create unnecessary files |
-| Name things clearly | Use abbreviations |
-| Keep functions small | Write 100+ line functions |
+| Do                     | Don't                     |
+| :--------------------- | :------------------------ |
+| Write code directly    | Write tutorials           |
+| Let code self-document | Add obvious comments      |
+| Fix bugs immediately   | Explain the fix first     |
+| Inline small things    | Create unnecessary files  |
+| Name things clearly    | Use abbreviations         |
+| Keep functions small   | Write 100+ line functions |
 
 > **Remember: The user wants working code, not a programming lesson.**
 
@@ -160,13 +160,13 @@ File to edit: UserService.ts
 
 **Before saying "task complete", verify:**
 
-| Check | Question |
-| :--- | :--- |
-| ✅ **Goal met?** | Did I do exactly what user asked? |
-| ✅ **Files edited?** | Did I modify all necessary files? |
-| ✅ **Code works?** | Did I test/verify the change? |
-| ✅ **No errors?** | Lint and TypeScript pass? |
-| ✅ **Nothing forgotten?** | Any edge cases missed? |
+| Check                     | Question                          |
+| :------------------------ | :-------------------------------- |
+| ✅ **Goal met?**          | Did I do exactly what user asked? |
+| ✅ **Files edited?**      | Did I modify all necessary files? |
+| ✅ **Code works?**        | Did I test/verify the change?     |
+| ✅ **No errors?**         | Lint and TypeScript pass?         |
+| ✅ **Nothing forgotten?** | Any edge cases missed?            |
 
 > 🔴 **Rule:** If ANY check fails, fix it before completing.
 
@@ -178,14 +178,14 @@ File to edit: UserService.ts
 
 ### Agent → Script Mapping
 
-| Role / Concern | Scope | Command |
-| :--- | :--- | :--- |
-| **Database & Persistence** | Schema & Parity | `auditor family=persistence` |
-| **Frontend & Styles** | Accessibility & Styles | `npm run auditor -- task=validate_component_styles` (or `auditor task=validate_component_styles`) |
-| **Security & Vulnerabilities** | Security Audit | `npm run auditor:fallow:security` |
-| **Testing & Parity** | Full Vite+ Test Suite | `vp test` (or `npm test`, executes 100% of unit and node projects) |
-| **Any agent** | Lint & Fast Types | `vp check` / `npm run lint` (runs `npm run auditor:lint` executing lint-capable sub-auditors in parallel) |
-| **Any agent** | Unified Global Audit | `npm run auditor` (Terminal summary + full JSON in `scratch/audits/latest_audit.json`) |
+| Role / Concern                 | Scope                  | Command                                                                                                   |
+| :----------------------------- | :--------------------- | :-------------------------------------------------------------------------------------------------------- |
+| **Database & Persistence**     | Schema & Parity        | `auditor family=persistence`                                                                              |
+| **Frontend & Styles**          | Accessibility & Styles | `npm run auditor -- task=validate_component_styles` (or `auditor task=validate_component_styles`)         |
+| **Security & Vulnerabilities** | Security Audit         | `npm run auditor:fallow:security`                                                                         |
+| **Testing & Parity**           | Full Vite+ Test Suite  | `vp test` (or `npm test`, executes 100% of unit and node projects)                                        |
+| **Any agent**                  | Lint & Fast Types      | `vp check` / `npm run lint` (runs `npm run auditor:lint` executing lint-capable sub-auditors in parallel) |
+| **Any agent**                  | Unified Global Audit   | `npm run auditor` (Terminal summary + full JSON in `scratch/audits/latest_audit.json`)                    |
 
 > ❌ **WRONG:** Running unapproved raw scripts, nonexistent paths, or invoking the removed `audit:for-commit` / `auditor-commit` gate (use `npm run auditor`, which enforces the warning ratchet)
 > ✅ **CORRECT:** Running native TypeScript auditors or official scripts declared in `package.json` (`vp check` / `npm run lint` for fast checks, `npm run auditor` + `vp test` for full verification)
@@ -204,13 +204,16 @@ File to edit: UserService.ts
 ## Script Results: [npm run <script>]
 
 ### ❌ Errors Found (X items)
+
 - [File:Line] Error description 1
 - [File:Line] Error description 2
 
 ### ⚠️ Warnings (Y items)
+
 - [File:Line] Warning description
 
 ### ✅ Passed (Z items)
+
 - Check 1 passed
 - Check 2 passed
 ```

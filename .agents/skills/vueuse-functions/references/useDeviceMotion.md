@@ -9,14 +9,9 @@ Reactive [DeviceMotionEvent](https://developer.mozilla.org/en-US/docs/Web/API/De
 ## Usage
 
 ```ts
-import { useDeviceMotion } from '@vueuse/core'
+import { useDeviceMotion } from '@vueuse/core';
 
-const {
-  acceleration,
-  accelerationIncludingGravity,
-  rotationRate,
-  interval,
-} = useDeviceMotion()
+const { acceleration, accelerationIncludingGravity, rotationRate, interval } = useDeviceMotion();
 ```
 
 > Note: For iOS, you need to use `trigger` and bind it with user interaction.
@@ -38,35 +33,32 @@ You can find [more information about the state on the MDN](https://developer.moz
 
 ```vue
 <template>
-  <UseDeviceMotion v-slot="{ acceleration }">
-    Acceleration: {{ acceleration }}
-  </UseDeviceMotion>
+  <UseDeviceMotion v-slot="{ acceleration }"> Acceleration: {{ acceleration }} </UseDeviceMotion>
 </template>
 ```
 
 ## Type Declarations
 
 ```ts
-export interface UseDeviceMotionOptions
-  extends ConfigurableWindow, ConfigurableEventFilter {
+export interface UseDeviceMotionOptions extends ConfigurableWindow, ConfigurableEventFilter {
   /**
    * Request for permissions immediately if it's not granted,
    * otherwise label and deviceIds could be empty
    *
    * @default false
    */
-  requestPermissions?: boolean
+  requestPermissions?: boolean;
 }
 /** @deprecated use {@link UseDeviceMotionOptions} instead */
-export type DeviceMotionOptions = UseDeviceMotionOptions
+export type DeviceMotionOptions = UseDeviceMotionOptions;
 export interface UseDeviceMotionReturn extends Supportable {
-  acceleration: Ref<DeviceMotionEventAcceleration | null>
-  accelerationIncludingGravity: Ref<DeviceMotionEventAcceleration | null>
-  rotationRate: Ref<DeviceMotionEventRotationRate | null>
-  interval: ShallowRef<number>
-  requirePermissions: ComputedRef<boolean>
-  ensurePermissions: () => Promise<void>
-  permissionGranted: ShallowRef<boolean>
+  acceleration: Ref<DeviceMotionEventAcceleration | null>;
+  accelerationIncludingGravity: Ref<DeviceMotionEventAcceleration | null>;
+  rotationRate: Ref<DeviceMotionEventRotationRate | null>;
+  interval: ShallowRef<number>;
+  requirePermissions: ComputedRef<boolean>;
+  ensurePermissions: () => Promise<void>;
+  permissionGranted: ShallowRef<boolean>;
 }
 /**
  * Reactive DeviceMotionEvent.
@@ -74,7 +66,5 @@ export interface UseDeviceMotionReturn extends Supportable {
  * @see https://vueuse.org/useDeviceMotion
  * @param options
  */
-export declare function useDeviceMotion(
-  options?: UseDeviceMotionOptions,
-): UseDeviceMotionReturn
+export declare function useDeviceMotion(options?: UseDeviceMotionOptions): UseDeviceMotionReturn;
 ```

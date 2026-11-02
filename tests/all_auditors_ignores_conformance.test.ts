@@ -134,7 +134,7 @@ describe('Universal Ignores & Exemptions Conformance (All Sub-Auditors)', () => 
         const Cls = findAuditorClass(mod);
         if (!Cls) continue;
 
-        let auditor: BaseAuditor<string>;
+        let auditor: BaseAuditor;
         try {
           auditor = instantiateAuditorClass(Cls, tempDir);
         } catch {

@@ -20,15 +20,15 @@ flowchart LR
     P6 --> P7["7. ✨ Polish\n(Format & Docs)"]
 ```
 
-| Order | Phase ID | Title | Primary Focus | Representative Suites | Strategic Rationale |
-|---|---|---|---|---|---|
-| **1** | `setup` | **Infrastructure & Setup** | Project integrity, runtime, extensions, dependencies, and package scripts | `validate_audit_config`, `validate_tsconfig`, `validate_dependency_minimums`, `validate_vite_plus_config`, etc. | If configuration or extensions are broken, downstream analysis produces **massive false positives**. This phase triggers *Imperative Setup Blocking*. |
-| **2** | `prune` | **Dead Code Pruning** | Unreferenced files, exports, members, and unused types | `validate_fallow` (`fallow-unused-file`, `fallow-unused-export`, `fallow-unused-member`, `fallow-unused-type`), `validate_orphaned_assets` | Pruning dead code **eliminates hundreds of findings** immediately without modifying active application logic. |
-| **3** | `dedup` | **Deduplication & Clones** | Syntactic clones, semantic vector duplicates, and triplicates | `validate_similar_code`, `validate_fallow` (`fallow-duplicate-*`, `fallow-triplicate-*`). Remediate via `npm run auditor:dupes` (`inspect` + `apply --worktree`). | Unifying duplicated functions BEFORE refactoring prevents fixing the same bug or applying types multiple times across copies. |
-| **4** | `contracts` | **Domain Contracts & Types** | State interfaces, Valibot schemas, canonical domain types, and DTOs | `validate_valibot_parity`, `validate_domain_types`, `validate_domain_type_first` | Unstable domain types or contracts cause downstream UI or business logic refactors to desynchronize. |
-| **5** | `behavior` | **Framework, UI & Logic** | GSAP animations, Vue directives, accessibility, and functional business logic | `validate_gsap_animations`, `validate_vue_security`, `validate_game_loop`. Remediate GSAP and UI animations via `npm run auditor:motion` (`discover` + `inspect` + `apply --worktree`). | Once code is deduplicated and strongly typed, component interaction and business logic are safely adjusted. |
-| **6** | `hygiene` | **Hygiene, Linter & Complexity** | Oxlint, Stylelint, magic numbers, excessive nesting, and cyclomatic debt | `validate_oxlint`, `validate_stylelint`, `validate_cyclomatic_complexity`, `validate_magic_numbers`, `validate_o1_data_structures`. Remediate magic numbers via `npm run auditor:magic` (`inspect` + `apply`), and O(1) structures via `npm run auditor:o1` (`discover` + `inspect` + `apply --worktree`). | Micro-optimizations, linter rules, and constant extraction belong on consolidated, typed, and functioning code. |
-| **7** | `polish` | **Formatting, Docs & Coverage** | OxFmt formatting, documentation integrity, and coverage thresholds | `validate_oxfmt`, `validate_audit_coverage`, `validate_test_coverage`, `validate_documented_commands` | The final pass: mechanically format the clean tree, synchronize documentation, and verify test coverage. |
+| Order | Phase ID    | Title                            | Primary Focus                                                                 | Representative Suites                                                                                                                                                                                                                                                                                      | Strategic Rationale                                                                                                                                   |
+| ----- | ----------- | -------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | `setup`     | **Infrastructure & Setup**       | Project integrity, runtime, extensions, dependencies, and package scripts     | `validate_audit_config`, `validate_tsconfig`, `validate_dependency_minimums`, `validate_vite_plus_config`, etc.                                                                                                                                                                                            | If configuration or extensions are broken, downstream analysis produces **massive false positives**. This phase triggers _Imperative Setup Blocking_. |
+| **2** | `prune`     | **Dead Code Pruning**            | Unreferenced files, exports, members, and unused types                        | `validate_fallow` (`fallow-unused-file`, `fallow-unused-export`, `fallow-unused-member`, `fallow-unused-type`), `validate_orphaned_assets`                                                                                                                                                                 | Pruning dead code **eliminates hundreds of findings** immediately without modifying active application logic.                                         |
+| **3** | `dedup`     | **Deduplication & Clones**       | Syntactic clones, semantic vector duplicates, and triplicates                 | `validate_similar_code`, `validate_fallow` (`fallow-duplicate-*`, `fallow-triplicate-*`). Remediate via `npm run auditor:dupes` (`inspect` + `apply --worktree`).                                                                                                                                          | Unifying duplicated functions BEFORE refactoring prevents fixing the same bug or applying types multiple times across copies.                         |
+| **4** | `contracts` | **Domain Contracts & Types**     | State interfaces, Valibot schemas, canonical domain types, and DTOs           | `validate_valibot_parity`, `validate_domain_types`, `validate_domain_type_first`                                                                                                                                                                                                                           | Unstable domain types or contracts cause downstream UI or business logic refactors to desynchronize.                                                  |
+| **5** | `behavior`  | **Framework, UI & Logic**        | GSAP animations, Vue directives, accessibility, and functional business logic | `validate_gsap_animations`, `validate_vue_security`, `validate_game_loop`. Remediate GSAP and UI animations via `npm run auditor:motion` (`discover` + `inspect` + `apply --worktree`).                                                                                                                    | Once code is deduplicated and strongly typed, component interaction and business logic are safely adjusted.                                           |
+| **6** | `hygiene`   | **Hygiene, Linter & Complexity** | Oxlint, Stylelint, magic numbers, excessive nesting, and cyclomatic debt      | `validate_oxlint`, `validate_stylelint`, `validate_cyclomatic_complexity`, `validate_magic_numbers`, `validate_o1_data_structures`. Remediate magic numbers via `npm run auditor:magic` (`inspect` + `apply`), and O(1) structures via `npm run auditor:o1` (`discover` + `inspect` + `apply --worktree`). | Micro-optimizations, linter rules, and constant extraction belong on consolidated, typed, and functioning code.                                       |
+| **7** | `polish`    | **Formatting, Docs & Coverage**  | OxFmt formatting, documentation integrity, and coverage thresholds            | `validate_oxfmt`, `validate_audit_coverage`, `validate_test_coverage`, `validate_documented_commands`                                                                                                                                                                                                      | The final pass: mechanically format the clean tree, synchronize documentation, and verify test coverage.                                              |
 
 ---
 
@@ -158,7 +158,7 @@ npm run auditor:findings next
 flowchart TD
     START(["Audit Fails (Errors > 0)"]) --> CMD["Execute: npm run auditor:next"]
     CMD --> RESOLVE{"Detect Critical Phase with Errors"}
-    
+
     RESOLVE -->|Errors in Setup| S1["Fase 1: Setup\n(audit.config, tsconfig, scripts)"]
     RESOLVE -->|Errors in Prune| S2["Fase 2: Prune\n(fallow unused files/exports)"]
     RESOLVE -->|Errors in Dedup| S3["Fase 3: Dedup\n(npm run auditor:dupes)"]
@@ -167,7 +167,7 @@ flowchart TD
     RESOLVE -->|Errors in Hygiene| S6["Fase 6: Hygiene\n(Oxlint, Stylelint, auditor:magic, auditor:o1)"]
     RESOLVE -->|Errors in Polish| S7["Fase 7: Polish\n(Oxfmt, markdown, AGENTS.md, tests)"]
     RESOLVE -->|"0 Errors and 0 Warnings"| CLEAN(["✨ Repository Clean (Ready for Commit)"])
-    
+
     S1 --> FIX["Apply Phase Fixes\n(Official CLI Tool / Code Repair)"]
     S2 --> FIX
     S3 --> FIX
@@ -175,7 +175,7 @@ flowchart TD
     S5 --> FIX
     S6 --> FIX
     S7 --> FIX
-    
+
     FIX --> REAUDIT["Re-run: npm run auditor:lint / auditor"]
     REAUDIT --> CHECK{"Passed Cleanly?"}
     CHECK -->|Yes| CMD

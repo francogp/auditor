@@ -8,10 +8,10 @@ This guide establishes the architectural patterns for authoring, generating, and
 
 Database migrations fall into two distinct operational categories:
 
-| Pathway | Use Case | Mechanism | Example |
-| :--- | :--- | :--- | :--- |
-| **Manual DDL & RLS** | Structural schema changes, indexing, security policies, new tables, dropped columns | Authored directly by engineers as timestamped `.sql` files | Adding a new foreign key or altering an existing constraint |
-| **Code-Driven Generators** | Data backfills, entity purges, lookup syncs derived from application constants | Generated automatically by TypeScript scripts under `scripts/database/` | Purging disabled entity IDs according to a TypeScript whitelist |
+| Pathway                    | Use Case                                                                            | Mechanism                                                               | Example                                                         |
+| :------------------------- | :---------------------------------------------------------------------------------- | :---------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| **Manual DDL & RLS**       | Structural schema changes, indexing, security policies, new tables, dropped columns | Authored directly by engineers as timestamped `.sql` files              | Adding a new foreign key or altering an existing constraint     |
+| **Code-Driven Generators** | Data backfills, entity purges, lookup syncs derived from application constants      | Generated automatically by TypeScript scripts under `scripts/database/` | Purging disabled entity IDs according to a TypeScript whitelist |
 
 ---
 
@@ -56,11 +56,12 @@ Create a dedicated generator script (e.g., `scripts/database/generate_<feature>_
 ```typescript
 import fsPromises from 'node:fs/promises';
 import path from 'node:path';
+
 import { ALLOWED_CATEGORY_IDS } from '@/logic/constants/categories.ts';
 
 export async function generateCategorySyncMigration(timestamp = '20261010120000'): Promise<void> {
-  const pgArray = `ARRAY[${ALLOWED_CATEGORY_IDS.map(id => `'${id}'`).join(', ')}]`;
-  const sqliteInList = ALLOWED_CATEGORY_IDS.map(id => `'${id}'`).join(', ');
+  const pgArray = `ARRAY[${ALLOWED_CATEGORY_IDS.map((id) => `'${id}'`).join(', ')}]`;
+  const sqliteInList = ALLOWED_CATEGORY_IDS.map((id) => `'${id}'`).join(', ');
 
   const pgSql = `-- Generated from ALLOWED_CATEGORY_IDS
 UPDATE public.categories 
@@ -83,8 +84,16 @@ ON CONFLICT (key) DO UPDATE SET value = '"${timestamp}"';
 `;
 
   const migrationsDir = path.resolve(process.cwd(), 'database/migrations');
-  await fsPromises.writeFile(path.join(migrationsDir, `${timestamp}_sync_category_whitelist.sql`), pgSql, 'utf-8');
-  await fsPromises.writeFile(path.join(migrationsDir, `${timestamp}_sync_category_whitelist.sqlite.sql`), sqliteSql, 'utf-8');
+  await fsPromises.writeFile(
+    path.join(migrationsDir, `${timestamp}_sync_category_whitelist.sql`),
+    pgSql,
+    'utf-8'
+  );
+  await fsPromises.writeFile(
+    path.join(migrationsDir, `${timestamp}_sync_category_whitelist.sqlite.sql`),
+    sqliteSql,
+    'utf-8'
+  );
 }
 ```
 
@@ -137,4 +146,4 @@ export function stripInlineComment(line: string): string {
    When executed via CLI (e.g. `node scripts/database/generate_migrations.ts`), the runner must automatically trigger:
    - Step 1: Static syntax, monotonicity, and comment audit (running the project's static SQL validator).
    - Step 2: Compatibility testing against the latest production backup fixture (running the real backup migration test suite).
-   If either fails, the migration is rejected with exit code 1.
+     If either fails, the migration is rejected with exit code 1.

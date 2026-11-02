@@ -55,7 +55,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
   describe('validateAuditorConstruction', () => {
     it('detects redundant capabilities at BaseAuditor construction', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               id: 'mock_redundant',
@@ -76,7 +76,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleIds: ['rule-1'],
               ruleDescriptions: { 'rule-1': 'Desc' },
               ruleRemediations: { 'rule-1': 'Remediacion' }
-            } as unknown as AuditorOptions<string>);
+            } as unknown as AuditorOptions);
           }
           public override async runAudit() {}
         })();
@@ -84,7 +84,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
     });
 
     it('detects mismatched taskId vs auditor id', () => {
-      class MockAuditor extends BaseAuditor<string> {
+      class MockAuditor extends BaseAuditor {
         constructor() {
           super({
             ruleFixers: {},
@@ -117,7 +117,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('detects missing rule in ruleDescriptions at BaseAuditor construction', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               id: 'mock_suite',
@@ -130,7 +130,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               ruleCapabilities: {
                 'rule-1': { ...BASE_MOCK_CAPS },
                 'rule-2': { ...BASE_MOCK_CAPS }
-              } as never,
+              },
               configKey: 'paths',
               defaultConfig: {},
               requiredPermissions: [],
@@ -138,8 +138,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1', 'rule-2'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never,
-              ruleRemediations: { 'rule-1': 'Remediacion', 'rule-2': 'Remediacion 2' } as never,
+              ruleDescriptions: { 'rule-1': 'Desc' },
+              ruleRemediations: { 'rule-1': 'Remediacion', 'rule-2': 'Remediacion 2' },
               scripts: [
                 { name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }
               ]
@@ -152,7 +152,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('detects missing ruleCapabilities at BaseAuditor construction', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               id: 'mock_suite',
@@ -181,7 +181,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('detects description exceeding 60 characters at BaseAuditor construction', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               id: 'mock_suite',
@@ -200,8 +200,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never,
-              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleDescriptions: { 'rule-1': 'Desc' },
+              ruleRemediations: { 'rule-1': 'Remediacion' },
               scripts: [
                 { name: 'auditor:mock', command: 'auditor task=mock_suite', description: 'Mock' }
               ]
@@ -214,7 +214,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('detects manual fix declared in ruleCapabilities', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               ruleFixers: {},
@@ -232,8 +232,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never,
-              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleDescriptions: { 'rule-1': 'Desc' },
+              ruleRemediations: { 'rule-1': 'Remediacion' },
               ruleRemediationPhases: { 'rule-1': 'setup' } as never,
               scripts: [
                 {
@@ -251,7 +251,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('detects manual string/boolean fix properties in constructor options', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               ruleFixers: {},
@@ -289,7 +289,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
     it('rejects undeclared rules in fixableRuleIds at BaseAuditor construction', () => {
       expect(() => {
-        new (class extends BaseAuditor<string> {
+        new (class extends BaseAuditor {
           constructor() {
             super({
               ruleFixers: {},
@@ -308,8 +308,8 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
               usesThirdPartyTool: false,
               coverage: { include: ['src/**'] },
               ruleIds: ['rule-1'] as never,
-              ruleDescriptions: { 'rule-1': 'Desc' } as never,
-              ruleRemediations: { 'rule-1': 'Remediacion' } as never,
+              ruleDescriptions: { 'rule-1': 'Desc' },
+              ruleRemediations: { 'rule-1': 'Remediacion' },
               ruleRemediationPhases: { 'rule-1': 'setup' } as never,
               scripts: [
                 {
@@ -318,7 +318,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
                   description: 'Mock'
                 }
               ]
-            } as never);
+            });
           }
           public override async runAudit() {}
         })();
@@ -329,7 +329,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
   });
 
   describe('validateAuditorTestFileContent', () => {
-    class CompliantAuditor extends BaseAuditor<string> {
+    class CompliantAuditor extends BaseAuditor {
       constructor() {
         super({
           ruleFixers: {},
@@ -573,7 +573,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
 
   describe('third-party tool contract validation', () => {
     it('throws immediately when usesThirdPartyTool: true but explainSatelliteConfig is omitted', () => {
-      class MockBrokenAuditor extends BaseAuditor<string> {
+      class MockBrokenAuditor extends BaseAuditor {
         public constructor() {
           super({
             id: 'mock_broken_third_party',
@@ -610,7 +610,7 @@ describe('Auditor Contract Conformance Engine Unit Tests', () => {
     });
 
     it('throws immediately when explainSatelliteConfig has invalid empty properties', () => {
-      class MockBrokenPolicyAuditor extends BaseAuditor<string> {
+      class MockBrokenPolicyAuditor extends BaseAuditor {
         public constructor() {
           super({
             id: 'mock_broken_policy',

@@ -51,7 +51,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const auditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });
       for (const ruleId of PACKAGE_SCRIPTS_RULES) {
         expect(auditor.ruleDescriptions?.[ruleId]).toBeDefined();
-        const desc = auditor.ruleDescriptions![ruleId]!;
+        const desc = auditor.ruleDescriptions[ruleId];
         const combined = `${auditor.packageName}: ${desc}`;
         expect(combined.length).toBeLessThanOrEqual(50);
       }
@@ -98,7 +98,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
-      expect(result.findings.length).toBe(0);
+      expect(result.findings).toHaveLength(0);
     });
   });
 
@@ -513,7 +513,7 @@ describe('ValidatePackageScriptsAuditor', () => {
       const obsoleteFindings = checkResult.findings.filter(
         (f) => f.ruleId === 'package-scripts-obsolete' && f.file === 'package.json'
       );
-      expect(obsoleteFindings.length).toBe(3);
+      expect(obsoleteFindings).toHaveLength(3);
 
       // Fix mode
       const fixAuditor = new ValidatePackageScriptsAuditor({ projectRoot: tempDir });

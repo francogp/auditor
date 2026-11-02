@@ -252,7 +252,7 @@ describe('Universal Zero Hardcoded Paths & Scope Conformance (All Sub-Auditors &
           const Cls = findAuditorClass(mod);
           if (!Cls) return;
 
-          let auditor: BaseAuditor<string>;
+          let auditor: BaseAuditor;
           try {
             auditor = instantiateAuditorClass(Cls, tempDir);
           } catch (err) {

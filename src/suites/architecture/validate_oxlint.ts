@@ -28,6 +28,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 
 import { executeNodeCli, resolvePackageBin } from '../../cli/cliUtils.ts';
@@ -535,6 +536,37 @@ export function parseOxlintResults(
       }
       return findings;
     }
+
+    // Fail-Loud Safety: If input contains process error output without valid JSON, emit critical violation
+    const trimmed = input.trim();
+    if (
+      trimmed &&
+      (trimmed.includes('Error:') ||
+        trimmed.includes('error:') ||
+        trimmed.includes('not expected') ||
+        trimmed.includes('Command failed'))
+    ) {
+      const errorLine =
+        trimmed
+          .split('\n')
+          .find(
+            (l) => l.includes('Error:') || l.includes('error:') || l.includes('not expected')
+          ) || trimmed.split('\n')[0];
+      return [
+        {
+          suiteId: 'validate_oxlint',
+          suiteName: 'Oxlint & Vite+ Code Hygiene Validator',
+          ruleId: 'oxlint-violation',
+          ruleDescription: 'Syntax error or linter rule violation',
+          severity: 'error',
+          file: 'vite.config.ts',
+          line: 1,
+          context: 'oxlint-execution-failure',
+          message: `Vite+ Oxlint process failed to execute: ${errorLine?.trim()}`,
+          fixable: false
+        }
+      ];
+    }
   }
 
   return parseLintResultsToFindings(input as string | object[], {
@@ -555,7 +587,9 @@ export async function fixOxlint(context: RuleFixContext<'oxlint-violation'>): Pr
       fallbackRelativeBin: 'bin/vp'
     }) ?? path.resolve(context.projectRoot, 'node_modules/vite-plus/bin/vp');
 
-  const args: string[] = ['lint', '--fix', '--cache', '--cache-location', '.oxlintcache'];
+  const threadCount =
+    typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+  const args: string[] = ['lint', '--fix', '--threads', String(threadCount)];
   try {
     executeNodeCli(vpBin, args, {
       cwd: context.projectRoot,
@@ -636,6 +670,22 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     });
   }
 
+  public buildOxlintArgs(
+    tier: AuditorExecutionTier = 'light',
+    isFixMode: boolean = false
+  ): string[] {
+    const threadCount =
+      typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
+    const args: string[] = ['lint', '-f', 'json', '--threads', String(threadCount)];
+    if (tier === 'full') {
+      args.push('--type-aware', '--type-check', '--report-unused-disable-directives');
+    }
+    if (isFixMode) {
+      args.push('--fix');
+    }
+    return args;
+  }
+
   public override async runAudit(): Promise<void> {
     const excludeGlobs = getVitePlusDefaultExcludeGlobs(this.projectRoot);
     this.redeclareCoverage({
@@ -653,13 +703,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         fallbackRelativeBin: 'bin/vp'
       }) ?? path.resolve(this.projectRoot, 'node_modules/vite-plus/bin/vp');
 
-    const args: string[] = ['lint', '-f', 'json', '--cache', '--cache-location', '.oxlintcache'];
-    if (tier === 'full') {
-      args.push('--type-aware', '--type-check', '--report-unused-disable-directives');
-    }
-    if (isFixMode) {
-      args.push('--fix');
-    }
+    const args = this.buildOxlintArgs(tier, isFixMode);
 
     const combinedOutput = executeNodeCli(vpBin, args, {
       cwd: this.projectRoot,

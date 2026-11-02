@@ -61,7 +61,7 @@ describe('MagicNumberExtractor', () => {
     const packet = extractor.generateSuperDiracPacket(tmpDir, relFile, items);
     expect(packet.totalItems).toBe(items.length);
     expect(packet.tokenSavingsPercent).toBeGreaterThanOrEqual(0);
-    expect(packet.items.length).toBe(items.length);
+    expect(packet.items).toHaveLength(items.length);
   });
 
   it('scans SCSS stylesheets and extracts hardcoded z-index and hex colors', () => {
@@ -80,7 +80,7 @@ describe('MagicNumberExtractor', () => {
     const extractor = new MagicNumberExtractor();
     const items = extractor.scanFile(tmpDir, relFile);
 
-    expect(items.length).toBe(2);
+    expect(items).toHaveLength(2);
     const zIndexItem = items.find((i) => i.kind === 'z-index-scss');
     expect(zIndexItem).toBeDefined();
     expect(zIndexItem?.numericValue).toBe(1000);

@@ -34,23 +34,27 @@ export declare const REFACTOR_POSITIONAL_CLI_ARGS: {
   readonly subcommand: {
     readonly type: "positional";
     readonly required: false;
-    readonly description: "Subcommand to execute (discover, inspect, apply, help)";
+    readonly description: "Subcommand to execute (discover, inspect, plan, apply, help)";
     readonly default: "discover";
   };
   readonly target: {
     readonly type: "positional";
     readonly required: false;
-    readonly description: "Target file to inspect or plan JSON to apply";
+    readonly description: "Target file to inspect/plan or plan JSON to apply";
   };
 };
 declare const REFACTOR_HARNESS_ARGS: {
   readonly file: {
     readonly type: "string";
-    readonly description: "Target file path to inspect";
+    readonly description: "Target file path to inspect or plan";
   };
   readonly plan: {
     readonly type: "string";
     readonly description: "Path to declarative refactor plan JSON";
+  };
+  readonly write: {
+    readonly type: "string";
+    readonly description: "Output file path to save the generated declarative plan JSON";
   };
   readonly worktree: {
     readonly type: "boolean";
@@ -60,13 +64,13 @@ declare const REFACTOR_HARNESS_ARGS: {
   readonly subcommand: {
     readonly type: "positional";
     readonly required: false;
-    readonly description: "Subcommand to execute (discover, inspect, apply, help)";
+    readonly description: "Subcommand to execute (discover, inspect, plan, apply, help)";
     readonly default: "discover";
   };
   readonly target: {
     readonly type: "positional";
     readonly required: false;
-    readonly description: "Target file to inspect or plan JSON to apply";
+    readonly description: "Target file to inspect/plan or plan JSON to apply";
   };
   readonly project: {
     readonly type: "string";

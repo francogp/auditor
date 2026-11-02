@@ -129,7 +129,7 @@ Comment escape hatches (`// o1-ok:`, `// linear-search-ok:`) are permanently era
 
 ### Scenario B: Elective Performance Optimization (`auditor:o1`)
 
-- **Trigger**: User requests *"optimize O(1) structures"*, *"speed up membership lookups"*, or *"remove redundant spreads"*.
+- **Trigger**: User requests _"optimize O(1) structures"_, _"speed up membership lookups"_, or _"remove redundant spreads"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:o1 discover`, inspect candidates via `auditor:o1 inspect --file <target>`, generate `scratch/o1_plan.json`, and apply with `--worktree`.
 
@@ -143,12 +143,14 @@ Comment escape hatches (`// o1-ok:`, `// linear-search-ok:`) are permanently era
 # Correction Plan: o1-forbidden-json-clone in stateManager.ts
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: `behavior` (Phase 5)
 - **Suite**: `validate_o1_structures`
 - **Location**: `src/state/stateManager.ts:L92`
 - **Violation**: Use of `JSON.parse(JSON.stringify(state))` to clone application state.
 
 ## 2. Canonical Solution
+
 Replace with the Node.js 26+ native standard function:
 
 ```ts
@@ -166,14 +168,16 @@ const clonedState = structuredClone(state);
 # Improvement Plan: Hoisting to ReadonlySet in permissions.ts
 
 ## 1. Scope & Motivation
+
 - **Tool**: `auditor-o1`
 - **Objective**: Convert linear search O(N) `VALID_PERMISSIONS.includes(p)` into O(1) `VALID_PERMISSIONS_SET.has(p)` inside the route guard.
 - **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| File | Array Identifier | New Set Identifier | Invocation Lines |
-| :--- | :--- | :--- | :--- |
-| `src/auth/permissions.ts` | `VALID_PERMISSIONS` | `VALID_PERMISSIONS_SET` | L34, L87, L112 |
+
+| File                      | Array Identifier    | New Set Identifier      | Invocation Lines |
+| :------------------------ | :------------------ | :---------------------- | :--------------- |
+| `src/auth/permissions.ts` | `VALID_PERMISSIONS` | `VALID_PERMISSIONS_SET` | L34, L87, L112   |
 
 ## 3. Declarative Plan (`scratch/o1_plan.json`)
 

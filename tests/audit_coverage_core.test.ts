@@ -187,7 +187,7 @@ describe('ledger persistence', () => {
     const result = await auditor.finishAudit();
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
-    expect(await readCoverageLedgers(tmpDir, 'any')).toEqual([]);
+    await expect(readCoverageLedgers(tmpDir, 'any')).resolves.toEqual([]);
   });
 
   it('writes the FileScanAuditor ledger with derived coverage and single-rule evaluations', async () => {
@@ -208,7 +208,7 @@ describe('ledger persistence', () => {
     expect(ledger?.declared.include).toEqual(['src/**/*.ts']);
     expect(ledger?.scanned).toEqual(['src/bad.ts', 'src/ok.ts']);
     expect(ledger?.ruleEvaluations['probe-rule']).toBe(2);
-    expect(await readCoverageLedgers(tmpDir, 'other-run')).toEqual([]);
+    await expect(readCoverageLedgers(tmpDir, 'other-run')).resolves.toEqual([]);
   });
 });
 

@@ -124,7 +124,7 @@ export function splitSQLStatements(sql: string): string[] {
   }
 
   if (ctx.current.trim()) ctx.statements.push(ctx.current.trim());
-  return ctx.statements.filter(s => s.length > 0);
+  return ctx.statements.filter((s) => s.length > 0);
 }
 
 const SQL_SKIP_PATTERNS = [
@@ -154,39 +154,42 @@ export function translatePostgresToSqlite(sql: string): string {
   const upperSql = cleanSql.toUpperCase();
 
   // Omit server-only constructs
-  if (SQL_SKIP_PATTERNS.some(pattern => upperSql.startsWith(pattern))) {
+  if (SQL_SKIP_PATTERNS.some((pattern) => upperSql.startsWith(pattern))) {
     return '';
   }
 
-  if (upperSql.startsWith('ALTER TABLE') && (
-    upperSql.includes('ENABLE ROW LEVEL SECURITY') ||
-    upperSql.includes('FORCE ROW LEVEL SECURITY') ||
-    upperSql.includes('REPLICA IDENTITY')
-  )) {
+  if (
+    upperSql.startsWith('ALTER TABLE') &&
+    (upperSql.includes('ENABLE ROW LEVEL SECURITY') ||
+      upperSql.includes('FORCE ROW LEVEL SECURITY') ||
+      upperSql.includes('REPLICA IDENTITY'))
+  ) {
     return '';
   }
 
-  return cleanSql
-    .replace(/public\./gi, '')
-    // 1. Data Types
-    .replace(/\bJSONB\b/gi, 'TEXT')
-    .replace(/\bUUID\b/gi, 'TEXT')
-    .replace(/\bTIMESTAMPTZ\b/gi, 'TEXT')
-    .replace(/\bTIMESTAMP\b/gi, 'TEXT')
-    .replace(/\bBIGINT\b/gi, 'INTEGER')
-    .replace(/\b(BIGSERIAL|SERIAL)\s+PRIMARY\s+KEY\b/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT')
-    .replace(/\b(BIGSERIAL|SERIAL)\b/gi, 'INTEGER')
-    .replace(/::[a-z0-9_]+/gi, '')
-    // 2. Functions & Defaults
-    .replace(/\bNOW\(\)/gi, "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')")
-    .replace(/\bgen_random_uuid\(\)/gi, "hex(randomblob(16))")
-    .replace(/\bto_jsonb\b/gi, 'json')
-    .replace(/\bjsonb_build_object\b/gi, 'json_object')
-    .replace(/\bjsonb_set\b/gi, 'json_set')
-    // 3. Literals & Keywords
-    .replace(/\bTRUE\b/gi, '1')
-    .replace(/\bFALSE\b/gi, '0')
-    .replace(/\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/gi, 'ADD COLUMN')
-    .replace(/REFERENCES\s+auth\.users/gi, 'REFERENCES profiles')
-    .trim();
+  return (
+    cleanSql
+      .replace(/public\./gi, '')
+      // 1. Data Types
+      .replace(/\bJSONB\b/gi, 'TEXT')
+      .replace(/\bUUID\b/gi, 'TEXT')
+      .replace(/\bTIMESTAMPTZ\b/gi, 'TEXT')
+      .replace(/\bTIMESTAMP\b/gi, 'TEXT')
+      .replace(/\bBIGINT\b/gi, 'INTEGER')
+      .replace(/\b(BIGSERIAL|SERIAL)\s+PRIMARY\s+KEY\b/gi, 'INTEGER PRIMARY KEY AUTOINCREMENT')
+      .replace(/\b(BIGSERIAL|SERIAL)\b/gi, 'INTEGER')
+      .replace(/::[a-z0-9_]+/gi, '')
+      // 2. Functions & Defaults
+      .replace(/\bNOW\(\)/gi, "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')")
+      .replace(/\bgen_random_uuid\(\)/gi, 'hex(randomblob(16))')
+      .replace(/\bto_jsonb\b/gi, 'json')
+      .replace(/\bjsonb_build_object\b/gi, 'json_object')
+      .replace(/\bjsonb_set\b/gi, 'json_set')
+      // 3. Literals & Keywords
+      .replace(/\bTRUE\b/gi, '1')
+      .replace(/\bFALSE\b/gi, '0')
+      .replace(/\bADD\s+COLUMN\s+IF\s+NOT\s+EXISTS\b/gi, 'ADD COLUMN')
+      .replace(/REFERENCES\s+auth\.users/gi, 'REFERENCES profiles')
+      .trim()
+  );
 }

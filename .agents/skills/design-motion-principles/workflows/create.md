@@ -5,6 +5,7 @@ Build interactive components with purposeful motion. Light discovery, then gener
 ## Required Reading
 
 Read before generating:
+
 1. `references/motion-cookbook.md` — the recipe source for all motion code
 2. `references/accessibility.md` — `prefers-reduced-motion` is mandatory in everything you generate
 3. `references/creation-gotchas.md` — Claude's failure modes when writing motion; self-check against these
@@ -18,6 +19,7 @@ Establish two things — project context and designer weighting — before gener
 ### Infer First, Ask Second
 
 Check what you can already see:
+
 - **The request** — what component, what interaction, what stack (React / Framer Motion / CSS / HTML)?
 - **CLAUDE.md, package.json, existing components** — project type and existing animation conventions (durations, easing, libraries)
 
@@ -32,6 +34,7 @@ Proposed weighting: Primary [Designer] · Secondary [Designer]
 ```
 
 If `AskUserQuestion` is available and the weighting is genuinely ambiguous, offer:
+
 - **Confirm** — proceed with the proposed weighting
 - **Adjust** — change primary/secondary designer
 
@@ -46,6 +49,7 @@ For non-trivial components, **confirm context before generating**. For a small, 
 ## STEP 2: Load Weighted Knowledge
 
 Based on the confirmed weighting, read the relevant designer file(s):
+
 - **Read `references/emil-kowalski.md`** if Emil is primary/secondary — restraint, the frequency rule, when NOT to animate
 - **Read `references/jakub-krehel.md`** if Jakub is primary/secondary — production polish judgment, subtlety bar
 - **Read `references/jhey-tompkins.md`** if Jhey is primary/secondary — playful expression, what motion could become

@@ -10,11 +10,11 @@ Reactive element's hover state.
 
 ```vue
 <script setup lang="ts">
-import { useElementHover } from '@vueuse/core'
-import { useTemplateRef } from 'vue'
+import { useElementHover } from '@vueuse/core';
+import { useTemplateRef } from 'vue';
 
-const myHoverableElement = useTemplateRef('myHoverableElement')
-const isHovered = useElementHover(myHoverableElement)
+const myHoverableElement = useTemplateRef('myHoverableElement');
+const isHovered = useElementHover(myHoverableElement);
 </script>
 
 <template>
@@ -28,12 +28,12 @@ const isHovered = useElementHover(myHoverableElement)
 
 ```vue
 <script setup lang="ts">
-import { vElementHover } from '@vueuse/components'
-import { shallowRef } from 'vue'
+import { vElementHover } from '@vueuse/components';
+import { shallowRef } from 'vue';
 
-const isHovered = shallowRef(false)
+const isHovered = shallowRef(false);
 function onHover(state: boolean) {
-  isHovered.value = state
+  isHovered.value = state;
 }
 </script>
 
@@ -48,12 +48,12 @@ You can also provide hover options:
 
 ```vue
 <script setup lang="ts">
-import { vElementHover } from '@vueuse/components'
-import { shallowRef } from 'vue'
+import { vElementHover } from '@vueuse/components';
+import { shallowRef } from 'vue';
 
-const isHovered = shallowRef(false)
+const isHovered = shallowRef(false);
 function onHover(hovered: boolean) {
-  isHovered.value = hovered
+  isHovered.value = hovered;
 }
 </script>
 
@@ -68,12 +68,12 @@ function onHover(hovered: boolean) {
 
 ```ts
 export interface UseElementHoverOptions extends ConfigurableWindow {
-  delayEnter?: number
-  delayLeave?: number
-  triggerOnRemoval?: boolean
+  delayEnter?: number;
+  delayLeave?: number;
+  triggerOnRemoval?: boolean;
 }
 export declare function useElementHover(
   el: MaybeRefOrGetter<EventTarget | null | undefined>,
-  options?: UseElementHoverOptions,
-): ShallowRef<boolean>
+  options?: UseElementHoverOptions
+): ShallowRef<boolean>;
 ```

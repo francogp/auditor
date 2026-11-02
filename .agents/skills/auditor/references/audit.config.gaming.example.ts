@@ -130,7 +130,9 @@ export default defineAuditConfig({
     requireInputIds: false, // Does not require mandatory IDs on all interactive elements
     tooltipComponents: ['Tooltip', 'GameTooltip'], // Registered tooltip components recognized by template auditor
     safeTemplateFunctions: ['t', 'getItemSprite', 'getCreatureSprite'], // Safe and pure functions permitted in Vue templates
-    forbiddenTemplateCallPatterns: ['(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\\.[a-zA-Z0-9_]+\\s*\\('] // Forbidden call patterns preventing infinite re-render loops
+    forbiddenTemplateCallPatterns: [
+      '(?:[a-zA-Z0-9_]*DataProvider|dataProvider)\\.[a-zA-Z0-9_]+\\s*\\('
+    ] // Forbidden call patterns preventing infinite re-render loops
   },
 
   animation: {
@@ -358,11 +360,40 @@ export default defineAuditConfig({
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
     zLayersFile: 'src/logic/constants/visuals.ts', // Path to canonical TypeScript z-index layers file for domain parity verification
-    caseNormalizationExemptTokens: ['rpg', 'pvp', 'pve', 'fsm', 'dex', 'hp', 'atk', 'def', 'spe', 'exp'], // Battle acronyms and terms exempt from casing warnings
+    caseNormalizationExemptTokens: [
+      'rpg',
+      'pvp',
+      'pve',
+      'fsm',
+      'dex',
+      'hp',
+      'atk',
+      'def',
+      'spe',
+      'exp'
+    ], // Battle acronyms and terms exempt from casing warnings
     allowedStoreSetterPrefixes: ['set', 'update', 'equip'], // Authorized semantic prefixes for Pinia store mutator methods
     allowedNumericConstantPrefixes: [
-      'GEN_', 'ISO_', 'UTF_8', 'BASE_64', 'RGB_', 'RGBA_', 'WASM_', 'HTML_5', 'CSS_3', 'HTTP_', 'D3_',
-      'GEN1_', 'GEN2_', 'GEN3_', 'GEN4_', 'GEN5_', 'GEN6_', 'GEN7_', 'GEN8_', 'GEN9_'
+      'GEN_',
+      'ISO_',
+      'UTF_8',
+      'BASE_64',
+      'RGB_',
+      'RGBA_',
+      'WASM_',
+      'HTML_5',
+      'CSS_3',
+      'HTTP_',
+      'D3_',
+      'GEN1_',
+      'GEN2_',
+      'GEN3_',
+      'GEN4_',
+      'GEN5_',
+      'GEN6_',
+      'GEN7_',
+      'GEN8_',
+      'GEN9_'
     ], // Authorized prefixes in numeric constant identifiers
     finiteDomainTypes: [
       'CreatureId', // Canonical creature species identifier

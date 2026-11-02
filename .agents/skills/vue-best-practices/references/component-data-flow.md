@@ -30,12 +30,13 @@ The main principle of data flow in Vue.js is **Props Down / Events Up**. This is
 Props are inputs. Do not mutate them in the child.
 
 **BAD:**
+
 ```vue
 <script setup>
-const props = defineProps({ count: Number })
+const props = defineProps({ count: Number });
 
 function increment() {
-  props.count++
+  props.count++;
 }
 </script>
 ```
@@ -51,47 +52,53 @@ For Vue 3.5+: destructure directly from `defineProps()` in `<script setup>` and 
 Pass destructured props to `watch` or composables through getters to preserve reactivity.
 
 **BAD:**
+
 ```vue
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch } from 'vue';
 
 const { title = 'Untitled', count } = defineProps<{
-  title?: string
-  count: number
-}>()
+  title?: string;
+  count: number;
+}>();
 
-watch(count, (value) => console.log(value))
+watch(count, (value) => console.log(value));
 </script>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, watch } from 'vue';
 
 const { title = 'Untitled', count } = defineProps<{
-  title?: string
-  count: number
-}>()
+  title?: string;
+  count: number;
+}>();
 
-const heading = computed(() => `${title.trim()} (${count})`)
-watch(() => count, (value) => console.log(value))
+const heading = computed(() => `${title.trim()} (${count})`);
+watch(
+  () => count,
+  (value) => console.log(value)
+);
 </script>
 ```
 
 ## Prefer props/emit over component refs
 
 **BAD:**
+
 ```vue
 <script setup>
-import { ref } from 'vue'
-import UserForm from './UserForm.vue'
+import { ref } from 'vue';
+import UserForm from './UserForm.vue';
 
-const formRef = ref(null)
+const formRef = ref(null);
 
 function submitForm() {
   if (formRef.value.isValid) {
-    formRef.value.submit()
+    formRef.value.submit();
   }
 }
 </script>
@@ -103,12 +110,13 @@ function submitForm() {
 ```
 
 **GOOD:**
+
 ```vue
 <script setup>
-import UserForm from './UserForm.vue'
+import UserForm from './UserForm.vue';
 
 function handleSubmit(formData) {
-  api.submit(formData)
+  api.submit(formData);
 }
 </script>
 
@@ -122,16 +130,17 @@ function handleSubmit(formData) {
 Prefer props/emits by default. When a parent must call an exposed child method, type the ref explicitly and expose only the intended API from the child with `defineExpose`.
 
 **BAD:**
+
 ```vue
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import DialogPanel from './DialogPanel.vue'
+import { ref, onMounted } from 'vue';
+import DialogPanel from './DialogPanel.vue';
 
-const panelRef = ref(null)
+const panelRef = ref(null);
 
 onMounted(() => {
-  panelRef.value.open()
-})
+  panelRef.value.open();
+});
 </script>
 
 <template>
@@ -140,30 +149,31 @@ onMounted(() => {
 ```
 
 **GOOD:**
+
 ```vue
 <!-- DialogPanel.vue -->
 <script setup lang="ts">
 function open() {}
 
-defineExpose({ open })
+defineExpose({ open });
 </script>
 ```
 
 ```vue
 <!-- Parent.vue -->
 <script setup lang="ts">
-import { onMounted, useTemplateRef } from 'vue'
-import DialogPanel from './DialogPanel.vue'
+import { onMounted, useTemplateRef } from 'vue';
+import DialogPanel from './DialogPanel.vue';
 
 // Vue 3.5+ with useTemplateRef
-const panelRef = useTemplateRef('panelRef')
+const panelRef = useTemplateRef('panelRef');
 
 // Before Vue 3.5 with manual typing and ref
 // const panelRef = ref<InstanceType<typeof DialogPanel> | null>(null)
 
 onMounted(() => {
-  panelRef.value?.open()
-})
+  panelRef.value?.open();
+});
 </script>
 
 <template>
@@ -176,19 +186,21 @@ onMounted(() => {
 Component events do not bubble. Re-emit events that belong to the wrapper's public contract. If most of its API only relays child state and events, reassess the boundary or use scoped context for genuinely shared dependencies.
 
 **BAD:**
+
 ```vue
 <!-- Parent expects "saved" from grandchild, but it won't bubble -->
 <Child @saved="onSaved" />
 ```
 
 **GOOD:**
+
 ```vue
 <!-- Child.vue -->
 <script setup>
-const emit = defineEmits(['saved'])
+const emit = defineEmits(['saved']);
 
 function onGrandchildSaved(payload) {
-  emit('saved', payload)
+  emit('saved', payload);
 }
 </script>
 
@@ -198,9 +210,10 @@ function onGrandchildSaved(payload) {
 ```
 
 **Event naming:** use kebab-case in templates and camelCase in script:
+
 ```vue
 <script setup>
-const emit = defineEmits(['updateUser'])
+const emit = defineEmits(['updateUser']);
 </script>
 
 <template>
@@ -213,9 +226,10 @@ const emit = defineEmits(['updateUser'])
 Use `defineModel` by default for component bindings and emit updates on input. Only use the `modelValue` + `update:modelValue` pattern if you are on Vue < 3.4.
 
 **BAD:**
+
 ```vue
 <script setup>
-const props = defineProps({ value: String })
+const props = defineProps({ value: String });
 </script>
 
 <template>
@@ -224,9 +238,10 @@ const props = defineProps({ value: String })
 ```
 
 **GOOD (Vue 3.4+):**
+
 ```vue
 <script setup>
-const model = defineModel({ type: String })
+const model = defineModel({ type: String });
 </script>
 
 <template>
@@ -235,17 +250,15 @@ const model = defineModel({ type: String })
 ```
 
 **GOOD (Vue < 3.4):**
+
 ```vue
 <script setup>
-const props = defineProps({ modelValue: String })
-const emit = defineEmits(['update:modelValue'])
+const props = defineProps({ modelValue: String });
+const emit = defineEmits(['update:modelValue']);
 </script>
 
 <template>
-  <input
-    :value="props.modelValue"
-    @input="emit('update:modelValue', $event.target.value)"
-  />
+  <input :value="props.modelValue" @input="emit('update:modelValue', $event.target.value)" />
 </template>
 ```
 
@@ -261,12 +274,14 @@ When intermediate components mainly relay a descendant's private interactions, i
 - Merge a wrapper when it adds no useful UI, policy, or encapsulation. Do not merge substantial distinct responsibilities solely to avoid forwarding.
 
 **BAD:**
+
 ```vue
 <!-- Ancestors know the private pointer interaction of an item. -->
 <ItemList :dragging-id="draggingId" @pointer-move="moveItem" @pointer-up="finishDrag" />
 ```
 
 **GOOD:**
+
 ```vue
 <!-- The owning interaction translates DOM events into a feature operation. -->
 <ItemList :items="items" @reorder="reorderItems" />
@@ -284,42 +299,46 @@ Prefer props/emits for direct, explicit contracts. Use provide/inject when relat
 - Call provider/consumer helpers during setup. Report a missing required provider clearly; defaults are appropriate only for intentionally optional dependencies.
 
 **BAD:**
+
 ```ts
 // Provider
-provide('selection', reactive({ selectedId: null }))
+provide('selection', reactive({ selectedId: null }));
 
 // Consumer
-const selection = inject('selection')
-selection.selectedId = 'item-1'
+const selection = inject('selection');
+selection.selectedId = 'item-1';
 ```
 
 **GOOD:**
+
 ```ts
 // selection-context.ts
-import { inject, provide, readonly, shallowRef } from 'vue'
-import type { InjectionKey, Ref } from 'vue'
+import { inject, provide, readonly, shallowRef } from 'vue';
+import type { InjectionKey, Ref } from 'vue';
 
 interface SelectionContext {
-  selectedId: Readonly<Ref<string | null>>
-  select: (id: string | null) => void
+  selectedId: Readonly<Ref<string | null>>;
+  select: (id: string | null) => void;
 }
 
-const selectionKey: InjectionKey<SelectionContext> = Symbol('selection')
+const selectionKey: InjectionKey<SelectionContext> = Symbol('selection');
 
 export function provideSelection() {
-  const selectedId = shallowRef<string | null>(null)
+  const selectedId = shallowRef<string | null>(null);
   const context: SelectionContext = {
     selectedId: readonly(selectedId),
-    select: (id) => { selectedId.value = id },
-  }
-  provide(selectionKey, context)
-  return context
+    select: (id) => {
+      selectedId.value = id;
+    }
+  };
+  provide(selectionKey, context);
+  return context;
 }
 
 export function useSelectionContext(): SelectionContext {
-  const context = inject(selectionKey)
-  if (!context) throw new Error('useSelectionContext requires a selection provider')
-  return context
+  const context = inject(selectionKey);
+  if (!context) throw new Error('useSelectionContext requires a selection provider');
+  return context;
 }
 ```
 
@@ -327,16 +346,14 @@ Call `provideSelection()` in the owning ancestor's setup. Descendants use the sh
 
 ```vue
 <script setup lang="ts">
-import { useSelectionContext } from './selection-context'
+import { useSelectionContext } from './selection-context';
 
-defineProps<{ id: string }>()
-const { selectedId, select } = useSelectionContext()
+defineProps<{ id: string }>();
+const { selectedId, select } = useSelectionContext();
 </script>
 
 <template>
-  <button type="button" :aria-pressed="selectedId === id" @click="select(id)">
-    Select
-  </button>
+  <button type="button" :aria-pressed="selectedId === id" @click="select(id)">Select</button>
 </template>
 ```
 
@@ -345,25 +362,27 @@ const { selectedId, select } = useSelectionContext()
 Type component boundaries with `defineProps` and `defineEmits` so mismatched inputs and event payloads fail at compile time.
 
 **BAD:**
+
 ```vue
 <script setup lang="ts">
-const props = defineProps({ userId: String })
-const emit = defineEmits(['save'])
+const props = defineProps({ userId: String });
+const emit = defineEmits(['save']);
 
-emit('save', 123)
+emit('save', 123);
 </script>
 ```
 
 **GOOD:**
+
 ```vue
 <script setup lang="ts">
-const props = defineProps<{ userId: string }>()
+const props = defineProps<{ userId: string }>();
 const emit = defineEmits<{
-  save: [payload: { id: string; draft: boolean }]
-}>()
+  save: [payload: { id: string; draft: boolean }];
+}>();
 
 function saveDraft() {
-  emit('save', { id: props.userId, draft: true })
+  emit('save', { id: props.userId, draft: true });
 }
 </script>
 

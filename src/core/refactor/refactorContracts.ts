@@ -213,7 +213,11 @@ export interface O1RefactorPlan {
   }[];
 }
 
-export type TypesFindingKind = 'as-any' | 'double-assertion' | 'missing-return-type';
+export type TypesFindingKind =
+  | 'as-any'
+  | 'double-assertion'
+  | 'missing-return-type'
+  | 'missing-param-type';
 
 export interface TypesFindingItem {
   readonly file: string;
@@ -240,6 +244,12 @@ export interface TypesRefactorPlan {
     readonly line: number;
     readonly originalHeader: string;
     readonly replacementHeader: string;
+  }[];
+  readonly parameterInjections?: readonly {
+    readonly file: string;
+    readonly line: number;
+    readonly originalParameter: string;
+    readonly replacementParameter: string;
   }[];
 }
 

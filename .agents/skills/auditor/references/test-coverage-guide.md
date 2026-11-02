@@ -8,11 +8,11 @@ This guide provides the official operational reference, CLI options, architectur
 
 `@francogp/auditor` provides three distinct, non-overlapping coverage inspection tools:
 
-| Script / Command | Purpose | Underlying Data Source |
-| :--- | :--- | :--- |
-| `npm run auditor:test-coverage` / `auditor-test-coverage` | **Real test execution code coverage** (statements, branches, functions, lines, uncovered line ranges, untracked files). | Vitest / Jest / V8 / Istanbul `coverage-final.json`. |
-| `npm run auditor:coverage-map` / `auditor-coverage-map` | **Auditor suite coverage** (which static analysis rules and architectural suites scan each versioned file). | Auditor runtime ledgers (`scratch/audits/coverage/`). |
-| `npm run auditor:coverage-gaps` / `auditor-fallow category=coverage-gaps` | **Fallow reachable exports without tests** (untested public API contracts). | Fallow graph analysis. |
+| Script / Command                                                          | Purpose                                                                                                                 | Underlying Data Source                                |
+| :------------------------------------------------------------------------ | :---------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| `npm run auditor:test-coverage` / `auditor-test-coverage`                 | **Real test execution code coverage** (statements, branches, functions, lines, uncovered line ranges, untracked files). | Vitest / Jest / V8 / Istanbul `coverage-final.json`.  |
+| `npm run auditor:coverage-map` / `auditor-coverage-map`                   | **Auditor suite coverage** (which static analysis rules and architectural suites scan each versioned file).             | Auditor runtime ledgers (`scratch/audits/coverage/`). |
+| `npm run auditor:coverage-gaps` / `auditor-fallow category=coverage-gaps` | **Fallow reachable exports without tests** (untested public API contracts).                                             | Fallow graph analysis.                                |
 
 ### Strict Prohibition on Ad-Hoc Scripts & Walkers
 
@@ -65,10 +65,7 @@ export default defineAuditConfig({
     runCommand: 'vp test --coverage',
     roots: ['src'],
     extensions: ['.ts', '.vue', '.js'],
-    exemptGlobs: [
-      'src/**/*.d.ts',
-      'src/types/**'
-    ],
+    exemptGlobs: ['src/**/*.d.ts', 'src/types/**'],
     enforceInAudit: true // Active by default across @francogp/auditor (fails audit if coverage drops below threshold)
   }
 });
@@ -78,19 +75,19 @@ export default defineAuditConfig({
 
 ## 3. CLI Command Options & Flags
 
-| Flag / Option | Description | Example Usage |
-| :--- | :--- | :--- |
-| `--run` | Runs the test suite with coverage before analyzing. | `npm run auditor:test-coverage -- --run` |
-| `--check` | Quality Gate: Exits with code `1` if overall statements coverage is below threshold. | `npm run auditor:test-coverage -- --check` |
-| `--threshold=<N>` | Sets custom target coverage threshold percentage (default: `80`). Alias: `--min=<N>`. | `npm run auditor:test-coverage -- --threshold=85` |
-| `--dir=<path>` | Filters directory breakdown and file listings to a specific subsystem prefix. | `npm run auditor:test-coverage -- --dir=src/core` |
-| `--file=<path>` | Displays detailed file metrics and exact uncovered line ranges. | `npm run auditor:test-coverage -- --file=src/core/math.ts` |
-| `--below` | Displays only files whose statements coverage is below the threshold. | `npm run auditor:test-coverage -- --below` |
-| `--zero` | Displays only files with 0% test coverage. | `npm run auditor:test-coverage -- --zero` |
-| `--untracked` | Identifies files existing on disk in `roots` that were never executed in tests. | `npm run auditor:test-coverage -- --untracked` |
-| `--hotspots` | Correlates Fallow cognitive complexity with lack of tests to prioritize risk. | `npm run auditor:test-coverage -- --hotspots` |
-| `--top=<N>` | Limits the number of rows rendered in detailed tables (default: `20`). | `npm run auditor:test-coverage -- --below --top=50` |
-| `--json` | Outputs machine-readable JSON for CI integration or programmatic scripts. | `npm run auditor:test-coverage -- --json` |
+| Flag / Option     | Description                                                                           | Example Usage                                              |
+| :---------------- | :------------------------------------------------------------------------------------ | :--------------------------------------------------------- |
+| `--run`           | Runs the test suite with coverage before analyzing.                                   | `npm run auditor:test-coverage -- --run`                   |
+| `--check`         | Quality Gate: Exits with code `1` if overall statements coverage is below threshold.  | `npm run auditor:test-coverage -- --check`                 |
+| `--threshold=<N>` | Sets custom target coverage threshold percentage (default: `80`). Alias: `--min=<N>`. | `npm run auditor:test-coverage -- --threshold=85`          |
+| `--dir=<path>`    | Filters directory breakdown and file listings to a specific subsystem prefix.         | `npm run auditor:test-coverage -- --dir=src/core`          |
+| `--file=<path>`   | Displays detailed file metrics and exact uncovered line ranges.                       | `npm run auditor:test-coverage -- --file=src/core/math.ts` |
+| `--below`         | Displays only files whose statements coverage is below the threshold.                 | `npm run auditor:test-coverage -- --below`                 |
+| `--zero`          | Displays only files with 0% test coverage.                                            | `npm run auditor:test-coverage -- --zero`                  |
+| `--untracked`     | Identifies files existing on disk in `roots` that were never executed in tests.       | `npm run auditor:test-coverage -- --untracked`             |
+| `--hotspots`      | Correlates Fallow cognitive complexity with lack of tests to prioritize risk.         | `npm run auditor:test-coverage -- --hotspots`              |
+| `--top=<N>`       | Limits the number of rows rendered in detailed tables (default: `20`).                | `npm run auditor:test-coverage -- --below --top=50`        |
+| `--json`          | Outputs machine-readable JSON for CI integration or programmatic scripts.             | `npm run auditor:test-coverage -- --json`                  |
 
 ---
 
@@ -142,7 +139,7 @@ Check if there are entire components, views, or utilities on disk that have zero
 npm run auditor:test-coverage -- --untracked
 ```
 
-*Action*: Either create dedicated unit/integration tests for these files, or add legitimate non-testable files (e.g. constant dictionaries or static schemas) to `exemptGlobs` in `audit.config.ts`.
+_Action_: Either create dedicated unit/integration tests for these files, or add legitimate non-testable files (e.g. constant dictionaries or static schemas) to `exemptGlobs` in `audit.config.ts`.
 
 ### Step 5: Prioritize via Complexity Hotspots
 
@@ -152,7 +149,7 @@ Not all uncovered files represent equal risk. A 5-line simple helper with 0% cov
 npm run auditor:test-coverage -- --hotspots --top=10
 ```
 
-*Formula*: $\text{Risk Score} = \text{Cognitive Complexity} \times (1 - \frac{\text{Coverage \%}}{100})$. Files with high complexity and low coverage appear at the very top.
+_Formula_: $\text{Risk Score} = \text{Cognitive Complexity} \times (1 - \frac{\text{Coverage \%}}{100})$. Files with high complexity and low coverage appear at the very top.
 
 ### Step 6: Surgically Inspect Uncovered Line Ranges
 

@@ -12,9 +12,9 @@
  *     is strictly prohibited.
  */
 
-import path from 'node:path';
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   SharedAstContext,
@@ -26,12 +26,11 @@ import {
   type RemediationPhaseId,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+import ts from 'typescript';
 
 enableCompileCache();
 
-export type MyAstRuleId =
-  | 'my-ast-forbidden-pattern'
-  | 'my-ast-missing-contract';
+export type MyAstRuleId = 'my-ast-forbidden-pattern' | 'my-ast-missing-contract';
 
 export const MY_AST_RULES: readonly MyAstRuleId[] = [
   'my-ast-forbidden-pattern',
@@ -88,7 +87,8 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       // Mandatory sub-auditor cache paths contract:
       cachePaths: MyAstAuditor.cachePaths,
       ruleDescriptions: {
-        'my-ast-forbidden-pattern': 'Forbidden syntactic pattern in AST (e.g. direct eval or forbidden token)',
+        'my-ast-forbidden-pattern':
+          'Forbidden syntactic pattern in AST (e.g. direct eval or forbidden token)',
         'my-ast-missing-contract': 'Missing required declaration contract in exported functions'
       },
       // Mandatory diagnostic and remediation guide for 100% of declared rules (4-section canonical structure in English):

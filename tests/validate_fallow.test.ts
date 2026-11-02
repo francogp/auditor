@@ -131,11 +131,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
           }
         ]
       };
-      const violations = mapFallowJson(
-        'dupes',
-        data as unknown as Parameters<typeof mapFallowJson>[1],
-        tempDir
-      );
+      const violations = mapFallowJson('dupes', data, tempDir);
       expect(violations).toHaveLength(2);
       expect(violations[0]!.message).toContain('(85 tokens)');
     });
@@ -167,11 +163,7 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
           }
         ]
       };
-      const violations = mapFallowJson(
-        'security',
-        data as unknown as Parameters<typeof mapFallowJson>[1],
-        tempDir
-      );
+      const violations = mapFallowJson('security', data, tempDir);
       expect(violations).toHaveLength(1);
       expect(violations[0]!.ruleId).toBe('fallow-security-cwe');
       expect(violations[0]!.message).toContain('Path traversal');

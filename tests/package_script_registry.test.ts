@@ -177,7 +177,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
 
   it('automatically derives canonical package scripts in BaseAuditor when scripts option is omitted', () => {
     const auditor = new DummyAuditorWithoutScripts();
-    expect(auditor.scripts.length).toBe(1);
+    expect(auditor.scripts).toHaveLength(1);
 
     const derived = auditor.scripts[0]!;
     expect(derived.name).toBe('auditor:dummy-component');
@@ -193,7 +193,7 @@ describe('PackageScriptRegistry & Command Collision Detection', () => {
 
   it('honors explicitly declared custom scripts in BaseAuditor', () => {
     const auditor = new DummyAuditorWithCustomScripts();
-    expect(auditor.scripts.length).toBe(1);
+    expect(auditor.scripts).toHaveLength(1);
 
     const custom = auditor.scripts[0]!;
     expect(custom.name).toBe('auditor:dummy-custom-alias');

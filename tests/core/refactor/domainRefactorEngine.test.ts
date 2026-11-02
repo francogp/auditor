@@ -34,7 +34,7 @@ export type PlayerId = string;
       );
 
       const findings = DomainRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.kind).toBe('unbranded-id');
       expect(findings[0]?.identifier).toBe('PlayerId');
       expect(findings[0]?.suggestedReplacement).toBe(
@@ -54,7 +54,7 @@ export const STATUSES = { active: 'ACTIVE', pending: 'PENDING' };
 
       const findings = DomainRefactorEngine.discoverInFile(tsFile);
       const unfrozen = findings.filter((f) => f.kind === 'unfrozen-catalog');
-      expect(unfrozen.length).toBe(2);
+      expect(unfrozen).toHaveLength(2);
       expect(unfrozen[0]?.identifier).toBe('ROLES');
       expect(unfrozen[0]?.suggestedReplacement).toBe(
         "export const ROLES = ['admin', 'user'] as const;"
@@ -78,7 +78,7 @@ export function getHero(heroId: string, category: string): void {
 
       const findings = DomainRefactorEngine.discoverInFile(tsFile);
       const naked = findings.filter((f) => f.kind === 'naked-string-parameter');
-      expect(naked.length).toBe(2);
+      expect(naked).toHaveLength(2);
       expect(naked[0]?.identifier).toBe('heroId');
       expect(naked[0]?.suggestedReplacement).toBe('heroId: HeroId');
       expect(naked[1]?.identifier).toBe('category');
@@ -110,7 +110,7 @@ export const MODES = ['easy', 'hard'];
       );
 
       const findings = DomainRefactorEngine.discoverInFile(tsFile);
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
 
       const plan = DomainRefactorEngine.createPlan('test-domain-plan', findings);
       expect(plan.planId).toBe('test-domain-plan');

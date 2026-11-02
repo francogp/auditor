@@ -313,8 +313,37 @@ function extractEslintIgnoresFromAst(rawContent) {
 	visit(sf);
 	return globs;
 }
+function createPackOutExtensionsReturnType() {
+	return ts.factory.createTypeLiteralNode([ts.factory.createPropertySignature(void 0, ts.factory.createIdentifier("js"), void 0, ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)), ts.factory.createPropertySignature(void 0, ts.factory.createIdentifier("dts"), void 0, ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword))]);
+}
+const VOID_RETURN_FUNCTIONS = /* @__PURE__ */ new Set([
+	"onwarn",
+	"configureServer",
+	"buildStart",
+	"buildEnd",
+	"closeBundle",
+	"generateBundle"
+]);
+const STRING_OR_UNDEFINED_RETURN_FUNCTIONS = /* @__PURE__ */ new Set([
+	"bypass",
+	"manualChunks",
+	"resolveManualChunk"
+]);
+const STRING_RETURN_FUNCTIONS = /* @__PURE__ */ new Set(["getPackageVersion"]);
+function createStringOrUndefinedType() {
+	return ts.factory.createUnionTypeNode([ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword), ts.factory.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword)]);
+}
+function resolveKnownViteFunctionReturnType(name) {
+	if (VOID_RETURN_FUNCTIONS.has(name)) return ts.factory.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword);
+	if (STRING_OR_UNDEFINED_RETURN_FUNCTIONS.has(name)) return createStringOrUndefinedType();
+	if (STRING_RETURN_FUNCTIONS.has(name)) return ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
+	if (name === "outExtensions") return createPackOutExtensionsReturnType();
+	if (name === "plugins") return ts.factory.createArrayTypeNode(ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword));
+	return null;
+}
 function buildPackAstObject() {
-	const outExtensionsArrow = ts.factory.createArrowFunction(void 0, void 0, [], void 0, ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), ts.factory.createParenthesizedExpression(valueToAstExpression({
+	const returnType = createPackOutExtensionsReturnType();
+	const outExtensionsArrow = ts.factory.createArrowFunction(void 0, void 0, [], returnType, ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken), ts.factory.createParenthesizedExpression(valueToAstExpression({
 		js: ".js",
 		dts: ".d.ts"
 	})));
@@ -926,6 +955,13 @@ function syncPackSectionOnRoot(rootProps, sf) {
 		packSubProps = updateObjectProperty(packSubProps, "attw", valueToAstExpression({ profile: "esm-only" }), sf);
 		packModified = true;
 	}
+	const outExtProp = findPropertyAssignment(packProp.initializer, "outExtensions", sf);
+	if (outExtProp && ts.isArrowFunction(outExtProp.initializer) && !outExtProp.initializer.type) {
+		const returnType = createPackOutExtensionsReturnType();
+		const typedArrow = ts.factory.createArrowFunction(outExtProp.initializer.modifiers, outExtProp.initializer.typeParameters, outExtProp.initializer.parameters, returnType, outExtProp.initializer.equalsGreaterThanToken, outExtProp.initializer.body);
+		packSubProps = updateObjectProperty(packSubProps, "outExtensions", typedArrow, sf);
+		packModified = true;
+	}
 	if (!packModified) return {
 		props: rootProps,
 		modified: false
@@ -959,6 +995,184 @@ function syncRunSectionAst(runObj, auditConfig, sf) {
 		modified
 	};
 }
+function transformImportDeclaration(node) {
+	if (ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "vite") return {
+		transformed: ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, ts.factory.createStringLiteral("vite-plus", true), node.attributes),
+		modified: true
+	};
+	return {
+		transformed: node,
+		modified: false
+	};
+}
+function transformMethodDeclaration(node, sf, visitBody) {
+	if (node.type) return {
+		transformed: node,
+		modified: false
+	};
+	const returnType = resolveKnownViteFunctionReturnType(getPropertyKeyName(node.name, sf));
+	if (!returnType) return {
+		transformed: node,
+		modified: false
+	};
+	return {
+		transformed: ts.factory.updateMethodDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.questionToken, node.typeParameters, node.parameters, returnType, node.body ? visitBody(node.body) : void 0),
+		modified: true
+	};
+}
+function transformPropertyAssignment(node, sf, visitChild) {
+	const returnType = resolveKnownViteFunctionReturnType(getPropertyKeyName(node.name, sf));
+	if (!returnType) return {
+		transformed: node,
+		modified: false
+	};
+	if (ts.isArrowFunction(node.initializer) && !node.initializer.type) {
+		const arrow = node.initializer;
+		return {
+			transformed: ts.factory.updatePropertyAssignment(node, node.name, ts.factory.updateArrowFunction(arrow, arrow.modifiers, arrow.typeParameters, arrow.parameters, returnType, arrow.equalsGreaterThanToken, ts.visitNode(arrow.body, visitChild) ?? arrow.body)),
+			modified: true
+		};
+	}
+	if (ts.isFunctionExpression(node.initializer) && !node.initializer.type) {
+		const fn = node.initializer;
+		return {
+			transformed: ts.factory.updatePropertyAssignment(node, node.name, ts.factory.updateFunctionExpression(fn, fn.modifiers, fn.asteriskToken, fn.name, fn.typeParameters, fn.parameters, returnType, ts.visitNode(fn.body, visitChild) ?? fn.body)),
+			modified: true
+		};
+	}
+	return {
+		transformed: node,
+		modified: false
+	};
+}
+function transformFunctionDeclaration(node, visitBody) {
+	if (node.type || !node.name) return {
+		transformed: node,
+		modified: false
+	};
+	const returnType = resolveKnownViteFunctionReturnType(node.name.text);
+	if (!returnType) return {
+		transformed: node,
+		modified: false
+	};
+	return {
+		transformed: ts.factory.updateFunctionDeclaration(node, node.modifiers, node.asteriskToken, node.name, node.typeParameters, node.parameters, returnType, node.body ? visitBody(node.body) : void 0),
+		modified: true
+	};
+}
+function applyViteConfigAstTransformations(sf, rootObj, updatedRootObj) {
+	let modified = false;
+	const transformer = (context) => {
+		const visit = (node) => {
+			if (ts.isImportDeclaration(node)) {
+				const imp = transformImportDeclaration(node);
+				if (imp.modified) {
+					modified = true;
+					return imp.transformed;
+				}
+			}
+			if (ts.isMethodDeclaration(node)) {
+				const method = transformMethodDeclaration(node, sf, (b) => ts.visitEachChild(b, visit, context));
+				if (method.modified) {
+					modified = true;
+					return method.transformed;
+				}
+			}
+			if (ts.isPropertyAssignment(node)) {
+				const prop = transformPropertyAssignment(node, sf, visit);
+				if (prop.modified) {
+					modified = true;
+					return prop.transformed;
+				}
+			}
+			if (ts.isFunctionDeclaration(node)) {
+				const fn = transformFunctionDeclaration(node, (b) => ts.visitEachChild(b, visit, context));
+				if (fn.modified) {
+					modified = true;
+					return fn.transformed;
+				}
+			}
+			if (node === rootObj) return ts.visitEachChild(updatedRootObj, visit, context);
+			return ts.visitEachChild(node, visit, context);
+		};
+		return (source) => ts.visitNode(source, visit);
+	};
+	return {
+		transformedContent: printTransformedSourceFile(sf, transformer),
+		modified
+	};
+}
+function syncViteRunSection(rootProps, sf, auditConfig) {
+	const runProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(rootProps, true), "run", sf);
+	if (!runProp || !ts.isObjectLiteralExpression(runProp.initializer)) return {
+		props: [...rootProps, ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig))],
+		modified: true
+	};
+	const syncedRun = syncRunSectionAst(runProp.initializer, auditConfig, sf);
+	if (syncedRun.modified) return {
+		props: updateObjectProperty(rootProps, "run", syncedRun.obj, sf),
+		modified: true
+	};
+	return {
+		props: rootProps,
+		modified: false
+	};
+}
+function syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, projectRoot) {
+	const testProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(rootProps, true), "test", sf);
+	if (!testProp || !ts.isObjectLiteralExpression(testProp.initializer)) {
+		const newTestProp = legacyTestProp ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig));
+		return {
+			props: [...rootProps, newTestProp],
+			modified: true
+		};
+	}
+	const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf, projectRoot);
+	if (syncedTest.modified) return {
+		props: updateObjectProperty(rootProps, "test", syncedTest.obj, sf),
+		modified: true
+	};
+	return {
+		props: rootProps,
+		modified: false
+	};
+}
+function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores) {
+	let props = rootProps;
+	let modified = false;
+	const currentRoot = () => ts.factory.createObjectLiteralExpression(props, true);
+	const lintProp = findPropertyAssignment(currentRoot(), "lint", sf);
+	if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
+		props = [...props, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores))];
+		modified = true;
+	} else {
+		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
+		if (syncedLint.modified) {
+			props = updateObjectProperty(props, "lint", syncedLint.obj, sf);
+			modified = true;
+		}
+	}
+	const fmtProp = findPropertyAssignment(currentRoot(), "fmt", sf);
+	if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
+		props = [...props, ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores))];
+		modified = true;
+	} else {
+		const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
+		if (syncedFmt.modified) {
+			props = updateObjectProperty(props, "fmt", syncedFmt.obj, sf);
+			modified = true;
+		}
+	}
+	const stagedProp = findPropertyAssignment(currentRoot(), "staged", sf);
+	if (!stagedProp || !ts.isObjectLiteralExpression(stagedProp.initializer)) {
+		props = [...props, ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig))];
+		modified = true;
+	}
+	return {
+		props,
+		modified
+	};
+}
 function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgnores, legacyTestProp, projectRoot) {
 	const sf = parseTsSourceFile(fileContent);
 	const rootObj = findConfigRootObject(sf);
@@ -969,78 +1183,28 @@ function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgno
 	const dedupRoot = deduplicateObjectProperties(rootObj.properties, sf);
 	let rootProps = dedupRoot.props;
 	let modified = dedupRoot.modified;
-	const currentRootObj = () => ts.factory.createObjectLiteralExpression(rootProps, true);
 	if (auditConfig.packageDistribution?.enabled === true) {
 		const syncedPack = syncPackSectionOnRoot(rootProps, sf);
 		rootProps = syncedPack.props;
 		if (syncedPack.modified) modified = true;
 	}
-	const runProp = findPropertyAssignment(currentRootObj(), "run", sf);
-	if (!runProp || !ts.isObjectLiteralExpression(runProp.initializer)) {
-		rootProps = [...rootProps, ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig))];
-		modified = true;
-	} else {
-		const syncedRun = syncRunSectionAst(runProp.initializer, auditConfig, sf);
-		if (syncedRun.modified) {
-			rootProps = updateObjectProperty(rootProps, "run", syncedRun.obj, sf);
-			modified = true;
-		}
-	}
-	const testProp = findPropertyAssignment(currentRootObj(), "test", sf);
-	if (!testProp || !ts.isObjectLiteralExpression(testProp.initializer)) {
-		const newTestProp = legacyTestProp ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig));
-		rootProps = [...rootProps, newTestProp];
-		modified = true;
-	} else {
-		const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf, projectRoot);
-		if (syncedTest.modified) {
-			rootProps = updateObjectProperty(rootProps, "test", syncedTest.obj, sf);
-			modified = true;
-		}
-	}
-	const lintProp = findPropertyAssignment(currentRootObj(), "lint", sf);
-	if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
-		rootProps = [...rootProps, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores))];
-		modified = true;
-	} else {
-		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
-		if (syncedLint.modified) {
-			rootProps = updateObjectProperty(rootProps, "lint", syncedLint.obj, sf);
-			modified = true;
-		}
-	}
-	const fmtProp = findPropertyAssignment(currentRootObj(), "fmt", sf);
-	if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
-		rootProps = [...rootProps, ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores))];
-		modified = true;
-	} else {
-		const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
-		if (syncedFmt.modified) {
-			rootProps = updateObjectProperty(rootProps, "fmt", syncedFmt.obj, sf);
-			modified = true;
-		}
-	}
-	const stagedProp = findPropertyAssignment(currentRootObj(), "staged", sf);
-	if (!stagedProp || !ts.isObjectLiteralExpression(stagedProp.initializer)) {
-		rootProps = [...rootProps, ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig))];
-		modified = true;
-	}
+	const runResult = syncViteRunSection(rootProps, sf, auditConfig);
+	rootProps = runResult.props;
+	if (runResult.modified) modified = true;
+	const testResult = syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, projectRoot);
+	rootProps = testResult.props;
+	if (testResult.modified) modified = true;
+	const lintFmtResult = syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores);
+	rootProps = lintFmtResult.props;
+	if (lintFmtResult.modified) modified = true;
 	if (sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite")) modified = true;
-	if (!modified) return {
+	const astTransformResult = applyViteConfigAstTransformations(sf, rootObj, ts.factory.createObjectLiteralExpression(rootProps, true));
+	if (!modified && !astTransformResult.modified) return {
 		content: fileContent,
 		modified: false
 	};
-	const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
-	const transformer = (context) => {
-		const visit = (node) => {
-			if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === "vite") return ts.factory.updateImportDeclaration(node, node.modifiers, node.importClause, ts.factory.createStringLiteral("vite-plus", true), node.attributes);
-			if (node === rootObj) return updatedRootObj;
-			return ts.visitEachChild(node, visit, context);
-		};
-		return (source) => ts.visitNode(source, visit);
-	};
 	return {
-		content: printTransformedSourceFile(sf, transformer),
+		content: astTransformResult.transformedContent,
 		modified: true
 	};
 }
@@ -1656,4 +1820,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };

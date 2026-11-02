@@ -30,6 +30,7 @@ For a new project:
 Read https://viteplus.dev/guide/create and choose the template, target directory, package manager, and intended Vite+ release or preview for my project. Use the target CLI's `help create` output to select supported options. Scaffold with `vp create`; do not overwrite existing project files.
 
 A global installation is optional. To install the global `vp` CLI when it is not already available:
+
 - macOS / Linux: curl -fsSL https://vite.plus | bash
 - Windows (PowerShell): irm https://vite.plus/ps1 | iex
 
@@ -93,18 +94,18 @@ Report the migration changes, validation results, retained compatibility setting
 
 The authoritative guides provided by Vite+ and VoidZero include:
 
-| Resource | URL | Focus & Scope |
-| :--- | :--- | :--- |
-| **Complete LLM Knowledge Base** | [https://viteplus.dev/llms-full.txt](https://viteplus.dev/llms-full.txt) | Complete unrolled documentation and API specs for AI agents. |
-| **General Guide** | [https://viteplus.dev/guide](https://viteplus.dev/guide) | Architecture, core commands, and toolchain overview. |
-| **Project Creation** | [https://viteplus.dev/guide/create](https://viteplus.dev/guide/create) | Scaffolding new applications, libraries, and monorepos. |
-| **Migration Guide** | [https://viteplus.dev/guide/migrate](https://viteplus.dev/guide/migrate) | Automated transformation from legacy toolchains to Vite+. |
-| **Migration Rules** | [https://viteplus.dev/guide/migrate-rules](https://viteplus.dev/guide/migrate-rules) | Exact transformation invariants for configs, scripts, and imports. |
-| **Vitest 5 Upgrade** | [https://viteplus.dev/guide/vitest-v5](https://viteplus.dev/guide/vitest-v5) | Breaking changes, compatibility flags, and cleanup checklist. |
-| **Vitest Migration** | [https://vitest.dev/guide/migration/](https://vitest.dev/guide/migration/) | Upstream Vitest breaking change chronicle. |
-| **tsdown v0.23 Release** | [https://github.com/rolldown/tsdown/releases/tag/v0.23.0](https://github.com/rolldown/tsdown/releases/tag/v0.23.0) | Library packager configuration updates (`unbundle`, `outExtensions`). |
-| **Global Installer (Linux/macOS)** | `curl -fsSL https://vite.plus \| bash` | Global `vp` binary installation script. |
-| **Global Installer (Windows)** | `irm https://vite.plus/ps1 \| iex` | PowerShell global installation script. |
+| Resource                           | URL                                                                                                                | Focus & Scope                                                         |
+| :--------------------------------- | :----------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------- |
+| **Complete LLM Knowledge Base**    | [https://viteplus.dev/llms-full.txt](https://viteplus.dev/llms-full.txt)                                           | Complete unrolled documentation and API specs for AI agents.          |
+| **General Guide**                  | [https://viteplus.dev/guide](https://viteplus.dev/guide)                                                           | Architecture, core commands, and toolchain overview.                  |
+| **Project Creation**               | [https://viteplus.dev/guide/create](https://viteplus.dev/guide/create)                                             | Scaffolding new applications, libraries, and monorepos.               |
+| **Migration Guide**                | [https://viteplus.dev/guide/migrate](https://viteplus.dev/guide/migrate)                                           | Automated transformation from legacy toolchains to Vite+.             |
+| **Migration Rules**                | [https://viteplus.dev/guide/migrate-rules](https://viteplus.dev/guide/migrate-rules)                               | Exact transformation invariants for configs, scripts, and imports.    |
+| **Vitest 5 Upgrade**               | [https://viteplus.dev/guide/vitest-v5](https://viteplus.dev/guide/vitest-v5)                                       | Breaking changes, compatibility flags, and cleanup checklist.         |
+| **Vitest Migration**               | [https://vitest.dev/guide/migration/](https://vitest.dev/guide/migration/)                                         | Upstream Vitest breaking change chronicle.                            |
+| **tsdown v0.23 Release**           | [https://github.com/rolldown/tsdown/releases/tag/v0.23.0](https://github.com/rolldown/tsdown/releases/tag/v0.23.0) | Library packager configuration updates (`unbundle`, `outExtensions`). |
+| **Global Installer (Linux/macOS)** | `curl -fsSL https://vite.plus \| bash`                                                                             | Global `vp` binary installation script.                               |
+| **Global Installer (Windows)**     | `irm https://vite.plus/ps1 \| iex`                                                                                 | PowerShell global installation script.                                |
 
 ---
 
@@ -155,20 +156,20 @@ flowchart TD
     A["Start Migration"] --> B["Phase 1: Parse & Extract Legacy Configs"]
     B --> C["Phase 2: Synthesize Unified vite.config.ts"]
     C --> D["Phase 3: Clean Up Obsolete Tooling Files & Deps"]
-    
+
     subgraph S1 ["Phase 1: Safe Extraction"]
         B1["Read eslint.config.js rules"]
         B2["Read vitest.config.ts options"]
         B3["Read tsdown.config.ts / package.json scripts"]
     end
-    
+
     subgraph S2 ["Phase 2: Atomic Synthesis"]
         C1["Inject mandatory baseline (@typescript-eslint rules)"]
         C2["Merge extracted custom rules into vite.config.ts"]
         C3["Update package.json: lint -> 'vp check', pack -> 'vp pack'"]
         C4["Verify vite.config.ts syntax & compile validity"]
     end
-    
+
     subgraph S3 ["Phase 3: Migration-First Safe Purge"]
         D0{"Migration-First Gate: Are test, lint, and pack present in vite.config.ts?"}
         D1["Delete eslint.config.js / vitest.config.ts (Only if gate passes)"]
@@ -284,15 +285,12 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    `vite.plugins.ts` is 100% application-owned, developer/AI-owned, and directly editable:
 
    ```ts
+   import vue from '@vitejs/plugin-vue';
    // vite.plugins.ts
    import type { PluginOption } from 'vite';
-   import vue from '@vitejs/plugin-vue';
    import { VitePWA } from 'vite-plugin-pwa';
 
-   export const plugins: PluginOption[] = [
-     vue(),
-     VitePWA({ /* ... */ })
-   ];
+   export const plugins: PluginOption[] = [vue(), VitePWA({/* ... */})];
    ```
 
    `vite.config.ts` then cleanly imports `{ plugins } from './vite.plugins.ts'`:
@@ -300,10 +298,11 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    ```ts
    // vite.config.ts
    import { defineConfig } from 'vite-plus';
+
    import { plugins } from './vite.plugins.ts';
 
    export default defineConfig({
-     plugins,
+     plugins
      // ... rest of config
    });
    ```
@@ -349,9 +348,7 @@ Node.js 26+ native styling (`styleText` from `node:util`) injects ANSI VT sequen
 - Use regex matching or strip ANSI sequences before assertion:
 
   ```ts
-  expect(warnSpy).toHaveBeenCalledWith(
-    expect.stringMatching(/⚠️ \[Warning\] Target message/)
-  );
+  expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/⚠️ \[Warning\] Target message/));
   ```
 
 ### 8.4 Clean Test Import Architecture
@@ -372,11 +369,8 @@ When declaring plugins in `vite.config.ts`, third-party Rollup plugins often dec
 
    ```ts
    import type { PluginOption } from 'vite';
- 
-   const plugins: PluginOption[] = [
-     vue(),
-     ...(customPlugin() as PluginOption)
-   ];
+
+   const plugins: PluginOption[] = [vue(), ...(customPlugin() as PluginOption)];
    ```
 
 2. Type custom Vite plugins explicitly with the `: Plugin` return type from `'vite'`:

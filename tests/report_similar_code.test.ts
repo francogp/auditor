@@ -154,7 +154,7 @@ describe('report_similar_code CLI', () => {
     });
     const parsed = JSON.parse(loggedCall![0] as string);
     // Should filter out the same-file candidate (src/a.ts === src/a.ts)
-    expect(parsed.length).toBe(1);
+    expect(parsed).toHaveLength(1);
     expect(parsed[0].right.path).toBe('src/b.ts');
 
     logSpy.mockRestore();

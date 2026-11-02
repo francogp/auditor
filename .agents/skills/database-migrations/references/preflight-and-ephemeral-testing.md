@@ -84,15 +84,20 @@ export async function runLiveEphemeralVerification(): Promise<void> {
 
   try {
     // 1. Restore baseline fixture
-    const fixtureSql = await fsPromises.readFile('tests/fixtures/database/baseline_schema.sql', 'utf-8');
+    const fixtureSql = await fsPromises.readFile(
+      'tests/fixtures/database/baseline_schema.sql',
+      'utf-8'
+    );
     execDockerSql(fixtureSql, ephemeralDb);
 
     // 2. Discover applied migrations in baseline
     const appliedVersions = getAppliedVersionsFromDb(ephemeralDb);
 
     // 3. Find pending migrations
-    const allFiles = (await fsPromises.readdir('supabase/migrations')).filter(f => f.endsWith('.sql')).sort();
-    const pendingFiles = allFiles.filter(f => !appliedVersions.has(f));
+    const allFiles = (await fsPromises.readdir('supabase/migrations'))
+      .filter((f) => f.endsWith('.sql'))
+      .sort();
+    const pendingFiles = allFiles.filter((f) => !appliedVersions.has(f));
 
     // 4. Apply each sequentially
     for (const file of pendingFiles) {
@@ -132,6 +137,6 @@ A baseline fixture captures the database schema at a known stable release milest
 2. Initialize core schemas (`auth`, `public`, `supabase_migrations`).
 3. Restore the full schema using `pg_dump --schema-only`.
 4. Register in `schema_migrations` all migration filenames up to the target milestone version (`YYYYMMDDHHmmss <= milestoneVersion`).
-5. Prune any tables or columns introduced by migrations *after* the milestone.
+5. Prune any tables or columns introduced by migrations _after_ the milestone.
 6. Export the normalized snapshot to `tests/fixtures/database/baseline_schema.sql`.
 7. Ensure all `CREATE SCHEMA` statements in the dump are normalized to `CREATE SCHEMA IF NOT EXISTS` for idempotent restores.

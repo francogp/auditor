@@ -19,6 +19,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+
 import {
   BaseAuditor,
   FileScanAuditor,
@@ -50,7 +51,10 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
       ...(config.paths.viewsRoots ?? []),
       ...(config.paths.stylesRoots ?? [])
     ];
-    const defaultRoots = candidateRoots.length > 0 ? candidateRoots : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
+    const defaultRoots =
+      candidateRoots.length > 0
+        ? candidateRoots
+        : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
 
     super({
       ruleFixers: {},
@@ -107,7 +111,10 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
 
   public override async runAudit(): Promise<void> {
     const config = getAuditConfig(this.projectRoot);
-    const srcDir = path.resolve(this.projectRoot, config.paths.srcRoots?.[0] ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots[0]);
+    const srcDir = path.resolve(
+      this.projectRoot,
+      config.paths.srcRoots?.[0] ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots[0]
+    );
     const buttonsScssPath = path.join(srcDir, 'styles', '_buttons.scss');
 
     // 1. Verify _buttons.scss integrity
@@ -161,10 +168,7 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
       configuredCompRoots.length > 0
         ? configuredCompRoots
         : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
-    const compFiles = await this.context.collectFiles(
-      targetCompRoots,
-      new Set(['.vue'])
-    );
+    const compFiles = await this.context.collectFiles(targetCompRoots, new Set(['.vue']));
 
     const canonicalVariants = new Set([
       'btn-primary',
@@ -201,7 +205,7 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
               file: relPath,
               line: styleBlock.startLine,
               message: `Ad-hoc button style override detected in <style>: "${btnSelectorMatch[1]}". Button styling must be centralized in src/styles/_buttons.scss.`,
-              context: btnSelectorMatch[1]!
+              context: btnSelectorMatch[1]
             });
           }
         }
@@ -210,7 +214,7 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
         const templateContent = parsedSfc.template?.content ?? '';
         const allClassMatches = templateContent.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
         for (const cm of allClassMatches) {
-          const clsList = cm[1]!.split(/\s+/).filter(Boolean);
+          const clsList = cm[1].split(/\s+/).filter(Boolean);
           if (clsList.includes('btn')) {
             for (const c of clsList) {
               if (c.startsWith('btn-') && !canonicalVariants.has(c)) {

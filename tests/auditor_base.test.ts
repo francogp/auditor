@@ -246,7 +246,7 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          configKey: undefined as unknown as string
+          configKey: undefined
         });
       }).toThrow(/must define a mandatory 'configKey'/);
     });
@@ -255,7 +255,7 @@ describe('auditorBase infrastructure', () => {
       expect(() => {
         new MinimalAuditor({
           ...validBaseOptions,
-          defaultConfig: undefined as unknown as Record<string, unknown>
+          defaultConfig: undefined
         });
       }).toThrow(/must define a mandatory 'defaultConfig'/);
     });
@@ -298,7 +298,7 @@ describe('auditorBase infrastructure', () => {
     it('throws when ruleCapabilities is omitted from constructor options', () => {
       const { ruleCapabilities: _, ...withoutCaps } = validBaseOptions;
       expect(() => {
-        new MinimalAuditor(withoutCaps as never);
+        new MinimalAuditor(withoutCaps);
       }).toThrow(/must define mandatory 'ruleCapabilities'/);
     });
 
@@ -463,7 +463,7 @@ describe('auditorBase infrastructure', () => {
         expect(auditor.getCoverageRecorder().scannedCount).toBe(0);
 
         const collected = auditor.testCollect(['src']);
-        expect(collected.length).toBe(2);
+        expect(collected).toHaveLength(2);
         expect(auditor.getCoverageRecorder().scannedCount).toBe(2);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
@@ -540,13 +540,13 @@ describe('auditorBase infrastructure', () => {
       const result = await auditor.audit();
       expect(result.status).toBe('passed');
       expect(result.subAuditors).toBeDefined();
-      expect(result.subAuditors!.length).toBe(1);
+      expect(result.subAuditors!).toHaveLength(1);
 
       const subReport = result.subAuditors![0]!;
       expect(typeof subReport.durationMs).toBe('number');
       expect(subReport.durationMs!).toBeGreaterThanOrEqual(0);
 
-      expect(loggedSteps.length).toBe(1);
+      expect(loggedSteps).toHaveLength(1);
       expect(loggedSteps[0]).toMatch(/\(<?[0-9.,]+ ms\)/);
     });
   });

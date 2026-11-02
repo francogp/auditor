@@ -108,10 +108,10 @@ describe('canonicalIgnoreRegistry', () => {
       ignoreGlobs: ['custom-cache/**', '*.tmp']
     });
 
-    expect(SuiteIgnoreRegistry.getAll().length).toBe(1);
+    expect(SuiteIgnoreRegistry.getAll()).toHaveLength(1);
     expect(SuiteIgnoreRegistry.getAll()[0]?.suiteId).toBe('test_suite');
 
     SuiteIgnoreRegistry.reset();
-    expect(SuiteIgnoreRegistry.getAll().length).toBe(0);
+    expect(SuiteIgnoreRegistry.getAll()).toHaveLength(0);
   });
 });

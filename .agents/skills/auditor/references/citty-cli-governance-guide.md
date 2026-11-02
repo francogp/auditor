@@ -10,15 +10,15 @@ All CLI scripts across `@francogp/auditor` and consumer host projects are strict
 
 ### The 7 Canonical CLI Rules
 
-| Rule ID | Severity | Description |
-|:---|:---:|:---|
-| `cli-contracts-direct-argv-access` | Error | Prohibits accessing `process.argv`, `process['argv']`, `Deno.args`, or `Bun.argv` outside canonical harness utilities. |
-| `cli-contracts-banned-parser-library` | Error | Prohibits unauthorized CLI parsers (`minimist`, `yargs`, `commander`, `cac`, `arg`, `mri`, `node:util.parseArgs`). Standardizes on `citty@^0.2.2`. |
-| `cli-contracts-homebrew-flag-parsing` | Error | Prohibits manual string inspection (`arg.startsWith('--')`, `args.includes('--clean')`, `arg.split('=')`, `args[0]`). |
-| `cli-contracts-dynamic-eval-bypass` | Error | Prohibits dynamic evaluation or synchronous stdin bypasses (`eval()`, `new Function()`, `fs.readFileSync(0)`). |
-| `cli-contracts-missing-citty-contract` | Error | Enforces that CLI entrypoints declare contracts using `defineCommand`, `createRefactorCli`, `createAuditorCli`, or `parseCittyArgs`. |
-| `cli-contracts-missing-citty-dependency` | Error | Enforces `"citty": "^0.2.2"` in `peerDependencies` of `@francogp/auditor` and `devDependencies` of host projects. |
-| `cli-contracts-unregistered-script` | Error | Enforces registration of mandatory `:human` scripts in `packageScriptRegistry.ts`. |
+| Rule ID                                  | Severity | Description                                                                                                                                        |
+| :--------------------------------------- | :------: | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cli-contracts-direct-argv-access`       |  Error   | Prohibits accessing `process.argv`, `process['argv']`, `Deno.args`, or `Bun.argv` outside canonical harness utilities.                             |
+| `cli-contracts-banned-parser-library`    |  Error   | Prohibits unauthorized CLI parsers (`minimist`, `yargs`, `commander`, `cac`, `arg`, `mri`, `node:util.parseArgs`). Standardizes on `citty@^0.2.2`. |
+| `cli-contracts-homebrew-flag-parsing`    |  Error   | Prohibits manual string inspection (`arg.startsWith('--')`, `args.includes('--clean')`, `arg.split('=')`, `args[0]`).                              |
+| `cli-contracts-dynamic-eval-bypass`      |  Error   | Prohibits dynamic evaluation or synchronous stdin bypasses (`eval()`, `new Function()`, `fs.readFileSync(0)`).                                     |
+| `cli-contracts-missing-citty-contract`   |  Error   | Enforces that CLI entrypoints declare contracts using `defineCommand`, `createRefactorCli`, `createAuditorCli`, or `parseCittyArgs`.               |
+| `cli-contracts-missing-citty-dependency` |  Error   | Enforces `"citty": "^0.2.2"` in `peerDependencies` of `@francogp/auditor` and `devDependencies` of host projects.                                  |
+| `cli-contracts-unregistered-script`      |  Error   | Enforces registration of mandatory `:human` scripts in `packageScriptRegistry.ts`.                                                                 |
 
 ---
 
@@ -238,10 +238,10 @@ await BaseAuditor.runCliIfMain(import.meta.url, new CustomRulesAuditor());
 Engines extending `BaseRefactorEngine` use `createRefactorCli`:
 
 ```typescript
+import { MotionRefactorEngine } from '../core/refactor/motionRefactorEngine.ts';
+import { createRefactorCli } from '../core/refactor/refactorCliHarness.ts';
 // src/cli/refactor_motion.ts
 import { isMainModule } from './cliUtils.ts';
-import { createRefactorCli } from '../core/refactor/refactorCliHarness.ts';
-import { MotionRefactorEngine } from '../core/refactor/motionRefactorEngine.ts';
 
 if (isMainModule(import.meta.url)) {
   await createRefactorCli({
@@ -286,7 +286,8 @@ export const command = defineCommand({
   meta: { name: 'tool' },
   run() {
     const rawArg = process.argv[2]; // ❌ VIOLATION
-    if (process.argv.includes('--force')) { // ❌ VIOLATION
+    if (process.argv.includes('--force')) {
+      // ❌ VIOLATION
       // ...
     }
   }
@@ -319,8 +320,8 @@ export const command = defineCommand({
 ```typescript
 // ❌ WRONG: Triggers cli-contracts-homebrew-flag-parsing
 function parseFlags(args: string[]) {
-  const isDebug = args.some(a => a.startsWith('--debug')); // ❌ Homebrew flag
-  const target = args.find(a => a.includes('='))?.split('=')[1]; // ❌ Manual split
+  const isDebug = args.some((a) => a.startsWith('--debug')); // ❌ Homebrew flag
+  const target = args.find((a) => a.includes('='))?.split('=')[1]; // ❌ Manual split
   const command = args[0]; // ❌ Positional assumption
 }
 ```
@@ -349,11 +350,12 @@ if (import.meta.url.includes(process.argv[1])) {
 ### ❌ Anti-Pattern 5: Banned Third-Party Parser Libraries
 
 ```typescript
-// ❌ WRONG: Triggers cli-contracts-banned-parser-library
-import yargs from 'yargs';
+import { parseArgs } from 'node:util';
+
 import { Command } from 'commander';
 import minimist from 'minimist';
-import { parseArgs } from 'node:util';
+// ❌ WRONG: Triggers cli-contracts-banned-parser-library
+import yargs from 'yargs';
 ```
 
 **Canonical Solution**: Remove third-party parser dependencies and standardize on `defineCommand` from `citty`.

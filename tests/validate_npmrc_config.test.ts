@@ -95,7 +95,7 @@ describe('ValidateNpmrcConfigAuditor', () => {
         (f) => f.ruleId === 'npmrc-config-missing-setting'
       );
       // engine-strict is false (1), package-lock missing (1) => 2
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
 
       // Fix mode
       const fixAuditor = new ValidateNpmrcConfigAuditor({ projectRoot: tmpDir });

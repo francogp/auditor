@@ -57,7 +57,7 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
     const rlsViolations = result.findings.filter(
       (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
     );
-    expect(rlsViolations.length).toBe(0);
+    expect(rlsViolations).toHaveLength(0);
   });
 
   it('exempts custom tables declared in config.persistence.exemptRlsTables', async () => {
@@ -96,7 +96,7 @@ describe('Reproduction: RLS Policy Check on Migration Ledger Tables', () => {
     const rlsViolations = result.findings.filter(
       (f) => f.ruleId === 'sql-rls-policy-grant-integrity'
     );
-    expect(rlsViolations.length).toBe(1);
+    expect(rlsViolations).toHaveLength(1);
     expect(rlsViolations[0]?.message).toContain('unprotected_user_table');
   });
 });

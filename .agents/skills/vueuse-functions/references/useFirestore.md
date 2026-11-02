@@ -53,10 +53,10 @@ The document `id` is automatically added as a read-only property to each returne
 ```ts
 const todos = useFirestore(collection(db, 'todos'), [], {
   errorHandler: (err) => {
-    console.error('Firestore error:', err)
+    console.error('Firestore error:', err);
     // Handle error (e.g., show notification)
-  },
-})
+  }
+});
 ```
 
 ## Share across instances
@@ -66,10 +66,10 @@ You can reuse the db reference by passing `autoDispose: false`. You can also set
 Note : Getting a not disposed db reference again don't cost a Firestore read.
 
 ```ts
-import { useFirestore } from '@vueuse/firebase/useFirestore'
-import { collection } from 'firebase/firestore'
+import { useFirestore } from '@vueuse/firebase/useFirestore';
+import { collection } from 'firebase/firestore';
 // ---cut---
-const todos = useFirestore(collection(db, 'todos'), undefined, { autoDispose: false })
+const todos = useFirestore(collection(db, 'todos'), undefined, { autoDispose: false });
 ```
 
 or use `createGlobalState` from the core package
@@ -78,12 +78,10 @@ or use `createGlobalState` from the core package
 // @filename: store.ts
 // ---cut---
 // store.ts
-import { createGlobalState } from '@vueuse/core'
-import { useFirestore } from '@vueuse/firebase/useFirestore'
+import { createGlobalState } from '@vueuse/core';
+import { useFirestore } from '@vueuse/firebase/useFirestore';
 
-export const useTodos = createGlobalState(
-  () => useFirestore(collection(db, 'todos')),
-)
+export const useTodos = createGlobalState(() => useFirestore(collection(db, 'todos')));
 ```
 
 ```vue
@@ -91,9 +89,9 @@ export const useTodos = createGlobalState(
 <script setup lang="ts">
 // @include: store
 // ---cut---
-import { useTodos } from './store'
+import { useTodos } from './store';
 
-const todos = useTodos()
+const todos = useTodos();
 </script>
 ```
 
@@ -101,29 +99,29 @@ const todos = useTodos()
 
 ```ts
 export interface UseFirestoreOptions {
-  errorHandler?: (err: Error) => void
-  autoDispose?: boolean | number
+  errorHandler?: (err: Error) => void;
+  autoDispose?: boolean | number;
 }
-export type FirebaseDocRef<T> = Query<T> | DocumentReference<T>
-type Falsy = false | 0 | "" | null | undefined
+export type FirebaseDocRef<T> = Query<T> | DocumentReference<T>;
+type Falsy = false | 0 | '' | null | undefined;
 export declare function useFirestore<T extends DocumentData>(
   maybeDocRef: MaybeRef<DocumentReference<T> | Falsy>,
   initialValue: T,
-  options?: UseFirestoreOptions,
-): Ref<T | null>
+  options?: UseFirestoreOptions
+): Ref<T | null>;
 export declare function useFirestore<T extends DocumentData>(
   maybeDocRef: MaybeRef<Query<T> | Falsy>,
   initialValue: T[],
-  options?: UseFirestoreOptions,
-): Ref<T[]>
+  options?: UseFirestoreOptions
+): Ref<T[]>;
 export declare function useFirestore<T extends DocumentData>(
   maybeDocRef: MaybeRef<DocumentReference<T> | Falsy>,
   initialValue?: T | undefined | null,
-  options?: UseFirestoreOptions,
-): Ref<T | undefined | null>
+  options?: UseFirestoreOptions
+): Ref<T | undefined | null>;
 export declare function useFirestore<T extends DocumentData>(
   maybeDocRef: MaybeRef<Query<T> | Falsy>,
   initialValue?: T[],
-  options?: UseFirestoreOptions,
-): Ref<T[] | undefined>
+  options?: UseFirestoreOptions
+): Ref<T[] | undefined>;
 ```

@@ -405,7 +405,7 @@ describe('update_package CLI', () => {
 
       let executedCmd = '';
       const spy = vi.spyOn(childProcess, 'spawnSync').mockImplementation((cmd) => {
-        executedCmd = cmd as string;
+        executedCmd = cmd;
         return {
           status: 0,
           stdout: Buffer.from(''),
@@ -464,9 +464,9 @@ describe('update_package CLI', () => {
 
   describe('runCli', () => {
     it('exits with code 1 when update fails', () => {
-      const exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {
+      const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => {
         throw new Error('process.exit(1)');
-      }) as unknown as (code?: string | number | null | undefined) => never);
+      });
       const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
       expect(() => runCli()).toThrow('process.exit(1)');

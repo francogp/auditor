@@ -25,10 +25,10 @@
 
 ## Functional vs. Decorative Motion
 
-| Type | Purpose | Reduced Motion Behavior |
-|------|---------|------------------------|
+| Type           | Purpose                                                     | Reduced Motion Behavior                                    |
+| -------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
 | **Functional** | Indicates state changes, spatial relationships, orientation | May need alternative (instant state change, no transition) |
-| **Decorative** | Pure delight, visual interest | Can be fully removed |
+| **Decorative** | Pure delight, visual interest                               | Can be fully removed                                       |
 
 **The test**: Does removing this animation break the user's ability to understand what happened? If yes, it's functional.
 

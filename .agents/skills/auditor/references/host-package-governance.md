@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.6.6 --allow-git=all
+npm install -D github:francogp/auditor#v10.6.7 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -46,7 +46,7 @@ npm install -D github:francogp/auditor#v10.6.6 --allow-git=all
 ## 2. Bringing Updates from GitHub (Updating `package-lock.json`)
 
 > 🔴 **NATIVE NPM UPDATE MANDATE (ZERO CLONING OR MAKESHIFT SCRIPTS)**:
-> When a user or task requests to *"update the auditor"*, *"pull latest auditor changes"*, *"update skills"*, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, run ad-hoc `node -e` scripts, inspect `git log` inside `node_modules`, or copy files between repositories.
+> When a user or task requests to _"update the auditor"_, _"pull latest auditor changes"_, _"update skills"_, or sync the static analysis engine, developers and AI agents **MUST NEVER** execute `git clone`, create submodules, run ad-hoc `node -e` scripts, inspect `git log` inside `node_modules`, or copy files between repositories.
 > Updates MUST be performed 100% natively through the official updater or npm.
 
 ### Canonical Update Command
@@ -340,21 +340,21 @@ The rule `select-star-in-queries` targets Supabase and ORM queries across fronte
 
 Vite+ is powered by Oxlint's high-performance native engine. Beyond the default core suites (`typescript`, `unicorn`, and `oxc`), Vite+ supports dedicated native plugins that can be declaratively governed from `.auditor/audit.config.ts`:
 
-| Plugin | Scope & Rules Enforced | Ecosystem Recommendation |
-| :--- | :--- | :--- |
-| `vitest` | Unit testing hygiene (`no-identical-title`, `no-focused-tests`, `no-disabled-tests`, `valid-title`, `prefer-to-have-length`). | **Active by default** in all Node 26+ / Vitest repos. |
-| `node` | Modern Node.js 26+ runtime standards (`no-exports-assign`, `no-new-require`, `no-path-concat`). | **Active by default** in all Node 26+ projects. |
-| `promise` | Strict async hygiene (`no-new-statics`, `valid-params`, `no-return-in-finally`). | **Active by default** in all Node 26+ projects. |
-| `unicorn` | Codebase modernization and node protocol standards (`prefer-node-protocol`). | **Active by default** in all Node 26+ projects. |
-| `typescript` | TypeScript strict type checking and import rules. | **Active by default** in all Node 26+ projects. |
-| `vue` | Vue 3 SFC & Composition API hygiene (`no-async-in-computed`, `next-tick-style`, `define-props-declaration`). | **Active by default** in all Node 26+ projects. |
-| `import` | Import hygiene (`no-duplicates`, `no-self-import`, `no-mutable-exports`, `no-amd`). | **Active by default** in all Node 26+ projects. |
-| `jsx-a11y` | Web accessibility checks for JSX/TSX components and templates. | **Active by default** in all Node 26+ projects. |
-| `react` | React JSX, hook rules, and rendering lifecycle. | Elective for React/Next.js projects. |
-| `react-perf` | Prevents performance anti-patterns in React components. | Elective for React frontend apps. |
-| `jsdoc` | Strict JSDoc documentation formatting. | Elective for public library APIs. |
-| `jest` | Compatibility rules for legacy Jest suites. | Elective during Vitest migrations. |
-| `nextjs` | Specific next-gen SSR/SSG patterns for Next.js. | Elective for Next.js applications. |
+| Plugin       | Scope & Rules Enforced                                                                                                        | Ecosystem Recommendation                              |
+| :----------- | :---------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| `vitest`     | Unit testing hygiene (`no-identical-title`, `no-focused-tests`, `no-disabled-tests`, `valid-title`, `prefer-to-have-length`). | **Active by default** in all Node 26+ / Vitest repos. |
+| `node`       | Modern Node.js 26+ runtime standards (`no-exports-assign`, `no-new-require`, `no-path-concat`).                               | **Active by default** in all Node 26+ projects.       |
+| `promise`    | Strict async hygiene (`no-new-statics`, `valid-params`, `no-return-in-finally`).                                              | **Active by default** in all Node 26+ projects.       |
+| `unicorn`    | Codebase modernization and node protocol standards (`prefer-node-protocol`).                                                  | **Active by default** in all Node 26+ projects.       |
+| `typescript` | TypeScript strict type checking and import rules.                                                                             | **Active by default** in all Node 26+ projects.       |
+| `vue`        | Vue 3 SFC & Composition API hygiene (`no-async-in-computed`, `next-tick-style`, `define-props-declaration`).                  | **Active by default** in all Node 26+ projects.       |
+| `import`     | Import hygiene (`no-duplicates`, `no-self-import`, `no-mutable-exports`, `no-amd`).                                           | **Active by default** in all Node 26+ projects.       |
+| `jsx-a11y`   | Web accessibility checks for JSX/TSX components and templates.                                                                | **Active by default** in all Node 26+ projects.       |
+| `react`      | React JSX, hook rules, and rendering lifecycle.                                                                               | Elective for React/Next.js projects.                  |
+| `react-perf` | Prevents performance anti-patterns in React components.                                                                       | Elective for React frontend apps.                     |
+| `jsdoc`      | Strict JSDoc documentation formatting.                                                                                        | Elective for public library APIs.                     |
+| `jest`       | Compatibility rules for legacy Jest suites.                                                                                   | Elective during Vitest migrations.                    |
+| `nextjs`     | Specific next-gen SSR/SSG patterns for Next.js.                                                                               | Elective for Next.js applications.                    |
 
 ### 2. Canonical 8-Plugin Standard (`vitePlusConfig.lint.plugins`)
 

@@ -131,18 +131,32 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 			if (isUntypedFunctionDeclaration(node)) {
 				const fnName = TypesRefactorEngine.resolveFunctionName(node, sourceFile);
 				const inferredType = TypesRefactorEngine.inferFunctionReturnType(node, sourceFile);
-				if (inferredType) {
-					const startPos = node.getStart(sourceFile);
-					const line = ts.getLineAndCharacterOfPosition(sourceFile, startPos).line + 1;
-					const header = TypesRefactorEngine.getFunctionHeader(node, sourceFile);
+				const startPos = node.getStart(sourceFile);
+				const line = ts.getLineAndCharacterOfPosition(sourceFile, startPos).line + 1;
+				const header = TypesRefactorEngine.getFunctionHeader(node, sourceFile);
+				findings.push({
+					file: filePath,
+					line,
+					kind: "missing-return-type",
+					identifier: fnName,
+					originalSnippet: header,
+					suggestedReplacement: inferredType ?? "unknown",
+					explanation: inferredType ? `Function "${fnName}" lacks explicit return type. Inferred contract: "${inferredType}".` : `Function "${fnName}" lacks explicit return type. Return contract could not be inferred; explicit domain contract required.`
+				});
+			}
+			if (ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isMethodDeclaration(node) || ts.isConstructorDeclaration(node)) {
+				for (const param of node.parameters) if (!param.type) {
+					const paramPos = param.name.getStart(sourceFile);
+					const line = ts.getLineAndCharacterOfPosition(sourceFile, paramPos).line + 1;
+					const paramName = param.name.getText(sourceFile);
 					findings.push({
 						file: filePath,
 						line,
-						kind: "missing-return-type",
-						identifier: fnName,
-						originalSnippet: header,
-						suggestedReplacement: inferredType,
-						explanation: `Function "${fnName}" lacks explicit return type. Inferred contract: "${inferredType}".`
+						kind: "missing-param-type",
+						identifier: paramName,
+						originalSnippet: paramName,
+						suggestedReplacement: `${paramName}: unknown`,
+						explanation: `Parameter "${paramName}" lacks explicit type annotation.`
 					});
 				}
 			}
@@ -361,6 +375,7 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 		const targetFiles = Array.from(new Set(findings.map((f) => f.file)));
 		const assertionReplacements = [];
 		const returnTypeInjections = [];
+		const parameterInjections = [];
 		for (const f of findings) if (f.kind === "as-any" || f.kind === "double-assertion") assertionReplacements.push({
 			file: f.file,
 			line: f.line,
@@ -373,12 +388,19 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 			originalHeader: f.originalSnippet,
 			replacementHeader: f.suggestedReplacement
 		});
+		else if (f.kind === "missing-param-type") parameterInjections.push({
+			file: f.file,
+			line: f.line,
+			originalParameter: f.originalSnippet,
+			replacementParameter: f.suggestedReplacement
+		});
 		return {
 			version: 1,
 			planId,
 			targetFiles,
 			assertionReplacements,
-			returnTypeInjections
+			returnTypeInjections,
+			parameterInjections
 		};
 	}
 	static createPlan(planId, findings) {
@@ -420,6 +442,36 @@ var TypesRefactorEngine = class TypesRefactorEngine extends BaseRefactorEngine {
 				ts.forEachChild(node, visit);
 			}
 			visit(sourceFile);
+		}
+		const fileParams = plan.parameterInjections?.filter((item) => item.file === fullPath || fullPath.endsWith(item.file)) || [];
+		if (fileParams.length > 0) {
+			const paramsByKey = /* @__PURE__ */ new Map();
+			for (const item of fileParams) paramsByKey.set(`${item.line}:${item.originalParameter}`, {
+				original: item.originalParameter,
+				replacement: item.replacementParameter
+			});
+			function visitParams(node) {
+				if (ts.isFunctionDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node) || ts.isMethodDeclaration(node) || ts.isConstructorDeclaration(node)) {
+					for (const param of node.parameters) if (!param.type) {
+						const paramNameNode = param.name;
+						const namePos = paramNameNode.getStart(sourceFile);
+						const line = ts.getLineAndCharacterOfPosition(sourceFile, namePos).line + 1;
+						const paramName = paramNameNode.getText(sourceFile);
+						const match = paramsByKey.get(`${line}:${paramName}`);
+						if (match) {
+							const colonIdx = match.replacement.indexOf(":");
+							const typeText = colonIdx !== -1 ? match.replacement.slice(colonIdx) : ": unknown";
+							replacements.push({
+								start: paramNameNode.getEnd(),
+								end: paramNameNode.getEnd(),
+								text: typeText
+							});
+						}
+					}
+				}
+				ts.forEachChild(node, visitParams);
+			}
+			visitParams(sourceFile);
 		}
 		return replacements;
 	}

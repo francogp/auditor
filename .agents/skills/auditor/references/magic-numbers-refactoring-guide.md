@@ -105,7 +105,7 @@ The `--worktree` flag automatically:
 
 ### Scenario B: Elective Token Extraction (`auditor:magic`)
 
-- **Trigger**: User requests *"extract colors to tokens"*, *"clean up CSS literals"*, or *"optimize design tokens"*.
+- **Trigger**: User requests _"extract colors to tokens"_, _"clean up CSS literals"_, or _"optimize design tokens"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before starting.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:magic discover`, inspect candidates with `auditor:magic inspect <file>`, propose semantic token names (e.g. `$color-gold-border`), generate `magic_plan.json`, and apply with `--worktree`.
 
@@ -119,12 +119,14 @@ The `--worktree` flag automatically:
 # Correction Plan: magic-number-naked in combatService.ts
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Phase**: `hygiene`
 - **Suite**: `validate_magic_numbers`
 - **Location**: `src/services/combatService.ts:L84`
 - **Violation**: Naked magic number `1.75` used as critical hit damage multiplier.
 
 ## 2. Canonical Solution
+
 Declare local semantic constant in the file header of `combatService.ts`:
 
 ```ts
@@ -142,10 +144,12 @@ const CRITICAL_HIT_DAMAGE_MULTIPLIER = 1.75;
 # Improvement Plan: Color Token Extraction in Modal.vue
 
 ## 1. Dirac Diagnosis
+
 - **Tool**: `auditor-magic`
 - **Candidates**: `#2c3e50` (background) and `#e74c3c` (danger border) in `src/components/Modal.vue`.
 
 ## 2. Proposed Semantic Token Names
+
 - `#2c3e50` -> `$color-bg-modal-header` (in `src/styles/_tokens.scss`)
 - `#e74c3c` -> `$color-border-danger` (in `src/styles/_tokens.scss`)
 

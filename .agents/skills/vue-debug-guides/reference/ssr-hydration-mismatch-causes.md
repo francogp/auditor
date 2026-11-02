@@ -25,6 +25,7 @@ Understanding the common causes helps you prevent and debug these issues effecti
 Browsers auto-correct invalid HTML, creating different DOM than Vue expects.
 
 **Incorrect:**
+
 ```vue
 <template>
   <!-- WRONG: <div> cannot be inside <p> -->
@@ -45,6 +46,7 @@ Browsers auto-correct invalid HTML, creating different DOM than Vue expects.
 ```
 
 Browser converts the first example to:
+
 ```html
 <p></p>
 <div>This will break hydration</div>
@@ -52,6 +54,7 @@ Browser converts the first example to:
 ```
 
 **Correct:**
+
 ```vue
 <template>
   <!-- CORRECT: Use appropriate nesting -->
@@ -76,23 +79,20 @@ Browser converts the first example to:
 Server and client generate different random values.
 
 **Incorrect:**
+
 ```vue
 <script setup>
-import { computed } from 'vue'
+import { computed } from 'vue';
 
-const items = [/* ... */]
+const items = [/* ... */];
 
 // WRONG: Random shuffle runs differently on server and client
-const shuffledItems = computed(() =>
-  [...items].sort(() => Math.random() - 0.5)
-)
+const shuffledItems = computed(() => [...items].sort(() => Math.random() - 0.5));
 </script>
 
 <template>
   <!-- WRONG: Different ID on server vs client -->
-  <div :id="'field-' + Math.random()">
-    Form field
-  </div>
+  <div :id="'field-' + Math.random()">Form field</div>
 
   <!-- WRONG: Random order differs -->
   <div v-for="item in shuffledItems" :key="item.id">
@@ -102,27 +102,26 @@ const shuffledItems = computed(() =>
 ```
 
 **Correct - Client-Only Random:**
+
 ```vue
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted } from 'vue';
 
-const items = [/* ... */]
+const items = [/* ... */];
 
 // CORRECT: Start with deterministic value
-const fieldId = ref('field-default')
-const displayItems = ref(items) // Original order on server
+const fieldId = ref('field-default');
+const displayItems = ref(items); // Original order on server
 
 onMounted(() => {
   // Randomize only on client
-  fieldId.value = 'field-' + Math.random().toString(36).slice(2)
-  displayItems.value = [...items].sort(() => Math.random() - 0.5)
-})
+  fieldId.value = 'field-' + Math.random().toString(36).slice(2);
+  displayItems.value = [...items].sort(() => Math.random() - 0.5);
+});
 </script>
 
 <template>
-  <div :id="fieldId">
-    Form field
-  </div>
+  <div :id="fieldId">Form field</div>
 
   <div v-for="item in displayItems" :key="item.id">
     {{ item.name }}
@@ -131,18 +130,19 @@ onMounted(() => {
 ```
 
 **Correct - Seeded Random:**
+
 ```javascript
 // utils/seededRandom.js
 export function createSeededRandom(seed) {
-  return function() {
-    seed = (seed * 9301 + 49297) % 233280
-    return seed / 233280
-  }
+  return function () {
+    seed = (seed * 9301 + 49297) % 233280;
+    return seed / 233280;
+  };
 }
 
 // Use same seed on server and client
-const seed = 12345 // Could be based on user ID, page, etc.
-const random = createSeededRandom(seed)
+const seed = 12345; // Could be based on user ID, page, etc.
+const random = createSeededRandom(seed);
 ```
 
 ## Cause 3: Timezone and Date Differences
@@ -150,10 +150,11 @@ const random = createSeededRandom(seed)
 Server may be in different timezone than client.
 
 **Incorrect:**
+
 ```vue
 <script setup>
 function formatDate(date) {
-  return new Date(date).toLocaleDateString()
+  return new Date(date).toLocaleDateString();
 }
 </script>
 
@@ -167,31 +168,32 @@ function formatDate(date) {
 ```
 
 **Correct:**
+
 ```vue
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue';
 
-const props = defineProps(['article'])
-const displayTime = ref(null)
-const isClient = ref(false)
+const props = defineProps(['article']);
+const displayTime = ref(null);
+const isClient = ref(false);
 
 onMounted(() => {
-  displayTime.value = new Date().toLocaleTimeString()
-  isClient.value = true
-})
+  displayTime.value = new Date().toLocaleTimeString();
+  isClient.value = true;
+});
 
 // CORRECT: Server renders UTC, client converts to local
 const formattedDate = computed(() => {
-  if (!props.article?.createdAt) return ''
+  if (!props.article?.createdAt) return '';
 
   if (isClient.value) {
     // Client: user's local timezone
-    return new Date(props.article.createdAt).toLocaleDateString()
+    return new Date(props.article.createdAt).toLocaleDateString();
   } else {
     // Server: consistent UTC format
-    return new Date(props.article.createdAt).toISOString().split('T')[0]
+    return new Date(props.article.createdAt).toISOString().split('T')[0];
   }
-})
+});
 </script>
 
 <template>
@@ -208,6 +210,7 @@ const formattedDate = computed(() => {
 Browser extensions can inject content into the DOM.
 
 **Mitigation:**
+
 ```vue
 <template>
   <!-- Use data-allow-mismatch for areas extensions might modify -->
@@ -234,6 +237,7 @@ Browser extensions can inject content into the DOM.
 ```
 
 Valid `data-allow-mismatch` values:
+
 - `text` - Text content mismatches
 - `children` - Child element mismatches
 - `class` - Class attribute mismatches
@@ -250,31 +254,32 @@ export default {
   define: {
     __VUE_PROD_HYDRATION_MISMATCH_DETAILS__: true
   }
-}
+};
 ```
 
 ```vue
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted } from 'vue';
 
 // Debug: Compare server HTML with client expectation
 onMounted(() => {
-  const serverHTML = document.getElementById('app').innerHTML
-  console.log('Server rendered:', serverHTML)
-})
+  const serverHTML = document.getElementById('app').innerHTML;
+  console.log('Server rendered:', serverHTML);
+});
 </script>
 ```
 
 ## Common Error Messages
 
-| Error | Likely Cause |
-|-------|--------------|
+| Error                             | Likely Cause                                    |
+| --------------------------------- | ----------------------------------------------- |
 | "Hydration text content mismatch" | Different text on server/client (dates, random) |
-| "Hydration children mismatch" | Invalid HTML nesting, conditional rendering |
-| "Hydration attribute mismatch" | Dynamic attributes with different values |
-| "Hydration node mismatch" | Completely different elements rendered |
+| "Hydration children mismatch"     | Invalid HTML nesting, conditional rendering     |
+| "Hydration attribute mismatch"    | Dynamic attributes with different values        |
+| "Hydration node mismatch"         | Completely different elements rendered          |
 
 ## Reference
+
 - [Vue.js SSR Guide - Hydration Mismatch](https://vuejs.org/guide/scaling-up/ssr.html#hydration-mismatch)
 - [Nuxt Hydration Best Practices](https://nuxt.com/docs/guide/best-practices/hydration)
 - [data-allow-mismatch RFC](https://github.com/vuejs/core/pull/9562)

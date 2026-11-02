@@ -8,6 +8,7 @@
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
+
 import { defineCommand, runMain } from 'citty';
 
 function resolveAuditorRunner(projectRoot: string): { scriptPath: string; isPresetMd: boolean } {

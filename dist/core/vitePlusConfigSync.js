@@ -3,6 +3,7 @@ import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
 import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
+import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
 import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst } from "./viteConfigAst.js";
@@ -66,46 +67,22 @@ function findLegacyEslintIgnores(projectRoot) {
 }
 /**
 * Resolves all canonical ignore globs derived from audit.config.ts (SSoT).
+*
+* Strict Isolation Mandate:
+* Only CANONICAL_SYSTEM_IGNORE_GLOBS, config.paths (ignoreGlobs, ignoredDirs, ignoredPatterns, exemptFiles),
+* and target-specific config (vitePlusConfig.lint.ignorePatterns / oxlint.ignoreGlobs for lint,
+* vitePlusConfig.fmt.ignorePatterns / oxfmt.ignoreGlobs for fmt) are included.
+* Cross-subsystem pollutions (dataRoots, demoRoots, testRoots, coverage.exemptGlobs, legacy ignores)
+* are CATEGORICALLY EXCLUDED.
 */
-function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
-	const baseIgnores = [
-		"dist/**",
-		"dev-dist/**",
-		"node_modules/**",
-		"scratch/**",
-		"tmp/**",
-		".agents/**",
-		"coverage/**",
-		"**/*.d.ts"
-	];
+function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot = process.cwd()) {
+	const baseIgnores = [...CANONICAL_SYSTEM_IGNORE_GLOBS, "**/*.d.ts"];
 	if (target === "fmt") baseIgnores.push("package-lock.json");
 	const projectIgnores = config.paths?.ignoreGlobs ?? [];
 	const dirIgnores = (config.paths?.ignoredDirs ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
 	const patternIgnores = config.paths?.ignoredPatterns ?? [];
 	const exemptFiles = config.paths?.exemptFiles ?? [];
-	const testIgnores = [];
-	if (target === "lint" && config.paths?.includeTestsInCodeAudit === false) {
-		const testRoots = config.paths.testRoots ?? ["tests"];
-		const e2eRoots = config.paths.e2eRoots ?? [];
-		const integrationRoots = config.paths.integrationRoots ?? [];
-		for (const r of [
-			...testRoots,
-			...e2eRoots,
-			...integrationRoots
-		]) {
-			const glob = r.endsWith("/**") ? r : `${r}/**`;
-			testIgnores.push(glob);
-		}
-		testIgnores.push("**/*.spec.ts", "**/*.test.ts", "**/*.simulation.ts");
-	}
-	const coverageExemptIgnores = (config.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-	const dataDemoIgnores = [];
-	if (target === "lint") {
-		const dataRoots = (config.paths?.dataRoots ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
-		const demoRoots = (config.paths?.demoRoots ?? []).map((d) => d.endsWith("/**") ? d : `${d}/**`);
-		dataDemoIgnores.push(...dataRoots, ...demoRoots);
-	}
-	const legacyIgnores = projectRoot ? findLegacyEslintIgnores(projectRoot) : [];
+	const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
 	const specificTargetIgnores = target === "lint" ? [...config.vitePlusConfig?.lint?.ignorePatterns ?? [], ...config.oxlint?.ignoreGlobs ?? []] : [...config.vitePlusConfig?.fmt?.ignorePatterns ?? [], ...config.oxfmt?.ignoreGlobs ?? []];
 	return Array.from(/* @__PURE__ */ new Set([
 		...baseIgnores,
@@ -113,10 +90,7 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot) {
 		...dirIgnores,
 		...patternIgnores,
 		...exemptFiles,
-		...coverageExemptIgnores,
-		...dataDemoIgnores,
-		...testIgnores,
-		...legacyIgnores,
+		...lockedSkillsIgnores,
 		...specificTargetIgnores
 	]));
 }

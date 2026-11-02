@@ -52,7 +52,7 @@ export function calculate(a: number, b: number): number {
         'const count = 42; // ' + 'number-ok: Fixed count'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/math.ts', code);
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
       expect(violations[0]?.ruleId).toBe('banned-magic-suppression');
       expect(violations[1]?.ruleId).toBe('banned-magic-suppression');
       expect(violations[2]?.ruleId).toBe('banned-magic-suppression');
@@ -66,7 +66,7 @@ export function calculate(a: number, b: number): number {
         '</script>'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/components/MyChild.vue', code);
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations[0]?.ruleId).toBe('banned-style-suppression');
       expect(violations[1]?.ruleId).toBe('banned-style-suppression');
     });
@@ -78,7 +78,7 @@ export function calculate(a: number, b: number): number {
         'export function readData() { return 1; }'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/loader.ts', code);
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.ruleId).toBe('file-level-fallow-ignore');
       expect(violations[0]?.line).toBe(1);
       expect(violations[0]?.severity).toBe('error');
@@ -91,7 +91,7 @@ export function calculate(a: number, b: number): number {
         'export const x = 1;'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/stores/myStore.ts', code);
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations[0]?.ruleId).toBe('file-level-fallow-ignore');
       expect(violations[1]?.ruleId).toBe('file-level-fallow-ignore');
     });
@@ -99,7 +99,7 @@ export function calculate(a: number, b: number): number {
     it('detects file-level /* eslint-disable */ blocks', () => {
       const code = ['/*' + ' eslint-disable */', 'import { ref } from "vue";'].join('\n');
       const violations = scanFileForIllegalHeaders('src/views/MyView.vue', code);
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
       expect(violations[0]?.line).toBe(1);
     });
@@ -112,7 +112,7 @@ export function calculate(a: number, b: number): number {
         '</template>'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/components/MyComp.vue', code);
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
       expect(violations[0]?.line).toBe(2);
     });
@@ -130,7 +130,7 @@ export function calculate(a: number, b: number): number {
     it('C-HDR-01: detects file-level /* oxlint-disable */ headers', () => {
       const code = ['/*' + ' oxlint-disable */', 'import { ref } from "vue";'].join('\n');
       const violations = scanFileForIllegalHeaders('src/views/MyView.vue', code);
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
       expect(violations[0]?.line).toBe(1);
     });
@@ -143,7 +143,7 @@ export function calculate(a: number, b: number): number {
         '</template>'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/components/MyComp.vue', code);
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.ruleId).toBe('file-level-eslint-disable');
       expect(violations[0]?.line).toBe(2);
     });
@@ -167,7 +167,7 @@ export function calculate(a: number, b: number): number {
         'const b: string = 123;'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/badTypes.ts', code);
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
       expect(violations[0]?.ruleId).toBe('banned-ts-suppression');
       expect(violations[1]?.ruleId).toBe('banned-ts-suppression');
       expect(violations[2]?.ruleId).toBe('banned-ts-suppression');
@@ -180,7 +180,7 @@ export function calculate(a: number, b: number): number {
         'export const someData = 123;'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/standaloneEscapes.ts', code);
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations[0]?.ruleId).toBe('header-auditor-escape');
       expect(violations[1]?.ruleId).toBe('header-auditor-escape');
     });
@@ -191,7 +191,7 @@ export function calculate(a: number, b: number): number {
         'const key = "k"; // ' + 'open-record'
       ].join('\n');
       const violations = scanFileForIllegalHeaders('src/logic/unjustified.ts', code);
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
       expect(violations[0]?.ruleId).toBe('unjustified-escape-hatch');
       expect(violations[1]?.ruleId).toBe('unjustified-escape-hatch');
       expect(violations[2]?.ruleId).toBe('unjustified-escape-hatch');

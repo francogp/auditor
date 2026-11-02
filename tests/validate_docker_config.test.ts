@@ -109,7 +109,7 @@ describe('ValidateDockerConfigAuditor', () => {
         (f) => f.ruleId === 'dockerignore-missing-pattern'
       );
       // missing node_modules (1), .git (1), scratch (1), .env* (1) => 4
-      expect(violations.length).toBe(4);
+      expect(violations).toHaveLength(4);
 
       // Fix mode
       const fixAuditor = new ValidateDockerConfigAuditor({ projectRoot: tmpDir });

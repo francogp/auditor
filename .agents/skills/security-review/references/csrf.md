@@ -8,14 +8,16 @@ CSRF attacks trick authenticated users into performing unintended actions by exp
 
 ```html
 <!-- Attacker's page -->
-<img src="https://bank.com/transfer?to=attacker&amount=10000">
+<img src="https://bank.com/transfer?to=attacker&amount=10000" />
 
 <!-- Or form submission -->
 <form action="https://bank.com/transfer" method="POST" id="evil">
-    <input name="to" value="attacker">
-    <input name="amount" value="10000">
+  <input name="to" value="attacker" />
+  <input name="amount" value="10000" />
 </form>
-<script>document.getElementById('evil').submit();</script>
+<script>
+  document.getElementById('evil').submit();
+</script>
 ```
 
 When a logged-in user visits the attacker's page, their browser makes the request with their session cookie.
@@ -116,11 +118,11 @@ response.set_cookie(
 
 **SameSite Values:**
 
-| Value | Behavior |
-|-------|----------|
-| **Strict** | Never sent cross-site |
-| **Lax** | Sent only with safe methods (GET) on top-level navigation |
-| **None** | Always sent (requires Secure) |
+| Value      | Behavior                                                  |
+| ---------- | --------------------------------------------------------- |
+| **Strict** | Never sent cross-site                                     |
+| **Lax**    | Sent only with safe methods (GET) on top-level navigation |
+| **None**   | Always sent (requires Secure)                             |
 
 ### 4. Custom Request Headers
 
@@ -129,12 +131,12 @@ For AJAX/API requests, require a custom header that can't be set cross-origin wi
 ```javascript
 // Client
 fetch('/api/transfer', {
-    method: 'POST',
-    headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-Token': getCSRFToken()  // Or any custom header
-    },
-    body: JSON.stringify(data)
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-CSRF-Token': getCSRFToken() // Or any custom header
+  },
+  body: JSON.stringify(data)
 });
 ```
 
@@ -297,7 +299,7 @@ const allowedActions = ['view', 'refresh'];
 const param = window.location.hash.substring(1);
 const parsed = new URLSearchParams(param);
 if (allowedActions.includes(parsed.get('action'))) {
-    fetch(`/api/action?${param}`, { method: 'POST' });
+  fetch(`/api/action?${param}`, { method: 'POST' });
 }
 ```
 
@@ -350,8 +352,8 @@ def add_cors(response):
 
 <!-- SAFE: Token in form -->
 <form method="POST" action="/action">
-    <input type="hidden" name="csrf_token" value="abc123">
-    <button type="submit">Do Action</button>
+  <input type="hidden" name="csrf_token" value="abc123" />
+  <button type="submit">Do Action</button>
 </form>
 ```
 

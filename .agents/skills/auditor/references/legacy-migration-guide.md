@@ -71,22 +71,22 @@ export interface AuditorRuleCapabilities {
 
 ### 2.2 Migration Mapping Matrix
 
-| Legacy v7 Capability Property | v8 Orthogonal Equivalent | Notes |
-|---|---|---|
-| `lint: true, heavy: false` | `speed: 'light'` | Fast in-memory AST or regex checks (🐇) |
-| `heavy: true` | `speed: 'heavy'` | Multi-file disk, database, or simulation checks (🐢) |
-| Deep type-aware (e.g. `fallow`) | `speed: 'full'` or `['light', 'full']` | Exhaustive verification (🐘) |
-| `phase: 'normal'` | `phase: 'normal'` | Standard source audit |
-| `postRun: true` | `phase: 'post-run'` | Sequential execution post-audit (coverage flush) |
-| `requiresBuild: true` | `phase: 'post-build'` | Executed against `dist/` via `auditor:post-build` |
-| `fix: false` | Derived automatically (`fix: 'none'`) | Non-auto-fixable rule (no registered fixer) |
-| `fix: true, fixPriority: false` | Derived automatically (`fix: 'normal'`) | Derived from registered `ruleFixers` |
-| `fixPriority: true` | Derived automatically (`fix: 'priority'`) | Priority auto-fix (setup/config suites) |
-| `ast: boolean` | `ast: boolean` | Preheats shared TypeScript AST |
-| `md: boolean` | `md: boolean` | Included in markdown-only preset |
-| `changedSince: boolean` | `changedOnly: boolean` | Differential git diff scoping (`changedSince` eradicated) |
-| Syntax/Type/Linter essential | `critical: true` | Bypasses speed ceiling in `auditor:lint` and `auditor:critical` |
-| Standard architecture rule | `critical: false` | Standard speed ceiling governance |
+| Legacy v7 Capability Property   | v8 Orthogonal Equivalent                  | Notes                                                           |
+| ------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
+| `lint: true, heavy: false`      | `speed: 'light'`                          | Fast in-memory AST or regex checks (🐇)                         |
+| `heavy: true`                   | `speed: 'heavy'`                          | Multi-file disk, database, or simulation checks (🐢)            |
+| Deep type-aware (e.g. `fallow`) | `speed: 'full'` or `['light', 'full']`    | Exhaustive verification (🐘)                                    |
+| `phase: 'normal'`               | `phase: 'normal'`                         | Standard source audit                                           |
+| `postRun: true`                 | `phase: 'post-run'`                       | Sequential execution post-audit (coverage flush)                |
+| `requiresBuild: true`           | `phase: 'post-build'`                     | Executed against `dist/` via `auditor:post-build`               |
+| `fix: false`                    | Derived automatically (`fix: 'none'`)     | Non-auto-fixable rule (no registered fixer)                     |
+| `fix: true, fixPriority: false` | Derived automatically (`fix: 'normal'`)   | Derived from registered `ruleFixers`                            |
+| `fixPriority: true`             | Derived automatically (`fix: 'priority'`) | Priority auto-fix (setup/config suites)                         |
+| `ast: boolean`                  | `ast: boolean`                            | Preheats shared TypeScript AST                                  |
+| `md: boolean`                   | `md: boolean`                             | Included in markdown-only preset                                |
+| `changedSince: boolean`         | `changedOnly: boolean`                    | Differential git diff scoping (`changedSince` eradicated)       |
+| Syntax/Type/Linter essential    | `critical: true`                          | Bypasses speed ceiling in `auditor:lint` and `auditor:critical` |
+| Standard architecture rule      | `critical: false`                         | Standard speed ceiling governance                               |
 
 ### 2.3 Refactoring Blueprint for Extensions
 
@@ -105,7 +105,7 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
         ast: false,
         changedOnly: false,
         critical: false
-      }),
+      })
       // ... rest of AuditorOptions
     });
   }
@@ -131,7 +131,7 @@ export class MyCustomAuditor extends BaseAuditor<MyRuleId> {
           critical: false
         },
         ['fixable-rule-1', 'fixable-rule-2'] // Automatically sets fix: 'normal' for these rules
-      ),
+      )
       // ... rest of AuditorOptions
     });
   }
@@ -179,7 +179,7 @@ Host scripts (e.g. `scripts/build/*.ts`, `scripts/maintenance/*.ts`) should neve
 function walk(dir: string): string[] {
   let results: string[] = [];
   const list = fs.readdirSync(dir);
-  list.forEach(file => {
+  list.forEach((file) => {
     const full = path.join(dir, file);
     const stat = fs.statSync(full);
     if (stat && stat.isDirectory()) results = results.concat(walk(full));
@@ -195,8 +195,8 @@ import path from 'node:path';
 export function collectFiles(dir: string, extension: string): string[] {
   const entries = fs.readdirSync(dir, { recursive: true, withFileTypes: true });
   return entries
-    .filter(entry => entry.isFile() && entry.name.endsWith(extension))
-    .map(entry => path.join(entry.parentPath, entry.name));
+    .filter((entry) => entry.isFile() && entry.name.endsWith(extension))
+    .map((entry) => path.join(entry.parentPath, entry.name));
 }
 ```
 
@@ -218,16 +218,16 @@ Running `npm run auditor:fix` automatically executes the non-destructive 5-stage
 
 ### 4.2 Modernized CLI Commands
 
-| Tool / Action | Legacy Toolchain | Vite+ Standard |
-|---|---|---|
-| Syntax & Lint | Legacy ESLint (`npm run lint`) | `vp check` (or `npm run check`) |
-| Format Check | Legacy Prettier (`prettier --check`) | `vp fmt --check` (or `npm run fmt:check`, `vp check`) |
-| Format Fix | Legacy Prettier (`prettier --write`) | `vp fmt` (or `npm run fmt`, `vp check --fix`) |
-| Test Suite | Legacy Vitest (`npm test`) | `vp test` (or `npm test`) |
-| Test Coverage | Legacy Vitest (`npm run test:coverage`) | `vp test --coverage` (or `npm run test:coverage`) |
-| Library Packaging | Legacy tsdown CLI | `vp pack` |
-| Dev Server | Legacy Vite CLI | `vp dev` |
-| Project Tasks | Legacy script runner (`npm run <task>`) | `vp run <task>` (or `npm run <task>`) |
+| Tool / Action     | Legacy Toolchain                        | Vite+ Standard                                        |
+| ----------------- | --------------------------------------- | ----------------------------------------------------- |
+| Syntax & Lint     | Legacy ESLint (`npm run lint`)          | `vp check` (or `npm run check`)                       |
+| Format Check      | Legacy Prettier (`prettier --check`)    | `vp fmt --check` (or `npm run fmt:check`, `vp check`) |
+| Format Fix        | Legacy Prettier (`prettier --write`)    | `vp fmt` (or `npm run fmt`, `vp check --fix`)         |
+| Test Suite        | Legacy Vitest (`npm test`)              | `vp test` (or `npm test`)                             |
+| Test Coverage     | Legacy Vitest (`npm run test:coverage`) | `vp test --coverage` (or `npm run test:coverage`)     |
+| Library Packaging | Legacy tsdown CLI                       | `vp pack`                                             |
+| Dev Server        | Legacy Vite CLI                         | `vp dev`                                              |
+| Project Tasks     | Legacy script runner (`npm run <task>`) | `vp run <task>` (or `npm run <task>`)                 |
 
 ### 4.3 Production Edge Cases & Clean Config Architecture
 
@@ -302,7 +302,8 @@ All framework registries and engines are protected against accidental alias meth
    export const GitIgnoreRegistry: IGitIgnoreRegistry = new GitIgnoreRegistryImpl();
    export const ConfigFileRegistry: IConfigFileRegistry = new ConfigFileRegistryImpl();
    export const PackageScriptRegistry: IPackageScriptRegistry = new PackageScriptRegistryImpl();
-   export const HomebrewDetectorRegistry: IHomebrewDetectorRegistry = new HomebrewDetectorRegistryImpl();
+   export const HomebrewDetectorRegistry: IHomebrewDetectorRegistry =
+     new HomebrewDetectorRegistryImpl();
    ```
 
 3. **Runtime Prototype Purity**: Verified by `tests/zero_backward_compatibility_mandate.test.ts` against explicit module-level allowed sets (`REGISTRY_ALLOWED_PROTO_METHODS`).

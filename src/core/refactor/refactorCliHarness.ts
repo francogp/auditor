@@ -64,6 +64,7 @@ const MAX_DISPLAY_FILE_PATH_LENGTH = 44;
 export const REFACTOR_SUBCOMMANDS: ReadonlySet<string> = new Set([
   'discover',
   'inspect',
+  'plan',
   'apply',
   'help'
 ]); // runtime-set: O(1) subcommand lookup
@@ -72,13 +73,13 @@ export const REFACTOR_POSITIONAL_CLI_ARGS = {
   subcommand: {
     type: 'positional',
     required: false,
-    description: 'Subcommand to execute (discover, inspect, apply, help)',
+    description: 'Subcommand to execute (discover, inspect, plan, apply, help)',
     default: 'discover'
   },
   target: {
     type: 'positional',
     required: false,
-    description: 'Target file to inspect or plan JSON to apply'
+    description: 'Target file to inspect/plan or plan JSON to apply'
   }
 } as const satisfies ArgsDef;
 
@@ -87,11 +88,15 @@ const REFACTOR_HARNESS_ARGS = {
   ...REFACTOR_POSITIONAL_CLI_ARGS,
   file: {
     type: 'string',
-    description: 'Target file path to inspect'
+    description: 'Target file path to inspect or plan'
   },
   plan: {
     type: 'string',
     description: 'Path to declarative refactor plan JSON'
+  },
+  write: {
+    type: 'string',
+    description: 'Output file path to save the generated declarative plan JSON'
   },
   worktree: {
     type: 'boolean',
@@ -114,12 +119,14 @@ function renderHarnessHelp<TFinding, TPlan>(def: RefactorCliDefinition<TFinding,
 Direct usage (binary in node_modules/.bin):
   ${def.toolName} discover [--project <path>] [--human]
   ${def.toolName} inspect <file> [--project <path>]
+  ${def.toolName} plan [<file>] [--write <path>] [--project <path>]
   ${def.toolName} apply <plan.json> [--worktree] [--project <path>]
   ${def.toolName} help
 
 Usage via project npm scripts:
   npm run ${scriptAlias} discover
   npm run ${scriptAlias} inspect <file>
+  npm run ${scriptAlias} plan [<file>] [--write <path>]
   npm run ${scriptAlias} apply <plan.json>
   npm run ${scriptAlias} help
 
@@ -236,6 +243,63 @@ function handleInspectCommand<TFinding, TPlan>(
   console.log(JSON.stringify(plan, null, 2));
 }
 
+function handlePlanCommand<TFinding, TPlan>(
+  def: RefactorCliDefinition<TFinding, TPlan>,
+  projectRoot: string,
+  engine?: BaseRefactorEngine<TFinding, TPlan>,
+  targetFile?: string,
+  outputPath?: string
+): void {
+  const allFindings: TFinding[] = [];
+  const filesScanned: string[] = [];
+
+  if (targetFile) {
+    const fullPath = path.isAbsolute(targetFile)
+      ? path.normalize(targetFile)
+      : path.resolve(projectRoot, targetFile);
+
+    if (!fs.existsSync(fullPath)) {
+      console.error(styleText('red', `[Error] File not found: ${fullPath}`));
+      process.exit(1);
+    }
+    const findings = def.discoverInFile(fullPath);
+    if (findings.length > 0) {
+      filesScanned.push(fullPath);
+      allFindings.push(...findings);
+    }
+  } else {
+    const files = engine ? engine.getScannableFiles() : scanProjectSourceFiles(projectRoot);
+    for (const file of files) {
+      const fullPath = path.isAbsolute(file) ? file : path.resolve(projectRoot, file);
+      const findings = def.discoverInFile(fullPath);
+      if (findings.length > 0) {
+        filesScanned.push(fullPath);
+        allFindings.push(...findings);
+      }
+    }
+  }
+
+  const toolSlug = def.toolName.replace(/^auditor[-:]/, '');
+  const planId = `${toolSlug}-plan-${Temporal.Now.instant().epochMilliseconds}`;
+  const plan = def.createPlan(planId, allFindings);
+
+  if (outputPath) {
+    const resolvedOutput = path.isAbsolute(outputPath)
+      ? outputPath
+      : path.resolve(projectRoot, outputPath);
+    fs.mkdirSync(path.dirname(resolvedOutput), { recursive: true });
+    fs.writeFileSync(resolvedOutput, JSON.stringify(plan, null, 2), 'utf-8');
+    console.log(
+      styleText(
+        'green',
+        `[OK] Plan written to ${resolvedOutput} (${allFindings.length} finding(s) across ${filesScanned.length} file(s)).`
+      )
+    );
+  } else {
+    console.log(JSON.stringify(plan, null, 2));
+  }
+}
+
 async function handleApplyCommand<TFinding, TPlan>(
   def: RefactorCliDefinition<TFinding, TPlan>,
   projectRoot: string,
@@ -333,6 +397,15 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
         (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
         (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
       handleInspectCommand(def, projectRoot, targetFile);
+      break;
+    }
+    case 'plan': {
+      const targetFile =
+        (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
+        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
+      const outputPath =
+        typeof parsed.write === 'string' && parsed.write ? parsed.write : undefined;
+      handlePlanCommand(def, projectRoot, engine, targetFile, outputPath);
       break;
     }
     case 'apply': {

@@ -129,6 +129,12 @@ function clearDynamicCachePaths() {
 */
 const CANONICAL_IGNORE_DIRS = /* @__PURE__ */ new Set([...ALWAYS_IGNORE_DIRS, ...BUILTIN_TOOL_CACHE_PATHS]);
 /**
+* Canonical system ignore globs derived deterministically from CANONICAL_IGNORE_DIRS.
+* Used across tool satellite configs (e.g. Vite+, Oxlint, Stylelint) to ensure consistent
+* system-level ignoring without hardcoded ad-hoc arrays.
+*/
+const CANONICAL_SYSTEM_IGNORE_GLOBS = Array.from(new Set([...CANONICAL_IGNORE_DIRS].map((d) => `${d}/**`)));
+/**
 * Returns the effective set of ignore directories combining canonical defaults,
 * dynamically registered tool caches, and audit.config.ts `paths.ignoredDirs`.
 */
@@ -203,4 +209,4 @@ function getLockedSkillsIgnoreGlobs(projectRoot = process.cwd()) {
 	else globs.push(`**/${s}/**`);
 	return globs;
 }
-export { ALWAYS_IGNORE_DIRS, BUILTIN_TOOL_CACHE_PATHS, CANONICAL_BINARY_EXTENSIONS, CANONICAL_IGNORE_DIRS, SuiteIgnoreRegistry, SuiteIgnoreRegistryImpl, clearDynamicCachePaths, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath };
+export { ALWAYS_IGNORE_DIRS, BUILTIN_TOOL_CACHE_PATHS, CANONICAL_BINARY_EXTENSIONS, CANONICAL_IGNORE_DIRS, CANONICAL_SYSTEM_IGNORE_GLOBS, SuiteIgnoreRegistry, SuiteIgnoreRegistryImpl, clearDynamicCachePaths, getDynamicCachePaths, getEffectiveIgnoreDirs, getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs, getLockedSkillsIgnoreGlobs, registerDynamicCachePath };

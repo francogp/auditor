@@ -543,12 +543,75 @@ export function extractEslintIgnoresFromAst(rawContent: string): string[] {
   return globs;
 }
 
+function createPackOutExtensionsReturnType(): ts.TypeLiteralNode {
+  return ts.factory.createTypeLiteralNode([
+    ts.factory.createPropertySignature(
+      undefined,
+      ts.factory.createIdentifier('js'),
+      undefined,
+      ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+    ),
+    ts.factory.createPropertySignature(
+      undefined,
+      ts.factory.createIdentifier('dts'),
+      undefined,
+      ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword)
+    )
+  ]);
+}
+
+const VOID_RETURN_FUNCTIONS: ReadonlySet<string> = new Set([
+  'onwarn',
+  'configureServer',
+  'buildStart',
+  'buildEnd',
+  'closeBundle',
+  'generateBundle'
+]);
+
+const STRING_OR_UNDEFINED_RETURN_FUNCTIONS: ReadonlySet<string> = new Set([
+  'bypass',
+  'manualChunks',
+  'resolveManualChunk'
+]);
+
+const STRING_RETURN_FUNCTIONS: ReadonlySet<string> = new Set(['getPackageVersion']);
+
+function createStringOrUndefinedType(): ts.TypeNode {
+  return ts.factory.createUnionTypeNode([
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword),
+    ts.factory.createKeywordTypeNode(ts.SyntaxKind.UndefinedKeyword)
+  ]);
+}
+
+export function resolveKnownViteFunctionReturnType(name: string): ts.TypeNode | null {
+  if (VOID_RETURN_FUNCTIONS.has(name)) {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.VoidKeyword);
+  }
+  if (STRING_OR_UNDEFINED_RETURN_FUNCTIONS.has(name)) {
+    return createStringOrUndefinedType();
+  }
+  if (STRING_RETURN_FUNCTIONS.has(name)) {
+    return ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
+  }
+  if (name === 'outExtensions') {
+    return createPackOutExtensionsReturnType();
+  }
+  if (name === 'plugins') {
+    return ts.factory.createArrayTypeNode(
+      ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword)
+    );
+  }
+  return null;
+}
+
 export function buildPackAstObject(): ts.ObjectLiteralExpression {
+  const returnType = createPackOutExtensionsReturnType();
   const outExtensionsArrow = ts.factory.createArrowFunction(
     undefined,
     undefined,
     [],
-    undefined,
+    returnType,
     ts.factory.createToken(ts.SyntaxKind.EqualsGreaterThanToken),
     ts.factory.createParenthesizedExpression(valueToAstExpression({ js: '.js', dts: '.d.ts' }))
   );
@@ -1671,6 +1734,20 @@ function syncPackSectionOnRoot(
     );
     packModified = true;
   }
+  const outExtProp = findPropertyAssignment(packProp.initializer, 'outExtensions', sf);
+  if (outExtProp && ts.isArrowFunction(outExtProp.initializer) && !outExtProp.initializer.type) {
+    const returnType = createPackOutExtensionsReturnType();
+    const typedArrow = ts.factory.createArrowFunction(
+      outExtProp.initializer.modifiers,
+      outExtProp.initializer.typeParameters,
+      outExtProp.initializer.parameters,
+      returnType,
+      outExtProp.initializer.equalsGreaterThanToken,
+      outExtProp.initializer.body
+    );
+    packSubProps = updateObjectProperty(packSubProps, 'outExtensions', typedArrow, sf);
+    packModified = true;
+  }
   if (!packModified) {
     return { props: rootProps, modified: false };
   }
@@ -1725,6 +1802,293 @@ function syncRunSectionAst(
   };
 }
 
+function transformImportDeclaration(node: ts.ImportDeclaration): {
+  transformed: ts.ImportDeclaration;
+  modified: boolean;
+} {
+  if (ts.isStringLiteral(node.moduleSpecifier) && node.moduleSpecifier.text === 'vite') {
+    return {
+      transformed: ts.factory.updateImportDeclaration(
+        node,
+        node.modifiers,
+        node.importClause,
+        ts.factory.createStringLiteral('vite-plus', true),
+        node.attributes
+      ),
+      modified: true
+    };
+  }
+  return { transformed: node, modified: false };
+}
+
+function transformMethodDeclaration(
+  node: ts.MethodDeclaration,
+  sf: ts.SourceFile,
+  visitBody: (body: ts.Block) => ts.Block
+): { transformed: ts.MethodDeclaration; modified: boolean } {
+  if (node.type) {
+    return { transformed: node, modified: false };
+  }
+  const name = getPropertyKeyName(node.name, sf);
+  const returnType = resolveKnownViteFunctionReturnType(name);
+  if (!returnType) {
+    return { transformed: node, modified: false };
+  }
+  return {
+    transformed: ts.factory.updateMethodDeclaration(
+      node,
+      node.modifiers,
+      node.asteriskToken,
+      node.name,
+      node.questionToken,
+      node.typeParameters,
+      node.parameters,
+      returnType,
+      node.body ? visitBody(node.body) : undefined
+    ),
+    modified: true
+  };
+}
+
+function transformPropertyAssignment(
+  node: ts.PropertyAssignment,
+  sf: ts.SourceFile,
+  visitChild: ts.Visitor
+): { transformed: ts.PropertyAssignment; modified: boolean } {
+  const name = getPropertyKeyName(node.name, sf);
+  const returnType = resolveKnownViteFunctionReturnType(name);
+  if (!returnType) {
+    return { transformed: node, modified: false };
+  }
+
+  if (ts.isArrowFunction(node.initializer) && !node.initializer.type) {
+    const arrow = node.initializer;
+    return {
+      transformed: ts.factory.updatePropertyAssignment(
+        node,
+        node.name,
+        ts.factory.updateArrowFunction(
+          arrow,
+          arrow.modifiers,
+          arrow.typeParameters,
+          arrow.parameters,
+          returnType,
+          arrow.equalsGreaterThanToken,
+          (ts.visitNode(arrow.body, visitChild) as ts.ConciseBody) ?? arrow.body
+        )
+      ),
+      modified: true
+    };
+  }
+
+  if (ts.isFunctionExpression(node.initializer) && !node.initializer.type) {
+    const fn = node.initializer;
+    return {
+      transformed: ts.factory.updatePropertyAssignment(
+        node,
+        node.name,
+        ts.factory.updateFunctionExpression(
+          fn,
+          fn.modifiers,
+          fn.asteriskToken,
+          fn.name,
+          fn.typeParameters,
+          fn.parameters,
+          returnType,
+          (ts.visitNode(fn.body, visitChild) as ts.Block) ?? fn.body
+        )
+      ),
+      modified: true
+    };
+  }
+
+  return { transformed: node, modified: false };
+}
+
+function transformFunctionDeclaration(
+  node: ts.FunctionDeclaration,
+  visitBody: (body: ts.Block) => ts.Block
+): { transformed: ts.FunctionDeclaration; modified: boolean } {
+  if (node.type || !node.name) {
+    return { transformed: node, modified: false };
+  }
+  const returnType = resolveKnownViteFunctionReturnType(node.name.text);
+  if (!returnType) {
+    return { transformed: node, modified: false };
+  }
+  return {
+    transformed: ts.factory.updateFunctionDeclaration(
+      node,
+      node.modifiers,
+      node.asteriskToken,
+      node.name,
+      node.typeParameters,
+      node.parameters,
+      returnType,
+      node.body ? visitBody(node.body) : undefined
+    ),
+    modified: true
+  };
+}
+
+export function applyViteConfigAstTransformations(
+  sf: ts.SourceFile,
+  rootObj: ts.ObjectLiteralExpression,
+  updatedRootObj: ts.ObjectLiteralExpression
+): { transformedContent: string; modified: boolean } {
+  let modified = false;
+
+  const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
+    const visit: ts.Visitor = (node): ts.Node => {
+      if (ts.isImportDeclaration(node)) {
+        const imp = transformImportDeclaration(node);
+        if (imp.modified) {
+          modified = true;
+          return imp.transformed;
+        }
+      }
+      if (ts.isMethodDeclaration(node)) {
+        const method = transformMethodDeclaration(node, sf, (b) =>
+          ts.visitEachChild(b, visit, context)
+        );
+        if (method.modified) {
+          modified = true;
+          return method.transformed;
+        }
+      }
+      if (ts.isPropertyAssignment(node)) {
+        const prop = transformPropertyAssignment(node, sf, visit);
+        if (prop.modified) {
+          modified = true;
+          return prop.transformed;
+        }
+      }
+      if (ts.isFunctionDeclaration(node)) {
+        const fn = transformFunctionDeclaration(node, (b) => ts.visitEachChild(b, visit, context));
+        if (fn.modified) {
+          modified = true;
+          return fn.transformed;
+        }
+      }
+      if (node === rootObj) {
+        return ts.visitEachChild(updatedRootObj, visit, context);
+      }
+      return ts.visitEachChild(node, visit, context);
+    };
+
+    return (source) => ts.visitNode(source, visit) as ts.SourceFile;
+  };
+
+  const transformedContent = printTransformedSourceFile(sf, transformer);
+  return { transformedContent, modified };
+}
+
+function syncViteRunSection(
+  rootProps: readonly ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile,
+  auditConfig: AuditConfig
+): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
+  const currentRoot = ts.factory.createObjectLiteralExpression(rootProps, true);
+  const runProp = findPropertyAssignment(currentRoot, 'run', sf);
+  if (!runProp || !ts.isObjectLiteralExpression(runProp.initializer)) {
+    return {
+      props: [
+        ...rootProps,
+        ts.factory.createPropertyAssignment('run', buildRunAstObject(auditConfig))
+      ],
+      modified: true
+    };
+  }
+  const syncedRun = syncRunSectionAst(runProp.initializer, auditConfig, sf);
+  if (syncedRun.modified) {
+    return {
+      props: updateObjectProperty(rootProps, 'run', syncedRun.obj, sf),
+      modified: true
+    };
+  }
+  return { props: rootProps, modified: false };
+}
+
+function syncViteTestSection(
+  rootProps: readonly ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile,
+  auditConfig: AuditConfig,
+  legacyTestProp: ts.PropertyAssignment | null,
+  projectRoot?: string
+): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
+  const currentRoot = ts.factory.createObjectLiteralExpression(rootProps, true);
+  const testProp = findPropertyAssignment(currentRoot, 'test', sf);
+  if (!testProp || !ts.isObjectLiteralExpression(testProp.initializer)) {
+    const newTestProp =
+      legacyTestProp ??
+      ts.factory.createPropertyAssignment('test', buildTestAstObject(auditConfig));
+    return { props: [...rootProps, newTestProp], modified: true };
+  }
+  const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf, projectRoot);
+  if (syncedTest.modified) {
+    return {
+      props: updateObjectProperty(rootProps, 'test', syncedTest.obj, sf),
+      modified: true
+    };
+  }
+  return { props: rootProps, modified: false };
+}
+
+function syncViteLintAndFmtSections(
+  rootProps: readonly ts.ObjectLiteralElementLike[],
+  sf: ts.SourceFile,
+  auditConfig: AuditConfig,
+  lintIgnores: readonly string[],
+  fmtIgnores: readonly string[]
+): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
+  let props = rootProps;
+  let modified = false;
+
+  const currentRoot = (): ts.ObjectLiteralExpression =>
+    ts.factory.createObjectLiteralExpression(props, true);
+
+  const lintProp = findPropertyAssignment(currentRoot(), 'lint', sf);
+  if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
+    props = [
+      ...props,
+      ts.factory.createPropertyAssignment('lint', buildLintAstObject(auditConfig, lintIgnores))
+    ];
+    modified = true;
+  } else {
+    const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
+    if (syncedLint.modified) {
+      props = updateObjectProperty(props, 'lint', syncedLint.obj, sf);
+      modified = true;
+    }
+  }
+
+  const fmtProp = findPropertyAssignment(currentRoot(), 'fmt', sf);
+  if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
+    props = [
+      ...props,
+      ts.factory.createPropertyAssignment('fmt', buildFmtAstObject(auditConfig, fmtIgnores))
+    ];
+    modified = true;
+  } else {
+    const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
+    if (syncedFmt.modified) {
+      props = updateObjectProperty(props, 'fmt', syncedFmt.obj, sf);
+      modified = true;
+    }
+  }
+
+  const stagedProp = findPropertyAssignment(currentRoot(), 'staged', sf);
+  if (!stagedProp || !ts.isObjectLiteralExpression(stagedProp.initializer)) {
+    props = [
+      ...props,
+      ts.factory.createPropertyAssignment('staged', buildStagedAstObject(auditConfig))
+    ];
+    modified = true;
+  }
+
+  return { props, modified };
+}
+
 export function synchronizeViteConfigAst(
   fileContent: string,
   auditConfig: AuditConfig,
@@ -1743,83 +2107,29 @@ export function synchronizeViteConfigAst(
   let rootProps = dedupRoot.props;
   let modified = dedupRoot.modified;
 
-  const currentRootObj = (): ts.ObjectLiteralExpression =>
-    ts.factory.createObjectLiteralExpression(rootProps, true);
-
   if (auditConfig.packageDistribution?.enabled === true) {
     const syncedPack = syncPackSectionOnRoot(rootProps, sf);
     rootProps = syncedPack.props;
     if (syncedPack.modified) modified = true;
   }
 
-  const runProp = findPropertyAssignment(currentRootObj(), 'run', sf);
-  if (!runProp || !ts.isObjectLiteralExpression(runProp.initializer)) {
-    rootProps = [
-      ...rootProps,
-      ts.factory.createPropertyAssignment('run', buildRunAstObject(auditConfig))
-    ];
-    modified = true;
-  } else {
-    const syncedRun = syncRunSectionAst(runProp.initializer, auditConfig, sf);
-    if (syncedRun.modified) {
-      rootProps = updateObjectProperty(rootProps, 'run', syncedRun.obj, sf);
-      modified = true;
-    }
-  }
+  const runResult = syncViteRunSection(rootProps, sf, auditConfig);
+  rootProps = runResult.props;
+  if (runResult.modified) modified = true;
 
-  const testProp = findPropertyAssignment(currentRootObj(), 'test', sf);
-  if (!testProp || !ts.isObjectLiteralExpression(testProp.initializer)) {
-    const newTestProp =
-      legacyTestProp ??
-      ts.factory.createPropertyAssignment('test', buildTestAstObject(auditConfig));
-    rootProps = [...rootProps, newTestProp];
-    modified = true;
-  } else {
-    const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf, projectRoot);
-    if (syncedTest.modified) {
-      rootProps = updateObjectProperty(rootProps, 'test', syncedTest.obj, sf);
-      modified = true;
-    }
-  }
+  const testResult = syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, projectRoot);
+  rootProps = testResult.props;
+  if (testResult.modified) modified = true;
 
-  const lintProp = findPropertyAssignment(currentRootObj(), 'lint', sf);
-  if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
-    rootProps = [
-      ...rootProps,
-      ts.factory.createPropertyAssignment('lint', buildLintAstObject(auditConfig, lintIgnores))
-    ];
-    modified = true;
-  } else {
-    const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
-    if (syncedLint.modified) {
-      rootProps = updateObjectProperty(rootProps, 'lint', syncedLint.obj, sf);
-      modified = true;
-    }
-  }
-
-  const fmtProp = findPropertyAssignment(currentRootObj(), 'fmt', sf);
-  if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
-    rootProps = [
-      ...rootProps,
-      ts.factory.createPropertyAssignment('fmt', buildFmtAstObject(auditConfig, fmtIgnores))
-    ];
-    modified = true;
-  } else {
-    const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
-    if (syncedFmt.modified) {
-      rootProps = updateObjectProperty(rootProps, 'fmt', syncedFmt.obj, sf);
-      modified = true;
-    }
-  }
-
-  const stagedProp = findPropertyAssignment(currentRootObj(), 'staged', sf);
-  if (!stagedProp || !ts.isObjectLiteralExpression(stagedProp.initializer)) {
-    rootProps = [
-      ...rootProps,
-      ts.factory.createPropertyAssignment('staged', buildStagedAstObject(auditConfig))
-    ];
-    modified = true;
-  }
+  const lintFmtResult = syncViteLintAndFmtSections(
+    rootProps,
+    sf,
+    auditConfig,
+    lintIgnores,
+    fmtIgnores
+  );
+  rootProps = lintFmtResult.props;
+  if (lintFmtResult.modified) modified = true;
 
   if (
     sf.statements.some(
@@ -1832,35 +2142,14 @@ export function synchronizeViteConfigAst(
     modified = true;
   }
 
-  if (!modified) {
+  const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
+  const astTransformResult = applyViteConfigAstTransformations(sf, rootObj, updatedRootObj);
+
+  if (!modified && !astTransformResult.modified) {
     return { content: fileContent, modified: false };
   }
 
-  const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
-  const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
-    const visit: ts.Visitor = (node): ts.Node => {
-      if (
-        ts.isImportDeclaration(node) &&
-        ts.isStringLiteral(node.moduleSpecifier) &&
-        node.moduleSpecifier.text === 'vite'
-      ) {
-        return ts.factory.updateImportDeclaration(
-          node,
-          node.modifiers,
-          node.importClause,
-          ts.factory.createStringLiteral('vite-plus', true),
-          node.attributes
-        );
-      }
-      if (node === rootObj) {
-        return updatedRootObj;
-      }
-      return ts.visitEachChild(node, visit, context);
-    };
-    return (source) => ts.visitNode(source, visit) as ts.SourceFile;
-  };
-
-  return { content: printTransformedSourceFile(sf, transformer), modified: true };
+  return { content: astTransformResult.transformedContent, modified: true };
 }
 
 /**

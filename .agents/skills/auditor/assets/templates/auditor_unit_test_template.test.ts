@@ -1,20 +1,20 @@
 /**
  * TEMPLATE: Sub-Auditor Unit Test (Auditor v6+ Conformance Standard)
  * Location: tests/node/auditors/validate_<name>.test.ts (or tests/validate_<name>.test.ts)
- * 
+ *
  * Tests your sub-auditor in hermetic isolation adhering to the 5-Point Conformance Contract:
  *   1. Construction & Metadata Integrity: Instantiation with hermetic options and validateAuditorConstruction()
  *   2. Clean Path Verification: Zero violations cleanly passes (errors = 0, warnings = 0, status = 'passed')
  *   3. Violation Path Verification: Violation triggers in RED (errors > 0, status = 'failed', severity = 'error')
  *   4. Warning Path Verification: Warnings trigger in YELLOW (warnings > 0, status = 'warned', severity = 'warning')
  *   5. 100% Rule Coverage: Every declared ruleId is asserted in tests
- * 
+ *
  * StandardAuditResult v6+ Contract:
  *   - result.status === 'passed' | 'failed' | 'warned' | 'skipped'
  *   - result.summary.errors === 0
  *   - result.summary.warnings === 0
  *   - result.findings (structured array of AuditFinding objects)
- * 
+ *
  * Dynamic Whole-Workspace Verification:
  * Host projects can also verify ALL custom extensions dynamically in 2 lines with:
  *   import { runAuditorContractConformanceTests } from '@francogp/auditor';
@@ -23,10 +23,12 @@
  *   });
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
+
 import { validateAuditorConstruction } from '@francogp/auditor';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { MyFeatureAuditor } from '../../../scripts/auditors/architecture/validate_my_feature.ts';
 
 const TEST_DIR = path.resolve(process.cwd(), 'scratch/test_auditor_tmp');
@@ -68,7 +70,7 @@ describe('MyFeatureAuditor', () => {
 
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
-    expect(result.findings.length).toBe(0);
+    expect(result.findings).toHaveLength(0);
     expect(result.status).toBe('passed');
     expect(result.subAuditors).toBeDefined();
     for (const sub of result.subAuditors!) {
@@ -87,7 +89,7 @@ describe('MyFeatureAuditor', () => {
     const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const violation = result.findings.find(f => f.ruleId === 'my-feature-forbidden-pattern');
+    const violation = result.findings.find((f) => f.ruleId === 'my-feature-forbidden-pattern');
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
     expect(result.status).toBe('failed');
@@ -105,7 +107,7 @@ describe('MyFeatureAuditor', () => {
     const result = await auditor.audit();
 
     expect(result.summary.errors).toBe(0);
-    expect(result.findings.length).toBe(0);
+    expect(result.findings).toHaveLength(0);
     expect(result.status).toBe('passed');
   });
 
@@ -133,7 +135,10 @@ describe('MyFeatureAuditor', () => {
     expect(activeAuditor.toManifest().rules).toBeDefined();
 
     // When a rule or subsystem is deactivated, markRuleNotApplicable cleanly bypasses
-    activeAuditor.markRuleNotApplicable('my-feature-forbidden-pattern', 'Deactivated in audit.config.ts');
+    activeAuditor.markRuleNotApplicable(
+      'my-feature-forbidden-pattern',
+      'Deactivated in audit.config.ts'
+    );
     expect(activeAuditor.isRuleEvaluated('my-feature-forbidden-pattern')).toBe(true);
   });
 });

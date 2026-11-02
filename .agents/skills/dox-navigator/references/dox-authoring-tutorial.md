@@ -28,15 +28,15 @@ flowchart TD
     S6 --> S7["6. ## Child DOX Index"]
 ```
 
-| Order | Heading | Requirement | Content Purpose |
-| :---: | :--- | :---: | :--- |
-| **1** | `# Purpose` | **Mandatory** | High-level role of the directory, subsystem boundaries, and primary responsibilities. |
-| **2** | `## Ownership` | **Mandatory** | Explicit engineering team or role owning the subsystem (e.g. `Architecture & Tooling Engineers.`). |
-| **3** | `## Local Contracts` | **Mandatory** | Inviolable architectural invariants, domain rules, naming conventions, and constraints governing code inside this directory. |
-| *opt* | `## Key Files` | *Optional* | Bidirectional file inventory mapping every non-test source code file in this directory to its architectural role. |
-| **4** | `## Work Guidance` | **Mandatory** | Actionable instructions for developers and AI agents on how to modify, extend, or refactor code in this folder. |
-| **5** | `## Verification` | **Mandatory** | Real, runnable terminal commands (e.g. `vp test tests/...` or `npm test -- tests/...`, `npm run auditor:...`) to verify changes hermetically. |
-| **6** | `## Child DOX Index` | **Mandatory** | Relative links to child `AGENTS.md` files, or an explicit note stating that no subdirectories exist. |
+| Order | Heading              |  Requirement  | Content Purpose                                                                                                                               |
+| :---: | :------------------- | :-----------: | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1** | `# Purpose`          | **Mandatory** | High-level role of the directory, subsystem boundaries, and primary responsibilities.                                                         |
+| **2** | `## Ownership`       | **Mandatory** | Explicit engineering team or role owning the subsystem (e.g. `Architecture & Tooling Engineers.`).                                            |
+| **3** | `## Local Contracts` | **Mandatory** | Inviolable architectural invariants, domain rules, naming conventions, and constraints governing code inside this directory.                  |
+| _opt_ | `## Key Files`       |  _Optional_   | Bidirectional file inventory mapping every non-test source code file in this directory to its architectural role.                             |
+| **4** | `## Work Guidance`   | **Mandatory** | Actionable instructions for developers and AI agents on how to modify, extend, or refactor code in this folder.                               |
+| **5** | `## Verification`    | **Mandatory** | Real, runnable terminal commands (e.g. `vp test tests/...` or `npm test -- tests/...`, `npm run auditor:...`) to verify changes hermetically. |
+| **6** | `## Child DOX Index` | **Mandatory** | Relative links to child `AGENTS.md` files, or an explicit note stating that no subdirectories exist.                                          |
 
 > [!NOTE]
 > **Placement of Optional `## Key Files`**:
@@ -241,7 +241,7 @@ The DOX integrity auditor ([`validate_dox_integrity.ts`](../../../../src/suites/
 - **Cause**: A source code file is not listed under `## Key Files` in the directory's `AGENTS.md`.
 - **Resolution**: Document `helper.ts` under `## Key Files`.
 
-*(Note on Link Verification)*: Markdown links inside `AGENTS.md` files (such as broken targets, forbidden absolute paths, missing anchors, and links to gitignored assets) are validated globally and canonically by the specialized suite `validate_markdown_links.ts` (rules: `markdown-link-broken`, `markdown-link-absolute-path`, `markdown-link-gitignore-target`).
+_(Note on Link Verification)_: Markdown links inside `AGENTS.md` files (such as broken targets, forbidden absolute paths, missing anchors, and links to gitignored assets) are validated globally and canonically by the specialized suite `validate_markdown_links.ts` (rules: `markdown-link-broken`, `markdown-link-absolute-path`, `markdown-link-gitignore-target`).
 
 ---
 

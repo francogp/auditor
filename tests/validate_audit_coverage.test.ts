@@ -88,7 +88,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const uncovered = findings.filter((f) => f.ruleId === 'coverage-uncovered-file');
-      expect(uncovered.length).toBe(1);
+      expect(uncovered).toHaveLength(1);
       expect(uncovered[0]!.message).toContain('orphan.ts');
     });
 
@@ -117,7 +117,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const dormant = findings.filter((f) => f.ruleId === 'coverage-dormant-rule');
-      expect(dormant.length).toBe(1);
+      expect(dormant).toHaveLength(1);
       expect(dormant[0]!.context).toBe('suite-magic/magicNumbers');
     });
 
@@ -146,7 +146,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const dormant = findings.filter((f) => f.ruleId === 'coverage-dormant-rule');
-      expect(dormant.length).toBe(0);
+      expect(dormant).toHaveLength(0);
     });
 
     it('detects degraded files where policies silence rules without config acknowledgment (coverage-degraded-file)', () => {
@@ -216,7 +216,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const notScanned = findings.filter((f) => f.ruleId === 'coverage-declared-not-scanned');
-      expect(notScanned.length).toBe(1);
+      expect(notScanned).toHaveLength(1);
     });
 
     it('detects scanned files outside of declared coverage (coverage-scanned-undeclared)', () => {
@@ -244,7 +244,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const undeclared = findings.filter((f) => f.ruleId === 'coverage-scanned-undeclared');
-      expect(undeclared.length).toBe(1);
+      expect(undeclared).toHaveLength(1);
     });
 
     it('detects missing ledgers for expected suites that failed to write one (coverage-missing-ledger)', () => {
@@ -258,7 +258,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const missing = findings.filter((f) => f.ruleId === 'coverage-missing-ledger');
-      expect(missing.length).toBe(1);
+      expect(missing).toHaveLength(1);
       expect(missing[0]!.context).toBe('suite-expected');
     });
 
@@ -294,7 +294,7 @@ describe('validate_audit_coverage Suite', () => {
 
       const findings = analyzeAuditCoverage(input);
       const invalid = findings.filter((f) => f.ruleId === 'coverage-invalid-exemption');
-      expect(invalid.length).toBe(1);
+      expect(invalid).toHaveLength(1);
       expect(invalid[0]!.context).toBe('legacy/**/*.ts');
     });
 
@@ -322,7 +322,7 @@ describe('validate_audit_coverage Suite', () => {
       };
 
       const findings = analyzeAuditCoverage(input);
-      expect(findings.length).toBe(0);
+      expect(findings).toHaveLength(0);
     });
   });
 

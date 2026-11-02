@@ -33,23 +33,24 @@ useFavicon(favicon)
 When a source ref is passed, the return ref will be identical to the source ref
 
 ```ts
-import { useFavicon } from '@vueuse/core'
+import { useFavicon } from '@vueuse/core';
 // ---cut---
-const source = shallowRef('icon.png')
-const icon = useFavicon(source)
+const source = shallowRef('icon.png');
+const icon = useFavicon(source);
 
-console.log(icon === source) // true
+console.log(icon === source); // true
 ```
 
 ## Type Declarations
 
 ```ts
 export interface UseFaviconOptions extends ConfigurableDocument {
-  baseUrl?: string
-  rel?: string
+  baseUrl?: string;
+  rel?: string;
 }
 export type UseFaviconReturn =
-  ComputedRef<string | null | undefined> | Ref<string | null | undefined>
+  | ComputedRef<string | null | undefined>
+  | Ref<string | null | undefined>;
 /**
  * Reactive favicon.
  *
@@ -59,10 +60,10 @@ export type UseFaviconReturn =
  */
 export declare function useFavicon(
   newIcon: ReadonlyRefOrGetter<string | null | undefined>,
-  options?: UseFaviconOptions,
-): ComputedRef<string | null | undefined>
+  options?: UseFaviconOptions
+): ComputedRef<string | null | undefined>;
 export declare function useFavicon(
   newIcon?: MaybeRef<string | null | undefined>,
-  options?: UseFaviconOptions,
-): Ref<string | null | undefined>
+  options?: UseFaviconOptions
+): Ref<string | null | undefined>;
 ```

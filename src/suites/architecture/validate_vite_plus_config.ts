@@ -11,7 +11,8 @@ import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/audi
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  createRuleCapabilities
+  createRuleCapabilities,
+  type AnyRuleFixerFn
 } from '../../core/auditorBase.ts';
 import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
 import { toPosixRelative, isPathContained } from '../../core/safePath.ts';
@@ -1668,8 +1669,18 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
         }
       : VITE_PLUS_CONFIG_REQUIREMENT;
 
+    const syncFixer: AnyRuleFixerFn = (ctx) => {
+      syncViteConfigWithAuditConfig(ctx.projectRoot);
+      repairVitePlusProject(ctx.projectRoot);
+    };
+
+    const ruleFixers: Partial<Record<VitePlusConfigRuleId, AnyRuleFixerFn>> = {};
+    for (const ruleId of VITE_PLUS_CONFIG_RULES) {
+      ruleFixers[ruleId] = syncFixer;
+    }
+
     super({
-      ruleFixers: {},
+      ruleFixers,
       fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
       usesThirdPartyTool: false,
       requiredPermissions: [],

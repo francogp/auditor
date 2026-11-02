@@ -175,7 +175,7 @@ describe('ValidateFallowConfigAuditor', () => {
       ];
       validateFallowWorkspaceDiagnostics(diagnostics, auditor);
       const result = await auditor.finishAudit();
-      expect(result.findings.length).toBe(1);
+      expect(result.findings).toHaveLength(1);
       expect(result.findings[0]?.ruleId).toBe('fallow-config-workspace-diagnostic');
       expect(result.findings[0]?.message).toContain('undeclared-workspace');
     });
@@ -281,7 +281,7 @@ describe('ValidateFallowConfigAuditor', () => {
       const modified = validateFallowWorkspaceDiagnostics(diagnostics, auditor, config);
       const result = await auditor.finishAudit();
       expect(modified).toBe(true);
-      expect(result.findings.length).toBe(0);
+      expect(result.findings).toHaveLength(0);
       expect(config.entry).toEqual(['.auditor/audit.config.ts']);
       expect(config.ignoreDependencies).toEqual(['knip']);
       expect(config.ignorePatterns).toEqual(['tests/**']);
@@ -319,7 +319,7 @@ describe('ValidateFallowConfigAuditor', () => {
         }
       };
 
-      validateUndeclaredFallowEntries(config as any, auditor);
+      validateUndeclaredFallowEntries(config, auditor);
       const result = await auditor.finishAudit();
       const violations = result.findings.filter(
         (f) => f.ruleId === 'fallow-undeclared-config-entry'

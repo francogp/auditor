@@ -39,7 +39,7 @@ export class UserCard {
       const accessFindings = findings.filter((f) => f.kind === 'member-accessibility');
 
       // title, constructor, render, summary (4 items; #privateField must be skipped)
-      expect(accessFindings.length).toBe(4);
+      expect(accessFindings).toHaveLength(4);
       expect(accessFindings.some((f) => f.identifier === 'title')).toBe(true);
       expect(accessFindings.some((f) => f.identifier === 'constructor')).toBe(true);
       expect(accessFindings.some((f) => f.identifier === 'render')).toBe(true);
@@ -88,7 +88,7 @@ export function checkBrowser(): boolean {
 
       // 1. typeof window, 2. window.location, 3. self !== undefined
       // config.window (prop) and param window must be skipped!
-      expect(globalFindings.length).toBe(3);
+      expect(globalFindings).toHaveLength(3);
     });
 
     it('applies globalThis replacements without breaking typeof or property accesses', () => {
@@ -126,7 +126,7 @@ export function init(): void {
       const findings = HygieneRefactorEngine.discoverInFile(filePath);
       const voidFindings = findings.filter((f) => f.kind === 'no-void');
 
-      expect(voidFindings.length).toBe(2);
+      expect(voidFindings).toHaveLength(2);
 
       const plan = HygieneRefactorEngine.buildHygienePlan('test-void-plan', findings);
       HygieneRefactorEngine.applyPlan(tempDir, plan);

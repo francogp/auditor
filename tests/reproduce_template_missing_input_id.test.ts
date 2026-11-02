@@ -65,7 +65,7 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     const violations = auditor.collectedViolations.filter(
       (v) => v.ruleId === 'template-missing-input-id'
     );
-    expect(violations.length).toBe(0);
+    expect(violations).toHaveLength(0);
   });
 
   it('does NOT flag <input type="hidden">', () => {
@@ -82,7 +82,7 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     const violations = auditor.collectedViolations.filter(
       (v) => v.ruleId === 'template-missing-input-id'
     );
-    expect(violations.length).toBe(0);
+    expect(violations).toHaveLength(0);
   });
 
   it('does NOT fail prematurely on multiline inputs or attributes containing ">"', () => {
@@ -103,7 +103,7 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     const violations = auditor.collectedViolations.filter(
       (v) => v.ruleId === 'template-missing-input-id'
     );
-    expect(violations.length).toBe(0);
+    expect(violations).toHaveLength(0);
   });
 
   it('DOES flag truly missing ID on an interactive input', () => {
@@ -120,7 +120,7 @@ describe('Template Input ID Detection (template-missing-input-id)', () => {
     const violations = auditor.collectedViolations.filter(
       (v) => v.ruleId === 'template-missing-input-id'
     );
-    expect(violations.length).toBe(1);
+    expect(violations).toHaveLength(1);
     expect(violations[0]?.ruleId).toBe('template-missing-input-id');
   });
 });

@@ -97,7 +97,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
       expect(result.summary.errors).toBe(0);
     });
 
@@ -113,7 +113,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
       expect(result.summary.errors).toBe(0);
     });
 
@@ -127,7 +127,7 @@ describe('EphemeralStorageIsolationAuditor', () => {
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
       );
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations.some((v) => v.file === 'database/unknown_folder')).toBe(true);
       expect(violations.some((v) => v.file === 'database/stray_file.txt')).toBe(true);
     });
@@ -190,7 +190,7 @@ dist/
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-gitignore-source-temp'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
     });
   });
 
@@ -226,7 +226,7 @@ dist/
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-references'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
       expect(result.summary.errors).toBe(0);
     });
 
@@ -268,7 +268,7 @@ dist/
       const violations = result.findings.filter(
         (f) => f.ruleId === 'ephemeral-no-source-temp-dirs'
       );
-      expect(violations.length).toBe(0);
+      expect(violations).toHaveLength(0);
       expect(result.summary.errors).toBe(0);
       resetAuditConfig();
     });

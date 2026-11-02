@@ -154,12 +154,12 @@ describe('ValidateAuditConfigAuditor', () => {
 
   it('scaffolds default .auditor/audit.config.ts when missing in fix mode', async () => {
     const configPath = path.join(tempDir, '.auditor', 'audit.config.ts');
-    expect(
-      await fs
+    await expect(
+      fs
         .access(configPath)
         .then(() => true)
         .catch(() => false)
-    ).toBe(false);
+    ).resolves.toBe(false);
 
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
@@ -168,12 +168,12 @@ describe('ValidateAuditConfigAuditor', () => {
     const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
     await auditor.fix();
 
-    expect(
-      await fs
+    await expect(
+      fs
         .access(configPath)
         .then(() => true)
         .catch(() => false)
-    ).toBe(true);
+    ).resolves.toBe(true);
     const content = await fs.readFile(configPath, 'utf-8');
     expect(content).toContain('defineAuditConfig');
     expect(content).toContain("language: 'en'");
@@ -264,7 +264,7 @@ export default defineAuditConfig({
     const gitignoreFindings = checkResult.findings.filter(
       (f) => f.ruleId === 'audit-config-missing-gitignore-entry'
     );
-    expect(gitignoreFindings.length).toBe(0);
+    expect(gitignoreFindings).toHaveLength(0);
   });
 
   it('dynamically collects and enforces gitignore requirements from user-extended subauditor modules', async () => {
@@ -544,7 +544,7 @@ export default class CustomAuditor extends BaseAuditor<'custom-rule'> {
     expect(result.summary.errors).toBe(0);
     expect(result.summary.warnings).toBe(0);
     expect(result.status).toBe('passed');
-    expect(result.findings.length).toBe(0);
+    expect(result.findings).toHaveLength(0);
   });
 
   it('reports audit-config-invalid-extension when extension misses remediationPhase contract', async () => {

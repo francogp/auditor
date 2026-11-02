@@ -220,7 +220,7 @@ describe('Auditor Plugin Protocol', () => {
         id: '',
         name: 'No Id',
         family: 'domain_data'
-      } as unknown as Parameters<typeof defineAuditorExtension>[0]);
+      });
     }).toThrow('Auditor extension must define an id');
   });
 
@@ -258,7 +258,7 @@ describe('Auditor Plugin Protocol', () => {
       id: 'ext_with_factory',
       name: 'Ext With Factory',
       family: 'persistence',
-      factory: () => ({}) as unknown as BaseAuditor<string>
+      factory: () => ({}) as unknown as BaseAuditor
     });
 
     expect(extWithFactory.id).toBe('ext_with_factory');

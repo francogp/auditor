@@ -33,7 +33,7 @@ Why this skill exists:
    - Conduct all interactive user dialogue, questions, option matrices, and summaries in `config.documentation.chatLanguage` (e.g., Spanish `'es'`).
    - Write all repository documentation, code contracts, comments, and DOX indices in `config.documentation.language` (e.g., English `'en'`).
 2. **Evidence Over Guesswork**: Never ask the user a question that the repository already answers. Inspect relevant files first.
-3. **Sparring Partner, Not Passive Scribe**: Challenge fragile assumptions politely, highlight hidden complexity, and always include a radical simplification (*YAGNI / do-least*) option.
+3. **Sparring Partner, Not Passive Scribe**: Challenge fragile assumptions politely, highlight hidden complexity, and always include a radical simplification (_YAGNI / do-least_) option.
 4. **No Silent Assumptions**: Every unverified belief about scale, behavior, or environment must be voiced and explicitly confirmed.
 
 ---
@@ -42,11 +42,11 @@ Why this skill exists:
 
 To keep this core workflow fast and focused while providing deep engineering rigor, consult these specialized reference manuals inside `./references/` as you progress through the stages:
 
-| Reference Manual | When to Read | What It Contains |
-| :--- | :--- | :--- |
-| **[`critical-thinking-lenses.md`](./references/critical-thinking-lenses.md)** | **Before Stage 2 & Stage 5** | Full guide to the **7 Critical Thinking Lenses** (First Principles, Contrarian Pre-Mortem, Anti-Goals, Prior Art, Expert Panel, Radical YAGNI, Edge-Case Stress Test) and the **`ask_question` Socratic Playbook**. |
-| **[`nfr-and-architecture-seams.md`](./references/nfr-and-architecture-seams.md)** | **Before Stage 3, Stage 5 & Stage 6** | Comprehensive **NFR Taxonomy & Default Baselines**, **7-Dimension Trade-Off Matrix**, **Typed Call-Stack Contracts** ([`/domain-type-first`](../domain-type-first/SKILL.md)), and **Hermetic Test Seam** patterns. |
-| **[`design-doc-and-review-checklist.md`](./references/design-doc-and-review-checklist.md)** | **Before Stage 7 & Stage 8** | Running **ADR Decision Log** format, **4-Point Spec Self-Review Gate** (anti-placeholder & ambiguity scan), **Canonical Design Spec Template**, and **Pre-Handoff Governance Checklist**. |
+| Reference Manual                                                                            | When to Read                          | What It Contains                                                                                                                                                                                                    |
+| :------------------------------------------------------------------------------------------ | :------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **[`critical-thinking-lenses.md`](./references/critical-thinking-lenses.md)**               | **Before Stage 2 & Stage 5**          | Full guide to the **7 Critical Thinking Lenses** (First Principles, Contrarian Pre-Mortem, Anti-Goals, Prior Art, Expert Panel, Radical YAGNI, Edge-Case Stress Test) and the **`ask_question` Socratic Playbook**. |
+| **[`nfr-and-architecture-seams.md`](./references/nfr-and-architecture-seams.md)**           | **Before Stage 3, Stage 5 & Stage 6** | Comprehensive **NFR Taxonomy & Default Baselines**, **7-Dimension Trade-Off Matrix**, **Typed Call-Stack Contracts** ([`/domain-type-first`](../domain-type-first/SKILL.md)), and **Hermetic Test Seam** patterns.  |
+| **[`design-doc-and-review-checklist.md`](./references/design-doc-and-review-checklist.md)** | **Before Stage 7 & Stage 8**          | Running **ADR Decision Log** format, **4-Point Spec Self-Review Gate** (anti-placeholder & ambiguity scan), **Canonical Design Spec Template**, and **Pre-Handoff Governance Checklist**.                           |
 
 ---
 
@@ -56,13 +56,13 @@ To keep this core workflow fast and focused while providing deep engineering rig
 flowchart TD
     Start["User Request (Feature / Architecture / Refactor)"] --> Stage1["1. Codebase Recon & Branch Selection"]
     Stage1 --> Branch{"Sufficient Context in Repo & Prompt?"}
-    
+
     Branch -- "Path A: Context-Rich" --> Stage3["3. Non-Functional Requirements (NFRs)"]
     Branch -- "Path B: Discovery Needed" --> Stage2["2. Socratic Dialogue & 7 Critical Lenses (1 Question / Turn)"]
-    
+
     Stage2 --> Stage3
     Stage3 --> Stage4["4. HARD GATE #1: Understanding Lock (Summary + Anti-Goals + Approval)"]
-    
+
     Stage4 -- "User Approves Lock" --> Stage5["5. Explore 2-3 Viable Approaches (Trade-Off Matrix + YAGNI)"]
     Stage5 --> Stage6["6. Incremental Typed Design (200-300 Words/Chunk + Domain Contracts)"]
     Stage6 --> Stage7["7. Decision Log (ADR) & 4-Point Spec Self-Review Gate"]
@@ -107,7 +107,7 @@ Filter the user's request through these seven lenses to uncover blind spots:
 
 1. **First Principles**: What is the irreducible state change or data transformation? Are we solving the root problem or an XY symptom?
 2. **Contrarian / Pre-Mortem**: If this fails in six months or becomes a maintenance burden, why did it happen? What if we don't build it?
-3. **Anti-Goals**: What outcome would make this a failure *even if all functional requirements pass* (e.g., latency regression, leaky abstraction, noisy warnings)?
+3. **Anti-Goals**: What outcome would make this a failure _even if all functional requirements pass_ (e.g., latency regression, leaky abstraction, noisy warnings)?
 4. **Prior Art & Local Precedent**: Which existing module in the repo solves an analogous problem, and should we mirror or evolve its contract?
 5. **Expert Panel**: How does this look through the eyes of Security ([`/security-and-hardening`](../security-and-hardening/SKILL.md)), Performance ($O(1)$ data structures), Domain Typing ([`/domain-type-first`](../domain-type-first/SKILL.md)), and Hermetic Testing?
 6. **Radical Simplification (YAGNI)**: What is the 20% of effort that delivers 80% of value?
@@ -144,7 +144,7 @@ Before proposing **any architectural design**, you MUST pause and present the **
 3. **Open Questions**: Any remaining unresolved question (should be zero before locking).
 
 - **Mandatory Closing Confirmation** (via `ask_question` or direct prompt):
-  *"Does this Understanding Lock accurately capture your intent, constraints, and anti-goals? Please confirm or adjust before we evaluate architectural approaches."*
+  _"Does this Understanding Lock accurately capture your intent, constraints, and anti-goals? Please confirm or adjust before we evaluate architectural approaches."_
 
 > [!CAUTION]
 > **Hard Stop**: Do NOT proceed to Stage 5 until the user explicitly confirms the Understanding Lock.
@@ -155,7 +155,7 @@ Before proposing **any architectural design**, you MUST pause and present the **
 
 Once the Understanding Lock is confirmed, prevent tunnel vision by comparing **2 to 3 materially different architectural approaches**. Consult **[`nfr-and-architecture-seams.md`](./references/nfr-and-architecture-seams.md)** for the 7-dimension evaluation matrix:
 
-- **Lead with an Opinionated Recommendation**: Clearly mark your recommended approach first and explain *why* it wins given the locked invariants.
+- **Lead with an Opinionated Recommendation**: Clearly mark your recommended approach first and explain _why_ it wins given the locked invariants.
 - **Include a Minimal / "Do-Least" Baseline**: At least one option must represent the simplest possible change ([`/ponytail`](../ponytail/SKILL.md) / YAGNI) that satisfies the core requirement without new layers.
 - **Compare Across Concrete Dimensions**:
   - Module depth (deep interface vs. shallow pass-throughs, per [`/codebase-design`](../codebase-design/SKILL.md)).
@@ -172,7 +172,7 @@ Use `ask_question` to let the user select or customize the preferred architectur
 
 Once an approach is selected, present the detailed engineering design. Consult **[`nfr-and-architecture-seams.md`](./references/nfr-and-architecture-seams.md)** for typed contract templates:
 
-- **Incremental Pacing**: Break complex designs into digestible sections (**200–350 words per section**) or structured cohesive blocks, validating alignment with the user (*"Does this contract and data flow look right so far?"*) before moving to the next layer.
+- **Incremental Pacing**: Break complex designs into digestible sections (**200–350 words per section**) or structured cohesive blocks, validating alignment with the user (_"Does this contract and data flow look right so far?"_) before moving to the next layer.
 - **Prefer TypeScript Contracts Over Prose ([`/domain-type-first`](../domain-type-first/SKILL.md))**:
   - Sketch canonical `as const` tuples and derived finite union types.
   - Sketch **Branded Nominal Types** for IDs and validated paths.
@@ -193,7 +193,7 @@ Once an approach is selected, present the detailed engineering design. Consult *
 Maintain a running **Decision Log (ADR table)** throughout the session and run the **Spec Self-Review Gate** before handoff. Consult **[`design-doc-and-review-checklist.md`](./references/design-doc-and-review-checklist.md)** for the full checklist and templates:
 
 1. **Decision Log Completeness**: Every major architectural choice, rejected alternative, and governing rationale is recorded.
-2. **Zero-Placeholder Scan**: Verify zero occurrences of `TODO`, `TBD`, `FIXME`, `???`, or vague hand-waves (*"handle errors appropriately"*).
+2. **Zero-Placeholder Scan**: Verify zero occurrences of `TODO`, `TBD`, `FIXME`, `???`, or vague hand-waves (_"handle errors appropriately"_).
 3. **Internal Consistency Check**: Ensure TypeScript signatures, Mermaid diagrams, and file paths match 100%.
 4. **Two-Engineer Ambiguity Test**: Confirm that two engineers reading the spec independently would build compatible contracts and tests.
 
@@ -203,7 +203,7 @@ If the user requested a persistent design document in the repository, write it u
 
 ### 8️⃣ Stage 8: Implementation Handoff (Hard Gate #2)
 
-This is the final, non-negotiable gate before transitioning from design (*what/why*) to execution (*how*):
+This is the final, non-negotiable gate before transitioning from design (_what/why_) to execution (_how_):
 
 1. **Create or Update `implementation_plan.md` Artifact**:
    - Set `RequestFeedback: true` and `UserFacing: true` in `ArtifactMetadata`.

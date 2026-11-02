@@ -13,10 +13,10 @@ Both modes carry the same audit content; only the rendering differs. Do not summ
 
 ### Canonical references
 
-| File | Role |
-|---|---|
+| File                              | Role                                                                                                                                                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `references/report-template.html` | **Source of truth.** Full worked example (fictional "Tally" habit tracker, React + Framer Motion). Every section, every token, every pattern. When in doubt about layout, structure, or styling, READ this file. |
-| `references/demo-shell.html` | Minimal isolated example of a single demo card with the per-finding slot pattern. Used as a per-finding template snippet. |
+| `references/demo-shell.html`      | Minimal isolated example of a single demo card with the per-finding slot pattern. Used as a per-finding template snippet.                                                                                        |
 
 The agent builds the report by reading these two files and adapting them to the audited project — same architecture, audit-specific content.
 
@@ -81,9 +81,11 @@ The one allowed transition: `border-color 0.2s ease` on lens-table rows and find
 ### Sections (in render order)
 
 #### Global theme switch
+
 First element inside `.wrap`, right-aligned segmented `Dark / Light` pill.
 
 #### Header
+
 ```
 .eyebrow ("MOTION AUDIT · DESIGN-MOTION-PRINCIPLES")
 h1.title ({project name} — {one-line audit framing})
@@ -95,26 +97,30 @@ p.lede ({1–2 sentence project description})
 Each severity count pairs the number with a text label so the signal is readable under red-green color vision deficiency. Each count is an anchor link (`#rec-crit`, `#rec-imp`, `#rec-opp`) to the corresponding recommendation table.
 
 #### Overall Assessment
+
 One short paragraph in larger display type. Does this feel polished? Too much? Too little? What's working, what's not? Wraps in `<section class="assessment">` with a `mono-label` "OVERALL" eyebrow.
 
 #### 01 · Lens summary
+
 3-row table, one row per practitioner. Columns: Lens (with name and weight chip) · Verdict (`Strong` / `Concern` / `Problem` / `Mixed` with a colored dot) · One-line read. Weight chips indicate `Primary` / `Secondary` / `Selective` per audit context.
 
 #### 02 · Where the timings land — duration-budget diagram
+
 Motion-native analog of thumb-first's thumb-zone diagram. A horizontal SVG (`viewBox="0 0 660 300"`) plots Tally's animations as numbered dots on a 0–600ms scale with four zone bands:
 
-| Zone | Range | Color |
-|---|---|---|
-| Instant | 0–100ms | green (`--t-good`) |
+| Zone       | Range     | Color              |
+| ---------- | --------- | ------------------ |
+| Instant    | 0–100ms   | green (`--t-good`) |
 | Responsive | 100–300ms | green (`--t-good`) |
-| Deliberate | 300–500ms | amber (`--t-mid`) |
-| Sluggish | 500ms+ | red (`--t-slow`) |
+| Deliberate | 300–500ms | amber (`--t-mid`)  |
+| Sluggish   | 500ms+    | red (`--t-slow`)   |
 
 Animations with NO transition are plotted as hollow dashed circles at `x=40` (= 0ms). The paired key list to the right carries the action names and durations. A "What's off" block below explains the misalignments.
 
 The SVG uses CSS-class-driven fills (via an inline `<style>` block) so the diagram re-tones with the global theme. Dot label color flips per theme (dark text on lighter dots in dark mode, light text on deeper dots in light mode).
 
 #### 03–05 · Per-lens sections
+
 Three sections, ordered by weighting (primary first). Each section:
 
 ```
@@ -132,13 +138,14 @@ Section heading: `Designer Name — Perspective Handle` (em-dash). Lens take is 
 
 Three perspective handles:
 
-| Designer | Handle |
-|---|---|
-| Emil Kowalski | Restraint & Speed |
-| Jakub Krehel | Production Polish |
+| Designer      | Handle                    |
+| ------------- | ------------------------- |
+| Emil Kowalski | Restraint & Speed         |
+| Jakub Krehel  | Production Polish         |
 | Jhey Tompkins | Experimentation & Delight |
 
 #### Finding rows (Critical + Important only)
+
 Each Critical or Important finding renders as a `.finding-row` inside its lens's "Issues to address" block:
 
 ```
@@ -160,12 +167,15 @@ Two-column at desktop (1fr 380px), stacks at narrow widths (≤860px).
 Opportunities never render a `.finding-row` and never get a demo card. They appear in the per-lens `.lens-block "Opportunities"` as a `.lens-list.opp` bulleted list.
 
 #### 06 · Combined recommendations
+
 Three severity-grouped tables, in order: `Critical · must fix` (`#rec-crit`) → `Important · should fix` (`#rec-imp`) → `Opportunities · could enhance` (`#rec-opp`). Each has a `.tier-label` with severity-colored mono label, a horizontal rule, and a count. Columns: Issue · File · Fix (or Enhancement · Where · Impact for opportunities).
 
 #### 07 · Lens Reference Summary
+
 Closing `.ref-summary` block. Which lens was referenced most + why + how to lean differently (one line per lens). No new findings here.
 
 #### Footer
+
 Mono micro-row: project name + finding counts.
 
 ### Demo cards (the centerpiece)
@@ -176,9 +186,9 @@ Each Critical or Important finding gets one demo card. The card is the ONLY anim
 
 ```html
 <div class="demo">
-  <input class="vh" type="radio" name="st{n}" id="st{n}-a" checked>
-  <input class="vh" type="radio" name="st{n}" id="st{n}-l">
-  <input class="vh" type="radio" name="st{n}" id="st{n}-d">
+  <input class="vh" type="radio" name="st{n}" id="st{n}-a" checked />
+  <input class="vh" type="radio" name="st{n}" id="st{n}-l" />
+  <input class="vh" type="radio" name="st{n}" id="st{n}-d" />
   <div class="demo__bar">
     <div class="demo__meta">
       <span class="demo__title">{recommended motion title}</span>
@@ -203,22 +213,22 @@ Each Critical or Important finding gets one demo card. The card is the ONLY anim
 
 #### Stage 3-state toggle
 
-| State | Behavior |
-|---|---|
-| **Auto** (default) | Stage colors follow the global theme via `--surface-2` + `--paper` tokens. Matches the rest of the report. |
-| **Light** | Hardcoded light stage (`--st-bg: oklch(0.985 0.003 255)`, `--st-fg: oklch(0.180 0.006 255)`). Overrides global. |
-| **Dark** | Hardcoded dark stage (inverted). Overrides global. |
+| State              | Behavior                                                                                                        |
+| ------------------ | --------------------------------------------------------------------------------------------------------------- |
+| **Auto** (default) | Stage colors follow the global theme via `--surface-2` + `--paper` tokens. Matches the rest of the report.      |
+| **Light**          | Hardcoded light stage (`--st-bg: oklch(0.985 0.003 255)`, `--st-fg: oklch(0.180 0.006 255)`). Overrides global. |
+| **Dark**           | Hardcoded dark stage (inverted). Overrides global.                                                              |
 
 Pure CSS. Radio inputs precede `.demo__bar` and `.demo__stage` so sibling-combinator selectors (`#stN-l:checked ~ .demo__stage`) work.
 
 #### Stage tokens (used by motion targets)
 
-| Token | Role |
-|---|---|
-| `--st-bg` | Stage background color |
-| `--st-fg` | Foreground / text / "ink" color on the stage |
-| `--st-line` | Border / divider color on the stage |
-| `--st-dim` | Dimmed text color on the stage |
+| Token       | Role                                         |
+| ----------- | -------------------------------------------- |
+| `--st-bg`   | Stage background color                       |
+| `--st-fg`   | Foreground / text / "ink" color on the stage |
+| `--st-line` | Border / divider color on the stage          |
+| `--st-dim`  | Dimmed text color on the stage               |
 
 Motion-target elements (`.ui-btn`, `.ui-card`, `.ui-row`, `.ui-check`, `.ui-num`, `.ui-label`, milestone badge, etc.) use `--st-fg` / `--st-bg` instead of `--accent` / page colors. This guarantees correct contrast even when a stage is locked to a different theme than the page.
 
@@ -277,6 +287,7 @@ Primary lens: [Designer] ([context reason])
 ```
 
 ### Overall Assessment
+
 One paragraph: Does this feel polished? Too much? Too little? What's working, what's not?
 
 ### Per-Designer Sections

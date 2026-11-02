@@ -54,7 +54,7 @@ describe('ValidateValibotParityAuditor', () => {
       const auditor = new ValidateValibotParityAuditor({ projectRoot: TEST_DIR });
       const declaredRules = auditor.ruleIds;
       expect(declaredRules).toEqual(VALIBOT_PARITY_RULES);
-      expect(declaredRules.length).toBe(6);
+      expect(declaredRules).toHaveLength(6);
     });
   });
 
@@ -78,7 +78,7 @@ describe('ValidateValibotParityAuditor', () => {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('skipped');
-      expect(result.findings.length).toBe(0);
+      expect(result.findings).toHaveLength(0);
     });
 
     it('passes cleanly with complete parity across interface, schema, serializer, and initial state', async () => {
@@ -168,7 +168,7 @@ export function createInitialUser() {
       expect(result.summary.errors).toBe(0);
       expect(result.summary.warnings).toBe(0);
       expect(result.status).toBe('passed');
-      expect(result.findings.length).toBe(0);
+      expect(result.findings).toHaveLength(0);
     });
 
     it('respects allowedNullableFields and allowedUnknownFields configuration', async () => {

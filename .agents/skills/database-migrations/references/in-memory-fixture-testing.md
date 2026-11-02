@@ -57,20 +57,20 @@ export function rehydrateBackupIntoMemory(
 
   for (const [tableName, rows] of Object.entries(fixtureData)) {
     if (!Array.isArray(rows) || rows.length === 0) continue;
-    
+
     // Inspect sample row to construct column definitions dynamically
     const sample = rows[0]!;
     const cols = Object.keys(sample);
-    const colDefs = cols.map(c => `"${c}" TEXT`).join(', ');
+    const colDefs = cols.map((c) => `"${c}" TEXT`).join(', ');
 
     db.exec(`CREATE TABLE IF NOT EXISTS "${tableName}" (${colDefs});`);
 
     const placeholders = cols.map(() => '?').join(', ');
-    const colNames = cols.map(c => `"${c}"`).join(', ');
+    const colNames = cols.map((c) => `"${c}"`).join(', ');
     const stmt = db.prepare(`INSERT INTO "${tableName}" (${colNames}) VALUES (${placeholders});`);
 
     for (const row of rows) {
-      const values = cols.map(c => {
+      const values = cols.map((c) => {
         const val = row[c];
         if (val === null || val === undefined) return null;
         if (typeof val === 'object') return JSON.stringify(val);
@@ -97,7 +97,7 @@ export function applyPendingMigrationsSequentially(
   migrations: readonly { id: string; sql: string }[]
 ): { appliedCount: number; durations: Record<string, number> } {
   const appliedRows = db.prepare('SELECT id FROM _migrations;').all() as { id: string }[];
-  const appliedSet = new Set(appliedRows.map(r => r.id));
+  const appliedSet = new Set(appliedRows.map((r) => r.id));
 
   let appliedCount = 0;
   const durations: Record<string, number> = {};
@@ -109,15 +109,20 @@ export function applyPendingMigrationsSequentially(
     db.exec('BEGIN TRANSACTION;');
     try {
       db.exec(migration.sql);
-      db.prepare('INSERT INTO _migrations (id, applied_at) VALUES (?, ?);')
-        .run(migration.id, new Date().toISOString());
+      db.prepare('INSERT INTO _migrations (id, applied_at) VALUES (?, ?);').run(
+        migration.id,
+        new Date().toISOString()
+      );
       db.exec('COMMIT;');
 
       durations[migration.id] = Math.round(performance.now() - start);
       appliedCount++;
     } catch (err: unknown) {
       db.exec('ROLLBACK;');
-      throw new Error(`Migration '${migration.id}' failed in-memory execution: ${(err as Error).message}`, { cause: err });
+      throw new Error(
+        `Migration '${migration.id}' failed in-memory execution: ${(err as Error).message}`,
+        { cause: err }
+      );
     }
   }
 
@@ -143,7 +148,9 @@ export function assertNoCorruptedObjects(db: DatabaseSync, tableNames: string[])
       for (const [col, val] of Object.entries(row)) {
         if (typeof val === 'string') {
           if (val.includes('[object Object]') || val.includes('[object Array]')) {
-            throw new Error(`Data corruption detected in table '${table}', column '${col}': contains '${val}'`);
+            throw new Error(
+              `Data corruption detected in table '${table}', column '${col}': contains '${val}'`
+            );
           }
         }
       }
@@ -166,6 +173,9 @@ const colsFresh = getTableColumns(dbFresh, 'invoices');
 const colsMigrated = getTableColumns(dbMigrated, 'invoices');
 
 for (const col of colsMigrated) {
-  assert.ok(colsFresh.has(col), `Column '${col}' exists in migrated DB but is missing in static schema definition.`);
+  assert.ok(
+    colsFresh.has(col),
+    `Column '${col}' exists in migrated DB but is missing in static schema definition.`
+  );
 }
 ```

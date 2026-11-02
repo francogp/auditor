@@ -15,7 +15,7 @@ for (const task of tasks) {
 
 // GOOD: Single query with join/include
 const tasks = await db.tasks.findMany({
-  include: { owner: true },
+  include: { owner: true }
 });
 ```
 
@@ -29,7 +29,7 @@ const allTasks = await db.tasks.findMany();
 const tasks = await db.tasks.findMany({
   take: 20,
   skip: (page - 1) * 20,
-  orderBy: { createdAt: 'desc' },
+  orderBy: { createdAt: 'desc' }
 });
 ```
 
@@ -45,11 +45,11 @@ WHERE owner_id = 42 ORDER BY created_at DESC LIMIT 20;
 
 Three things in the output decide the fix:
 
-| What you see | What it means |
-|---|---|
-| `Seq Scan` on a large table where you expected an index | No usable index for this predicate |
+| What you see                                               | What it means                                                |
+| ---------------------------------------------------------- | ------------------------------------------------------------ |
+| `Seq Scan` on a large table where you expected an index    | No usable index for this predicate                           |
 | Estimated `rows=` off from actual by an order of magnitude | Stale statistics; the planner is choosing on bad information |
-| A `Sort` node above the scan | The index covers the filter but not the `ORDER BY` |
+| A `Sort` node above the scan                               | The index covers the filter but not the `ORDER BY`           |
 
 Index for the **shape of the query**, not the column in isolation. In a composite index, equality columns come first, then the range or sort column:
 
@@ -59,12 +59,12 @@ CREATE INDEX idx_tasks_owner_created ON tasks (owner_id, created_at DESC);
 
 **When an index will not help:**
 
-| Situation | Why |
-|---|---|
+| Situation                                                                                                   | Why                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Low selectivity, querying the dominant value (a `status` column that is 95% `active`, filtered on `active`) | A sequential scan is genuinely cheaper; the planner will ignore the index. Filtering on the rare value is the opposite case, and a partial index serves it well |
-| Leading wildcard (`LIKE '%term'`) | A B-tree cannot seek without a prefix; needs trigram or full-text |
-| Function on the column (`WHERE lower(email) = ?`) | The plain column index is unusable; index the expression instead |
-| Write-heavy table | Every index is a tax on every `INSERT`/`UPDATE`; measure the write cost, not just the read gain |
+| Leading wildcard (`LIKE '%term'`)                                                                           | A B-tree cannot seek without a prefix; needs trigram or full-text                                                                                               |
+| Function on the column (`WHERE lower(email) = ?`)                                                           | The plain column index is unusable; index the expression instead                                                                                                |
+| Write-heavy table                                                                                           | Every index is a tax on every `INSERT`/`UPDATE`; measure the write cost, not just the read gain                                                                 |
 
 Re-run `EXPLAIN ANALYZE` after. An index that did not change the plan is a revert (Step 4), and it is not free: it still costs on every write.
 
@@ -77,9 +77,9 @@ The signature is distinctive: **every** endpoint slows at once, the slow time is
 // by instance count and exhausts the database's connection limit
 // GOOD: one pool per process, sized against the database's ceiling
 const pool = new Pool({
-  max: 10,                        // instances × max must stay under max_connections
+  max: 10, // instances × max must stay under max_connections
   idleTimeoutMillis: 30_000,
-  connectionTimeoutMillis: 5_000, // fail fast instead of queueing forever
+  connectionTimeoutMillis: 5_000 // fail fast instead of queueing forever
 });
 ```
 
@@ -172,7 +172,11 @@ const TaskItem = React.memo(function TaskItem({ task }: Props) {
 // Use useMemo for expensive computations
 function TaskStats({ tasks }: Props) {
   const stats = useMemo(() => calculateStats(tasks), [tasks]);
-  return <div>{stats.completed} / {stats.total}</div>;
+  return (
+    <div>
+      {stats.completed} / {stats.total}
+    </div>
+  );
 }
 ```
 
@@ -204,11 +208,11 @@ Cache what is expensive to produce and read far more often than it changes. Cach
 
 **Pick the layer deliberately:**
 
-| Layer | Visible to | Use when | Cost |
-|---|---|---|---|
-| In-process (`Map`, LRU) | One instance | Small, hot, per-instance staleness is acceptable | Each instance drifts independently; invalidation reaches only one |
-| Shared (Redis, Memcached) | All instances | Instances must agree, or the value is expensive to recompute | A network hop, and another service to run and monitor |
-| CDN / edge | Everyone, per URL | Responses are public and identical for a given key | Invalidation is the hard part; assume you cannot recall a bad response quickly |
+| Layer                     | Visible to        | Use when                                                     | Cost                                                                           |
+| ------------------------- | ----------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| In-process (`Map`, LRU)   | One instance      | Small, hot, per-instance staleness is acceptable             | Each instance drifts independently; invalidation reaches only one              |
+| Shared (Redis, Memcached) | All instances     | Instances must agree, or the value is expensive to recompute | A network hop, and another service to run and monitor                          |
+| CDN / edge                | Everyone, per URL | Responses are public and identical for a given key           | Invalidation is the hard part; assume you cannot recall a bad response quickly |
 
 ```typescript
 // Cache frequently-read, rarely-changed data
@@ -226,10 +230,13 @@ async function getAppConfig(): Promise<AppConfig> {
 }
 
 // HTTP caching headers for static assets
-app.use('/static', express.static('public', {
-  maxAge: '1y',           // Cache for 1 year
-  immutable: true,        // Never revalidate (use content hashing in filenames)
-}));
+app.use(
+  '/static',
+  express.static('public', {
+    maxAge: '1y', // Cache for 1 year
+    immutable: true // Never revalidate (use content hashing in filenames)
+  })
+);
 
 // Cache-Control for API responses
 res.set('Cache-Control', 'public, max-age=300'); // 5 minutes
@@ -239,11 +246,11 @@ res.set('Cache-Control', 'public, max-age=300'); // 5 minutes
 
 **Choose one invalidation strategy, not three:**
 
-| Strategy | Trade-off |
-|---|---|
-| TTL | Simplest. You accept staleness up to the TTL, so state the acceptable window explicitly |
-| Event or tag based | Fresh on write, but writers now have to know the cache topology |
-| Versioned keys (`user:42:profile:v7`) | Never invalidate, just stop reading old keys. Costs memory until eviction |
+| Strategy                              | Trade-off                                                                               |
+| ------------------------------------- | --------------------------------------------------------------------------------------- |
+| TTL                                   | Simplest. You accept staleness up to the TTL, so state the acceptable window explicitly |
+| Event or tag based                    | Fresh on write, but writers now have to know the cache topology                         |
+| Versioned keys (`user:42:profile:v7`) | Never invalidate, just stop reading old keys. Costs memory until eviction               |
 
 **Guard against the stampede.** A hot key expires, every concurrent request misses together, and the origin takes the full load at once, which is how a cache turns into an outage instead of preventing one. Serve stale while a single request recomputes (`stale-while-revalidate`), or coalesce concurrent misses behind one in-flight promise so N waiters cause one recompute.
 

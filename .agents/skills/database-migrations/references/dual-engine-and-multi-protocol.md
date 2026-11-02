@@ -8,12 +8,12 @@ Modern web and enterprise applications often bridge offline client persistence w
 
 A dual-persistence system typically spans two fundamentally different database engines operating across disparate protocols:
 
-| Dimension | Offline / Client Engine | Cloud / Server Engine |
-| :--- | :--- | :--- |
-| **Engine** | SQLite (WebAssembly, OPFS, in-memory `node:sqlite`) | PostgreSQL 16+ (Supabase, Amazon RDS, etc.) |
-| **Protocols** | Direct synchronous C/WASM function calls, local file I/O | HTTP REST (PostgREST), WebSockets (Realtime), direct TCP connection pooling (`postgres`, `pg`, `psql`) |
-| **Execution Context** | Web browser, mobile webview, headless unit tests | Microservices, serverless edge functions, CLI administration scripts |
-| **Security Model** | Client-isolated sandbox (IndexedDB / Origin Private File System) | Row-Level Security (RLS), RBAC, JWT claims, role execution privileges |
+| Dimension             | Offline / Client Engine                                          | Cloud / Server Engine                                                                                  |
+| :-------------------- | :--------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| **Engine**            | SQLite (WebAssembly, OPFS, in-memory `node:sqlite`)              | PostgreSQL 16+ (Supabase, Amazon RDS, etc.)                                                            |
+| **Protocols**         | Direct synchronous C/WASM function calls, local file I/O         | HTTP REST (PostgREST), WebSockets (Realtime), direct TCP connection pooling (`postgres`, `pg`, `psql`) |
+| **Execution Context** | Web browser, mobile webview, headless unit tests                 | Microservices, serverless edge functions, CLI administration scripts                                   |
+| **Security Model**    | Client-isolated sandbox (IndexedDB / Origin Private File System) | Row-Level Security (RLS), RBAC, JWT claims, role execution privileges                                  |
 
 ---
 

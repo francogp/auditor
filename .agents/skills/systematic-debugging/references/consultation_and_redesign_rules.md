@@ -8,10 +8,10 @@ This reference document defines the escalation criteria and consultation protoco
 
 The agent must first detect how the debugging workflow was invoked:
 
-| Invocation Mode | Trigger Context | Escalation Behavior |
-| :--- | :--- | :--- |
-| **Explicit Invocation** | User explicitly ran `/systematic-debugging` or directly prompted to investigate/fix a bug in the active chat. | **PAUSE & CONSULT**: The agent MUST halt code changes and present a structured consultation matrix before modifying `src/` or `database/`. |
-| **Automatic Invocation** | Invoked autonomously by a subagent, background simulation runner, CI check, or self-healing routine. | **AUTONOMOUS RESOLUTION**: Proceed autonomously selecting the most minimalist solution (Ponytail), logging the design decisions into the final execution ledger without blocking. |
+| Invocation Mode          | Trigger Context                                                                                               | Escalation Behavior                                                                                                                                                               |
+| :----------------------- | :------------------------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Explicit Invocation**  | User explicitly ran `/systematic-debugging` or directly prompted to investigate/fix a bug in the active chat. | **PAUSE & CONSULT**: The agent MUST halt code changes and present a structured consultation matrix before modifying `src/` or `database/`.                                        |
+| **Automatic Invocation** | Invoked autonomously by a subagent, background simulation runner, CI check, or self-healing routine.          | **AUTONOMOUS RESOLUTION**: Proceed autonomously selecting the most minimalist solution (Ponytail), logging the design decisions into the final execution ledger without blocking. |
 
 ---
 
@@ -44,18 +44,20 @@ When halting for user consultation in Explicit Mode, the agent MUST render the f
 [Explain the collision with DOX rules, DB schema, or public contracts]
 
 **Option 1: [Recommended Option Title]** (Recommended)
+
 - **Approach**: [Technical summary of the change]
 - **Pros**: [Key architectural advantages, compliance with standards]
 - **Cons**: [Trade-offs, files affected, migration requirements]
 - **Impact**: [Components or tests that will be touched]
 
 **Option 2: [Alternative Option Title]**
+
 - **Approach**: [Technical summary of the alternative]
 - **Pros**: [Advantages]
 - **Cons**: [Disadvantages]
 - **Impact**: [Files touched]
 
-*Please select an option to proceed with the repair.*
+_Please select an option to proceed with the repair._
 ```
 
 ---

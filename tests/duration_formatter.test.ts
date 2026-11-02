@@ -48,13 +48,13 @@ describe('durationFormatter', () => {
     it('pads formatted duration to DURATION_PAD_LENGTH', () => {
       const padded = formatDuration(450);
       expect(padded.trim()).toBe('450 ms');
-      expect(padded.length).toBe(DURATION_PAD_LENGTH);
+      expect(padded).toHaveLength(DURATION_PAD_LENGTH);
     });
 
     it('pads large durations correctly', () => {
       const padded = formatDuration(56814);
       expect(padded.trim()).toBe('56.814 ms');
-      expect(padded.length).toBe(DURATION_PAD_LENGTH);
+      expect(padded).toHaveLength(DURATION_PAD_LENGTH);
     });
   });
 });

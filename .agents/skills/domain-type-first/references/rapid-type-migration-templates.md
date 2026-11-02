@@ -6,21 +6,21 @@ This reference provides instant, copy-pasteable replacement snippets and AST mig
 
 ## 1. Quick Replacement Reference Card
 
-| When You See... | Immediately Replace With... | Canonical Import |
-| :--- | :--- | :--- |
-| `title: string`, `label: string`, `message: string` | `DisplayText` | `import type { DisplayText } from '@francogp/auditor';` |
-| `color: string` (e.g. `'#ff0000'`) | `HexColor` | `import type { HexColor } from '@francogp/auditor';` |
-| `url: string`, `src: string`, `path: string` | `AssetUri` | `import type { AssetUri } from '@francogp/auditor';` |
-| `date: string`, `createdAt: string` | `IsoDateString` | `import type { IsoDateString } from '@francogp/auditor';` |
-| `class: string`, `className: string` | `CssClassName` | `import type { CssClassName } from '@francogp/auditor';` |
-| `id: string` (DOM or locator) | `DomElementId` | `import type { DomElementId } from '@francogp/auditor';` |
-| `userId: string`, `sessionUid: string` | `UserUuid` | `import type { UserUuid } from '@francogp/auditor';` |
-| `Record<string, unknown>`, `Record<string, any>` | `JsonObject` | `import type { JsonObject } from '@francogp/auditor';` |
-| `Record<string, MyEntity>` | `Record<MyEntityId, MyEntity>` | Use canonical domain ID union for the key |
-| `new Set(['a', 'b'])` | `new Set<DomainId>(['a', 'b'])` | Specify `<DomainId>` on `new Set` |
-| `new Map([['a', 1]])` | `new Map<DomainId, number>([['a', 1]])` | Specify `<DomainId, V>` on `new Map` |
-| `param: DomainType \| string` | `param: DomainType` | Require pure domain type in core; guard with `isDomainId` at boundary |
-| `catch {}` (empty or commented) | `OperationResult<T>` or `fs.existsSync` | Handle explicitly or check existence before operation |
+| When You See...                                     | Immediately Replace With...             | Canonical Import                                                      |
+| :-------------------------------------------------- | :-------------------------------------- | :-------------------------------------------------------------------- |
+| `title: string`, `label: string`, `message: string` | `DisplayText`                           | `import type { DisplayText } from '@francogp/auditor';`               |
+| `color: string` (e.g. `'#ff0000'`)                  | `HexColor`                              | `import type { HexColor } from '@francogp/auditor';`                  |
+| `url: string`, `src: string`, `path: string`        | `AssetUri`                              | `import type { AssetUri } from '@francogp/auditor';`                  |
+| `date: string`, `createdAt: string`                 | `IsoDateString`                         | `import type { IsoDateString } from '@francogp/auditor';`             |
+| `class: string`, `className: string`                | `CssClassName`                          | `import type { CssClassName } from '@francogp/auditor';`              |
+| `id: string` (DOM or locator)                       | `DomElementId`                          | `import type { DomElementId } from '@francogp/auditor';`              |
+| `userId: string`, `sessionUid: string`              | `UserUuid`                              | `import type { UserUuid } from '@francogp/auditor';`                  |
+| `Record<string, unknown>`, `Record<string, any>`    | `JsonObject`                            | `import type { JsonObject } from '@francogp/auditor';`                |
+| `Record<string, MyEntity>`                          | `Record<MyEntityId, MyEntity>`          | Use canonical domain ID union for the key                             |
+| `new Set(['a', 'b'])`                               | `new Set<DomainId>(['a', 'b'])`         | Specify `<DomainId>` on `new Set`                                     |
+| `new Map([['a', 1]])`                               | `new Map<DomainId, number>([['a', 1]])` | Specify `<DomainId, V>` on `new Map`                                  |
+| `param: DomainType \| string`                       | `param: DomainType`                     | Require pure domain type in core; guard with `isDomainId` at boundary |
+| `catch {}` (empty or commented)                     | `OperationResult<T>` or `fs.existsSync` | Handle explicitly or check existence before operation                 |
 
 ---
 
@@ -66,8 +66,8 @@ export function requireTrainerId(raw: string): TrainerId {
 ### Template 3: Safe Boundary Deserialization with JsonObject & Valibot
 
 ```typescript
-import * as v from 'valibot';
 import type { JsonObject } from '@francogp/auditor';
+import * as v from 'valibot';
 
 export function parseJsonPayload(rawJson: string): JsonObject {
   const parsed: unknown = JSON.parse(rawJson);

@@ -32,7 +32,7 @@ describe('report_css CLI Tool', () => {
       .map((c: unknown[]) => String(c[0]))
       .find((s: string) => s.trim().startsWith('{'));
     expect(jsonCall).toBeDefined();
-    const parsed = JSON.parse(jsonCall!);
+    const parsed = JSON.parse(jsonCall);
     expect(parsed).toHaveProperty('summary');
     expect(parsed).toHaveProperty('findings');
     expect(parsed.summary).toHaveProperty('filesScanned');
@@ -48,7 +48,7 @@ describe('report_css CLI Tool', () => {
       .map((c: unknown[]) => String(c[0]))
       .find((s: string) => s.trim().startsWith('{'));
     expect(jsonCall).toBeDefined();
-    const parsed = JSON.parse(jsonCall!);
+    const parsed = JSON.parse(jsonCall);
     expect(Array.isArray(parsed.findings)).toBe(true);
   });
 

@@ -20,9 +20,10 @@ This is especially important when using animation libraries like GSAP, Anime.js,
 - [ ] Use `:css="false"` to prevent CSS rules from interfering with JS animations
 
 **Problematic Code:**
+
 ```vue
 <script setup>
-import gsap from 'gsap'
+import gsap from 'gsap';
 
 function onEnter(el) {
   // Animation starts but Vue doesn't wait for it!
@@ -30,7 +31,7 @@ function onEnter(el) {
     opacity: 0,
     y: 50,
     duration: 0.5
-  })
+  });
   // Missing done() call - element appears with no animation
 }
 
@@ -39,7 +40,7 @@ function onLeave(el) {
     opacity: 0,
     y: -50,
     duration: 0.5
-  })
+  });
   // Missing done() call - element removed immediately!
 }
 </script>
@@ -53,17 +54,18 @@ function onLeave(el) {
 ```
 
 **Correct Code:**
+
 ```vue
 <script setup>
-import gsap from 'gsap'
+import gsap from 'gsap';
 
 function onEnter(el, done) {
   gsap.from(el, {
     opacity: 0,
     y: 50,
     duration: 0.5,
-    onComplete: done  // Tell Vue animation is complete
-  })
+    onComplete: done // Tell Vue animation is complete
+  });
 }
 
 function onLeave(el, done) {
@@ -71,8 +73,8 @@ function onLeave(el, done) {
     opacity: 0,
     y: -50,
     duration: 0.5,
-    onComplete: done  // Element removed after animation
-  })
+    onComplete: done // Element removed after animation
+  });
 }
 </script>
 
@@ -109,17 +111,17 @@ function onLeave(el, done) {
 
 ```vue
 <script setup>
-import gsap from 'gsap'
-import { ref } from 'vue'
+import gsap from 'gsap';
+import { ref } from 'vue';
 
-const show = ref(false)
-let enterAnimation = null
-let leaveAnimation = null
+const show = ref(false);
+let enterAnimation = null;
+let leaveAnimation = null;
 
 function onBeforeEnter(el) {
   // Set initial state before animation
-  el.style.opacity = 0
-  el.style.transform = 'translateY(50px)'
+  el.style.opacity = 0;
+  el.style.transform = 'translateY(50px)';
 }
 
 function onEnter(el, done) {
@@ -129,20 +131,20 @@ function onEnter(el, done) {
     y: 0,
     duration: 0.5,
     ease: 'power2.out',
-    onComplete: done  // REQUIRED with :css="false"
-  })
+    onComplete: done // REQUIRED with :css="false"
+  });
 }
 
 function onAfterEnter(el) {
   // Cleanup after enter completes
-  enterAnimation = null
+  enterAnimation = null;
 }
 
 function onEnterCancelled() {
   // Handle interruption (e.g., user toggles quickly)
   if (enterAnimation) {
-    enterAnimation.kill()
-    enterAnimation = null
+    enterAnimation.kill();
+    enterAnimation = null;
   }
 }
 
@@ -156,18 +158,18 @@ function onLeave(el, done) {
     y: -50,
     duration: 0.5,
     ease: 'power2.in',
-    onComplete: done  // REQUIRED with :css="false"
-  })
+    onComplete: done // REQUIRED with :css="false"
+  });
 }
 
 function onAfterLeave(el) {
-  leaveAnimation = null
+  leaveAnimation = null;
 }
 
 function onLeaveCancelled() {
   if (leaveAnimation) {
-    leaveAnimation.kill()
-    leaveAnimation = null
+    leaveAnimation.kill();
+    leaveAnimation = null;
   }
 }
 </script>
@@ -194,27 +196,33 @@ function onLeaveCancelled() {
 ```vue
 <script setup>
 function onEnter(el, done) {
-  const animation = el.animate([
-    { opacity: 0, transform: 'scale(0.9)' },
-    { opacity: 1, transform: 'scale(1)' }
-  ], {
-    duration: 300,
-    easing: 'ease-out'
-  })
+  const animation = el.animate(
+    [
+      { opacity: 0, transform: 'scale(0.9)' },
+      { opacity: 1, transform: 'scale(1)' }
+    ],
+    {
+      duration: 300,
+      easing: 'ease-out'
+    }
+  );
 
-  animation.onfinish = done  // Call done when animation ends
+  animation.onfinish = done; // Call done when animation ends
 }
 
 function onLeave(el, done) {
-  const animation = el.animate([
-    { opacity: 1, transform: 'scale(1)' },
-    { opacity: 0, transform: 'scale(0.9)' }
-  ], {
-    duration: 300,
-    easing: 'ease-in'
-  })
+  const animation = el.animate(
+    [
+      { opacity: 1, transform: 'scale(1)' },
+      { opacity: 0, transform: 'scale(0.9)' }
+    ],
+    {
+      duration: 300,
+      easing: 'ease-in'
+    }
+  );
 
-  animation.onfinish = done
+  animation.onfinish = done;
 }
 </script>
 ```
@@ -224,16 +232,17 @@ function onLeave(el, done) {
 ```javascript
 // WRONG: Calling done() immediately instead of after animation
 function onEnter(el, done) {
-  gsap.from(el, { opacity: 0, duration: 0.5 })
-  done() // Called immediately - animation skipped!
+  gsap.from(el, { opacity: 0, duration: 0.5 });
+  done(); // Called immediately - animation skipped!
 }
 
 // WRONG: Forgetting done() parameter
-function onEnter(el) {  // No 'done' parameter
+function onEnter(el) {
+  // No 'done' parameter
   gsap.from(el, {
     opacity: 0,
-    onComplete: done  // Error: done is not defined!
-  })
+    onComplete: done // Error: done is not defined!
+  });
 }
 
 // CORRECT: Pass done to animation callback
@@ -241,11 +250,12 @@ function onEnter(el, done) {
   gsap.from(el, {
     opacity: 0,
     duration: 0.5,
-    onComplete: done  // Called after 0.5s
-  })
+    onComplete: done // Called after 0.5s
+  });
 }
 ```
 
 ## Reference
+
 - [Vue.js Transition - JavaScript Hooks](https://vuejs.org/guide/built-ins/transition.html#javascript-hooks)
 - [GSAP with Vue](https://gsap.com/resources/vue/)

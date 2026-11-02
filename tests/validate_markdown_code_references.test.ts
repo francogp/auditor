@@ -70,7 +70,7 @@ Also check \`supabase/nonexistent_table.sql\`.
 
     expect(result.summary.errors).toBe(2);
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
-    expect(brokenRefs.length).toBe(2);
+    expect(brokenRefs).toHaveLength(2);
     expect(brokenRefs[0]?.context).toBe('src/nonexistent/broken_file.ts');
     expect(brokenRefs[1]?.context).toBe('supabase/nonexistent_table.sql');
   });
@@ -88,7 +88,7 @@ Also check \`packages/legacy_pkg\`.
 
     expect(result.summary.errors).toBe(2);
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
-    expect(brokenRefs.length).toBe(2);
+    expect(brokenRefs).toHaveLength(2);
     expect(brokenRefs[0]?.context).toBe('packages/auditor/src/index.ts');
     expect(brokenRefs[1]?.context).toBe('packages/legacy_pkg');
   });
@@ -111,7 +111,7 @@ Refer to \`src/data/items.ts\` or \`src/data/items\` for details.
     const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
-    expect(brokenRefs.length).toBe(0);
+    expect(brokenRefs).toHaveLength(0);
   });
 
   it('detects case mismatches on disk (Linux ext4 case sensitivity)', async () => {
@@ -133,7 +133,7 @@ Refer to \`src/data/Items.ts\` for details.
 
     expect(result.summary.errors).toBe(1);
     const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
-    expect(caseFindings.length).toBe(1);
+    expect(caseFindings).toHaveLength(1);
     expect(caseFindings[0]?.context).toBe('src/data/Items.ts');
   });
 
@@ -153,7 +153,7 @@ Refer to \`src/data/Items.ts\` for details.
 
     expect(result.summary.errors).toBe(1);
     const caseFindings = result.findings.filter((f) => f.ruleId === 'markdown-case-mismatch');
-    expect(caseFindings.length).toBe(1);
+    expect(caseFindings).toHaveLength(1);
     expect(caseFindings[0]?.context).toBe('Database.ts');
   });
 
@@ -173,7 +173,7 @@ Path alias (ignored): @/components/Button.vue
 
     expect(result.summary.errors).toBe(1);
     const skillFindings = result.findings.filter((f) => f.ruleId === 'markdown-broken-skill-ref');
-    expect(skillFindings.length).toBe(1);
+    expect(skillFindings).toHaveLength(1);
     expect(skillFindings[0]?.context).toBe('@/nonexistent-broken-skill');
   });
 
@@ -195,7 +195,7 @@ import './src/nonexistent/sample.scss';
     const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
-    expect(brokenRefs.length).toBe(0);
+    expect(brokenRefs).toHaveLength(0);
   });
 
   it('ignores wildcards, placeholders, and known abstract paths', async () => {
@@ -214,7 +214,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     const result = await auditor.audit();
 
     const brokenRefs = result.findings.filter((f) => f.ruleId === 'markdown-broken-source-ref');
-    expect(brokenRefs.length).toBe(0);
+    expect(brokenRefs).toHaveLength(0);
   });
 
   it('detects hardcoded runtime version assertions in markdown', async () => {
@@ -232,7 +232,7 @@ Also \`supabase/migrations\` and \`scripts/.cache/\`.
     const versionFindings = result.findings.filter(
       (f) => f.ruleId === 'markdown-hardcoded-runtime-version'
     );
-    expect(versionFindings.length).toBe(2);
+    expect(versionFindings).toHaveLength(2);
   });
 
   it('passes completely with zero errors when documentation adheres to all rules', async () => {

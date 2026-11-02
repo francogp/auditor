@@ -9,15 +9,15 @@ Reactive current Date instance.
 ## Usage
 
 ```ts
-import { useNow } from '@vueuse/core'
+import { useNow } from '@vueuse/core';
 
-const now = useNow()
+const now = useNow();
 ```
 
 ```ts
-import { useNow } from '@vueuse/core'
+import { useNow } from '@vueuse/core';
 // ---cut---
-const { now, pause, resume } = useNow({ controls: true })
+const { now, pause, resume } = useNow({ controls: true });
 ```
 
 ## Component Usage
@@ -26,12 +26,8 @@ const { now, pause, resume } = useNow({ controls: true })
 <template>
   <UseNow v-slot="{ now, pause, resume }">
     Now: {{ now }}
-    <button @click="pause()">
-      Pause
-    </button>
-    <button @click="resume()">
-      Resume
-    </button>
+    <button @click="pause()">Pause</button>
+    <button @click="resume()">Resume</button>
   </UseNow>
 </template>
 ```
@@ -39,21 +35,19 @@ const { now, pause, resume } = useNow({ controls: true })
 ## Type Declarations
 
 ```ts
-export interface UseNowOptions<
-  Controls extends boolean,
-> extends ConfigurableScheduler {
+export interface UseNowOptions<Controls extends boolean> extends ConfigurableScheduler {
   /**
    * Expose more controls
    *
    * @default false
    */
-  controls?: Controls
+  controls?: Controls;
 }
 export type UseNowReturn<Controls extends boolean> = Controls extends true
   ? {
-      now: ShallowRef<Date>
+      now: ShallowRef<Date>;
     } & Pausable
-  : ShallowRef<Date>
+  : ShallowRef<Date>;
 /**
  * Reactive current Date instance.
  *
@@ -62,8 +56,8 @@ export type UseNowReturn<Controls extends boolean> = Controls extends true
  *
  * @__NO_SIDE_EFFECTS__
  */
-export declare function useNow(options?: UseNowOptions<false>): ShallowRef<Date>
+export declare function useNow(options?: UseNowOptions<false>): ShallowRef<Date>;
 export declare function useNow(options: UseNowOptions<true>): {
-  now: ShallowRef<Date>
-} & Pausable
+  now: ShallowRef<Date>;
+} & Pausable;
 ```

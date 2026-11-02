@@ -110,7 +110,7 @@ describe('ValidateTsconfigAuditor', () => {
       const strictViolations = checkResult.findings.filter(
         (f) => f.ruleId === 'tsconfig-missing-strict-compiler-option'
       );
-      expect(strictViolations.length).toBe(5);
+      expect(strictViolations).toHaveLength(5);
 
       // Fix mode
       const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
@@ -182,7 +182,7 @@ describe('ValidateTsconfigAuditor', () => {
       const bannedViolations = checkResult.findings.filter(
         (f) => f.ruleId === 'tsconfig-banned-option'
       );
-      expect(bannedViolations.length).toBe(2);
+      expect(bannedViolations).toHaveLength(2);
 
       const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       await fixAuditor.fix();
@@ -265,7 +265,7 @@ describe('ValidateTsconfigAuditor', () => {
           f.ruleId === 'tsconfig-missing-strict-compiler-option' &&
           f.message.includes('compilerOptions.target')
       );
-      expect(targetViolations.length).toBe(1);
+      expect(targetViolations).toHaveLength(1);
 
       const fixAuditor = new ValidateTsconfigAuditor({ projectRoot: tmpDir });
       const fixResult = await fixAuditor.fix();

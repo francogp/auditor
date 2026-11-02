@@ -39,22 +39,22 @@ metadata:
 
 This workflow is a **strict state machine**, not a loose checklist. Each step produces output that the next step consumes.
 
-| Rule | What it means |
-|---|---|
-| **One command per turn** | Issue one tool call, read its output, then decide the next step. Never batch. |
-| **Read before continuing** | "I ran it" ≠ "I verified the result." Read every output before proceeding. |
-| **No optional phases** | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN. |
-| **Config Ratchet & Setup Pre-Flight Integrity Gate (`auditor:setup`)** | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor:setup` (or `npm run auditor phase=setup`). All setup phase suites run to validate the online configuration ratchet against `ratchet.productionRef` (default `origin/main`) and verify that 100% of satellite configurations (.fallowrc.json, .stylelintrc.json, vite.config.ts, tsconfig.json, .htmlvalidate.json, .markdownlint.json) are synchronized with zero undeclared exemptions or relaxations. If ANY rule relaxation, satellite desynchronization, or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight. |
-| **Update `task.md` continuously** | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step. |
-| **Unbroken Repair Loop** | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code. |
-| **Zero Gatekeeper Tampering & Proactive Evolution** | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source. |
+| Rule                                                                                                                  | What it means                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **One command per turn**                                                                                              | Issue one tool call, read its output, then decide the next step. Never batch.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| **Read before continuing**                                                                                            | "I ran it" ≠ "I verified the result." Read every output before proceeding.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **No optional phases**                                                                                                | Phases 0–4 are mandatory. Skipping phases is STRICTLY FORBIDDEN.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Config Ratchet & Setup Pre-Flight Integrity Gate (`auditor:setup`)**                                                | BEFORE initiating Phase 0 (prior to creating `task.md` or running version bumps), the agent MUST execute `npm run auditor:setup` (or `npm run auditor phase=setup`). All setup phase suites run to validate the online configuration ratchet against `ratchet.productionRef` (default `origin/main`) and verify that 100% of satellite configurations (.fallowrc.json, .stylelintrc.json, vite.config.ts, tsconfig.json, .htmlvalidate.json, .markdownlint.json) are synchronized with zero undeclared exemptions or relaxations. If ANY rule relaxation, satellite desynchronization, or unauthorized configuration tampering is detected without verified Antigravity user authorization (`RELAX-<8hex>`), **SAFE-COMMIT MUST NOT START**. The process halts immediately in pre-flight.                                                                                                                                                                                                     |
+| **Update `task.md` continuously**                                                                                     | Update `<appDataDir>/brain/<conversation-id>/task.md` after each step.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Unbroken Repair Loop**                                                                                              | You MUST NEVER exit Phase 2 until all 3 validation gates exit cleanly with code 0 on the final code.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Zero Gatekeeper Tampering & Proactive Evolution**                                                                   | Agents MUST NEVER unilaterally weaken, alter, relax, or reinterpret the verification rules, thresholds, ratchet logic (`auditRatchet.ts`), `audit_bundle.ts`, or any quality gatekeeper to make checks pass. Hand-editing `.auditor/audit-baseline.json` to add fingerprints, re-running `--init-baseline`, or disabling `ratchet.enabled` to absorb new warnings is gross misconduct. All errors and NEW warnings must be resolved at the code source.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | **Categorical Prohibition on Modifying or Turning Off Audit Configurations (`audit.config.ts`, Linters, Subsystems)** | During `/safe-commit`, agents are STRICTLY AND CATEGORICALLY FORBIDDEN from disabling, turning off, reverting, or tampering with `.auditor/audit.config.ts` (such as setting `domain.enabled: false`, `bundle.enabled: false`, `enforceTargets: false`, neutering thresholds, or adding ad-hoc whitelist entries), Vite+ configurations, Stylelint configurations, or Fallow configurations to make gates pass or silence findings. If an audit gate reveals errors or warnings (even hundreds or thousands), THEY ARE REAL DEFECTS. The agent MUST NOT touch configuration to fake a clean pass. If issues cannot be legitimately resolved in the source code or via canonical auto-fix (`npm run auditor:fix`), the agent MUST STOP the safe-commit immediately, halt Phase 2, report the exact defects to the user, and ask how they wish to proceed. Silencing rules or flipping config toggles during safe-commit is considered a critical architectural violation and gross misconduct. |
-| **Dynamic Modules & Domain Exports Analysis** | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`. |
-| **Strict Single Build Mandate** | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated. |
-| **Mandatory Atomic Tag Mandate** | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs. |
-| **Mandatory 3-Pillar Documentation Audit & Anti-Bypass Mandate** | Agents are CATEGORICALLY PROHIBITED from skipping Phase 3, self-declaring "zero updates exist", or bypassing `learn-with-docs` whenever source code (`src/**`), package scripts (`package.json`), or configurations have changed. In such cases, generating `learning_proposal.md` with `RequestFeedback: true` and obtaining explicit user approval at the 🛑 HARD STOP is strictly mandatory before advancing to Phase 4. |
-| **Strict Template Adherence Mandate** | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN. |
-| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)** | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`learning_proposal.md`, `walkthrough.md`); `config.documentation.language` dynamically governs repository files, code, comments, documentation, markdown files, commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts and diffs embedded within artifacts. Zero hardcoded languages. |
+| **Dynamic Modules & Domain Exports Analysis**                                                                         | When resolving unused exports (Fallow), NEVER blindly strip `export` without analyzing whether the symbol is needed by dynamically loaded modules, test suites, or public contracts. Register legitimate public exports in `.fallowrc.json` under `ignoreExports`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Strict Single Build Mandate**                                                                                       | `npm run build` MUST run exactly once per safe-commit cycle (in Gate 2.2). Because the version bump decision occurs in Phase 1 (Step 1.4), the build in Gate 2.2 already compiles the freshly stamped version. Re-running `build` in Phase 4 is strictly eliminated.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| **Mandatory Atomic Tag Mandate**                                                                                      | Whenever a version bump is approved in Step 1.4, creating the git commit without simultaneously creating the annotated Git tag is STRICTLY FORBIDDEN. Agents MUST chain the tag creation directly to the commit, annotating the tag with the FULL synthesized commit message / release notes: `git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt`. Annotating tags with terse summaries like `-m "Release v..."` is STRICTLY PROHIBITED; tags MUST contain the complete title and technical chronicle so GitHub Tags and Releases display full changelogs.                                                                                                                                                                                                                                                                                                                                                                      |
+| **Mandatory 3-Pillar Documentation Audit & Anti-Bypass Mandate**                                                      | Agents are CATEGORICALLY PROHIBITED from skipping Phase 3, self-declaring "zero updates exist", or bypassing `learn-with-docs` whenever source code (`src/**`), package scripts (`package.json`), or configurations have changed. In such cases, generating `learning_proposal.md` with `RequestFeedback: true` and obtaining explicit user approval at the 🛑 HARD STOP is strictly mandatory before advancing to Phase 4.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| **Strict Template Adherence Mandate**                                                                                 | `task.md` MUST match `task-template.md` 100% byte-for-byte in structure, exact headings (`# Safe Commit Task Ledger`, `## Task Progress Checklist`, `## Step Records & Execution Metrics`), and checklist hierarchy. Any pre-existing `task.md` from previous planning or features MUST be completely overwritten (`Overwrite: true`). Inventing ad-hoc checklist names (e.g. `Safe-Commit Pipeline Progress`), placing commit drafts before the checklist, reordering sections, altering step wording, or omitting the execution metrics is STRICTLY FORBIDDEN.                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Dynamic Configuration-Driven Language Resolution (Zero Hardcoding)**                                                | The agent MUST inspect `.auditor/audit.config.ts`: `config.documentation.chatLanguage` dynamically governs interactive chat messages, step notifications, user review dialogs (`ask_question` in Step 1.4, regular text review in Step 3.4), the completion template, AND the narrative explanations in brain artifacts (`learning_proposal.md`, `walkthrough.md`); `config.documentation.language` dynamically governs repository files, code, comments, documentation, markdown files, commit messages, `scratch/release_notes.txt`, and git tags, as well as code contracts and diffs embedded within artifacts. Zero hardcoded languages.                                                                                                                                                                                                                                                                                                                                                 |
 
 > [!CAUTION]
 > The most common failure modes are batching commands, assuming a fix worked without re-running the gate, skipping output verification, or **modifying auditor scripts to suppress warnings instead of fixing source code**. The cost is committing unverified or degraded code into **permanent, irreversible** git history.
@@ -74,7 +74,7 @@ graph TD
         direction TB
         T["2.1 Tests & Coverage\n(npm run test:coverage / test / Skip)"] -->|"Pass or Coverage Skip"| B["2.2 The Master Build Gate\nnpm run build\n(auditor:full + tsc + auditor:post-build)"]
         B -->|"Exit 0 ✅"| F["2.3 Fallow Health Gate\nnpm run auditor:fallow"]
-        
+
         T -->|"Tests Fail / Low Coverage"| REPAIR["🛠️ Repair:\n1. npm run auditor:fix\n2. Code & test edits"]
         B -->|"Exit Code != 0 / Error"| REPAIR
         F -->|"Score < 85 / New Defects"| REPAIR
@@ -189,7 +189,7 @@ This phase audits test coverage for modified logic and captures a zero-commit sa
   # npm run version:bump -- build
   ```
 
-  *(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)*
+  _(This ensures that `package.json` has the definitive release version BEFORE Phase 2 runs, allowing Gate 2.3 to compile the final stamped version in a single pass without needing a redundant second build!)_
 
 **Step 1.5** — Pre-Draft Commit Message
 
@@ -273,7 +273,7 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
      - Internal references, tutorials, and guides (`references/**`)
      - Code examples and sample implementations (`examples/**`)
      - Bundled templates or asset files (`templates/**`, `assets/**`)
-     Ensure skill guidance reflects newly introduced patterns, removes deprecated legacy syntax, resolves contradictions, and incorporates missing new content so agents always consult up-to-date guidance.
+       Ensure skill guidance reflects newly introduced patterns, removes deprecated legacy syntax, resolves contradictions, and incorporates missing new content so agents always consult up-to-date guidance.
 - **Differentiating Scope**:
   - **MANDATORY**: Synchronizing host program documentation (`README.md`, `docs/**`), DOX indices, and affected skills directly related to or impacted by the session's changes.
   - **STRICTLY PROHIBITED**: Unrelated repository-wide sweeps (fixing random typos in unrelated files or auditing unimpacted modules).
@@ -297,7 +297,7 @@ You must execute the 3 gates sequentially. If ANY gate fails, execute the repair
     Phase 3 may ONLY advance directly to Phase 4 without generating `learning_proposal.md` IF AND ONLY IF:
     1. The git diff consists **exclusively** of non-functional markdown/documentation fixes (`git status` shows only `*.md` files), OR
     2. The 3 documentation surfaces (`README.md`, `AGENTS.md`, and relevant skills) have **ALREADY** been modified and verified on disk in the current `git status` diff alongside the code changes, AND zero unpersisted user directives or lessons remain.
-    If functional code changed and documentation was not updated on disk, claiming "zero updates exist" is considered a critical architectural violation and gross misconduct.
+       If functional code changed and documentation was not updated on disk, claiming "zero updates exist" is considered a critical architectural violation and gross misconduct.
 
 **✓ Completion gate**: `learning_proposal.md` was generated, presented, and explicitly approved by the user; or all 3 documentation surfaces are already fully updated on disk in the git diff. Proceed to Phase 4.
 
@@ -323,7 +323,8 @@ Once the user approves:
     git add . && git commit -F scratch/release_notes.txt && git tag -a v<base_version> -F scratch/release_notes.txt
     ```
 
-    *(The tag annotation MUST contain 100% of the synthesized commit message and subsystem breakdown, ensuring GitHub Tags and Releases display the technical details rather than a blank "Release v...". The tag name MUST be strictly `v<base_version>` e.g. `v1.2.0`).*
+    _(The tag annotation MUST contain 100% of the synthesized commit message and subsystem breakdown, ensuring GitHub Tags and Releases display the technical details rather than a blank "Release v...". The tag name MUST be strictly `v<base_version>` e.g. `v1.2.0`)._
+
   - If no version bump occurred:
 
     ```bash
@@ -352,28 +353,31 @@ Every completed safe-commit run MUST finish with a standardized Markdown templat
 # ✅ SAFE-COMMIT COMPLETADO CON ÉXITO
 
 ### Resumen de la Operación
+
 - **Commit Hash**: `<commit-hash>`
 - **Tag Creado**: `v<version>` (o `Ninguno - Versión mantenida`)
 - **Mensaje**: `<commit-title>`
 - **Archivos Modificados**: `<count>` archivos
 
 ### Puertas de Calidad Verificadas (3/3)
-| Puerta | Descripción | Estado |
-|:---|:---|:---:|
-| 2.1 | `npm run test:coverage` (Tests & Cobertura Dinámica) | ✅ Aprobado / Skip |
-| 2.2 | `npm run build` (Master Build: Auditoría + Compilación + Post-Build) | ✅ Aprobado (Exit 0) |
-| 2.3 | `npm run auditor:fallow` (Salud y Arquitectura) | ✅ Aprobado (Score ≥ 85) |
+
+| Puerta | Descripción                                                          |          Estado          |
+| :----- | :------------------------------------------------------------------- | :----------------------: |
+| 2.1    | `npm run test:coverage` (Tests & Cobertura Dinámica)                 |    ✅ Aprobado / Skip    |
+| 2.2    | `npm run build` (Master Build: Auditoría + Compilación + Post-Build) |   ✅ Aprobado (Exit 0)   |
+| 2.3    | `npm run auditor:fallow` (Salud y Arquitectura)                      | ✅ Aprobado (Score ≥ 85) |
 
 ### Publicación Remota (Git Push)
+
 > ⚠️ **Control de Seguridad**: Por gobernanza del repositorio, el agente **NO** realiza push automático a ramas remotas sin petición explícita previa.
 
 Para publicar los cambios y tags en el repositorio remoto, ejecuta manualmente:
+
 ```bash
 git push origin <branch> --follow-tags
 ```
 
-*O indícame explícitamente "hace push" si deseas que lo ejecute por ti.*
-
+_O indícame explícitamente "hace push" si deseas que lo ejecute por ti._
 ````
 
 ### English Variant (`chatLanguage: 'en'`)
@@ -382,26 +386,29 @@ git push origin <branch> --follow-tags
 # ✅ SAFE-COMMIT SUCCESSFULLY COMPLETED
 
 ### Operation Summary
+
 - **Commit Hash**: `<commit-hash>`
 - **Tag Created**: `v<version>` (or `None - Version maintained`)
 - **Message**: `<commit-title>`
 - **Modified Files**: `<count>` files
 
 ### Quality Gates Verified (3/3)
-| Gate | Description | Status |
-|:---|:---|:---:|
-| 2.1 | `npm run test:coverage` (Automated Tests & Dynamic Coverage) | ✅ Passed / Skip |
-| 2.2 | `npm run build` (Master Build: Pre-Audit + Compile + Post-Audit) | ✅ Passed (Exit 0) |
-| 2.3 | `npm run auditor:fallow` (Architecture & Health) | ✅ Passed (Score ≥ 85) |
+
+| Gate | Description                                                      |         Status         |
+| :--- | :--------------------------------------------------------------- | :--------------------: |
+| 2.1  | `npm run test:coverage` (Automated Tests & Dynamic Coverage)     |    ✅ Passed / Skip    |
+| 2.2  | `npm run build` (Master Build: Pre-Audit + Compile + Post-Audit) |   ✅ Passed (Exit 0)   |
+| 2.3  | `npm run auditor:fallow` (Architecture & Health)                 | ✅ Passed (Score ≥ 85) |
 
 ### Remote Publishing (Git Push)
+
 > ⚠️ **Security Control**: Repository governance strictly bars automated push to remote branches without prior explicit instructions.
 
 To publish commits and tags to the remote repository, execute manually:
+
 ```bash
 git push origin <branch> --follow-tags
 ```
 
-*Or explicitly tell me "push" if you want me to execute it for you.*
-
+_Or explicitly tell me "push" if you want me to execute it for you._
 ````

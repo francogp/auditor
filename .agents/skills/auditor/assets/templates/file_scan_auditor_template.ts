@@ -19,6 +19,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import {
   BaseAuditor,
   FileScanAuditor,
@@ -35,9 +36,7 @@ import {
 
 enableCompileCache();
 
-export type MyFeatureRuleId =
-  | 'my-feature-forbidden-pattern'
-  | 'my-feature-missing-attribute';
+export type MyFeatureRuleId = 'my-feature-forbidden-pattern' | 'my-feature-missing-attribute';
 
 export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-forbidden-pattern',
@@ -55,7 +54,8 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   constructor(options: MyFeatureAuditorOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (config) => config.documentation?.skillsRoots ?? DEFAULT_AUDIT_CONFIG.documentation.skillsRoots
+      (config) =>
+        config.documentation?.skillsRoots ?? DEFAULT_AUDIT_CONFIG.documentation.skillsRoots
     );
     const allowedExtensions = new Set(['.md']);
 
@@ -163,7 +163,7 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
     // Rule 1: Forbidden pattern check in documentation
     this.runSubAuditorSync('my-feature-forbidden-pattern', () => {
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         const lineNum = i + 1;
 
         if (line.includes('forbiddenPattern')) {

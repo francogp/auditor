@@ -87,8 +87,8 @@ describe('guideRenderer', () => {
   it('finds rule guide from manifest fallback when ruleDescriptions is omitted', () => {
     const taskWithManifest: AuditTaskDefinition = {
       ...sampleTask,
-      ruleDescriptions: undefined as any,
-      ruleRemediations: undefined as any,
+      ruleDescriptions: undefined,
+      ruleRemediations: undefined,
       manifest: {
         rules: { 'manifest-rule': 'Regla desde manifest' },
         remediations: { 'manifest-rule': 'Solución manifest' }

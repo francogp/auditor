@@ -113,10 +113,10 @@ Create a child `AGENTS.md` when a folder becomes a durable boundary with its own
 1. `# Purpose`
 2. `## Ownership`
 3. `## Local Contracts`
-   *(Optional: `## Key Files` — bidirectional code inventory when mandated by local contracts)*
+   _(Optional: `## Key Files` — bidirectional code inventory when mandated by local contracts)_
 4. `## Work Guidance`
 5. `## Verification`
-   *(Alternative placement: `## Key Files` immediately before `## Child DOX Index`)*
+   _(Alternative placement: `## Key Files` immediately before `## Child DOX Index`)_
 6. `## Child DOX Index`
 
 > **Tutorial & Templates**: For comprehensive templates, step-by-step authoring walkthroughs, and error triage, consult the [DOX Authoring Tutorial & Canonical Guidelines](./references/dox-authoring-tutorial.md).
@@ -194,4 +194,4 @@ node --experimental-strip-types .agents/skills/dox-navigator/scripts/audit_dox.t
 5. **Unindexed Child DOX Indices (`dox-unregistered-child`)**: Any child `AGENTS.md` file that is not linked/indexed in its nearest ancestor parent `AGENTS.md` (up to root `AGENTS.md`).
 6. **Unindexed Code Files (`dox-unindexed-file`)**: Any non-test source code file residing in a documented directory that is not referenced in its local `AGENTS.md`.
 
-*(Note: Physical link targets, forbidden absolute paths, broken local anchors, and gitignored references across all `AGENTS.md` files are audited globally and canonically by `validate_markdown_links.ts` under rules `markdown-link-broken`, `markdown-link-absolute-path`, and `markdown-link-gitignore-target`).*
+_(Note: Physical link targets, forbidden absolute paths, broken local anchors, and gitignored references across all `AGENTS.md` files are audited globally and canonically by `validate_markdown_links.ts` under rules `markdown-link-broken`, `markdown-link-absolute-path`, and `markdown-link-gitignore-target`)._

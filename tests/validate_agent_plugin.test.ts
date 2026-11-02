@@ -166,10 +166,10 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
 
       expect(fixResult.summary.errors).toBe(0);
       expect(fixResult.status).toBe('passed');
-      expect(await fs.stat(path.join(agentsDir, 'hooks.json'))).toBeDefined();
-      expect(
-        await fs.stat(path.join(agentsDir, 'scripts', 'prevent_destructive_git.js'))
-      ).toBeDefined();
+      await expect(fs.stat(path.join(agentsDir, 'hooks.json'))).resolves.toBeDefined();
+      await expect(
+        fs.stat(path.join(agentsDir, 'scripts', 'prevent_destructive_git.js'))
+      ).resolves.toBeDefined();
     });
   });
 
@@ -684,7 +684,7 @@ describe('validate_agent_plugin (Agent Plugin & Skill Integration Auditor)', () 
       const dupFindings = checkResult.findings.filter(
         (f) => f.ruleId === 'host-duplicate-auditor-skill'
       );
-      expect(dupFindings.length).toBe(2);
+      expect(dupFindings).toHaveLength(2);
 
       // Run in fix mode to verify auto-cleanup
       const fixAuditor = new AgentPluginAuditor({ projectRoot: tempDir });

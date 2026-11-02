@@ -30,7 +30,7 @@ export interface ItemRegistry {
       const findings = DomainRefactorEngine.discoverInFile(testFile);
       const recordFindings = findings.filter((f) => f.kind === 'record-string-key');
 
-      expect(recordFindings.length).toBe(2);
+      expect(recordFindings).toHaveLength(2);
       expect(recordFindings[0]?.originalSnippet).toBe('Record<string, number>');
       expect(recordFindings[0]?.suggestedReplacement).toBe('Record<DisplayText, number>');
 
@@ -125,7 +125,7 @@ const map = ref<Record<string, { id: number; name: string }>>({});
       expect(updated).toContain('Record<DisplayText, number>');
 
       const findings = discoverRecordKeyFindings(testFile, updated);
-      expect(findings.length).toBe(0);
+      expect(findings).toHaveLength(0);
 
       const injectedShebang = injectImportStatement(
         '#!/usr/bin/env node\nconsole.log(1);',

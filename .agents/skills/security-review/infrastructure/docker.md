@@ -262,7 +262,7 @@ services:
 
 secrets:
   db_password:
-    external: true  # Or file: ./secrets/db_password
+    external: true # Or file: ./secrets/db_password
 ```
 
 ### Privilege Restrictions
@@ -272,7 +272,7 @@ secrets:
 services:
   app:
     image: myimage
-    user: "1000:1000"
+    user: '1000:1000'
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -301,7 +301,7 @@ services:
 
   backend:
     networks:
-      - internal  # Not accessible from outside
+      - internal # Not accessible from outside
 
   database:
     networks:
@@ -310,7 +310,7 @@ services:
 networks:
   public:
   internal:
-    internal: true  # No external access
+    internal: true # No external access
 ```
 
 ---

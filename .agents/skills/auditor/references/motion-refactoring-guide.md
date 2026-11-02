@@ -127,7 +127,7 @@ Comment escape hatches (`// timer-ok:`, `// layout-ok:`) are permanently eradica
 
 ### Scenario B: Elective UI Animation Modernization (`auditor:motion`)
 
-- **Trigger**: User requests *"improve UI animations"*, *"replace component timers"*, or *"optimize animations to 60 FPS"*.
+- **Trigger**: User requests _"improve UI animations"_, _"replace component timers"_, or _"optimize animations to 60 FPS"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before proceeding.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:motion discover`, inspect specific candidate files via `auditor:motion inspect --file <target>`, generate `scratch/motion-plan.json`, and apply with `--worktree`.
 
@@ -141,12 +141,14 @@ Comment escape hatches (`// timer-ok:`, `// layout-ok:`) are permanently eradica
 # Correction Plan: gsap-banned-timer in ToastNotification.vue
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: `behavior` (Phase 5)
 - **Suite**: `validate_gsap_animations`
 - **Location**: `src/components/ToastNotification.vue:L52`
 - **Violation**: Use of `setTimeout(() => isVisible.value = false, 3000)` inside a Vue component.
 
 ## 2. Canonical Solution
+
 Replace with `gsap.delayedCall` to honor time-scaling in automated tests:
 
 ```ts
@@ -166,14 +168,16 @@ gsap.delayedCall(3, () => {
 # Improvement Plan: Migration to GPU Transforms in Drawer.vue
 
 ## 1. Scope & Motivation
+
 - **Tool**: `auditor-motion`
 - **Objective**: Replace layout animation `left: -320px` to `left: 0` with hardware-accelerated `x: -320` to `x: 0` to prevent layout thrashing at 60 FPS.
 - **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| File | Line | Current Property | Proposed GPU Property | Proposed Ease |
-| :--- | :--- | :--- | :--- | :--- |
-| `src/components/Drawer.vue` | L85 | `left: '0px'` | `x: 0` | `'power2.out'` |
+
+| File                        | Line | Current Property | Proposed GPU Property | Proposed Ease  |
+| :-------------------------- | :--- | :--------------- | :-------------------- | :------------- |
+| `src/components/Drawer.vue` | L85  | `left: '0px'`    | `x: 0`                | `'power2.out'` |
 
 ## 3. Declarative Plan (`scratch/motion-plan.json`)
 

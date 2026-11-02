@@ -112,6 +112,7 @@ Conditional UI changes that **lack** animation are often worse than poorly-tuned
 ## Quick Reference: Severity Levels
 
 **Critical (Must Fix)**:
+
 - Missing `prefers-reduced-motion` support
 - Animating layout properties (width, height, top, left)
 - No exit animations (elements just disappear)
@@ -120,6 +121,7 @@ Conditional UI changes that **lack** animation are often worse than poorly-tuned
 - Animations on high-frequency actions (100s/day)
 
 **Important (Should Fix)**:
+
 - Exit animations as prominent as enter animations
 - Missing blur in enter animations
 - Animating from `scale(0)` instead of `0.9+` (Emil)
@@ -127,9 +129,11 @@ Conditional UI changes that **lack** animation are often worse than poorly-tuned
 - Wrong transform-origin on dropdowns/popovers (Emil)
 
 **Context-Dependent (Check Against Designer Perspective)**:
+
 - Durations over 300ms (Emil flags this; Jakub/Jhey may approve for polish)
 
 **Nice to Have**:
+
 - Optical alignment refinements
 - oklch color space for gradients
 - Spring animations instead of ease

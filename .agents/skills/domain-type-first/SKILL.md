@@ -54,14 +54,14 @@ If it represents a finite domain, design and use the domain type first.
 
 Before writing or modifying ANY TypeScript code in `src/` or `scripts/`, mentally run through the **5 Binary Decision Gates**:
 
-| Gate | Question | Required Canonical Action |
-| :--- | :--- | :--- |
-| **1. Entity vs Instance** | Is this a finite catalog entity (`*Id`) or a live instance identifier (`*Uid`)? | **Catalog**: Use strict domain union (`EntityId`, `ItemId`). NEVER open `string`. — **Live Instance**: Use `string` (`crypto.randomUUID()`). Matches `GENUINE_UID_PATTERN`. |
-| **2. Library Domain Reuse** | Does `@types/node`, `@francogp/auditor`, or `src/types/` already define this? | Import canonical contract directly (`BinaryEncoding`, `UserRole`, `StatusName`). NEVER redeclare `'read' \| 'write'` or inline property unions. |
-| **3. Boundary vs Core** | Is data entering from external I/O (API/JSON/Storage) or inside business logic? | **Boundary**: Parse with `requireDomainId(raw)` or guard with `isDomainId(raw)`. Throw loudly on invalid data. — **Core**: Demand pure `DomainId` parameter with call-site guarding. NEVER `DomainId \| string` or `DomainId \| undefined`. |
-| **4. O(1) Access & Memory** | Am I searching, storing, or returning a collection in an execution path? | **Search**: Pre-index in $O(1)$ (`Record<DomainId, T>`, `ReadonlySet<T>`, `Map`). NEVER `.find()`, `.filter()`, `.includes()` on arrays in hot paths. — **Return**: Return collection directly as `readonly T[]`. NEVER `return [...arr]`. |
-| **5. Object Duplication** | Do I need to duplicate an entity or state tree? | **Vue / Pinia Reactive**: Use `cloneReactive(obj)` from `@/logic/utils/cloneUtils`. — **Plain Object**: Use `structuredClone(obj)`. NEVER `JSON.parse(JSON.stringify(obj))`. |
-| **6. Entity Persistence** | Am I serializing, snapshotting, or persisting a core domain entity (`UserRecord`, `TenantConfig`) to DB/storage? | **Canonical Persistence**: Reuse canonical domain serializers (`serializeUser` / `deserializeUser`) from the persistence layer. NEVER invent ad-hoc subset types (`*SnapshotEntry`, `*PartialData`) or strip properties. |
+| Gate                        | Question                                                                                                         | Required Canonical Action                                                                                                                                                                                                                   |
+| :-------------------------- | :--------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1. Entity vs Instance**   | Is this a finite catalog entity (`*Id`) or a live instance identifier (`*Uid`)?                                  | **Catalog**: Use strict domain union (`EntityId`, `ItemId`). NEVER open `string`. — **Live Instance**: Use `string` (`crypto.randomUUID()`). Matches `GENUINE_UID_PATTERN`.                                                                 |
+| **2. Library Domain Reuse** | Does `@types/node`, `@francogp/auditor`, or `src/types/` already define this?                                    | Import canonical contract directly (`BinaryEncoding`, `UserRole`, `StatusName`). NEVER redeclare `'read' \| 'write'` or inline property unions.                                                                                             |
+| **3. Boundary vs Core**     | Is data entering from external I/O (API/JSON/Storage) or inside business logic?                                  | **Boundary**: Parse with `requireDomainId(raw)` or guard with `isDomainId(raw)`. Throw loudly on invalid data. — **Core**: Demand pure `DomainId` parameter with call-site guarding. NEVER `DomainId \| string` or `DomainId \| undefined`. |
+| **4. O(1) Access & Memory** | Am I searching, storing, or returning a collection in an execution path?                                         | **Search**: Pre-index in $O(1)$ (`Record<DomainId, T>`, `ReadonlySet<T>`, `Map`). NEVER `.find()`, `.filter()`, `.includes()` on arrays in hot paths. — **Return**: Return collection directly as `readonly T[]`. NEVER `return [...arr]`.  |
+| **5. Object Duplication**   | Do I need to duplicate an entity or state tree?                                                                  | **Vue / Pinia Reactive**: Use `cloneReactive(obj)` from `@/logic/utils/cloneUtils`. — **Plain Object**: Use `structuredClone(obj)`. NEVER `JSON.parse(JSON.stringify(obj))`.                                                                |
+| **6. Entity Persistence**   | Am I serializing, snapshotting, or persisting a core domain entity (`UserRecord`, `TenantConfig`) to DB/storage? | **Canonical Persistence**: Reuse canonical domain serializers (`serializeUser` / `deserializeUser`) from the persistence layer. NEVER invent ad-hoc subset types (`*SnapshotEntry`, `*PartialData`) or strip properties.                    |
 
 ### Mental Anchors: The 10 Fatal Anti-Patterns vs Canonical Patterns
 
@@ -229,7 +229,7 @@ Before declaring any coding task complete, mentally scan your diff for these 8 f
 ## Pure Domain Type Definitions (Zero `null` / `undefined` in Domain Unions)
 
 - **Pure Entity Mandate**: A domain type (`RoleId`, `ItemId`, `EntityId`, `RouteId`) represents a real, finite entity in the domain catalog. It is STRICTLY FORBIDDEN to include `null` or `undefined` within a domain type union definition (e.g. `type RoleId = ... | null;` is FORBIDDEN).
-- **Location of Nullability**: `null` and `undefined` represent the *absence of a value* and belong strictly to the **state container, interface field, or property** holding the entity (e.g. `assignedRole: RoleId | null`, `activeAction?: ActionId`), NEVER to the domain type itself.
+- **Location of Nullability**: `null` and `undefined` represent the _absence of a value_ and belong strictly to the **state container, interface field, or property** holding the entity (e.g. `assignedRole: RoleId | null`, `activeAction?: ActionId`), NEVER to the domain type itself.
 
 ## Domain Function Precondition & Call-Site Guarding Mandate
 
@@ -378,11 +378,13 @@ export function isActiveStatus(status: StatusId): boolean {
 ```ts
 // Anti-pattern: Inline tuple assertion cluttering code logic
 export function isActiveStatus(status: StatusId): boolean {
-  return (['active', 'pending', 'processing', 'queued'] as const satisfies readonly StatusId[]).includes(status);
+  return (
+    ['active', 'pending', 'processing', 'queued'] as const satisfies readonly StatusId[]
+  ).includes(status);
 }
 ```
 
-*Exception*: Inline `[... ] as const` is only acceptable if it is a 1-2 element tiny inline check or in isolated throwaway test files where module-level hoisting provides no readability benefit.
+_Exception_: Inline `[... ] as const` is only acceptable if it is a 1-2 element tiny inline check or in isolated throwaway test files where module-level hoisting provides no readability benefit.
 
 ## Forbidden Domain Patterns
 

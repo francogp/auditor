@@ -18,6 +18,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import {
   BaseAuditor,
   FileScanAuditor,
@@ -136,7 +137,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     // Rule 1: render-banned-mix-blend-mode
     this.runSubAuditorSync('render-banned-mix-blend-mode', () => {
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         if (isWeatherStyle || line.includes('weather-overlay') || line.includes('rain-layer')) {
           const mixBlendMatch = /mix-blend-mode\s*:\s*(?!normal\b)([a-z-]+)/i.exec(line);
           if (mixBlendMatch) {
@@ -157,7 +158,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     this.runSubAuditorSync('render-banned-filter-in-weather', () => {
       if (!isWeatherStyle) return;
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         const filterMatch = /filter\s*:\s*[^;]*(?:drop-shadow|blur)\s*\(/i.exec(line);
         if (filterMatch) {
           this.addViolation({
@@ -176,10 +177,10 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     this.runSubAuditorSync('render-excessive-atmospheric-inset', () => {
       if (!isWeatherStyle) return;
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         const insetMatch = /inset\s*:\s*-\s*([0-9]+)px/i.exec(line);
         if (insetMatch) {
-          const px = parseInt(insetMatch[1]!, 10);
+          const px = parseInt(insetMatch[1], 10);
           if (px > MAX_PERMISSIBLE_NEGATIVE_INSET_PX) {
             this.addViolation({
               ruleId: 'render-excessive-atmospheric-inset',
@@ -198,7 +199,7 @@ export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerf
     this.runSubAuditorSync('render-gsap-cpu-modifier', () => {
       if (!isAtmosphereAnim) return;
       for (let i = 0; i < lines.length; i++) {
-        const line = lines[i]!;
+        const line = lines[i];
         if (/\bmodifiers\s*:\s*\{/.test(line)) {
           this.addViolation({
             ruleId: 'render-gsap-cpu-modifier',

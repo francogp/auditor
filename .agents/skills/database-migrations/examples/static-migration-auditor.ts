@@ -13,9 +13,12 @@ export interface StaticAuditViolation {
 }
 
 const TIMESTAMP_REGEX = /^(\d{14})_(.+)\.sql$/;
-const DB_VERSION_REGEX = /(?:VALUES\s*\(\s*['"]db_version['"]\s*,\s*['"]*(\d{14})|SET\s+value\s*=\s*['"]*(\d{14})|jsonb_build_object\s*\(\s*['"]db_version['"]\s*,\s*['"]*(\d{14}))/i;
+const DB_VERSION_REGEX =
+  /(?:VALUES\s*\(\s*['"]db_version['"]\s*,\s*['"]*(\d{14})|SET\s+value\s*=\s*['"]*(\d{14})|jsonb_build_object\s*\(\s*['"]db_version['"]\s*,\s*['"]*(\d{14}))/i;
 
-export function auditMigrationFiles(files: readonly { name: string; content: string }[]): StaticAuditViolation[] {
+export function auditMigrationFiles(
+  files: readonly { name: string; content: string }[]
+): StaticAuditViolation[] {
   const violations: StaticAuditViolation[] = [];
   const knownFunctions = new Map<string, { file: string; returnType: string }>();
   let lastTimestamp = '';
@@ -32,7 +35,7 @@ export function auditMigrationFiles(files: readonly { name: string; content: str
       continue;
     }
 
-    const timestamp = match[1]!;
+    const timestamp = match[1];
     if (lastTimestamp && timestamp <= lastTimestamp) {
       violations.push({
         file,
@@ -43,9 +46,7 @@ export function auditMigrationFiles(files: readonly { name: string; content: str
     lastTimestamp = timestamp;
 
     // Strip SQL comments for active statement analysis
-    const content = rawContent
-      .replace(/--.*$/gm, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '');
+    const content = rawContent.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
 
     // 2. Fail-Loud Mandate: Zero Error Suppression
     // Prohibit: EXCEPTION WHEN ... THEN NULL;
@@ -96,19 +97,20 @@ export function auditMigrationFiles(files: readonly { name: string; content: str
     const drops: Array<{ name: string; index: number }> = [];
     let dMatch: RegExpExecArray | null;
     while ((dMatch = dropRegex.exec(content)) !== null) {
-      drops.push({ name: dMatch[1]!.toLowerCase(), index: dMatch.index });
+      drops.push({ name: dMatch[1].toLowerCase(), index: dMatch.index });
     }
 
-    const createRegex = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-zA-Z0-9_.]+)\s*\(([\s\S]*?)\)\s*RETURNS\s+([\w\s.[\]]+?)(?=\s+(?:LANGUAGE|AS|SECURITY|SET|\$\$))/gi;
+    const createRegex =
+      /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([a-zA-Z0-9_.]+)\s*\(([\s\S]*?)\)\s*RETURNS\s+([\w\s.[\]]+?)(?=\s+(?:LANGUAGE|AS|SECURITY|SET|\$\$))/gi;
     let cMatch: RegExpExecArray | null;
     while ((cMatch = createRegex.exec(content)) !== null) {
-      const funcName = cMatch[1]!.toLowerCase();
-      const returnType = cMatch[3]!.trim().toLowerCase().replace(/\s+/g, ' ');
+      const funcName = cMatch[1].toLowerCase();
+      const returnType = cMatch[3].trim().toLowerCase().replace(/\s+/g, ' ');
       const createIndex = cMatch.index;
 
       const previous = knownFunctions.get(funcName);
       if (previous && previous.returnType !== returnType) {
-        const hasPriorDrop = drops.some(d => d.name === funcName && d.index < createIndex);
+        const hasPriorDrop = drops.some((d) => d.name === funcName && d.index < createIndex);
         if (!hasPriorDrop) {
           violations.push({
             file,

@@ -1,5 +1,5 @@
-import { defineConfig } from 'vite-plus';
 import type { PluginOption } from 'vite';
+import { defineConfig } from 'vite-plus';
 
 /**
  * Canonical Vite+ Unified Configuration Template
@@ -31,16 +31,7 @@ export default defineConfig({
     outExtensions: () => ({ js: '.js', dts: '.d.ts' })
   },
   lint: {
-    plugins: [
-      'vitest',
-      'node',
-      'promise',
-      'unicorn',
-      'typescript',
-      'vue',
-      'import',
-      'jsx-a11y'
-    ],
+    plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y'],
     options: {
       typeAware: true,
       typeCheck: true

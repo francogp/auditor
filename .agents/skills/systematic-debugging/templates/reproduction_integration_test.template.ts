@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 import { setActivePinia, createPinia } from 'pinia';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import { useDomainStore } from '@/stores/domain';
 
 /**

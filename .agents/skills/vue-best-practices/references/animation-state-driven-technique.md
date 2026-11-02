@@ -21,14 +21,14 @@ tags: [vue3, animation, css, transition, style-binding, state, interactive]
 
 ```vue
 <script setup>
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const hue = ref(0)
+const hue = ref(0);
 
 function onMousemove(e) {
   // Map mouse X position to hue (0-360)
-  const rect = e.currentTarget.getBoundingClientRect()
-  hue.value = Math.round((e.clientX - rect.left) / rect.width * 360)
+  const rect = e.currentTarget.getBoundingClientRect();
+  hue.value = Math.round(((e.clientX - rect.left) / rect.width) * 360);
 }
 </script>
 
@@ -61,23 +61,20 @@ function onMousemove(e) {
 
 ```vue
 <script setup>
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const x = ref(0)
-const y = ref(0)
+const x = ref(0);
+const y = ref(0);
 
 function onMousemove(e) {
-  const rect = e.currentTarget.getBoundingClientRect()
-  x.value = e.clientX - rect.left
-  y.value = e.clientY - rect.top
+  const rect = e.currentTarget.getBoundingClientRect();
+  x.value = e.clientX - rect.left;
+  y.value = e.clientY - rect.top;
 }
 </script>
 
 <template>
-  <div
-    class="container"
-    @mousemove="onMousemove"
-  >
+  <div class="container" @mousemove="onMousemove">
     <div
       class="follower"
       :style="{
@@ -111,24 +108,16 @@ function onMousemove(e) {
 
 ```vue
 <script setup>
-import { ref } from 'vue'
+import { ref } from 'vue';
 
-const progress = ref(0)
+const progress = ref(0);
 </script>
 
 <template>
   <div class="progress-container">
-    <div
-      class="progress-bar"
-      :style="{ width: `${progress}%` }"
-    />
+    <div class="progress-bar" :style="{ width: `${progress}%` }" />
   </div>
-  <input
-    type="range"
-    v-model.number="progress"
-    min="0"
-    max="100"
-  />
+  <input type="range" v-model.number="progress" min="0" max="100" />
 </template>
 
 <style>
@@ -141,7 +130,7 @@ const progress = ref(0)
 
 .progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, #4CAF50, #8BC34A);
+  background: linear-gradient(90deg, #4caf50, #8bc34a);
   transition: width 0.3s ease;
 }
 </style>
@@ -151,29 +140,29 @@ const progress = ref(0)
 
 ```vue
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 
-const scrollY = ref(0)
+const scrollY = ref(0);
 
 const heroOpacity = computed(() => {
-  return Math.max(0, 1 - scrollY.value / 300)
-})
+  return Math.max(0, 1 - scrollY.value / 300);
+});
 
 const scrollOffset = computed(() => {
-  return scrollY.value * 0.5  // Parallax effect
-})
+  return scrollY.value * 0.5; // Parallax effect
+});
 
 function handleScroll() {
-  scrollY.value = window.scrollY
+  scrollY.value = window.scrollY;
 }
 
 onMounted(() => {
-  window.addEventListener('scroll', handleScroll, { passive: true })
-})
+  window.addEventListener('scroll', handleScroll, { passive: true });
+});
 
 onUnmounted(() => {
-  window.removeEventListener('scroll', handleScroll)
-})
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <template>
@@ -203,27 +192,24 @@ onUnmounted(() => {
 
 ```vue
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed } from 'vue';
 
-const isDark = ref(false)
+const isDark = ref(false);
 
 const themeStyles = computed(() => ({
   '--bg-color': isDark.value ? '#1a1a1a' : '#ffffff',
   '--text-color': isDark.value ? '#ffffff' : '#1a1a1a',
   backgroundColor: 'var(--bg-color)',
   color: 'var(--text-color)'
-}))
+}));
 
 function toggleTheme() {
-  isDark.value = !isDark.value
+  isDark.value = !isDark.value;
 }
 </script>
 
 <template>
-  <div
-    class="app"
-    :style="themeStyles"
-  >
+  <div class="app" :style="themeStyles">
     <button @click="toggleTheme">Toggle Theme</button>
     <p>Current theme: {{ isDark ? 'Dark' : 'Light' }}</p>
   </div>
@@ -232,7 +218,9 @@ function toggleTheme() {
 <style>
 .app {
   min-height: 100vh;
-  transition: background-color 0.5s ease, color 0.5s ease;
+  transition:
+    background-color 0.5s ease,
+    color 0.5s ease;
 }
 </style>
 ```
@@ -243,22 +231,22 @@ For smooth number animations (counters, stats), use watchers with animation libr
 
 ```vue
 <script setup>
-import { computed, ref, reactive, watch } from 'vue'
-import gsap from 'gsap'
+import { computed, ref, reactive, watch } from 'vue';
+import gsap from 'gsap';
 
-const targetNumber = ref(0)
-const tweened = reactive({ value: 0 })
+const targetNumber = ref(0);
+const tweened = reactive({ value: 0 });
 
 // Computed for display
-const displayNumber = computed(() => tweened.value)
+const displayNumber = computed(() => tweened.value);
 
 watch(targetNumber, (newValue) => {
   gsap.to(tweened, {
     duration: 0.5,
     value: Number(newValue) || 0,
     ease: 'power2.out'
-  })
-})
+  });
+});
 </script>
 
 <template>
@@ -275,12 +263,17 @@ watch(targetNumber, (newValue) => {
 <style>
 /* GOOD: GPU-accelerated properties */
 .element {
-  transition: transform 0.3s ease, opacity 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    opacity 0.3s ease;
 }
 
 /* AVOID: Properties that trigger layout recalculation */
 .element {
-  transition: width 0.3s ease, height 0.3s ease, margin 0.3s ease;
+  transition:
+    width 0.3s ease,
+    height 0.3s ease,
+    margin 0.3s ease;
 }
 
 /* For high-frequency updates, consider will-change */

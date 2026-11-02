@@ -31,16 +31,16 @@ flowchart TD
 
 ### Direct Comparison Matrix
 
-| Property | CI Static Quality Gates (`auditor`) | Interactive Refactor Engines & Advisors (`auditor:<tool>`) |
-| :--- | :--- | :--- |
-| **Primary Binaries** | `auditor`, `auditor-findings`, `auditor-fallow` | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene`, `auditor-config`, `auditor-dependencies` |
-| **Package Scripts** | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types`, `auditor:domain`, `auditor:hygiene`, `auditor:config`, `auditor:dependencies` |
-| **Base Abstraction** | `BaseAuditor`, `FileScanAuditor` | `BaseRefactorEngine<TFinding, TPlan>`, `configAdvisor`, `auditorMinimums` |
-| **Purpose** | Enforces mandatory repository laws and invariants | Assists developers in elective code surgery and modernization |
-| **Execution Trigger** | Automatic in CI/CD, pre-commit, and safe-commit gates | On-demand explicit invocation by developer or AI agent |
-| **Run in `npm run auditor`?** | **YES** (runs 100% of applicable suites) | **NEVER** (strictly separate standalone CLI tools) |
-| **Commit Blocking?** | **YES**: Errors block build, safe-commit, and deploy | **NO**: Opportunities and proposals never block CI |
-| **Resolution Mode** | `npm run auditor:fix` (auto) or surgical manual fix | Declarative JSON plans applied via `--worktree` |
+| Property                      | CI Static Quality Gates (`auditor`)                               | Interactive Refactor Engines & Advisors (`auditor:<tool>`)                                                                                                               |
+| :---------------------------- | :---------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Primary Binaries**          | `auditor`, `auditor-findings`, `auditor-fallow`                   | `auditor-magic`, `auditor-dupes`, `auditor-o1`, `auditor-types`, `auditor-motion`, `auditor-domain`, `auditor-hygiene`, `auditor-config`, `auditor-dependencies`         |
+| **Package Scripts**           | `npm run auditor`, `auditor:lint`, `auditor:full`, `auditor:next` | `npm run auditor:magic`, `auditor:dupes`, `auditor:o1`, `auditor:motion`, `auditor:types`, `auditor:domain`, `auditor:hygiene`, `auditor:config`, `auditor:dependencies` |
+| **Base Abstraction**          | `BaseAuditor`, `FileScanAuditor`                                  | `BaseRefactorEngine<TFinding, TPlan>`, `configAdvisor`, `auditorMinimums`                                                                                                |
+| **Purpose**                   | Enforces mandatory repository laws and invariants                 | Assists developers in elective code surgery and modernization                                                                                                            |
+| **Execution Trigger**         | Automatic in CI/CD, pre-commit, and safe-commit gates             | On-demand explicit invocation by developer or AI agent                                                                                                                   |
+| **Run in `npm run auditor`?** | **YES** (runs 100% of applicable suites)                          | **NEVER** (strictly separate standalone CLI tools)                                                                                                                       |
+| **Commit Blocking?**          | **YES**: Errors block build, safe-commit, and deploy              | **NO**: Opportunities and proposals never block CI                                                                                                                       |
+| **Resolution Mode**           | `npm run auditor:fix` (auto) or surgical manual fix               | Declarative JSON plans applied via `--worktree`                                                                                                                          |
 
 > [!IMPORTANT]
 > **The Golden Rule for AI Agents**:
@@ -100,7 +100,7 @@ flowchart TD
 
 ## 4. Reaction Protocol: When Improvements are Requested (Refactor Engines)
 
-When the user asks to optimize, deduplicate, modernize, or clean up code (*"revisa si hay mejoras"*, *"limpiar números mágicos"*, *"deduplicar código"*), agents MUST follow the **Enhancement Protocol**:
+When the user asks to optimize, deduplicate, modernize, or clean up code (_"revisa si hay mejoras"_, _"limpiar números mágicos"_, _"deduplicar código"_), agents MUST follow the **Enhancement Protocol**:
 
 ```mermaid
 flowchart TD
@@ -135,23 +135,27 @@ Use this format when formulating a plan to resolve CI audit failures:
 # Correction Plan: [Suite Name / Rule Id]
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: [setup | prune | dedup | contracts | behavior | hygiene | polish]
 - **Affected Suite**: `[suite_id]`
 - **Failing Rules**: `[rule-id-1]`, `[rule-id-2]`
 - **Root Cause**: [Concise explanation extracted from `auditor guide <ruleId>`]
 
 ## 2. Affected Files & Planned Modifications
-| File | Rule | Diagnosis | Canonical Solution |
-| :--- | :--- | :--- | :--- |
-| `src/.../file.ts:L45` | `rule-id` | [Exact violation message] | [Specific patch] |
+
+| File                  | Rule      | Diagnosis                 | Canonical Solution |
+| :-------------------- | :-------- | :------------------------ | :----------------- |
+| `src/.../file.ts:L45` | `rule-id` | [Exact violation message] | [Specific patch]   |
 
 ## 3. Remediation Strategy
+
 1. **Pre-flight Auto-Fix**: Run `npm run auditor:fix` (if auto-fixable rules exist).
 2. **Surgical Manual Edits**:
    - Modify `src/.../file.ts` to [exact replacement].
 3. **Contract Preservation**: Zero use of `// *-ok:` escape hatches and zero configuration relaxation.
 
 ## 4. Verification Plan
+
 1. Isolated suite verification: `npm run auditor -- suite=[suite_id]`
 2. Full quality gate: `npm run auditor`
 3. Regression tests: `npm test`
@@ -167,17 +171,20 @@ Use this format when formulating an elective modernization, token extraction, or
 # Improvement Plan: [Design Tokens / Deduplication / O(1) Optimization]
 
 ## 1. Scope & Motivation
+
 - **Tool**: `[auditor-magic | auditor-dupes | auditor-o1 | auditor-types | auditor-motion]`
 - **Objective**: [Extract color tokens to SCSS variables / Eliminate semantic clones / Migrate Map to O(1)]
 - **Pre-flight CI Baseline**: 100% Green (0 errors, 0 warnings).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| Cluster ID | Location | Current Value | Role / Type | Proposed Semantic Name |
-| :--- | :--- | :--- | :--- | :--- |
-| `G1` | `src/.../Component.vue:L297` | `#d4a34b` | `color-token` | `$color-gold-border` |
-| `G2` | `src/.../Component.vue:L306` | `#485460` | `color-token` | `$color-slate-muted` |
+
+| Cluster ID | Location                     | Current Value | Role / Type   | Proposed Semantic Name |
+| :--------- | :--------------------------- | :------------ | :------------ | :--------------------- |
+| `G1`       | `src/.../Component.vue:L297` | `#d4a34b`     | `color-token` | `$color-gold-border`   |
+| `G2`       | `src/.../Component.vue:L306` | `#485460`     | `color-token` | `$color-slate-muted`   |
 
 ## 3. Estimated Architectural Gain
+
 - **LLM tokens saved**: [85%+]
 - **Duplication eliminated / Unified tokens**: [N tokens]
 - **Runtime impact**: 0 regressions (verified via AST).
@@ -225,7 +232,7 @@ Use this format when formulating an elective modernization, token extraction, or
 
 ### Tutorial 1: Agent Encounters a CI Error (`domain-naked-string-primitive`)
 
-**User Prompt**: *"Run the auditor and repair any reported issues."*
+**User Prompt**: _"Run the auditor and repair any reported issues."_
 
 1. **Agent Action (Inspection)**:
 
@@ -233,7 +240,7 @@ Use this format when formulating an elective modernization, token extraction, or
    npm run auditor:next
    ```
 
-   *Terminal Output*:
+   _Terminal Output_:
 
    ```text
    [FAIL] AUDIT FAILED [1 suite failed]
@@ -242,7 +249,7 @@ Use this format when formulating an elective modernization, token extraction, or
    ```
 
 2. **Agent Thought**:
-   *"This is a CI error in Phase 4 (contracts). It blocks safe-commit. I will run `auditor guide domain-naked-string-primitive` to get the canonical solution."*
+   _"This is a CI error in Phase 4 (contracts). It blocks safe-commit. I will run `auditor guide domain-naked-string-primitive` to get the canonical solution."_
 
 3. **Agent Action (Guide)**:
 
@@ -250,7 +257,7 @@ Use this format when formulating an elective modernization, token extraction, or
    npm run auditor guide domain-naked-string-primitive
    ```
 
-   *Guide indicates*: Use `Brand<string, 'UserId'>` from `@francogp/auditor`.
+   _Guide indicates_: Use `Brand<string, 'UserId'>` from `@francogp/auditor`.
 
 4. **Agent Action (Fix & Verify)**:
    The agent edits `src/models/user.ts` to export `type UserId = Brand<string, 'UserId'>;` and updates the function signature.
@@ -260,7 +267,7 @@ Use this format when formulating an elective modernization, token extraction, or
    npm run auditor
    ```
 
-   *Output*: `[OK] AUDIT PASSED [81 suites]`.
+   _Output_: `[OK] AUDIT PASSED [81 suites]`.
 
 5. **Agent Reply to User (in Spanish)**: Clear, concise confirmation in Spanish that the contract error was repaired and verified clean.
 
@@ -268,7 +275,7 @@ Use this format when formulating an elective modernization, token extraction, or
 
 ### Tutorial 2: User Requests Elective Design Token Refactoring
 
-**User Prompt**: *"Can we improve and unify the visual styles of the navigation sidebar?"*
+**User Prompt**: _"Can we improve and unify the visual styles of the navigation sidebar?"_
 
 1. **Agent Action (Baseline Check)**:
 
@@ -276,14 +283,15 @@ Use this format when formulating an elective modernization, token extraction, or
    npm run auditor
    ```
 
-   *Result*: `[OK] AUDIT PASSED` (baseline is clean).
+   _Result_: `[OK] AUDIT PASSED` (baseline is clean).
+
 2. **Agent Action (Dirac Inspection)**:
 
    ```bash
    npm run auditor:magic inspect src/ui/components/hud/WodSidebarNav.vue
    ```
 
-   *Terminal Output*:
+   _Terminal Output_:
 
    ```json
    {
@@ -297,7 +305,7 @@ Use this format when formulating an elective modernization, token extraction, or
    ```
 
 3. **Agent Thought**:
-   *"This is an elective enhancement. The project is already 100% green. I will formulate an Improvement Plan with semantic SCSS token names ($wod-gold, $wod-border-slate) and request the user's feedback before applying."*
+   _"This is an elective enhancement. The project is already 100% green. I will formulate an Improvement Plan with semantic SCSS token names ($wod-gold, $wod-border-slate) and request the user's feedback before applying."_
 4. **Agent Action (Plan Presentation)**:
    Presents the Improvement Plan to the user detailing the proposed tokens.
 5. **Agent Action (Worktree Apply)**:
@@ -313,9 +321,10 @@ Use this format when formulating an elective modernization, token extraction, or
 
 ### Tutorial 3: User Questions Why `auditor:magic` Shows Candidates if CI is Green
 
-**User Question**: *"I don't understand, the auditor in human mode says 0 errors but npm run auditor:magic finds 63 items. Is the auditor or project broken?"*
+**User Question**: _"I don't understand, the auditor in human mode says 0 errors but npm run auditor:magic finds 63 items. Is the auditor or project broken?"_
 
 **Canonical Agent Response**:
+
 > "Neither is broken; both are functioning exactly as architected:
 >
 > 1. **`npm run auditor` (Suite `validate_magic_numbers`)**:

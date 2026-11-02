@@ -37,7 +37,7 @@ export function parsePayload(raw: unknown): any {
 
       const findings = TypesRefactorEngine.discoverInFile(tsFile);
       const anyFindings = findings.filter((f) => f.kind === 'as-any');
-      expect(anyFindings.length).toBe(1);
+      expect(anyFindings).toHaveLength(1);
       expect(anyFindings[0]?.suggestedReplacement).toBe('as unknown');
     });
 
@@ -54,7 +54,7 @@ export function castValue(val: number): string {
 
       const findings = TypesRefactorEngine.discoverInFile(tsFile);
       const castFindings = findings.filter((f) => f.kind === 'double-assertion');
-      expect(castFindings.length).toBe(1);
+      expect(castFindings).toHaveLength(1);
       expect(castFindings[0]?.suggestedReplacement).toBe('as string /* verify narrowing */');
     });
 
@@ -71,7 +71,7 @@ export function computeTotal(a: number, b: number) {
 
       const findings = TypesRefactorEngine.discoverInFile(tsFile);
       const returnFindings = findings.filter((f) => f.kind === 'missing-return-type');
-      expect(returnFindings.length).toBe(1);
+      expect(returnFindings).toHaveLength(1);
       expect(returnFindings[0]?.identifier).toBe('computeTotal');
       expect(returnFindings[0]?.suggestedReplacement).toBe('number');
     });

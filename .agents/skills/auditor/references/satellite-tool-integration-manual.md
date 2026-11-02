@@ -69,7 +69,7 @@ Whenever integrating a new external tool or extending an existing one that requi
    }
    ```
 
-   *Impact*: This automatically activates the Antigravity PreToolUse hook, hard-blocking AI agents from executing `write_file` or `edit_file` on the satellite file directly.
+   _Impact_: This automatically activates the Antigravity PreToolUse hook, hard-blocking AI agents from executing `write_file` or `edit_file` on the satellite file directly.
 
 ### Step 2: Declare Strongly-Typed SSoT Section in `auditConfigTypes.ts`
 
@@ -94,9 +94,7 @@ Define canonical defaults in `src/core/auditConfigDefaults.ts` and builders in `
 Inside the suite or a shared sync module, define the deterministic projection function:
 
 ```typescript
-export function projectMyToolConfigFromAuditConfig(
-  auditConfig: AuditConfig
-): MyToolConfigSchema {
+export function projectMyToolConfigFromAuditConfig(auditConfig: AuditConfig): MyToolConfigSchema {
   return {
     $schema: 'https://mytool.org/schema.json',
     rules: {

@@ -54,7 +54,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
     ConfigFileRegistry.registerMany([req2]);
     const all = ConfigFileRegistry.getAll();
-    expect(all.length).toBe(2);
+    expect(all).toHaveLength(2);
     expect(all.map((r) => r.id)).toContain('test-tool-config');
     expect(all.map((r) => r.id)).toContain('another-tool-config');
 
@@ -65,10 +65,10 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     };
     ConfigFileRegistry.register(updatedReq1);
     expect(ConfigFileRegistry.get('test-tool-config')?.description).toBe('Descripción actualizada');
-    expect(ConfigFileRegistry.getAll().length).toBe(2);
+    expect(ConfigFileRegistry.getAll()).toHaveLength(2);
 
     ConfigFileRegistry.reset();
-    expect(ConfigFileRegistry.getAll().length).toBe(0);
+    expect(ConfigFileRegistry.getAll()).toHaveLength(0);
   });
 
   type CustomRuleId = 'custom-config-missing' | 'custom-content-valid';
@@ -165,12 +165,12 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
   it('scaffolds default config file when missing in fix mode and completes clean path', async () => {
     const configPath = path.join(tempDir, 'custom.config.json');
-    expect(
-      await fs
+    await expect(
+      fs
         .access(configPath)
         .then(() => true)
         .catch(() => false)
-    ).toBe(false);
+    ).resolves.toBe(false);
 
     const auditor = new CustomToolAuditor({ projectRoot: tempDir });
     const result = await auditor.fix();
@@ -180,12 +180,12 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
     expect(result.status).toBe('passed');
 
     // Verifies physical creation and content
-    expect(
-      await fs
+    await expect(
+      fs
         .access(configPath)
         .then(() => true)
         .catch(() => false)
-    ).toBe(true);
+    ).resolves.toBe(true);
     const createdContent = await fs.readFile(configPath, 'utf-8');
     expect(createdContent).toContain('"ok": true');
     expect(createdContent).toContain('"name": "CustomTool"');
@@ -200,7 +200,7 @@ describe('ConfigFileRegistry & Unified Config Protocol', () => {
 
     expect(result.summary.errors).toBe(0);
     expect(result.status).toBe('passed');
-    expect(result.findings.length).toBe(0);
+    expect(result.findings).toHaveLength(0);
   });
 
   it('skips non-applicable config files gracefully without emitting violations', async () => {

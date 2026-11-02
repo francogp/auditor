@@ -31,13 +31,13 @@ Promoting elements to dedicated GPU layers avoids continuous CPU repaint cycles 
 
 When animating nodes in applications utilizing GSAP (GreenSock), CSS properties and JS tweens must adhere to clear boundaries:
 
-| Practice | Status | Rationale |
-| :--- | :--- | :--- |
-| `transition: transform 0.3s` on GSAP node | ❌ FORBIDDEN | CSS transition intercepts GSAP 60fps tick updates, causing severe frame drops and double-easing. |
-| `transform: translate(-50%, -50%) !important` | ❌ FORBIDDEN | CSS `!important` overrides inline styles injected by GSAP, freezing tweens silently. |
-| Animating `top`, `left`, `margin`, `width` | ❌ FORBIDDEN | Triggers CPU reflow and re-layout on every frame. Use `transform: translate()` / `scale()`. |
-| Declaring baseline `filter: brightness(1)` | ✅ MANDATORY | Prevents one-frame transparent flicker in Blink/WebKit browsers when starting GSAP filter tweens. |
-| Capitalized filter values in GSAP | ✅ MANDATORY | If CSS transforms/filters are capitalized by Vite (`Brightness(1.5)`), GSAP must read and write matching casing to avoid DOM read mismatches. |
+| Practice                                      | Status       | Rationale                                                                                                                                     |
+| :-------------------------------------------- | :----------- | :-------------------------------------------------------------------------------------------------------------------------------------------- |
+| `transition: transform 0.3s` on GSAP node     | ❌ FORBIDDEN | CSS transition intercepts GSAP 60fps tick updates, causing severe frame drops and double-easing.                                              |
+| `transform: translate(-50%, -50%) !important` | ❌ FORBIDDEN | CSS `!important` overrides inline styles injected by GSAP, freezing tweens silently.                                                          |
+| Animating `top`, `left`, `margin`, `width`    | ❌ FORBIDDEN | Triggers CPU reflow and re-layout on every frame. Use `transform: translate()` / `scale()`.                                                   |
+| Declaring baseline `filter: brightness(1)`    | ✅ MANDATORY | Prevents one-frame transparent flicker in Blink/WebKit browsers when starting GSAP filter tweens.                                             |
+| Capitalized filter values in GSAP             | ✅ MANDATORY | If CSS transforms/filters are capitalized by Vite (`Brightness(1.5)`), GSAP must read and write matching casing to avoid DOM read mismatches. |
 
 ---
 

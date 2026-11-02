@@ -97,20 +97,26 @@ export type ProcessMode = 'fast' | 'safe' | 'full';
 // ❌ ANTI-PATTERN: Wildcard union defeating compile-time exhaustiveness
 export function runProcess(mode: ProcessMode | string): void {
   switch (mode) {
-    case 'fast': return;
-    case 'safe': return;
-    case 'full': return;
+    case 'fast':
+      return;
+    case 'safe':
+      return;
+    case 'full':
+      return;
     default:
-      // Fallback required because mode can be any string!
+    // Fallback required because mode can be any string!
   }
 }
 
 // ✅ CANONICAL: Strict finite domain union
 export function runProcess(mode: ProcessMode): void {
   switch (mode) {
-    case 'fast': return;
-    case 'safe': return;
-    case 'full': return;
+    case 'fast':
+      return;
+    case 'safe':
+      return;
+    case 'full':
+      return;
     // TypeScript guarantees exhaustiveness at compile time!
   }
 }

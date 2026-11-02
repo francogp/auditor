@@ -22,14 +22,14 @@ To eliminate these hazards, the framework enforces the **Auditor Exclusive SSoT 
 
 The following table documents every satellite configuration file, its governing setup suite, its SSoT section in `.auditor/audit.config.ts`, and its blocking undeclared entries detection rule:
 
-| Satellite Config File | Governing Setup Suite | SSoT Section in `.auditor/audit.config.ts` | Blocking Undeclared Entries Rule | Auto-Fix Command |
-|---|---|---|---|---|
-| `.fallowrc.json` | `validate_fallow_config` | `config.fallow.ignoreGlobs`, `config.fallow.ignoreDependencies` | `fallow-undeclared-config-entry` | `npm run auditor:fix` |
-| `vite.config.ts` | `validate_vite_plus_config` | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage` | `vite-plus-undeclared-config-entry` | `npm run auditor:fix` |
-| `.stylelintrc.json` | `validate_stylelint_config` | `config.stylelint.strictValues.properties`, `ignoreValues` | `stylelint-undeclared-config-entry` | `npm run auditor:fix` |
-| `tsconfig.json` | `validate_tsconfig` | `config.paths.ignoreGlobs`, `config.paths.dataRoots` | `tsconfig-undeclared-config-entry` | `npm run auditor:fix` |
-| `.htmlvalidate.json` | `validate_html_validate_config` | `config.htmlValidate.rules`, `disabledRules`, `extraPlugins` | `html-validate-undeclared-config-entry` | `npm run auditor:fix` |
-| `.markdownlint.json` | `validate_markdown_lint_config` | `config.documentation.markdownLint.rules`, `disabledRules` | `markdownlint-undeclared-config-entry` | `npm run auditor:fix` |
+| Satellite Config File | Governing Setup Suite           | SSoT Section in `.auditor/audit.config.ts`                                 | Blocking Undeclared Entries Rule        | Auto-Fix Command      |
+| --------------------- | ------------------------------- | -------------------------------------------------------------------------- | --------------------------------------- | --------------------- |
+| `.fallowrc.json`      | `validate_fallow_config`        | `config.fallow.ignoreGlobs`, `config.fallow.ignoreDependencies`            | `fallow-undeclared-config-entry`        | `npm run auditor:fix` |
+| `vite.config.ts`      | `validate_vite_plus_config`     | `config.vitePlusConfig`, `config.paths.ignoreGlobs`, `config.testCoverage` | `vite-plus-undeclared-config-entry`     | `npm run auditor:fix` |
+| `.stylelintrc.json`   | `validate_stylelint_config`     | `config.stylelint.strictValues.properties`, `ignoreValues`                 | `stylelint-undeclared-config-entry`     | `npm run auditor:fix` |
+| `tsconfig.json`       | `validate_tsconfig`             | `config.paths.ignoreGlobs`, `config.paths.dataRoots`                       | `tsconfig-undeclared-config-entry`      | `npm run auditor:fix` |
+| `.htmlvalidate.json`  | `validate_html_validate_config` | `config.htmlValidate.rules`, `disabledRules`, `extraPlugins`               | `html-validate-undeclared-config-entry` | `npm run auditor:fix` |
+| `.markdownlint.json`  | `validate_markdown_lint_config` | `config.documentation.markdownLint.rules`, `disabledRules`                 | `markdownlint-undeclared-config-entry`  | `npm run auditor:fix` |
 
 ---
 
@@ -95,16 +95,16 @@ AI agents, developers, and architectural planning workflows (`/plan`, `/brainsto
 
 ### Permitted vs Prohibited Matrix
 
-| Action | Status | Canonical Path |
-|---|---|---|
-| Manually editing `.fallowrc.json` | ❌ **PROHIBITED** | Run `npm run auditor:fix` |
-| Proposing in `/plan` to alter `.fallowrc.json` | ❌ **PROHIBITED** | Plan must instruct running `npm run auditor:fix` |
-| Manually modifying `vite.config.ts` blocks | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_vite_plus_config`) |
-| Manually modifying `.stylelintrc.json` | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_stylelint_config`) |
-| Adding/editing Vite plugins in `vite.plugins.ts` | ✅ **PERMITTED** | Edit `vite.plugins.ts` directly (100% developer/AI owned) |
-| Running proxy scripts to bypass safety hooks | ❌ **PROHIBITED** | Violates PreToolUse Hook Invariance Mandate |
-| Adding an exemption path to `audit.config.ts` | ✅ **PERMITTED** | Edit `.auditor/audit.config.ts` (consult human first if altering boundaries) |
-| Running official auto-fixers | ✅ **MANDATORY** | `npm run auditor:fix` |
+| Action                                           | Status            | Canonical Path                                                               |
+| ------------------------------------------------ | ----------------- | ---------------------------------------------------------------------------- |
+| Manually editing `.fallowrc.json`                | ❌ **PROHIBITED** | Run `npm run auditor:fix`                                                    |
+| Proposing in `/plan` to alter `.fallowrc.json`   | ❌ **PROHIBITED** | Plan must instruct running `npm run auditor:fix`                             |
+| Manually modifying `vite.config.ts` blocks       | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_vite_plus_config`)                  |
+| Manually modifying `.stylelintrc.json`           | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_stylelint_config`)                  |
+| Adding/editing Vite plugins in `vite.plugins.ts` | ✅ **PERMITTED**  | Edit `vite.plugins.ts` directly (100% developer/AI owned)                    |
+| Running proxy scripts to bypass safety hooks     | ❌ **PROHIBITED** | Violates PreToolUse Hook Invariance Mandate                                  |
+| Adding an exemption path to `audit.config.ts`    | ✅ **PERMITTED**  | Edit `.auditor/audit.config.ts` (consult human first if altering boundaries) |
+| Running official auto-fixers                     | ✅ **MANDATORY**  | `npm run auditor:fix`                                                        |
 
 ---
 

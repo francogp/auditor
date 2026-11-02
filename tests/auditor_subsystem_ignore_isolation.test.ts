@@ -16,8 +16,11 @@ import path from 'node:path';
 
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
+import { discoverAuditors } from '../src/cli/auditScanner.ts';
+import { defineAuditConfig } from '../src/core/auditConfig.ts';
 import { resetAuditConfig } from '../src/core/auditConfigLoader.ts';
 import { BaseAuditor } from '../src/core/auditorBase.ts';
+import { resolveAuditConfigIgnoreGlobs } from '../src/core/vitePlusConfigSync.ts';
 
 describe('Auditor Subsystem Ignore Isolation Mandate', () => {
   let tempDir: string;
@@ -534,5 +537,58 @@ describe('Auditor Subsystem Ignore Isolation Mandate', () => {
     // Both exclude the global ignored file
     expect(magicFiles).not.toContain('src/global-ignored/file.ts');
     expect(domainFiles).not.toContain('src/global-ignored/file.ts');
+  });
+
+  describe('Dynamic Universal Subsystem Ignore Isolation Matrix (discoverAuditors)', () => {
+    it('dynamically verifies across 100% of discovered subauditors that subsystem-specific ignores, dataRoots, and testRoots NEVER leak into vite.config.ts', async () => {
+      const tasks = await discoverAuditors({ projectRoot: tempDir, speed: 'full' });
+      expect(tasks.length).toBeGreaterThan(50);
+
+      const configurableTasks = tasks.filter(
+        (t) => t.configKey && t.configKey !== 'none' && t.configKey !== 'paths'
+      );
+      expect(configurableTasks.length).toBeGreaterThan(10);
+
+      for (const task of configurableTasks) {
+        const privateIgnoreGlob = `src/private-to-${task.configKey}/**`;
+        const customConfig = defineAuditConfig({
+          name: `Dynamic Isolation Test - ${task.id}`,
+          paths: {
+            srcRoots: ['src'],
+            dataRoots: ['src/data', 'data'],
+            demoRoots: ['ui-demo'],
+            testRoots: ['tests'],
+            e2eRoots: ['scripts/e2e'],
+            integrationRoots: ['tests/integration'],
+            ignoreGlobs: ['src/universal-global-ignore/**']
+          },
+          [task.configKey]: {
+            ignoreGlobs: [privateIgnoreGlob]
+          }
+        });
+
+        const lintIgnores = resolveAuditConfigIgnoreGlobs(customConfig, 'lint', tempDir);
+
+        // 1. Universal global ignore must be respected
+        expect(lintIgnores).toContain('src/universal-global-ignore/**');
+
+        // 2. dataRoots and demoRoots must NEVER contaminate lint ignores
+        expect(lintIgnores).not.toContain('src/data/**');
+        expect(lintIgnores).not.toContain('data/**');
+        expect(lintIgnores).not.toContain('ui-demo/**');
+
+        // 3. testRoots and test files must NEVER contaminate lint ignores
+        expect(lintIgnores).not.toContain('tests/**');
+        expect(lintIgnores).not.toContain('scripts/e2e/**');
+        expect(lintIgnores).not.toContain('tests/integration/**');
+        expect(lintIgnores).not.toContain('**/*.spec.ts');
+        expect(lintIgnores).not.toContain('**/*.test.ts');
+
+        // 4. Subsystem-specific ignores must NEVER leak to vite.config.ts unless it is vitePlusConfig/oxlint itself
+        if (task.configKey !== 'vitePlusConfig' && task.configKey !== 'oxlint') {
+          expect(lintIgnores).not.toContain(privateIgnoreGlob);
+        }
+      }
+    });
   });
 });

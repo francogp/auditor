@@ -27,8 +27,8 @@ import {
 } from '../src/core/auditorBase.ts';
 import { safeWriteFileSync, safeWriteFile } from '../src/core/safePath.ts';
 
-class TestSkillAuditor extends BaseAuditor<string> {
-  constructor(options: AuditorOptions<string>) {
+class TestSkillAuditor extends BaseAuditor {
+  constructor(options: AuditorOptions) {
     super(options);
   }
 
@@ -295,7 +295,7 @@ describe('Official Locked Skills Isolation', () => {
 
       const result = await auditor.finishAudit();
       const findings = result.findings;
-      expect(findings.length).toBe(2);
+      expect(findings).toHaveLength(2);
       expect(findings.some((f) => f.file?.includes('gsap-core'))).toBe(false);
       expect(findings.some((f) => f.file?.includes('auditor'))).toBe(true);
       expect(findings.some((f) => f.file?.includes('main.ts'))).toBe(true);
@@ -352,7 +352,7 @@ describe('Official Locked Skills Isolation', () => {
       expect(auditor.getCountsByRule().get('test-rule')).toBe(1);
 
       const result = await auditor.finishAudit();
-      expect(result.findings.length).toBe(1);
+      expect(result.findings).toHaveLength(1);
       expect(result.findings[0]?.file).toContain('auditor');
     });
   });

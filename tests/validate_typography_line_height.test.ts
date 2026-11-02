@@ -58,7 +58,7 @@ describe('TypographyLineHeightAuditor', () => {
     for (const ruleId of TYPOGRAPHY_LINE_HEIGHT_RULES) {
       const desc = auditor.ruleDescriptions?.[ruleId];
       expect(desc).toBeDefined();
-      expect(desc!.length).toBeLessThanOrEqual(60);
+      expect(desc.length).toBeLessThanOrEqual(60);
     }
   });
 

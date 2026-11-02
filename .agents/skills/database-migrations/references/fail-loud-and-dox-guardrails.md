@@ -48,7 +48,18 @@ psql -v ON_ERROR_STOP=1 -U postgres -d mydb -f migration.sql
 Inside TypeScript sub-process runners:
 
 ```typescript
-const args = ['exec', '-T', 'db', 'psql', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres'];
+const args = [
+  'exec',
+  '-T',
+  'db',
+  'psql',
+  '-v',
+  'ON_ERROR_STOP=1',
+  '-U',
+  'postgres',
+  '-d',
+  'postgres'
+];
 ```
 
 ---

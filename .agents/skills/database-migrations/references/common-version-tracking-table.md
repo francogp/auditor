@@ -67,10 +67,10 @@ CREATE TABLE IF NOT EXISTS system_config (
 
 ### Mandatory Keys
 
-| Key | Type | Description | Example |
-| :--- | :--- | :--- | :--- |
-| `db_version` | String / Number | The 14-digit timestamp of the highest applied migration | `'20261008083000'` |
-| `app_version` | String | Semantic release version of the executing application | `'v2.1.2'` |
+| Key           | Type            | Description                                             | Example            |
+| :------------ | :-------------- | :------------------------------------------------------ | :----------------- |
+| `db_version`  | String / Number | The 14-digit timestamp of the highest applied migration | `'20261008083000'` |
+| `app_version` | String          | Semantic release version of the executing application   | `'v2.1.2'`         |
 
 ### Updating `db_version` in Migrations
 
@@ -101,7 +101,11 @@ ON CONFLICT (key) DO UPDATE SET value = '"20261008083000"';
 Instead of transferring and parsing an entire array of historical migrations on startup, the application client runs a lightweight query:
 
 ```typescript
-const { value: currentDbVersion } = await db.from('system_config').select('value').eq('key', 'db_version').single();
+const { value: currentDbVersion } = await db
+  .from('system_config')
+  .select('value')
+  .eq('key', 'db_version')
+  .single();
 if (Number(currentDbVersion) < CLIENT_DB_VERSION) {
   // Only now lazily import heavy migration scripts:
   const { runMigrations } = await import('./migrationRunner.ts');

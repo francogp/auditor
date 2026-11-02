@@ -68,7 +68,7 @@ describe('StylelintAuditor Suite', () => {
       const auditor = new StylelintAuditor();
       expect(auditor.ruleDescriptions).toBeDefined();
 
-      for (const [, desc] of Object.entries(auditor.ruleDescriptions!)) {
+      for (const [, desc] of Object.entries(auditor.ruleDescriptions)) {
         const composed = `${auditor.packageName}: ${desc}`;
         expect(composed.length).toBeLessThanOrEqual(50);
         expect(composed).not.toContain('\n');
@@ -489,7 +489,7 @@ describe('StylelintAuditor Suite', () => {
         const result = await auditor.audit();
         expect(result.status).toBe('failed');
         const strictFindings = result.findings.filter((f) => f.ruleId === 'scss-strict-values');
-        expect(strictFindings.length).toBe(13);
+        expect(strictFindings).toHaveLength(13);
       } finally {
         await fs.rm(tempDir, { recursive: true, force: true });
       }

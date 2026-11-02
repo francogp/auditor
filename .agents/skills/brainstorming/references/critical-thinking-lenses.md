@@ -20,7 +20,7 @@ Comprehensive reference for **Phase 2 (Interactive Discovery & Critical Thinking
 
 Large language models naturally gravitate toward sycophancy—validating the user's initial framing and immediately elaborating on their first proposed solution. In software architecture, this causes two expensive failures:
 
-1. **XY Problem Amplification**: The user asks for *Solution Y* when their actual underlying pain is *Problem X*, which could be solved with 10x less complexity.
+1. **XY Problem Amplification**: The user asks for _Solution Y_ when their actual underlying pain is _Problem X_, which could be solved with 10x less complexity.
 2. **Premature Convergence**: Accepting the first plausible design without stress-testing hidden assumptions, operational failure modes, or simpler alternatives.
 
 Before locking understanding or proposing architecture, run the problem through the **7 Critical Thinking Lenses** below. You do not need to recite all seven lenses out loud to the user; apply them internally during analysis and surface only the sharpest, highest-leverage insights and questions.
@@ -39,13 +39,13 @@ Strip away inherited habits, buzzwords, and "how we usually build this" template
 
 ### Signals That First Principles Are Needed
 
-- The request starts with an implementation mechanism rather than a user outcome (e.g., *"We need a message queue for..."* or *"Let's add a caching layer to..."*).
+- The request starts with an implementation mechanism rather than a user outcome (e.g., _"We need a message queue for..."_ or _"Let's add a caching layer to..."_).
 - The proposed architecture introduces three or more new abstractions for a single workflow.
 
 ### High-Leverage Question Patterns
 
-- *"To make sure we solve the root problem: what concrete pain or bottleneck occurs today when `<scenario>` happens?"*
-- *"Is `<proposed-mechanism>` a strict external requirement, or are we open to simpler mechanisms if they guarantee `<core-outcome>`?"*
+- _"To make sure we solve the root problem: what concrete pain or bottleneck occurs today when `<scenario>` happens?"_
+- _"Is `<proposed-mechanism>` a strict external requirement, or are we open to simpler mechanisms if they guarantee `<core-outcome>`?"_
 
 ---
 
@@ -61,28 +61,28 @@ Act as a constructive devil's advocate. Assume it is six months after deployment
 
 ### High-Leverage Question Patterns
 
-- *"If this design causes a headache six months from now, is it more likely to be from `<risk-A>` or `<risk-B>`?"*
-- *"What is the strongest argument against building this right now, and how should our design mitigate that concern?"*
+- _"If this design causes a headache six months from now, is it more likely to be from `<risk-A>` or `<risk-B>`?"_
+- _"What is the strongest argument against building this right now, and how should our design mitigate that concern?"_
 
 ---
 
 ## 4. Lens 3: Anti-Goals & Failure Conditions
 
-Standard requirements capture *Goals* (what the system should do) and *Non-Goals* (what is out of scope for v1). **Anti-Goals** capture *what must never happen*—outcomes that would make the project a failure even if every functional feature works as specified.
+Standard requirements capture _Goals_ (what the system should do) and _Non-Goals_ (what is out of scope for v1). **Anti-Goals** capture _what must never happen_—outcomes that would make the project a failure even if every functional feature works as specified.
 
 ### Examples of High-Value Anti-Goals
 
-| Domain | Goal | Non-Goal (Out of Scope) | Anti-Goal (Unacceptable Outcome) |
-| :--- | :--- | :--- | :--- |
-| **Static Analysis CLI** | Add semantic duplicate detection | Cross-repository clone search | Increasing cold-start CLI latency on light checks by more than 50 ms |
-| **State Management** | Sync user preferences across tabs | Offline conflict resolution UI | Introducing silent state overwrites when two tabs save concurrently |
-| **Data Pipeline** | Parse incoming webhook payloads | Historical backfill tool | Dropping or silently coercing malformed fields without raising a typed error |
-| **UI Animation** | Add transition to modal dialog | Custom 3D shaders | Triggering layout thrashing or breaking deterministic time-scaling in automated tests |
+| Domain                  | Goal                              | Non-Goal (Out of Scope)        | Anti-Goal (Unacceptable Outcome)                                                      |
+| :---------------------- | :-------------------------------- | :----------------------------- | :------------------------------------------------------------------------------------ |
+| **Static Analysis CLI** | Add semantic duplicate detection  | Cross-repository clone search  | Increasing cold-start CLI latency on light checks by more than 50 ms                  |
+| **State Management**    | Sync user preferences across tabs | Offline conflict resolution UI | Introducing silent state overwrites when two tabs save concurrently                   |
+| **Data Pipeline**       | Parse incoming webhook payloads   | Historical backfill tool       | Dropping or silently coercing malformed fields without raising a typed error          |
+| **UI Animation**        | Add transition to modal dialog    | Custom 3D shaders              | Triggering layout thrashing or breaking deterministic time-scaling in automated tests |
 
 ### High-Leverage Question Patterns
 
-- *"Even if this feature passes all functional tests, what side effect or trade-off would make you consider the implementation unacceptable?"*
-- *"Which invariant must never be compromised here: execution speed, zero external dependencies, or strict backward incompatibility?"*
+- _"Even if this feature passes all functional tests, what side effect or trade-off would make you consider the implementation unacceptable?"_
+- _"Which invariant must never be compromised here: execution speed, zero external dependencies, or strict backward incompatibility?"_
 
 ---
 
@@ -98,8 +98,8 @@ Never invent a novel pattern when the repository or ecosystem already has an est
 
 ### High-Leverage Question Patterns
 
-- *"We currently handle a similar workflow in `<existing-module>` using `<pattern>`. Should this new capability follow that exact contract, or is there a limitation in `<existing-module>` you want to move away from?"*
-- *"Are there existing tools or reference implementations whose behavior you want to emulate—or explicitly avoid?"*
+- _"We currently handle a similar workflow in `<existing-module>` using `<pattern>`. Should this new capability follow that exact contract, or is there a limitation in `<existing-module>` you want to move away from?"_
+- _"Are there existing tools or reference implementations whose behavior you want to emulate—or explicitly avoid?"_
 
 ---
 
@@ -127,13 +127,13 @@ Evaluate the emerging concept from four specialized engineering viewpoints befor
 ### 🧪 Testability & Operations Viewpoint
 
 - Where are the test seams? Can we verify clean paths, error paths, and edge cases hermetically in memory without fragile mocks?
-- When this fails in production or CI, will the error message immediately tell the developer *what* broke, *where*, and *how to fix it*?
+- When this fails in production or CI, will the error message immediately tell the developer _what_ broke, _where_, and _how to fix it_?
 
 ---
 
 ## 7. Lens 6: Radical Simplification & YAGNI
 
-Before finalizing your 2–3 design approaches in Phase 5, ruthlessly apply **YAGNI** (*You Ain't Gonna Need It*) and [`/ponytail`](../../ponytail/SKILL.md) principles:
+Before finalizing your 2–3 design approaches in Phase 5, ruthlessly apply **YAGNI** (_You Ain't Gonna Need It_) and [`/ponytail`](../../ponytail/SKILL.md) principles:
 
 1. **The 80/20 Cut**: Identify the 20% of the design that delivers 80% of the concrete value. What happens if we delete the remaining 80%?
 2. **Speculative Extension Ban**: Remove plugin hooks, generic strategy interfaces with only one implementation, and configuration toggles nobody asked for.
@@ -169,4 +169,4 @@ Happy-path designs crumble on contact with production data. Stress-test the conc
 4. **Use Plain Text Only for Unbounded Exploration**:
    - When you need the user to describe a workflow, pain point, or domain narrative in their own words, ask a single concise open question at the end of your message without a list of multiple-choice options attached.
 5. **Offer Concrete Hypotheses When the User Is Unsure**:
-   - If the user says *"I don't know"* or *"What do you think?"*, do not bounce the question back. Propose a concrete default grounded in codebase conventions, explain *why* in two sentences, and ask them to confirm or adjust it.
+   - If the user says _"I don't know"_ or _"What do you think?"_, do not bounce the question back. Propose a concrete default grounded in codebase conventions, explain _why_ in two sentences, and ask them to confirm or adjust it.

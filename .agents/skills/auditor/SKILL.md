@@ -119,12 +119,15 @@ graph TD
 ### 13. Single Source of Truth Directory Ignores & Canonical Registry (`SuiteIgnoreRegistry`, `isPathIgnored`)
 
 - **Canonical Ignore Registry (`SuiteIgnoreRegistry`)**: Centralized Single Source of Truth (`src/core/canonicalIgnoreRegistry.ts`) for universal directory ignores (`ALWAYS_IGNORE_DIRS`), binary extensions (`CANONICAL_BINARY_EXTENSIONS`), dynamic caches, and configuration unignore resolution.
+- **Strict Ignore Isolation & Prohibition of Hardcoding Ignores**: Sub-auditors are fully sovereign to configure their own ignores voluntarily if desired (`subsystem.ignoreGlobs`, `paths.ignoreGlobs`). However, HARDCODING IGNORES IN SOURCE CODE OR CROSS-POLLUTING IGNORES ACROSS SUBAUDITORS WITHOUT EXPLICIT DECLARATION IS STRICTLY PROHIBITED. Subsystem-specific paths (`dataRoots`, `testRoots`, `coverage.exemptGlobs`) MUST NEVER leak into other sub-auditors or satellite configurations (`vite.config.ts.lint.ignorePatterns`).
+- **Mandatory Default Auditing for `vite.plugins.ts`**: `vite.plugins.ts` is developer-owned application code and MUST ALWAYS be audited, linted, and formatted by default across all static analyzers. Placing `vite.plugins.ts` in any default ignore list is strictly prohibited.
+- **Auditor AST Automated Strong Typing on Governed Satellites (`vite.config.ts`)**: Since `vite.config.ts` is an auditor-owned satellite configuration, the AST synchronization engine (`synchronizeViteConfigAst`, `applyViteConfigAstTransformations`) automatically constructs and injects explicit TypeScript return types on all standard Vite/Rollup functions (`onwarn(warning, warn): void`, `bypass: (req): string | undefined =>`, `manualChunks(id): string | undefined`, `outExtensions: (): { js: string; dts: string } =>`), ensuring 100% compliance with strict Java-style typing (`@typescript-eslint/explicit-function-return-type`) without manual developer intervention.
 - **Binary Governance for Ignored Paths**:
-  1. **Universal Directories Without Auditor**: `.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `.auditor` belong strictly to `ALWAYS_IGNORE_DIRS`. Hardcoding application code roots in `ALWAYS_IGNORE_DIRS` is strictly prohibited.
-  2. **Tool-Specific Caches (`cachePaths`)**: Caches created by specific tools outside `scratch/` (e.g. `.fallow`, `.oxlintcache`, `.stylelintcache`) MUST be declared by their governing sub-auditor in its constructor options via `cachePaths: readonly string[]`. `BaseAuditor` automatically registers these into `dynamicCachePaths` and `GitIgnoreRegistry`.
-  3. **Section-Isolated Ignores (`subsystem.ignoreGlobs`)**: Each sub-auditor isolates its custom ignores in its own configuration section in `.auditor/audit.config.ts` (e.g. `dox: { enabled: true, ignoreGlobs: ['.agents/**'] }`), ensuring all other sub-auditors scan `.agents/**` normally.
-  4. **Universal Resolution Formula**: `BaseAuditor` resolves ignores via $\text{UNION}(\text{ALWAYS\_IGNORE\_DIRS}, \text{DynamicCaches}, \text{LockedSkills}, \text{paths.ignoreGlobs}, \text{subsystem.ignoreGlobs})$.
-  5. **Non-Destructive AST Default Injection Invariant**: Suggested defaults (`defaultConfig`) declared dynamically by subauditors are injected additively into `.auditor/audit.config.ts` by `auditor fix` only when whole sections or required properties/array elements are missing, strictly preserving 100% of user modifications, custom overrides, and preexisting configurations.
+  1. **Universal Dirs**: `.git`, `node_modules`, `scratch`, `tmp`, `volumes`, `.vscode`, `.github`, `.gemini`, `.auditor` belong strictly to `ALWAYS_IGNORE_DIRS`. Hardcoding application code roots is strictly prohibited.
+  2. **Tool Caches (`cachePaths`)**: Declared by governing sub-auditors in constructor (`.fallow`, `.oxlintcache`, etc.) and registered dynamically.
+  3. **Section-Isolated Ignores (`subsystem.ignoreGlobs`)**: Each sub-auditor isolates ignores in its own section without leaking across other suites.
+  4. **Universal Formula**: $\text{UNION}(\text{ALWAYS\_IGNORE\_DIRS}, \text{DynamicCaches}, \text{LockedSkills}, \text{paths.ignoreGlobs}, \text{subsystem.ignoreGlobs})$.
+  5. **Additive AST Defaults**: Defaults are injected additively by `auditor fix`, strictly preserving user configurations.
 - `FileScanAuditor` natively accepts `exemptPaths` in constructor options and evaluates `isPathExempt(relPath, this.exemptPaths)`, cleanly ignoring configured files or patterns.
 
 ### 14. Universal Ephemeral Scratch (`scratch/`) & Build Output (`dist/`) Isolation
@@ -181,29 +184,12 @@ graph TD
 - **Contract-Driven Zero False-Fix Protocol**: Auto-fix is 100% contract-driven. If a rule lacks an automated deterministic repair algorithm, it is strictly NOT fixable (`fix: 'none'`). Suites register repair functions via `ruleFixers` in `AuditorOptions` or via sub-auditors (`declareFileSubAuditor({ audit, fix })`, `declarePatternSubAuditor({ regex, replace })`, or `configFiles`). Manual boolean/string declarations in capabilities are prohibited; `BaseAuditor` dynamically derives `fixableRuleIds` and `capabilities.fix`. Violations without registered fixers unconditionally report `fixable: false`.
 - **Function Identity Deduplication Mandate (`Set<Function>`)**: When multiple sub-auditors share the exact same `audit` or `fix` function across rules, the engine executes it strictly ONCE per document, eliminating redundant passes. When `audit === fix`, running in `--fix` mode executes the function strictly ONCE instead of running audit and fix sequentially. Similarly, shared `ruleFixers` execute strictly once per run.
 
-### 21.1 Speed Engine: Ceiling vs. Exact Modes, Visual Icons (`🐇` / `🐢` / `🐘`) & Multi-Tier Mandates
+### 21.1 Speed Engine & Execution Tiers (`AuditExecutionSpeed`)
 
-- **3 Canonical Speed Tiers (`AuditExecutionSpeed`)**:
-  - `'light'` (`🐇`): Fast static lint and AST rules (`npm run auditor:lint` / `auditor speed=light`).
-  - `'heavy'` (`🐢`): Default workspace audit ceiling (`npm run auditor` / `auditor` / `auditor speed=heavy`), running `'light'` + `'heavy'` suites.
-  - `'full'` (`🐘`): Exhaustive pre-build/release ceiling (`npm run auditor:full` / `auditor speed=full`), running `'light'` + `'heavy'` + `'full'` (including `fallow dead-code --type-aware`).
-- **Ceiling Mode (`speed=light|heavy|full`)**: Cumulative up to the requested ceiling (`speed=heavy` runs `light` + `heavy`; `speed=full` runs `light` + `heavy` + `full`).
-- **Exact Isolation Mode (`only-speed=light|heavy|full`)**: Executes ONLY rules matching that exact tier.
-- **Mandatory Speed Selection in Multi-Speed Critical Suites**: If a suite or rule declares `critical: true` and `speed` has 2 or more speeds declared (e.g. `speed: ['light', 'full']`), it **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run <validate-script>`), guaranteeing that direct local executions run instantaneously with incremental/cache enabled.
-- **Mandatory Authentic Tiers & Prohibition of Duplicated Tiers**: Inventing or duplicating speed tiers that repeat identical CLI arguments or behaviors as another tier (such as inventing a `heavy` tier identical to `light`) is STRICTLY PROHIBITED. Each declared tier (`light`, `heavy`, `full`) MUST execute genuinely different commands or CLI flags of the underlying tool. If a tool only supports 2 distinct operational modes (e.g. `tsc` with `--incremental` in `light` vs without `--incremental` in `full`), ONLY those 2 basic tiers are declared (`['light', 'full']`). Only tools with 3 completely decoupled subcommands (such as `validate_fallow`: `dead-code --no-type-aware`, `dupes`, `type-aware`) declare all 3 tiers.
-- **Permanent Cache Mandate (Cache is NEVER Turned Off in Full)**: In the Full (`🐘`) tier, the entire project is audited without incremental/delta scoping (evaluating all files), BUT THE CACHE IS NEVER TURNED OFF. Tools with caching support (`oxlint --cache`, `stylelint cache: true`, `type-coverage --cache`, Fallow graph cache) MUST maintain their cache permanently enabled across all tiers to avoid re-processing identical files on disk.
-- **Clean Composition in `TieredCommandProfile`**: Repeating identical literal arrays in `profiles` is strictly prohibited. Profiles must be cleanly composed using shared constants (e.g. `standardArgs`, `incrementalArgs`).
-- **LPT Task Scheduler (Longest Processing Time First)**: In `audit_full`, suites with higher speed tiers (`🐘` `'full'`, `🐢` `'heavy'`) are sorted and dispatched FIRST in the worker queue so multi-core CPU workers absorb heavy tasks immediately.
-
-### 21.2 Mnemonic Command Naming & Master Build Chaining
-
-- `npm run auditor:lint` (`auditor speed=light`): Fast `🐇` lint pass.
-- `npm run auditor` (`auditor`): Default `🐢` heavy audit pass.
-- `npm run auditor:full` (`auditor speed=full`): Exhaustive `🐘` pre-compilation/release audit pass.
-- `npm run auditor:post-build` (`auditor phase=post-build`, binary `auditor-post-build`): Post-compilation artifact verification against `dist/`.
-- `npm run build`: Chains `"npm run auditor:full && <compile> && npm run auditor:post-build"`.
-- `npm run build:deploy` (`auditor-build-deploy`): Runs `npm run build` under `AUDITOR_ENV=production` for Docker/CI/deploy environments.
-- **Zero Redundant Execution Mandate**: `auditor:lint` is a strict subset of `auditor`. Executing `npm run auditor:lint` AFTER running `npm run auditor`, `npm run auditor:full`, or `npm run build` is strictly redundant and prohibited.
+- **3 Canonical Tiers**: `'light'` (`🐇`, fast static lint/AST), `'heavy'` (`🐢`, default workspace ceiling), `'full'` (`🐘`, exhaustive pre-build ceiling with deep type-aware analysis).
+- **Execution Modes**: Cumulative Ceiling (`speed=light|heavy|full`) vs. Exact Isolation (`only-speed=tier`).
+- **LPT Task Scheduler & Multithreading**: Longest Processing Time first in `audit_full`; permanent cache & multithreading (`--threads ${os.availableParallelism()}`).
+- 📘 **Full Speed Engine & Build Chaining Guide**: See [speed-and-execution-tiers-guide.md](./references/speed-and-execution-tiers-guide.md).
 
 ### 22. Strict Vite+ (`vp`) Unified Configuration & Code Hygiene Governance (`validate_vite_plus_config`, `validate_oxlint`, `validate_oxfmt`)
 
@@ -295,23 +281,9 @@ graph TD
 
 ## 📂 Canonical Architecture: Built-in Suites & Host Extensions
 
-### 1. Generic Built-In Suites (`src/suites/`)
+Official suites are discovered dynamically across 6 architectural families (`architecture/`, `domain_data/`, `performance/`, `security/`, `persistence/`, `documentation/`). Domain-specific extensions reside in `scripts/auditors/` extending `BaseAuditor`.
 
-Discovered automatically across 6 architectural families:
-
-- **`architecture/`**: AST rules, Fallow intelligence, CLI contracts (`validate_cli_contracts` / `citty`), component styles, HTML-Validate, Stylelint, Vite+ config, Git config, Auditor hygiene, Knip package hygiene, Publint distribution, Type coverage, WCAG accessibility, vector similar-code, test coverage, AGENTS integrity, Vue SFC hygiene, code simplification, SCSS architecture.
-- **`domain_data/`**: O(1) data structures, canonical domain catalogs, Domain-Type-First validation.
-- **`performance/`**: Web performance optimization, Database query performance.
-- **`security/`**: Static security hardening, secret leaks, dependency CVE vulnerabilities.
-- **`persistence/`**: Client Web Storage, SQL anti-patterns, Valibot schema and serializer bidirectional parity.
-- **`documentation/`**: Documented commands, Markdown links, DOX hierarchy (AGENTS.md), documentation language, markdown lint, Mermaid syntax.
-
-### 2. Host Project Extensions (`scripts/auditors/`) & Configuration
-
-Domain-specific rules unique to host applications reside in `scripts/auditors/` extending `BaseAuditor`.
-
-> [!TIP]
-> 📘 **Complete Configuration Reference**: For the complete catalog of all subsystem options and validated example blueprints for Enterprise and Gaming applications, see [blueprints.md](./references/blueprints.md), [audit.config.enterprise.example.ts](./references/audit.config.enterprise.example.ts), and [audit.config.gaming.example.ts](./references/audit.config.gaming.example.ts).
+📘 **Complete Catalog & Blueprints**: See [built-in-suites-catalog.md](./references/built-in-suites-catalog.md), [blueprints.md](./references/blueprints.md), [audit.config.enterprise.example.ts](./references/audit.config.enterprise.example.ts), and [audit.config.gaming.example.ts](./references/audit.config.gaming.example.ts).
 
 ---
 
@@ -465,34 +437,36 @@ flowchart LR
 
 ## 📚 References & Host Integration Blueprints Index
 
-| Reference Guide | Description |
-|---|---|
-| [`references/quality-gates-vs-refactor-engines.md`](./references/quality-gates-vs-refactor-engines.md) | Architectural dichotomy, paradox guide, reaction protocols, and plan blueprints. |
-| [`references/config-advisor-guide.md`](./references/config-advisor-guide.md) | Guide for interactive configuration hardening and Unidirectional Config Ratchet. |
-| [`references/zero-ignore-type-remediation.md`](./references/zero-ignore-type-remediation.md) | Guide for zero escape hatches (// *-ok:) via canonical semantic types & ratchet. |
-| [`references/types-refactoring-guide.md`](./references/types-refactoring-guide.md) | Guide for automated type assertion, double cast, and return type refactoring. |
-| [`references/hygiene-refactoring-guide.md`](./references/hygiene-refactoring-guide.md) | Guide for member accessibility, globalThis, and void expression refactoring. |
-| [`references/domain-refactoring-guide.md`](./references/domain-refactoring-guide.md) | Guide for automated domain catalogs, naked strings, and branded ID refactoring. |
-| [`references/magic-numbers-refactoring-guide.md`](./references/magic-numbers-refactoring-guide.md) | Guide for magic numbers, Super-Dirac clustering, and token governance. |
-| [`references/duplicate-refactoring-guide.md`](./references/duplicate-refactoring-guide.md) | Guide for automated clone refactoring, Dirac micro-context, and safe worktrees. |
-| [`references/motion-refactoring-guide.md`](./references/motion-refactoring-guide.md) | Guide for automated UI animation refactoring, GPU transforms, and timer migration. |
-| [`references/o1-data-structures-guide.md`](./references/o1-data-structures-guide.md) | Guide for algorithmic O(1) refactoring, Set hoists, and structuredClone modernization. |
-| [`references/error-triage-guide.md`](./references/error-triage-guide.md) | Catálogo maestro de triaje y remediación de errores, causas raíz y uso de `auditor guide`. |
-| [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md) | Complete sub-auditor authoring guide with boilerplate implementations. |
-| [`references/extension-helpers-guide.md`](./references/extension-helpers-guide.md) | Standard framework helpers, base methods, and migration guide for host extensions. |
-| [`references/subsystem-rules-reference.md`](./references/subsystem-rules-reference.md) | Detailed technical specifications for Dart Sass casing, sentinels, by-file grouping, and more. |
-| [`references/blueprints.md`](./references/blueprints.md) | Configuration blueprints overview and active subsystem settings. |
-| [`references/cross-repo-testing-guide.md`](./references/cross-repo-testing-guide.md) | Cross-repository testing guide for `--project` / `-p` CLI execution. |
-| [`references/auditor-testing-guide.md`](./references/auditor-testing-guide.md) | 5-point conformance testing contract and hermetic unit testing patterns. |
-| [`references/host-package-governance.md`](./references/host-package-governance.md) | Host installation, GitHub npm updates, CI reproducibility, and binary inheritance. |
-| [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md) | Reference manual for interactive findings reporting and CLI diagnostic options. |
-| [`references/test-coverage-guide.md`](./references/test-coverage-guide.md) | Test execution code coverage analysis, Istanbul/V8 JSON parsing, and CI gating. |
-| [`references/setup-extension-guide.md`](./references/setup-extension-guide.md) | Environment setup script architecture and extension plugins for Linux and Windows. |
-| [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts) | Reference configuration for Enterprise applications (Supabase backend, strict types). |
-| [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts) | Reference configuration for Gaming applications (hybrid persistence, Web Workers). |
-| [`references/legacy-migration-guide.md`](./references/legacy-migration-guide.md) | Guía de modernización de aplicaciones anfitrionas desde versiones legadas a versiones modernas de `@francogp/auditor`. |
-| [`references/satellite-configs-sovereignty-guide.md`](./references/satellite-configs-sovereignty-guide.md) | Single Source of Truth governance, satellite configs sovereignty, and prohibition of manual config plans. |
-| [`references/vite-plus-guide.md`](./references/vite-plus-guide.md) | Guía canónica de referencia de Vite+ (`vp`), comandos CLI, tutorial oficial y arquitectura de migración. |
-| [`references/citty-cli-governance-guide.md`](./references/citty-cli-governance-guide.md) | Canonical Citty CLI guide, isMainModule guard mandate, correct patterns, and anti-patterns. |
-| [`references/extensions/`](./references/extensions/) | Reference blueprints for host extension plugins. |
-| [`references/plugins/`](./references/plugins/) | Sample setup plugins for Docker database containers and local SSL certificates. |
+| Reference Guide                                                                                            | Description                                                                                                            |
+| ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [`references/quality-gates-vs-refactor-engines.md`](./references/quality-gates-vs-refactor-engines.md)     | Architectural dichotomy, paradox guide, reaction protocols, and plan blueprints.                                       |
+| [`references/config-advisor-guide.md`](./references/config-advisor-guide.md)                               | Guide for interactive configuration hardening and Unidirectional Config Ratchet.                                       |
+| [`references/zero-ignore-type-remediation.md`](./references/zero-ignore-type-remediation.md)               | Guide for zero escape hatches (// *-ok:) via canonical semantic types & ratchet.                                       |
+| [`references/types-refactoring-guide.md`](./references/types-refactoring-guide.md)                         | Guide for automated type assertion, double cast, and return type refactoring.                                          |
+| [`references/hygiene-refactoring-guide.md`](./references/hygiene-refactoring-guide.md)                     | Guide for member accessibility, globalThis, and void expression refactoring.                                           |
+| [`references/domain-refactoring-guide.md`](./references/domain-refactoring-guide.md)                       | Guide for automated domain catalogs, naked strings, and branded ID refactoring.                                        |
+| [`references/magic-numbers-refactoring-guide.md`](./references/magic-numbers-refactoring-guide.md)         | Guide for magic numbers, Super-Dirac clustering, and token governance.                                                 |
+| [`references/duplicate-refactoring-guide.md`](./references/duplicate-refactoring-guide.md)                 | Guide for automated clone refactoring, Dirac micro-context, and safe worktrees.                                        |
+| [`references/motion-refactoring-guide.md`](./references/motion-refactoring-guide.md)                       | Guide for automated UI animation refactoring, GPU transforms, and timer migration.                                     |
+| [`references/o1-data-structures-guide.md`](./references/o1-data-structures-guide.md)                       | Guide for algorithmic O(1) refactoring, Set hoists, and structuredClone modernization.                                 |
+| [`references/error-triage-guide.md`](./references/error-triage-guide.md)                                   | Catálogo maestro de triaje y remediación de errores, causas raíz y uso de `auditor guide`.                             |
+| [`references/sub-auditor-authoring-guide.md`](./references/sub-auditor-authoring-guide.md)                 | Complete sub-auditor authoring guide with boilerplate implementations.                                                 |
+| [`references/extension-helpers-guide.md`](./references/extension-helpers-guide.md)                         | Standard framework helpers, base methods, and migration guide for host extensions.                                     |
+| [`references/subsystem-rules-reference.md`](./references/subsystem-rules-reference.md)                     | Detailed technical specifications for Dart Sass casing, sentinels, by-file grouping, and more.                         |
+| [`references/blueprints.md`](./references/blueprints.md)                                                   | Configuration blueprints overview and active subsystem settings.                                                       |
+| [`references/cross-repo-testing-guide.md`](./references/cross-repo-testing-guide.md)                       | Cross-repository testing guide for `--project` / `-p` CLI execution.                                                   |
+| [`references/auditor-testing-guide.md`](./references/auditor-testing-guide.md)                             | 5-point conformance testing contract and hermetic unit testing patterns.                                               |
+| [`references/host-package-governance.md`](./references/host-package-governance.md)                         | Host installation, GitHub npm updates, CI reproducibility, and binary inheritance.                                     |
+| [`references/cli-reporters-guide.md`](./references/cli-reporters-guide.md)                                 | Reference manual for interactive findings reporting and CLI diagnostic options.                                        |
+| [`references/test-coverage-guide.md`](./references/test-coverage-guide.md)                                 | Test execution code coverage analysis, Istanbul/V8 JSON parsing, and CI gating.                                        |
+| [`references/setup-extension-guide.md`](./references/setup-extension-guide.md)                             | Environment setup script architecture and extension plugins for Linux and Windows.                                     |
+| [`references/audit.config.enterprise.example.ts`](./references/audit.config.enterprise.example.ts)         | Reference configuration for Enterprise applications (Supabase backend, strict types).                                  |
+| [`references/audit.config.gaming.example.ts`](./references/audit.config.gaming.example.ts)                 | Reference configuration for Gaming applications (hybrid persistence, Web Workers).                                     |
+| [`references/legacy-migration-guide.md`](./references/legacy-migration-guide.md)                           | Guía de modernización de aplicaciones anfitrionas desde versiones legadas a versiones modernas de `@francogp/auditor`. |
+| [`references/satellite-configs-sovereignty-guide.md`](./references/satellite-configs-sovereignty-guide.md) | Single Source of Truth governance, satellite configs sovereignty, and prohibition of manual config plans.              |
+| [`references/vite-plus-guide.md`](./references/vite-plus-guide.md)                                         | Guía canónica de referencia de Vite+ (`vp`), comandos CLI, tutorial oficial y arquitectura de migración.               |
+| [`references/speed-and-execution-tiers-guide.md`](./references/speed-and-execution-tiers-guide.md)         | Architectural specification for Speed Engine, execution tiers, command chaining, and scheduler prioritization.         |
+| [`references/built-in-suites-catalog.md`](./references/built-in-suites-catalog.md)                         | Comprehensive taxonomy and architectural grouping of official sub-auditor suites.                                      |
+| [`references/citty-cli-governance-guide.md`](./references/citty-cli-governance-guide.md)                   | Canonical Citty CLI guide, isMainModule guard mandate, correct patterns, and anti-patterns.                            |
+| [`references/extensions/`](./references/extensions/)                                                       | Reference blueprints for host extension plugins.                                                                       |
+| [`references/plugins/`](./references/plugins/)                                                             | Sample setup plugins for Docker database containers and local SSL certificates.                                        |

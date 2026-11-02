@@ -251,7 +251,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     }
 
     // withBuild includes the union of both
-    expect(allTasks.length).toBe(defaultTasks.length + buildTasks.length);
+    expect(allTasks).toHaveLength(defaultTasks.length + buildTasks.length);
   });
 
   it('safely extracts metadata using self-import guard when scanning the currently executing script', async () => {

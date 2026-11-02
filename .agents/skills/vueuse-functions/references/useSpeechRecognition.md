@@ -11,17 +11,10 @@ Reactive [SpeechRecognition](https://developer.mozilla.org/en-US/docs/Web/API/Sp
 ## Usage
 
 ```ts
-import { useSpeechRecognition } from '@vueuse/core'
+import { useSpeechRecognition } from '@vueuse/core';
 
-const {
-  isSupported,
-  isListening,
-  isFinal,
-  result,
-  confidence,
-  start,
-  stop,
-} = useSpeechRecognition()
+const { isSupported, isListening, isFinal, result, confidence, start, stop } =
+  useSpeechRecognition();
 ```
 
 The `confidence` ref tracks the [confidence value](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative/confidence) of the latest result, between 0 and 1.
@@ -31,13 +24,13 @@ The `confidence` ref tracks the [confidence value](https://developer.mozilla.org
 The following shows the default values of the options, they will be directly passed to [SpeechRecognition API](https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition).
 
 ```ts
-import { useSpeechRecognition } from '@vueuse/core'
+import { useSpeechRecognition } from '@vueuse/core';
 // ---cut---
 useSpeechRecognition({
   lang: 'en-US',
   interimResults: true,
-  continuous: true,
-})
+  continuous: true
+});
 ```
 
 ## Type Declarations
@@ -49,42 +42,42 @@ export interface UseSpeechRecognitionOptions extends ConfigurableWindow {
    *
    * @default true
    */
-  continuous?: boolean
+  continuous?: boolean;
   /**
    * Controls whether interim results should be returned (true) or not (false.) Interim results are results that are not yet final
    *
    * @default true
    */
-  interimResults?: boolean
+  interimResults?: boolean;
   /**
    * Language for SpeechRecognition
    *
    * @default 'en-US'
    */
-  lang?: MaybeRefOrGetter<string>
+  lang?: MaybeRefOrGetter<string>;
   /**
    * A number representing the maximum returned alternatives for each result.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognition/maxAlternatives
    * @default 1
    */
-  maxAlternatives?: number
+  maxAlternatives?: number;
 }
 export interface UseSpeechRecognitionReturn extends Supportable {
-  isListening: ShallowRef<boolean>
-  isFinal: Readonly<ShallowRef<boolean>>
-  recognition: SpeechRecognition | undefined
-  result: Readonly<ShallowRef<string>>
+  isListening: ShallowRef<boolean>;
+  isFinal: Readonly<ShallowRef<boolean>>;
+  recognition: SpeechRecognition | undefined;
+  result: Readonly<ShallowRef<string>>;
   /**
    * Confidence value of the latest result, between 0 and 1.
    *
    * @see https://developer.mozilla.org/en-US/docs/Web/API/SpeechRecognitionAlternative/confidence
    */
-  confidence: Readonly<ShallowRef<number>>
-  error: ShallowRef<SpeechRecognitionErrorEvent | Error | undefined>
-  toggle: (value?: boolean) => void
-  start: () => void
-  stop: () => void
+  confidence: Readonly<ShallowRef<number>>;
+  error: ShallowRef<SpeechRecognitionErrorEvent | Error | undefined>;
+  toggle: (value?: boolean) => void;
+  start: () => void;
+  stop: () => void;
 }
 /**
  * Reactive SpeechRecognition.
@@ -94,6 +87,6 @@ export interface UseSpeechRecognitionReturn extends Supportable {
  * @param options
  */
 export declare function useSpeechRecognition(
-  options?: UseSpeechRecognitionOptions,
-): UseSpeechRecognitionReturn
+  options?: UseSpeechRecognitionOptions
+): UseSpeechRecognitionReturn;
 ```

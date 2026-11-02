@@ -58,7 +58,12 @@ await this.runSubAuditor('my-async-rule', async () => {
 
 // Single-pass multi-rule file scan backed by WorkspaceFileCache in RAM:
 await this.scanFilesSinglePass(files, [
-  { ruleId: 'my-rule-id', scan: (file, content, lines) => { /* ... */ } }
+  {
+    ruleId: 'my-rule-id',
+    scan: (file, content, lines) => {
+      /* ... */
+    }
+  }
 ]);
 ```
 
@@ -162,15 +167,15 @@ import {
 } from '@francogp/auditor';
 ```
 
-| Helper | Signature | Description |
-|:---|:---|:---|
-| `normalizePosixPath` | `(filePath: string) => string` | Normalizes backslashes to forward slashes and resolves relative segments deterministically (Node.js 26+). |
-| `toPosixRelative` | `(target: string, from?: string) => string` | Produces relative paths with forward slashes without leading `./`. |
-| `isInsideRoot` / `isPathInside` | `(target: string, root: string) => boolean` | Hardened CWE-22 path containment check preventing path traversal. |
-| `matchesAnyRoot` | `(path: string, roots: readonly string[]) => boolean` | Checks if a path starts with or is contained inside any declared root directory. |
-| `isTestPath` | `(filePath: string) => boolean` | Detects whether a path belongs to test, spec, mock, or integration folders. |
-| `isTestFileForCodeAudit` | `(filePath: string, projectRoot?: string) => boolean` | Centralized test file checker respecting both filename conventions and configured test roots. |
-| `isExemptFile` | `(relPath: string, projectRoot?: string) => boolean` | Verifies whether a file is exempted globally via `audit.config.ts`. |
+| Helper                          | Signature                                             | Description                                                                                               |
+| :------------------------------ | :---------------------------------------------------- | :-------------------------------------------------------------------------------------------------------- |
+| `normalizePosixPath`            | `(filePath: string) => string`                        | Normalizes backslashes to forward slashes and resolves relative segments deterministically (Node.js 26+). |
+| `toPosixRelative`               | `(target: string, from?: string) => string`           | Produces relative paths with forward slashes without leading `./`.                                        |
+| `isInsideRoot` / `isPathInside` | `(target: string, root: string) => boolean`           | Hardened CWE-22 path containment check preventing path traversal.                                         |
+| `matchesAnyRoot`                | `(path: string, roots: readonly string[]) => boolean` | Checks if a path starts with or is contained inside any declared root directory.                          |
+| `isTestPath`                    | `(filePath: string) => boolean`                       | Detects whether a path belongs to test, spec, mock, or integration folders.                               |
+| `isTestFileForCodeAudit`        | `(filePath: string, projectRoot?: string) => boolean` | Centralized test file checker respecting both filename conventions and configured test roots.             |
+| `isExemptFile`                  | `(relPath: string, projectRoot?: string) => boolean`  | Verifies whether a file is exempted globally via `audit.config.ts`.                                       |
 
 ---
 
@@ -188,15 +193,15 @@ import {
 } from '@francogp/auditor';
 ```
 
-| Helper | Signature | Description |
-|:---|:---|:---|
-| `parseVueSfc` | `(content: string) => VueSfcBlocks` | Deterministically parses Vue SFC into structured `<template>`, `<script>`, and `<style>` blocks with precise line and index coordinates. |
-| `hasPrecedingComment` | `(lines: readonly string[], lineIndex: number, directiveRegex: RegExp, options?: PrecedingCommentOptions) => boolean` | Robustly detects preceding single-line or multi-line comment annotations across Vue SFC templates, scripts, and stylesheets with lookback. |
-| `stripComments` | `(code: string) => string` | Safely removes line (`//`) and block (`/* ... */`) comments while preserving string literals and line count. |
-| `stripCommentsAndStrings` | `(code: string) => string` | Strips comments and string literals, replacing non-whitespace with spaces to preserve line and character offsets. |
-| `scanBalancedDelimiter` | `(text: string, open: string, close: string, startIndex: number) => number` | Scans forward from an opening delimiter to locate its matching closing delimiter, handling nested pairs and string escapes. |
-| `isPositionInsideFunctionParams` | `(sourceText: string, targetPos: number) => boolean` | Determines if a source position lies inside function parameters vs the function body. |
-| `getPackageJson` | `(projectRoot?: string) => Record<string, any>` | Safely reads and caches the project's root `package.json` without manual `fs.readFileSync` or `JSON.parse`. |
+| Helper                           | Signature                                                                                                             | Description                                                                                                                                |
+| :------------------------------- | :-------------------------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------- |
+| `parseVueSfc`                    | `(content: string) => VueSfcBlocks`                                                                                   | Deterministically parses Vue SFC into structured `<template>`, `<script>`, and `<style>` blocks with precise line and index coordinates.   |
+| `hasPrecedingComment`            | `(lines: readonly string[], lineIndex: number, directiveRegex: RegExp, options?: PrecedingCommentOptions) => boolean` | Robustly detects preceding single-line or multi-line comment annotations across Vue SFC templates, scripts, and stylesheets with lookback. |
+| `stripComments`                  | `(code: string) => string`                                                                                            | Safely removes line (`//`) and block (`/* ... */`) comments while preserving string literals and line count.                               |
+| `stripCommentsAndStrings`        | `(code: string) => string`                                                                                            | Strips comments and string literals, replacing non-whitespace with spaces to preserve line and character offsets.                          |
+| `scanBalancedDelimiter`          | `(text: string, open: string, close: string, startIndex: number) => number`                                           | Scans forward from an opening delimiter to locate its matching closing delimiter, handling nested pairs and string escapes.                |
+| `isPositionInsideFunctionParams` | `(sourceText: string, targetPos: number) => boolean`                                                                  | Determines if a source position lies inside function parameters vs the function body.                                                      |
+| `getPackageJson`                 | `(projectRoot?: string) => Record<string, any>`                                                                       | Safely reads and caches the project's root `package.json` without manual `fs.readFileSync` or `JSON.parse`.                                |
 
 ---
 
@@ -247,13 +252,13 @@ export const customExtension = defineAuditorExtension({
 
 All sub-auditors, host extensions, and CLI tools are governed by `validate_cli_contracts` (`phase: 'setup'`). Direct `process.argv` access, `node:util.parseArgs`, third-party CLI parsers (`commander`, `yargs`, `minimist`, `cac`), and manual flag checks (`.startsWith('--')`, `args[0]`) are strictly prohibited.
 
-| Helper | Module | Purpose |
-|:---|:---|:---|
-| `BaseAuditor.runCliIfMain(importMetaUrl, auditor)` | `@francogp/auditor` | Canonical CLI entrypoint for sub-auditors and host extensions; parses `human`, `--fix`, `--json`, and `--help` via Citty. |
-| `isMainModule(importMetaUrl)` | `@francogp/auditor` | Canonical entrypoint predicate; prevents `runMain(command)` from executing during module imports. |
-| `createAuditorCli(options)` | `src/core/cli/cittyHarness.ts` | Builds a declarative Citty `CommandDef` merging `COMMON_CLI_ARGS` (`human`, `pretty`, `json`, `project`, `fix`, `help`, `version`). |
-| `parseCittyArgs(argsDef, rawArgs)` | `src/core/cli/cittyHarness.ts` | Synchronously normalizes bare `key=value` and positional `human`/`help` tokens and parses them through Citty's parser. |
-| `createRefactorCli(spec)` | `src/core/refactor/refactorCliHarness.ts` | Declarative Citty CLI harness for `BaseRefactorEngine` tools (`discover`, `inspect`, `apply`, `human`, `help`). |
+| Helper                                             | Module                                    | Purpose                                                                                                                             |
+| :------------------------------------------------- | :---------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
+| `BaseAuditor.runCliIfMain(importMetaUrl, auditor)` | `@francogp/auditor`                       | Canonical CLI entrypoint for sub-auditors and host extensions; parses `human`, `--fix`, `--json`, and `--help` via Citty.           |
+| `isMainModule(importMetaUrl)`                      | `@francogp/auditor`                       | Canonical entrypoint predicate; prevents `runMain(command)` from executing during module imports.                                   |
+| `createAuditorCli(options)`                        | `src/core/cli/cittyHarness.ts`            | Builds a declarative Citty `CommandDef` merging `COMMON_CLI_ARGS` (`human`, `pretty`, `json`, `project`, `fix`, `help`, `version`). |
+| `parseCittyArgs(argsDef, rawArgs)`                 | `src/core/cli/cittyHarness.ts`            | Synchronously normalizes bare `key=value` and positional `human`/`help` tokens and parses them through Citty's parser.              |
+| `createRefactorCli(spec)`                          | `src/core/refactor/refactorCliHarness.ts` | Declarative Citty CLI harness for `BaseRefactorEngine` tools (`discover`, `inspect`, `apply`, `human`, `help`).                     |
 
 > [!TIP]
 > 📘 **CLI Script Authoring & Citty Best Practices**: For complete guidelines on writing host maintenance and testing scripts with `defineCommand`, subcommands, typed args, and avoiding background execution storms, see [citty-cli-governance-guide.md](./citty-cli-governance-guide.md).
@@ -267,7 +272,13 @@ All sub-auditors, host extensions, and CLI tools are governed by `validate_cli_c
 Create `scripts/auditors/validate_game_design.ts`:
 
 ```typescript
-import { FileScanAuditor, BaseAuditor, createUniformRuleCapabilities, resolveFileScanRoots, type FileScanRootsOptions } from '@francogp/auditor';
+import {
+  FileScanAuditor,
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions
+} from '@francogp/auditor';
 import { isExemptFile } from '@francogp/auditor';
 
 export type GameDesignRuleId = 'game-banned-magic-speed' | 'game-missing-layer-tag';
@@ -279,7 +290,10 @@ export const GAME_DESIGN_RULES: readonly GameDesignRuleId[] = [
 
 export class ValidateGameDesignAuditor extends FileScanAuditor<GameDesignRuleId> {
   constructor(options: FileScanRootsOptions = {}) {
-    const { effectiveRoot, targetRoots } = resolveFileScanRoots(options, (config) => config.paths.srcRoots);
+    const { effectiveRoot, targetRoots } = resolveFileScanRoots(
+      options,
+      (config) => config.paths.srcRoots
+    );
     super({
       id: 'validate_game_design',
       name: 'Game Design Constraints',
@@ -361,6 +375,7 @@ await BaseAuditor.runCliIfMain(import.meta.url, new ValidateGameDesignAuditor())
 ```typescript
 import { defineConfig } from '@francogp/auditor';
 import { defineAuditorExtension } from '@francogp/auditor/plugin';
+
 import { ValidateGameDesignAuditor } from '../scripts/auditors/validate_game_design.ts';
 
 const gameDesignExtension = defineAuditorExtension({
@@ -491,7 +506,6 @@ export class ValidateUiColorPaletteAuditor extends FileScanAuditor<UiColorRuleId
 Verifies that all exported functions in domain services have explicit return type annotations using TypeScript compiler AST:
 
 ```typescript
-import ts from 'typescript';
 import {
   FileScanAuditor,
   createUniformRuleCapabilities,
@@ -500,6 +514,7 @@ import {
   DEFAULT_AUDIT_CONFIG,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+import ts from 'typescript';
 
 export const SERVICE_RETURN_RULES = ['service-missing-explicit-return-type'] as const;
 export type ServiceReturnRuleId = (typeof SERVICE_RETURN_RULES)[number];
@@ -508,7 +523,8 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
   constructor(options: FileScanRootsOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (config) => config.paths?.logicRoots ?? config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
+      (config) =>
+        config.paths?.logicRoots ?? config.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots
     );
 
     super({
@@ -560,7 +576,7 @@ export class ValidateServiceTypesAuditor extends FileScanAuditor<ServiceReturnRu
     this.runSubAuditorSync('service-missing-explicit-return-type', () => {
       const visit = (node: ts.Node): void => {
         if (ts.isFunctionDeclaration(node) && node.name) {
-          const isExported = node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword);
+          const isExported = node.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
           if (isExported && !node.type) {
             this.addViolationAtMatch({
               ruleId: 'service-missing-explicit-return-type',
@@ -590,6 +606,7 @@ Validates game assets on disk (PNG, WebP, audio) ensuring sprite atlases have co
 ```typescript
 import nodeFs from 'node:fs';
 import path from 'node:path';
+
 import { BaseAuditor, createRuleCapabilities } from '@francogp/auditor';
 
 export const ASSET_INTEGRITY_RULES = ['asset-missing-atlas-manifest'] as const;
@@ -632,7 +649,10 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
     const assetsDir = path.resolve(this.projectRoot, 'public/assets/sprites');
     if (!nodeFs.existsSync(assetsDir)) {
       this.runSubAuditorSync('asset-missing-atlas-manifest', () => {
-        this.markRuleNotApplicable('asset-missing-atlas-manifest', 'Directorio public/assets/sprites no existe');
+        this.markRuleNotApplicable(
+          'asset-missing-atlas-manifest',
+          'Directorio public/assets/sprites no existe'
+        );
       });
       return;
     }
@@ -667,14 +687,15 @@ export class ValidateAssetIntegrityAuditor extends BaseAuditor<AssetIntegrityRul
 Every host extension must be tested with Vite+ / Vitest according to the 5-point contract:
 
 ```typescript
-import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+import type { ViolationInput } from '@francogp/auditor';
 import { validateAuditorConstruction } from '@francogp/auditor/contract';
+import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
+
 import {
   ValidateGameDesignAuditor,
   GAME_DESIGN_RULES,
   type GameDesignRuleId
 } from '../scripts/auditors/validate_game_design.ts';
-import type { ViolationInput } from '@francogp/auditor';
 
 class TestableGameDesignAuditor extends ValidateGameDesignAuditor {
   public readonly recordedViolations: ViolationInput<GameDesignRuleId>[] = [];
@@ -720,7 +741,9 @@ describe('ValidateGameDesignAuditor (5-Point Contract)', () => {
   it('fulfills Point 3 & 5: detects game-banned-magic-speed', () => {
     const auditor = new TestableGameDesignAuditor();
     auditor.testScanFile('src/entities/Enemy.ts', 'const player = { speed: 500 };');
-    const violations = auditor.recordedViolations.filter(v => v.ruleId === 'game-banned-magic-speed');
+    const violations = auditor.recordedViolations.filter(
+      (v) => v.ruleId === 'game-banned-magic-speed'
+    );
     expect(violations[0]?.severity).toBe('error');
   });
 

@@ -100,7 +100,7 @@ Parse the JSON to list reported files and exports. This command does not disting
 ```yaml
 - name: Fallow analysis
   run: npx fallow dead-code --ci > fallow.sarif
-  continue-on-error: true  # --ci sets --fail-on-issues; continue to upload SARIF even if issues found
+  continue-on-error: true # --ci sets --fail-on-issues; continue to upload SARIF even if issues found
 
 - name: Upload SARIF
   uses: github/codeql-action/upload-sarif@v3
@@ -126,7 +126,7 @@ Fail a PR only when it introduces new security candidates (or makes existing one
 - uses: fallow-rs/fallow@v3
   with:
     command: security
-    security-gate: new   # or newly-reachable (needs a base ref via changed-since or PR auto-scoping)
+    security-gate: new # or newly-reachable (needs a base ref via changed-since or PR auto-scoping)
 ```
 
 GitLab equivalent: `FALLOW_COMMAND: "security"` with `FALLOW_SECURITY_GATE: "new"`.
@@ -148,7 +148,7 @@ Computes a health score (0-100 with letter grade) in combined mode and enables t
 - uses: fallow-rs/fallow@v3
   with:
     command: audit
-    gate: new-only        # default; fails only on findings introduced by this PR
+    gate: new-only # default; fails only on findings introduced by this PR
     fail-on-issues: true
 ```
 
@@ -179,7 +179,7 @@ The official action supports inline PR annotations via GitHub workflow commands.
     command: dead-code
     changed-since: main
     annotations: true
-    max-annotations: 50   # default: 50, limits annotation count
+    max-annotations: 50 # default: 50, limits annotation count
 ```
 
 Annotations appear as inline warnings on the PR diff. They work with all commands (`dead-code`, `dupes`, `health`, and the default combined mode). The `max-annotations` input prevents annotation flooding on large projects.
@@ -218,8 +218,8 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMAND: "dead-code"
-    FALLOW_FAIL_ON_ISSUES: "true"
+    FALLOW_COMMAND: 'dead-code'
+    FALLOW_FAIL_ON_ISSUES: 'true'
 ```
 
 Generates Code Quality reports (inline MR annotations) automatically. In MR pipelines, `--changed-since` is automatically set to the target branch; no manual configuration needed.
@@ -240,9 +240,9 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMENT: "true"
-    FALLOW_SUMMARY_SCOPE: "diff"
-    FALLOW_PR_COMMENT_LAYOUT: "gate-only"
+    FALLOW_COMMENT: 'true'
+    FALLOW_SUMMARY_SCOPE: 'diff'
+    FALLOW_PR_COMMENT_LAYOUT: 'gate-only'
 ```
 
 Posts a summary comment on the MR with issue counts and findings. In MR pipelines, `--changed-since` is auto-detected from `$CI_MERGE_REQUEST_TARGET_BRANCH_NAME`, so only issues from changed files are reported. `FALLOW_SUMMARY_SCOPE: "diff"` also hides project-level dependency/catalog/override findings whose anchor line is outside the diff. `FALLOW_PR_COMMENT_LAYOUT: "gate-only"` keeps the sticky comment compact when GitLab Code Quality is the primary review surface. Requires `GITLAB_TOKEN` CI/CD variable (project access token with `api` scope); `CI_JOB_TOKEN` is read-only for MR notes in the official GitLab API.
@@ -256,8 +256,8 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_REVIEW: "true"
-    FALLOW_REVIEW_GUIDANCE: "true"
+    FALLOW_REVIEW: 'true'
+    FALLOW_REVIEW_GUIDANCE: 'true'
 ```
 
 Posts inline review comments directly on the MR diff lines where issues were found. `FALLOW_REVIEW_GUIDANCE: "true"` adds collapsed "What to do" guidance blocks to each inline finding. This gives developers precise feedback without leaving the code review flow. Can be combined with `FALLOW_COMMENT: "true"` for both a summary and inline comments. Requires `GITLAB_TOKEN`.
@@ -271,12 +271,12 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_COMMENT: "true"
-    FALLOW_SUMMARY_SCOPE: "diff"
-    FALLOW_PR_COMMENT_LAYOUT: "gate-only"
-    FALLOW_REVIEW: "true"
-    FALLOW_REVIEW_GUIDANCE: "true"
-    FALLOW_FAIL_ON_ISSUES: "true"
+    FALLOW_COMMENT: 'true'
+    FALLOW_SUMMARY_SCOPE: 'diff'
+    FALLOW_PR_COMMENT_LAYOUT: 'gate-only'
+    FALLOW_REVIEW: 'true'
+    FALLOW_REVIEW_GUIDANCE: 'true'
+    FALLOW_FAIL_ON_ISSUES: 'true'
 ```
 
 Posts both a summary comment and inline review comments on the MR. `FALLOW_SUMMARY_SCOPE: "diff"` and `FALLOW_PR_COMMENT_LAYOUT` only affect the sticky summary; inline review comments remain anchored to diff lines. The template auto-detects the package manager (npm/pnpm/yarn) from lockfiles, so review comments show the correct commands for the project (e.g., `pnpm remove` instead of `npm uninstall`).
@@ -290,9 +290,9 @@ include:
 fallow:
   extends: .fallow
   variables:
-    FALLOW_SCORE: "true"
-    FALLOW_TREND: "true"
-    FALLOW_COMMENT: "true"
+    FALLOW_SCORE: 'true'
+    FALLOW_TREND: 'true'
+    FALLOW_COMMENT: 'true'
 ```
 
 Computes the health score and compares against saved snapshots. The MR comment includes a health delta header showing score changes. `FALLOW_TREND` implies `FALLOW_SCORE`.
@@ -443,6 +443,7 @@ fallow migrate
 ```
 
 Creates `.fallowrc.json` with mapped settings:
+
 - knip `rules`/`exclude`/`include` → fallow `rules` (error/warn/off)
 - knip `ignore` → fallow `ignoreFindings` (matching dead-code findings are
   hidden, but matching files remain in the module graph; leading `!` exceptions
@@ -485,6 +486,7 @@ fallow migrate
 ```
 
 Maps jscpd settings:
+
 - `minTokens` → `duplicates.minTokens`
 - `minLines` → `duplicates.minLines`
 - `threshold` → `duplicates.threshold`
@@ -498,12 +500,12 @@ fallow dupes --format json --quiet
 
 ### Detection mode mapping
 
-| jscpd | fallow |
-|-------|--------|
-| Default (exact tokens) | `strict` |
-| n/a | `mild` (fallow default, syntax normalized) |
-| n/a | `weak` (literal normalization) |
-| n/a | `semantic` (variable rename detection) |
+| jscpd                  | fallow                                     |
+| ---------------------- | ------------------------------------------ |
+| Default (exact tokens) | `strict`                                   |
+| n/a                    | `mild` (fallow default, syntax normalized) |
+| n/a                    | `weak` (literal normalization)             |
+| n/a                    | `semantic` (variable rename detection)     |
 
 ---
 
@@ -518,6 +520,7 @@ fallow fix --dry-run --format json --quiet
 ### Step 2: Review each proposed change
 
 Parse the JSON `changes` array. Each entry shows:
+
 - `path`: file to be modified
 - `action`: what will happen (`remove_export`, `remove_dependency`)
 - `name`: the symbol or dependency being removed
@@ -562,17 +565,20 @@ fallow dead-code --format json --quiet --production
 ```
 
 Differences:
+
 - Excludes: `*.test.*`, `*.spec.*`, `*.stories.*`, `__tests__/**`, `__mocks__/**`
 - Only analyzes: `start`, `build`, `serve`, `preview`, `prepare` scripts
 - Skips: unused devDependency detection
 - Adds: type-only production dependency detection
 
 Use production mode for:
+
 - Checking what ships to users
 - Finding dependencies that should be devDependencies
 - CI pipelines focused on production bundle
 
 Use full mode for:
+
 - Complete codebase hygiene
 - Finding unused test utilities
 - Auditing devDependency usage
@@ -620,7 +626,7 @@ The trace found no static use. Check dynamic imports, reflection, and external c
 
 ```typescript
 // fallow-ignore-next-line unused-export
-export const publicApi = createWidget();  // Used by external consumers
+export const publicApi = createWidget(); // Used by external consumers
 ```
 
 ---
@@ -640,6 +646,7 @@ This adds duplication context to dead code findings, identifying clone instances
 ### Step 2: Prioritize cleanup
 
 Focus on findings that are BOTH dead code and duplicated:
+
 - Unused files containing duplicate code → delete the file entirely
 - Unused exports that are clones of other exports → remove the duplicate
 
@@ -782,6 +789,7 @@ Manual files:
 Prefer `fallow hooks install --target agent` to install this file. The script is written and maintained by fallow itself; the canonical source is [`crates/cli/src/setup_hooks/fallow-gate.sh`](https://github.com/fallow-rs/fallow/blob/main/crates/cli/src/setup_hooks/fallow-gate.sh).
 
 Behavior you can rely on:
+
 - The handler walks up from the session directory to the nearest directory that holds `.claude/hooks/fallow-gate.sh` and runs the audit there, so a session in a package directory audits the install root. The walk stops at the first `.git` entry. When it finds no script, the handler runs the script under `$CLAUDE_PROJECT_DIR` from the session directory.
 - The hook process can start in a directory that is not the session directory, for example in the main checkout when the session works in a nested git worktree. The script reads the session directory from the `cwd` field of the hook input and finds the audit root from it with the same walk. When the walk finds no script, for example with the user-scope script in `$HOME`, the audit root is the directory of the hook process when it is in the git work tree of the session. Else it is the git top level of the session directory, or the session directory outside a git repository. The audit root is never `$HOME`. The script compares physical paths, so a symlink does not change the walk. When the hook input has no usable `cwd`, the audit runs in the directory of the hook process.
 - A `git commit` or `git push` can name another work tree. The script audits only that target when the command has the strict form `[cd <dir> &&] git [-C <dir>]... commit|push [<option or name>]...` and git reports another work tree for the target (`git rev-parse --show-toplevel --absolute-git-dir` gives a different top level and a different git directory than for the session directory). For a push, the common git directory must differ too: linked worktrees share refs, so a push from another linked worktree of the session repository audits the session tree and the target. The one exception is a push that cannot send the session branch: the options are only `-u`, `-q`, `--set-upstream`, `--force-with-lease` and `--force-if-includes`, `git rev-parse --symbolic-full-name` gives the checked-out branch of the target for each refspec source, that branch is not the session branch, and a push without a refspec has `push.default` unset or `simple`, `current`, `upstream` or `nothing` and no remote `push` or `mirror` setting. That push audits only the target. A git error during this check keeps the session audit. A target in the same work tree keeps the session audit, because `git commit` commits the whole index. Each word in the strict form must be inert: a `-C` directory resolves physically as in git, a `cd` directory starts with `/`, `./` or `../`, a double-quoted word holds no `$`, backquote or backslash, and only a short list of options such as `-m`, `--amend`, `-S` and `-u` is allowed. Any other command audits the session tree as before, plus each directory that it names in another work tree. The gate blocks when one audit fails.
@@ -835,4 +843,4 @@ Use `--force` to remove a hook script that the user has edited (the marker is no
 
 ### Distinguish from `fallow hooks install --target git`
 
-`fallow hooks install --target git` is a different target: it scaffolds a shell-level Git pre-commit hook under `.git/hooks/` that runs `fallow` on changed files. That is the *human* enforcement path. `fallow hooks install --target agent` is the *agent* enforcement path, targeting `.claude/`, `.codex/`, and `AGENTS.md`. Both can live in the same repo: git hooks catch human commits, the agent gate catches agent commits.
+`fallow hooks install --target git` is a different target: it scaffolds a shell-level Git pre-commit hook under `.git/hooks/` that runs `fallow` on changed files. That is the _human_ enforcement path. `fallow hooks install --target agent` is the _agent_ enforcement path, targeting `.claude/`, `.codex/`, and `AGENTS.md`. Both can live in the same repo: git hooks catch human commits, the agent gate catches agent commits.

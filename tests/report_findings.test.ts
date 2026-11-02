@@ -267,7 +267,7 @@ describe('report_findings CLI Tool', () => {
       );
       expect(jsonCall).toBeDefined();
       const parsed = JSON.parse(String(jsonCall![0]));
-      expect(parsed.findings.length).toBe(1);
+      expect(parsed.findings).toHaveLength(1);
     }
   });
 

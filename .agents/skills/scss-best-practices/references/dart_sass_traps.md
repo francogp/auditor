@@ -8,12 +8,12 @@ Technical reference for avoiding build crashes, warnings, and runtime regression
 
 Dart Sass built-in color and math modules share names with standard CSS functions. When Sass parses lowercase `scale()`, `grayscale()`, or `invert()`, it attempts to evaluate them as Sass color manipulation functions:
 
-| CSS Function | Sass Conflict | Error Symptom | Safe Output |
-| :--- | :--- | :--- | :--- |
-| `transform: scale(...)` | `color.scale()` | `Error: $color: ... is not a color` | `transform: Scale(...)` or `transform: scale(#{$v})` |
-| `filter: grayscale(...)` | `color.grayscale()` | `Error: ... is not a color` | `filter: Grayscale(...)` or `filter: grayscale(#{0.8})` |
-| `filter: invert(...)` | `color.invert()` | `Error: ... is not a color` | `filter: Invert(...)` or `filter: invert(#{1})` |
-| `background: linear-gradient(...)` | Color parsing | Compilation crash in complex stops | `background: Linear-Gradient(...)` |
+| CSS Function                       | Sass Conflict       | Error Symptom                       | Safe Output                                             |
+| :--------------------------------- | :------------------ | :---------------------------------- | :------------------------------------------------------ |
+| `transform: scale(...)`            | `color.scale()`     | `Error: $color: ... is not a color` | `transform: Scale(...)` or `transform: scale(#{$v})`    |
+| `filter: grayscale(...)`           | `color.grayscale()` | `Error: ... is not a color`         | `filter: Grayscale(...)` or `filter: grayscale(#{0.8})` |
+| `filter: invert(...)`              | `color.invert()`    | `Error: ... is not a color`         | `filter: Invert(...)` or `filter: invert(#{1})`         |
+| `background: linear-gradient(...)` | Color parsing       | Compilation crash in complex stops  | `background: Linear-Gradient(...)`                      |
 
 ### Solution Hierarchy
 
@@ -38,8 +38,8 @@ $tint: lighten($color, 15%);
 $shade: darken($color, 15%);
 
 // ✅ Modern (Dart Sass 2.0+)
-@use "sass:math";
-@use "sass:color";
+@use 'sass:math';
+@use 'sass:color';
 
 $rnd: math.random(100);
 $round: math.round(10.4);
@@ -76,6 +76,6 @@ In Dart Sass, combining a CSS selector with an `@include` statement in a comma-s
 
 ## 4. Production Build Mixin Isolation Trap
 
-* **Dev vs Prod Behavior**: In Vite development mode (HMR), SCSS mixins and variables may accidentally resolve globally across files because modules are bundled dynamically in the browser runtime.
-* **Production Build Failure**: The production bundler (`rollup` / `vite build`) processes each SCSS file or Vue SFC style block in strict isolation.
-* **Rule**: If a partial (e.g. `_buttons.scss`) uses a mixin defined in another partial (e.g. `_layout.scss`), it **MUST** include `@use '@/styles/core/layout' as *;` locally at the top of the file, even if `npm run dev` appeared to work without it.
+- **Dev vs Prod Behavior**: In Vite development mode (HMR), SCSS mixins and variables may accidentally resolve globally across files because modules are bundled dynamically in the browser runtime.
+- **Production Build Failure**: The production bundler (`rollup` / `vite build`) processes each SCSS file or Vue SFC style block in strict isolation.
+- **Rule**: If a partial (e.g. `_buttons.scss`) uses a mixin defined in another partial (e.g. `_layout.scss`), it **MUST** include `@use '@/styles/core/layout' as *;` locally at the top of the file, even if `npm run dev` appeared to work without it.

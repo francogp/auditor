@@ -88,15 +88,15 @@ describe('MotionRefactorEngine (AST-driven)', () => {
     );
 
     const findings = MotionRefactorEngine.discoverInFile(tsPath);
-    expect(findings.length).toBe(3);
+    expect(findings).toHaveLength(3);
 
     const layoutFindings = findings.filter((f) => f.kind === 'layout-property');
-    expect(layoutFindings.length).toBe(2);
+    expect(layoutFindings).toHaveLength(2);
     expect(layoutFindings.map((f) => f.originalSnippet)).toEqual(['left:', 'top:']);
     expect(layoutFindings.map((f) => f.suggestedReplacement)).toEqual(['x:', 'y:']);
 
     const easeFindings = findings.filter((f) => f.kind === 'legacy-ease');
-    expect(easeFindings.length).toBe(1);
+    expect(easeFindings).toHaveLength(1);
     expect(easeFindings[0]?.originalSnippet).toBe('Power1.easeOut');
     expect(easeFindings[0]?.suggestedReplacement).toBe("'power1.out'");
   });
@@ -150,7 +150,7 @@ describe('MotionRefactorEngine (AST-driven)', () => {
 
     const findings = MotionRefactorEngine.discoverInFile(vuePath);
     const timerFindings = findings.filter((f) => f.kind === 'banned-ui-timer');
-    expect(timerFindings.length).toBe(2);
+    expect(timerFindings).toHaveLength(2);
     expect(timerFindings.some((f) => f.suggestedReplacement.includes('gsap.delayedCall(0.3'))).toBe(
       true
     );

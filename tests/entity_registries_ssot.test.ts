@@ -152,8 +152,8 @@ describe('Canonical Entity Registries SSoT & Isolation', () => {
 
       expect(GitIgnoreRegistry.getAll().some((r) => r.id === 'temp-ignore')).toBe(false);
       expect(ConfigFileRegistry.get('temp-config')).toBeUndefined();
-      expect(GitIgnoreRegistry.getAll().length).toBe(CORE_GITIGNORE_REQUIREMENTS.length);
-      expect(PackageScriptRegistry.getAll().length).toBe(CORE_PACKAGE_SCRIPT_REQUIREMENTS.length);
+      expect(GitIgnoreRegistry.getAll()).toHaveLength(CORE_GITIGNORE_REQUIREMENTS.length);
+      expect(PackageScriptRegistry.getAll()).toHaveLength(CORE_PACKAGE_SCRIPT_REQUIREMENTS.length);
     });
   });
 
@@ -190,11 +190,11 @@ describe('Canonical Entity Registries SSoT & Isolation', () => {
         projectRoot: process.cwd()
       };
 
-      const findings = HomebrewDetectorRegistry.scanFile('src/bad.ts', mockContext as never);
+      const findings = HomebrewDetectorRegistry.scanFile('src/bad.ts', mockContext);
       expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('auditor-raw-console');
 
-      const allFindings = HomebrewDetectorRegistry.scanAll(mockContext as never);
+      const allFindings = HomebrewDetectorRegistry.scanAll(mockContext);
       expect(allFindings.length).toBeGreaterThanOrEqual(1);
 
       resetAllEntityRegistries();

@@ -41,8 +41,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
-    expect(divergent.length).toBe(0);
-    expect(identical.length).toBe(2);
+    expect(divergent).toHaveLength(0);
+    expect(identical).toHaveLength(2);
     expect(identical[0]?.message).toContain('identical value');
   });
 
@@ -61,8 +61,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
-    expect(divergent.length).toBe(0);
-    expect(identical.length).toBe(2);
+    expect(divergent).toHaveLength(0);
+    expect(identical).toHaveLength(2);
   });
 
   it('correctly reports divergent constants when the underlying unwrapped values actually differ', async () => {
@@ -80,8 +80,8 @@ describe('ConstantHygieneAuditor Type Unwrapping', () => {
     const identical = result.findings.filter((f) => f.ruleId === 'duplicate-constant-identical');
     const divergent = result.findings.filter((f) => f.ruleId === 'duplicate-constant-divergent');
 
-    expect(identical.length).toBe(0);
-    expect(divergent.length).toBe(2);
+    expect(identical).toHaveLength(0);
+    expect(divergent).toHaveLength(2);
     expect(divergent[0]?.message).toContain('different values');
   });
 });

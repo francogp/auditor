@@ -132,7 +132,7 @@ describe('AuditorHygieneAuditor', () => {
 
       expect(result.summary.errors).toBe(0);
       expect(result.status).toBe('passed');
-      expect(result.findings.length).toBe(0);
+      expect(result.findings).toHaveLength(0);
     });
   });
 

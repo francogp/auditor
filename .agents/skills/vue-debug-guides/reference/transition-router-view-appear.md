@@ -18,6 +18,7 @@ tags: [vue3, transition, vue-router, appear, initial-load, navigation]
 - [ ] Consider whether initial animation is desired for your UX
 
 **Expected Behavior (Normal Transition):**
+
 ```vue
 <template>
   <!-- Without appear: No animation on initial render -->
@@ -33,6 +34,7 @@ tags: [vue3, transition, vue-router, appear, initial-load, navigation]
 ```
 
 **RouterView Behavior (Different!):**
+
 ```vue
 <template>
   <!-- RouterView transitions ALWAYS animate on initial load -->
@@ -68,19 +70,19 @@ Since the component wasn't present in the initial render and is "inserted" after
 
 ```vue
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, onMounted } from 'vue';
+import { useRouter } from 'vue-router';
 
-const isInitialLoad = ref(true)
-const router = useRouter()
+const isInitialLoad = ref(true);
+const router = useRouter();
 
 // After first navigation completes, enable transitions
 router.isReady().then(() => {
   // Small delay to ensure initial render is complete
   setTimeout(() => {
-    isInitialLoad.value = false
-  }, 0)
-})
+    isInitialLoad.value = false;
+  }, 0);
+});
 </script>
 
 <template>
@@ -96,15 +98,15 @@ router.isReady().then(() => {
 
 ```vue
 <script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
-const isInitialLoad = ref(true)
-const router = useRouter()
+const isInitialLoad = ref(true);
+const router = useRouter();
 
 router.isReady().then(() => {
-  isInitialLoad.value = false
-})
+  isInitialLoad.value = false;
+});
 </script>
 
 <template>
@@ -183,11 +185,12 @@ const routes = [
   {
     path: '/about',
     component: About,
-    meta: { transition: 'slide' }  // Custom transition for this route
+    meta: { transition: 'slide' } // Custom transition for this route
   }
-]
+];
 ```
 
 ## Reference
+
 - [Vue Router Transitions](https://router.vuejs.org/guide/advanced/transitions.html)
 - [Vue.js Transition appear](https://vuejs.org/guide/built-ins/transition.html#transition-on-appear)

@@ -47,7 +47,7 @@ describe('auditNativePaths standalone runner ignores', () => {
       await loadAuditConfig(tempDir);
       const result = auditNativePaths(tempDir);
       const badViolations = result.violations.filter((v) => v.file.includes('ignored/bad.ts'));
-      expect(badViolations.length).toBe(0);
+      expect(badViolations).toHaveLength(0);
     } finally {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }

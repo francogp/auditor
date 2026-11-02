@@ -132,7 +132,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
   it('allows explicitly auditing a build suite directly via task option', async () => {
     const tasks = await discoverAuditors({ task: 'validate_bundle_budget' });
-    expect(tasks.length).toBe(1);
+    expect(tasks).toHaveLength(1);
     expect(tasks[0]?.id).toBe('validate_bundle_budget');
   });
 

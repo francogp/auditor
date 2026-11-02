@@ -5,6 +5,7 @@ Review existing motion design and produce a per-designer report. Reconnaissance 
 ## Required Reading
 
 Read as you reach each step (not all upfront):
+
 1. `references/audit-checklist.md` — your systematic guide (STEP 2)
 2. The weighted designer file(s) — `emil-kowalski.md`, `jakub-krehel.md`, `jhey-tompkins.md` (STEP 2)
 3. `references/accessibility.md` — mandatory every audit (STEP 2)
@@ -21,6 +22,7 @@ Before auditing any code, understand the project context.
 ### Gather Context
 
 Check these sources:
+
 1. **CLAUDE.md** — Any explicit context about the project's purpose or design intent
 2. **package.json** — What type of app? (Next.js marketing site vs Electron productivity app vs mobile PWA)
 3. **Existing animations** — Grep for `motion`, `animate`, `transition`, `@keyframes`. What durations are used? What patterns exist?
@@ -31,6 +33,7 @@ Check these sources:
 After finding existing animations, actively search for **missing** animations. These are UI changes that happen without any transition:
 
 **Search for conditional renders without AnimatePresence:**
+
 ```bash
 # Find conditional renders: {condition && <Component />}
 grep -n "&&\s*(" --include="*.tsx" --include="*.jsx" -r .
@@ -40,11 +43,13 @@ grep -n "?\s*<" --include="*.tsx" --include="*.jsx" -r .
 ```
 
 **For each conditional render found, check:**
+
 - Is it wrapped in `<AnimatePresence>`?
 - Does the component inside have enter/exit animations?
 - If NO to both → this is a **motion gap** that needs fixing
 
 **Common motion gap patterns:**
+
 - `{isOpen && <Modal />}` — Modal appears/disappears instantly
 - `{mode === "a" && <ControlsA />}` — Controls swap without transition
 - `{isLoading ? <Spinner /> : <Content />}` — Loading state snaps
@@ -52,6 +57,7 @@ grep -n "?\s*<" --include="*.tsx" --include="*.jsx" -r .
 - Inline styles with dynamic values but no `transition` property
 
 **Where to look for motion gaps:**
+
 - Inspector/settings panels with mode switches
 - Conditional form fields
 - Tab content areas
@@ -89,6 +95,7 @@ Use the Context-to-Perspective Mapping table in SKILL.md to propose the weightin
 **STOP and wait for the user to confirm or adjust.** Do not proceed to the full audit until they respond.
 
 If `AskUserQuestion` is available, present the decision as tappable options:
+
 - **Confirm weighting** — Proceed with the proposed primary/secondary/selective designers
 - **Adjust primary** — Swap which designer is primary (e.g., prioritize delight over restraint)
 - **Adjust secondary** — Change the secondary lens while keeping primary
@@ -105,15 +112,19 @@ If they adjust (e.g., "prioritize delight and engagement"), update your weightin
 Once the user confirms, perform the complete audit by reading the reference files in this order:
 
 ### 2a. Read the Audit Checklist First
+
 **Read `references/audit-checklist.md`** — Use this as your systematic guide. It provides the structured checklist of what to evaluate.
 
 ### 2b. Read Designer Files for Your Weighted Perspectives
+
 Based on your context weighting, read the relevant designer files:
+
 - **Read `references/emil-kowalski.md`** if Emil is primary/secondary — Restraint philosophy, frequency rules, decision frameworks
 - **Read `references/jakub-krehel.md`** if Jakub is primary/secondary — Production polish philosophy, what to check
 - **Read `references/jhey-tompkins.md`** if Jhey is primary/secondary — Playful experimentation philosophy, opportunities to surface
 
 ### 2c. Read Topical References as Needed
+
 - **Read `references/accessibility.md`** — MANDATORY. Always check for prefers-reduced-motion. No exceptions.
 - **Read `references/anti-checklist.md`** — Apply this as the audit's quality gate. AI-slop categories at the top (pulsing indicators, hover-scale-on-everything, stagger-spam, etc.) trigger findings; perspective-specific and general anti-patterns sit below. Each category includes a frequency heuristic so single intentional uses don't trip the gate.
 - **Read `references/performance.md`** — If you see complex animations, check for GPU optimization issues

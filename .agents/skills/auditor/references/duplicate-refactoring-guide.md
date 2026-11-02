@@ -34,13 +34,13 @@ The **Dirac Micro-Context Pattern** isolates only:
 
 ### Empirical Token Benchmark (Measured on real projects)
 
-| Benchmark Case | Full Files Baseline | Dirac Micro-Context | Token Savings |
-|---|---|---|---|
-| **Case A** (Triplicate TS Utility) | 16,941 tokens | 506 tokens | **97.0%** |
-| **Case B** (Quintuple Mixed TS + Vue) | 17,320 tokens | 151 tokens | **99.1%** |
-| **Case C** (Intra-File Store Methods) | 33,838 tokens | 147 tokens | **99.5%** |
-| **Case D** (Intra-Vue SFC Animation) | 7,548 tokens | 133 tokens | **98.2%** |
-| **Total** | **75,647 tokens** | **937 tokens** | **98.7% Reduction** |
+| Benchmark Case                        | Full Files Baseline | Dirac Micro-Context | Token Savings       |
+| ------------------------------------- | ------------------- | ------------------- | ------------------- |
+| **Case A** (Triplicate TS Utility)    | 16,941 tokens       | 506 tokens          | **97.0%**           |
+| **Case B** (Quintuple Mixed TS + Vue) | 17,320 tokens       | 151 tokens          | **99.1%**           |
+| **Case C** (Intra-File Store Methods) | 33,838 tokens       | 147 tokens          | **99.5%**           |
+| **Case D** (Intra-Vue SFC Animation)  | 7,548 tokens        | 133 tokens          | **98.2%**           |
+| **Total**                             | **75,647 tokens**   | **937 tokens**      | **98.7% Reduction** |
 
 To extract micro-context for any clone group:
 
@@ -83,15 +83,10 @@ Create a `refactor_plan.json` conforming to `refactor_plan_blueprint.json`:
   "action": "extract-shared-function",
   "sharedModulePath": "src/utils/dateFormatter.ts",
   "functionName": "formatIsoDate",
-  "parameters": [
-    { "name": "date", "type": "Date" }
-  ],
+  "parameters": [{ "name": "date", "type": "Date" }],
   "returnType": "string",
   "sharedFunctionCode": "function formatIsoDate(date: Date): string {\n  return date.toISOString().split('T')[0];\n}",
-  "targetFiles": [
-    "src/components/UserProfile.vue",
-    "src/services/billingService.ts"
-  ],
+  "targetFiles": ["src/components/UserProfile.vue", "src/services/billingService.ts"],
   "astPattern": "$DATE.toISOString().split('T')[0]",
   "astRewrite": "formatIsoDate($DATE)"
 }
@@ -120,12 +115,12 @@ The `--worktree` flag automatically:
 
 Different source file extensions require specialized parsing engines:
 
-| Engine | Target Extensions | Primary Responsibility | Performance |
-|---|---|---|---|
-| **`ts-morph`** | `.ts`, `.tsx` | TypeScript AST, automatic relative import resolution, symbol extraction | High semantic accuracy |
-| **`magic-string` + `@vue/compiler-sfc`** | `.vue` | Surgical SFC `<script>` updates preserving `<template>` and `<style>` blocks intact | Zero layout thrashing, 16 ms |
-| **`@ast-grep/napi`** | `.ts`, `.js`, `.scss` | High-speed structural pattern matching and replacement | Ultra-fast (21 ms) |
-| **`HybridHarness`** | Unified Coordinator | Dispatches each occurrence to the optimal engine based on file extension | Deterministic execution |
+| Engine                                   | Target Extensions     | Primary Responsibility                                                              | Performance                  |
+| ---------------------------------------- | --------------------- | ----------------------------------------------------------------------------------- | ---------------------------- |
+| **`ts-morph`**                           | `.ts`, `.tsx`         | TypeScript AST, automatic relative import resolution, symbol extraction             | High semantic accuracy       |
+| **`magic-string` + `@vue/compiler-sfc`** | `.vue`                | Surgical SFC `<script>` updates preserving `<template>` and `<style>` blocks intact | Zero layout thrashing, 16 ms |
+| **`@ast-grep/napi`**                     | `.ts`, `.js`, `.scss` | High-speed structural pattern matching and replacement                              | Ultra-fast (21 ms)           |
+| **`HybridHarness`**                      | Unified Coordinator   | Dispatches each occurrence to the optimal engine based on file extension            | Deterministic execution      |
 
 ---
 
@@ -162,10 +157,10 @@ The `ParamPermutationMapper` automatically maps each clone instance's parameter 
 export function computeStabMultiplier(moveType: string, attacker: Attacker): number;
 
 // Instance A rewrite (direct):
-computeStabMultiplier(moveType, attacker)
+computeStabMultiplier(moveType, attacker);
 
 // Instance B rewrite (permuted):
-computeStabMultiplier(attackerMove, currentPokemon)
+computeStabMultiplier(attackerMove, currentPokemon);
 ```
 
 ### B. The 100-Token Dirac Threshold (`MIN_DIRAC_TOKEN_THRESHOLD = 100`)
@@ -174,7 +169,7 @@ Empirical benchmarking across repositories revealed a critical threshold effect:
 
 - Snippets **< 100 tokens**: The metadata envelope of Dirac micro-context (signatures, types, file paths, hashes) can exceed the token length of the snippet itself, resulting in **negative token savings** (e.g., a 76-token clone resulted in 118 tokens, or -55% savings).
 - Snippets **$\ge$ 100 tokens**: Dirac micro-context yields positive token reductions from **80% to 99%**.
-The engine strictly enforces `MIN_DIRAC_TOKEN_THRESHOLD = 100` (`isDiracCandidate`), ensuring micro-context extraction is exclusively applied where positive compression is guaranteed.
+  The engine strictly enforces `MIN_DIRAC_TOKEN_THRESHOLD = 100` (`isDiracCandidate`), ensuring micro-context extraction is exclusively applied where positive compression is guaranteed.
 
 ### C. Class Hierarchy Hoisting (`ClassHierarchyHoister`)
 
@@ -198,7 +193,7 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 
 ### Scenario B: Elective Deduplication (`auditor:dupes`)
 
-- **Trigger**: User requests *"eliminate duplicate code"*, *"deduplicate logic"*, or *"reduce clones"*.
+- **Trigger**: User requests _"eliminate duplicate code"_, _"deduplicate logic"_, or _"reduce clones"_.
 - **Pre-flight Invariant**: Verify `npm run auditor` is 100% green before initiating refactoring.
 - **Action**: Formulate an **Improvement Plan**. Run `auditor:dupes discover`, inspect clone candidates with `auditor:dupes inspect <fingerprint>` (Dirac Micro-Context), draft `refactor_plan.json`, and apply with `--worktree`.
 
@@ -208,10 +203,11 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 
 ### Correction Plan (CI Error: `similar-code-vector-duplicate`)
 
-````markdown
+```markdown
 # Correction Plan: Semantic Clone in orderService.ts and checkoutService.ts
 
 ## 1. Diagnosis & Strategic Phase
+
 - **Active Phase (`auditor:next`)**: `dedup` (Phase 3)
 - **Suite**: `validate_similar_code`
 - **Affected Files**:
@@ -220,13 +216,14 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 - **Similarity**: 96.4% (Regional tax calculation with exemptions).
 
 ## 2. Canonical Solution
+
 1. Extract pure function `calculateRegionalTax(amount: number, regionCode: RegionCode): number` to `src/utils/taxCalculator.ts`.
 2. Replace cloned blocks in both services by importing the newly shared utility.
 
 ## 3. Verification
 
 `npm run auditor -- suite=validate_similar_code`
-````
+```
 
 ### Improvement Plan (Elective: `auditor:dupes`)
 
@@ -234,13 +231,15 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
 # Improvement Plan: Date Formatting Deduplication Across Components
 
 ## 1. Scope & Motivation
+
 - **Tool**: `auditor-dupes`
 - **Fingerprint**: `grp_date_iso_split_402`
 - **Dirac Savings**: 98.7% token reduction (from 17,000 to 210 tokens in context).
 
 ## 2. Candidate Catalog (Dirac Micro-Context)
-| File | Lines | Local Function | Proposed Extraction |
-| :--- | :--- | :--- | :--- |
+
+| File                        | Lines | Local Function | Proposed Extraction         |
+| :-------------------------- | :---- | :------------- | :-------------------------- |
 | `src/views/ProfileView.vue` | 42-46 | `formatDate()` | `formatIsoDate(date: Date)` |
 | `src/views/InvoiceView.vue` | 78-82 | `formatDate()` | `formatIsoDate(date: Date)` |
 
@@ -257,10 +256,7 @@ The `ClassHierarchyHoister` (`action: 'hoist-to-base-class'`):
   "parameters": [{ "name": "date", "type": "Date" }],
   "returnType": "string",
   "sharedFunctionCode": "export function formatIsoDate(date: Date): string {\n  return date.toISOString().split('T')[0];\n}",
-  "targetFiles": [
-    "src/views/ProfileView.vue",
-    "src/views/InvoiceView.vue"
-  ],
+  "targetFiles": ["src/views/ProfileView.vue", "src/views/InvoiceView.vue"],
   "astPattern": "$DATE.toISOString().split('T')[0]",
   "astRewrite": "formatIsoDate($DATE)"
 }

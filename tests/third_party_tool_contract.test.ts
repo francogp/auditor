@@ -78,7 +78,7 @@ function createMockOptions(overrides: Record<string, unknown> = {}): AuditorOpti
 
 class TestAuditorInstance extends BaseAuditor<ProbeRuleId> {
   constructor(options: Partial<AuditorOptions<ProbeRuleId>> = {}) {
-    super(createMockOptions(options as unknown as Record<string, unknown>));
+    super(createMockOptions(options));
   }
   public override runAudit(): void {}
 }
@@ -332,7 +332,7 @@ export class FakeAuditor extends BaseAuditor {
 }
       `;
       const findings = thirdPartyToolContractDetector.detect(createContext(code));
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('auditor-third-party-tool-contract');
       expect(findings[0]?.context).toBe('missing-third-party-tool-policy');
     });
@@ -352,7 +352,7 @@ export class FakeAuditor extends BaseAuditor {
 }
       `;
       const findings = thirdPartyToolContractDetector.detect(createContext(code));
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('auditor-third-party-tool-contract');
       expect(findings[0]?.context).toBe('redundant-third-party-tool-policy');
     });
@@ -368,7 +368,7 @@ export class FakeAuditor extends BaseAuditor {
 }
       `;
       const findings = thirdPartyToolContractDetector.detect(createContext(code));
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('auditor-third-party-tool-contract');
       expect(findings[0]?.context).toBe('missing-usesThirdPartyTool');
     });
@@ -391,7 +391,7 @@ export class FakeAuditor extends BaseAuditor {
 }
       `;
       const findings = thirdPartyToolContractDetector.detect(createContext(code));
-      expect(findings.length).toBe(1);
+      expect(findings).toHaveLength(1);
       expect(findings[0]?.ruleId).toBe('auditor-third-party-tool-contract');
       expect(findings[0]?.context).toBe('missing-explainSatelliteConfig');
     });

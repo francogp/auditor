@@ -184,7 +184,7 @@ Governed by `validate_script_extensions` when `scriptExtensions.enabled !== fals
   - `@typescript-eslint/ban-ts-comment: 'error'`
   - `@typescript-eslint/consistent-type-assertions: ['error', { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }]`
   - Casting rules banning double unknown casts (`as unknown as`) and legacy `new Date()` / `Date.now()`.
-  Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
+    Silencing or setting any rule to `'off'`, `0`, or `'warn'` is strictly prohibited and fails under canonical thematic rules (`vite-plus-config-lint`, `vite-plus-config-core`). In `--fix` mode, the orchestrator automatically re-injects the mandatory baseline. Developers and AI agents must elevate source code to satisfy all strict rules rather than relaxing configurations.
 - **Source Code Formatting Hygiene (`validate_oxfmt`)**:
   `validate_oxfmt` validates project-wide code formatting using Oxfmt (`vp fmt --check` in check mode, and `vp fmt` in `--fix` mode), mapping diffs directly to actionable `AuditFinding` items with `fixable: true`.
 - **Mandatory Canary Verification**:
@@ -283,7 +283,7 @@ To prevent startup failures in consumer projects where Vitest is absent, `audito
 
 Governed by `validate_markdown_code_references` and `src/core/markdownVersionValidator.ts`:
 
-- **Universal Project Version Verification (`markdown-outdated-project-version`)**: All Markdown documentation across the workspace (including `README.md`, `.agents/skills/**`, and `docs/**`) is scanned across both natural prose and fenced code blocks (`` ```bash ``, `` ```json ``, `` ```ts ``).
+- **Universal Project Version Verification (`markdown-outdated-project-version`)**: All Markdown documentation across the workspace (including `README.md`, `.agents/skills/**`, and `docs/**`) is scanned across both natural prose and fenced code blocks (` ```bash `, ` ```json `, ` ```ts `).
 - **Enforced Surfaces**:
   1. `github:francogp/auditor#vX.Y.Z` install tags must strictly match the current SemVer in `package.json`.
   2. Release tag examples (e.g. `` `#vX.Y.Z` ``) mentioning `@francogp/auditor` or release tags.

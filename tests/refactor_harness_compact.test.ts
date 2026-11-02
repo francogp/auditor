@@ -94,4 +94,22 @@ describe('refactorCliHarness Compact vs Verbose Mode', () => {
     expect(allLogs).toContain('┌─');
     expect(allLogs).toContain('Total: 1 in 1 files');
   });
+
+  it('CANARY: supports "plan" subcommand and writes plan JSON with --write', async () => {
+    const fs = await import('node:fs');
+    const path = await import('node:path');
+    const os = await import('node:os');
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'harness-plan-'));
+    const planTarget = path.join(tmp, 'test-plan.json');
+
+    try {
+      await runRefactorCliHarness(dummyDef, ['plan', `write=${planTarget}`]);
+      expect(fs.existsSync(planTarget)).toBe(true);
+      const content = JSON.parse(fs.readFileSync(planTarget, 'utf-8'));
+      expect(content.id).toBeDefined();
+      expect(content.items).toBeDefined();
+    } finally {
+      fs.rmSync(tmp, { recursive: true, force: true });
+    }
+  });
 });

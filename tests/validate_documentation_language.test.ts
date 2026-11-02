@@ -164,7 +164,7 @@ Another English paragraph describing the execution model and lifecycle hooks.
 `;
 
     const paragraphs = extractProseParagraphs(md);
-    expect(paragraphs.length).toBe(3);
+    expect(paragraphs).toHaveLength(3);
     expect(paragraphs[0]?.text).toBe('Architecture Overview');
     expect(paragraphs[1]?.text).toContain('architectural overview document written in English');
     expect(paragraphs[1]?.text).not.toContain('const a = 10');
@@ -538,8 +538,8 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
 
       const beforeFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
-        (beforeFix.match(/Universal English Documentation Default Mandate/g) || []).length
-      ).toBe(3);
+        beforeFix.match(/Universal English Documentation Default Mandate/g) || []
+      ).toHaveLength(3);
 
       const fixAuditor = new DocumentationLanguageAuditor({
         projectRoot: scratchDir,
@@ -549,9 +549,9 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
       await fixAuditor.fix();
 
       const afterFix = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
-      expect(
-        (afterFix.match(/Universal English Documentation Default Mandate/g) || []).length
-      ).toBe(1);
+      expect(afterFix.match(/Universal English Documentation Default Mandate/g) || []).toHaveLength(
+        1
+      );
 
       // Run fix again: must remain strictly 1
       const fixAuditor2 = new DocumentationLanguageAuditor({
@@ -563,8 +563,8 @@ ${CANONICAL_LANGUAGE_MANDATE_SNIPPET_EN}
 
       const afterFix2 = fs.readFileSync(path.join(scratchDir, 'AGENTS.md'), 'utf8');
       expect(
-        (afterFix2.match(/Universal English Documentation Default Mandate/g) || []).length
-      ).toBe(1);
+        afterFix2.match(/Universal English Documentation Default Mandate/g) || []
+      ).toHaveLength(1);
       expect(afterFix2).toBe(afterFix);
     });
 

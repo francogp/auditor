@@ -34,13 +34,13 @@ The legacy `@import` directive is deprecated and removed in Dart Sass 3.0. Alway
 
 ```scss
 // ❌ FORBIDDEN: Deprecated global pollution
-@import "abstracts/variables";
-@import "abstracts/mixins";
+@import 'abstracts/variables';
+@import 'abstracts/mixins';
 
 // ✅ MANDATORY: Namespaced module loading
-@use "sass:math";
-@use "@/styles/tokens/colors" as colors;
-@use "@/styles/core/mixins" as *; // Only wildcard core ubiquitous utilities
+@use 'sass:math';
+@use '@/styles/tokens/colors' as colors;
+@use '@/styles/core/mixins' as *; // Only wildcard core ubiquitous utilities
 ```
 
 ### Module Built-ins (`math`, `string`, `color`)
@@ -53,8 +53,8 @@ $width: percentage(0.5);
 $tint: lighten(#3498db, 10%);
 
 // ✅ MANDATORY
-@use "sass:math";
-@use "sass:color";
+@use 'sass:math';
+@use 'sass:color';
 
 $width: math.percentage(0.5);
 $tint: color.scale(#3498db, $lightness: 10%);
@@ -72,10 +72,10 @@ When configuring Vite or Dart Sass `options.fatalDeprecations` to enforce strict
 
 Dart Sass built-ins can collide with standard CSS functions (`scale`, `translateY`, `grayscale`, `linear-gradient`), treating them as internal color operations.
 
-* **Capitalization Protocol**: To output literal CSS without Sass interception, write standard CSS functions in lowercase if the project uses a Vite automation plugin (`vite-plugin-sass-traps.ts`). When writing raw SCSS without auto-traps, capitalize or interpolate:
-  * `transform: Scale(1.05);` or `transform: scale(#{$ratio});`
-  * `filter: Grayscale(0.8);` or `filter: grayscale(#{0.8});`
-  * `background: Linear-Gradient(...);`
+- **Capitalization Protocol**: To output literal CSS without Sass interception, write standard CSS functions in lowercase if the project uses a Vite automation plugin (`vite-plugin-sass-traps.ts`). When writing raw SCSS without auto-traps, capitalize or interpolate:
+  - `transform: Scale(1.05);` or `transform: scale(#{$ratio});`
+  - `filter: Grayscale(0.8);` or `filter: grayscale(#{0.8});`
+  - `background: Linear-Gradient(...);`
 
 ### Vue `<style lang="scss">` Requirement
 
@@ -84,7 +84,7 @@ SCSS syntax, mixins, and interpolation `#{}` ONLY compile if the `<style>` tag d
 ```vue
 <!-- ✅ MANDATORY -->
 <style lang="scss" scoped>
-@use "@/styles/core/tools" as *;
+@use '@/styles/core/tools' as *;
 
 .card {
   padding-block: clamp(8px, 2vw, 16px);
@@ -106,20 +106,20 @@ Apply intrinsic, modern CSS techniques inside SCSS:
 
 Always replace physical coordinates with inline and block properties:
 
-* `margin-block-start` / `margin-block-end` instead of `margin-top` / `margin-bottom`.
-* `padding-inline-start` / `padding-inline-end` instead of `padding-left` / `padding-right`.
-* `inset-block` / `inset-inline` instead of `top`, `bottom`, `left`, `right`.
+- `margin-block-start` / `margin-block-end` instead of `margin-top` / `margin-bottom`.
+- `padding-inline-start` / `padding-inline-end` instead of `padding-left` / `padding-right`.
+- `inset-block` / `inset-inline` instead of `top`, `bottom`, `left`, `right`.
 
 ### Colors & Modern Color Space
 
-* Favor `oklch()` for perceptually uniform colors and `color-mix()` for dynamic tints:
+- Favor `oklch()` for perceptually uniform colors and `color-mix()` for dynamic tints:
 
   ```scss
   color: oklch(0.7 0.15 250);
   background: color-mix(in oklch, var(--card-bg) 90%, transparent);
   ```
 
-* For native variable opacity in SCSS, inject a corresponding RGB channel variable:
+- For native variable opacity in SCSS, inject a corresponding RGB channel variable:
 
   ```scss
   background: Rgba(var(--accent-rgb), 0.3); // Safe reactive opacity
@@ -137,7 +137,7 @@ gap: clamp(8px, 1.5vw, 24px);
 
 ### Overflow Control
 
-* Use `overflow: clip` instead of `overflow: hidden` when you only want to cut off layout overflow without creating a scroll container. Keep `hidden` only when programmatic scrolling is required.
+- Use `overflow: clip` instead of `overflow: hidden` when you only want to cut off layout overflow without creating a scroll container. Keep `hidden` only when programmatic scrolling is required.
 
 ---
 
@@ -195,14 +195,14 @@ Excessive nesting creates specificity bloat and brittle selectors:
 
 ### Component Single Source of Truth (SSoT)
 
-* Each component must have **ONE primary SCSS file** (e.g. `ItemCard.styles.scss`).
-* Never redefine the same root selector across multiple stylesheets.
-* Namespace component classes uniquely (e.g. `.pk-item-card` instead of generic `.card`).
+- Each component must have **ONE primary SCSS file** (e.g. `ItemCard.styles.scss`).
+- Never redefine the same root selector across multiple stylesheets.
+- Namespace component classes uniquely (e.g. `.pk-item-card` instead of generic `.card`).
 
 ### Z-Index Governance
 
-* Never hardcode arbitrary integers (`z-index: 9999;`).
-* Reference centralized design tokens or relative scales:
+- Never hardcode arbitrary integers (`z-index: 9999;`).
+- Reference centralized design tokens or relative scales:
 
   ```scss
   z-index: var(--z-modal);
@@ -215,7 +215,7 @@ Excessive nesting creates specificity bloat and brittle selectors:
 
 ### Layer Promotion & Will-Change
 
-* Heavy cards, modals, and continuously animated elements must be promoted to compositor layers:
+- Heavy cards, modals, and continuously animated elements must be promoted to compositor layers:
 
   ```scss
   @mixin gpu-layer {
@@ -224,17 +224,17 @@ Excessive nesting creates specificity bloat and brittle selectors:
   }
   ```
 
-* Use `will-change: transform, opacity` statically on the base selector, NEVER inside an active `@keyframes` rule.
+- Use `will-change: transform, opacity` statically on the base selector, NEVER inside an active `@keyframes` rule.
 
 ### Dynamic Viewport Units (`dvh` / `dvw`)
 
-* Never use `100vh` on mobile-targeted containers; the address bar triggers clipping or phantom scrollbars.
-* Use `100dvh` (Dynamic Viewport Height) or `min-height: 100dvh`.
+- Never use `100vh` on mobile-targeted containers; the address bar triggers clipping or phantom scrollbars.
+- Use `100dvh` (Dynamic Viewport Height) or `min-height: 100dvh`.
 
 ### Interaction Stability (Zero-TranslateY Ghosting)
 
-* Avoid `transform: translateY(-2px)` on `:hover` in dense lists or cards. It causes micro-jittering and hover feedback loops.
-* Prefer scale (`transform: scale(1.02)`), border-color transitions, or brightness shifts.
+- Avoid `transform: translateY(-2px)` on `:hover` in dense lists or cards. It causes micro-jittering and hover feedback loops.
+- Prefer scale (`transform: scale(1.02)`), border-color transitions, or brightness shifts.
 
 ---
 
@@ -244,12 +244,12 @@ Excessive nesting creates specificity bloat and brittle selectors:
 
 Fonts with tall ascenders and deep descenders (`g`, `j`, `p`, `q`, `y`) suffer from glyph clipping when line-height is cramped:
 
-* **Mandatory Base Line-Height**: Set `line-height: 1.35` minimum for custom/pixel fonts.
-* **Truncated Text Safety**: For single-line ellipsis, add `padding-bottom: 2px` or `line-height: 1.45` to prevent the baseline from cutting hooks.
+- **Mandatory Base Line-Height**: Set `line-height: 1.35` minimum for custom/pixel fonts.
+- **Truncated Text Safety**: For single-line ellipsis, add `padding-bottom: 2px` or `line-height: 1.45` to prevent the baseline from cutting hooks.
 
 ### Accessible Interactions
 
-* **Hover Safety**: Always guard hover states for pointer devices to avoid sticky hover states on mobile touchscreens:
+- **Hover Safety**: Always guard hover states for pointer devices to avoid sticky hover states on mobile touchscreens:
 
   ```scss
   @media (hover: hover) and (pointer: fine) {
@@ -259,7 +259,7 @@ Fonts with tall ascenders and deep descenders (`g`, `j`, `p`, `q`, `y`) suffer f
   }
   ```
 
-* **Focus States**: Never write `outline: none`. Use `:focus-visible` with high-contrast outlines:
+- **Focus States**: Never write `outline: none`. Use `:focus-visible` with high-contrast outlines:
 
   ```scss
   .btn:focus-visible {
@@ -268,7 +268,7 @@ Fonts with tall ascenders and deep descenders (`g`, `j`, `p`, `q`, `y`) suffer f
   }
   ```
 
-* **Reduced Motion**: Wrap non-essential decorative animations in reduced-motion queries:
+- **Reduced Motion**: Wrap non-essential decorative animations in reduced-motion queries:
 
   ```scss
   @media (prefers-reduced-motion: no-preference) {
@@ -308,20 +308,20 @@ styles/
 
 Before completing any stylesheet or `<style lang="scss">` task:
 
-* [ ] Does every file use `@use` / `@forward` instead of deprecated `@import`?
-* [ ] Are nesting levels **<= 3**?
-* [ ] Are directional properties replaced with logical properties (`inline`/`block`)?
-* [ ] Are GSAP-animated elements free of CSS `transition` and `transform: !important`?
-* [ ] Are full-screen heights using `dvh` instead of `vh`?
-* [ ] Are hover rules wrapped in `@media (hover: hover) and (pointer: fine)`?
-* [ ] Is `:focus-visible` styled without ever setting `outline: none`?
-* [ ] Are custom font line-heights >= 1.35 with descender padding on truncated text?
+- [ ] Does every file use `@use` / `@forward` instead of deprecated `@import`?
+- [ ] Are nesting levels **<= 3**?
+- [ ] Are directional properties replaced with logical properties (`inline`/`block`)?
+- [ ] Are GSAP-animated elements free of CSS `transition` and `transform: !important`?
+- [ ] Are full-screen heights using `dvh` instead of `vh`?
+- [ ] Are hover rules wrapped in `@media (hover: hover) and (pointer: fine)`?
+- [ ] Is `:focus-visible` styled without ever setting `outline: none`?
+- [ ] Are custom font line-heights >= 1.35 with descender padding on truncated text?
 
 ---
 
 ## 🌐 Dynamic Language Governance (Zero Hardcoding)
 
-* The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
-  * **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
-  * **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, brain artifacts (`walkthrough.md`, `task.md`, `plan_safe_commit.md`), and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
-* **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.
+- The agent MUST dynamically consult `.auditor/audit.config.ts` to determine the configured languages:
+  - **AI Chat & Conversational Language (`config.documentation.chatLanguage`)**: Governs all interactive chat communication, user interviews, options matrices, `ask_question` dialogs. The agent converses strictly in the language resolved from `config.documentation.chatLanguage`.
+  - **Documentation & File Writing Language (`config.documentation.language`)**: Governs code, code comments, commit messages, git tags, documentation files, markdown files, brain artifacts (`walkthrough.md`, `task.md`, `plan_safe_commit.md`), and DOX indices (`AGENTS.md`). The agent writes files strictly in the language resolved from `config.documentation.language`.
+- **Zero Language Mixing & Zero Hardcoding**: Skills and agents MUST NEVER hardcode language names or assume fixed languages. The AI agent must dynamically resolve these settings from configuration and never confuse or conflate the chat communication language with the repository file writing language.

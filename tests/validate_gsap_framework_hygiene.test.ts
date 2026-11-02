@@ -48,7 +48,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       expect(auditor.id).toBe('validate_gsap_framework_hygiene');
       expect(auditor.family).toBe('architecture');
       expect(auditor.ruleIds).toEqual(GSAP_FRAMEWORK_HYGIENE_RULES);
-      expect(auditor.ruleIds.length).toBe(4);
+      expect(auditor.ruleIds).toHaveLength(4);
     });
   });
 
@@ -111,7 +111,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-unscoped-component-selectors'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -146,7 +146,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-unscoped-component-selectors'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
       expect(violations[0]?.message).toContain('.unscoped-banner');
     });
@@ -171,7 +171,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-missing-context-revert'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -187,7 +187,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-missing-plugin-registration'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -203,7 +203,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-banned-devtools-production'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
       expect(violations[0]?.severity).toBe('error');
     });
   });
@@ -256,7 +256,7 @@ describe('ValidateGsapFrameworkHygieneAuditor', () => {
       const violations = auditor.recordedViolations.filter(
         (v) => v.ruleId === 'gsap-unscoped-component-selectors'
       );
-      expect(violations.length).toBe(1);
+      expect(violations).toHaveLength(1);
     });
   });
 });

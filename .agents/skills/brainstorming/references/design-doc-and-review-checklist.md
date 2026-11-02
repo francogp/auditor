@@ -18,10 +18,10 @@ Throughout a brainstorming session, critical architectural choices are made—so
 Maintain a structured **Decision Log** using the lightweight Architecture Decision Record (ADR) table below:
 
 ```markdown
-| ID | Decision Topic | Chosen Option | Alternatives Rejected | Rationale & Governing Constraint |
-| :--- | :--- | :--- | :--- | :--- |
-| **D-01** | [Topic, e.g., State Storage] | [Chosen path] | [Rejected option 1, Rejected option 2] | [Why this won: e.g., guarantees O(1) lookup and zero external dependencies] |
-| **D-02** | [Topic, e.g., Failure Policy] | [Chosen path] | [Rejected option] | [Why this won: e.g., complies with Fail Loud & Fast mandate] |
+| ID       | Decision Topic                | Chosen Option | Alternatives Rejected                  | Rationale & Governing Constraint                                            |
+| :------- | :---------------------------- | :------------ | :------------------------------------- | :-------------------------------------------------------------------------- |
+| **D-01** | [Topic, e.g., State Storage]  | [Chosen path] | [Rejected option 1, Rejected option 2] | [Why this won: e.g., guarantees O(1) lookup and zero external dependencies] |
+| **D-02** | [Topic, e.g., Failure Policy] | [Chosen path] | [Rejected option]                      | [Why this won: e.g., complies with Fail Loud & Fast mandate]                |
 ```
 
 ### What Belongs in the Decision Log
@@ -42,8 +42,8 @@ Before presenting the final specification or transitioning to `implementation_pl
 Scan the entire specification and plan for forbidden deferral markers:
 
 - `TODO`, `TBD`, `FIXME`, `???`, `[fill in later]`, `etc.`, `and so on`.
-- Vague hand-waves such as *"handle errors appropriately"*, *"optimize as needed"*, or *"validate input"*.
-- **Remediation**: Replace every vague phrase with the concrete mechanism (e.g., *"throw a descriptive `Error` with the invalid key name"* or *"validate payload against `ConfigSchema` using Valibot"*).
+- Vague hand-waves such as _"handle errors appropriately"_, _"optimize as needed"_, or _"validate input"_.
+- **Remediation**: Replace every vague phrase with the concrete mechanism (e.g., _"throw a descriptive `Error` with the invalid key name"_ or _"validate payload against `ConfigSchema` using Valibot"_).
 
 ### 2.2. Internal Consistency Check
 
@@ -55,7 +55,7 @@ Verify that all parts of the design agree with one another:
 
 ### 2.3. Two-Engineer Ambiguity Test
 
-Ask yourself: *"If two senior engineers read this specification independently without talking to each other, would they produce compatible module boundaries, function signatures, and test cases?"*
+Ask yourself: _"If two senior engineers read this specification independently without talking to each other, would they produce compatible module boundaries, function signatures, and test cases?"_
 
 - If any requirement could be interpreted in two materially different ways, pick the cleanest interpretation and make it explicit in the contract.
 
@@ -74,11 +74,13 @@ When documenting the finalized design (either inline, in a persistent design doc
 # [Feature / Architecture Title]
 
 ## 1. Executive Summary & Purpose
+
 - **Problem Statement**: [1-2 sentences describing the concrete pain or gap]
 - **Proposed Solution**: [1-2 sentences summarizing the chosen architectural approach]
 - **Delta Summary**: [What exists today vs. what changes after this design]
 
 ## 2. Goals, Non-Goals & Anti-Goals
+
 - **Goals (Must Achieve)**:
   - [Measurable functional outcome 1]
   - [Measurable functional outcome 2]
@@ -88,6 +90,7 @@ When documenting the finalized design (either inline, in a persistent design doc
   - [Invariant that must never be violated even if functional tests pass]
 
 ## 3. Non-Functional Requirements (NFRs) & Assumptions
+
 - **Performance & Complexity**: [e.g., O(1) lookup via Map, single-pass AST scan]
 - **Scale & Budgets**: [Expected volume and memory bounds]
 - **Security & Validation**: [Boundary schema parsing, path containment]
@@ -95,28 +98,35 @@ When documenting the finalized design (either inline, in a persistent design doc
 - **Confirmed Assumptions**: [List of validated assumptions]
 
 ## 4. Evaluated Alternatives & Trade-Off Matrix
-| Dimension | Approach A (Selected) | Approach B | Approach C |
-| :--- | :--- | :--- | :--- |
-| **Summary** | ... | ... | ... |
-| **Pros** | ... | ... | ... |
-| **Cons / Risks** | ... | ... | ... |
+
+| Dimension        | Approach A (Selected) | Approach B | Approach C |
+| :--------------- | :-------------------- | :--------- | :--------- |
+| **Summary**      | ...                   | ...        | ...        |
+| **Pros**         | ...                   | ...        | ...        |
+| **Cons / Risks** | ...                   | ...        | ...        |
 
 ## 5. Architecture & Typed Contracts (`domain-type-first`)
+
 ### 5.1. Component & Data Flow Diagram
+
 [Mermaid flowchart or sequenceDiagram with quoted node labels]
 
 ### 5.2. Domain Types, State Machines & Interfaces
+
 [TypeScript pseudocode showing branded types, discriminated unions, and public signatures]
 
 ### 5.3. Error Handling & Boundary Edge Cases
+
 [How malformed inputs, missing files, or runtime failures are handled]
 
 ## 6. Decision Log (ADR)
-| ID | Decision Topic | Chosen Option | Alternatives Rejected | Rationale |
-| :--- | :--- | :--- | :--- | :--- |
-| **D-01** | ... | ... | ... | ... |
+
+| ID       | Decision Topic | Chosen Option | Alternatives Rejected | Rationale |
+| :------- | :------------- | :------------ | :-------------------- | :-------- |
+| **D-01** | ...            | ...           | ...                   | ...       |
 
 ## 7. Hermetic Verification & Test Seam Strategy
+
 - **Unit & Conformance Tests**: [Clean path, error path, edge cases, idempotency]
 - **Quality & Architecture Gates**: [Canonical audit and check scripts to execute]
 ```

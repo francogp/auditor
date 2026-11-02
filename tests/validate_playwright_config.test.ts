@@ -121,7 +121,7 @@ describe('ValidatePlaywrightConfigAuditor', () => {
         (f) => f.ruleId === 'playwright-config-missing-setting'
       );
       // missing timeout (1), reporter (1), use.trace (1) => 3
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
 
       // Fix mode
       const fixAuditor = new ValidatePlaywrightConfigAuditor({ projectRoot: tmpDir });

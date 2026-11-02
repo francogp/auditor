@@ -50,7 +50,7 @@ describe('ValidateHtmlValidateConfigAuditor', () => {
       expect(auditor.family).toBe('architecture');
       expect(auditor.packageName).toBe('HTML');
       expect(auditor.ruleIds).toEqual(HTML_VALIDATE_CONFIG_RULES);
-      expect(auditor.ruleIds.length).toBe(7);
+      expect(auditor.ruleIds).toHaveLength(7);
     });
   });
 

@@ -96,7 +96,7 @@ describe('O1DataStructuresAuditor', () => {
       // Force config reload
       resetAuditConfig();
       const resolved = getResolvedO1CatalogPatterns(tempDir);
-      expect(resolved.length).toBe(1);
+      expect(resolved).toHaveLength(1);
       expect(resolved[0]?.pattern instanceof RegExp).toBe(true);
       expect(resolved[0]?.name).toBe('SERVERS');
       resetAuditConfig();
@@ -236,7 +236,7 @@ describe('O1DataStructuresAuditor', () => {
       ].join('\n');
       auditor.testScanFile('src/violations.ts', violationSnippet);
 
-      expect(auditor.collectedViolations.length).toBe(5);
+      expect(auditor.collectedViolations).toHaveLength(5);
       expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-catalog-lookup')).toBe(true);
       expect(auditor.collectedViolations.some((v) => v.ruleId === 'o1-linear-membership')).toBe(
         true

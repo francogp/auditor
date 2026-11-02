@@ -189,7 +189,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
             pid: 1234,
             output: [],
             signal: null
-          } as unknown as childProcess.SpawnSyncReturns<string>;
+          };
         }
         return {
           stdout: '',
@@ -198,7 +198,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
           pid: 1234,
           output: [],
           signal: null
-        } as unknown as childProcess.SpawnSyncReturns<string>;
+        };
       });
 
       setAuditConfig(
@@ -264,7 +264,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
             pid: 1234,
             output: [],
             signal: null
-          } as unknown as childProcess.SpawnSyncReturns<string>;
+          };
         }
         return {
           stdout: '',
@@ -273,7 +273,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
           pid: 1234,
           output: [],
           signal: null
-        } as unknown as childProcess.SpawnSyncReturns<string>;
+        };
       });
 
       setAuditConfig(
@@ -339,7 +339,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
             pid: 1234,
             output: [],
             signal: null
-          } as unknown as childProcess.SpawnSyncReturns<string>;
+          };
         }
         return {
           stdout: '',
@@ -348,7 +348,7 @@ describe('ValidateDependencyVulnerabilitiesAuditor & parseNpmAuditReport', () =>
           pid: 1234,
           output: [],
           signal: null
-        } as unknown as childProcess.SpawnSyncReturns<string>;
+        };
       });
 
       setAuditConfig(

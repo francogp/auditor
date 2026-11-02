@@ -17,15 +17,15 @@ Features rarely fail in production because the happy-path logic was wrong; they 
 
 During **Phase 3**, evaluate which NFR dimensions apply to the task. If the user has not specified targets, propose the **Sensible Default Baseline** below and record it explicitly under **Assumptions** in the Understanding Lock.
 
-| NFR Dimension | Key Questions to Resolve | Sensible Default Baseline (When Unspecified) |
-| :--- | :--- | :--- |
-| **1. Performance & Complexity** | What is the target latency? Are hot loops $O(1)$ or $O(n)$? Can I/O or AST parsing be shared in a single pass? | Zero nested $O(n^2)$ lookups; use `Map`/`Set` for membership/indexing; reuse shared file/AST caches; sub-second response for interactive/light operations. |
-| **2. Scale & Resource Budgets** | How many items, files, rows, or concurrent users must this handle without memory spikes? | Must scale cleanly to $10\times$ current repository or dataset size without exhausting heap memory or blocking the event loop. |
-| **3. Security & Trust Boundaries** | Where does external or untrusted data enter? How are file paths, queries, and payloads validated? | Parse, don't validate at the perimeter ([`/valibot`](../../valibot/SKILL.md) schemas); enforce path containment via `node:path` (`path.resolve` + `path.relative`); zero `eval`, raw SQL string concatenation, or catastrophic backtracking regexes. |
-| **4. Reliability & Failure Semantics** | Should errors fail loudly or degrade gracefully? Are mutations atomic and idempotent? | **Fail loud and fast** (`throw new Error(...)`) on broken contracts or invalid configs; zero silent `catch {}` blocks; auto-fixes and migrations must be 100% deterministic and idempotent. |
-| **5. Observability & Diagnostics** | When a failure occurs, what context is emitted? Are execution timings tracked per unit? | Every error message must state *what* failed, *where* (file/line or entity ID), and *how to remediate*; empirical timing recorded per rule/operation. |
-| **6. Cross-Platform & Environment** | Does this run across Linux, macOS, and Windows? What runtime permissions apply? | 100% POSIX/Windows parity using native Node.js standard library (`node:fs`, `node:path`); compatible with Node.js Permission Model (`--permission`). |
-| **7. Maintainability & Ownership** | Where does this live in the DOX hierarchy? Which configuration acts as the Single Source of Truth? | Zero hardcoded paths or magic numbers; all knobs resolved from `.auditor/audit.config.ts` or canonical constants; indexed in local `AGENTS.md` ([`/dox-navigator`](../../dox-navigator/SKILL.md)). |
+| NFR Dimension                          | Key Questions to Resolve                                                                                       | Sensible Default Baseline (When Unspecified)                                                                                                                                                                                                         |
+| :------------------------------------- | :------------------------------------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Performance & Complexity**        | What is the target latency? Are hot loops $O(1)$ or $O(n)$? Can I/O or AST parsing be shared in a single pass? | Zero nested $O(n^2)$ lookups; use `Map`/`Set` for membership/indexing; reuse shared file/AST caches; sub-second response for interactive/light operations.                                                                                           |
+| **2. Scale & Resource Budgets**        | How many items, files, rows, or concurrent users must this handle without memory spikes?                       | Must scale cleanly to $10\times$ current repository or dataset size without exhausting heap memory or blocking the event loop.                                                                                                                       |
+| **3. Security & Trust Boundaries**     | Where does external or untrusted data enter? How are file paths, queries, and payloads validated?              | Parse, don't validate at the perimeter ([`/valibot`](../../valibot/SKILL.md) schemas); enforce path containment via `node:path` (`path.resolve` + `path.relative`); zero `eval`, raw SQL string concatenation, or catastrophic backtracking regexes. |
+| **4. Reliability & Failure Semantics** | Should errors fail loudly or degrade gracefully? Are mutations atomic and idempotent?                          | **Fail loud and fast** (`throw new Error(...)`) on broken contracts or invalid configs; zero silent `catch {}` blocks; auto-fixes and migrations must be 100% deterministic and idempotent.                                                          |
+| **5. Observability & Diagnostics**     | When a failure occurs, what context is emitted? Are execution timings tracked per unit?                        | Every error message must state _what_ failed, _where_ (file/line or entity ID), and _how to remediate_; empirical timing recorded per rule/operation.                                                                                                |
+| **6. Cross-Platform & Environment**    | Does this run across Linux, macOS, and Windows? What runtime permissions apply?                                | 100% POSIX/Windows parity using native Node.js standard library (`node:fs`, `node:path`); compatible with Node.js Permission Model (`--permission`).                                                                                                 |
+| **7. Maintainability & Ownership**     | Where does this live in the DOX hierarchy? Which configuration acts as the Single Source of Truth?             | Zero hardcoded paths or magic numbers; all knobs resolved from `.auditor/audit.config.ts` or canonical constants; indexed in local `AGENTS.md` ([`/dox-navigator`](../../dox-navigator/SKILL.md)).                                                   |
 
 ---
 
@@ -36,8 +36,8 @@ When presenting **2–3 Viable Design Approaches** in **Phase 5**, ensure the al
 Evaluate and contrast your proposed approaches across these **7 Engineering Dimensions**:
 
 1. **Module Depth (Interface vs. Implementation Ratio)**:
-   - *Deep Module (Preferred)*: Exposes a small, simple, strongly-typed public surface while encapsulating complex coordination, caching, and edge-case handling internally ([`codebase-design`](../../codebase-design/SKILL.md)).
-   - *Shallow Module (Avoid)*: Adds pass-through classes, wrapper functions, or wide interfaces that leak internal mechanics to callers.
+   - _Deep Module (Preferred)_: Exposes a small, simple, strongly-typed public surface while encapsulating complex coordination, caching, and edge-case handling internally ([`codebase-design`](../../codebase-design/SKILL.md)).
+   - _Shallow Module (Avoid)_: Adds pass-through classes, wrapper functions, or wide interfaces that leak internal mechanics to callers.
 2. **Locality of Invariants & Blast Radius**:
    - If a business rule or domain invariant changes next month, do we edit **one file** (high locality) or **seven files across three layers** (shotgun surgery)?
 3. **Caller Burden & Cognitive Load**:
@@ -56,20 +56,20 @@ Evaluate and contrast your proposed approaches across these **7 Engineering Dime
 Use a compact table when presenting options to the user:
 
 ```markdown
-| Dimension | Approach A: [Name] (Recommended) | Approach B: [Name] (Minimal / Do-Least) | Approach C: [Name] |
-| :--- | :--- | :--- | :--- |
-| **Core Mechanism** | [1-line summary] | [1-line summary] | [1-line summary] |
-| **Module Depth & Seams** | High (single entry contract) | Medium (extends existing module) | Low (multi-layer orchestration) |
-| **Blast Radius** | Isolated to `<module>` | Touches 2 existing callers | Cross-cutting (5+ files) |
-| **Testability** | Pure in-memory fixture seam | Requires temp dir fixture | Requires process mock |
-| **Primary Trade-Off** | Slightly more upfront type modeling | Less extensible for future formats | Over-engineered for current scale |
+| Dimension                | Approach A: [Name] (Recommended)    | Approach B: [Name] (Minimal / Do-Least) | Approach C: [Name]                |
+| :----------------------- | :---------------------------------- | :-------------------------------------- | :-------------------------------- |
+| **Core Mechanism**       | [1-line summary]                    | [1-line summary]                        | [1-line summary]                  |
+| **Module Depth & Seams** | High (single entry contract)        | Medium (extends existing module)        | Low (multi-layer orchestration)   |
+| **Blast Radius**         | Isolated to `<module>`              | Touches 2 existing callers              | Cross-cutting (5+ files)          |
+| **Testability**          | Pure in-memory fixture seam         | Requires temp dir fixture               | Requires process mock             |
+| **Primary Trade-Off**    | Slightly more upfront type modeling | Less extensible for future formats      | Over-engineered for current scale |
 ```
 
 ---
 
 ## 3. Typed Call-Stack Architecture Handoff (`domain-type-first`)
 
-Prose descriptions of software architecture are inherently ambiguous. Two engineers reading *"the service validates the config and returns a result"* will write completely incompatible code.
+Prose descriptions of software architecture are inherently ambiguous. Two engineers reading _"the service validates the config and returns a result"_ will write completely incompatible code.
 
 During **Phase 6 (Present the Design Incrementally)**, anchor your architectural sections in **TypeScript contract sketches** following [`/domain-type-first`](../../domain-type-first/SKILL.md):
 
@@ -102,7 +102,11 @@ Make illegal combinations of fields unrepresentable at compile time (avoid optio
 export type EvaluationOutcome<TPayload> =
   | { readonly status: 'passed'; readonly payload: TPayload; readonly durationMs: number }
   | { readonly status: 'skipped'; readonly reason: string }
-  | { readonly status: 'failed'; readonly violations: readonly Violation[]; readonly durationMs: number };
+  | {
+      readonly status: 'failed';
+      readonly violations: readonly Violation[];
+      readonly durationMs: number;
+    };
 ```
 
 ### 3.4. Entrypoint-to-Side-Effect Call Stack Sketch
@@ -121,7 +125,7 @@ Show the exact data flow from the public entrypoint down to the boundary side ef
 
 ## 4. Designing Deep Modules & Hermetic Test Seams
 
-Every design presented in **Phase 6** must explicitly answer: *"How will we prove this works hermetically?"*
+Every design presented in **Phase 6** must explicitly answer: _"How will we prove this works hermetically?"_
 
 ### Rules for High-Leverage Test Seams
 

@@ -13,6 +13,7 @@
  */
 
 import { enableCompileCache } from 'node:module';
+
 import {
   BaseAuditor,
   createRuleCapabilities,

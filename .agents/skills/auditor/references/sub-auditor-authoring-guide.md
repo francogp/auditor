@@ -41,8 +41,9 @@ flowchart LR
  * MY FEATURE AUDITOR (Node.js 26+ Native)
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   FileScanAuditor,
@@ -55,9 +56,7 @@ import {
 
 enableCompileCache();
 
-export type MyFeatureRuleId =
-  | 'my-feature-forbidden-token'
-  | 'my-feature-missing-attribute';
+export type MyFeatureRuleId = 'my-feature-forbidden-token' | 'my-feature-missing-attribute';
 
 export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
   'my-feature-forbidden-token',
@@ -149,7 +148,11 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
 
     // Rule 2: Missing attribute check (empirically timed)
     this.runSubAuditorSync('my-feature-missing-attribute', () => {
-      if (relPath.endsWith('.vue') && content.includes('<custom-widget') && !content.includes('aria-label=')) {
+      if (
+        relPath.endsWith('.vue') &&
+        content.includes('<custom-widget') &&
+        !content.includes('aria-label=')
+      ) {
         this.addViolation({
           ruleId: 'my-feature-missing-attribute',
           severity: 'error',
@@ -180,9 +183,15 @@ Use `BaseAuditor` when the audit performs multi-source comparisons, AST graphs, 
  * MY DATA INTEGRITY AUDITOR (Node.js 26+ Native)
  */
 
-import path from 'node:path';
 import { enableCompileCache } from 'node:module';
-import { BaseAuditor, createUniformRuleCapabilities, createUniformRemediationPhases } from '@francogp/auditor';
+import path from 'node:path';
+
+import {
+  BaseAuditor,
+  createUniformRuleCapabilities,
+  createUniformRemediationPhases
+} from '@francogp/auditor';
+
 import { MY_DATA } from '../../../src/data/myData.ts';
 
 enableCompileCache();
@@ -306,9 +315,9 @@ Use `BaseAuditor` with `requiresAst: true` (or `FileScanAuditor` with `sourceFil
  * AST-DRIVEN AUDITOR (Node.js 26+ Native)
  */
 
-import path from 'node:path';
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   SharedAstContext,
@@ -317,12 +326,11 @@ import {
   resolveFileScanRoots,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+import ts from 'typescript';
 
 enableCompileCache();
 
-export const MY_AST_RULES = [
-  'my-ast-forbidden-call'
-] as const;
+export const MY_AST_RULES = ['my-ast-forbidden-call'] as const;
 export type MyAstRuleId = (typeof MY_AST_RULES)[number];
 
 export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
@@ -441,7 +449,7 @@ Upon completing the file scan, `ensureSubAuditorsLogged()` automatically logs ea
 - **Zero Findings**: Silent and clean, with no badges or verbose text like `(0 encontradas)`.
 - **With Findings**: Displays `[🐛 <count>]` prominently in square brackets, with execution duration strictly enclosed in parentheses `(X ms)`.
 - **Description Length Cap**: The composed string `${packageName}: ${ruleDescription}` MUST remain `<= 50` characters (`MAX_AUDITOR_DESCRIPTION_LENGTH = 50`) and contain zero newlines. If a rule description exceeds 50 characters, `BaseAuditor` throws an explicit runtime `Error` during instantiation.
-Zero manual logging code is required.
+  Zero manual logging code is required.
 
 ### In Composite / Multi-Phase BaseAuditor (Explicit Progress)
 
@@ -505,6 +513,7 @@ To eliminate false passes, unmeasured rules, synthetic time divisions, and dupli
    ```
 
 3. **In `FileScanAuditor.scanFile` Loops (Non-Code Textual Formats Only)**:
+
    > [!IMPORTANT]
    > Per the **AST Traversing Mandate & Zero Regex Code Inspection Mandate**, line splitting (`content.split(/\r?\n/)`) and regex inspection are **strictly prohibited** for source code files (`.ts`, `.tsx`, `.js`, `.vue`). For all code files, you must use AST inspection (`SharedAstContext`, `ts.forEachChild`, or [`ast_auditor_template.ts`](../assets/templates/ast_auditor_template.ts)).
    > Line iteration inside `scanFile` is permitted strictly for non-code textual formats (such as Markdown `.md`, YAML, or configuration files):
@@ -626,7 +635,7 @@ const findings = await runExternalTool(this.projectRoot);
 // Step 2: Evaluate and measure each declared rule individually
 for (const ruleId of MY_DECLARED_RULES) {
   this.runSubAuditorSync(ruleId, () => {
-    const matchingFindings = findings.filter(f => f.ruleId === ruleId);
+    const matchingFindings = findings.filter((f) => f.ruleId === ruleId);
     for (const finding of matchingFindings) {
       this.addViolation({
         ruleId,
@@ -935,6 +944,7 @@ Host applications implementing custom rules in `scripts/auditors/<family>/valida
 
 ```typescript
 import { defineAuditConfig } from '@francogp/auditor/config';
+
 import { MyCompositeAuditor } from '../scripts/auditors/domain_data/validate_my_composite.ts';
 
 export default defineAuditConfig({
@@ -1004,7 +1014,7 @@ When authoring sub-auditors or host extensions, `validate_auditor_hygiene` stric
    - File scanners: `this.declareFileSubAuditor('rule-id', (doc) => { ... })`
    - Single-pass multi-rule file scan: `await this.scanFilesSinglePass(files, handlers)`
    - External tools: `this.recordRuleDuration('rule-id', elapsedMs)`
-   Emitting violations outside wrappers produces fake `(0 ms)` badges and triggers `auditor-unmeasured-rule`. (Single-rule `FileScanAuditor` classes automatically measure `scanFile` per file).
+     Emitting violations outside wrappers produces fake `(0 ms)` badges and triggers `auditor-unmeasured-rule`. (Single-rule `FileScanAuditor` classes automatically measure `scanFile` per file).
 
 3. **NO Redundant `markRuleEvaluated` (`auditor-redundant-rule-evaluated`)**:
    Do NOT call `this.markRuleEvaluated('rule-id')` right before `this.runSubAuditorSync('rule-id', ...)` or `declareFileSubAuditor`. Measurement wrappers already mark rules evaluated internally.
@@ -1078,7 +1088,7 @@ coverage: {
       glob: 'scripts/fixtures/**',
       reason: 'Temporary test fixtures generated during hermetic integration runs'
     }
-  ]
+  ];
 }
 ```
 
@@ -1151,10 +1161,7 @@ Sub-auditors and extensions that validate or depend on external tool configurati
 Instead, declare configuration requirements declaratively via `AuditorConfigFileRequirement` and `configFiles`:
 
 ```typescript
-import {
-  BaseAuditor,
-  type AuditorConfigFileRequirement
-} from '@francogp/auditor';
+import { BaseAuditor, type AuditorConfigFileRequirement } from '@francogp/auditor';
 
 export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
   public static readonly configFiles: readonly AuditorConfigFileRequirement[] = [
@@ -1218,25 +1225,25 @@ export class MyToolAuditor extends BaseAuditor<MyToolRuleId> {
 
 Under the v5 architecture, it is mathematically impossible to instantiate a sub-auditor or extension without supplying all canonical metadata in the constructor:
 
-| Option | Type | Constraint | Purpose |
-| :--- | :--- | :--- | :--- |
-| `id` | `string` | Canonical ID | Unique identifier across the orchestrator (`validate_<name>`). |
-| `name` | `string` | Non-empty | Formal human-readable name of the suite. |
-| `description` | `string` | `<= 60` chars | Concise English explanation of what the suite verifies. |
-| `family` | `AuditFamily` | Strict enum | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'performance'`, `'security'`, `'documentation'` (or dynamic host extensions). |
-| `packageName` | `string` | Non-empty | Technology scope prefix (`'Oxlint'`, `'TypeScript'`, `'Config'`, `'Styles'`, `'DOX'`). |
-| `icon` | `string` | Thematic emoji | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`). |
-| `ruleIds` | `readonly TRuleId[]` | Exhaustive | Array of declared rule IDs. |
-| `ruleCapabilities` | `Record<TRuleId, AuditorRuleCapabilities>` | 100% of rules, 7 fields | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`). |
-| `ruleDescriptions` | `Record<TRuleId, string>` | 100% of rules | Concise English description (prefixed `${packageName}: ${desc}` must be `<= 50` chars). |
-| `ruleRemediations` | `Record<TRuleId, string>` | 100% of rules, non-empty | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction. |
-| `remediationPhase` / `ruleRemediationPhases` | `RemediationPhaseId` \| `Record<TRuleId, RemediationPhaseId>` | 100% of rules | Mandatory strategic phase mapping (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`). Omission throws at construction. |
-| `requiredPermissions` | `readonly NodePermissionFlag[]` | Exhaustive array (or `[]`) | Mandatory Node.js Permission Model flags required by this suite (e.g. `[]` or `['--allow-addons']`). Omission throws at construction. |
-| `configKey` | `string` | Dotted path | Mandatory SSoT configuration key inspected by the dynamic gating engine. |
-| `defaultConfig` | `Record<string, unknown>` | Valid object | Mandatory default object declared autonomously by each subauditor and dynamically collected by `auditor fix` to scaffold or additively repair `.auditor/audit.config.ts`. Centralized hardcoding in `DEFAULT_AUDIT_CONFIG` is strictly prohibited. For all subsystems, `enabled: boolean` is mandatory. |
-| `criticalConfig` | `AuditorCriticalConfig` | Valid object (can be `{}`) | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums. |
-| `usesThirdPartyTool` | `boolean` | `true` or `false` | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. Oxlint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error. |
-| `thirdPartyToolPolicy` | `ThirdPartyToolFailurePolicy` | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId, explainSatelliteConfig?: SatelliteConfigFileExplanation \| SatelliteConfigExplanationFn }`. Prohibited if `usesThirdPartyTool: false`. If the external tool has no satellite configuration file (e.g. `npm audit`), `explainSatelliteConfig: undefined` must be declared explicitly. |
+| Option                                       | Type                                                          | Constraint                              | Purpose                                                                                                                                                                                                                                                                                                                                                                                              |
+| :------------------------------------------- | :------------------------------------------------------------ | :-------------------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                                         | `string`                                                      | Canonical ID                            | Unique identifier across the orchestrator (`validate_<name>`).                                                                                                                                                                                                                                                                                                                                       |
+| `name`                                       | `string`                                                      | Non-empty                               | Formal human-readable name of the suite.                                                                                                                                                                                                                                                                                                                                                             |
+| `description`                                | `string`                                                      | `<= 60` chars                           | Concise English explanation of what the suite verifies.                                                                                                                                                                                                                                                                                                                                              |
+| `family`                                     | `AuditFamily`                                                 | Strict enum                             | One of `'architecture'`, `'domain_data'`, `'persistence'`, `'performance'`, `'security'`, `'documentation'` (or dynamic host extensions).                                                                                                                                                                                                                                                            |
+| `packageName`                                | `string`                                                      | Non-empty                               | Technology scope prefix (`'Oxlint'`, `'TypeScript'`, `'Config'`, `'Styles'`, `'DOX'`).                                                                                                                                                                                                                                                                                                               |
+| `icon`                                       | `string`                                                      | Thematic emoji                          | Mandatory visual emoji icon (`'🏛️'`, `'🔍'`, `'🎨'`).                                                                                                                                                                                                                                                                                                                                                |
+| `ruleIds`                                    | `readonly TRuleId[]`                                          | Exhaustive                              | Array of declared rule IDs.                                                                                                                                                                                                                                                                                                                                                                          |
+| `ruleCapabilities`                           | `Record<TRuleId, AuditorRuleCapabilities>`                    | 100% of rules, 7 fields                 | Orthogonal 7-field capability declaration per rule (`speed`, `phase`, `fix`, `md`, `ast`, `changedOnly`, `critical`).                                                                                                                                                                                                                                                                                |
+| `ruleDescriptions`                           | `Record<TRuleId, string>`                                     | 100% of rules                           | Concise English description (prefixed `${packageName}: ${desc}` must be `<= 50` chars).                                                                                                                                                                                                                                                                                                              |
+| `ruleRemediations`                           | `Record<TRuleId, string>`                                     | 100% of rules, non-empty                | Mandatory on-demand diagnostic and remediation guide (may be long). Rendered by `auditor guide <ruleId>`; omission throws at construction.                                                                                                                                                                                                                                                           |
+| `remediationPhase` / `ruleRemediationPhases` | `RemediationPhaseId` \| `Record<TRuleId, RemediationPhaseId>` | 100% of rules                           | Mandatory strategic phase mapping (`setup`, `prune`, `dedup`, `contracts`, `behavior`, `hygiene`, `polish`). Omission throws at construction.                                                                                                                                                                                                                                                        |
+| `requiredPermissions`                        | `readonly NodePermissionFlag[]`                               | Exhaustive array (or `[]`)              | Mandatory Node.js Permission Model flags required by this suite (e.g. `[]` or `['--allow-addons']`). Omission throws at construction.                                                                                                                                                                                                                                                                |
+| `configKey`                                  | `string`                                                      | Dotted path                             | Mandatory SSoT configuration key inspected by the dynamic gating engine.                                                                                                                                                                                                                                                                                                                             |
+| `defaultConfig`                              | `Record<string, unknown>`                                     | Valid object                            | Mandatory default object declared autonomously by each subauditor and dynamically collected by `auditor fix` to scaffold or additively repair `.auditor/audit.config.ts`. Centralized hardcoding in `DEFAULT_AUDIT_CONFIG` is strictly prohibited. For all subsystems, `enabled: boolean` is mandatory.                                                                                              |
+| `criticalConfig`                             | `AuditorCriticalConfig`                                       | Valid object (can be `{}`)              | Mandatory critical architectural baseline (`requiredMinimums`, `forbiddenOverrides`, `validate`, `repair`). Strictly additive; projects can add restrictions but cannot remove canonical minimums.                                                                                                                                                                                                   |
+| `usesThirdPartyTool`                         | `boolean`                                                     | `true` or `false`                       | Mandatory boolean explicitly declaring whether the suite delegates to external binaries or CLI tools (e.g. Oxlint, Stylelint, HTML-Validate, Fallow, Docker). Omission throws runtime Error.                                                                                                                                                                                                         |
+| `thirdPartyToolPolicy`                       | `ThirdPartyToolFailurePolicy`                                 | Mandatory if `usesThirdPartyTool: true` | Policy object defining `{ toolName: string, fallbackBehavior: 'throw' \| 'violation', fallbackRuleId?: TRuleId, explainSatelliteConfig?: SatelliteConfigFileExplanation \| SatelliteConfigExplanationFn }`. Prohibited if `usesThirdPartyTool: false`. If the external tool has no satellite configuration file (e.g. `npm audit`), `explainSatelliteConfig: undefined` must be declared explicitly. |
 
 If any of these fields are missing or invalid, `BaseAuditor` throws an immediate runtime `Error` during instantiation.
 
@@ -1263,7 +1270,7 @@ ruleCapabilities: createUniformRuleCapabilities(RULES, {
   ast: false,
   changedOnly: false,
   critical: false
-})
+});
 ```
 
 1. **Pre-Build Exclusion**: `npm run auditor` and `npm run auditor:full` automatically filter out suites with `phase: 'post-build'` (`capabilities.phase === 'post-build'`) so pre-build development checks never fail due to missing `dist/` folders.
@@ -1314,7 +1321,9 @@ Every official sub-auditor in `@francogp/auditor` and every extension created in
    ```typescript
    expect(result.summary.errors).toBeGreaterThan(0);
    expect(result.status).toBe('failed');
-   expect(result.findings.some(f => f.ruleId === 'my-rule-id' && f.severity === 'error')).toBe(true);
+   expect(result.findings.some((f) => f.ruleId === 'my-rule-id' && f.severity === 'error')).toBe(
+     true
+   );
    ```
 
 4. **Warning Path Verification**:
@@ -1327,8 +1336,8 @@ Every official sub-auditor in `@francogp/auditor` and every extension created in
 Host projects can verify all their custom extension sub-auditors dynamically by creating `tests/node/auditors/conformance.test.ts`:
 
 ```typescript
-import { describe } from 'vite-plus/test';
 import { runAuditorContractConformanceTests } from '@francogp/auditor';
+import { describe } from 'vite-plus/test';
 
 describe('All Auditors Dynamic Conformance', () => {
   runAuditorContractConformanceTests();
@@ -1370,7 +1379,7 @@ export class MyFeatureAuditor extends BaseAuditor<MyFeatureRuleId> {
   constructor(options: MyFeatureAuditorOptions = {}) {
     super({
       // ...
-      scripts: MyFeatureAuditor.scripts,
+      scripts: MyFeatureAuditor.scripts
       // ...
     });
   }
@@ -1525,7 +1534,7 @@ super({
       '2. Diagnosis: Inspect the reported file and line number.\n' +
       '3. Canonical Solution: Apply canonical documented pattern.\n' +
       '4. Example / Auto-fix command: npm run auditor:fix'
-  },
+  }
   // ...
 });
 ```
@@ -1651,7 +1660,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       id: 'validate_fallow_config',
       name: 'Fallow Configuration Validator',
       // ...
-      cachePaths: ValidateFallowConfigAuditor.cachePaths,
+      cachePaths: ValidateFallowConfigAuditor.cachePaths
       // ...
     });
   }
@@ -1677,12 +1686,12 @@ All other paths must be derived dynamically from `audit.config.ts`.
 
 ### 2. Canonical Helpers Catalog
 
-| Helper Function | Origin | Purpose |
-| :--- | :--- | :--- |
-| `getAuditConfig(projectRoot)` | `@francogp/auditor` | Resolves typed SSoT config (`paths.codeRoots`, `paths.srcRoots`, `documentation.skillsRoots`, etc.). |
-| `getEffectiveIgnoreGlobs(projectRoot, options)` | `@francogp/auditor` | Returns deduplicated `${dir}/**` glob array of all ignore directories + custom globs + tool caches. |
-| `getEffectiveUnignoreDirs(projectRoot)` | `@francogp/auditor` | Dynamically derives unignore directories from `paths.unignoreDirs`, `documentation.unignoreDirs`, or `documentation.skillsRoots`. |
-| `getEffectiveIgnoreDirs(projectRoot)` | `@francogp/auditor` | Returns immutable `ReadonlySet<string>` of canonical ignore dirs merged with `paths.ignoredDirs` and dynamic tool caches. |
+| Helper Function                                 | Origin              | Purpose                                                                                                                           |
+| :---------------------------------------------- | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------- |
+| `getAuditConfig(projectRoot)`                   | `@francogp/auditor` | Resolves typed SSoT config (`paths.codeRoots`, `paths.srcRoots`, `documentation.skillsRoots`, etc.).                              |
+| `getEffectiveIgnoreGlobs(projectRoot, options)` | `@francogp/auditor` | Returns deduplicated `${dir}/**` glob array of all ignore directories + custom globs + tool caches.                               |
+| `getEffectiveUnignoreDirs(projectRoot)`         | `@francogp/auditor` | Dynamically derives unignore directories from `paths.unignoreDirs`, `documentation.unignoreDirs`, or `documentation.skillsRoots`. |
+| `getEffectiveIgnoreDirs(projectRoot)`           | `@francogp/auditor` | Returns immutable `ReadonlySet<string>` of canonical ignore dirs merged with `paths.ignoredDirs` and dynamic tool caches.         |
 
 ### 3. Isolated Subsystem Ignore Governance & Universal Ignore Resolution
 
@@ -1701,9 +1710,9 @@ All other paths must be derived dynamically from `audit.config.ts`.
 Use this pattern whenever analyzing `.ts`, `.tsx`, `.js`, or `.vue` files. It strictly adheres to the **AST Traversing Mandate & Zero Regex Code Inspection Mandate**, explicit 7-field rule capabilities, and dynamic ignore resolution:
 
 ```typescript
-import path from 'node:path';
-import ts from 'typescript';
 import { enableCompileCache } from 'node:module';
+import path from 'node:path';
+
 import {
   BaseAuditor,
   SharedAstContext,
@@ -1714,12 +1723,11 @@ import {
   type RemediationPhaseId,
   type FileScanRootsOptions
 } from '@francogp/auditor';
+import ts from 'typescript';
 
 enableCompileCache();
 
-export type SecurityAstRuleId =
-  | 'security-no-eval'
-  | 'security-require-exported-guard';
+export type SecurityAstRuleId = 'security-no-eval' | 'security-require-exported-guard';
 
 export const SECURITY_AST_RULES: readonly SecurityAstRuleId[] = [
   'security-no-eval',
@@ -1761,7 +1769,8 @@ export class ValidateSecurityAstAuditor extends BaseAuditor<SecurityAstRuleId> {
       },
       id: 'validate_security_ast',
       name: 'Security AST Validator',
-      description: 'Enforces secure code patterns via AST inspections across TypeScript and Vue SFCs',
+      description:
+        'Enforces secure code patterns via AST inspections across TypeScript and Vue SFCs',
       icon: '🛡️',
       family: 'architecture',
       ruleIds: SECURITY_AST_RULES,
@@ -1776,7 +1785,8 @@ export class ValidateSecurityAstAuditor extends BaseAuditor<SecurityAstRuleId> {
       cachePaths: ValidateSecurityAstAuditor.cachePaths,
       ruleDescriptions: {
         'security-no-eval': 'Prohibits direct usage of eval in TypeScript source code',
-        'security-require-exported-guard': 'Requires exported guard functions across authentication modules'
+        'security-require-exported-guard':
+          'Requires exported guard functions across authentication modules'
       },
       ruleRemediations: {
         'security-no-eval':
@@ -1883,6 +1893,7 @@ Use this pattern ONLY for non-code text files (`.md`, `.txt`, `.json` non-struct
 
 ```typescript
 import { enableCompileCache } from 'node:module';
+
 import {
   FileScanAuditor,
   BaseAuditor,

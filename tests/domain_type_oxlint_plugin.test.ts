@@ -39,7 +39,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           params: [{ type: 'TSStringKeyword' }, { type: 'TSNumberKeyword' }]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Record<string, T>');
     });
 
@@ -55,7 +55,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           params: [{ type: 'TSStringKeyword' }, { type: 'TSNumberKeyword' }]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: permits open unknown dictionary Record<string, unknown>', () => {
@@ -68,7 +68,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           params: [{ type: 'TSStringKeyword' }, { type: 'TSUnknownKeyword' }]
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -91,7 +91,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('PROHIBITED');
     });
 
@@ -110,7 +110,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows new Set with explicit domain type argument', () => {
@@ -129,7 +129,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -146,7 +146,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSStringKeyword' }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('open string unions');
     });
 
@@ -162,7 +162,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSStringKeyword' }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows closed domain union', () => {
@@ -175,7 +175,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSLiteralType', literal: { value: 'inactive' } }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
 
     it('Active Canary: flags open union mixing named domain type reference and string keyword (DomainType | string)', () => {
@@ -188,7 +188,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSStringKeyword' }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('open string unions');
     });
 
@@ -199,7 +199,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSUnionType',
         types: [{ type: 'TSTemplateLiteralType' }, { type: 'TSStringKeyword' }]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('open string unions');
     });
 
@@ -213,7 +213,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           { type: 'TSTypeReference', typeName: { name: 'UserId' } }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -233,7 +233,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           ]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('without `as const`');
     });
 
@@ -249,7 +249,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           elements: [{ type: 'Literal', value: 'red' }]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows literal array with as const', () => {
@@ -269,7 +269,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -283,7 +283,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSAsExpression',
         typeAnnotation: { type: 'TSUnknownKeyword' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Casting to unknown');
     });
 
@@ -296,7 +296,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSAsExpression',
         typeAnnotation: { type: 'TSUnknownKeyword' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows direct concrete type cast', () => {
@@ -306,7 +306,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSAsExpression',
         typeAnnotation: { type: 'TSTypeReference', typeName: { name: 'CustomDomainDto' } }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -320,7 +320,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'NewExpression',
         callee: { type: 'Identifier', name: 'Date' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('new Date()');
     });
 
@@ -333,7 +333,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'NewExpression',
         callee: { type: 'Identifier', name: 'Date' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows Temporal.Now calls', () => {
@@ -347,7 +347,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           property: { type: 'Identifier', name: 'Now' }
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -362,7 +362,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         id: { name: 'UserId' },
         typeAnnotation: { type: 'TSStringKeyword' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain("Domain identifier 'UserId'");
     });
 
@@ -376,7 +376,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         id: { name: 'SessionId' },
         typeAnnotation: { type: 'TSStringKeyword' }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: non-Id type aliases are permitted', () => {
@@ -387,7 +387,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         id: { name: 'UserDescription' },
         typeAnnotation: { type: 'TSStringKeyword' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -415,7 +415,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('JSON.parse(JSON.stringify(...))');
     });
 
@@ -442,7 +442,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows structuredClone()', () => {
@@ -452,7 +452,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'CallExpression',
         callee: { type: 'Identifier', name: 'structuredClone' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -469,7 +469,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           elements: [{ type: 'SpreadElement' }]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Redundant spread return');
     });
 
@@ -485,7 +485,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           elements: [{ type: 'SpreadElement' }]
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows direct array return', () => {
@@ -495,7 +495,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'ReturnStatement',
         argument: { type: 'Identifier', name: 'arr' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -512,7 +512,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           literal: { value: true }
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Redundant literal annotation');
     });
 
@@ -528,7 +528,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           literal: { value: true }
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows : boolean type annotation', () => {
@@ -538,7 +538,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
         type: 'TSTypeAnnotation',
         typeAnnotation: { type: 'TSBooleanKeyword' }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -558,7 +558,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Async callback in computed() is prohibited');
     });
 
@@ -577,7 +577,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows synchronous computed callback', () => {
@@ -593,7 +593,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -614,7 +614,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Direct observation of props property in watch()');
     });
 
@@ -634,7 +634,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows getter function watch(() => props.isOpen, ...)', () => {
@@ -649,7 +649,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           }
         ]
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 
@@ -667,7 +667,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           callee: { type: 'Identifier', name: 'reactive' }
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
       expect(reports[0]!.message).toContain('Direct destructuring of reactive() is prohibited');
     });
 
@@ -684,7 +684,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           callee: { type: 'Identifier', name: 'reactive' }
         }
       });
-      expect(reports.length).toBe(1);
+      expect(reports).toHaveLength(1);
     });
 
     it('Clean Canary: allows non-destructured reactive state', () => {
@@ -698,7 +698,7 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
           callee: { type: 'Identifier', name: 'reactive' }
         }
       });
-      expect(reports.length).toBe(0);
+      expect(reports).toHaveLength(0);
     });
   });
 });

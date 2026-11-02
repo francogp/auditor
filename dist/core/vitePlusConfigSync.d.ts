@@ -10,6 +10,13 @@ export declare const STRICT_RULE_CHECKS: string[];
 export declare function findLegacyEslintIgnores(projectRoot: string): string[];
 /**
  * Resolves all canonical ignore globs derived from audit.config.ts (SSoT).
+ *
+ * Strict Isolation Mandate:
+ * Only CANONICAL_SYSTEM_IGNORE_GLOBS, config.paths (ignoreGlobs, ignoredDirs, ignoredPatterns, exemptFiles),
+ * and target-specific config (vitePlusConfig.lint.ignorePatterns / oxlint.ignoreGlobs for lint,
+ * vitePlusConfig.fmt.ignorePatterns / oxfmt.ignoreGlobs for fmt) are included.
+ * Cross-subsystem pollutions (dataRoots, demoRoots, testRoots, coverage.exemptGlobs, legacy ignores)
+ * are CATEGORICALLY EXCLUDED.
  */
 export declare function resolveAuditConfigIgnoreGlobs(config: AuditConfig, target?: VitePlusSyncTarget, projectRoot?: string): string[];
 /**

@@ -260,7 +260,7 @@ describe('ValidateWebPerformanceAuditor Conformance & Rule Detection', () => {
 
       const result = await auditor.finishAudit();
       const findings = result.findings.filter((f) => f.ruleId === 'uncompressed-video');
-      expect(findings.length).toBe(2);
+      expect(findings).toHaveLength(2);
       expect(findings[0]?.message).toContain('uncompressed container');
       expect(findings[1]?.message).toContain('without preload="none" or optimized WebM source');
     });

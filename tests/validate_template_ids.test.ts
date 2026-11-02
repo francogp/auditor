@@ -94,7 +94,7 @@ describe('TemplateIdAuditor', () => {
       const violations = auditor.collectedViolations.filter(
         (v) => v.ruleId === 'template-missing-input-id'
       );
-      expect(violations.length).toBe(2);
+      expect(violations).toHaveLength(2);
       expect(violations[0]?.severity).toBe('error');
     });
 
@@ -113,7 +113,7 @@ describe('TemplateIdAuditor', () => {
       const violations = auditor.collectedViolations.filter(
         (v) => v.ruleId === 'template-missing-input-id'
       );
-      expect(violations.length).toBe(3);
+      expect(violations).toHaveLength(3);
       expect(violations[0]?.severity).toBe('error');
     });
 

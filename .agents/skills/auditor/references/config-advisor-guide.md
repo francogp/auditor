@@ -50,16 +50,16 @@ flowchart TD
 
 ## 3. CLI Command Options & Parameters
 
-| Flag / Parameter | Description | Example Usage |
-| :--- | :--- | :--- |
-| `npm run auditor:config` | Runs evaluation and prints a compact diagnostic summary with counts and bulleted recommendations. | `npm run auditor:config` |
-| `--human` / `human` | Renders rich Box-Drawing tables (`SUBSYSTEM`, `SETTING`, `CURRENT`, `RECOMMENDED`, `RATIONALE`) and preserved strict settings table. | `npm run auditor:config -- human` |
-| `--diff` / `diff` | Emits a non-destructive JSON/TypeScript patch tree representing proposed additions. | `npm run auditor:config -- diff` |
-| `--apply` / `apply` | Additively writes missing sections and recommended settings to `.auditor/audit.config.ts`. | `npm run auditor:config -- apply` |
-| `--subsystem=<name>` / `subsystem=<name>` | Restricts evaluation to a single configuration section (e.g. `fallow`, `vitePlusConfig`, `styles`). | `npm run auditor:config -- subsystem=fallow` |
-| `--json` / `json` | Emits raw structured `ConfigAdvisorReport` for CI scripting or automated verification. | `npm run auditor:config -- json` |
-| `--help` / `help` | Displays command options and usage manual. | `npm run auditor:config -- help` |
-| `--project=<dir>` / `-p <dir>` | Runs the advisor against an external project directory. | `npm run auditor:config -- --project=../PokeBorrador` |
+| Flag / Parameter                          | Description                                                                                                                          | Example Usage                                         |
+| :---------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------- |
+| `npm run auditor:config`                  | Runs evaluation and prints a compact diagnostic summary with counts and bulleted recommendations.                                    | `npm run auditor:config`                              |
+| `--human` / `human`                       | Renders rich Box-Drawing tables (`SUBSYSTEM`, `SETTING`, `CURRENT`, `RECOMMENDED`, `RATIONALE`) and preserved strict settings table. | `npm run auditor:config -- human`                     |
+| `--diff` / `diff`                         | Emits a non-destructive JSON/TypeScript patch tree representing proposed additions.                                                  | `npm run auditor:config -- diff`                      |
+| `--apply` / `apply`                       | Additively writes missing sections and recommended settings to `.auditor/audit.config.ts`.                                           | `npm run auditor:config -- apply`                     |
+| `--subsystem=<name>` / `subsystem=<name>` | Restricts evaluation to a single configuration section (e.g. `fallow`, `vitePlusConfig`, `styles`).                                  | `npm run auditor:config -- subsystem=fallow`          |
+| `--json` / `json`                         | Emits raw structured `ConfigAdvisorReport` for CI scripting or automated verification.                                               | `npm run auditor:config -- json`                      |
+| `--help` / `help`                         | Displays command options and usage manual.                                                                                           | `npm run auditor:config -- help`                      |
+| `--project=<dir>` / `-p <dir>`            | Runs the advisor against an external project directory.                                                                              | `npm run auditor:config -- --project=../PokeBorrador` |
 
 ---
 
@@ -92,7 +92,8 @@ Communicate the diagnosis to the user clearly:
 ### Step 3: Human Authorization Gate
 
 Ask the human developer for explicit confirmation before altering configuration files:
-> *"Identified N architectural hardening opportunities. Would you like me to additively apply these settings to '.auditor/audit.config.ts'?"*
+
+> _"Identified N architectural hardening opportunities. Would you like me to additively apply these settings to '.auditor/audit.config.ts'?"_
 
 ### Step 4: Additive Application & Verification
 

@@ -10,37 +10,39 @@ description: Unit testing stores and components with @pinia/testing
 Create a fresh pinia instance for each test:
 
 ```ts
-import { setActivePinia, createPinia } from 'pinia'
-import { useCounterStore } from '../src/stores/counter'
+import { setActivePinia, createPinia } from 'pinia';
+
+import { useCounterStore } from '../src/stores/counter';
 
 describe('Counter Store', () => {
   beforeEach(() => {
-    setActivePinia(createPinia())
-  })
+    setActivePinia(createPinia());
+  });
 
   it('increments', () => {
-    const counter = useCounterStore()
-    expect(counter.n).toBe(0)
-    counter.increment()
-    expect(counter.n).toBe(1)
-  })
-})
+    const counter = useCounterStore();
+    expect(counter.n).toBe(0);
+    counter.increment();
+    expect(counter.n).toBe(1);
+  });
+});
 ```
 
 ### With Plugins
 
 ```ts
-import { setActivePinia, createPinia } from 'pinia'
-import { createApp } from 'vue'
-import { somePlugin } from '../src/stores/plugin'
+import { setActivePinia, createPinia } from 'pinia';
+import { createApp } from 'vue';
 
-const app = createApp({})
+import { somePlugin } from '../src/stores/plugin';
+
+const app = createApp({});
 
 beforeEach(() => {
-  const pinia = createPinia().use(somePlugin)
-  app.use(pinia)
-  setActivePinia(pinia)
-})
+  const pinia = createPinia().use(somePlugin);
+  app.use(pinia);
+  setActivePinia(pinia);
+});
 ```
 
 ## Testing Components
@@ -54,25 +56,26 @@ npm i -D @pinia/testing
 Use `createTestingPinia()`:
 
 ```ts
-import { mount } from '@vue/test-utils'
-import { createTestingPinia } from '@pinia/testing'
-import { useSomeStore } from '@/stores/myStore'
+import { createTestingPinia } from '@pinia/testing';
+import { mount } from '@vue/test-utils';
+
+import { useSomeStore } from '@/stores/myStore';
 
 const wrapper = mount(Counter, {
   global: {
-    plugins: [createTestingPinia()],
-  },
-})
+    plugins: [createTestingPinia()]
+  }
+});
 
-const store = useSomeStore()
+const store = useSomeStore();
 
 // Manipulate state directly
-store.name = 'new name'
-store.$patch({ name: 'new name' })
+store.name = 'new name';
+store.$patch({ name: 'new name' });
 
 // Actions are stubbed by default
-store.someAction()
-expect(store.someAction).toHaveBeenCalledTimes(1)
+store.someAction();
+expect(store.someAction).toHaveBeenCalledTimes(1);
 ```
 
 ## Initial State
@@ -85,31 +88,33 @@ const wrapper = mount(Counter, {
     plugins: [
       createTestingPinia({
         initialState: {
-          counter: { n: 20 }, // Store name → initial state
-        },
-      }),
-    ],
-  },
-})
+          counter: { n: 20 } // Store name → initial state
+        }
+      })
+    ]
+  }
+});
 ```
 
 ## Action Stubbing
 
 ### Stubbing Limitations in Setup Stores
 
-`stubActions` only replaces actions on the store *instance*. In a **Setup store**, an action that calls another action via its closed-over function reference bypasses the stub:
+`stubActions` only replaces actions on the store _instance_. In a **Setup store**, an action that calls another action via its closed-over function reference bypasses the stub:
 
 ```js
 export const useCounterStore = defineStore('counter', () => {
-  function increment() { /* ... */ }
-
-  function incrementTwice() {
-    increment() // ❌ closed-over reference — stub never used
-    increment()
+  function increment() {
+    /* ... */
   }
 
-  return { increment, incrementTwice }
-})
+  function incrementTwice() {
+    increment(); // ❌ closed-over reference — stub never used
+    increment();
+  }
+
+  return { increment, incrementTwice };
+});
 ```
 
 Stubbing affects `store.increment()` but not the internal calls in `incrementTwice()`. **Options stores don't have this issue** — internal `this.increment()` calls go through the store instance and hit the stub.
@@ -118,16 +123,16 @@ To make an internal call stubbable in a Setup store, route it through the store 
 
 ```js
 function incrementTwice() {
-  const store = useCounterStore()
-  store.increment() // ✅ goes through the store, uses the stub
-  store.increment()
+  const store = useCounterStore();
+  store.increment(); // ✅ goes through the store, uses the stub
+  store.increment();
 }
 ```
 
 ### Execute Real Actions
 
 ```ts
-createTestingPinia({ stubActions: false })
+createTestingPinia({ stubActions: false });
 ```
 
 ### Selective Stubbing
@@ -135,25 +140,25 @@ createTestingPinia({ stubActions: false })
 ```ts
 // Only stub specific actions
 createTestingPinia({
-  stubActions: ['increment', 'reset'],
-})
+  stubActions: ['increment', 'reset']
+});
 
 // Or use a function
 createTestingPinia({
   stubActions: (actionName, store) => {
-    if (actionName.startsWith('set')) return true
-    return false
-  },
-})
+    if (actionName.startsWith('set')) return true;
+    return false;
+  }
+});
 ```
 
 ### Mock Action Return Values
 
 ```ts
-import type { Mock } from 'vitest'
+import type { Mock } from 'vitest';
 
 // After getting store
-store.someAction.mockResolvedValue('mocked value')
+store.someAction.mockResolvedValue('mocked value');
 ```
 
 ## Mocking Getters
@@ -161,14 +166,14 @@ store.someAction.mockResolvedValue('mocked value')
 Getters are writable in tests:
 
 ```ts
-const pinia = createTestingPinia()
-const counter = useCounterStore(pinia)
+const pinia = createTestingPinia();
+const counter = useCounterStore(pinia);
 
-counter.double = 3 // Override computed value
+counter.double = 3; // Override computed value
 
 // Reset to default behavior
-counter.double = undefined
-counter.double // Now computed normally
+counter.double = undefined;
+counter.double; // Now computed normally
 ```
 
 ## Custom Spy Function
@@ -176,21 +181,21 @@ counter.double // Now computed normally
 If not using Jest/Vitest with globals:
 
 ```ts
-import { vi } from 'vitest'
+import { vi } from 'vitest';
 
 createTestingPinia({
-  createSpy: vi.fn,
-})
+  createSpy: vi.fn
+});
 ```
 
 With Sinon:
 
 ```ts
-import sinon from 'sinon'
+import sinon from 'sinon';
 
 createTestingPinia({
-  createSpy: sinon.spy,
-})
+  createSpy: sinon.spy
+});
 ```
 
 ## Pinia Plugins in Tests
@@ -198,12 +203,12 @@ createTestingPinia({
 Pass plugins to `createTestingPinia()`:
 
 ```ts
-import { somePlugin } from '../src/stores/plugin'
+import { somePlugin } from '../src/stores/plugin';
 
 createTestingPinia({
   stubActions: false,
-  plugins: [somePlugin],
-})
+  plugins: [somePlugin]
+});
 ```
 
 **Don't use** `testingPinia.use(MyPlugin)` - pass plugins in options.
@@ -211,24 +216,29 @@ createTestingPinia({
 ## Type-Safe Mocked Store
 
 ```ts
-import type { Mock } from 'vitest'
-import type { Store, StoreDefinition } from 'pinia'
+import type { Store, StoreDefinition } from 'pinia';
+import type { Mock } from 'vitest';
 
 function mockedStore<TStoreDef extends () => unknown>(
   useStore: TStoreDef
 ): TStoreDef extends StoreDefinition<infer Id, infer State, infer Getters, infer Actions>
-  ? Store<Id, State, Record<string, never>, {
-      [K in keyof Actions]: Actions[K] extends (...args: any[]) => any
-        ? Mock<Actions[K]>
-        : Actions[K]
-    }>
+  ? Store<
+      Id,
+      State,
+      Record<string, never>,
+      {
+        [K in keyof Actions]: Actions[K] extends (...args: any[]) => any
+          ? Mock<Actions[K]>
+          : Actions[K];
+      }
+    >
   : ReturnType<TStoreDef> {
-  return useStore() as any
+  return useStore() as any;
 }
 
 // Usage
-const store = mockedStore(useSomeStore)
-store.someAction.mockResolvedValue('value') // Typed!
+const store = mockedStore(useSomeStore);
+store.someAction.mockResolvedValue('value'); // Typed!
 ```
 
 ## E2E Tests

@@ -1,10 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "planId": "magic-refactor-sample-001",
-  "targetFiles": [
-    "src/features/combat/combatEngine.ts",
-    "src/ui/components/CombatHud.vue"
-  ],
+  "targetFiles": ["src/features/combat/combatEngine.ts", "src/ui/components/CombatHud.vue"],
   "declarations": [
     {
       "name": "DEFAULT_ATTACK_TIMEOUT_MS",
