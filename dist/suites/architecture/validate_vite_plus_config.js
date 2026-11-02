@@ -1,13 +1,12 @@
-import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
-import { normalizePosixPath } from "../../core/reportUtils.js";
+import { DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
-import { getAllowedSatellitePathExcludes } from "../../core/satelliteGlobMatcher.js";
-import { detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots } from "../../core/viteConfigAst.js";
+import "../../core/satelliteGlobMatcher.js";
+import { buildAllowedCoverageExcludes, detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -1170,16 +1169,7 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 	});
 	if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
 		const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
-		const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
-		const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-		const rawAllowedGlobs = [
-			"**/*.d.ts",
-			...srcRoots.map((r) => `${normalizePosixPath(r)}/**/*.d.ts`),
-			...getAllowedSatellitePathExcludes(auditConfig, projectRoot ?? process.cwd()),
-			...(auditConfig.testCoverage?.exemptGlobs ?? []).map((p) => normalizePosixPath(p)),
-			...coverageExemptGlobs.map((p) => normalizePosixPath(p))
-		];
-		const allowedCoverageExcludes = new Set(rawAllowedGlobs);
+		const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
 		for (const pattern of summary.testCoverageExclude) if (!isPatternContainedInGlobs(pattern, allowedCoverageExcludes, effectiveGlobs)) findings.push({
 			suiteId: "validate_vite_plus_config",
 			suiteName: "Vite+ Unified Configuration Validator",
@@ -1360,6 +1350,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 		} : VITE_PLUS_CONFIG_REQUIREMENT;
 		super({
 			ruleFixers: {},
+			fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
 			usesThirdPartyTool: false,
 			requiredPermissions: [],
 			ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
@@ -1539,7 +1530,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 				line: f.line ?? 1,
 				context: f.context ?? "vite-plus-undeclared-config-entry",
 				message: f.message,
-				fixable: false
+				fixable: true
 			});
 		});
 		this.runSubAuditorSync("vite-plus-inline-plugins-detected", () => {

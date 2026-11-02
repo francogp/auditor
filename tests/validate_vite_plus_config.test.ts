@@ -1446,5 +1446,140 @@ export default defineConfig({
       expect(inlinePluginFinding).toBeDefined();
       expect(inlinePluginFinding?.message).toContain('Inline Vite plugins detected');
     });
+
+    it('C-CFG-63: auto-fix modularizes functional defineConfig, removing local variable and avoiding shadowing', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        import vue from '@vitejs/plugin-vue';
+
+        export default defineConfig(({ mode }) => {
+          const plugins = [vue()];
+          return {
+            plugins,
+            lint: {
+              options: { typeAware: true, typeCheck: true },
+              rules: {}
+            },
+            fmt: {},
+            staged: {},
+            test: { include: ['tests/**/*.test.ts'] }
+          };
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const vitePluginsPath = path.join(tempDir, 'vite.plugins.ts');
+      expect(fs.existsSync(vitePluginsPath)).toBe(true);
+      const vitePluginsContent = fs.readFileSync(vitePluginsPath, 'utf-8');
+      expect(vitePluginsContent).toContain("import vue from '@vitejs/plugin-vue'");
+      expect(vitePluginsContent).toContain('export const plugins: PluginOption[] = [vue()];');
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+      expect(updatedConfig).not.toContain('const plugins =');
+      expect(updatedConfig).toContain('plugins,');
+    });
+
+    it('C-CFG-64: auto-fix migrates plugins.push and conditional push statements from vite.config.ts', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        import vue from '@vitejs/plugin-vue';
+
+        export default defineConfig(({ mode }) => {
+          const plugins = [vue()];
+          if (mode !== 'test') {
+            plugins.push(vue());
+          }
+          return {
+            plugins,
+            lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+            fmt: {},
+            staged: {},
+            test: { include: ['tests/**/*.test.ts'] }
+          };
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).not.toContain('plugins.push');
+      expect(updatedConfig).not.toContain("mode !== 'test'");
+      expect(updatedConfig).not.toContain('const plugins =');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+    });
+
+    it('C-CFG-65: auto-fix prunes unused type PluginOption from vite-plus import when plugins are modularized', async () => {
+      const rawViteConfig = `
+        import { defineConfig, type PluginOption } from 'vite-plus';
+        import vue from '@vitejs/plugin-vue';
+
+        export default defineConfig({
+          plugins: [vue()],
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).not.toContain('PluginOption');
+      expect(updatedConfig).toContain("import { defineConfig } from 'vite-plus'");
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+    });
+
+    it('C-CFG-66: auto-fix prunes unsynchronized patterns from test.coverage.exclude', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        import { plugins } from './vite.plugins.ts';
+
+        export default defineConfig({
+          plugins,
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: {
+            include: ['tests/**/*.test.ts'],
+            coverage: {
+              reportsDirectory: 'scratch/coverage',
+              provider: 'v8',
+              exclude: ['**/*.d.ts', '**/*.md', '**/*.json', '**/*.scss']
+            }
+          }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+      fs.writeFileSync(
+        path.join(tempDir, 'vite.plugins.ts'),
+        "import type { PluginOption } from 'vite-plus';\nexport const plugins: PluginOption[] = [];\n",
+        'utf-8'
+      );
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("'**/*.d.ts'");
+      expect(updatedConfig).not.toContain("'**/*.md'");
+      expect(updatedConfig).not.toContain("'**/*.json'");
+      expect(updatedConfig).not.toContain("'**/*.scss'");
+
+      const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const secondResult = await secondAuditor.audit();
+      const coverageFindings = secondResult.findings.filter(
+        (f) => f.ruleId === 'vite-plus-undeclared-config-entry'
+      );
+      expect(coverageFindings).toHaveLength(0);
+    });
   });
 });

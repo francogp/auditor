@@ -188,7 +188,7 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 		currentContent = pluginExtraction.viteConfigContent;
 		pluginsExtracted = true;
 	}
-	const synced = synchronizeViteConfigAst(currentContent, config, lintIgnores, fmtIgnores, legacyTestProp);
+	const synced = synchronizeViteConfigAst(currentContent, config, lintIgnores, fmtIgnores, legacyTestProp, projectRoot);
 	if (synced.modified || pluginsExtracted) {
 		fs.writeFileSync(viteConfigPath, synced.content, "utf-8");
 		return {

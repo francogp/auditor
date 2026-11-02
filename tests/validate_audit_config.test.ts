@@ -913,6 +913,32 @@ export default defineAuditConfig({
     );
   });
 
+  it('auto-fixes unknown/legacy top-level sections like presets from audit.config.ts', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'] },
+  ${BASE_TEST_CONFIG_SECTIONS},
+  presets: ['strict']
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await auditor.fix();
+
+    const repairedContent = await fs.readFile(
+      path.join(tempDir, '.auditor', 'audit.config.ts'),
+      'utf-8'
+    );
+    expect(repairedContent).not.toContain('presets');
+    expect(repairedContent).toContain("name: 'test-app'");
+    expect(repairedContent).toContain('valibot:');
+  });
+
   it('detects legacy paths.constantsRoots and reports audit-config-unknown-field', async () => {
     const configContent = `
 import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';

@@ -17,7 +17,10 @@ import {
   DEFAULT_VITE_PLUS_AUDIT_CONFIG
 } from './auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from './auditConfigTypes.ts';
+import { getEffectiveIgnoreGlobs } from './canonicalIgnoreRegistry.ts';
+import { isPatternContainedInGlobs } from './globContainment.ts';
 import { isPathContained, normalizePosixPath, stripGlobSuffix } from './safePath.ts';
+import { getAllowedSatellitePathExcludes } from './satelliteGlobMatcher.ts';
 
 function normalizePosixRoot(rawRoot: string): string {
   return (stripGlobSuffix(normalizePosixPath(rawRoot)) || '.').toLowerCase();
@@ -1299,9 +1302,108 @@ function syncTestIncludeAst(
   return { props, modified };
 }
 
+export function buildAllowedCoverageExcludes(
+  auditConfig: AuditConfig,
+  projectRoot?: string
+): Set<string> {
+  const root = projectRoot ?? process.cwd();
+  const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
+  const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
+  const rawAllowedGlobs: string[] = [
+    '**/*.d.ts',
+    ...srcRoots.map((r) => `${normalizePosixRoot(r)}/**/*.d.ts`),
+    ...getAllowedSatellitePathExcludes(auditConfig, root),
+    ...(auditConfig.testCoverage?.exemptGlobs ?? []).map((p) => normalizePosixPath(p)),
+    ...coverageExemptGlobs.map((p) => normalizePosixPath(p))
+  ];
+  return new Set<string>(rawAllowedGlobs);
+}
+
+function syncCoverageCorePropertiesAst(
+  covObj: ts.ObjectLiteralExpression,
+  sf: ts.SourceFile
+): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
+  let covProps = [...covObj.properties];
+  let covModified = false;
+
+  const repDirProp = findPropertyAssignment(covObj, 'reportsDirectory', sf);
+  const repVal = repDirProp ? astExpressionToValue(repDirProp.initializer, sf) : null;
+  if (!repDirProp || (typeof repVal === 'string' && repVal !== 'scratch/coverage')) {
+    covProps = updateObjectProperty(
+      covProps,
+      'reportsDirectory',
+      ts.factory.createStringLiteral('scratch/coverage', true),
+      sf
+    );
+    covModified = true;
+  }
+
+  const providerProp = findPropertyAssignment(covObj, 'provider', sf);
+  if (!providerProp) {
+    covProps = updateObjectProperty(
+      covProps,
+      'provider',
+      ts.factory.createStringLiteral('v8', true),
+      sf
+    );
+    covModified = true;
+  }
+
+  return { props: covProps, modified: covModified };
+}
+
+function syncCoverageExcludePropertyAst(
+  covProps: ts.ObjectLiteralElementLike[],
+  covObj: ts.ObjectLiteralExpression,
+  auditConfig: AuditConfig,
+  sf: ts.SourceFile,
+  projectRoot?: string
+): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
+  const excludeProp = findPropertyAssignment(covObj, 'exclude', sf);
+  if (!excludeProp || !ts.isArrayLiteralExpression(excludeProp.initializer)) {
+    return { props: covProps, modified: false };
+  }
+
+  const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
+  const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
+  const remainingElements: ts.Expression[] = [];
+  let excludeModified = false;
+
+  for (const el of excludeProp.initializer.elements) {
+    const text = astExpressionToValue(el, sf);
+    if (typeof text !== 'string') {
+      remainingElements.push(el);
+      continue;
+    }
+    if (isPatternContainedInGlobs(text, allowedCoverageExcludes, effectiveGlobs)) {
+      remainingElements.push(el);
+    } else {
+      excludeModified = true;
+    }
+  }
+
+  if (!excludeModified) {
+    return { props: covProps, modified: false };
+  }
+
+  const finalElements =
+    remainingElements.length > 0
+      ? remainingElements
+      : [ts.factory.createStringLiteral('**/*.d.ts', true)];
+  const updatedProps = updateObjectProperty(
+    covProps,
+    'exclude',
+    ts.factory.createArrayLiteralExpression(finalElements, true),
+    sf
+  );
+  return { props: updatedProps, modified: true };
+}
+
 function syncTestCoverageAst(
   props: ts.ObjectLiteralElementLike[],
-  sf: ts.SourceFile
+  auditConfig: AuditConfig,
+  sf: ts.SourceFile,
+  projectRoot?: string
 ): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
   const coverageProp = findPropertyAssignment(
     ts.factory.createObjectLiteralExpression(props, true),
@@ -1326,48 +1428,34 @@ function syncTestCoverageAst(
     };
   }
 
-  if (ts.isObjectLiteralExpression(coverageProp.initializer)) {
-    const covObj = coverageProp.initializer;
-    let covProps = [...covObj.properties];
-    let covModified = false;
-
-    const repDirProp = findPropertyAssignment(covObj, 'reportsDirectory', sf);
-    const repVal = repDirProp ? astExpressionToValue(repDirProp.initializer, sf) : null;
-    if (!repDirProp || (typeof repVal === 'string' && repVal !== 'scratch/coverage')) {
-      covProps = updateObjectProperty(
-        covProps,
-        'reportsDirectory',
-        ts.factory.createStringLiteral('scratch/coverage', true),
-        sf
-      );
-      covModified = true;
-    }
-
-    const providerProp = findPropertyAssignment(covObj, 'provider', sf);
-    if (!providerProp) {
-      covProps = updateObjectProperty(
-        covProps,
-        'provider',
-        ts.factory.createStringLiteral('v8', true),
-        sf
-      );
-      covModified = true;
-    }
-
-    if (covModified) {
-      return {
-        props: updateObjectProperty(
-          props,
-          'coverage',
-          ts.factory.createObjectLiteralExpression(covProps, true),
-          sf
-        ),
-        modified: true
-      };
-    }
+  if (!ts.isObjectLiteralExpression(coverageProp.initializer)) {
+    return { props, modified: false };
   }
 
-  return { props, modified: false };
+  const covObj = coverageProp.initializer;
+  const coreRes = syncCoverageCorePropertiesAst(covObj, sf);
+  const excludeRes = syncCoverageExcludePropertyAst(
+    coreRes.props,
+    covObj,
+    auditConfig,
+    sf,
+    projectRoot
+  );
+
+  const modified = coreRes.modified || excludeRes.modified;
+  if (!modified) {
+    return { props, modified: false };
+  }
+
+  return {
+    props: updateObjectProperty(
+      props,
+      'coverage',
+      ts.factory.createObjectLiteralExpression(excludeRes.props, true),
+      sf
+    ),
+    modified: true
+  };
 }
 
 function toTestGlobPattern(root: string): string {
@@ -1489,7 +1577,8 @@ function syncTestProjectsAst(
 function syncTestSectionAst(
   testObj: ts.ObjectLiteralExpression,
   auditConfig: AuditConfig,
-  sf: ts.SourceFile
+  sf: ts.SourceFile,
+  projectRoot?: string
 ): { obj: ts.ObjectLiteralExpression; modified: boolean } {
   const dedup = deduplicateObjectProperties(testObj.properties, sf);
   let props = dedup.props;
@@ -1524,7 +1613,7 @@ function syncTestSectionAst(
     if (includeRes.modified) modified = true;
   }
 
-  const covRes = syncTestCoverageAst(props, sf);
+  const covRes = syncTestCoverageAst(props, auditConfig, sf, projectRoot);
   props = covRes.props;
   if (covRes.modified) modified = true;
 
@@ -1593,7 +1682,8 @@ export function synchronizeViteConfigAst(
   auditConfig: AuditConfig,
   lintIgnores: readonly string[],
   fmtIgnores: readonly string[],
-  legacyTestProp: ts.PropertyAssignment | null
+  legacyTestProp: ts.PropertyAssignment | null,
+  projectRoot?: string
 ): { content: string; modified: boolean } {
   const sf = parseTsSourceFile(fileContent);
   const rootObj = findConfigRootObject(sf);
@@ -1622,7 +1712,7 @@ export function synchronizeViteConfigAst(
     rootProps = [...rootProps, newTestProp];
     modified = true;
   } else {
-    const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf);
+    const syncedTest = syncTestSectionAst(testProp.initializer, auditConfig, sf, projectRoot);
     if (syncedTest.modified) {
       rootProps = updateObjectProperty(rootProps, 'test', syncedTest.obj, sf);
       modified = true;
@@ -1804,17 +1894,150 @@ function collectIdentifiersInNode(node: ts.Node): Set<string> {
   return ids;
 }
 
-/**
- * Detects whether vite.config.ts contains inline Vite plugins vs modular vite.plugins.ts.
- */
-export function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDetection {
-  const hasVitePluginsImport = sf.statements.some(
+function findVariableStatementForName(
+  rootNode: ts.Node,
+  varName: string
+): ts.VariableStatement | null {
+  let found: ts.VariableStatement | null = null;
+  function walk(node: ts.Node): void {
+    if (found) return;
+    if (
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some(
+        (decl) => ts.isIdentifier(decl.name) && decl.name.text === varName
+      )
+    ) {
+      found = node;
+      return;
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(rootNode);
+  return found;
+}
+
+function isPluginsPushCall(expr: ts.Expression, varName: string): boolean {
+  if (!ts.isCallExpression(expr)) return false;
+  const callee = expr.expression;
+  if (!ts.isPropertyAccessExpression(callee)) return false;
+  return (
+    ts.isIdentifier(callee.expression) &&
+    callee.expression.text === varName &&
+    callee.name.text === 'push'
+  );
+}
+
+function hasPluginsPushInNode(root: ts.Node, varName: string): boolean {
+  let found = false;
+  function walk(node: ts.Node): void {
+    if (found) return;
+    if (ts.isCallExpression(node) && isPluginsPushCall(node, varName)) {
+      found = true;
+      return;
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(root);
+  return found;
+}
+
+function collectPluginsPushArguments(root: ts.Node, varName: string, sf: ts.SourceFile): string[] {
+  const args: string[] = [];
+  function walk(node: ts.Node): void {
+    if (ts.isCallExpression(node) && isPluginsPushCall(node, varName)) {
+      for (const arg of node.arguments) {
+        args.push(arg.getText(sf));
+      }
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(root);
+  return args;
+}
+
+function shouldRemovePluginStatement(
+  stmt: ts.Statement,
+  varStmtToRemove: ts.Statement | null,
+  varName: string | null
+): boolean {
+  if (varStmtToRemove && stmt === varStmtToRemove) return true;
+  if (!varName) return false;
+  if (ts.isExpressionStatement(stmt) && isPluginsPushCall(stmt.expression, varName)) {
+    return true;
+  }
+  if (ts.isIfStatement(stmt)) {
+    if (
+      ts.isExpressionStatement(stmt.thenStatement) &&
+      isPluginsPushCall(stmt.thenStatement.expression, varName)
+    ) {
+      return !stmt.elseStatement;
+    }
+    if (ts.isBlock(stmt.thenStatement)) {
+      const blockStmts = stmt.thenStatement.statements;
+      if (
+        blockStmts.length > 0 &&
+        blockStmts.every(
+          (s) => ts.isExpressionStatement(s) && isPluginsPushCall(s.expression, varName)
+        )
+      ) {
+        return !stmt.elseStatement;
+      }
+    }
+  }
+  return false;
+}
+
+function isPluginOptionUsedElsewhere(
+  sf: ts.SourceFile,
+  varStmtToRemove: ts.Statement | null
+): boolean {
+  let count = 0;
+  function walk(node: ts.Node): void {
+    if (varStmtToRemove && node === varStmtToRemove) return;
+    if (ts.isImportSpecifier(node) && node.name.text === 'PluginOption') return;
+    if (ts.isIdentifier(node) && node.text === 'PluginOption') {
+      count++;
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(sf);
+  return count > 0;
+}
+
+function combinePluginsExpressions(
+  baseExprText: string,
+  pushedPluginTexts: readonly string[]
+): string {
+  if (pushedPluginTexts.length === 0) return baseExprText;
+  const trimmed = baseExprText.trim();
+  if (trimmed === '[]') {
+    return `[\n  ${pushedPluginTexts.join(',\n  ')}\n]`;
+  }
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    const inner = trimmed.slice(1, -1).trim();
+    if (!inner) {
+      return `[\n  ${pushedPluginTexts.join(',\n  ')}\n]`;
+    }
+    return `[\n  ${inner},\n  ${pushedPluginTexts.join(',\n  ')}\n]`;
+  }
+  return `[\n  ...${trimmed},\n  ${pushedPluginTexts.join(',\n  ')}\n]`;
+}
+
+function hasVitePluginsImportDeclaration(sf: ts.SourceFile): boolean {
+  return sf.statements.some(
     (stmt) =>
       ts.isImportDeclaration(stmt) &&
       ts.isStringLiteral(stmt.moduleSpecifier) &&
       (stmt.moduleSpecifier.text === './vite.plugins.ts' ||
         stmt.moduleSpecifier.text === './vite.plugins')
   );
+}
+
+/**
+ * Detects whether vite.config.ts contains inline Vite plugins vs modular vite.plugins.ts.
+ */
+export function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDetection {
+  const hasVitePluginsImport = hasVitePluginsImportDeclaration(sf);
 
   const rootObj = findConfigRootObject(sf);
   if (!rootObj) {
@@ -1836,6 +2059,9 @@ export function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDet
     return { hasPlugins: false, isAlreadyModular: false, hasInlinePlugins: false };
   }
 
+  const localPluginsVar = findVariableStatementForName(sf, 'plugins');
+  const hasPluginsPush = hasPluginsPushInNode(sf, 'plugins');
+
   if (hasVitePluginsImport) {
     const isShorthand = ts.isShorthandPropertyAssignment(pluginsProperty);
     const isIdentifierMatch =
@@ -1843,7 +2069,7 @@ export function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDet
       ts.isIdentifier(pluginsProperty.initializer) &&
       pluginsProperty.initializer.text === 'plugins';
 
-    if (isShorthand || isIdentifierMatch) {
+    if ((isShorthand || isIdentifierMatch) && !localPluginsVar && !hasPluginsPush) {
       return {
         hasPlugins: true,
         isAlreadyModular: true,
@@ -1886,7 +2112,7 @@ export function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDet
   return {
     hasPlugins: true,
     isAlreadyModular: false,
-    hasInlinePlugins: false,
+    hasInlinePlugins: Boolean(localPluginsVar || hasPluginsPush),
     pluginsProperty
   };
 }
@@ -1913,7 +2139,12 @@ function extractImportedNames(importClause?: ts.ImportClause): string[] {
 function resolvePluginsExpressionAndVariable(
   sf: ts.SourceFile,
   pluginProp: ts.ObjectLiteralElementLike
-): { pluginsExprText: string; varStmtToRemove: ts.Statement | null } {
+): {
+  pluginsExprText: string;
+  varStmtToRemove: ts.Statement | null;
+  pushedPluginTexts: string[];
+  pluginVarName: string | null;
+} {
   let pluginsExprText = '[]';
   let varName: string | null = null;
 
@@ -1935,29 +2166,29 @@ function resolvePluginsExpressionAndVariable(
     }
   }
 
-  if (!varName) {
-    return { pluginsExprText, varStmtToRemove: null };
-  }
-
-  const foundStmt = sf.statements.find(
-    (stmt) =>
-      ts.isVariableStatement(stmt) &&
-      stmt.declarationList.declarations.some(
-        (decl) => ts.isIdentifier(decl.name) && decl.name.text === varName
-      )
-  );
+  const effectiveVarName = varName ?? 'plugins';
+  const foundStmt = findVariableStatementForName(sf, effectiveVarName);
+  let varStmtToRemove: ts.Statement | null = null;
 
   if (foundStmt && ts.isVariableStatement(foundStmt)) {
     const decl = foundStmt.declarationList.declarations.find(
-      (d) => ts.isIdentifier(d.name) && d.name.text === varName
+      (d) => ts.isIdentifier(d.name) && d.name.text === effectiveVarName
     );
-    return {
-      pluginsExprText: decl?.initializer ? decl.initializer.getText(sf) : '[]',
-      varStmtToRemove: foundStmt
-    };
+    if (decl?.initializer) {
+      pluginsExprText = decl.initializer.getText(sf);
+    }
+    varStmtToRemove = foundStmt;
   }
 
-  return { pluginsExprText, varStmtToRemove: null };
+  const pushedPluginTexts = collectPluginsPushArguments(sf, effectiveVarName, sf);
+  const combinedPluginsExprText = combinePluginsExpressions(pluginsExprText, pushedPluginTexts);
+
+  return {
+    pluginsExprText: combinedPluginsExprText,
+    varStmtToRemove,
+    pushedPluginTexts,
+    pluginVarName: effectiveVarName
+  };
 }
 
 function isPluginModuleSpecifier(modSpec: string): boolean {
@@ -1970,22 +2201,47 @@ function isPluginModuleSpecifier(modSpec: string): boolean {
   );
 }
 
+function countIdentifierOccurrencesInRemovableStatements(
+  name: string,
+  sf: ts.SourceFile,
+  varStmtToRemove: ts.Statement | null,
+  pluginVarName: string | null
+): number {
+  let count = 0;
+  function walk(node: ts.Node): void {
+    if (ts.isStatement(node) && shouldRemovePluginStatement(node, varStmtToRemove, pluginVarName)) {
+      count += countIdentifierOccurrences(name, node);
+      return;
+    }
+    ts.forEachChild(node, walk);
+  }
+  walk(sf);
+  return count;
+}
+
 function isImportUsedElsewhere(
   names: readonly string[],
   sf: ts.SourceFile,
   stmt: ts.ImportDeclaration,
   varStmtToRemove: ts.Statement | null,
-  pluginProp: ts.ObjectLiteralElementLike
+  pluginProp: ts.ObjectLiteralElementLike,
+  pluginVarName: string | null
 ): boolean {
   for (const name of names) {
     const total = countIdentifierOccurrences(name, sf);
     const inImport = countIdentifierOccurrences(name, stmt);
-    const inPlugins =
-      (varStmtToRemove ? countIdentifierOccurrences(name, varStmtToRemove) : 0) +
-      (ts.isPropertyAssignment(pluginProp)
+    const inRemovable = countIdentifierOccurrencesInRemovableStatements(
+      name,
+      sf,
+      varStmtToRemove,
+      pluginVarName
+    );
+    const inProp =
+      ts.isPropertyAssignment(pluginProp) && !varStmtToRemove
         ? countIdentifierOccurrences(name, pluginProp.initializer)
-        : 0);
-    if (total > inImport + inPlugins) {
+        : 0;
+
+    if (total > inImport + inRemovable + inProp) {
       return true;
     }
   }
@@ -1996,7 +2252,8 @@ function categorizePluginImports(
   sf: ts.SourceFile,
   pluginIds: Set<string>,
   varStmtToRemove: ts.Statement | null,
-  pluginProp: ts.ObjectLiteralElementLike
+  pluginProp: ts.ObjectLiteralElementLike,
+  pluginVarName: string | null
 ): { movedImportStmts: Set<ts.ImportDeclaration>; pluginImportsForNewFile: string[] } {
   const movedImportStmts = new Set<ts.ImportDeclaration>();
   const pluginImportsForNewFile: string[] = [];
@@ -2023,7 +2280,8 @@ function categorizePluginImports(
       sf,
       stmt,
       varStmtToRemove,
-      pluginProp
+      pluginProp,
+      pluginVarName
     );
     if (!usedElsewhere) {
       movedImportStmts.add(stmt);
@@ -2081,9 +2339,10 @@ export function extractVitePluginsToModule(
     : false;
 
   const pluginProp = detection.pluginsProperty;
-  const { pluginsExprText, varStmtToRemove } = resolvePluginsExpressionAndVariable(sf, pluginProp);
+  const { pluginsExprText, varStmtToRemove, pushedPluginTexts, pluginVarName } =
+    resolvePluginsExpressionAndVariable(sf, pluginProp);
 
-  // Collect identifiers referenced inside the plugins expression or variable statement
+  // Collect identifiers referenced inside the plugins expression or variable statement or pushed plugins
   const pluginIds = new Set<string>();
   if (varStmtToRemove) {
     for (const id of collectIdentifiersInNode(varStmtToRemove)) pluginIds.add(id);
@@ -2091,13 +2350,18 @@ export function extractVitePluginsToModule(
   if (ts.isPropertyAssignment(pluginProp)) {
     for (const id of collectIdentifiersInNode(pluginProp.initializer)) pluginIds.add(id);
   }
+  for (const pushedText of pushedPluginTexts) {
+    const tempSf = parseTsSourceFile(pushedText, 'temp.ts');
+    for (const id of collectIdentifiersInNode(tempSf)) pluginIds.add(id);
+  }
 
   // Identify plugin imports to move or copy
   const { movedImportStmts, pluginImportsForNewFile } = categorizePluginImports(
     sf,
     pluginIds,
     varStmtToRemove,
-    pluginProp
+    pluginProp,
+    pluginVarName
   );
 
   let generatedPluginsContent: string | null = null;
@@ -2108,6 +2372,8 @@ export function extractVitePluginsToModule(
   }
 
   // Construct updated vite.config.ts
+  const hasVitePluginsImportAlready = hasVitePluginsImportDeclaration(sf);
+
   const newImportDecl = ts.factory.createImportDeclaration(
     undefined,
     ts.factory.createImportClause(
@@ -2128,11 +2394,12 @@ export function extractVitePluginsToModule(
   });
 
   const updatedRootObj = ts.factory.createObjectLiteralExpression(updatedProperties, true);
+  const shouldPrunePluginOption = !isPluginOptionUsedElsewhere(sf, varStmtToRemove);
 
   const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
     return (source) => {
       const newStatements: ts.Statement[] = [];
-      let importInjected = false;
+      let importInjected = hasVitePluginsImportAlready;
       let lastImportIdx = -1;
 
       for (let i = 0; i < source.statements.length; i++) {
@@ -2141,26 +2408,79 @@ export function extractVitePluginsToModule(
         }
       }
 
+      function visitSubtree(node: ts.Node): ts.Node | undefined {
+        if (
+          ts.isStatement(node) &&
+          shouldRemovePluginStatement(node, varStmtToRemove, pluginVarName)
+        ) {
+          return undefined;
+        }
+        if (node === rootObj) {
+          return updatedRootObj;
+        }
+        if (ts.isBlock(node)) {
+          const remainingStmts: ts.Statement[] = [];
+          for (const childStmt of node.statements) {
+            if (shouldRemovePluginStatement(childStmt, varStmtToRemove, pluginVarName)) {
+              continue;
+            }
+            const visited = visitSubtree(childStmt);
+            if (visited && ts.isStatement(visited)) {
+              remainingStmts.push(visited);
+            }
+          }
+          return ts.factory.updateBlock(node, remainingStmts);
+        }
+        return ts.visitEachChild(node, visitSubtree, context);
+      }
+
       for (let i = 0; i < source.statements.length; i++) {
-        const stmt = source.statements[i]!;
+        let stmt = source.statements[i]!;
 
         if (movedImportStmts.has(stmt as ts.ImportDeclaration)) {
           continue;
         }
-        if (varStmtToRemove && stmt === varStmtToRemove) {
+        if (shouldRemovePluginStatement(stmt, varStmtToRemove, pluginVarName)) {
           continue;
         }
 
-        function visitSubtree(node: ts.Node): ts.Node {
-          if (node === rootObj) {
-            return updatedRootObj;
+        // Prune unused type PluginOption from vite-plus / vite import if present
+        if (
+          shouldPrunePluginOption &&
+          ts.isImportDeclaration(stmt) &&
+          ts.isStringLiteral(stmt.moduleSpecifier) &&
+          (stmt.moduleSpecifier.text === 'vite-plus' || stmt.moduleSpecifier.text === 'vite') &&
+          stmt.importClause?.namedBindings &&
+          ts.isNamedImports(stmt.importClause.namedBindings)
+        ) {
+          const remainingSpecifiers = stmt.importClause.namedBindings.elements.filter(
+            (spec) => spec.name.text !== 'PluginOption'
+          );
+          if (remainingSpecifiers.length !== stmt.importClause.namedBindings.elements.length) {
+            if (remainingSpecifiers.length > 0) {
+              stmt = ts.factory.updateImportDeclaration(
+                stmt,
+                stmt.modifiers,
+                ts.factory.updateImportClause(
+                  stmt.importClause,
+                  stmt.importClause.isTypeOnly,
+                  stmt.importClause.name,
+                  ts.factory.updateNamedImports(
+                    stmt.importClause.namedBindings,
+                    remainingSpecifiers
+                  )
+                ),
+                stmt.moduleSpecifier,
+                stmt.attributes
+              );
+            }
           }
-          return ts.visitEachChild(node, visitSubtree, context);
         }
 
         const visitedStmt = visitSubtree(stmt);
-
-        newStatements.push(visitedStmt as ts.Statement);
+        if (visitedStmt && ts.isStatement(visitedStmt)) {
+          newStatements.push(visitedStmt);
+        }
 
         if (i === lastImportIdx && !importInjected) {
           newStatements.push(newImportDecl);

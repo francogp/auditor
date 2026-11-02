@@ -5,10 +5,7 @@ import path from 'node:path';
 // Explicit type dependency to target satellite configuration resolving Fallow coupling analysis
 import type _TargetViteConfig from '../../../vite.config.ts';
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import {
-  DEFAULT_AUDIT_CONFIG,
-  DEFAULT_VITE_PLUS_AUDIT_CONFIG
-} from '../../core/auditConfigDefaults.ts';
+import { DEFAULT_VITE_PLUS_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -17,12 +14,8 @@ import {
   createRuleCapabilities
 } from '../../core/auditorBase.ts';
 import { getEffectiveIgnoreGlobs } from '../../core/canonicalIgnoreRegistry.ts';
-import { toPosixRelative, isPathContained, normalizePosixPath } from '../../core/safePath.ts';
-import {
-  stripGlobSuffix,
-  isPatternContainedInGlobs,
-  getAllowedSatellitePathExcludes
-} from '../../core/satelliteGlobMatcher.ts';
+import { toPosixRelative, isPathContained } from '../../core/safePath.ts';
+import { stripGlobSuffix, isPatternContainedInGlobs } from '../../core/satelliteGlobMatcher.ts';
 import {
   extractParsedConfigSummary,
   isRuleValueCompliant,
@@ -30,6 +23,7 @@ import {
   CANONICAL_LINT_RULES_MAP,
   detectInlineVitePlugins,
   parseTsSourceFile,
+  buildAllowedCoverageExcludes,
   type ParsedVitePlusConfigSummary
 } from '../../core/viteConfigAst.ts';
 import {
@@ -1338,16 +1332,7 @@ function validateSynchronizedLintAndFmt(
 
   if (summary.testCoverageExclude && summary.testCoverageExclude.length > 0) {
     const effectiveGlobs = getEffectiveIgnoreGlobs(projectRoot ?? process.cwd());
-    const srcRoots = auditConfig.paths?.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots;
-    const coverageExemptGlobs = (auditConfig.coverage?.exemptGlobs ?? []).map((e) => e.glob);
-    const rawAllowedGlobs: string[] = [
-      '**/*.d.ts',
-      ...srcRoots.map((r) => `${normalizePosixPath(r)}/**/*.d.ts`),
-      ...getAllowedSatellitePathExcludes(auditConfig, projectRoot ?? process.cwd()),
-      ...(auditConfig.testCoverage?.exemptGlobs ?? []).map((p) => normalizePosixPath(p)),
-      ...coverageExemptGlobs.map((p) => normalizePosixPath(p))
-    ];
-    const allowedCoverageExcludes = new Set<string>(rawAllowedGlobs);
+    const allowedCoverageExcludes = buildAllowedCoverageExcludes(auditConfig, projectRoot);
 
     for (const pattern of summary.testCoverageExclude) {
       if (!isPatternContainedInGlobs(pattern, allowedCoverageExcludes, effectiveGlobs)) {
@@ -1670,6 +1655,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
 
     super({
       ruleFixers: {},
+      fixableRuleIds: [...VITE_PLUS_CONFIG_RULES],
       usesThirdPartyTool: false,
       requiredPermissions: [],
       ruleCapabilities: createRuleCapabilities(VITE_PLUS_CONFIG_RULES, {
@@ -1907,7 +1893,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
           line: f.line ?? 1,
           context: f.context ?? 'vite-plus-undeclared-config-entry',
           message: f.message,
-          fixable: false
+          fixable: true
         });
       }
     });

@@ -13,7 +13,6 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { SyntaxKind } from 'ts-morph';
 import ts from 'typescript';
 
 import { discoverAuditors, collectAllGitIgnoreRequirements } from '../../cli/auditScanner.ts';
@@ -56,7 +55,8 @@ enableCompileCache();
 import {
   appendMissingSectionsToConfigFile,
   syncAuditorVersionInTsFile,
-  mutateAuditConfigFileAst
+  removeAuditConfigPropertyAst,
+  migrateLegacyEslintSectionAst
 } from '../../core/auditConfigAst.ts';
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
@@ -576,7 +576,8 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-section',
         'audit-config-missing-file',
         'audit-config-missing-gitignore-entry',
-        'audit-config-critical-violation'
+        'audit-config-critical-violation',
+        'audit-config-unknown-field'
       ],
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -782,8 +783,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (typeof rawConfig !== 'object' || rawConfig === null) return;
 
     this.verifyUnknownTopLevelSections(rawConfig, tasks);
-    this.verifyUnknownPathsFields(rawConfig);
-    this.verifyUnknownConstantsFields(rawConfig);
+    this.verifyUnknownSubSectionFields(
+      'paths',
+      rawConfig.paths,
+      new Set(Object.keys(DEFAULT_AUDIT_CONFIG.paths))
+    );
+    this.verifyUnknownSubSectionFields(
+      'constants',
+      rawConfig.constants,
+      new Set(Object.keys(DEFAULT_AUDIT_CONFIG.constants ?? {}))
+    );
     this.verifyUnknownBundleFields(rawConfig);
   }
 
@@ -857,100 +866,50 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       }
     }
 
+    const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
     for (const key of Object.keys(rawConfig)) {
-      if (key.startsWith('_')) continue;
-      if (!validTopLevelKeys.has(key)) {
-        if (key === 'eslint' && this.isFixActive()) {
-          const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-          if (this.migrateLegacyEslintConfigSection(configFilePath)) continue;
-        }
-        this.addViolation({
-          ruleId: 'audit-config-unknown-field',
-          severity: 'error',
-          file: AUDIT_CONFIG_FILE,
-          line: 1,
-          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
-          context: key,
-          fixable: key === 'eslint'
-        });
+      if (key.startsWith('_') || validTopLevelKeys.has(key)) continue;
+      if (this.isFixActive()) {
+        const fixed =
+          key === 'eslint'
+            ? migrateLegacyEslintSectionAst(configFilePath)
+            : removeAuditConfigPropertyAst(configFilePath, key);
+        if (fixed) continue;
       }
+      this.addViolation({
+        ruleId: 'audit-config-unknown-field',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy top-level section "${key}". This section is not supported by @francogp/auditor. Please remove it.`,
+        context: key,
+        fixable: true
+      });
     }
   }
 
-  private migrateLegacyEslintConfigSection(configFilePath: string): boolean {
-    if (!fs.existsSync(configFilePath)) return false;
-
-    if (configFilePath.endsWith('.json')) {
-      try {
-        const text = fs.readFileSync(configFilePath, 'utf8');
-        const json = JSON.parse(text) as Record<string, unknown>;
-        if (!('eslint' in json)) return false;
-        json.oxlint = json.eslint;
-        delete json.eslint;
-        if (!('vitePlusConfig' in json)) {
-          json.vitePlusConfig = { enabled: true };
-        }
-        fs.writeFileSync(configFilePath, JSON.stringify(json, null, 2) + '\n', 'utf8');
-        return true;
-      } catch {
-        return false;
+  private verifyUnknownSubSectionFields(
+    sectionName: 'paths' | 'constants',
+    rawSection: unknown,
+    validKeys: Set<string>
+  ): void {
+    if (typeof rawSection !== 'object' || rawSection === null) return;
+    const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+    for (const key of Object.keys(rawSection)) {
+      if (validKeys.has(key)) continue;
+      const fieldPath = `${sectionName}.${key}`;
+      if (this.isFixActive() && removeAuditConfigPropertyAst(configFilePath, fieldPath)) {
+        continue;
       }
-    }
-
-    return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
-      const eslintProp = targetObj.getProperty('eslint');
-      if (!eslintProp) return false;
-
-      if (eslintProp.isKind(SyntaxKind.PropertyAssignment)) {
-        eslintProp.getNameNode().replaceWithText('oxlint');
-      }
-
-      if (!targetObj.getProperty('vitePlusConfig')) {
-        targetObj.addPropertyAssignment({
-          name: 'vitePlusConfig',
-          initializer: '{ enabled: true }'
-        });
-      }
-
-      return true;
-    });
-  }
-
-  private verifyUnknownPathsFields(rawConfig: Record<string, unknown>): void {
-    const rawPaths = rawConfig.paths;
-    if (typeof rawPaths !== 'object' || rawPaths === null) return;
-
-    const validPathKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.paths));
-    for (const key of Object.keys(rawPaths)) {
-      if (!validPathKeys.has(key)) {
-        this.addViolation({
-          ruleId: 'audit-config-unknown-field',
-          severity: 'error',
-          file: AUDIT_CONFIG_FILE,
-          line: 1,
-          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "paths.${key}". This field is not supported. Please remove it.`,
-          context: `paths.${key}`
-        });
-      }
-    }
-  }
-
-  private verifyUnknownConstantsFields(rawConfig: Record<string, unknown>): void {
-    const rawConstants = rawConfig.constants;
-    if (typeof rawConstants !== 'object' || rawConstants === null) return;
-
-    const validConstantsKeys = new Set(Object.keys(DEFAULT_AUDIT_CONFIG.constants ?? {}));
-    for (const key of Object.keys(rawConstants)) {
-      if (!validConstantsKeys.has(key)) {
-        this.addViolation({
-          ruleId: 'audit-config-unknown-field',
-          severity: 'error',
-          file: AUDIT_CONFIG_FILE,
-          line: 1,
-          message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "constants.${key}". This field is not supported. Please remove it.`,
-          context: `constants.${key}`
-        });
-      }
+      this.addViolation({
+        ruleId: 'audit-config-unknown-field',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: 1,
+        message: `Configuration error in ${AUDIT_CONFIG_FILE}: Unknown or legacy field "${fieldPath}". This field is not supported. Please remove it.`,
+        context: fieldPath,
+        fixable: true
+      });
     }
   }
 

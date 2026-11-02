@@ -35,9 +35,7 @@ export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigR
   private verifyUnknownFields;
   private verifyUnknownBundleFields;
   private verifyUnknownTopLevelSections;
-  private migrateLegacyEslintConfigSection;
-  private verifyUnknownPathsFields;
-  private verifyUnknownConstantsFields;
+  private verifyUnknownSubSectionFields;
   private verifyRequiredSections;
   private applyMissingSectionsFix;
   private reportMissingSectionViolations;

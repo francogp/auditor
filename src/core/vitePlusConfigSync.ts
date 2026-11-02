@@ -267,7 +267,8 @@ export function syncViteConfigWithAuditConfig(
     config,
     lintIgnores,
     fmtIgnores,
-    legacyTestProp
+    legacyTestProp,
+    projectRoot
   );
 
   if (synced.modified || pluginsExtracted) {

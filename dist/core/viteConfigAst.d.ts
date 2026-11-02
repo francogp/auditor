@@ -45,8 +45,9 @@ export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig
 export declare function detachNodeFromSourceFile<T extends ts.Node>(node: T): T;
 export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.PropertyAssignment | null;
 export declare function isRuleValueCompliant(ruleName: string, val: unknown): boolean;
+export declare function buildAllowedCoverageExcludes(auditConfig: AuditConfig, projectRoot?: string): Set<string>;
 export declare function printTransformedSourceFile(sf: ts.SourceFile, transformer: ts.TransformerFactory<ts.SourceFile>): string;
-export declare function synchronizeViteConfigAst(fileContent: string, auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProp: ts.PropertyAssignment | null): {
+export declare function synchronizeViteConfigAst(fileContent: string, auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProp: ts.PropertyAssignment | null, projectRoot?: string): {
   content: string;
   modified: boolean;
 };
