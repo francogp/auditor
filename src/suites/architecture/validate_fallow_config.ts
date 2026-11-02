@@ -72,6 +72,8 @@ export const FALLOW_CONFIG_RULES: readonly FallowConfigRuleId[] = [
   'fallow-undeclared-config-entry'
 ] as const;
 
+const FALLOW_CONFIG_EXECUTION_TIMEOUT_MS = 30000 as const;
+
 export function getBannedEntryGlobs(projectRoot?: string): readonly string[] {
   const config = getAuditConfig(projectRoot);
   const globs: string[] = [];
@@ -1125,17 +1127,22 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
         if (fallowBin) {
           const hasPackageJson = fs.existsSync(path.join(this.projectRoot, 'package.json'));
           const subcmd = hasPackageJson ? 'dead-code' : 'list --workspaces';
-          const stdout = execSync(
-            `node "${fallowBin}" ${subcmd} --format json --root "${this.projectRoot}"`,
-            {
-              encoding: 'utf8',
-              stdio: ['pipe', 'pipe', 'ignore'],
-              timeout: 10000
-            }
-          );
+          let stdout: string | undefined;
+          try {
+            stdout = execSync(
+              `node "${fallowBin}" ${subcmd} --no-type-aware --format json --root "${this.projectRoot}"`,
+              {
+                encoding: 'utf8',
+                stdio: ['pipe', 'pipe', 'ignore'],
+                timeout: FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
+              }
+            );
+          } catch (err: unknown) {
+            stdout = (err as { stdout?: string | Buffer })?.stdout?.toString();
+          }
           const parsed = safeJsonParse<{
             workspace_diagnostics?: FallowWorkspaceDiagnosticItem[];
-          }>(stdout);
+          }>(stdout ?? '');
           if (parsed?.workspace_diagnostics) {
             const diagModified = validateFallowWorkspaceDiagnostics(
               parsed.workspace_diagnostics,

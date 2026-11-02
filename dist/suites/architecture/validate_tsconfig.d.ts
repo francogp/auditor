@@ -14,6 +14,8 @@ export interface TsCompilerOptionsShape {
   noPropertyAccessFromIndexSignature?: boolean;
   exactOptionalPropertyTypes?: boolean;
   isolatedModules?: boolean;
+  incremental?: boolean;
+  tsBuildInfoFile?: string;
   skipLibCheck?: boolean;
   esModuleInterop?: boolean;
   resolveJsonModule?: boolean;

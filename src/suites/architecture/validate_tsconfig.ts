@@ -58,6 +58,8 @@ export interface TsCompilerOptionsShape {
   noPropertyAccessFromIndexSignature?: boolean;
   exactOptionalPropertyTypes?: boolean;
   isolatedModules?: boolean;
+  incremental?: boolean;
+  tsBuildInfoFile?: string;
   skipLibCheck?: boolean;
   esModuleInterop?: boolean;
   resolveJsonModule?: boolean;
@@ -85,6 +87,8 @@ export const CANONICAL_TSCONFIG: TsConfigShape = {
     verbatimModuleSyntax: true,
     useUnknownInCatchVariables: true,
     isolatedModules: true,
+    incremental: true,
+    tsBuildInfoFile: 'node_modules/.cache/tsbuildinfo',
     skipLibCheck: true,
     esModuleInterop: true,
     resolveJsonModule: true

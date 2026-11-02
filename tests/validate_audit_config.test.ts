@@ -33,6 +33,7 @@ const BASE_TEST_CONFIG_SECTIONS = `
   oxfmt: { enabled: true },
   vitePlusConfig: {
     enabled: true,
+    run: { cache: true },
     precompress: { enabled: false },
     fmt: { enabled: false },
     lint: { enabled: false },

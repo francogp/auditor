@@ -39,6 +39,7 @@ const FALLOW_CONFIG_RULES = [
 	"fallow-config-workspace-diagnostic",
 	"fallow-undeclared-config-entry"
 ];
+const FALLOW_CONFIG_EXECUTION_TIMEOUT_MS = 3e4;
 function getBannedEntryGlobs(projectRoot) {
 	const config = getAuditConfig(projectRoot);
 	const globs = [];
@@ -694,16 +695,21 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				const fallowBin = [path.resolve(this.projectRoot, "node_modules/fallow/bin/fallow"), path.resolve(process.cwd(), "node_modules/fallow/bin/fallow")].find((c) => fs.existsSync(c));
 				if (fallowBin) {
 					const subcmd = fs.existsSync(path.join(this.projectRoot, "package.json")) ? "dead-code" : "list --workspaces";
-					const stdout = execSync(`node "${fallowBin}" ${subcmd} --format json --root "${this.projectRoot}"`, {
-						encoding: "utf8",
-						stdio: [
-							"pipe",
-							"pipe",
-							"ignore"
-						],
-						timeout: 1e4
-					});
-					const parsed = safeJsonParse(stdout);
+					let stdout;
+					try {
+						stdout = execSync(`node "${fallowBin}" ${subcmd} --no-type-aware --format json --root "${this.projectRoot}"`, {
+							encoding: "utf8",
+							stdio: [
+								"pipe",
+								"pipe",
+								"ignore"
+							],
+							timeout: FALLOW_CONFIG_EXECUTION_TIMEOUT_MS
+						});
+					} catch (err) {
+						stdout = err?.stdout?.toString();
+					}
+					const parsed = safeJsonParse(stdout ?? "");
 					if (parsed?.workspace_diagnostics) {
 						if (validateFallowWorkspaceDiagnostics(parsed.workspace_diagnostics, this, validConfig) && this.isFixActive()) fs.writeFileSync(resolvedPath, JSON.stringify(validConfig, null, 2) + "\n", "utf-8");
 					}

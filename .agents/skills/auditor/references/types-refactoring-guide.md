@@ -3,11 +3,11 @@
 > [!IMPORTANT]
 > **Distinction Between CI Quality Gate & Interactive Refactor Tool**:
 >
-> - **`validate_type_check` & `validate_type_assertion_hygiene` (`npm run auditor`)**: CI static verification suites. Audits TypeScript compilation health and flags forbidden unsafe casts (`type-assertion-as-any`) in active code. If CI passes with 0 errors, there are no blocking typecheck errors.
+> - **`validate_oxlint` & `validate_type_assertion_hygiene` (`npm run auditor`)**: CI static verification suites. Audits TypeScript compilation health and type assertions via unified Vite+ (`packageName: 'Lint'`), flagging compiler errors and forbidden unsafe casts (`type-assertion-as-any`).
 > - **`auditor-types` (`npm run auditor:types`)**: Interactive type refactoring engine (`BaseRefactorEngine`). Discovers opportunities across the entire repository to annotate missing explicit return types on exported functions, replace forced double assertions (`as unknown as T`) with schema validation, and safely narrow loose payload casts.
 > - `npm run auditor` **NEVER** runs `auditor:types`. A project with 0 errors in CI can legitimately discover candidates in `auditor:types discover`. See [quality-gates-vs-refactor-engines.md](./quality-gates-vs-refactor-engines.md).
 
-The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, Dirac micro-context extraction, and deterministic plan-based remediation for loose type assertions, double casts, and omitted function return contracts governed by `validate_type_assertion_hygiene` and `validate_type_check`.
+The `auditor-types` CLI and `TypesRefactorEngine` provide automated discovery, Dirac micro-context extraction, and deterministic plan-based remediation for loose type assertions, double casts, and omitted function return contracts governed by `validate_type_assertion_hygiene` and `validate_oxlint`.
 
 ---
 
@@ -146,12 +146,12 @@ npm run auditor:types apply scratch/types-plan.json --worktree
 
 ## 4. Reaction Protocol: CI Error vs. Elective Typing Modernization
 
-### Scenario A: CI Quality Gate Error (`validate_type_check` / `validate_type_assertion_hygiene`)
+### Scenario A: CI Quality Gate Error (`validate_oxlint` / `validate_type_assertion_hygiene`)
 
 - **Trigger**: `npm run auditor` reports `type-assertion-as-any` or TypeScript compiler error.
 - **Strategic Phase**: Phase 4 (`contracts`).
 - **Action**: Formulate a **Correction Plan**. Replace `as any` with `as unknown` or introduce a proper type guard/schema. Never use comment escape hatches (`// type-ok:`) or cast to `as unknown as any`.
-- **Verification**: `npm run auditor -- suite=validate_type_check` -> Green.
+- **Verification**: `npm run auditor:type-check` -> Green.
 
 ### Scenario B: Elective Type Modernization (`auditor:types`)
 

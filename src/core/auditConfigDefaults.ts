@@ -193,10 +193,10 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   '@typescript-eslint/explicit-function-return-type': [
     'error',
     {
-      allowExpressions: true,
-      allowTypedFunctionExpressions: true,
-      allowHigherOrderFunctions: true,
-      allowDirectConstAssertionInArrowFunctions: true
+      allowExpressions: false,
+      allowTypedFunctionExpressions: false,
+      allowHigherOrderFunctions: false,
+      allowDirectConstAssertionInArrowFunctions: false
     }
   ],
   '@typescript-eslint/no-unused-vars': [
@@ -214,6 +214,9 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
 
 export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
   enabled: true,
+  run: {
+    cache: true
+  },
   precompress: {
     enabled: true,
     server: 'nginx',

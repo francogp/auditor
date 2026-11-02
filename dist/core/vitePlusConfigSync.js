@@ -5,7 +5,7 @@ import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
-import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
+import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst } from "./viteConfigAst.js";
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
@@ -177,6 +177,11 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
 	if (homebrewMigration.modified) {
 		currentContent = homebrewMigration.content;
+		pluginsExtracted = true;
+	}
+	const catchSanitized = sanitizeEmptyCatchClausesInViteConfig(currentContent);
+	if (catchSanitized.modified) {
+		currentContent = catchSanitized.content;
 		pluginsExtracted = true;
 	}
 	const pluginExtraction = extractVitePluginsToModule(currentContent, projectRoot);
@@ -408,11 +413,14 @@ const LEGACY_DEPS_TO_REMOVE = [
 	"eslint-plugin-vue",
 	"eslint-plugin-regexp",
 	"globals",
-	"vue-eslint-parser"
+	"vue-eslint-parser",
+	"vue-tsc"
 ];
-function removeLegacyDependencies(deps, devDeps) {
+function removeLegacyDependencies(deps, devDeps, scripts) {
 	let modified = false;
+	const isVueTscUsedInScripts = scripts ? Object.values(scripts).some((cmd) => typeof cmd === "string" && /\bvue-tsc\b/.test(cmd)) : false;
 	for (const dep of LEGACY_DEPS_TO_REMOVE) {
+		if (dep === "vue-tsc" && isVueTscUsedInScripts) continue;
 		if (devDeps && dep in devDeps) {
 			delete devDeps[dep];
 			modified = true;
@@ -603,7 +611,7 @@ function syncPackageJsonForVitePlus(projectRoot) {
 	const minVersions = getAuditorMinimumVersions();
 	const canonicalOverrides = getAuditorCanonicalOverrides();
 	if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) modified = true;
-	if (removeLegacyDependencies(nextDeps, nextDevDeps)) modified = true;
+	if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) modified = true;
 	if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) modified = true;
 	if (updateVitePlusScripts(nextScripts)) modified = true;
 	if (syncVitestDevDeps(nextDevDeps, nextScripts, minVersions)) modified = true;

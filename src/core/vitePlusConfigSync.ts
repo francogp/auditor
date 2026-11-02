@@ -31,6 +31,7 @@ import {
   extractVitePluginsToModule,
   parseLegacyTestPropertyNode,
   rewriteModuleSpecifiersToVitePlusAst,
+  sanitizeEmptyCatchClausesInViteConfig,
   synchronizeViteConfigAst
 } from './viteConfigAst.ts';
 
@@ -249,6 +250,12 @@ export function syncViteConfigWithAuditConfig(
   const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
   if (homebrewMigration.modified) {
     currentContent = homebrewMigration.content;
+    pluginsExtracted = true;
+  }
+
+  const catchSanitized = sanitizeEmptyCatchClausesInViteConfig(currentContent);
+  if (catchSanitized.modified) {
+    currentContent = catchSanitized.content;
     pluginsExtracted = true;
   }
 
@@ -564,15 +571,24 @@ const LEGACY_DEPS_TO_REMOVE = [
   'eslint-plugin-vue',
   'eslint-plugin-regexp',
   'globals',
-  'vue-eslint-parser'
+  'vue-eslint-parser',
+  'vue-tsc'
 ] as const;
 
 function removeLegacyDependencies(
   deps?: Record<string, string>,
-  devDeps?: Record<string, string>
+  devDeps?: Record<string, string>,
+  scripts?: Record<string, string>
 ): boolean {
   let modified = false;
+  const isVueTscUsedInScripts = scripts
+    ? Object.values(scripts).some((cmd) => typeof cmd === 'string' && /\bvue-tsc\b/.test(cmd))
+    : false;
+
   for (const dep of LEGACY_DEPS_TO_REMOVE) {
+    if (dep === 'vue-tsc' && isVueTscUsedInScripts) {
+      continue;
+    }
     if (devDeps && dep in devDeps) {
       delete devDeps[dep];
       modified = true;
@@ -831,7 +847,7 @@ export function syncPackageJsonForVitePlus(projectRoot: string): boolean {
   if (syncVitePlusDevDep(nextDeps, nextDevDeps, minVersions)) {
     modified = true;
   }
-  if (removeLegacyDependencies(nextDeps, nextDevDeps)) {
+  if (removeLegacyDependencies(nextDeps, nextDevDeps, nextScripts)) {
     modified = true;
   }
   if (syncPackageJsonOverrides(nextOverrides, canonicalOverrides, nextDevDeps, nextDeps)) {

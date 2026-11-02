@@ -1734,5 +1734,80 @@ export default defineConfig({
       expect(updatedPlugins).toContain('function extraPlugin(): Plugin');
       expect(updatedPlugins).toContain("import vue from '@vitejs/plugin-vue'");
     });
+
+    it('C-CFG-71: auto-fix injects run.cache: true and sanitizes empty catch {} blocks in vite.config.ts', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        try {
+          // Attempting dynamic configuration
+        } catch {}
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain('run: {');
+      expect(updatedConfig).toContain('cache: true');
+      expect(updatedConfig).not.toContain('catch {}');
+      expect(updatedConfig).toContain('/* fallback to default */');
+    });
+
+    it('C-CFG-72: auto-fix prunes vue-tsc from devDependencies when replaced by vp check', async () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify(
+          {
+            name: 'test-project',
+            version: '1.0.0',
+            scripts: {
+              check: 'vp check',
+              test: 'vp test'
+            },
+            devDependencies: {
+              'vite-plus': '^1.4.0',
+              'vue-tsc': '^2.2.0'
+            }
+          },
+          null,
+          2
+        ),
+        'utf-8'
+      );
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedPkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
+      expect(updatedPkg.devDependencies['vue-tsc']).toBeUndefined();
+    });
+
+    it('C-CFG-73: auto-fix injects explicit-function-return-type with allowExpressions: false', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("'@typescript-eslint/explicit-function-return-type'");
+      expect(updatedConfig).toContain('allowExpressions: false');
+    });
   });
 });

@@ -1,4 +1,4 @@
-import { AuditFinding, GitIgnoreRequirement, RuleFixContext } from "../../core/auditContract.js";
+import { AuditFinding, RuleFixContext } from "../../core/auditContract.js";
 import { RawLintFileReport, RawLintMessage } from "../../core/reportUtils.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const OXLINT_RULES: readonly ["oxlint-violation"];
@@ -41,7 +41,6 @@ export interface OxlintAuditorOptions {
   readonly projectRoot?: string;
 }
 export declare class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
-  static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[];
   constructor(options?: OxlintAuditorOptions);
   runAudit(): Promise<void>;
 }

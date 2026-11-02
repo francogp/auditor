@@ -695,7 +695,12 @@ export interface AuditVitePlusTestConfig extends BaseAuditSubsystemConfig {
   readonly projects?: AuditVitePlusTestProjects;
 }
 
+export interface AuditVitePlusRunConfig {
+  readonly cache?: boolean | Record<string, unknown>;
+}
+
 export interface AuditVitePlusConfig extends BaseAuditSubsystemConfig {
+  readonly run?: AuditVitePlusRunConfig;
   readonly precompress?: AuditVitePlusPrecompressConfig;
   readonly fmt?: AuditVitePlusFmtConfig;
   readonly lint?: AuditVitePlusLintConfig;

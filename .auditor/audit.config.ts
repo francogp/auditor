@@ -283,10 +283,10 @@ export default defineAuditConfig({
         '@typescript-eslint/explicit-function-return-type': [
           'error',
           {
-            allowExpressions: true,
-            allowTypedFunctionExpressions: true,
-            allowHigherOrderFunctions: true,
-            allowDirectConstAssertionInArrowFunctions: true
+            allowExpressions: false,
+            allowTypedFunctionExpressions: false,
+            allowHigherOrderFunctions: false,
+            allowDirectConstAssertionInArrowFunctions: false
           }
         ],
         '@typescript-eslint/no-unused-vars': [
@@ -364,6 +364,9 @@ export default defineAuditConfig({
       enabled: true,
       formatOnSave: true,
       defaultFormatter: 'oxc.oxc-vscode'
+    },
+    run: {
+      cache: true
     }
   },
   htmlValidate: {

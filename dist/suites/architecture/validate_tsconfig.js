@@ -43,6 +43,8 @@ const CANONICAL_TSCONFIG = {
 		verbatimModuleSyntax: true,
 		useUnknownInCatchVariables: true,
 		isolatedModules: true,
+		incremental: true,
+		tsBuildInfoFile: "node_modules/.cache/tsbuildinfo",
 		skipLibCheck: true,
 		esModuleInterop: true,
 		resolveJsonModule: true

@@ -58,7 +58,12 @@ export default defineConfig({
             'vue/no-deprecated-model-definition': 'error',
             'vue/no-required-prop-with-default': 'error',
             '@typescript-eslint/no-unused-vars': ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
-            '@typescript-eslint/explicit-function-return-type': ["error", { "allowExpressions": true, "allowTypedFunctionExpressions": true, "allowHigherOrderFunctions": true, "allowDirectConstAssertionInArrowFunctions": true }],
+            '@typescript-eslint/explicit-function-return-type': ['error', {
+                    allowExpressions: false,
+                    allowTypedFunctionExpressions: false,
+                    allowHigherOrderFunctions: false,
+                    allowDirectConstAssertionInArrowFunctions: false
+                }],
             '@typescript-eslint/explicit-member-accessibility': ["error", { "accessibility": "explicit" }],
             'vue/require-typed-ref': 'error',
             'vue/require-direct-export': 'error',
@@ -275,5 +280,8 @@ export default defineConfig({
     },
     staged: {
         '*': 'vp check --fix'
+    },
+    run: {
+        cache: true
     }
 });

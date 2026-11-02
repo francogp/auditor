@@ -41,6 +41,7 @@ export declare function resolveVitestRoots(auditConfig: AuditConfig): readonly s
 export declare function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function buildStagedAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function printAstNode(node: ts.Node, sf?: ts.SourceFile): string;
+export declare function buildRunAstObject(auditConfig?: AuditConfig): ts.ObjectLiteralExpression;
 export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null): string;
 export declare function detachNodeFromSourceFile<T extends ts.Node>(node: T): T;
 export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.PropertyAssignment | null;
@@ -78,4 +79,12 @@ export declare function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePl
  * Returns the transformed vite.config.ts and the generated vite.plugins.ts content.
  */
 export declare function extractVitePluginsToModule(viteConfigContent: string, projectRoot?: string): ExtractVitePluginsResult;
+/**
+ * Detects empty catch blocks (catch {}) in vite.config.ts and injects a fallback comment
+ * to satisfy strict linter hygiene (eslint no-empty).
+ */
+export declare function sanitizeEmptyCatchClausesInViteConfig(content: string): {
+  content: string;
+  modified: boolean;
+};
 export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP };

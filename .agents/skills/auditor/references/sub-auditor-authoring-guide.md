@@ -869,7 +869,7 @@ The framework enforces strict governance over execution speed across all suites 
 
 2. **Longest Processing Time First (Scheduler LPT)**:
    - When preparing the execution queue in `audit_full`, tasks are prioritized dynamically: suites that execute `'full'` (`🐘`) or `'heavy'` (`🐢`) commands/rules are placed **FIRST** in the queue.
-   - This ensures background worker threads absorb heavy suites (e.g. `validate_type_check`, `validate_oxlint`, `validate_fallow`) immediately from $T_0$, while lighter `'light'` (`🐇`) suites execute concurrently across free threads, eliminating tail-end bottlenecks.
+   - This ensures background worker threads absorb heavy suites (e.g. `validate_oxlint`, `validate_fallow`) immediately from $T_0$, while lighter `'light'` (`🐇`) suites execute concurrently across free threads, eliminating tail-end bottlenecks.
 
 3. **Sub-Line Console Indicators (`🐇` / `🐢` / `🐘`)**:
    - The suite header remains clean and unaltered.
@@ -887,7 +887,7 @@ The framework enforces strict governance over execution speed across all suites 
 
 If a suite or rule declares `critical: true` and `speed` has 2 or more declared speeds (e.g. `speed: ['light', 'full']`), the engine **MUST ALWAYS choose the fastest (`light`) when no speed is specified in the invocation** (`auditor`, direct node execution, or `npm run <validate-script>`):
 
-- **Why**: Essential linters and type checkers (`validate_oxlint`, `validate_type_check`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
+- **Why**: Essential linters and unified type checkers (`validate_oxlint`, `validate_stylelint`, `validate_html_validate`, `validate_domain_types`) are indispensable for developer feedback. When invoked directly by a developer, they must run instantaneously using caching/incremental compilation (`--incremental`, `--cache`) rather than triggering an exhaustive full-tree recheck.
 - **Implementation in `BaseAuditor`**: `this.resolveRuleEffectiveSpeed(ruleId)` and `this.getExecutionTier()` inspect `caps.critical && !speedOpts.isSpeedSpecified`. When true, they select the minimum rank speed (`'light'`).
 
 ### Mandatory Authentic Tiers & Prohibition of Duplicated Tiers

@@ -79,7 +79,7 @@ Instead of investigating genuine architectural solutions or running `npm run aud
 
 - **Modular Plugin Delegation (`vite.plugins.ts`)**: Application plugins belong in a dedicated module `vite.plugins.ts`, which is 100% developer/AI-owned and directly editable.
 - **Auditor Governance in `vite.config.ts`**: `vite.config.ts` remains auditor-governed, importing `{ plugins } from './vite.plugins.ts'`.
-- **Automated AST Migration via `npm run auditor:fix`**: Inline plugins detected in `vite.config.ts` (`vite-plus-inline-plugins-detected`) are automatically moved to `vite.plugins.ts`, and `vite.config.ts` is updated automatically, resolving `TS2321` deterministically.
+- **Automated AST Migration via `npm run auditor:fix`**: Inline plugins detected in `vite.config.ts` (`vite-plus-inline-plugins-detected`) are automatically moved to `vite.plugins.ts`. The AST engine automatically relocates local plugin helper functions (`isPluginFunctionDeclaration`), associated variables, and purges unused Vite+ types (`type Plugin`, `type HmrContext`) from `vite.config.ts`, completely preventing `eslint(no-unused-vars)` and resolving `TS2321` deterministically.
 - **PreToolUse Hook Invariance Mandate**: Root `AGENTS.md` explicitly forbids attempting to bypass or evade hooks via proxy scripts.
 
 ---

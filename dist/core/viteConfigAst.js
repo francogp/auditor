@@ -427,11 +427,15 @@ function printAstNode(node, sf) {
 	const sourceFile = sf ?? parseTsSourceFile("", "vite.config.ts");
 	return printer.printNode(ts.EmitHint.Unspecified, node, sourceFile);
 }
+function buildRunAstObject(auditConfig) {
+	const cacheVal = auditConfig?.vitePlusConfig?.run?.cache !== false;
+	return ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("cache", cacheVal ? ts.factory.createTrue() : ts.factory.createFalse())], true);
+}
 function buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, legacyTestProperty) {
 	const isLibrary = auditConfig.packageDistribution?.enabled !== false;
 	const rootProps = [];
 	if (isLibrary) rootProps.push(ts.factory.createPropertyAssignment("pack", buildPackAstObject()));
-	rootProps.push(ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
+	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineConfig"))])), ts.factory.createStringLiteral("vite-plus", true));
 	const exportDefault = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineConfig"), void 0, [ts.factory.createObjectLiteralExpression(rootProps, true)]));
 	const sf = ts.factory.createSourceFile([importDecl, exportDefault], ts.factory.createToken(ts.SyntaxKind.EndOfFileToken), ts.NodeFlags.None);
@@ -466,6 +470,7 @@ function parseLegacyTestPropertyNode(legacyTestBlock) {
 }
 const TUPLE_REQUIRED_RULES = /* @__PURE__ */ new Set([
 	"@typescript-eslint/consistent-type-assertions",
+	"@typescript-eslint/explicit-function-return-type",
 	"no-empty",
 	"eqeqeq"
 ]);
@@ -473,6 +478,10 @@ function checkTupleRuleOption(ruleName, second) {
 	if (ruleName === "@typescript-eslint/consistent-type-assertions") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.assertionStyle === "as" && cfg.objectLiteralTypeAssertions === "never";
+	}
+	if (ruleName === "@typescript-eslint/explicit-function-return-type") {
+		const cfg = typeof second === "object" && second !== null ? second : null;
+		return cfg !== null && cfg.allowExpressions === false;
 	}
 	if (ruleName === "no-empty") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
@@ -933,6 +942,23 @@ function printTransformedSourceFile(sf, transformer) {
 	result.dispose();
 	return printed;
 }
+function syncRunSectionAst(runObj, auditConfig, sf) {
+	let modified = false;
+	let props = runObj.properties;
+	const cacheProp = findPropertyAssignment(runObj, "cache", sf);
+	const shouldCache = auditConfig.vitePlusConfig?.run?.cache !== false;
+	if (!cacheProp) {
+		props = [...props, ts.factory.createPropertyAssignment("cache", shouldCache ? ts.factory.createTrue() : ts.factory.createFalse())];
+		modified = true;
+	} else if (shouldCache && cacheProp.initializer.kind !== ts.SyntaxKind.TrueKeyword) {
+		props = updateObjectProperty(props, "cache", ts.factory.createTrue(), sf);
+		modified = true;
+	}
+	return {
+		obj: modified ? ts.factory.createObjectLiteralExpression(props, true) : runObj,
+		modified
+	};
+}
 function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgnores, legacyTestProp, projectRoot) {
 	const sf = parseTsSourceFile(fileContent);
 	const rootObj = findConfigRootObject(sf);
@@ -948,6 +974,17 @@ function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgno
 		const syncedPack = syncPackSectionOnRoot(rootProps, sf);
 		rootProps = syncedPack.props;
 		if (syncedPack.modified) modified = true;
+	}
+	const runProp = findPropertyAssignment(currentRootObj(), "run", sf);
+	if (!runProp || !ts.isObjectLiteralExpression(runProp.initializer)) {
+		rootProps = [...rootProps, ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig))];
+		modified = true;
+	} else {
+		const syncedRun = syncRunSectionAst(runProp.initializer, auditConfig, sf);
+		if (syncedRun.modified) {
+			rootProps = updateObjectProperty(rootProps, "run", syncedRun.obj, sf);
+			modified = true;
+		}
 	}
 	const testProp = findPropertyAssignment(currentRootObj(), "test", sf);
 	if (!testProp || !ts.isObjectLiteralExpression(testProp.initializer)) {
@@ -1339,33 +1376,6 @@ function categorizePluginImports(sf, pluginIds, varStmtToRemove, pluginProp, plu
 		extraVitePlusTypes
 	};
 }
-function isPluginsExportStatement(stmt) {
-	if (!ts.isVariableStatement(stmt)) return false;
-	if (!stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) return false;
-	return stmt.declarationList.declarations.some((d) => ts.isIdentifier(d.name) && d.name.text === "plugins");
-}
-function parseExpressionFromText(exprText) {
-	const varStmt = parseTsSourceFile(`const _temp = ${exprText};`, "temp.ts").statements[0];
-	if (varStmt && ts.isVariableStatement(varStmt)) return varStmt.declarationList.declarations[0]?.initializer;
-}
-function updatePluginsExportInitializer(stmt, pluginsExprText) {
-	const newInitializer = parseExpressionFromText(pluginsExprText);
-	if (!newInitializer) return stmt;
-	const newDecls = stmt.declarationList.declarations.map((d) => {
-		if (ts.isIdentifier(d.name) && d.name.text === "plugins" && d.initializer && ts.isArrayLiteralExpression(d.initializer) && d.initializer.elements.length === 0) return ts.factory.updateVariableDeclaration(d, d.name, d.exclamationToken, d.type, newInitializer);
-		return d;
-	});
-	return ts.factory.updateVariableStatement(stmt, stmt.modifiers, ts.factory.updateVariableDeclarationList(stmt.declarationList, newDecls));
-}
-function collectMissingImportsFromParsed(tempSf, existingImportNames, missingImportStmts) {
-	for (const stmt of tempSf.statements) {
-		if (!ts.isImportDeclaration(stmt)) continue;
-		const names = extractImportedNames(stmt.importClause);
-		if (!names.some((n) => !existingImportNames.has(n))) continue;
-		missingImportStmts.push(stmt);
-		for (const n of names) existingImportNames.add(n);
-	}
-}
 function injectExtraNamedImports(stmt, extraTypes) {
 	const clause = stmt.importClause;
 	if (!clause?.namedBindings || !ts.isNamedImports(clause.namedBindings)) return stmt;
@@ -1377,63 +1387,117 @@ function injectExtraNamedImports(stmt, extraTypes) {
 	}
 	return ts.factory.updateImportDeclaration(stmt, stmt.modifiers, ts.factory.updateImportClause(clause, clause.isTypeOnly, clause.name, ts.factory.updateNamedImports(clause.namedBindings, newElements)), stmt.moduleSpecifier, stmt.attributes);
 }
-function injectDeclarationsIntoStatements(sourceStatements, missingFunctions, missingVariables, vitePlusImportStmt, extraVitePlusTypes, pluginsExprText) {
-	const newStmts = [];
-	let functionsInjected = missingFunctions.length === 0 && missingVariables.length === 0;
-	for (const rawStmt of sourceStatements) {
-		let stmt = rawStmt;
-		if (ts.isImportDeclaration(stmt) && stmt === vitePlusImportStmt && extraVitePlusTypes.size > 0) stmt = injectExtraNamedImports(stmt, extraVitePlusTypes);
-		if (!functionsInjected && isPluginsExportStatement(stmt)) {
-			newStmts.push(...missingFunctions, ...missingVariables);
-			functionsInjected = true;
+function collectExistingPluginsAstMetadata(sf) {
+	const existingFnNames = /* @__PURE__ */ new Set();
+	const existingVarNames = /* @__PURE__ */ new Set();
+	const existingImportNames = /* @__PURE__ */ new Set();
+	for (const stmt of sf.statements) {
+		if (ts.isFunctionDeclaration(stmt) && stmt.name) {
+			existingFnNames.add(stmt.name.text);
+			continue;
 		}
-		if (isPluginsExportStatement(stmt) && pluginsExprText !== "[]") stmt = updatePluginsExportInitializer(stmt, pluginsExprText);
-		newStmts.push(stmt);
+		if (ts.isImportDeclaration(stmt)) {
+			for (const n of extractImportedNames(stmt.importClause)) existingImportNames.add(n);
+			continue;
+		}
+		if (!ts.isVariableStatement(stmt)) continue;
+		for (const d of stmt.declarationList.declarations) {
+			if (!ts.isIdentifier(d.name)) continue;
+			existingVarNames.add(d.name.text);
+		}
 	}
-	if (!functionsInjected) newStmts.push(...missingFunctions, ...missingVariables);
-	return newStmts;
+	return {
+		existingFnNames,
+		existingVarNames,
+		existingImportNames
+	};
 }
-function injectMissingImports(statements, missingImportStmts) {
-	if (missingImportStmts.length === 0) return statements;
-	let lastImportIdx = -1;
-	for (let i = 0; i < statements.length; i++) if (ts.isImportDeclaration(statements[i])) lastImportIdx = i;
-	if (lastImportIdx === -1) return [...missingImportStmts, ...statements];
-	const result = [];
-	for (let i = 0; i < statements.length; i++) {
-		result.push(statements[i]);
-		if (i === lastImportIdx) result.push(...missingImportStmts);
+function collectMissingPluginDeclarations(movedFunctionStmts, movedVariableStmts, existingFnNames, existingVarNames, sfConfig) {
+	const missing = [];
+	for (const fn of movedFunctionStmts) if (fn.name && !existingFnNames.has(fn.name.text)) missing.push(fn.getFullText(sfConfig).trim());
+	for (const v of movedVariableStmts) if (!v.declarationList.declarations.filter((d) => ts.isIdentifier(d.name)).map((d) => d.name.text).some((n) => existingVarNames.has(n))) missing.push(v.getFullText(sfConfig).trim());
+	return missing;
+}
+function collectMissingPluginImportLines(pluginImportsForNewFile, existingImportNames) {
+	const missingLines = [];
+	for (const impLine of pluginImportsForNewFile) {
+		const tempSf = parseTsSourceFile(impLine, "temp.ts");
+		for (const stmt of tempSf.statements) {
+			if (!ts.isImportDeclaration(stmt)) continue;
+			const names = extractImportedNames(stmt.importClause);
+			if (!names.some((n) => !existingImportNames.has(n))) continue;
+			missingLines.push(impLine);
+			for (const n of names) existingImportNames.add(n);
+		}
 	}
-	return result;
+	return missingLines;
+}
+function updateVitePlusImportTypes(content, extraVitePlusTypes) {
+	if (extraVitePlusTypes.size === 0) return content;
+	const sf = parseTsSourceFile(content, "vite.plugins.ts");
+	let vitePlusImportStmt = null;
+	for (const stmt of sf.statements) if (ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && (stmt.moduleSpecifier.text === "vite-plus" || stmt.moduleSpecifier.text === "vite")) {
+		vitePlusImportStmt = stmt;
+		break;
+	}
+	if (!vitePlusImportStmt) return content;
+	const currentTypes = extractImportedNames(vitePlusImportStmt.importClause);
+	if ([...extraVitePlusTypes].filter((t) => !currentTypes.includes(t)).length === 0) return content;
+	const oldImportText = vitePlusImportStmt.getText(sf);
+	const updatedImportStmt = injectExtraNamedImports(vitePlusImportStmt, extraVitePlusTypes);
+	const newImportText = ts.createPrinter({ newLine: ts.NewLineKind.LineFeed }).printNode(ts.EmitHint.Unspecified, updatedImportStmt, sf);
+	return content.replace(oldImportText, newImportText);
+}
+function insertMissingPluginImports(content, missingImportLines) {
+	if (missingImportLines.length === 0) return content;
+	const sf = parseTsSourceFile(content, "vite.plugins.ts");
+	let lastImportEndPos = 0;
+	for (const stmt of sf.statements) if (ts.isImportDeclaration(stmt)) lastImportEndPos = Math.max(lastImportEndPos, stmt.end);
+	const importsBlock = missingImportLines.join("\n") + "\n";
+	if (lastImportEndPos > 0) {
+		const nextNewline = content.indexOf("\n", lastImportEndPos);
+		const insertAt = nextNewline !== -1 ? nextNewline + 1 : lastImportEndPos;
+		return content.slice(0, insertAt) + importsBlock + content.slice(insertAt);
+	}
+	return importsBlock + content;
+}
+function insertMissingDeclarationsIntoPlugins(content, missingDeclarations) {
+	if (missingDeclarations.length === 0) return content;
+	const sf = parseTsSourceFile(content, "vite.plugins.ts");
+	let exportPluginsStartPos = -1;
+	for (const stmt of sf.statements) if (ts.isVariableStatement(stmt)) {
+		for (const d of stmt.declarationList.declarations) if (ts.isIdentifier(d.name) && d.name.text === "plugins") {
+			exportPluginsStartPos = stmt.getStart(sf);
+			break;
+		}
+		if (exportPluginsStartPos !== -1) break;
+	}
+	const declsBlock = "\n" + missingDeclarations.join("\n\n") + "\n\n";
+	if (exportPluginsStartPos === -1) return content + declsBlock;
+	return content.slice(0, exportPluginsStartPos) + declsBlock + content.slice(exportPluginsStartPos);
+}
+function updatePluginsInitializerAst(content, pluginsExprText) {
+	if (pluginsExprText === "[]") return content;
+	const sf = parseTsSourceFile(content, "vite.plugins.ts");
+	for (const stmt of sf.statements) {
+		if (!ts.isVariableStatement(stmt)) continue;
+		for (const d of stmt.declarationList.declarations) if (ts.isIdentifier(d.name) && d.name.text === "plugins" && d.initializer && ts.isArrayLiteralExpression(d.initializer) && d.initializer.elements.length === 0) {
+			const initStart = d.initializer.getStart(sf);
+			const initEnd = d.initializer.getEnd();
+			return content.slice(0, initStart) + pluginsExprText + content.slice(initEnd);
+		}
+	}
+	return content;
 }
 function updateExistingVitePluginsAst(existingContent, movedFunctionStmts, movedVariableStmts, extraVitePlusTypes, pluginImportsForNewFile, pluginsExprText, sfConfig) {
-	const sf = parseTsSourceFile(existingContent, "vite.plugins.ts");
-	const existingFnNames = /* @__PURE__ */ new Set();
-	for (const stmt of sf.statements) if (ts.isFunctionDeclaration(stmt) && stmt.name) existingFnNames.add(stmt.name.text);
-	const missingFunctions = [];
-	for (const fn of movedFunctionStmts) if (fn.name && !existingFnNames.has(fn.name.text)) {
-		const parsedFnSf = parseTsSourceFile(fn.getFullText(sfConfig).trim(), "temp.ts");
-		if (parsedFnSf.statements[0]) missingFunctions.push(parsedFnSf.statements[0]);
-	}
-	const missingVariables = [];
-	for (const v of movedVariableStmts) {
-		const parsedVSf = parseTsSourceFile(v.getFullText(sfConfig).trim(), "temp.ts");
-		if (parsedVSf.statements[0]) missingVariables.push(parsedVSf.statements[0]);
-	}
-	const existingImportNames = /* @__PURE__ */ new Set();
-	let vitePlusImportStmt = null;
-	for (const stmt of sf.statements) if (ts.isImportDeclaration(stmt)) {
-		for (const n of extractImportedNames(stmt.importClause)) existingImportNames.add(n);
-		if (ts.isStringLiteral(stmt.moduleSpecifier) && (stmt.moduleSpecifier.text === "vite-plus" || stmt.moduleSpecifier.text === "vite")) vitePlusImportStmt = stmt;
-	}
-	const missingImportStmts = [];
-	for (const impLine of pluginImportsForNewFile) collectMissingImportsFromParsed(parseTsSourceFile(impLine, "temp.ts"), existingImportNames, missingImportStmts);
-	const transformer = (_context) => {
-		return (source) => {
-			const finalStmts = injectMissingImports(injectDeclarationsIntoStatements(source.statements, missingFunctions, missingVariables, vitePlusImportStmt, extraVitePlusTypes, pluginsExprText), missingImportStmts);
-			return ts.factory.updateSourceFile(source, finalStmts);
-		};
-	};
-	return printTransformedSourceFile(sf, transformer);
+	const meta = collectExistingPluginsAstMetadata(parseTsSourceFile(existingContent, "vite.plugins.ts"));
+	const missingDeclarations = collectMissingPluginDeclarations(movedFunctionStmts, movedVariableStmts, meta.existingFnNames, meta.existingVarNames, sfConfig);
+	const missingImportLines = collectMissingPluginImportLines(pluginImportsForNewFile, meta.existingImportNames);
+	let updatedContent = updateVitePlusImportTypes(existingContent, extraVitePlusTypes);
+	updatedContent = insertMissingPluginImports(updatedContent, missingImportLines);
+	updatedContent = insertMissingDeclarationsIntoPlugins(updatedContent, missingDeclarations);
+	updatedContent = updatePluginsInitializerAst(updatedContent, pluginsExprText);
+	return updatedContent;
 }
 /**
 * Extracts inline Vite plugins from vite.config.ts into a modular vite.plugins.ts file.
@@ -1553,4 +1617,43 @@ function extractVitePluginsToModule(viteConfigContent, projectRoot) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };
+/**
+* Detects empty catch blocks (catch {}) in vite.config.ts and injects a fallback comment
+* to satisfy strict linter hygiene (eslint no-empty).
+*/
+function sanitizeEmptyCatchClausesInViteConfig(content) {
+	const sf = parseTsSourceFile(content, "vite.config.ts");
+	let hasEmptyCatch = false;
+	function checkEmptyCatch(node) {
+		if (ts.isCatchClause(node) && node.block.statements.length === 0) {
+			const blockText = node.block.getText(sf);
+			if (!blockText.includes("/*") && !blockText.includes("//")) hasEmptyCatch = true;
+		}
+		ts.forEachChild(node, checkEmptyCatch);
+	}
+	checkEmptyCatch(sf);
+	if (!hasEmptyCatch) return {
+		content,
+		modified: false
+	};
+	const transformer = (context) => {
+		return (source) => {
+			const visitor = (node) => {
+				if (ts.isCatchClause(node) && node.block.statements.length === 0) {
+					const blockText = node.block.getText(source);
+					if (!blockText.includes("/*") && !blockText.includes("//")) {
+						const commentNode = ts.addSyntheticTrailingComment(ts.factory.createEmptyStatement(), ts.SyntaxKind.MultiLineCommentTrivia, " fallback to default ", true);
+						return ts.factory.updateCatchClause(node, node.variableDeclaration, ts.factory.createBlock([commentNode], false));
+					}
+				}
+				return ts.visitEachChild(node, visitor, context);
+			};
+			return ts.visitNode(source, visitor);
+		};
+	};
+	return {
+		content: printTransformedSourceFile(sf, transformer),
+		modified: true
+	};
+}
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };

@@ -1096,6 +1096,21 @@ function validateRequiredSections(
     });
   }
 
+  if (!summary.hasSection('run')) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-config-core',
+      ruleDescription: 'Vite+: Root structure and base Vite+ sections',
+      severity: 'error',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'run',
+      message: `Missing 'run' section in vite.config.ts to enable native task caching (cache: true).`
+    });
+  }
+
   if (!summary.hasSection('test')) {
     findings.push({
       suiteId: 'validate_vite_plus_config',
