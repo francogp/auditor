@@ -5,5 +5,6 @@ export declare function mutateAuditConfigFileAst(configFilePath: string, mutator
 export declare function syncAuditorVersionInTsFile(configFilePath: string, version: string): boolean;
 export declare function appendMissingSectionsToConfigFile(configFilePath: string, sectionsToInsert: Record<string, Record<string, unknown>>): void;
 export declare function migrateLegacyEslintSectionAst(configFilePath: string): boolean;
+export declare function migrateLegacyTypeCheckSectionAst(configFilePath: string): boolean;
 export declare function removeAuditConfigPropertyAst(configFilePath: string, propertyPath: string): boolean;
 export { appendMissingSectionsToJsonFile, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };

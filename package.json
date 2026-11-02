@@ -1,6 +1,6 @@
 {
   "name": "@francogp/auditor",
-  "version": "10.6.4-build.20261102-102051",
+  "version": "10.6.5-build.20261102-113444",
   "description": "High-performance, generic static analysis and architecture audit engine with Antigravity AI skills and environment governance",
   "homepage": "https://github.com/francogp/auditor#readme",
   "bugs": {
@@ -148,7 +148,7 @@
     "auditor:findings": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts",
     "auditor:next": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next",
     "auditor:next:human": "node --permission --experimental-strip-types --allow-fs-read=* --allow-fs-write=* src/cli/report_findings.ts next human",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "vp check",
     "prepublishOnly": "vp run build",
     "auditor:publish": "npm publish --tag latest",
     "build": "npm run auditor:full && vp pack && node --experimental-strip-types src/cli/make_executable.ts && npm run auditor:post-build",
@@ -242,7 +242,7 @@
     "auditor:stylelint": "auditor task=validate_stylelint",
     "auditor:test-fragmentation": "auditor task=validate_test_fragmentation",
     "auditor:test-hygiene": "auditor task=validate_test_hygiene",
-    "auditor:type-check": "auditor task=validate_type_check",
+    "auditor:type-check": "auditor task=validate_oxlint",
     "auditor:type-coverage": "auditor task=validate_type_coverage",
     "auditor:typography-line-height": "auditor task=validate_typography_line_height",
     "auditor:vue-sfc-hygiene": "auditor task=validate_vue_sfc_hygiene",

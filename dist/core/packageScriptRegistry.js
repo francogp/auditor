@@ -414,6 +414,20 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 		description: "Strict formatting audit and verification with Oxfmt",
 		category: "core",
 		isApplicable: (config) => config.vitePlusConfig?.enabled !== false && config.vitePlusConfig?.fmt?.enabled !== false && config.oxfmt?.enabled !== false
+	},
+	{
+		name: "auditor:oxlint",
+		command: "auditor task=validate_oxlint",
+		description: "Strict linting and compiler typecheck verification with Oxlint",
+		category: "core",
+		isApplicable: (config) => config.vitePlusConfig?.enabled !== false && config.oxlint?.enabled !== false
+	},
+	{
+		name: "auditor:type-check",
+		command: "auditor task=validate_oxlint",
+		description: "Unified TypeScript typecheck and lint verification via Vite+ Oxlint",
+		category: "core",
+		isApplicable: (config) => config.vitePlusConfig?.enabled !== false && config.oxlint?.enabled !== false
 	}
 ];
 var PackageScriptRegistryImpl = class extends BaseEntityRegistry {

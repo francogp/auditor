@@ -137,6 +137,99 @@ export function migrateLegacyEslintSectionAst(configFilePath: string): boolean {
   });
 }
 
+function ensureVitePlusLintTypeCheck(vpcProp: Node, isExplicitlyDisabled: boolean): void {
+  if (!Node.isPropertyAssignment(vpcProp)) return;
+  const vpcInit = vpcProp.getInitializer();
+  if (!Node.isObjectLiteralExpression(vpcInit)) return;
+
+  const lintProp = vpcInit.getProperty('lint');
+  if (!lintProp) {
+    vpcInit.addPropertyAssignment({
+      name: 'lint',
+      initializer: `{ typeCheck: ${!isExplicitlyDisabled} }`
+    });
+    return;
+  }
+
+  if (!Node.isPropertyAssignment(lintProp)) return;
+  const lintInit = lintProp.getInitializer();
+  if (!Node.isObjectLiteralExpression(lintInit)) return;
+
+  const tcProp = lintInit.getProperty('typeCheck');
+  if (!tcProp) {
+    lintInit.addPropertyAssignment({
+      name: 'typeCheck',
+      initializer: `${!isExplicitlyDisabled}`
+    });
+    return;
+  }
+
+  if (Node.isPropertyAssignment(tcProp)) {
+    tcProp.setInitializer(`${!isExplicitlyDisabled}`);
+  }
+}
+
+export function migrateLegacyTypeCheckSectionAst(configFilePath: string): boolean {
+  if (!fs.existsSync(configFilePath)) return false;
+
+  if (configFilePath.endsWith('.json')) {
+    return mutateJsonConfigFile(configFilePath, (json) => {
+      const legacyKey =
+        'typeCheck' in json
+          ? 'typeCheck'
+          : 'validate_type_check' in json
+            ? 'validate_type_check'
+            : null;
+      if (!legacyKey) return false;
+      const legacyVal = json[legacyKey] as Record<string, unknown> | undefined;
+      const isExplicitlyDisabled = legacyVal?.enabled === false;
+      delete json[legacyKey];
+
+      if (!('vitePlusConfig' in json)) {
+        json.vitePlusConfig = { enabled: true };
+      }
+      const vpc = json.vitePlusConfig as Record<string, unknown>;
+      if (!vpc.lint || typeof vpc.lint !== 'object') {
+        vpc.lint = {};
+      }
+      const lint = vpc.lint as Record<string, unknown>;
+      lint.typeCheck = !isExplicitlyDisabled;
+      return true;
+    });
+  }
+
+  return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+    const legacyProp =
+      targetObj.getProperty('typeCheck') ?? targetObj.getProperty('validate_type_check');
+    if (!legacyProp) return false;
+
+    let isExplicitlyDisabled = false;
+    if (Node.isPropertyAssignment(legacyProp)) {
+      const init = legacyProp.getInitializer();
+      if (Node.isObjectLiteralExpression(init)) {
+        const enabledProp = init.getProperty('enabled');
+        if (Node.isPropertyAssignment(enabledProp)) {
+          isExplicitlyDisabled = enabledProp.getInitializer()?.getText() === 'false';
+        }
+      }
+    }
+
+    legacyProp.remove();
+
+    const vpcProp = targetObj.getProperty('vitePlusConfig');
+    if (!vpcProp) {
+      targetObj.addPropertyAssignment({
+        name: 'vitePlusConfig',
+        initializer: `{ enabled: true, lint: { typeCheck: ${!isExplicitlyDisabled} } }`
+      });
+      return true;
+    }
+
+    ensureVitePlusLintTypeCheck(vpcProp, isExplicitlyDisabled);
+    return true;
+  });
+}
+
 export function removeAuditConfigPropertyAst(
   configFilePath: string,
   propertyPath: string

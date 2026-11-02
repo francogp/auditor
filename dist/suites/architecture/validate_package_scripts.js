@@ -150,6 +150,7 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		this.runSubAuditorSync("package-scripts-obsolete", () => {
 			if (pkg.scripts) {
 				if (this.verifyLintScript(pkg.scripts)) modified = true;
+				if (this.verifyTypeCheckScript(pkg.scripts)) modified = true;
 				if (this.verifyVitePlusScripts(pkg.scripts, pkg)) modified = true;
 				if (this.pruneObsoleteAuditorScripts(pkg.scripts)) modified = true;
 			}
@@ -278,11 +279,30 @@ var ValidatePackageScriptsAuditor = class extends BaseAuditor {
 		}
 		return modified;
 	}
+	verifyTypeCheckScript(scripts, isFix = this.isFixActive()) {
+		let modified = false;
+		for (const [name, command] of Object.entries(scripts)) if (command.includes("validate_type_check")) {
+			const migrated = command.replaceAll("validate_type_check", "validate_oxlint");
+			if (isFix) {
+				scripts[name] = migrated;
+				modified = true;
+			} else this.addViolation({
+				ruleId: "package-scripts-obsolete",
+				severity: "warning",
+				file: "package.json",
+				line: 1,
+				message: `Script "${name}" in package.json uses obsolete suite "validate_type_check". In unified Vite+, TypeScript typecheck is performed by "validate_oxlint". Run "auditor fix" to migrate automatically.`,
+				context: `${name}: "${command}" -> "${migrated}"`
+			});
+		}
+		return modified;
+	}
 	verifyVitePlusScripts(scripts, pkg, isFix = this.isFixActive()) {
 		if (!(fs.existsSync(path.resolve(this.projectRoot, "vite.config.ts")) || Boolean(pkg.dependencies?.["vite-plus"] || pkg.devDependencies?.["vite-plus"]))) return false;
 		let modified = false;
 		for (const [name, command] of Object.entries(scripts)) {
 			let migrated = command;
+			if ((name === "typecheck" || name === "type-check") && /\b(?:vue-tsc|tsc)\b/.test(migrated) && !/\bvp\s+check\b/.test(migrated)) migrated = "vp check";
 			if (/\bvitest\s+run\b/.test(migrated)) migrated = migrated.replaceAll(/\bvitest\s+run\b/g, "vp test");
 			else if (/\bvitest\b/.test(migrated) && !/\bvp\s+test\b/.test(migrated)) migrated = migrated.replaceAll(/\bvitest\b/g, "vp test");
 			if (/\bvite\s+build\b/.test(migrated)) migrated = migrated.replaceAll(/\bvite\s+build\b/g, "vp build");

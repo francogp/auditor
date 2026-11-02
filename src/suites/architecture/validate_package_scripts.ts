@@ -265,6 +265,7 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     this.runSubAuditorSync('package-scripts-obsolete', () => {
       if (pkg!.scripts) {
         if (this.verifyLintScript(pkg!.scripts)) modified = true;
+        if (this.verifyTypeCheckScript(pkg!.scripts)) modified = true;
         if (this.verifyVitePlusScripts(pkg!.scripts, pkg!)) modified = true;
         if (this.pruneObsoleteAuditorScripts(pkg!.scripts)) modified = true;
       }
@@ -468,6 +469,32 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
     return modified;
   }
 
+  public verifyTypeCheckScript(
+    scripts: Record<string, string>,
+    isFix = this.isFixActive()
+  ): boolean {
+    let modified = false;
+    for (const [name, command] of Object.entries(scripts)) {
+      if (command.includes('validate_type_check')) {
+        const migrated = command.replaceAll('validate_type_check', 'validate_oxlint');
+        if (isFix) {
+          scripts[name] = migrated;
+          modified = true;
+        } else {
+          this.addViolation({
+            ruleId: 'package-scripts-obsolete',
+            severity: 'warning',
+            file: 'package.json',
+            line: 1,
+            message: `Script "${name}" in package.json uses obsolete suite "validate_type_check". In unified Vite+, TypeScript typecheck is performed by "validate_oxlint". Run "auditor fix" to migrate automatically.`,
+            context: `${name}: "${command}" -> "${migrated}"`
+          });
+        }
+      }
+    }
+    return modified;
+  }
+
   public verifyVitePlusScripts(
     scripts: Record<string, string>,
     pkg: { dependencies?: Record<string, string>; devDependencies?: Record<string, string> },
@@ -483,6 +510,15 @@ export class ValidatePackageScriptsAuditor extends BaseAuditor<PackageScriptsRul
 
     for (const [name, command] of Object.entries(scripts)) {
       let migrated = command;
+
+      // Migrate typecheck / type-check (vue-tsc / tsc) -> vp check
+      if (
+        (name === 'typecheck' || name === 'type-check') &&
+        /\b(?:vue-tsc|tsc)\b/.test(migrated) &&
+        !/\bvp\s+check\b/.test(migrated)
+      ) {
+        migrated = 'vp check';
+      }
 
       // Migrate vitest run / vitest -> vp test
       if (/\bvitest\s+run\b/.test(migrated)) {

@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.6.4`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.6.5`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.6.4 --allow-git=all
+npm install -D github:francogp/auditor#v10.6.5 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.6.4"
+    "@francogp/auditor": "github:francogp/auditor#v10.6.5"
   }
 }
 ```
@@ -140,9 +140,9 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.6.4
+npm run auditor:update -- v10.6.5
 # or directly:
-auditor-update v10.6.4
+auditor-update v10.6.5
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
@@ -228,7 +228,7 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.6.4-build.20261102-102051',
+  auditorVersion: '10.6.5-build.20261102-113444',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
@@ -285,7 +285,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.6.4"`), or install via `npm install -D github:francogp/auditor#v10.6.4 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.6.5"`), or install via `npm install -D github:francogp/auditor#v10.6.5 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -606,41 +606,41 @@ All repositories governed by `@francogp/auditor` enforce strict `/domain-type-fi
 
 `@francogp/auditor` serves as the Single Source of Truth for static analysis dependencies:
 
-| Tool                          | Integrated Suite                                                             | Capability                                                                                                                                                                    |
-| :---------------------------- | :--------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Vite+ Oxlint**              | `validate_oxlint`                                                            | Ultra-fast syntax and code hygiene verification via Vite+ engine (`vp lint`) with `--fix`.                                                                                    |
-| **Vite+ Oxfmt**               | `validate_oxfmt`                                                             | Source code formatting hygiene validation via Vite+ engine (`vp fmt`) with `--fix`.                                                                                           |
-| **Vite+ Config**              | `validate_vite_plus_config`                                                  | Strict Vite+ unified configuration validator in `vite.config.ts`, anti-castration enforcement, and dynamic exclude sync.                                                      |
-| **`fallow`**                  | `validate_fallow`, `report_fallow`, `validate_similar_code`                  | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security.                                                                                   |
-| **Git**                       | `validate_git_config`                                                        | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix.                                                        |
-| **Auditor Hygiene**           | `validate_auditor_hygiene`                                                   | Anti-pattern, single-pass file scanning (`auditor-inefficient-file-scan`), and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
-| **`valibot`**                 | `validate_valibot_parity`                                                    | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers.                                                                             |
-| **Web Storage & Persistence** | `validate_persistence_client`                                                | Client-side `localStorage`/`sessionStorage` governance, bracket notation, untyped keys, and quota error guards.                                                               |
-| **Vue 3 SFC & Reactivity**    | `validate_vue_sfc_hygiene`, `validate_vue_reactivity`, `validate_vue_router` | `<script setup lang="ts">` standards, pure computed derivations, getter-wrapped watchers, and SPA routing hygiene.                                                            |
-| **Domain Data & O(1)**        | `validate_o1_data_structures`, `validate_canonical_domains`                  | $O(1)$ complexity governance, catalog collision prevention, and domain union deduplication.                                                                                   |
-| **Type Assertion Hygiene**    | `validate_type_assertion_hygiene`                                            | Ban on `as any`, double casting (`as unknown as`), boolean literal annotations, and unhandled floating promises.                                                              |
-| **`stylelint`**               | `validate_stylelint`                                                         | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`.                                                                                         |
-| **`html-validate`**           | `validate_html_validate`                                                     | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation.                                                                                                  |
-| **Magic Numbers (AST)**       | `validate_magic_numbers`                                                     | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores.                                                 |
-| **Stylelint Config**          | `validate_stylelint_config`                                                  | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`).                                              |
-| **`knip`**                    | `validate_package_hygiene`                                                   | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`.                                                                                   |
-| **Vite+ Pack (`vp pack`)**    | `vp pack` (Rust Native)                                                      | Official ATTW type resolution and Publint export map hygiene verified during build.                                                                                           |
-| **`@secretlint/core`**        | `validate_secret_leaks`                                                      | High-entropy secret, API key, and cryptographic token leak detection.                                                                                                         |
-| **`npm audit`**               | `validate_dependency_vulnerabilities`                                        | Vulnerability scanning and known CVEs across package dependencies.                                                                                                            |
-| **`type-coverage`**           | `validate_type_coverage`                                                     | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery.                                                                                              |
-| **WCAG 2.2 Standards**        | `validate_accessibility`                                                     | Static WCAG 2.2 accessibility rules for Vue SFC templates via AST template analysis.                                                                                          |
-| **`markdownlint-cli`**        | `validate_markdown_lint`                                                     | Markdown style, table formatting, and document hygiene with `--fix`.                                                                                                          |
-| **Mermaid Linter**            | `validate_mermaid_syntax`                                                    | Mermaid diagram syntax and special character quoting validator (`speed=light`, `preset=md`).                                                                                  |
-| **`vue-tsc` / `tsc`**         | `validate_type_check`                                                        | Strict compiler type checking without emitting files (`--noEmit`).                                                                                                            |
-| **Script Commands (AST)**     | `validate_script_commands`                                                   | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs).               |
-| **Documented Commands**       | `validate_documented_commands`                                               | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`.                                                                    |
-| **Docker Config**             | `validate_docker_config`                                                     | Container configuration governance (`.dockerignore`, `Dockerfile`) with auto-scaffolding in `--fix`.                                                                          |
-| **EditorConfig**              | `validate_editorconfig`                                                      | Cross-editor coding style synchronization (`.editorconfig`) with canonical auto-scaffolding in `--fix`.                                                                       |
-| **HTML-Validate Config**      | `validate_html_validate_config`                                              | Strict HTML5 linter configuration (`.htmlvalidate.json`) with standard root rules and auto-scaffolding in `--fix`.                                                            |
-| **NPMRC Config**              | `validate_npmrc_config`                                                      | Package manager configuration (`.npmrc`, `allow-git=all`, `engine-strict=true`) with auto-scaffolding in `--fix`.                                                             |
-| **Playwright Config**         | `validate_playwright_config`                                                 | End-to-end browser testing configuration (`playwright.config.ts`) with modern headless presets and auto-scaffolding in `--fix`.                                               |
-| **TypeScript Config**         | `validate_tsconfig`                                                          | Strict compiler configuration (`tsconfig.json`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                             |
-| **MarkdownLint Config**       | `validate_markdown_lint_config`                                              | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                       |
+| Tool                           | Integrated Suite                                                             | Capability                                                                                                                                                                    |
+| :----------------------------- | :--------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Vite+ Oxlint**               | `validate_oxlint`                                                            | Ultra-fast syntax and code hygiene verification via Vite+ engine (`vp lint`) with `--fix`.                                                                                    |
+| **Vite+ Oxfmt**                | `validate_oxfmt`                                                             | Source code formatting hygiene validation via Vite+ engine (`vp fmt`) with `--fix`.                                                                                           |
+| **Vite+ Config**               | `validate_vite_plus_config`                                                  | Strict Vite+ unified configuration validator in `vite.config.ts`, anti-castration enforcement, and dynamic exclude sync.                                                      |
+| **`fallow`**                   | `validate_fallow`, `report_fallow`, `validate_similar_code`                  | Refactoring targets, dead code, AST duplicates, Candle CPU vector similarity, CWE security.                                                                                   |
+| **Git**                        | `validate_git_config`                                                        | Local repository configuration governance (`core.filemode false`, `core.autocrlf input`, `core.eol lf`) with auto-fix.                                                        |
+| **Auditor Hygiene**            | `validate_auditor_hygiene`                                                   | Anti-pattern, single-pass file scanning (`auditor-inefficient-file-scan`), and homebrew helper governance across core sub-auditors and host extensions (`scripts/auditors/`). |
+| **`valibot`**                  | `validate_valibot_parity`                                                    | Bidirectional parity between TypeScript interfaces, Valibot schemas, and persistence serializers.                                                                             |
+| **Web Storage & Persistence**  | `validate_persistence_client`                                                | Client-side `localStorage`/`sessionStorage` governance, bracket notation, untyped keys, and quota error guards.                                                               |
+| **Vue 3 SFC & Reactivity**     | `validate_vue_sfc_hygiene`, `validate_vue_reactivity`, `validate_vue_router` | `<script setup lang="ts">` standards, pure computed derivations, getter-wrapped watchers, and SPA routing hygiene.                                                            |
+| **Domain Data & O(1)**         | `validate_o1_data_structures`, `validate_canonical_domains`                  | $O(1)$ complexity governance, catalog collision prevention, and domain union deduplication.                                                                                   |
+| **Type Assertion Hygiene**     | `validate_type_assertion_hygiene`                                            | Ban on `as any`, double casting (`as unknown as`), boolean literal annotations, and unhandled floating promises.                                                              |
+| **`stylelint`**                | `validate_stylelint`                                                         | CSS, SCSS, and Vue SFC style validation, property order, Wallace complexity, `--fix`.                                                                                         |
+| **`html-validate`**            | `validate_html_validate`                                                     | Strict W3C/WHATWG Living Standard HTML5 markup and accessibility validation.                                                                                                  |
+| **Magic Numbers (AST)**        | `validate_magic_numbers`                                                     | Native TypeScript Compiler AST magic numbers governance with shared context, universal sentinels, and zero directory ignores.                                                 |
+| **Stylelint Config**           | `validate_stylelint_config`                                                  | Stylelint configuration integrity, 13 canonical design token properties, configurable `strictValues`, and auto-repair (`--fix`).                                              |
+| **`knip`**                     | `validate_package_hygiene`                                                   | Dead dependency, unlisted phantom package, and orphan binary script detection with `--fix`.                                                                                   |
+| **Vite+ Pack (`vp pack`)**     | `vp pack` (Rust Native)                                                      | Official ATTW type resolution and Publint export map hygiene verified during build.                                                                                           |
+| **`@secretlint/core`**         | `validate_secret_leaks`                                                      | High-entropy secret, API key, and cryptographic token leak detection.                                                                                                         |
+| **`npm audit`**                | `validate_dependency_vulnerabilities`                                        | Vulnerability scanning and known CVEs across package dependencies.                                                                                                            |
+| **`type-coverage`**            | `validate_type_coverage`                                                     | Quantitative TypeScript coverage percentage (≥95%) and untyped symbol discovery.                                                                                              |
+| **WCAG 2.2 Standards**         | `validate_accessibility`                                                     | Static WCAG 2.2 accessibility rules for Vue SFC templates via AST template analysis.                                                                                          |
+| **`markdownlint-cli`**         | `validate_markdown_lint`                                                     | Markdown style, table formatting, and document hygiene with `--fix`.                                                                                                          |
+| **Mermaid Linter**             | `validate_mermaid_syntax`                                                    | Mermaid diagram syntax and special character quoting validator (`speed=light`, `preset=md`).                                                                                  |
+| **Vite+ / Oxlint (`vp lint`)** | `validate_oxlint`                                                            | Unified linter and strict compiler type checking (`typeCheck: true`) without emitting files.                                                                                  |
+| **Script Commands (AST)**      | `validate_script_commands`                                                   | AST-aware syntax verification for Shell (`unbash`), GitHub Actions (`yaml`), Dockerfiles, PowerShell, and TypeScript scripts (process runners & CLI help logs).               |
+| **Documented Commands**        | `validate_documented_commands`                                               | Verifies that every documented `npm run <cmd>` in Markdown and AI skills exists in `package.json.scripts`.                                                                    |
+| **Docker Config**              | `validate_docker_config`                                                     | Container configuration governance (`.dockerignore`, `Dockerfile`) with auto-scaffolding in `--fix`.                                                                          |
+| **EditorConfig**               | `validate_editorconfig`                                                      | Cross-editor coding style synchronization (`.editorconfig`) with canonical auto-scaffolding in `--fix`.                                                                       |
+| **HTML-Validate Config**       | `validate_html_validate_config`                                              | Strict HTML5 linter configuration (`.htmlvalidate.json`) with standard root rules and auto-scaffolding in `--fix`.                                                            |
+| **NPMRC Config**               | `validate_npmrc_config`                                                      | Package manager configuration (`.npmrc`, `allow-git=all`, `engine-strict=true`) with auto-scaffolding in `--fix`.                                                             |
+| **Playwright Config**          | `validate_playwright_config`                                                 | End-to-end browser testing configuration (`playwright.config.ts`) with modern headless presets and auto-scaffolding in `--fix`.                                               |
+| **TypeScript Config**          | `validate_tsconfig`                                                          | Strict compiler configuration (`tsconfig.json`) with modern type safety baseline and auto-scaffolding in `--fix`.                                                             |
+| **MarkdownLint Config**        | `validate_markdown_lint_config`                                              | Markdown linter configuration (`.markdownlint.json`) with strict documentation hygiene and auto-scaffolding in `--fix`.                                                       |
 
 ### 6.1. Universal Satellite Configuration Sovereignty & SSoT Governance
 

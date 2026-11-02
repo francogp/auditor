@@ -27,6 +27,7 @@ export declare class ValidatePackageScriptsAuditor extends BaseAuditor<PackageSc
     scripts?: Record<string, string>;
   }, config: AuditEngineConfig, isFix?: boolean): boolean;
   verifyLintScript(scripts: Record<string, string>, isFix?: boolean): boolean;
+  verifyTypeCheckScript(scripts: Record<string, string>, isFix?: boolean): boolean;
   verifyVitePlusScripts(scripts: Record<string, string>, pkg: {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;

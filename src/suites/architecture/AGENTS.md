@@ -126,7 +126,6 @@ Architecture & Tooling Engineers.
 - [`validate_magic_numbers.ts`](./validate_magic_numbers.ts): TypeScript AST sub-auditor detecting naked magic numbers outside constant declarations with shared AST reuse.
 - [`validate_stylelint_config.ts`](./validate_stylelint_config.ts): Stylelint configuration file integrity validator enforcing declaration-strict-value plugin and auto-repair.
 - [`validate_type_assertion_hygiene.ts`](./validate_type_assertion_hygiene.ts): Strict type assertion and cast hygiene enforcing zero `as any`, no double casting (`as unknown as`), no boolean literal casts, and floating promise prevention.
-- [`validate_type_check.ts`](./validate_type_check.ts): Strict TypeScript type checking via `vue-tsc`.
 - [`validate_type_coverage.ts`](./validate_type_coverage.ts): TypeScript type coverage and untyped symbol threshold auditor.
 - [`validate_typography_line_height.ts`](./validate_typography_line_height.ts): CSS typography line-height collision detector.
 - [`validate_code_simplification.ts`](./validate_code_simplification.ts): Code clarity, dead code removal, boolean trap elimination, nesting reduction, and switch simplification auditor.
@@ -138,6 +137,7 @@ Architecture & Tooling Engineers.
 
 ## Work Guidance
 
+- **Unified TypeScript Typecheck & Lint Mandate**: TypeScript compilation and type-checking are exclusively unified in Vite+ / Oxlint (`validate_oxlint.ts`, Category: `'Lint'`) using `typeAware: true` and `typeCheck: true`. Creating separate or redundant type-check sub-auditors (such as the obsolete `validate_type_check`) is strictly forbidden to eradicate duplicate diagnostic reporting across audit quality gates.
 - Architectural suites must isolate regex matching to valid code roots and respect complexity exemptions.
 - CSS and SCSS verification must delegate strictly to Stylelint engine (`validate_stylelint.ts`).
 - Fallow suites must map all static analysis findings to `severity: 'error'` under the zero-warning mandate.

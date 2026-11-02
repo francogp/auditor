@@ -226,7 +226,7 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
 
     // Critical suites run even with heavy speed
     expect(lightweightIds).toContain('validate_oxlint');
-    expect(lightweightIds).toContain('validate_type_check');
+    expect(lightweightIds).not.toContain('validate_type_check');
   });
 
   it('separates pre-build and post-build suites cleanly via withBuild, buildOnly, and phase: post-build', async () => {

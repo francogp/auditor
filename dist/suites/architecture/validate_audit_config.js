@@ -15,7 +15,7 @@ import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
 import { detectUnacknowledgedDegradations } from "../../core/auditConfigDegradations.js";
 import { auditConfigRatchet } from "../../core/configRatchet.js";
 import { getPackageJson } from "../../core/packageJson.js";
-import { appendMissingSectionsToConfigFile, migrateLegacyEslintSectionAst, removeAuditConfigPropertyAst, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
+import { appendMissingSectionsToConfigFile, migrateLegacyEslintSectionAst, migrateLegacyTypeCheckSectionAst, removeAuditConfigPropertyAst, syncAuditorVersionInTsFile } from "../../core/auditConfigAst.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -466,7 +466,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		for (const key of Object.keys(rawConfig)) {
 			if (key.startsWith("_") || validTopLevelKeys.has(key)) continue;
 			if (this.isFixActive()) {
-				if (key === "eslint" ? migrateLegacyEslintSectionAst(configFilePath) : removeAuditConfigPropertyAst(configFilePath, key)) continue;
+				if (key === "eslint" ? migrateLegacyEslintSectionAst(configFilePath) : key === "typeCheck" || key === "validate_type_check" ? migrateLegacyTypeCheckSectionAst(configFilePath) : removeAuditConfigPropertyAst(configFilePath, key)) continue;
 			}
 			this.addViolation({
 				ruleId: "audit-config-unknown-field",

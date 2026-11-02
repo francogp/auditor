@@ -56,7 +56,8 @@ import {
   appendMissingSectionsToConfigFile,
   syncAuditorVersionInTsFile,
   removeAuditConfigPropertyAst,
-  migrateLegacyEslintSectionAst
+  migrateLegacyEslintSectionAst,
+  migrateLegacyTypeCheckSectionAst
 } from '../../core/auditConfigAst.ts';
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
@@ -873,7 +874,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         const fixed =
           key === 'eslint'
             ? migrateLegacyEslintSectionAst(configFilePath)
-            : removeAuditConfigPropertyAst(configFilePath, key);
+            : key === 'typeCheck' || key === 'validate_type_check'
+              ? migrateLegacyTypeCheckSectionAst(configFilePath)
+              : removeAuditConfigPropertyAst(configFilePath, key);
         if (fixed) continue;
       }
       this.addViolation({

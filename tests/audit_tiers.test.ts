@@ -40,7 +40,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_fallow');
     expect(taskIds).toContain('validate_oxlint');
-    expect(taskIds).toContain('validate_type_check');
+    expect(taskIds).not.toContain('validate_type_check');
     expect(taskIds).toContain('validate_domain_types');
     expect(taskIds).not.toContain('validate_similar_code');
     expect(taskIds).not.toContain('validate_type_coverage');
@@ -60,7 +60,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
     const taskIds = criticalTasks.map((t) => t.id);
     expect(taskIds).toContain('validate_oxlint');
-    expect(taskIds).toContain('validate_type_check');
+    expect(taskIds).not.toContain('validate_type_check');
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_html_validate');
     expect(taskIds).toContain('validate_domain_types');

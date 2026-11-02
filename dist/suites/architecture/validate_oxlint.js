@@ -9,7 +9,21 @@ import path from "node:path";
 /**
 * src/suites/architecture/validate_oxlint.ts
 *
-* OXLINT & VITE+ CODE HYGIENE AUDITOR (Node.js 26+ Native)
+* LINT & VITE+ CODE HYGIENE AUDITOR (Node.js 26+ Native)
+*
+* UNIFIED TYPESCRIPT TYPECHECK & LINT ARCHITECTURAL MANDATE:
+* Vite+ Oxlint (`vp lint`) with `typeAware: true` and `typeCheck: true` is the
+* SOLE, CANONICAL, AND EXCLUSIVE engine responsible for TypeScript type-checking
+* and code linting across this repository and all consumer host projects.
+*
+* IMPORTANT ARCHITECTURAL INVARIANT:
+* Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from creating,
+* registering, or executing secondary/redundant TypeScript type-check suites (such
+* as the obsolete `validate_type_check` or standalone `vue-tsc`/`tsc` sub-auditors).
+* All TypeScript diagnostics, type mismatches, compiler errors (TSxxxx), syntax
+* errors, and linter violations MUST be captured, parsed, and reported exclusively
+* through this suite (`validate_oxlint`, Category: 'Lint') to eliminate duplicate
+* diagnostic reporting across quality gates.
 *
 * Runs Vite+ Oxlint (`vp lint`) across the repository with JSON formatter,
 * maps errors and warnings to StandardAuditResult findings with severity 'error'
@@ -514,10 +528,10 @@ var OxlintAuditor = class OxlintAuditor extends BaseAuditor {
 			gitIgnoreEntries: OxlintAuditor.gitIgnoreEntries,
 			cachePaths: [".oxlintcache"],
 			id: "validate_oxlint",
-			name: "Oxlint & Vite+ Code Hygiene Validator",
-			description: "Style and syntax rules with Oxlint",
+			name: "Lint & Vite+ Code Hygiene Validator",
+			description: "Style and syntax rules with Oxlint and Vite+ typecheck",
 			family: "architecture",
-			packageName: "Oxlint",
+			packageName: "Lint",
 			configKey: "oxlint.enabled",
 			defaultConfig: { enabled: true },
 			criticalConfig: {},

@@ -1581,5 +1581,158 @@ export default defineConfig({
       );
       expect(coverageFindings).toHaveLength(0);
     });
+
+    it('C-CFG-67: auto-fix extracts local helper plugin functions to vite.plugins.ts and removes them from vite.config.ts', async () => {
+      const rawViteConfig = `
+        import { defineConfig, type Plugin } from 'vite-plus';
+        import vue from '@vitejs/plugin-vue';
+
+        function myCustomPlugin(): Plugin {
+          return {
+            name: 'my-custom-plugin'
+          };
+        }
+
+        export default defineConfig({
+          plugins: [vue(), myCustomPlugin()],
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const vitePluginsPath = path.join(tempDir, 'vite.plugins.ts');
+      expect(fs.existsSync(vitePluginsPath)).toBe(true);
+      const vitePluginsContent = fs.readFileSync(vitePluginsPath, 'utf-8');
+      expect(vitePluginsContent).toContain('function myCustomPlugin(): Plugin');
+      expect(vitePluginsContent).toContain(
+        'export const plugins: PluginOption[] = [vue(), myCustomPlugin()];'
+      );
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).not.toContain('function myCustomPlugin');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+      expect(updatedConfig).toContain('plugins,');
+    });
+
+    it('C-CFG-68: auto-fix prunes unused types (Plugin, HmrContext) from vite-plus import when helper functions are moved', async () => {
+      const rawViteConfig = `
+        import { defineConfig, type Plugin, type HmrContext } from 'vite-plus';
+
+        function watcherPlugin(): Plugin {
+          return {
+            name: 'watcher-plugin',
+            handleHotUpdate(ctx: HmrContext) {
+              return ctx.modules;
+            }
+          };
+        }
+
+        export default defineConfig({
+          plugins: [watcherPlugin()],
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).not.toContain('type Plugin');
+      expect(updatedConfig).not.toContain('Plugin,');
+      expect(updatedConfig).not.toContain('HmrContext');
+      expect(updatedConfig).not.toContain('function watcherPlugin');
+      expect(updatedConfig).toContain("import { defineConfig } from 'vite-plus'");
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+      expect(updatedConfig).not.toContain('HmrContext');
+      expect(updatedConfig).toContain("import { defineConfig } from 'vite-plus'");
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+
+      const vitePluginsContent = fs.readFileSync(path.join(tempDir, 'vite.plugins.ts'), 'utf-8');
+      expect(vitePluginsContent).toContain('Plugin');
+      expect(vitePluginsContent).toContain('HmrContext');
+      expect(vitePluginsContent).toContain('function watcherPlugin(): Plugin');
+    });
+
+    it('C-CFG-69: auto-fix preserves imports in vite.config.ts if used elsewhere while copying them to vite.plugins.ts', async () => {
+      const rawViteConfig = `
+        import path from 'node:path';
+        import { defineConfig, type Plugin } from 'vite-plus';
+
+        function generatorPlugin(): Plugin {
+          const filePath = path.resolve('data', 'schema.json');
+          return { name: 'gen-plugin' };
+        }
+
+        export default defineConfig({
+          plugins: [generatorPlugin()],
+          resolve: {
+            alias: {
+              '@': path.resolve(__dirname, 'src')
+            }
+          },
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).toContain("import path from 'node:path'");
+      expect(updatedConfig).not.toContain('function generatorPlugin');
+      expect(updatedConfig).toContain("import { plugins } from './vite.plugins.ts'");
+
+      const vitePluginsContent = fs.readFileSync(path.join(tempDir, 'vite.plugins.ts'), 'utf-8');
+      expect(vitePluginsContent).toContain("import path from 'node:path'");
+      expect(vitePluginsContent).toContain('function generatorPlugin(): Plugin');
+    });
+
+    it('C-CFG-70: auto-fix updates existing vite.plugins.ts when helper functions were left behind in vite.config.ts', async () => {
+      const existingPluginsContent = `import type { PluginOption } from 'vite-plus';\nimport vue from '@vitejs/plugin-vue';\nexport const plugins: PluginOption[] = [vue()];\n`;
+      fs.writeFileSync(path.join(tempDir, 'vite.plugins.ts'), existingPluginsContent, 'utf-8');
+
+      const rawViteConfig = `
+        import { defineConfig, type Plugin } from 'vite-plus';
+        import { plugins } from './vite.plugins.ts';
+
+        function extraPlugin(): Plugin {
+          return { name: 'extra-plugin' };
+        }
+
+        export default defineConfig({
+          plugins,
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      await auditor.fix();
+
+      const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
+      expect(updatedConfig).not.toContain('function extraPlugin');
+      expect(updatedConfig).not.toContain('type Plugin');
+
+      const updatedPlugins = fs.readFileSync(path.join(tempDir, 'vite.plugins.ts'), 'utf-8');
+      expect(updatedPlugins).toContain('function extraPlugin(): Plugin');
+      expect(updatedPlugins).toContain("import vue from '@vitejs/plugin-vue'");
+    });
   });
 });
