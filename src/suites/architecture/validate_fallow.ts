@@ -35,6 +35,9 @@ import { BaseAuditor } from '../../core/auditorBase.ts';
 import { toPosixRelative } from '../../core/safePath.ts';
 import { resolveFallowBinary } from './validate_similar_code.ts';
 
+export const DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE = 20;
+export const DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC = 25;
+
 export const FALLOW_RULES = [
   'fallow-refactoring-targets',
   'fallow-duplicate-code',
@@ -739,6 +742,11 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       configKey: 'fallow',
       defaultConfig: {
         enabled: true,
+        health: {
+          maxCognitive: DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE,
+          maxCyclomatic: DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC,
+          cyclomaticPolicy: 'standard'
+        },
         typeAware: true,
         showCascade: true,
         duplicates: {

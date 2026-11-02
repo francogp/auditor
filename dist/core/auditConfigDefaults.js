@@ -10,6 +10,55 @@ const DEFAULT_SIMILAR_CODE_THRESHOLD = .95;
 const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
+const DEFAULT_CANONICAL_LINT_PLUGINS = [
+	"vitest",
+	"node",
+	"promise",
+	"unicorn",
+	"typescript",
+	"vue",
+	"import",
+	"jsx-a11y"
+];
+const DEFAULT_VITE_PLUS_AUDIT_CONFIG = {
+	enabled: true,
+	precompress: {
+		enabled: true,
+		server: "nginx",
+		spa: true,
+		report: "summary",
+		threshold: 512
+	},
+	fmt: {
+		enabled: true,
+		singleQuote: true,
+		semi: true,
+		trailingComma: "none",
+		sortPackageJson: true,
+		ignorePatterns: [],
+		overrides: []
+	},
+	lint: {
+		enabled: true,
+		typeAware: true,
+		typeCheck: true,
+		plugins: [...DEFAULT_CANONICAL_LINT_PLUGINS]
+	},
+	test: {
+		enabled: true,
+		projects: {}
+	},
+	staged: {
+		enabled: true,
+		rules: { "*": "vp check --fix" }
+	},
+	hooks: { enabled: true },
+	vscode: {
+		enabled: true,
+		formatOnSave: true,
+		defaultFormatter: "oxc.oxc-vscode"
+	}
+};
 const DEFAULT_AUDIT_CONFIG = {
 	name: "Generic Project",
 	auditorVersion: AUDITOR_VERSION,
@@ -131,45 +180,7 @@ const DEFAULT_AUDIT_CONFIG = {
 	oxlint: { enabled: true },
 	oxfmt: { enabled: true },
 	htmlValidate: { enabled: true },
-	vitePlusConfig: {
-		enabled: true,
-		precompress: {
-			enabled: true,
-			server: "nginx",
-			spa: true,
-			report: "summary",
-			threshold: 512
-		},
-		fmt: {
-			enabled: true,
-			singleQuote: true,
-			semi: true,
-			trailingComma: "none",
-			sortPackageJson: true,
-			ignorePatterns: [],
-			overrides: []
-		},
-		lint: {
-			enabled: true,
-			typeAware: true,
-			typeCheck: true,
-			plugins: ["vitest", "node"]
-		},
-		test: {
-			enabled: true,
-			projects: {}
-		},
-		staged: {
-			enabled: true,
-			rules: { "*": "vp check --fix" }
-		},
-		hooks: { enabled: true },
-		vscode: {
-			enabled: true,
-			formatOnSave: true,
-			defaultFormatter: "oxc.oxc-vscode"
-		}
-	},
+	vitePlusConfig: DEFAULT_VITE_PLUS_AUDIT_CONFIG,
 	bundle: {
 		enabled: true,
 		statsFile: "scratch/bundle_stats.html",
@@ -205,6 +216,11 @@ const DEFAULT_AUDIT_CONFIG = {
 	},
 	fallow: {
 		enabled: true,
+		health: {
+			maxCognitive: 20,
+			maxCyclomatic: 25,
+			cyclomaticPolicy: "standard"
+		},
 		security: { enabled: true },
 		enforceTargets: true,
 		maxTargetPriority: "high",
@@ -444,4 +460,4 @@ function collectDeclaredSubsystems(config) {
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-export { DEFAULT_AUDIT_CONFIG, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, collectDeclaredSubsystems };
+export { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };

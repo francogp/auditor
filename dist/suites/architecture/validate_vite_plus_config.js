@@ -1,4 +1,4 @@
-import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isPathContained, stripGlobSuffix, toPosixRelative } from "../../core/safePath.js";
@@ -938,7 +938,7 @@ function validateLintOptionsAndPlugins(summary, fileName, auditConfig) {
 		context: "domain-type-plugin",
 		message: `Missing jsPlugins: ['@francogp/auditor/domain-type-plugin'] registration in the 'lint' section of vite.config.ts.`
 	});
-	const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"];
+	const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
 	for (const plugin of expectedPlugins) if (!summary.lintPlugins.includes(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -1034,7 +1034,7 @@ function validateSynchronizedLintAndFmt(summary, fileName, auditConfig, projectR
 		context: ruleName,
 		message: `Undeclared linter rule '${ruleName}' in vite.config.ts. To legitimize this rule, declare it in .auditor/audit.config.ts under 'vitePlusConfig.lint.rules', or remove it from vite.config.ts.`
 	});
-	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"]);
+	const authorizedPlugins = new Set(auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS);
 	for (const plugin of summary.lintPlugins) if (!authorizedPlugins.has(plugin)) findings.push({
 		suiteId: "validate_vite_plus_config",
 		suiteName: "Vite+ Unified Configuration Validator",
@@ -1242,7 +1242,7 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 			family: "architecture",
 			packageName: "Vite+",
 			configKey: "vitePlusConfig.enabled",
-			defaultConfig: DEFAULT_AUDIT_CONFIG.vitePlusConfig ?? { enabled: true },
+			defaultConfig: DEFAULT_VITE_PLUS_AUDIT_CONFIG,
 			criticalConfig: {},
 			icon: "⚡",
 			ruleIds: VITE_PLUS_CONFIG_RULES,

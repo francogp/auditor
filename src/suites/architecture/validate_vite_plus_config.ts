@@ -3,7 +3,11 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
 import { getAuditConfig, type AuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
+import {
+  DEFAULT_AUDIT_CONFIG,
+  DEFAULT_CANONICAL_LINT_PLUGINS,
+  DEFAULT_VITE_PLUS_AUDIT_CONFIG
+} from '../../core/auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from '../../core/auditConfigTypes.ts';
 import type { AuditFinding, AuditorConfigFileRequirement } from '../../core/auditContract.ts';
 import {
@@ -1045,7 +1049,8 @@ function validateLintOptionsAndPlugins(
     });
   }
 
-  const expectedPlugins = auditConfig?.vitePlusConfig?.lint?.plugins ?? ['vitest', 'node'];
+  const expectedPlugins =
+    auditConfig?.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
   for (const plugin of expectedPlugins) {
     if (!summary.lintPlugins.includes(plugin)) {
       findings.push({
@@ -1186,7 +1191,7 @@ function validateSynchronizedLintAndFmt(
   }
 
   const authorizedPlugins = new Set<string>(
-    auditConfig.vitePlusConfig?.lint?.plugins ?? ['vitest', 'node']
+    auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS
   );
   for (const plugin of summary.lintPlugins) {
     if (!authorizedPlugins.has(plugin)) {
@@ -1531,7 +1536,7 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
       family: 'architecture',
       packageName: 'Vite+',
       configKey: 'vitePlusConfig.enabled',
-      defaultConfig: DEFAULT_AUDIT_CONFIG.vitePlusConfig ?? { enabled: true },
+      defaultConfig: DEFAULT_VITE_PLUS_AUDIT_CONFIG,
       criticalConfig: {},
       icon: '⚡',
       ruleIds: VITE_PLUS_CONFIG_RULES,

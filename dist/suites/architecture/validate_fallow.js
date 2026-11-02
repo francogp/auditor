@@ -23,6 +23,8 @@ import { execSync } from "node:child_process";
 *   3. Dead code, unused exports, files, dependencies, and circular dependencies.
 *   4. Structural complexity and refactoring targets enforcement.
 */
+const DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE = 20;
+const DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC = 25;
 const FALLOW_RULES = [
 	"fallow-refactoring-targets",
 	"fallow-duplicate-code",
@@ -395,6 +397,11 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			configKey: "fallow",
 			defaultConfig: {
 				enabled: true,
+				health: {
+					maxCognitive: 20,
+					maxCyclomatic: 25,
+					cyclomaticPolicy: "standard"
+				},
 				typeAware: true,
 				showCascade: true,
 				duplicates: {
@@ -550,4 +557,4 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 	}
 };
 await BaseAuditor.runCliIfMain(import.meta.url, new FallowArchitectureAuditor());
-export { FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };
+export { DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE, DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC, FALLOW_ALL_PRIORITY_THRESHOLD, FALLOW_CRITICAL_PRIORITY_THRESHOLD, FALLOW_HIGH_PRIORITY_THRESHOLD, FALLOW_LOW_PRIORITY_THRESHOLD, FALLOW_MEDIUM_PRIORITY_THRESHOLD, FALLOW_MODERATE_PRIORITY_THRESHOLD, FALLOW_PRIORITY_MIN_THRESHOLDS, FALLOW_RULES, FALLOW_RULE_CAPABILITIES, FALLOW_RULE_DESCRIPTIONS, FALLOW_RULE_REMEDIATIONS, FALLOW_RULE_REMEDIATION_PHASES, FallowArchitectureAuditor, mapFallowJson, resolveFallowTargetMinThreshold };

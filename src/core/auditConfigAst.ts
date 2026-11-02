@@ -4,7 +4,13 @@
  */
 import fs from 'node:fs';
 
-import { Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
+import {
+  Project,
+  SyntaxKind,
+  type ArrayLiteralExpression,
+  type ObjectLiteralExpression,
+  type SourceFile
+} from 'ts-morph';
 
 import { safeReadFileSync, safeJsonParse, tryCatchSync } from './safeUtils.ts';
 
@@ -79,7 +85,7 @@ function getNormalizedPropName(prop: {
 function deduplicateObjectLiteralProperties(obj: ObjectLiteralExpression): boolean {
   let mutated = false;
   const seenKeys = new Set<string>();
-  for (const prop of [...obj.getProperties()]) {
+  for (const prop of obj.getProperties()) {
     const key = getNormalizedPropName(prop);
     if (!key) continue;
     if (seenKeys.has(key)) {
@@ -95,6 +101,24 @@ function deduplicateObjectLiteralProperties(obj: ObjectLiteralExpression): boole
           mutated = true;
         }
       }
+    }
+  }
+  return mutated;
+}
+
+function syncArrayElementsWithTsMorph(
+  arrInit: ArrayLiteralExpression,
+  missingVal: readonly unknown[]
+): boolean {
+  let mutated = false;
+  const existingTexts = new Set(
+    arrInit.getElements().map((el) => el.getText().replace(/^['"]|['"]$/g, ''))
+  );
+  for (const item of missingVal) {
+    if (typeof item === 'string' && !existingTexts.has(item)) {
+      arrInit.addElement(`'${item.replaceAll("'", "\\'")}'`);
+      existingTexts.add(item);
+      mutated = true;
     }
   }
   return mutated;
@@ -116,8 +140,20 @@ function syncMissingPropsWithTsMorph(
     if (missingVal === undefined) continue;
     const existing = obj.getProperty((prop) => getNormalizedPropName(prop) === key);
     if (existing?.isKind(SyntaxKind.PropertyAssignment)) {
-      const init = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
-      if (init && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(init, missingVal)) {
+      const objInit = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+      if (
+        objInit &&
+        isPlainRecord(missingVal) &&
+        syncMissingPropsWithTsMorph(objInit, missingVal)
+      ) {
+        mutated = true;
+      }
+      const arrInit = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+      if (
+        arrInit &&
+        Array.isArray(missingVal) &&
+        syncArrayElementsWithTsMorph(arrInit, missingVal)
+      ) {
         mutated = true;
       }
       continue;

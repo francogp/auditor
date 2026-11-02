@@ -319,6 +319,7 @@ export interface AuditFallowHealthConfig {
   readonly maxCyclomatic?: number;
   readonly maxCognitive?: number;
   readonly cyclomaticPolicy?: 'standard' | 'literal-membership';
+  readonly exemptPaths?: readonly string[];
 }
 
 export const FALLOW_TYPE_AWARE_REQUIRE_POLICIES = ['best-effort', 'complete'] as const;
@@ -605,6 +606,8 @@ export const VITE_PLUS_NATIVE_LINTER_PLUGINS = [
   'vitest',
   'node',
   'promise',
+  'unicorn',
+  'typescript',
   'vue',
   'react',
   'import',
@@ -625,7 +628,7 @@ export interface VitePlusLintOverrideConfig {
 export interface AuditVitePlusLintConfig extends BaseAuditSubsystemConfig {
   readonly typeAware?: boolean;
   readonly typeCheck?: boolean;
-  readonly plugins?: readonly (VitePlusNativeLinterPlugin | string)[];
+  readonly plugins?: readonly (VitePlusNativeLinterPlugin | (string & {}))[];
   readonly categories?: OxlintCategoriesConfig;
   readonly rules?: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
   readonly ignorePatterns?: readonly string[];

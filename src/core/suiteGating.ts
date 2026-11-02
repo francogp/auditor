@@ -6,8 +6,7 @@
  * audit configuration, providing transparent skip reasons and CLI introspection.
  */
 
-import type { AuditConfig } from './auditConfigTypes.ts';
-import { AUDIT_LIST_FILTERS, type AuditListFilter } from './auditConfigTypes.ts';
+import { type AuditConfig, AUDIT_LIST_FILTERS, type AuditListFilter } from './auditConfigTypes.ts';
 
 export { AUDIT_LIST_FILTERS, type AuditListFilter };
 

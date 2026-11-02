@@ -8,7 +8,7 @@
 import ts from 'typescript';
 
 import type { AuditConfig } from './auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS } from './auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from './auditConfigTypes.ts';
 import { isPathContained, normalizePosixPath, stripGlobSuffix } from './safePath.ts';
 
@@ -766,7 +766,7 @@ export function buildLintAstObject(
     );
   }
 
-  const configuredPlugins = lintCfg?.plugins ?? ['vitest', 'node'];
+  const configuredPlugins = lintCfg?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
   if (configuredPlugins.length > 0) {
     props.push(
       ts.factory.createPropertyAssignment('plugins', valueToAstExpression([...configuredPlugins]))
@@ -1275,7 +1275,8 @@ function syncLintSectionAst(
   }
 
   // 2. plugins
-  const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? ['vitest', 'node'];
+  const requiredPlugins =
+    auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
   if (requiredPlugins.length > 0) {
     const linterPluginsProp = findPropertyAssignment(
       ts.factory.createObjectLiteralExpression(props, true),

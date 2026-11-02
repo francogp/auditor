@@ -55,7 +55,10 @@ var DoxIntegrityAuditor = class extends BaseAuditor {
 			family: "documentation",
 			packageName: "DOX",
 			configKey: "dox.enabled",
-			defaultConfig: DEFAULT_AUDIT_CONFIG.dox ?? { enabled: true },
+			defaultConfig: {
+				enabled: true,
+				ignoreGlobs: [...DEFAULT_AUDIT_CONFIG.dox?.ignoreGlobs ?? []]
+			},
 			criticalConfig: {},
 			icon: "📚",
 			ruleIds: DOX_RULES,

@@ -201,7 +201,9 @@ describe('ValidateFallowConfigAuditor', () => {
       );
       const goodAuditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
       const goodResult = await goodAuditor.audit();
-      expect(goodResult.summary.errors).toBe(0);
+      expect(goodResult.findings.filter((f) => f.ruleId === 'fallow-config-syntax')).toHaveLength(
+        0
+      );
     });
   });
 

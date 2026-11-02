@@ -37,8 +37,7 @@ import {
   resolveFileScanRoots,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
-import { toPosixRelative } from '../../core/safePath.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 

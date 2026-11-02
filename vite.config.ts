@@ -190,7 +190,16 @@ export default defineConfig({
             '@typescript-eslint/no-explicit-any': 'error',
             '@typescript-eslint/ban-ts-comment': 'error'
         },
-        plugins: ['vitest', 'node']
+        plugins: [
+            'vitest',
+            'node',
+            'promise',
+            'unicorn',
+            'typescript',
+            'vue',
+            'import',
+            'jsx-a11y'
+        ]
     },
     fmt: {
         sortImports: true,

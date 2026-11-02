@@ -277,6 +277,7 @@ export interface AuditFallowHealthConfig {
   readonly maxCyclomatic?: number;
   readonly maxCognitive?: number;
   readonly cyclomaticPolicy?: 'standard' | 'literal-membership';
+  readonly exemptPaths?: readonly string[];
 }
 export declare const FALLOW_TYPE_AWARE_REQUIRE_POLICIES: readonly ["best-effort", "complete"];
 export type FallowTypeAwareRequirePolicy = (typeof FALLOW_TYPE_AWARE_REQUIRE_POLICIES)[number];
@@ -509,7 +510,7 @@ export interface AuditVitePlusFmtConfig extends BaseAuditSubsystemConfig {
   readonly ignorePatterns?: readonly string[];
   readonly overrides?: readonly VitePlusFmtOverrideConfig[];
 }
-export declare const VITE_PLUS_NATIVE_LINTER_PLUGINS: readonly ["vitest", "node", "promise", "vue", "react", "import", "jsdoc", "jest", "jsx-a11y", "nextjs", "react-perf"];
+export declare const VITE_PLUS_NATIVE_LINTER_PLUGINS: readonly ["vitest", "node", "promise", "unicorn", "typescript", "vue", "react", "import", "jsdoc", "jest", "jsx-a11y", "nextjs", "react-perf"];
 export type VitePlusNativeLinterPlugin = (typeof VITE_PLUS_NATIVE_LINTER_PLUGINS)[number];
 export interface VitePlusLintOverrideConfig {
   readonly files: readonly string[];
@@ -518,7 +519,7 @@ export interface VitePlusLintOverrideConfig {
 export interface AuditVitePlusLintConfig extends BaseAuditSubsystemConfig {
   readonly typeAware?: boolean;
   readonly typeCheck?: boolean;
-  readonly plugins?: readonly (VitePlusNativeLinterPlugin | string)[];
+  readonly plugins?: readonly (VitePlusNativeLinterPlugin | (string & {}))[];
   readonly categories?: OxlintCategoriesConfig;
   readonly rules?: Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>;
   readonly ignorePatterns?: readonly string[];

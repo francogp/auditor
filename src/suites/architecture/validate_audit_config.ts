@@ -201,14 +201,9 @@ export function createDefaultAuditConfigContent(
     auditorVersion: AUDITOR_VERSION,
     paths: {
       enabled: true,
-      srcRoots: DEFAULT_AUDIT_CONFIG.paths.srcRoots,
-      testRoots: DEFAULT_AUDIT_CONFIG.paths.testRoots,
-      scriptsRoots: DEFAULT_AUDIT_CONFIG.paths.scriptsRoots
-    },
-    documentation: {
-      enabled: true,
-      language: 'en',
-      chatLanguage: 'es'
+      srcRoots: [...DEFAULT_AUDIT_CONFIG.paths.srcRoots],
+      testRoots: [...DEFAULT_AUDIT_CONFIG.paths.testRoots],
+      scriptsRoots: [...DEFAULT_AUDIT_CONFIG.paths.scriptsRoots]
     },
     ...collectConfigSectionsFromTasks(tasks)
   };
@@ -256,6 +251,10 @@ function computePropertyMissingDiff(expectedVal: unknown, currentVal: unknown): 
       return computeMissingConfigDiff(expectedVal, undefined, false);
     }
     return expectedVal;
+  }
+  if (Array.isArray(expectedVal) && Array.isArray(currentVal)) {
+    const missingElements = expectedVal.filter((item) => !currentVal.includes(item));
+    return missingElements.length > 0 ? missingElements : undefined;
   }
   if (typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal)) {
     return computeMissingConfigDiff(expectedVal, currentVal, false);

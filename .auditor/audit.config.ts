@@ -251,6 +251,11 @@ export default defineAuditConfig({
     },
     coverage: {
       enabled: true
+    },
+    health: {
+      maxCognitive: 20,
+      maxCyclomatic: 25,
+      cyclomaticPolicy: 'standard'
     }
   },
   constants: {
@@ -298,7 +303,7 @@ export default defineAuditConfig({
       },
       typeAware: true,
       typeCheck: true,
-      plugins: ['vitest', 'node']
+      plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y']
     },
     fmt: {
       enabled: true,

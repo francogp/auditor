@@ -42,6 +42,10 @@ import {
   validateSatelliteUndeclaredEntries,
   getAllowedSatellitePathExcludes
 } from '../../core/satelliteGlobMatcher.ts';
+import {
+  DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE,
+  DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC
+} from './validate_fallow.ts';
 
 enableCompileCache();
 
@@ -940,6 +944,11 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
       configKey: 'fallow.enabled',
       defaultConfig: {
         enabled: true,
+        health: {
+          maxCognitive: DEFAULT_FALLOW_HEALTH_MAX_COGNITIVE,
+          maxCyclomatic: DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC,
+          cyclomaticPolicy: 'standard'
+        },
         enforceTargets: true,
         maxTargetPriority: 'high',
         typeAware: true,

@@ -6,6 +6,7 @@
 
 import {
   type AuditEngineConfig,
+  type AuditVitePlusConfig,
   type DeepPartial,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES
 } from './auditConfigTypes.ts';
@@ -15,6 +16,61 @@ export const DEFAULT_SIMILAR_CODE_THRESHOLD = 0.95;
 export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 export const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
+
+export const DEFAULT_CANONICAL_LINT_PLUGINS = [
+  'vitest',
+  'node',
+  'promise',
+  'unicorn',
+  'typescript',
+  'vue',
+  'import',
+  'jsx-a11y'
+] as const;
+
+export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
+  enabled: true,
+  precompress: {
+    enabled: true,
+    server: 'nginx',
+    spa: true,
+    report: 'summary',
+    threshold: DEFAULT_PRECOMPRESS_THRESHOLD_BYTES
+  },
+  fmt: {
+    enabled: true,
+    singleQuote: true,
+    semi: true,
+    trailingComma: 'none',
+    sortPackageJson: true,
+    ignorePatterns: [],
+    overrides: []
+  },
+  lint: {
+    enabled: true,
+    typeAware: true,
+    typeCheck: true,
+    plugins: [...DEFAULT_CANONICAL_LINT_PLUGINS]
+  },
+  test: {
+    enabled: true,
+    projects: {}
+  },
+  staged: {
+    enabled: true,
+    rules: {
+      '*': 'vp check --fix'
+    }
+  },
+  hooks: {
+    enabled: true
+  },
+  vscode: {
+    enabled: true,
+    formatOnSave: true,
+    defaultFormatter: 'oxc.oxc-vscode'
+  }
+};
 
 export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   name: 'Generic Project',
@@ -131,49 +187,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   htmlValidate: {
     enabled: true
   },
-  vitePlusConfig: {
-    enabled: true,
-    precompress: {
-      enabled: true,
-      server: 'nginx',
-      spa: true,
-      report: 'summary',
-      threshold: DEFAULT_PRECOMPRESS_THRESHOLD_BYTES
-    },
-    fmt: {
-      enabled: true,
-      singleQuote: true,
-      semi: true,
-      trailingComma: 'none',
-      sortPackageJson: true,
-      ignorePatterns: [],
-      overrides: []
-    },
-    lint: {
-      enabled: true,
-      typeAware: true,
-      typeCheck: true,
-      plugins: ['vitest', 'node']
-    },
-    test: {
-      enabled: true,
-      projects: {}
-    },
-    staged: {
-      enabled: true,
-      rules: {
-        '*': 'vp check --fix'
-      }
-    },
-    hooks: {
-      enabled: true
-    },
-    vscode: {
-      enabled: true,
-      formatOnSave: true,
-      defaultFormatter: 'oxc.oxc-vscode'
-    }
-  },
+  vitePlusConfig: DEFAULT_VITE_PLUS_AUDIT_CONFIG,
   bundle: {
     enabled: true,
     statsFile: 'scratch/bundle_stats.html',
@@ -211,6 +225,11 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   },
   fallow: {
     enabled: true,
+    health: {
+      maxCognitive: 20,
+      maxCyclomatic: 25,
+      cyclomaticPolicy: 'standard'
+    },
     security: {
       enabled: true
     },

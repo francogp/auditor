@@ -14,7 +14,10 @@
     "type-coverage"
   ],
   "health": {
-    "maxCrap": 0
+    "maxCrap": 0,
+    "maxCyclomatic": 25,
+    "maxCognitive": 20,
+    "cyclomaticPolicy": "standard"
   },
   "duplicates": {
     "nearMiss": true,

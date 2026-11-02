@@ -1,4 +1,4 @@
-import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_PLUGINS } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import ts from "typescript";
@@ -489,7 +489,7 @@ function buildLintAstObject(auditConfig, lintIgnores) {
 		typeCheck
 	}))];
 	if (lintCfg?.categories && Object.keys(lintCfg.categories).length > 0) props.push(ts.factory.createPropertyAssignment("categories", valueToAstExpression(lintCfg.categories, true)));
-	const configuredPlugins = lintCfg?.plugins ?? ["vitest", "node"];
+	const configuredPlugins = lintCfg?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
 	if (configuredPlugins.length > 0) props.push(ts.factory.createPropertyAssignment("plugins", valueToAstExpression([...configuredPlugins])));
 	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", valueToAstExpression(lintIgnores)));
 	if (lintCfg?.overrides && lintCfg.overrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(lintCfg.overrides)));
@@ -792,7 +792,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 			modified = true;
 		}
 	}
-	const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? ["vitest", "node"];
+	const requiredPlugins = auditConfig.vitePlusConfig?.lint?.plugins ?? DEFAULT_CANONICAL_LINT_PLUGINS;
 	if (requiredPlugins.length > 0) {
 		const linterPluginSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "plugins", sf), requiredPlugins, sf);
 		if (linterPluginSync.modified) {

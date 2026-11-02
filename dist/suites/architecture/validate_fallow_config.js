@@ -10,6 +10,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import { deepCompareSatelliteConfig, mergeSatelliteConfigProjection } from "../../core/satelliteConfigParity.js";
+import "./validate_fallow.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -596,6 +597,11 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 			configKey: "fallow.enabled",
 			defaultConfig: {
 				enabled: true,
+				health: {
+					maxCognitive: 20,
+					maxCyclomatic: 25,
+					cyclomaticPolicy: "standard"
+				},
 				enforceTargets: true,
 				maxTargetPriority: "high",
 				typeAware: true,

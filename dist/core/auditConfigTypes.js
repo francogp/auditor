@@ -59,6 +59,8 @@ const VITE_PLUS_NATIVE_LINTER_PLUGINS = [
 	"vitest",
 	"node",
 	"promise",
+	"unicorn",
+	"typescript",
 	"vue",
 	"react",
 	"import",

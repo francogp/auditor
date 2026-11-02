@@ -49,7 +49,16 @@ describe('All Sub-auditors Default Configuration Contract & Dynamic Injection', 
           enabled: true,
           typeAware: true,
           typeCheck: true,
-          plugins: ['vitest', 'node']
+          plugins: [
+            'vitest',
+            'node',
+            'promise',
+            'unicorn',
+            'typescript',
+            'vue',
+            'import',
+            'jsx-a11y'
+          ]
         }),
         fmt: expect.objectContaining({
           enabled: true,
@@ -64,6 +73,18 @@ describe('All Sub-auditors Default Configuration Contract & Dynamic Injection', 
         }),
         vscode: expect.objectContaining({
           enabled: true
+        })
+      })
+    );
+
+    expect(collected).toHaveProperty('fallow');
+    expect(collected.fallow).toEqual(
+      expect.objectContaining({
+        enabled: true,
+        health: expect.objectContaining({
+          maxCognitive: 20,
+          maxCyclomatic: 25,
+          cyclomaticPolicy: 'standard'
         })
       })
     );
@@ -131,7 +152,9 @@ export default defineAuditConfig({
     // 2. vitePlusConfig.lint.typeAware, typeCheck, and plugins must be injected without erasing existing rules
     expect(updatedContent).toContain('typeAware: true');
     expect(updatedContent).toContain('typeCheck: true');
-    expect(updatedContent).toContain("plugins: ['vitest', 'node']");
+    expect(updatedContent).toContain(
+      "plugins: ['vitest', 'node', 'promise', 'unicorn', 'typescript', 'vue', 'import', 'jsx-a11y']"
+    );
     expect(updatedContent).toContain("'unicorn/prefer-node-protocol': 'error'");
 
     // 3. vitePlusConfig.staged, hooks, vscode must be injected
@@ -139,7 +162,14 @@ export default defineAuditConfig({
     expect(updatedContent).toContain('hooks: {');
     expect(updatedContent).toContain('vscode: {');
 
-    // 4. Existing custom fmt ignorePatterns must be preserved
+    // 4. fallow.health must be injected dynamically from ValidateFallowConfigAuditor.defaultConfig
+    expect(updatedContent).toContain('fallow: {');
+    expect(updatedContent).toContain('health: {');
+    expect(updatedContent).toContain('maxCognitive: 20');
+    expect(updatedContent).toContain('maxCyclomatic: 25');
+    expect(updatedContent).toContain("cyclomaticPolicy: 'standard'");
+
+    // 5. Existing custom fmt ignorePatterns must be preserved
     expect(updatedContent).toContain("'src/data/**'");
   });
 

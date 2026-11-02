@@ -343,7 +343,7 @@ var DocumentationLanguageAuditor = class extends BaseAuditor {
 				enabled: true,
 				language: "en",
 				chatLanguage: "es",
-				skillsRoots: DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []
+				skillsRoots: [...DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []]
 			},
 			criticalConfig: {},
 			icon: "🌐",

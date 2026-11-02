@@ -9,8 +9,7 @@
 
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import util from 'node:util';
-import { styleText } from 'node:util';
+import util, { styleText } from 'node:util';
 import zlib from 'node:zlib';
 
 import type { Plugin } from 'vite-plus';

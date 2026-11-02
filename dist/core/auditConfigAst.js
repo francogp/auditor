@@ -47,7 +47,7 @@ function getNormalizedPropName(prop) {
 function deduplicateObjectLiteralProperties(obj) {
 	let mutated = false;
 	const seenKeys = /* @__PURE__ */ new Set();
-	for (const prop of [...obj.getProperties()]) {
+	for (const prop of obj.getProperties()) {
 		const key = getNormalizedPropName(prop);
 		if (!key) continue;
 		if (seenKeys.has(key)) {
@@ -65,6 +65,16 @@ function deduplicateObjectLiteralProperties(obj) {
 	}
 	return mutated;
 }
+function syncArrayElementsWithTsMorph(arrInit, missingVal) {
+	let mutated = false;
+	const existingTexts = new Set(arrInit.getElements().map((el) => el.getText().replace(/^['"]|['"]$/g, "")));
+	for (const item of missingVal) if (typeof item === "string" && !existingTexts.has(item)) {
+		arrInit.addElement(`'${item.replaceAll("'", "\\'")}'`);
+		existingTexts.add(item);
+		mutated = true;
+	}
+	return mutated;
+}
 function syncMissingPropsWithTsMorph(obj, missingProps) {
 	let mutated = false;
 	if (deduplicateObjectLiteralProperties(obj)) mutated = true;
@@ -72,8 +82,10 @@ function syncMissingPropsWithTsMorph(obj, missingProps) {
 		if (missingVal === void 0) continue;
 		const existing = obj.getProperty((prop) => getNormalizedPropName(prop) === key);
 		if (existing?.isKind(SyntaxKind.PropertyAssignment)) {
-			const init = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
-			if (init && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(init, missingVal)) mutated = true;
+			const objInit = existing.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+			if (objInit && isPlainRecord(missingVal) && syncMissingPropsWithTsMorph(objInit, missingVal)) mutated = true;
+			const arrInit = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+			if (arrInit && Array.isArray(missingVal) && syncArrayElementsWithTsMorph(arrInit, missingVal)) mutated = true;
 			continue;
 		}
 		if (!existing) {

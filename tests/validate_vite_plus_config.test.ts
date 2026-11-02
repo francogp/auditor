@@ -1351,14 +1351,26 @@ export default defineConfig({
       const pluginFindings = auditResult.findings.filter(
         (f) => f.ruleId === 'vite-plus-config-lint' && f.context?.startsWith('lint.plugins.')
       );
-      expect(pluginFindings.length).toBe(2);
+      expect(pluginFindings.length).toBe(8);
       expect(pluginFindings.some((f) => f.context === 'lint.plugins.vitest')).toBe(true);
       expect(pluginFindings.some((f) => f.context === 'lint.plugins.node')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.promise')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.unicorn')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.typescript')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.vue')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.import')).toBe(true);
+      expect(pluginFindings.some((f) => f.context === 'lint.plugins.jsx-a11y')).toBe(true);
 
       await auditor.fix();
       const fixedContent = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
       expect(fixedContent).toContain("'vitest'");
       expect(fixedContent).toContain("'node'");
+      expect(fixedContent).toContain("'promise'");
+      expect(fixedContent).toContain("'unicorn'");
+      expect(fixedContent).toContain("'typescript'");
+      expect(fixedContent).toContain("'vue'");
+      expect(fixedContent).toContain("'import'");
+      expect(fixedContent).toContain("'jsx-a11y'");
 
       const secondAuditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
       const secondAudit = await secondAuditor.audit();
