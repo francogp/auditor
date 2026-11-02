@@ -1,7 +1,7 @@
 import { AuditConfig } from "../../core/auditConfigTypes.js";
 import { AuditFinding, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
-export declare const VITE_PLUS_CONFIG_RULES: readonly ["vite-plus-config-core", "vite-plus-config-lint", "vite-plus-config-fmt", "vite-plus-config-pack", "vite-plus-config-ts", "vite-plus-undeclared-config-entry"];
+export declare const VITE_PLUS_CONFIG_RULES: readonly ["vite-plus-config-core", "vite-plus-config-lint", "vite-plus-config-fmt", "vite-plus-config-pack", "vite-plus-config-ts", "vite-plus-undeclared-config-entry", "vite-plus-inline-plugins-detected"];
 export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
 export interface VitePlusConfigAuditOptions {
   readonly projectRoot?: string;

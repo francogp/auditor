@@ -1,3 +1,4 @@
+import "./auditConfigTypes.js";
 import { checkInfrastructureSubsystems } from "./auditConfigInfra.js";
 import { checkUiSubsystems } from "./auditConfigUi.js";
 import "./auditConfigSubsystems.js";

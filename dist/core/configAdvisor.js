@@ -1,8 +1,8 @@
-import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { isSupabaseExclusivePersistenceKey } from "./auditConfigTypes.js";
 import { safeReadFileSync } from "./safeUtils.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
 import { parseAuditConfigTextToRecord } from "./configRatchet.js";
-import { collectConfigSectionsFromTasks, deepMergeDefaultsObject } from "../suites/architecture/validate_audit_config.js";
+import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
 import path from "node:path";
 import fs from "node:fs";
 // src/core/configAdvisor.ts
@@ -47,26 +47,19 @@ function isNumericFloor(key, dotPath) {
 	const lowerPath = dotPath.toLowerCase();
 	return lowerKey.startsWith("min") || lowerKey.includes("threshold") || lowerKey.includes("atleast") || lowerKey.includes("floor") || lowerPath.includes("coverage") || lowerPath.includes("similarity.threshold");
 }
-/**
-* Assembles the full unified expected configuration tree by dynamically querying
-* all discovered subauditors and falling back to canonical engine defaults.
-*/
-function buildUnifiedExpectedConfigTree(tasks) {
-	const unified = {};
-	for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) if (key !== "name" && key !== "auditorVersion" && typeof val === "object" && val !== null && !Array.isArray(val)) unified[key] = structuredClone(val);
-	const taskSections = collectConfigSectionsFromTasks(tasks);
-	for (const [rootKey, taskTree] of Object.entries(taskSections)) if (!unified[rootKey]) unified[rootKey] = structuredClone(taskTree);
-	else deepMergeDefaultsObject(unified[rootKey], taskTree);
-	return unified;
-}
 function handleMissingProperty(subsystem, currentPath, expectedVal, recommendations, projectRoot) {
 	if (expectedVal === null || expectedVal === void 0) return;
 	if (Array.isArray(expectedVal) && expectedVal.length === 0) return;
-	if ((subsystem === "paths" || currentPath.startsWith("paths.") || currentPath.includes("Roots") || currentPath.endsWith("Dir") || currentPath.endsWith("Dirs")) && projectRoot) {
+	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal) && Object.keys(expectedVal).length === 0) return;
+	const isPathProperty = subsystem === "paths" || currentPath.startsWith("paths.") || currentPath.includes("Roots") || currentPath.endsWith("Dir") || currentPath.endsWith("Dirs") || currentPath.endsWith("Files");
+	let valToRecommend = expectedVal;
+	if (isPathProperty && projectRoot) {
 		if (typeof expectedVal === "string") {
 			if (!fs.existsSync(path.resolve(projectRoot, expectedVal))) return;
 		} else if (Array.isArray(expectedVal)) {
-			if (!expectedVal.some((p) => typeof p === "string" && fs.existsSync(path.resolve(projectRoot, p)))) return;
+			const existingItems = expectedVal.filter((p) => typeof p === "string" && fs.existsSync(path.resolve(projectRoot, p)));
+			if (existingItems.length === 0) return;
+			valToRecommend = existingItems;
 		}
 	}
 	recommendations.push({
@@ -74,7 +67,7 @@ function handleMissingProperty(subsystem, currentPath, expectedVal, recommendati
 		subsystem,
 		kind: "missing_property",
 		currentValue: void 0,
-		recommendedValue: expectedVal,
+		recommendedValue: valToRecommend,
 		rationale: `Property '${currentPath}' is not configured in audit.config.ts. Setting canonical default ensures deterministic suite behavior.`,
 		impact: "hygiene"
 	});
@@ -250,6 +243,39 @@ function evaluateProjectConfig(projectRoot = process.cwd(), options = {}) {
 	const configFile = path.join(projectRoot, ".auditor", "audit.config.ts");
 	return evaluateProjectConfigFromData(projectRoot, configFile, options.rawConfigOverride ?? parseAuditConfigFileToRecord(configFile) ?? {}, options.tasks ?? [], options);
 }
+function handleMissingSection(sectionKey, sectionExpected, recommendations) {
+	if (typeof sectionExpected === "object" && sectionExpected !== null && Object.keys(sectionExpected).length === 0) return;
+	recommendations.push({
+		path: sectionKey,
+		subsystem: sectionKey,
+		kind: "missing_section",
+		currentValue: void 0,
+		recommendedValue: sectionExpected,
+		rationale: `Subsystem '${sectionKey}' is discovered from active auditor suites but not declared in audit.config.ts. Configuring defaults enables full architectural governance.`,
+		impact: "feature"
+	});
+}
+function evaluateExistingSectionProperties(sectionKey, sectionExpected, sectionRecord, recommendations, hardenedSettings, projectRoot) {
+	if (sectionRecord.enabled === false) {
+		if (sectionExpected.enabled === true) recommendations.push({
+			path: `${sectionKey}.enabled`,
+			subsystem: sectionKey,
+			kind: "relaxed_boolean",
+			currentValue: false,
+			recommendedValue: true,
+			rationale: `Subsystem '${sectionKey}' is currently disabled. Activating it enables architectural analysis.`,
+			impact: "hardening"
+		});
+		return;
+	}
+	const engine = sectionKey === "persistence" && typeof sectionRecord.engine === "string" ? sectionRecord.engine : void 0;
+	for (const [key, expectedVal] of Object.entries(sectionExpected)) {
+		if (expectedVal === void 0) continue;
+		if (sectionKey === "persistence" && isSupabaseExclusivePersistenceKey(key, engine)) continue;
+		if (key === "enabled" && sectionRecord[key] === void 0) continue;
+		evaluateAgnosticPropertyTree(sectionKey, `${sectionKey}.${key}`, expectedVal, sectionRecord[key], recommendations, hardenedSettings, projectRoot);
+	}
+}
 function evaluateProjectConfigFromData(projectRoot, configFile, rawLocalConfig, tasks, options) {
 	const unifiedExpectedTree = buildUnifiedExpectedConfigTree(tasks);
 	const recommendations = [];
@@ -260,37 +286,10 @@ function evaluateProjectConfigFromData(projectRoot, configFile, rawLocalConfig, 
 		totalChecked++;
 		const localSection = rawLocalConfig[sectionKey];
 		if (localSection === void 0) {
-			recommendations.push({
-				path: sectionKey,
-				subsystem: sectionKey,
-				kind: "missing_section",
-				currentValue: void 0,
-				recommendedValue: sectionExpected,
-				rationale: `Subsystem '${sectionKey}' is discovered from active auditor suites but not declared in audit.config.ts. Configuring defaults enables full architectural governance.`,
-				impact: "feature"
-			});
+			handleMissingSection(sectionKey, sectionExpected, recommendations);
 			continue;
 		}
-		if (typeof localSection === "object" && localSection !== null && !Array.isArray(localSection)) {
-			const sectionRecord = localSection;
-			if (sectionRecord.enabled === false) {
-				if (sectionExpected.enabled === true) recommendations.push({
-					path: `${sectionKey}.enabled`,
-					subsystem: sectionKey,
-					kind: "relaxed_boolean",
-					currentValue: false,
-					recommendedValue: true,
-					rationale: `Subsystem '${sectionKey}' is currently disabled. Activating it enables architectural analysis.`,
-					impact: "hardening"
-				});
-				continue;
-			}
-			for (const [key, expectedVal] of Object.entries(sectionExpected)) {
-				if (expectedVal === void 0) continue;
-				if (key === "enabled" && sectionRecord[key] === void 0) continue;
-				evaluateAgnosticPropertyTree(sectionKey, `${sectionKey}.${key}`, expectedVal, sectionRecord[key], recommendations, hardenedSettings, projectRoot);
-			}
-		}
+		if (typeof localSection === "object" && localSection !== null && !Array.isArray(localSection)) evaluateExistingSectionProperties(sectionKey, sectionExpected, localSection, recommendations, hardenedSettings, projectRoot);
 	}
 	const optimalCount = Math.max(0, totalChecked - recommendations.length - hardenedSettings.length);
 	return {

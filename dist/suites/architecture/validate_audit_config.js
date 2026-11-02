@@ -1,4 +1,4 @@
-import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES } from "../../core/auditConfigTypes.js";
+import { AUDITOR_DIR, AUDIT_CONFIG_FILE, LEGACY_ROOT_CONFIG_FILES, isSupabaseExclusivePersistenceKey } from "../../core/auditConfigTypes.js";
 import { AUDITOR_VERSION } from "../../core/version.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { tryOrNull } from "../../core/safeUtils.js";
@@ -63,12 +63,7 @@ function deepMergeDefaultsObject(target, defaults) {
 function buildTaskExpectedConfigTree(tasks) {
 	const byRoot = /* @__PURE__ */ new Map();
 	for (const task of tasks) {
-		const rootConfigKeys = /* @__PURE__ */ new Set([
-			"paths",
-			"core",
-			"none"
-		]);
-		if (!task.configKey || rootConfigKeys.has(task.configKey)) continue;
+		if (!task.configKey || task.configKey === "none" || task.configKey === "core") continue;
 		if (!task.defaultConfig || typeof task.defaultConfig !== "object" || Object.keys(task.defaultConfig).length === 0) continue;
 		const parts = task.configKey.split(".");
 		const rootKey = parts[0];
@@ -100,6 +95,17 @@ function collectConfigSectionsFromTasks(tasks) {
 	for (const [rootKey, { expectedTree }] of byRoot.entries()) sections[rootKey] = expectedTree;
 	return sections;
 }
+function buildUnifiedExpectedConfigTree(tasks) {
+	const unified = {};
+	unified.paths = structuredClone(DEFAULT_AUDIT_CONFIG.paths);
+	const taskSections = collectConfigSectionsFromTasks(tasks);
+	for (const [rootKey, taskTree] of Object.entries(taskSections)) if (!unified[rootKey]) unified[rootKey] = structuredClone(taskTree);
+	else deepMergeDefaultsObject(unified[rootKey], taskTree);
+	if (tasks.length === 0) {
+		for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) if (key !== "name" && key !== "auditorVersion" && typeof val === "object" && val !== null && !Array.isArray(val) && Object.keys(val).length > 0 && !unified[key]) unified[key] = structuredClone(val);
+	}
+	return unified;
+}
 function syncAuditorVersionInConfigFile(configFilePath, version) {
 	if (!fs.existsSync(configFilePath)) return false;
 	if (configFilePath.endsWith(".json")) try {
@@ -130,16 +136,16 @@ function createDefaultAuditConfigContent(packageName = "Project", tasks = []) {
 	const exportDecl = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineAuditConfig"), void 0, [dtoValueToTsExpression(defaultDto)]));
 	return `${formatTsNodeTwoSpaceIndent(importDecl)}\n\n${formatTsNodeTwoSpaceIndent(exportDecl)}\n`;
 }
-function computePropertyMissingDiff(expectedVal, currentVal) {
+function computePropertyMissingDiff(expectedVal, currentVal, rootKey) {
 	if (currentVal === void 0) {
-		if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, void 0, false);
+		if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, void 0, false, rootKey);
 		return expectedVal;
 	}
 	if (Array.isArray(expectedVal) && Array.isArray(currentVal)) {
 		const missingElements = expectedVal.filter((item) => !currentVal.includes(item));
 		return missingElements.length > 0 ? missingElements : void 0;
 	}
-	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, currentVal, false);
+	if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal)) return computeMissingConfigDiff(expectedVal, currentVal, false, rootKey);
 }
 function filterEmptyDefaults(expected) {
 	const filtered = {};
@@ -156,23 +162,30 @@ function isSectionDisabled(current) {
 	const c = current;
 	return c.enabled === false || c.engine === "none";
 }
-function diffObjectProperties(expected, current) {
+function isSupabaseExclusiveKey(key, current, rootKey) {
+	if (rootKey !== "persistence") return false;
+	const engine = typeof current.engine === "string" ? current.engine : void 0;
+	return isSupabaseExclusivePersistenceKey(key, engine);
+}
+function diffObjectProperties(expected, current, rootKey) {
 	const missingObj = {};
 	for (const [key, expectedVal] of Object.entries(expected)) {
 		if (expectedVal === void 0) continue;
 		if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
-		const diff = computePropertyMissingDiff(expectedVal, Reflect.get(current, key));
+		if (typeof expectedVal === "object" && expectedVal !== null && !Array.isArray(expectedVal) && Object.keys(expectedVal).length === 0) continue;
+		if (isSupabaseExclusiveKey(key, current, rootKey)) continue;
+		const diff = computePropertyMissingDiff(expectedVal, Reflect.get(current, key), rootKey);
 		if (diff !== void 0) missingObj[key] = diff;
 	}
 	return Object.keys(missingObj).length > 0 ? missingObj : void 0;
 }
-function computeMissingConfigDiff(expected, current, _isRootLevel = true) {
+function computeMissingConfigDiff(expected, current, _isRootLevel = true, rootKey) {
 	if (current === void 0) {
 		if (typeof expected === "object" && expected !== null && !Array.isArray(expected)) return filterEmptyDefaults(expected);
 		return expected;
 	}
 	if (isSectionDisabled(current)) return;
-	if (typeof expected === "object" && expected !== null && !Array.isArray(expected) && typeof current === "object" && current !== null && !Array.isArray(current)) return diffObjectProperties(expected, current);
+	if (typeof expected === "object" && expected !== null && !Array.isArray(expected) && typeof current === "object" && current !== null && !Array.isArray(current)) return diffObjectProperties(expected, current, rootKey);
 }
 function extractMissingConfigPaths(prefix, missingTree, currentVal) {
 	const paths = [];
@@ -188,7 +201,7 @@ function extractMissingConfigPaths(prefix, missingTree, currentVal) {
 	}
 	return paths;
 }
-function collectMissingSections(tasks, rawConfig) {
+function collectMissingSections(tasks, rawConfig, _projectRoot) {
 	const missingByRootKey = /* @__PURE__ */ new Map();
 	const byRoot = buildTaskExpectedConfigTree(tasks);
 	for (const [rootKey, { tasks: rootTasks, expectedTree }] of byRoot.entries()) {
@@ -200,7 +213,7 @@ function collectMissingSections(tasks, rawConfig) {
 				currentVal = stylelintConfig !== void 0 ? stylelintConfig : stylesConfig && typeof stylesConfig === "object" ? stylesConfig.stylelint ?? stylesConfig : void 0;
 			} else currentVal = Reflect.get(rawConfig, rootKey);
 		}
-		const missingDiff = computeMissingConfigDiff(expectedTree, currentVal, true);
+		const missingDiff = computeMissingConfigDiff(expectedTree, currentVal, true, rootKey);
 		if (missingDiff && Object.keys(missingDiff).length > 0) {
 			const missingPaths = extractMissingConfigPaths(rootKey, missingDiff, currentVal);
 			missingByRootKey.set(rootKey, {
@@ -522,7 +535,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 	async verifyRequiredSections(config, tasks) {
 		if (tasks.length === 0) return;
 		const rawConfig = config._rawConfig ?? {};
-		const missingByRootKey = collectMissingSections(tasks, rawConfig);
+		const missingByRootKey = collectMissingSections(tasks, rawConfig, this.projectRoot);
 		if (missingByRootKey.size === 0) return;
 		if (this.isFixActive()) {
 			this.applyMissingSectionsFix(missingByRootKey);
@@ -939,4 +952,4 @@ async function enforceCriticalConfigurations(projectRoot, tasks) {
 	}
 }
 await BaseAuditor.runCliIfMain(import.meta.url, new ValidateAuditConfigAuditor());
-export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, buildTaskExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, enforceCriticalConfigurations, extractMissingConfigPaths, syncAuditorVersionInConfigFile };
+export { AUDIT_CONFIG_REQUIREMENT, AUDIT_CONFIG_RULES, PATH_ROOT_KEYS, ValidateAuditConfigAuditor, buildTaskExpectedConfigTree, buildUnifiedExpectedConfigTree, collectConfigSectionsFromTasks, collectMissingSections, computeMissingConfigDiff, createDefaultAuditConfigContent, deepMergeDefaultsObject, enforceCriticalConfigurations, extractMissingConfigPaths, syncAuditorVersionInConfigFile };

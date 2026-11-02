@@ -58,6 +58,35 @@ export type AuditListFilter = (typeof AUDIT_LIST_FILTERS)[number];
 export const PERSISTENCE_ENGINES = ['supabase', 'sqlite', 'postgres', 'hybrid', 'none'] as const;
 export type PersistenceEngine = (typeof PERSISTENCE_ENGINES)[number];
 
+export const NON_SUPABASE_PERSISTENCE_ENGINES = [
+  'sqlite',
+  'none'
+] as const satisfies readonly PersistenceEngine[];
+export type NonSupabasePersistenceEngine = (typeof NON_SUPABASE_PERSISTENCE_ENGINES)[number];
+
+export const NON_SUPABASE_PERSISTENCE_ENGINE_SET: ReadonlySet<string> = new Set(
+  NON_SUPABASE_PERSISTENCE_ENGINES
+);
+
+export const SUPABASE_EXCLUSIVE_PERSISTENCE_KEYS = [
+  'dockerContainer',
+  'supabaseDir',
+  'exemptRlsTables',
+  'schemaQualified'
+] as const;
+export type SupabaseExclusivePersistenceKey = (typeof SUPABASE_EXCLUSIVE_PERSISTENCE_KEYS)[number];
+
+export const SUPABASE_EXCLUSIVE_PERSISTENCE_KEY_SET: ReadonlySet<string> = new Set(
+  SUPABASE_EXCLUSIVE_PERSISTENCE_KEYS
+);
+
+export function isSupabaseExclusivePersistenceKey(key: string, engine?: string): boolean {
+  if (engine && NON_SUPABASE_PERSISTENCE_ENGINE_SET.has(engine)) {
+    return SUPABASE_EXCLUSIVE_PERSISTENCE_KEY_SET.has(key);
+  }
+  return false;
+}
+
 export interface AuditPersistenceConfig extends BaseAuditSubsystemConfig {
   readonly engine: PersistenceEngine;
   readonly schemaQualified: boolean;

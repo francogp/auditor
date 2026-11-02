@@ -25,6 +25,7 @@ import {
   AUDIT_CONFIG_FILE,
   LEGACY_ROOT_CONFIG_FILES,
   DEFAULT_AUDIT_CONFIG,
+  isSupabaseExclusivePersistenceKey,
   type AuditEngineConfig
 } from '../../core/auditConfig.ts';
 import { detectUnacknowledgedDegradations } from '../../core/auditConfigDegradations.ts';
@@ -115,8 +116,7 @@ export function buildTaskExpectedConfigTree(
   >();
 
   for (const task of tasks) {
-    const rootConfigKeys: ReadonlySet<string> = new Set(['paths', 'core', 'none']);
-    if (!task.configKey || rootConfigKeys.has(task.configKey)) {
+    if (!task.configKey || task.configKey === 'none' || task.configKey === 'core') {
       continue;
     }
     if (
@@ -171,6 +171,44 @@ export function collectConfigSectionsFromTasks(
     sections[rootKey] = expectedTree;
   }
   return sections;
+}
+
+export function buildUnifiedExpectedConfigTree(
+  tasks: readonly AuditTaskDefinition[]
+): Record<string, Record<string, unknown>> {
+  const unified: Record<string, Record<string, unknown>> = {};
+
+  // Core foundational paths section
+  unified.paths = structuredClone(DEFAULT_AUDIT_CONFIG.paths);
+
+  // Dynamically merge sovereign subauditor defaultConfig contracts
+  const taskSections = collectConfigSectionsFromTasks(tasks);
+  for (const [rootKey, taskTree] of Object.entries(taskSections)) {
+    if (!unified[rootKey]) {
+      unified[rootKey] = structuredClone(taskTree);
+    } else {
+      deepMergeDefaultsObject(unified[rootKey], taskTree);
+    }
+  }
+
+  // When tasks is empty (e.g. isolated unit tests), fallback to all non-empty sections of DEFAULT_AUDIT_CONFIG
+  if (tasks.length === 0) {
+    for (const [key, val] of Object.entries(DEFAULT_AUDIT_CONFIG)) {
+      if (
+        key !== 'name' &&
+        key !== 'auditorVersion' &&
+        typeof val === 'object' &&
+        val !== null &&
+        !Array.isArray(val) &&
+        Object.keys(val).length > 0 &&
+        !unified[key]
+      ) {
+        unified[key] = structuredClone(val) as Record<string, unknown>;
+      }
+    }
+  }
+
+  return unified;
 }
 
 export function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean {
@@ -245,10 +283,14 @@ export interface MissingSectionEntry {
   missingPaths: string[]; // List of dot-separated paths for missing sections or sub-configurations
 }
 
-function computePropertyMissingDiff(expectedVal: unknown, currentVal: unknown): unknown {
+function computePropertyMissingDiff(
+  expectedVal: unknown,
+  currentVal: unknown,
+  rootKey?: string
+): unknown {
   if (currentVal === undefined) {
     if (typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal)) {
-      return computeMissingConfigDiff(expectedVal, undefined, false);
+      return computeMissingConfigDiff(expectedVal, undefined, false, rootKey);
     }
     return expectedVal;
   }
@@ -257,7 +299,7 @@ function computePropertyMissingDiff(expectedVal: unknown, currentVal: unknown): 
     return missingElements.length > 0 ? missingElements : undefined;
   }
   if (typeof expectedVal === 'object' && expectedVal !== null && !Array.isArray(expectedVal)) {
-    return computeMissingConfigDiff(expectedVal, currentVal, false);
+    return computeMissingConfigDiff(expectedVal, currentVal, false, rootKey);
   }
   return undefined;
 }
@@ -280,17 +322,39 @@ function isSectionDisabled(current: unknown): boolean {
   return c.enabled === false || c.engine === 'none';
 }
 
+function isSupabaseExclusiveKey(
+  key: string,
+  current: Record<string, unknown>,
+  rootKey?: string
+): boolean {
+  if (rootKey !== 'persistence') return false;
+  const engine = typeof current.engine === 'string' ? current.engine : undefined;
+  return isSupabaseExclusivePersistenceKey(key, engine);
+}
+
 function diffObjectProperties(
   expected: Record<string, unknown>,
-  current: Record<string, unknown>
+  current: Record<string, unknown>,
+  rootKey?: string
 ): Record<string, unknown> | undefined {
   const missingObj: Record<string, unknown> = {};
+
   for (const [key, expectedVal] of Object.entries(expected)) {
     if (expectedVal === undefined) continue;
     if (Array.isArray(expectedVal) && expectedVal.length === 0) continue;
+    if (
+      typeof expectedVal === 'object' &&
+      expectedVal !== null &&
+      !Array.isArray(expectedVal) &&
+      Object.keys(expectedVal).length === 0
+    ) {
+      continue;
+    }
+
+    if (isSupabaseExclusiveKey(key, current, rootKey)) continue;
 
     const currentVal = Reflect.get(current, key);
-    const diff = computePropertyMissingDiff(expectedVal, currentVal);
+    const diff = computePropertyMissingDiff(expectedVal, currentVal, rootKey);
     if (diff !== undefined) {
       missingObj[key] = diff;
     }
@@ -301,7 +365,8 @@ function diffObjectProperties(
 export function computeMissingConfigDiff(
   expected: unknown,
   current: unknown,
-  _isRootLevel = true
+  _isRootLevel = true,
+  rootKey?: string
 ): unknown {
   if (current === undefined) {
     if (typeof expected === 'object' && expected !== null && !Array.isArray(expected)) {
@@ -324,7 +389,8 @@ export function computeMissingConfigDiff(
   ) {
     return diffObjectProperties(
       expected as Record<string, unknown>,
-      current as Record<string, unknown>
+      current as Record<string, unknown>,
+      rootKey
     );
   }
 
@@ -366,7 +432,8 @@ export function extractMissingConfigPaths(
 
 export function collectMissingSections(
   tasks: readonly AuditTaskDefinition[],
-  rawConfig: unknown
+  rawConfig: unknown,
+  _projectRoot?: string
 ): Map<string, MissingSectionEntry> {
   const missingByRootKey = new Map<string, MissingSectionEntry>();
   const byRoot = buildTaskExpectedConfigTree(tasks);
@@ -390,7 +457,7 @@ export function collectMissingSections(
       }
     }
 
-    const missingDiff = computeMissingConfigDiff(expectedTree, currentVal, true) as
+    const missingDiff = computeMissingConfigDiff(expectedTree, currentVal, true, rootKey) as
       | Record<string, unknown>
       | undefined;
 
@@ -894,7 +961,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     if (tasks.length === 0) return;
 
     const rawConfig = (config._rawConfig ?? {}) as Record<string, unknown>;
-    const missingByRootKey = collectMissingSections(tasks, rawConfig);
+    const missingByRootKey = collectMissingSections(tasks, rawConfig, this.projectRoot);
     if (missingByRootKey.size === 0) return;
 
     if (this.isFixActive()) {

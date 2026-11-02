@@ -7,6 +7,7 @@ export declare function buildTaskExpectedConfigTree(tasks: readonly AuditTaskDef
   expectedTree: Record<string, unknown>;
 }>;
 export declare function collectConfigSectionsFromTasks(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
+export declare function buildUnifiedExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
 export declare function syncAuditorVersionInConfigFile(configFilePath: string, version: string): boolean;
 export declare function createDefaultAuditConfigContent(packageName?: string, tasks?: readonly AuditTaskDefinition[]): string;
 export interface MissingSectionEntry {
@@ -15,9 +16,9 @@ export interface MissingSectionEntry {
   missingTree: Record<string, unknown>;
   missingPaths: string[];
 }
-export declare function computeMissingConfigDiff(expected: unknown, current: unknown, _isRootLevel?: boolean): unknown;
+export declare function computeMissingConfigDiff(expected: unknown, current: unknown, _isRootLevel?: boolean, rootKey?: string): unknown;
 export declare function extractMissingConfigPaths(prefix: string, missingTree: Record<string, unknown>, currentVal?: unknown): string[];
-export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown): Map<string, MissingSectionEntry>;
+export declare function collectMissingSections(tasks: readonly AuditTaskDefinition[], rawConfig: unknown, _projectRoot?: string): Map<string, MissingSectionEntry>;
 export type AuditConfigRuleId = 'audit-config-missing-path' | 'audit-config-missing-file' | 'audit-config-invalid-extension' | 'audit-config-missing-gitignore-entry' | 'audit-config-missing-section' | 'audit-config-unknown-field' | 'audit-config-critical-violation' | 'audit-config-unacknowledged-degradation' | 'audit-config-ratchet-relaxation';
 export declare const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[];
 export declare const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[];

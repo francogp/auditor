@@ -7,7 +7,7 @@ import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { isPatternContainedInGlobs } from "../../core/globContainment.js";
 import { getAllowedSatellitePathExcludes } from "../../core/satelliteGlobMatcher.js";
-import { extractParsedConfigSummary, isRuleValueCompliant, resolveVitestRoots } from "../../core/viteConfigAst.js";
+import { detectInlineVitePlugins, extractParsedConfigSummary, isRuleValueCompliant, parseTsSourceFile, resolveVitestRoots } from "../../core/viteConfigAst.js";
 import { LEGACY_CONFIG_FILES, buildCanonicalVitePlusConfig, cleanHomebrewCompressionFiles, cleanLegacyConfigFiles, detectHomebrewCompressionImports, findHomebrewCompressionFiles, migrateHomebrewCompressionInViteConfig, repairVitePlusProject, resolveAuditConfigIgnoreGlobs, syncViteConfigWithAuditConfig } from "../../core/vitePlusConfigSync.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -20,7 +20,8 @@ const VITE_PLUS_CONFIG_RULES = [
 	"vite-plus-config-fmt",
 	"vite-plus-config-pack",
 	"vite-plus-config-ts",
-	"vite-plus-undeclared-config-entry"
+	"vite-plus-undeclared-config-entry",
+	"vite-plus-inline-plugins-detected"
 ];
 const ANTI_CASTRATION_SPECS = [
 	{
@@ -1306,6 +1307,19 @@ function auditVitePlusConfigContent(content, fileName, auditConfig, projectRoot)
 		...validateRequiredSections(summary, fileName, auditConfig),
 		...validateLintOptionsAndPlugins(summary, fileName, auditConfig)
 	];
+	const sf = parseTsSourceFile(content, fileName);
+	if (detectInlineVitePlugins(sf).hasInlinePlugins) findings.push({
+		suiteId: "validate_vite_plus_config",
+		suiteName: "Vite+ Unified Configuration Validator",
+		ruleId: "vite-plus-inline-plugins-detected",
+		ruleDescription: "Vite+: Modular plugins standard",
+		severity: "warning",
+		file: fileName,
+		line: 1,
+		col: 1,
+		context: "plugins",
+		message: "Inline Vite plugins detected in vite.config.ts. To prevent TypeScript type recursion (TS2321) and enable granular plugin maintenance, Vite plugins must be declared in 'vite.plugins.ts' (imported by vite.config.ts). Run 'npm run auditor:fix' or 'auditor fix' to migrate automatically."
+	});
 	if (auditConfig) findings.push(...validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot));
 	return findings;
 }
@@ -1323,7 +1337,8 @@ const RULE_DESCRIPTIONS = {
 	"vite-plus-config-fmt": "Oxfmt code formatting standards",
 	"vite-plus-config-pack": "Packaging and distribution standards",
 	"vite-plus-config-ts": "TypeScript and test sync standards",
-	"vite-plus-undeclared-config-entry": "Undeclared entry in config"
+	"vite-plus-undeclared-config-entry": "Undeclared entry in config",
+	"vite-plus-inline-plugins-detected": "Modular plugins standard"
 };
 const RULE_REMEDIATIONS = {
 	"vite-plus-config-core": "Root Cause:\nThe vite.config.ts file does not exist in project root, misses core Vite+ blocks (such as test or staged), coexists with obsolete legacy configs (.eslintrc.*, vitest.config.*, .prettierrc.*) breaking unified toolchains, or contains homebrew static precompress plugins or obsolete 3rd party plugins (vite-plugin-compression).\n\nDiagnosis:\nCheck if isolated legacy configs exist, homebrew compression plugins exist under scripts/, or the \"test\" / \"staged\" section is absent in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor generates canonical configuration, purges redundant legacy files, and migrates compression to official \"vitePrecompressPlugin\" from @francogp/auditor.\n2. Ensure build and test commands invoke the \"vp\" binary (\"vp test\", \"vp build\", \"vp dev\").",
@@ -1331,7 +1346,8 @@ const RULE_REMEDIATIONS = {
 	"vite-plus-config-fmt": "Root Cause:\nThe \"fmt\" section is missing from vite.config.ts or does not declare mandatory \"sortImports: true\" and \"sortPackageJson: true\".\nOxfmt requires deterministic sorting of imports and package.json keys to eliminate git diff merge conflicts.\n\nDiagnosis:\nInspect the \"fmt\" object in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to repair configuration automatically.\n2. Or add to vite.config.ts:\n   fmt: { sortImports: true, sortPackageJson: true }",
 	"vite-plus-config-pack": "Root Cause:\nThe package is configured as a public library or shareable package but lacks the \"pack\" section in vite.config.ts with publint and Are The Types Wrong (attw) validators.\nWithout this verification, packages may publish broken exports or .d.ts types incompatible with ESM/CJS.\n\nDiagnosis:\nCheck if the package defines exports or binaries and lacks the pack block in vite.config.ts.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" to inject canonical pack section.\n2. Configure: pack: { publint: true, attw: { profile: \"esm-only\" } }.",
 	"vite-plus-config-ts": "Root Cause:\nDiscrepancy detected between paths governed in .auditor/audit.config.ts (paths.testRoots, paths.ignoreGlobs, vitePlusConfig.test.projects) and \"test.include\" / \"test.projects\" / \"ignorePatterns\" in vite.config.ts, or root \"test.include\" detected alongside \"test.projects\" causing runner cross-contamination.\naudit.config.ts acts as the Single Source of Truth (SSoT) and must be faithfully reflected in test runners and linters.\n\nDiagnosis:\n1. Check if new test directories were added to audit.config.ts without synchronizing vite.config.ts.\n2. Check if a project uses Vitest Workspace projects (\"projects: [...]\") while retaining a root \"test.include\", which contaminates isolated runners.\n\nCanonical Solution:\n1. Run \"npm run auditor:fix\" or \"auditor fix\". The auditor automatically synchronizes test projects, purges root includes in multi-project configs, and aligns ignore patterns.\n2. If using multiple test runners (e.g. unit and node), declare \"vitePlusConfig.test.projects\" in .auditor/audit.config.ts.",
-	"vite-plus-undeclared-config-entry": "📖 REMEDIATION GUIDE: vite-plus-undeclared-config-entry\n1. Root Cause: vite.config.ts contains ignore patterns, coverage exclusions, or custom linter rules that are not authorized in .auditor/audit.config.ts (SSoT violation).\n2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern, exclusion, or rule in vite.config.ts.\n3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`, `testCoverage.excludeGlobs`, or `vitePlusConfig.lint.rules`. Otherwise, remove it from vite.config.ts.\n4. Example / Auto-fix command:\n   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }"
+	"vite-plus-undeclared-config-entry": "📖 REMEDIATION GUIDE: vite-plus-undeclared-config-entry\n1. Root Cause: vite.config.ts contains ignore patterns, coverage exclusions, or custom linter rules that are not authorized in .auditor/audit.config.ts (SSoT violation).\n2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern, exclusion, or rule in vite.config.ts.\n3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`, `testCoverage.excludeGlobs`, or `vitePlusConfig.lint.rules`. Otherwise, remove it from vite.config.ts.\n4. Example / Auto-fix command:\n   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }",
+	"vite-plus-inline-plugins-detected": "📖 REMEDIATION GUIDE: vite-plus-inline-plugins-detected\n1. Root Cause: Inline Vite plugins defined inside defineConfig trigger TypeScript generic recursion (TS2321) and obstruct granular plugin maintenance.\n2. Diagnosis: Inspect vite.config.ts for inline plugins: [...] declarations or local plugin definitions inside vite.config.ts.\n3. Canonical Solution: Declare plugins in \"vite.plugins.ts\" and import them into vite.config.ts. vite.plugins.ts is developer-owned and editable without satellite hook denials.\n4. Example / Auto-fix command:\n   Run \"npm run auditor:fix\" to automatically migrate inline plugins into vite.plugins.ts."
 };
 var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
@@ -1524,6 +1540,17 @@ var ValidateVitePlusConfigAuditor = class extends BaseAuditor {
 				context: f.context ?? "vite-plus-undeclared-config-entry",
 				message: f.message,
 				fixable: false
+			});
+		});
+		this.runSubAuditorSync("vite-plus-inline-plugins-detected", () => {
+			for (const f of findings.filter((x) => x.ruleId === "vite-plus-inline-plugins-detected")) this.addViolation({
+				ruleId: "vite-plus-inline-plugins-detected",
+				severity: "warning",
+				file: relFileName,
+				line: f.line ?? 1,
+				context: f.context ?? "plugins",
+				message: f.message,
+				fixable: true
 			});
 		});
 		this.context.setMetric("Vite+ Config Checked", relFileName);

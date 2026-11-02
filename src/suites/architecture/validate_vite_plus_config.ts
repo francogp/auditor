@@ -28,6 +28,8 @@ import {
   isRuleValueCompliant,
   resolveVitestRoots,
   CANONICAL_LINT_RULES_MAP,
+  detectInlineVitePlugins,
+  parseTsSourceFile,
   type ParsedVitePlusConfigSummary
 } from '../../core/viteConfigAst.ts';
 import {
@@ -51,7 +53,8 @@ export const VITE_PLUS_CONFIG_RULES = [
   'vite-plus-config-fmt',
   'vite-plus-config-pack',
   'vite-plus-config-ts',
-  'vite-plus-undeclared-config-entry'
+  'vite-plus-undeclared-config-entry',
+  'vite-plus-inline-plugins-detected'
 ] as const;
 
 export type VitePlusConfigRuleId = (typeof VITE_PLUS_CONFIG_RULES)[number];
@@ -1546,6 +1549,24 @@ export function auditVitePlusConfigContent(
     ...validateLintOptionsAndPlugins(summary, fileName, auditConfig)
   ];
 
+  const sf = parseTsSourceFile(content, fileName);
+  const inlinePlugins = detectInlineVitePlugins(sf);
+  if (inlinePlugins.hasInlinePlugins) {
+    findings.push({
+      suiteId: 'validate_vite_plus_config',
+      suiteName: 'Vite+ Unified Configuration Validator',
+      ruleId: 'vite-plus-inline-plugins-detected',
+      ruleDescription: 'Vite+: Modular plugins standard',
+      severity: 'warning',
+      file: fileName,
+      line: 1,
+      col: 1,
+      context: 'plugins',
+      message:
+        "Inline Vite plugins detected in vite.config.ts. To prevent TypeScript type recursion (TS2321) and enable granular plugin maintenance, Vite plugins must be declared in 'vite.plugins.ts' (imported by vite.config.ts). Run 'npm run auditor:fix' or 'auditor fix' to migrate automatically."
+    });
+  }
+
   if (auditConfig) {
     findings.push(...validateSynchronizedConfig(summary, fileName, auditConfig, projectRoot));
   }
@@ -1568,7 +1589,8 @@ const RULE_DESCRIPTIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
   'vite-plus-config-fmt': 'Oxfmt code formatting standards',
   'vite-plus-config-pack': 'Packaging and distribution standards',
   'vite-plus-config-ts': 'TypeScript and test sync standards',
-  'vite-plus-undeclared-config-entry': 'Undeclared entry in config'
+  'vite-plus-undeclared-config-entry': 'Undeclared entry in config',
+  'vite-plus-inline-plugins-detected': 'Modular plugins standard'
 };
 
 const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
@@ -1624,7 +1646,14 @@ const RULE_REMEDIATIONS: Readonly<Record<VitePlusConfigRuleId, string>> = {
     '2. Diagnosis: Inspect the diagnostic message to identify the undeclared pattern, exclusion, or rule in vite.config.ts.\n' +
     '3. Canonical Solution: If the exemption is genuine, declare it in .auditor/audit.config.ts under `paths.ignoreGlobs`, `testCoverage.excludeGlobs`, or `vitePlusConfig.lint.rules`. Otherwise, remove it from vite.config.ts.\n' +
     '4. Example / Auto-fix command:\n' +
-    "   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }"
+    "   Declare in .auditor/audit.config.ts: paths: { ignoreGlobs: ['path/**'] }",
+  'vite-plus-inline-plugins-detected':
+    '📖 REMEDIATION GUIDE: vite-plus-inline-plugins-detected\n' +
+    '1. Root Cause: Inline Vite plugins defined inside defineConfig trigger TypeScript generic recursion (TS2321) and obstruct granular plugin maintenance.\n' +
+    '2. Diagnosis: Inspect vite.config.ts for inline plugins: [...] declarations or local plugin definitions inside vite.config.ts.\n' +
+    '3. Canonical Solution: Declare plugins in "vite.plugins.ts" and import them into vite.config.ts. vite.plugins.ts is developer-owned and editable without satellite hook denials.\n' +
+    '4. Example / Auto-fix command:\n' +
+    '   Run "npm run auditor:fix" to automatically migrate inline plugins into vite.plugins.ts.'
 };
 
 export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRuleId> {
@@ -1879,6 +1908,21 @@ export class ValidateVitePlusConfigAuditor extends BaseAuditor<VitePlusConfigRul
           context: f.context ?? 'vite-plus-undeclared-config-entry',
           message: f.message,
           fixable: false
+        });
+      }
+    });
+
+    // Rule 7: vite-plus-inline-plugins-detected
+    this.runSubAuditorSync('vite-plus-inline-plugins-detected', () => {
+      for (const f of findings.filter((x) => x.ruleId === 'vite-plus-inline-plugins-detected')) {
+        this.addViolation({
+          ruleId: 'vite-plus-inline-plugins-detected',
+          severity: 'warning',
+          file: relFileName,
+          line: f.line ?? 1,
+          context: f.context ?? 'plugins',
+          message: f.message,
+          fixable: true
         });
       }
     });

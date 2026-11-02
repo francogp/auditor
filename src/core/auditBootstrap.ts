@@ -119,7 +119,7 @@ async function ensureMissingSectionsInjected(
   if (!activeConfig) return injectedKeys;
 
   const rawConfig = (activeConfig._rawConfig ?? {}) as Record<string, unknown>;
-  const missing = collectMissingSections(tasks, rawConfig);
+  const missing = collectMissingSections(tasks, rawConfig, projectRoot);
 
   if (missing.size === 0) return injectedKeys;
 

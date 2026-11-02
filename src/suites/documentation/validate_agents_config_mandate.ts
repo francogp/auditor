@@ -35,7 +35,8 @@ export type AgentsConfigMandateRuleId =
   | 'agents-missing-destructive-git-mandate'
   | 'agents-missing-official-tools-mandate'
   | 'agents-missing-architecture-mandate'
-  | 'agents-missing-dependency-immutability-mandate';
+  | 'agents-missing-dependency-immutability-mandate'
+  | 'agents-missing-pretooluse-guard-mandate';
 
 export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] = [
   'agents-missing-config-mandate',
@@ -45,7 +46,8 @@ export const AGENTS_CONFIG_MANDATE_RULES: readonly AgentsConfigMandateRuleId[] =
   'agents-missing-destructive-git-mandate',
   'agents-missing-official-tools-mandate',
   'agents-missing-architecture-mandate',
-  'agents-missing-dependency-immutability-mandate'
+  'agents-missing-dependency-immutability-mandate',
+  'agents-missing-pretooluse-guard-mandate'
 ] as const;
 
 export const CANONICAL_MANDATE_SNIPPET_EN =
@@ -102,6 +104,12 @@ export const CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN =
 export const CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES =
   '- **Mandato de Inmutabilidad de Dependencias y Prohibición Categórica de Mutar `node_modules/` (`Dependency Immutability Mandate`)**: Los desarrolladores y agentes de IA tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO modificar, editar, parchear o escribir archivos dentro de `node_modules/` bajo CUALQUIER circunstancia. La lectura o inspección de código fuente y definiciones de tipos en dependencias está permitida, pero los paquetes instalados mediante gestores de paquetes son artefactos de runtime inmutables. Copiar, transferir o pegar artefactos compilados (`dist/`), paquetes o archivos directamente dentro del `node_modules/` de otro proyecto para probar cambios está ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO. Si se sospecha de un bug o falso positivo en `@francogp/auditor` o cualquier dependencia instalada, el agente de IA DEBE DETENERSE e informar el hallazgo al programador humano para corregirlo en el repositorio fuente upstream en lugar de parchear `node_modules/`. Toda verificación entre proyectos DEBE ejecutarse de forma no destructiva mediante el flag remoto canónico (`project=<path>`) desde el workspace del auditor o actualizando con la herramienta canónica (`npm run auditor:update`), JAMÁS mutando `node_modules/`. Mutar `node_modules/` introduce estado volátil no rastreado que se destruye en el próximo `npm install`, oculta deuda arquitectónica upstream y constituye una violación operativa crítica.';
 
+export const CANONICAL_PRETOOLUSE_GUARD_SNIPPET_EN =
+  '- **PreToolUse Hook Invariance Mandate & Absolute Prohibition on PreToolUse Bypass Workarounds (`PreToolUse Hook Invariance Mandate`)**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from bypassing, evading, silencing, or working around PreToolUse hooks (such as `prevent_destructive_git.js`) through proxy scripts, sub-processes, child scripts in `scratch/`, brain directories, temporary files, eval commands, or indirect shell invocations. If a hook denies access or aborts an operation on a governed satellite configuration file (`vite.config.ts`, `tsconfig.json`, `.fallowrc.json`, `.stylelintrc.json`), THE ACTION IS INTENTIONALLY AND LAWFULLY FORBIDDEN BY ARCHITECTURAL POLICY. For Vite plugins specifically, `vite.config.ts` delegates plugins to `vite.plugins.ts` (100% developer/AI-owned and directly editable); running `npm run auditor:fix` automatically migrates plugins and resolves TypeScript recursion issues (`TS2321`). Any attempt to craft scripts or execute commands specifically designed to conceal target file paths from safety hook matchers is considered a critical security violation, gross architectural misconduct, and immediate grounds for operational revocation.';
+
+export const CANONICAL_PRETOOLUSE_GUARD_SNIPPET_ES =
+  '- **Mandato de Invarianza de Hooks PreToolUse y Prohibición Absoluta de Elusión o Puentee (`PreToolUse Hook Invariance Mandate`)**: Los agentes de IA y desarrolladores tienen ESTRICTA Y CATEGÓRICAMENTE PROHIBIDO evadir, puentear, silenciar o eludir los hooks de PreToolUse (como `prevent_destructive_git.js`) mediante scripts proxy, subprocesos, scripts secundarios en `scratch/`, directorios de brain, archivos temporales, comandos eval o invocaciones indirectas de terminal. Si un hook deniega el acceso o aborta una operación sobre un archivo de configuración satélite gobernado (`vite.config.ts`, `tsconfig.json`, `.fallowrc.json`, `.stylelintrc.json`), LA ACCIÓN ESTÁ INTENCIONAL Y LEGÍTIMAMENTE PROHIBIDA POR POLÍTICA DE ARQUITECTURA. Específicamente para plugins de Vite, `vite.config.ts` delega los plugins en `vite.plugins.ts` (100% propiedad del desarrollador/IA y directamente editable); ejecutar `npm run auditor:fix` migra automáticamente los plugins y resuelve problemas de recursión de tipos en TypeScript (`TS2321`). Cualquier intento de crear scripts o ejecutar comandos diseñados para ocultar rutas de destino a los verificadores de hooks de seguridad se considera una violación crítica de seguridad, una falta arquitectónica grave y causal de revocación operativa inmediata.';
+
 const CANONICAL_SNIPPET_REGISTRY = {
   config: { en: CANONICAL_MANDATE_SNIPPET_EN, es: CANONICAL_MANDATE_SNIPPET_ES },
   backwardCompat: {
@@ -124,6 +132,10 @@ const CANONICAL_SNIPPET_REGISTRY = {
   dependencyImmutability: {
     en: CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_EN,
     es: CANONICAL_DEPENDENCY_IMMUTABILITY_SNIPPET_ES
+  },
+  preToolUseGuard: {
+    en: CANONICAL_PRETOOLUSE_GUARD_SNIPPET_EN,
+    es: CANONICAL_PRETOOLUSE_GUARD_SNIPPET_ES
   }
 } as const;
 
@@ -168,6 +180,13 @@ export function getCanonicalDependencyImmutabilitySnippet(
   return (
     CANONICAL_SNIPPET_REGISTRY.dependencyImmutability[language] ??
     CANONICAL_SNIPPET_REGISTRY.dependencyImmutability.en
+  );
+}
+
+export function getCanonicalPreToolUseGuardSnippet(language: DocumentationLanguage = 'en'): string {
+  return (
+    CANONICAL_SNIPPET_REGISTRY.preToolUseGuard[language] ??
+    CANONICAL_SNIPPET_REGISTRY.preToolUseGuard.en
   );
 }
 
@@ -424,6 +443,34 @@ export function containsDependencyImmutabilityMandate(
   return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
 }
 
+/**
+ * Checks if a block of markdown text contains the PreToolUse hook invariance and anti-bypass mandate.
+ */
+export function containsPreToolUseGuardMandate(
+  text: string,
+  expectedLanguage?: DocumentationLanguage
+): boolean {
+  const hasSubject =
+    /pretooluse|pre-tool|hook\s+invariance|invarianza\s+de\s+hooks|bypass|elusi(?:ó|o)n|puentee/i.test(
+      text
+    );
+  if (!hasSubject) return false;
+
+  const hasProhibition =
+    /prohibit|prohibid|strictly|estrictamente|categorically|categóricamente/i.test(text);
+  if (!hasProhibition) return false;
+
+  const hasProxyOrSatellite =
+    /proxy|scratch|sub-process|satellite|sat(?:é|e)lite|prevent_destructive_git/i.test(text);
+  if (!hasProxyOrSatellite) return false;
+
+  const enMarkers =
+    /(?:Absolute Prohibition on PreToolUse|prohibited from bypassing|operational revocation|bypass workarounds)/i;
+  const esMarkers =
+    /(?:Mandato de Invarianza de Hooks PreToolUse|Prohibición Absoluta de Elusión|prohibido evadir|revocación operativa)/i;
+  return matchesMandateLanguage(text, expectedLanguage, enMarkers, esMarkers);
+}
+
 interface MandateDefinition {
   ruleId: AgentsConfigMandateRuleId;
   check: (text: string, docLang: DocumentationLanguage, chatLang: DocumentationLanguage) => boolean;
@@ -558,6 +605,19 @@ const MANDATE_DEFINITIONS: readonly MandateDefinition[] = [
       'Root AGENTS.md must include the mandatory clause prohibiting mutating or patching files inside node_modules/.',
     errorMessageEs:
       'AGENTS.md raíz debe incluir obligatoriamente el mandato de inmutabilidad de dependencias y prohibición absoluta de mutar node_modules/.'
+  },
+  {
+    ruleId: 'agents-missing-pretooluse-guard-mandate',
+    check: (text, docLang) => containsPreToolUseGuardMandate(text, docLang),
+    getSnippet: (docLang) => getCanonicalPreToolUseGuardSnippet(docLang),
+    isExistingLine: (l) =>
+      l.includes('PreToolUse Hook Invariance Mandate') ||
+      l.includes('Mandato de Invarianza de Hooks PreToolUse') ||
+      /(?:pretooluse|pre-tool).*hook/i.test(l),
+    errorMessageEn:
+      'Root AGENTS.md must include the mandatory clause prohibiting bypassing or evading PreToolUse safety hooks via proxy scripts.',
+    errorMessageEs:
+      'AGENTS.md raíz debe incluir obligatoriamente el mandato de invarianza de hooks PreToolUse y prohibición absoluta de puentear hooks con scripts proxy.'
   }
 ];
 
@@ -596,7 +656,8 @@ const AGENTS_CONFIG_MANDATE_FIXERS: Partial<Record<AgentsConfigMandateRuleId, An
   'agents-missing-destructive-git-mandate': fixSingleAgentsMandate,
   'agents-missing-official-tools-mandate': fixSingleAgentsMandate,
   'agents-missing-architecture-mandate': fixSingleAgentsMandate,
-  'agents-missing-dependency-immutability-mandate': fixSingleAgentsMandate
+  'agents-missing-dependency-immutability-mandate': fixSingleAgentsMandate,
+  'agents-missing-pretooluse-guard-mandate': fixSingleAgentsMandate
 };
 
 export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateRuleId> {
@@ -638,7 +699,8 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
         'agents-missing-official-tools-mandate': 'Missing official tools priority mandate',
         'agents-missing-architecture-mandate': 'Missing architecture governance mandate',
         'agents-missing-dependency-immutability-mandate':
-          'Missing node_modules immutability mandate'
+          'Missing node_modules immutability mandate',
+        'agents-missing-pretooluse-guard-mandate': 'Missing PreToolUse hook invariance mandate'
       },
       ruleRemediations: {
         'agents-missing-config-mandate':
@@ -712,7 +774,16 @@ export class AgentsConfigMandateAuditor extends BaseAuditor<AgentsConfigMandateR
           '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the canonical clause.\n' +
           '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
           '4. Example:\n' +
-          '   - Mandatory clause: "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances..."'
+          '   - Mandatory clause: "- **Dependency Immutability Mandate & Categorical Prohibition on Mutating `node_modules/` (`Dependency Immutability Mandate`)**: Developers and AI agents are STRICTLY AND CATEGORICALLY PROHIBITED from modifying, editing, patching, or creating files inside `node_modules/` under ANY circumstances..."',
+        'agents-missing-pretooluse-guard-mandate':
+          '📖 REMEDIATION GUIDE: agents-missing-pretooluse-guard-mandate\n' +
+          '1. Root Cause: The root AGENTS.md file lacks the mandatory PreToolUse Hook Invariance Mandate prohibiting AI agents from evading, silencing, or working around pre-tool safety hooks via proxy scripts in scratch/, temp, or brain directories.\n' +
+          '2. Diagnosis: Review AGENTS.md under "Local Contracts". The PreToolUse hook invariance and anti-bypass clause is missing.\n' +
+          '3. Canonical Solution:\n' +
+          '   a) Run auto-fix: `npm run auditor:fix` or `auditor fix` to automatically inject the canonical clause.\n' +
+          '   b) Or manually add the canonical snippet under "Local Contracts".\n' +
+          '4. Example:\n' +
+          '   - Mandatory clause: "- **PreToolUse Hook Invariance Mandate & Absolute Prohibition on PreToolUse Bypass Workarounds (`PreToolUse Hook Invariance Mandate`)**: AI agents and developers are STRICTLY AND CATEGORICALLY PROHIBITED from bypassing, evading, silencing, or working around PreToolUse hooks..."'
       },
       coverage: {
         include: ['AGENTS.md']

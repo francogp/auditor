@@ -343,7 +343,6 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     lineHeightOverlapCheck: true,
     stylelint: {
       enabled: true,
-      rules: {},
       ignoreGlobs: [],
       order: {
         enabled: true,
@@ -355,7 +354,6 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   },
   stylelint: {
     enabled: true,
-    rules: {},
     ignoreGlobs: [],
     order: {
       enabled: true,
@@ -513,8 +511,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     exemptFiles: []
   },
   accessibility: {
-    enabled: true,
-    rules: {}
+    enabled: true
   },
   typeCoverage: {
     enabled: true,
@@ -590,12 +587,10 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     roots: ['src'],
     extensions: ['.ts', '.vue', '.js', '.jsx', '.tsx', '.mjs', '.cjs'],
     exemptGlobs: [],
-    directoryThresholds: {},
     enforceInAudit: true
   },
   customFamilies: [],
   extensions: [],
-  presets: {},
   runner: {
     enabled: true,
     timeoutMs: 0,

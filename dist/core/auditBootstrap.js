@@ -73,7 +73,7 @@ async function ensureMissingSectionsInjected(projectRoot, configPath, jsonConfig
 	const activeConfig = await tryOrNullAsync(() => loadAuditConfig(projectRoot));
 	if (!activeConfig) return injectedKeys;
 	const rawConfig = activeConfig._rawConfig ?? {};
-	const missing = collectMissingSections(tasks, rawConfig);
+	const missing = collectMissingSections(tasks, rawConfig, projectRoot);
 	if (missing.size === 0) return injectedKeys;
 	const targetPath = fs.existsSync(configPath) ? configPath : jsonConfigPath;
 	const sectionsToInsert = {};
@@ -128,7 +128,7 @@ async function ensureProjectBootstrapped(options = {}) {
 		sectionsInjected = await ensureMissingSectionsInjected(projectRoot, configPath, jsonConfigPath, tasks);
 		await enforceCriticalConfigurations(projectRoot, tasks);
 		if (versionDiverged) {
-			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.6.1-build.20261102-004012")) {
+			if (syncAuditorVersionInConfigFile(targetConfigPath, "10.6.3-build.20261102-084443")) {
 				versionUpdated = true;
 				resetAuditConfig();
 			}

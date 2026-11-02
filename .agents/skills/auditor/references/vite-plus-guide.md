@@ -270,25 +270,37 @@ npm run auditor:full
 
 During large-scale production migrations (such as Poké Vicio with 431 test suites, 7,100+ assertions, Vue 3, Pinia, and GSAP), several edge cases and TypeScript architectural boundaries were discovered and resolved:
 
-### 8.1 TypeScript Plugin Type Recursion ("Excessive stack depth comparing types")
+### 8.1 TypeScript Plugin Type Recursion ("Excessive stack depth comparing types") & Modular `vite.plugins.ts`
 
 In complex configurations combining multiple third-party Vite plugins (e.g. `vite-plugin-pwa`, `@vitejs/plugin-vue`) alongside inline custom plugins with closures, TypeScript can fail with `Excessive stack depth comparing types 'Plugin<any>' and 'Plugin<any>'` (TS2321 / TS2589) when all plugins are defined inline inside `defineConfig({ plugins: [...] })`.
 
-**Root Cause**: Recursive structural comparison between Vite core types bundled in `vite-plus` and upstream plugin Rollup types.
+**Root Cause**: Recursive structural comparison between Vite core types bundled in `vite-plus` and upstream plugin Rollup types, aggravated when declared directly within the governed `vite.config.ts`.
 
-**Canonical Solution**:
+**Canonical Architectural Solution**:
 
-1. **Extract Plugins Array**: Declare the plugins array outside `defineConfig` using the canonical `PluginOption[]` interface:
+1. **Modular Plugin Delegation (`vite.plugins.ts`)**:
+   Under the Auditor sovereignty model, `vite.config.ts` is an auditor-governed satellite configuration file locked against direct manual edits by PreToolUse safety hooks. To provide complete developer and AI freedom to add, configure, and maintain Vite plugins without satellite lock conflicts or type recursion, plugins are delegated to a dedicated application module: `vite.plugins.ts`.
+
+   `vite.plugins.ts` is 100% application-owned, developer/AI-owned, and directly editable:
 
    ```ts
-   import { defineConfig, type PluginOption } from 'vite';
+   // vite.plugins.ts
+   import type { PluginOption } from 'vite';
    import vue from '@vitejs/plugin-vue';
    import { VitePWA } from 'vite-plugin-pwa';
 
-   const plugins: PluginOption[] = [
+   export const plugins: PluginOption[] = [
      vue(),
-     VitePWA({ ... })
+     VitePWA({ /* ... */ })
    ];
+   ```
+
+   `vite.config.ts` then cleanly imports `{ plugins } from './vite.plugins.ts'`:
+
+   ```ts
+   // vite.config.ts
+   import { defineConfig } from 'vite-plus';
+   import { plugins } from './vite.plugins.ts';
 
    export default defineConfig({
      plugins,
@@ -296,7 +308,13 @@ In complex configurations combining multiple third-party Vite plugins (e.g. `vit
    });
    ```
 
-2. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core using npm's dynamic reference syntax (`"$vite"` and `"$vitest"`):
+2. **Automated AST Migration via `npm run auditor:fix`**:
+   The auditor suite `validate_vite_plus_config` actively detects any inline plugins declared inside `vite.config.ts` via rule `vite-plus-inline-plugins-detected`. Running `npm run auditor:fix`:
+   - Automatically extracts inline plugins into `vite.plugins.ts` (moving imports, creating typed exports, and preserving configuration options).
+   - Rewires `vite.config.ts` to `import { plugins } from './vite.plugins.ts'`.
+   - Completely eliminates `TS2321` type recursion depth issues without any manual intervention.
+
+3. **Unify Dependencies via `overrides`**: In `package.json`, align all transitive Vite references to the bundled core using npm's dynamic reference syntax (`"$vite"` and `"$vitest"`):
 
    ```json
    "overrides": {

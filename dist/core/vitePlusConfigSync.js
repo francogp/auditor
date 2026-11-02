@@ -5,7 +5,7 @@ import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
-import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
+import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst } from "./viteConfigAst.js";
 import path from "node:path";
 import fs from "node:fs";
 import childProcess from "node:child_process";
@@ -172,9 +172,30 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 			content
 		};
 	}
-	const rawContent = fs.readFileSync(viteConfigPath, "utf-8");
-	const synced = synchronizeViteConfigAst(rawContent, config, lintIgnores, fmtIgnores, legacyTestProp);
-	if (synced.modified) fs.writeFileSync(viteConfigPath, synced.content, "utf-8");
+	let currentContent = fs.readFileSync(viteConfigPath, "utf-8");
+	let pluginsExtracted = false;
+	const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
+	if (homebrewMigration.modified) {
+		currentContent = homebrewMigration.content;
+		pluginsExtracted = true;
+	}
+	const pluginExtraction = extractVitePluginsToModule(currentContent, projectRoot);
+	if (pluginExtraction.modified) {
+		if (pluginExtraction.vitePluginsContent) {
+			const vitePluginsPath = path.resolve(projectRoot, "vite.plugins.ts");
+			fs.writeFileSync(vitePluginsPath, pluginExtraction.vitePluginsContent, "utf-8");
+		}
+		currentContent = pluginExtraction.viteConfigContent;
+		pluginsExtracted = true;
+	}
+	const synced = synchronizeViteConfigAst(currentContent, config, lintIgnores, fmtIgnores, legacyTestProp);
+	if (synced.modified || pluginsExtracted) {
+		fs.writeFileSync(viteConfigPath, synced.content, "utf-8");
+		return {
+			modified: true,
+			content: synced.content
+		};
+	}
 	return synced;
 }
 function cleanLegacyConfigFiles(projectRoot) {

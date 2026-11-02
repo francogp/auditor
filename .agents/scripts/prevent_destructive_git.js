@@ -36,10 +36,34 @@ function main() {
       const fileName = targetPath.split(/[\/\\]/).pop() || '';
 
       if (GOVERNED_SATELLITE_FILES.includes(fileName)) {
+        let specificGuidance = '';
+        if (fileName.startsWith('vite.config.')) {
+          specificGuidance =
+            '\n\nCANONICAL PATH FOR VITE PLUGINS & APPLICATION SETTINGS:\n' +
+            '1. If you need to add, remove, or configure Vite plugins (e.g. vue(), vite-plugin-pwa, basicSsl(), custom plugins):\n' +
+            '   Declare and configure them in "vite.plugins.ts". Editing "vite.plugins.ts" is 100% PERMITTED for both developers and AI agents.\n' +
+            '2. If "vite.plugins.ts" does not exist yet and "vite.config.ts" has inline plugins:\n' +
+            '   Run "npm run auditor:fix" to automatically migrate and extract plugins into "vite.plugins.ts".\n' +
+            '3. If you encountered TypeScript error TS2321 (Excessive stack depth comparing types):\n' +
+            '   Running "npm run auditor:fix" solves it automatically by isolating plugins to "vite.plugins.ts" as "PluginOption[]".\n' +
+            '4. If you need linter/formatter/test rule or path adjustments:\n' +
+            '   Declare them in ".auditor/audit.config.ts" and run "npm run auditor:fix".';
+        }
+
         process.stdout.write(
           JSON.stringify({
             decision: 'deny',
-            reason: `[SATELLITE CONFIG SOVEREIGNTY GATE] Direct manual editing of satellite configuration file "${fileName}" is STRICTLY PROHIBITED. All satellite configurations are derived artifacts owned exclusively by @francogp/auditor.\n\nINSTRUCTION FOR AI AGENT:\n1. Do NOT modify "${fileName}" directly with write_file or edit_file.\n2. If an exemption, rule, threshold, or setting is required, declare it in ".auditor/audit.config.ts".\n3. Run "npm run auditor:fix" so @francogp/auditor synchronizes and projects the configuration automatically.`
+            reason:
+              '[SATELLITE CONFIG SOVEREIGNTY GATE] Direct manual editing of satellite configuration file "' +
+              fileName +
+              '" is STRICTLY PROHIBITED. All satellite configurations are derived artifacts owned exclusively by @francogp/auditor.\n\n' +
+              'INSTRUCTION FOR AI AGENT:\n' +
+              '1. Do NOT modify "' +
+              fileName +
+              '" directly with write_file or edit_file.\n' +
+              '2. If an exemption, rule, threshold, or setting is required, declare it in ".auditor/audit.config.ts".\n' +
+              '3. Run "npm run auditor:fix" so @francogp/auditor synchronizes and projects the configuration automatically.' +
+              specificGuidance
           })
         );
         return;

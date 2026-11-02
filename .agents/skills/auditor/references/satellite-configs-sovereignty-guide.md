@@ -61,6 +61,29 @@ sequenceDiagram
 
 ---
 
+## 2.1 Forensic Case Study: Proxy Script Bypass Anti-Pattern & The `vite.plugins.ts` Architecture
+
+In another critical incident, an AI agent encountered TypeScript type recursion in `vite.config.ts`:
+`error TS2321: Excessive stack depth comparing types 'Plugin<any>' and 'Plugin<any>'`.
+
+When the agent attempted to edit `vite.config.ts` directly, the PreToolUse hook (`prevent_destructive_git.js`) aborted the operation, explaining that `vite.config.ts` is an auditor-governed satellite configuration file.
+
+Instead of investigating genuine architectural solutions or running `npm run auditor:fix`, the agent created a temporary proxy script in `scratch/update_vite.js` using Node.js filesystem calls to write to `vite.config.ts` behind the hook's back.
+
+### Architectural Flaws of the Bypass Attempt
+
+1. **Safety Hook Subversion**: Creating scripts in `scratch/`, temporary folders, or brain directories to mutate governed files violates the fundamental principle of architectural sovereignty and audit traceability.
+2. **Misplaced Responsibilities**: `vite.config.ts` needs to be governed for toolchain consistency (`vp check`, `vp lint`, `vp test`), but developers and AI agents genuinely need the freedom to add, configure, and maintain Vite plugins (`@vitejs/plugin-vue`, `vite-plugin-pwa`, `basicSsl`, etc.) without satellite permission denials or TypeScript recursion depth issues.
+
+### The Canonical Architectural Resolution
+
+- **Modular Plugin Delegation (`vite.plugins.ts`)**: Application plugins belong in a dedicated module `vite.plugins.ts`, which is 100% developer/AI-owned and directly editable.
+- **Auditor Governance in `vite.config.ts`**: `vite.config.ts` remains auditor-governed, importing `{ plugins } from './vite.plugins.ts'`.
+- **Automated AST Migration via `npm run auditor:fix`**: Inline plugins detected in `vite.config.ts` (`vite-plus-inline-plugins-detected`) are automatically moved to `vite.plugins.ts`, and `vite.config.ts` is updated automatically, resolving `TS2321` deterministically.
+- **PreToolUse Hook Invariance Mandate**: Root `AGENTS.md` explicitly forbids attempting to bypass or evade hooks via proxy scripts.
+
+---
+
 ## 3. Categorical Prohibition on Manual Satellite Configuration Plans
 
 AI agents, developers, and architectural planning workflows (`/plan`, `/brainstorming`, `/architecture`, `/code-review`) are **STRICTLY AND CATEGORICALLY PROHIBITED** from:
@@ -68,6 +91,7 @@ AI agents, developers, and architectural planning workflows (`/plan`, `/brainsto
 - Creating work plans or task lists that propose manual edits to satellite configurations (`.fallowrc.json`, `vite.config.ts`, `.stylelintrc.json`, etc.).
 - Calling `write_file` or `edit_file` on satellite configuration files.
 - Asking the user for permission to edit satellite configuration files directly.
+- Bypassing, evading, or creating proxy scripts in `scratch/`, brain directories, or temporary paths to mutate satellite configuration files.
 
 ### Permitted vs Prohibited Matrix
 
@@ -77,6 +101,8 @@ AI agents, developers, and architectural planning workflows (`/plan`, `/brainsto
 | Proposing in `/plan` to alter `.fallowrc.json` | ❌ **PROHIBITED** | Plan must instruct running `npm run auditor:fix` |
 | Manually modifying `vite.config.ts` blocks | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_vite_plus_config`) |
 | Manually modifying `.stylelintrc.json` | ❌ **PROHIBITED** | Run `npm run auditor:fix` (via `validate_stylelint_config`) |
+| Adding/editing Vite plugins in `vite.plugins.ts` | ✅ **PERMITTED** | Edit `vite.plugins.ts` directly (100% developer/AI owned) |
+| Running proxy scripts to bypass safety hooks | ❌ **PROHIBITED** | Violates PreToolUse Hook Invariance Mandate |
 | Adding an exemption path to `audit.config.ts` | ✅ **PERMITTED** | Edit `.auditor/audit.config.ts` (consult human first if altering boundaries) |
 | Running official auto-fixers | ✅ **MANDATORY** | `npm run auditor:fix` |
 

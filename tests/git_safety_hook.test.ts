@@ -276,7 +276,36 @@ describe('gitSafetyHook', () => {
         expect(parsed.reason).toContain('[SATELLITE CONFIG SOVEREIGNTY GATE]');
         expect(parsed.reason).toContain(file);
         expect(parsed.reason).toContain('npm run auditor:fix');
+
+        if (file === 'vite.config.ts') {
+          expect(parsed.reason).toContain('vite.plugins.ts');
+          expect(parsed.reason).toContain('TS2321');
+        }
       }
+    });
+
+    it('executes prevent_destructive_git.js and allows write_file on vite.plugins.ts (developer-owned)', () => {
+      syncGitSafetyHook(tempDir);
+      const scriptPath = path.join(tempDir, '.agents', 'scripts', 'prevent_destructive_git.js');
+
+      const payload = JSON.stringify({
+        toolCall: {
+          name: 'write_file',
+          args: {
+            Path: path.resolve(tempDir, 'vite.plugins.ts'),
+            Content:
+              "import type { PluginOption } from 'vite-plus';\nexport const plugins: PluginOption[] = [];"
+          }
+        }
+      });
+
+      const out = execSync(`node "${scriptPath}"`, {
+        input: payload,
+        encoding: 'utf8'
+      });
+
+      const parsed = JSON.parse(out);
+      expect(parsed.decision).toBe('allow');
     });
 
     it('executes prevent_destructive_git.js and allows write_file on standard source files', () => {

@@ -1,6 +1,8 @@
 import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
+import path from "node:path";
+import fs from "node:fs";
 import ts from "typescript";
 // src/core/viteConfigAst.ts
 /**
@@ -981,4 +983,222 @@ function rewriteModuleSpecifiersToVitePlusAst(content, fileName) {
 	for (const r of replacements) updated = updated.slice(0, r.start) + r.text + updated.slice(r.end);
 	return updated;
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };
+function countIdentifierOccurrences(id, node) {
+	let count = 0;
+	function visit(n) {
+		if (ts.isIdentifier(n) && n.text === id) count++;
+		ts.forEachChild(n, visit);
+	}
+	visit(node);
+	return count;
+}
+function collectIdentifiersInNode(node) {
+	const ids = /* @__PURE__ */ new Set();
+	function visit(n) {
+		if (ts.isIdentifier(n)) ids.add(n.text);
+		ts.forEachChild(n, visit);
+	}
+	visit(node);
+	return ids;
+}
+/**
+* Detects whether vite.config.ts contains inline Vite plugins vs modular vite.plugins.ts.
+*/
+function detectInlineVitePlugins(sf) {
+	const hasVitePluginsImport = sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && (stmt.moduleSpecifier.text === "./vite.plugins.ts" || stmt.moduleSpecifier.text === "./vite.plugins"));
+	const rootObj = findConfigRootObject(sf);
+	if (!rootObj) return {
+		hasPlugins: false,
+		isAlreadyModular: false,
+		hasInlinePlugins: false
+	};
+	let pluginsProperty;
+	for (const p of rootObj.properties) if (ts.isPropertyAssignment(p) && getPropertyKeyName(p.name, sf) === "plugins" || ts.isShorthandPropertyAssignment(p) && p.name.text === "plugins") {
+		pluginsProperty = p;
+		break;
+	}
+	if (!pluginsProperty) return {
+		hasPlugins: false,
+		isAlreadyModular: false,
+		hasInlinePlugins: false
+	};
+	if (hasVitePluginsImport) {
+		const isShorthand = ts.isShorthandPropertyAssignment(pluginsProperty);
+		const isIdentifierMatch = ts.isPropertyAssignment(pluginsProperty) && ts.isIdentifier(pluginsProperty.initializer) && pluginsProperty.initializer.text === "plugins";
+		if (isShorthand || isIdentifierMatch) return {
+			hasPlugins: true,
+			isAlreadyModular: true,
+			hasInlinePlugins: false,
+			pluginsProperty
+		};
+		return {
+			hasPlugins: true,
+			isAlreadyModular: false,
+			hasInlinePlugins: true,
+			pluginsProperty
+		};
+	}
+	if (ts.isPropertyAssignment(pluginsProperty) && ts.isArrayLiteralExpression(pluginsProperty.initializer)) {
+		const elements = pluginsProperty.initializer.elements;
+		if (elements.length > 0 && elements.every((el) => el.getText(sf).includes("vitePrecompressPlugin"))) return {
+			hasPlugins: true,
+			isAlreadyModular: true,
+			hasInlinePlugins: false,
+			pluginsProperty
+		};
+		return {
+			hasPlugins: true,
+			isAlreadyModular: false,
+			hasInlinePlugins: true,
+			pluginsProperty
+		};
+	}
+	return {
+		hasPlugins: true,
+		isAlreadyModular: false,
+		hasInlinePlugins: false,
+		pluginsProperty
+	};
+}
+function extractImportedNames(importClause) {
+	if (!importClause) return [];
+	const names = [];
+	if (importClause.name) names.push(importClause.name.text);
+	const bindings = importClause.namedBindings;
+	if (!bindings) return names;
+	if (ts.isNamedImports(bindings)) for (const el of bindings.elements) names.push(el.name.text);
+	else if (ts.isNamespaceImport(bindings)) names.push(bindings.name.text);
+	return names;
+}
+function resolvePluginsExpressionAndVariable(sf, pluginProp) {
+	let pluginsExprText = "[]";
+	let varName = null;
+	if (ts.isShorthandPropertyAssignment(pluginProp)) varName = pluginProp.name.text;
+	else if (ts.isPropertyAssignment(pluginProp)) {
+		const init = pluginProp.initializer;
+		if (ts.isArrayLiteralExpression(init)) pluginsExprText = init.getText(sf);
+		else if (ts.isIdentifier(init)) varName = init.text;
+		else if ((ts.isAsExpression(init) || ts.isTypeAssertionExpression(init)) && ts.isIdentifier(init.expression)) varName = init.expression.text;
+		else pluginsExprText = init.getText(sf);
+	}
+	if (!varName) return {
+		pluginsExprText,
+		varStmtToRemove: null
+	};
+	const foundStmt = sf.statements.find((stmt) => ts.isVariableStatement(stmt) && stmt.declarationList.declarations.some((decl) => ts.isIdentifier(decl.name) && decl.name.text === varName));
+	if (foundStmt && ts.isVariableStatement(foundStmt)) {
+		const decl = foundStmt.declarationList.declarations.find((d) => ts.isIdentifier(d.name) && d.name.text === varName);
+		return {
+			pluginsExprText: decl?.initializer ? decl.initializer.getText(sf) : "[]",
+			varStmtToRemove: foundStmt
+		};
+	}
+	return {
+		pluginsExprText,
+		varStmtToRemove: null
+	};
+}
+function isPluginModuleSpecifier(modSpec) {
+	return modSpec.startsWith("@vitejs/plugin-") || modSpec.startsWith("vite-plugin-") || modSpec.startsWith("rollup-plugin-") || modSpec === "@tailwindcss/vite" || modSpec.includes("vite-plugin");
+}
+function isImportUsedElsewhere(names, sf, stmt, varStmtToRemove, pluginProp) {
+	for (const name of names) if (countIdentifierOccurrences(name, sf) > countIdentifierOccurrences(name, stmt) + ((varStmtToRemove ? countIdentifierOccurrences(name, varStmtToRemove) : 0) + (ts.isPropertyAssignment(pluginProp) ? countIdentifierOccurrences(name, pluginProp.initializer) : 0))) return true;
+	return false;
+}
+function categorizePluginImports(sf, pluginIds, varStmtToRemove, pluginProp) {
+	const movedImportStmts = /* @__PURE__ */ new Set();
+	const pluginImportsForNewFile = [];
+	for (const stmt of sf.statements) {
+		if (!ts.isImportDeclaration(stmt)) continue;
+		const importedNames = extractImportedNames(stmt.importClause);
+		const modSpec = stmt.moduleSpecifier && ts.isStringLiteral(stmt.moduleSpecifier) ? stmt.moduleSpecifier.text : "";
+		if (modSpec === "vite" || modSpec === "vite-plus") continue;
+		const isPluginPackage = isPluginModuleSpecifier(modSpec);
+		const matchesPluginId = importedNames.some((n) => pluginIds.has(n));
+		if (!isPluginPackage && !matchesPluginId) continue;
+		if (!isImportUsedElsewhere(importedNames, sf, stmt, varStmtToRemove, pluginProp)) movedImportStmts.add(stmt);
+		pluginImportsForNewFile.push(stmt.getText(sf));
+	}
+	return {
+		movedImportStmts,
+		pluginImportsForNewFile
+	};
+}
+/**
+* Extracts inline Vite plugins from vite.config.ts into a modular vite.plugins.ts file.
+* Returns the transformed vite.config.ts and the generated vite.plugins.ts content.
+*/
+function extractVitePluginsToModule(viteConfigContent, projectRoot) {
+	const sf = parseTsSourceFile(viteConfigContent, "vite.config.ts");
+	const detection = detectInlineVitePlugins(sf);
+	if (!detection.hasPlugins) return {
+		hasPlugins: false,
+		isAlreadyModular: false,
+		viteConfigContent,
+		vitePluginsContent: null,
+		modified: false
+	};
+	const rootObj = findConfigRootObject(sf);
+	if (!rootObj || !detection.pluginsProperty) return {
+		hasPlugins: false,
+		isAlreadyModular: false,
+		viteConfigContent,
+		vitePluginsContent: null,
+		modified: false
+	};
+	if (detection.isAlreadyModular && !detection.hasInlinePlugins) return {
+		hasPlugins: true,
+		isAlreadyModular: true,
+		viteConfigContent,
+		vitePluginsContent: null,
+		modified: false
+	};
+	const pluginsFileExists = projectRoot ? fs.existsSync(path.resolve(projectRoot, "vite.plugins.ts")) : false;
+	const pluginProp = detection.pluginsProperty;
+	const { pluginsExprText, varStmtToRemove } = resolvePluginsExpressionAndVariable(sf, pluginProp);
+	const pluginIds = /* @__PURE__ */ new Set();
+	if (varStmtToRemove) for (const id of collectIdentifiersInNode(varStmtToRemove)) pluginIds.add(id);
+	if (ts.isPropertyAssignment(pluginProp)) for (const id of collectIdentifiersInNode(pluginProp.initializer)) pluginIds.add(id);
+	const { movedImportStmts, pluginImportsForNewFile } = categorizePluginImports(sf, pluginIds, varStmtToRemove, pluginProp);
+	let generatedPluginsContent = null;
+	if (!pluginsFileExists) generatedPluginsContent = `import type { PluginOption } from 'vite-plus';\n${pluginImportsForNewFile.length > 0 ? pluginImportsForNewFile.join("\n") + "\n\n" : "\n"}export const plugins: PluginOption[] = ${pluginsExprText};\n`;
+	const newImportDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("plugins"))])), ts.factory.createStringLiteral("./vite.plugins.ts", true));
+	const updatedProperties = rootObj.properties.map((p) => {
+		if (p === pluginProp) return ts.factory.createShorthandPropertyAssignment(ts.factory.createIdentifier("plugins"));
+		return p;
+	});
+	const updatedRootObj = ts.factory.createObjectLiteralExpression(updatedProperties, true);
+	const transformer = (context) => {
+		return (source) => {
+			const newStatements = [];
+			let importInjected = false;
+			let lastImportIdx = -1;
+			for (let i = 0; i < source.statements.length; i++) if (ts.isImportDeclaration(source.statements[i])) lastImportIdx = i;
+			for (let i = 0; i < source.statements.length; i++) {
+				const stmt = source.statements[i];
+				if (movedImportStmts.has(stmt)) continue;
+				if (varStmtToRemove && stmt === varStmtToRemove) continue;
+				function visitSubtree(node) {
+					if (node === rootObj) return updatedRootObj;
+					return ts.visitEachChild(node, visitSubtree, context);
+				}
+				const visitedStmt = visitSubtree(stmt);
+				newStatements.push(visitedStmt);
+				if (i === lastImportIdx && !importInjected) {
+					newStatements.push(newImportDecl);
+					importInjected = true;
+				}
+			}
+			if (!importInjected) newStatements.unshift(newImportDecl);
+			return ts.factory.updateSourceFile(source, newStatements);
+		};
+	};
+	return {
+		hasPlugins: true,
+		isAlreadyModular: true,
+		viteConfigContent: printTransformedSourceFile(sf, transformer),
+		vitePluginsContent: generatedPluginsContent,
+		modified: true
+	};
+}
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, astExpressionToValue, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, synchronizeViteConfigAst, valueToAstExpression };

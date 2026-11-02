@@ -1,4 +1,5 @@
 import { AuditTaskDefinition } from "./auditContract.js";
+import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
 export type RecommendationKind = 'missing_section' | 'missing_property' | 'missing_elements' | 'missing_plugin' | 'relaxed_ceiling' | 'relaxed_floor' | 'relaxed_boolean' | 'relaxed_severity';
 export interface ConfigRecommendation {
   readonly path: string;
@@ -44,11 +45,6 @@ export declare function isNumericCeiling(key: string, dotPath: string): boolean;
  */
 export declare function isNumericFloor(key: string, dotPath: string): boolean;
 /**
- * Assembles the full unified expected configuration tree by dynamically querying
- * all discovered subauditors and falling back to canonical engine defaults.
- */
-export declare function buildUnifiedExpectedConfigTree(tasks: readonly AuditTaskDefinition[]): Record<string, Record<string, unknown>>;
-/**
  * Fully agnostic, recursive property evaluator. Works across ANY subsystem,
  * current or future, inspecting objects, arrays, numbers, booleans, and severities.
  */
@@ -62,3 +58,4 @@ export declare function evaluateProjectConfigAsync(projectRoot?: string, options
  * Synchronous project config evaluator (when tasks are provided or loaded synchronously).
  */
 export declare function evaluateProjectConfig(projectRoot?: string, options?: ConfigAdvisorOptions): ConfigAdvisorReport;
+export { buildUnifiedExpectedConfigTree };

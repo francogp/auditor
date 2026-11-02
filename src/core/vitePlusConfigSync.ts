@@ -28,6 +28,7 @@ import {
   extractAstPropertyBlock,
   extractEslintIgnoresFromAst,
   extractParsedConfigSummary,
+  extractVitePluginsToModule,
   parseLegacyTestPropertyNode,
   rewriteModuleSpecifiersToVitePlusAst,
   synchronizeViteConfigAst
@@ -242,16 +243,36 @@ export function syncViteConfigWithAuditConfig(
   }
 
   const rawContent = fs.readFileSync(viteConfigPath, 'utf-8');
+  let currentContent = rawContent;
+  let pluginsExtracted = false;
+
+  const homebrewMigration = migrateHomebrewCompressionInViteConfig(currentContent);
+  if (homebrewMigration.modified) {
+    currentContent = homebrewMigration.content;
+    pluginsExtracted = true;
+  }
+
+  const pluginExtraction = extractVitePluginsToModule(currentContent, projectRoot);
+  if (pluginExtraction.modified) {
+    if (pluginExtraction.vitePluginsContent) {
+      const vitePluginsPath = path.resolve(projectRoot, 'vite.plugins.ts');
+      fs.writeFileSync(vitePluginsPath, pluginExtraction.vitePluginsContent, 'utf-8');
+    }
+    currentContent = pluginExtraction.viteConfigContent;
+    pluginsExtracted = true;
+  }
+
   const synced = synchronizeViteConfigAst(
-    rawContent,
+    currentContent,
     config,
     lintIgnores,
     fmtIgnores,
     legacyTestProp
   );
 
-  if (synced.modified) {
+  if (synced.modified || pluginsExtracted) {
     fs.writeFileSync(viteConfigPath, synced.content, 'utf-8');
+    return { modified: true, content: synced.content };
   }
 
   return synced;

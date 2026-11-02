@@ -323,7 +323,6 @@ const DEFAULT_AUDIT_CONFIG = {
 		lineHeightOverlapCheck: true,
 		stylelint: {
 			enabled: true,
-			rules: {},
 			ignoreGlobs: [],
 			order: {
 				enabled: true,
@@ -335,7 +334,6 @@ const DEFAULT_AUDIT_CONFIG = {
 	},
 	stylelint: {
 		enabled: true,
-		rules: {},
 		ignoreGlobs: [],
 		order: {
 			enabled: true,
@@ -478,10 +476,7 @@ const DEFAULT_AUDIT_CONFIG = {
 		allowJsScripts: false,
 		exemptFiles: []
 	},
-	accessibility: {
-		enabled: true,
-		rules: {}
-	},
+	accessibility: { enabled: true },
 	typeCoverage: {
 		enabled: true,
 		atLeast: 95,
@@ -564,12 +559,10 @@ const DEFAULT_AUDIT_CONFIG = {
 			".cjs"
 		],
 		exemptGlobs: [],
-		directoryThresholds: {},
 		enforceInAudit: true
 	},
 	customFamilies: [],
 	extensions: [],
-	presets: {},
 	runner: {
 		enabled: true,
 		timeoutMs: 0,

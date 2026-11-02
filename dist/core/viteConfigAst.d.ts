@@ -55,4 +55,26 @@ export declare function synchronizeViteConfigAst(fileContent: string, auditConfi
  * strictly via TypeScript Compiler AST spans (never touching string literals inside code or comments).
  */
 export declare function rewriteModuleSpecifiersToVitePlusAst(content: string, fileName: string): string;
+export interface InlineVitePluginsDetection {
+  readonly hasPlugins: boolean;
+  readonly isAlreadyModular: boolean;
+  readonly hasInlinePlugins: boolean;
+  readonly pluginsProperty?: ts.ObjectLiteralElementLike;
+}
+export interface ExtractVitePluginsResult {
+  readonly hasPlugins: boolean;
+  readonly isAlreadyModular: boolean;
+  readonly viteConfigContent: string;
+  readonly vitePluginsContent: string | null;
+  readonly modified: boolean;
+}
+/**
+ * Detects whether vite.config.ts contains inline Vite plugins vs modular vite.plugins.ts.
+ */
+export declare function detectInlineVitePlugins(sf: ts.SourceFile): InlineVitePluginsDetection;
+/**
+ * Extracts inline Vite plugins from vite.config.ts into a modular vite.plugins.ts file.
+ * Returns the transformed vite.config.ts and the generated vite.plugins.ts content.
+ */
+export declare function extractVitePluginsToModule(viteConfigContent: string, projectRoot?: string): ExtractVitePluginsResult;
 export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP };

@@ -41,7 +41,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
     it('verifies rule descriptions and remediations for all canonical rules', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(6);
+      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(7);
       for (const rule of VITE_PLUS_CONFIG_RULES) {
         expect(auditor.ruleDescriptions[rule]).toBeDefined();
         expect(auditor.ruleRemediations[rule]).toBeDefined();
@@ -886,7 +886,7 @@ describe('ValidateVitePlusConfigAuditor (12 Canary Matrix)', () => {
 
     it('C-CFG-56: CANARY: 100% of declared rules have descriptions and remediations <= 50 chars', () => {
       const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
-      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(6);
+      expect(VITE_PLUS_CONFIG_RULES).toHaveLength(7);
 
       for (const ruleId of VITE_PLUS_CONFIG_RULES) {
         expect(auditor.ruleDescriptions[ruleId]).toBeDefined();
@@ -1418,6 +1418,33 @@ export default defineConfig({
       );
       expect(undeclaredPluginFinding).toBeDefined();
       expect(undeclaredPluginFinding?.message).toContain("Undeclared linter plugin 'react'");
+    });
+
+    it('C-CFG-62: flags vite-plus-inline-plugins-detected when plugins are declared inline inside vite.config.ts', async () => {
+      const rawViteConfig = `
+        import { defineConfig } from 'vite-plus';
+        import vue from '@vitejs/plugin-vue';
+
+        export default defineConfig({
+          plugins: [vue()],
+          lint: {
+            options: { typeAware: true, typeCheck: true },
+            rules: {}
+          },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
+
+      const auditor = new ValidateVitePlusConfigAuditor({ projectRoot: tempDir });
+      const auditResult = await auditor.audit();
+      const inlinePluginFinding = auditResult.findings.find(
+        (f) => f.ruleId === 'vite-plus-inline-plugins-detected'
+      );
+      expect(inlinePluginFinding).toBeDefined();
+      expect(inlinePluginFinding?.message).toContain('Inline Vite plugins detected');
     });
   });
 });

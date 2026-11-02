@@ -60,34 +60,38 @@ function syncExistingPropertyWithTsMorph(existing, missingVal) {
 	}
 	const arrInit = existing.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
 	if (arrInit && Array.isArray(missingVal) && syncArrayElementsWithTsMorph(arrInit, missingVal)) mutated = true;
-	if (typeof missingVal === "boolean" || typeof missingVal === "number" || typeof missingVal === "string") {
-		const currentText = existing.getInitializer()?.getText();
-		const newInit = valueToTsMorphInitializer(missingVal);
-		if (currentText !== newInit) {
-			existing.setInitializer(newInit);
-			mutated = true;
-		}
-	}
 	return mutated;
+}
+function sanitizeRecordForInjection(val) {
+	const cleaned = {};
+	for (const [k, v] of Object.entries(val)) {
+		if (v === void 0) continue;
+		if (isPlainRecord(v) && Object.keys(v).length === 0) continue;
+		if (Array.isArray(v) && v.length === 0) continue;
+		cleaned[k] = v;
+	}
+	return Object.keys(cleaned).length > 0 ? cleaned : null;
 }
 function syncMissingPropsWithTsMorph(obj, missingProps) {
 	let mutated = false;
 	for (const [key, missingVal] of Object.entries(missingProps)) {
 		if (missingVal === void 0) continue;
+		if (isPlainRecord(missingVal) && Object.keys(missingVal).length === 0) continue;
+		if (Array.isArray(missingVal) && missingVal.length === 0) continue;
 		const existing = obj.getProperties().find((p) => getNormalizedPropName(p) === key);
 		if (existing && existing.isKind(SyntaxKind.PropertyAssignment)) {
 			if (syncExistingPropertyWithTsMorph(existing, missingVal)) mutated = true;
 			continue;
 		}
-		if (!existing) {
-			const safeKey = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
-			const valStr = valueToTsMorphInitializer(missingVal);
-			obj.addPropertyAssignment({
-				name: safeKey,
-				initializer: valStr
-			});
-			mutated = true;
-		}
+		const valToInject = isPlainRecord(missingVal) ? sanitizeRecordForInjection(missingVal) : missingVal;
+		if (valToInject === null) continue;
+		const safeKey = /^[a-z_$][\w$]*$/i.test(key) ? key : `'${key.replaceAll("'", "\\'")}'`;
+		const valStr = valueToTsMorphInitializer(valToInject);
+		obj.addPropertyAssignment({
+			name: safeKey,
+			initializer: valStr
+		});
+		mutated = true;
 	}
 	return mutated;
 }

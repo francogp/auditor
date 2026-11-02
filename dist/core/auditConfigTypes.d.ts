@@ -52,6 +52,13 @@ export declare const AUDIT_LIST_FILTERS: readonly ["all", "enabled", "disabled"]
 export type AuditListFilter = (typeof AUDIT_LIST_FILTERS)[number];
 export declare const PERSISTENCE_ENGINES: readonly ["supabase", "sqlite", "postgres", "hybrid", "none"];
 export type PersistenceEngine = (typeof PERSISTENCE_ENGINES)[number];
+export declare const NON_SUPABASE_PERSISTENCE_ENGINES: readonly ["sqlite", "none"];
+export type NonSupabasePersistenceEngine = (typeof NON_SUPABASE_PERSISTENCE_ENGINES)[number];
+export declare const NON_SUPABASE_PERSISTENCE_ENGINE_SET: ReadonlySet<string>;
+export declare const SUPABASE_EXCLUSIVE_PERSISTENCE_KEYS: readonly ["dockerContainer", "supabaseDir", "exemptRlsTables", "schemaQualified"];
+export type SupabaseExclusivePersistenceKey = (typeof SUPABASE_EXCLUSIVE_PERSISTENCE_KEYS)[number];
+export declare const SUPABASE_EXCLUSIVE_PERSISTENCE_KEY_SET: ReadonlySet<string>;
+export declare function isSupabaseExclusivePersistenceKey(key: string, engine?: string): boolean;
 export interface AuditPersistenceConfig extends BaseAuditSubsystemConfig {
   readonly engine: PersistenceEngine;
   readonly schemaQualified: boolean;
