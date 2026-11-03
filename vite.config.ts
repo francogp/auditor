@@ -381,11 +381,24 @@ export default defineConfig({
           '@francogp/domain-type/no-file-level-suppressions': 'off',
           '@francogp/domain-type/auditor-class-inheritance': 'off',
           '@francogp/domain-type/no-homebrew-file-walker': 'off',
-          '@francogp/domain-type/auditor-rule-description-limit': 'off'
+          '@francogp/domain-type/auditor-rule-description-limit': 'off',
+          '@francogp/domain-type/require-storage-try-catch': 'off',
+          '@francogp/domain-type/no-raw-session-storage': 'off',
+          '@francogp/domain-type/no-silent-promise-catch': 'off',
+          '@francogp/domain-type/no-await-in-loops-query': 'off',
+          '@francogp/domain-type/no-literal-suffix-constant': 'off',
+          '@francogp/domain-type/no-raw-html-injection': 'off',
+          '@francogp/domain-type/no-redundant-constant-alias': 'off'
         }
       },
       {
-        files: ['**/src/cli/**', '**/src/core/**', '**/src/suites/**', '**/src/analyzers/**'],
+        files: [
+          '**/src/cli/**',
+          '**/src/core/**',
+          '**/src/suites/**',
+          '**/src/analyzers/**',
+          'vite.plugins.ts'
+        ],
         rules: {
           'no-console': 'off',
           'unicorn/prefer-global-this': 'off',
@@ -408,7 +421,11 @@ export default defineConfig({
           '@francogp/domain-type/no-direct-process-argv': 'off',
           '@francogp/domain-type/no-homebrew-flag-parsing': 'off',
           '@francogp/domain-type/no-homebrew-file-walker': 'off',
-          '@francogp/domain-type/auditor-rule-description-limit': 'off'
+          '@francogp/domain-type/auditor-rule-description-limit': 'off',
+          '@francogp/domain-type/no-raw-session-storage': 'off',
+          '@francogp/domain-type/no-hardcoded-secrets': 'off',
+          '@francogp/domain-type/no-playwright-polling-waits': 'off',
+          'no-unused-expressions': 'off'
         }
       }
     ]

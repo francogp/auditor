@@ -58,6 +58,28 @@ function getRuleContextFilename(context) {
 	const raw = context.filename || (context.getFilename ? context.getFilename() : "");
 	return raw ? raw.split("\\").join("/") : "";
 }
+function isJsModuleFilename(fname) {
+	return Boolean(fname) && (fname.endsWith(".js") || fname.endsWith(".cjs") || fname.endsWith(".mjs"));
+}
+function unwrapBroadArrayExpression(init) {
+	if (!init) return void 0;
+	if (init.type === "TSAsExpression") return init.typeAnnotation?.type === "TSTypeReference" && init.typeAnnotation.typeName?.name === "const" ? void 0 : init.expression;
+	return init;
+}
+function isStringLiteralArrayExpression(expr) {
+	if (expr?.type !== "ArrayExpression") return false;
+	const elements = expr.elements ?? [];
+	return elements.length > 0 && elements.every((el) => el?.type === "Literal" && typeof el.value === "string");
+}
+function isMutatedOrTypedStringBuffer(node, context) {
+	const idType = node.id?.typeAnnotation?.typeAnnotation;
+	if (idType && idType.type !== "TSArrayType") return true;
+	if (idType?.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword") return true;
+	const varName = node.id?.type === "Identifier" ? node.id.name ?? "" : "";
+	if (!varName || !context.getSourceCode) return false;
+	const sourceText = context.getSourceCode().getText();
+	return sourceText.includes(`${varName}.push(`) || sourceText.includes(`${varName}.unshift(`) || sourceText.includes(`${varName}.splice(`);
+}
 const domainTypeOxlintPlugin = {
 	meta: {
 		name: "@francogp/domain-type",
@@ -104,8 +126,7 @@ const domainTypeOxlintPlugin = {
 						if (t.type === "TSTypeReference") {
 							const name = t.typeName?.name;
 							if (!name || BUILTIN_TYPES.has(name)) return false;
-							if (/(?:Config|Options|Props|Entry|Context|Result|Node|Schema|Descriptor|Handler|Plugin|Runner|Item|Target)$/.test(name)) return false;
-							return true;
+							return /(?:Id|Key|Type|Kind|Mode|Status|State|Phase|Tier|Role|Category|Code|Name|Slot|Variant|Scope|Level|Format|Target|Source|Engine|Provider)$/.test(name);
 						}
 						return false;
 					})) context.report({
@@ -171,27 +192,12 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { VariableDeclarator(node) {
-					const fname = context.filename ?? (context.getFilename ? context.getFilename() : "");
-					if (fname && (fname.endsWith(".js") || fname.endsWith(".cjs") || fname.endsWith(".mjs"))) return;
-					if (!node.init) return;
-					let isConstAssertion = false;
-					let arrayExpr = node.init;
-					if (node.init.type === "TSAsExpression") {
-						if (node.init.typeAnnotation?.type === "TSTypeReference" && node.init.typeAnnotation.typeName?.name === "const") isConstAssertion = true;
-						arrayExpr = node.init.expression;
-					}
-					if (arrayExpr?.type === "ArrayExpression" && !isConstAssertion) {
-						const elements = arrayExpr.elements ?? [];
-						if (elements.length > 0 && elements.every((el) => el?.type === "Literal" && typeof el.value === "string")) {
-							const idType = node.id?.typeAnnotation?.typeAnnotation;
-							const isNakedStringArray = !idType || idType.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword";
-							const isExplicitBufferAccumulator = idType?.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword" && elements.length === 1;
-							if (isNakedStringArray && !isExplicitBufferAccumulator) context.report({
-								node,
-								message: "String literal array declared without `as const`. Add `as const` or type with a canonical domain."
-							});
-						}
-					}
+					if (isJsModuleFilename(getRuleContextFilename(context))) return;
+					if (!isStringLiteralArrayExpression(unwrapBroadArrayExpression(node.init))) return;
+					if (!isMutatedOrTypedStringBuffer(node, context)) context.report({
+						node,
+						message: "String literal array declared without `as const`. Add `as const` or type with a canonical domain."
+					});
 				} };
 			}
 		},
@@ -601,12 +607,31 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Detects addEventListener without cleanup or once: true" }
 			},
 			create(context) {
+				const fname = getRuleContextFilename(context);
+				if (fname.endsWith(".worker.ts") || fname.endsWith(".worker.js")) return {};
 				const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
 				if (sourceCode.includes("defineStore(") || sourceCode.includes("createApp(") || sourceCode.includes(".mount(")) return {};
+				const PROCESS_LIFETIME_EVENTS = /* @__PURE__ */ new Set([
+					"beforeunload",
+					"unload",
+					"pagehide",
+					"pageshow",
+					"error",
+					"unhandledrejection",
+					"rejectionhandled",
+					"vite:preloadError",
+					"DOMContentLoaded",
+					"load",
+					"online",
+					"offline"
+				]);
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "addEventListener") {
+						if (callee.object?.name === "self") return;
 						const args = node.arguments ?? [];
+						const firstArg = args[0];
+						if (firstArg?.type === "Literal" && typeof firstArg.value === "string" && PROCESS_LIFETIME_EVENTS.has(firstArg.value)) return;
 						if (args.length >= 3) {
 							const opt = args[2];
 							if (opt?.type === "ObjectLiteralExpression" || opt?.type === "ObjectExpression") {
@@ -1052,7 +1077,9 @@ const domainTypeOxlintPlugin = {
 						if (firstRaw.startsWith("/") || /^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)) return;
 						if (quasis.length === 2 && (firstRaw === "./" || firstRaw === "../") && quasis[1]?.value?.raw === "") return;
 						const fullRaw = quasis.map((q) => q.value?.raw ?? "").join("");
-						if (fullRaw.includes("?") || fullRaw.includes("&") || /\/(?:api|rest|auth|embed|assets|v\d+)\//i.test(fullRaw)) return;
+						if (fullRaw.includes("?") || fullRaw.includes("&") || /\/(?:api|rest|auth|embed|assets|cries|sprites|images|audio|sounds|icons|fonts|public|static|v\d+)\//i.test(fullRaw) || /\.(?:mp3|ogg|wav|png|webp|jpg|jpeg|gif|svg|woff2?|ttf|eot|mp4|webm)$/i.test(fullRaw)) return;
+						const parent = node.parent;
+						if (parent?.type === "AssignmentExpression" && parent.left?.type === "MemberExpression" && /^(?:pathname|href|src|url|action|poster|data)$/i.test(parent.left.property?.name ?? "")) return;
 						if (fullRaw.includes(" ") && (fullRaw.includes(". ") || fullRaw.includes(": ") || fullRaw.includes("? ") || fullRaw.split(" ").length > 3)) return;
 						if (!quasis.some((q) => typeof q.value?.raw === "string" && (q.value.raw.includes("/") || q.value.raw.includes("\\\\"))) || (node.expressions?.length ?? 0) === 0) return;
 						const isUrlExpr = (name) => /^(?:base|api)?(?:url|endpoint|origin|host|uri|href|link)$/i.test(name);
@@ -1146,6 +1173,10 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids hardcoding '\\' or '/' in string split() operations on path variables" }
 			},
 			create(context) {
+				const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
+				if (sourceCode) {
+					if (!(sourceCode.includes("node:") || sourceCode.includes("process.") || sourceCode.includes("import.meta.dirname"))) return {};
+				}
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "split") {
@@ -1674,6 +1705,16 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Enforces maximum length of 60 chars on auditor rule descriptions" }
 			},
 			create(context) {
+				const AUDITOR_RULE_SIBLING_KEYS = /* @__PURE__ */ new Set([
+					"remediationPhase",
+					"defaultSeverity",
+					"fixable",
+					"ruleId",
+					"suiteId",
+					"ruleDescriptions",
+					"ruleRemediations",
+					"ruleCapabilities"
+				]);
 				return { Property(node) {
 					const keyName = getNodePropKeyName(node);
 					const val = node.value;
@@ -1681,7 +1722,7 @@ const domainTypeOxlintPlugin = {
 						const parentKey = getNodePropKeyName(node.parent ?? {});
 						if (parentKey === "docs" || parentKey === "meta") return;
 						if (node.parent?.type === "ObjectExpression") {
-							if (!(node.parent.properties ?? []).some((p) => getNodePropKeyName(p) === "id")) return;
+							if (!(node.parent.properties ?? []).some((p) => AUDITOR_RULE_SIBLING_KEYS.has(getNodePropKeyName(p)))) return;
 						}
 						if (val.value.length > 60) context.report({
 							node,

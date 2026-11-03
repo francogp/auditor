@@ -178,6 +178,50 @@ function getRuleContextFilename(context: OxlintRuleContext): string {
   return raw ? raw.split('\\').join('/') : '';
 }
 
+function isJsModuleFilename(fname: string): boolean {
+  return (
+    Boolean(fname) && (fname.endsWith('.js') || fname.endsWith('.cjs') || fname.endsWith('.mjs'))
+  );
+}
+
+function unwrapBroadArrayExpression(init: OxlintAstNode | undefined): OxlintAstNode | undefined {
+  if (!init) return undefined;
+  if (init.type === 'TSAsExpression') {
+    const isConst =
+      init.typeAnnotation?.type === 'TSTypeReference' &&
+      init.typeAnnotation.typeName?.name === 'const';
+    return isConst ? undefined : init.expression;
+  }
+  return init;
+}
+
+function isStringLiteralArrayExpression(expr: OxlintAstNode | undefined): boolean {
+  if (expr?.type !== 'ArrayExpression') return false;
+  const elements = expr.elements ?? [];
+  return (
+    elements.length > 0 &&
+    elements.every(
+      (el: OxlintAstNode | null) => el?.type === 'Literal' && typeof el.value === 'string'
+    )
+  );
+}
+
+function isMutatedOrTypedStringBuffer(node: OxlintAstNode, context: OxlintRuleContext): boolean {
+  const idType = node.id?.typeAnnotation?.typeAnnotation;
+  if (idType && idType.type !== 'TSArrayType') return true;
+  if (idType?.type === 'TSArrayType' && idType.elementType?.type === 'TSStringKeyword') {
+    return true;
+  }
+  const varName = node.id?.type === 'Identifier' ? (node.id.name ?? '') : '';
+  if (!varName || !context.getSourceCode) return false;
+  const sourceText = context.getSourceCode().getText();
+  return (
+    sourceText.includes(`${varName}.push(`) ||
+    sourceText.includes(`${varName}.unshift(`) ||
+    sourceText.includes(`${varName}.splice(`)
+  );
+}
+
 export const domainTypeOxlintPlugin = {
   meta: {
     name: '@francogp/domain-type',
@@ -231,12 +275,11 @@ export const domainTypeOxlintPlugin = {
               if (t.type === 'TSTypeReference') {
                 const name = t.typeName?.name;
                 if (!name || BUILTIN_TYPES.has(name)) return false;
-                const isConfigOrObject =
-                  /(?:Config|Options|Props|Entry|Context|Result|Node|Schema|Descriptor|Handler|Plugin|Runner|Item|Target)$/.test(
+                const isDomainLikeType =
+                  /(?:Id|Key|Type|Kind|Mode|Status|State|Phase|Tier|Role|Category|Code|Name|Slot|Variant|Scope|Level|Format|Target|Source|Engine|Provider)$/.test(
                     name
                   );
-                if (isConfigOrObject) return false;
-                return true;
+                return isDomainLikeType;
               }
               return false;
             });
@@ -357,57 +400,15 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext): OxlintRuleListener {
         return {
           VariableDeclarator(node: OxlintAstNode): void {
-            const fname = context.filename ?? (context.getFilename ? context.getFilename() : '');
-            if (
-              fname &&
-              (fname.endsWith('.js') || fname.endsWith('.cjs') || fname.endsWith('.mjs'))
-            ) {
-              return;
-            }
-            if (!node.init) return;
-
-            let isConstAssertion = false;
-            let arrayExpr: OxlintAstNode | undefined = node.init;
-
-            if (node.init.type === 'TSAsExpression') {
-              if (
-                node.init.typeAnnotation?.type === 'TSTypeReference' &&
-                node.init.typeAnnotation.typeName?.name === 'const'
-              ) {
-                isConstAssertion = true;
-              }
-              arrayExpr = node.init.expression;
-            }
-
-            if (arrayExpr?.type === 'ArrayExpression' && !isConstAssertion) {
-              const elements = arrayExpr.elements ?? [];
-              if (
-                elements.length > 0 &&
-                elements.every(
-                  (el: OxlintAstNode | null) =>
-                    el?.type === 'Literal' && typeof el.value === 'string'
-                )
-              ) {
-                const idType = node.id?.typeAnnotation?.typeAnnotation;
-                const isNakedStringArray =
-                  !idType ||
-                  (idType.type === 'TSArrayType' && idType.elementType?.type === 'TSStringKeyword');
-
-                // If explicit type annotation is `: string[]` AND elements.length === 1,
-                // this is a mutable buffer accumulator pattern (e.g. `const lines: string[] = ['header']; lines.push(...)`).
-                const isExplicitBufferAccumulator =
-                  idType?.type === 'TSArrayType' &&
-                  idType.elementType?.type === 'TSStringKeyword' &&
-                  elements.length === 1;
-
-                if (isNakedStringArray && !isExplicitBufferAccumulator) {
-                  context.report({
-                    node,
-                    message:
-                      'String literal array declared without `as const`. Add `as const` or type with a canonical domain.'
-                  });
-                }
-              }
+            if (isJsModuleFilename(getRuleContextFilename(context))) return;
+            const arrayExpr = unwrapBroadArrayExpression(node.init);
+            if (!isStringLiteralArrayExpression(arrayExpr)) return;
+            if (!isMutatedOrTypedStringBuffer(node, context)) {
+              context.report({
+                node,
+                message:
+                  'String literal array declared without `as const`. Add `as const` or type with a canonical domain.'
+              });
             }
           }
         };
@@ -1032,6 +1033,10 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
+        const fname = getRuleContextFilename(context);
+        if (fname.endsWith('.worker.ts') || fname.endsWith('.worker.js')) {
+          return {};
+        }
         const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : '';
         if (
           sourceCode.includes('defineStore(') ||
@@ -1040,6 +1045,20 @@ export const domainTypeOxlintPlugin = {
         ) {
           return {};
         }
+        const PROCESS_LIFETIME_EVENTS = new Set([
+          'beforeunload',
+          'unload',
+          'pagehide',
+          'pageshow',
+          'error',
+          'unhandledrejection',
+          'rejectionhandled',
+          'vite:preloadError',
+          'DOMContentLoaded',
+          'load',
+          'online',
+          'offline'
+        ]);
         return {
           CallExpression(node: OxlintAstNode): void {
             const callee = node.callee;
@@ -1047,7 +1066,18 @@ export const domainTypeOxlintPlugin = {
               callee?.type === 'MemberExpression' &&
               callee.property?.name === 'addEventListener'
             ) {
+              if (callee.object?.name === 'self') {
+                return;
+              }
               const args = node.arguments ?? [];
+              const firstArg = args[0];
+              if (
+                firstArg?.type === 'Literal' &&
+                typeof firstArg.value === 'string' &&
+                PROCESS_LIFETIME_EVENTS.has(firstArg.value)
+              ) {
+                return;
+              }
               if (args.length >= 3) {
                 const opt = args[2] as {
                   type?: string;
@@ -1752,11 +1782,24 @@ export const domainTypeOxlintPlugin = {
               return;
             }
             const fullRaw = quasis.map((q) => q.value?.raw ?? '').join('');
-            // If template contains URL query parameters (? or &) or endpoint markers, it is a web URL, not a filesystem path
+            // If template contains URL query parameters (? or &), endpoint markers, or web asset extensions, it is a web URL, not a filesystem path
             if (
               fullRaw.includes('?') ||
               fullRaw.includes('&') ||
-              /\/(?:api|rest|auth|embed|assets|v\d+)\//i.test(fullRaw)
+              /\/(?:api|rest|auth|embed|assets|cries|sprites|images|audio|sounds|icons|fonts|public|static|v\d+)\//i.test(
+                fullRaw
+              ) ||
+              /\.(?:mp3|ogg|wav|png|webp|jpg|jpeg|gif|svg|woff2?|ttf|eot|mp4|webm)$/i.test(fullRaw)
+            ) {
+              return;
+            }
+            const parent = node.parent;
+            if (
+              parent?.type === 'AssignmentExpression' &&
+              parent.left?.type === 'MemberExpression' &&
+              /^(?:pathname|href|src|url|action|poster|data)$/i.test(
+                parent.left.property?.name ?? ''
+              )
             ) {
               return;
             }
@@ -1938,6 +1981,16 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
+        const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : '';
+        if (sourceCode) {
+          const isNodeContext =
+            sourceCode.includes('node:') ||
+            sourceCode.includes('process.') ||
+            sourceCode.includes('import.meta.dirname');
+          if (!isNodeContext) {
+            return {};
+          }
+        }
         return {
           CallExpression(node: OxlintAstNode): void {
             const callee = node.callee;
@@ -2769,6 +2822,16 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
+        const AUDITOR_RULE_SIBLING_KEYS = new Set([
+          'remediationPhase',
+          'defaultSeverity',
+          'fixable',
+          'ruleId',
+          'suiteId',
+          'ruleDescriptions',
+          'ruleRemediations',
+          'ruleCapabilities'
+        ]);
         return {
           Property(node: OxlintAstNode): void {
             const keyName = getNodePropKeyName(node);
@@ -2784,8 +2847,10 @@ export const domainTypeOxlintPlugin = {
               }
               if (node.parent?.type === 'ObjectExpression') {
                 const props = node.parent.properties ?? [];
-                const hasSiblingId = props.some((p) => getNodePropKeyName(p) === 'id');
-                if (!hasSiblingId) {
+                const isAuditorRuleObj = props.some((p) =>
+                  AUDITOR_RULE_SIBLING_KEYS.has(getNodePropKeyName(p))
+                );
+                if (!isAuditorRuleObj) {
                   return;
                 }
               }

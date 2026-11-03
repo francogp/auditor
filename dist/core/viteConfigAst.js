@@ -364,7 +364,6 @@ function resolveKnownViteFunctionReturnType(name) {
 	if (STRING_OR_UNDEFINED_RETURN_FUNCTIONS.has(name)) return createStringOrUndefinedType();
 	if (STRING_RETURN_FUNCTIONS.has(name)) return ts.factory.createKeywordTypeNode(ts.SyntaxKind.StringKeyword);
 	if (name === "outExtensions") return createPackOutExtensionsReturnType();
-	if (name === "plugins") return ts.factory.createArrayTypeNode(ts.factory.createKeywordTypeNode(ts.SyntaxKind.UnknownKeyword));
 	return null;
 }
 function buildPackAstObject() {
@@ -409,8 +408,9 @@ function resolveDynamicTestExemptGlobs(auditConfig) {
 }
 function resolveDynamicScriptExemptGlobs(auditConfig) {
 	const paths = auditConfig.paths;
-	if (!paths) return [];
-	return candidateRootsToExemptGlobs([...paths.scriptsRoots ?? [], ...paths.cliRoots ?? []]);
+	if (!paths) return ["vite.plugins.ts"];
+	const roots = candidateRootsToExemptGlobs([...paths.scriptsRoots ?? [], ...paths.cliRoots ?? []]);
+	return Array.from(/* @__PURE__ */ new Set([...roots, "vite.plugins.ts"]));
 }
 function resolveDynamicDemoExemptGlobs(auditConfig) {
 	const paths = auditConfig.paths;
@@ -1137,7 +1137,15 @@ function transformMethodDeclaration(node, sf, visitBody) {
 	};
 }
 function transformPropertyAssignment(node, sf, visitChild) {
-	const returnType = resolveKnownViteFunctionReturnType(getPropertyKeyName(node.name, sf));
+	const name = getPropertyKeyName(node.name, sf);
+	if (name === "plugins" && ts.isArrowFunction(node.initializer) && node.initializer.type && ts.isArrayTypeNode(node.initializer.type) && node.initializer.type.elementType.kind === ts.SyntaxKind.UnknownKeyword) {
+		const arrow = node.initializer;
+		return {
+			transformed: ts.factory.updatePropertyAssignment(node, node.name, ts.factory.updateArrowFunction(arrow, arrow.modifiers, arrow.typeParameters, arrow.parameters, void 0, arrow.equalsGreaterThanToken, ts.visitNode(arrow.body, visitChild) ?? arrow.body)),
+			modified: true
+		};
+	}
+	const returnType = resolveKnownViteFunctionReturnType(name);
 	if (!returnType) return {
 		transformed: node,
 		modified: false

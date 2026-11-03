@@ -313,7 +313,14 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-file-level-suppressions",
 	"@francogp/domain-type/auditor-class-inheritance",
 	"@francogp/domain-type/no-homebrew-file-walker",
-	"@francogp/domain-type/auditor-rule-description-limit"
+	"@francogp/domain-type/auditor-rule-description-limit",
+	"@francogp/domain-type/require-storage-try-catch",
+	"@francogp/domain-type/no-raw-session-storage",
+	"@francogp/domain-type/no-silent-promise-catch",
+	"@francogp/domain-type/no-await-in-loops-query",
+	"@francogp/domain-type/no-literal-suffix-constant",
+	"@francogp/domain-type/no-raw-html-injection",
+	"@francogp/domain-type/no-redundant-constant-alias"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
@@ -337,14 +344,21 @@ const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-direct-process-argv",
 	"@francogp/domain-type/no-homebrew-flag-parsing",
 	"@francogp/domain-type/no-homebrew-file-walker",
-	"@francogp/domain-type/auditor-rule-description-limit"
+	"@francogp/domain-type/auditor-rule-description-limit",
+	"@francogp/domain-type/no-raw-session-storage",
+	"@francogp/domain-type/no-hardcoded-secrets",
+	"@francogp/domain-type/no-playwright-polling-waits",
+	"no-unused-expressions"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
+	"unicorn/prefer-global-this",
 	"typescript/explicit-function-return-type",
 	"@typescript-eslint/explicit-function-return-type",
 	"@francogp/domain-type/no-insecure-random",
-	"@francogp/domain-type/no-broad-string-array"
+	"@francogp/domain-type/no-broad-string-array",
+	"@francogp/domain-type/no-gsap-layout-properties",
+	"@francogp/domain-type/no-record-string-key"
 ].map((rule) => [rule, "off"]));
 const DEFAULT_VITE_PLUS_AUDIT_CONFIG = {
 	enabled: true,

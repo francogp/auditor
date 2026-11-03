@@ -102,16 +102,54 @@ describe('Oxlint Auditor Hygiene Migration Verification', () => {
         }
       });
 
-      visitor.Property?.({
+      const descProp = {
         type: 'Property',
         key: { name: 'description' },
         value: {
           type: 'Literal',
           value:
             'This is an excessively long auditor rule description that violates our 60 characters limit policy'
+        },
+        parent: {
+          type: 'ObjectExpression',
+          properties: [
+            { type: 'Property', key: { name: 'ruleId' } },
+            { type: 'Property', key: { name: 'remediationPhase' } }
+          ]
+        }
+      };
+      visitor.Property?.(descProp);
+      expect(reported).toBe(true);
+    });
+
+    it('CANARY: auditor-rule-description-limit ignores domain data objects ({ id, description }) without auditor rule sibling keys', () => {
+      const rule = domainTypeOxlintPlugin.rules['auditor-rule-description-limit'];
+      let reported = false;
+      const visitor = rule.create({
+        report: () => {
+          reported = true;
         }
       });
-      expect(reported).toBe(true);
+
+      const rpgLoreProp = {
+        type: 'Property',
+        key: { name: 'description' },
+        value: {
+          type: 'Literal',
+          value:
+            'Túneles pestilentes infestados de alimañas ciegas y zarcillos sombríos del abismo eterno'
+        },
+        parent: {
+          type: 'ObjectExpression',
+          properties: [
+            { type: 'Property', key: { name: 'id' } },
+            { type: 'Property', key: { name: 'name' } },
+            { type: 'Property', key: { name: 'dangerLevel' } }
+          ]
+        }
+      };
+      visitor.Property?.(rpgLoreProp);
+      expect(reported).toBe(false);
     });
   });
 
