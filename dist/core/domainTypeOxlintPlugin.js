@@ -95,7 +95,16 @@ const domainTypeOxlintPlugin = {
 						"Array",
 						"Set",
 						"Map",
-						"NodeJS"
+						"NodeJS",
+						"Iterable",
+						"AsyncIterable",
+						"Iterator",
+						"AsyncIterator",
+						"ReadonlyArray",
+						"ReadonlySet",
+						"ReadonlyMap",
+						"Generator",
+						"AsyncGenerator"
 					]);
 					if (types.some((t) => {
 						if (t.type === "TSLiteralType" && typeof t.literal?.value === "string") return true;
@@ -870,7 +879,18 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids calling data providers directly inside Vue template expressions" }
 			},
 			create(context) {
+				const fname = getRuleContextFilename(context);
+				if (fname && !fname.endsWith(".vue")) return {};
+				const sourceCode = context.getSourceCode?.()?.getText() ?? "";
+				const templateMatch = /<template[\s>]/i.exec(sourceCode);
+				const templateEnd = sourceCode.lastIndexOf("</template>");
+				const templateStart = templateMatch ? templateMatch.index : -1;
+				if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) return {};
 				return { CallExpression(node) {
+					if (templateStart >= 0 && templateEnd > templateStart && node.range) {
+						const start = node.range[0];
+						if (start < templateStart || start > templateEnd) return;
+					} else if (fname && !templateMatch) return;
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression") {
 						const objName = callee.object?.name;
@@ -1042,7 +1062,8 @@ const domainTypeOxlintPlugin = {
 					TemplateLiteral(node) {
 						const quasis = node.quasis ?? [];
 						const firstRaw = quasis[0]?.value?.raw ?? "";
-						if (/^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)) return;
+						if (firstRaw.startsWith("/") || /^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)) return;
+						if (quasis.length === 2 && (firstRaw === "./" || firstRaw === "../") && quasis[1]?.value?.raw === "") return;
 						const fullRaw = quasis.map((q) => q.value?.raw ?? "").join("");
 						if (fullRaw.includes(" ") && (fullRaw.includes(". ") || fullRaw.includes(": ") || fullRaw.includes("? ") || fullRaw.split(" ").length > 3)) return;
 						if (!quasis.some((q) => typeof q.value?.raw === "string" && (q.value.raw.includes("/") || q.value.raw.includes("\\\\"))) || (node.expressions?.length ?? 0) === 0) return;
@@ -1052,7 +1073,7 @@ const domainTypeOxlintPlugin = {
 						});
 						const hasPathQuasiPrefix = quasis.some((q) => {
 							const raw = q.value?.raw ?? "";
-							return /^\.{1,2}[/\\]|^[a-zA-Z]:[/\\]|^\/[a-zA-Z0-9_.-]+[/\\]/.test(raw);
+							return /^\.{1,2}[/\\]|^[a-zA-Z]:[/\\]/.test(raw);
 						});
 						if (hasPathExpr || hasPathQuasiPrefix) context.report({
 							node,

@@ -40,6 +40,7 @@ const ALWAYS_IGNORE_DIRS = /* @__PURE__ */ new Set([
 	".github",
 	".gemini",
 	".auditor",
+	".agents",
 	"tmp",
 	"volumes"
 ]);

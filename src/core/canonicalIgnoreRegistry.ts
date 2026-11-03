@@ -42,6 +42,7 @@ export const ALWAYS_IGNORE_DIRS: ReadonlySet<string> = new Set([
   '.github',
   '.gemini',
   '.auditor',
+  '.agents',
   'tmp',
   'volumes'
 ]);

@@ -233,7 +233,16 @@ export const domainTypeOxlintPlugin = {
               'Array',
               'Set',
               'Map',
-              'NodeJS'
+              'NodeJS',
+              'Iterable',
+              'AsyncIterable',
+              'Iterator',
+              'AsyncIterator',
+              'ReadonlyArray',
+              'ReadonlySet',
+              'ReadonlyMap',
+              'Generator',
+              'AsyncGenerator'
             ]);
 
             const hasDilutedDomainType = types.some((t: OxlintAstNode) => {
@@ -1466,8 +1475,30 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
+        const fname = getRuleContextFilename(context);
+        if (fname && !fname.endsWith('.vue')) {
+          return {};
+        }
+
+        const sourceCode = context.getSourceCode?.()?.getText() ?? '';
+        const templateMatch = /<template[\s>]/i.exec(sourceCode);
+        const templateEnd = sourceCode.lastIndexOf('</template>');
+        const templateStart = templateMatch ? templateMatch.index : -1;
+        if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) {
+          return {};
+        }
+
         return {
           CallExpression(node: OxlintAstNode): void {
+            if (templateStart >= 0 && templateEnd > templateStart && node.range) {
+              const start = node.range[0];
+              if (start < templateStart || start > templateEnd) {
+                return;
+              }
+            } else if (fname && !templateMatch) {
+              return;
+            }
+
             const callee = node.callee;
             if (callee?.type === 'MemberExpression') {
               const objName = callee.object?.name;
@@ -1737,8 +1768,19 @@ export const domainTypeOxlintPlugin = {
           TemplateLiteral(node: OxlintAstNode): void {
             const quasis = node.quasis ?? [];
             const firstRaw = quasis[0]?.value?.raw ?? '';
-            // Ignore web protocols, data uris, git repos
-            if (/^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)) {
+            // Ignore web endpoints, web protocols, data uris, git repos
+            if (
+              firstRaw.startsWith('/') ||
+              /^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)
+            ) {
+              return;
+            }
+            // Display-only relative path decoration (./${rel})
+            if (
+              quasis.length === 2 &&
+              (firstRaw === './' || firstRaw === '../') &&
+              quasis[1]?.value?.raw === ''
+            ) {
               return;
             }
             const fullRaw = quasis.map((q) => q.value?.raw ?? '').join('');
@@ -1768,7 +1810,7 @@ export const domainTypeOxlintPlugin = {
             });
             const hasPathQuasiPrefix = quasis.some((q) => {
               const raw = q.value?.raw ?? '';
-              return /^\.{1,2}[/\\]|^[a-zA-Z]:[/\\]|^\/[a-zA-Z0-9_.-]+[/\\]/.test(raw);
+              return /^\.{1,2}[/\\]|^[a-zA-Z]:[/\\]/.test(raw);
             });
 
             if (hasPathExpr || hasPathQuasiPrefix) {

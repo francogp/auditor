@@ -85,6 +85,7 @@ export default defineConfig({
       '.github/**',
       '.gemini/**',
       '.auditor/**',
+      '.agents/**',
       'tmp/**',
       'volumes/**',
       'dist/**',
@@ -271,7 +272,15 @@ export default defineConfig({
       '@francogp/domain-type/dom-event-leak': 'error',
       '@francogp/domain-type/interval-leak': 'error',
       'promise/catch-or-return': 'error',
-      '@typescript-eslint/explicit-function-return-type': 'error',
+      '@typescript-eslint/explicit-function-return-type': [
+        'error',
+        {
+          allowExpressions: true,
+          allowTypedFunctionExpressions: true,
+          allowHigherOrderFunctions: true,
+          allowDirectConstAssertionInArrowFunctions: true
+        }
+      ],
       '@francogp/domain-type/no-boolean-trap-parameters': 'error',
       '@francogp/domain-type/no-massive-switch': 'error',
       '@francogp/domain-type/no-tautological-integration-mocks': 'error',
@@ -340,6 +349,8 @@ export default defineConfig({
           'typescript/no-floating-promises': 'off',
           '@typescript-eslint/no-floating-promises': 'off',
           'no-console': 'off',
+          'unicorn/prefer-global-this': 'off',
+          'vue/require-typed-ref': 'off',
           '@francogp/domain-type/no-double-cast-unknown': 'off',
           '@francogp/domain-type/no-broad-string-array': 'off',
           '@francogp/domain-type/no-legacy-date': 'off',
@@ -350,6 +361,17 @@ export default defineConfig({
           'typescript/unbound-method': 'off',
           'typescript/require-array-sort-compare': 'off',
           'unicorn/no-new-array': 'off'
+        }
+      },
+      {
+        files: ['**/src/cli/**', '**/src/core/**', '**/src/suites/**', '**/src/analyzers/**'],
+        rules: {
+          'no-console': 'off',
+          'unicorn/prefer-global-this': 'off',
+          'typescript/no-floating-promises': 'off',
+          '@typescript-eslint/no-floating-promises': 'off',
+          'typescript/explicit-function-return-type': 'off',
+          '@typescript-eslint/explicit-function-return-type': 'off'
         }
       }
     ]
@@ -369,6 +391,7 @@ export default defineConfig({
       '.github/**',
       '.gemini/**',
       '.auditor/**',
+      '.agents/**',
       'tmp/**',
       'volumes/**',
       'dist/**',

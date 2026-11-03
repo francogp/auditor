@@ -301,12 +301,76 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'vue/require-direct-export': 'error',
   'vue/require-typed-ref': 'error',
   '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
-  '@typescript-eslint/explicit-function-return-type': 'error',
+  '@typescript-eslint/explicit-function-return-type': [
+    'error',
+    {
+      allowExpressions: true,
+      allowTypedFunctionExpressions: true,
+      allowHigherOrderFunctions: true,
+      allowDirectConstAssertionInArrowFunctions: true
+    }
+  ],
   '@typescript-eslint/no-unused-vars': 'error',
   'vue/no-required-prop-with-default': 'error',
   'vue/no-deprecated-model-definition': 'error',
   'no-useless-assignment': 'error'
 };
+
+const DYNAMIC_TEST_OFF_RULES = [
+  'typescript/explicit-function-return-type',
+  '@typescript-eslint/explicit-function-return-type',
+  'vitest/prefer-to-be-truthy',
+  'vitest/prefer-to-be-falsy',
+  'vitest/prefer-strict-equal',
+  'vitest/no-conditional-expect',
+  'vitest/require-mock-type-parameters',
+  'vitest/prefer-mock-return-shorthand',
+  'vitest/expect-expect',
+  'typescript/no-floating-promises',
+  '@typescript-eslint/no-floating-promises',
+  'no-console',
+  'unicorn/prefer-global-this',
+  'vue/require-typed-ref',
+  '@francogp/domain-type/no-double-cast-unknown',
+  '@francogp/domain-type/no-broad-string-array',
+  '@francogp/domain-type/no-legacy-date',
+  '@francogp/domain-type/no-raw-local-storage',
+  '@francogp/domain-type/no-insecure-random',
+  '@francogp/domain-type/no-select-star-in-queries',
+  '@francogp/domain-type/require-paginated-queries',
+  '@francogp/domain-type/no-untyped-string-set-map',
+  '@francogp/domain-type/no-hardcoded-secrets',
+  'typescript/consistent-type-assertions',
+  'typescript/no-explicit-any',
+  'typescript/explicit-member-accessibility',
+  'typescript/await-thenable',
+  'typescript/unbound-method',
+  'typescript/require-array-sort-compare',
+  'unicorn/no-new-array'
+] as const;
+
+export const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
+  Object.fromEntries(DYNAMIC_TEST_OFF_RULES.map((rule) => [rule, 'off']));
+
+const DYNAMIC_SCRIPT_OFF_RULES = [
+  'no-console',
+  'unicorn/prefer-global-this',
+  'typescript/no-floating-promises',
+  '@typescript-eslint/no-floating-promises',
+  'typescript/explicit-function-return-type',
+  '@typescript-eslint/explicit-function-return-type',
+  '@francogp/domain-type/no-insecure-random',
+  '@francogp/domain-type/no-broad-string-array',
+  '@francogp/domain-type/no-raw-local-storage',
+  '@francogp/domain-type/no-select-star-in-queries',
+  '@francogp/domain-type/require-paginated-queries',
+  '@francogp/domain-type/no-untyped-string-set-map',
+  '@francogp/domain-type/no-direct-database-instantiation',
+  '@francogp/domain-type/require-storage-try-catch'
+] as const;
+
+export const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
+  Object.fromEntries(DYNAMIC_SCRIPT_OFF_RULES.map((rule) => [rule, 'off']));
 
 export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
   enabled: true,

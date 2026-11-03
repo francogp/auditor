@@ -131,7 +131,10 @@ describe('Oxlint Vue SFC Hygiene Migration Verification', () => {
     it('CANARY: no-data-provider-in-template catches dataProvider.*() calls in template', () => {
       const rule = domainTypeOxlintPlugin.rules['no-data-provider-in-template'];
       let reported = false;
+      const vueSfcContent = `<script setup lang="ts">\nconst a = 1;\n</script>\n<template>\n  <div>{{ dataProvider.fetchUsers() }}</div>\n</template>`;
       const visitor = rule.create({
+        filename: 'src/components/MyWidget.vue',
+        getSourceCode: () => ({ getText: () => vueSfcContent }),
         report: () => {
           reported = true;
         }
@@ -139,6 +142,7 @@ describe('Oxlint Vue SFC Hygiene Migration Verification', () => {
 
       visitor.CallExpression?.({
         type: 'CallExpression',
+        range: [65, 90],
         callee: {
           type: 'MemberExpression',
           object: { name: 'dataProvider' },
@@ -146,6 +150,48 @@ describe('Oxlint Vue SFC Hygiene Migration Verification', () => {
         }
       });
       expect(reported).toBe(true);
+    });
+
+    it('CANARY: no-data-provider-in-template ignores calls in .ts files or script setup', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-data-provider-in-template'];
+      let reportedTs = false;
+      const tsVisitor = rule.create({
+        filename: 'src/logic/userService.ts',
+        report: () => {
+          reportedTs = true;
+        }
+      });
+
+      tsVisitor.CallExpression?.({
+        type: 'CallExpression',
+        callee: {
+          type: 'MemberExpression',
+          object: { name: 'dataProvider' },
+          property: { name: 'fetchUsers' }
+        }
+      });
+      expect(reportedTs).toBe(false);
+
+      let reportedScript = false;
+      const vueSfcContent = `<script setup lang="ts">\nconst users = await dataProvider.fetchUsers();\n</script>\n<template>\n  <div>test</div>\n</template>`;
+      const vueVisitor = rule.create({
+        filename: 'src/components/UserList.vue',
+        getSourceCode: () => ({ getText: () => vueSfcContent }),
+        report: () => {
+          reportedScript = true;
+        }
+      });
+
+      vueVisitor.CallExpression?.({
+        type: 'CallExpression',
+        range: [40, 65], // inside <script setup>
+        callee: {
+          type: 'MemberExpression',
+          object: { name: 'dataProvider' },
+          property: { name: 'fetchUsers' }
+        }
+      });
+      expect(reportedScript).toBe(false);
     });
   });
 

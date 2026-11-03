@@ -1,4 +1,4 @@
-import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
@@ -390,20 +390,27 @@ function buildLintOverridesArrayAst(overrides) {
 	const ovElements = overrides.map((ov) => ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("files", valueToAstExpression(ov.files)), ts.factory.createPropertyAssignment("rules", valueToAstExpression(ov.rules ?? {}, true))], true));
 	return ts.factory.createArrayLiteralExpression(ovElements, true);
 }
-function resolveDynamicTestExemptGlobs(auditConfig) {
-	const paths = auditConfig.paths;
-	if (!paths) return [];
-	const candidateRoots = [
-		...paths.testRoots ?? [],
-		...paths.e2eRoots ?? [],
-		...paths.integrationRoots ?? []
-	];
+function candidateRootsToExemptGlobs(roots) {
 	const globs = [];
-	for (const root of candidateRoots) {
+	for (const root of roots) {
 		const cleanRoot = stripGlobSuffix(normalizePosixPath(root));
 		if (cleanRoot && cleanRoot !== ".") globs.push(`**/${cleanRoot}/**`);
 	}
 	return Array.from(new Set(globs));
+}
+function resolveDynamicTestExemptGlobs(auditConfig) {
+	const paths = auditConfig.paths;
+	if (!paths) return [];
+	return candidateRootsToExemptGlobs([
+		...paths.testRoots ?? [],
+		...paths.e2eRoots ?? [],
+		...paths.integrationRoots ?? []
+	]);
+}
+function resolveDynamicScriptExemptGlobs(auditConfig) {
+	const paths = auditConfig.paths;
+	if (!paths) return [];
+	return candidateRootsToExemptGlobs([...paths.scriptsRoots ?? [], ...paths.cliRoots ?? []]);
 }
 function resolveEffectiveLintOverrides(auditConfig) {
 	const effective = [...auditConfig.vitePlusConfig?.lint?.overrides ?? []];
@@ -411,30 +418,14 @@ function resolveEffectiveLintOverrides(auditConfig) {
 	if (dynamicTestGlobs.length > 0) {
 		if (!effective.some((ov) => ov.rules && "vitest/prefer-to-be-truthy" in ov.rules)) effective.push({
 			files: dynamicTestGlobs,
-			rules: {
-				"typescript/explicit-function-return-type": "off",
-				"@typescript-eslint/explicit-function-return-type": "off",
-				"vitest/prefer-to-be-truthy": "off",
-				"vitest/prefer-to-be-falsy": "off",
-				"vitest/prefer-strict-equal": "off",
-				"vitest/no-conditional-expect": "off",
-				"vitest/require-mock-type-parameters": "off",
-				"vitest/prefer-mock-return-shorthand": "off",
-				"vitest/expect-expect": "off",
-				"typescript/no-floating-promises": "off",
-				"@typescript-eslint/no-floating-promises": "off",
-				"no-console": "off",
-				"@francogp/domain-type/no-double-cast-unknown": "off",
-				"@francogp/domain-type/no-broad-string-array": "off",
-				"@francogp/domain-type/no-legacy-date": "off",
-				"typescript/consistent-type-assertions": "off",
-				"typescript/no-explicit-any": "off",
-				"typescript/explicit-member-accessibility": "off",
-				"typescript/await-thenable": "off",
-				"typescript/unbound-method": "off",
-				"typescript/require-array-sort-compare": "off",
-				"unicorn/no-new-array": "off"
-			}
+			rules: { ...CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES }
+		});
+	}
+	const dynamicScriptGlobs = resolveDynamicScriptExemptGlobs(auditConfig);
+	if (dynamicScriptGlobs.length > 0) {
+		if (!effective.some((ov) => ov.rules && "no-console" in ov.rules && ov.files.some((f) => dynamicScriptGlobs.includes(f)))) effective.push({
+			files: dynamicScriptGlobs,
+			rules: { ...CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES }
 		});
 	}
 	return effective;
@@ -588,6 +579,8 @@ function parseLegacyTestPropertyNode(legacyTestBlock) {
 }
 const TUPLE_REQUIRED_RULES = /* @__PURE__ */ new Set([
 	"@typescript-eslint/consistent-type-assertions",
+	"@typescript-eslint/explicit-function-return-type",
+	"typescript/explicit-function-return-type",
 	"no-empty",
 	"eqeqeq"
 ]);
@@ -596,7 +589,10 @@ function checkTupleRuleOption(ruleName, second) {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.assertionStyle === "as" && cfg.objectLiteralTypeAssertions === "never";
 	}
-	if (ruleName === "@typescript-eslint/explicit-function-return-type") return true;
+	if (ruleName === "@typescript-eslint/explicit-function-return-type" || ruleName === "typescript/explicit-function-return-type") {
+		const cfg = typeof second === "object" && second !== null ? second : null;
+		return cfg !== null && cfg.allowExpressions === true;
+	}
 	if (ruleName === "no-empty") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.allowEmptyCatch === false;

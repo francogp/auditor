@@ -49,6 +49,12 @@ describe('auditPathPredicates', () => {
       expect(matchesAnyRoot('packages/core/src/index.ts', ['src'])).toBe(true);
       expect(matchesAnyRoot('other/file.ts', ['src'])).toBe(false);
     });
+
+    it('CANARY: does NOT match intermediate directories in agent or system infrastructure', () => {
+      expect(matchesAnyRoot('.agents/scripts/tool.ts', ['scripts'])).toBe(false);
+      expect(matchesAnyRoot('.agents/skills/scripts/run.ts', ['scripts'])).toBe(false);
+      expect(matchesAnyRoot('scratch/scripts/temp.ts', ['scripts'])).toBe(false);
+    });
   });
 
   describe('isTestPath and isTestFileForCodeAudit', () => {

@@ -94,10 +94,41 @@ describe('Oxlint Native Paths Migration Verification', () => {
 
       visitor.TemplateLiteral?.({
         type: 'TemplateLiteral',
-        quasis: [{ value: { raw: '/tmp/' } }, { value: { raw: '' } }],
-        expressions: [{ type: 'Identifier', name: 'fileName' }]
+        quasis: [{ value: { raw: '' } }, { value: { raw: '/dest.txt' } }],
+        expressions: [{ type: 'Identifier', name: 'targetFolder' }]
       });
       expect(reported).toBe(true);
+    });
+
+    it('CANARY: unsafe-path-concat ignores web endpoints and assets', () => {
+      const rule = domainTypeOxlintPlugin.rules['unsafe-path-concat'];
+      let reportedApi = false;
+      const apiVisitor = rule.create({
+        report: () => {
+          reportedApi = true;
+        }
+      });
+
+      apiVisitor.TemplateLiteral?.({
+        type: 'TemplateLiteral',
+        quasis: [{ value: { raw: '/api/pokemon/' } }, { value: { raw: '' } }],
+        expressions: [{ type: 'Identifier', name: 'targetId' }]
+      });
+      expect(reportedApi).toBe(false);
+
+      let reportedAsset = false;
+      const assetVisitor = rule.create({
+        report: () => {
+          reportedAsset = true;
+        }
+      });
+
+      assetVisitor.TemplateLiteral?.({
+        type: 'TemplateLiteral',
+        quasis: [{ value: { raw: '/assets/sprites/' } }, { value: { raw: '.png' } }],
+        expressions: [{ type: 'Identifier', name: 'spriteName' }]
+      });
+      expect(reportedAsset).toBe(false);
     });
 
     it('CANARY: unsanitized-env-argv-path catches process.argv passed to fs.readFileSync', () => {

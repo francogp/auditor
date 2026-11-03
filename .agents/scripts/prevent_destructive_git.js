@@ -16,35 +16,35 @@
 import fs from 'node:fs';
 
 const GOVERNED_SATELLITE_FILES = [
-  '.fallowrc.json',
-  '.fallowrc',
-  '.fallowrc.js',
-  '.fallowrc.cjs',
-  'fallow.config.js',
-  'fallow.config.ts',
-  '.stylelintrc.json',
-  '.stylelintrc',
-  '.stylelintrc.js',
-  '.stylelintrc.cjs',
-  '.stylelintrc.mjs',
-  'stylelint.config.js',
-  'stylelint.config.cjs',
-  'stylelint.config.mjs',
-  '.htmlvalidate.json',
-  '.htmlvalidate.js',
-  '.htmlvalidate.cjs',
-  '.markdownlint.json',
-  '.markdownlint.yaml',
-  '.markdownlint.yml',
-  'tsconfig.json',
-  'tsconfig.app.json',
-  'tsconfig.node.json',
-  'tsconfig.vitest.json',
-  'tsconfig.build.json',
-  'tsconfig.ts7.json',
-  'vite.config.ts',
-  'vite.config.js',
-  'vite.config.mjs'
+  ".fallowrc.json",
+  ".fallowrc",
+  ".fallowrc.js",
+  ".fallowrc.cjs",
+  "fallow.config.js",
+  "fallow.config.ts",
+  ".stylelintrc.json",
+  ".stylelintrc",
+  ".stylelintrc.js",
+  ".stylelintrc.cjs",
+  ".stylelintrc.mjs",
+  "stylelint.config.js",
+  "stylelint.config.cjs",
+  "stylelint.config.mjs",
+  ".htmlvalidate.json",
+  ".htmlvalidate.js",
+  ".htmlvalidate.cjs",
+  ".markdownlint.json",
+  ".markdownlint.yaml",
+  ".markdownlint.yml",
+  "tsconfig.json",
+  "tsconfig.app.json",
+  "tsconfig.node.json",
+  "tsconfig.vitest.json",
+  "tsconfig.build.json",
+  "tsconfig.ts7.json",
+  "vite.config.ts",
+  "vite.config.js",
+  "vite.config.mjs"
 ];
 
 function checkSatelliteRedirect(cmd) {
@@ -73,7 +73,7 @@ function main() {
     // 1. Guard against direct manual editing of satellite configuration files
     if (toolName === 'write_file' || toolName === 'edit_file') {
       const targetPath = String(args.Path ?? args.path ?? '').trim();
-      const fileName = targetPath.split(/[/\\]/).pop() || '';
+      const fileName = targetPath.split(/[\/\\]/).pop() || '';
 
       if (GOVERNED_SATELLITE_FILES.includes(fileName)) {
         let specificGuidance = '';

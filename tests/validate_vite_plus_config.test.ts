@@ -1899,5 +1899,58 @@ export default defineConfig({
         /outExtensions\s*:\s*\(\)\s*:\s*\{\s*js:\s*string;\s*dts:\s*string;\s*\}\s*=>/
       );
     });
+
+    it('C-CFG-75: synchronizeViteConfigAst dynamically injects script overrides from paths.scriptsRoots without hardcoding', () => {
+      const initialConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: { include: ['tests/**/*.test.ts'] }
+        });
+      `;
+      const auditConfig = defineAuditConfig({
+        name: 'custom-project',
+        paths: {
+          scriptsRoots: ['custom-tools/scripts'],
+          cliRoots: ['bin/cli'],
+          testRoots: ['specs']
+        }
+      });
+      const synced = synchronizeViteConfigAst(initialConfig, auditConfig, [], [], null);
+
+      expect(synced.modified).toBe(true);
+      expect(synced.content).toContain('**/custom-tools/scripts/**');
+      expect(synced.content).toContain('**/bin/cli/**');
+      expect(synced.content).toContain('**/specs/**');
+      expect(synced.content).toContain("'no-console': 'off'");
+      expect(synced.content).toContain("'unicorn/prefer-global-this': 'off'");
+      expect(synced.content).toContain("'vue/require-typed-ref': 'off'");
+    });
+
+    it('C-CFG-76: synchronizeViteConfigAst upgrades explicit-function-return-type when allowExpressions is false or missing', () => {
+      const initialConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: {
+            rules: {
+              '@typescript-eslint/explicit-function-return-type': [
+                'error',
+                { allowExpressions: false }
+              ]
+            }
+          },
+          fmt: {},
+          staged: {},
+          test: {}
+        });
+      `;
+      const auditConfig = defineAuditConfig({ name: 'upgrade-return-type-test' });
+      const synced = synchronizeViteConfigAst(initialConfig, auditConfig, [], [], null);
+
+      expect(synced.modified).toBe(true);
+      expect(synced.content).toContain('allowExpressions: true');
+    });
   });
 });

@@ -217,6 +217,20 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       });
       expect(reports).toHaveLength(0);
     });
+
+    it('Clean Canary: allows standard built-in type union with string (string | Iterable<string> | ReadonlyArray<string>)', () => {
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+      visitor.TSUnionType?.({
+        type: 'TSUnionType',
+        types: [
+          { type: 'TSStringKeyword' },
+          { type: 'TSTypeReference', typeName: { name: 'Iterable' } },
+          { type: 'TSTypeReference', typeName: { name: 'ReadonlyArray' } }
+        ]
+      });
+      expect(reports).toHaveLength(0);
+    });
   });
 
   describe('no-broad-string-array Canaries', () => {

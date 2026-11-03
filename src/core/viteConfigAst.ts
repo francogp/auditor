@@ -20,6 +20,8 @@ function isValidViteConfigContract(candidate: unknown): candidate is InferredVit
 
 import type { AuditConfig } from './auditConfig.ts';
 import {
+  CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES,
+  CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES,
   DEFAULT_AUDIT_CONFIG,
   DEFAULT_CANONICAL_LINT_RULES,
   DEFAULT_VITE_PLUS_AUDIT_CONFIG
@@ -693,25 +695,33 @@ function buildLintOverridesArrayAst(
   return ts.factory.createArrayLiteralExpression(ovElements, true);
 }
 
-export function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[] {
-  const paths = auditConfig.paths;
-  if (!paths) return [];
-
-  const candidateRoots = [
-    ...(paths.testRoots ?? []),
-    ...(paths.e2eRoots ?? []),
-    ...(paths.integrationRoots ?? [])
-  ];
-
+function candidateRootsToExemptGlobs(roots: readonly string[]): readonly string[] {
   const globs: string[] = [];
-  for (const root of candidateRoots) {
+  for (const root of roots) {
     const cleanRoot = stripGlobSuffix(normalizePosixPath(root));
     if (cleanRoot && cleanRoot !== '.') {
       globs.push(`**/${cleanRoot}/**`);
     }
   }
-
   return Array.from(new Set(globs));
+}
+
+export function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[] {
+  const paths = auditConfig.paths;
+  if (!paths) return [];
+
+  return candidateRootsToExemptGlobs([
+    ...(paths.testRoots ?? []),
+    ...(paths.e2eRoots ?? []),
+    ...(paths.integrationRoots ?? [])
+  ]);
+}
+
+function resolveDynamicScriptExemptGlobs(auditConfig: AuditConfig): readonly string[] {
+  const paths = auditConfig.paths;
+  if (!paths) return [];
+
+  return candidateRootsToExemptGlobs([...(paths.scriptsRoots ?? []), ...(paths.cliRoots ?? [])]);
 }
 
 export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
@@ -728,30 +738,21 @@ export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonl
     if (!hasTestOverride) {
       effective.push({
         files: dynamicTestGlobs,
-        rules: {
-          'typescript/explicit-function-return-type': 'off',
-          '@typescript-eslint/explicit-function-return-type': 'off',
-          'vitest/prefer-to-be-truthy': 'off',
-          'vitest/prefer-to-be-falsy': 'off',
-          'vitest/prefer-strict-equal': 'off',
-          'vitest/no-conditional-expect': 'off',
-          'vitest/require-mock-type-parameters': 'off',
-          'vitest/prefer-mock-return-shorthand': 'off',
-          'vitest/expect-expect': 'off',
-          'typescript/no-floating-promises': 'off',
-          '@typescript-eslint/no-floating-promises': 'off',
-          'no-console': 'off',
-          '@francogp/domain-type/no-double-cast-unknown': 'off',
-          '@francogp/domain-type/no-broad-string-array': 'off',
-          '@francogp/domain-type/no-legacy-date': 'off',
-          'typescript/consistent-type-assertions': 'off',
-          'typescript/no-explicit-any': 'off',
-          'typescript/explicit-member-accessibility': 'off',
-          'typescript/await-thenable': 'off',
-          'typescript/unbound-method': 'off',
-          'typescript/require-array-sort-compare': 'off',
-          'unicorn/no-new-array': 'off'
-        }
+        rules: { ...CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES }
+      });
+    }
+  }
+
+  const dynamicScriptGlobs = resolveDynamicScriptExemptGlobs(auditConfig);
+  if (dynamicScriptGlobs.length > 0) {
+    const hasScriptOverride = effective.some(
+      (ov) =>
+        ov.rules && 'no-console' in ov.rules && ov.files.some((f) => dynamicScriptGlobs.includes(f))
+    );
+    if (!hasScriptOverride) {
+      effective.push({
+        files: dynamicScriptGlobs,
+        rules: { ...CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES }
       });
     }
   }
@@ -1122,6 +1123,8 @@ export function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.Propert
 
 const TUPLE_REQUIRED_RULE_LIST = [
   '@typescript-eslint/consistent-type-assertions',
+  '@typescript-eslint/explicit-function-return-type',
+  'typescript/explicit-function-return-type',
   'no-empty',
   'eqeqeq'
 ] as const;
@@ -1136,8 +1139,13 @@ function checkTupleRuleOption(ruleName: string, second: unknown): boolean {
       cfg !== null && cfg.assertionStyle === 'as' && cfg.objectLiteralTypeAssertions === 'never'
     );
   }
-  if (ruleName === '@typescript-eslint/explicit-function-return-type') {
-    return true;
+  if (
+    ruleName === '@typescript-eslint/explicit-function-return-type' ||
+    ruleName === 'typescript/explicit-function-return-type'
+  ) {
+    const cfg =
+      typeof second === 'object' && second !== null ? (second as Record<string, unknown>) : null;
+    return cfg !== null && cfg.allowExpressions === true;
   }
   if (ruleName === 'no-empty') {
     const cfg =
