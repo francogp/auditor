@@ -3,6 +3,7 @@ import { assertNoLegacyRootConfig } from "./auditConfigLayout.js";
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileSync, safeRmSync, tryCatchSync, tryOrNull } from "./safeUtils.js";
 import { defineAuditConfig } from "./auditConfigBuilders.js";
+import { assertNoDuplicateKeysInAuditConfigFile } from "./auditConfigAstValidator.js";
 import path from "node:path";
 import fs from "node:fs";
 import { pathToFileURL } from "node:url";
@@ -132,6 +133,7 @@ async function loadAuditConfig(projectRoot = process.cwd()) {
 	const configPath = path.resolve(projectRoot, customConfig ?? ".auditor/audit.config.ts");
 	const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
 	if (fs.existsSync(configPath)) {
+		assertNoDuplicateKeysInAuditConfigFile(configPath);
 		const { importUrl, cleanupFilePath } = resolveConfigModuleUrl(configPath, projectRoot);
 		try {
 			const mod = await import(importUrl);

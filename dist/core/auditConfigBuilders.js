@@ -9,10 +9,12 @@ import path from "node:path";
 *
 * Subsystem configuration builders and canonical defineAuditConfig coordinator.
 */
-function buildPathsConfig(raw) {
+function buildPathsConfig(raw, persistence) {
 	const p = raw ?? {};
+	const defaultMigrations = persistence?.engine === "sqlite" ? "database/migrations" : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
 	return {
 		...DEFAULT_AUDIT_CONFIG.paths,
+		migrationsDir: p.migrationsDir ?? defaultMigrations,
 		...p,
 		cliRoots: p.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
 		testFilePatterns: p.testFilePatterns ?? [],
@@ -740,13 +742,14 @@ function defineAuditConfig(config) {
 	const constantsAndDoc = buildConstantsAndDocConfig(config);
 	const rawPaths = config._rawPaths ?? config.paths;
 	const rawConfig = config._rawConfig ?? config;
-	const paths = buildPathsConfig(config.paths);
+	const persistence = buildPersistenceConfig(config.persistence);
+	const paths = buildPathsConfig(config.paths, config.persistence);
 	return {
 		name: config.name,
 		ratchet: buildRatchetConfig(config.ratchet),
 		valibot: buildValibotConfig(config.valibot),
 		paths,
-		persistence: buildPersistenceConfig(config.persistence),
+		persistence,
 		domain: buildDomainConfig(config.domain),
 		gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
 		templates: buildTemplatesConfig(config.templates),

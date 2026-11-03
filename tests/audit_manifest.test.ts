@@ -43,7 +43,10 @@ describe('Auditor Manifest & Introspection Registry', () => {
     expect(manifest.rules['audit-config-ratchet-relaxation']).toBe(
       'Unauthorized rule relaxation (ratchet)'
     );
-    expect(Object.keys(manifest.rules)).toHaveLength(9);
+    expect(manifest.rules['audit-config-duplicate-key']).toBe('Duplicate property in config');
+    expect(manifest.rules['audit-config-duplicate-entry']).toBe('Duplicate entry in array');
+    expect(manifest.rules['audit-config-missing-enabled']).toBe('Subsystem missing enabled');
+    expect(Object.keys(manifest.rules)).toHaveLength(12);
   });
 
   it('rejects descriptions exceeding 60 characters or containing newlines in BaseAuditor', () => {

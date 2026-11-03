@@ -88,11 +88,17 @@ import {
 import { normalizePosixPath } from './reportUtils.ts';
 
 export function buildPathsConfig(
-  raw?: DeepPartial<AuditEngineConfig['paths']>
+  raw?: DeepPartial<AuditEngineConfig['paths']>,
+  persistence?: DeepPartial<AuditPersistenceConfig>
 ): AuditEngineConfig['paths'] {
   const p = raw ?? {};
+  const defaultMigrations =
+    persistence?.engine === 'sqlite'
+      ? 'database/migrations'
+      : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
   return {
     ...DEFAULT_AUDIT_CONFIG.paths,
+    migrationsDir: p.migrationsDir ?? defaultMigrations,
     ...p,
     cliRoots: p.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
     testFilePatterns: p.testFilePatterns ?? [],
@@ -1236,14 +1242,15 @@ export function defineAuditConfig(
   const constantsAndDoc = buildConstantsAndDocConfig(config);
   const rawPaths = (config as AuditEngineConfig)._rawPaths ?? config.paths;
   const rawConfig = (config as AuditEngineConfig)._rawConfig ?? config;
-  const paths = buildPathsConfig(config.paths);
+  const persistence = buildPersistenceConfig(config.persistence);
+  const paths = buildPathsConfig(config.paths, config.persistence);
 
   return {
     name: config.name,
     ratchet: buildRatchetConfig(config.ratchet),
     valibot: buildValibotConfig(config.valibot),
     paths,
-    persistence: buildPersistenceConfig(config.persistence),
+    persistence,
     domain: buildDomainConfig(config.domain),
     gitIgnore: buildGitIgnoreConfig(config.gitIgnore),
     templates: buildTemplatesConfig(config.templates),

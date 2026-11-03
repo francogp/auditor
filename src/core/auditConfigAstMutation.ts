@@ -69,6 +69,22 @@ export function deduplicateObjectLiteralProperties(obj: ObjectLiteralExpression)
   return mutated;
 }
 
+export function deduplicateArrayLiteralElements(arr: ArrayLiteralExpression): boolean {
+  let mutated = false;
+  const seen = new Set<string>();
+  const elements = [...arr.getElements()];
+  for (const el of elements) {
+    const rawText = el.getText().replace(/\s+/g, ' ').trim();
+    if (seen.has(rawText)) {
+      arr.removeElement(el);
+      mutated = true;
+    } else {
+      seen.add(rawText);
+    }
+  }
+  return mutated;
+}
+
 export function syncArrayElementsWithTsMorph(
   arrInit: ArrayLiteralExpression,
   missingVal: readonly unknown[]

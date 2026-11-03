@@ -1,4 +1,4 @@
-import { deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer } from "./auditConfigAstMutation.js";
+import { deduplicateArrayLiteralElements, deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer } from "./auditConfigAstMutation.js";
 import { appendMissingSectionsToJsonFile, deepMergeMissingJson } from "./auditConfigJson.js";
 import { ObjectLiteralExpression, SourceFile } from "ts-morph";
 export declare function mutateAuditConfigFileAst(configFilePath: string, mutator: (targetObj: ObjectLiteralExpression, sourceFile: SourceFile) => boolean): boolean;
@@ -7,4 +7,6 @@ export declare function appendMissingSectionsToConfigFile(configFilePath: string
 export declare function migrateLegacyEslintSectionAst(configFilePath: string): boolean;
 export declare function migrateLegacyTypeCheckSectionAst(configFilePath: string): boolean;
 export declare function removeAuditConfigPropertyAst(configFilePath: string, propertyPath: string): boolean;
-export { appendMissingSectionsToJsonFile, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };
+export declare function injectMissingEnabledAst(configFilePath: string, subsystemKey: string): boolean;
+export declare function deduplicateArrayElementsInFileAst(configFilePath: string, arrayPropertyPath: string): boolean;
+export { appendMissingSectionsToJsonFile, deduplicateArrayLiteralElements, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };

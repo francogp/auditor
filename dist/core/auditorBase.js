@@ -1533,7 +1533,11 @@ var BaseAuditor = class BaseAuditor {
 	async executeCore(astContext, isFix = false) {
 		this.currentFixActive = isFix;
 		try {
-			await loadAuditConfig(this.projectRoot);
+			try {
+				await loadAuditConfig(this.projectRoot);
+			} catch (err) {
+				if (this.id !== "validate_audit_config") throw err;
+			}
 			if (isFix) await this.executeRuleFixers();
 			await this.context.checkFiles();
 			for (const rf of this.requiredFiles) {

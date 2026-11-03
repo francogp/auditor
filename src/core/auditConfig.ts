@@ -14,4 +14,5 @@ export * from './auditConfigValidators.ts';
 export * from './auditConfigDefaults.ts';
 export * from './auditConfigBuilders.ts';
 export * from './auditConfigLoader.ts';
+export * from './auditConfigAstValidator.ts';
 export * from './auditPathPredicates.ts';

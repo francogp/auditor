@@ -120,6 +120,7 @@ Architecture & Tooling Engineers.
 - [`auditConfigAntiAbuse.ts`](./auditConfigAntiAbuse.ts): Anti-abuse assertions, glob constraints, and root exemptions for configuration policies.
 - [`auditConfigAst.ts`](./auditConfigAst.ts): AST parsing, section insertion, and programmatic configuration modification utilities for `audit.config.ts`.
 - [`auditConfigAstMutation.ts`](./auditConfigAstMutation.ts): Low-level ts-morph AST property tree and array mutations for audit configuration files.
+- [`auditConfigAstValidator.ts`](./auditConfigAstValidator.ts): TypeScript AST structural validator and schema/DTD enforcer detecting duplicate keys, duplicate array items, and missing enabled properties in `audit.config.ts`.
 - [`auditConfigBuilders.ts`](./auditConfigBuilders.ts): Subsystem configuration builders and canonical `defineAuditConfig` coordinator.
 - [`auditConfigDefaults.ts`](./auditConfigDefaults.ts): Canonical default configuration schema and subsystem key collectors.
 - [`auditConfigDegradations.ts`](./auditConfigDegradations.ts): Detector and AST auto-fixer for unacknowledged coverage degradations across configured exemption roots.

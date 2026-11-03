@@ -2900,7 +2900,13 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   ): Promise<StandardAuditResult> {
     this.currentFixActive = isFix;
     try {
-      await loadAuditConfig(this.projectRoot);
+      try {
+        await loadAuditConfig(this.projectRoot);
+      } catch (err: unknown) {
+        if (this.id !== 'validate_audit_config') {
+          throw err;
+        }
+      }
       if (isFix) {
         await this.executeRuleFixers();
       }

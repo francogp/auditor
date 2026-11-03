@@ -42,6 +42,19 @@ function deduplicateObjectLiteralProperties(obj) {
 	}
 	return mutated;
 }
+function deduplicateArrayLiteralElements(arr) {
+	let mutated = false;
+	const seen = /* @__PURE__ */ new Set();
+	const elements = [...arr.getElements()];
+	for (const el of elements) {
+		const rawText = el.getText().replace(/\s+/g, " ").trim();
+		if (seen.has(rawText)) {
+			arr.removeElement(el);
+			mutated = true;
+		} else seen.add(rawText);
+	}
+	return mutated;
+}
 function syncArrayElementsWithTsMorph(arrInit, missingVal) {
 	let mutated = false;
 	const existingTexts = new Set(arrInit.getElements().map((el) => el.getText().replace(/^['"]|['"]$/g, "")));
@@ -109,4 +122,4 @@ function findTargetAuditConfigObject(sourceFile) {
 	}
 	return null;
 }
-export { deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };
+export { deduplicateArrayLiteralElements, deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import { Node, Project, SyntaxKind, type ObjectLiteralExpression, type SourceFile } from 'ts-morph';
 
 import {
+  deduplicateArrayLiteralElements,
   deduplicateObjectLiteralProperties,
   findTargetAuditConfigObject,
   getNormalizedPropName,
@@ -18,6 +19,7 @@ import { appendMissingSectionsToJsonFile, deepMergeMissingJson } from './auditCo
 
 export {
   appendMissingSectionsToJsonFile,
+  deduplicateArrayLiteralElements,
   deduplicateObjectLiteralProperties,
   deepMergeMissingJson,
   findTargetAuditConfigObject,
@@ -230,6 +232,31 @@ export function migrateLegacyTypeCheckSectionAst(configFilePath: string): boolea
   });
 }
 
+function resolveNestedObjectLiteral(
+  targetObj: ObjectLiteralExpression,
+  ancestorParts: readonly string[]
+): ObjectLiteralExpression | null {
+  let currentObj: ObjectLiteralExpression | null = targetObj;
+  for (const part of ancestorParts) {
+    if (!currentObj) return null;
+    const prop: Node | undefined = currentObj.getProperty(part);
+    if (!prop || !Node.isPropertyAssignment(prop)) return null;
+    currentObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression) ?? null;
+  }
+  return currentObj;
+}
+
+function findTargetPropertyByPath(
+  targetObj: ObjectLiteralExpression,
+  dotPath: string
+): Node | null {
+  const parts = dotPath.split('.');
+  const parentObj = resolveNestedObjectLiteral(targetObj, parts.slice(0, -1));
+  if (!parentObj) return null;
+  const lastKey = parts.at(-1)!;
+  return parentObj.getProperty(lastKey) ?? null;
+}
+
 export function removeAuditConfigPropertyAst(
   configFilePath: string,
   propertyPath: string
@@ -258,23 +285,43 @@ export function removeAuditConfigPropertyAst(
   }
 
   return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
-    const parts = propertyPath.split('.');
-    let currentObj: ObjectLiteralExpression | null = targetObj;
-    for (const part of parts.slice(0, -1)) {
-      if (!currentObj) return false;
-      const prop: Node | undefined = currentObj.getProperty(part);
-      if (!prop || !Node.isPropertyAssignment(prop)) {
-        return false;
-      }
-      currentObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression) ?? null;
-    }
-    if (!currentObj) return false;
-    const lastKey = parts.at(-1)!;
-    const targetProp = currentObj.getProperty(lastKey);
-    if (targetProp) {
+    const targetProp = findTargetPropertyByPath(targetObj, propertyPath);
+    if (targetProp && 'remove' in targetProp && typeof targetProp.remove === 'function') {
       targetProp.remove();
       return true;
     }
     return false;
+  });
+}
+
+export function injectMissingEnabledAst(configFilePath: string, subsystemKey: string): boolean {
+  if (!fs.existsSync(configFilePath)) return false;
+  return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+    const prop = targetObj.getProperty(subsystemKey);
+    if (!prop || !Node.isPropertyAssignment(prop)) return false;
+    const subObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+    if (!subObj) return false;
+    const existingEnabled = subObj.getProperty('enabled');
+    if (!existingEnabled) {
+      subObj.insertPropertyAssignment(0, {
+        name: 'enabled',
+        initializer: 'true'
+      });
+      return true;
+    }
+    return false;
+  });
+}
+
+export function deduplicateArrayElementsInFileAst(
+  configFilePath: string,
+  arrayPropertyPath: string
+): boolean {
+  if (!fs.existsSync(configFilePath)) return false;
+  return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+    const targetProp = findTargetPropertyByPath(targetObj, arrayPropertyPath);
+    if (!targetProp || !Node.isPropertyAssignment(targetProp)) return false;
+    const arr = targetProp.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+    return arr ? deduplicateArrayLiteralElements(arr) : false;
   });
 }

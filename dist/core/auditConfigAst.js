@@ -1,4 +1,4 @@
-import { deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer } from "./auditConfigAstMutation.js";
+import { deduplicateArrayLiteralElements, deduplicateObjectLiteralProperties, findTargetAuditConfigObject, getNormalizedPropName, syncArrayElementsWithTsMorph, syncMissingPropsWithTsMorph, valueToTsMorphInitializer } from "./auditConfigAstMutation.js";
 import { appendMissingSectionsToJsonFile, deepMergeMissingJson } from "./auditConfigJson.js";
 import fs from "node:fs";
 import { Node, Project, SyntaxKind } from "ts-morph";
@@ -145,6 +145,23 @@ function migrateLegacyTypeCheckSectionAst(configFilePath) {
 		return true;
 	});
 }
+function resolveNestedObjectLiteral(targetObj, ancestorParts) {
+	let currentObj = targetObj;
+	for (const part of ancestorParts) {
+		if (!currentObj) return null;
+		const prop = currentObj.getProperty(part);
+		if (!prop || !Node.isPropertyAssignment(prop)) return null;
+		currentObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression) ?? null;
+	}
+	return currentObj;
+}
+function findTargetPropertyByPath(targetObj, dotPath) {
+	const parts = dotPath.split(".");
+	const parentObj = resolveNestedObjectLiteral(targetObj, parts.slice(0, -1));
+	if (!parentObj) return null;
+	const lastKey = parts.at(-1);
+	return parentObj.getProperty(lastKey) ?? null;
+}
 function removeAuditConfigPropertyAst(configFilePath, propertyPath) {
 	if (!fs.existsSync(configFilePath)) return false;
 	if (configFilePath.endsWith(".json")) return mutateJsonConfigFile(configFilePath, (json) => {
@@ -163,22 +180,38 @@ function removeAuditConfigPropertyAst(configFilePath, propertyPath) {
 		return false;
 	});
 	return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
-		const parts = propertyPath.split(".");
-		let currentObj = targetObj;
-		for (const part of parts.slice(0, -1)) {
-			if (!currentObj) return false;
-			const prop = currentObj.getProperty(part);
-			if (!prop || !Node.isPropertyAssignment(prop)) return false;
-			currentObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression) ?? null;
-		}
-		if (!currentObj) return false;
-		const lastKey = parts.at(-1);
-		const targetProp = currentObj.getProperty(lastKey);
-		if (targetProp) {
+		const targetProp = findTargetPropertyByPath(targetObj, propertyPath);
+		if (targetProp && "remove" in targetProp && typeof targetProp.remove === "function") {
 			targetProp.remove();
 			return true;
 		}
 		return false;
 	});
 }
-export { appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, migrateLegacyEslintSectionAst, migrateLegacyTypeCheckSectionAst, mutateAuditConfigFileAst, removeAuditConfigPropertyAst, syncArrayElementsWithTsMorph, syncAuditorVersionInTsFile, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };
+function injectMissingEnabledAst(configFilePath, subsystemKey) {
+	if (!fs.existsSync(configFilePath)) return false;
+	return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+		const prop = targetObj.getProperty(subsystemKey);
+		if (!prop || !Node.isPropertyAssignment(prop)) return false;
+		const subObj = prop.getInitializerIfKind(SyntaxKind.ObjectLiteralExpression);
+		if (!subObj) return false;
+		if (!subObj.getProperty("enabled")) {
+			subObj.insertPropertyAssignment(0, {
+				name: "enabled",
+				initializer: "true"
+			});
+			return true;
+		}
+		return false;
+	});
+}
+function deduplicateArrayElementsInFileAst(configFilePath, arrayPropertyPath) {
+	if (!fs.existsSync(configFilePath)) return false;
+	return mutateAuditConfigFileAst(configFilePath, (targetObj) => {
+		const targetProp = findTargetPropertyByPath(targetObj, arrayPropertyPath);
+		if (!targetProp || !Node.isPropertyAssignment(targetProp)) return false;
+		const arr = targetProp.getInitializerIfKind(SyntaxKind.ArrayLiteralExpression);
+		return arr ? deduplicateArrayLiteralElements(arr) : false;
+	});
+}
+export { appendMissingSectionsToConfigFile, appendMissingSectionsToJsonFile, deduplicateArrayElementsInFileAst, deduplicateArrayLiteralElements, deduplicateObjectLiteralProperties, deepMergeMissingJson, findTargetAuditConfigObject, getNormalizedPropName, injectMissingEnabledAst, migrateLegacyEslintSectionAst, migrateLegacyTypeCheckSectionAst, mutateAuditConfigFileAst, removeAuditConfigPropertyAst, syncArrayElementsWithTsMorph, syncAuditorVersionInTsFile, syncMissingPropsWithTsMorph, valueToTsMorphInitializer };

@@ -9,11 +9,13 @@
  * Ratchet principle. Never recommends relaxing rules when project settings are stricter.
  */
 
+import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { styleText } from 'node:util';
 
 import { appendMissingSectionsToConfigFile } from '../core/auditConfigAst.ts';
+import { validateAuditConfigAst } from '../core/auditConfigAstValidator.ts';
 import {
   COMMON_CLI_ARGS,
   getProcessCliArgs,
@@ -257,9 +259,22 @@ Options:
     targetSubsystem: options.subsystem
   });
 
+  const configPath = path.resolve(projectRoot, '.auditor', 'audit.config.ts');
+  const astViolations = fs.existsSync(configPath)
+    ? validateAuditConfigAst(fs.readFileSync(configPath, 'utf-8'), '.auditor/audit.config.ts')
+    : [];
+
   if (options.json) {
-    console.log(JSON.stringify(report, null, 2));
+    console.log(JSON.stringify({ ...report, astViolations }, null, 2));
     return report;
+  }
+
+  if (astViolations.length > 0) {
+    console.log(styleText(['bold', 'red'], '\n⚠️  [AST Syntax & Schema Diagnostics]'));
+    for (const v of astViolations) {
+      console.log(styleText('yellow', `• [${v.ruleId}] ${v.message}`));
+    }
+    console.log();
   }
 
   if (options.apply && report.recommendationsCount > 0) {

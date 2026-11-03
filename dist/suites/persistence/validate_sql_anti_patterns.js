@@ -72,7 +72,8 @@ var SqlAntiPatternsAuditor = class extends BaseAuditor {
 	constructor(options = {}) {
 		const effectiveRoot = options.projectRoot ?? process.cwd();
 		const config = getAuditConfig(effectiveRoot);
-		const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
+		const defaultMigrations = config.persistence?.engine === "sqlite" ? "database/migrations" : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
+		const migrationsDirRel = options.customMigrationsDir || config.paths.migrationsDir || defaultMigrations;
 		const srcRoots = config.paths.srcRoots || DEFAULT_AUDIT_CONFIG.paths.srcRoots;
 		const allowedDbDirs = (config.persistence?.allowedDatabaseDirs ?? []).map((d) => config.persistence?.supabaseDir ? path.posix.join(config.persistence.supabaseDir, d) : d);
 		const sqlRoots = Array.from(/* @__PURE__ */ new Set([

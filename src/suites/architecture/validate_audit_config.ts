@@ -57,8 +57,14 @@ import {
   syncAuditorVersionInTsFile,
   removeAuditConfigPropertyAst,
   migrateLegacyEslintSectionAst,
-  migrateLegacyTypeCheckSectionAst
+  migrateLegacyTypeCheckSectionAst,
+  injectMissingEnabledAst,
+  deduplicateArrayElementsInFileAst
 } from '../../core/auditConfigAst.ts';
+import {
+  validateAuditConfigAst,
+  type AuditConfigAstViolation
+} from '../../core/auditConfigAstValidator.ts';
 
 function resolveConfigPath(obj: unknown, pathStr: string): unknown {
   if (typeof obj !== 'object' || obj === null) return undefined;
@@ -485,7 +491,10 @@ export type AuditConfigRuleId =
   | 'audit-config-unknown-field'
   | 'audit-config-critical-violation'
   | 'audit-config-unacknowledged-degradation'
-  | 'audit-config-ratchet-relaxation';
+  | 'audit-config-ratchet-relaxation'
+  | 'audit-config-duplicate-key'
+  | 'audit-config-duplicate-entry'
+  | 'audit-config-missing-enabled';
 
 export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-missing-path',
@@ -496,7 +505,10 @@ export const AUDIT_CONFIG_RULES: readonly AuditConfigRuleId[] = [
   'audit-config-unknown-field',
   'audit-config-critical-violation',
   'audit-config-unacknowledged-degradation',
-  'audit-config-ratchet-relaxation'
+  'audit-config-ratchet-relaxation',
+  'audit-config-duplicate-key',
+  'audit-config-duplicate-entry',
+  'audit-config-missing-enabled'
 ] as const;
 
 export const PATH_ROOT_KEYS: readonly (keyof AuditEngineConfig['paths'])[] = [
@@ -578,7 +590,9 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-missing-file',
         'audit-config-missing-gitignore-entry',
         'audit-config-critical-violation',
-        'audit-config-unknown-field'
+        'audit-config-unknown-field',
+        'audit-config-missing-enabled',
+        'audit-config-duplicate-entry'
       ],
       usesThirdPartyTool: false,
       requiredPermissions: [],
@@ -614,7 +628,10 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
         'audit-config-unknown-field': 'Unrecognized field in config',
         'audit-config-critical-violation': 'Critical configuration violation',
         'audit-config-unacknowledged-degradation': 'Undocumented coverage degradation',
-        'audit-config-ratchet-relaxation': 'Unauthorized rule relaxation (ratchet)'
+        'audit-config-ratchet-relaxation': 'Unauthorized rule relaxation (ratchet)',
+        'audit-config-duplicate-key': 'Duplicate property in config',
+        'audit-config-duplicate-entry': 'Duplicate entry in array',
+        'audit-config-missing-enabled': 'Subsystem missing enabled'
       },
       ruleRemediations: {
         'audit-config-missing-path':
@@ -679,7 +696,28 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
           '2. Diagnosis: Check the generated RELAX-<8hex> code and the list of relaxed rules, added exemptions, lowered floors, or raised ceilings.\n' +
           '3. Canonical Solution: Hardening rules is permitted with zero friction. To accept a relaxation genuinely requested by the human programmer, confirm the RELAX-<8hex> code directly in Antigravity chat.\n' +
           '4. Example / Auto-fix command:\n' +
-          '   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat.'
+          '   Revert the relaxed configuration or ask the human user to confirm RELAX-<8hex> in chat.',
+        'audit-config-duplicate-key':
+          '📖 REMEDIATION GUIDE: audit-config-duplicate-key\n' +
+          '1. Root Cause: A configuration property was declared multiple times in the same object literal in `.auditor/audit.config.ts`. In JavaScript, later properties silently overwrite earlier declarations, wiping out configurations.\n' +
+          '2. Diagnosis: Inspect the lines reported in the violation to locate the duplicate key and its original declaration.\n' +
+          '3. Canonical Solution: Merge the options into a single consolidated configuration block and delete the duplicate declaration.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   Consolidate all properties of the section into a single block.',
+        'audit-config-duplicate-entry':
+          '📖 REMEDIATION GUIDE: audit-config-duplicate-entry\n' +
+          '1. Root Cause: An array property (such as `paths.srcRoots`, `coverage.exemptGlobs`, or `vitePlusConfig.lint.plugins`) contains duplicate entries.\n' +
+          '2. Diagnosis: Inspect the reported array and locate the duplicate element.\n' +
+          '3. Canonical Solution: Remove redundant elements so each entry is unique, or run `npm run auditor:fix`.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`',
+        'audit-config-missing-enabled':
+          '📖 REMEDIATION GUIDE: audit-config-missing-enabled\n' +
+          '1. Root Cause: A declared configuration subsystem in `.auditor/audit.config.ts` omits the mandatory `enabled: boolean` property.\n' +
+          '2. Diagnosis: Check the subsystem on the reported line to see if `enabled: true` or `enabled: false` is missing.\n' +
+          '3. Canonical Solution: Add `enabled: true` (or `enabled: false`) to the subsystem block, or run `npm run auditor:fix` to auto-inject it.\n' +
+          '4. Example / Auto-fix command:\n' +
+          '   `npm run auditor:fix`'
       },
       coverage: {
         include: [path.posix.join(AUDITOR_DIR, '*.{ts,json}'), '.gitignore']
@@ -710,7 +748,26 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
       }
     }
 
-    const config = await loadAuditConfig(this.projectRoot);
+    this.runSubAuditorSync('audit-config-duplicate-key', () => {
+      this.verifyAstDuplicateKeys();
+    });
+
+    this.runSubAuditorSync('audit-config-duplicate-entry', () => {
+      this.verifyAstDuplicateEntries();
+    });
+
+    this.runSubAuditorSync('audit-config-missing-enabled', () => {
+      this.verifyAstMissingEnabled();
+    });
+
+    let config: AuditEngineConfig;
+    try {
+      config = await loadAuditConfig(this.projectRoot);
+    } catch {
+      // If load fails (e.g. duplicate keys detected early), AST violations above already report the cause
+      return;
+    }
+
     const baselineFile =
       config.ratchet?.baselineFile ?? path.posix.join(AUDITOR_DIR, 'audit-baseline.json');
     if (fs.existsSync(path.resolve(this.projectRoot, baselineFile))) {
@@ -758,6 +815,76 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     this.runSubAuditorSync('audit-config-ratchet-relaxation', () => {
       this.verifyConfigRatchet(config);
     });
+  }
+
+  private getAstViolations(): AuditConfigAstViolation[] {
+    const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+    if (!fs.existsSync(configPath)) return [];
+    try {
+      const sourceText = fs.readFileSync(configPath, 'utf-8');
+      return validateAuditConfigAst(sourceText, AUDIT_CONFIG_FILE);
+    } catch {
+      return [];
+    }
+  }
+
+  private verifyAstDuplicateKeys(): void {
+    const violations = this.getAstViolations().filter(
+      (v) => v.ruleId === 'audit-config-duplicate-key'
+    );
+    for (const v of violations) {
+      this.addViolation({
+        ruleId: 'audit-config-duplicate-key',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: v.line,
+        message: v.message,
+        context: v.key
+      });
+    }
+  }
+
+  private verifyAstDuplicateEntries(): void {
+    const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+    const violations = this.getAstViolations().filter(
+      (v) => v.ruleId === 'audit-config-duplicate-entry'
+    );
+    for (const v of violations) {
+      if (this.isFixActive()) {
+        deduplicateArrayElementsInFileAst(configPath, v.path);
+      }
+      this.addViolation({
+        ruleId: 'audit-config-duplicate-entry',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: v.line,
+        message: v.message,
+        context: v.key,
+        fixable: true
+      });
+    }
+  }
+
+  private verifyAstMissingEnabled(): void {
+    const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
+    const violations = this.getAstViolations().filter(
+      (v) => v.ruleId === 'audit-config-missing-enabled'
+    );
+    for (const v of violations) {
+      if (this.isFixActive()) {
+        const fixed = injectMissingEnabledAst(configPath, v.key);
+        if (fixed) continue;
+      }
+      this.addViolation({
+        ruleId: 'audit-config-missing-enabled',
+        severity: 'error',
+        file: AUDIT_CONFIG_FILE,
+        line: v.line,
+        message: v.message,
+        context: v.key,
+        fixable: true
+      });
+    }
   }
 
   private verifyConfigRatchet(config: AuditEngineConfig): void {

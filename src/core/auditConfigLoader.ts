@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { assertNoDuplicateKeysInAuditConfigFile } from './auditConfigAstValidator.ts';
 import { defineAuditConfig } from './auditConfigBuilders.ts';
 import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import { assertNoLegacyRootConfig } from './auditConfigLayout.ts';
@@ -202,6 +203,7 @@ export async function loadAuditConfig(
   const jsonConfigPath = path.resolve(projectRoot, AUDIT_CONFIG_JSON_FILE);
 
   if (fs.existsSync(configPath)) {
+    assertNoDuplicateKeysInAuditConfigFile(configPath);
     const { importUrl, cleanupFilePath } = resolveConfigModuleUrl(configPath, projectRoot);
 
     try {

@@ -25,7 +25,7 @@ const BASE_AUDITOR_PATH = toPosixPath(
 );
 
 const BASE_TEST_CONFIG_SECTIONS = `
-  persistence: { engine: 'none', schemaQualified: false },
+  persistence: { enabled: false, engine: 'none', schemaQualified: false },
   styles: { enabled: false, zLayersEnabled: false },
   stylelint: { enabled: false },
   valibot: { enabled: true, targets: [] },
@@ -136,7 +136,10 @@ describe('ValidateAuditConfigAuditor', () => {
       'audit-config-unknown-field',
       'audit-config-critical-violation',
       'audit-config-unacknowledged-degradation',
-      'audit-config-ratchet-relaxation'
+      'audit-config-ratchet-relaxation',
+      'audit-config-duplicate-key',
+      'audit-config-duplicate-entry',
+      'audit-config-missing-enabled'
     ]);
   });
 
@@ -473,7 +476,7 @@ export default defineAuditConfig({
     componentsRoots: ['src/components'],
     migrationsDir: 'migrations'
   },
-  ${BASE_TEST_CONFIG_SECTIONS},
+  ${BASE_TEST_CONFIG_SECTIONS.replace(/persistence:\s*\{[^}]*\},?/, '').replace(/styles:\s*\{[^}]*\},?/, '')},
   persistence: {
     enabled: true,
     engine: 'sqlite',
@@ -1087,6 +1090,86 @@ export default defineAuditConfig({
       'utf-8'
     );
     expect(updatedConfig).not.toContain('acknowledgedDegradations');
+  });
+
+  it('detects duplicate property keys and reports audit-config-duplicate-key', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'], srcRoots: ['lib'] },
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
+
+    expect(result.status).toBe('failed');
+    const dupKeyFinding = result.findings.find((f) => f.ruleId === 'audit-config-duplicate-key');
+    expect(dupKeyFinding).toBeDefined();
+    expect(dupKeyFinding?.context).toBe('srcRoots');
+    expect(dupKeyFinding?.message).toContain("Duplicate property 'srcRoots'");
+  });
+
+  it('detects duplicate array entries and reports audit-config-duplicate-entry', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src', 'src'], testRoots: ['tests'] },
+  ${BASE_TEST_CONFIG_SECTIONS}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
+
+    expect(result.status).toBe('failed');
+    const dupEntryFinding = result.findings.find(
+      (f) => f.ruleId === 'audit-config-duplicate-entry'
+    );
+    expect(dupEntryFinding).toBeDefined();
+    expect(dupEntryFinding?.context).toBe('src');
+  });
+
+  it('detects missing enabled in declared subsystems and auto-injects in fix mode', async () => {
+    const configContent = `
+import { defineAuditConfig } from '${AUDIT_CONFIG_MODULE_PATH}';
+export default defineAuditConfig({
+  name: 'test-app',
+  paths: { srcRoots: ['src'], testRoots: ['tests'] },
+  ${BASE_TEST_CONFIG_SECTIONS.replace('constants: { enabled: false },', 'constants: { exemptIdentifiers: [] },')}
+});
+    `;
+    await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
+    await fs.writeFile(path.join(tempDir, '.auditor', 'audit.config.ts'), configContent, 'utf-8');
+    await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
+    await fs.mkdir(path.join(tempDir, 'tests'), { recursive: true });
+
+    const auditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    const result = await auditor.audit();
+
+    expect(result.status).toBe('failed');
+    const missingEnabled = result.findings.find(
+      (f) => f.ruleId === 'audit-config-missing-enabled' && f.context === 'constants'
+    );
+    expect(missingEnabled).toBeDefined();
+
+    // Auto-fix
+    const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
+    await fixAuditor.fix();
+
+    const repaired = await fs.readFile(path.join(tempDir, '.auditor', 'audit.config.ts'), 'utf-8');
+    expect(repaired).toContain('enabled: true');
   });
 });
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env -S node --experimental-strip-types
+import { validateAuditConfigAst } from "../core/auditConfigAstValidator.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFromArgs } from "../core/cli/cittyHarness.js";
 import { bootstrapCliProject, isHumanConsoleMode, isMainModule } from "./cliUtils.js";
 import { buildNoticeBox, renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
@@ -6,6 +7,7 @@ import { appendMissingSectionsToConfigFile } from "../core/auditConfigAst.js";
 import { evaluateProjectConfigAsync } from "../core/configAdvisor.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
+import fs from "node:fs";
 import { styleText } from "node:util";
 // src/cli/report_config_recommendations.ts
 /**
@@ -198,9 +200,19 @@ Options:
 		projectRoot,
 		targetSubsystem: options.subsystem
 	});
+	const configPath = path.resolve(projectRoot, ".auditor", "audit.config.ts");
+	const astViolations = fs.existsSync(configPath) ? validateAuditConfigAst(fs.readFileSync(configPath, "utf-8"), ".auditor/audit.config.ts") : [];
 	if (options.json) {
-		console.log(JSON.stringify(report, null, 2));
+		console.log(JSON.stringify({
+			...report,
+			astViolations
+		}, null, 2));
 		return report;
+	}
+	if (astViolations.length > 0) {
+		console.log(styleText(["bold", "red"], "\n⚠️  [AST Syntax & Schema Diagnostics]"));
+		for (const v of astViolations) console.log(styleText("yellow", `• [${v.ruleId}] ${v.message}`));
+		console.log();
 	}
 	if (options.apply && report.recommendationsCount > 0) {
 		const patchTree = buildDiffPatchTree(report.recommendations);
