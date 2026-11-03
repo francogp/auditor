@@ -42,6 +42,7 @@ export default defineAuditConfig({
   },
 
   persistence: {
+    enabled: true,
     engine: 'hybrid', // Hybrid engine combining local persistence (SQLite/IndexedDB) for offline play with cloud sync (Supabase)
     schemaQualified: false, // SQLite does not use schema qualification (such as public.table)
     prohibitedTemplateIdentifiers: ['supabase', 'db', 'sqlite'], // Prohibits accessing database instances directly from .vue templates
@@ -57,10 +58,12 @@ export default defineAuditConfig({
   },
 
   e2e: {
+    enabled: true,
     idLocatorsOnly: true // Strictly enforces using ID (#id) or data-testid selectors in E2E tests
   },
 
   styles: {
+    enabled: true,
     zLayersEnabled: true, // Enables strict verification of the canonical z-index scale
     baseScssFile: 'src/styles/core/_base.scss', // Base SCSS file where main design system variables are imported and declared
     zLayersScssFile: 'src/styles/core/_base.scss', // Canonical SCSS file defining $z-* variables for styles
@@ -127,6 +130,7 @@ export default defineAuditConfig({
   },
 
   templates: {
+    enabled: true,
     requireInputIds: false, // Does not require mandatory IDs on all interactive elements
     tooltipComponents: ['Tooltip', 'GameTooltip'], // Registered tooltip components recognized by template auditor
     safeTemplateFunctions: ['t', 'getItemSprite', 'getCreatureSprite'], // Safe and pure functions permitted in Vue templates
@@ -136,10 +140,12 @@ export default defineAuditConfig({
   },
 
   animation: {
+    enabled: true,
     customTimerFunctions: ['battleAnimDelay', 'waitBattleTurn'] // Coordinated game timers for deterministic accelerated tests
   },
 
   constants: {
+    enabled: true,
     ignoredNames: ['DEFAULT_GENERATION', 'INITIAL_COINS'], // Global constants exempt from duplicate analysis
     allowedNumericPrefixes: ['GEN_', 'ISO_', 'BASE_'], // Permitted prefixes for numeric constants
     exemptMagicNumbers: [100, 200, 300, 500, 9999999999] // Canonical generation limits or far-future sentinels (-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024 are universal defaults)
@@ -148,7 +154,7 @@ export default defineAuditConfig({
   ratchet: {
     enabled: true, // Warning ratchet on full `npm run auditor` runs: 0 errors and 0 NEW warnings (active by default)
     productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
-    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- --init-baseline`
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- init-baseline`
   },
 
   coverage: {
@@ -188,6 +194,7 @@ export default defineAuditConfig({
   },
 
   documentation: {
+    enabled: true,
     language: 'en', // Primary documentation language ('en' | 'es', defaults to 'en'). Enforces English across documentation, skills, and templates
     chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es'). Governs interactive dialogues with the human programmer
     knownValidAbstractPaths: ['@docs/gameplay/battle-system.md'], // Virtual paths valid in Markdown documentation links
@@ -195,6 +202,7 @@ export default defineAuditConfig({
   },
 
   pinia: {
+    enabled: true,
     authorizedMutationFiles: ['src/logic/utils/saveCoordinator.ts'] // Files authorized for direct store mutations outside actions
   },
 
@@ -355,6 +363,7 @@ export default defineAuditConfig({
   },
 
   domain: {
+    enabled: true,
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
     zLayersFile: 'src/logic/constants/visuals.ts', // Path to canonical TypeScript z-index layers file for domain parity verification
@@ -504,6 +513,7 @@ export default defineAuditConfig({
   ],
 
   runner: {
+    enabled: true,
     timeoutMs: 0, // 0 = disabled: suites run to completion without arbitrary kills; set e.g. 3600000 for 1h safety ceiling
     maxStalenessMinutes: 10 // Configurable audit report freshness limit in minutes (default: 5)
   },

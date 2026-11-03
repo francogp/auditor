@@ -3,8 +3,9 @@ import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { safeReadFileSync, safeStatSync, tryOrDefault, tryOrNull } from "./safeUtils.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
-import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
+import { ALWAYS_IGNORE_DIRS, SuiteIgnoreRegistry, getDynamicCachePaths, getEffectiveUnignoreDirs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
+import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { toPosixRelative } from "./safePath.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
 import { isExemptFile } from "./auditPathPredicates.js";
@@ -17,7 +18,6 @@ import { ConfigFileRegistry } from "./configFileRegistry.js";
 import { GitIgnoreRegistry } from "./gitIgnoreRegistry.js";
 import { PackageScriptRegistry } from "./packageScriptRegistry.js";
 import { isMainModule } from "../cli/cliUtils.js";
-import { ALWAYS_IGNORE_DIRS, SuiteIgnoreRegistry, getDynamicCachePaths, getEffectiveUnignoreDirs, registerDynamicCachePath } from "./canonicalIgnoreRegistry.js";
 import { CoverageRecorder, deriveCoverageFromRequiredFiles, deriveCoverageFromRoots, isDeclaredByCoverage, resolveActiveCoverageRunId, validateCoverageDeclaration, writeCoverageLedger } from "./auditCoverage.js";
 import { AuditedDocument } from "./auditedDocument.js";
 import { formatDurationMs } from "./durationFormatter.js";
@@ -745,6 +745,7 @@ var BaseAuditor = class BaseAuditor {
 	exemptPaths;
 	unignoreDirs;
 	requiredFiles;
+	allowConfigLoadFailure = false;
 	requiresAst;
 	projectRoot;
 	configKey;
@@ -1536,7 +1537,7 @@ var BaseAuditor = class BaseAuditor {
 			try {
 				await loadAuditConfig(this.projectRoot);
 			} catch (err) {
-				if (this.id !== "validate_audit_config") throw err;
+				if (!this.allowConfigLoadFailure) throw err;
 			}
 			if (isFix) await this.executeRuleFixers();
 			await this.context.checkFiles();

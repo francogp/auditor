@@ -92,10 +92,10 @@ Install `@francogp/auditor` in any consumer project (Vue/React applications, bac
 
 ### Direct Installation from GitHub via npm
 
-Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.7`):
+Install `@francogp/auditor` as a development dependency pinned to a release tag (e.g. `#v10.7.8`):
 
 ```bash
-npm install -D github:francogp/auditor#v10.7.7 --allow-git=all
+npm install -D github:francogp/auditor#v10.7.8 --allow-git=all
 ```
 
 The `--allow-git=all` flag is needed only on the first install (npm 12+ blocks git dependencies by default and fails with `EALLOWGIT`). Afterwards the pre-flight bootstrap writes `allow-git=all` to `.npmrc`, so subsequent installations work without flags.
@@ -105,7 +105,7 @@ Or declare it directly in `package.json` using a **pinned release tag** (floatin
 ```json
 {
   "devDependencies": {
-    "@francogp/auditor": "github:francogp/auditor#v10.7.7"
+    "@francogp/auditor": "github:francogp/auditor#v10.7.8"
   }
 }
 ```
@@ -140,25 +140,25 @@ auditor-update
 You can also target a specific release version (including major version upgrades):
 
 ```bash
-npm run auditor:update -- v10.7.7
+npm run auditor:update -- v10.7.8
 # or directly:
-auditor-update v10.7.7
+auditor-update v10.7.8
 ```
 
 `auditor-update` atomically updates `package.json` with the pinned tag, updates `package-lock.json`, synchronizes agent skills in `.agents/skills/`, synchronizes setup scripts (`setup-windows.ps1` and `setup-linux.sh`), and runs `auditor fix`.
 
-To inspect whether an update is available without making changes (safe read-only inspection), pass `--check` (`-c`):
+To inspect whether an update is available without making changes (safe read-only inspection), pass `check` (`-c`):
 
 ```bash
-npm run auditor:update -- --check
+npm run auditor:update -- check
 # or directly:
 auditor-update --check
 ```
 
-To display help and available options safely, pass `--help` (`-h` or `help`):
+To display help and available options safely, pass `help` (`-h`):
 
 ```bash
-npm run auditor:update -- --help
+npm run auditor:update -- help
 # or directly:
 auditor-update --help
 ```
@@ -228,13 +228,14 @@ import { defineAuditConfig } from '@francogp/auditor';
 export default defineAuditConfig({
   name: 'MiProyecto',
   // Sincronizado automáticamente por el bootstrap del auditor (SemVer + Build ID):
-  auditorVersion: '10.7.7-build.20261103-154054',
+  auditorVersion: '10.7.8-build.20261103-204645',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests'],
     scriptsRoots: ['scripts']
   },
   documentation: {
+    enabled: true,
     language: 'en', // Idioma del repositorio (código, docs, commits)
     chatLanguage: 'es' // Idioma de interacción y chat del agente de IA
   },
@@ -244,6 +245,7 @@ export default defineAuditConfig({
     enforceInAudit: true
   },
   fallow: {
+    enabled: true,
     enforceTargets: true,
     maxTargetPriority: 'high'
   }
@@ -285,7 +287,7 @@ When an AI coding agent (Antigravity, Claude, Cursor, Copilot, etc.) integrates,
 
 #### Step 1: Declare the Dependency
 
-Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.7"`), or install via `npm install -D github:francogp/auditor#v10.7.7 --allow-git=all`.
+Add `@francogp/auditor` to `devDependencies` in `package.json` pinned to an exact release tag (e.g. `"github:francogp/auditor#v10.7.8"`), or install via `npm install -D github:francogp/auditor#v10.7.8 --allow-git=all`.
 
 #### Step 2: Bootstrap the Environment
 
@@ -303,7 +305,7 @@ auditor fix
 
 In fix mode, `@francogp/auditor` executes **100% serially (`concurrency = 1`)** with `sharedAstContext` disabled across 4 deterministic sequential phases (`FIX_MODE_EXPLICIT_ORDER`) so that zero file write race conditions occur between fixers:
 
-1. **Phase 1 — Configuration & Project Bootstrap (`fix: 'priority'`)**: `validate_audit_config`, `validate_git_config`, `validate_environment_engines`, `validate_dependency_minimums`, `validate_package_hygiene`, `validate_package_scripts`, `validate_tsconfig`, `validate_vite_plus_config` (via TypeScript Compiler AST in `viteConfigAst.ts`), `validate_playwright_config`, `validate_fallow_config`, `validate_stylelint_config`, `validate_html_validate_config`, `validate_markdown_lint_config`, and `validate_agent_plugin`.
+1. **Phase 1 — Configuration & Project Bootstrap (`fix: 'priority'`)**: `validate_audit_config` (verifying physical path existence, schema DTD integrity, duplicate property keys, unique array entries, and explicit `enabled` flags via TypeScript AST), `validate_git_config`, `validate_environment_engines`, `validate_dependency_minimums`, `validate_package_hygiene`, `validate_package_scripts`, `validate_tsconfig`, `validate_vite_plus_config` (via TypeScript Compiler AST in `viteConfigAst.ts`), `validate_playwright_config`, `validate_fallow_config`, `validate_stylelint_config`, `validate_html_validate_config`, `validate_markdown_lint_config`, and `validate_agent_plugin`.
 2. **Phase 2 — Structural & AST Code Repair (`fix: 'normal'`)**: `audit_project`, `audit_rules`, `validate_script_extensions`, `validate_accessibility`, `validate_component_styles`, `validate_z_index`, `validate_sql_anti_patterns`, `validate_agents_config_mandate`, `validate_markdown_code_references`, `validate_markdown_syntax`, and `validate_mermaid_syntax`.
 3. **Phase 3 — Third-Party Linter Repair (`fix: 'normal'`)**: `validate_oxlint`, `validate_stylelint`, `validate_html_validate`, and `validate_markdown_lint`.
 4. **Phase 4 — Final Formatting Pass (`fix: 'normal'`)**: `validate_oxfmt` runs as the absolute final step so all repaired files and configurations end in 100% canonical formatting.
@@ -469,7 +471,7 @@ Every full default run (`npm run auditor` / `auditor`) and exhaustive run (`npm 
 ```bash
 git fetch origin
 npm run auditor                     # 0 errors + 0 new warnings vs origin/main
-npm run auditor -- --init-baseline  # one-time bootstrap when the production ref has no baseline yet
+npm run auditor -- init-baseline    # one-time bootstrap when the production ref has no baseline yet
 ```
 
 - The baseline only shrinks: clean full runs rewrite it when warnings disappear; commit the updated file.
@@ -885,6 +887,7 @@ export default defineAuditConfig({
     ignoredDirs: ['backup', 'legacy']
   },
   persistence: {
+    enabled: true,
     engine: 'supabase',
     schemaQualified: true,
     authorizedSaveFiles: ['src/logic/storage/saveCoordinator.ts']
@@ -906,6 +909,7 @@ export default defineAuditConfig({
     allowMissingDist: true
   },
   styles: {
+    enabled: true,
     zLayersEnabled: true,
     baseScssFile: 'src/styles/_base.scss',
     zLayersScssFile: 'src/styles/_base.scss',
@@ -914,13 +918,16 @@ export default defineAuditConfig({
     }
   },
   templates: {
+    enabled: true,
     requireInputIds: false,
     safeTemplateFunctions: ['formatMoney', 'translate']
   },
   constants: {
+    enabled: true,
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE']
   },
   documentation: {
+    enabled: true,
     language: 'en', // Primary documentation and file writing language ('en' | 'es', defaults to 'en')
     chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es')
     knownValidAbstractPaths: ['@docs/architecture.md'],

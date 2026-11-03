@@ -46,7 +46,7 @@ On existing repositories with pre-existing legacy warnings:
 - Initialize the baseline once with:
 
   ```bash
-  npm run auditor -- --init-baseline
+  npm run auditor -- init-baseline
   ```
 
 - This command is strictly refused if the remote production reference (`origin/main`) already contains a committed baseline file.

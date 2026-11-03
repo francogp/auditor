@@ -212,11 +212,10 @@ describe('Oxlint Test Hygiene Migration Verification', () => {
       expect(reported).toBe(true);
     });
 
-    it('CANARY: no-tautological-integration-mocks catches vi.mock of core db in integration tests', () => {
+    it('CANARY: no-tautological-integration-mocks catches vi.mock of core db as a pure AST visitor', () => {
       const rule = domainTypeOxlintPlugin.rules['no-tautological-integration-mocks'];
       let reported = false;
       const visitor = rule.create({
-        filename: 'tests/integration/billing_checkout.test.ts',
         report: () => {
           reported = true;
         }

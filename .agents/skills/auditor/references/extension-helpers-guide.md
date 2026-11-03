@@ -879,5 +879,5 @@ Run the test suite or execute the remote runner to verify:
 npm test tests/validate_my_rules.test.ts
 
 # 2. Verify coverage ledgers flush cleanly with zero missing ledger warnings:
-npm run auditor -- --suite=validate_my_rules
+npm run auditor -- suite=validate_my_rules
 ```

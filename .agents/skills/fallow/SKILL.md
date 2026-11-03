@@ -9,7 +9,6 @@ license: MIT
 Fallow analyzes code and styles for changed-code risk, cleanup opportunities, circular dependencies, duplication, complexity hotspots, architecture boundary violations, design-system styling drift, feature flags, and opt-in security candidates. Runtime coverage merges production execution data into the same `fallow health` report for hot-path review and cold-path deletion confidence. A single local capture is available by default. Continuous or cloud runtime monitoring is optional.
 
 ## When to Use
-
 - Find cleanup opportunities: unused files, exports, types, members, dependencies, or feature flags that guard unused exports.
 - Detect code duplication, circular dependencies, architecture boundary issues, and complexity hotspots.
 - Find functions that may implement the same intent despite different names, syntax, or control flow (`fallow similar-code`).
@@ -25,16 +24,14 @@ Fallow analyzes code and styles for changed-code risk, cleanup opportunities, ci
 - Confirm exact TypeScript symbol use, affected tests, API leaks, or public type coupling when syntactic evidence is insufficient (`--type-aware`).
 
 ## When NOT to Use
-
 - Runtime error analysis or debugging
 - Type checking (use `tsc` for that). Type-aware fallow consumes checker evidence for project-wide analysis but does not report compiler diagnostics.
 - Linting style or formatting issues (use ESLint, Biome, Prettier)
-- Verified security vulnerability scanning or SAST. `fallow security` surfaces local, deterministic security _candidates_ for a downstream agent to verify; it does not prove exploitability. Use Snyk, CodeQL, or Semgrep for verified scanning, and an SCA tool for dependency CVEs.
+- Verified security vulnerability scanning or SAST. `fallow security` surfaces local, deterministic security *candidates* for a downstream agent to verify; it does not prove exploitability. Use Snyk, CodeQL, or Semgrep for verified scanning, and an SCA tool for dependency CVEs.
 - Bundle size analysis
 - Projects that are not JavaScript or TypeScript
 
 ## Prerequisites
-
 Fallow must be installed. If not available, install it:
 
 ```bash
@@ -44,7 +41,6 @@ cargo install fallow-cli   # build from source
 ```
 
 ## Agent Rules
-
 1. **Always use `--format json --quiet`** for machine-readable output and parse stdout as JSON. Compact JSON is the default; never depend on whitespace or add `--pretty` in agent pipelines. Keep stderr separate so diagnostics remain visible; never merge it into the JSON stream with `2>&1`.
 2. **Preserve and interpret the exit status.** Codes 0 and 1 are successful analysis outcomes. 0 means no enforced gate failed, and 1 means an enforced gate failed: findings, not a tool failure. Bare `fallow` in a machine format exits 0 on findings unless you pass `--fail-on-issues`. To gate, pass `--fail-on-issues`, run `fallow dead-code` or `fallow audit`, or read `gate_outcomes`: `status: "fail"` with `enforced: false` is a failing gate that did not set the exit code. Treat every other code according to `fallow schema.exit_codes`. Do not force a successful status, because that hides validation, license, setup, network, and security-gate outcomes.
 3. **Use `--explain`** to include a `_meta` object in JSON output with metric definitions, ranges, and interpretation hints. In human format, `--explain` prints a `Description:` line under each section header.
@@ -62,7 +58,6 @@ cargo install fallow-cli   # build from source
 15. **Check production runtime data before an edit or a delete, when Fallow Cloud is connected**. Prefer the scoped reads over the full `get_cloud_runtime_context` pull. Before an edit, run `fallow coverage review-packet --repo <owner/repo>` (MCP `get_cloud_review_packet`) for the changed files and read `hit_count`, `covered_by_test`, and the callers when present. Before a delete, require `period_tracking_state: "never_called"`, not only `tracking_state`, and read `evidence_window.observed_hours`: few observed hours or a low-traffic surface mean "not visited", not "dead". After a deploy, run `fallow coverage deployment-changes --repo <owner/repo>` (MCP `get_cloud_deployment_changes`) and, when `comparable` is `false`, report `reason` and claim no change. Open files by `repo_path`, not `file_path`. Production data is context, never a gate. Details: [references/mcp.md](references/mcp.md#scoped-cloud-reads).
 
 ## Onboarding And Insight
-
 Offer setup after showing the findings from a human-requested analysis, only when all these conditions hold:
 
 - `fallow config --path` exits 3.
@@ -81,31 +76,28 @@ Report value when there is evidence. If the agent gate blocked a commit or push 
 Ask about telemetry only after one of these events, and only if `fallow telemetry status --format json` has `explicit_decision: false`. Never run `fallow telemetry enable`.
 
 ## Task Cheat Sheet
-
 Route by intent before reaching for the big analysis commands. Same matrix as `fallow schema` (`task_matrix`) and the generated AGENTS.md section.
 
 <!-- generated:task-matrix:start -->
-
-| When the agent is about to...                                        | Run                                                                                                                                                          |
-| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| delete an "unused" export or file                                    | `fallow dead-code --trace <file>:<export>`                                                                                                                   |
-| prove a TypeScript symbol's exact consumers before refactoring       | `fallow dead-code --type-aware --symbol-impact <file>:<export-or-class.method>`                                                                              |
-| find how one module reaches another                                  | `fallow trace --path <from> <to>`; Reports `reachable: false` instead of failing when no import path exists; type-only hops are reported, not skipped.       |
-| delete an "unused" dependency                                        | `fallow dead-code --trace-dependency <name>`                                                                                                                 |
-| migrate a dependency                                                 | `fallow trace --dependency <name> --sites`; Counts each imported name, follows one hop through project wrappers, and counts each use that it cannot resolve. |
-| commit or open a PR                                                  | `fallow audit --base <ref>`                                                                                                                                  |
-| read a diff before approving it                                      | `fallow review --base <ref> --brief`; orientation, never gates: deterministic and always exit 0, unlike the audit row                                        |
-| prioritize refactoring                                               | `fallow health --hotspots --targets`                                                                                                                         |
-| ask who owns code                                                    | `fallow health --ownership`                                                                                                                                  |
-| check untested-but-reachable code                                    | `fallow health --coverage-gaps`                                                                                                                              |
-| consolidate duplication                                              | `fallow dupes --trace dup:<fingerprint>`                                                                                                                     |
-| find feature flags                                                   | `fallow flags`                                                                                                                                               |
-| check which architecture rules apply to a file before changing it    | `fallow guard <files>`                                                                                                                                       |
-| check import cycles, boundaries and policy rules after changing code | `fallow architecture`                                                                                                                                        |
-| surface security candidates                                          | `fallow security`                                                                                                                                            |
-| understand a finding                                                 | `fallow explain <issue-type>`                                                                                                                                |
-| scope a monorepo                                                     | `--workspace <glob> / --changed-workspaces <ref>`; global flags, prefix any command                                                                          |
-
+| When the agent is about to... | Run |
+|---|---|
+| delete an "unused" export or file | `fallow dead-code --trace <file>:<export>` |
+| prove a TypeScript symbol's exact consumers before refactoring | `fallow dead-code --type-aware --symbol-impact <file>:<export-or-class.method>` |
+| find how one module reaches another | `fallow trace --path <from> <to>`; Reports `reachable: false` instead of failing when no import path exists; type-only hops are reported, not skipped. |
+| delete an "unused" dependency | `fallow dead-code --trace-dependency <name>` |
+| migrate a dependency | `fallow trace --dependency <name> --sites`; Counts each imported name, follows one hop through project wrappers, and counts each use that it cannot resolve. |
+| commit or open a PR | `fallow audit --base <ref>` |
+| read a diff before approving it | `fallow review --base <ref> --brief`; orientation, never gates: deterministic and always exit 0, unlike the audit row |
+| prioritize refactoring | `fallow health --hotspots --targets` |
+| ask who owns code | `fallow health --ownership` |
+| check untested-but-reachable code | `fallow health --coverage-gaps` |
+| consolidate duplication | `fallow dupes --trace dup:<fingerprint>` |
+| find feature flags | `fallow flags` |
+| check which architecture rules apply to a file before changing it | `fallow guard <files>` |
+| check import cycles, boundaries and policy rules after changing code | `fallow architecture` |
+| surface security candidates | `fallow security` |
+| understand a finding | `fallow explain <issue-type>` |
+| scope a monorepo | `--workspace <glob> / --changed-workspaces <ref>`; global flags, prefix any command |
 <!-- generated:task-matrix:end -->
 
 ## Commands
@@ -120,7 +112,7 @@ Dead-code filter flags select issue categories (`--unused-exports`, `--unused-ty
 
 `fallow architecture` reports the architecture findings: circular dependencies, re-export cycles, package cycles, boundary violations and rule-pack policy violations. Use `--cycles`, `--boundaries` or `--policy` to select one kind. The JSON output has `kind: "architecture"` and its own `schema_version`, with the same arrays and finding ids as `dead-code`. `fallow dead-code` still reports these findings until the next major version. Its `--circular-deps`, `--re-export-cycles`, `--package-cycles`, `--boundary-violations` and `--policy-violations` flags are deprecated aliases. Run `fallow guard <files>` before an edit and `fallow architecture` after it. In bare `fallow`, `--only architecture` reports only these findings and `--skip architecture` removes them.
 
-For suppressible findings, use the placement listed in the issue catalogue: `// fallow-ignore-next-line <issue-type>` above the finding, or `// fallow-ignore-file <issue-type>` at the top of the file. Some types support only file-level suppression; others have no suppression comment. A bare supported form without a type suppresses all matching findings at that placement.
+For suppressible findings, use the placement listed in the issue catalogue: `// fallow-ignore-next-line <issue-type>` above the finding, or `// fallow-ignore-file <issue-type>` at the top of the file. Some types support only file-level suppression; others have no suppression comment. A bare supported form without a type suppresses all matching findings at that placement. Put `-- <reason>` after the types to record why. Always give a reason on a `security-sink` or `security-client-server-leak` suppression: `fallow audit` marks an added security suppression without a reason with `suppression.security_without_reason: true`. A blanket comment without a kind does not set this flag. To list existing suppressions without a reason, run `fallow suppressions --format json` and select `reason_present: false`.
 
 `fallow explain <issue-type>` describes one type without running analysis, and the MCP server serves the same catalogue as the `fallow://issue-types` resource.
 
@@ -132,10 +124,11 @@ Fallow ships an MCP server (`fallow-mcp`) that exposes these same analyses as ag
 
 The server also serves read-only reference resources (no subprocess, no analysis run, cacheable by URI; your client reads them through its own resource tool): `fallow://tools`, `fallow://issue-types`, `fallow://explain/{issue_type}`, `fallow://task-matrix`, and the config, plugin, and rule-pack JSON Schemas. Every resource payload is JSON. Each content item carries the server version in `_meta.fallow_version`.
 
+Fallow Cloud also runs a hosted MCP server at `POST https://api.fallow.cloud/mcp` (Bearer read-only or live API key). It serves production data with no local install, and has tools that `fallow-mcp` does not have, such as `get_file_context`, `verify_deployment`, and `list_errors`. Details: [references/mcp.md](references/mcp.md#hosted-fallow-cloud-mcp-server).
+
 Full tool catalogue, resource catalogue, key params, runtime source-map confidence tiers, shared timeouts, and the `next_steps` dispatch mapping: **[references/mcp.md](references/mcp.md)**.
 
 ## References
-
 - [CLI Reference](references/cli-reference.md): the command catalogue, complete flag specifications, and configuration field details
 - [MCP Tools](references/mcp.md): MCP server tool and resource catalogues, CLI fallbacks, params, and agent dispatch guidance
 - [Issue Types](references/issue-types.md): every issue type with its filter flag, fixability, and suppression comment
@@ -149,7 +142,6 @@ To set up or modernize the code-quality tooling of a repository (package install
 ## Common Workflows
 
 ### Audit a project for cleanup opportunities
-
 ```bash
 fallow dead-code --format json --quiet
 ```
@@ -157,13 +149,11 @@ fallow dead-code --format json --quiet
 Parse the JSON output. It contains arrays for each issue type (`unused_files`, `unused_exports`, `unused_types`, `unused_dependencies`, etc.) plus `total_issues` and `elapsed_ms` metadata. Each issue object includes an `actions` array with structured fix suggestions (action type, `auto_fixable` flag, description, and optional suppression comment). For dependency findings, a non-empty `used_in_workspaces` array means the package is imported elsewhere in the monorepo; treat it as a workspace placement issue and do not auto-remove it.
 
 ### Find only unused exports (smaller output)
-
 ```bash
 fallow dead-code --format json --quiet --unused-exports
 ```
 
 ### Check if a PR introduces quality risk
-
 ```bash
 fallow audit --format json --quiet --base main
 ```
@@ -171,7 +161,6 @@ fallow audit --format json --quiet --base main
 Returns a pass/warn/fail verdict for issues introduced by the PR. Only analyzes files changed since the `main` branch.
 
 ### Review a change and let fallow check the verdict
-
 ```bash
 review="${TMPDIR:-/tmp}"
 fallow audit --format json --quiet                                                    # 1. gate the change
@@ -185,16 +174,8 @@ Step 3 is your review. Read `digest.decisions[]` and `change_anchors[]` in the g
 {
   "graph_snapshot_hash": "<copy from the guide>",
   "judgments": [
-    {
-      "signal_id": "sig:<from digest.decisions>",
-      "framing": "Callers keep their imports.",
-      "action": "fyi"
-    },
-    {
-      "change_anchor": "chg:<from change_anchors>",
-      "framing": "unusedHelper has no caller.",
-      "action": "address"
-    }
+    { "signal_id": "sig:<from digest.decisions>", "framing": "Callers keep their imports.", "action": "fyi" },
+    { "change_anchor": "chg:<from change_anchors>", "framing": "unusedHelper has no caller.", "action": "address" }
   ]
 }
 ```
@@ -202,7 +183,6 @@ Step 3 is your review. Read `digest.decisions[]` and `change_anchors[]` in the g
 Fallow validates the judgment against the live graph. It rejects an id that it did not emit. It refuses the whole file as `stale` when the hash no longer matches. Report only the `accepted` judgments. Keep the guide outside the project: a new file in the tree changes the hash. Do not create `.fallow/` for it, because a folder that you create has no ignore file. On `stale: true`, fetch the guide again.
 
 ### Find code duplication
-
 ```bash
 fallow dupes --format json --quiet
 fallow dupes --format json --quiet --mode semantic
@@ -211,7 +191,6 @@ fallow dupes --format json --quiet --mode semantic
 The `semantic` mode detects renamed variables. Other modes: `strict` (exact), `mild` (default, syntax normalized), `weak` (different literals).
 
 ### Safe auto-fix cycle
-
 ```bash
 fallow fix --dry-run --format json --quiet   # 1. preview what will be removed
 fallow fix --yes --format json --quiet       # 2. review the preview, then apply
@@ -221,7 +200,6 @@ fallow dead-code --format json --quiet       # 3. verify the fix worked
 The `--yes` flag is required in non-TTY environments (agent subprocesses). Without it, `fix` exits with code 2.
 
 ### Discover project structure
-
 ```bash
 fallow list --entry-points --format json --quiet
 fallow list --plugins --format json --quiet
@@ -230,7 +208,6 @@ fallow list --plugins --format json --quiet
 Shows detected entry points and active framework plugins. Read `fallow schema.plugins.count` when the exact current registry size matters.
 
 ### Production-only analysis
-
 ```bash
 fallow dead-code --format json --quiet --production
 ```
@@ -238,7 +215,6 @@ fallow dead-code --format json --quiet --production
 Excludes test/dev files (`*.test.*`, `*.spec.*`, `*.stories.*`) and only analyzes production scripts.
 
 ### Analyze specific workspaces
-
 ```bash
 fallow dead-code --format json --quiet --workspace my-package                # single package (lists: web,admin)
 fallow dead-code --format json --quiet --workspace 'apps/*,!apps/legacy'    # glob + !-exclude
@@ -248,7 +224,6 @@ fallow dead-code --format json --quiet --changed-workspaces origin/main     # CI
 Scopes output while keeping the full cross-workspace graph. Patterns are tested against BOTH the package name AND the workspace path relative to the repo root; either match counts. `--changed-workspaces <REF>` auto-derives the set from `git diff` (the CI primitive; mutually exclusive with `--workspace`); a missing ref or non-git directory is a hard error (exit 2) rather than a silent full-scope fallback.
 
 ### Scope to specific files (lint-staged)
-
 ```bash
 fallow dead-code --format json --quiet --file src/utils.ts --file src/helpers.ts
 ```
@@ -256,7 +231,6 @@ fallow dead-code --format json --quiet --file src/utils.ts --file src/helpers.ts
 Only reports issues in the specified files. Project-wide dependency issues are suppressed. Warns on non-existent paths.
 
 ### Catch typos in entry file exports
-
 ```bash
 fallow dead-code --format json --quiet --include-entry-exports
 ```
@@ -264,7 +238,6 @@ fallow dead-code --format json --quiet --include-entry-exports
 Reports unused exports in entry files (package.json `main`/`exports`, framework pages). By default, exports in entry files are assumed externally consumed. This flag catches typos like `meatdata` instead of `metadata`.
 
 ### Detect feature flag patterns
-
 ```bash
 fallow flags --format json --quiet
 fallow flags --format json --quiet --top 20
@@ -274,7 +247,6 @@ fallow flags --retirement --format json --quiet
 Reports environment-variable gates (`process.env.FEATURE_*`), SDK calls from common flag providers, and config-object patterns, with flag locations, detection confidence, and a cross-reference against dead code. `--top N` limits the list. `--retirement` adds a `retirement` object with one row per flag, the reasons it can be retired (`single-read-site`, `test-only`, `literal-constant`, `identical-branches`, `empty-branch`, `guards-dead-code`, `defined-never-read`), and its age from git (`--flag-age blame|pickaxe|off`; blame gives a lower bound). Filter with `--reason <CODE>` and `--min-age <DAYS>`, order with `--sort age|sites|name`. `--flag-state <FILE>` reads an offline vendor export in one vendor-neutral schema and adds `fully-rolled-out`, `archived-in-vendor`, `missing-in-vendor` and `vendor-only`. With `--retirement`, `--save-regression-baseline <PATH>` and `--fail-on-regression --regression-baseline <PATH>` gate on `distinct_flags` (plus each `--reason` count), and the opt-in `--max-flag-age <DAYS>` fails on old flags. Every format works: compact prints `flag-retire:<reason>:<path>:<line>:<name>`, SARIF adds the rule `fallow/flag-retirement-candidate`, CodeClimate adds `fallow/flag-retirement`. The report is advisory: every action has `auto_fixable: false`, and a person decides what to remove.
 
 ### Surface security candidates for verification
-
 ```bash
 fallow security --format json --quiet
 fallow security --format json --quiet --surface
@@ -285,7 +257,6 @@ git diff --cached --unified=0 | fallow security --gate new --diff-stdin --format
 These are unverified candidates, not confirmed vulnerabilities; an agent must verify trace, reachability, and evidence before editing. `--surface` adds a top-level `attack_surface[]` inventory for a verifier. The gate modes are `new` (candidates introduced on changed lines) and `newly-reachable` (candidates that became reachable from entry points, which needs `--changed-since <ref>`); there is no `all` mode by design. The gate fails with exit 8, distinct from the standard exit ladder.
 
 ### Find untested runtime-reachable code (coverage gaps)
-
 ```bash
 fallow health --format json --quiet --coverage-gaps
 ```
@@ -293,7 +264,6 @@ fallow health --format json --quiet --coverage-gaps
 Reports `untested-file` and `untested-export` findings: runtime-reachable code with no dependency path from any discovered test root. Opt-in and requires the full analysis pipeline.
 
 ### Find complexity hotspots, owners, and refactoring targets
-
 ```bash
 # Files that are both complex and frequently changing (needs a git repo)
 fallow health --format json --quiet --hotspots
@@ -308,7 +278,6 @@ fallow health --format json --quiet --hotspots --group-by owner
 `--ownership` implies `--hotspots` and `--effort` implies `--targets`. The global `--group-by` accepts `owner`, `directory`, `package`, or `section` (the `section` mode reads GitLab CODEOWNERS `[Section]` headers). Hotspots and ownership require a git repository.
 
 ### Track per-team code health over time in a large monorepo (CODEOWNERS)
-
 ```bash
 # Per-team letter grade + 0-100 score, complexity density, and ownership resolved
 # from .github/CODEOWNERS, plus a snapshot for trend tracking. The CODEOWNERS resolver,
@@ -324,7 +293,6 @@ fallow health --format json --quiet --group-by owner --score --workspace 'packag
 Caveat for root-only path aliases: in monorepos where TypeScript path aliases (e.g. `@myorg/*`) are declared only in a root `tsconfig.base.json` that the per-package `tsconfig.json` files do not extend, imports through those aliases do not resolve, so dead-code signals (unused files/exports, and the `dead_files` penalty in the per-owner `health_score`) carry false positives. The complexity, maintainability, coupling, hotspot, and ownership signals are computed per file from the AST and git history and stay accurate regardless. Prefer `health` (not `dead-code`) for per-team quality tracking there.
 
 ### Explain why a complex function scored high
-
 ```bash
 fallow health --format json --quiet --complexity --complexity-breakdown
 ```
@@ -332,7 +300,6 @@ fallow health --format json --quiet --complexity --complexity-breakdown
 Adds a per-decision-point `contributions[]` array to every complexity finding (each `if`, `else-if`, loop, boolean operator, and `case` with its source line and cyclomatic/cognitive weight), so you can pinpoint the exact refactor target.
 
 ### Gate CI on regressions (baselines)
-
 ```bash
 # 1. Save the current issue counts as a regression baseline
 fallow dead-code --format json --quiet --save-regression-baseline
@@ -348,7 +315,6 @@ fallow dead-code --format json --quiet --baseline .fallow/snapshot.json
 With no path, `--save-regression-baseline` updates `regression.baseline` in the discovered fallow config, or creates `.fallowrc.json` when none exists. Pass a path only when a standalone baseline file is preferred.
 
 ### Explain an issue type without running analysis
-
 ```bash
 fallow explain unused-export --format json
 fallow explain code-duplication
@@ -357,7 +323,6 @@ fallow explain code-duplication
 The issue type is a positional argument and accepts forms like `unused-export`, `fallow/unused-export`, `unused exports`, or `code duplication`. It runs no analysis and returns the rule rationale, a worked example, fix guidance, and the docs URL.
 
 ### Show what fallow has surfaced over time (Impact)
-
 ```bash
 # Enable once (local-only, opt-in, never uploads, never affects exit codes)
 fallow impact enable
@@ -370,7 +335,6 @@ fallow impact statusline
 `fallow impact enable` is a one-time, user-owned local action; the agent-facing lines are read steps. History is stored per-project in the user's private config dir (never inside the repo, so no `.fallow/` or `.gitignore` changes); `fallow impact default on` enables it for every project at once. The JSON report is read-only and is empty in CI (fallow never records there). The statusline uses only comparable whole-project scans for its trend; legacy changed-file history is labeled explicitly and shown without a trend.
 
 ### Debug why something is flagged
-
 ```bash
 fallow dead-code --format json --quiet --trace src/utils.ts:myFunction   # trace an export's usage chain
 fallow dead-code --format json --quiet --trace-file src/utils.ts        # trace all edges for a file
@@ -397,7 +361,6 @@ dynamic, decorated, overloaded, and externally uncertain cases keep the
 original finding.
 
 ### Migrate from knip or jscpd
-
 ```bash
 fallow migrate --dry-run   # preview
 fallow migrate             # apply; mirrors the source extension (knip.jsonc -> .fallowrc.jsonc); --jsonc / --toml force a format
@@ -406,7 +369,6 @@ fallow migrate             # apply; mirrors the source extension (knip.jsonc -> 
 Auto-detects `knip.json`, `knip.jsonc`, `.knip.json`, `.knip.jsonc`, `.jscpd.json`, and package.json embedded configs.
 
 ### Initialize a new config
-
 ```bash
 fallow init              # creates .fallowrc.json, adds .fallow/ to .gitignore (--toml for fallow.toml)
 fallow init --agents     # scaffolds a starter AGENTS.md prefilled from detected project info (never overwrites)
@@ -418,9 +380,8 @@ fallow hooks install --target git   # pre-commit gate; --branch <ref> sets the f
 Codes 0 and 1 are successful analysis outcomes. 0 means no enforced gate failed, and 1 means an enforced gate failed: findings, not a tool failure. Bare `fallow` in a machine format exits 0 on findings unless you pass `--fail-on-issues`. To gate, pass `--fail-on-issues`, run `fallow dead-code` or `fallow audit`, or read `gate_outcomes`: `status: "fail"` with `enforced: false` is a failing gate that did not set the exit code. Read `fallow schema.exit_codes` for validation, resource, runtime, network, security-gate, and upload failures instead of maintaining another copied table.
 
 When `--format json` is active and exit code is 2, errors are emitted as JSON on stdout:
-
 ```json
-{ "error": true, "message": "invalid config: ...", "exit_code": 2 }
+{"error": true, "message": "invalid config: ...", "exit_code": 2}
 ```
 
 ## Configuration
@@ -444,7 +405,6 @@ Fallow reads config from project root: `.fallowrc.json` > `.fallowrc.jsonc` > `f
 Rules: `"error"` (fail CI), `"warn"` (report only), `"off"` (skip detection). Other high-value fields: `ignoreDependencies`, `publicPackages` (public library packages whose exported API is never flagged), `cache.dir` / `cache.maxSizeMb`, `usedClassMembers` (extend the framework-invoked member allowlist), `resolve.conditions` (extra package.json export conditions). Field semantics and examples: [CLI Reference](references/cli-reference.md), "Configuration field notes".
 
 ### Inline suppression
-
 ```typescript
 // fallow-ignore-next-line
 export const keepThis = 1;
@@ -454,6 +414,10 @@ export const keepThisToo = 2;
 
 // fallow-ignore-file
 // fallow-ignore-file unused-export
+
+// State the reason after `--` (every kind accepts it)
+// fallow-ignore-next-line security-sink -- the HTML is a constant template
+el.innerHTML = TEMPLATE;
 
 // Mark as intentionally unused (tracked for staleness)
 /** @expected-unused */
@@ -472,7 +436,6 @@ export const deprecatedHelper = () => {};
 For the full list with examples, see [references/gotchas.md](references/gotchas.md).
 
 ## Instructions
-
 1. **Identify the task** from the user's request (audit, fix, find dupes, set up CI, migrate, debug)
 2. **Run the appropriate command** with `--format json --quiet`
 3. **Use filter flags** to limit output when the user asks about specific issue types

@@ -369,6 +369,7 @@ const DYNAMIC_TEST_OFF_RULES = [
   '@francogp/domain-type/no-await-in-loops-query',
   '@francogp/domain-type/no-literal-suffix-constant',
   '@francogp/domain-type/no-raw-html-injection',
+  '@francogp/domain-type/no-tautological-integration-mocks',
   'unicorn/no-thenable'
 ] as const;
 

@@ -1,11 +1,11 @@
 import { safeReadFileAsync } from "../core/safeUtils.js";
+import { SharedAstContext, unwrapExpression } from "../core/astContext.js";
 import { getAuditConfig } from "../core/auditConfigLoader.js";
 import { isPathContained, toPosixRelative } from "../core/safePath.js";
 import { isInCodeRoots, isScriptPath } from "../core/auditCodeRoots.js";
 import { isDataPath, isDemoPath, isExemptFile } from "../core/auditPathPredicates.js";
 import "../core/auditConfig.js";
 import { isPathIgnored } from "../core/auditorBase.js";
-import { SharedAstContext } from "../core/astContext.js";
 import path from "node:path";
 import ts from "typescript";
 // src/analyzers/constantAnalyzer.ts
@@ -110,11 +110,6 @@ function isValidConstantIdentifier(name, ignoredNames) {
 	if (name.length < 4) return false;
 	if (ignoredNames.has(name)) return false;
 	return /^[A-Z0-9_]+$/.test(name);
-}
-function unwrapExpression(expr) {
-	let current = expr;
-	while (ts.isAsExpression(current) || ts.isTypeAssertionExpression(current) || ts.isParenthesizedExpression(current) || ts.isNonNullExpression(current)) current = current.expression;
-	return current;
 }
 function processVariableDeclaration(decl, sourceFile, filePath, isExported, ignoredNames) {
 	if (!ts.isIdentifier(decl.name)) return null;

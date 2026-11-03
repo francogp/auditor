@@ -10,7 +10,6 @@ Similar-code is an opt-in, local semantic discovery workflow. It complements det
    ```
 
    In Node, call `detectSimilarCode({ files: ["src/services/api.ts"] })`. Over MCP, call standalone `find_similar_code` with `paths: ["src/services/api.ts"]`. Do not use Code Mode for similar-code because its 30-second window cannot accommodate documented cold inference. The standalone MCP tools have a dedicated 15-minute timeout.
-
 3. Inspect a candidate before judging it. Hand off the original raw discovery document so inspect selects that exact candidate without rerunning global retrieval or ranking:
 
    ```bash
@@ -19,7 +18,6 @@ Similar-code is an opt-in, local semantic discovery workflow. It complements det
    ```
 
    Over MCP, call standalone `inspect_similar_code` with `candidate_id` and a typed `snapshot` containing the unchanged discovery `schema_version`, `generation`, selected `candidate`, `completion`, and `diagnostics`. Treat `generation.scope.paths` as provenance, not as an argument list. Inspect re-extracts only the two snapshot endpoints, validates both current source hashes, and fails closed on stale source. Review source, callers, callees, tests, side effects, ownership, and missing evidence.
-
 4. Author a separate verdict document. Keep the three axes independent. `refactor_safe: true` requires `behaviorally_equivalent: true`, which requires `candidate_worthy: true`. Use `null` for an undecided axis, use `needs-human-review`, and abstain when evidence is incomplete.
 
    ```json

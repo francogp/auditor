@@ -49,7 +49,7 @@ npm run auditor:o1 -- <command> [options]
 
 ```bash
 npm run auditor:o1 discover
-npm run auditor:o1 discover -- --project ../pokeborrador
+npm run auditor:o1 -- discover project=../pokeborrador
 ```
 
 Renders a Box-Drawing table with counts for `Set.has`, `Clone`, and `Spread`.
@@ -57,17 +57,17 @@ Renders a Box-Drawing table with counts for `Set.has`, `Clone`, and `Spread`.
 ### 2. `inspect`: Generate Dirac Micro-Context
 
 ```bash
-npm run auditor:o1 inspect -- --file src/services/auth.ts
+npm run auditor:o1 inspect src/services/auth.ts
 ```
 
 ### 3. `apply`: Deterministic Plan Execution
 
 ```bash
 # Dry-run / Direct apply
-npm run auditor:o1 apply -- --plan scratch/o1-plan.json
+npm run auditor:o1 apply scratch/o1-plan.json
 
 # Safe execution inside an isolated Git Worktree
-npm run auditor:o1 apply -- --plan scratch/o1-plan.json --worktree
+npm run auditor:o1 apply scratch/o1-plan.json --worktree
 ```
 
 ---
@@ -228,7 +228,7 @@ Output displays:
 ### Step 2: Inspect Specific Target File
 
 ```bash
-npm run auditor:o1 inspect -- --file src/auth/permissions.ts
+npm run auditor:o1 inspect src/auth/permissions.ts
 ```
 
 Emits line-anchored code snippets and recommended Set hoist declarations.
@@ -236,7 +236,7 @@ Emits line-anchored code snippets and recommended Set hoist declarations.
 ### Step 3: Apply Declarative Plan via Worktree
 
 ```bash
-npm run auditor:o1 apply -- --plan scratch/o1_plan.json --worktree
+npm run auditor:o1 apply scratch/o1_plan.json --worktree
 ```
 
 The engine builds the code, verifies types, runs unit tests in the worktree sandbox, and safely integrates the changes.

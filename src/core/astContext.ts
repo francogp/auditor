@@ -14,7 +14,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
-import { normalizePosixPath } from './safePath.ts';
+import { normalizePosixPath } from './reportUtils.ts';
 import { tryCatchSync } from './safeUtils.ts';
 
 enableCompileCache();
@@ -204,4 +204,26 @@ export function formatTsNodeTwoSpaceIndent(node: ts.Node, hint = ts.EmitHint.Uns
     .split('\n')
     .map((line) => line.replace(/^( {4})+/, (m) => ' '.repeat(m.length / 2)))
     .join('\n');
+}
+
+/**
+ * Unwraps TypeScript expression wrappers:
+ * - AsExpression (expr as Type)
+ * - TypeAssertionExpression (<Type>expr)
+ * - SatisfiesExpression (expr satisfies Type)
+ * - ParenthesizedExpression ((expr))
+ * - NonNullExpression (expr!)
+ */
+export function unwrapExpression(expr: ts.Expression): ts.Expression {
+  let curr = expr;
+  while (
+    ts.isAsExpression(curr) ||
+    ts.isTypeAssertionExpression(curr) ||
+    (typeof ts.isSatisfiesExpression === 'function' && ts.isSatisfiesExpression(curr)) ||
+    ts.isParenthesizedExpression(curr) ||
+    ts.isNonNullExpression(curr)
+  ) {
+    curr = curr.expression;
+  }
+  return curr;
 }

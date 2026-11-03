@@ -1,6 +1,6 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/auditConfig.js";
 import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
+import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
 import { enableCompileCache } from "node:module";

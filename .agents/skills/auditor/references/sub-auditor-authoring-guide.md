@@ -943,11 +943,12 @@ const resolvedArgs = this.resolveCommandArgs<string[]>({
 Host applications implementing custom rules in `scripts/auditors/<family>/validate_<name>.ts` register them dynamically in `.auditor/audit.config.ts`:
 
 ```typescript
-import { defineAuditConfig } from '@francogp/auditor/config';
+import { defineAuditConfig } from '@francogp/auditor';
 
 import { MyCompositeAuditor } from '../scripts/auditors/domain_data/validate_my_composite.ts';
 
 export default defineAuditConfig({
+  name: 'my-application',
   extensions: [
     {
       auditor: new MyCompositeAuditor(),

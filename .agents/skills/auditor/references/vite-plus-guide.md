@@ -478,6 +478,7 @@ To ensure 100% deterministic auto-fixing without guessing or manual editing, con
 ```ts
 // .auditor/audit.config.ts
 export default defineAuditConfig({
+  name: 'my-project',
   paths: {
     srcRoots: ['src'],
     testRoots: ['tests', 'test_aventura/tests']

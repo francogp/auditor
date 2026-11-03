@@ -3,13 +3,13 @@ import { AUDITOR_VERSION } from "../../core/version.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { tryOrNull } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from "../../core/astContext.js";
 import { validateAuditConfigAst } from "../../core/auditConfigAstValidator.js";
 import { loadAuditConfig } from "../../core/auditConfigLoader.js";
 import "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { AuditedDocument } from "../../core/auditedDocument.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { dtoValueToTsExpression, formatTsNodeTwoSpaceIndent } from "../../core/astContext.js";
 import { appendGitIgnoreEntries, findMissingGitIgnoreRequirements } from "../../core/gitignoreMatcher.js";
 import { collectAllGitIgnoreRequirements, discoverAuditors } from "../../cli/auditScanner.js";
 import { migrateLegacyAuditConfig } from "../../cli/migrateAuditConfig.js";
@@ -285,6 +285,7 @@ const AUDIT_CONFIG_REQUIREMENT = {
 	}
 };
 var ValidateAuditConfigAuditor = class extends BaseAuditor {
+	allowConfigLoadFailure = true;
 	providedTasks;
 	constructor(options = {}) {
 		const projectRoot = options.projectRoot || process.cwd();
@@ -366,6 +367,7 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 		if (!ensured) return;
 		this.recordScanned(AUDIT_CONFIG_FILE);
 		if (fs.existsSync(path.resolve(this.projectRoot, ".gitignore"))) this.recordScanned(".gitignore");
+		this.cachedAstViolations = null;
 		if (this.isFixActive()) {
 			const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
 			if (fs.existsSync(configFilePath)) appendMissingSectionsToConfigFile(configFilePath, {});
@@ -419,13 +421,20 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			this.verifyConfigRatchet(config);
 		});
 	}
+	cachedAstViolations = null;
 	getAstViolations() {
+		if (this.cachedAstViolations !== null) return this.cachedAstViolations;
 		const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-		if (!fs.existsSync(configPath)) return [];
+		if (!fs.existsSync(configPath)) {
+			this.cachedAstViolations = [];
+			return [];
+		}
 		try {
 			const sourceText = fs.readFileSync(configPath, "utf-8");
-			return validateAuditConfigAst(sourceText, AUDIT_CONFIG_FILE);
+			this.cachedAstViolations = validateAuditConfigAst(sourceText, AUDIT_CONFIG_FILE);
+			return this.cachedAstViolations;
 		} catch {
+			this.cachedAstViolations = [];
 			return [];
 		}
 	}
@@ -440,13 +449,18 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			context: v.key
 		});
 	}
-	verifyAstDuplicateEntries() {
+	processFixableAstViolations(ruleId, fixFn) {
 		const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-		const violations = this.getAstViolations().filter((v) => v.ruleId === "audit-config-duplicate-entry");
+		const violations = this.getAstViolations().filter((v) => v.ruleId === ruleId);
 		for (const v of violations) {
-			if (this.isFixActive()) deduplicateArrayElementsInFileAst(configPath, v.path);
+			if (this.isFixActive()) {
+				if (fixFn(configPath, v)) {
+					this.cachedAstViolations = null;
+					continue;
+				}
+			}
 			this.addViolation({
-				ruleId: "audit-config-duplicate-entry",
+				ruleId,
 				severity: "error",
 				file: AUDIT_CONFIG_FILE,
 				line: v.line,
@@ -456,23 +470,11 @@ var ValidateAuditConfigAuditor = class extends BaseAuditor {
 			});
 		}
 	}
+	verifyAstDuplicateEntries() {
+		this.processFixableAstViolations("audit-config-duplicate-entry", (configPath, v) => deduplicateArrayElementsInFileAst(configPath, v.path));
+	}
 	verifyAstMissingEnabled() {
-		const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-		const violations = this.getAstViolations().filter((v) => v.ruleId === "audit-config-missing-enabled");
-		for (const v of violations) {
-			if (this.isFixActive()) {
-				if (injectMissingEnabledAst(configPath, v.key)) continue;
-			}
-			this.addViolation({
-				ruleId: "audit-config-missing-enabled",
-				severity: "error",
-				file: AUDIT_CONFIG_FILE,
-				line: v.line,
-				message: v.message,
-				context: v.key,
-				fixable: true
-			});
-		}
+		this.processFixableAstViolations("audit-config-missing-enabled", (configPath, v) => injectMissingEnabledAst(configPath, v.key));
 	}
 	verifyConfigRatchet(config) {
 		const ratchetRes = auditConfigRatchet(this.projectRoot, config._rawConfig ?? config);

@@ -1,12 +1,4 @@
-/**
- * packages/auditor/src/core/auditConfigAstValidator.ts
- *
- * Single Source of Truth AST validator and schema enforcer for .auditor/audit.config.ts.
- * Parses TypeScript AST to detect:
- * 1. Duplicate keys in object literals (which silently overwrite earlier keys in JavaScript)
- * 2. Duplicate entries in configuration arrays (redundant items in unique sets)
- * 3. Declared subsystems missing explicit 'enabled: boolean' (strict schema / DTD conformance)
- */
+import ts from "typescript";
 export type AuditConfigAstRuleId = 'audit-config-duplicate-key' | 'audit-config-duplicate-entry' | 'audit-config-missing-enabled';
 export interface AuditConfigAstViolation {
   readonly ruleId: AuditConfigAstRuleId;
@@ -23,6 +15,7 @@ export interface AuditConfigAstViolation {
  * and therefore do not require an `enabled: boolean` property.
  */
 export declare const SUBSYSTEMS_WITHOUT_ENABLED: Set<string>;
+export declare function getArrayItemIdentity(element: ts.Expression, sourceFile: ts.SourceFile): string;
 /**
  * Parses and analyzes the TypeScript AST of .auditor/audit.config.ts to detect:
  * - Duplicate properties in object literals

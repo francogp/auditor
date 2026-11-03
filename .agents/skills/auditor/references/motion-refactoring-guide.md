@@ -38,7 +38,7 @@ Scans `.ts`, `.js`, and `.vue` files for banned timers, layout properties, and l
 
 ```bash
 npm run auditor:motion discover
-npm run auditor:motion discover -- --project ../pokeborrador
+npm run auditor:motion -- discover project=../pokeborrador
 ```
 
 Renders a standardized 80-column Box-Drawing table with breakdown per file.
@@ -48,7 +48,7 @@ Renders a standardized 80-column Box-Drawing table with breakdown per file.
 Inspects a specific file, extracts line-anchored snippets, and outputs a suggested declarative plan:
 
 ```bash
-npm run auditor:motion inspect -- --file src/components/Modal.vue
+npm run auditor:motion inspect src/components/Modal.vue
 ```
 
 ### 3. `apply`: Deterministic Plan Execution
@@ -57,10 +57,10 @@ Applies a declarative refactoring plan file with optional verification inside an
 
 ```bash
 # Dry-run / Direct apply
-npm run auditor:motion apply -- --plan scratch/motion-plan.json
+npm run auditor:motion apply scratch/motion-plan.json
 
 # Safe execution with Git Worktree verification (build/typecheck passes before modifying host files)
-npm run auditor:motion apply -- --plan scratch/motion-plan.json --worktree
+npm run auditor:motion apply scratch/motion-plan.json --worktree
 ```
 
 ---
@@ -228,7 +228,7 @@ Output displays:
 ### Step 2: Inspect Specific Target File
 
 ```bash
-npm run auditor:motion inspect -- --file src/components/Drawer.vue
+npm run auditor:motion inspect src/components/Drawer.vue
 ```
 
 Emits targeted Dirac micro-context with exact lines, proposed replacements, and plan snippet.
@@ -236,7 +236,7 @@ Emits targeted Dirac micro-context with exact lines, proposed replacements, and 
 ### Step 3: Apply Declarative Plan via Worktree Sandbox
 
 ```bash
-npm run auditor:motion apply -- --plan scratch/motion-plan.json --worktree
+npm run auditor:motion apply scratch/motion-plan.json --worktree
 ```
 
 The engine executes in an ephemeral worktree, verifies build and tests (`vp check && vp test`), and safely merges changes upon green verification.

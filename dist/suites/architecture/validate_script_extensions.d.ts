@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
+import "../../core/auditConfig.js";
 import { AuditorOptions, BaseAuditor } from "../../core/auditorBase.js";
 export declare const SCRIPT_EXTENSIONS_RULES: readonly ["banned-mjs-extension", "banned-cjs-extension", "banned-raw-js-script"];
 export type ScriptExtensionsRuleId = (typeof SCRIPT_EXTENSIONS_RULES)[number];

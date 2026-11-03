@@ -98,8 +98,8 @@ export function buildPathsConfig(
       : DEFAULT_AUDIT_CONFIG.paths.migrationsDir;
   return {
     ...DEFAULT_AUDIT_CONFIG.paths,
-    migrationsDir: p.migrationsDir ?? defaultMigrations,
     ...p,
+    migrationsDir: p.migrationsDir ?? defaultMigrations,
     cliRoots: p.cliRoots ?? DEFAULT_AUDIT_CONFIG.paths.cliRoots,
     testFilePatterns: p.testFilePatterns ?? [],
     testFragmentationWhitelist: p.testFragmentationWhitelist ?? []

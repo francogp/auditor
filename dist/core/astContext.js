@@ -1,6 +1,5 @@
 import { tryCatchSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import "./safePath.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";
@@ -142,4 +141,17 @@ function dtoValueToTsExpression(value) {
 function formatTsNodeTwoSpaceIndent(node, hint = ts.EmitHint.Unspecified) {
 	return printAstNode(node, void 0, hint).split("\n").map((line) => line.replace(/^( {4})+/, (m) => " ".repeat(m.length / 2))).join("\n");
 }
-export { SharedAstContext, createSyntheticSourceFile, dtoValueToTsExpression, extractExportedConfigObjectLiteral, formatTsNodeTwoSpaceIndent, printAstNode };
+/**
+* Unwraps TypeScript expression wrappers:
+* - AsExpression (expr as Type)
+* - TypeAssertionExpression (<Type>expr)
+* - SatisfiesExpression (expr satisfies Type)
+* - ParenthesizedExpression ((expr))
+* - NonNullExpression (expr!)
+*/
+function unwrapExpression(expr) {
+	let curr = expr;
+	while (ts.isAsExpression(curr) || ts.isTypeAssertionExpression(curr) || typeof ts.isSatisfiesExpression === "function" && ts.isSatisfiesExpression(curr) || ts.isParenthesizedExpression(curr) || ts.isNonNullExpression(curr)) curr = curr.expression;
+	return curr;
+}
+export { SharedAstContext, createSyntheticSourceFile, dtoValueToTsExpression, extractExportedConfigObjectLiteral, formatTsNodeTwoSpaceIndent, printAstNode, unwrapExpression };

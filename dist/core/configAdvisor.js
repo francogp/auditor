@@ -1,5 +1,6 @@
 import { isSupabaseExclusivePersistenceKey } from "./auditConfigTypes.js";
 import { safeReadFileSync } from "./safeUtils.js";
+import { validateAuditConfigAst } from "./auditConfigAstValidator.js";
 import { discoverAuditors } from "../cli/auditScanner.js";
 import { parseAuditConfigTextToRecord } from "./configRatchet.js";
 import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
@@ -292,6 +293,7 @@ function evaluateProjectConfigFromData(projectRoot, configFile, rawLocalConfig, 
 		if (typeof localSection === "object" && localSection !== null && !Array.isArray(localSection)) evaluateExistingSectionProperties(sectionKey, sectionExpected, localSection, recommendations, hardenedSettings, projectRoot);
 	}
 	const optimalCount = Math.max(0, totalChecked - recommendations.length - hardenedSettings.length);
+	const astViolations = fs.existsSync(configFile) ? validateAuditConfigAst(safeReadFileSync(configFile) ?? "", ".auditor/audit.config.ts") : [];
 	return {
 		projectRoot,
 		configFile,
@@ -300,7 +302,8 @@ function evaluateProjectConfigFromData(projectRoot, configFile, rawLocalConfig, 
 		hardenedCount: hardenedSettings.length,
 		recommendationsCount: recommendations.length,
 		recommendations,
-		hardenedSettings
+		hardenedSettings,
+		astViolations
 	};
 }
 export { buildUnifiedExpectedConfigTree, evaluateAgnosticPropertyTree, evaluateProjectConfig, evaluateProjectConfigAsync, isNumericCeiling, isNumericFloor, parseAuditConfigFileToRecord };

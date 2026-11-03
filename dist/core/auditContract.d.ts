@@ -1,5 +1,6 @@
 import { AuditEngineConfig, CustomAuditFamilyConfig } from "./auditConfigTypes.js";
 import { SharedAstContext } from "./astContext.js";
+import "./auditConfig.js";
 import { REMEDIATION_PHASES, REMEDIATION_PHASE_IDS, RemediationPhaseId, RemediationPhaseMetadata, getRemediationPhaseMetadata, isRemediationPhaseId } from "./remediationPhases.js";
 export declare const BUILTIN_AUDIT_FAMILIES: readonly ["architecture", "domain_data", "persistence", "performance", "security", "documentation"];
 export type BuiltinAuditFamily = (typeof BUILTIN_AUDIT_FAMILIES)[number];

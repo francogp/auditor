@@ -1,6 +1,6 @@
 import { tryOrDefault } from "../../core/safeUtils.js";
-import { buildRepositoryFileIndex, toPosixRelative } from "../../core/safePath.js";
 import { getEffectiveIgnoreGlobs, getEffectiveUnignoreDirs } from "../../core/canonicalIgnoreRegistry.js";
+import { buildRepositoryFileIndex, toPosixRelative } from "../../core/safePath.js";
 import { BaseAuditor, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { GitIgnoreMatcher } from "../../core/gitignoreMatcher.js";
 import { resolveMarkdownScanDirectories, stripCodeBlocks } from "./validate_markdown_code_references.js";

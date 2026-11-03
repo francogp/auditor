@@ -8,7 +8,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
-import { SharedAstContext } from '../core/astContext.ts';
+import { SharedAstContext, unwrapExpression } from '../core/astContext.ts';
 import {
   getAuditConfig,
   isInCodeRoots,
@@ -126,19 +126,6 @@ function isValidConstantIdentifier(name: string, ignoredNames: ReadonlySet<strin
   if (name.length < 4) return false;
   if (ignoredNames.has(name)) return false;
   return /^[A-Z0-9_]+$/.test(name);
-}
-
-function unwrapExpression(expr: ts.Expression): ts.Expression {
-  let current: ts.Expression = expr;
-  while (
-    ts.isAsExpression(current) ||
-    ts.isTypeAssertionExpression(current) ||
-    ts.isParenthesizedExpression(current) ||
-    ts.isNonNullExpression(current)
-  ) {
-    current = current.expression;
-  }
-  return current;
 }
 
 function processVariableDeclaration(

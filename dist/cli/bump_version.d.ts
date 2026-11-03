@@ -1,4 +1,5 @@
 import { AuditVersionTargetConfig } from "../core/auditConfigTypes.js";
+import "../core/auditConfig.js";
 import { VERSION_BUMP_TYPES, VersionBumpType } from "../core/versionAnalyzer.js";
 export interface MetricTableRow {
   readonly label: string;

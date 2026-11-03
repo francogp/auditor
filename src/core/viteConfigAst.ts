@@ -805,6 +805,33 @@ export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonl
     mergeDynamicOverride(effective, loggerFiles, { 'no-console': 'off' }, 'no-console');
   }
 
+  const integrationGlobs = candidateRootsToExemptGlobs(auditConfig.paths?.integrationRoots ?? []);
+  if (integrationGlobs.length > 0) {
+    const existingIntegrationIdx = effective.findIndex(
+      (ov) =>
+        ov.rules &&
+        ov.rules['@francogp/domain-type/no-tautological-integration-mocks'] === 'error' &&
+        ov.files.some((f) => integrationGlobs.includes(f))
+    );
+    const existingIntegration =
+      existingIntegrationIdx >= 0 ? effective[existingIntegrationIdx] : undefined;
+    if (existingIntegration) {
+      effective[existingIntegrationIdx] = {
+        ...existingIntegration,
+        files: Array.from(new Set([...existingIntegration.files, ...integrationGlobs])),
+        rules: {
+          ...existingIntegration.rules,
+          '@francogp/domain-type/no-tautological-integration-mocks': 'error'
+        }
+      };
+    } else {
+      effective.push({
+        files: integrationGlobs,
+        rules: { '@francogp/domain-type/no-tautological-integration-mocks': 'error' }
+      });
+    }
+  }
+
   return effective;
 }
 

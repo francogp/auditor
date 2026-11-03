@@ -320,6 +320,7 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-await-in-loops-query",
 	"@francogp/domain-type/no-literal-suffix-constant",
 	"@francogp/domain-type/no-raw-html-injection",
+	"@francogp/domain-type/no-tautological-integration-mocks",
 	"unicorn/no-thenable"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES = Object.fromEntries([

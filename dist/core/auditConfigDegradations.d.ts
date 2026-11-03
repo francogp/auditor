@@ -1,4 +1,5 @@
 import { AcknowledgeableExemptionPolicy, AuditEngineConfig } from "./auditConfigTypes.js";
+import "./auditConfig.js";
 export interface UnacknowledgedDegradation {
   readonly policy: AcknowledgeableExemptionPolicy;
   readonly rootOrFile: string;

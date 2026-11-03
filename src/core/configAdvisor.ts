@@ -21,6 +21,7 @@ import path from 'node:path';
 
 import { discoverAuditors } from '../cli/auditScanner.ts';
 import { buildUnifiedExpectedConfigTree } from '../suites/architecture/validate_audit_config.ts';
+import { validateAuditConfigAst, type AuditConfigAstViolation } from './auditConfigAstValidator.ts';
 import { isSupabaseExclusivePersistenceKey } from './auditConfigTypes.ts';
 import type { AuditTaskDefinition } from './auditContract.ts';
 import { parseAuditConfigTextToRecord } from './configRatchet.ts';
@@ -63,6 +64,7 @@ export interface ConfigAdvisorReport {
   readonly recommendationsCount: number;
   readonly recommendations: readonly ConfigRecommendation[];
   readonly hardenedSettings: readonly HardenedSetting[];
+  readonly astViolations?: readonly AuditConfigAstViolation[];
 }
 
 export interface ConfigAdvisorOptions {
@@ -578,6 +580,10 @@ function evaluateProjectConfigFromData(
 
   const optimalCount = Math.max(0, totalChecked - recommendations.length - hardenedSettings.length);
 
+  const astViolations = fsSync.existsSync(configFile)
+    ? validateAuditConfigAst(safeReadFileSync(configFile) ?? '', '.auditor/audit.config.ts')
+    : [];
+
   return {
     projectRoot,
     configFile,
@@ -586,6 +592,7 @@ function evaluateProjectConfigFromData(
     hardenedCount: hardenedSettings.length,
     recommendationsCount: recommendations.length,
     recommendations,
-    hardenedSettings
+    hardenedSettings,
+    astViolations
   };
 }

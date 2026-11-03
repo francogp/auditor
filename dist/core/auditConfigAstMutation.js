@@ -1,3 +1,4 @@
+import { getArrayItemIdentity } from "./auditConfigAstValidator.js";
 import { SyntaxKind } from "ts-morph";
 // src/core/auditConfigAstMutation.ts
 /**
@@ -46,12 +47,13 @@ function deduplicateArrayLiteralElements(arr) {
 	let mutated = false;
 	const seen = /* @__PURE__ */ new Set();
 	const elements = [...arr.getElements()];
+	const sourceFile = arr.getSourceFile().compilerNode;
 	for (const el of elements) {
-		const rawText = el.getText().replace(/\s+/g, " ").trim();
-		if (seen.has(rawText)) {
+		const identity = getArrayItemIdentity(el.compilerNode, sourceFile);
+		if (seen.has(identity)) {
 			arr.removeElement(el);
 			mutated = true;
-		} else seen.add(rawText);
+		} else seen.add(identity);
 	}
 	return mutated;
 }

@@ -7,19 +7,11 @@ npm install @fallow-cli/fallow-node
 ```
 
 ```ts
-import {
-  computeHealth,
-  detectDeadCode,
-  detectDuplication,
-  detectSimilarCode
-} from '@fallow-cli/fallow-node';
+import { computeHealth, detectDeadCode, detectDuplication, detectSimilarCode } from '@fallow-cli/fallow-node';
 
 const deadCode = await detectDeadCode({ root: process.cwd(), explain: true });
 const dupes = await detectDuplication({ root: process.cwd(), mode: 'mild', minTokens: 30 });
-const similarCode = await detectSimilarCode({
-  root: process.cwd(),
-  files: ['src/services/api.ts']
-});
+const similarCode = await detectSimilarCode({ root: process.cwd(), files: ['src/services/api.ts'] });
 const health = await computeHealth({ root: process.cwd(), score: true, ownershipEmails: 'handle' });
 ```
 

@@ -3,10 +3,10 @@ import { DEFAULT_SIMILAR_CODE_THRESHOLD } from "../../core/auditConfigDefaults.j
 import { safeJsonParse, tryCatchSync } from "../../core/safeUtils.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { isPathContained, toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
-import { getEffectiveIgnoreGlobs } from "../../core/canonicalIgnoreRegistry.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import { deepCompareSatelliteConfig, mergeSatelliteConfigProjection } from "../../core/satelliteConfigParity.js";

@@ -30,7 +30,7 @@
  * 23. interval-leak: Detects setInterval without clearInterval.
  * 24. no-boolean-trap-parameters: Forbids multiple positional boolean parameters in function signatures.
  * 25. no-massive-switch: Forbids switch statements with > 10 case branches.
- * 26. no-tautological-integration-mocks: Forbids mocking database or core execution engines in integration tests.
+ * 26. no-tautological-integration-mocks: Forbids mocking database or core execution engines in tests.
  * 27. playwright-id-locators-only: Enforces 100% ID-based locators in E2E simulations.
  * 28. no-playwright-force-click: Forbids force click in Playwright simulations.
  * 29. no-test-timeout-inflation: Forbids inflating test timeouts (>= 30000ms) to mask slowness.
@@ -122,6 +122,8 @@ export interface OxlintRuleContext {
 }
 export declare const CANONICAL_INFRA_ID_WHITELIST: readonly ["suiteId", "ruleId", "runId", "buildId", "eslintRuleId", "taskId", "sessionId", "shortId"];
 export declare const COMMON_NON_DOMAIN_SET_NAMES: Set<string>;
+export declare const NON_DOMAIN_COLLECTION_KEYWORDS: ReadonlySet<string>;
+export declare const NON_DOMAIN_COLLECTION_REGEX: RegExp;
 export declare const domainTypeOxlintPlugin: {
   meta: {
     name: string;

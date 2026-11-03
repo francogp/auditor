@@ -1,10 +1,10 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
+import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createUniformRemediationPhases, createUniformRuleCapabilities } from "../../core/auditorBase.js";
-import { SharedAstContext } from "../../core/astContext.js";
 import { extractSfcScriptContent, parseVueSfc as parseVueSfcBlocks } from "../../core/vueSfcParser.js";
 import { MODERN_ACCESSIBILITY_RULES, analyzeModernAccessibility, fixViewportZoomLockContent } from "../../analyzers/accessibilityModernAnalyzer.js";
 import { enableCompileCache } from "node:module";

@@ -1,8 +1,8 @@
 import { createDomainSet } from "./domainCollections.js";
 import { safeReadFileSync } from "./safeUtils.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import "./safePath.js";
 import { extractExportedConfigObjectLiteral } from "./astContext.js";
+import "./safePath.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
 import { verifyTranscriptAuthorization } from "./transcriptAuthorizationVerifier.js";
 import path from "node:path";

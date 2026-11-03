@@ -1,4 +1,5 @@
 import { AuditConfig } from "./auditConfigTypes.js";
+import "./auditConfig.js";
 import { extractAstPropertyBlock } from "./viteConfigAst.js";
 export declare const LEGACY_CONFIG_FILES: readonly ["eslint.config.js", "eslint.config.mjs", "eslint.config.ts", ".eslintrc.js", ".eslintrc.cjs", ".eslintrc.json", ".eslintrc.yaml", ".eslintrc.yml", "vitest.config.ts", "vitest.config.js", "vitest.config.mjs", "tsdown.config.ts", "tsdown.config.js", "tsconfig.build.json", ".oxlintrc.json", ".oxfmtrc.json"];
 export type VitePlusSyncTarget = 'lint' | 'fmt';

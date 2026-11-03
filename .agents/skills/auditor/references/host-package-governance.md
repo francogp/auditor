@@ -9,7 +9,7 @@ This reference details the canonical architecture and workflow for installing, u
 To install `@francogp/auditor` in a host application, run standard `npm install`:
 
 ```bash
-npm install -D github:francogp/auditor#v10.7.7 --allow-git=all
+npm install -D github:francogp/auditor#v10.7.8 --allow-git=all
 ```
 
 - **Lockfile Registration**: `npm install` fetches the package from GitHub and records the exact commit hash and checksum in `package-lock.json`.
@@ -374,6 +374,7 @@ Vite+ is powered by Oxlint's high-performance native engine. Beyond the default 
    - The `vue` plugin enforces strict Vue 3 Composition API idioms.
    - Key considerations before activating:
      - `vue(next-tick-style)` rejects callback syntax `nextTick(() => { ... })` and requires `await nextTick()`.
+     - When `vue(next-tick-style)` auto-fixes callbacks, it generates `nextTick().then(() => { ... })`. Because `promise(catch-or-return)` strictly prohibits unreturned or uncaught Promise chains, the canonical `/clean-code` solution is declaring the lifecycle callback as `async` (`onMounted(async () => { await nextTick(); restoreScroll(); })`). This pattern is 100% compliant with `vue/no-lifecycle-after-await` because the `await` is scoped inside the lifecycle callback rather than in the top-level `<script setup>`.
      - `vue(define-props-declaration)` and `vue(define-emits-declaration)` require typed macro signatures (`defineProps<{ ... }>()`).
      - If the repository has legacy callbacks in component lifecycles, schedule an AST migration before enabling.
 

@@ -88,7 +88,7 @@ npm run auditor:types -- <command> [options]
 
 ```bash
 npm run auditor:types discover
-npm run auditor:types discover -- --project ../pokeborrador
+npm run auditor:types -- discover project=../pokeborrador
 ```
 
 Renders a dynamic 80-column Box-Drawing table with counts for `as any`, `Casts` (double assertions), and `Returns` (missing return annotations).
@@ -97,7 +97,7 @@ Renders a dynamic 80-column Box-Drawing table with counts for `as any`, `Casts` 
 
 ```bash
 npm run auditor:types inspect src/services/authService.ts
-npm run auditor:types inspect -- --file src/services/authService.ts --project ../codex-rpg
+npm run auditor:types -- inspect src/services/authService.ts project=../codex-rpg
 ```
 
 Extracts only the affected lines with precise line numbers, current violation snippets, recommended replacement code, explanation, and a ready-to-use declarative refactoring plan.

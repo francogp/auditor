@@ -1,7 +1,7 @@
 import { normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
-import { loadLockedSkills } from "./lockedSkills.js";
 import { BaseEntityRegistry } from "./baseRegistry.js";
+import { loadLockedSkills } from "./lockedSkills.js";
 import path from "node:path";
 // src/core/canonicalIgnoreRegistry.ts
 /**

@@ -1,5 +1,6 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { safeJsonParse, safeReadFileSync, tryOrNull } from "../../core/safeUtils.js";
+import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, isLockedSkillPath, loadAuditorOwnedSkills } from "../../core/lockedSkills.js";
 import { isPathContained, toPosixRelative } from "../../core/safePath.js";
@@ -7,7 +8,6 @@ import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
 import "../../core/auditConfig.js";
 import "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities } from "../../core/auditorBase.js";
-import { SharedAstContext } from "../../core/astContext.js";
 import { inspectGitSafetyHook, isGitSafetyHookActive, syncGitSafetyHook } from "../../core/gitSafetyHook.js";
 import { initAgentSkill } from "../../cli/init_agent.js";
 import { enableCompileCache } from "node:module";

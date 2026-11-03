@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "./auditConfigTypes.js";
+import "./auditConfig.js";
 export declare const STRUCTURAL_EXEMPTION_POLICIES: readonly ["test"];
 export declare const EXEMPTION_POLICY_IDS: readonly ["cli", "scripts", "data", "demo", "exemptFiles", "test"];
 export type ExemptionPolicyId = (typeof EXEMPTION_POLICY_IDS)[number];

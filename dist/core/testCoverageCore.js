@@ -1,6 +1,6 @@
 import { isPathExempt } from "./reportUtils.js";
-import { toPosixRelative } from "./safePath.js";
 import { CANONICAL_IGNORE_DIRS } from "./canonicalIgnoreRegistry.js";
+import { toPosixRelative } from "./safePath.js";
 import { isPathIgnored } from "./auditorBase.js";
 import path from "node:path";
 import fs from "node:fs";

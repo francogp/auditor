@@ -94,7 +94,37 @@ npm run auditor guide
 
 ---
 
-### 5. `missing-clean-auditor-test` / `untested-auditor-rule`
+### 5. `audit-config-duplicate-key`
+
+- **Family**: `architecture` | **Suite**: `validate_audit_config`
+- **Symptom**: A property key is declared more than once in `.auditor/audit.config.ts` (e.g. two `coverage: { ... }` blocks). In JavaScript object literals, duplicate keys silently overwrite earlier declarations in memory during dynamic import.
+- **Remediation**:
+  1. Merge the duplicate blocks into a single property declaration.
+  2. The diagnostic output reports the exact line and column numbers of both declarations.
+
+---
+
+### 6. `audit-config-duplicate-entry`
+
+- **Family**: `architecture` | **Suite**: `validate_audit_config`
+- **Symptom**: An array representing a unique set contains redundant items (e.g. `paths.srcRoots: ['src', 'src']`).
+- **Remediation**:
+  1. Run `npm run auditor:fix` to automatically deduplicate array elements.
+  2. Or manually remove redundant entries from the array.
+
+---
+
+### 7. `audit-config-missing-enabled`
+
+- **Family**: `architecture` | **Suite**: `validate_audit_config`
+- **Symptom**: A declared subsystem object omits an explicit `enabled: boolean` declaration. To eradicate implicit blind spots, all 44 toggleable subsystems must explicitly declare their enabled state.
+- **Remediation**:
+  1. Run `npm run auditor:fix` to auto-inject `enabled: true` into declared blocks.
+  2. Or explicitly declare `enabled: false` if the subsystem is intentionally deactivated.
+
+---
+
+### 8. `missing-clean-auditor-test` / `untested-auditor-rule`
 
 - **Family**: `architecture` | **Suite**: `validate_auditor_tests`
 - **Symptom**: A sub-auditor or extension lacks complete unit test coverage under the 5-point contract.

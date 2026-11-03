@@ -75,19 +75,19 @@ export default defineAuditConfig({
 
 ## 3. CLI Command Options & Flags
 
-| Flag / Option     | Description                                                                           | Example Usage                                              |
-| :---------------- | :------------------------------------------------------------------------------------ | :--------------------------------------------------------- |
-| `--run`           | Runs the test suite with coverage before analyzing.                                   | `npm run auditor:test-coverage -- --run`                   |
-| `--check`         | Quality Gate: Exits with code `1` if overall statements coverage is below threshold.  | `npm run auditor:test-coverage -- --check`                 |
-| `--threshold=<N>` | Sets custom target coverage threshold percentage (default: `80`). Alias: `--min=<N>`. | `npm run auditor:test-coverage -- --threshold=85`          |
-| `--dir=<path>`    | Filters directory breakdown and file listings to a specific subsystem prefix.         | `npm run auditor:test-coverage -- --dir=src/core`          |
-| `--file=<path>`   | Displays detailed file metrics and exact uncovered line ranges.                       | `npm run auditor:test-coverage -- --file=src/core/math.ts` |
-| `--below`         | Displays only files whose statements coverage is below the threshold.                 | `npm run auditor:test-coverage -- --below`                 |
-| `--zero`          | Displays only files with 0% test coverage.                                            | `npm run auditor:test-coverage -- --zero`                  |
-| `--untracked`     | Identifies files existing on disk in `roots` that were never executed in tests.       | `npm run auditor:test-coverage -- --untracked`             |
-| `--hotspots`      | Correlates Fallow cognitive complexity with lack of tests to prioritize risk.         | `npm run auditor:test-coverage -- --hotspots`              |
-| `--top=<N>`       | Limits the number of rows rendered in detailed tables (default: `20`).                | `npm run auditor:test-coverage -- --below --top=50`        |
-| `--json`          | Outputs machine-readable JSON for CI integration or programmatic scripts.             | `npm run auditor:test-coverage -- --json`                  |
+| Flag / Option     | Description                                                                           | Example Usage                                           |
+| :---------------- | :------------------------------------------------------------------------------------ | :------------------------------------------------------ |
+| `run`             | Runs the test suite with coverage before analyzing.                                   | `npm run auditor:coverage -- run`                       |
+| `check`           | Quality Gate: Exits with code `1` if overall statements coverage is below threshold.  | `npm run auditor:coverage -- check`                     |
+| `threshold=<N>`   | Sets custom target coverage threshold percentage (default: `80`). Alias: `min=<N>`.   | `npm run auditor:coverage -- threshold=85`              |
+| `dir=<path>`      | Filters directory breakdown and file listings to a specific subsystem prefix.         | `npm run auditor:coverage -- dir=src/core`              |
+| `file=<path>`     | Displays detailed file metrics and exact uncovered line ranges.                       | `npm run auditor:coverage -- file=src/core/math.ts`     |
+| `below`           | Displays only files whose statements coverage is below the threshold.                 | `npm run auditor:coverage -- below`                     |
+| `zero`            | Displays only files with 0% test coverage.                                            | `npm run auditor:coverage -- zero`                      |
+| `untracked`       | Identifies files existing on disk in `roots` that were never executed in tests.       | `npm run auditor:coverage -- untracked`                  |
+| `hotspots`        | Correlates Fallow cognitive complexity with lack of tests to prioritize risk.         | `npm run auditor:coverage -- hotspots`                   |
+| `top=<N>`         | Limits the number of rows rendered in detailed tables (default: `20`).                | `npm run auditor:coverage -- below top=50`              |
+| `json`            | Outputs machine-readable JSON for CI integration or programmatic scripts.             | `npm run auditor:coverage -- json`                      |
 
 ---
 
@@ -97,12 +97,12 @@ When tasked with auditing, improving, or investigating test coverage in any proj
 
 ```mermaid
 flowchart TD
-    Step1["1. Run & Refresh (--run)"] --> Step2["2. Global Health & Buckets"]
-    Step2 --> Step3["3. Subsystem Breakdown (--dir)"]
-    Step3 --> Step4["4. Untracked Eradication (--untracked)"]
-    Step4 --> Step5["5. Hotspot Risk Ranking (--hotspots)"]
-    Step5 --> Step6["6. Surgical File Inspection (--file)"]
-    Step6 --> Step7["7. Quality Gate Enforcement (--check)"]
+    Step1["1. Run & Refresh (run)"] --> Step2["2. Global Health & Buckets"]
+    Step2 --> Step3["3. Subsystem Breakdown (dir)"]
+    Step3 --> Step4["4. Untracked Eradication (untracked)"]
+    Step4 --> Step5["5. Hotspot Risk Ranking (hotspots)"]
+    Step5 --> Step6["6. Surgical File Inspection (file)"]
+    Step6 --> Step7["7. Quality Gate Enforcement (check)"]
 ```
 
 ### Step 1: Run & Refresh Coverage
@@ -110,7 +110,7 @@ flowchart TD
 Never rely on stale coverage files. Always execute tests with fresh coverage data:
 
 ```bash
-npm run auditor:test-coverage -- --run
+npm run auditor:coverage -- run
 ```
 
 ### Step 2: Inspect Global Metrics & File Buckets
@@ -128,7 +128,7 @@ Examine the overall statements, branches, functions, and lines percentages along
 Identify which directory or architectural module pulls the average down:
 
 ```bash
-npm run auditor:test-coverage -- --dir=src/services
+npm run auditor:coverage -- dir=src/services
 ```
 
 ### Step 4: Eradicate Untracked Files
@@ -136,7 +136,7 @@ npm run auditor:test-coverage -- --dir=src/services
 Check if there are entire components, views, or utilities on disk that have zero tests:
 
 ```bash
-npm run auditor:test-coverage -- --untracked
+npm run auditor:coverage -- untracked
 ```
 
 _Action_: Either create dedicated unit/integration tests for these files, or add legitimate non-testable files (e.g. constant dictionaries or static schemas) to `exemptGlobs` in `audit.config.ts`.
@@ -146,7 +146,7 @@ _Action_: Either create dedicated unit/integration tests for these files, or add
 Not all uncovered files represent equal risk. A 5-line simple helper with 0% coverage is trivial, while a 300-line complex state machine with 0% coverage is a critical defect hazard:
 
 ```bash
-npm run auditor:test-coverage -- --hotspots --top=10
+npm run auditor:coverage -- hotspots top=10
 ```
 
 _Formula_: $\text{Risk Score} = \text{Cognitive Complexity} \times (1 - \frac{\text{Coverage \%}}{100})$. Files with high complexity and low coverage appear at the very top.
@@ -156,7 +156,7 @@ _Formula_: $\text{Risk Score} = \text{Cognitive Complexity} \times (1 - \frac{\t
 Inspect the exact lines that were not hit by tests before authoring new test cases:
 
 ```bash
-npm run auditor:test-coverage -- --file=src/services/sessionService.ts
+npm run auditor:coverage -- file=src/services/sessionService.ts
 ```
 
 The output displays exact uncovered line ranges (e.g. `14-22, 45, 88-102`), pinpointing error branches, edge cases, or exception handlers that need tests.
@@ -166,7 +166,7 @@ The output displays exact uncovered line ranges (e.g. `14-22, 45, 88-102`), pinp
 In pull request pipelines or pre-release checks, verify that overall coverage meets or exceeds the required threshold:
 
 ```bash
-npm run auditor:test-coverage -- --check --threshold=80
+npm run auditor:coverage -- check threshold=80
 ```
 
 ---
@@ -176,17 +176,17 @@ npm run auditor:test-coverage -- --check --threshold=80
 ### Recipe A: Finding the Worst 10 Files in a Project
 
 ```bash
-npm run auditor:test-coverage -- --below --top=10
+npm run auditor:coverage -- below top=10
 ```
 
 ### Recipe B: Checking Coverage of a Specific Subsystem
 
 ```bash
-npm run auditor:test-coverage -- --dir=src/core
+npm run auditor:coverage -- dir=src/core
 ```
 
 ### Recipe C: Automated CI Step
 
 ```bash
-npm run auditor:test-coverage -- --run --check --threshold=80
+npm run auditor:coverage -- run check threshold=80
 ```

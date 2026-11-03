@@ -1,4 +1,5 @@
 import { ResolvedTestCoverageConfig } from "./auditConfigTypes.js";
+import "./auditConfig.js";
 export type CoverageStatus = 'excellent' | 'acceptable' | 'low' | 'untested';
 export interface CoverageMetric {
   readonly total: number;

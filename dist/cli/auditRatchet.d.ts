@@ -1,4 +1,5 @@
 import { ResolvedRatchetConfig } from "../core/auditConfigTypes.js";
+import "../core/auditConfig.js";
 import { AuditFinding, StandardAuditResult } from "../core/auditContract.js";
 export declare const RATCHET_SOURCES: readonly ["production", "local-bootstrap"];
 export type RatchetSource = (typeof RATCHET_SOURCES)[number];

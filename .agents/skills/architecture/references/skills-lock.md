@@ -258,3 +258,13 @@ When the user asks to update dependencies (e.g. _"actualizar dependencias"_, _"u
    - If running in **`@francogp/auditor`** (or if the upgraded dependency corresponds to a skill owned locally by the current project's `.agents/skills/`): run `npm exec --yes -- skills update <skill-name> -p -y` and verify `skills-lock.json`.
    - If running in a **consumer host project** and the skill belongs to `@francogp/auditor`: **DO NOT run `skills update` and DO NOT propose syncing the skill locally**. If relevant, mention that the user can ask the `@francogp/auditor` programmer to update the skill in `@francogp/auditor`.
 3. **Verify Lockfile & Tests**: Ensure `skills-lock.json` (in the owner repository) reflects the new hashes and run `vp test`.
+
+---
+
+### 7.3 Toolchain Coupling: Vite+ and Vitest Version Locking
+
+When auditing or proposing dependency updates for `vitest` and `@vitest/*` packages:
+- Always inspect `node_modules/vite-plus/package.json` first.
+- `vite-plus` tightly pins its bundled Vitest suite (`vitest`, `@vitest/browser`, `@vitest/mocker`, and core `vite`).
+- **Invariant**: Never propose or execute an upgrade to `vitest` or `@vitest/coverage-v8` that exceeds the exact version bundled by `vite-plus`. Vitest may only be upgraded concurrently with `vite-plus`.
+

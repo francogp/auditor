@@ -10,6 +10,8 @@ import {
   type SourceFile
 } from 'ts-morph';
 
+import { getArrayItemIdentity } from './auditConfigAstValidator.ts';
+
 function isPlainRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null && !Array.isArray(val);
 }
@@ -73,13 +75,14 @@ export function deduplicateArrayLiteralElements(arr: ArrayLiteralExpression): bo
   let mutated = false;
   const seen = new Set<string>();
   const elements = [...arr.getElements()];
+  const sourceFile = arr.getSourceFile().compilerNode;
   for (const el of elements) {
-    const rawText = el.getText().replace(/\s+/g, ' ').trim();
-    if (seen.has(rawText)) {
+    const identity = getArrayItemIdentity(el.compilerNode, sourceFile);
+    if (seen.has(identity)) {
       arr.removeElement(el);
       mutated = true;
     } else {
-      seen.add(rawText);
+      seen.add(identity);
     }
   }
   return mutated;

@@ -255,6 +255,39 @@ export default defineAuditConfig({
     );
   });
 
+  it('auto-deduplicates object array elements with unordered keys via deduplicateArrayElementsInFileAst', () => {
+    const configDir = path.join(tempDir, '.auditor');
+    fs.mkdirSync(configDir, { recursive: true });
+    const configPath = path.join(configDir, 'audit.config.ts');
+
+    fs.writeFileSync(
+      configPath,
+      `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'test-project',
+  coverage: {
+    enabled: true,
+    exemptGlobs: [
+      { maxLimit: 10, active: true },
+      { active: true, maxLimit: 10 }
+    ]
+  }
+});
+`,
+      'utf-8'
+    );
+
+    const success = deduplicateArrayElementsInFileAst(configPath, 'coverage.exemptGlobs');
+    expect(success).toBe(true);
+
+    const updated = fs.readFileSync(configPath, 'utf-8');
+    const violationsAfter = validateAuditConfigAst(updated);
+    expect(violationsAfter.filter((v) => v.ruleId === 'audit-config-duplicate-entry')).toHaveLength(
+      0
+    );
+  });
+
   it('passes completely clean on canonical configuration without duplicate keys', () => {
     const code = `import { defineAuditConfig } from '@francogp/auditor';
 
@@ -339,6 +372,20 @@ export default defineAuditConfig({
     expect(config.paths.migrationsDir).toBe('custom/db/migrations');
   });
 
+  it('falls back to default migrationsDir when paths.migrationsDir is explicitly undefined', () => {
+    const config = defineAuditConfig({
+      name: 'undefined-migrations-project',
+      paths: {
+        migrationsDir: undefined
+      },
+      persistence: {
+        engine: 'sqlite'
+      }
+    });
+
+    expect(config.paths.migrationsDir).toBe('database/migrations');
+  });
+
   it('reproduces codex incident: catching appended duplicate coverage block that would clobber acknowledgedDegradations', () => {
     const codexFaultyConfig = `import { defineAuditConfig } from '@francogp/auditor';
 
@@ -370,5 +417,79 @@ export default defineAuditConfig({
     expect(() =>
       assertNoDuplicateKeysInAuditConfig(codexFaultyConfig, '.auditor/audit.config.ts')
     ).toThrow(/'coverage' on line 14:3 \(originally declared on line 5:3\)/);
+  });
+
+  it('detects duplicate array entries with complex objects (name, file, path, or arbitrary keys)', () => {
+    const code = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'test-project',
+  coverage: {
+    enabled: true,
+    exemptGlobs: [
+      { path: 'src/canaries/alpha.ts', reason: 'first' },
+      { path: 'src/canaries/alpha.ts', reason: 'second' }
+    ]
+  },
+  extensions: [
+    { name: 'custom-check', file: 'ext/check.ts' },
+    { name: 'custom-check', file: 'ext/check.ts' }
+  ]
+});`;
+
+    const violations = validateAuditConfigAst(code);
+    const dupEntries = violations.filter((v) => v.ruleId === 'audit-config-duplicate-entry');
+
+    expect(dupEntries).toHaveLength(2);
+    expect(dupEntries[0]!.key).toBe('src/canaries/alpha.ts');
+    expect(dupEntries[0]!.path).toBe('coverage.exemptGlobs');
+    expect(dupEntries[1]!.key).toBe('custom-check');
+    expect(dupEntries[1]!.path).toBe('extensions');
+  });
+
+  it('unwraps as const and satisfies expressions in subsystem declarations and array items', () => {
+    const code = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'test-project',
+  coverage: {
+    exemptGlobs: ['a.ts', 'a.ts'] as const
+  } as const,
+  styles: {
+    enabled: true
+  } satisfies Record<string, unknown>
+});`;
+
+    const violations = validateAuditConfigAst(code);
+    const missingEnabled = violations.filter((v) => v.ruleId === 'audit-config-missing-enabled');
+    const dupEntries = violations.filter((v) => v.ruleId === 'audit-config-duplicate-entry');
+
+    expect(missingEnabled).toHaveLength(1);
+    expect(missingEnabled[0]!.key).toBe('coverage');
+    expect(dupEntries).toHaveLength(1);
+    expect(dupEntries[0]!.key).toBe('a.ts');
+    expect(dupEntries[0]!.path).toBe('coverage.exemptGlobs');
+  });
+
+  it('detects duplicate object entries with unordered keys, numbers, and booleans', () => {
+    const code = `import { defineAuditConfig } from '@francogp/auditor';
+
+export default defineAuditConfig({
+  name: 'test-project',
+  coverage: {
+    enabled: true,
+    exemptGlobs: [
+      { maxLimit: 10, active: true, tag: 'legacy' },
+      { active: true, tag: 'legacy', maxLimit: 10 }
+    ]
+  }
+});`;
+
+    const violations = validateAuditConfigAst(code);
+    const dupEntries = violations.filter((v) => v.ruleId === 'audit-config-duplicate-entry');
+
+    expect(dupEntries).toHaveLength(1);
+    expect(dupEntries[0]!.key).toBe('active:true;maxLimit:10;tag:legacy');
+    expect(dupEntries[0]!.path).toBe('coverage.exemptGlobs');
   });
 });

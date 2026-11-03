@@ -578,6 +578,7 @@ export const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigR
 };
 
 export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
+  protected override readonly allowConfigLoadFailure = true;
   private readonly providedTasks?: readonly AuditTaskDefinition[];
 
   public constructor(options: ValidateAuditConfigOptions = {}) {
@@ -740,6 +741,7 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     this.recordScanned(AUDIT_CONFIG_FILE);
     if (fs.existsSync(path.resolve(this.projectRoot, '.gitignore')))
       this.recordScanned('.gitignore');
+    this.cachedAstViolations = null;
 
     if (this.isFixActive()) {
       const configFilePath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
@@ -817,13 +819,23 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     });
   }
 
-  private getAstViolations(): AuditConfigAstViolation[] {
+  private cachedAstViolations: readonly AuditConfigAstViolation[] | null = null;
+
+  private getAstViolations(): readonly AuditConfigAstViolation[] {
+    if (this.cachedAstViolations !== null) {
+      return this.cachedAstViolations;
+    }
     const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-    if (!fs.existsSync(configPath)) return [];
+    if (!fs.existsSync(configPath)) {
+      this.cachedAstViolations = [];
+      return [];
+    }
     try {
       const sourceText = fs.readFileSync(configPath, 'utf-8');
-      return validateAuditConfigAst(sourceText, AUDIT_CONFIG_FILE);
+      this.cachedAstViolations = validateAuditConfigAst(sourceText, AUDIT_CONFIG_FILE);
+      return this.cachedAstViolations;
     } catch {
+      this.cachedAstViolations = [];
       return [];
     }
   }
@@ -844,17 +856,22 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private verifyAstDuplicateEntries(): void {
+  private processFixableAstViolations(
+    ruleId: 'audit-config-duplicate-entry' | 'audit-config-missing-enabled',
+    fixFn: (configPath: string, violation: AuditConfigAstViolation) => boolean
+  ): void {
     const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-    const violations = this.getAstViolations().filter(
-      (v) => v.ruleId === 'audit-config-duplicate-entry'
-    );
+    const violations = this.getAstViolations().filter((v) => v.ruleId === ruleId);
     for (const v of violations) {
       if (this.isFixActive()) {
-        deduplicateArrayElementsInFileAst(configPath, v.path);
+        const fixed = fixFn(configPath, v);
+        if (fixed) {
+          this.cachedAstViolations = null;
+          continue;
+        }
       }
       this.addViolation({
-        ruleId: 'audit-config-duplicate-entry',
+        ruleId,
         severity: 'error',
         file: AUDIT_CONFIG_FILE,
         line: v.line,
@@ -865,26 +882,16 @@ export class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
     }
   }
 
-  private verifyAstMissingEnabled(): void {
-    const configPath = path.resolve(this.projectRoot, AUDIT_CONFIG_FILE);
-    const violations = this.getAstViolations().filter(
-      (v) => v.ruleId === 'audit-config-missing-enabled'
+  private verifyAstDuplicateEntries(): void {
+    this.processFixableAstViolations('audit-config-duplicate-entry', (configPath, v) =>
+      deduplicateArrayElementsInFileAst(configPath, v.path)
     );
-    for (const v of violations) {
-      if (this.isFixActive()) {
-        const fixed = injectMissingEnabledAst(configPath, v.key);
-        if (fixed) continue;
-      }
-      this.addViolation({
-        ruleId: 'audit-config-missing-enabled',
-        severity: 'error',
-        file: AUDIT_CONFIG_FILE,
-        line: v.line,
-        message: v.message,
-        context: v.key,
-        fixable: true
-      });
-    }
+  }
+
+  private verifyAstMissingEnabled(): void {
+    this.processFixableAstViolations('audit-config-missing-enabled', (configPath, v) =>
+      injectMissingEnabledAst(configPath, v.key)
+    );
   }
 
   private verifyConfigRatchet(config: AuditEngineConfig): void {

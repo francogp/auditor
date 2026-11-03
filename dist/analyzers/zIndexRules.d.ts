@@ -1,5 +1,6 @@
 import { AuditRule, RuleDescriptor } from "./auditRuleTypes.js";
 import { Z_LAYERS } from "../core/auditZLayers.js";
+import "../core/auditConfig.js";
 export declare const Z_INDEX_CONSISTENCY_DESCRIPTOR: RuleDescriptor;
 export declare const CANONICAL_DEFAULT_Z_LAYERS: Record<string, number>;
 export declare const ACTIVE_Z_LAYERS: Record<string, number>;

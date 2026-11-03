@@ -1,5 +1,6 @@
 import { CanonicalRuleSeverityLevel, FallowTypeAwareRequirePolicy } from "../../core/auditConfigTypes.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export type FallowConfigRuleId = 'fallow-config-missing' | 'fallow-config-syntax' | 'fallow-banned-entry-glob' | 'fallow-stale-file' | 'fallow-stale-export' | 'fallow-empty-export-list' | 'fallow-duplicate-entry' | 'fallow-config-workspace-diagnostic' | 'fallow-undeclared-config-entry';

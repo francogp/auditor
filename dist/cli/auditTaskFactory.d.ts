@@ -1,4 +1,5 @@
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
+import "../core/auditConfig.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditTaskDefinition, AuditorCapabilities } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 export interface DiscoveryOptions {

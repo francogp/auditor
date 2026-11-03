@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
+import "../../core/auditConfig.js";
 import { CoverageLedger } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const AUDIT_COVERAGE_SUITE_ID = "validate_audit_coverage";

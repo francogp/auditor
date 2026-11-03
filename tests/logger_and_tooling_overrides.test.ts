@@ -73,6 +73,32 @@ describe('Logger and Tooling Overrides Governance', () => {
     expect(toolingOverride?.rules?.['no-console']).toBe('off');
     expect(toolingOverride?.rules?.['typescript/no-floating-promises']).toBe('off');
   });
+
+  it('projects paths.integrationRoots to an override enforcing no-tautological-integration-mocks as error', () => {
+    const config = defineAuditConfig({
+      name: 'Test Project',
+      paths: {
+        srcRoots: ['src'],
+        testRoots: ['tests'],
+        e2eRoots: [],
+        integrationRoots: ['tests/integration'],
+        migrationsDir: 'migrations',
+        scriptsRoots: ['scripts'],
+        codeRoots: ['src', 'scripts']
+      }
+    });
+
+    const overrides = resolveEffectiveLintOverrides(config);
+    const integrationOverride = overrides.find(
+      (ov) =>
+        ov.files.includes('**/tests/integration/**') &&
+        ov.rules?.['@francogp/domain-type/no-tautological-integration-mocks'] === 'error'
+    );
+    expect(integrationOverride).toBeDefined();
+    expect(
+      integrationOverride?.rules?.['@francogp/domain-type/no-tautological-integration-mocks']
+    ).toBe('error');
+  });
 });
 
 describe('Magic Numbers Text Formatting and Crypto Sizing', () => {

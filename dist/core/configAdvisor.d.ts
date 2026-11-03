@@ -1,3 +1,4 @@
+import { AuditConfigAstViolation } from "./auditConfigAstValidator.js";
 import { AuditTaskDefinition } from "./auditContract.js";
 import { buildUnifiedExpectedConfigTree } from "../suites/architecture/validate_audit_config.js";
 export type RecommendationKind = 'missing_section' | 'missing_property' | 'missing_elements' | 'missing_plugin' | 'relaxed_ceiling' | 'relaxed_floor' | 'relaxed_boolean' | 'relaxed_severity';
@@ -26,6 +27,7 @@ export interface ConfigAdvisorReport {
   readonly recommendationsCount: number;
   readonly recommendations: readonly ConfigRecommendation[];
   readonly hardenedSettings: readonly HardenedSetting[];
+  readonly astViolations?: readonly AuditConfigAstViolation[];
 }
 export interface ConfigAdvisorOptions {
   readonly projectRoot?: string;

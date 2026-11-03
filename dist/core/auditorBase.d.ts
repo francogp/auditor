@@ -5,6 +5,7 @@ import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
 import { isTestPath } from "./auditTestPredicates.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
 import { isExemptFile } from "./auditPathPredicates.js";
+import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
 import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, SatelliteConfigExplanationFn, SatelliteConfigFileExplanation, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
@@ -259,6 +260,7 @@ export declare abstract class BaseAuditor<TRuleId extends string = string> imple
   readonly exemptPaths: readonly string[];
   readonly unignoreDirs: readonly string[];
   readonly requiredFiles: readonly string[];
+  protected readonly allowConfigLoadFailure: boolean;
   readonly requiresAst: boolean;
   readonly projectRoot: string;
   readonly configKey: string;

@@ -1,4 +1,5 @@
 import { AUDIT_CONFIG_FILE } from "./auditConfigTypes.js";
+import { unwrapExpression } from "./astContext.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -32,27 +33,57 @@ function getPropertyName(node, sourceFile) {
 	if (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name) || ts.isNumericLiteral(node.name)) return node.name.text;
 	return node.name.getText(sourceFile);
 }
-function getArrayItemIdentity(element, sourceFile) {
-	if (ts.isStringLiteral(element) || ts.isNoSubstitutionTemplateLiteral(element)) return element.text;
-	if (ts.isNumericLiteral(element)) return element.text;
-	if (ts.isObjectLiteralExpression(element)) {
-		let policy = "";
-		let glob = "";
-		let id = "";
-		let pattern = "";
-		for (const prop of element.properties) if (ts.isPropertyAssignment(prop)) {
-			const name = getPropertyName(prop, sourceFile);
-			if (name === "policy" && ts.isStringLiteral(prop.initializer)) policy = prop.initializer.text;
-			else if (name === "glob" && ts.isStringLiteral(prop.initializer)) glob = prop.initializer.text;
-			else if (name === "id" && ts.isStringLiteral(prop.initializer)) id = prop.initializer.text;
-			else if (name === "pattern" && ts.isStringLiteral(prop.initializer)) pattern = prop.initializer.text;
-		}
-		if (policy && glob) return `${policy}:${glob}`;
-		if (glob) return glob;
-		if (id) return id;
-		if (pattern) return pattern;
-	}
+function resolvePrimitiveIdentity(expr) {
+	if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
+	if (ts.isNumericLiteral(expr)) return expr.text;
+	if (expr.kind === ts.SyntaxKind.TrueKeyword) return "true";
+	if (expr.kind === ts.SyntaxKind.FalseKeyword) return "false";
+	if (ts.isIdentifier(expr)) return expr.text;
 	return null;
+}
+function extractObjectPropertiesMap(obj, sourceFile) {
+	const map = /* @__PURE__ */ new Map();
+	for (const prop of obj.properties) if (ts.isPropertyAssignment(prop)) {
+		const propName = getPropertyName(prop, sourceFile);
+		if (!propName) continue;
+		const init = unwrapExpression(prop.initializer);
+		const primitive = resolvePrimitiveIdentity(init);
+		map.set(propName, primitive !== null ? primitive : init.getText(sourceFile).replace(/\s+/g, " ").trim());
+	} else if (ts.isShorthandPropertyAssignment(prop)) {
+		const propName = getPropertyName(prop, sourceFile);
+		if (propName) map.set(propName, prop.name.text);
+	}
+	return map;
+}
+const PRIMARY_IDENTITY_KEYS = [
+	"glob",
+	"id",
+	"name",
+	"pattern",
+	"path",
+	"file"
+];
+function buildSortedObjectIdentity(props) {
+	return [...props.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join(";");
+}
+function resolveObjectLiteralIdentity(obj, sourceFile) {
+	const props = extractObjectPropertiesMap(obj, sourceFile);
+	const policy = props.get("policy");
+	const glob = props.get("glob");
+	if (policy && glob) return `${policy}:${glob}`;
+	for (const key of PRIMARY_IDENTITY_KEYS) {
+		const val = props.get(key);
+		if (val) return val;
+	}
+	if (props.size > 0) return buildSortedObjectIdentity(props);
+	return obj.getText(sourceFile).replace(/\s+/g, " ").trim();
+}
+function getArrayItemIdentity(element, sourceFile) {
+	const unwrapped = unwrapExpression(element);
+	const primitive = resolvePrimitiveIdentity(unwrapped);
+	if (primitive !== null) return primitive;
+	if (ts.isObjectLiteralExpression(unwrapped)) return resolveObjectLiteralIdentity(unwrapped, sourceFile);
+	return element.getText(sourceFile).replace(/\s+/g, " ").trim();
 }
 /**
 * Parses and analyzes the TypeScript AST of .auditor/audit.config.ts to detect:
@@ -105,9 +136,10 @@ function validateAuditConfigAst(sourceText, fileName = AUDIT_CONFIG_FILE) {
 				col
 			});
 			if (ts.isPropertyAssignment(prop)) {
-				if (ts.isObjectLiteralExpression(prop.initializer)) {
+				const init = unwrapExpression(prop.initializer);
+				if (ts.isObjectLiteralExpression(init)) {
 					if (isRoot && !SUBSYSTEMS_WITHOUT_ENABLED.has(key)) {
-						if (!prop.initializer.properties.some((p) => {
+						if (!init.properties.some((p) => {
 							if (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) return getPropertyName(p, sourceFile) === "enabled";
 							return false;
 						})) violations.push({
@@ -119,8 +151,8 @@ function validateAuditConfigAst(sourceText, fileName = AUDIT_CONFIG_FILE) {
 							message: `Subsystem '${key}' declared on line ${line}:${col} is missing explicit 'enabled: true' (or 'false'). All declared subsystems must explicitly specify their enabled status.`
 						});
 					}
-					checkObject(prop.initializer, fullPath, false);
-				} else if (ts.isArrayLiteralExpression(prop.initializer)) checkArray(prop.initializer, fullPath);
+					checkObject(init, fullPath, false);
+				} else if (ts.isArrayLiteralExpression(init)) checkArray(init, fullPath);
 			}
 		}
 	}
@@ -128,7 +160,6 @@ function validateAuditConfigAst(sourceText, fileName = AUDIT_CONFIG_FILE) {
 		const seenElements = /* @__PURE__ */ new Map();
 		for (const el of arrNode.elements) {
 			const itemKey = getArrayItemIdentity(el, sourceFile);
-			if (!itemKey) continue;
 			const pos = sourceFile.getLineAndCharacterOfPosition(el.getStart(sourceFile));
 			const line = pos.line + 1;
 			const col = pos.character + 1;
@@ -172,4 +203,4 @@ function assertNoDuplicateKeysInAuditConfigFile(configPath) {
 	if (!fs.existsSync(configPath)) return;
 	assertNoDuplicateKeysInAuditConfig(fs.readFileSync(configPath, "utf-8"), path.basename(configPath));
 }
-export { SUBSYSTEMS_WITHOUT_ENABLED, assertNoDuplicateKeysInAuditConfig, assertNoDuplicateKeysInAuditConfigFile, validateAuditConfigAst };
+export { SUBSYSTEMS_WITHOUT_ENABLED, assertNoDuplicateKeysInAuditConfig, assertNoDuplicateKeysInAuditConfigFile, getArrayItemIdentity, validateAuditConfigAst };

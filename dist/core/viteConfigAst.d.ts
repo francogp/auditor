@@ -1,5 +1,6 @@
 import { AuditConfig } from "./auditConfigTypes.js";
 import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
+import "./auditConfig.js";
 import ts from "typescript";
 export declare function parseTsSourceFile(fileContent: string, fileName?: string): ts.SourceFile;
 export declare function getPropertyKeyName(name: ts.PropertyName, sf: ts.SourceFile): string;

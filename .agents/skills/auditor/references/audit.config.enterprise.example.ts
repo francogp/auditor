@@ -39,6 +39,7 @@ export default defineAuditConfig({
   },
 
   persistence: {
+    enabled: true,
     engine: 'supabase', // Active database engine ('supabase', 'sqlite', 'postgres', 'hybrid', 'none')
     schemaQualified: true, // Requires all SQL queries to explicitly qualify the schema (e.g. 'public.table')
     prohibitedTemplateIdentifiers: ['supabase'], // Prohibits accessing database instances directly from .vue templates
@@ -49,10 +50,12 @@ export default defineAuditConfig({
   },
 
   e2e: {
+    enabled: true,
     idLocatorsOnly: false // If true, requires using exclusively ID (#id) or data-testid selectors in E2E tests
   },
 
   styles: {
+    enabled: true,
     zLayersEnabled: true, // Enables strict verification of the canonical z-index scale
     baseScssFile: 'src/styles/_base.scss', // Base SCSS file where main design system variables are imported and declared
     zLayersScssFile: 'src/styles/_base.scss', // Canonical SCSS file defining $z-* variables for styles
@@ -119,16 +122,19 @@ export default defineAuditConfig({
   },
 
   templates: {
+    enabled: true,
     requireInputIds: false, // Optional: enforces id attribute on interactive template elements for E2E tests
     tooltipComponents: ['Tooltip', 'PVTooltip'], // Registered tooltip components for the framework
     safeTemplateFunctions: ['formatMoney', 'formatDate', 'translate'] // Safe functions permitted inside {{ ... }} expressions
   },
 
   animation: {
+    enabled: true,
     customTimerFunctions: ['requestDelayedFrame'] // Custom timing functions permitted in UI alongside gsapSleep/delayedCall
   },
 
   constants: {
+    enabled: true,
     ignoredNames: ['TAX_DEFAULT_ROUNDING', 'FISCAL_YEAR_BASE'], // Constants ignored by duplicate detector
     allowedNumericPrefixes: ['BASE_', 'TAX_'], // Permitted prefixes for numeric constants
     exemptMagicNumbers: [21, 10.5, 27] // Fiscal tax rate numbers exempt from magic number alerts (-1, 0, 1, 2, 3, 4, 5, 10, 24, 60, 100, 360, 1000, 1024 are universal defaults)
@@ -137,7 +143,7 @@ export default defineAuditConfig({
   ratchet: {
     enabled: true, // Warning ratchet on full `npm run auditor` runs: 0 errors and 0 NEW warnings (active by default)
     productionRef: 'origin/main', // Git ref holding the authoritative baseline; must resolve (verified by validate_audit_config)
-    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- --init-baseline`
+    baselineFile: '.auditor/audit-baseline.json' // Committed, shrink-only baseline of warning fingerprints; bootstrap once with `npm run auditor -- init-baseline`
   },
 
   coverage: {
@@ -191,6 +197,7 @@ export default defineAuditConfig({
   },
 
   documentation: {
+    enabled: true,
     language: 'en', // Primary documentation language ('en' | 'es', defaults to 'en'). Enforces English across documentation, skills, and templates
     chatLanguage: 'es', // AI assistant conversational chat language ('en' | 'es', defaults to 'es'). Governs interactive dialogues with the human programmer
     knownValidAbstractPaths: ['@docs/architecture/fiscal-engine.md'], // Abstract paths recognized as valid in Markdown code references
@@ -198,6 +205,7 @@ export default defineAuditConfig({
   },
 
   pinia: {
+    enabled: true,
     authorizedMutationFiles: ['src/logic/coordinators/billingSessionCoordinator.ts'] // Files authorized to mutate stores outside actions
   },
 
@@ -341,6 +349,7 @@ export default defineAuditConfig({
   },
 
   domain: {
+    enabled: true,
     timezoneVariable: 'APP_TIMEZONE', // Canonical variable or constant storing system timezone
     timezoneHelperModule: '@/logic/utils/timeUtils', // Centralized module authorized for date manipulation and timezone conversions
     loggerModule: 'src/logic/utils/logger.ts', // Canonical structured logging module replacing direct console.log/error calls
@@ -374,6 +383,7 @@ export default defineAuditConfig({
   },
 
   runner: {
+    enabled: true,
     timeoutMs: 0, // 0 = disabled: suites run to completion without arbitrary kills; set e.g. 3600000 for 1h safety ceiling
     maxStalenessMinutes: 10 // Configurable audit report freshness limit in minutes (default: 5)
   },

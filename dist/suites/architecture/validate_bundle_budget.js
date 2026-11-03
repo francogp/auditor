@@ -1,11 +1,11 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
+import { SharedAstContext } from "../../core/astContext.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isTestPath } from "../../core/auditTestPredicates.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
-import { SharedAstContext } from "../../core/astContext.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
 import fs from "node:fs";

@@ -59,7 +59,7 @@ flowchart TD
 | `--subsystem=<name>` / `subsystem=<name>` | Restricts evaluation to a single configuration section (e.g. `fallow`, `vitePlusConfig`, `styles`).                                  | `npm run auditor:config -- subsystem=fallow`          |
 | `--json` / `json`                         | Emits raw structured `ConfigAdvisorReport` for CI scripting or automated verification.                                               | `npm run auditor:config -- json`                      |
 | `--help` / `help`                         | Displays command options and usage manual.                                                                                           | `npm run auditor:config -- help`                      |
-| `--project=<dir>` / `-p <dir>`            | Runs the advisor against an external project directory.                                                                              | `npm run auditor:config -- --project=../PokeBorrador` |
+| `--project=<dir>` / `project=<dir>` / `-p` | Runs the advisor against an external project directory.                                                                              | `npm run auditor:config -- project=../PokeBorrador`   |
 
 ---
 

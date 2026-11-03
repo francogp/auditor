@@ -1,7 +1,7 @@
 import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
-import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
+import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
 import { getAllowedSatellitePathExcludes } from "./satelliteGlobMatcher.js";
 import path from "node:path";
@@ -442,6 +442,23 @@ function resolveEffectiveLintOverrides(auditConfig) {
 	if (toolingFiles.length > 0) mergeDynamicOverride(effective, toolingFiles, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, "typescript/no-floating-promises");
 	const loggerFiles = auditConfig.paths?.loggerFiles ?? [];
 	if (loggerFiles.length > 0) mergeDynamicOverride(effective, loggerFiles, { "no-console": "off" }, "no-console");
+	const integrationGlobs = candidateRootsToExemptGlobs(auditConfig.paths?.integrationRoots ?? []);
+	if (integrationGlobs.length > 0) {
+		const existingIntegrationIdx = effective.findIndex((ov) => ov.rules && ov.rules["@francogp/domain-type/no-tautological-integration-mocks"] === "error" && ov.files.some((f) => integrationGlobs.includes(f)));
+		const existingIntegration = existingIntegrationIdx >= 0 ? effective[existingIntegrationIdx] : void 0;
+		if (existingIntegration) effective[existingIntegrationIdx] = {
+			...existingIntegration,
+			files: Array.from(/* @__PURE__ */ new Set([...existingIntegration.files, ...integrationGlobs])),
+			rules: {
+				...existingIntegration.rules,
+				"@francogp/domain-type/no-tautological-integration-mocks": "error"
+			}
+		};
+		else effective.push({
+			files: integrationGlobs,
+			rules: { "@francogp/domain-type/no-tautological-integration-mocks": "error" }
+		});
+	}
 	return effective;
 }
 function buildIgnorePatternsAst(ignores, lockedSkillsIgnores = []) {

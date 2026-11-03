@@ -13,6 +13,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
+import { unwrapExpression } from './astContext.ts';
 import { AUDIT_CONFIG_FILE } from './auditConfigTypes.ts';
 
 export type AuditConfigAstRuleId =
@@ -66,38 +67,75 @@ function getPropertyName(
   return node.name.getText(sourceFile);
 }
 
-function getArrayItemIdentity(element: ts.Expression, sourceFile: ts.SourceFile): string | null {
-  if (ts.isStringLiteral(element) || ts.isNoSubstitutionTemplateLiteral(element)) {
-    return element.text;
-  }
-  if (ts.isNumericLiteral(element)) {
-    return element.text;
-  }
-  if (ts.isObjectLiteralExpression(element)) {
-    let policy = '';
-    let glob = '';
-    let id = '';
-    let pattern = '';
-    for (const prop of element.properties) {
-      if (ts.isPropertyAssignment(prop)) {
-        const name = getPropertyName(prop, sourceFile);
-        if (name === 'policy' && ts.isStringLiteral(prop.initializer)) {
-          policy = prop.initializer.text;
-        } else if (name === 'glob' && ts.isStringLiteral(prop.initializer)) {
-          glob = prop.initializer.text;
-        } else if (name === 'id' && ts.isStringLiteral(prop.initializer)) {
-          id = prop.initializer.text;
-        } else if (name === 'pattern' && ts.isStringLiteral(prop.initializer)) {
-          pattern = prop.initializer.text;
-        }
+function resolvePrimitiveIdentity(expr: ts.Expression): string | null {
+  if (ts.isStringLiteral(expr) || ts.isNoSubstitutionTemplateLiteral(expr)) return expr.text;
+  if (ts.isNumericLiteral(expr)) return expr.text;
+  if (expr.kind === ts.SyntaxKind.TrueKeyword) return 'true';
+  if (expr.kind === ts.SyntaxKind.FalseKeyword) return 'false';
+  if (ts.isIdentifier(expr)) return expr.text;
+  return null;
+}
+
+function extractObjectPropertiesMap(
+  obj: ts.ObjectLiteralExpression,
+  sourceFile: ts.SourceFile
+): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const prop of obj.properties) {
+    if (ts.isPropertyAssignment(prop)) {
+      const propName = getPropertyName(prop, sourceFile);
+      if (!propName) continue;
+      const init = unwrapExpression(prop.initializer);
+      const primitive = resolvePrimitiveIdentity(init);
+      map.set(
+        propName,
+        primitive !== null ? primitive : init.getText(sourceFile).replace(/\s+/g, ' ').trim()
+      );
+    } else if (ts.isShorthandPropertyAssignment(prop)) {
+      const propName = getPropertyName(prop, sourceFile);
+      if (propName) {
+        map.set(propName, prop.name.text);
       }
     }
-    if (policy && glob) return `${policy}:${glob}`;
-    if (glob) return glob;
-    if (id) return id;
-    if (pattern) return pattern;
   }
-  return null;
+  return map;
+}
+
+const PRIMARY_IDENTITY_KEYS: readonly string[] = ['glob', 'id', 'name', 'pattern', 'path', 'file'];
+
+function buildSortedObjectIdentity(props: ReadonlyMap<string, string>): string {
+  return [...props.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(';');
+}
+
+function resolveObjectLiteralIdentity(
+  obj: ts.ObjectLiteralExpression,
+  sourceFile: ts.SourceFile
+): string {
+  const props = extractObjectPropertiesMap(obj, sourceFile);
+  const policy = props.get('policy');
+  const glob = props.get('glob');
+  if (policy && glob) return `${policy}:${glob}`;
+  for (const key of PRIMARY_IDENTITY_KEYS) {
+    const val = props.get(key);
+    if (val) return val;
+  }
+  if (props.size > 0) {
+    return buildSortedObjectIdentity(props);
+  }
+  return obj.getText(sourceFile).replace(/\s+/g, ' ').trim();
+}
+
+export function getArrayItemIdentity(element: ts.Expression, sourceFile: ts.SourceFile): string {
+  const unwrapped = unwrapExpression(element);
+  const primitive = resolvePrimitiveIdentity(unwrapped);
+  if (primitive !== null) return primitive;
+  if (ts.isObjectLiteralExpression(unwrapped)) {
+    return resolveObjectLiteralIdentity(unwrapped, sourceFile);
+  }
+  return element.getText(sourceFile).replace(/\s+/g, ' ').trim();
 }
 
 /**
@@ -175,9 +213,10 @@ export function validateAuditConfigAst(
       }
 
       if (ts.isPropertyAssignment(prop)) {
-        if (ts.isObjectLiteralExpression(prop.initializer)) {
+        const init = unwrapExpression(prop.initializer);
+        if (ts.isObjectLiteralExpression(init)) {
           if (isRoot && !SUBSYSTEMS_WITHOUT_ENABLED.has(key)) {
-            const hasEnabled = prop.initializer.properties.some((p) => {
+            const hasEnabled = init.properties.some((p) => {
               if (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) {
                 return getPropertyName(p, sourceFile) === 'enabled';
               }
@@ -194,9 +233,9 @@ export function validateAuditConfigAst(
               });
             }
           }
-          checkObject(prop.initializer, fullPath, false);
-        } else if (ts.isArrayLiteralExpression(prop.initializer)) {
-          checkArray(prop.initializer, fullPath);
+          checkObject(init, fullPath, false);
+        } else if (ts.isArrayLiteralExpression(init)) {
+          checkArray(init, fullPath);
         }
       }
     }
@@ -206,7 +245,6 @@ export function validateAuditConfigAst(
     const seenElements = new Map<string, { line: number; col: number }>();
     for (const el of arrNode.elements) {
       const itemKey = getArrayItemIdentity(el, sourceFile);
-      if (!itemKey) continue;
       const pos = sourceFile.getLineAndCharacterOfPosition(el.getStart(sourceFile));
       const line = pos.line + 1;
       const col = pos.character + 1;

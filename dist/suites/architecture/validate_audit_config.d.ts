@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
+import "../../core/auditConfig.js";
 import { AuditTaskDefinition, AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare function deepMergeDefaultsObject(target: Record<string, unknown>, defaults: Record<string, unknown>): void;
@@ -28,11 +29,14 @@ export interface ValidateAuditConfigOptions {
 }
 export declare const AUDIT_CONFIG_REQUIREMENT: AuditorConfigFileRequirement<AuditConfigRuleId>;
 export declare class ValidateAuditConfigAuditor extends BaseAuditor<AuditConfigRuleId> {
+  protected readonly allowConfigLoadFailure = true;
   private readonly providedTasks?;
   constructor(options?: ValidateAuditConfigOptions);
   runAudit(): Promise<void>;
+  private cachedAstViolations;
   private getAstViolations;
   private verifyAstDuplicateKeys;
+  private processFixableAstViolations;
   private verifyAstDuplicateEntries;
   private verifyAstMissingEnabled;
   private verifyConfigRatchet;

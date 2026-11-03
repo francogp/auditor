@@ -1,4 +1,5 @@
 import { loadAuditConfig } from "../core/auditConfigLoader.js";
+import "../core/auditConfig.js";
 import { AuditTaskDefinition, AuditorCapabilities, AuditorPackageScriptRequirement, GitIgnoreRequirement } from "../core/auditContract.js";
 import { DEFAULT_PERMISSIONS } from "../core/permissionGuard.js";
 import { isSimilarCodeSkipped } from "../suites/architecture/validate_similar_code.js";

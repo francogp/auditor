@@ -30,7 +30,7 @@
  * 23. interval-leak: Detects setInterval without clearInterval.
  * 24. no-boolean-trap-parameters: Forbids multiple positional boolean parameters in function signatures.
  * 25. no-massive-switch: Forbids switch statements with > 10 case branches.
- * 26. no-tautological-integration-mocks: Forbids mocking database or core execution engines in integration tests.
+ * 26. no-tautological-integration-mocks: Forbids mocking database or core execution engines in tests.
  * 27. playwright-id-locators-only: Enforces 100% ID-based locators in E2E simulations.
  * 28. no-playwright-force-click: Forbids force click in Playwright simulations.
  * 29. no-test-timeout-inflation: Forbids inflating test timeouts (>= 30000ms) to mask slowness.
@@ -170,8 +170,89 @@ function getNodePropKeyName(node: OxlintAstNode): string {
   return p.key?.name ?? (typeof p.key?.value === 'string' ? p.key.value : '');
 }
 
-const NON_DOMAIN_COLLECTION_REGEX =
-  /\b\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills|identifiers|langs|languages|terms|acronyms|stopwords|ids|binaries|packages|constants|chars|nodes|specs|options|methods)\b/i;
+export const NON_DOMAIN_COLLECTION_KEYWORDS: ReadonlySet<string> = new Set([
+  'lines',
+  'parts',
+  'chunks',
+  'words',
+  'tokens',
+  'classes',
+  'errors',
+  'warnings',
+  'achievements',
+  'logs',
+  'results',
+  'missing',
+  'args',
+  'flags',
+  'files',
+  'entries',
+  'rows',
+  'queries',
+  'messages',
+  'diffs',
+  'patterns',
+  'findings',
+  'details',
+  'dirs',
+  'paths',
+  'roots',
+  'globs',
+  'labels',
+  'violations',
+  'items',
+  'commands',
+  'scripts',
+  'headers',
+  'steps',
+  'rules',
+  'types',
+  'extensions',
+  'modules',
+  'sections',
+  'subtitles',
+  'names',
+  'codes',
+  'tags',
+  'candidates',
+  'res',
+  'list',
+  'arr',
+  'output',
+  'buffer',
+  'elements',
+  'records',
+  'sources',
+  'targets',
+  'params',
+  'values',
+  'keys',
+  'props',
+  'attributes',
+  'variants',
+  'aliases',
+  'skills',
+  'identifiers',
+  'langs',
+  'languages',
+  'terms',
+  'acronyms',
+  'stopwords',
+  'ids',
+  'binaries',
+  'packages',
+  'constants',
+  'chars',
+  'nodes',
+  'specs',
+  'options',
+  'methods'
+]);
+
+export const NON_DOMAIN_COLLECTION_REGEX = new RegExp(
+  `\\b\\w*(?:${Array.from(NON_DOMAIN_COLLECTION_KEYWORDS).join('|')})\\b`,
+  'i'
+);
 
 function getRuleContextFilename(context: OxlintRuleContext): string {
   const raw = context.filename || (context.getFilename ? context.getFilename() : '');
@@ -1230,7 +1311,7 @@ export const domainTypeOxlintPlugin = {
       meta: {
         type: 'problem',
         docs: {
-          description: 'Forbids mocking database or core execution engines in integration tests'
+          description: 'Forbids mocking database or core execution engines in tests'
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
@@ -1242,15 +1323,13 @@ export const domainTypeOxlintPlugin = {
               if (method === 'mock' || method === 'spyOn') {
                 const firstArg = node.arguments?.[0] as { value?: unknown };
                 const target = typeof firstArg?.value === 'string' ? firstArg.value : '';
-                const filename = getRuleContextFilename(context);
-                const isIntegration = /(?:^|[._/-])integration(?:[._/-]|$)/i.test(filename);
                 const isForbiddenTarget = /supabase|database|\bdb\b|persistence|repository/i.test(
                   target
                 );
-                if (isIntegration && isForbiddenTarget) {
+                if (isForbiddenTarget) {
                   context.report({
                     node,
-                    message: `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in integration tests.`
+                    message: `Tautological mock detected. Mocking core execution engine '${target}' is strictly forbidden.`
                   });
                 }
               }
@@ -1391,15 +1470,6 @@ export const domainTypeOxlintPlugin = {
             }
           },
           Property(node: OxlintAstNode): void {
-            const fname = getRuleContextFilename(context);
-            if (
-              fname &&
-              (fname.endsWith('vite.config.ts') ||
-                fname.endsWith('vitest.config.ts') ||
-                fname.endsWith('playwright.config.ts'))
-            ) {
-              return;
-            }
             const key = (node as { key?: { name?: string }; value?: { value?: unknown } }).key;
             const value = (node as { value?: { value?: unknown } }).value;
             if (
@@ -1407,6 +1477,28 @@ export const domainTypeOxlintPlugin = {
               typeof value?.value === 'number' &&
               value.value >= 30000
             ) {
+              const parentObj = node.parent;
+              const grandParent = parentObj?.parent;
+              if (grandParent) {
+                if (grandParent.type !== 'CallExpression') {
+                  return;
+                }
+                const callee = grandParent.callee;
+                const calleeName =
+                  callee?.type === 'Identifier'
+                    ? callee.name
+                    : callee?.type === 'MemberExpression'
+                      ? callee.property?.name
+                      : undefined;
+                if (
+                  calleeName !== 'describe' &&
+                  calleeName !== 'it' &&
+                  calleeName !== 'test' &&
+                  calleeName !== 'suite'
+                ) {
+                  return;
+                }
+              }
               context.report({
                 node,
                 message: `Test timeout inflation detected (${value.value}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`
@@ -2254,16 +2346,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext): OxlintRuleListener {
         return {
           MemberExpression(node: OxlintAstNode): void {
-            const fname = getRuleContextFilename(context);
-            if (
-              fname &&
-              (fname.endsWith('cittyHarness.ts') ||
-                fname.endsWith('cliUtils.ts') ||
-                fname.endsWith('setup_env.ts') ||
-                fname.endsWith('check_environment.ts'))
-            ) {
-              return;
-            }
             const isProcessArgv = node.object?.name === 'process' && node.property?.name === 'argv';
             const isDenoArgs = node.object?.name === 'Deno' && node.property?.name === 'args';
             const isBunArgv = node.object?.name === 'Bun' && node.property?.name === 'argv';
@@ -2313,10 +2395,6 @@ export const domainTypeOxlintPlugin = {
       create(context: OxlintRuleContext): OxlintRuleListener {
         return {
           CallExpression(node: OxlintAstNode): void {
-            const fname = getRuleContextFilename(context);
-            if (fname && (fname.endsWith('cittyHarness.ts') || fname.endsWith('cliUtils.ts'))) {
-              return;
-            }
             const callee = node.callee;
             if (callee?.type === 'MemberExpression') {
               const prop = callee.property?.name;

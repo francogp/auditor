@@ -1764,6 +1764,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
   public readonly exemptPaths: readonly string[];
   public readonly unignoreDirs: readonly string[];
   public readonly requiredFiles: readonly string[];
+  protected readonly allowConfigLoadFailure: boolean = false;
   public readonly requiresAst: boolean;
   public readonly projectRoot: string;
   public readonly configKey: string;
@@ -2903,7 +2904,7 @@ export abstract class BaseAuditor<TRuleId extends string = string>
       try {
         await loadAuditConfig(this.projectRoot);
       } catch (err: unknown) {
-        if (this.id !== 'validate_audit_config') {
+        if (!this.allowConfigLoadFailure) {
           throw err;
         }
       }

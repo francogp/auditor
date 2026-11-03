@@ -1,4 +1,5 @@
 import { ChunkBudgetConfig } from "../core/auditConfigTypes.js";
+import "../core/auditConfig.js";
 import { SubAuditorStatus } from "../core/auditContract.js";
 export interface ModuleMeta {
   readonly id: string;

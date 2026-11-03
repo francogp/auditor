@@ -53,7 +53,85 @@ function getNodePropKeyName(node) {
 	const p = node;
 	return p.key?.name ?? (typeof p.key?.value === "string" ? p.key.value : "");
 }
-const NON_DOMAIN_COLLECTION_REGEX = /\b\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills|identifiers|langs|languages|terms|acronyms|stopwords|ids|binaries|packages|constants|chars|nodes|specs|options|methods)\b/i;
+const NON_DOMAIN_COLLECTION_KEYWORDS = /* @__PURE__ */ new Set([
+	"lines",
+	"parts",
+	"chunks",
+	"words",
+	"tokens",
+	"classes",
+	"errors",
+	"warnings",
+	"achievements",
+	"logs",
+	"results",
+	"missing",
+	"args",
+	"flags",
+	"files",
+	"entries",
+	"rows",
+	"queries",
+	"messages",
+	"diffs",
+	"patterns",
+	"findings",
+	"details",
+	"dirs",
+	"paths",
+	"roots",
+	"globs",
+	"labels",
+	"violations",
+	"items",
+	"commands",
+	"scripts",
+	"headers",
+	"steps",
+	"rules",
+	"types",
+	"extensions",
+	"modules",
+	"sections",
+	"subtitles",
+	"names",
+	"codes",
+	"tags",
+	"candidates",
+	"res",
+	"list",
+	"arr",
+	"output",
+	"buffer",
+	"elements",
+	"records",
+	"sources",
+	"targets",
+	"params",
+	"values",
+	"keys",
+	"props",
+	"attributes",
+	"variants",
+	"aliases",
+	"skills",
+	"identifiers",
+	"langs",
+	"languages",
+	"terms",
+	"acronyms",
+	"stopwords",
+	"ids",
+	"binaries",
+	"packages",
+	"constants",
+	"chars",
+	"nodes",
+	"specs",
+	"options",
+	"methods"
+]);
+const NON_DOMAIN_COLLECTION_REGEX = new RegExp(`\\b\\w*(?:${Array.from(NON_DOMAIN_COLLECTION_KEYWORDS).join("|")})\\b`, "i");
 function getRuleContextFilename(context) {
 	const raw = context.filename || (context.getFilename ? context.getFilename() : "");
 	return raw ? raw.split("\\").join("/") : "";
@@ -725,7 +803,7 @@ const domainTypeOxlintPlugin = {
 		"no-tautological-integration-mocks": {
 			meta: {
 				type: "problem",
-				docs: { description: "Forbids mocking database or core execution engines in integration tests" }
+				docs: { description: "Forbids mocking database or core execution engines in tests" }
 			},
 			create(context) {
 				return { CallExpression(node) {
@@ -735,12 +813,9 @@ const domainTypeOxlintPlugin = {
 						if (method === "mock" || method === "spyOn") {
 							const firstArg = node.arguments?.[0];
 							const target = typeof firstArg?.value === "string" ? firstArg.value : "";
-							const filename = getRuleContextFilename(context);
-							const isIntegration = /(?:^|[._/-])integration(?:[._/-]|$)/i.test(filename);
-							const isForbiddenTarget = /supabase|database|\bdb\b|persistence|repository/i.test(target);
-							if (isIntegration && isForbiddenTarget) context.report({
+							if (/supabase|database|\bdb\b|persistence|repository/i.test(target)) context.report({
 								node,
-								message: `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in integration tests.`
+								message: `Tautological mock detected. Mocking core execution engine '${target}' is strictly forbidden.`
 							});
 						}
 					}
@@ -840,14 +915,21 @@ const domainTypeOxlintPlugin = {
 						}
 					},
 					Property(node) {
-						const fname = getRuleContextFilename(context);
-						if (fname && (fname.endsWith("vite.config.ts") || fname.endsWith("vitest.config.ts") || fname.endsWith("playwright.config.ts"))) return;
 						const key = node.key;
 						const value = node.value;
-						if ((key?.name === "testTimeout" || key?.name === "timeout") && typeof value?.value === "number" && value.value >= 3e4) context.report({
-							node,
-							message: `Test timeout inflation detected (${value.value}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`
-						});
+						if ((key?.name === "testTimeout" || key?.name === "timeout") && typeof value?.value === "number" && value.value >= 3e4) {
+							const grandParent = node.parent?.parent;
+							if (grandParent) {
+								if (grandParent.type !== "CallExpression") return;
+								const callee = grandParent.callee;
+								const calleeName = callee?.type === "Identifier" ? callee.name : callee?.type === "MemberExpression" ? callee.property?.name : void 0;
+								if (calleeName !== "describe" && calleeName !== "it" && calleeName !== "test" && calleeName !== "suite") return;
+							}
+							context.report({
+								node,
+								message: `Test timeout inflation detected (${value.value}ms). Extending test timeouts to mask slowness or contention is strictly forbidden.`
+							});
+						}
 					}
 				};
 			}
@@ -1325,8 +1407,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { MemberExpression(node) {
-					const fname = getRuleContextFilename(context);
-					if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts") || fname.endsWith("setup_env.ts") || fname.endsWith("check_environment.ts"))) return;
 					const isProcessArgv = node.object?.name === "process" && node.property?.name === "argv";
 					const isDenoArgs = node.object?.name === "Deno" && node.property?.name === "args";
 					const isBunArgv = node.object?.name === "Bun" && node.property?.name === "argv";
@@ -1366,8 +1446,6 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				return { CallExpression(node) {
-					const fname = getRuleContextFilename(context);
-					if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts"))) return;
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression") {
 						const prop = callee.property?.name;
@@ -1770,4 +1848,4 @@ const domainTypeOxlintPlugin = {
 		}
 	}
 };
-export { CANONICAL_INFRA_ID_WHITELIST, COMMON_NON_DOMAIN_SET_NAMES, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };
+export { CANONICAL_INFRA_ID_WHITELIST, COMMON_NON_DOMAIN_SET_NAMES, NON_DOMAIN_COLLECTION_KEYWORDS, NON_DOMAIN_COLLECTION_REGEX, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };

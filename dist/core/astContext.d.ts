@@ -45,3 +45,12 @@ export declare function printAstNode(node: ts.Node, printer?: ts.Printer, hint?:
 export declare function extractExportedConfigObjectLiteral(source: ts.SourceFile): ts.ObjectLiteralExpression | null;
 export declare function dtoValueToTsExpression(value: unknown): ts.Expression;
 export declare function formatTsNodeTwoSpaceIndent(node: ts.Node, hint?: ts.EmitHint): string;
+/**
+ * Unwraps TypeScript expression wrappers:
+ * - AsExpression (expr as Type)
+ * - TypeAssertionExpression (<Type>expr)
+ * - SatisfiesExpression (expr satisfies Type)
+ * - ParenthesizedExpression ((expr))
+ * - NonNullExpression (expr!)
+ */
+export declare function unwrapExpression(expr: ts.Expression): ts.Expression;

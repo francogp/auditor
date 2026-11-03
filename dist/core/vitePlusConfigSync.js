@@ -1,9 +1,9 @@
 import { DEFAULT_CANONICAL_LINT_RULES } from "./auditConfigDefaults.js";
 import { safeReadFileSync, safeRmSync, tryOrNull } from "./safeUtils.js";
 import { getAuditConfig } from "./auditConfigLoader.js";
+import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { toPosixRelative } from "./safePath.js";
 import "./auditConfig.js";
-import { CANONICAL_SYSTEM_IGNORE_GLOBS, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { getPackageJson, writePackageJson } from "./packageJson.js";
 import { getAuditorCanonicalOverrides, getAuditorMinimumVersions, normalizeToCaretRange } from "./auditorMinimums.js";
 import { buildCanonicalVitePlusAstSource, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, parseLegacyTestPropertyNode, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst } from "./viteConfigAst.js";

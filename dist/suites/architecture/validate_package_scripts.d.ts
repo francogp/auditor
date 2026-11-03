@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "../../core/auditConfigTypes.js";
+import "../../core/auditConfig.js";
 import { RuleFixContext } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 export declare const PACKAGE_SCRIPTS_RULES: readonly ["package-scripts-missing-file", "package-scripts-build-missing-audit", "package-scripts-removed-commit-gate", "package-scripts-invalid-production-ref", "package-scripts-invalid-ratchet-baseline", "package-scripts-missing-recommended", "package-scripts-obsolete"];

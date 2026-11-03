@@ -1,4 +1,5 @@
 import { AuditEngineConfig } from "../core/auditConfigTypes.js";
+import "../core/auditConfig.js";
 import { AuditExecutionPhase, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditRunMode, AuditTaskDefinition, StandardAuditResult } from "../core/auditContract.js";
 import { BaseAuditor } from "../core/auditorBase.js";
 import { ConsoleOutputMode } from "../core/streamingFormat.js";

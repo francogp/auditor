@@ -1,4 +1,5 @@
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
+import "../../core/auditConfig.js";
 import { AuditorConfigFileRequirement } from "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "stylelint-declaration-strict-value";
