@@ -148,7 +148,7 @@ function validateChildRegistration(rootDir, doxFilesMap) {
 		const targetLower = extractChildDoxSection(parentContent).toLowerCase();
 		const cleanLower = cleanPath.toLowerCase();
 		const dirOnlyLower = dirOnlyPath.toLowerCase();
-		if (!(targetLower.includes(cleanLower) || targetLower.includes("./" + cleanLower) || targetLower.includes(encodeURI(cleanLower)) || targetLower.includes("./" + encodeURI(cleanLower)) || targetLower.includes(dirOnlyLower + "/") || targetLower.includes("./" + dirOnlyLower + "/") || targetLower.includes("[" + dirOnlyLower + "/]") || targetLower.includes("[`" + dirOnlyLower + "/`]"))) {
+		if (!(targetLower.includes(cleanLower) || targetLower.includes(`./${cleanLower}`) || targetLower.includes(encodeURI(cleanLower)) || targetLower.includes(`./${encodeURI(cleanLower)}`) || targetLower.includes(`${dirOnlyLower}/`) || targetLower.includes(`./${dirOnlyLower}/`) || targetLower.includes(`[${dirOnlyLower}/]`) || targetLower.includes(`[\`${dirOnlyLower}/\`]`))) {
 			const parentFile = path.join(parentDoxDir, "AGENTS.md");
 			violations.push({
 				file: parentFile,

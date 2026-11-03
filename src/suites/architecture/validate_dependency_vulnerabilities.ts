@@ -62,10 +62,9 @@ export function runNpmAudit(
   projectRoot: string,
   omitDev = true
 ): { stdout: string; error?: Error } {
-  const args = ['audit', '--json'];
-  if (omitDev) {
-    args.push('--omit=dev');
-  }
+  const args = omitDev
+    ? (['audit', '--json', '--omit=dev'] as const)
+    : (['audit', '--json'] as const);
   let proc;
   try {
     proc = runNpmCommandSync(args, {

@@ -26,7 +26,6 @@ import {
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
   resolveFileScanRoots,
-  deriveCoverageFromRoots,
   getEffectiveIgnoreGlobs,
   getEffectiveUnignoreDirs,
   DEFAULT_AUDIT_CONFIG,
@@ -44,18 +43,18 @@ export const MY_FEATURE_RULES: readonly MyFeatureRuleId[] = [
 ] as const;
 
 export interface MyFeatureAuditorOptions extends FileScanRootsOptions {
-  readonly exemptPaths?: readonly (string | RegExp)[];
+  readonly exemptPaths?: readonly string[];
 }
 
 export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
   // Optional gitignore requirements for tool caches or ephemeral artifacts:
   public static readonly gitIgnoreEntries: readonly GitIgnoreRequirement[] = [];
 
-  constructor(options: MyFeatureAuditorOptions = {}) {
+  public constructor(options: MyFeatureAuditorOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) =>
-        config.documentation?.skillsRoots ?? DEFAULT_AUDIT_CONFIG.documentation.skillsRoots
+        config.documentation?.skillsRoots ?? DEFAULT_AUDIT_CONFIG.documentation?.skillsRoots ?? []
     );
     const allowedExtensions = new Set(['.md']);
 
@@ -119,7 +118,9 @@ export class MyFeatureAuditor extends FileScanAuditor<MyFeatureRuleId> {
       exemptPaths: options.exemptPaths,
       extraIgnorePatterns: getEffectiveIgnoreGlobs(effectiveRoot),
       unignoreDirs: getEffectiveUnignoreDirs(effectiveRoot),
-      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      coverage: {
+        include: targetRoots.map((r) => `${r}/**/*.{md}`)
+      },
       projectRoot: effectiveRoot
     });
 

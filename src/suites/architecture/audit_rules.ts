@@ -12,9 +12,9 @@ import {
   isScriptPath,
   isTestPath
 } from '../../core/auditConfig.ts';
+import { CANONICAL_INFRA_ID_WHITELIST } from '../../core/domainTypeOxlintPlugin.ts';
 import { normalizePosixPath } from '../../core/safePath.ts';
 import { parseVueSfc } from '../../core/vueSfcParser.ts';
-import { CANONICAL_INFRA_ID_WHITELIST } from '../domain_data/validate_domain_types.ts';
 
 export {
   AUDIT_SEVERITIES,

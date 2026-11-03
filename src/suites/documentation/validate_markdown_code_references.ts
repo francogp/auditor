@@ -27,14 +27,19 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
-import { getAuditConfig, type AuditEngineConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { FindingSeverity } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
   isPathIgnored,
+  getAuditConfig,
+  type AuditEngineConfig,
+  DEFAULT_AUDIT_CONFIG,
+  type FindingSeverity,
+  normalizePosixPath,
+  toPosixRelative,
+  tryOrDefault,
+  tryOrNull,
   type FileScanRootsOptions
 } from '../../core/auditorBase.ts';
 import {
@@ -46,8 +51,9 @@ import {
   resolveProjectVersionInfo,
   scanAndFixMarkdownProjectVersions
 } from '../../core/markdownVersionValidator.ts';
-import { normalizePosixPath, toPosixRelative } from '../../core/safePath.ts';
-import { tryOrDefault, tryOrNull } from '../../core/safeUtils.ts';
+import type { AuditorTestsAuditor } from '../architecture/validate_auditor_tests.ts';
+
+export type PeerAuditorTests = AuditorTestsAuditor;
 
 enableCompileCache();
 

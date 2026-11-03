@@ -98,10 +98,11 @@ function resolveAuditConfigIgnoreGlobs(config, target = "lint", projectRoot = pr
 * Generates the canonical Vite+ unified configuration (vite.config.ts)
 * using the TypeScript Compiler AST printer.
 */
-function buildCanonicalVitePlusConfig(auditConfig, projectRoot) {
+function buildCanonicalVitePlusConfig(auditConfig, projectRoot = process.cwd()) {
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "lint", projectRoot);
 	const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, "fmt", projectRoot);
-	return buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores);
+	const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
+	return buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, null, lockedSkillsIgnores);
 }
 function findLegacyTestBlock(projectRoot) {
 	for (const vitestCandidate of [
@@ -139,7 +140,8 @@ function syncViteConfigWithAuditConfig(projectRoot, auditConfig) {
 	const lintIgnores = resolveAuditConfigIgnoreGlobs(config, "lint", projectRoot);
 	const fmtIgnores = resolveAuditConfigIgnoreGlobs(config, "fmt", projectRoot);
 	if (!fs.existsSync(viteConfigPath)) {
-		const content = buildCanonicalVitePlusAstSource(config, lintIgnores, fmtIgnores, legacyTestProp);
+		const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
+		const content = buildCanonicalVitePlusAstSource(config, lintIgnores, fmtIgnores, legacyTestProp, lockedSkillsIgnores);
 		fs.writeFileSync(viteConfigPath, content, "utf-8");
 		return {
 			modified: true,

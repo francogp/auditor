@@ -41,7 +41,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     expect(taskIds).toContain('validate_fallow');
     expect(taskIds).toContain('validate_oxlint');
     expect(taskIds).not.toContain('validate_type_check');
-    expect(taskIds).toContain('validate_domain_types');
+    expect(taskIds).toContain('validate_oxfmt');
     expect(taskIds).not.toContain('validate_similar_code');
     expect(taskIds).not.toContain('validate_type_coverage');
   });
@@ -63,7 +63,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     expect(taskIds).not.toContain('validate_type_check');
     expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('validate_html_validate');
-    expect(taskIds).toContain('validate_domain_types');
+    expect(taskIds).toContain('validate_oxfmt');
     expect(taskIds).not.toContain('validate_similar_code');
     expect(taskIds).not.toContain('validate_type_coverage');
     expect(taskIds).not.toContain('validate_bundle_budget');
@@ -79,7 +79,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
 
     // Source suites (light + heavy) must be present
     expect(taskIds).toContain('validate_oxlint');
-    expect(taskIds).toContain('validate_native_paths');
+    expect(taskIds).toContain('validate_stylelint');
     expect(taskIds).toContain('audit_project');
     expect(taskIds).toContain('validate_similar_code');
   });
@@ -125,7 +125,6 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     // Source suites must NOT be present in post-build phase
     expect(taskIds).not.toContain('validate_oxlint');
     expect(taskIds).not.toContain('validate_stylelint');
-    expect(taskIds).not.toContain('validate_native_paths');
     expect(taskIds).not.toContain('audit_project');
     expect(taskIds).not.toContain('validate_similar_code');
   });
@@ -141,7 +140,7 @@ describe('Capability-Driven Speed & Phase Architecture (auditor:lint, auditor, a
     const taskIds = tasks.map((t) => t.id);
     expect(taskIds).toContain('validate_bundle_budget');
     expect(taskIds).toContain('validate_oxlint');
-    expect(taskIds).toContain('validate_native_paths');
+    expect(taskIds).toContain('validate_stylelint');
   });
 
   it('evaluates getExecutionTier, isFastMode, resolveRuleEffectiveSpeed, and resolveCommandArgs accurately on BaseAuditor', () => {

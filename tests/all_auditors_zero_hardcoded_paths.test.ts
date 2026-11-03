@@ -378,10 +378,10 @@ describe('Universal Zero Hardcoded Paths & Scope Conformance (All Sub-Auditors &
 
   it('guarantees that passing an explicit root strictly confines the auditor to that single root and nothing more', async () => {
     const singleExplicitRoot = 'strictly_single_isolated_root';
-    const { AuditHeadersAuditor } =
-      await import('../src/suites/architecture/validate_audit_headers.ts');
+    const { ValidateMagicNumbersAuditor } =
+      await import('../src/suites/architecture/validate_magic_numbers.ts');
 
-    const auditor = new AuditHeadersAuditor({
+    const auditor = new ValidateMagicNumbersAuditor({
       projectRoot: tempDir,
       roots: [singleExplicitRoot]
     });

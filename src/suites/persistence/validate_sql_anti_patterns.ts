@@ -27,16 +27,19 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  createRuleCapabilities
+  createRuleCapabilities,
+  getAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
+  deriveCoverageFromRoots,
+  normalizePosixPath,
+  safeReadFileSync
 } from '../../core/auditorBase.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
-import { safeReadFileSync } from '../../core/safeUtils.ts';
+import type { BundleBudgetAuditor } from '../architecture/validate_bundle_budget.ts';
+
+export type PeerAuditorPersistence = BundleBudgetAuditor;
 
 enableCompileCache();
 

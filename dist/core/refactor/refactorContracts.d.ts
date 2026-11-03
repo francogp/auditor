@@ -190,7 +190,7 @@ export interface O1RefactorPlan {
     readonly replacementReturn: string;
   }[];
 }
-export type TypesFindingKind = 'as-any' | 'double-assertion' | 'missing-return-type' | 'missing-param-type';
+export type TypesFindingKind = 'as-any' | 'double-assertion' | 'missing-return-type';
 export interface TypesFindingItem {
   readonly file: string;
   readonly line: number;
@@ -215,12 +215,6 @@ export interface TypesRefactorPlan {
     readonly line: number;
     readonly originalHeader: string;
     readonly replacementHeader: string;
-  }[];
-  readonly parameterInjections?: readonly {
-    readonly file: string;
-    readonly line: number;
-    readonly originalParameter: string;
-    readonly replacementParameter: string;
   }[];
 }
 export type DomainFindingKind = 'naked-string-parameter' | 'unfrozen-catalog' | 'unbranded-id' | 'record-string-key';

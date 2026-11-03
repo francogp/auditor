@@ -1,4 +1,3 @@
-import type { PluginOption } from 'vite';
 import { defineConfig } from 'vite-plus';
 
 /**
@@ -48,6 +47,7 @@ export default defineConfig({
     rules: {
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/ban-ts-comment': 'error',
+      '@typescript-eslint/no-unused-vars': 'error',
       '@typescript-eslint/consistent-type-assertions': [
         'error',
         { assertionStyle: 'as', objectLiteralTypeAssertions: 'never' }

@@ -22,7 +22,7 @@ describe('Reproduction: [Brief Bug Title]', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     if (typeof globalThis.window === 'undefined') {
-      (globalThis as unknown as { window: unknown }).window = globalThis;
+      Reflect.set(globalThis, 'window', globalThis);
     }
   });
 
@@ -34,16 +34,16 @@ describe('Reproduction: [Brief Bug Title]', () => {
 
   it('reproduces [specific bug condition] in RED and validates the fix in GREEN', async () => {
     // 1. Arrange: Inlined static fixture data
-    const mockInput = {
-      // Inline the exact properties that triggered the bug
-    };
+    // const mockInput = {
+    //   // Inline the exact properties that triggered the bug
+    // };
 
     // 2. Act: Execute the function, store action, or engine method under test
     // const result = testedFunction(mockInput);
 
     // 3. Assert: Verify the expected, bug-free behavior
     // expect(result).toBeDefined();
-    expect(true).toBe(true);
+    expect(true).toBeTruthy();
   });
 });
 

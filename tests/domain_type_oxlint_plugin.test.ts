@@ -9,11 +9,13 @@ import {
 describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
   function createMockContext(options?: {
     text?: string;
+    filename?: string;
     commentsBefore?: string[];
     commentsAfter?: string[];
   }): { reports: OxlintReportDescriptor[]; context: OxlintRuleContext } {
     const reports: OxlintReportDescriptor[] = [];
     const context: OxlintRuleContext = {
+      filename: options?.filename,
       report: (descriptor: OxlintReportDescriptor) => {
         reports.push(descriptor);
       },
@@ -267,6 +269,24 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
             type: 'ArrayExpression',
             elements: [{ type: 'Literal', value: 'red' }]
           }
+        }
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('Clean Canary: permits literal arrays without as const in plain JavaScript files (.js, .cjs, .mjs)', () => {
+      const { reports, context } = createMockContext({
+        filename: '.agents/scripts/prevent_destructive_git.js'
+      });
+      const visitor = rule.create(context);
+      visitor.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        init: {
+          type: 'ArrayExpression',
+          elements: [
+            { type: 'Literal', value: '.fallowrc.json' },
+            { type: 'Literal', value: 'vite.config.ts' }
+          ]
         }
       });
       expect(reports).toHaveLength(0);

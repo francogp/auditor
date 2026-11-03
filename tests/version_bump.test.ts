@@ -218,6 +218,19 @@ describe('Version Analyzer & SemVer Heuristics', () => {
       expect(fs.existsSync(path.join(tempDir, 'src/version.ts'))).toBe(false);
     });
 
+    it('throws error when bumpType is missing and targetVersion is omitted', () => {
+      const pkgPath = path.join(tempDir, 'package.json');
+      fs.writeFileSync(
+        pkgPath,
+        JSON.stringify({ name: 'my-project', version: '1.4.2' }, null, 2),
+        'utf-8'
+      );
+
+      expect(() => {
+        applyVersionBump({ cwd: tempDir });
+      }).toThrow('Missing required bump type');
+    });
+
     it('honors major bump override', () => {
       const pkgPath = path.join(tempDir, 'package.json');
       fs.writeFileSync(
@@ -481,13 +494,47 @@ describe('Version Analyzer & SemVer Heuristics', () => {
 
         logs.length = 0;
         runBumpCli(['bump', '--help']);
-        expect(logs.some((l) => l.includes('auditor-version bump [type]'))).toBe(true);
+        expect(logs.some((l) => l.includes('auditor-version bump <type>'))).toBe(true);
 
         logs.length = 0;
         runBumpCli(['analyze', '--help']);
         expect(logs.some((l) => l.includes('auditor-version analyze'))).toBe(true);
       } finally {
         logSpy.mockRestore();
+      }
+    });
+
+    it('rejects bump command when no bump type or targetVersion is provided', () => {
+      const errors: string[] = [];
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation((msg?: unknown) => {
+        errors.push(String(msg));
+      });
+      const initialExitCode = process.exitCode;
+
+      try {
+        runBumpCli(['bump'], tempDir);
+        expect(errors.some((e) => e.includes('Missing required bump type'))).toBe(true);
+        expect(process.exitCode).toBe(1);
+      } finally {
+        errorSpy.mockRestore();
+        process.exitCode = initialExitCode;
+      }
+    });
+
+    it('rejects auto bump type to prevent implicit automated version changes', () => {
+      const errors: string[] = [];
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation((msg?: unknown) => {
+        errors.push(String(msg));
+      });
+      const initialExitCode = process.exitCode;
+
+      try {
+        runBumpCli(['bump', 'auto'], tempDir);
+        expect(errors.some((e) => e.includes('Unrecognized bump type: "auto"'))).toBe(true);
+        expect(process.exitCode).toBe(1);
+      } finally {
+        errorSpy.mockRestore();
+        process.exitCode = initialExitCode;
       }
     });
 

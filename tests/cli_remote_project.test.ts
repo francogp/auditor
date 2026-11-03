@@ -136,11 +136,11 @@ describe('Remote Project CLI Bootstrap (bootstrapCliProject)', () => {
     expect(tasks.length).toBeGreaterThan(30);
 
     const hasAuditProject = tasks.some((t) => t.id === 'audit_project');
-    const hasGsap = tasks.some((t) => t.id === 'validate_gsap_animations');
+    const hasMagic = tasks.some((t) => t.id === 'validate_magic_numbers');
     const hasOxlint = tasks.some((t) => t.id === 'validate_oxlint');
 
     expect(hasAuditProject).toBe(true);
-    expect(hasGsap).toBe(true);
+    expect(hasMagic).toBe(true);
     expect(hasOxlint).toBe(true);
   });
 

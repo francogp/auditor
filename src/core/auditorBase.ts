@@ -75,7 +75,7 @@ import {
   REMEDIATION_PHASE_IDS,
   isRemediationPhaseId
 } from './remediationPhases.ts';
-import { safeStatSync } from './safeUtils.ts';
+import { safeStatSync, safeReadFileSync, tryOrDefault, tryOrNull } from './safeUtils.ts';
 
 export {
   deriveCanonicalAuditorScript,
@@ -89,10 +89,18 @@ import ts from 'typescript';
 import { isMainModule } from '../cli/cliUtils.ts';
 import type { SharedAstContext } from './astContext.ts';
 import {
+  type AuditConfig,
   type AuditEngineConfig,
   type BaseAuditSubsystemConfig,
   getAuditConfig,
-  loadAuditConfig
+  loadAuditConfig,
+  AUDIT_CONFIG_FILE,
+  AUDITOR_DIR,
+  isTestPath,
+  isExemptFile,
+  resolveZLayersScssPath,
+  getEffectiveZLayers,
+  Z_LAYERS
 } from './auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from './auditConfigDefaults.ts';
 import {
@@ -142,7 +150,31 @@ export {
   type RuleFixerFn,
   type AnyRuleFixerFn,
   type RuleFixersMap,
-  type AuditorComputedCapabilities
+  type AuditorComputedCapabilities,
+  type FindingSeverity,
+  type GitIgnoreRequirement,
+  type AuditConfig,
+  type AuditEngineConfig,
+  getAuditConfig,
+  loadAuditConfig,
+  DEFAULT_AUDIT_CONFIG,
+  AUDIT_CONFIG_FILE,
+  AUDITOR_DIR,
+  isTestPath,
+  isExemptFile,
+  resolveZLayersScssPath,
+  getEffectiveZLayers,
+  Z_LAYERS,
+  deriveCoverageFromRoots,
+  normalizePosixPath,
+  toPosixRelative,
+  COMMON_CLI_ARGS,
+  getProcessCliArgs,
+  parseCittyArgs,
+  type CittyArgsDef,
+  safeReadFileSync,
+  tryOrDefault,
+  tryOrNull
 };
 
 enableCompileCache();
@@ -3482,7 +3514,7 @@ export abstract class FileScanAuditor<
   }): void {
     const pos = params.doc
       ? params.doc.getLineAndColumn(params.matchIndex)
-      : (() => {
+      : ((): { line: number; column: number; col: number; lineText: string } => {
           const preceding = params.content.slice(0, params.matchIndex);
           const line = preceding.split('\n').length;
           const col = (preceding.split('\n').pop()?.length ?? 0) + 1;

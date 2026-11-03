@@ -18,17 +18,18 @@
 
 import { enableCompileCache } from 'node:module';
 
-import { getAuditConfig } from '../../core/auditConfig.ts';
 import {
   FileScanAuditor,
   BaseAuditor,
   createUniformRemediationPhases,
   createRuleCapabilities,
   resolveFileScanRoots,
-  type FileScanRootsOptions
+  type FileScanRootsOptions,
+  getAuditConfig,
+  getProcessCliArgs,
+  parseCittyArgs,
+  normalizePosixPath
 } from '../../core/auditorBase.ts';
-import { getProcessCliArgs, parseCittyArgs } from '../../core/cli/cittyHarness.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
 import { renderBoxTable } from '../../core/unifiedTheme.ts';
 
 enableCompileCache();

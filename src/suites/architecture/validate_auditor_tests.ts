@@ -15,15 +15,20 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
-import { getAuditConfig } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type { AuditTaskDefinition } from '../../core/auditContract.ts';
 import {
   BaseAuditor,
   createUniformRemediationPhases,
-  createRuleCapabilities
+  createRuleCapabilities,
+  getAuditConfig,
+  DEFAULT_AUDIT_CONFIG
 } from '../../core/auditorBase.ts';
 import { isSelfProviderProject } from '../../core/auditProjectIdentity.ts';
+import type { SqlAntiPatternsAuditor } from '../persistence/validate_sql_anti_patterns.ts';
+import type { TestFragmentationAuditor } from './validate_test_fragmentation.ts';
+
+export type PeerAuditorConformance = SqlAntiPatternsAuditor;
+export type PeerAuditorFragmentation = TestFragmentationAuditor;
 
 enableCompileCache();
 
@@ -155,11 +160,13 @@ function deriveAuditorTestsCoverage(projectRoot: string): { include: string[]; e
 
   const testPatterns =
     isSelfRepo && hasCoreSuites
-      ? (tr: string) => [
+      ? (tr: string): readonly string[] => [
           path.posix.join(tr, '**', 'validate_*.test.ts'),
           path.posix.join(tr, 'audit_project.test.ts')
         ]
-      : (tr: string) => [path.posix.join(tr, '**', '{validate,audit}_*.test.ts')];
+      : (tr: string): readonly string[] => [
+          path.posix.join(tr, '**', '{validate,audit}_*.test.ts')
+        ];
 
   const include = [
     ...auditorRoots.map((r: string) => `${r}/**/*.ts`),

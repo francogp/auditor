@@ -1,5 +1,5 @@
-import { TableColumn, renderBanner, renderBoxTable } from "../unifiedTheme.js";
 import { CommandDef } from "../cli/cittyHarness.js";
+import { TableColumn, renderBanner, renderBoxTable } from "../unifiedTheme.js";
 import { BaseRefactorEngine } from "./baseRefactorEngine.js";
 import { applyPlanFileWithWorktreeVerification } from "./worktreeSandbox.js";
 export interface DiracInspectionItem {

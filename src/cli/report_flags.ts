@@ -192,7 +192,8 @@ export function runFlagsReport(
     return 1;
   }
 
-  const runArgs = ['flags', '--format', 'json'];
+  const runArgs: string[] = [];
+  runArgs.push('flags', '--format', 'json');
   if (options.retirement) {
     runArgs.push('--retirement');
   }

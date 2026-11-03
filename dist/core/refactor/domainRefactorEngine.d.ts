@@ -1,8 +1,8 @@
+import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
-import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
 import { DomainFindingItem, DomainRefactorPlan } from "./refactorContracts.js";
-export type DomainRefactorEngineOptions = RefactorEngineOptions<DomainTypesAuditor>;
-export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan, DomainTypesAuditor> {
+export type DomainRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
+export declare class DomainRefactorEngine extends BaseRefactorEngine<DomainFindingItem, DomainRefactorPlan, OxlintAuditor> {
   readonly toolId = "auditor-domain";
   readonly configSectionKey: "domain";
   constructor(options?: DomainRefactorEngineOptions);

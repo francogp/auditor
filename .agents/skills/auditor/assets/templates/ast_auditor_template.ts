@@ -20,10 +20,7 @@ import {
   SharedAstContext,
   getEffectiveIgnoreGlobs,
   resolveFileScanRoots,
-  deriveCoverageFromRoots,
   createUniformRuleCapabilities,
-  type AuditorRuleCapabilities,
-  type RemediationPhaseId,
   type FileScanRootsOptions
 } from '@francogp/auditor';
 import ts from 'typescript';
@@ -46,7 +43,7 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 
   private readonly targetRoots: readonly string[];
 
-  constructor(options: MyAstAuditorOptions = {}) {
+  public constructor(options: MyAstAuditorOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
       (config) => config.paths?.srcRoots
@@ -112,9 +109,8 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
       requiresAst: true,
       roots: targetRoots,
       allowedExtensions,
-      // Dynamic SSoT ignore globs derived without hardcoding
       coverage: {
-        ...deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+        include: targetRoots.map((r) => `${r}/**/*.{ts,vue}`),
         exclude: getEffectiveIgnoreGlobs(effectiveRoot)
       },
       projectRoot: effectiveRoot
@@ -125,9 +121,9 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
 
   public override async runAudit(astContext?: SharedAstContext): Promise<void> {
     // Guarantee AST engine availability (injected by orchestrator or fallback)
-    const astEngine = astContext ?? new SharedAstContext(this.projectRoot);
+    const astEngine = astContext ?? new SharedAstContext();
 
-    const relFiles = await this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
+    const relFiles = this.context.collectFiles(this.targetRoots, new Set(['.ts', '.vue']));
     const targetFiles = relFiles.filter(
       (f) => !f.includes('.spec.') && !f.includes('.test.') && !f.includes('.d.ts')
     );
@@ -145,11 +141,12 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
           // Canonical AST traversal: detect forbidden Identifier or CallExpression
           if (ts.isIdentifier(node) && node.text === 'eval') {
             const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-            this.addFinding({
+            this.addViolation({
               ruleId: 'my-ast-forbidden-pattern',
+              severity: 'error',
               file: relFile,
               line: line + 1,
-              column: character + 1,
+              col: character + 1,
               message: `Prohibited identifier '${node.text}' found in AST.`
             });
           }
@@ -171,11 +168,12 @@ export class MyAstAuditor extends BaseAuditor<MyAstRuleId> {
           }
         }
         if (!hasExportedContract && !relFile.endsWith('.vue')) {
-          this.addFinding({
+          this.addViolation({
             ruleId: 'my-ast-missing-contract',
+            severity: 'error',
             file: relFile,
             line: 1,
-            column: 1,
+            col: 1,
             message: `File '${relFile}' does not export any function contract.`
           });
         }

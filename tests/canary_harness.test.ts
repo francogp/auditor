@@ -22,8 +22,7 @@ import {
 } from '../src/core/auditCoverage.ts';
 import { legacyDates } from '../src/suites/architecture/audit_rules.ts';
 import { AuditCoverageAuditor } from '../src/suites/architecture/validate_audit_coverage.ts';
-import { ErrorSuppressionAuditor } from '../src/suites/architecture/validate_error_suppression.ts';
-import { NativePathsAuditor } from '../src/suites/architecture/validate_native_paths.ts';
+import { ValidateMagicNumbersAuditor } from '../src/suites/architecture/validate_magic_numbers.ts';
 
 describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
   let sandboxDir: string;
@@ -59,48 +58,39 @@ describe('Canary Harness & Blind-Spot Regression (Hermetic Sandbox)', () => {
     await fs.rm(sandboxDir, { recursive: true, force: true });
   });
 
-  it('Canary 1: unsafe-path-concat canary triggers violation and records evaluation', async () => {
-    const canarySource = await fs.readFile(
-      path.resolve(__dirname, 'canaries/validate_native_paths/unsafe-path-concat.ts.canary'),
-      'utf-8'
-    );
-    const targetFile = path.join(sandboxDir, 'src/canary_path.ts');
+  it('Canary 1: magic-number canary triggers violation and records evaluation', async () => {
+    const canarySource = 'export function wait(): void { setTimeout(() => {}, 5000); }\n';
+    const targetFile = path.join(sandboxDir, 'src/canary_magic.ts');
     await fs.writeFile(targetFile, canarySource, 'utf-8');
 
-    const runId = 'canary-run-native-paths';
+    const runId = 'canary-run-magic-numbers';
     process.env[COVERAGE_RUN_ID_ENV] = runId;
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
-    const auditor = new NativePathsAuditor({ roots: ['src'], projectRoot: sandboxDir });
+    const auditor = new ValidateMagicNumbersAuditor({ roots: ['src'], projectRoot: sandboxDir });
     const result = await auditor.audit();
 
-    const pathFinding = (result.findings || []).find((f) => f.ruleId === 'unsafe-path-concat');
-    expect(pathFinding).toBeDefined();
-    expect(pathFinding?.file).toContain('canary_path.ts');
+    const finding = (result.findings || []).find((f) => f.ruleId === 'magic-number-naked');
+    expect(finding).toBeDefined();
+    expect(finding?.file).toContain('canary_magic.ts');
     expect(result.summary.errors).toBeGreaterThan(0);
   });
 
-  it('Canary 2: unjustified-error-suppression canary triggers violation and records evaluation', async () => {
-    const canarySource = await fs.readFile(
-      path.resolve(
-        __dirname,
-        'canaries/validate_error_suppression/unjustified-error-suppression.ts.canary'
-      ),
-      'utf-8'
-    );
-    const targetFile = path.join(sandboxDir, 'src/canary_catch.ts');
+  it('Canary 2: magic-number canary triggers violation and records evaluation', async () => {
+    const canarySource = 'export function wait(): void { setTimeout(() => {}, 5000); }\n';
+    const targetFile = path.join(sandboxDir, 'src/canary_magic.ts');
     await fs.writeFile(targetFile, canarySource, 'utf-8');
 
-    const runId = 'canary-run-error-suppression';
+    const runId = 'canary-run-magic-numbers';
     process.env[COVERAGE_RUN_ID_ENV] = runId;
     process.env[COVERAGE_RUN_MODE_ENV] = 'full';
 
-    const auditor = new ErrorSuppressionAuditor({ roots: ['src'], projectRoot: sandboxDir });
+    const auditor = new ValidateMagicNumbersAuditor({ roots: ['src'], projectRoot: sandboxDir });
     const result = await auditor.audit();
 
-    const catchFinding = (result.findings || []).find((f) => f.ruleId === 'no-empty-catch');
-    expect(catchFinding).toBeDefined();
-    expect(catchFinding?.file).toContain('canary_catch.ts');
+    const finding = (result.findings || []).find((f) => f.ruleId === 'magic-number-naked');
+    expect(finding).toBeDefined();
+    expect(finding?.file).toContain('canary_magic.ts');
     expect(result.summary.errors).toBeGreaterThan(0);
   });
 

@@ -72,7 +72,7 @@ export function findLegacyEslintIgnores(projectRoot: string): string[] {
     'eslint.config.mjs',
     'eslint.config.ts',
     '.eslintrc.json'
-  ];
+  ] as const;
   for (const candidate of candidates) {
     const candidatePath = path.resolve(projectRoot, candidate);
     if (!fs.existsSync(candidatePath)) continue;
@@ -158,11 +158,18 @@ export function resolveAuditConfigIgnoreGlobs(
  */
 export function buildCanonicalVitePlusConfig(
   auditConfig: AuditConfig,
-  projectRoot?: string
+  projectRoot: string = process.cwd()
 ): string {
   const lintIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'lint', projectRoot);
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(auditConfig, 'fmt', projectRoot);
-  return buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores);
+  const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
+  return buildCanonicalVitePlusAstSource(
+    auditConfig,
+    lintIgnores,
+    fmtIgnores,
+    null,
+    lockedSkillsIgnores
+  );
 }
 
 export { extractAstPropertyBlock as extractObjectPropertyBlock };
@@ -206,11 +213,13 @@ export function syncViteConfigWithAuditConfig(
   const fmtIgnores = resolveAuditConfigIgnoreGlobs(config, 'fmt', projectRoot);
 
   if (!fs.existsSync(viteConfigPath)) {
+    const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot);
     const content = buildCanonicalVitePlusAstSource(
       config,
       lintIgnores,
       fmtIgnores,
-      legacyTestProp
+      legacyTestProp,
+      lockedSkillsIgnores
     );
     fs.writeFileSync(viteConfigPath, content, 'utf-8');
     return { modified: true, content };
@@ -309,7 +318,7 @@ export const BANNED_COMPRESSION_MODULES = [
  */
 export function findHomebrewCompressionFiles(projectRoot: string): string[] {
   const detected: string[] = []; // no-domain: Non-domain dynamic path list
-  const candidateDirs = ['scripts'];
+  const candidateDirs = ['scripts'] as const;
 
   for (const d of candidateDirs) {
     const fullDir = path.resolve(projectRoot, d);

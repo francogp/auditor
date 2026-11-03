@@ -23,8 +23,7 @@ import {
   BaseAuditor,
   createUniformRuleCapabilities,
   resolveFileScanRoots,
-  type FileScanRootsOptions,
-  type RemediationPhaseId
+  type FileScanRootsOptions
 } from '@francogp/auditor';
 
 export type MyCustomRuleId = 'my-custom-rule-a' | 'my-custom-rule-b';
@@ -58,6 +57,7 @@ export class MyCustomAuditor extends BaseAuditor<MyCustomRuleId> {
         changedOnly: true,
         critical: false
       }),
+      ruleFixers: {},
       // Optional Contract-Driven Auto-Fix Map:
       // Suites provide executable repair functions mapping ruleId -> ({ projectRoot, options }) => Promise<boolean | void>
       // BaseAuditor automatically marks rules with registered fixers as fixable (capabilities.fix: 'normal').

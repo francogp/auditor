@@ -107,8 +107,8 @@ export default defineAuditConfig({
     maxClientChunkErrorBytes: 2000 * 1024, // Chunk size threshold in bytes triggering a blocking CI error (2.0 MB)
     exemptChunkPrefixes: [], // Chunk name prefixes exempt from main bundle budgets (e.g. background workers)
     budgets: [
-      { pattern: 'index', maxBytes: 1200 * 1024, warnBytes: 800 * 1024 }, // Main entry chunk budget
-      { pattern: 'vendor', maxBytes: 2000 * 1024, warnBytes: 1500 * 1024 } // Shared vendor dependencies chunk budget
+      { name: 'index', limitBytes: 1200 * 1024 }, // Main entry chunk budget
+      { name: 'vendor', limitBytes: 2000 * 1024 } // Shared vendor dependencies chunk budget
     ],
     forbiddenUiImports: [
       {

@@ -724,11 +724,11 @@ function formatCapabilityList(caps?: AuditTaskDefinition['capabilities']): strin
 }
 
 export const themeStyles = {
-  boldWhite: (s: string) => styleText(['bold', 'white'], s),
-  boldYellow: (s: string) => styleText(['bold', 'yellow'], s),
-  boldCyan: (s: string) => styleText(['bold', 'cyan'], s),
-  dim: (s: string) => styleText('dim', s),
-  white: (s: string) => styleText('white', s)
+  boldWhite: (s: string): string => styleText(['bold', 'white'], s),
+  boldYellow: (s: string): string => styleText(['bold', 'yellow'], s),
+  boldCyan: (s: string): string => styleText(['bold', 'cyan'], s),
+  dim: (s: string): string => styleText('dim', s),
+  white: (s: string): string => styleText('white', s)
 };
 
 /**

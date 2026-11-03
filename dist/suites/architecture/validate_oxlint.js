@@ -560,16 +560,18 @@ var OxlintAuditor = class extends BaseAuditor {
 			projectRoot: effectiveRoot
 		});
 	}
-	buildOxlintArgs(tier = "light", isFixMode = false) {
+	buildOxlintArgs(isFixMode = false) {
 		const threadCount = typeof os.availableParallelism === "function" ? os.availableParallelism() : os.cpus().length;
 		const args = [
 			"lint",
 			"-f",
 			"json",
 			"--threads",
-			String(threadCount)
+			String(threadCount),
+			"--type-aware",
+			"--type-check",
+			"--report-unused-disable-directives"
 		];
-		if (tier === "full") args.push("--type-aware", "--type-check", "--report-unused-disable-directives");
 		if (isFixMode) args.push("--fix");
 		return args;
 	}
@@ -581,12 +583,11 @@ var OxlintAuditor = class extends BaseAuditor {
 			source: "declared-only"
 		});
 		const isFixMode = this.isFixActive();
-		const tier = this.getExecutionTier();
 		const vpBin = resolvePackageBin("vite-plus", {
 			projectRoot: this.projectRoot,
 			fallbackRelativeBin: "bin/vp"
 		}) ?? path.resolve(this.projectRoot, "node_modules/vite-plus/bin/vp");
-		const args = this.buildOxlintArgs(tier, isFixMode);
+		const args = this.buildOxlintArgs(isFixMode);
 		const findings = parseOxlintResults(executeNodeCli(vpBin, args, {
 			cwd: this.projectRoot,
 			maxBuffer: MAX_BUFFER_BYTES,

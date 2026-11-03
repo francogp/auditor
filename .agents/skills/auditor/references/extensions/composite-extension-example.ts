@@ -40,18 +40,20 @@ export const HOST_DOMAIN_RULES: readonly HostDomainRuleId[] = [
 
 export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
   // Declarative tool / host configuration file requirements:
-  public static readonly configFiles: readonly AuditorConfigFileRequirement[] = [
+  public static readonly configFiles: readonly AuditorConfigFileRequirement<HostDomainRuleId>[] = [
     {
+      id: 'host-domain-config',
       file: '.host-domain.json',
-      content: JSON.stringify({ version: 1, strictMode: true }, null, 2) + '\n',
-      description: 'Host domain state machine configuration',
-      customMissingMessage: 'Missing .host-domain.json domain configuration file.'
+      ruleId: 'host-missing-config',
+      generateDefaultContent: (): string =>
+        JSON.stringify({ version: 1, strictMode: true }, null, 2) + '\n',
+      description: 'Host domain state machine configuration'
     }
   ];
 
   private readonly domainRoots: readonly string[];
 
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const domainRoots =
@@ -144,15 +146,15 @@ export class HostDomainCompositeAuditor extends BaseAuditor<HostDomainRuleId> {
     }
 
     // 2. Declarative config verification & auto-creation in --fix mode (timed individually with generic return value)
-    const missingConfigs = await this.runSubAuditor('host-missing-config', async () => {
+    const ok = await this.runSubAuditor('host-missing-config', async () => {
       return await this.verifyAndFixConfigFiles();
     });
-    for (const missing of missingConfigs) {
+    if (!ok) {
       this.addViolation({
         ruleId: 'host-missing-config',
         severity: 'error',
-        file: missing.file,
-        message: missing.message,
+        file: '.host-domain.json',
+        message: 'Missing .host-domain.json domain configuration file.',
         // Zero False-Fix Mandate: Mark fixable: true only because verifyAndFixConfigFiles()
         // automatically scaffolds the missing file in --fix mode:
         fixable: true

@@ -35,6 +35,7 @@ import {
   analyzeVersionBump,
   calculateNextBaseVersion,
   generateBuildId,
+  VERSION_BUMP_TYPES,
   type VersionBumpType,
   type VersionAnalysisResult
 } from '../core/versionAnalyzer.ts';
@@ -45,9 +46,9 @@ export interface MetricTableRow {
   readonly value: string;
 }
 
-export const CLI_BUMP_TYPES = ['major', 'minor', 'patch', 'build', 'auto'] as const;
-export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
-const CLI_BUMP_TYPE_SET: ReadonlySet<string> = new Set<string>(CLI_BUMP_TYPES);
+export { VERSION_BUMP_TYPES as CLI_BUMP_TYPES } from '../core/versionAnalyzer.ts';
+export type CliBumpType = VersionBumpType;
+const CLI_BUMP_TYPE_SET: ReadonlySet<string> = new Set<string>(VERSION_BUMP_TYPES);
 
 // type guard predicate for CliBumpType
 export function isCliBumpType(val: string): val is CliBumpType {
@@ -239,9 +240,14 @@ function resolveNextVersionAndBump(
   if (options.targetVersion) {
     const rawTarget = options.targetVersion.trim();
     const newVersion = rawTarget.includes('-build.') ? rawTarget : `${rawTarget}-build.${buildId}`;
-    const resolvedBump =
-      options.bumpType && options.bumpType !== 'auto' ? options.bumpType : 'major';
+    const resolvedBump: VersionBumpType = options.bumpType ?? 'major';
     return { newVersion, resolvedBump };
+  }
+
+  if (!options.bumpType) {
+    throw new Error(
+      `Missing required bump type. You must explicitly specify one of: ${VERSION_BUMP_TYPES.join(', ')} (e.g. "npm run version:bump -- patch").`
+    );
   }
 
   const analysis = analyzeVersionBump({
@@ -250,8 +256,7 @@ function resolveNextVersionAndBump(
     customNow: options.customNow
   });
 
-  const resolvedBump: VersionBumpType =
-    !options.bumpType || options.bumpType === 'auto' ? analysis.recommendedBump : options.bumpType;
+  const resolvedBump: VersionBumpType = options.bumpType;
 
   const nextBase = calculateNextBaseVersion(analysis.baseVersion, resolvedBump);
   return {
@@ -377,12 +382,12 @@ const BUMP_CLI_ARGS = {
   bumpType: {
     type: 'positional',
     required: false,
-    description: 'Bump type (major | minor | patch | build | auto) or subcommand target'
+    description: 'Bump type (major | minor | patch | build) or subcommand target'
   },
   version: { type: 'boolean', alias: 'v', description: 'Show current version' },
   analyze: { type: 'boolean', description: 'Analyze git diff and recommend bump' },
   bump: { type: 'boolean', description: 'Apply version bump' },
-  type: { type: 'string', description: 'Bump type (major | minor | patch | build | auto)' },
+  type: { type: 'string', description: 'Bump type (major | minor | patch | build)' },
   'target-version': { type: 'string', description: 'Explicit target version' },
   target: { type: 'string', description: 'Explicit target version alias' },
   'sync-public': { type: 'boolean', default: true, description: 'Sync public/version.json' },
@@ -414,15 +419,14 @@ function handleAnalyzeCommand(options: AnalyzeCommandOptions): void {
 function printHelp(command?: string): void {
   if (command === 'bump') {
     console.log(
-      `Usage: auditor-version bump [type] [options]\n\n` +
+      `Usage: auditor-version bump <type> [options]\n\n` +
         `Bump types:\n` +
-        `  auto     Automatically compute bump from heuristic analysis (default)\n` +
         `  major    Increment major version (X.0.0-build.TIMESTAMP)\n` +
         `  minor    Increment minor version (x.Y.0-build.TIMESTAMP)\n` +
         `  patch    Increment patch/bugfix version (x.y.Z-build.TIMESTAMP)\n` +
         `  build    Update build stamp without altering base SemVer (x.y.z-build.TIMESTAMP)\n\n` +
         `Options:\n` +
-        `  --type=<type>              Specify bump type (major | minor | patch | build | auto)\n` +
+        `  --type=<type>              Specify bump type (major | minor | patch | build)\n` +
         `  --target-version=<ver>     Specify explicit base or full version\n` +
         `  --json                     Output result in JSON format\n` +
         `  --no-sync-public           Skip syncing public/version.json\n` +
@@ -445,11 +449,11 @@ function printHelp(command?: string): void {
       `Usage:\n` +
       `  auditor-version                     Show current version\n` +
       `  auditor-version analyze [options]  Analyze diff and suggest bump\n` +
-      `  auditor-version bump [type] [opt]   Apply bump (auto | major | minor | patch | build)\n\n` +
+      `  auditor-version bump <type> [opt]   Apply bump (major | minor | patch | build)\n\n` +
       `Commands:\n` +
       `  version, -v, --version              Show current version\n` +
       `  analyze                             Analyze git changes and recommend major/minor/patch\n` +
-      `  bump [type]                         Apply bump: major | minor | patch | build | auto\n\n` +
+      `  bump <type>                         Apply bump: major | minor | patch | build\n\n` +
       `Global options:\n` +
       `  -h, --help                          Show this help message\n`
   );
@@ -460,14 +464,14 @@ const BUMP_SUBCOMMAND_NAMES: ReadonlySet<string> = new Set(['analyze', 'bump', '
 function resolveBumpTypeFromParsed(
   explicitType: string | undefined,
   positionalType: string | undefined
-): CliBumpType {
+): CliBumpType | undefined {
   if (explicitType) {
     const val = explicitType.toLowerCase();
     if (isCliBumpType(val)) {
       return val;
     }
     throw new Error(
-      `Unrecognized bump type in --type: "${val}". Valid options: ${CLI_BUMP_TYPES.join(', ')}.`
+      `Unrecognized bump type in --type: "${val}". Valid options: ${VERSION_BUMP_TYPES.join(', ')}.`
     );
   }
   if (positionalType) {
@@ -476,10 +480,10 @@ function resolveBumpTypeFromParsed(
       return lowerPos;
     }
     throw new Error(
-      `Unrecognized bump type: "${positionalType}". Valid options: ${CLI_BUMP_TYPES.join(', ')}.`
+      `Unrecognized bump type: "${positionalType}". Valid options: ${VERSION_BUMP_TYPES.join(', ')}.`
     );
   }
-  return 'auto';
+  return undefined;
 }
 
 function handleBumpCommand(
@@ -496,6 +500,13 @@ function handleBumpCommand(
     typeof parsed.type === 'string' ? parsed.type : undefined,
     positionalType
   );
+
+  if (!targetVersion && !bumpType) {
+    throw new Error(
+      `Missing required bump type. You must explicitly specify one of: ${VERSION_BUMP_TYPES.join(', ')} (e.g. "npm run version:bump -- patch").`
+    );
+  }
+
   const noSyncPublic = parsed['sync-public'] === false || Boolean(parsed['no-sync-public']);
   const syncTargets =
     typeof parsed.sync === 'string' ? parsed.sync.split(',').filter(Boolean) : undefined;

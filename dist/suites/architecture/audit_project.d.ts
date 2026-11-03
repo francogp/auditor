@@ -1,8 +1,9 @@
 import { AuditRule, Violation } from "../../analyzers/auditRuleTypes.js";
 import { RemediationPhaseId } from "../../core/remediationPhases.js";
-import "../../core/auditContract.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import "./audit_rules.js";
+import { ZIndexAuditor } from "./validate_z_index.js";
+export type PeerArchitectureAuditor = ZIndexAuditor;
 export declare function isInsideComment(content: string, index: number): boolean;
 export declare function createLineLocator(content: string, offset: number): (idx: number) => number;
 export declare function applyRuleFix(rule: AuditRule, content: string, filePath: string): string;

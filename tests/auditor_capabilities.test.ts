@@ -38,10 +38,10 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     expect(similarCaps?.speed).toBe('heavy');
     expect(similarCaps?.critical).toBe(false);
 
-    const piniaPath = path.resolve('src/suites/architecture/validate_pinia_reactivity.ts');
-    const piniaCaps = await extractCapabilitiesFromFile(piniaPath);
-    expect(piniaCaps).not.toBeNull();
-    expect(piniaCaps?.ast).toBe(true);
+    const magicPath = path.resolve('src/suites/architecture/validate_magic_numbers.ts');
+    const magicCaps = await extractCapabilitiesFromFile(magicPath);
+    expect(magicCaps).not.toBeNull();
+    expect(magicCaps?.ast).toBe(true);
   });
 
   it('populates 7-field capabilities on 100% of discovered tasks', async () => {
@@ -127,10 +127,8 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_dependency_minimums',
       'validate_docker_config',
       'validate_documentation_language',
-      'validate_domain_types',
       'validate_editorconfig',
       'validate_environment_engines',
-      'validate_error_suppression',
       'validate_fallow_config',
       'validate_file_encoding',
       'validate_git_config',
@@ -149,12 +147,10 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
       'validate_playwright_config',
       'validate_script_extensions',
       'validate_scss_architecture',
-      'validate_security_hardening',
       'validate_stylelint',
       'validate_stylelint_config',
       'validate_tsconfig',
       'validate_vite_plus_config',
-      'validate_vue_sfc_hygiene',
       'validate_web_performance',
       'validate_z_index'
     ].sort();
@@ -173,30 +169,9 @@ describe('Sub-Auditor Capabilities & Dynamic Modes', () => {
     const EXPECTED_AST_SUITES = [
       'audit_project',
       'validate_bundle_budget',
-      'validate_canonical_domains',
       'validate_cli_contracts',
-      'validate_code_simplification',
-      'validate_console_cleanliness',
-      'validate_constant_hygiene',
-      'validate_domain_types',
-      'validate_error_suppression',
-      'validate_gsap_animations',
-      'validate_gsap_framework_hygiene',
-      'validate_gsap_scrolltrigger',
       'validate_magic_numbers',
-      'validate_native_paths',
-      'validate_o1_data_structures',
-      'validate_persistence_client',
-      'validate_pinia_reactivity',
-      'validate_reactive_leaks',
-      'validate_reactive_purity',
-      'validate_security_hardening',
-      'validate_test_hygiene',
-      'validate_type_assertion_hygiene',
-      'validate_valibot_parity',
-      'validate_vue_reactivity',
-      'validate_vue_router',
-      'validate_vue_sfc_hygiene'
+      'validate_o1_data_structures'
     ].sort();
 
     expect(astSuiteIds).toEqual(EXPECTED_AST_SUITES);

@@ -102,7 +102,7 @@ export const CORE_PACKAGE_SCRIPT_REQUIREMENTS: readonly AuditorPackageScriptRequ
     name: 'auditor:full',
     command: 'auditor speed=full',
     description:
-      'Exhaustive pre-build audit with speed cap speed=full (includes fallow dead-code --type-aware)',
+      'Exhaustive pre-build audit with speed cap speed=full (includes dead-code cascades and vector duplication)',
     category: 'core'
   },
   {

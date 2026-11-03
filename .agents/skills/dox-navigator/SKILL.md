@@ -182,7 +182,10 @@ To detect missing `AGENTS.md` files, unindexed child DOX indices, absolute path 
 npm run auditor:md
 
 # Direct DOX Suite Execution (via canonical @francogp/auditor runner):
-node --experimental-strip-types .agents/skills/dox-navigator/scripts/audit_dox.ts
+npm run auditor -- task=validate_dox_integrity
+
+# In host projects with @francogp/auditor installed:
+auditor task=validate_dox_integrity
 ```
 
 ### What the Audit Detects

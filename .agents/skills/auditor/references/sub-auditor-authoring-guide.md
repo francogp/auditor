@@ -890,7 +890,7 @@ The framework enforces strict governance over execution speed across all suites 
 4. **Logical Classification of Speed Tiers**:
    - **`speed: 'light'` (`🐇`)**: Fast, pure static analysis of application source code (`.ts`, `.vue`, `.scss`, `.html`), Domain-Type-First validation, and O(1) structures.
    - **`speed: 'heavy'` (`🐢`)**: Standard workspace scanning, environment and packaging checks (`validate_environment_engines`, `validate_package_scripts`), test hygiene and fragmentation, secret leak scanning, and database/asset verifications.
-   - **`speed: 'full'` (`🐘`) or `speed: ['light', 'full']`**: Exhaustive cross-module symbol graph checks (such as `fallow dead-code --type-aware` via `TieredCommandProfile`) executed during `npm run auditor:full` and `npm run build`.
+   - **`speed: 'full'` (`🐘`) or `speed: ['light', 'full']`**: Exhaustive cross-module symbol graph checks and heavy analysis (such as dead-code cascade expansion and vector similarity via `TieredCommandProfile`) executed during `npm run auditor:full` and `npm run build`.
 
 ### Mandatory Speed Selection in Multi-Speed Critical Suites
 
@@ -905,7 +905,7 @@ Inventing or duplicating speed tiers that repeat identical CLI arguments or beha
 
 - Each declared tier (`light`, `heavy`, `full`) MUST execute genuinely different commands or CLI flags of the underlying tool.
 - If a tool only supports 2 distinct operational modes (e.g. `tsc` with `--incremental` in `light` vs without `--incremental` in `full`; `npm ls --depth=0` in `heavy` vs `--all` in `full`), declare **ONLY those 2 basic tiers** (e.g. `speed: ['light', 'full']`). Declaring a cloned 3rd tier is forbidden.
-- Only tools with 3 completely decoupled subcommands (such as `validate_fallow`: `dead-code --no-type-aware`, `dupes`, `type-aware`) declare all 3 tiers.
+- Only tools with 3 completely decoupled subcommands (such as multi-stage security or coverage tooling) declare all 3 tiers.
 
 ### Permanent Cache Mandate (Cache is NEVER Turned Off in Full)
 

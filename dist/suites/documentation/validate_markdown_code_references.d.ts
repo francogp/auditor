@@ -1,4 +1,6 @@
 import { BaseAuditor, FileScanRootsOptions } from "../../core/auditorBase.js";
+import { AuditorTestsAuditor } from "../architecture/validate_auditor_tests.js";
+export type PeerAuditorTests = AuditorTestsAuditor;
 export type MarkdownCodeReferenceRuleId = 'markdown-broken-source-ref' | 'markdown-hardcoded-runtime-version' | 'markdown-broken-skill-ref' | 'markdown-case-mismatch' | 'markdown-outdated-project-version';
 export declare const MARKDOWN_CODE_REFERENCE_RULES: readonly MarkdownCodeReferenceRuleId[];
 export interface MarkdownCodeViolation {

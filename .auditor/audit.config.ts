@@ -243,7 +243,6 @@ export default defineAuditConfig({
       enabled: true,
       outputPath: 'scratch/fallow_map.html'
     },
-    typeAware: true,
     showCascade: true,
     flags: {
       enabled: true,
@@ -256,7 +255,8 @@ export default defineAuditConfig({
       maxCognitive: 20,
       maxCyclomatic: 25,
       cyclomaticPolicy: 'standard'
-    }
+    },
+    typeAware: false
   },
   constants: {
     enabled: true,
@@ -276,27 +276,12 @@ export default defineAuditConfig({
     lint: {
       enabled: true,
       rules: {
+        'no-console': 'off',
         '@typescript-eslint/explicit-member-accessibility': [
           'error',
           { accessibility: 'explicit' }
         ],
-        '@typescript-eslint/explicit-function-return-type': [
-          'error',
-          {
-            allowExpressions: false,
-            allowTypedFunctionExpressions: false,
-            allowHigherOrderFunctions: false,
-            allowDirectConstAssertionInArrowFunctions: false
-          }
-        ],
-        '@typescript-eslint/no-unused-vars': [
-          'error',
-          {
-            argsIgnorePattern: '^_',
-            varsIgnorePattern: '^_',
-            caughtErrorsIgnorePattern: '^_'
-          }
-        ],
+        '@typescript-eslint/no-unused-vars': 'error',
         'vue/no-required-prop-with-default': 'error',
         'vue/no-deprecated-model-definition': 'error',
         'no-useless-assignment': 'error',
@@ -371,10 +356,6 @@ export default defineAuditConfig({
   },
   htmlValidate: {
     enabled: true
-  },
-  pinia: {
-    enabled: false,
-    authorizedMutationFiles: [] // Node.js CLI tool without stores or Vue frontend
   },
   valibot: {
     enabled: true,

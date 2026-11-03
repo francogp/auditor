@@ -63,7 +63,17 @@ const CANONICAL_PREVENT_DESTRUCTIVE_GIT_SCRIPT = `/**
 
 import fs from 'node:fs';
 
-const GOVERNED_SATELLITE_FILES = ${JSON.stringify(GOVERNED_SATELLITE_FILES)};
+const GOVERNED_SATELLITE_FILES = ${JSON.stringify(GOVERNED_SATELLITE_FILES, null, 2)};
+
+function checkSatelliteRedirect(cmd) {
+  if (!/>+|>>|\\|\\s*tee\\b/i.test(cmd)) return false;
+  for (const satFile of GOVERNED_SATELLITE_FILES) {
+    if (cmd.includes(satFile)) {
+      return satFile;
+    }
+  }
+  return false;
+}
 
 function main() {
   try {
@@ -123,19 +133,15 @@ function main() {
       const cmd = String(args.CommandLine ?? '').trim();
 
       // Check for shell redirects into satellite configs
-      const isShellRedirect = />+|>>|\\|\\s*tee\\b/i.test(cmd);
-      if (isShellRedirect) {
-        for (const satFile of GOVERNED_SATELLITE_FILES) {
-          if (cmd.includes(satFile)) {
-            process.stdout.write(
-              JSON.stringify({
-                decision: 'deny',
-                reason: \`[SATELLITE CONFIG SOVEREIGNTY GATE] Shell commands modifying satellite configuration file "\${satFile}" are STRICTLY PROHIBITED. Declare changes in ".auditor/audit.config.ts" and run "npm run auditor:fix".\`
-              })
-            );
-            return;
-          }
-        }
+      const satFile = checkSatelliteRedirect(cmd);
+      if (satFile) {
+        process.stdout.write(
+          JSON.stringify({
+            decision: 'deny',
+            reason: \`[SATELLITE CONFIG SOVEREIGNTY GATE] Shell commands modifying satellite configuration file "\${satFile}" are STRICTLY PROHIBITED. Declare changes in ".auditor/audit.config.ts" and run "npm run auditor:fix".\`
+          })
+        );
+        return;
       }
 
       // Regex matching destructive git actions

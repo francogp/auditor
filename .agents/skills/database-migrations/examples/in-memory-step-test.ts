@@ -8,8 +8,16 @@
  *   node --experimental-strip-types .agents/skills/database-migrations/examples/in-memory-step-test.ts
  */
 
+/// <reference types="node" />
 import assert from 'node:assert/strict';
+import process from 'node:process';
 import { DatabaseSync } from 'node:sqlite';
+
+declare const Temporal: {
+  Now: {
+    instant(): { toString(): string };
+  };
+};
 
 interface MigrationEntry {
   readonly id: string;
@@ -77,7 +85,9 @@ const LEGACY_FIXTURE_DATA = {
 
 function runInMemoryMigrationTest(): void {
   const startTotal = performance.now();
-  console.log('🔍 [Test] Initializing in-memory SQLite database via native node:sqlite...');
+  process.stdout.write(
+    '🔍 [Test] Initializing in-memory SQLite database via native node:sqlite...\n'
+  );
 
   // Create isolated in-memory DB (sub-millisecond boot)
   const db = new DatabaseSync(':memory:');
@@ -85,7 +95,7 @@ function runInMemoryMigrationTest(): void {
 
   try {
     // 3. Rehydrate fixture tables and rows
-    console.log('📦 [Test] Loading ancient production fixture into memory...');
+    process.stdout.write('📦 [Test] Loading ancient production fixture into memory...\n');
     db.exec('BEGIN TRANSACTION;');
 
     for (const [tableName, rows] of Object.entries(LEGACY_FIXTURE_DATA)) {
@@ -112,13 +122,15 @@ function runInMemoryMigrationTest(): void {
     // 4. Query _migrations to discover baseline version
     const appliedRows = db.prepare('SELECT id FROM _migrations;').all() as { id: string }[];
     const appliedSet = new Set(appliedRows.map((r) => r.id));
-    console.log(
-      `ℹ️ [Test] Baseline fixture has ${appliedSet.size} previously applied migration(s).`
+    process.stdout.write(
+      `ℹ️ [Test] Baseline fixture has ${appliedSet.size} previously applied migration(s).\n`
     );
 
     const pending = MIGRATIONS.filter((m) => !appliedSet.has(m.id));
     assert.strictEqual(pending.length, 2, 'Should discover exactly 2 pending migrations.');
-    console.log(`🚀 [Test] Applying ${pending.length} pending migration(s) step-by-step:`);
+    process.stdout.write(
+      `🚀 [Test] Applying ${pending.length} pending migration(s) step-by-step:\n`
+    );
 
     // 5. Apply each pending migration sequentially in isolated transactions
     for (const migration of pending) {
@@ -128,12 +140,12 @@ function runInMemoryMigrationTest(): void {
         db.exec(migration.sql);
         db.prepare('INSERT INTO _migrations (id, applied_at) VALUES (?, ?);').run(
           migration.id,
-          new Date().toISOString()
+          Temporal.Now.instant().toString()
         );
         db.exec('COMMIT;');
 
         const elapsed = (performance.now() - stepStart).toFixed(2);
-        console.log(`   ✔ Applied: ${migration.id} (${elapsed}ms)`);
+        process.stdout.write(`   ✔ Applied: ${migration.id} (${elapsed}ms)\n`);
       } catch (err) {
         db.exec('ROLLBACK;');
         throw new Error(`Fatal error in migration '${migration.id}': ${(err as Error).message}`, {
@@ -143,7 +155,7 @@ function runInMemoryMigrationTest(): void {
     }
 
     // 6. Assert Post-Migration Semantic and Structural Integrity
-    console.log('🧪 [Test] Running post-migration integrity assertions...');
+    process.stdout.write('🧪 [Test] Running post-migration integrity assertions...\n');
 
     // A. Check common system_config version
     const verRow = db
@@ -200,8 +212,8 @@ function runInMemoryMigrationTest(): void {
     }
 
     const totalElapsed = (performance.now() - startTotal).toFixed(2);
-    console.log(
-      `\n🎉 [Test] SUCCESS: All migrations applied cleanly and verified in ${totalElapsed}ms with 100% integrity.`
+    process.stdout.write(
+      `\n🎉 [Test] SUCCESS: All migrations applied cleanly and verified in ${totalElapsed}ms with 100% integrity.\n`
     );
   } finally {
     db.close();

@@ -1,4 +1,6 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { BundleBudgetAuditor } from "../architecture/validate_bundle_budget.js";
+export type PeerAuditorPersistence = BundleBudgetAuditor;
 export type SqlAntiPatternRuleId = 'sql-no-positional-arrays' | 'sql-plpgsql-declared-variables' | 'sql-rls-policy-grant-integrity' | 'db-payload-snake-case';
 export declare const SQL_ANTI_PATTERN_RULES: readonly SqlAntiPatternRuleId[];
 export declare const SQL_LOOP_HEADER_MAX_CHARS = 120;

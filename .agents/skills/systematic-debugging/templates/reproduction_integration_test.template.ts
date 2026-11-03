@@ -1,7 +1,15 @@
-import { setActivePinia, createPinia } from 'pinia';
+import { setActivePinia, createPinia, defineStore } from 'pinia';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { useDomainStore } from '@/stores/domain';
+// Sample reproduction store (or import your application store: import { useDomainStore } from '@/stores/domain')
+const useDomainStore = defineStore('domain', {
+  state: (): { loaded: boolean } => ({ loaded: false }),
+  actions: {
+    load(): void {
+      this.loaded = true;
+    }
+  }
+});
 
 /**
  * REPRODUCTION INTEGRATION TEST TEMPLATE (Tier 2)
@@ -22,7 +30,7 @@ describe('Integration Reproduction: [Cross-Boundary Bug Title]', () => {
   beforeEach(() => {
     setActivePinia(createPinia());
     if (typeof globalThis.window === 'undefined') {
-      (globalThis as unknown as { window: unknown }).window = globalThis;
+      Reflect.set(globalThis, 'window', globalThis);
     }
   });
 

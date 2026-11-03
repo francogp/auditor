@@ -612,7 +612,7 @@ export function auditConfigRatchet(
     '.fallowrc.json',
     '.htmlvalidate.json',
     'tsconfig.json'
-  ];
+  ] as const;
 
   for (const jsonFile of GOVERNED_JSON_FILES) {
     const onlineText = readGitFile(projectRoot, effectiveRef, jsonFile);

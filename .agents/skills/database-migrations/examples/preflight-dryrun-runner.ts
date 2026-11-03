@@ -1,9 +1,12 @@
+/// <reference types="node" />
 /**
  * @file preflight-dryrun-runner.ts
  * @description Demonstrates the Pre-Flight Transactional Dry-Run migration executor.
  * Simulates pending migrations inside BEGIN ... ROLLBACK blocks to catch syntax,
  * type, or column conflicts without modifying the live database.
  */
+
+import process from 'node:process';
 
 export interface SqlExecutionDriver {
   execSql: (sql: string) => { status: number; output: string };
@@ -22,12 +25,12 @@ export function executePreflightDryRun(
   driver: SqlExecutionDriver
 ): void {
   if (pendingMigrations.length === 0) {
-    console.log('✨ [Pre-flight] No pending migrations to validate.');
+    process.stdout.write('✨ [Pre-flight] No pending migrations to validate.\n');
     return;
   }
 
-  console.log(
-    `🔍 [Pre-flight] Running transactional dry-run on ${pendingMigrations.length} migration(s)...`
+  process.stdout.write(
+    `🔍 [Pre-flight] Running transactional dry-run on ${pendingMigrations.length} migration(s)...\n`
   );
 
   // Phase 1: Validate each file individually inside an isolated rollback transaction
@@ -41,7 +44,7 @@ export function executePreflightDryRun(
           `🛡️  Active database was NOT modified (zero side-effects). Fix SQL before retrying.`
       );
     }
-    console.log(`   ✔ Individual pre-flight passed: ${m.name}`);
+    process.stdout.write(`   ✔ Individual pre-flight passed: ${m.name}\n`);
   }
 
   // Phase 2: If there are multiple migrations, validate the cumulative sequence
@@ -59,12 +62,14 @@ export function executePreflightDryRun(
           `🛡️  Active database was NOT modified.`
       );
     }
-    console.log(
-      `   ✔ Cumulative sequence pre-flight passed (${pendingMigrations.length} migrations).`
+    process.stdout.write(
+      `   ✔ Cumulative sequence pre-flight passed (${pendingMigrations.length} migrations).\n`
     );
   }
 
-  console.log('✨ [Pre-flight] SUCCESS: All pending migrations are valid, safe, and compatible.');
+  process.stdout.write(
+    '✨ [Pre-flight] SUCCESS: All pending migrations are valid, safe, and compatible.\n'
+  );
 }
 
 import { isMainModule } from '@francogp/auditor';

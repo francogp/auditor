@@ -1,9 +1,14 @@
+/// <reference types="node" />
 /**
  * @file static-migration-auditor.ts
  * @description Standalone static analysis engine for database migrations.
  * Verifies monotonic timestamps, PostgreSQL syntax rules, return-type safety,
  * db_version synchronization, and the Fail-Loud Mandate (zero error suppression).
  */
+
+import process from 'node:process';
+
+import { isMainModule } from '@francogp/auditor';
 
 export interface StaticAuditViolation {
   file: string;
@@ -126,8 +131,6 @@ export function auditMigrationFiles(
   return violations;
 }
 
-import { isMainModule } from '@francogp/auditor';
-
 // Self-test assertion demonstration
 if (isMainModule(import.meta.url)) {
   const sampleBadFiles = [
@@ -152,8 +155,8 @@ if (isMainModule(import.meta.url)) {
   ];
 
   const results = auditMigrationFiles(sampleBadFiles);
-  console.log(`Discovered ${results.length} expected violations in sample bad files:`);
+  process.stdout.write(`Discovered ${results.length} expected violations in sample bad files:\n`);
   for (const v of results) {
-    console.log(`❌ [${v.rule}] in ${v.file}: ${v.message}`);
+    process.stdout.write(`❌ [${v.rule}] in ${v.file}: ${v.message}\n`);
   }
 }

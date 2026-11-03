@@ -88,7 +88,7 @@ const CORE_PACKAGE_SCRIPT_REQUIREMENTS = [
 	{
 		name: "auditor:full",
 		command: "auditor speed=full",
-		description: "Exhaustive pre-build audit with speed cap speed=full (includes fallow dead-code --type-aware)",
+		description: "Exhaustive pre-build audit with speed cap speed=full (includes dead-code cascades and vector duplication)",
 		category: "core"
 	},
 	{

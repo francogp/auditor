@@ -1,5 +1,5 @@
+import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
 import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
-import { DomainTypesAuditor } from "../../suites/domain_data/validate_domain_types.js";
 import { discoverRecordKeyFindings, injectImportStatement } from "./domainRecordKeyRemediator.js";
 import { forEachSourceScriptLine, isSameFilePath } from "./refactorFileScanner.js";
 import path from "node:path";
@@ -21,7 +21,7 @@ var DomainRefactorEngine = class DomainRefactorEngine extends BaseRefactorEngine
 	configSectionKey = "domain";
 	constructor(options = {}) {
 		const opts = assertValidRefactorEngineOptions(options);
-		const auditor = opts.auditor ?? new DomainTypesAuditor({ projectRoot: opts.projectRoot });
+		const auditor = opts.auditor ?? new OxlintAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
 	}
 	discoverInFile(filePath) {

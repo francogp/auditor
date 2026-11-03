@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
-import { ValidateGsapAnimationsAuditor } from '../../suites/architecture/validate_gsap_animations.ts';
+import { OxlintAuditor } from '../../suites/architecture/validate_oxlint.ts';
 import { parseVueSfcBlocks } from '../vueSfcParser.ts';
 import {
   BaseRefactorEngine,
@@ -285,24 +285,37 @@ function inspectSourceFile(
   ts.forEachChild(sf, walk);
 }
 
-export type MotionRefactorEngineOptions = RefactorEngineOptions<ValidateGsapAnimationsAuditor>;
+export type MotionRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
 
 export class MotionRefactorEngine extends BaseRefactorEngine<
   MotionFindingItem,
   MotionRefactorPlan,
-  ValidateGsapAnimationsAuditor
+  OxlintAuditor
 > {
   public readonly toolId = 'auditor-motion';
   public readonly configSectionKey = 'animation' as const;
 
   public constructor(options: MotionRefactorEngineOptions = {}) {
-    const opts = assertValidRefactorEngineOptions<ValidateGsapAnimationsAuditor>(options);
+    const opts = assertValidRefactorEngineOptions<OxlintAuditor>(options);
     const auditor =
       opts.auditor ??
-      new ValidateGsapAnimationsAuditor({
+      new OxlintAuditor({
         projectRoot: opts.projectRoot
       });
     super(auditor);
+  }
+
+  public override resolveSectionExemptPaths(): readonly string[] {
+    const animation = this.config.animation as
+      | { exemptPaths?: readonly string[]; exemptCssFiles?: readonly string[] }
+      | undefined;
+    const styles = this.config.styles as { exemptCssFiles?: readonly string[] } | undefined;
+    return [
+      ...(animation?.exemptPaths ?? []),
+      ...(animation?.exemptCssFiles ?? []),
+      ...(styles?.exemptCssFiles ?? []),
+      ...this.auditor.exemptPaths
+    ];
   }
 
   public override discoverInFile(filePath: string): readonly MotionFindingItem[] {

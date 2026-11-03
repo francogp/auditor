@@ -20,24 +20,23 @@ import path from 'node:path';
 
 import { resolveZLayer, fixZIndexLiteral } from '../../analyzers/zIndexRules.ts';
 import {
+  FileScanAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
+  resolveFileScanRoots,
+  type FileScanRootsOptions,
   getAuditConfig,
   resolveZLayersScssPath,
   getEffectiveZLayers,
   AUDIT_CONFIG_FILE,
   Z_LAYERS,
   isExemptFile,
-  isTestPath
-} from '../../core/auditConfig.ts';
-import type { RuleFixContext } from '../../core/auditContract.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import {
-  FileScanAuditor,
-  createUniformRemediationPhases,
-  createRuleCapabilities,
-  resolveFileScanRoots,
-  type FileScanRootsOptions
+  isTestPath,
+  type RuleFixContext,
+  deriveCoverageFromRoots,
+  toPosixRelative,
+  normalizePosixPath
 } from '../../core/auditorBase.ts';
-import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
 
 enableCompileCache();
 

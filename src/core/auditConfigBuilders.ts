@@ -190,7 +190,7 @@ function buildStandaloneStylelintConfig(
           properties: Array.from(
             new Set([...(baseStrict?.properties ?? []), ...(topStrict?.properties ?? [])])
           ),
-          ignoreValues: (() => {
+          ignoreValues: ((): Record<string, readonly string[]> => {
             const rawCombined = {
               ...baseStrict?.ignoreValues,
               ...topStrict?.ignoreValues

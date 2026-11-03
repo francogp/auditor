@@ -43,7 +43,7 @@ export const BUTTON_GOVERNANCE_RULES: readonly ButtonGovernanceRuleId[] = [
 ] as const;
 
 export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const candidateRoots = [
@@ -168,7 +168,7 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
       configuredCompRoots.length > 0
         ? configuredCompRoots
         : (config.paths.srcRoots ?? DEFAULT_AUDIT_CONFIG.paths.srcRoots);
-    const compFiles = await this.context.collectFiles(targetCompRoots, new Set(['.vue']));
+    const compFiles = this.context.collectFiles(targetCompRoots, new Set(['.vue']));
 
     const canonicalVariants = new Set([
       'btn-primary',
@@ -214,19 +214,18 @@ export class ButtonGovernanceAuditor extends FileScanAuditor<ButtonGovernanceRul
         const templateContent = parsedSfc.template?.content ?? '';
         const allClassMatches = templateContent.matchAll(/(?<![-:\w])class=["']([^"']+)["']/g);
         for (const cm of allClassMatches) {
-          const clsList = cm[1].split(/\s+/).filter(Boolean);
-          if (clsList.includes('btn')) {
-            for (const c of clsList) {
-              if (c.startsWith('btn-') && !canonicalVariants.has(c)) {
-                this.addViolation({
-                  ruleId: 'ad-hoc-button-styles',
-                  severity: 'error',
-                  file: relPath,
-                  line: parsedSfc.template?.startLine ?? 1,
-                  message: `Non-canonical button variant class "${c}" detected.`,
-                  context: c
-                });
-              }
+          const clsList = cm[1]?.split(/\s+/).filter(Boolean) ?? [];
+          if (!clsList.includes('btn')) continue;
+          for (const c of clsList) {
+            if (c.startsWith('btn-') && !canonicalVariants.has(c)) {
+              this.addViolation({
+                ruleId: 'ad-hoc-button-styles',
+                severity: 'error',
+                file: relPath,
+                line: parsedSfc.template?.startLine ?? 1,
+                message: `Non-canonical button variant class "${c}" detected.`,
+                context: c
+              });
             }
           }
         }

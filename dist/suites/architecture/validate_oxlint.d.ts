@@ -42,6 +42,6 @@ export interface OxlintAuditorOptions {
 }
 export declare class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
   constructor(options?: OxlintAuditorOptions);
-  buildOxlintArgs(tier?: AuditorExecutionTier, isFixMode?: boolean): string[];
+  buildOxlintArgs(isFixMode?: boolean): string[];
   runAudit(): Promise<void>;
 }

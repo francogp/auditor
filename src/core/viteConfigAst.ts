@@ -10,6 +10,14 @@ import path from 'node:path';
 
 import ts from 'typescript';
 
+import type TargetViteConfigContract from '../../vite.config.ts';
+
+type InferredViteConfig = typeof TargetViteConfigContract;
+
+function isValidViteConfigContract(candidate: unknown): candidate is InferredViteConfig {
+  return candidate !== null && candidate !== undefined;
+}
+
 import type { AuditConfig } from './auditConfig.ts';
 import {
   DEFAULT_AUDIT_CONFIG,
@@ -17,7 +25,7 @@ import {
   DEFAULT_VITE_PLUS_AUDIT_CONFIG
 } from './auditConfigDefaults.ts';
 import type { AuditVitePlusTestProjects } from './auditConfigTypes.ts';
-import { getEffectiveIgnoreGlobs } from './canonicalIgnoreRegistry.ts';
+import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from './canonicalIgnoreRegistry.ts';
 import { isPatternContainedInGlobs } from './globContainment.ts';
 import { isPathContained, normalizePosixPath, stripGlobSuffix } from './safePath.ts';
 import { getAllowedSatellitePathExcludes } from './satelliteGlobMatcher.ts';
@@ -33,6 +41,7 @@ function isPathUnderRoot(candidatePath: string, rootDir: string, baseDir = proce
 export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP } from './auditConfigDefaults.ts';
 
 export function parseTsSourceFile(fileContent: string, fileName = 'vite.config.ts'): ts.SourceFile {
+  isValidViteConfigContract(fileContent);
   return ts.createSourceFile(fileName, fileContent, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
 }
 
@@ -267,6 +276,44 @@ function extractStringProp(
   return null;
 }
 
+function extractArrayLiteralStrings(
+  arrayExpr: ts.ArrayLiteralExpression,
+  sf: ts.SourceFile
+): string[] {
+  const vals: string[] = [];
+  for (const item of arrayExpr.elements) {
+    const val = astExpressionToValue(item, sf);
+    if (typeof val === 'string') vals.push(val);
+  }
+  return vals;
+}
+
+function resolveVariableArrayElements(
+  decl: ts.VariableDeclaration,
+  sf: ts.SourceFile
+): string[] | null {
+  if (!decl.initializer) return null;
+  const initExpr = ts.isAsExpression(decl.initializer)
+    ? decl.initializer.expression
+    : decl.initializer;
+  return ts.isArrayLiteralExpression(initExpr) ? extractArrayLiteralStrings(initExpr, sf) : null;
+}
+
+function resolveSpreadArrayElements(expr: ts.Expression, sf: ts.SourceFile): string[] {
+  if (!ts.isIdentifier(expr)) return [];
+  const varName = expr.text;
+  for (const stmt of sf.statements) {
+    if (!ts.isVariableStatement(stmt)) continue;
+    for (const decl of stmt.declarationList.declarations) {
+      if (ts.isIdentifier(decl.name) && decl.name.text === varName) {
+        const res = resolveVariableArrayElements(decl, sf);
+        if (res) return res;
+      }
+    }
+  }
+  return [];
+}
+
 function extractStringArrayProp(
   obj: ts.ObjectLiteralExpression,
   propName: string,
@@ -276,8 +323,12 @@ function extractStringArrayProp(
   const items: string[] = []; // no-domain: Dynamic AST string list
   if (prop && ts.isArrayLiteralExpression(prop.initializer)) {
     for (const el of prop.initializer.elements) {
-      const v = astExpressionToValue(el, sf);
-      if (typeof v === 'string') items.push(v);
+      if (ts.isSpreadElement(el)) {
+        items.push(...resolveSpreadArrayElements(el.expression, sf));
+      } else {
+        const v = astExpressionToValue(el, sf);
+        if (typeof v === 'string') items.push(v);
+      }
     }
   }
   return items;
@@ -384,11 +435,7 @@ function extractFmtSummaryFromAst(
   let fmtIgnorePatterns: string[] = [];
   if (fmtExpr && ts.isObjectLiteralExpression(fmtExpr)) {
     fmtConfig = astExpressionToValue(fmtExpr, sf) as Record<string, unknown>;
-    if (Array.isArray(fmtConfig.ignorePatterns)) {
-      fmtIgnorePatterns = fmtConfig.ignorePatterns.filter(
-        (v): v is string => typeof v === 'string'
-      );
-    }
+    fmtIgnorePatterns = extractStringArrayProp(fmtExpr, 'ignorePatterns', sf);
   }
   return { fmtConfig, fmtIgnorePatterns };
 }
@@ -646,9 +693,119 @@ function buildLintOverridesArrayAst(
   return ts.factory.createArrayLiteralExpression(ovElements, true);
 }
 
+export function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[] {
+  const paths = auditConfig.paths;
+  if (!paths) return [];
+
+  const candidateRoots = [
+    ...(paths.testRoots ?? []),
+    ...(paths.e2eRoots ?? []),
+    ...(paths.integrationRoots ?? [])
+  ];
+
+  const globs: string[] = [];
+  for (const root of candidateRoots) {
+    const cleanRoot = stripGlobSuffix(normalizePosixPath(root));
+    if (cleanRoot && cleanRoot !== '.') {
+      globs.push(`**/${cleanRoot}/**`);
+    }
+  }
+
+  return Array.from(new Set(globs));
+}
+
+export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
+  readonly files: readonly string[];
+  readonly rules?: Readonly<Record<string, unknown>>;
+}[] {
+  const effective = [...(auditConfig.vitePlusConfig?.lint?.overrides ?? [])];
+
+  const dynamicTestGlobs = resolveDynamicTestExemptGlobs(auditConfig);
+  if (dynamicTestGlobs.length > 0) {
+    const hasTestOverride = effective.some(
+      (ov) => ov.rules && 'vitest/prefer-to-be-truthy' in ov.rules
+    );
+    if (!hasTestOverride) {
+      effective.push({
+        files: dynamicTestGlobs,
+        rules: {
+          'typescript/explicit-function-return-type': 'off',
+          '@typescript-eslint/explicit-function-return-type': 'off',
+          'vitest/prefer-to-be-truthy': 'off',
+          'vitest/prefer-to-be-falsy': 'off',
+          'vitest/prefer-strict-equal': 'off',
+          'vitest/no-conditional-expect': 'off',
+          'vitest/require-mock-type-parameters': 'off',
+          'vitest/prefer-mock-return-shorthand': 'off',
+          'vitest/expect-expect': 'off',
+          'typescript/no-floating-promises': 'off',
+          '@typescript-eslint/no-floating-promises': 'off',
+          'no-console': 'off',
+          '@francogp/domain-type/no-double-cast-unknown': 'off',
+          '@francogp/domain-type/no-broad-string-array': 'off',
+          '@francogp/domain-type/no-legacy-date': 'off',
+          'typescript/consistent-type-assertions': 'off',
+          'typescript/no-explicit-any': 'off',
+          'typescript/explicit-member-accessibility': 'off',
+          'typescript/await-thenable': 'off',
+          'typescript/unbound-method': 'off',
+          'typescript/require-array-sort-compare': 'off',
+          'unicorn/no-new-array': 'off'
+        }
+      });
+    }
+  }
+
+  return effective;
+}
+
+export function buildIgnorePatternsAst(
+  ignores: readonly string[],
+  lockedSkillsIgnores: readonly string[] = []
+): ts.ArrayLiteralExpression {
+  if (lockedSkillsIgnores.length === 0) {
+    return valueToAstExpression([...ignores]) as ts.ArrayLiteralExpression;
+  }
+  const lockedSet = new Set(lockedSkillsIgnores);
+  const otherIgnores = ignores.filter((g) => !lockedSet.has(g));
+  const elements: ts.Expression[] = otherIgnores.map((g) =>
+    ts.factory.createStringLiteral(g, true)
+  );
+  elements.push(
+    ts.factory.createSpreadElement(ts.factory.createIdentifier('LOCKED_SKILLS_IGNORE_PATTERNS'))
+  );
+  return ts.factory.createArrayLiteralExpression(elements, true);
+}
+
+export function buildLockedSkillsVariableStatement(
+  lockedSkillsIgnores: readonly string[]
+): ts.VariableStatement {
+  return ts.factory.createVariableStatement(
+    undefined,
+    ts.factory.createVariableDeclarationList(
+      [
+        ts.factory.createVariableDeclaration(
+          'LOCKED_SKILLS_IGNORE_PATTERNS',
+          undefined,
+          undefined,
+          ts.factory.createAsExpression(
+            ts.factory.createArrayLiteralExpression(
+              lockedSkillsIgnores.map((s) => ts.factory.createStringLiteral(s, true)),
+              true
+            ),
+            ts.factory.createTypeReferenceNode('const', undefined)
+          )
+        )
+      ],
+      ts.NodeFlags.Const
+    )
+  );
+}
+
 export function buildLintAstObject(
   auditConfig: AuditConfig,
-  lintIgnores: readonly string[]
+  lintIgnores: readonly string[],
+  lockedSkillsIgnores: readonly string[] = []
 ): ts.ObjectLiteralExpression {
   const lintCfg = auditConfig.vitePlusConfig?.lint;
   const typeAware = lintCfg?.typeAware ?? true;
@@ -692,14 +849,18 @@ export function buildLintAstObject(
       valueToAstExpression(['@francogp/auditor/domain-type-plugin'])
     ),
     ts.factory.createPropertyAssignment('rules', valueToAstExpression(mergedRules, true)),
-    ts.factory.createPropertyAssignment('ignorePatterns', valueToAstExpression(lintIgnores))
+    ts.factory.createPropertyAssignment(
+      'ignorePatterns',
+      buildIgnorePatternsAst(lintIgnores, lockedSkillsIgnores)
+    )
   );
 
-  if (lintCfg?.overrides && lintCfg.overrides.length > 0) {
+  const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+  if (effectiveOverrides.length > 0) {
     props.push(
       ts.factory.createPropertyAssignment(
         'overrides',
-        buildLintOverridesArrayAst(lintCfg.overrides)
+        buildLintOverridesArrayAst(effectiveOverrides)
       )
     );
   }
@@ -709,21 +870,57 @@ export function buildLintAstObject(
 
 export function buildFmtAstObject(
   auditConfig: AuditConfig,
-  fmtIgnores: readonly string[]
+  fmtIgnores: readonly string[],
+  lockedSkillsIgnores: readonly string[] = []
 ): ts.ObjectLiteralExpression {
   const fmtCfg = auditConfig.vitePlusConfig?.fmt;
-  const fmtData: Record<string, unknown> = {
-    singleQuote: fmtCfg?.singleQuote ?? true,
-    semi: fmtCfg?.semi ?? true,
-    trailingComma: fmtCfg?.trailingComma ?? 'none',
-    printWidth: fmtCfg?.printWidth ?? 100,
-    sortPackageJson: fmtCfg?.sortPackageJson ?? true,
-    sortImports: fmtCfg?.sortImports ?? true,
-    ignorePatterns: fmtIgnores
-  };
-  if (fmtCfg?.tabWidth !== undefined) fmtData.tabWidth = fmtCfg.tabWidth;
-  if (fmtCfg?.useTabs !== undefined) fmtData.useTabs = fmtCfg.useTabs;
-  return valueToAstExpression(fmtData) as ts.ObjectLiteralExpression;
+  const props: ts.ObjectLiteralElementLike[] = [
+    ts.factory.createPropertyAssignment(
+      'singleQuote',
+      (fmtCfg?.singleQuote ?? true) ? ts.factory.createTrue() : ts.factory.createFalse()
+    ),
+    ts.factory.createPropertyAssignment(
+      'semi',
+      (fmtCfg?.semi ?? true) ? ts.factory.createTrue() : ts.factory.createFalse()
+    ),
+    ts.factory.createPropertyAssignment(
+      'trailingComma',
+      ts.factory.createStringLiteral(fmtCfg?.trailingComma ?? 'none', true)
+    ),
+    ts.factory.createPropertyAssignment(
+      'printWidth',
+      ts.factory.createNumericLiteral(fmtCfg?.printWidth ?? 100)
+    ),
+    ts.factory.createPropertyAssignment(
+      'sortPackageJson',
+      (fmtCfg?.sortPackageJson ?? true) ? ts.factory.createTrue() : ts.factory.createFalse()
+    ),
+    ts.factory.createPropertyAssignment(
+      'sortImports',
+      (fmtCfg?.sortImports ?? true) ? ts.factory.createTrue() : ts.factory.createFalse()
+    ),
+    ts.factory.createPropertyAssignment(
+      'ignorePatterns',
+      buildIgnorePatternsAst(fmtIgnores, lockedSkillsIgnores)
+    )
+  ];
+  if (fmtCfg?.tabWidth !== undefined) {
+    props.push(
+      ts.factory.createPropertyAssignment(
+        'tabWidth',
+        ts.factory.createNumericLiteral(fmtCfg.tabWidth)
+      )
+    );
+  }
+  if (fmtCfg?.useTabs !== undefined) {
+    props.push(
+      ts.factory.createPropertyAssignment(
+        'useTabs',
+        fmtCfg.useTabs ? ts.factory.createTrue() : ts.factory.createFalse()
+      )
+    );
+  }
+  return ts.factory.createObjectLiteralExpression(props, true);
 }
 
 export function resolveVitestRoots(auditConfig: AuditConfig): readonly string[] {
@@ -827,7 +1024,8 @@ export function buildCanonicalVitePlusAstSource(
   auditConfig: AuditConfig,
   lintIgnores: readonly string[],
   fmtIgnores: readonly string[],
-  legacyTestProperty?: ts.PropertyAssignment | null
+  legacyTestProperty?: ts.PropertyAssignment | null,
+  lockedSkillsIgnores: readonly string[] = []
 ): string {
   const isLibrary = auditConfig.packageDistribution?.enabled !== false;
   const rootProps: ts.ObjectLiteralElementLike[] = [];
@@ -837,8 +1035,14 @@ export function buildCanonicalVitePlusAstSource(
   }
   rootProps.push(
     ts.factory.createPropertyAssignment('run', buildRunAstObject(auditConfig)),
-    ts.factory.createPropertyAssignment('lint', buildLintAstObject(auditConfig, lintIgnores)),
-    ts.factory.createPropertyAssignment('fmt', buildFmtAstObject(auditConfig, fmtIgnores)),
+    ts.factory.createPropertyAssignment(
+      'lint',
+      buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores)
+    ),
+    ts.factory.createPropertyAssignment(
+      'fmt',
+      buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)
+    ),
     legacyTestProperty ??
       ts.factory.createPropertyAssignment('test', buildTestAstObject(auditConfig)),
     ts.factory.createPropertyAssignment('staged', buildStagedAstObject(auditConfig))
@@ -868,8 +1072,14 @@ export function buildCanonicalVitePlusAstSource(
     ])
   );
 
+  const statements: ts.Statement[] = [importDecl];
+  if (lockedSkillsIgnores.length > 0) {
+    statements.push(buildLockedSkillsVariableStatement(lockedSkillsIgnores));
+  }
+  statements.push(exportDefault);
+
   const sf = ts.factory.createSourceFile(
-    [importDecl, exportDefault],
+    statements,
     ts.factory.createToken(ts.SyntaxKind.EndOfFileToken),
     ts.NodeFlags.None
   );
@@ -912,7 +1122,6 @@ export function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.Propert
 
 const TUPLE_REQUIRED_RULE_LIST = [
   '@typescript-eslint/consistent-type-assertions',
-  '@typescript-eslint/explicit-function-return-type',
   'no-empty',
   'eqeqeq'
 ] as const;
@@ -928,9 +1137,7 @@ function checkTupleRuleOption(ruleName: string, second: unknown): boolean {
     );
   }
   if (ruleName === '@typescript-eslint/explicit-function-return-type') {
-    const cfg =
-      typeof second === 'object' && second !== null ? (second as Record<string, unknown>) : null;
-    return cfg !== null && cfg.allowExpressions === false;
+    return true;
   }
   if (ruleName === 'no-empty') {
     const cfg =
@@ -939,6 +1146,9 @@ function checkTupleRuleOption(ruleName: string, second: unknown): boolean {
   }
   if (ruleName === 'eqeqeq') {
     return second === 'always';
+  }
+  if (ruleName === '@typescript-eslint/no-unused-vars') {
+    return false;
   }
   return true;
 }
@@ -1167,11 +1377,53 @@ function purgeOrphanLintRulesAst(
   return { rulesProps: nextProps, modified };
 }
 
+function syncIgnorePatternsProperty(
+  existingProp: ts.PropertyAssignment | null,
+  requiredIgnores: readonly string[],
+  sf: ts.SourceFile,
+  lockedSkillsIgnores: readonly string[] = []
+): { expr: ts.ArrayLiteralExpression; modified: boolean } {
+  if (lockedSkillsIgnores.length === 0) {
+    return syncStringArrayExpression(existingProp, requiredIgnores, sf, true);
+  }
+
+  const lockedSet = new Set(lockedSkillsIgnores);
+  const requiredOther = requiredIgnores.filter((g) => !lockedSet.has(g));
+
+  if (existingProp && ts.isArrayLiteralExpression(existingProp.initializer)) {
+    const currentStrings: string[] = [];
+    let hasSpread = false;
+    for (const el of existingProp.initializer.elements) {
+      if (
+        ts.isSpreadElement(el) &&
+        ts.isIdentifier(el.expression) &&
+        el.expression.text === 'LOCKED_SKILLS_IGNORE_PATTERNS'
+      ) {
+        hasSpread = true;
+      } else {
+        const v = astExpressionToValue(el, sf);
+        if (typeof v === 'string') currentStrings.push(v);
+      }
+    }
+    const isSameLength = currentStrings.length === requiredOther.length;
+    const allMatch = isSameLength && requiredOther.every((req, i) => currentStrings[i] === req);
+    if (hasSpread && allMatch) {
+      return { expr: existingProp.initializer, modified: false };
+    }
+  }
+
+  return {
+    expr: buildIgnorePatternsAst(requiredIgnores, lockedSkillsIgnores),
+    modified: true
+  };
+}
+
 function syncLintSectionAst(
   lintObj: ts.ObjectLiteralExpression,
   auditConfig: AuditConfig,
   lintIgnores: readonly string[],
-  sf: ts.SourceFile
+  sf: ts.SourceFile,
+  lockedSkillsIgnores: readonly string[] = []
 ): { obj: ts.ObjectLiteralExpression; modified: boolean } {
   const dedup = deduplicateObjectProperties(lintObj.properties, sf);
   let props = dedup.props;
@@ -1262,26 +1514,26 @@ function syncLintSectionAst(
     'ignorePatterns',
     sf
   );
-  const ignoreSync = syncStringArrayExpression(ignoreProp, lintIgnores, sf, true);
+  const ignoreSync = syncIgnorePatternsProperty(ignoreProp, lintIgnores, sf, lockedSkillsIgnores);
   if (ignoreSync.modified) {
     props = updateObjectProperty(props, 'ignorePatterns', ignoreSync.expr, sf);
     modified = true;
   }
 
   // 5. overrides
-  const configuredOverrides = auditConfig.vitePlusConfig?.lint?.overrides;
-  if (configuredOverrides && configuredOverrides.length > 0) {
+  const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+  if (effectiveOverrides && effectiveOverrides.length > 0) {
     const ovProp = findPropertyAssignment(
       ts.factory.createObjectLiteralExpression(props, true),
       'overrides',
       sf
     );
     const currentOvVal = ovProp ? astExpressionToValue(ovProp.initializer, sf) : undefined;
-    if (JSON.stringify(currentOvVal) !== JSON.stringify(configuredOverrides)) {
+    if (JSON.stringify(currentOvVal) !== JSON.stringify(effectiveOverrides)) {
       props = updateObjectProperty(
         props,
         'overrides',
-        buildLintOverridesArrayAst(configuredOverrides),
+        buildLintOverridesArrayAst(effectiveOverrides),
         sf
       );
       modified = true;
@@ -1298,7 +1550,8 @@ function syncFmtSectionAst(
   fmtObj: ts.ObjectLiteralExpression,
   auditConfig: AuditConfig,
   fmtIgnores: readonly string[],
-  sf: ts.SourceFile
+  sf: ts.SourceFile,
+  lockedSkillsIgnores: readonly string[] = []
 ): { obj: ts.ObjectLiteralExpression; modified: boolean } {
   const dedup = deduplicateObjectProperties(fmtObj.properties, sf);
   let props = dedup.props;
@@ -1322,7 +1575,7 @@ function syncFmtSectionAst(
     'ignorePatterns',
     sf
   );
-  const ignoreSync = syncStringArrayExpression(ignoreProp, fmtIgnores, sf, true);
+  const ignoreSync = syncIgnorePatternsProperty(ignoreProp, fmtIgnores, sf, lockedSkillsIgnores);
   if (ignoreSync.modified) {
     props = updateObjectProperty(props, 'ignorePatterns', ignoreSync.expr, sf);
     modified = true;
@@ -1707,9 +1960,9 @@ function syncTestSectionAst(
 }
 
 function syncPackSectionOnRoot(
-  rootProps: ts.ObjectLiteralElementLike[],
+  rootProps: readonly ts.ObjectLiteralElementLike[],
   sf: ts.SourceFile
-): { props: ts.ObjectLiteralElementLike[]; modified: boolean } {
+): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
   const tempRoot = ts.factory.createObjectLiteralExpression(rootProps, true);
   const packProp = findPropertyAssignment(tempRoot, 'pack', sf);
   if (!packProp || !ts.isObjectLiteralExpression(packProp.initializer)) {
@@ -1931,15 +2184,54 @@ function transformFunctionDeclaration(
   };
 }
 
+function transformLockedSkillsVariableStatement(
+  stmt: ts.VariableStatement,
+  lockedSkillsIgnores: readonly string[]
+): { transformed: ts.VariableStatement; modified: boolean } {
+  const decl = stmt.declarationList.declarations[0];
+  if (!decl || !decl.initializer) return { transformed: stmt, modified: false };
+  let init: ts.Expression = decl.initializer;
+  if (ts.isAsExpression(init)) {
+    init = init.expression;
+  }
+  if (!ts.isArrayLiteralExpression(init)) return { transformed: stmt, modified: false };
+  const currentVals: string[] = [];
+  for (const el of init.elements) {
+    if (ts.isStringLiteral(el)) currentVals.push(el.text);
+  }
+  const isSame =
+    currentVals.length === lockedSkillsIgnores.length &&
+    lockedSkillsIgnores.every((g, i) => currentVals[i] === g);
+  if (isSame) return { transformed: stmt, modified: false };
+  return {
+    transformed: buildLockedSkillsVariableStatement(lockedSkillsIgnores),
+    modified: true
+  };
+}
+
 export function applyViteConfigAstTransformations(
   sf: ts.SourceFile,
   rootObj: ts.ObjectLiteralExpression,
-  updatedRootObj: ts.ObjectLiteralExpression
+  updatedRootObj: ts.ObjectLiteralExpression,
+  lockedSkillsIgnores: readonly string[] = []
 ): { transformedContent: string; modified: boolean } {
   let modified = false;
 
+  const existingLockedVar = findVariableStatementForName(sf, 'LOCKED_SKILLS_IGNORE_PATTERNS');
+
   const transformer: ts.TransformerFactory<ts.SourceFile> = (context) => {
     const visit: ts.Visitor = (node): ts.Node => {
+      if (
+        ts.isVariableStatement(node) &&
+        node === existingLockedVar &&
+        lockedSkillsIgnores.length > 0
+      ) {
+        const res = transformLockedSkillsVariableStatement(node, lockedSkillsIgnores);
+        if (res.modified) {
+          modified = true;
+          return res.transformed;
+        }
+      }
       if (ts.isImportDeclaration(node)) {
         const imp = transformImportDeclaration(node);
         if (imp.modified) {
@@ -1976,7 +2268,26 @@ export function applyViteConfigAstTransformations(
       return ts.visitEachChild(node, visit, context);
     };
 
-    return (source) => ts.visitNode(source, visit) as ts.SourceFile;
+    return (source) => {
+      let visitedStatements = source.statements.map(
+        (stmt) => ts.visitNode(stmt, visit) as ts.Statement
+      );
+      if (lockedSkillsIgnores.length > 0 && !existingLockedVar) {
+        const exportIdx = visitedStatements.findIndex((s) => ts.isExportAssignment(s));
+        const lockedConst = buildLockedSkillsVariableStatement(lockedSkillsIgnores);
+        if (exportIdx >= 0) {
+          visitedStatements = [
+            ...visitedStatements.slice(0, exportIdx),
+            lockedConst,
+            ...visitedStatements.slice(exportIdx)
+          ];
+        } else {
+          visitedStatements.push(lockedConst);
+        }
+        modified = true;
+      }
+      return ts.factory.updateSourceFile(source, visitedStatements);
+    };
   };
 
   const transformedContent = printTransformedSourceFile(sf, transformer);
@@ -2039,7 +2350,8 @@ function syncViteLintAndFmtSections(
   sf: ts.SourceFile,
   auditConfig: AuditConfig,
   lintIgnores: readonly string[],
-  fmtIgnores: readonly string[]
+  fmtIgnores: readonly string[],
+  lockedSkillsIgnores: readonly string[] = []
 ): { props: readonly ts.ObjectLiteralElementLike[]; modified: boolean } {
   let props = rootProps;
   let modified = false;
@@ -2051,11 +2363,20 @@ function syncViteLintAndFmtSections(
   if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
     props = [
       ...props,
-      ts.factory.createPropertyAssignment('lint', buildLintAstObject(auditConfig, lintIgnores))
+      ts.factory.createPropertyAssignment(
+        'lint',
+        buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores)
+      )
     ];
     modified = true;
   } else {
-    const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
+    const syncedLint = syncLintSectionAst(
+      lintProp.initializer,
+      auditConfig,
+      lintIgnores,
+      sf,
+      lockedSkillsIgnores
+    );
     if (syncedLint.modified) {
       props = updateObjectProperty(props, 'lint', syncedLint.obj, sf);
       modified = true;
@@ -2066,11 +2387,20 @@ function syncViteLintAndFmtSections(
   if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
     props = [
       ...props,
-      ts.factory.createPropertyAssignment('fmt', buildFmtAstObject(auditConfig, fmtIgnores))
+      ts.factory.createPropertyAssignment(
+        'fmt',
+        buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)
+      )
     ];
     modified = true;
   } else {
-    const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
+    const syncedFmt = syncFmtSectionAst(
+      fmtProp.initializer,
+      auditConfig,
+      fmtIgnores,
+      sf,
+      lockedSkillsIgnores
+    );
     if (syncedFmt.modified) {
       props = updateObjectProperty(props, 'fmt', syncedFmt.obj, sf);
       modified = true;
@@ -2095,7 +2425,7 @@ export function synchronizeViteConfigAst(
   lintIgnores: readonly string[],
   fmtIgnores: readonly string[],
   legacyTestProp: ts.PropertyAssignment | null,
-  projectRoot?: string
+  projectRoot: string = process.cwd()
 ): { content: string; modified: boolean } {
   const sf = parseTsSourceFile(fileContent);
   const rootObj = findConfigRootObject(sf);
@@ -2103,8 +2433,13 @@ export function synchronizeViteConfigAst(
     return { content: fileContent, modified: false };
   }
 
+  const candidateLocked = getLockedSkillsIgnoreGlobs(projectRoot);
+  const lockedSkillsIgnores = candidateLocked.filter(
+    (g) => lintIgnores.includes(g) || fmtIgnores.includes(g)
+  );
+
   const dedupRoot = deduplicateObjectProperties(rootObj.properties, sf);
-  let rootProps = dedupRoot.props;
+  let rootProps: readonly ts.ObjectLiteralElementLike[] = dedupRoot.props;
   let modified = dedupRoot.modified;
 
   if (auditConfig.packageDistribution?.enabled === true) {
@@ -2126,7 +2461,8 @@ export function synchronizeViteConfigAst(
     sf,
     auditConfig,
     lintIgnores,
-    fmtIgnores
+    fmtIgnores,
+    lockedSkillsIgnores
   );
   rootProps = lintFmtResult.props;
   if (lintFmtResult.modified) modified = true;
@@ -2143,7 +2479,12 @@ export function synchronizeViteConfigAst(
   }
 
   const updatedRootObj = ts.factory.createObjectLiteralExpression(rootProps, true);
-  const astTransformResult = applyViteConfigAstTransformations(sf, rootObj, updatedRootObj);
+  const astTransformResult = applyViteConfigAstTransformations(
+    sf,
+    rootObj,
+    updatedRootObj,
+    lockedSkillsIgnores
+  );
 
   if (!modified && !astTransformResult.modified) {
     return { content: fileContent, modified: false };

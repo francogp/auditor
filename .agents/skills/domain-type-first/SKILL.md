@@ -437,14 +437,14 @@ Examples:
 
 ## Audit Workflow & Command Reference
 
-The canonical domain type auditor is `validate_domain_types` from `@francogp/auditor` (`src/suites/domain_data/validate_domain_types.ts`). It scans both `src/` and `scripts/` directories automatically.
+The canonical domain type auditor is the `@francogp/domain-type` Oxlint plugin from `@francogp/auditor` executed via `validate_oxlint` (`src/suites/architecture/validate_oxlint.ts`). It scans both `src/` and `scripts/` directories automatically.
 
 ### Running the Domain Type Auditor
 
 ```bash
 # Standard in-depth audit across src/ and scripts/
-npm run auditor -- task=validate_domain_types
-# or: auditor task=validate_domain_types
+npm run auditor -- task=validate_oxlint
+# or: auditor task=validate_oxlint
 
 # Full domain data suite audit
 auditor family=domain_data

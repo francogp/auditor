@@ -22,8 +22,5 @@
   "duplicates": {
     "nearMiss": true,
     "mode": "strict"
-  },
-  "typeAware": {
-    "enabled": true
   }
 }

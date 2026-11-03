@@ -121,16 +121,20 @@ function handleDiscoverCommand(def, projectRoot, engine, isHuman = false) {
 		console.log(`\nNext Action: npm run ${def.toolName} inspect <file>`);
 	}
 }
-function handleInspectCommand(def, projectRoot, targetFile) {
-	if (!targetFile) {
-		console.error(styleText("red", `[Error] You must specify a file to inspect. E.g.: ${def.toolName} inspect src/components/Modal.vue or --file <path>`));
-		process.exit(1);
-	}
+function resolveTargetFileOrExit(projectRoot, targetFile) {
 	const fullPath = path.isAbsolute(targetFile) ? path.normalize(targetFile) : path.resolve(projectRoot, targetFile);
 	if (!fs.existsSync(fullPath)) {
 		console.error(styleText("red", `[Error] File not found: ${fullPath}`));
 		process.exit(1);
 	}
+	return fullPath;
+}
+function handleInspectCommand(def, projectRoot, targetFile) {
+	if (!targetFile) {
+		console.error(styleText("red", `[Error] You must specify a file to inspect. E.g.: ${def.toolName} inspect src/components/Modal.vue or --file <path>`));
+		process.exit(1);
+	}
+	const fullPath = resolveTargetFileOrExit(projectRoot, targetFile);
 	const findings = def.discoverInFile(fullPath);
 	if (findings.length === 0) {
 		console.log(styleText("green", `[OK] File ${targetFile} has zero findings for ${def.toolDescription}.`));
@@ -152,11 +156,7 @@ function handlePlanCommand(def, projectRoot, engine, targetFile, outputPath) {
 	const allFindings = [];
 	const filesScanned = [];
 	if (targetFile) {
-		const fullPath = path.isAbsolute(targetFile) ? path.normalize(targetFile) : path.resolve(projectRoot, targetFile);
-		if (!fs.existsSync(fullPath)) {
-			console.error(styleText("red", `[Error] File not found: ${fullPath}`));
-			process.exit(1);
-		}
+		const fullPath = resolveTargetFileOrExit(projectRoot, targetFile);
 		const findings = def.discoverInFile(fullPath);
 		if (findings.length > 0) {
 			filesScanned.push(fullPath);
@@ -207,6 +207,30 @@ function createRefactorCli(def) {
 		}
 	});
 }
+function resolveTargetFileFromParsed(parsed) {
+	const file = typeof parsed.file === "string" && parsed.file ? parsed.file : void 0;
+	const target = typeof parsed.target === "string" && parsed.target ? parsed.target : void 0;
+	return file ?? target;
+}
+async function dispatchRefactorCommand(command, def, projectRoot, engine, isHuman, parsed) {
+	switch (command) {
+		case "discover":
+			handleDiscoverCommand(def, projectRoot, engine, isHuman);
+			return;
+		case "inspect":
+			handleInspectCommand(def, projectRoot, resolveTargetFileFromParsed(parsed));
+			return;
+		case "plan":
+			handlePlanCommand(def, projectRoot, engine, resolveTargetFileFromParsed(parsed), typeof parsed.write === "string" && parsed.write ? parsed.write : void 0);
+			return;
+		case "apply":
+			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? resolveTargetFileFromParsed(parsed), Boolean(parsed.worktree));
+			return;
+		default:
+			console.error(styleText("red", `[Error] Unknown command: ${command}`));
+			process.exit(1);
+	}
+}
 async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 	const parsed = parseCittyArgs(REFACTOR_HARNESS_ARGS, argv, REFACTOR_SUBCOMMANDS);
 	const isHuman = resolveHumanModeFromArgs({
@@ -226,22 +250,6 @@ async function runRefactorCliHarness(def, argv = getProcessCliArgs()) {
 		console.log(styleText("yellow", `\n[Warning] Tool '${engine.toolId}' is disabled in .auditor/audit.config.ts.\n`));
 		return;
 	}
-	switch (command) {
-		case "discover":
-			handleDiscoverCommand(def, projectRoot, engine, isHuman);
-			break;
-		case "inspect":
-			handleInspectCommand(def, projectRoot, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0));
-			break;
-		case "plan":
-			handlePlanCommand(def, projectRoot, engine, (typeof parsed.file === "string" && parsed.file ? parsed.file : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0), typeof parsed.write === "string" && parsed.write ? parsed.write : void 0);
-			break;
-		case "apply":
-			await handleApplyCommand(def, projectRoot, (typeof parsed.plan === "string" && parsed.plan ? parsed.plan : void 0) ?? (typeof parsed.target === "string" && parsed.target ? parsed.target : void 0), Boolean(parsed.worktree));
-			break;
-		default:
-			console.error(styleText("red", `[Error] Unknown command: ${command}`));
-			process.exit(1);
-	}
+	await dispatchRefactorCommand(command, def, projectRoot, engine, isHuman, parsed);
 }
 export { REFACTOR_POSITIONAL_CLI_ARGS, REFACTOR_SUBCOMMANDS, applyPlanFileWithWorktreeVerification, createRefactorCli, formatCliRelativeFilePath, renderBanner, renderBoxTable, runRefactorCliHarness };

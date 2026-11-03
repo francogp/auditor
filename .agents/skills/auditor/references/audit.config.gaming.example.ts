@@ -118,8 +118,8 @@ export default defineAuditConfig({
       'vendor-randoms' // Complex pseudo-random number generator for battles
     ],
     budgets: [
-      { pattern: 'index', maxBytes: 1500 * 1024, warnBytes: 1000 * 1024 }, // Main entry chunk budget
-      { pattern: 'battle', maxBytes: 2500 * 1024, warnBytes: 1800 * 1024 } // Heavy battle view chunk budget
+      { name: 'index', limitBytes: 1500 * 1024 }, // Main entry chunk budget
+      { name: 'battle', limitBytes: 2500 * 1024 } // Heavy battle view chunk budget
     ],
     forbiddenUiImports: [
       { module: 'lz-string', reason: 'Must be loaded on-demand or in save workers.' } // Heavy compression that must execute outside UI thread
@@ -350,9 +350,7 @@ export default defineAuditConfig({
     maxNestingDepth: 4, // Maximum selector nesting depth allowed in SCSS and Vue SFC <style> blocks
     enforceThemeTokens: true, // Mandates using design system theme tokens and SCSS variables for styling values
     bannedUnits: ['pt', 'in', 'cm', 'mm', 'pc'], // Obsolete print/physical units strictly prohibited in web stylesheets
-    scopedMaxNestingDepth: {
-      'src/components/battle': 5 // Accommodates deeper scoped nesting in complex battle arena scenes
-    },
+    scopedMaxNestingDepth: 5, // Accommodates deeper scoped nesting in complex battle arena scenes
     allowPixelArtSpacing: true // Allows odd 1px/2px margins and paddings for authentic retro pixel-art grid alignment
   },
 

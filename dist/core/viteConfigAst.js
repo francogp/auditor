@@ -1,7 +1,7 @@
 import { DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
-import { getEffectiveIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
+import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
 import { isPatternContainedInGlobs } from "./globContainment.js";
 import { getAllowedSatellitePathExcludes } from "./satelliteGlobMatcher.js";
 import path from "node:path";
@@ -143,10 +143,36 @@ function extractStringProp(obj, propName, sf) {
 	}
 	return null;
 }
+function extractArrayLiteralStrings(arrayExpr, sf) {
+	const vals = [];
+	for (const item of arrayExpr.elements) {
+		const val = astExpressionToValue(item, sf);
+		if (typeof val === "string") vals.push(val);
+	}
+	return vals;
+}
+function resolveVariableArrayElements(decl, sf) {
+	if (!decl.initializer) return null;
+	const initExpr = ts.isAsExpression(decl.initializer) ? decl.initializer.expression : decl.initializer;
+	return ts.isArrayLiteralExpression(initExpr) ? extractArrayLiteralStrings(initExpr, sf) : null;
+}
+function resolveSpreadArrayElements(expr, sf) {
+	if (!ts.isIdentifier(expr)) return [];
+	const varName = expr.text;
+	for (const stmt of sf.statements) {
+		if (!ts.isVariableStatement(stmt)) continue;
+		for (const decl of stmt.declarationList.declarations) if (ts.isIdentifier(decl.name) && decl.name.text === varName) {
+			const res = resolveVariableArrayElements(decl, sf);
+			if (res) return res;
+		}
+	}
+	return [];
+}
 function extractStringArrayProp(obj, propName, sf) {
 	const prop = findPropertyAssignment(obj, propName, sf);
 	const items = [];
-	if (prop && ts.isArrayLiteralExpression(prop.initializer)) for (const el of prop.initializer.elements) {
+	if (prop && ts.isArrayLiteralExpression(prop.initializer)) for (const el of prop.initializer.elements) if (ts.isSpreadElement(el)) items.push(...resolveSpreadArrayElements(el.expression, sf));
+	else {
 		const v = astExpressionToValue(el, sf);
 		if (typeof v === "string") items.push(v);
 	}
@@ -216,7 +242,7 @@ function extractFmtSummaryFromAst(fmtExpr, sf) {
 	let fmtIgnorePatterns = [];
 	if (fmtExpr && ts.isObjectLiteralExpression(fmtExpr)) {
 		fmtConfig = astExpressionToValue(fmtExpr, sf);
-		if (Array.isArray(fmtConfig.ignorePatterns)) fmtIgnorePatterns = fmtConfig.ignorePatterns.filter((v) => typeof v === "string");
+		fmtIgnorePatterns = extractStringArrayProp(fmtExpr, "ignorePatterns", sf);
 	}
 	return {
 		fmtConfig,
@@ -364,7 +390,66 @@ function buildLintOverridesArrayAst(overrides) {
 	const ovElements = overrides.map((ov) => ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("files", valueToAstExpression(ov.files)), ts.factory.createPropertyAssignment("rules", valueToAstExpression(ov.rules ?? {}, true))], true));
 	return ts.factory.createArrayLiteralExpression(ovElements, true);
 }
-function buildLintAstObject(auditConfig, lintIgnores) {
+function resolveDynamicTestExemptGlobs(auditConfig) {
+	const paths = auditConfig.paths;
+	if (!paths) return [];
+	const candidateRoots = [
+		...paths.testRoots ?? [],
+		...paths.e2eRoots ?? [],
+		...paths.integrationRoots ?? []
+	];
+	const globs = [];
+	for (const root of candidateRoots) {
+		const cleanRoot = stripGlobSuffix(normalizePosixPath(root));
+		if (cleanRoot && cleanRoot !== ".") globs.push(`**/${cleanRoot}/**`);
+	}
+	return Array.from(new Set(globs));
+}
+function resolveEffectiveLintOverrides(auditConfig) {
+	const effective = [...auditConfig.vitePlusConfig?.lint?.overrides ?? []];
+	const dynamicTestGlobs = resolveDynamicTestExemptGlobs(auditConfig);
+	if (dynamicTestGlobs.length > 0) {
+		if (!effective.some((ov) => ov.rules && "vitest/prefer-to-be-truthy" in ov.rules)) effective.push({
+			files: dynamicTestGlobs,
+			rules: {
+				"typescript/explicit-function-return-type": "off",
+				"@typescript-eslint/explicit-function-return-type": "off",
+				"vitest/prefer-to-be-truthy": "off",
+				"vitest/prefer-to-be-falsy": "off",
+				"vitest/prefer-strict-equal": "off",
+				"vitest/no-conditional-expect": "off",
+				"vitest/require-mock-type-parameters": "off",
+				"vitest/prefer-mock-return-shorthand": "off",
+				"vitest/expect-expect": "off",
+				"typescript/no-floating-promises": "off",
+				"@typescript-eslint/no-floating-promises": "off",
+				"no-console": "off",
+				"@francogp/domain-type/no-double-cast-unknown": "off",
+				"@francogp/domain-type/no-broad-string-array": "off",
+				"@francogp/domain-type/no-legacy-date": "off",
+				"typescript/consistent-type-assertions": "off",
+				"typescript/no-explicit-any": "off",
+				"typescript/explicit-member-accessibility": "off",
+				"typescript/await-thenable": "off",
+				"typescript/unbound-method": "off",
+				"typescript/require-array-sort-compare": "off",
+				"unicorn/no-new-array": "off"
+			}
+		});
+	}
+	return effective;
+}
+function buildIgnorePatternsAst(ignores, lockedSkillsIgnores = []) {
+	if (lockedSkillsIgnores.length === 0) return valueToAstExpression([...ignores]);
+	const lockedSet = new Set(lockedSkillsIgnores);
+	const elements = ignores.filter((g) => !lockedSet.has(g)).map((g) => ts.factory.createStringLiteral(g, true));
+	elements.push(ts.factory.createSpreadElement(ts.factory.createIdentifier("LOCKED_SKILLS_IGNORE_PATTERNS")));
+	return ts.factory.createArrayLiteralExpression(elements, true);
+}
+function buildLockedSkillsVariableStatement(lockedSkillsIgnores) {
+	return ts.factory.createVariableStatement(void 0, ts.factory.createVariableDeclarationList([ts.factory.createVariableDeclaration("LOCKED_SKILLS_IGNORE_PATTERNS", void 0, void 0, ts.factory.createAsExpression(ts.factory.createArrayLiteralExpression(lockedSkillsIgnores.map((s) => ts.factory.createStringLiteral(s, true)), true), ts.factory.createTypeReferenceNode("const", void 0)))], ts.NodeFlags.Const));
+}
+function buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores = []) {
 	const lintCfg = auditConfig.vitePlusConfig?.lint;
 	const typeAware = lintCfg?.typeAware ?? true;
 	const typeCheck = lintCfg?.typeCheck ?? true;
@@ -378,24 +463,25 @@ function buildLintAstObject(auditConfig, lintIgnores) {
 	if (lintCfg?.categories && Object.keys(lintCfg.categories).length > 0) props.push(ts.factory.createPropertyAssignment("categories", valueToAstExpression(lintCfg.categories, true)));
 	const configuredPlugins = lintCfg?.plugins ?? DEFAULT_VITE_PLUS_AUDIT_CONFIG.lint?.plugins ?? [];
 	if (configuredPlugins.length > 0) props.push(ts.factory.createPropertyAssignment("plugins", valueToAstExpression([...configuredPlugins])));
-	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", valueToAstExpression(lintIgnores)));
-	if (lintCfg?.overrides && lintCfg.overrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(lintCfg.overrides)));
+	props.push(ts.factory.createPropertyAssignment("jsPlugins", valueToAstExpression(["@francogp/auditor/domain-type-plugin"])), ts.factory.createPropertyAssignment("rules", valueToAstExpression(mergedRules, true)), ts.factory.createPropertyAssignment("ignorePatterns", buildIgnorePatternsAst(lintIgnores, lockedSkillsIgnores)));
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	if (effectiveOverrides.length > 0) props.push(ts.factory.createPropertyAssignment("overrides", buildLintOverridesArrayAst(effectiveOverrides)));
 	return ts.factory.createObjectLiteralExpression(props, true);
 }
-function buildFmtAstObject(auditConfig, fmtIgnores) {
+function buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores = []) {
 	const fmtCfg = auditConfig.vitePlusConfig?.fmt;
-	const fmtData = {
-		singleQuote: fmtCfg?.singleQuote ?? true,
-		semi: fmtCfg?.semi ?? true,
-		trailingComma: fmtCfg?.trailingComma ?? "none",
-		printWidth: fmtCfg?.printWidth ?? 100,
-		sortPackageJson: fmtCfg?.sortPackageJson ?? true,
-		sortImports: fmtCfg?.sortImports ?? true,
-		ignorePatterns: fmtIgnores
-	};
-	if (fmtCfg?.tabWidth !== void 0) fmtData.tabWidth = fmtCfg.tabWidth;
-	if (fmtCfg?.useTabs !== void 0) fmtData.useTabs = fmtCfg.useTabs;
-	return valueToAstExpression(fmtData);
+	const props = [
+		ts.factory.createPropertyAssignment("singleQuote", fmtCfg?.singleQuote ?? true ? ts.factory.createTrue() : ts.factory.createFalse()),
+		ts.factory.createPropertyAssignment("semi", fmtCfg?.semi ?? true ? ts.factory.createTrue() : ts.factory.createFalse()),
+		ts.factory.createPropertyAssignment("trailingComma", ts.factory.createStringLiteral(fmtCfg?.trailingComma ?? "none", true)),
+		ts.factory.createPropertyAssignment("printWidth", ts.factory.createNumericLiteral(fmtCfg?.printWidth ?? 100)),
+		ts.factory.createPropertyAssignment("sortPackageJson", fmtCfg?.sortPackageJson ?? true ? ts.factory.createTrue() : ts.factory.createFalse()),
+		ts.factory.createPropertyAssignment("sortImports", fmtCfg?.sortImports ?? true ? ts.factory.createTrue() : ts.factory.createFalse()),
+		ts.factory.createPropertyAssignment("ignorePatterns", buildIgnorePatternsAst(fmtIgnores, lockedSkillsIgnores))
+	];
+	if (fmtCfg?.tabWidth !== void 0) props.push(ts.factory.createPropertyAssignment("tabWidth", ts.factory.createNumericLiteral(fmtCfg.tabWidth)));
+	if (fmtCfg?.useTabs !== void 0) props.push(ts.factory.createPropertyAssignment("useTabs", fmtCfg.useTabs ? ts.factory.createTrue() : ts.factory.createFalse()));
+	return ts.factory.createObjectLiteralExpression(props, true);
 }
 function resolveVitestRoots(auditConfig) {
 	const rawTestRoots = auditConfig.paths?.testRoots ?? DEFAULT_AUDIT_CONFIG.paths.testRoots;
@@ -460,14 +546,17 @@ function buildRunAstObject(auditConfig) {
 	const cacheVal = auditConfig?.vitePlusConfig?.run?.cache !== false;
 	return ts.factory.createObjectLiteralExpression([ts.factory.createPropertyAssignment("cache", cacheVal ? ts.factory.createTrue() : ts.factory.createFalse())], true);
 }
-function buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, legacyTestProperty) {
+function buildCanonicalVitePlusAstSource(auditConfig, lintIgnores, fmtIgnores, legacyTestProperty, lockedSkillsIgnores = []) {
 	const isLibrary = auditConfig.packageDistribution?.enabled !== false;
 	const rootProps = [];
 	if (isLibrary) rootProps.push(ts.factory.createPropertyAssignment("pack", buildPackAstObject()));
-	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
+	rootProps.push(ts.factory.createPropertyAssignment("run", buildRunAstObject(auditConfig)), ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores)), ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores)), legacyTestProperty ?? ts.factory.createPropertyAssignment("test", buildTestAstObject(auditConfig)), ts.factory.createPropertyAssignment("staged", buildStagedAstObject(auditConfig)));
 	const importDecl = ts.factory.createImportDeclaration(void 0, ts.factory.createImportClause(false, void 0, ts.factory.createNamedImports([ts.factory.createImportSpecifier(false, void 0, ts.factory.createIdentifier("defineConfig"))])), ts.factory.createStringLiteral("vite-plus", true));
 	const exportDefault = ts.factory.createExportAssignment(void 0, false, ts.factory.createCallExpression(ts.factory.createIdentifier("defineConfig"), void 0, [ts.factory.createObjectLiteralExpression(rootProps, true)]));
-	const sf = ts.factory.createSourceFile([importDecl, exportDefault], ts.factory.createToken(ts.SyntaxKind.EndOfFileToken), ts.NodeFlags.None);
+	const statements = [importDecl];
+	if (lockedSkillsIgnores.length > 0) statements.push(buildLockedSkillsVariableStatement(lockedSkillsIgnores));
+	statements.push(exportDefault);
+	const sf = ts.factory.createSourceFile(statements, ts.factory.createToken(ts.SyntaxKind.EndOfFileToken), ts.NodeFlags.None);
 	return ts.createPrinter({ newLine: ts.NewLineKind.LineFeed }).printFile(sf);
 }
 function detachNodeFromSourceFile(node) {
@@ -499,7 +588,6 @@ function parseLegacyTestPropertyNode(legacyTestBlock) {
 }
 const TUPLE_REQUIRED_RULES = /* @__PURE__ */ new Set([
 	"@typescript-eslint/consistent-type-assertions",
-	"@typescript-eslint/explicit-function-return-type",
 	"no-empty",
 	"eqeqeq"
 ]);
@@ -508,15 +596,13 @@ function checkTupleRuleOption(ruleName, second) {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.assertionStyle === "as" && cfg.objectLiteralTypeAssertions === "never";
 	}
-	if (ruleName === "@typescript-eslint/explicit-function-return-type") {
-		const cfg = typeof second === "object" && second !== null ? second : null;
-		return cfg !== null && cfg.allowExpressions === false;
-	}
+	if (ruleName === "@typescript-eslint/explicit-function-return-type") return true;
 	if (ruleName === "no-empty") {
 		const cfg = typeof second === "object" && second !== null ? second : null;
 		return cfg !== null && cfg.allowEmptyCatch === false;
 	}
 	if (ruleName === "eqeqeq") return second === "always";
+	if (ruleName === "@typescript-eslint/no-unused-vars") return false;
 	return true;
 }
 function isRuleValueCompliant(ruleName, val) {
@@ -664,7 +750,30 @@ function purgeOrphanLintRulesAst(rulesProps, currentRuleMap, allowedRuleKeys, sf
 		modified
 	};
 }
-function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
+function syncIgnorePatternsProperty(existingProp, requiredIgnores, sf, lockedSkillsIgnores = []) {
+	if (lockedSkillsIgnores.length === 0) return syncStringArrayExpression(existingProp, requiredIgnores, sf, true);
+	const lockedSet = new Set(lockedSkillsIgnores);
+	const requiredOther = requiredIgnores.filter((g) => !lockedSet.has(g));
+	if (existingProp && ts.isArrayLiteralExpression(existingProp.initializer)) {
+		const currentStrings = [];
+		let hasSpread = false;
+		for (const el of existingProp.initializer.elements) if (ts.isSpreadElement(el) && ts.isIdentifier(el.expression) && el.expression.text === "LOCKED_SKILLS_IGNORE_PATTERNS") hasSpread = true;
+		else {
+			const v = astExpressionToValue(el, sf);
+			if (typeof v === "string") currentStrings.push(v);
+		}
+		const allMatch = currentStrings.length === requiredOther.length && requiredOther.every((req, i) => currentStrings[i] === req);
+		if (hasSpread && allMatch) return {
+			expr: existingProp.initializer,
+			modified: false
+		};
+	}
+	return {
+		expr: buildIgnorePatternsAst(requiredIgnores, lockedSkillsIgnores),
+		modified: true
+	};
+}
+function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf, lockedSkillsIgnores = []) {
 	const dedup = deduplicateObjectProperties(lintObj.properties, sf);
 	let props = dedup.props;
 	let modified = dedup.modified;
@@ -706,17 +815,17 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 		props = updateObjectProperty(props, "rules", ts.factory.createObjectLiteralExpression(syncedRules.rulesProps, true), sf);
 		modified = true;
 	}
-	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), lintIgnores, sf, true);
+	const ignoreSync = syncIgnorePatternsProperty(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), lintIgnores, sf, lockedSkillsIgnores);
 	if (ignoreSync.modified) {
 		props = updateObjectProperty(props, "ignorePatterns", ignoreSync.expr, sf);
 		modified = true;
 	}
-	const configuredOverrides = auditConfig.vitePlusConfig?.lint?.overrides;
-	if (configuredOverrides && configuredOverrides.length > 0) {
+	const effectiveOverrides = resolveEffectiveLintOverrides(auditConfig);
+	if (effectiveOverrides && effectiveOverrides.length > 0) {
 		const ovProp = findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "overrides", sf);
 		const currentOvVal = ovProp ? astExpressionToValue(ovProp.initializer, sf) : void 0;
-		if (JSON.stringify(currentOvVal) !== JSON.stringify(configuredOverrides)) {
-			props = updateObjectProperty(props, "overrides", buildLintOverridesArrayAst(configuredOverrides), sf);
+		if (JSON.stringify(currentOvVal) !== JSON.stringify(effectiveOverrides)) {
+			props = updateObjectProperty(props, "overrides", buildLintOverridesArrayAst(effectiveOverrides), sf);
 			modified = true;
 		}
 	}
@@ -725,7 +834,7 @@ function syncLintSectionAst(lintObj, auditConfig, lintIgnores, sf) {
 		modified
 	};
 }
-function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf) {
+function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf, lockedSkillsIgnores = []) {
 	const dedup = deduplicateObjectProperties(fmtObj.properties, sf);
 	let props = dedup.props;
 	let modified = dedup.modified;
@@ -740,7 +849,7 @@ function syncFmtSectionAst(fmtObj, auditConfig, fmtIgnores, sf) {
 		props = updateObjectProperty(props, "sortImports", ts.factory.createTrue(), sf);
 		modified = true;
 	}
-	const ignoreSync = syncStringArrayExpression(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), fmtIgnores, sf, true);
+	const ignoreSync = syncIgnorePatternsProperty(findPropertyAssignment(ts.factory.createObjectLiteralExpression(props, true), "ignorePatterns", sf), fmtIgnores, sf, lockedSkillsIgnores);
 	if (ignoreSync.modified) {
 		props = updateObjectProperty(props, "ignorePatterns", ignoreSync.expr, sf);
 		modified = true;
@@ -1060,10 +1169,41 @@ function transformFunctionDeclaration(node, visitBody) {
 		modified: true
 	};
 }
-function applyViteConfigAstTransformations(sf, rootObj, updatedRootObj) {
+function transformLockedSkillsVariableStatement(stmt, lockedSkillsIgnores) {
+	const decl = stmt.declarationList.declarations[0];
+	if (!decl || !decl.initializer) return {
+		transformed: stmt,
+		modified: false
+	};
+	let init = decl.initializer;
+	if (ts.isAsExpression(init)) init = init.expression;
+	if (!ts.isArrayLiteralExpression(init)) return {
+		transformed: stmt,
+		modified: false
+	};
+	const currentVals = [];
+	for (const el of init.elements) if (ts.isStringLiteral(el)) currentVals.push(el.text);
+	if (currentVals.length === lockedSkillsIgnores.length && lockedSkillsIgnores.every((g, i) => currentVals[i] === g)) return {
+		transformed: stmt,
+		modified: false
+	};
+	return {
+		transformed: buildLockedSkillsVariableStatement(lockedSkillsIgnores),
+		modified: true
+	};
+}
+function applyViteConfigAstTransformations(sf, rootObj, updatedRootObj, lockedSkillsIgnores = []) {
 	let modified = false;
+	const existingLockedVar = findVariableStatementForName(sf, "LOCKED_SKILLS_IGNORE_PATTERNS");
 	const transformer = (context) => {
 		const visit = (node) => {
+			if (ts.isVariableStatement(node) && node === existingLockedVar && lockedSkillsIgnores.length > 0) {
+				const res = transformLockedSkillsVariableStatement(node, lockedSkillsIgnores);
+				if (res.modified) {
+					modified = true;
+					return res.transformed;
+				}
+			}
 			if (ts.isImportDeclaration(node)) {
 				const imp = transformImportDeclaration(node);
 				if (imp.modified) {
@@ -1095,7 +1235,21 @@ function applyViteConfigAstTransformations(sf, rootObj, updatedRootObj) {
 			if (node === rootObj) return ts.visitEachChild(updatedRootObj, visit, context);
 			return ts.visitEachChild(node, visit, context);
 		};
-		return (source) => ts.visitNode(source, visit);
+		return (source) => {
+			let visitedStatements = source.statements.map((stmt) => ts.visitNode(stmt, visit));
+			if (lockedSkillsIgnores.length > 0 && !existingLockedVar) {
+				const exportIdx = visitedStatements.findIndex((s) => ts.isExportAssignment(s));
+				const lockedConst = buildLockedSkillsVariableStatement(lockedSkillsIgnores);
+				if (exportIdx >= 0) visitedStatements = [
+					...visitedStatements.slice(0, exportIdx),
+					lockedConst,
+					...visitedStatements.slice(exportIdx)
+				];
+				else visitedStatements.push(lockedConst);
+				modified = true;
+			}
+			return ts.factory.updateSourceFile(source, visitedStatements);
+		};
 	};
 	return {
 		transformedContent: printTransformedSourceFile(sf, transformer),
@@ -1137,16 +1291,16 @@ function syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, project
 		modified: false
 	};
 }
-function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores) {
+function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores = []) {
 	let props = rootProps;
 	let modified = false;
 	const currentRoot = () => ts.factory.createObjectLiteralExpression(props, true);
 	const lintProp = findPropertyAssignment(currentRoot(), "lint", sf);
 	if (!lintProp || !ts.isObjectLiteralExpression(lintProp.initializer)) {
-		props = [...props, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores))];
+		props = [...props, ts.factory.createPropertyAssignment("lint", buildLintAstObject(auditConfig, lintIgnores, lockedSkillsIgnores))];
 		modified = true;
 	} else {
-		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf);
+		const syncedLint = syncLintSectionAst(lintProp.initializer, auditConfig, lintIgnores, sf, lockedSkillsIgnores);
 		if (syncedLint.modified) {
 			props = updateObjectProperty(props, "lint", syncedLint.obj, sf);
 			modified = true;
@@ -1154,10 +1308,10 @@ function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmt
 	}
 	const fmtProp = findPropertyAssignment(currentRoot(), "fmt", sf);
 	if (!fmtProp || !ts.isObjectLiteralExpression(fmtProp.initializer)) {
-		props = [...props, ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores))];
+		props = [...props, ts.factory.createPropertyAssignment("fmt", buildFmtAstObject(auditConfig, fmtIgnores, lockedSkillsIgnores))];
 		modified = true;
 	} else {
-		const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf);
+		const syncedFmt = syncFmtSectionAst(fmtProp.initializer, auditConfig, fmtIgnores, sf, lockedSkillsIgnores);
 		if (syncedFmt.modified) {
 			props = updateObjectProperty(props, "fmt", syncedFmt.obj, sf);
 			modified = true;
@@ -1173,13 +1327,14 @@ function syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmt
 		modified
 	};
 }
-function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgnores, legacyTestProp, projectRoot) {
+function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgnores, legacyTestProp, projectRoot = process.cwd()) {
 	const sf = parseTsSourceFile(fileContent);
 	const rootObj = findConfigRootObject(sf);
 	if (!rootObj) return {
 		content: fileContent,
 		modified: false
 	};
+	const lockedSkillsIgnores = getLockedSkillsIgnoreGlobs(projectRoot).filter((g) => lintIgnores.includes(g) || fmtIgnores.includes(g));
 	const dedupRoot = deduplicateObjectProperties(rootObj.properties, sf);
 	let rootProps = dedupRoot.props;
 	let modified = dedupRoot.modified;
@@ -1194,11 +1349,11 @@ function synchronizeViteConfigAst(fileContent, auditConfig, lintIgnores, fmtIgno
 	const testResult = syncViteTestSection(rootProps, sf, auditConfig, legacyTestProp, projectRoot);
 	rootProps = testResult.props;
 	if (testResult.modified) modified = true;
-	const lintFmtResult = syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores);
+	const lintFmtResult = syncViteLintAndFmtSections(rootProps, sf, auditConfig, lintIgnores, fmtIgnores, lockedSkillsIgnores);
 	rootProps = lintFmtResult.props;
 	if (lintFmtResult.modified) modified = true;
 	if (sf.statements.some((stmt) => ts.isImportDeclaration(stmt) && ts.isStringLiteral(stmt.moduleSpecifier) && stmt.moduleSpecifier.text === "vite")) modified = true;
-	const astTransformResult = applyViteConfigAstTransformations(sf, rootObj, ts.factory.createObjectLiteralExpression(rootProps, true));
+	const astTransformResult = applyViteConfigAstTransformations(sf, rootObj, ts.factory.createObjectLiteralExpression(rootProps, true), lockedSkillsIgnores);
 	if (!modified && !astTransformResult.modified) return {
 		content: fileContent,
 		modified: false
@@ -1820,4 +1975,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildLintAstObject, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };

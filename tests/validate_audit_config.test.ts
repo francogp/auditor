@@ -43,7 +43,6 @@ const BASE_TEST_CONFIG_SECTIONS = `
     vscode: { enabled: false }
   },
   htmlValidate: { enabled: true },
-  pinia: { enabled: false },
   domain: { enabled: false },
   bundle: { enabled: false },
   fallow: { enabled: false },
@@ -656,9 +655,9 @@ export default defineAuditConfig({
       (f) => f.ruleId === 'audit-config-missing-section'
     );
     expect(missingSections.length).toBeGreaterThan(0);
-    expect(missingSections.some((f) => f.context === 'valibot')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'accessibility')).toBe(true);
     expect(missingSections.some((f) => f.context === 'oxlint')).toBe(true);
-    expect(missingSections.some((f) => f.context === 'pinia')).toBe(true);
+    expect(missingSections.some((f) => f.context === 'fallow')).toBe(true);
     expect(missingSections.some((f) => f.context === 'htmlValidate')).toBe(true);
   });
 
@@ -671,12 +670,12 @@ export default defineAuditConfig({
   ${BASE_TEST_CONFIG_SECTIONS}
 });
     `;
-    // Remove valibot from config
-    const configWithoutValibot = configContent.replace(/valibot:\s*\{[^}]*\},/g, '');
+    // Remove accessibility from config
+    const configWithoutAccessibility = configContent.replace(/accessibility:\s*\{[^}]*\},/g, '');
     await fs.mkdir(path.join(tempDir, '.auditor'), { recursive: true });
     await fs.writeFile(
       path.join(tempDir, '.auditor', 'audit.config.ts'),
-      configWithoutValibot,
+      configWithoutAccessibility,
       'utf-8'
     );
     await fs.mkdir(path.join(tempDir, 'src'), { recursive: true });
@@ -686,7 +685,7 @@ export default defineAuditConfig({
     const checkResult = await checkAuditor.audit();
     expect(
       checkResult.findings.some(
-        (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'valibot'
+        (f) => f.ruleId === 'audit-config-missing-section' && f.context === 'accessibility'
       )
     ).toBe(true);
 
@@ -695,12 +694,12 @@ export default defineAuditConfig({
     const fixAuditor = new ValidateAuditConfigAuditor({ projectRoot: tempDir });
     await fixAuditor.fix();
 
-    // Verify valibot was added to audit.config.ts
+    // Verify accessibility was added to audit.config.ts
     const updatedContent = await fs.readFile(
       path.join(tempDir, '.auditor', 'audit.config.ts'),
       'utf-8'
     );
-    expect(updatedContent).toContain('valibot:');
+    expect(updatedContent).toContain('accessibility:');
     expect(updatedContent).toContain('enabled: true');
 
     // Re-run check mode: should pass cleanly

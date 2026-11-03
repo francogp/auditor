@@ -37,20 +37,20 @@ describe('suiteGating — evaluateSuiteStatus', () => {
   });
 
   it('evaluates suite as enabled when no disabling flag is present', () => {
-    const status = evaluateSuiteStatus('validate_domain_types', baseConfig);
+    const status = evaluateSuiteStatus('validate_accessibility', baseConfig);
     expect(status.enabled).toBe(true);
     expect(status.reason).toBeUndefined();
   });
 
-  it('detects domain.enabled: false and reports disabled with reason', () => {
+  it('detects accessibility.enabled: false and reports disabled with reason', () => {
     const config: AuditConfig = {
       ...baseConfig,
-      domain: { enabled: false }
+      accessibility: { enabled: false }
     };
-    const status = evaluateSuiteStatus('validate_domain_types', config);
+    const status = evaluateSuiteStatus('validate_accessibility', config);
     expect(status.enabled).toBe(false);
-    expect(status.reason).toContain('domain.enabled = false');
-    expect(status.configKey).toBe('domain.enabled');
+    expect(status.reason).toContain('accessibility.enabled = false');
+    expect(status.configKey).toBe('accessibility.enabled');
   });
 
   it('detects bundle.enabled: false for validate_bundle_budget and audit_bundle', () => {

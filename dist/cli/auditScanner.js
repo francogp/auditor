@@ -23,8 +23,8 @@ import fs$1 from "node:fs/promises";
 */
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, "../suites");
 const AUDIT_PRESETS = {
-	performance: ["validate_web_performance", "validate_query_performance"],
-	security: ["validate_security_hardening"]
+	performance: ["validate_web_performance", "validate_oxlint"],
+	security: ["validate_oxlint"]
 };
 async function extractCapabilitiesFromFile(fullPath) {
 	return (await extractAuditorMetadataFromFile(fullPath)).capabilities;

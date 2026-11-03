@@ -2057,7 +2057,7 @@ async function setupCoverageRunEnvironment(
   runMode: string,
   workerTasks: readonly AuditTaskDefinition[]
 ): Promise<void> {
-  const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${Math.random().toString(36).substring(2, 8)}`;
+  const runId = `run_${Temporal.Now.instant().epochMilliseconds}_${crypto.randomUUID().slice(0, 8)}`;
   process.env[COVERAGE_RUN_ID_ENV] = runId;
   process.env[COVERAGE_RUN_MODE_ENV] = runMode;
   process.env[COVERAGE_EXPECTED_SUITES_ENV] = workerTasks.map((t) => t.id).join(',');
@@ -2141,9 +2141,7 @@ const FIX_MODE_EXPLICIT_ORDER: Readonly<Record<string, number>> = {
   // Phase 2: File renames & AST/Code/Markdown mutations
   validate_component_styles: 220,
   audit_project: 230,
-  validate_error_suppression: 235,
   validate_z_index: 240,
-  validate_domain_types: 245,
   validate_markdown_code_references: 260,
   validate_markdown_syntax: 270,
   validate_mermaid_syntax: 280,

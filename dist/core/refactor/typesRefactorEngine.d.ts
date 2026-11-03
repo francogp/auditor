@@ -1,9 +1,9 @@
+import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
 import { BaseRefactorEngine, RefactorEngineOptions } from "./baseRefactorEngine.js";
 import { TypesFindingItem, TypesRefactorPlan } from "./refactorContracts.js";
-import { ValidateTypeAssertionHygieneAuditor } from "../../suites/architecture/validate_type_assertion_hygiene.js";
 import ts from "typescript";
-export type TypesRefactorEngineOptions = RefactorEngineOptions<ValidateTypeAssertionHygieneAuditor>;
-export declare class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan, ValidateTypeAssertionHygieneAuditor> {
+export type TypesRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
+export declare class TypesRefactorEngine extends BaseRefactorEngine<TypesFindingItem, TypesRefactorPlan, OxlintAuditor> {
   readonly toolId = "auditor-types";
   readonly configSectionKey: "types";
   constructor(options?: TypesRefactorEngineOptions);

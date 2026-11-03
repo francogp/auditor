@@ -2,8 +2,6 @@ import { AUDITOR_DIR } from "../../core/auditConfigTypes.js";
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/safePath.js";
-import "../../core/auditConfig.js";
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor, createRuleCapabilities, isPathIgnored } from "../../core/auditorBase.js";

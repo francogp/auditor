@@ -1,7 +1,5 @@
 import { normalizePosixPath } from "../../core/reportUtils.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
-import "../../core/safePath.js";
-import "../../core/auditConfig.js";
 import { getProcessCliArgs, parseCittyArgs } from "../../core/cli/cittyHarness.js";
 import { renderBoxTable } from "../../core/unifiedTheme.js";
 import { BaseAuditor, FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";

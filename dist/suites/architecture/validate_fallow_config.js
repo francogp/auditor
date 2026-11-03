@@ -71,7 +71,6 @@ function createDefaultFallowConfigContent() {
 			"scratch/**",
 			"tests/**"
 		],
-		typeAware: { enabled: true },
 		duplicates: {
 			nearMiss: true,
 			mode: "strict"
@@ -388,6 +387,16 @@ function validateFallowWorkspaceDiagnostics(diagnostics, auditor, config) {
 			modified = true;
 			continue;
 		}
+		if (d.kind === "skipped-source-dotdir" && auditor.isFixActive() && config) {
+			const dotdir = d.path ? `!${normalizePosixPath(d.path)}/**` : "!.auditor/**";
+			const patterns = Array.isArray(config.ignorePatterns) ? [...config.ignorePatterns] : [];
+			if (!patterns.includes(dotdir)) {
+				patterns.push(dotdir);
+				config.ignorePatterns = patterns;
+				modified = true;
+				continue;
+			}
+		}
 		auditor.addViolation({
 			ruleId: "fallow-config-workspace-diagnostic",
 			severity: "error",
@@ -412,17 +421,7 @@ function projectFallowConfigFromAuditConfig(auditConfig) {
 	if (auditConfig.fallow?.health?.maxCyclomatic !== void 0) healthCfg["maxCyclomatic"] = auditConfig.fallow.health.maxCyclomatic;
 	if (auditConfig.fallow?.health?.maxCognitive !== void 0) healthCfg["maxCognitive"] = auditConfig.fallow.health.maxCognitive;
 	if (auditConfig.fallow?.health?.cyclomaticPolicy !== void 0) healthCfg["cyclomaticPolicy"] = auditConfig.fallow.health.cyclomaticPolicy;
-	let typeAwareCfg;
-	if (auditConfig.fallow?.typeAware !== void 0) {
-		if (typeof auditConfig.fallow.typeAware === "boolean") typeAwareCfg = { enabled: auditConfig.fallow.typeAware };
-		else typeAwareCfg = {
-			enabled: auditConfig.fallow.typeAware.enabled,
-			projects: auditConfig.fallow.typeAware.projects ? [...auditConfig.fallow.typeAware.projects] : void 0,
-			require: auditConfig.fallow.typeAware.require
-		};
-	} else typeAwareCfg = { enabled: true };
 	return {
-		typeAware: typeAwareCfg,
 		duplicates: duplicatesCfg,
 		health: healthCfg
 	};
@@ -431,35 +430,21 @@ function applyFallowConfigFixes(config, projected) {
 	const patch = {};
 	if (projected.duplicates) patch["duplicates"] = projected.duplicates;
 	if (projected.health) patch["health"] = projected.health;
-	if (projected.typeAware !== void 0) patch["typeAware"] = projected.typeAware;
-	return mergeSatelliteConfigProjection(config, patch);
-}
-function validateUndeclaredTypeAware(config, projected, auditor) {
-	if (config.typeAware === void 0) return;
-	if (typeof config.typeAware !== "object" || config.typeAware === null || Array.isArray(config.typeAware)) {
-		auditor.addViolation({
-			ruleId: "fallow-undeclared-config-entry",
-			severity: "error",
-			file: ".fallowrc.json",
-			line: 1,
-			message: `Invalid typeAware in .fallowrc.json: expected object { enabled: boolean }, found ${typeof config.typeAware}.`,
-			context: "typeAware",
-			fixable: true
-		});
-		return;
+	let typeAwareDeleted = false;
+	if ("typeAware" in config) {
+		delete config["typeAware"];
+		typeAwareDeleted = true;
 	}
-	const typeAwareDiffs = deepCompareSatelliteConfig({
-		ssotProjection: projected.typeAware,
-		actualConfig: config.typeAware,
-		pathPrefix: "typeAware"
-	});
-	for (const diff of typeAwareDiffs) auditor.addViolation({
+	return mergeSatelliteConfigProjection(config, patch) || typeAwareDeleted;
+}
+function validateUndeclaredTypeAware(config, auditor) {
+	if (config.typeAware !== void 0) auditor.addViolation({
 		ruleId: "fallow-undeclared-config-entry",
 		severity: "error",
 		file: ".fallowrc.json",
 		line: 1,
-		message: diff.message,
-		context: diff.path,
+		message: "Prohibited typeAware configuration in .fallowrc.json. TypeScript type-checking is unified exclusively in Vite+/Oxlint. Remove typeAware from .fallowrc.json.",
+		context: "typeAware",
 		fixable: true
 	});
 }
@@ -542,7 +527,7 @@ function validateUndeclaredFallowEntries(config, auditor) {
 	let modified = false;
 	if (auditor.isFixActive()) modified = applyFallowConfigFixes(config, projected);
 	else {
-		validateUndeclaredTypeAware(config, projected, auditor);
+		validateUndeclaredTypeAware(config, auditor);
 		validateUndeclaredDuplicates(config, projected, auditor);
 		validateUndeclaredHealth(config, projected, auditConfig, auditor);
 	}
@@ -605,7 +590,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 				},
 				enforceTargets: true,
 				maxTargetPriority: "high",
-				typeAware: true,
+				typeAware: false,
 				showCascade: true,
 				duplicates: {
 					enabled: true,

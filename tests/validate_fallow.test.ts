@@ -428,14 +428,13 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
       expect(dispatchedArgs.dupes).toContain('semantic');
     });
 
-    it('dispatches --type-aware and --show-cascade in full speed mode when tsconfig.json exists on disk', async () => {
+    it('always dispatches --no-type-aware in dead-code delegating type checking to Oxlint', async () => {
       await fs.writeFile(path.join(tempDir, 'tsconfig.json'), '{}', 'utf-8');
 
       setAuditConfig(
         defineAuditConfig({
           name: 'validate-fallow-test',
           fallow: {
-            typeAware: true,
             showCascade: true
           }
         })
@@ -456,7 +455,8 @@ describe('FallowArchitectureAuditor (validate_fallow)', () => {
         await auditor.runAudit();
 
         expect(dispatchedArgs['dead-code']).toBeDefined();
-        expect(dispatchedArgs['dead-code']).toContain('--type-aware');
+        expect(dispatchedArgs['dead-code']).toContain('--no-type-aware');
+        expect(dispatchedArgs['dead-code']).not.toContain('--type-aware');
         expect(dispatchedArgs['dead-code']).toContain('--show-cascade');
       } finally {
         if (prevSpeed !== undefined) {

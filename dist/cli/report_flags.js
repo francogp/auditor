@@ -120,11 +120,8 @@ function runFlagsReport(projectRoot = process.cwd(), options = {}) {
 		console.error(styleText("red", "[Error] Fallow binary not found in node_modules."));
 		return 1;
 	}
-	const runArgs = [
-		"flags",
-		"--format",
-		"json"
-	];
+	const runArgs = [];
+	runArgs.push("flags", "--format", "json");
 	if (options.retirement) runArgs.push("--retirement");
 	const { parsed, status, rawOutput } = executeFallowJsonCommand(fallowBin, runArgs, projectRoot);
 	if (options.json) {

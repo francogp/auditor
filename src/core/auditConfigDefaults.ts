@@ -17,6 +17,101 @@ export const DEFAULT_TEST_COVERAGE_PERCENTAGE = 80;
 export const DEFAULT_TYPE_COVERAGE_AT_LEAST = 95;
 export const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
 
+const CANONICAL_CORE_DOMAIN_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-double-cast-unknown': 'error',
+  '@francogp/domain-type/no-boolean-literal-annotation': 'error',
+  '@francogp/domain-type/no-broad-string-array': 'error',
+  '@francogp/domain-type/watch-reactive-property-getter': 'error',
+  '@francogp/domain-type/no-destructured-reactive': 'error',
+  '@francogp/domain-type/no-store-destructuring-without-storetorefs': 'error',
+  '@francogp/domain-type/no-direct-state-mutation-outside-actions': 'error',
+  '@francogp/domain-type/no-deprecated-router-next': 'error'
+};
+
+const CANONICAL_REACTIVE_SECURITY_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-define-async-component-in-router': 'error',
+  '@francogp/domain-type/no-window-location-navigation': 'error',
+  '@francogp/domain-type/no-silent-promise-catch': 'error',
+  '@francogp/domain-type/no-silent-mock-fallbacks': 'error',
+  '@francogp/domain-type/strict-catch-narrowing': 'error',
+  '@francogp/domain-type/dom-event-leak': 'error',
+  '@francogp/domain-type/interval-leak': 'error',
+  '@francogp/domain-type/no-legacy-date': 'error'
+};
+
+const CANONICAL_SIMPLIFICATION_SFC_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-boolean-trap-parameters': 'error',
+  '@francogp/domain-type/no-massive-switch': 'error',
+  '@francogp/domain-type/no-tautological-integration-mocks': 'error',
+  '@francogp/domain-type/playwright-id-locators-only': 'error',
+  '@francogp/domain-type/no-playwright-force-click': 'error',
+  '@francogp/domain-type/no-test-timeout-inflation': 'error',
+  '@francogp/domain-type/no-playwright-polling-waits': 'error'
+};
+
+const CANONICAL_VUE_SECURITY_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/script-setup-required': 'error',
+  '@francogp/domain-type/vue-template-quote-escaping': 'error',
+  '@francogp/domain-type/no-data-provider-in-template': 'error',
+  '@francogp/domain-type/no-raw-html-injection': 'error',
+  '@francogp/domain-type/no-insecure-random': 'error',
+  '@francogp/domain-type/no-permissive-cors': 'error',
+  '@francogp/domain-type/no-unvalidated-redirect': 'error'
+};
+
+const CANONICAL_DOMAIN_SCHEMA_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-record-string-key': 'error',
+  '@francogp/domain-type/no-unbranded-id': 'error',
+  '@francogp/domain-type/no-untyped-string-set-map': 'error',
+  '@francogp/domain-type/no-naked-string-union': 'error',
+  '@francogp/domain-type/valibot-schema-type-parity': 'error',
+  '@francogp/domain-type/no-redundant-constant-alias': 'error',
+  '@francogp/domain-type/no-literal-suffix-constant': 'error'
+};
+
+const CANONICAL_PATH_SECRET_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/unsafe-path-concat': 'error',
+  '@francogp/domain-type/unsanitized-env-argv-path': 'error',
+  '@francogp/domain-type/untrusted-url-fetch': 'error',
+  '@francogp/domain-type/hardcoded-slash-path': 'error',
+  '@francogp/domain-type/no-hardcoded-secrets': 'error',
+  '@francogp/domain-type/ephemeral-no-source-temp-references': 'error'
+};
+
+const CANONICAL_STORAGE_CLI_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-raw-local-storage': 'error',
+  '@francogp/domain-type/no-raw-session-storage': 'error',
+  '@francogp/domain-type/no-direct-process-argv': 'error',
+  '@francogp/domain-type/no-banned-cli-parsers': 'error',
+  '@francogp/domain-type/no-homebrew-flag-parsing': 'error',
+  '@francogp/domain-type/no-cli-eval-bypass': 'error'
+};
+
+const CANONICAL_QUERY_PERSISTENCE_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-await-in-loops-query': 'error',
+  '@francogp/domain-type/no-select-star-in-queries': 'error',
+  '@francogp/domain-type/require-paginated-queries': 'error',
+  '@francogp/domain-type/no-direct-database-instantiation': 'error',
+  '@francogp/domain-type/require-storage-try-catch': 'error'
+};
+
+const CANONICAL_GSAP_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-gsap-layout-properties': 'error',
+  '@francogp/domain-type/gsap-named-timer-constants': 'error',
+  '@francogp/domain-type/no-gsap-banned-ui-timers': 'error',
+  '@francogp/domain-type/require-gsap-cleanup-on-unmount': 'error',
+  '@francogp/domain-type/no-unscoped-component-selectors': 'error',
+  '@francogp/domain-type/no-nested-scrolltrigger': 'error',
+  '@francogp/domain-type/no-scrolltrigger-markers-production': 'error'
+};
+
+const CANONICAL_AUDITOR_METADATA_RULES: Readonly<Record<string, 'error'>> = {
+  '@francogp/domain-type/no-file-level-suppressions': 'error',
+  '@francogp/domain-type/auditor-class-inheritance': 'error',
+  '@francogp/domain-type/no-homebrew-file-walker': 'error',
+  '@francogp/domain-type/auditor-rule-description-limit': 'error'
+};
+
 export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>
 > = {
@@ -31,10 +126,24 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
     }
   ],
   '@typescript-eslint/no-floating-promises': 'error',
-  '@francogp/domain-type/no-double-cast-unknown': 'error',
-  '@francogp/domain-type/no-legacy-date': 'error',
+  ...CANONICAL_CORE_DOMAIN_RULES,
+  ...CANONICAL_REACTIVE_SECURITY_RULES,
+  ...CANONICAL_SIMPLIFICATION_SFC_RULES,
+  ...CANONICAL_VUE_SECURITY_RULES,
+  ...CANONICAL_DOMAIN_SCHEMA_RULES,
+  ...CANONICAL_PATH_SECRET_RULES,
+  ...CANONICAL_STORAGE_CLI_RULES,
+  ...CANONICAL_QUERY_PERSISTENCE_RULES,
+  ...CANONICAL_GSAP_RULES,
+  ...CANONICAL_AUDITOR_METADATA_RULES,
   'unicorn/prefer-node-protocol': 'error',
   'no-debugger': 'error',
+  'no-console': [
+    'error',
+    {
+      allow: ['warn', 'error']
+    }
+  ],
   'no-else-return': 'error',
   'no-empty': [
     'error',
@@ -85,6 +194,7 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'promise/no-new-statics': 'error',
   'promise/valid-params': 'error',
   'promise/no-return-in-finally': 'error',
+  'promise/catch-or-return': 'error',
   // Node.js Runtime Standards
   'node/no-exports-assign': 'error',
   'node/no-new-require': 'error',
@@ -107,6 +217,7 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'vitest/no-identical-title': 'error',
   'vitest/no-focused-tests': 'error',
   'vitest/no-disabled-tests': 'error',
+  'vitest/expect-expect': 'error',
   'vitest/prefer-to-have-length': 'error',
   'vitest/no-import-node-test': 'error',
   'vitest/valid-title': 'error',
@@ -190,23 +301,8 @@ export const DEFAULT_CANONICAL_LINT_RULES: Readonly<
   'vue/require-direct-export': 'error',
   'vue/require-typed-ref': 'error',
   '@typescript-eslint/explicit-member-accessibility': ['error', { accessibility: 'explicit' }],
-  '@typescript-eslint/explicit-function-return-type': [
-    'error',
-    {
-      allowExpressions: false,
-      allowTypedFunctionExpressions: false,
-      allowHigherOrderFunctions: false,
-      allowDirectConstAssertionInArrowFunctions: false
-    }
-  ],
-  '@typescript-eslint/no-unused-vars': [
-    'error',
-    {
-      argsIgnorePattern: '^_',
-      varsIgnorePattern: '^_',
-      caughtErrorsIgnorePattern: '^_'
-    }
-  ],
+  '@typescript-eslint/explicit-function-return-type': 'error',
+  '@typescript-eslint/no-unused-vars': 'error',
   'vue/no-required-prop-with-default': 'error',
   'vue/no-deprecated-model-definition': 'error',
   'no-useless-assignment': 'error'
@@ -433,7 +529,7 @@ export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
     coverage: {
       enabled: true
     },
-    typeAware: true,
+    typeAware: false,
     showCascade: true,
     duplicates: {
       enabled: true,

@@ -194,10 +194,20 @@ describe('OxlintAuditor & parseOxlintResults', () => {
   describe('CANARY: Real CLI Invocations, Arguments & Fail-Loud Safety', () => {
     it('CANARY: vp lint arguments NEVER contain --cache or --cache-location and include --threads', () => {
       const auditor = new OxlintAuditor();
-      const args = auditor.buildOxlintArgs('light', false);
+      const args = auditor.buildOxlintArgs(false);
       expect(args).not.toContain('--cache');
       expect(args).not.toContain('--cache-location');
       expect(args).toContain('--threads');
+      expect(args).toContain('--type-aware');
+      expect(args).toContain('--type-check');
+      expect(args).toContain('--report-unused-disable-directives');
+    });
+
+    it('CANARY: vp lint arguments enforce --type-aware and --type-check', () => {
+      const auditor = new OxlintAuditor();
+      const args = auditor.buildOxlintArgs(false);
+      expect(args).toContain('--type-aware');
+      expect(args).toContain('--type-check');
     });
 
     it('CANARY: Fail-Loud - when external tool fails without valid JSON report, auditor MUST emit violation', async () => {
@@ -212,7 +222,7 @@ describe('OxlintAuditor & parseOxlintResults', () => {
 
     it('CANARY: integration test running real vp lint on fixture with untyped return', async () => {
       const auditor = new OxlintAuditor({ projectRoot: process.cwd() });
-      const args = auditor.buildOxlintArgs('light', false);
+      const args = auditor.buildOxlintArgs(false);
       expect(args).not.toContain('--cache');
       expect(args).not.toContain('--cache-location');
     });

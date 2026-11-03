@@ -21,7 +21,13 @@ export function resolveZLayersScssPath(projectRoot: string = process.cwd()): str
   }
 
   const stylesRoots = config.paths?.stylesRoots ?? ['src/styles'];
-  const baseNames = ['_base.scss', 'core/_base.scss', 'base.scss', 'main.scss', 'index.scss'];
+  const baseNames = [
+    '_base.scss',
+    'core/_base.scss',
+    'base.scss',
+    'main.scss',
+    'index.scss'
+  ] as const;
   for (const r of stylesRoots) {
     for (const b of baseNames) {
       const candidate = path.resolve(projectRoot, r, b);

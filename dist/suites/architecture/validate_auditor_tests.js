@@ -1,7 +1,6 @@
 import { DEFAULT_AUDIT_CONFIG } from "../../core/auditConfigDefaults.js";
 import { getAuditConfig } from "../../core/auditConfigLoader.js";
 import { isSelfProviderProject } from "../../core/auditProjectIdentity.js";
-import "../../core/auditConfig.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { checkCleanVerification, checkConstructionVerification, checkViolationVerification, findDedicatedTestFile, scanAllAuditorTasks } from "../../core/auditorContractConformance.js";
 import { enableCompileCache } from "node:module";

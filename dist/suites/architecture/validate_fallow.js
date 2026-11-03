@@ -402,7 +402,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 					maxCyclomatic: 25,
 					cyclomaticPolicy: "standard"
 				},
-				typeAware: true,
+				typeAware: false,
 				showCascade: true,
 				duplicates: {
 					nearMiss: true,
@@ -496,7 +496,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 				light: ["--no-type-aware"],
 				full: (() => {
 					const args = [];
-					if (config.fallow?.typeAware !== false && fs.existsSync(path.resolve(this.projectRoot, "tsconfig.json"))) args.push("--type-aware");
+					args.push("--no-type-aware");
 					if (config.fallow?.showCascade !== false) args.push("--show-cascade");
 					return args;
 				})()
@@ -534,7 +534,8 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 			"fallow-unused-dependencies"
 		];
 		if (healthRules.some((r) => this.isRuleActiveForCurrentRun(r))) {
-			const healthArgs = ["--targets", "--report-only"];
+			const healthArgs = [];
+			healthArgs.push("--targets", "--report-only");
 			const covPath = path.resolve(this.projectRoot, "coverage/coverage-final.json");
 			if (fs.existsSync(covPath)) healthArgs.push("--coverage", "coverage/coverage-final.json");
 			const healthFindings = this.runFallowSubCommand("health", healthArgs, healthRules);

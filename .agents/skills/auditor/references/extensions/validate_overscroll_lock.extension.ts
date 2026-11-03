@@ -35,7 +35,7 @@ export const OVERSCROLL_LOCK_RULES: readonly OverscrollLockRuleId[] = [
 ] as const;
 
 export class OverscrollLockAuditor extends FileScanAuditor<OverscrollLockRuleId> {
-  constructor(options: FileScanRootsOptions = {}) {
+  public constructor(options: FileScanRootsOptions = {}) {
     const projectRoot = options.projectRoot ?? process.cwd();
     const config = getAuditConfig(projectRoot);
     const defaultRoots = config.paths.stylesRoots?.length

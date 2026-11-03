@@ -9,10 +9,6 @@ import {
   clearWorkspaceFileCache,
   createRuleCapabilities
 } from '../src/core/auditorBase.ts';
-import {
-  DomainTypesAuditor,
-  auditFileContent
-} from '../src/suites/domain_data/validate_domain_types.ts';
 
 const PARITY_RULES = ['parity-rule-a', 'parity-rule-b'] as const;
 type ParityRuleId = (typeof PARITY_RULES)[number];
@@ -168,36 +164,5 @@ describe('Auditor Parity Verification Harness', () => {
     // Verify empirical rule durations are accurately tracked
     expect(auditor.getRuleDuration('parity-rule-a')).toBeGreaterThanOrEqual(0);
     expect(auditor.getRuleDuration('parity-rule-b')).toBeGreaterThanOrEqual(0);
-  });
-
-  it('guarantees identical violation discovery in optimized validate_domain_types', async () => {
-    const srcDir = path.join(tempDir, 'src');
-    fs.mkdirSync(srcDir, { recursive: true });
-    const targetFile = path.join(srcDir, 'sampleDomain.ts');
-
-    const code = [
-      'export const roles = ["admin", "guest"];', // domain-untyped-collection
-      'export type OpenType = "A" | "B" | string;', // domain-naked-string-primitive
-      'export type CustomerId = string;' // domain-naked-string-primitive + domain-unbranded-id
-    ].join('\n');
-
-    fs.writeFileSync(targetFile, code, 'utf-8');
-
-    // 1. Direct content audit
-    const directFindings = auditFileContent(targetFile, code);
-
-    // 2. Full auditor execution with RAM cache and optimized loop
-    const auditor = new DomainTypesAuditor({ roots: ['src'], projectRoot: tempDir });
-    const result = await auditor.audit();
-
-    // Verify exact findings count and rule distribution
-    expect(result.findings).toHaveLength(directFindings.length);
-
-    for (const df of directFindings) {
-      const match = result.findings.find(
-        (rf) => rf.ruleId === df.ruleId && rf.line === df.line && rf.message === df.pattern
-      );
-      expect(match).toBeDefined();
-    }
   });
 });

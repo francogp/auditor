@@ -1010,7 +1010,8 @@ function reportViz(json, human = false) {
 		console.error(styleText("red", `Error generating fallow viz: ${err instanceof Error ? err.message : String(err)}`));
 	}
 }
-function runCustomCloudRunner(subAction, extra, json, human) {
+function runCustomCloudRunner(subAction, extra, flags) {
+	const { json, human } = flags;
 	if (!customFallowRunner) return false;
 	const extraArgs = [subAction, ...extra.repo ? ["--repo", extra.repo] : []];
 	const res = customFallowRunner("cloud", extraArgs);
@@ -1093,7 +1094,10 @@ function executeCloudTerminal(options) {
 function reportCloud(json, human = false, extra = { positionals: [] }) {
 	const fallowBin = resolveFallowBinary(process.cwd()) ?? path.resolve(process.cwd(), "node_modules/fallow/bin/fallow");
 	const subAction = extra.positionals.find((p) => p === "logout" || p === "login") ?? "login";
-	if (runCustomCloudRunner(subAction, extra, json, human)) return;
+	if (runCustomCloudRunner(subAction, extra, {
+		json,
+		human
+	})) return;
 	const options = {
 		fallowBin,
 		subAction,

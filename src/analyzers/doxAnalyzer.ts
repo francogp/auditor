@@ -197,13 +197,13 @@ function validateChildRegistration(
 
     const hasLink =
       targetLower.includes(cleanLower) ||
-      targetLower.includes('./' + cleanLower) ||
+      targetLower.includes(`./${cleanLower}`) ||
       targetLower.includes(encodeURI(cleanLower)) ||
-      targetLower.includes('./' + encodeURI(cleanLower)) ||
-      targetLower.includes(dirOnlyLower + '/') ||
-      targetLower.includes('./' + dirOnlyLower + '/') ||
-      targetLower.includes('[' + dirOnlyLower + '/]') ||
-      targetLower.includes('[`' + dirOnlyLower + '/`]');
+      targetLower.includes(`./${encodeURI(cleanLower)}`) ||
+      targetLower.includes(`${dirOnlyLower}/`) ||
+      targetLower.includes(`./${dirOnlyLower}/`) ||
+      targetLower.includes(`[${dirOnlyLower}/]`) ||
+      targetLower.includes(`[\`${dirOnlyLower}/\`]`);
 
     if (!hasLink) {
       const parentFile = path.join(parentDoxDir, 'AGENTS.md');

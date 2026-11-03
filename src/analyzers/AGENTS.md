@@ -24,7 +24,6 @@ Architecture & Tooling Engineers.
 - [`doxAnalyzer.ts`](./doxAnalyzer.ts): AGENTS.md documentation tree walker and link integrity verifier.
 - [`homebrew/`](./homebrew/AGENTS.md): Modular analyzer engine and registry detecting homebrew anti-patterns in auditors and extensions.
 - [`modernDomAstUtils.ts`](./modernDomAstUtils.ts): Shared JSDOM (`includeNodeLocations: true`, `VirtualConsole`) and TypeScript AST source-span utilities for modern web analyzers.
-- [`nativePaths/`](./nativePaths/AGENTS.md): TypeScript AST semantic analyzer enforcing Node.js native standard library for filesystem paths and URLs.
 - [`scssModernAnalyzer.ts`](./scssModernAnalyzer.ts): Recursive CSS/SCSS block & value AST parser (`postcss-value-parser` + `MagicString`) enforcing 8 modern layout, selector, and dark-mode rules (`scss-viewport-overflow-and-dvh`, `scss-overflow-clip-margin-trap`, `scss-prefer-user-invalid`, `scss-focus-outline-removal`, `typography-unclamped-viewport-font`, `scss-flexbox-dead-properties`, `scss-universal-expensive-selectors`, `dark-mode-color-scheme-missing`).
 - [`securityModernAstAnalyzer.ts`](./securityModernAstAnalyzer.ts): TypeScript Compiler AST + JSDOM + YAML AST (`parseDocument`) analyzer enforcing 5 browser and CI/CD security rules (`security-postmessage-origin-validation`, `security-trusted-types-passthrough`, `security-external-sri-missing`, `security-cookie-samesite-partitioned`, `ci-github-actions-script-injection`).
 - [`vueModernHygieneAnalyzer.ts`](./vueModernHygieneAnalyzer.ts): TypeScript Compiler AST (`SharedAstContext`) analyzer enforcing IME-safe Enter key submission (`ime-unsafe-enter-submit`) and pure non-mutating Vue template expressions (`vue-template-no-side-effects`).
@@ -39,11 +38,10 @@ Architecture & Tooling Engineers.
 
 ## Verification
 
-- Run constant analyzer unit tests: `vp test tests/validate_constant_hygiene.test.ts` (or `npm test -- tests/validate_constant_hygiene.test.ts`)
+- Run constant analyzer unit tests: `vp test tests/oxlint_constant_hygiene_migration.test.ts` (or `npm test -- tests/oxlint_constant_hygiene_migration.test.ts`)
 - Run DOX analyzer unit tests: `vp test tests/validate_dox_integrity.test.ts` (or `npm test -- tests/validate_dox_integrity.test.ts`)
 
 ## Child DOX Index
 
 - [`cliContracts/`](./cliContracts/AGENTS.md): CLI contract scanner and modular AST detectors.
 - [`homebrew/`](./homebrew/AGENTS.md): Homebrew anti-pattern analyzer and detector registry.
-- [`nativePaths/`](./nativePaths/AGENTS.md): Native path and URL integrity AST analyzer.

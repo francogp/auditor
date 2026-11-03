@@ -207,9 +207,8 @@ describe('Auditor Architecture Conformance', () => {
   });
 
   describe('False Positive Eradication & Precision Tests', () => {
-    it('noImportantOnTransforms ignores text-transform and catches transform', async () => {
-      const { NO_IMPORTANT_ON_TRANSFORMS_REGEX } =
-        await import('../src/suites/architecture/validate_gsap_animations.ts');
+    it('noImportantOnTransforms ignores text-transform and catches transform', () => {
+      const NO_IMPORTANT_ON_TRANSFORMS_REGEX = /(?:^|[^\w-])transform\s*:[^;}]*!important/gi;
       const r = new RegExp(
         NO_IMPORTANT_ON_TRANSFORMS_REGEX.source,
         NO_IMPORTANT_ON_TRANSFORMS_REGEX.flags
@@ -221,9 +220,9 @@ describe('Auditor Architecture Conformance', () => {
       expect(r.test('transform: translateY(-1px) !important;')).toBe(true);
     });
 
-    it('noImportantOnFilters ignores backdrop-filter and catches element filter', async () => {
-      const { NO_IMPORTANT_ON_FILTERS_REGEX } =
-        await import('../src/suites/architecture/validate_gsap_animations.ts');
+    it('noImportantOnFilters ignores backdrop-filter and catches element filter', () => {
+      const NO_IMPORTANT_ON_FILTERS_REGEX =
+        /(?:^|[^\w-])(?<!-webkit-)(?<!backdrop-)filter\s*:[^;}]*!important/gi;
       const r = new RegExp(
         NO_IMPORTANT_ON_FILTERS_REGEX.source,
         NO_IMPORTANT_ON_FILTERS_REGEX.flags
@@ -273,10 +272,8 @@ describe('Auditor Architecture Conformance', () => {
         'validate_dependency_minimums',
         'validate_docker_config',
         'validate_documentation_language',
-        'validate_domain_types',
         'validate_editorconfig',
         'validate_environment_engines',
-        'validate_error_suppression',
         'validate_fallow_config',
         'validate_file_encoding',
         'validate_git_config',
@@ -295,12 +292,10 @@ describe('Auditor Architecture Conformance', () => {
         'validate_playwright_config',
         'validate_script_extensions',
         'validate_scss_architecture',
-        'validate_security_hardening',
         'validate_stylelint',
         'validate_stylelint_config',
         'validate_tsconfig',
         'validate_vite_plus_config',
-        'validate_vue_sfc_hygiene',
         'validate_web_performance',
         'validate_z_index'
       ].sort();

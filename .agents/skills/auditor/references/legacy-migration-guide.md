@@ -75,7 +75,7 @@ export interface AuditorRuleCapabilities {
 | ------------------------------- | ----------------------------------------- | --------------------------------------------------------------- |
 | `lint: true, heavy: false`      | `speed: 'light'`                          | Fast in-memory AST or regex checks (🐇)                         |
 | `heavy: true`                   | `speed: 'heavy'`                          | Multi-file disk, database, or simulation checks (🐢)            |
-| Deep type-aware (e.g. `fallow`) | `speed: 'full'` or `['light', 'full']`    | Exhaustive verification (🐘)                                    |
+| Heavy cascade / vector analysis | `speed: 'full'` or `['light', 'full']`    | Exhaustive verification (🐘)                                    |
 | `phase: 'normal'`               | `phase: 'normal'`                         | Standard source audit                                           |
 | `postRun: true`                 | `phase: 'post-run'`                       | Sequential execution post-audit (coverage flush)                |
 | `requiresBuild: true`           | `phase: 'post-build'`                     | Executed against `dist/` via `auditor:post-build`               |

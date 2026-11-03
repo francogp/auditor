@@ -72,13 +72,13 @@ describe('Zero-Setup Pre-Flight Auto-Bootstrap (ensureProjectBootstrapped)', () 
 
     // Must contain default configurations of all major built-in subauditors
     expect(content).toContain('webPerformance:');
-    expect(content).toContain('queryPerformance:');
-    expect(content).toContain('securityHardening:');
-    expect(content).toContain('codeSimplification:');
+    expect(content).toContain('oxlint:');
+    expect(content).toContain('oxfmt:');
+    expect(content).toContain('accessibility:');
     expect(content).toContain('scssArchitecture:');
-    expect(content).toContain('valibot:');
-    expect(content).toContain('pinia:');
+    expect(content).toContain('gitSafety:');
     expect(content).toContain('fallow:');
+    expect(content).toContain('documentation:');
 
     // Agents registration files
     const pluginsJson = path.join(tempDir, '.agents', 'plugins.json');
@@ -135,9 +135,9 @@ export default defineAuditConfig({
     expect(result.configUpdated).toBe(true);
     expect(result.sectionsInjected.length).toBeGreaterThan(0);
     expect(result.sectionsInjected).toContain('webPerformance');
-    expect(result.sectionsInjected).toContain('queryPerformance');
-    expect(result.sectionsInjected).toContain('securityHardening');
-    expect(result.sectionsInjected).toContain('codeSimplification');
+    expect(result.sectionsInjected).toContain('oxlint');
+    expect(result.sectionsInjected).toContain('oxfmt');
+    expect(result.sectionsInjected).toContain('accessibility');
     expect(result.sectionsInjected).toContain('scssArchitecture');
 
     const updatedContent = fs.readFileSync(path.join(tempDir, AUDIT_CONFIG_FILE), 'utf-8');
@@ -146,8 +146,8 @@ export default defineAuditConfig({
     expect(updatedContent).toContain('targets: []');
     // Newly injected sections exist
     expect(updatedContent).toContain('webPerformance:');
-    expect(updatedContent).toContain('queryPerformance:');
-    expect(updatedContent).toContain('codeSimplification:');
+    expect(updatedContent).toContain('oxlint:');
+    expect(updatedContent).toContain('oxfmt:');
 
     // Ensure no orphaned commas on standalone lines
     expect(updatedContent).not.toMatch(/\}\s*\r?\n\s*,/);
@@ -209,8 +209,8 @@ export default defineAuditConfig({
     const updated = JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
     expect(updated.name).toBe('json-sample-app');
     expect(updated.webPerformance).toBeDefined();
-    expect(updated.queryPerformance).toBeDefined();
-    expect(updated.securityHardening).toBeDefined();
+    expect(updated.oxlint).toBeDefined();
+    expect(updated.oxfmt).toBeDefined();
     expect(updated.auditorVersion).toBeDefined();
   });
 
@@ -306,8 +306,8 @@ export default defineAuditConfig({
     expect(updatedContent).toContain(`auditorVersion: '${result.currentVersion}'`);
 
     // Missing sections injected
-    expect(updatedContent).toContain('queryPerformance:');
-    expect(updatedContent).toContain('securityHardening:');
+    expect(updatedContent).toContain('oxlint:');
+    expect(updatedContent).toContain('oxfmt:');
   });
 
   it('detects diverged build ID even when major.minor.patch matches and synchronizes it', async () => {

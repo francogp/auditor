@@ -56,7 +56,7 @@ const MAX_PERMISSIBLE_NEGATIVE_INSET_PX = 128;
 export type ValidateRenderPerformanceOptions = FileScanRootsOptions;
 
 export class ValidateRenderPerformanceAuditor extends FileScanAuditor<RenderPerformanceRuleId> {
-  constructor(options: ValidateRenderPerformanceOptions = {}) {
+  public constructor(options: ValidateRenderPerformanceOptions = {}) {
     const config = getAuditConfig(options.projectRoot);
     const effectiveRoots =
       options.roots ??

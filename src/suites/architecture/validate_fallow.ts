@@ -747,7 +747,7 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
           maxCyclomatic: DEFAULT_FALLOW_HEALTH_MAX_CYCLOMATIC,
           cyclomaticPolicy: 'standard'
         },
-        typeAware: true,
+        typeAware: false,
         showCascade: true,
         duplicates: {
           nearMiss: true,
@@ -862,19 +862,14 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
     const config = getAuditConfig(this.projectRoot);
     const allFindings: FallowFindingItem[] = [];
 
-    // Dead Code execution profile (Light syntax in light/heavy ceiling, Type-Aware cascade in full ceiling)
+    // Dead Code execution profile (Type-aware permanently disabled in Fallow; delegated exclusively to Vite+/Oxlint)
     const deadCodeProfile: TieredCommandProfile<string[]> = {
       command: 'fallow dead-code',
       profiles: {
         light: ['--no-type-aware'],
-        full: (() => {
+        full: ((): string[] => {
           const args: string[] = [];
-          if (
-            config.fallow?.typeAware !== false &&
-            fs.existsSync(path.resolve(this.projectRoot, 'tsconfig.json'))
-          ) {
-            args.push('--type-aware');
-          }
+          args.push('--no-type-aware');
           if (config.fallow?.showCascade !== false) {
             args.push('--show-cascade');
           }
@@ -935,7 +930,8 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
       'fallow-unused-dependencies'
     ];
     if (healthRules.some((r) => this.isRuleActiveForCurrentRun(r))) {
-      const healthArgs: string[] = ['--targets', '--report-only'];
+      const healthArgs: string[] = [];
+      healthArgs.push('--targets', '--report-only');
       const covPath = path.resolve(this.projectRoot, 'coverage/coverage-final.json');
       if (fs.existsSync(covPath)) {
         healthArgs.push('--coverage', 'coverage/coverage-final.json');

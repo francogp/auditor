@@ -1,7 +1,7 @@
 import { parseVueSfc as parseVueSfcBlocks } from "../vueSfcParser.js";
+import { OxlintAuditor } from "../../suites/architecture/validate_oxlint.js";
 import { BaseRefactorEngine, assertValidRefactorEngineOptions } from "./baseRefactorEngine.js";
 import { executePlanFileReplacements, isSameFilePath } from "./refactorFileScanner.js";
-import { ValidateGsapAnimationsAuditor } from "../../suites/architecture/validate_gsap_animations.js";
 import path from "node:path";
 import fs from "node:fs";
 import ts from "typescript";
@@ -194,8 +194,18 @@ var MotionRefactorEngine = class MotionRefactorEngine extends BaseRefactorEngine
 	configSectionKey = "animation";
 	constructor(options = {}) {
 		const opts = assertValidRefactorEngineOptions(options);
-		const auditor = opts.auditor ?? new ValidateGsapAnimationsAuditor({ projectRoot: opts.projectRoot });
+		const auditor = opts.auditor ?? new OxlintAuditor({ projectRoot: opts.projectRoot });
 		super(auditor);
+	}
+	resolveSectionExemptPaths() {
+		const animation = this.config.animation;
+		const styles = this.config.styles;
+		return [
+			...animation?.exemptPaths ?? [],
+			...animation?.exemptCssFiles ?? [],
+			...styles?.exemptCssFiles ?? [],
+			...this.auditor.exemptPaths
+		];
 	}
 	discoverInFile(filePath) {
 		return MotionRefactorEngine.discoverInFile(filePath);

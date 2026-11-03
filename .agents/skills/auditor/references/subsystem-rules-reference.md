@@ -333,11 +333,11 @@ Governed by `src/suites/architecture/validate_cli_contracts.ts`:
 
 ---
 
-## 20. Canonical Domain Governance & Zero Escape Hatches (`validate_canonical_domains`, `validate_error_suppression`)
+## 20. Canonical Domain Governance & Zero Escape Hatches (`validate_canonical_domains`, `validate_oxlint`)
 
-Governed by `src/suites/domain_data/validate_canonical_domains.ts` and `src/suites/architecture/validate_error_suppression.ts`:
+Governed by `src/suites/domain_data/validate_canonical_domains.ts` and `src/suites/architecture/validate_oxlint.ts` (via native and `@francogp/domain-type` rules):
 
-- **Pure AST Architecture (`ast: true`)**: Both suites operate exclusively under TypeScript Compiler AST parsing, eradicating fragile regex pattern matching.
+- **Pure AST Architecture (`ast: true`)**: Operates exclusively under TypeScript AST / Oxlint AST parsing, eradicating fragile regex pattern matching.
 - **SSoT Domain Deduplication (`validate_canonical_domains`)**:
   - `canonical-domain-repeated-union`: Enforces extracting repeated string unions into canonical SSoT domain type aliases.
   - `canonical-domain-collision`: Prevents multiple disparate modules from declaring identical domain catalogs.
@@ -346,4 +346,4 @@ Governed by `src/suites/domain_data/validate_canonical_domains.ts` and `src/suit
   - `domain.exemptSignatures`: Projects configure project-specific utility unions/pairs (e.g. `['front|back', 'f|m']`) that are legitimate directional or formatting primitives, with zero hardcoding in the auditor engine.
   - `domain.exemptCollections`: Projects configure non-catalog arrays (e.g. weighted lottery pools like `['scalePool']`).
 - **Zero Comment-Based Escape Hatches**: All `// ...-ok:` comments (`// domain-ok:`, `// catch-ok:`, `// layout-ok:`, etc.) are permanently banned.
-- **Fail-Loud & Clean Utility Encapsulation (`validate_error_suppression`)**: Silent or empty `catch {}` blocks are strictly forbidden. Non-fatal operations must use safe encapsulated utilities (`tryOrNull`, `tryOrUndefined`, `tryOrNullAsync`) or explicit error logging.
+- **Fail-Loud & Clean Utility Encapsulation (`validate_oxlint`)**: Silent or empty `catch {}` blocks are strictly forbidden (governed by `no-empty` with `allowEmptyCatch: false`, `@francogp/domain-type/strict-catch-narrowing`, and `@francogp/domain-type/no-silent-promise-catch`). Non-fatal operations must use safe encapsulated utilities (`tryOrNull`, `tryOrUndefined`, `tryOrNullAsync`) or explicit error logging.

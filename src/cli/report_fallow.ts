@@ -1506,9 +1506,9 @@ function reportViz(json: boolean, human = false): void {
 function runCustomCloudRunner(
   subAction: string,
   extra: { repo?: string },
-  json: boolean,
-  human: boolean
+  flags: { json: boolean; human: boolean }
 ): boolean {
+  const { json, human } = flags;
   if (!customFallowRunner) return false;
   const extraArgs = [subAction, ...(extra.repo ? ['--repo', extra.repo] : [])];
   const res = customFallowRunner('cloud', extraArgs);
@@ -1630,7 +1630,7 @@ function reportCloud(
 
   const subAction = extra.positionals.find((p) => p === 'logout' || p === 'login') ?? 'login';
 
-  if (runCustomCloudRunner(subAction, extra, json, human)) {
+  if (runCustomCloudRunner(subAction, extra, { json, human })) {
     return;
   }
 

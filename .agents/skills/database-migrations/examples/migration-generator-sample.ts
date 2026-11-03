@@ -1,3 +1,4 @@
+/// <reference types="node" />
 /**
  * @file migration-generator-sample.ts
  * @description Demonstrates the Dynamic Migration Generator pattern.
@@ -5,18 +6,20 @@
  * PostgreSQL and SQLite migration pairs with synchronized system_config.db_version.
  */
 
-import fsPromises from 'node:fs/promises';
-import path from 'node:path';
+import process from 'node:process';
+
+import { isMainModule } from '@francogp/auditor';
 
 // 1. Simulated domain Single Source of Truth maintained in application code
 const SYSTEM_ROLES_WHITELIST = ['admin', 'operator', 'auditor', 'user'] as const;
-type SystemRole = (typeof SYSTEM_ROLES_WHITELIST)[number];
+export type SystemRole = (typeof SYSTEM_ROLES_WHITELIST)[number];
 
 export interface GeneratorOutput {
   pgSql: string;
   sqliteSql: string;
   timestamp: string;
   filename: string;
+  sqliteFilename: string;
 }
 
 /**
@@ -88,18 +91,17 @@ ON CONFLICT (key) DO UPDATE SET value = '"${timestamp}"';
     pgSql,
     sqliteSql,
     timestamp,
-    filename
+    filename,
+    sqliteFilename
   };
 }
-
-import { isMainModule } from '@francogp/auditor';
 
 // Example usage demonstration
 if (isMainModule(import.meta.url)) {
   const result = buildRoleSyncMigration();
-  console.log(`Generated migration: ${result.filename}`);
-  console.log('--- PostgreSQL Output Snippet ---');
-  console.log(result.pgSql.slice(0, 300) + '...\n');
-  console.log('--- SQLite Companion Output Snippet ---');
-  console.log(result.sqliteSql.slice(0, 300) + '...');
+  process.stdout.write(`Generated migration: ${result.filename}\n`);
+  process.stdout.write('--- PostgreSQL Output Snippet ---\n');
+  process.stdout.write(`${result.pgSql.slice(0, 300)}...\n\n`);
+  process.stdout.write('--- SQLite Companion Output Snippet ---\n');
+  process.stdout.write(`${result.sqliteSql.slice(0, 300)}...\n`);
 }

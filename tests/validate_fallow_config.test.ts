@@ -245,7 +245,7 @@ describe('ValidateFallowConfigAuditor', () => {
       const createdContent = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       expect(createdContent.entry).toContain('src/index.ts');
       expect(createdContent.ignorePatterns).toContain('dist/**');
-      expect(createdContent.typeAware).toEqual({ enabled: true });
+      expect(createdContent.typeAware).toBeUndefined();
       expect(createdContent.duplicates?.nearMiss).toBe(true);
       expect(createdContent.duplicates?.mode).toBe('strict');
     });
@@ -336,7 +336,10 @@ describe('ValidateFallowConfigAuditor', () => {
       const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
       Reflect.set(auditor, 'currentFixActive', true);
 
-      const config: any = {
+      const config: Record<string, unknown> & {
+        duplicates: { nearMiss?: boolean; mode?: string; minLines?: number };
+        health: { maxCrap?: number };
+      } = {
         $schema: 'https://fallow.tools/schema/config.json',
         duplicates: {
           nearMiss: true,
@@ -354,6 +357,23 @@ describe('ValidateFallowConfigAuditor', () => {
       expect(config.duplicates.mode).toBe('strict');
       expect(config.duplicates.minLines).toBeUndefined();
       expect(config.health.maxCrap).toBe(0);
+    });
+
+    it('flags and automatically deletes prohibited typeAware from .fallowrc.json when fix: true is active', async () => {
+      const auditor = new ValidateFallowConfigAuditor({ projectRoot: scratchDir });
+      Reflect.set(auditor, 'currentFixActive', true);
+
+      const config: Record<string, unknown> = {
+        $schema: 'https://fallow.tools/schema/config.json',
+        entry: ['.auditor/audit.config.ts'],
+        typeAware: {
+          enabled: true
+        }
+      };
+
+      const modified = validateUndeclaredFallowEntries(config, auditor);
+      expect(modified).toBe(true);
+      expect(config.typeAware).toBeUndefined();
     });
   });
 });

@@ -27,12 +27,14 @@ function renderExecutiveFailSummary(params) {
 		const errorDetail = ratchetVerdict.error ? `: ${ratchetVerdict.error}` : ` (+${formatNumber(ratchetVerdict.newWarnings)} new warning(s) relative to '${ratchetVerdict.productionRef}')`;
 		status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s) — 🔒 Ratchet threshold exceeded${errorDetail}${fixableText}${suiteText}`;
 	} else status = `  Status: ${formatNumber(totalErrors)} error(s), ${formatNumber(totalWarnings)} warning(s)${fixableText}${suiteText}`;
-	const phaseLines = ["  Breakdown by Phase:"];
+	const phaseLines = [];
+	phaseLines.push("  Breakdown by Phase:");
 	for (const p of phaseBreakdown) {
 		const counts = [p.errors > 0 ? `${p.errors} error(s)` : "", p.warnings > 0 ? `${p.warnings} warning(s)` : ""].filter(Boolean).join(", ");
 		phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
 	}
-	const nextActionLines = ["  Next Actions for AI:"];
+	const nextActionLines = [];
+	nextActionLines.push("  Next Actions for AI:");
 	if (totalFixable > 0) nextActionLines.push(`  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`);
 	else nextActionLines.push("  1. Focus critical phase: npm run auditor:next", "  2. Inspect findings:   npm run auditor:findings", phaseBreakdown[0] ? `  3. Inspect by phase:   npm run auditor:findings -- phase=${phaseBreakdown[0].phase}` : "  3. Inspect by rule:    npm run auditor:by-rule", "  4. Consult rule guide: npm run auditor -- guide <ruleId>");
 	const reportLine = styleText("dim", `  Full Report: ${latestAuditJsonPath}`);
@@ -43,7 +45,8 @@ function renderExecutiveSetupBlockingSummary(params) {
 	const header = styleText(["bold", "red"], `[BLOCKED] AUDIT BLOCKED: Setup Phase Failure [${totalSuites} suites] in ${formatDurationMs(durationMs)}`);
 	const postponedSuffix = postponedAppErrors > 0 ? ` (${formatNumber(postponedAppErrors)} downstream app errors postponed to prevent false positives)` : "";
 	const status = `  Status: ${formatNumber(setupErrors)} setup error(s)${postponedSuffix}`;
-	const suitesLines = ["  Blocking Suites:"];
+	const suitesLines = [];
+	suitesLines.push("  Blocking Suites:");
 	for (const s of blockingSuites) suitesLines.push(`  • ${s}`);
 	const warning = styleText(["bold", "yellow"], "  MANDATE: STRICTLY FORBIDDEN to modify application code or styles while setup phase is blocked.");
 	const nextActionLines = [

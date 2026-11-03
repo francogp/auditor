@@ -132,7 +132,8 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
   }
 
   // no-domain: Non-domain utility collection or data structure
-  const phaseLines: string[] = ['  Breakdown by Phase:'];
+  const phaseLines: string[] = [];
+  phaseLines.push('  Breakdown by Phase:');
   for (const p of phaseBreakdown) {
     const errText = p.errors > 0 ? `${p.errors} error(s)` : '';
     const warnText = p.warnings > 0 ? `${p.warnings} warning(s)` : '';
@@ -140,7 +141,8 @@ export function renderExecutiveFailSummary(params: ExecutiveFailSummaryParams): 
     phaseLines.push(`  • ${p.phase.padEnd(PHASE_NAME_PAD_LENGTH)}: ${counts}`);
   }
 
-  const nextActionLines: string[] = ['  Next Actions for AI:'];
+  const nextActionLines: string[] = [];
+  nextActionLines.push('  Next Actions for AI:');
   if (totalFixable > 0) {
     nextActionLines.push(
       `  1. Mandatory Auto-Fix: npm run auditor:fix (${totalFixable} auto-fixable)`
@@ -185,7 +187,8 @@ export function renderExecutiveSetupBlockingSummary(
   const status = `  Status: ${formatNumber(setupErrors)} setup error(s)${postponedSuffix}`;
 
   // no-domain: Non-domain utility collection or data structure
-  const suitesLines: string[] = ['  Blocking Suites:'];
+  const suitesLines: string[] = [];
+  suitesLines.push('  Blocking Suites:');
   for (const s of blockingSuites) {
     suitesLines.push(`  • ${s}`);
   }

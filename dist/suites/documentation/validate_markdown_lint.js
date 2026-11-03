@@ -162,7 +162,8 @@ var MarkdownLintAuditor = class extends BaseAuditor {
 		const ignoreGlobs = getMarkdownIgnoreGlobs(this.projectRoot);
 		const configPath = path.resolve(this.projectRoot, ".markdownlint.json");
 		const hasConfigFile = fs.existsSync(configPath);
-		const coverageIncludeGlobs = ["**/*.md"];
+		const coverageIncludeGlobs = [];
+		coverageIncludeGlobs.push("**/*.md");
 		if (hasConfigFile) coverageIncludeGlobs.push(".markdownlint.json");
 		this.redeclareCoverage({
 			include: coverageIncludeGlobs,

@@ -36,20 +36,27 @@ export declare function extractParsedConfigSummary(fileContent: string): ParsedV
 export declare function extractEslintIgnoresFromAst(rawContent: string): string[];
 export declare function resolveKnownViteFunctionReturnType(name: string): ts.TypeNode | null;
 export declare function buildPackAstObject(): ts.ObjectLiteralExpression;
-export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[]): ts.ObjectLiteralExpression;
-export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[]): ts.ObjectLiteralExpression;
+export declare function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[];
+export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
+  readonly files: readonly string[];
+  readonly rules?: Readonly<Record<string, unknown>>;
+}[];
+export declare function buildIgnorePatternsAst(ignores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ArrayLiteralExpression;
+export declare function buildLockedSkillsVariableStatement(lockedSkillsIgnores: readonly string[]): ts.VariableStatement;
+export declare function buildLintAstObject(auditConfig: AuditConfig, lintIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
+export declare function buildFmtAstObject(auditConfig: AuditConfig, fmtIgnores: readonly string[], lockedSkillsIgnores?: readonly string[]): ts.ObjectLiteralExpression;
 export declare function resolveVitestRoots(auditConfig: AuditConfig): readonly string[];
 export declare function buildTestAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function buildStagedAstObject(auditConfig: AuditConfig): ts.ObjectLiteralExpression;
 export declare function printAstNode(node: ts.Node, sf?: ts.SourceFile): string;
 export declare function buildRunAstObject(auditConfig?: AuditConfig): ts.ObjectLiteralExpression;
-export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null): string;
+export declare function buildCanonicalVitePlusAstSource(auditConfig: AuditConfig, lintIgnores: readonly string[], fmtIgnores: readonly string[], legacyTestProperty?: ts.PropertyAssignment | null, lockedSkillsIgnores?: readonly string[]): string;
 export declare function detachNodeFromSourceFile<T extends ts.Node>(node: T): T;
 export declare function parseLegacyTestPropertyNode(legacyTestBlock: string): ts.PropertyAssignment | null;
 export declare function isRuleValueCompliant(ruleName: string, val: unknown): boolean;
 export declare function buildAllowedCoverageExcludes(auditConfig: AuditConfig, projectRoot?: string): Set<string>;
 export declare function printTransformedSourceFile(sf: ts.SourceFile, transformer: ts.TransformerFactory<ts.SourceFile>): string;
-export declare function applyViteConfigAstTransformations(sf: ts.SourceFile, rootObj: ts.ObjectLiteralExpression, updatedRootObj: ts.ObjectLiteralExpression): {
+export declare function applyViteConfigAstTransformations(sf: ts.SourceFile, rootObj: ts.ObjectLiteralExpression, updatedRootObj: ts.ObjectLiteralExpression, lockedSkillsIgnores?: readonly string[]): {
   transformedContent: string;
   modified: boolean;
 };

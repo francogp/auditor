@@ -299,7 +299,7 @@ export function syncDocumentationVersionReferences(cwd: string): string[] {
   const candidateRelPaths = [
     'README.md',
     '.agents/skills/auditor/references/host-package-governance.md'
-  ];
+  ] as const;
 
   const modifiedFiles: string[] = [];
   for (const relPath of candidateRelPaths) {

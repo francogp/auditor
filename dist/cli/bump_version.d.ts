@@ -1,11 +1,10 @@
 import { AuditVersionTargetConfig } from "../core/auditConfigTypes.js";
-import { VersionBumpType } from "../core/versionAnalyzer.js";
+import { VERSION_BUMP_TYPES, VersionBumpType } from "../core/versionAnalyzer.js";
 export interface MetricTableRow {
   readonly label: string;
   readonly value: string;
 }
-export declare const CLI_BUMP_TYPES: readonly ["major", "minor", "patch", "build", "auto"];
-export type CliBumpType = (typeof CLI_BUMP_TYPES)[number];
+export type CliBumpType = VersionBumpType;
 export declare function isCliBumpType(val: string): val is CliBumpType;
 export interface ApplyBumpOptions {
   cwd?: string;
@@ -32,3 +31,4 @@ export interface ApplyBumpResult {
  */
 export declare function applyVersionBump(options?: ApplyBumpOptions): ApplyBumpResult;
 export declare function runBumpCli(rawArgs?: readonly string[], cwd?: string): void;
+export { VERSION_BUMP_TYPES as CLI_BUMP_TYPES };

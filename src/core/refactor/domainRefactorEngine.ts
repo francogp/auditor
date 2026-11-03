@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { DomainTypesAuditor } from '../../suites/domain_data/validate_domain_types.ts';
+import { OxlintAuditor } from '../../suites/architecture/validate_oxlint.ts';
 import {
   BaseRefactorEngine,
   assertValidRefactorEngineOptions,
@@ -25,21 +25,21 @@ const NAKED_PARAM_REGEX =
   /\b([a-zA-Z0-9_$]*(?:id|type|status|category|mode|kind))\s*:\s*string\b/gi;
 const UNBRANDED_ID_REGEX = /^\s*export\s+type\s+([A-Za-z0-9_$]+Id)\s*=\s*string\s*;/m;
 
-export type DomainRefactorEngineOptions = RefactorEngineOptions<DomainTypesAuditor>;
+export type DomainRefactorEngineOptions = RefactorEngineOptions<OxlintAuditor>;
 
 export class DomainRefactorEngine extends BaseRefactorEngine<
   DomainFindingItem,
   DomainRefactorPlan,
-  DomainTypesAuditor
+  OxlintAuditor
 > {
   public readonly toolId = 'auditor-domain';
   public readonly configSectionKey = 'domain' as const;
 
   public constructor(options: DomainRefactorEngineOptions = {}) {
-    const opts = assertValidRefactorEngineOptions<DomainTypesAuditor>(options);
+    const opts = assertValidRefactorEngineOptions<OxlintAuditor>(options);
     const auditor =
       opts.auditor ??
-      new DomainTypesAuditor({
+      new OxlintAuditor({
         projectRoot: opts.projectRoot
       });
     super(auditor);

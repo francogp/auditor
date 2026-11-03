@@ -32,8 +32,11 @@ const DEPENDENCY_VULNERABILITIES_RULES = [
 * Invokes npm audit --json synchronously with bounded timeout and safe error capture.
 */
 function runNpmAudit(projectRoot, omitDev = true) {
-	const args = ["audit", "--json"];
-	if (omitDev) args.push("--omit=dev");
+	const args = omitDev ? [
+		"audit",
+		"--json",
+		"--omit=dev"
+	] : ["audit", "--json"];
 	let proc;
 	try {
 		proc = runNpmCommandSync(args, {

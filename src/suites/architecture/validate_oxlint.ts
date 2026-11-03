@@ -670,16 +670,19 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     });
   }
 
-  public buildOxlintArgs(
-    tier: AuditorExecutionTier = 'light',
-    isFixMode: boolean = false
-  ): string[] {
+  public buildOxlintArgs(isFixMode: boolean = false): string[] {
     const threadCount =
       typeof os.availableParallelism === 'function' ? os.availableParallelism() : os.cpus().length;
-    const args: string[] = ['lint', '-f', 'json', '--threads', String(threadCount)];
-    if (tier === 'full') {
-      args.push('--type-aware', '--type-check', '--report-unused-disable-directives');
-    }
+    const args: string[] = [
+      'lint',
+      '-f',
+      'json',
+      '--threads',
+      String(threadCount),
+      '--type-aware',
+      '--type-check',
+      '--report-unused-disable-directives'
+    ];
     if (isFixMode) {
       args.push('--fix');
     }
@@ -695,7 +698,6 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
     });
 
     const isFixMode = this.isFixActive();
-    const tier = this.getExecutionTier();
 
     const vpBin =
       resolvePackageBin('vite-plus', {
@@ -703,7 +705,7 @@ export class OxlintAuditor extends BaseAuditor<OxlintRuleId> {
         fallbackRelativeBin: 'bin/vp'
       }) ?? path.resolve(this.projectRoot, 'node_modules/vite-plus/bin/vp');
 
-    const args = this.buildOxlintArgs(tier, isFixMode);
+    const args = this.buildOxlintArgs(isFixMode);
 
     const combinedOutput = executeNodeCli(vpBin, args, {
       cwd: this.projectRoot,

@@ -38,7 +38,8 @@ function runReviewReport(projectRoot = process.cwd()) {
 		process.exit(1);
 	}
 	const isJson = Boolean(parsed.json);
-	const args = ["review"];
+	const args = [];
+	args.push("review");
 	const targetRef = parsed.ref ?? parsed["changed-since"];
 	if (parsed.base) args.push("--base", String(parsed.base));
 	else if (targetRef) args.push("--changed-since", targetRef);

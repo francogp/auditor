@@ -13,23 +13,24 @@ import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 import { styleText } from 'node:util';
 
-import { getAuditConfig, loadAuditConfig, AUDITOR_DIR } from '../../core/auditConfig.ts';
-import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
-import type { RemediationPhaseId, AnyRuleFixerFn } from '../../core/auditContract.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
 import {
   BaseAuditor,
   MAX_AUDITOR_DESCRIPTION_LENGTH,
   isPathIgnored,
-  createRuleCapabilities
-} from '../../core/auditorBase.ts';
-import {
+  createRuleCapabilities,
+  getAuditConfig,
+  loadAuditConfig,
+  AUDITOR_DIR,
+  DEFAULT_AUDIT_CONFIG,
+  type RemediationPhaseId,
+  type AnyRuleFixerFn,
+  deriveCoverageFromRoots,
   COMMON_CLI_ARGS,
   getProcessCliArgs,
   parseCittyArgs,
-  type CittyArgsDef
-} from '../../core/cli/cittyHarness.ts';
-import { normalizePosixPath } from '../../core/safePath.ts';
+  type CittyArgsDef,
+  normalizePosixPath
+} from '../../core/auditorBase.ts';
 import {
   type AuditRule,
   type Violation,
@@ -37,6 +38,9 @@ import {
   matchesRule,
   auditRulesConfig as config
 } from './audit_rules.ts';
+import type { ZIndexAuditor } from './validate_z_index.ts';
+
+export type PeerArchitectureAuditor = ZIndexAuditor;
 
 enableCompileCache();
 
@@ -1197,7 +1201,7 @@ export class ProjectArchitectureAuditor extends BaseAuditor {
       const r = rule;
       const ruleId = r.id || key;
       if (typeof r.fix === 'function') {
-        ruleFixers[ruleId] = async () => {
+        ruleFixers[ruleId] = async (): Promise<void> => {
           await Promise.resolve(r.fix!(projectRoot));
         };
       }

@@ -562,7 +562,7 @@ describe('Auditor Subsystem Ignore Isolation Mandate', () => {
             integrationRoots: ['tests/integration'],
             ignoreGlobs: ['src/universal-global-ignore/**']
           },
-          [task.configKey]: {
+          [task.configKey ?? 'unknown']: {
             ignoreGlobs: [privateIgnoreGlob]
           }
         });

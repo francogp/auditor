@@ -33,8 +33,8 @@ export { isSimilarCodeSkipped } from '../suites/architecture/validate_similar_co
 const BUILTIN_SUITES_DIR = path.resolve(import.meta.dirname, '../suites');
 
 export const AUDIT_PRESETS: Record<string, readonly string[]> = {
-  performance: ['validate_web_performance', 'validate_query_performance'],
-  security: ['validate_security_hardening']
+  performance: ['validate_web_performance', 'validate_oxlint'],
+  security: ['validate_oxlint']
 };
 
 export type AuditPresetName =

@@ -33,7 +33,7 @@ describe('All Sub-auditors Default Configuration Contract & Dynamic Injection', 
 
   it('discovers all subauditors and verifies every configurable suite declares configKey and defaultConfig', async () => {
     const tasks = await discoverAuditors({ withBuild: true, speed: 'full' });
-    expect(tasks.length).toBeGreaterThan(70);
+    expect(tasks.length).toBeGreaterThan(50);
 
     const collected = collectConfigSectionsFromTasks(tasks);
 
@@ -207,10 +207,10 @@ export default defineAuditConfig({
     expect(updatedContent).toContain('fallow: {');
     expect(updatedContent).toContain('agentPlugin: {');
     expect(updatedContent).toContain('gitSafety: {');
-    expect(updatedContent).toContain('codeSimplification: {');
+    expect(updatedContent).toContain('oxlint: {');
     expect(updatedContent).toContain('scssArchitecture: {');
     expect(updatedContent).toContain('webPerformance: {');
-    expect(updatedContent).toContain('queryPerformance: {');
+    expect(updatedContent).toContain('oxfmt: {');
 
     // Recheck should report 0 missing section violations
     resetAuditConfig();

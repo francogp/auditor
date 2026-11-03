@@ -1794,7 +1794,7 @@ export default defineConfig({
       expect(updatedPkg.devDependencies['vue-tsc']).toBeUndefined();
     });
 
-    it('C-CFG-73: auto-fix injects explicit-function-return-type with allowExpressions: false', async () => {
+    it('C-CFG-73: auto-fix injects test overrides for relaxed rule governance in tests', async () => {
       const rawViteConfig = `
         import { defineConfig } from 'vite-plus';
         export default defineConfig({
@@ -1810,8 +1810,8 @@ export default defineConfig({
       await auditor.fix();
 
       const updatedConfig = fs.readFileSync(path.join(tempDir, 'vite.config.ts'), 'utf-8');
-      expect(updatedConfig).toContain("'@typescript-eslint/explicit-function-return-type'");
-      expect(updatedConfig).toContain('allowExpressions: false');
+      expect(updatedConfig).toContain('overrides:');
+      expect(updatedConfig).toContain('**/tests/**');
     });
 
     it('C-CFG-74: syncViteConfigWithAuditConfig generates explicit return type on outExtensions arrow function for Java-style strong typing', async () => {
@@ -1838,6 +1838,7 @@ export default defineConfig({
       fs.writeFileSync(path.join(tempDir, 'vite.config.ts'), rawViteConfig, 'utf-8');
 
       const mockConfig = defineAuditConfig({
+        name: '@francogp/auditor',
         packageDistribution: { enabled: true }
       });
       setAuditConfig(mockConfig, tempDir);
@@ -1887,7 +1888,7 @@ export default defineConfig({
           test: { include: ['tests/**/*.test.ts'] }
         });
       `;
-      const auditConfig = defineAuditConfig({});
+      const auditConfig = defineAuditConfig({ name: '@francogp/auditor' });
       const synced = synchronizeViteConfigAst(initialConfig, auditConfig, [], [], null);
 
       expect(synced.modified).toBe(true);

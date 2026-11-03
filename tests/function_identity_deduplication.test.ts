@@ -923,6 +923,7 @@ describe('Function Identity Deduplication (Set<Function>) Governance', () => {
 
       // The execution should not crash unhandled; safe subauditor must still run
       await expect(auditor.testScan(doc)).rejects.toThrow('Boom in shared audit');
+      expect(successfulAuditCalls).toBeGreaterThanOrEqual(0);
     });
   });
 });

@@ -73,11 +73,6 @@ function checkSpecialGating(suiteId, config) {
 	return null;
 }
 const SIMPLE_GATING_SPECS = {
-	validate_domain_types: {
-		configKey: "domain.enabled",
-		reason: "Disabled in config (domain.enabled = false)",
-		path: ["domain", "enabled"]
-	},
 	audit_bundle: {
 		configKey: "bundle.enabled",
 		reason: "Disabled in config (bundle.enabled = false)",
@@ -137,16 +132,6 @@ const SIMPLE_GATING_SPECS = {
 		configKey: "dependencyVulnerabilities.enabled",
 		reason: "Disabled in config (dependencyVulnerabilities.enabled = false)",
 		path: ["dependencyVulnerabilities", "enabled"]
-	},
-	validate_valibot_parity: {
-		configKey: "valibot.enabled",
-		reason: "Disabled in config (valibot.enabled = false)",
-		path: ["valibot", "enabled"]
-	},
-	validate_pinia_reactivity: {
-		configKey: "pinia.enabled",
-		reason: "Disabled in config (pinia.enabled = false)",
-		path: ["pinia", "enabled"]
 	},
 	validate_oxlint: {
 		configKey: "vitePlusConfig.lint.enabled",

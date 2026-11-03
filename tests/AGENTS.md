@@ -53,7 +53,7 @@ Architecture & Tooling Engineers.
 - [`entity_registries_ssot.test.ts`](./entity_registries_ssot.test.ts): Tests asserting entity registry inheritance and zero legacy alias methods.
 - [`function_identity_deduplication.test.ts`](./function_identity_deduplication.test.ts): Tests verifying single execution for shared sub-auditor audit and fix functions.
 - [`markdown_lint_config_remediations.test.ts`](./markdown_lint_config_remediations.test.ts): Tests for markdownlint configuration remediation and MD033 table line break auto-injection.
-- [`native_paths_ignores.test.ts`](./native_paths_ignores.test.ts): Tests for native path and URL analyzer ignore comments and escape hatches.
+- [`oxlint_native_paths_migration.test.ts`](./oxlint_native_paths_migration.test.ts): Canary migration tests for native path and URL analyzer rules in Oxlint.
 - [`path_exemption_ssot.test.ts`](./path_exemption_ssot.test.ts): Tests asserting SSoT path exemption resolution in reportUtils.ts.
 - [`refactor_harness_compact.test.ts`](./refactor_harness_compact.test.ts): Tests for refactoring harness execution under compact console mode.
 - [`report_coverage_map.test.ts`](./report_coverage_map.test.ts): Tests for audit coverage map CLI and reporting.
@@ -73,24 +73,24 @@ Architecture & Tooling Engineers.
 - [`validate_agents_config_mandate.test.ts`](./validate_agents_config_mandate.test.ts): Tests for mandatory architecture, anti-tampering configuration, and AI chat language clauses in root `AGENTS.md`.
 - [`validate_audit_config.test.ts`](./validate_audit_config.test.ts): Tests for `.auditor/` configuration integrity (paths, scripts, ratchet ref and baseline) and the AST-based migration of root-level configs.
 - [`validate_cli_contracts.test.ts`](./validate_cli_contracts.test.ts): Tests for Citty CLI contract validation, banned parsers, homebrew flags, and positional arg normalization.
-- [`validate_code_simplification.test.ts`](./validate_code_simplification.test.ts): Tests for code simplification, boolean traps, and nesting reduction.
+- [`oxlint_code_simplification_migration.test.ts`](./oxlint_code_simplification_migration.test.ts): Tests for code simplification, boolean traps, and nesting reduction in Oxlint.
 - [`validate_critical_config.test.ts`](./validate_critical_config.test.ts): Exhaustive tests for the mandatory AuditorCriticalConfig contract across BaseAuditor, manifests, constructor validation, and ValidateAuditConfigAuditor enforcement.
 - [`validate_dependency_vulnerabilities.test.ts`](./validate_dependency_vulnerabilities.test.ts): Tests for dependency CVE vulnerability scanning via npm audit.
 - [`validate_documentation_language.test.ts`](./validate_documentation_language.test.ts): Tests for documentation language verification, root AGENTS mandate auto-fix and modernization, and exemption matching.
-- [`validate_domain_types.test.ts`](./validate_domain_types.test.ts): Tests for nominal domain types, untyped collections, ambiguous unions, and chained literal comparisons.
-- [`validate_native_paths.test.ts`](./validate_native_paths.test.ts): Tests for Node.js native path and standard URL AST architecture suite.
+- [`oxlint_domain_types_migration.test.ts`](./oxlint_domain_types_migration.test.ts): Tests for nominal domain types, untyped collections, ambiguous unions, and chained literal comparisons in Oxlint.
+- [`oxlint_cli_contracts_migration.test.ts`](./oxlint_cli_contracts_migration.test.ts): Tests for CLI contract AST analysis in Oxlint.
 - [`validate_oxlint.test.ts`](./validate_oxlint.test.ts): Tests for Vite+ Oxlint and code hygiene validator.
 - [`validate_package_hygiene.test.ts`](./validate_package_hygiene.test.ts): Tests for orphan dependency and unused script detection via Knip.
-- [`validate_query_performance.test.ts`](./validate_query_performance.test.ts): Tests for SQL indexing, query limits, and N+1 loop pattern detection.
+- [`oxlint_query_performance_migration.test.ts`](./oxlint_query_performance_migration.test.ts): Tests for SQL indexing, query limits, and N+1 loop pattern detection in Oxlint.
 - [`validate_script_commands.test.ts`](./validate_script_commands.test.ts): Tests for npm run, direct npm commands, and npx binary verification in scripts, Dockerfiles, and CI/CD pipelines.
 - [`validate_scss_architecture.test.ts`](./validate_scss_architecture.test.ts): Tests for SCSS architecture, :deep() governance, and theme token usage.
-- [`validate_secret_leaks.test.ts`](./validate_secret_leaks.test.ts): Tests for high-entropy secret, API key, and token leak detection via Secretlint.
-- [`validate_security_hardening.test.ts`](./validate_security_hardening.test.ts): Tests for security hardening and OWASP Top 10 guardrails auditor.
+- [`oxlint_secret_leaks_migration.test.ts`](./oxlint_secret_leaks_migration.test.ts): Tests for high-entropy secret, API key, and token leak detection in Oxlint.
+- [`oxlint_security_hardening_migration.test.ts`](./oxlint_security_hardening_migration.test.ts): Tests for security hardening and OWASP Top 10 guardrails in Oxlint.
 - [`validate_similar_code.test.ts`](./validate_similar_code.test.ts): Tests for semantic and structural code similarity verification.
 - [`validate_stylelint.test.ts`](./validate_stylelint.test.ts): Tests for Stylelint CSS/SCSS hygiene, nesting, Vue 3 SFCs, and configuration overrides.
 - [`validate_test_coverage.test.ts`](./validate_test_coverage.test.ts): Tests for test execution coverage thresholds and uncovered files detection.
 - [`validate_type_coverage.test.ts`](./validate_type_coverage.test.ts): Tests for quantitative TypeScript type coverage threshold enforcement.
-- [`validate_valibot_parity.test.ts`](./validate_valibot_parity.test.ts): Tests for Valibot schema and save persistence parity validator.
+- [`oxlint_valibot_parity_migration.test.ts`](./oxlint_valibot_parity_migration.test.ts): Tests for Valibot schema and save persistence parity in Oxlint.
 - [`validate_vite_plus_config.test.ts`](./validate_vite_plus_config.test.ts): Tests for Vite+ unified configuration and Domain-Type-First enforcement.
 - [`validate_web_performance.test.ts`](./validate_web_performance.test.ts): Tests for web asset optimization and Core Web Vitals auditor.
 - [`validate_z_index.test.ts`](./validate_z_index.test.ts): Tests for Z-index scale, token mapping, and elevation governance.

@@ -192,6 +192,18 @@ function handleDiscoverCommand<TFinding, TPlan>(
   }
 }
 
+function resolveTargetFileOrExit(projectRoot: string, targetFile: string): string {
+  const fullPath = path.isAbsolute(targetFile)
+    ? path.normalize(targetFile)
+    : path.resolve(projectRoot, targetFile);
+
+  if (!fs.existsSync(fullPath)) {
+    console.error(styleText('red', `[Error] File not found: ${fullPath}`));
+    process.exit(1);
+  }
+  return fullPath;
+}
+
 function handleInspectCommand<TFinding, TPlan>(
   def: RefactorCliDefinition<TFinding, TPlan>,
   projectRoot: string,
@@ -207,14 +219,7 @@ function handleInspectCommand<TFinding, TPlan>(
     process.exit(1);
   }
 
-  const fullPath = path.isAbsolute(targetFile)
-    ? path.normalize(targetFile)
-    : path.resolve(projectRoot, targetFile);
-
-  if (!fs.existsSync(fullPath)) {
-    console.error(styleText('red', `[Error] File not found: ${fullPath}`));
-    process.exit(1);
-  }
+  const fullPath = resolveTargetFileOrExit(projectRoot, targetFile);
 
   const findings = def.discoverInFile(fullPath);
   if (findings.length === 0) {
@@ -254,14 +259,7 @@ function handlePlanCommand<TFinding, TPlan>(
   const filesScanned: string[] = [];
 
   if (targetFile) {
-    const fullPath = path.isAbsolute(targetFile)
-      ? path.normalize(targetFile)
-      : path.resolve(projectRoot, targetFile);
-
-    if (!fs.existsSync(fullPath)) {
-      console.error(styleText('red', `[Error] File not found: ${fullPath}`));
-      process.exit(1);
-    }
+    const fullPath = resolveTargetFileOrExit(projectRoot, targetFile);
     const findings = def.discoverInFile(fullPath);
     if (findings.length > 0) {
       filesScanned.push(fullPath);
@@ -351,6 +349,49 @@ export function createRefactorCli<TFinding, TPlan>(
   });
 }
 
+function resolveTargetFileFromParsed(parsed: Record<string, unknown>): string | undefined {
+  const file = typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined;
+  const target = typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined;
+  return file ?? target;
+}
+
+async function dispatchRefactorCommand<TFinding, TPlan>(
+  command: string,
+  def: RefactorCliDefinition<TFinding, TPlan>,
+  projectRoot: string,
+  engine: BaseRefactorEngine<TFinding, TPlan> | undefined,
+  isHuman: boolean,
+  parsed: Record<string, unknown>
+): Promise<void> {
+  switch (command) {
+    case 'discover':
+      handleDiscoverCommand(def, projectRoot, engine, isHuman);
+      return;
+    case 'inspect': {
+      const targetFile = resolveTargetFileFromParsed(parsed);
+      handleInspectCommand(def, projectRoot, targetFile);
+      return;
+    }
+    case 'plan': {
+      const targetFile = resolveTargetFileFromParsed(parsed);
+      const outputPath =
+        typeof parsed.write === 'string' && parsed.write ? parsed.write : undefined;
+      handlePlanCommand(def, projectRoot, engine, targetFile, outputPath);
+      return;
+    }
+    case 'apply': {
+      const planFile =
+        (typeof parsed.plan === 'string' && parsed.plan ? parsed.plan : undefined) ??
+        resolveTargetFileFromParsed(parsed);
+      await handleApplyCommand(def, projectRoot, planFile, Boolean(parsed.worktree));
+      return;
+    }
+    default:
+      console.error(styleText('red', `[Error] Unknown command: ${command}`));
+      process.exit(1);
+  }
+}
+
 export async function runRefactorCliHarness<TFinding, TPlan>(
   def: RefactorCliDefinition<TFinding, TPlan>,
   argv: readonly string[] = getProcessCliArgs()
@@ -388,35 +429,5 @@ export async function runRefactorCliHarness<TFinding, TPlan>(
     return;
   }
 
-  switch (command) {
-    case 'discover':
-      handleDiscoverCommand(def, projectRoot, engine, isHuman);
-      break;
-    case 'inspect': {
-      const targetFile =
-        (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
-        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
-      handleInspectCommand(def, projectRoot, targetFile);
-      break;
-    }
-    case 'plan': {
-      const targetFile =
-        (typeof parsed.file === 'string' && parsed.file ? parsed.file : undefined) ??
-        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
-      const outputPath =
-        typeof parsed.write === 'string' && parsed.write ? parsed.write : undefined;
-      handlePlanCommand(def, projectRoot, engine, targetFile, outputPath);
-      break;
-    }
-    case 'apply': {
-      const planFile =
-        (typeof parsed.plan === 'string' && parsed.plan ? parsed.plan : undefined) ??
-        (typeof parsed.target === 'string' && parsed.target ? parsed.target : undefined);
-      await handleApplyCommand(def, projectRoot, planFile, Boolean(parsed.worktree));
-      break;
-    }
-    default:
-      console.error(styleText('red', `[Error] Unknown command: ${command}`));
-      process.exit(1);
-  }
+  await dispatchRefactorCommand(command, def, projectRoot, engine, isHuman, parsed);
 }

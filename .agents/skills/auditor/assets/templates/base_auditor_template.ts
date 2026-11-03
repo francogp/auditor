@@ -16,11 +16,9 @@ import { enableCompileCache } from 'node:module';
 
 import {
   BaseAuditor,
-  createRuleCapabilities,
   createUniformRuleCapabilities,
   createUniformRemediationPhases,
   resolveFileScanRoots,
-  deriveCoverageFromRoots,
   DEFAULT_AUDIT_CONFIG,
   type AuditorConfigFileRequirement,
   type AuditorPackageScriptRequirement,
@@ -41,9 +39,7 @@ export const MY_COMPOSITE_RULES: readonly MyCompositeRuleId[] = [
   'composite-missing-config'
 ] as const;
 
-export interface MyCompositeAuditorOptions extends FileScanRootsOptions {
-  // Bespoke configuration options can be added here
-}
+export type MyCompositeAuditorOptions = FileScanRootsOptions;
 
 export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   // Optional gitignore requirements for tool caches or ephemeral artifacts:
@@ -52,14 +48,8 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   ];
 
   // Optional declarative configuration file requirements for external tools or sub-systems:
-  public static readonly configFiles: readonly AuditorConfigFileRequirement[] = [
-    // {
-    //   file: '.mytoolrc.json',
-    //   content: JSON.stringify({ version: 1, strict: true }, null, 2) + '\n',
-    //   description: 'Default configuration for MyTool engine',
-    //   customMissingMessage: 'Missing .mytoolrc.json configuration file.'
-    // }
-  ];
+  public static readonly configFiles: readonly AuditorConfigFileRequirement<MyCompositeRuleId>[] =
+    [];
 
   // Optional custom package script aliases:
   // By default, BaseAuditor automatically derives "auditor:<short-id>" (auditor task=<id>)
@@ -67,10 +57,10 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
   // Custom scripts are only declared here when you require non-standard aliases or CLI flags.
   public static readonly scripts: readonly AuditorPackageScriptRequirement[] = [];
 
-  constructor(options: MyCompositeAuditorOptions = {}) {
+  public constructor(options: MyCompositeAuditorOptions = {}) {
     const { effectiveRoot, targetRoots } = resolveFileScanRoots(
       options,
-      (config) => config.paths?.dataRoots ?? DEFAULT_AUDIT_CONFIG.paths.dataRoots
+      (config) => config.paths?.dataRoots ?? DEFAULT_AUDIT_CONFIG.paths.dataRoots ?? []
     );
     const allowedExtensions = new Set(['.ts', '.json']);
 
@@ -86,6 +76,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
         changedOnly: false,
         critical: false
       }),
+      ruleFixers: {},
       // Optional Contract-Driven Auto-Fix Map:
       // Provide executable fixer functions mapping ruleId -> ({ projectRoot, options }) => Promise<boolean | void>
       // BaseAuditor automatically derives fixableRuleIds and marks rules with registered fixers as fixable.
@@ -150,7 +141,9 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
       },
       // Strategic Remediation Order: Mandatory mapping of every rule to one of the 7 canonical phases
       ruleRemediationPhases: createUniformRemediationPhases(MY_COMPOSITE_RULES, 'contracts'),
-      coverage: deriveCoverageFromRoots(targetRoots, allowedExtensions, effectiveRoot),
+      coverage: {
+        include: targetRoots.map((r) => `${r}/**/*.{ts,json}`)
+      },
       roots: targetRoots,
       allowedExtensions,
       projectRoot: effectiveRoot
@@ -159,7 +152,7 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
 
   public override async runAudit(): Promise<void> {
     // Option A: Inspect centralized files and record scanned telemetry
-    const files = await this.context.collectFiles(this.roots, new Set(['.ts', '.json']));
+    const files = this.context.collectFiles(this.roots, new Set(['.ts', '.json']));
     for (const file of files) {
       this.recordScanned(file);
     }
@@ -193,15 +186,15 @@ export class MyCompositeAuditor extends BaseAuditor<MyCompositeRuleId> {
     });
 
     // Rule 3: Verify declarative configuration files (measured individually via async wrapper, returns result directly)
-    const missingConfigs = await this.runSubAuditor('composite-missing-config', async () => {
+    const ok = await this.runSubAuditor('composite-missing-config', async () => {
       return await this.verifyAndFixConfigFiles();
     });
-    for (const missing of missingConfigs) {
+    if (!ok) {
       this.addViolation({
         ruleId: 'composite-missing-config',
         severity: 'error',
-        file: missing.file,
-        message: missing.message
+        file: '.mytoolrc.json',
+        message: 'Missing configuration file.'
       });
     }
 

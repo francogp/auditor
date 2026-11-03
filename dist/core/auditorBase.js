@@ -1,10 +1,13 @@
+import { AUDITOR_DIR, AUDIT_CONFIG_FILE } from "./auditConfigTypes.js";
 import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
-import { safeStatSync } from "./safeUtils.js";
+import { safeReadFileSync, safeStatSync, tryOrDefault, tryOrNull } from "./safeUtils.js";
 import { isPathExempt, normalizePosixPath } from "./reportUtils.js";
 import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
-import { isTestFileForCodeAudit } from "./auditTestPredicates.js";
+import { isTestFileForCodeAudit, isTestPath } from "./auditTestPredicates.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import { toPosixRelative } from "./safePath.js";
+import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
+import { isExemptFile } from "./auditPathPredicates.js";
 import "./auditConfig.js";
 import { REMEDIATION_PHASE_IDS, isRemediationPhaseId } from "./remediationPhases.js";
 import { AUDIT_EXECUTION_PHASES, AUDIT_EXECUTION_SPEEDS, SPEED_RANK, collectAuditorThirdPartyToolErrors, computeResultsFixableViolations, countFixableFindings, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
@@ -2020,4 +2023,4 @@ var FileScanAuditor = class extends BaseAuditor {
 		for (const file of files) await this.scanSingleDiscoveredFile(file, effectiveAst, catalog);
 	}
 };
-export { AST_RULE_CAPABILITIES, AuditedDocument, BaseAuditor, CANONICAL_SCANNABLE_ROOTS, DEFAULT_AUDITOR_CAPABILITIES, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveSuiteCapabilities, getEffectiveScannableRoots, isLockedSkillPath, isPathIgnored, loadLockedSkills, matchesSinglePattern, normalizeSpeeds, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, setupAuditor };
+export { AST_RULE_CAPABILITIES, AUDITOR_DIR, AUDIT_CONFIG_FILE, AuditedDocument, BaseAuditor, CANONICAL_SCANNABLE_ROOTS, COMMON_CLI_ARGS, DEFAULT_AUDITOR_CAPABILITIES, DEFAULT_AUDIT_CONFIG, FileScanAuditor, LIGHT_RULE_CAPABILITIES, MANDATORY_AUDITOR_CAPABILITY_KEYS, MANDATORY_BOOLEAN_CAPABILITY_KEYS, MAX_AUDITOR_DESCRIPTION_LENGTH, MAX_AUDITOR_SUITE_DESCRIPTION_LENGTH, REMEDIATION_PHASE_IDS, SCANNABLE_EXTENSIONS, SKILLS_LOCK_CANDIDATE_PATHS, Z_LAYERS, assertSafePathComponent, clearLockedSkillsCache, clearWorkspaceFileCache, collectRepositoryFiles, createRuleCapabilities, createUniformRemediationPhases, createUniformRuleCapabilities, deriveCanonicalAuditorScript, deriveCoverageFromRoots, deriveSuiteCapabilities, getAuditConfig, getEffectiveScannableRoots, getEffectiveZLayers, getProcessCliArgs, isExemptFile, isLockedSkillPath, isPathIgnored, isTestPath, loadAuditConfig, loadLockedSkills, matchesSinglePattern, normalizePosixPath, normalizeSpeeds, parseCittyArgs, resolveEffectiveSpeed, resolveFileScanRoots, resolveSubsystemConfig, resolveZLayersScssPath, safeReadFileSync, setupAuditor, toPosixRelative, tryOrDefault, tryOrNull };

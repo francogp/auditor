@@ -5,7 +5,6 @@ import { isTestPath } from "../../core/auditTestPredicates.js";
 import { toPosixRelative } from "../../core/safePath.js";
 import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "../../core/auditZLayers.js";
 import { isExemptFile } from "../../core/auditPathPredicates.js";
-import "../../core/auditConfig.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { FileScanAuditor, createRuleCapabilities, createUniformRemediationPhases, resolveFileScanRoots } from "../../core/auditorBase.js";
 import { fixZIndexLiteral, resolveZLayer } from "../../analyzers/zIndexRules.js";

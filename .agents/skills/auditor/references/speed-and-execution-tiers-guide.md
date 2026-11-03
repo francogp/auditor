@@ -10,7 +10,7 @@ The framework classifies suites and rules into 3 canonical execution tiers:
 
 - `'light'` (`🐇`): Fast static lint and AST rules (`npm run auditor:lint` / `auditor speed=light`).
 - `'heavy'` (`🐢`): Default workspace audit ceiling (`npm run auditor` / `auditor` / `auditor speed=heavy`), running `'light'` + `'heavy'` suites.
-- `'full'` (`🐘`): Exhaustive pre-build and release ceiling (`npm run auditor:full` / `auditor speed=full`), running `'light'` + `'heavy'` + `'full'` (including deep type-aware analysis like `fallow dead-code --type-aware`).
+- `'full'` (`🐘`): Exhaustive pre-build and release ceiling (`npm run auditor:full` / `auditor speed=full`), running `'light'` + `'heavy'` + `'full'` (including heavy multi-module operations like dead-code cascades, vector semantic analysis, and full test coverage).
 
 ---
 

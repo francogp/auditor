@@ -22,19 +22,21 @@ import ts from 'typescript';
 
 import { SharedAstContext } from '../../core/astContext.ts';
 import {
+  BaseAuditor,
+  createUniformRemediationPhases,
+  createRuleCapabilities,
   DEFAULT_AUDIT_CONFIG,
   getAuditConfig,
   isTestPath,
-  type AuditEngineConfig
-} from '../../core/auditConfig.ts';
-import type { GitIgnoreRequirement } from '../../core/auditContract.ts';
-import { deriveCoverageFromRoots } from '../../core/auditCoverage.ts';
-import {
-  BaseAuditor,
-  createUniformRemediationPhases,
-  createRuleCapabilities
+  type AuditEngineConfig,
+  type GitIgnoreRequirement,
+  deriveCoverageFromRoots,
+  toPosixRelative,
+  normalizePosixPath
 } from '../../core/auditorBase.ts';
-import { toPosixRelative, normalizePosixPath } from '../../core/safePath.ts';
+import type { SqlAntiPatternsAuditor } from '../persistence/validate_sql_anti_patterns.ts';
+
+export type PeerAuditorBudget = SqlAntiPatternsAuditor;
 
 enableCompileCache();
 

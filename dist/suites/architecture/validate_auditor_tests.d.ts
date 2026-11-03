@@ -1,4 +1,8 @@
 import { BaseAuditor } from "../../core/auditorBase.js";
+import { SqlAntiPatternsAuditor } from "../persistence/validate_sql_anti_patterns.js";
+import { TestFragmentationAuditor } from "./validate_test_fragmentation.js";
+export type PeerAuditorConformance = SqlAntiPatternsAuditor;
+export type PeerAuditorFragmentation = TestFragmentationAuditor;
 export type AuditorTestRuleId = 'missing-auditor-test' | 'untested-auditor-rule' | 'missing-clean-auditor-test' | 'missing-construction-auditor-test' | 'missing-violation-auditor-test';
 export declare const AUDITOR_TEST_RULES: readonly AuditorTestRuleId[];
 export declare const AUDITOR_TEST_DESCRIPTIONS: Record<AuditorTestRuleId, string>;

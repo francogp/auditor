@@ -21,14 +21,14 @@ export function polyfillPermissionModelFsync(): void {
       if (typeof callback === 'function') callback(null);
     };
     Reflect.set(fs, 'fsync', noopCallback);
-    Reflect.set(fsPromises, 'fsync', async () => {});
+    Reflect.set(fsPromises, 'fsync', async (): Promise<void> => {});
   });
 
   tryOrNullAsync(async () => {
     const handle = await fsPromises.open(process.execPath, 'r');
     const proto = Object.getPrototypeOf(handle);
     if (proto && typeof proto.sync === 'function') {
-      proto.sync = async () => {};
+      proto.sync = async (): Promise<void> => {};
     }
     await handle.close();
   }).catch((err: unknown) => {

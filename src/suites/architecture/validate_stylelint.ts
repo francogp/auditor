@@ -79,7 +79,7 @@ export function resolveStylelintConfigFile(
     'stylelint.config.js',
     'stylelint.config.cjs',
     'stylelint.config.mjs'
-  ];
+  ] as const;
 
   for (const name of candidateNames) {
     const candidate = path.resolve(projectRoot, name);

@@ -1,9 +1,18 @@
-import { AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
+import { AUDITOR_DIR, AUDIT_CONFIG_FILE, AuditConfig, AuditEngineConfig, BaseAuditSubsystemConfig } from "./auditConfigTypes.js";
 import { SharedAstContext } from "./astContext.js";
+import { DEFAULT_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { getAuditConfig, loadAuditConfig } from "./auditConfigLoader.js";
+import { isTestPath } from "./auditTestPredicates.js";
+import { Z_LAYERS, getEffectiveZLayers, resolveZLayersScssPath } from "./auditZLayers.js";
+import { isExemptFile } from "./auditPathPredicates.js";
 import { REMEDIATION_PHASE_IDS, RemediationPhaseId } from "./remediationPhases.js";
 import { AnyRuleFixerFn, AuditExecutionSpeed, AuditFamily, AuditFinding, AuditorComputedCapabilities, AuditorConfigFileRequirement, AuditorCoverageDeclaration, AuditorCriticalConfig, AuditorExecutable, AuditorExecutionTier, AuditorManifestDTO, AuditorPackageScriptRequirement, AuditorRuleCapabilities, DualCommandProfile, FindingSeverity, FixableFindingCounts, FixableViolationsSummary, GitIgnoreRequirement, ICompositeAuditor, RuleFixContext, RuleFixerFn, RuleFixersMap, SatelliteConfigExplanationFn, SatelliteConfigFileExplanation, StandardAuditResult, SubAuditorReport, SubAuditorStep, ThirdPartyToolFailurePolicy, TieredCommandProfile, deriveCanonicalAuditorScript, normalizeSpeeds, resolveEffectiveSpeed } from "./auditContract.js";
 import { AuditedDocument, DocumentReplacement, LineColumnPosition } from "./auditedDocument.js";
-import { CoverageRecorder } from "./auditCoverage.js";
+import { COMMON_CLI_ARGS, CittyArgsDef, getProcessCliArgs, parseCittyArgs } from "./cli/cittyHarness.js";
+import { safeReadFileSync, tryOrDefault, tryOrNull } from "./safeUtils.js";
+import { normalizePosixPath } from "./reportUtils.js";
+import { toPosixRelative } from "./safePath.js";
+import { CoverageRecorder, deriveCoverageFromRoots } from "./auditCoverage.js";
 import { SKILLS_LOCK_CANDIDATE_PATHS, clearLockedSkillsCache, isLockedSkillPath, loadLockedSkills } from "./lockedSkills.js";
 import ts from "typescript";
 export interface FixableAuditorInstance {
@@ -579,4 +588,4 @@ export declare abstract class FileScanAuditor<TRuleId extends string = string> e
   private scanSingleDiscoveredFile;
   runAudit(astContext?: SharedAstContext): Promise<void>;
 }
-export { type AnyRuleFixerFn, AuditedDocument, type AuditorComputedCapabilities, type DocumentReplacement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RuleFixContext, type RuleFixerFn, type RuleFixersMap, SKILLS_LOCK_CANDIDATE_PATHS, type SatelliteConfigExplanationFn, type SatelliteConfigFileExplanation, clearLockedSkillsCache, deriveCanonicalAuditorScript, isLockedSkillPath, loadLockedSkills, normalizeSpeeds, resolveEffectiveSpeed };
+export { AUDITOR_DIR, AUDIT_CONFIG_FILE, type AnyRuleFixerFn, type AuditConfig, type AuditEngineConfig, AuditedDocument, type AuditorComputedCapabilities, COMMON_CLI_ARGS, type CittyArgsDef, DEFAULT_AUDIT_CONFIG, type DocumentReplacement, type FindingSeverity, type GitIgnoreRequirement, type LineColumnPosition, REMEDIATION_PHASE_IDS, type RemediationPhaseId, type RuleFixContext, type RuleFixerFn, type RuleFixersMap, SKILLS_LOCK_CANDIDATE_PATHS, type SatelliteConfigExplanationFn, type SatelliteConfigFileExplanation, Z_LAYERS, clearLockedSkillsCache, deriveCanonicalAuditorScript, deriveCoverageFromRoots, getAuditConfig, getEffectiveZLayers, getProcessCliArgs, isExemptFile, isLockedSkillPath, isTestPath, loadAuditConfig, loadLockedSkills, normalizePosixPath, normalizeSpeeds, parseCittyArgs, resolveEffectiveSpeed, resolveZLayersScssPath, safeReadFileSync, toPosixRelative, tryOrDefault, tryOrNull };

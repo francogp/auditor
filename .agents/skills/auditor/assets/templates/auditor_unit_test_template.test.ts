@@ -29,7 +29,7 @@ import path from 'node:path';
 import { validateAuditorConstruction } from '@francogp/auditor';
 import { describe, it, expect, beforeEach, afterEach } from 'vite-plus/test';
 
-import { MyFeatureAuditor } from '../../../scripts/auditors/architecture/validate_my_feature.ts';
+import { MyFeatureAuditor } from './file_scan_auditor_template.ts';
 
 const TEST_DIR = path.resolve(process.cwd(), 'scratch/test_auditor_tmp');
 
@@ -49,13 +49,11 @@ describe('MyFeatureAuditor', () => {
     const manifest = auditor.toManifest();
     expect(manifest.id).toBe('validate_my_feature');
     expect(manifest.family).toBe('architecture');
-    expect(manifest.packageName).toBe('MyModule');
-    expect(manifest.configKey).toBe('myFeature');
     expect(manifest.rules['my-feature-forbidden-pattern']).toBeDefined();
     expect(manifest.rules['my-feature-missing-attribute']).toBeDefined();
     expect(manifest.remediationPhases).toBeDefined();
-    expect(manifest.remediationPhases!['my-feature-forbidden-pattern']).toBe('behavior');
-    expect(manifest.remediationPhases!['my-feature-missing-attribute']).toBe('behavior');
+    expect(manifest.remediationPhases!['my-feature-forbidden-pattern']).toBe('polish');
+    expect(manifest.remediationPhases!['my-feature-missing-attribute']).toBe('polish');
   });
 
   it('passes cleanly when no violations are present', async () => {
@@ -89,7 +87,9 @@ describe('MyFeatureAuditor', () => {
     const result = await auditor.audit();
 
     expect(result.summary.errors).toBeGreaterThan(0);
-    const violation = result.findings.find((f) => f.ruleId === 'my-feature-forbidden-pattern');
+    const violation = result.findings.find(
+      (f: { readonly ruleId?: string }) => f.ruleId === 'my-feature-forbidden-pattern'
+    );
     expect(violation).toBeDefined();
     expect(violation?.severity).toBe('error');
     expect(result.status).toBe('failed');
@@ -121,11 +121,11 @@ describe('MyFeatureAuditor', () => {
 
   it('guarantees 100% of declared rules record individual empirical durations', async () => {
     const auditor = new MyFeatureAuditor({ projectRoot: TEST_DIR });
-    auditor.testScanFile('clean.ts', 'export const valid = true;\n');
+    await auditor.testScanFile('clean.ts', 'export const valid = true;\n');
     await auditor.finishAudit();
 
     for (const ruleId of auditor.ruleIds) {
-      expect(auditor.isRuleEvaluated(ruleId)).toBe(true);
+      expect(auditor.getRuleDuration(ruleId)).toBeDefined();
       expect(auditor.getRuleDuration(ruleId)).toBeGreaterThanOrEqual(0);
     }
   });
@@ -139,6 +139,6 @@ describe('MyFeatureAuditor', () => {
       'my-feature-forbidden-pattern',
       'Deactivated in audit.config.ts'
     );
-    expect(activeAuditor.isRuleEvaluated('my-feature-forbidden-pattern')).toBe(true);
+    expect(activeAuditor.getRuleDuration('my-feature-forbidden-pattern')).toBeDefined();
   });
 });

@@ -7,7 +7,7 @@ import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs, resolveHumanModeFro
 import { isMainModule } from "./cliUtils.js";
 import { renderBanner, renderBoxTable } from "../core/unifiedTheme.js";
 import { syncDocumentationVersionReferences } from "../core/markdownVersionValidator.js";
-import { analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
+import { VERSION_BUMP_TYPES, analyzeVersionBump, calculateNextBaseVersion, generateBuildId } from "../core/versionAnalyzer.js";
 import path from "node:path";
 import fs from "node:fs";
 import { styleText } from "node:util";
@@ -23,14 +23,7 @@ import { styleText } from "node:util";
 *   auditor-version analyze       Analyze diff and recommend Major/Minor/Patch
 *   auditor-version bump [type]   Apply version bump (auto|major|minor|patch)
 */
-const CLI_BUMP_TYPES = [
-	"major",
-	"minor",
-	"patch",
-	"build",
-	"auto"
-];
-const CLI_BUMP_TYPE_SET = new Set(CLI_BUMP_TYPES);
+const CLI_BUMP_TYPE_SET = new Set(VERSION_BUMP_TYPES);
 function isCliBumpType(val) {
 	return CLI_BUMP_TYPE_SET.has(val);
 }
@@ -120,15 +113,16 @@ function resolveNextVersionAndBump(cwd, options, buildId) {
 		const rawTarget = options.targetVersion.trim();
 		return {
 			newVersion: rawTarget.includes("-build.") ? rawTarget : `${rawTarget}-build.${buildId}`,
-			resolvedBump: options.bumpType && options.bumpType !== "auto" ? options.bumpType : "major"
+			resolvedBump: options.bumpType ?? "major"
 		};
 	}
+	if (!options.bumpType) throw new Error(`Missing required bump type. You must explicitly specify one of: ${VERSION_BUMP_TYPES.join(", ")} (e.g. "npm run version:bump -- patch").`);
 	const analysis = analyzeVersionBump({
 		cwd,
 		commitMessage: options.commitMessage,
 		customNow: options.customNow
 	});
-	const resolvedBump = !options.bumpType || options.bumpType === "auto" ? analysis.recommendedBump : options.bumpType;
+	const resolvedBump = options.bumpType;
 	return {
 		newVersion: `${calculateNextBaseVersion(analysis.baseVersion, resolvedBump)}-build.${buildId}`,
 		resolvedBump
@@ -236,7 +230,7 @@ const BUMP_CLI_ARGS = {
 	bumpType: {
 		type: "positional",
 		required: false,
-		description: "Bump type (major | minor | patch | build | auto) or subcommand target"
+		description: "Bump type (major | minor | patch | build) or subcommand target"
 	},
 	version: {
 		type: "boolean",
@@ -253,7 +247,7 @@ const BUMP_CLI_ARGS = {
 	},
 	type: {
 		type: "string",
-		description: "Bump type (major | minor | patch | build | auto)"
+		description: "Bump type (major | minor | patch | build)"
 	},
 	"target-version": {
 		type: "string",
@@ -292,14 +286,14 @@ function handleAnalyzeCommand(options) {
 }
 function printHelp(command) {
 	if (command === "bump") {
-		console.log("Usage: auditor-version bump [type] [options]\n\nBump types:\n  auto     Automatically compute bump from heuristic analysis (default)\n  major    Increment major version (X.0.0-build.TIMESTAMP)\n  minor    Increment minor version (x.Y.0-build.TIMESTAMP)\n  patch    Increment patch/bugfix version (x.y.Z-build.TIMESTAMP)\n  build    Update build stamp without altering base SemVer (x.y.z-build.TIMESTAMP)\n\nOptions:\n  --type=<type>              Specify bump type (major | minor | patch | build | auto)\n  --target-version=<ver>     Specify explicit base or full version\n  --json                     Output result in JSON format\n  --no-sync-public           Skip syncing public/version.json\n  --sync=<paths>             Additional comma-separated paths to sync\n  -h, --help                 Show this help message\n");
+		console.log("Usage: auditor-version bump <type> [options]\n\nBump types:\n  major    Increment major version (X.0.0-build.TIMESTAMP)\n  minor    Increment minor version (x.Y.0-build.TIMESTAMP)\n  patch    Increment patch/bugfix version (x.y.Z-build.TIMESTAMP)\n  build    Update build stamp without altering base SemVer (x.y.z-build.TIMESTAMP)\n\nOptions:\n  --type=<type>              Specify bump type (major | minor | patch | build)\n  --target-version=<ver>     Specify explicit base or full version\n  --json                     Output result in JSON format\n  --no-sync-public           Skip syncing public/version.json\n  --sync=<paths>             Additional comma-separated paths to sync\n  -h, --help                 Show this help message\n");
 		return;
 	}
 	if (command === "analyze") {
 		console.log("Usage: auditor-version analyze [options]\n\nOptions:\n  --json                     Output heuristic analysis in JSON format\n  -h, --help                 Show this help message\n");
 		return;
 	}
-	console.log(`@francogp/auditor v${AUDITOR_VERSION} - SemVer Manager & Build Stamper\n\nUsage:\n  auditor-version                     Show current version\n  auditor-version analyze [options]  Analyze diff and suggest bump\n  auditor-version bump [type] [opt]   Apply bump (auto | major | minor | patch | build)\n\nCommands:\n  version, -v, --version              Show current version\n  analyze                             Analyze git changes and recommend major/minor/patch\n  bump [type]                         Apply bump: major | minor | patch | build | auto\n\nGlobal options:\n  -h, --help                          Show this help message\n`);
+	console.log(`@francogp/auditor v${AUDITOR_VERSION} - SemVer Manager & Build Stamper\n\nUsage:\n  auditor-version                     Show current version\n  auditor-version analyze [options]  Analyze diff and suggest bump\n  auditor-version bump <type> [opt]   Apply bump (major | minor | patch | build)\n\nCommands:\n  version, -v, --version              Show current version\n  analyze                             Analyze git changes and recommend major/minor/patch\n  bump <type>                         Apply bump: major | minor | patch | build\n\nGlobal options:\n  -h, --help                          Show this help message\n`);
 }
 const BUMP_SUBCOMMAND_NAMES = /* @__PURE__ */ new Set([
 	"analyze",
@@ -311,18 +305,18 @@ function resolveBumpTypeFromParsed(explicitType, positionalType) {
 	if (explicitType) {
 		const val = explicitType.toLowerCase();
 		if (isCliBumpType(val)) return val;
-		throw new Error(`Unrecognized bump type in --type: "${val}". Valid options: ${CLI_BUMP_TYPES.join(", ")}.`);
+		throw new Error(`Unrecognized bump type in --type: "${val}". Valid options: ${VERSION_BUMP_TYPES.join(", ")}.`);
 	}
 	if (positionalType) {
 		const lowerPos = positionalType.toLowerCase();
 		if (isCliBumpType(lowerPos)) return lowerPos;
-		throw new Error(`Unrecognized bump type: "${positionalType}". Valid options: ${CLI_BUMP_TYPES.join(", ")}.`);
+		throw new Error(`Unrecognized bump type: "${positionalType}". Valid options: ${VERSION_BUMP_TYPES.join(", ")}.`);
 	}
-	return "auto";
 }
 function handleBumpCommand(parsed, positionalType, isJson, cwd) {
 	const targetVersion = typeof parsed["target-version"] === "string" && parsed["target-version"] || typeof parsed.target === "string" && parsed.target || void 0;
 	const bumpType = resolveBumpTypeFromParsed(typeof parsed.type === "string" ? parsed.type : void 0, positionalType);
+	if (!targetVersion && !bumpType) throw new Error(`Missing required bump type. You must explicitly specify one of: ${VERSION_BUMP_TYPES.join(", ")} (e.g. "npm run version:bump -- patch").`);
 	const noSyncPublic = parsed["sync-public"] === false || Boolean(parsed["no-sync-public"]);
 	const syncTargets = typeof parsed.sync === "string" ? parsed.sync.split(",").filter(Boolean) : void 0;
 	const result = applyVersionBump({
@@ -403,4 +397,4 @@ function runBumpCli(rawArgs = getProcessCliArgs(), cwd = process.cwd()) {
 	}
 }
 if (isMainModule(import.meta.url)) runBumpCli();
-export { CLI_BUMP_TYPES, applyVersionBump, isCliBumpType, runBumpCli };
+export { VERSION_BUMP_TYPES as CLI_BUMP_TYPES, applyVersionBump, isCliBumpType, runBumpCli };
