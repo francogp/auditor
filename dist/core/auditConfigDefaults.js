@@ -319,8 +319,7 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-silent-promise-catch",
 	"@francogp/domain-type/no-await-in-loops-query",
 	"@francogp/domain-type/no-literal-suffix-constant",
-	"@francogp/domain-type/no-raw-html-injection",
-	"@francogp/domain-type/no-redundant-constant-alias"
+	"@francogp/domain-type/no-raw-html-injection"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
@@ -345,10 +344,7 @@ const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-homebrew-flag-parsing",
 	"@francogp/domain-type/no-homebrew-file-walker",
 	"@francogp/domain-type/auditor-rule-description-limit",
-	"@francogp/domain-type/no-raw-session-storage",
-	"@francogp/domain-type/no-hardcoded-secrets",
-	"@francogp/domain-type/no-playwright-polling-waits",
-	"no-unused-expressions"
+	"@francogp/domain-type/no-raw-session-storage"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",

@@ -80,6 +80,30 @@ function isMutatedOrTypedStringBuffer(node, context) {
 	const sourceText = context.getSourceCode().getText();
 	return sourceText.includes(`${varName}.push(`) || sourceText.includes(`${varName}.unshift(`) || sourceText.includes(`${varName}.splice(`);
 }
+function hasEventListenerOnceOption(args) {
+	if (args.length < 3) return false;
+	const opt = args[2];
+	if (opt?.type !== "ObjectLiteralExpression" && opt?.type !== "ObjectExpression") return false;
+	return Boolean(opt.properties?.some((p) => {
+		const k = p.key?.name || p.key?.value;
+		const v = p.value?.value;
+		return k === "once" && v === true;
+	}));
+}
+function isDomEventLeakExemptSource(fullText) {
+	if (fullText.includes("defineStore(") || fullText.includes("createApp(") || fullText.includes(".mount(") || fullText.includes("export function initGlobal")) return true;
+	return fullText.includes("removeEventListener") || fullText.includes("cleanWorkerListener") || fullText.includes("onUnmounted") || fullText.includes("onBeforeUnmount") || fullText.includes("onScopeDispose");
+}
+function isInsideLocateFileProperty(node) {
+	let ancestor = node.parent;
+	let ancDepth = 0;
+	while (ancestor && ancDepth < 5) {
+		if (ancestor.type === "Property" && ancestor.key?.name === "locateFile") return true;
+		ancestor = ancestor.parent;
+		ancDepth++;
+	}
+	return false;
+}
 const domainTypeOxlintPlugin = {
 	meta: {
 		name: "@francogp/domain-type",
@@ -607,10 +631,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Detects addEventListener without cleanup or once: true" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname.endsWith(".worker.ts") || fname.endsWith(".worker.js")) return {};
-				const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
-				if (sourceCode.includes("defineStore(") || sourceCode.includes("createApp(") || sourceCode.includes(".mount(")) return {};
 				const PROCESS_LIFETIME_EVENTS = /* @__PURE__ */ new Set([
 					"beforeunload",
 					"unload",
@@ -623,27 +643,20 @@ const domainTypeOxlintPlugin = {
 					"DOMContentLoaded",
 					"load",
 					"online",
-					"offline"
+					"offline",
+					"session-conflict"
 				]);
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "addEventListener") {
 						if (callee.object?.name === "self") return;
+						const fname = getRuleContextFilename(context);
+						if (fname.endsWith(".worker.ts") || fname.endsWith(".worker.js")) return;
 						const args = node.arguments ?? [];
 						const firstArg = args[0];
 						if (firstArg?.type === "Literal" && typeof firstArg.value === "string" && PROCESS_LIFETIME_EVENTS.has(firstArg.value)) return;
-						if (args.length >= 3) {
-							const opt = args[2];
-							if (opt?.type === "ObjectLiteralExpression" || opt?.type === "ObjectExpression") {
-								if (opt.properties?.some((p) => {
-									const k = p.key?.name || p.key?.value;
-									const v = p.value?.value;
-									return k === "once" && v === true;
-								})) return;
-							}
-						}
-						const fullText = context.getSourceCode ? context.getSourceCode().getText() : "";
-						if (!(fullText.includes("removeEventListener") || fullText.includes("onUnmounted") || fullText.includes("onBeforeUnmount") || fullText.includes("onScopeDispose"))) context.report({
+						if (hasEventListenerOnceOption(args)) return;
+						if (!isDomEventLeakExemptSource(context.getSourceCode ? context.getSourceCode().getText() : "")) context.report({
 							node,
 							message: "Potential DOM event listener leak: 'addEventListener' attached without '{ once: true }', 'removeEventListener', or 'onUnmounted()' lifecycle cleanup."
 						});
@@ -893,18 +906,18 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids calling data providers directly inside Vue template expressions" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && !fname.endsWith(".vue")) return {};
-				const sourceCode = context.getSourceCode?.()?.getText() ?? "";
-				const templateMatch = /<template[\s>]/i.exec(sourceCode);
-				const templateEnd = sourceCode.lastIndexOf("</template>");
-				const templateStart = templateMatch ? templateMatch.index : -1;
-				if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) return {};
 				return { CallExpression(node) {
-					if (templateStart >= 0 && templateEnd > templateStart && node.range) {
+					const fname = getRuleContextFilename(context);
+					if (fname && !fname.endsWith(".vue")) return;
+					const sourceCode = context.getSourceCode?.()?.getText() ?? "";
+					const templateMatch = /<template[\s>]/i.exec(sourceCode);
+					const templateEnd = sourceCode.lastIndexOf("</template>");
+					const templateStart = templateMatch ? templateMatch.index : -1;
+					if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) return;
+					if (node.range) {
 						const start = node.range[0];
 						if (start < templateStart || start > templateEnd) return;
-					} else if (fname && !templateMatch) return;
+					}
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression") {
 						const objName = callee.object?.name;
@@ -949,11 +962,27 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids Math.random() for sensitive tokens, IDs or cryptography" }
 			},
 			create(context) {
+				const SENSITIVE_CRYPTO_IDENT = /(?:token|secret|password|nonce|salt|auth|session|csrf|jwt|api_?key|private_?key|signature)/i;
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.object?.name === "Math" && callee.property?.name === "random") {
-						const fullSource = context.getSourceCode ? context.getSourceCode().getText() : "";
-						if (/token|secret|password|nonce|salt|auth/i.test(fullSource)) context.report({
+						let cur = node.parent;
+						let isSensitive = false;
+						let depth = 0;
+						while (cur && depth < 6) {
+							const candidateName = cur.id?.name ?? cur.key?.name ?? (typeof cur.key?.value === "string" ? cur.key.value : void 0) ?? (cur.left?.type === "Identifier" ? cur.left.name : cur.left?.property?.name);
+							if (typeof candidateName === "string" && SENSITIVE_CRYPTO_IDENT.test(candidateName)) {
+								isSensitive = true;
+								break;
+							}
+							cur = cur.parent;
+							depth++;
+						}
+						if (!isSensitive && !node.parent) {
+							const fullSource = context.getSourceCode ? context.getSourceCode().getText() : "";
+							isSensitive = SENSITIVE_CRYPTO_IDENT.test(fullSource);
+						}
+						if (isSensitive) context.report({
 							node,
 							message: "Math.random() is cryptographically insecure for tokens/secrets. Use crypto.randomUUID() or crypto.getRandomValues()."
 						});
@@ -1039,6 +1068,8 @@ const domainTypeOxlintPlugin = {
 					if (node.id?.type === "Identifier" && node.init?.type === "Identifier" && typeof node.id.name === "string" && typeof node.init.name === "string" && node.id.name !== node.init.name) {
 						const idName = node.id.name;
 						const initName = node.init.name;
+						if (idName.length <= 2) return;
+						if (node.parent?.parent?.type === "ExportNamedDeclaration") return;
 						if (/^[A-Z0-9_]+$/.test(idName) && /^[A-Z0-9_]+$/.test(initName)) context.report({
 							node,
 							message: `Redundant 1:1 constant alias 'const ${idName} = ${initName}' detected. Use '${initName}' directly at call sites.`
@@ -1080,6 +1111,7 @@ const domainTypeOxlintPlugin = {
 						if (fullRaw.includes("?") || fullRaw.includes("&") || /\/(?:api|rest|auth|embed|assets|cries|sprites|images|audio|sounds|icons|fonts|public|static|v\d+)\//i.test(fullRaw) || /\.(?:mp3|ogg|wav|png|webp|jpg|jpeg|gif|svg|woff2?|ttf|eot|mp4|webm)$/i.test(fullRaw)) return;
 						const parent = node.parent;
 						if (parent?.type === "AssignmentExpression" && parent.left?.type === "MemberExpression" && /^(?:pathname|href|src|url|action|poster|data)$/i.test(parent.left.property?.name ?? "")) return;
+						if (isInsideLocateFileProperty(node)) return;
 						if (fullRaw.includes(" ") && (fullRaw.includes(". ") || fullRaw.includes(": ") || fullRaw.includes("? ") || fullRaw.split(" ").length > 3)) return;
 						if (!quasis.some((q) => typeof q.value?.raw === "string" && (q.value.raw.includes("/") || q.value.raw.includes("\\\\"))) || (node.expressions?.length ?? 0) === 0) return;
 						const isUrlExpr = (name) => /^(?:base|api)?(?:url|endpoint|origin|host|uri|href|link)$/i.test(name);
@@ -1087,7 +1119,7 @@ const domainTypeOxlintPlugin = {
 						const hasPathExpr = (node.expressions ?? []).some((expr) => {
 							const exprName = expr?.name ?? "";
 							if (isUrlExpr(exprName)) return false;
-							return /path|dir|folder|file|root|base|dest|cwd|src|target/i.test(exprName);
+							return /(?:path|dir|folder|file|root|base|dest|cwd|target)$/i.test(exprName);
 						});
 						const hasPathQuasiPrefix = quasis.some((q) => {
 							const raw = q.value?.raw ?? "";
@@ -1173,13 +1205,13 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids hardcoding '\\' or '/' in string split() operations on path variables" }
 			},
 			create(context) {
-				const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
-				if (sourceCode) {
-					if (!(sourceCode.includes("node:") || sourceCode.includes("process.") || sourceCode.includes("import.meta.dirname"))) return {};
-				}
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "split") {
+						const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
+						if (sourceCode) {
+							if (!(sourceCode.includes("node:") || sourceCode.includes("process.") || sourceCode.includes("import.meta.dirname"))) return;
+						}
 						const getObjName = (target) => {
 							if (!target) return "";
 							if (target.type === "Identifier") return target.name ?? "";
@@ -1206,6 +1238,7 @@ const domainTypeOxlintPlugin = {
 				return { Literal(node) {
 					if (typeof node.value === "string" && node.value.length >= 8) {
 						const str = node.value;
+						if (str.includes("eyJpc3MiOiJzdXBhYmFzZS1kZW1vI")) return;
 						if (/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/.test(str)) context.report({
 							node,
 							message: "Hardcoded private cryptographic key detected. Store keys in a secure secret manager or vault."
@@ -1288,9 +1321,9 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids direct process.argv, Deno.args, or Bun.argv access outside canonical Citty harness" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts") || fname.endsWith("setup_env.ts") || fname.endsWith("check_environment.ts"))) return {};
 				return { MemberExpression(node) {
+					const fname = getRuleContextFilename(context);
+					if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts") || fname.endsWith("setup_env.ts") || fname.endsWith("check_environment.ts"))) return;
 					const isProcessArgv = node.object?.name === "process" && node.property?.name === "argv";
 					const isDenoArgs = node.object?.name === "Deno" && node.property?.name === "args";
 					const isBunArgv = node.object?.name === "Bun" && node.property?.name === "argv";
@@ -1329,9 +1362,9 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids manual startsWith('--') or includes('--') flag parsing heuristics" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts"))) return {};
 				return { CallExpression(node) {
+					const fname = getRuleContextFilename(context);
+					if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts"))) return;
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression") {
 						const prop = callee.property?.name;

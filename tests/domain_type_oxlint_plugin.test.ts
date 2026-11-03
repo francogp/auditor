@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vite-plus/test';
 
 import {
   domainTypeOxlintPlugin,
+  type OxlintAstNode,
   type OxlintReportDescriptor,
   type OxlintRuleContext
 } from '../src/core/domainTypeOxlintPlugin.ts';
@@ -737,19 +738,167 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
   });
 
   describe('Heuristic Refinements & False Positive Eradication Canaries', () => {
-    it('CANARY: dom-event-leak ignores Pinia stores and SPA mount entrypoints', () => {
+    it('CANARY: dom-event-leak ignores Pinia stores, SPA mount entrypoints, and cleanWorkerListener helpers', () => {
       const rule = domainTypeOxlintPlugin.rules['dom-event-leak'];
-      const storeContext = createMockContext({
-        text: 'export const useAuthStore = defineStore("auth", () => {});'
-      });
-      const storeVisitor = rule.create(storeContext.context);
-      expect(storeVisitor.CallExpression).toBeUndefined();
+      // Simulate Oxlint runtime where context.getSourceCode is only valid during visitor execution
+      let currentText = '';
+      const reports: OxlintReportDescriptor[] = [];
+      const context: OxlintRuleContext = {
+        report: (d) => reports.push(d),
+        getSourceCode: () => ({ getText: () => currentText })
+      };
+      const visitor = rule.create(context);
+      expect(visitor.CallExpression).toBeDefined();
 
-      const mainContext = createMockContext({
-        text: 'createApp(App).mount("#app");'
+      currentText = 'export const useAuthStore = defineStore("auth", () => {});';
+      visitor.CallExpression?.({
+        type: 'CallExpression',
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'window' },
+          property: { type: 'Identifier', name: 'addEventListener' }
+        },
+        arguments: [{ type: 'Literal', value: 'click' }]
       });
-      const mainVisitor = rule.create(mainContext.context);
-      expect(mainVisitor.CallExpression).toBeUndefined();
+      expect(reports).toHaveLength(0);
+
+      currentText =
+        'cleanWorkerListener(worker, handler); worker.addEventListener("message", handler);';
+      visitor.CallExpression?.({
+        type: 'CallExpression',
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'worker' },
+          property: { type: 'Identifier', name: 'addEventListener' }
+        },
+        arguments: [{ type: 'Literal', value: 'message' }]
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: no-insecure-random only flags sensitive token/secret/password identifiers, not PRNG seeds or NPC phrases in files mentioning secret/auth elsewhere', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-insecure-random'];
+      const { reports, context } = createMockContext({
+        text: '// secretDiscovered and useAuthStore are mentioned in this file\nconst seed = Math.floor(Math.random() * 100000);'
+      });
+      const visitor = rule.create(context);
+
+      // Clean: PRNG seed assignment in a file that mentions secret/auth elsewhere
+      const seedDeclarator: OxlintAstNode = {
+        type: 'VariableDeclarator',
+        id: { type: 'Identifier', name: 'seed' }
+      };
+      const floorCall: OxlintAstNode = {
+        type: 'CallExpression',
+        parent: seedDeclarator
+      };
+      visitor.CallExpression?.({
+        type: 'CallExpression',
+        parent: floorCall,
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'Math' },
+          property: { type: 'Identifier', name: 'random' }
+        }
+      });
+      expect(reports).toHaveLength(0);
+
+      // Active: Assigning Math.random() to authToken or secretKey MUST be flagged
+      const tokenDeclarator: OxlintAstNode = {
+        type: 'VariableDeclarator',
+        id: { type: 'Identifier', name: 'authToken' }
+      };
+      visitor.CallExpression?.({
+        type: 'CallExpression',
+        parent: tokenDeclarator,
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'Math' },
+          property: { type: 'Identifier', name: 'random' }
+        }
+      });
+      expect(reports).toHaveLength(1);
+    });
+
+    it('CANARY: unsafe-path-concat ignores WASM locateFile URLs and relative asset subkeys without filesystem context', () => {
+      const rule = domainTypeOxlintPlugin.rules['unsafe-path-concat'];
+      const { reports, context } = createMockContext({
+        text: 'const animSubKey = `animated/${view}${shinyFolderSuffix}/${numVal}i${suffix}`;'
+      });
+      const visitor = rule.create(context);
+
+      // Relative asset subkey in browser code without node:fs or node:path
+      visitor.TemplateLiteral?.({
+        type: 'TemplateLiteral',
+        quasis: [
+          { value: { raw: 'animated/' } },
+          { value: { raw: '' } },
+          { value: { raw: '/' } },
+          { value: { raw: 'i' } },
+          { value: { raw: '' } }
+        ],
+        expressions: [
+          { type: 'Identifier', name: 'view' },
+          { type: 'Identifier', name: 'shinyFolderSuffix' },
+          { type: 'Identifier', name: 'numVal' },
+          { type: 'Identifier', name: 'suffix' }
+        ]
+      });
+      expect(reports).toHaveLength(0);
+
+      // WASM locateFile callback URL
+      const locateFileProp: OxlintAstNode = {
+        type: 'Property',
+        key: { type: 'Identifier', name: 'locateFile' }
+      };
+      const arrowFn: OxlintAstNode = {
+        type: 'ArrowFunctionExpression',
+        parent: locateFileProp
+      };
+      visitor.TemplateLiteral?.({
+        type: 'TemplateLiteral',
+        parent: arrowFn,
+        quasis: [{ value: { raw: './node_modules/sql.js/dist/' } }, { value: { raw: '' } }],
+        expressions: [{ type: 'Identifier', name: 'file' }]
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: no-redundant-constant-alias ignores 1-2 char math shorthand (const T = KANTO_TILE_SIZE) and exported semantic aliases', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-redundant-constant-alias'];
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+
+      visitor.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        id: { type: 'Identifier', name: 'T' },
+        init: { type: 'Identifier', name: 'KANTO_TILE_SIZE' }
+      });
+      expect(reports).toHaveLength(0);
+
+      const exportDecl: OxlintAstNode = { type: 'ExportNamedDeclaration' };
+      const varDecl: OxlintAstNode = { type: 'VariableDeclaration', parent: exportDecl };
+      visitor.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        parent: varDecl,
+        id: { type: 'Identifier', name: 'CANONICAL_OCEAN_SHORE_BRUSH' },
+        init: { type: 'Identifier', name: 'CANONICAL_SAND_OCEAN_SHORE_BRUSH' }
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: no-hardcoded-secrets ignores official public supabase-demo local JWT', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-hardcoded-secrets'];
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+
+      // Payload base64url for {"iss":"supabase-demo","role":"anon"} is eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ
+      visitor.Literal?.({
+        type: 'Literal',
+        value:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE'
+      });
+      expect(reports).toHaveLength(0);
     });
 
     it('CANARY: unsafe-path-concat ignores HTTP URLs with query parameters and web variables', () => {

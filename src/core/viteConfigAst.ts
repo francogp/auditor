@@ -715,13 +715,9 @@ export function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonl
 
 function resolveDynamicScriptExemptGlobs(auditConfig: AuditConfig): readonly string[] {
   const paths = auditConfig.paths;
-  if (!paths) return ['vite.plugins.ts'];
+  if (!paths) return [];
 
-  const roots = candidateRootsToExemptGlobs([
-    ...(paths.scriptsRoots ?? []),
-    ...(paths.cliRoots ?? [])
-  ]);
-  return Array.from(new Set([...roots, 'vite.plugins.ts']));
+  return candidateRootsToExemptGlobs([...(paths.scriptsRoots ?? []), ...(paths.cliRoots ?? [])]);
 }
 
 export function resolveDynamicDemoExemptGlobs(auditConfig: AuditConfig): readonly string[] {

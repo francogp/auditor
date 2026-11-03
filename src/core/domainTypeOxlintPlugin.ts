@@ -222,6 +222,53 @@ function isMutatedOrTypedStringBuffer(node: OxlintAstNode, context: OxlintRuleCo
   );
 }
 
+function hasEventListenerOnceOption(args: readonly OxlintAstNode[]): boolean {
+  if (args.length < 3) return false;
+  const opt = args[2] as {
+    type?: string;
+    properties?: readonly { key?: OxlintAstNode; value?: OxlintAstNode }[];
+  };
+  if (opt?.type !== 'ObjectLiteralExpression' && opt?.type !== 'ObjectExpression') return false;
+  return Boolean(
+    opt.properties?.some((p) => {
+      const k = p.key?.name || (p.key as { value?: unknown })?.value;
+      const v = (p.value as { value?: unknown })?.value;
+      return k === 'once' && v === true;
+    })
+  );
+}
+
+function isDomEventLeakExemptSource(fullText: string): boolean {
+  if (
+    fullText.includes('defineStore(') ||
+    fullText.includes('createApp(') ||
+    fullText.includes('.mount(') ||
+    fullText.includes('export function initGlobal')
+  ) {
+    return true;
+  }
+  return (
+    fullText.includes('removeEventListener') ||
+    fullText.includes('cleanWorkerListener') ||
+    fullText.includes('onUnmounted') ||
+    fullText.includes('onBeforeUnmount') ||
+    fullText.includes('onScopeDispose')
+  );
+}
+
+function isInsideLocateFileProperty(node: OxlintAstNode): boolean {
+  let ancestor = node.parent;
+  let ancDepth = 0;
+  while (ancestor && ancDepth < 5) {
+    if (ancestor.type === 'Property' && ancestor.key?.name === 'locateFile') {
+      return true;
+    }
+    ancestor = ancestor.parent;
+    ancDepth++;
+  }
+  return false;
+}
+
 export const domainTypeOxlintPlugin = {
   meta: {
     name: '@francogp/domain-type',
@@ -1033,18 +1080,6 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const fname = getRuleContextFilename(context);
-        if (fname.endsWith('.worker.ts') || fname.endsWith('.worker.js')) {
-          return {};
-        }
-        const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : '';
-        if (
-          sourceCode.includes('defineStore(') ||
-          sourceCode.includes('createApp(') ||
-          sourceCode.includes('.mount(')
-        ) {
-          return {};
-        }
         const PROCESS_LIFETIME_EVENTS = new Set([
           'beforeunload',
           'unload',
@@ -1057,7 +1092,8 @@ export const domainTypeOxlintPlugin = {
           'DOMContentLoaded',
           'load',
           'online',
-          'offline'
+          'offline',
+          'session-conflict'
         ]);
         return {
           CallExpression(node: OxlintAstNode): void {
@@ -1069,6 +1105,10 @@ export const domainTypeOxlintPlugin = {
               if (callee.object?.name === 'self') {
                 return;
               }
+              const fname = getRuleContextFilename(context);
+              if (fname.endsWith('.worker.ts') || fname.endsWith('.worker.js')) {
+                return;
+              }
               const args = node.arguments ?? [];
               const firstArg = args[0];
               if (
@@ -1078,29 +1118,10 @@ export const domainTypeOxlintPlugin = {
               ) {
                 return;
               }
-              if (args.length >= 3) {
-                const opt = args[2] as {
-                  type?: string;
-                  properties?: readonly { key?: OxlintAstNode; value?: OxlintAstNode }[];
-                };
-                if (opt?.type === 'ObjectLiteralExpression' || opt?.type === 'ObjectExpression') {
-                  const hasOnceTrue = opt.properties?.some((p) => {
-                    const k = p.key?.name || (p.key as { value?: unknown })?.value;
-                    const v = (p.value as { value?: unknown })?.value;
-                    return k === 'once' && v === true;
-                  });
-                  if (hasOnceTrue) return;
-                }
-              }
+              if (hasEventListenerOnceOption(args)) return;
 
               const fullText = context.getSourceCode ? context.getSourceCode().getText() : '';
-              const hasCleanup =
-                fullText.includes('removeEventListener') ||
-                fullText.includes('onUnmounted') ||
-                fullText.includes('onBeforeUnmount') ||
-                fullText.includes('onScopeDispose');
-
-              if (!hasCleanup) {
+              if (!isDomEventLeakExemptSource(fullText)) {
                 context.report({
                   node,
                   message:
@@ -1477,28 +1498,24 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const fname = getRuleContextFilename(context);
-        if (fname && !fname.endsWith('.vue')) {
-          return {};
-        }
-
-        const sourceCode = context.getSourceCode?.()?.getText() ?? '';
-        const templateMatch = /<template[\s>]/i.exec(sourceCode);
-        const templateEnd = sourceCode.lastIndexOf('</template>');
-        const templateStart = templateMatch ? templateMatch.index : -1;
-        if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) {
-          return {};
-        }
-
         return {
           CallExpression(node: OxlintAstNode): void {
-            if (templateStart >= 0 && templateEnd > templateStart && node.range) {
+            const fname = getRuleContextFilename(context);
+            if (fname && !fname.endsWith('.vue')) {
+              return;
+            }
+            const sourceCode = context.getSourceCode?.()?.getText() ?? '';
+            const templateMatch = /<template[\s>]/i.exec(sourceCode);
+            const templateEnd = sourceCode.lastIndexOf('</template>');
+            const templateStart = templateMatch ? templateMatch.index : -1;
+            if (!templateMatch || templateStart < 0 || templateEnd <= templateStart) {
+              return;
+            }
+            if (node.range) {
               const start = node.range[0];
               if (start < templateStart || start > templateEnd) {
                 return;
               }
-            } else if (fname && !templateMatch) {
-              return;
             }
 
             const callee = node.callee;
@@ -1561,6 +1578,8 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
+        const SENSITIVE_CRYPTO_IDENT =
+          /(?:token|secret|password|nonce|salt|auth|session|csrf|jwt|api_?key|private_?key|signature)/i;
         return {
           CallExpression(node: OxlintAstNode): void {
             const callee = node.callee;
@@ -1569,8 +1588,30 @@ export const domainTypeOxlintPlugin = {
               callee.object?.name === 'Math' &&
               callee.property?.name === 'random'
             ) {
-              const fullSource = context.getSourceCode ? context.getSourceCode().getText() : '';
-              if (/token|secret|password|nonce|salt|auth/i.test(fullSource)) {
+              let cur = node.parent;
+              let isSensitive = false;
+              let depth = 0;
+              while (cur && depth < 6) {
+                const candidateName =
+                  cur.id?.name ??
+                  cur.key?.name ??
+                  (typeof cur.key?.value === 'string' ? cur.key.value : undefined) ??
+                  (cur.left?.type === 'Identifier' ? cur.left.name : cur.left?.property?.name);
+                if (
+                  typeof candidateName === 'string' &&
+                  SENSITIVE_CRYPTO_IDENT.test(candidateName)
+                ) {
+                  isSensitive = true;
+                  break;
+                }
+                cur = cur.parent;
+                depth++;
+              }
+              if (!isSensitive && !node.parent) {
+                const fullSource = context.getSourceCode ? context.getSourceCode().getText() : '';
+                isSensitive = SENSITIVE_CRYPTO_IDENT.test(fullSource);
+              }
+              if (isSensitive) {
                 context.report({
                   node,
                   message:
@@ -1713,6 +1754,12 @@ export const domainTypeOxlintPlugin = {
             ) {
               const idName = node.id.name;
               const initName = node.init.name;
+              if (idName.length <= 2) {
+                return;
+              }
+              if (node.parent?.parent?.type === 'ExportNamedDeclaration') {
+                return;
+              }
               const isUpper = /^[A-Z0-9_]+$/.test(idName) && /^[A-Z0-9_]+$/.test(initName);
               if (isUpper) {
                 context.report({
@@ -1803,6 +1850,9 @@ export const domainTypeOxlintPlugin = {
             ) {
               return;
             }
+            if (isInsideLocateFileProperty(node)) {
+              return;
+            }
             // A filesystem path is not a multi-word message or sentence
             if (
               fullRaw.includes(' ') &&
@@ -1833,7 +1883,7 @@ export const domainTypeOxlintPlugin = {
             const hasPathExpr = (node.expressions ?? []).some((expr) => {
               const exprName = (expr as { name?: string })?.name ?? '';
               if (isUrlExpr(exprName)) return false;
-              return /path|dir|folder|file|root|base|dest|cwd|src|target/i.test(exprName);
+              return /(?:path|dir|folder|file|root|base|dest|cwd|target)$/i.test(exprName);
             });
             const hasPathQuasiPrefix = quasis.some((q) => {
               const raw = q.value?.raw ?? '';
@@ -1981,20 +2031,20 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : '';
-        if (sourceCode) {
-          const isNodeContext =
-            sourceCode.includes('node:') ||
-            sourceCode.includes('process.') ||
-            sourceCode.includes('import.meta.dirname');
-          if (!isNodeContext) {
-            return {};
-          }
-        }
         return {
           CallExpression(node: OxlintAstNode): void {
             const callee = node.callee;
             if (callee?.type === 'MemberExpression' && callee.property?.name === 'split') {
+              const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : '';
+              if (sourceCode) {
+                const isNodeContext =
+                  sourceCode.includes('node:') ||
+                  sourceCode.includes('process.') ||
+                  sourceCode.includes('import.meta.dirname');
+                if (!isNodeContext) {
+                  return;
+                }
+              }
               const getObjName = (target: OxlintAstNode | undefined): string => {
                 if (!target) return '';
                 if (target.type === 'Identifier') return target.name ?? '';
@@ -2039,6 +2089,10 @@ export const domainTypeOxlintPlugin = {
           Literal(node: OxlintAstNode): void {
             if (typeof node.value === 'string' && node.value.length >= 8) {
               const str = node.value;
+              // Exempt official public local Supabase CLI demo JWT (iss: "supabase-demo")
+              if (str.includes('eyJpc3MiOiJzdXBhYmFzZS1kZW1vI')) {
+                return;
+              }
               if (/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/.test(str)) {
                 context.report({
                   node,
@@ -2190,18 +2244,18 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const fname = getRuleContextFilename(context);
-        if (
-          fname &&
-          (fname.endsWith('cittyHarness.ts') ||
-            fname.endsWith('cliUtils.ts') ||
-            fname.endsWith('setup_env.ts') ||
-            fname.endsWith('check_environment.ts'))
-        ) {
-          return {};
-        }
         return {
           MemberExpression(node: OxlintAstNode): void {
+            const fname = getRuleContextFilename(context);
+            if (
+              fname &&
+              (fname.endsWith('cittyHarness.ts') ||
+                fname.endsWith('cliUtils.ts') ||
+                fname.endsWith('setup_env.ts') ||
+                fname.endsWith('check_environment.ts'))
+            ) {
+              return;
+            }
             const isProcessArgv = node.object?.name === 'process' && node.property?.name === 'argv';
             const isDenoArgs = node.object?.name === 'Deno' && node.property?.name === 'args';
             const isBunArgv = node.object?.name === 'Bun' && node.property?.name === 'argv';
@@ -2249,12 +2303,12 @@ export const domainTypeOxlintPlugin = {
         }
       },
       create(context: OxlintRuleContext): OxlintRuleListener {
-        const fname = getRuleContextFilename(context);
-        if (fname && (fname.endsWith('cittyHarness.ts') || fname.endsWith('cliUtils.ts'))) {
-          return {};
-        }
         return {
           CallExpression(node: OxlintAstNode): void {
+            const fname = getRuleContextFilename(context);
+            if (fname && (fname.endsWith('cittyHarness.ts') || fname.endsWith('cliUtils.ts'))) {
+              return;
+            }
             const callee = node.callee;
             if (callee?.type === 'MemberExpression') {
               const prop = callee.property?.name;

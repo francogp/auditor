@@ -367,8 +367,7 @@ const DYNAMIC_TEST_OFF_RULES = [
   '@francogp/domain-type/no-silent-promise-catch',
   '@francogp/domain-type/no-await-in-loops-query',
   '@francogp/domain-type/no-literal-suffix-constant',
-  '@francogp/domain-type/no-raw-html-injection',
-  '@francogp/domain-type/no-redundant-constant-alias'
+  '@francogp/domain-type/no-raw-html-injection'
 ] as const;
 
 export const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
@@ -397,10 +396,7 @@ const DYNAMIC_SCRIPT_OFF_RULES = [
   '@francogp/domain-type/no-homebrew-flag-parsing',
   '@francogp/domain-type/no-homebrew-file-walker',
   '@francogp/domain-type/auditor-rule-description-limit',
-  '@francogp/domain-type/no-raw-session-storage',
-  '@francogp/domain-type/no-hardcoded-secrets',
-  '@francogp/domain-type/no-playwright-polling-waits',
-  'no-unused-expressions'
+  '@francogp/domain-type/no-raw-session-storage'
 ] as const;
 
 export const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
