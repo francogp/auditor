@@ -6,6 +6,7 @@
 
 import {
   type AuditEngineConfig,
+  type AuditPathsConfig,
   type AuditVitePlusConfig,
   type DeepPartial,
   DEFAULT_MAX_AUDIT_STALENESS_MINUTES
@@ -367,11 +368,22 @@ const DYNAMIC_TEST_OFF_RULES = [
   '@francogp/domain-type/no-silent-promise-catch',
   '@francogp/domain-type/no-await-in-loops-query',
   '@francogp/domain-type/no-literal-suffix-constant',
-  '@francogp/domain-type/no-raw-html-injection'
+  '@francogp/domain-type/no-raw-html-injection',
+  'unicorn/no-thenable'
 ] as const;
 
 export const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
   Object.fromEntries(DYNAMIC_TEST_OFF_RULES.map((rule) => [rule, 'off']));
+
+const DYNAMIC_TOOLING_OFF_RULES = [
+  'no-console',
+  'unicorn/prefer-global-this',
+  'typescript/no-floating-promises',
+  '@typescript-eslint/no-floating-promises'
+] as const;
+
+export const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
+  Object.fromEntries(DYNAMIC_TOOLING_OFF_RULES.map((rule) => [rule, 'off']));
 
 const DYNAMIC_SCRIPT_OFF_RULES = [
   'no-console',
@@ -463,35 +475,39 @@ export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
   }
 };
 
+export const DEFAULT_AUDIT_PATHS_CONFIG: AuditPathsConfig = {
+  enabled: true,
+  srcRoots: ['src'],
+  testRoots: ['tests'],
+  e2eRoots: ['tests/e2e'],
+  integrationRoots: ['tests/integration'],
+  migrationsDir: 'supabase/migrations',
+  scriptsRoots: ['scripts'],
+  codeRoots: ['src', 'scripts'],
+  cliRoots: ['src/cli'],
+  dataRoots: ['src/data'],
+  demoRoots: [],
+  componentsRoots: ['src/components'],
+  viewsRoots: ['src/views'],
+  storesRoots: ['src/stores'],
+  composablesRoots: ['src/composables'],
+  typesRoots: ['src/types'],
+  stylesRoots: ['src/styles'],
+  logicRoots: ['src/logic'],
+  loggerFiles: [],
+  toolingFiles: ['vite.plugins.ts'],
+  exemptFiles: [],
+  includeTestsInCodeAudit: false,
+  ignoreGlobs: [],
+  ignoredDirs: [],
+  unignoreDirs: [],
+  ignoredPatterns: []
+};
+
 export const DEFAULT_AUDIT_CONFIG: AuditEngineConfig = {
   name: 'Generic Project',
   auditorVersion: AUDITOR_VERSION,
-  paths: {
-    enabled: true,
-    srcRoots: ['src'],
-    testRoots: ['tests'],
-    e2eRoots: ['tests/e2e'],
-    integrationRoots: ['tests/integration'],
-    migrationsDir: 'supabase/migrations',
-    scriptsRoots: ['scripts'],
-    codeRoots: ['src', 'scripts'],
-    cliRoots: ['src/cli'],
-    dataRoots: ['src/data'],
-    demoRoots: [],
-    componentsRoots: ['src/components'],
-    viewsRoots: ['src/views'],
-    storesRoots: ['src/stores'],
-    composablesRoots: ['src/composables'],
-    typesRoots: ['src/types'],
-    stylesRoots: ['src/styles'],
-    logicRoots: ['src/logic'],
-    exemptFiles: [],
-    includeTestsInCodeAudit: false,
-    ignoreGlobs: [],
-    ignoredDirs: [],
-    unignoreDirs: [],
-    ignoredPatterns: []
-  },
+  paths: DEFAULT_AUDIT_PATHS_CONFIG,
   persistence: {
     enabled: true,
     engine: 'supabase',

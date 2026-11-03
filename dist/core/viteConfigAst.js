@@ -1,4 +1,4 @@
-import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
@@ -438,6 +438,10 @@ function resolveEffectiveLintOverrides(auditConfig) {
 	mergeDynamicOverride(effective, resolveDynamicTestExemptGlobs(auditConfig), CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, "vitest/prefer-to-be-truthy");
 	mergeDynamicOverride(effective, resolveDynamicScriptExemptGlobs(auditConfig), CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, "no-console");
 	mergeDynamicOverride(effective, resolveDynamicDemoExemptGlobs(auditConfig), CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, "no-console");
+	const toolingFiles = auditConfig.paths?.toolingFiles ?? [];
+	if (toolingFiles.length > 0) mergeDynamicOverride(effective, toolingFiles, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, "typescript/no-floating-promises");
+	const loggerFiles = auditConfig.paths?.loggerFiles ?? [];
+	if (loggerFiles.length > 0) mergeDynamicOverride(effective, loggerFiles, { "no-console": "off" }, "no-console");
 	return effective;
 }
 function buildIgnorePatternsAst(ignores, lockedSkillsIgnores = []) {

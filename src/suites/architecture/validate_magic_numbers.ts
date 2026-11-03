@@ -134,15 +134,43 @@ function isDefaultParameterValue(node: ts.Node): boolean {
   return false;
 }
 
+const FORMATTING_AND_LAYOUT_METHODS: ReadonlySet<string> = new Set([
+  'toFixed',
+  'toPrecision',
+  'slice',
+  'padEnd',
+  'padStart',
+  'repeat',
+  'substring',
+  'substr'
+]);
+
 function isPrecisionOrSliceArg(node: ts.Node): boolean {
   const p = node.parent;
   if (!p || !ts.isCallExpression(p)) return false;
   if (ts.isPropertyAccessExpression(p.expression)) {
     const methodName = p.expression.name.text;
-    const numericFormatMethods: ReadonlySet<string> = new Set(['toFixed', 'toPrecision', 'slice']);
-    if (numericFormatMethods.has(methodName)) {
+    if (FORMATTING_AND_LAYOUT_METHODS.has(methodName)) {
       return true;
     }
+  }
+  return false;
+}
+
+const CRYPTO_STANDARD_BUFFER_SIZES: ReadonlySet<number> = new Set([16, 20, 24, 32, 48, 64]);
+
+function isCryptoByteSizeArg(node: ts.Node, val: number): boolean {
+  if (!CRYPTO_STANDARD_BUFFER_SIZES.has(val)) return false;
+  const p = node.parent;
+  if (!p || !ts.isCallExpression(p)) return false;
+  let callee = '';
+  if (ts.isIdentifier(p.expression)) {
+    callee = p.expression.text;
+  } else if (ts.isPropertyAccessExpression(p.expression)) {
+    callee = p.expression.name.text;
+  }
+  if (callee === 'randomBytes') {
+    return p.arguments.length >= 1 && p.arguments[0] === node;
   }
   return false;
 }
@@ -345,6 +373,7 @@ export class ValidateMagicNumbersAuditor extends FileScanAuditor<MagicNumbersRul
           !isArrayIndex(reportedNode) &&
           !isDefaultParameterValue(reportedNode) &&
           !isPrecisionOrSliceArg(reportedNode) &&
+          !isCryptoByteSizeArg(reportedNode, val) &&
           !isObjectPropertyKey(reportedNode) &&
           !isAnimationPropertyArg(reportedNode) &&
           !isDeclaredConstant(reportedNode)

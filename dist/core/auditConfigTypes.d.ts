@@ -37,6 +37,8 @@ export interface AuditPathsConfig extends BaseAuditSubsystemConfig {
   readonly typesRoots?: readonly string[];
   readonly stylesRoots?: readonly string[];
   readonly logicRoots?: readonly string[];
+  readonly loggerFiles?: readonly string[];
+  readonly toolingFiles?: readonly string[];
   readonly exemptFiles?: readonly string[];
   readonly includeTestsInCodeAudit?: boolean;
   readonly minTestFileLines?: number;

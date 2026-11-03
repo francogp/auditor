@@ -319,7 +319,14 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/no-silent-promise-catch",
 	"@francogp/domain-type/no-await-in-loops-query",
 	"@francogp/domain-type/no-literal-suffix-constant",
-	"@francogp/domain-type/no-raw-html-injection"
+	"@francogp/domain-type/no-raw-html-injection",
+	"unicorn/no-thenable"
+].map((rule) => [rule, "off"]));
+const CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES = Object.fromEntries([
+	"no-console",
+	"unicorn/prefer-global-this",
+	"typescript/no-floating-promises",
+	"@typescript-eslint/no-floating-promises"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
@@ -405,35 +412,38 @@ const DEFAULT_VITE_PLUS_AUDIT_CONFIG = {
 		defaultFormatter: "oxc.oxc-vscode"
 	}
 };
+const DEFAULT_AUDIT_PATHS_CONFIG = {
+	enabled: true,
+	srcRoots: ["src"],
+	testRoots: ["tests"],
+	e2eRoots: ["tests/e2e"],
+	integrationRoots: ["tests/integration"],
+	migrationsDir: "supabase/migrations",
+	scriptsRoots: ["scripts"],
+	codeRoots: ["src", "scripts"],
+	cliRoots: ["src/cli"],
+	dataRoots: ["src/data"],
+	demoRoots: [],
+	componentsRoots: ["src/components"],
+	viewsRoots: ["src/views"],
+	storesRoots: ["src/stores"],
+	composablesRoots: ["src/composables"],
+	typesRoots: ["src/types"],
+	stylesRoots: ["src/styles"],
+	logicRoots: ["src/logic"],
+	loggerFiles: [],
+	toolingFiles: ["vite.plugins.ts"],
+	exemptFiles: [],
+	includeTestsInCodeAudit: false,
+	ignoreGlobs: [],
+	ignoredDirs: [],
+	unignoreDirs: [],
+	ignoredPatterns: []
+};
 const DEFAULT_AUDIT_CONFIG = {
 	name: "Generic Project",
 	auditorVersion: AUDITOR_VERSION,
-	paths: {
-		enabled: true,
-		srcRoots: ["src"],
-		testRoots: ["tests"],
-		e2eRoots: ["tests/e2e"],
-		integrationRoots: ["tests/integration"],
-		migrationsDir: "supabase/migrations",
-		scriptsRoots: ["scripts"],
-		codeRoots: ["src", "scripts"],
-		cliRoots: ["src/cli"],
-		dataRoots: ["src/data"],
-		demoRoots: [],
-		componentsRoots: ["src/components"],
-		viewsRoots: ["src/views"],
-		storesRoots: ["src/stores"],
-		composablesRoots: ["src/composables"],
-		typesRoots: ["src/types"],
-		stylesRoots: ["src/styles"],
-		logicRoots: ["src/logic"],
-		exemptFiles: [],
-		includeTestsInCodeAudit: false,
-		ignoreGlobs: [],
-		ignoredDirs: [],
-		unignoreDirs: [],
-		ignoredPatterns: []
-	},
+	paths: DEFAULT_AUDIT_PATHS_CONFIG,
 	persistence: {
 		enabled: true,
 		engine: "supabase",
@@ -799,4 +809,4 @@ function collectDeclaredSubsystems(config) {
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };
+export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, CANONICAL_DYNAMIC_TOOLING_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_AUDIT_PATHS_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };

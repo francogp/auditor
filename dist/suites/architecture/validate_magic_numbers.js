@@ -114,17 +114,41 @@ function isDefaultParameterValue(node) {
 	}
 	return false;
 }
+const FORMATTING_AND_LAYOUT_METHODS = /* @__PURE__ */ new Set([
+	"toFixed",
+	"toPrecision",
+	"slice",
+	"padEnd",
+	"padStart",
+	"repeat",
+	"substring",
+	"substr"
+]);
 function isPrecisionOrSliceArg(node) {
 	const p = node.parent;
 	if (!p || !ts.isCallExpression(p)) return false;
 	if (ts.isPropertyAccessExpression(p.expression)) {
 		const methodName = p.expression.name.text;
-		if ((/* @__PURE__ */ new Set([
-			"toFixed",
-			"toPrecision",
-			"slice"
-		])).has(methodName)) return true;
+		if (FORMATTING_AND_LAYOUT_METHODS.has(methodName)) return true;
 	}
+	return false;
+}
+const CRYPTO_STANDARD_BUFFER_SIZES = /* @__PURE__ */ new Set([
+	16,
+	20,
+	24,
+	32,
+	48,
+	64
+]);
+function isCryptoByteSizeArg(node, val) {
+	if (!CRYPTO_STANDARD_BUFFER_SIZES.has(val)) return false;
+	const p = node.parent;
+	if (!p || !ts.isCallExpression(p)) return false;
+	let callee = "";
+	if (ts.isIdentifier(p.expression)) callee = p.expression.text;
+	else if (ts.isPropertyAccessExpression(p.expression)) callee = p.expression.name.text;
+	if (callee === "randomBytes") return p.arguments.length >= 1 && p.arguments[0] === node;
 	return false;
 }
 function isObjectPropertyKey(node) {
@@ -243,7 +267,7 @@ var ValidateMagicNumbersAuditor = class extends FileScanAuditor {
 			if (ts.isNumericLiteral(node)) {
 				const { val, reportedNode } = resolveSignedNumericLiteral(node);
 				const isTimerDelay = isTimerDelayArg(reportedNode);
-				if (!(UNIVERSAL_SENTINELS.has(val) && !(isTimerDelay && val !== 0)) && !customExempt.has(val) && !isExplicitBaseLiteral(node, sourceFile) && !(STANDARD_RADIX.has(val) && isRadixArg(reportedNode)) && !((val === 2 || val === 4) && isJsonIndentation(reportedNode)) && !isArrayIndex(reportedNode) && !isDefaultParameterValue(reportedNode) && !isPrecisionOrSliceArg(reportedNode) && !isObjectPropertyKey(reportedNode) && !isAnimationPropertyArg(reportedNode) && !isDeclaredConstant(reportedNode)) {
+				if (!(UNIVERSAL_SENTINELS.has(val) && !(isTimerDelay && val !== 0)) && !customExempt.has(val) && !isExplicitBaseLiteral(node, sourceFile) && !(STANDARD_RADIX.has(val) && isRadixArg(reportedNode)) && !((val === 2 || val === 4) && isJsonIndentation(reportedNode)) && !isArrayIndex(reportedNode) && !isDefaultParameterValue(reportedNode) && !isPrecisionOrSliceArg(reportedNode) && !isCryptoByteSizeArg(reportedNode, val) && !isObjectPropertyKey(reportedNode) && !isAnimationPropertyArg(reportedNode) && !isDeclaredConstant(reportedNode)) {
 					const { line, character } = sourceFile.getLineAndCharacterOfPosition(reportedNode.getStart(sourceFile));
 					const actualLine = line + 1;
 					const actualCol = character + 1;
