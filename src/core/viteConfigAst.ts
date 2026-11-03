@@ -20,6 +20,7 @@ function isValidViteConfigContract(candidate: unknown): candidate is InferredVit
 
 import type { AuditConfig } from './auditConfig.ts';
 import {
+  CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES,
   CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES,
   CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES,
   DEFAULT_AUDIT_CONFIG,
@@ -724,38 +725,74 @@ function resolveDynamicScriptExemptGlobs(auditConfig: AuditConfig): readonly str
   return candidateRootsToExemptGlobs([...(paths.scriptsRoots ?? []), ...(paths.cliRoots ?? [])]);
 }
 
+export function resolveDynamicDemoExemptGlobs(auditConfig: AuditConfig): readonly string[] {
+  const paths = auditConfig.paths;
+  if (!paths) return [];
+
+  return candidateRootsToExemptGlobs([...(paths.demoRoots ?? [])]);
+}
+
+function mergeDynamicOverride(
+  effective: { files: readonly string[]; rules?: Readonly<Record<string, unknown>> }[],
+  globs: readonly string[],
+  canonicalRules: Readonly<Record<string, unknown>>,
+  discriminatorRule: string
+): void {
+  if (globs.length === 0) return;
+
+  const existingIndex = effective.findIndex((ov) =>
+    Boolean(
+      ov.rules &&
+      discriminatorRule in ov.rules &&
+      (discriminatorRule === 'vitest/prefer-to-be-truthy' ||
+        ov.files.some((f) => globs.includes(f)))
+    )
+  );
+
+  const existing = existingIndex >= 0 ? effective[existingIndex] : undefined;
+  if (existing) {
+    effective[existingIndex] = {
+      ...existing,
+      files: Array.from(new Set([...existing.files, ...globs])),
+      rules: {
+        ...canonicalRules,
+        ...existing.rules
+      }
+    };
+  } else {
+    effective.push({
+      files: globs,
+      rules: { ...canonicalRules }
+    });
+  }
+}
+
 export function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
   readonly files: readonly string[];
   readonly rules?: Readonly<Record<string, unknown>>;
 }[] {
   const effective = [...(auditConfig.vitePlusConfig?.lint?.overrides ?? [])];
 
-  const dynamicTestGlobs = resolveDynamicTestExemptGlobs(auditConfig);
-  if (dynamicTestGlobs.length > 0) {
-    const hasTestOverride = effective.some(
-      (ov) => ov.rules && 'vitest/prefer-to-be-truthy' in ov.rules
-    );
-    if (!hasTestOverride) {
-      effective.push({
-        files: dynamicTestGlobs,
-        rules: { ...CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES }
-      });
-    }
-  }
+  mergeDynamicOverride(
+    effective,
+    resolveDynamicTestExemptGlobs(auditConfig),
+    CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES,
+    'vitest/prefer-to-be-truthy'
+  );
 
-  const dynamicScriptGlobs = resolveDynamicScriptExemptGlobs(auditConfig);
-  if (dynamicScriptGlobs.length > 0) {
-    const hasScriptOverride = effective.some(
-      (ov) =>
-        ov.rules && 'no-console' in ov.rules && ov.files.some((f) => dynamicScriptGlobs.includes(f))
-    );
-    if (!hasScriptOverride) {
-      effective.push({
-        files: dynamicScriptGlobs,
-        rules: { ...CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES }
-      });
-    }
-  }
+  mergeDynamicOverride(
+    effective,
+    resolveDynamicScriptExemptGlobs(auditConfig),
+    CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES,
+    'no-console'
+  );
+
+  mergeDynamicOverride(
+    effective,
+    resolveDynamicDemoExemptGlobs(auditConfig),
+    CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES,
+    'no-console'
+  );
 
   return effective;
 }

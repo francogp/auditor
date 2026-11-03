@@ -298,7 +298,22 @@ const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES = Object.fromEntries([
 	"typescript/await-thenable",
 	"typescript/unbound-method",
 	"typescript/require-array-sort-compare",
-	"unicorn/no-new-array"
+	"unicorn/no-new-array",
+	"max-depth",
+	"no-script-url",
+	"typescript/no-implied-eval",
+	"no-new-func",
+	"no-unused-expressions",
+	"@francogp/domain-type/unsafe-path-concat",
+	"@francogp/domain-type/hardcoded-slash-path",
+	"@francogp/domain-type/no-record-string-key",
+	"@francogp/domain-type/ephemeral-no-source-temp-references",
+	"@francogp/domain-type/no-direct-process-argv",
+	"@francogp/domain-type/no-homebrew-flag-parsing",
+	"@francogp/domain-type/no-file-level-suppressions",
+	"@francogp/domain-type/auditor-class-inheritance",
+	"@francogp/domain-type/no-homebrew-file-walker",
+	"@francogp/domain-type/auditor-rule-description-limit"
 ].map((rule) => [rule, "off"]));
 const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"no-console",
@@ -314,7 +329,22 @@ const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES = Object.fromEntries([
 	"@francogp/domain-type/require-paginated-queries",
 	"@francogp/domain-type/no-untyped-string-set-map",
 	"@francogp/domain-type/no-direct-database-instantiation",
-	"@francogp/domain-type/require-storage-try-catch"
+	"@francogp/domain-type/require-storage-try-catch",
+	"max-depth",
+	"@francogp/domain-type/unsafe-path-concat",
+	"@francogp/domain-type/hardcoded-slash-path",
+	"@francogp/domain-type/no-record-string-key",
+	"@francogp/domain-type/no-direct-process-argv",
+	"@francogp/domain-type/no-homebrew-flag-parsing",
+	"@francogp/domain-type/no-homebrew-file-walker",
+	"@francogp/domain-type/auditor-rule-description-limit"
+].map((rule) => [rule, "off"]));
+const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES = Object.fromEntries([
+	"no-console",
+	"typescript/explicit-function-return-type",
+	"@typescript-eslint/explicit-function-return-type",
+	"@francogp/domain-type/no-insecure-random",
+	"@francogp/domain-type/no-broad-string-array"
 ].map((rule) => [rule, "off"]));
 const DEFAULT_VITE_PLUS_AUDIT_CONFIG = {
 	enabled: true,
@@ -759,4 +789,4 @@ function collectDeclaredSubsystems(config) {
 	for (const k of Object.keys(config)) if (k !== "_declaredSubsystems" && k !== "_rawPaths" && k !== "_rawConfig" && k !== "name" && Reflect.get(config, k) !== void 0) declared.add(k);
 	return declared;
 }
-export { CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };
+export { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_PRECOMPRESS_THRESHOLD_BYTES, DEFAULT_SIMILAR_CODE_THRESHOLD, DEFAULT_TEST_COVERAGE_PERCENTAGE, DEFAULT_TYPE_COVERAGE_AT_LEAST, DEFAULT_VITE_PLUS_AUDIT_CONFIG, collectDeclaredSubsystems };

@@ -346,7 +346,22 @@ const DYNAMIC_TEST_OFF_RULES = [
   'typescript/await-thenable',
   'typescript/unbound-method',
   'typescript/require-array-sort-compare',
-  'unicorn/no-new-array'
+  'unicorn/no-new-array',
+  'max-depth',
+  'no-script-url',
+  'typescript/no-implied-eval',
+  'no-new-func',
+  'no-unused-expressions',
+  '@francogp/domain-type/unsafe-path-concat',
+  '@francogp/domain-type/hardcoded-slash-path',
+  '@francogp/domain-type/no-record-string-key',
+  '@francogp/domain-type/ephemeral-no-source-temp-references',
+  '@francogp/domain-type/no-direct-process-argv',
+  '@francogp/domain-type/no-homebrew-flag-parsing',
+  '@francogp/domain-type/no-file-level-suppressions',
+  '@francogp/domain-type/auditor-class-inheritance',
+  '@francogp/domain-type/no-homebrew-file-walker',
+  '@francogp/domain-type/auditor-rule-description-limit'
 ] as const;
 
 export const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
@@ -366,11 +381,30 @@ const DYNAMIC_SCRIPT_OFF_RULES = [
   '@francogp/domain-type/require-paginated-queries',
   '@francogp/domain-type/no-untyped-string-set-map',
   '@francogp/domain-type/no-direct-database-instantiation',
-  '@francogp/domain-type/require-storage-try-catch'
+  '@francogp/domain-type/require-storage-try-catch',
+  'max-depth',
+  '@francogp/domain-type/unsafe-path-concat',
+  '@francogp/domain-type/hardcoded-slash-path',
+  '@francogp/domain-type/no-record-string-key',
+  '@francogp/domain-type/no-direct-process-argv',
+  '@francogp/domain-type/no-homebrew-flag-parsing',
+  '@francogp/domain-type/no-homebrew-file-walker',
+  '@francogp/domain-type/auditor-rule-description-limit'
 ] as const;
 
 export const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
   Object.fromEntries(DYNAMIC_SCRIPT_OFF_RULES.map((rule) => [rule, 'off']));
+
+const DYNAMIC_DEMO_OFF_RULES = [
+  'no-console',
+  'typescript/explicit-function-return-type',
+  '@typescript-eslint/explicit-function-return-type',
+  '@francogp/domain-type/no-insecure-random',
+  '@francogp/domain-type/no-broad-string-array'
+] as const;
+
+export const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES: Readonly<Record<string, 'off'>> =
+  Object.fromEntries(DYNAMIC_DEMO_OFF_RULES.map((rule) => [rule, 'off']));
 
 export const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig> = {
   enabled: true,

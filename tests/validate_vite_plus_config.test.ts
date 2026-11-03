@@ -1952,5 +1952,29 @@ export default defineConfig({
       expect(synced.modified).toBe(true);
       expect(synced.content).toContain('allowExpressions: true');
     });
+
+    it('C-CFG-77: synchronizeViteConfigAst dynamically injects demo overrides from paths.demoRoots without hardcoding', () => {
+      const initialConfig = `
+        import { defineConfig } from 'vite-plus';
+        export default defineConfig({
+          lint: { options: { typeAware: true, typeCheck: true }, rules: {} },
+          fmt: {},
+          staged: {},
+          test: {}
+        });
+      `;
+      const auditConfig = defineAuditConfig({
+        name: 'demo-project',
+        paths: {
+          demoRoots: ['ui-demo']
+        }
+      });
+      const synced = synchronizeViteConfigAst(initialConfig, auditConfig, [], [], null);
+
+      expect(synced.modified).toBe(true);
+      expect(synced.content).toContain('**/ui-demo/**');
+      expect(synced.content).toContain("'no-console': 'off'");
+      expect(synced.content).toContain("'@typescript-eslint/explicit-function-return-type': 'off'");
+    });
   });
 });

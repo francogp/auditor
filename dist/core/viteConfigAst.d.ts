@@ -37,6 +37,7 @@ export declare function extractEslintIgnoresFromAst(rawContent: string): string[
 export declare function resolveKnownViteFunctionReturnType(name: string): ts.TypeNode | null;
 export declare function buildPackAstObject(): ts.ObjectLiteralExpression;
 export declare function resolveDynamicTestExemptGlobs(auditConfig: AuditConfig): readonly string[];
+export declare function resolveDynamicDemoExemptGlobs(auditConfig: AuditConfig): readonly string[];
 export declare function resolveEffectiveLintOverrides(auditConfig: AuditConfig): readonly {
   readonly files: readonly string[];
   readonly rules?: Readonly<Record<string, unknown>>;

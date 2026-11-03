@@ -6,6 +6,7 @@ export declare const DEFAULT_PRECOMPRESS_THRESHOLD_BYTES = 512;
 export declare const DEFAULT_CANONICAL_LINT_RULES: Readonly<Record<string, 'error' | 'warn' | 'off' | readonly unknown[]>>;
 export declare const CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
 export declare const CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
+export declare const CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES: Readonly<Record<string, 'off'>>;
 export declare const DEFAULT_VITE_PLUS_AUDIT_CONFIG: Readonly<AuditVitePlusConfig>;
 export declare const DEFAULT_AUDIT_CONFIG: AuditEngineConfig;
 export declare function collectDeclaredSubsystems(config: DeepPartial<AuditEngineConfig>): Set<string>;

@@ -735,4 +735,84 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports).toHaveLength(0);
     });
   });
+
+  describe('Heuristic Refinements & False Positive Eradication Canaries', () => {
+    it('CANARY: dom-event-leak ignores Pinia stores and SPA mount entrypoints', () => {
+      const rule = domainTypeOxlintPlugin.rules['dom-event-leak'];
+      const storeContext = createMockContext({
+        text: 'export const useAuthStore = defineStore("auth", () => {});'
+      });
+      const storeVisitor = rule.create(storeContext.context);
+      expect(storeVisitor.CallExpression).toBeUndefined();
+
+      const mainContext = createMockContext({
+        text: 'createApp(App).mount("#app");'
+      });
+      const mainVisitor = rule.create(mainContext.context);
+      expect(mainVisitor.CallExpression).toBeUndefined();
+    });
+
+    it('CANARY: unsafe-path-concat ignores HTTP URLs with query parameters and web variables', () => {
+      const rule = domainTypeOxlintPlugin.rules['unsafe-path-concat'];
+      const { reports, context } = createMockContext();
+      const visitor = rule.create(context);
+
+      visitor.TemplateLiteral?.({
+        type: 'TemplateLiteral',
+        quasis: [
+          { value: { raw: '' } },
+          { value: { raw: '/rest/v1/items?select=id,name&limit=' } },
+          { value: { raw: '' } }
+        ],
+        expressions: [
+          { type: 'Identifier', name: 'baseUrl' },
+          { type: 'Identifier', name: 'limit' }
+        ]
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: hardcoded-slash-path ignores non-path variable split operations', () => {
+      const slashRule = domainTypeOxlintPlugin.rules['hardcoded-slash-path'];
+      const { reports, context } = createMockContext();
+      const slashVisitor = slashRule.create(context);
+
+      slashVisitor.CallExpression?.({
+        type: 'CallExpression',
+        callee: {
+          type: 'MemberExpression',
+          object: { type: 'Identifier', name: 'codeFile' },
+          property: { type: 'Identifier', name: 'split' }
+        },
+        arguments: [{ type: 'Literal', value: '/' }]
+      });
+      expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: no-broad-string-array allows single-item accumulator buffer typed as string[]', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-broad-string-array'];
+      const { reports, context } = createMockContext({ filename: 'src/logic/formatter.ts' });
+      const visitor = rule.create(context);
+
+      visitor.VariableDeclarator?.({
+        type: 'VariableDeclarator',
+        id: {
+          type: 'Identifier',
+          name: 'lines',
+          typeAnnotation: {
+            type: 'TSTypeAnnotation',
+            typeAnnotation: {
+              type: 'TSArrayType',
+              elementType: { type: 'TSStringKeyword' }
+            }
+          }
+        },
+        init: {
+          type: 'ArrayExpression',
+          elements: [{ type: 'Literal', value: 'Report Header' }]
+        }
+      });
+      expect(reports).toHaveLength(0);
+    });
+  });
 });

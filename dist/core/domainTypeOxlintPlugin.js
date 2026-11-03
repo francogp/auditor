@@ -53,18 +53,10 @@ function getNodePropKeyName(node) {
 	const p = node;
 	return p.key?.name ?? (typeof p.key?.value === "string" ? p.key.value : "");
 }
-const NON_DOMAIN_COLLECTION_REGEX = /\b\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills)\b/i;
+const NON_DOMAIN_COLLECTION_REGEX = /\b\w*(?:lines|parts|chunks|words|tokens|classes|errors|warnings|achievements|logs|results|missing|args|flags|files|entries|rows|queries|messages|diffs|patterns|findings|details|dirs|paths|roots|globs|labels|violations|items|commands|scripts|headers|steps|rules|types|extensions|modules|sections|subtitles|names|codes|tags|candidates|res|list|arr|output|buffer|elements|records|sources|targets|params|values|keys|props|attributes|variants|aliases|skills|identifiers|langs|languages|terms|acronyms|stopwords|ids|binaries|packages|constants|chars|nodes|specs|options|methods)\b/i;
 function getRuleContextFilename(context) {
 	const raw = context.filename || (context.getFilename ? context.getFilename() : "");
 	return raw ? raw.split("\\").join("/") : "";
-}
-function isInternalAuditorSource(fname) {
-	return fname.includes("/core/") || fname.includes("/analyzers/") || fname.includes("/suites/") || fname.includes("/cli/") || fname.includes("/tests/");
-}
-function isExemptFileFromDomainPlugin(context) {
-	const norm = getRuleContextFilename(context);
-	if (!norm) return false;
-	return norm.includes(".agents/") || norm.includes("/scratch/") || norm.includes("/tests/") || norm.includes("/assets/templates/") || norm.includes("/references/extensions/");
 }
 const domainTypeOxlintPlugin = {
 	meta: {
@@ -129,13 +121,8 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids Record<string, T> or Record<PropertyKey, T> in favor of explicit domain keys" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && isInternalAuditorSource(fname)) return {};
 				return { TSTypeReference(node) {
 					if (node.typeName?.name !== "Record") return;
-					if (fname) {
-						if (!(fname.includes("/types/") || fname.includes("/data/") || fname.endsWith(".d.ts") || fname.endsWith("Types.ts") || fname.endsWith("Schema.ts") || fname.endsWith("Model.ts") || fname.endsWith("Contract.ts"))) return;
-					}
 					const params = node.typeArguments?.params ?? node.typeParameters?.params ?? [];
 					if (params.length === 0) return;
 					const firstParam = params[0];
@@ -156,8 +143,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids new Set / new Map with string literals without canonical domain typing" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && isInternalAuditorSource(fname)) return {};
 				return { NewExpression(node) {
 					const callee = node.callee;
 					if (!callee || callee.name !== "Set" && callee.name !== "Map") return;
@@ -199,7 +184,9 @@ const domainTypeOxlintPlugin = {
 						const elements = arrayExpr.elements ?? [];
 						if (elements.length > 0 && elements.every((el) => el?.type === "Literal" && typeof el.value === "string")) {
 							const idType = node.id?.typeAnnotation?.typeAnnotation;
-							if (!idType || idType.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword") context.report({
+							const isNakedStringArray = !idType || idType.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword";
+							const isExplicitBufferAccumulator = idType?.type === "TSArrayType" && idType.elementType?.type === "TSStringKeyword" && elements.length === 1;
+							if (isNakedStringArray && !isExplicitBufferAccumulator) context.report({
 								node,
 								message: "String literal array declared without `as const`. Add `as const` or type with a canonical domain."
 							});
@@ -614,6 +601,8 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Detects addEventListener without cleanup or once: true" }
 			},
 			create(context) {
+				const sourceCode = context.getSourceCode ? context.getSourceCode().getText() : "";
+				if (sourceCode.includes("defineStore(") || sourceCode.includes("createApp(") || sourceCode.includes(".mount(")) return {};
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "addEventListener") {
@@ -708,12 +697,12 @@ const domainTypeOxlintPlugin = {
 						if (method === "mock" || method === "spyOn") {
 							const firstArg = node.arguments?.[0];
 							const target = typeof firstArg?.value === "string" ? firstArg.value : "";
-							const filename = context.filename || (context.getFilename ? context.getFilename() : "");
-							const isIntegration = filename.includes("integration") || /tests[\\/]integration/i.test(filename);
-							const isForbiddenTarget = target.includes("supabase") || target.includes("db") || target.includes("@/logic/db");
+							const filename = getRuleContextFilename(context);
+							const isIntegration = /(?:^|[._/-])integration(?:[._/-]|$)/i.test(filename);
+							const isForbiddenTarget = /supabase|database|\bdb\b|persistence|repository/i.test(target);
 							if (isIntegration && isForbiddenTarget) context.report({
 								node,
-								message: `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in tests/integration/.`
+								message: `Tautological mock detected in integration test. Mocking core execution engine '${target}' is strictly forbidden in integration tests.`
 							});
 						}
 					}
@@ -1056,8 +1045,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids assembling filesystem paths via string concatenation ('+', template literals)" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && isInternalAuditorSource(fname)) return {};
 				return {
 					TemplateLiteral(node) {
 						const quasis = node.quasis ?? [];
@@ -1065,10 +1052,14 @@ const domainTypeOxlintPlugin = {
 						if (firstRaw.startsWith("/") || /^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(firstRaw)) return;
 						if (quasis.length === 2 && (firstRaw === "./" || firstRaw === "../") && quasis[1]?.value?.raw === "") return;
 						const fullRaw = quasis.map((q) => q.value?.raw ?? "").join("");
+						if (fullRaw.includes("?") || fullRaw.includes("&") || /\/(?:api|rest|auth|embed|assets|v\d+)\//i.test(fullRaw)) return;
 						if (fullRaw.includes(" ") && (fullRaw.includes(". ") || fullRaw.includes(": ") || fullRaw.includes("? ") || fullRaw.split(" ").length > 3)) return;
 						if (!quasis.some((q) => typeof q.value?.raw === "string" && (q.value.raw.includes("/") || q.value.raw.includes("\\\\"))) || (node.expressions?.length ?? 0) === 0) return;
+						const isUrlExpr = (name) => /^(?:base|api)?(?:url|endpoint|origin|host|uri|href|link)$/i.test(name);
+						if (isUrlExpr((node.expressions?.[0])?.name ?? "")) return;
 						const hasPathExpr = (node.expressions ?? []).some((expr) => {
 							const exprName = expr?.name ?? "";
+							if (isUrlExpr(exprName)) return false;
 							return /path|dir|folder|file|root|base|dest|cwd|src|target/i.test(exprName);
 						});
 						const hasPathQuasiPrefix = quasis.some((q) => {
@@ -1084,8 +1075,8 @@ const domainTypeOxlintPlugin = {
 						if (node.operator === "+") {
 							const left = node.left;
 							const right = node.right;
-							const isPathStr = (val) => typeof val === "string" && (val === "/" || val === "\\" || val.includes("/") || val.includes("\\"));
-							const isPathName = (name) => typeof name === "string" && /path|dir|folder|file|root|base/i.test(name);
+							const isPathStr = (val) => typeof val === "string" && (val === "/" || val === "\\" || val.includes("/") || val.includes("\\")) && !val.includes("?") && !val.includes("&") && !/\/(?:api|rest|auth|embed|assets|v\d+)\//i.test(val);
+							const isPathName = (name) => typeof name === "string" && !/url|endpoint|origin|host|uri|href|link/i.test(name) && /path|dir|folder|file|root|base/i.test(name);
 							if (isPathStr(left?.value) && (isPathName(right?.name) || right?.type === "CallExpression") || isPathStr(right?.value) && (isPathName(left?.name) || left?.type === "CallExpression")) context.report({
 								node,
 								message: "Unsafe path concatenation via '+' operator. Use 'path.join()' or 'path.resolve()' from 'node:path'."
@@ -1155,8 +1146,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Forbids hardcoding '\\' or '/' in string split() operations on path variables" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && isInternalAuditorSource(fname)) return {};
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.property?.name === "split") {
@@ -1167,7 +1156,7 @@ const domainTypeOxlintPlugin = {
 							return "";
 						};
 						const objName = getObjName(callee.object);
-						if (objName && !/path|file|dir|folder|root/i.test(objName)) return;
+						if (!objName || !/(?:path|dir|folder)/i.test(objName)) return;
 						const arg = node.arguments?.[0];
 						if (arg?.type === "Literal" && typeof arg.value === "string" && (arg.value === "\\" || arg.value === "\\\\" || arg.value === "/")) context.report({
 							node,
@@ -1218,7 +1207,9 @@ const domainTypeOxlintPlugin = {
 			create(context) {
 				return { Literal(node) {
 					if (typeof node.value === "string") {
-						if (/(?:^|[/'"`])(?:src|scripts|tests|supabase|data|database)\/(?:temp|tmp|temp_\w+|tmp_\w+)\b/.test(node.value)) context.report({
+						const val = node.value.trim();
+						if (!val || val.endsWith("/**") || val.endsWith("/*") || val.startsWith("scratch/") || val.startsWith("./scratch/") || val.includes("/scratch/") || /^(?:https?:|git\+|data:|ftp:|file:\/\/)/i.test(val) || val.includes("?") || val.includes("&")) return;
+						if ((val.includes("/") || val.includes("\\")) && /(?:[\\/])(?:temp|tmp|temp_\w+|tmp_\w+)(?:[\\/]|$)/i.test(val)) context.report({
 							node,
 							message: "Forbidden reference to ephemeral path inside source code tree. All temporary databases and scratch artifacts must reside strictly inside 'scratch/'."
 						});
@@ -1267,7 +1258,7 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				const fname = getRuleContextFilename(context);
-				if (fname && (fname.includes("/cli/") || fname.includes("/core/cli/") || fname.includes("cittyHarness") || fname.includes("cliUtils") || fname.includes("setup_env") || fname.includes("check_environment") || fname.includes("/tests/"))) return {};
+				if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts") || fname.endsWith("setup_env.ts") || fname.endsWith("check_environment.ts"))) return {};
 				return { MemberExpression(node) {
 					const isProcessArgv = node.object?.name === "process" && node.property?.name === "argv";
 					const isDenoArgs = node.object?.name === "Deno" && node.property?.name === "args";
@@ -1308,7 +1299,7 @@ const domainTypeOxlintPlugin = {
 			},
 			create(context) {
 				const fname = getRuleContextFilename(context);
-				if (fname && (fname.includes("/cli/") || fname.includes("/core/") || fname.includes("/analyzers/") || fname.includes("cittyHarness") || fname.includes("cliUtils") || fname.includes("/tests/"))) return {};
+				if (fname && (fname.endsWith("cittyHarness.ts") || fname.endsWith("cliUtils.ts"))) return {};
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression") {
@@ -1622,8 +1613,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Prohibits file-level suppression headers (eslint-disable, fallow-ignore, @ts-nocheck)" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && (fname.includes("/tests/") || fname.includes("scratch/"))) return {};
 				return { Program(node) {
 					const headerSlice = (context.getSourceCode ? context.getSourceCode().getText() : "").slice(0, 1e3);
 					if (/\/\*\s*eslint-disable\s*\*\/|\/\/\s*fallow-ignore-file|\/\/\s*@ts-nocheck/.test(headerSlice)) context.report({
@@ -1639,11 +1628,9 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Enforces BaseAuditor or FileScanAuditor inheritance on all Auditor classes" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && (!fname.includes("/suites/") || fname.includes("auditorBase.ts") || fname.includes("canonicalIgnoreRegistry.ts") || fname.includes("/tests/"))) return {};
 				return { ClassDeclaration(node) {
 					const className = node.id?.name;
-					if (typeof className === "string" && className.endsWith("Auditor")) {
+					if (typeof className === "string" && className.endsWith("Auditor") && className !== "BaseAuditor" && className !== "FileScanAuditor") {
 						const superClass = node.superClass?.name;
 						if (superClass !== "BaseAuditor" && superClass !== "FileScanAuditor") context.report({
 							node,
@@ -1659,8 +1646,6 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Prohibits manual recursive fs.readdirSync traversals in auditor suites" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && (!fname.includes("/suites/") || fname.includes("/tests/"))) return {};
 				return { CallExpression(node) {
 					const callee = node.callee;
 					if (callee?.type === "MemberExpression" && callee.object?.name === "fs" && callee.property?.name === "readdirSync") {
@@ -1689,14 +1674,15 @@ const domainTypeOxlintPlugin = {
 				docs: { description: "Enforces maximum length of 60 chars on auditor rule descriptions" }
 			},
 			create(context) {
-				const fname = getRuleContextFilename(context);
-				if (fname && !fname.includes("/suites/")) return {};
 				return { Property(node) {
 					const keyName = getNodePropKeyName(node);
 					const val = node.value;
 					if (keyName === "description" && val?.type === "Literal" && typeof val.value === "string") {
 						const parentKey = getNodePropKeyName(node.parent ?? {});
 						if (parentKey === "docs" || parentKey === "meta") return;
+						if (node.parent?.type === "ObjectExpression") {
+							if (!(node.parent.properties ?? []).some((p) => getNodePropKeyName(p) === "id")) return;
+						}
 						if (val.value.length > 60) context.report({
 							node,
 							message: `Rule description exceeds 60 characters ('${val.value.slice(0, 30)}...'). Provide concise single-line descriptions.`
@@ -1707,11 +1693,4 @@ const domainTypeOxlintPlugin = {
 		}
 	}
 };
-for (const rule of Object.values(domainTypeOxlintPlugin.rules)) {
-	const originalCreate = rule.create;
-	rule.create = function(context) {
-		if (isExemptFileFromDomainPlugin(context)) return {};
-		return originalCreate(context);
-	};
-}
 export { CANONICAL_INFRA_ID_WHITELIST, COMMON_NON_DOMAIN_SET_NAMES, domainTypeOxlintPlugin as default, domainTypeOxlintPlugin };

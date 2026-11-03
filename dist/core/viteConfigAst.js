@@ -1,4 +1,4 @@
-import { CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
+import { CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, DEFAULT_AUDIT_CONFIG, DEFAULT_CANONICAL_LINT_RULES, DEFAULT_VITE_PLUS_AUDIT_CONFIG } from "./auditConfigDefaults.js";
 import { normalizePosixPath } from "./reportUtils.js";
 import { isPathContained, stripGlobSuffix } from "./safePath.js";
 import { getEffectiveIgnoreGlobs, getLockedSkillsIgnoreGlobs } from "./canonicalIgnoreRegistry.js";
@@ -412,22 +412,33 @@ function resolveDynamicScriptExemptGlobs(auditConfig) {
 	if (!paths) return [];
 	return candidateRootsToExemptGlobs([...paths.scriptsRoots ?? [], ...paths.cliRoots ?? []]);
 }
+function resolveDynamicDemoExemptGlobs(auditConfig) {
+	const paths = auditConfig.paths;
+	if (!paths) return [];
+	return candidateRootsToExemptGlobs([...paths.demoRoots ?? []]);
+}
+function mergeDynamicOverride(effective, globs, canonicalRules, discriminatorRule) {
+	if (globs.length === 0) return;
+	const existingIndex = effective.findIndex((ov) => Boolean(ov.rules && discriminatorRule in ov.rules && (discriminatorRule === "vitest/prefer-to-be-truthy" || ov.files.some((f) => globs.includes(f)))));
+	const existing = existingIndex >= 0 ? effective[existingIndex] : void 0;
+	if (existing) effective[existingIndex] = {
+		...existing,
+		files: Array.from(/* @__PURE__ */ new Set([...existing.files, ...globs])),
+		rules: {
+			...canonicalRules,
+			...existing.rules
+		}
+	};
+	else effective.push({
+		files: globs,
+		rules: { ...canonicalRules }
+	});
+}
 function resolveEffectiveLintOverrides(auditConfig) {
 	const effective = [...auditConfig.vitePlusConfig?.lint?.overrides ?? []];
-	const dynamicTestGlobs = resolveDynamicTestExemptGlobs(auditConfig);
-	if (dynamicTestGlobs.length > 0) {
-		if (!effective.some((ov) => ov.rules && "vitest/prefer-to-be-truthy" in ov.rules)) effective.push({
-			files: dynamicTestGlobs,
-			rules: { ...CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES }
-		});
-	}
-	const dynamicScriptGlobs = resolveDynamicScriptExemptGlobs(auditConfig);
-	if (dynamicScriptGlobs.length > 0) {
-		if (!effective.some((ov) => ov.rules && "no-console" in ov.rules && ov.files.some((f) => dynamicScriptGlobs.includes(f)))) effective.push({
-			files: dynamicScriptGlobs,
-			rules: { ...CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES }
-		});
-	}
+	mergeDynamicOverride(effective, resolveDynamicTestExemptGlobs(auditConfig), CANONICAL_DYNAMIC_TEST_OVERRIDE_RULES, "vitest/prefer-to-be-truthy");
+	mergeDynamicOverride(effective, resolveDynamicScriptExemptGlobs(auditConfig), CANONICAL_DYNAMIC_SCRIPT_OVERRIDE_RULES, "no-console");
+	mergeDynamicOverride(effective, resolveDynamicDemoExemptGlobs(auditConfig), CANONICAL_DYNAMIC_DEMO_OVERRIDE_RULES, "no-console");
 	return effective;
 }
 function buildIgnorePatternsAst(ignores, lockedSkillsIgnores = []) {
@@ -1971,4 +1982,4 @@ function sanitizeEmptyCatchClausesInViteConfig(content) {
 		modified: true
 	};
 }
-export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };
+export { DEFAULT_CANONICAL_LINT_RULES as CANONICAL_LINT_RULES_MAP, applyViteConfigAstTransformations, astExpressionToValue, buildAllowedCoverageExcludes, buildCanonicalVitePlusAstSource, buildFmtAstObject, buildIgnorePatternsAst, buildLintAstObject, buildLockedSkillsVariableStatement, buildPackAstObject, buildRunAstObject, buildStagedAstObject, buildTestAstObject, createPropertyNameNode, detachNodeFromSourceFile, detectInlineVitePlugins, extractAstPropertyBlock, extractEslintIgnoresFromAst, extractParsedConfigSummary, extractVitePluginsToModule, findConfigRootObject, findPropertyAssignment, getPropertyKeyName, isRuleValueCompliant, parseLegacyTestPropertyNode, parseTsSourceFile, printAstNode, printTransformedSourceFile, resolveDynamicDemoExemptGlobs, resolveDynamicTestExemptGlobs, resolveEffectiveLintOverrides, resolveKnownViteFunctionReturnType, resolveVitestRoots, rewriteModuleSpecifiersToVitePlusAst, sanitizeEmptyCatchClausesInViteConfig, synchronizeViteConfigAst, valueToAstExpression };

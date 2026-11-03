@@ -44,6 +44,8 @@
  * 37. no-unvalidated-redirect: Forbids open redirects with unvalidated parameters.
  *
  * All rules strictly inspect AST nodes without bypass comments (Zero-Ignore Mandate).
+ * INVARIANT: Zero hardcoded directory names or folder paths. Rules MUST be pure AST visitors;
+ * scoping belongs 100% to SSoT (.auditor/audit.config.ts.paths) and DYNAMIC_*_OFF_RULES.
  */
 export interface OxlintAstNode {
   readonly type?: string;
