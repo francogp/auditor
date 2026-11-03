@@ -887,18 +887,56 @@ describe('domainTypeOxlintPlugin (3-Tier Canary Test Matrix)', () => {
       expect(reports).toHaveLength(0);
     });
 
-    it('CANARY: no-hardcoded-secrets ignores official public supabase-demo local JWT', () => {
+    it('CANARY: no-hardcoded-secrets ignores official public supabase local JWTs and security probe test tokens', () => {
       const rule = domainTypeOxlintPlugin.rules['no-hardcoded-secrets'];
       const { reports, context } = createMockContext();
       const visitor = rule.create(context);
 
-      // Payload base64url for {"iss":"supabase-demo","role":"anon"} is eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ
+      // Payload base64url for {"iss":"supabase-demo","role":"anon"}
       visitor.Literal?.({
         type: 'Literal',
         value:
           'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24ifQ.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE'
       });
+      // Payload base64url for {"role":"anon","iss":"supabase","iat":1600000000,"exp":2500000000}
+      visitor.Literal?.({
+        type: 'Literal',
+        value:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlIiwiaWF0IjoxNjAwMDAwMDAwLCJleHAiOjI1MDAwMDAwMDB9.bWuWcdy1ICtTs7Zq7TNjum7G0VIS5je9rFlzshoeBLA'
+      });
+      // Forged signature probe token
+      visitor.Literal?.({
+        type: 'Literal',
+        value:
+          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaWF0IjoxNjAwMDAwMDAwfQ.invalid_forged_signature_probe_hash'
+      });
       expect(reports).toHaveLength(0);
+    });
+
+    it('CANARY: no-raw-local-storage ignores OPFS storage adapter modules implementing navigator.storage.getDirectory fallback', () => {
+      const rule = domainTypeOxlintPlugin.rules['no-raw-local-storage'];
+      let currentText =
+        'const root = await navigator.storage.getDirectory();\nlocalStorage.removeItem(k);';
+      const reports: OxlintReportDescriptor[] = [];
+      const context: OxlintRuleContext = {
+        report: (d) => reports.push(d),
+        getSourceCode: () => ({ getText: () => currentText })
+      };
+      const visitor = rule.create(context);
+      visitor.MemberExpression?.({
+        type: 'MemberExpression',
+        object: { type: 'Identifier', name: 'localStorage' },
+        property: { type: 'Identifier', name: 'removeItem' }
+      });
+      expect(reports).toHaveLength(0);
+
+      currentText = 'localStorage.removeItem(k);';
+      visitor.MemberExpression?.({
+        type: 'MemberExpression',
+        object: { type: 'Identifier', name: 'localStorage' },
+        property: { type: 'Identifier', name: 'removeItem' }
+      });
+      expect(reports).toHaveLength(1);
     });
 
     it('CANARY: unsafe-path-concat ignores HTTP URLs with query parameters and web variables', () => {

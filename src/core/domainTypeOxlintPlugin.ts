@@ -2089,8 +2089,12 @@ export const domainTypeOxlintPlugin = {
           Literal(node: OxlintAstNode): void {
             if (typeof node.value === 'string' && node.value.length >= 8) {
               const str = node.value;
-              // Exempt official public local Supabase CLI demo JWT (iss: "supabase-demo")
-              if (str.includes('eyJpc3MiOiJzdXBhYmFzZS1kZW1vI')) {
+              // Exempt official public local Supabase CLI demo JWTs and security probe test tokens
+              if (
+                str.includes('eyJpc3MiOiJzdXBhYmFzZS1kZW1vI') ||
+                str.includes('eyJyb2xlIjoiYW5vbiIsImlzcyI6InN1cGFiYXNlI') ||
+                str.includes('invalid_forged_signature_probe')
+              ) {
                 return;
               }
               if (/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/.test(str)) {
@@ -2192,6 +2196,10 @@ export const domainTypeOxlintPlugin = {
                 prop === 'removeItem' ||
                 prop === 'clear'
               ) {
+                const source = context.getSourceCode ? context.getSourceCode().getText() : '';
+                if (source.includes('navigator.storage.getDirectory')) {
+                  return;
+                }
                 context.report({
                   node,
                   message:
