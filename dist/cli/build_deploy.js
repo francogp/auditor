@@ -2,6 +2,7 @@
 import { COMMON_CLI_ARGS, getProcessCliArgs, parseCittyArgs } from "../core/cli/cittyHarness.js";
 import "../core/permissionGuard.js";
 import { isMainModule } from "./cliUtils.js";
+import { ensureMandatoryDirectoriesExist } from "../core/auditBootstrap.js";
 import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 // src/cli/build_deploy.ts
 /**
@@ -16,6 +17,7 @@ import { runNpmCommandSync } from "../core/npmCommandUtils.js";
 function runBuildDeploy(extraArgs = []) {
 	parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
 	process.env.AUDITOR_ENV = "production";
+	ensureMandatoryDirectoriesExist(process.cwd());
 	const args = [
 		"run",
 		"build",

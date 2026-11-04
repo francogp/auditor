@@ -17,6 +17,7 @@ import path from 'node:path';
 import type { AuditFindingAttribution } from 'fallow/types';
 
 import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from '../../cli/cliUtils.ts';
+import { ensureMandatoryDirectoriesExist } from '../../core/auditBootstrap.ts';
 import { getAuditConfig, isCliPath } from '../../core/auditConfig.ts';
 import { DEFAULT_AUDIT_CONFIG } from '../../core/auditConfigDefaults.ts';
 import type {
@@ -877,6 +878,8 @@ export class FallowArchitectureAuditor extends BaseAuditor<FallowRuleId> {
 
   public override async runAudit(): Promise<void> {
     if (this.isSuiteGatingDisabled('Fallow disabled in configuration')) return;
+
+    ensureMandatoryDirectoriesExist(this.projectRoot);
 
     // Mark rules evaluated or not applicable according to the active tier
     for (const rule of FALLOW_RULES) {

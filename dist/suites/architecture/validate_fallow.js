@@ -8,6 +8,7 @@ import { DEFAULT_SUBPROCESS_MAX_BUFFER_BYTES } from "../../cli/cliUtils.js";
 import { deriveCoverageFromRoots } from "../../core/auditCoverage.js";
 import { BaseAuditor } from "../../core/auditorBase.js";
 import { resolveFallowBinary } from "./validate_similar_code.js";
+import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import path from "node:path";
 import fs from "node:fs";
 import { execSync } from "node:child_process";
@@ -492,6 +493,7 @@ var FallowArchitectureAuditor = class extends BaseAuditor {
 	}
 	async runAudit() {
 		if (this.isSuiteGatingDisabled("Fallow disabled in configuration")) return;
+		ensureMandatoryDirectoriesExist(this.projectRoot);
 		for (const rule of FALLOW_RULES) if (this.isRuleActiveForCurrentRun(rule)) this.markRuleEvaluated(rule);
 		else this.markRuleNotApplicable(rule, `Skipped in tier '${this.getExecutionTier()}'`);
 		this.recordExternalScanCount(1);

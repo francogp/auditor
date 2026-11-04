@@ -10,6 +10,7 @@ import { SATELLITE_CONFIG_EXPLANATIONS } from "../../core/auditContract.js";
 import { BaseAuditor, createRuleCapabilities, createUniformRemediationPhases } from "../../core/auditorBase.js";
 import { getAllowedSatellitePathExcludes, validateSatelliteUndeclaredEntries } from "../../core/satelliteGlobMatcher.js";
 import { deepCompareSatelliteConfig, mergeSatelliteConfigProjection } from "../../core/satelliteConfigParity.js";
+import { ensureMandatoryDirectoriesExist } from "../../core/auditBootstrap.js";
 import "./validate_fallow.js";
 import { enableCompileCache } from "node:module";
 import path from "node:path";
@@ -643,6 +644,7 @@ var ValidateFallowConfigAuditor = class ValidateFallowConfigAuditor extends Base
 		});
 	}
 	async runAudit() {
+		ensureMandatoryDirectoriesExist(this.projectRoot);
 		const requirement = this.configFiles[0] ?? FALLOW_CONFIG_REQUIREMENT;
 		const ensured = await this.runSubAuditor("fallow-config-missing", async () => {
 			return await this.ensureConfigFile(requirement);

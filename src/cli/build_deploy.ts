@@ -9,6 +9,7 @@
  * styles, and post-build bundle budget verification gates.
  */
 
+import { ensureMandatoryDirectoriesExist } from '../core/auditBootstrap.ts';
 import { getProcessCliArgs, parseCittyArgs, COMMON_CLI_ARGS } from '../core/cli/cittyHarness.ts';
 import { runNpmCommandSync } from '../core/npmCommandUtils.ts';
 import { isMainModule } from './cliUtils.ts';
@@ -17,6 +18,8 @@ import '../core/permissionGuard.ts';
 export function runBuildDeploy(extraArgs: readonly string[] = []): number {
   parseCittyArgs(COMMON_CLI_ARGS, extraArgs);
   process.env.AUDITOR_ENV = 'production';
+
+  ensureMandatoryDirectoriesExist(process.cwd());
 
   const args = ['run', 'build', ...extraArgs];
 

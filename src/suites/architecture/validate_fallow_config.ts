@@ -15,6 +15,7 @@ import fs from 'node:fs';
 import { enableCompileCache } from 'node:module';
 import path from 'node:path';
 
+import { ensureMandatoryDirectoriesExist } from '../../core/auditBootstrap.ts';
 import { getAuditConfig } from '../../core/auditConfig.ts';
 import { DEFAULT_SIMILAR_CODE_THRESHOLD } from '../../core/auditConfigDefaults.ts';
 import {
@@ -1038,6 +1039,7 @@ export class ValidateFallowConfigAuditor extends BaseAuditor<FallowConfigRuleId>
   }
 
   public override async runAudit(): Promise<void> {
+    ensureMandatoryDirectoriesExist(this.projectRoot);
     const requirement = this.configFiles[0] ?? FALLOW_CONFIG_REQUIREMENT;
     const ensured = await this.runSubAuditor('fallow-config-missing', async () => {
       return await this.ensureConfigFile(requirement);
